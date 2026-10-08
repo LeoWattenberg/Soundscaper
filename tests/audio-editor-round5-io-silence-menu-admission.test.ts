@@ -36,7 +36,8 @@ function menu(productId: 'framescaper' | 'soundscaper', editBlocked = false, sel
 	});
 	const selectedClip = selected ? project.clips.find(candidate => candidate.kind !== 'video') : null;
 	assert.ok(!selected || selectedClip);
-	const selectedTrackId = project.tracks.find(track => selectedClip && track.clipIds.includes(selectedClip.id))?.id ?? null;
+	const selectedTrackId = project.tracks.find(track => selectedClip
+		&& Array.isArray(track.clipIds) && track.clipIds.includes(selectedClip.id))?.id ?? null;
 	const called: string[] = [];
 	const menus = createApplicationMenus({ productId, aboutLabel: 'About',
 		capabilities: PRODUCT_PROFILES[productId].capabilities, locale: 'en', copy: ENGLISH_COPY,
