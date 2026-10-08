@@ -92,7 +92,10 @@ target_include_directories(soundscaper_professional_vamp PUBLIC
 )
 target_link_libraries(soundscaper_professional_vamp PRIVATE ${CMAKE_DL_LIBS})
 if(MSVC)
-	target_compile_options(soundscaper_professional_vamp PRIVATE /Gy /Gw)
+	# Window.h needs M_PI before the SDK's own fallback is defined. Import the
+	# CRT constants explicitly, including when /Zc:cmath is enabled.
+	target_compile_options(soundscaper_professional_vamp PRIVATE
+		/Gy /Gw /FIcorecrt_math_defines.h)
 else()
 	# PluginHostAdapter.cpp also defines the SDK's legacy getPluginPath helper.
 	# We never link its ambient-search section: exact-path loading lives solely
