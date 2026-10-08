@@ -7,7 +7,8 @@ R6-EFFECT-001–011 pass their ordinary public workflows in Chromium, Firefox an
 WebKit on immutable Green7 `e139818a9`
 (`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`). Firefox uses the
 repository's qualified CI audio null sink. R6-EFFECT-012 remains pending public
-GREEN on a later build and is not yet counted.
+GREEN on a later build and is not yet counted. R6-EFFECT-013 has focused GREEN
+and remains pending public GREEN as well.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -323,6 +324,36 @@ types and targeted type-aware lint pass. Public GREEN awaits the next immutable
 product build; its assertions check both replaced tones and both originals
 restored by one Undo. R3-ROOT-017 and EDIT012 concern the independently owned
 native-generator adapter and allocator, respectively.
+
+## R6-EFFECT-013 — An advertised Contrast macro silently reports success
+
+Import an ordinary WAV, Select all, Tools → Macros palette → New program, and
+run `await sound.command('ContrastAnalyser');`. The macro-program reference
+advertises this as a supported parameterless analysis command. The baseline
+reports `Program applied.` without taking any Contrast measurement. The
+required foreground/background role is absent, and the ordinary analysis task
+wrapper handles that error instead of rejecting the macro call.
+
+Mark this interactive registry entry non-runnable, omit it from the executable
+command inventory and correct its handbook advertisement. Refuse it before
+invoking analysis. Preserve legacy step normalization, complete saved-library
+loading and export, so an earlier saved macro cannot make its library unreadable.
+The normal Analyze → Contrast dialog retains explicit foreground/background
+measurements. The role omission and false completion report share this one
+command admission correction; they are not counted separately.
+
+The ordinary typed-program browser workflow is causally RED: it completes but
+never reaches its catch log with an unsupported-command refusal
+(`/tmp/soundscaper-r6-effects-macro-contrast-admission-browser-red.log`). Two
+strict catalogue/dispatch regressions independently fail before correction
+(`/tmp/soundscaper-r6-effects-macro-contrast-admission-node-red.log`). All 45
+focused command, controller, macro-library and program cases pass after repair
+(`/tmp/soundscaper-r6-effects-macro-contrast-admission-node-green.log`). The
+follow-up existing-library preservation control also passes
+(`/tmp/soundscaper-r6-effects-macro-contrast-admission-preservation-green.log`).
+Strict types, targeted type-aware lint and the file-size gate pass. Public GREEN
+awaits the next immutable product build; its ordinary Contrast measurement
+controls check that the supported menu workflow remains intact.
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.

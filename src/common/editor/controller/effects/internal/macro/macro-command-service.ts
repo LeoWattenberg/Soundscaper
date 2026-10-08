@@ -59,9 +59,10 @@ const TRACK_MODES = Object.freeze({ set: 'set', add: 'add', remove: 'remove' } a
 
 /** Whether this build can run the command a step names. */
 export function isRunnableMacroCommand(command: string): boolean {
+	const menuCommand = audacityMacroMenuCommand(command);
 	return command === 'Select' || command === 'SelectTime'
 		|| command === 'SelectFrequencies' || command === 'SelectTracks'
-		|| audacityMacroMenuCommand(command) !== null;
+		|| (menuCommand !== null && menuCommand.runnable !== false);
 }
 
 export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
