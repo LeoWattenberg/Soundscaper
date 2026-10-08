@@ -152,7 +152,12 @@ test('native repair refuses a divergent root beyond page one acquired after the 
 		const badKey = JSON.stringify(['catalog', null, 'photo-128']);
 		const badRoot = await read('catalogOriginalRoots', badKey);
 		const originalArrayBuffer = Blob.prototype.arrayBuffer;
-		let bodyReads = 0;
+		const originalPut = IDBObjectStore.prototype.put;
+		let bodyReads = 0, stagedChunks = 0;
+		IDBObjectStore.prototype.put = function (...args) {
+			if (this.name === 'mediaAssetChunks') stagedChunks++;
+			return originalPut.apply(this, args);
+		};
 		Blob.prototype.arrayBuffer = async function () {
 			if (++bodyReads === 2) {
 				await new Promise((resolve, reject) => {
@@ -176,14 +181,15 @@ test('native repair refuses a divergent root beyond page one acquired after the 
 				}
 				transaction.oncomplete = () => resolve(counts); transaction.onabort = () => reject(transaction.error);
 			});
-			return { error, bodyReads, unchanged: row.mediaContentToken === originalRow.mediaContentToken && row.storage === originalRow.storage,
+			return { error, bodyReads, stagedChunks, unchanged: row.mediaContentToken === originalRow.mediaContentToken && row.storage === originalRow.storage,
 				count: row.catalogRootCount, chunks: inventory.mediaAssetChunks.length,
 				leases: inventory.mediaAssetStaging.filter(value => value.kind === 'lease').length,
 				body: await (await media.loadAsset('original')).text(), divergentRootRetained: (await read('catalogOriginalRoots', badKey)).mediaContentToken !== badRoot.mediaContentToken };
-		} finally { Blob.prototype.arrayBuffer = originalArrayBuffer; database.close(); other.close(); }
+		} finally { Blob.prototype.arrayBuffer = originalArrayBuffer; IDBObjectStore.prototype.put = originalPut; database.close(); other.close(); }
 	}, ROOT);
 	expect(result.error).toContain('root identity is inconsistent');
-	expect(result.bodyReads).toBe(2);
+	expect(result.bodyReads).toBe(3);
+	expect(result.stagedChunks).toBe(1);
 	expect(result.unchanged).toBe(true);
 	expect(result.count).toBe(129);
 	expect(result.chunks).toBe(0);
