@@ -404,6 +404,12 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-round6-context-menu-completion.test.tsx` and the ordinary
     track-menu keyboard completion workflow. Upstream-PR candidate.
 
+56. `ClipHeader` leaves composing Enter/Escape with the native text input while
+    its inline clip-name draft is unfinished. Ordinary keyboard save/cancel and
+    the existing focus handoff remain available after composition completes.
+    Covered by `tests/audio-editor-round6-clip-name-composition.test.tsx` and the
+    public import/F2/name-confirmation/Undo/Redo workflow. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
