@@ -452,8 +452,11 @@ probe used the empty initial track and an incorrect settings locator and is
 excluded. Two strict actual Source editor target cases independently refuse
 before correction (`/tmp/soundscaper-r5-root-rack-source-profile-node-red.log`).
 Native 24 kHz and 48 kHz ownership cases plus existing capture, bus and muted
-Master support pass 31/31 afterward. Target lint passes; final guarded browser
-verification remains pending. Regressions are
+Master support pass 31/31 afterward. Target lint, focused strict types and size checks pass. The complete immutable
+`0a7c080f8` workflow captures, enables and offers Replace noise profile in
+Chromium, Firefox and WebKit (3/3, 19.0 seconds, no skips or failures;
+`/tmp/soundscaper-r5-root-rack-source-profile-green21.log`). Both guarded
+product builds pass. Regressions are
 `audio-editor-round5-rack-source-profile.test.ts` and
-`audio-editor-round5-rack-source-profile.spec.js`. ROOT-015 is not yet counted.
+`audio-editor-round5-rack-source-profile.spec.js`. ROOT-015 is counted once.
 Assistance runtime assets are unchanged.
