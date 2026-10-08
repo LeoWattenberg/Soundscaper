@@ -166,6 +166,7 @@ function owner(initial = page()) {
 	};
 	const unused = async (): Promise<never> => { throw new Error('This scalar culling fixture must not admit another feature.'); };
 	const port: PhotoLibrarySessionPortV1 = {
+		readImportPresets: unused, applyImportPreset: unused,
 		readPage: async () => initial,
 		readQueryStep: async () => ({ ...initial, scanned: initial.rows.length }),
 		rebuildQueryStep: unused, readDefinitionPage: unused,

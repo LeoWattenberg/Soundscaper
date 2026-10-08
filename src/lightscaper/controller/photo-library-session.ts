@@ -4,6 +4,7 @@ import { readClosedDomainArray } from '../../common/editor/closed-domain-value.t
 import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryDefinitionPageV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryStepV1, PhotoLibraryQueryV1, PhotoLibraryPreviewOutcomeV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1, PhotoLibraryDefinitionSnapshotV1,
 	PhotoLibraryMembershipAcknowledgementV1, PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../common/editor/photo-library-organization-port-v1.ts';
+import type { PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1, PhotoLibraryImportRequestOptionsV1 } from '../../common/editor/photo-library-import-settings-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
@@ -12,8 +13,10 @@ import { LIGHTSCAPER_CATALOG_LIMITS } from '../catalog/types.ts';
 import { field, id, integer, name, oneOf, record } from '../catalog/value-validation.ts';
 import { withPhotoCatalogWriteLockV1 } from '../import/catalog-write-lock-v1.ts';
 import { importManagedPhotosV1, recoverManagedPhotoImportV1 } from '../import/managed-import-v1.ts';
-import type { PhotoManagedImportPortsV1 } from '../import/managed-import-ports-v1.ts';
+import type { PhotoManagedImportPortsV1, PhotoManagedImportReceiptV1 } from '../import/managed-import-ports-v1.ts';
 import { preparePhotoImportGestureV1 } from '../import/photo-import-preparation-v1.ts';
+import { applyPhotoImportSettingsV1, planPhotoImportSettingsV1 } from '../import/photo-import-settings-v1.ts';
+import { applyPhotoImportPresetV1, normalizePhotoImportPresetCommandV1, readPhotoImportPresetsV1 } from '../storage/photo-import-presets-v1.ts';
 import { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoLibraryAttributesV1 } from './photo-library-attributes.ts';
 import { normalizePhotoLibraryMetadataPatchV1, readPhotoLibraryMetadataSnapshotV1 } from './photo-library-metadata.ts';
@@ -24,6 +27,7 @@ import { normalizePhotoLibraryDefinitionReadRequestV1, normalizePhotoLibraryDefi
 import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipMutationV1,
 	readPhotoLibraryMembershipsV1, applyPhotoLibraryMembershipsV1 } from './photo-library-memberships-v1.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibraryPreviewSchedulerPortV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
+import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
@@ -34,6 +38,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 	#photo: PhotoCommandOwnerV1 | null = null;
 	#previews: Promise<PhotoLibraryPreviewSchedulerPortV1> | null = null;
 	#writing = false;
+	#presetActive = false;
 	#closed = false;
 	#closing: Promise<void> | null = null;
 
@@ -129,27 +134,60 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 		}, options.signal);
 	}
 
-	async importFiles(files: readonly File[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<readonly PhotoLibraryImportItemV1[]> {
+	async readImportPresets(options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryImportPresetSnapshotV1> {
+		const request = admitPhotoLibraryQueryBuildRequestV1(options), settings = this.#ports.settings;
+		if (!settings) throw new Error('Photo import presets are unavailable.');
+		return this.#presetOperation(() => this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			return readPhotoImportPresetsV1(settings, catalogId, { signal });
+		}, request.signal));
+	}
+
+	async applyImportPreset(command: PhotoLibraryImportPresetCommandV1,
+		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryImportPresetSnapshotV1> {
+		const request = admitPhotoLibraryQueryBuildRequestV1(options), admitted = normalizePhotoImportPresetCommandV1(command), settings = this.#ports.settings;
+		if (!settings) throw new Error('Photo import presets are unavailable.');
+		return this.#presetOperation(() => this.#mutation(async (catalogId, signal) => {
+			const root = await this.#ports.catalog.loadCatalog(catalogId); signal.throwIfAborted();
+			if (!root) throw new ReferenceError('Photo catalog is missing.');
+			return applyPhotoImportPresetV1(settings, root, admitted, { signal });
+		}, request.signal));
+	}
+
+	async importFiles(files: readonly File[], options: PhotoLibraryImportRequestOptionsV1 = {}): Promise<readonly PhotoLibraryImportItemV1[]> {
+		const request = admitPhotoLibraryImportRequestV1(options);
 		const selected = readClosedDomainArray(files, 'selected photo files', 1, IMAGE_IMPORT_LIMITS.maximumFilesPerGesture) as readonly File[];
 		return this.#mutation(async (catalogId, signal) => {
 			const root = await this.#ports.catalog.loadCatalog(catalogId);
 			if (!root) throw new ReferenceError('Photo catalog is missing.');
+			const plan = planPhotoImportSettingsV1(selected, root, request.settings);
 			const createId = this.#ports.createId ?? (() => crypto.randomUUID());
 			const ownership = selected.map(() => ({ photoId: createId(), originalId: createId(), originalStorageKey: createId(), masterVersionId: createId() }));
 			const prepared = (this.#ports.prepare ?? preparePhotoImportGestureV1)({ files: selected, ownership, catalog: root,
 				createdAt: (this.#ports.now ?? (() => new Date().toISOString()))(), signal });
 			const failed: PhotoLibraryImportItemV1[] = [];
 			const admitted: Array<{ index: number; fileName: string; hasMetadataNotices: boolean }> = [];
-			const ports = this.#managedPorts();
-			// The outer lease owns keyword-definition and photo publication together.
-			const receipts = await (this.#ports.importPhotos ?? importManagedPhotosV1)(catalogId, bridge.call(this), {
-				...ports, exclusive: async (_id, operation) => operation(signal),
-			}, { signal });
-			const results = [...failed, ...receipts.map(receipt => {
+			const acknowledged = new Set<number>();
+			const present = (receipt: PhotoManagedImportReceiptV1) => {
 				const selection = admitted[receipt.index];
 				if (!selection) throw new Error('Photo publication receipt has no selected-file binding.');
 				return Object.freeze({ ...receipt, ...selection });
-			})].sort((a, b) => a.index - b.index);
+			};
+			const acknowledge = (receipt: PhotoManagedImportReceiptV1) => {
+				if (receipt.status !== 'imported' || acknowledged.has(receipt.index)) return;
+				const item = present(receipt); acknowledged.add(receipt.index);
+				try { request.onAcknowledged?.(item); } catch { /* Publication observers cannot veto durable photos. */ }
+			};
+			const ports = this.#managedPorts();
+			// The outer lease owns keyword-definition and photo publication together.
+			let receipts: readonly PhotoManagedImportReceiptV1[];
+			try {
+				receipts = await (this.#ports.importPhotos ?? importManagedPhotosV1)(catalogId, bridge.call(this), {
+					...ports, exclusive: async (_id, operation) => operation(signal),
+				}, { signal, onPublished: acknowledge });
+			} catch (failure) { this.#catalog = null; throw failure; }
+			for (const receipt of receipts) acknowledge(receipt);
+			const results = [...failed, ...receipts.map(present)].sort((a, b) => a.index - b.index);
 			return Object.freeze(results);
 
 			async function* bridge(this: PhotoLibrarySessionV1) {
@@ -161,8 +199,9 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 						continue;
 					}
 					try {
-						const resolved = await this.#keywords(catalogId, outcome, createId, signal);
-						const photo = normalizePhotoDocumentV1({ ...outcome.photo, keywordIds: resolved.ids });
+						const preparedPhoto = request.settings === undefined ? outcome.photo : applyPhotoImportSettingsV1(outcome.photo, plan, outcome.index);
+						const resolved = await this.#keywords(catalogId, { ...outcome, photo: preparedPhoto }, createId, signal);
+						const photo = normalizePhotoDocumentV1({ ...preparedPhoto, keywordIds: resolved.ids });
 						admitted.push({ index: outcome.index, fileName: outcome.fileName,
 							hasMetadataNotices: outcome.notices.length > 0 || (outcome.photo.extractedMetadata?.issues.length ?? 0) > 0 || resolved.notice });
 						yield { photo, original: outcome.original };
@@ -173,7 +212,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 					}
 				}
 			}
-		}, options.signal);
+		}, request.signal);
 	}
 
 	async setRating(photoId: string, rating: number, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryRowV1> {
@@ -285,6 +324,13 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 		}
 		if (keywords.length !== root.keywords.length) await this.#ports.catalog.saveCatalog(normalizePhotoCatalogRootV1({ ...root, keywords }), root.revision, { signal });
 		return { ids, notice };
+	}
+
+	async #presetOperation<Result>(run: () => Promise<Result>): Promise<Result> {
+		if (this.#presetActive) throw new Error('A photo import preset operation is already pending.');
+		this.#presetActive = true;
+		try { return await run(); }
+		finally { this.#presetActive = false; }
 	}
 
 	async #mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal): Promise<Result> {

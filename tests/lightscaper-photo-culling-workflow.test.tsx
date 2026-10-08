@@ -151,6 +151,8 @@ test('a retired generation acknowledges a late durable save without replacing th
 function owner(catalogName = 'Library') {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
+		readImportPresets: async (): Promise<never> => { throw new Error('Unexpected import preset read in culling fixture.'); },
+		applyImportPreset: async (): Promise<never> => { throw new Error('Unexpected import preset write in culling fixture.'); },
 		readPage: async () => page(catalogName),
 		readQueryStep: async () => Object.freeze({ ...page(catalogName), scanned: 1 }),
 		rebuildQueryStep: async () => Object.freeze({ processed: 0, readBytes: 0, ready: true }),

@@ -25,3 +25,9 @@ export interface PhotoManagedImportReceiptV1 {
 	readonly reusedOriginal: boolean;
 	readonly message: string | null;
 }
+
+export interface PhotoManagedImportOptionsV1 {
+	readonly signal?: AbortSignal;
+	/** Durable publication is reported before interruptible custody promotion. */
+	readonly onPublished?: (item: PhotoManagedImportReceiptV1) => void;
+}

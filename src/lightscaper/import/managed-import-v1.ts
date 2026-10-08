@@ -11,7 +11,7 @@ import type { PhotoDocumentV1 } from '../catalog/types.ts';
 import { id } from '../catalog/value-validation.ts';
 import { normalizePhotoImportIntentV1, photoImportIntentKeyV1, settlePhotoImportRootsV1, type PhotoImportIntentV1 } from './import-intent-v1.ts';
 import { withPhotoCatalogWriteLockV1 } from './catalog-write-lock-v1.ts';
-import type { PhotoManagedImportPortsV1, PhotoManagedImportReceiptV1 } from './managed-import-ports-v1.ts';
+import type { PhotoManagedImportOptionsV1, PhotoManagedImportPortsV1, PhotoManagedImportReceiptV1 } from './managed-import-ports-v1.ts';
 
 export { photoImportIntentKeyV1 } from './import-intent-v1.ts';
 export type { PhotoManagedImportPortsV1, PhotoManagedImportReceiptV1 } from './managed-import-ports-v1.ts';
@@ -21,9 +21,10 @@ export async function importManagedPhotosV1(
 	catalogId: string,
 	photos: Iterable<PhotoCatalogPackInput> | AsyncIterable<PhotoCatalogPackInput>,
 	ports: PhotoManagedImportPortsV1,
-	options: Readonly<{ signal?: AbortSignal }> = {},
+	options: PhotoManagedImportOptionsV1 = {},
 ): Promise<readonly PhotoManagedImportReceiptV1[]> {
 	const catalog = id(catalogId, 'catalog ID');
+	const request = admitOptions(options);
 	return (ports.exclusive ?? withPhotoCatalogWriteLockV1)(catalog, async (signal) => {
 		await recoverIntent(catalog, ports, signal);
 		if (!await ports.catalog.loadCatalog(catalog)) throw new ReferenceError('Photo catalog is missing.');
@@ -38,6 +39,12 @@ export async function importManagedPhotosV1(
 			if (results.length >= IMAGE_IMPORT_LIMITS.maximumFilesPerGesture) throw new RangeError('Photo publication exceeds its gesture file bound.');
 			let candidate: PhotoDocumentV1 | undefined;
 			let reusedOriginal = false;
+			let acknowledged: PhotoManagedImportReceiptV1 | null = null;
+			const acknowledge = () => {
+				if (acknowledged || !candidate) return;
+				acknowledged = receipt(results.length, candidate.id, reusedOriginal);
+				try { request.onPublished?.(acknowledged); } catch { /* Observers cannot veto durable publication. */ }
+			};
 			try {
 				const input = readClosedDomainRecord(value, 'managed photo input', ['photo', 'original']);
 				const document = validateLightscaperDocumentV1(readClosedDomainField(input, 'photo', 'managed photo input'));
@@ -57,6 +64,7 @@ export async function importManagedPhotosV1(
 				const current = await ports.catalog.loadCatalog(catalog);
 				if (!current) throw new ReferenceError('Photo catalog is missing.');
 				await ports.catalog.publishPhotos(catalog, current.revision, [candidate], { signal });
+				acknowledge();
 				signal?.throwIfAborted();
 				await ports.media.custody.promote(catalog, intent.importId, [candidate.id], { signal });
 				results.push(receipt(results.length, candidate.id, reusedOriginal));
@@ -65,6 +73,7 @@ export async function importManagedPhotosV1(
 				await settlePhotoImportRootsV1(intent, ports, signal);
 				const stored = candidate ? await ports.catalog.loadPhoto(catalog, candidate.id) : null;
 				if (stored && candidate && sameImportIdentity(stored, candidate)) {
+					acknowledge();
 					results.push(receipt(results.length, candidate.id, reusedOriginal));
 				} else results.push(Object.freeze({ index: results.length, photoId: candidate?.id ?? null,
 					status: 'failed', reusedOriginal, message: failureMessage(error) }));
@@ -74,7 +83,23 @@ export async function importManagedPhotosV1(
 		await settlePhotoImportRootsV1(intent, ports, signal);
 		await retireIntent(intent, ports);
 		return Object.freeze(results);
-	}, options.signal);
+	}, request.signal);
+}
+
+function admitOptions(value: unknown): PhotoManagedImportOptionsV1 {
+	const input = readClosedDomainRecord(value, 'managed import options', ['signal', 'onPublished'], []);
+	const signal = Object.hasOwn(input, 'signal') ? readClosedDomainField(input, 'signal', 'managed import options') : undefined;
+	if (signal !== undefined) {
+		if (!(signal instanceof AbortSignal)) throw new TypeError('Managed import requires a native cancellation signal.');
+		Reflect.apply(AbortSignal.prototype.throwIfAborted, signal, []);
+		if (Object.getPrototypeOf(signal) !== AbortSignal.prototype
+			|| ['aborted', 'reason', 'throwIfAborted', 'addEventListener', 'removeEventListener'].some(key => Object.hasOwn(signal, key))) {
+			throw new TypeError('Managed import requires native signal behavior without overrides.');
+		}
+	}
+	const observer = Object.hasOwn(input, 'onPublished') ? readClosedDomainField(input, 'onPublished', 'managed import options') : undefined;
+	if (observer !== undefined && typeof observer !== 'function') throw new TypeError('Managed import requires a publication observer function.');
+	return Object.freeze({ signal, onPublished: observer as PhotoManagedImportOptionsV1['onPublished'] });
 }
 
 export async function recoverManagedPhotoImportV1(catalogId: string, ports: PhotoManagedImportPortsV1,

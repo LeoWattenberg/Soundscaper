@@ -3,6 +3,7 @@
 import type { PixelFrameDescriptorV1 } from './imaging/pixel-frame-contract-v1.ts';
 import type { ImageMetadataV1 } from './imaging/image-metadata-model-v1.ts';
 import type { PhotoLibraryOrganizationPortV1 } from './photo-library-organization-port-v1.ts';
+import type { PhotoLibraryImportSettingsPortV1 } from './photo-library-import-settings-port-v1.ts';
 
 /** Scalar presentation boundary; owning catalog documents stay in the product. */
 export interface PhotoLibraryRowV1 {
@@ -119,14 +120,13 @@ export interface PhotoLibraryDefinitionPageV1 {
 	readonly cursor: string | null;
 }
 
-export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1 {
+export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1 {
 	readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1>;
 	rebuildQueryStep(options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryQueryBuildProgressV1>;
 	readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1>;
 	readPreview(photoId: string, tier: PhotoLibraryPreviewTierV1,
 		options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryPreviewOutcomeV1>;
 	readPage(options?: Readonly<{ cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryPageV1>;
-	importFiles(files: readonly File[], options?: Readonly<{ signal?: AbortSignal }>): Promise<readonly PhotoLibraryImportItemV1[]>;
 	setRating(photoId: string, rating: number, options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryRowV1>;
 	applyAttributes(photoId: string, changes: PhotoLibraryAttributePatchV1, options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryRowV1>;
 	readMetadata(photoId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryMetadataSnapshotV1>;

@@ -402,6 +402,8 @@
 		,
 		{ "path": "src/common/editor/parameter-automation-gesture-adapter-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-gesture-adapter-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
+		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
 		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
@@ -574,7 +576,11 @@
 		,
 		{ "path": "src/lightscaper/import/metadata-adapter-v1.ts", "kind": "helper-contract", "justification": "Maps version 1 immutable extracted image facts into bounded authored photo metadata without changing originals." }
 		,
+		{ "path": "src/lightscaper/import/photo-import-name-template-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored display-name templates preserve immutable source names and selected-file sequence bindings." }
+		,
 		{ "path": "src/lightscaper/import/photo-import-preparation-v1.ts", "kind": "helper-contract", "justification": "Serial admitted source preparation yielding version 1 catalog photo documents and shared decode artifacts." }
+		,
+		{ "path": "src/lightscaper/import/photo-import-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded import recipes admit current keyword references and author display metadata after extraction without changing originals." }
 		,
 		{ "path": "src/lightscaper/import/photo-native-image-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded native photo session port validates original-oriented geometry and fixed RGBA output with explicit cleanup ownership." }
 		,
@@ -589,6 +595,8 @@
 		{ "path": "src/lightscaper/preview/photo-preview-preparation-v1.ts", "kind": "ipc-contract", "justification": "Version 1 prepared disposable photo body carries an independent pixel descriptor and output digest without embedding immutable original bytes." }
 		,
 		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
+		,
+		{ "path": "src/lightscaper/storage/photo-import-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped import preset rows use bounded settings storage and exact revision-fenced publication independently of photo and archive schemas." }
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]

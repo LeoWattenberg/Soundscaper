@@ -40,6 +40,8 @@ belong in Git history, not in the maintained documentation set.
   defines menu-owned search/sort/filter, bounded definition selectors and explicit index preparation.
 - [Photo catalog organization](architecture/lightscaper-catalog-organization.md)
 - [Photo library culling](architecture/lightscaper-culling.md)
+- [Photo import settings and presets](architecture/lightscaper-import-settings.md)
+  defines bounded display-name recipes, authored metadata, keyword admission and revision-fenced presets.
 - [Managed SDR pixel grading](architecture/pixel-frame-managed-sdr-grade.md)
 - [Photo catalog queries](architecture/lightscaper-catalog-query.md)
   defines global sort order, bounded sparse scans and resumable query index migration.

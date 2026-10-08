@@ -198,6 +198,7 @@ function owner(catalogName = 'Library') {
 	let opens = 0, closes = 0;
 	const unexpected = async (): Promise<never> => { throw new Error('Unexpected non-organization operation.'); };
 	const port: PhotoLibrarySessionPortV1 & PhotoLibraryOrganizationPortV1 = {
+		readImportPresets: unexpected, applyImportPreset: unexpected,
 		readPage: async () => page(catalogName), readQueryStep: async () => ({ ...page(catalogName), scanned: 1 }),
 		rebuildQueryStep: unexpected, readDefinitionPage: unexpected, readPreview: unexpected, importFiles: unexpected,
 		setRating: unexpected, applyAttributes: unexpected, readMetadata: unexpected, applyMetadata: unexpected,

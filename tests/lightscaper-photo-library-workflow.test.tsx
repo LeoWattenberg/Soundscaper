@@ -373,6 +373,8 @@ test('an acknowledged import invalidates the active query continuation even when
 function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
+		readImportPresets: async (): Promise<never> => { throw new Error('Unexpected import preset read in workflow fixture.'); },
+		applyImportPreset: async (): Promise<never> => { throw new Error('Unexpected import preset write in workflow fixture.'); },
 		readPage,
 		readQueryStep: async () => Object.freeze({ ...page('Library'), scanned: 1 }),
 		rebuildQueryStep: async () => Object.freeze({ processed: 0, readBytes: 0, ready: true }),
