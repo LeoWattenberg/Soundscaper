@@ -3,6 +3,7 @@
 import type { PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1 } from '../../photo-library-session-port-v1.ts';
 import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import PhotoMetadataReadFacts from './PhotoMetadataReadFacts.tsx';
 
 interface Props {
 	readonly locale: string;
@@ -43,24 +44,10 @@ export default function PhotoMetadataDialog(props: Props) {
 				<label>{copy.photoCaptureOffset}<input name="captureOffset" type="number" min={-840} max={840} step={1}
 					defaultValue={snapshot.metadata.captureTime?.offsetMinutes ?? ''} /></label>
 			</fieldset>
+			<PhotoMetadataReadFacts snapshot={snapshot} copy={copy} locale={props.locale} />
 			<details>
 				<summary>{copy.photoOriginalMetadata}</summary>
-				<dl>
-					<dt>{copy.photoFileName}</dt><dd>{snapshot.originalFileName}</dd>
-					{snapshot.extracted?.exif && <>
-						<dt>{copy.photoCamera}</dt><dd>{[snapshot.extracted.exif.cameraMake, snapshot.extracted.exif.cameraModel].filter(Boolean).join(' ')}</dd>
-						<dt>{copy.photoLens}</dt><dd>{snapshot.extracted.exif.lensModel}</dd>
-						<dt>{copy.photoCaptureTime}</dt><dd>{snapshot.extracted.exif.captureTime?.local}</dd>
-					</>}
-					{snapshot.extracted?.iptc && <>
-						<dt>{copy.photoMetadataTitle}</dt><dd>{snapshot.extracted.iptc.objectName ?? snapshot.extracted.iptc.headline}</dd>
-						<dt>{copy.photoCaption}</dt><dd>{snapshot.extracted.iptc.caption}</dd>
-						<dt>{copy.photoCreator}</dt><dd>{snapshot.extracted.iptc.creators.join('; ')}</dd>
-						<dt>{copy.photoKeywords}</dt><dd>{snapshot.extracted.iptc.keywords.join('; ')}</dd>
-					</>}
-				</dl>
-				{!snapshot.extracted?.exif && !snapshot.extracted?.iptc && <p>{copy.photoNoSourceMetadata}</p>}
-				{Boolean(snapshot.extracted?.issues.length) && <p>{copy.photoMetadataNotice}</p>}
+				<PhotoMetadataReadFacts snapshot={snapshot} copy={copy} locale={props.locale} source />
 			</details>
 			<div className="lightscaper-dialog-actions"><button type="submit" disabled={props.busy}>{copy.photoSaveMetadata}</button>
 				<button type="button" onClick={props.onClose}>{copy.photoCloseMetadata}</button></div>
