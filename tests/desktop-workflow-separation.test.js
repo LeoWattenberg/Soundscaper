@@ -22,7 +22,7 @@ test('desktop preview restores Electron before the native protocol test shard', 
 		< tests.indexOf('run: xvfb-run --auto-servernum npm run test:shard'));
 });
 
-test('desktop preview keeps browser partitions aligned with the Quality gate', async () => {
+test('desktop preview keeps browser partitions and job budgets aligned with the Quality gate', async () => {
 	const [preview, quality] = await Promise.all([
 		readWorkflow('desktop-preview.yml'), readWorkflow('quality.yml'),
 	]);
@@ -39,7 +39,10 @@ test('desktop preview keeps browser partitions aligned with the Quality gate', a
 			`${jobName} labels the complete partition count`);
 		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardCount}`),
 			`${jobName} runs every partition using the declared total`);
-		assert.match(desktop, /timeout-minutes: 45/u);
+		const canonicalTimeout = /^ {4}timeout-minutes: (\d+)$/mu.exec(canonical)?.[1];
+		assert.ok(canonicalTimeout, `${jobName} defines its Quality job budget`);
+		assert.equal(/^ {4}timeout-minutes: (\d+)$/mu.exec(desktop)?.[1], canonicalTimeout,
+			`${jobName} must allow the same measured workloads as Quality`);
 	}
 });
 

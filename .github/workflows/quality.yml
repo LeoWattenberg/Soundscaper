@@ -521,7 +521,8 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
       options: --user 1001
-    timeout-minutes: 45
+    # Run 37803116461 cancelled WebKit shard 3 at the 45-minute job deadline.
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
