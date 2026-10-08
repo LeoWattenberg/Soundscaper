@@ -10,12 +10,15 @@ test('Chirp interpolation does not change when the user presses modified navigat
 	const interpolation = dialog.getByRole('radiogroup', { name: 'Interpolation', exact: true });
 	const linear = interpolation.getByRole('radio', { name: 'Linear', exact: true });
 	const logarithmic = interpolation.getByRole('radio', { name: 'Logarithmic', exact: true });
-	await linear.focus();
+	await linear.click();
+	await expect(linear).toHaveAttribute('aria-checked', 'true');
 	for (const chord of ['Control+ArrowRight', 'Alt+ArrowDown', 'Meta+ArrowLeft']) {
-		await linear.press(chord);
-		await expect(linear).toHaveAttribute('aria-checked', 'true');
-		await expect(logarithmic).toHaveAttribute('aria-checked', 'false');
-		await expect(linear).toBeFocused();
+		await test.step(chord, async () => {
+			await linear.press(chord);
+			await expect(linear).toHaveAttribute('aria-checked', 'true');
+			await expect(logarithmic).toHaveAttribute('aria-checked', 'false');
+			await expect(linear).toBeFocused();
+		});
 	}
 	await linear.press('ArrowRight');
 	await expect(logarithmic).toBeFocused();

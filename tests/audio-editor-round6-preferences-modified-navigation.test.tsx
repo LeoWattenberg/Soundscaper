@@ -25,6 +25,7 @@ for (const ownership of ['ctrlKey', 'altKey', 'metaKey', 'defaultPrevented'] as 
 			await act(async () => { root.render(<WorkspacePreferencesDialog
 				controller={{ actions: { preferences: { update: () => undefined } } }}
 				snapshot={{ preferences: createAudioEditorPreferencesV1({}) }}
+				initialPage="general"
 				copy={ENGLISH_COPY} locale="en" fileService={{ isDesktop: false }} menus={[]}
 				run={(operation: () => unknown) => operation()} onTogglePanel={() => undefined}
 				onClose={() => undefined} />); });
