@@ -29,6 +29,7 @@ patches/**/*.patch text eol=lf
 /scripts/build-os-audio-codec-host.mjs text eol=lf
 /scripts/lib/os-audio-codec-host-build.mjs text eol=lf
 /scripts/self-test-soundscaper-professional-native-runtime.mjs text eol=lf
+/scripts/lib/soundscaper-ara-native-canary.mjs text eol=lf
 /scripts/self-test-soundscaper-delivery-fs.mjs text eol=lf
 /scripts/lib/soundscaper-professional-packaged-app-authority.mjs text eol=lf
 /scripts/lib/soundscaper-professional-native-containment-probes.mjs text eol=lf
