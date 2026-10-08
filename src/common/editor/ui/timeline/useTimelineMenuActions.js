@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
+import { isContextMenuKey } from './context-menu-keyboard.ts';
 
 export function useTimelineMenuActions({
 	controller,
@@ -75,6 +76,7 @@ export function useTimelineMenuActions({
 	}, [controller, project, run]);
 
 	const openTimelineRulerMenu = useCallback((event) => {
+		if (event.type === 'keydown' && !isContextMenuKey(event)) return;
 		event.preventDefault();
 		event.stopPropagation();
 		const rect = event.currentTarget.getBoundingClientRect();
