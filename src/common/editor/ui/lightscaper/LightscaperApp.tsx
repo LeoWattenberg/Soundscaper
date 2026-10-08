@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
 
 import { otherProductIds, productIdentity } from '../../../product-identities.js';
 import { productHref } from '../../../product-web-links.js';
@@ -11,6 +11,7 @@ import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
 import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow, type LoadPhotoLibraryBackupSaveRuntimeV1 } from './use-photo-library-workflow.ts';
 import { usePhotoLibrarySelection } from './use-photo-library-selection.ts';
+import { usePhotoCompare } from './use-photo-compare.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
 import './photo-culling.css';
@@ -31,6 +32,7 @@ const PhotoBatchRenameDialog = lazy(() => import('./PhotoBatchRenameDialog.tsx')
 const PhotoBatchRenameResults = lazy(() => import('./PhotoBatchRenameResults.tsx'));
 const PhotoCatalogBackupDialog = lazy(() => import('./PhotoCatalogBackupDialog.tsx'));
 const PhotoOriginalRecoveryDialog = lazy(() => import('./PhotoOriginalRecoveryDialog.tsx'));
+const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
@@ -50,6 +52,7 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 	const [batchRenameVisible, setBatchRenameVisible] = useState(false);
 	const [backupVisible, setBackupVisible] = useState(false);
 	const [originalRecoveryVisible, setOriginalRecoveryVisible] = useState(false);
+	const [previewActivated, setPreviewActivated] = useState(false);
 	const library = usePhotoLibraryWorkflow(createSession, loadBackupSaveRuntime);
 	const factory = useRef(createSession); factory.current = createSession;
 	const { importFiles } = library;
@@ -67,6 +70,11 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 	}, [createSession, saveBackup, backupName, copy.photoBackupFileType]);
 	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
 		generation: createSession, pageIdentity: library.page, autoAdvance });
+	const compareGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime }), [createSession, loadBackupSaveRuntime]);
+	const compare = usePhotoCompare({ generation: compareGeneration, queryIdentity: library.query, page: library.page,
+		enabled: libraryVisible, busy: library.busy, autoAdvance, setRating: library.setRating, applyAttributes: library.applyAttributes });
+	const comparePair: readonly [string, string] | null = compare.visible && compare.snapshot.referenceId !== null && compare.snapshot.candidateId !== null
+		? [compare.snapshot.referenceId, compare.snapshot.candidateId] : null;
 	const { readPage } = library;
 	const flags = { unflagged: copy.photoUnflagged, pick: copy.photoPick, reject: copy.photoReject };
 	const colorLabels = { none: copy.photoColorNone, red: copy.photoColorRed, yellow: copy.photoColorYellow,
@@ -162,6 +170,18 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 			<PhotoBatchRenameResults receipt={library.batchRenameReceipt.receipt} notice={library.batchRenameReceipt.notice} copy={copy} />
 		</Suspense>}
 	</>;
+	const renderScene = (preview?: PhotoPreviewPresentationViewV1) => <>
+		{libraryVisible && renderLibrary(compare.visible ? undefined : preview)}
+		{compare.visible && preview && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoCompareDialog generation={compareGeneration} snapshot={compare.snapshot} rows={library.page?.rows ?? []}
+				previewTargets={preview.snapshot.targets.filter(target => target.tier === 'fit-screen')}
+				renderFitScreen={preview.renderFitScreen} copy={copy} flags={flags} colorLabels={colorLabels}
+				busy={library.busy || compare.snapshot.pendingPhotoId !== null} error={library.error} notice={compare.notice}
+				onPrevious={compare.previous} onNext={compare.next} onSwap={compare.swap} onPromote={compare.promote}
+				onRate={(id, rating) => { void compare.rate(id, rating); }} onFlag={(id, flag) => { void compare.flag(id, flag); }}
+				onColorLabel={(id, label) => { void compare.label(id, label); }} onClose={() => { void compare.close(); }} />
+		</Suspense>}
+	</>;
 
 	return <section ref={app} className="lightscaper-app" data-lightscaper-bound="true" aria-label={copy.lightscaperTitle}>
 		<header className="lightscaper-header application-header">
@@ -236,14 +256,16 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 							closeMenu(event); setQueryVisible(true); void library.probeQuery();
 						}}>{copy.photoQueryTitle}</button>
 						<button type="button" disabled={!libraryVisible} aria-pressed={thumbnailsVisible} onClick={event => {
-							closeMenu(event); setThumbnailsVisible(visible => !visible);
+							closeMenu(event); setPreviewActivated(true); setThumbnailsVisible(visible => !visible);
 						}}>{thumbnailsVisible ? copy.photoHideThumbnails : copy.photoShowThumbnails}</button>
 						<button type="button" disabled={!libraryVisible} aria-pressed={filmstripVisible} onClick={event => {
 							closeMenu(event); setFilmstripVisible(visible => !visible);
 						}}>{filmstripVisible ? copy.photoHideFilmstrip : copy.photoShowFilmstrip}</button>
 						<button type="button" disabled={!libraryVisible || !selection} aria-pressed={loupeVisible} onClick={event => {
-							closeMenu(event); setLoupeVisible(visible => !visible);
+							closeMenu(event); setPreviewActivated(true); setLoupeVisible(visible => !visible);
 						}}>{loupeVisible ? copy.photoHideLoupe : copy.photoShowLoupe}</button>
+						<button type="button" data-photo-compare-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || compare.visible}
+							onClick={event => { closeMenu(event); setPreviewActivated(true); compare.open(photoSelection.snapshot.selectedIds); }}>{copy.photoCompareTitle}</button>
 						<button type="button" disabled={library.busy || !libraryVisible} onClick={event => { closeMenu(event); void library.readPage(); }}>{copy.photoFirstPage}</button>
 						<button type="button" disabled={library.busy || !libraryVisible || !library.page?.cursor} onClick={event => { closeMenu(event); void library.readPage(library.page?.cursor); }}>{copy.photoNextPage}</button>
 					</div>
@@ -251,11 +273,12 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 
 			</nav>
 		</header>
-		{libraryVisible && (thumbnailsVisible || loupeVisible
-			? <Suspense fallback={renderLibrary()}><PhotoPreviewPresentation readPreview={library.readPreview}
-				photoIds={library.page?.rows.map(row => row.id) ?? []} thumbnailsVisible={thumbnailsVisible}
-				fitScreenPhotoId={loupeVisible ? selection?.id ?? null : null}>{renderLibrary}</PhotoPreviewPresentation></Suspense>
-			: renderLibrary())}
+		{previewActivated
+			? <Suspense fallback={libraryVisible ? renderLibrary() : null}><PhotoPreviewPresentation readPreview={library.readPreview}
+				photoIds={libraryVisible ? library.page?.rows.map(row => row.id) ?? [] : []} thumbnailsVisible={libraryVisible && thumbnailsVisible && !compare.visible}
+				fitScreenPhotoId={libraryVisible && loupeVisible && !compare.visible ? selection?.id ?? null : null}
+				comparePhotoIds={comparePair}>{renderScene}</PhotoPreviewPresentation></Suspense>
+			: renderScene()}
 		{queryVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoQueryDialog query={library.query ?? DEFAULT_PHOTO_LIBRARY_QUERY_V1} copy={copy} flags={flags} colorLabels={colorLabels}
 				busy={library.busy} error={library.error} needsIndex={library.needsQueryIndex} indexProgress={library.queryIndexProgress}

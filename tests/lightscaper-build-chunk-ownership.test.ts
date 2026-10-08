@@ -11,7 +11,8 @@ import { EAGER_CHUNK_GROUPS, resolveRelativeModule, staticRelativeDependencies }
 
 const directory = fileURLToPath(new URL('../src/common/editor/', import.meta.url));
 const scalarModules = ['controller/shared/photo-library-definition-reader.ts', 'controller/shared/photo-library-selection-v1.ts',
-	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts'];
+	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
+	'controller/shared/photo-library-compare-v1.ts'];
 
 test('the photo shell follows its own lazy bootstrap instead of the audio shell owner', () => {
 	// Claiming this sole-consumer UI as editor-shell makes shared site/copy imports
@@ -86,7 +87,7 @@ test('opt-in pixel presentation has a separate lazy controller owner and uses on
 	const dependencies = staticRelativeDependencies(readFileSync(path, 'utf8')).map(specifier => {
 		const target = resolveRelativeModule(path, specifier); assert.ok(target, specifier); return chunkGroupForModulePath(target);
 	});
-	assert.deepEqual(dependencies, ['editor-closed-domain-values', 'editor-imaging', 'editor-imaging']);
+	assert.deepEqual(dependencies, ['editor-closed-domain-values', 'editor-imaging', 'editor-imaging', 'editor-imaging']);
 });
 
 test('the shared Scape Blob bound has an inert exact owner apart from timeline archive estimation', async () => {

@@ -9,6 +9,7 @@ export interface PhotoPreviewPresentationOptionsV1 {
 	readonly photoIds: readonly string[];
 	readonly thumbnailsVisible: boolean;
 	readonly fitScreenPhotoId: string | null;
+	readonly comparePhotoIds?: readonly [string, string] | null;
 }
 
 /** React observes scalar state; the controller owns cancellation, staging and target backing. */
@@ -18,15 +19,17 @@ export function usePhotoPreviewPresentation(options: PhotoPreviewPresentationOpt
 	const controller = owner.current;
 	const [snapshot, setSnapshot] = useState<Readonly<PixelPreviewPresentationSnapshotV1>>(() => controller.snapshot());
 	const { readPreview, thumbnailsVisible, fitScreenPhotoId } = options;
+	const referenceId = options.comparePhotoIds?.[0] ?? null, candidateId = options.comparePhotoIds?.[1] ?? null;
 	const ids = JSON.stringify(options.photoIds);
 	useLayoutEffect(() => {
 		const unsubscribe = controller.subscribe(setSnapshot);
-		controller.setView({ readPreview, photoIds: JSON.parse(ids) as string[], thumbnailsVisible, fitScreenPhotoId });
+		if (referenceId !== null && candidateId !== null) controller.setCompareView({ readPreview, photoIds: [referenceId, candidateId] });
+		else controller.setView({ readPreview, photoIds: JSON.parse(ids) as string[], thumbnailsVisible, fitScreenPhotoId });
 		return () => {
 			unsubscribe();
 			// Pause reuses the same joined owner during StrictMode's effect replay.
-			void controller.pause();
+			void controller.pause().catch(() => undefined);
 		};
-	}, [controller, readPreview, ids, thumbnailsVisible, fitScreenPhotoId]);
+	}, [controller, readPreview, ids, thumbnailsVisible, fitScreenPhotoId, referenceId, candidateId]);
 	return { controller, snapshot };
 }

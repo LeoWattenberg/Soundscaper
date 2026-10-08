@@ -288,6 +288,8 @@
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-backup-save-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in catalog saving owns one prepared destination through joined cancellation and final delivery, exposing only bounded scalar acknowledgements without retaining archive bodies." }
 		,
+		{ "path": "src/common/editor/controller/shared/photo-library-compare-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in comparison owns a bounded selected subset and distinct reference/candidate IDs, borrows one existing catalog save, and reconciles exact page receipts while preserving durable acknowledgement through joined retirement." }
+		,
 		{"path": "src/common/editor/controller/shared/photo-library-culling-v1.ts", "kind": "helper-contract", "justification": "Version1 durable culling receipts fence one pending scalar edit observer and identity-based auto advance."}
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-import-gesture-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored import snapshots and source-name-bound scalar acknowledgement collection retain at most 64 selected receipts without File or original bodies."}

@@ -14,6 +14,7 @@ length and digest, and an original-free raw preview Blob.
 | Visible page | 64 scalar photo IDs and thumbnail targets |
 | Thumbnail backing | At most 1 MiB per target and 64 MiB per page |
 | Loupe backing | One fit-screen target, at most 16 MiB |
+| Compare backing | Exactly two fit-screen targets, at most 16 MiB each and 32 MiB combined; ordinary targets detach |
 | Settled presentation | At most 80 MiB of declared RGBA canvas backing |
 | Presentation demand | One requested body/read/paint at a time; no queued bodies |
 | Body staging | One at most 16 MiB Blob and one at most 16 MiB owned read buffer |
@@ -27,6 +28,16 @@ callback adds at most 160 MiB, giving 240 MiB combined, or 304 MiB with that
 separate original Blob backing. Native decoder, canvas compositor and GPU
 allocations remain separate. Serial demand and a joined presentation barrier
 prevent multiplying the working sets across page or view generations.
+
+Compare is an explicit profile of that same serial owner. Its two surfaces plus
+one staged 16 MiB body and one 16 MiB owned buffer total at most 64 MiB in the
+presentation phase, within the existing 112 MiB ceiling. It admits no thumbnail
+targets and does not raise ordinary target limits. Registrations distinguish
+ordinary and Compare profiles before React layout effects run; mixed active
+registrations are refused. Null callbacks from retired profiles cannot detach
+a new profile's target with the same photo ID. Cleanup tries every surface and
+joins a held native stage even when a clear fails; bounded diagnostics retain
+that failure independently of cancellation.
 
 The shared body owner admits the closed descriptor, current processing profile,
 geometry, genuine Blob size and declared output length before reading. It reads

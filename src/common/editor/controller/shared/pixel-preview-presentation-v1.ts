@@ -5,6 +5,7 @@ import type { PhotoLibraryPreviewOutcomeV1, PhotoLibraryPreviewTierV1 } from '..
 import { withPixelFrameBodyV1 } from '../../imaging/pixel-frame-body-v1.ts';
 import { clearPixelFrameCanvasV1, paintPixelFrameCanvasV1 } from '../../imaging/pixel-frame-canvas-presenter-v1.ts';
 import type { PixelFrameLimitsV1, PixelFrameV1 } from '../../imaging/pixel-frame-contract-v1.ts';
+import { readPixelFrameV1 } from '../../imaging/pixel-frame-contract-v1.ts';
 
 export type PixelPreviewPresentationReaderV1 = (photoId: string, tier: PhotoLibraryPreviewTierV1,
 	options: Readonly<{ signal: AbortSignal }>) => Promise<PhotoLibraryPreviewOutcomeV1>;
@@ -14,6 +15,11 @@ export interface PixelPreviewPresentationViewV1 {
 	readonly photoIds: readonly string[];
 	readonly thumbnailsVisible: boolean;
 	readonly fitScreenPhotoId: string | null;
+}
+
+export interface PixelPreviewCompareViewV1 {
+	readonly readPreview: PixelPreviewPresentationReaderV1;
+	readonly photoIds: readonly string[];
 }
 
 export interface PixelPreviewTargetStatusV1 {
@@ -40,12 +46,17 @@ interface Ports {
 	readonly clear?: typeof clearPixelFrameCanvasV1;
 }
 interface Target { readonly canvas: HTMLCanvasElement; bytes: number }
-interface Job { readonly key: string; readonly photoId: string; readonly tier: PhotoLibraryPreviewTierV1;
+type Profile = 'ordinary' | 'compare';
+interface View { readonly readPreview: PixelPreviewPresentationReaderV1; readonly photoIds: readonly string[];
+	readonly thumbnailsVisible: boolean; readonly fitScreenPhotoIds: readonly string[]; readonly profile: Profile }
+interface Job { readonly key: string; readonly photoId: string; readonly tier: PhotoLibraryPreviewTierV1; readonly profile: Profile;
 	readonly generation: number; readonly canvas: HTMLCanvasElement; readonly controller: AbortController }
 
 const MIB = 1024 * 1024;
 export const PIXEL_PREVIEW_PRESENTATION_LIMITS_V1 = Object.freeze({ maximumThumbnailTargets: 64,
 	maximumFitScreenTargets: 1, maximumThumbnailBytes: 64 * MIB, maximumFitScreenBytes: 16 * MIB });
+export const PIXEL_COMPARE_PRESENTATION_LIMITS_V1 = Object.freeze({ maximumFitScreenTargets: 2,
+	maximumFitScreenTargetBytes: 16 * MIB, maximumFitScreenBytes: 32 * MIB, maximumBackingBytes: 80 * MIB });
 const THUMBNAIL: Readonly<PixelFrameLimitsV1> = Object.freeze({ maximumSidePixels: 512, maximumPixels: 512 * 512, maximumBytes: MIB });
 const FIT_SCREEN: Readonly<PixelFrameLimitsV1> = Object.freeze({ maximumSidePixels: 2048, maximumPixels: 2048 * 2048, maximumBytes: 16 * MIB });
 const SIGNAL_ABORTED = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
@@ -57,7 +68,8 @@ export class PixelPreviewPresentationV1 {
 	readonly #targets = new Map<string, Target>();
 	readonly #statuses = new Map<string, PixelPreviewTargetStatusV1>();
 	readonly #cleanupErrors: string[] = [];
-	#view: PixelPreviewPresentationViewV1 | null = null;
+	#view: View | null = null;
+	#profile: Profile = 'ordinary';
 	#generation = 0;
 	#active: Job | null = null;
 	#pending: Promise<void> | null = null;
@@ -93,20 +105,38 @@ export class PixelPreviewPresentationV1 {
 		if (typeof thumbnailsVisible !== 'boolean') throw new TypeError('Thumbnail opt-in must be explicit.');
 		const fit = field(input, 'fitScreenPhotoId', 'pixel preview view'), fitScreenPhotoId = fit === null ? null : photoId(fit);
 		if (fitScreenPhotoId !== null && !photoIds.includes(fitScreenPhotoId)) throw new RangeError('The loupe must belong to the visible page.');
-		const previous = this.#view;
-		if (previous?.readPreview === value.readPreview && previous.thumbnailsVisible === thumbnailsVisible
-			&& previous.fitScreenPhotoId === fitScreenPhotoId && JSON.stringify(previous.photoIds) === JSON.stringify(photoIds)) return;
-		this.#cancel(); this.#clearAll(); this.#statuses.clear();
-		this.#view = Object.freeze({ readPreview: value.readPreview, photoIds: Object.freeze(photoIds), thumbnailsVisible, fitScreenPhotoId });
-		if (fitScreenPhotoId !== null) this.#addStatus(fitScreenPhotoId, 'fit-screen');
-		if (thumbnailsVisible) for (const id of photoIds) this.#addStatus(id, 'thumbnail');
-		this.#notify(); this.#wake();
+		this.#setView({ readPreview: value.readPreview, photoIds: Object.freeze(photoIds), thumbnailsVisible,
+			fitScreenPhotoIds: Object.freeze(fitScreenPhotoId === null ? [] : [fitScreenPhotoId]), profile: 'ordinary' });
+	}
+
+	setCompareView(value: PixelPreviewCompareViewV1): void {
+		this.#assertOpen();
+		const input = record(value, 'pixel compare view', ['readPreview', 'photoIds']);
+		const readPreview = field(input, 'readPreview', 'pixel compare view');
+		if (typeof readPreview !== 'function') throw new TypeError('Pixel compare view requires a read port.');
+		const photoIds = array(field(input, 'photoIds', 'pixel compare view'), 'compare photo IDs', 2, 2).map(photoId);
+		if (new Set(photoIds).size !== 2) throw new RangeError('Compare requires two distinct photo IDs.');
+		const ids = Object.freeze(photoIds);
+		this.#setView({ readPreview: readPreview as PixelPreviewPresentationReaderV1, photoIds: ids,
+			thumbnailsVisible: false, fitScreenPhotoIds: ids, profile: 'compare' });
 	}
 
 	attach(idValue: string, tierValue: PhotoLibraryPreviewTierV1, canvas: HTMLCanvasElement | null): void {
+		this.#attach(idValue, tierValue, canvas, 'ordinary');
+	}
+
+	/** Compare refs may register before layout selects their scalar view on this same owner. */
+	attachCompare(idValue: string, canvas: HTMLCanvasElement | null): void {
+		this.#attach(idValue, 'fit-screen', canvas, 'compare');
+	}
+
+	#attach(idValue: string, tierValue: PhotoLibraryPreviewTierV1, canvas: HTMLCanvasElement | null, profile: Profile): void {
 		if (this.#closed && canvas === null) return;
 		this.#assertOpen();
 		const id = photoId(idValue), tier = readTier(tierValue), key = targetKey(id, tier), previous = this.#targets.get(key);
+		// A stale ref from the retired profile cannot detach its successor's target.
+		if (canvas === null && profile !== this.#profile) return;
+		if (canvas !== null) this.#selectProfile(profile);
 		if (previous?.canvas === canvas) return;
 		if (previous) {
 			if (this.#active?.key === key) this.#active.controller.abort();
@@ -115,10 +145,30 @@ export class PixelPreviewPresentationV1 {
 		if (canvas !== null) {
 			if ([...this.#targets.values()].some(target => target.canvas === canvas)) throw new RangeError('A canvas may own only one preview target.');
 			const count = [...this.#targets.keys()].filter(key => key.endsWith(`,"${tier}"]`)).length;
-			if (count >= (tier === 'thumbnail' ? 64 : 1)) throw new RangeError(tier === 'thumbnail' ? 'At most 64 thumbnail targets are admitted.' : 'At most one loupe target is admitted.');
+			const maximum = tier === 'thumbnail' ? 64 : profile === 'compare' ? 2 : 1;
+			if (count >= maximum) throw new RangeError(tier === 'thumbnail' ? 'At most 64 thumbnail targets are admitted.'
+				: profile === 'compare' ? 'At most two compare targets are admitted.' : 'At most one loupe target is admitted.');
 			this.#ports.clear(canvas); this.#targets.set(key, { canvas, bytes: 0 });
 			const status = this.#statuses.get(key); if (status) this.#statuses.set(key, { ...status, status: 'pending', error: null });
 		}
+		this.#notify(); this.#wake();
+	}
+
+	#selectProfile(profile: Profile): void {
+		if (profile === this.#profile) return;
+		if (this.#targets.size !== 0) throw new RangeError('Mixed ordinary and compare registrations require detaching the previous surfaces.');
+		this.#cancel(); this.#view = null; this.#statuses.clear(); this.#profile = profile;
+	}
+	#setView(view: View): void {
+		this.#selectProfile(view.profile);
+		const previous = this.#view;
+		if (previous?.readPreview === view.readPreview && previous.thumbnailsVisible === view.thumbnailsVisible
+			&& JSON.stringify(previous.fitScreenPhotoIds) === JSON.stringify(view.fitScreenPhotoIds)
+			&& JSON.stringify(previous.photoIds) === JSON.stringify(view.photoIds)) return;
+		this.#cancel(); this.#view = null; this.#statuses.clear(); this.#clearAll();
+		this.#view = Object.freeze(view);
+		for (const id of view.fitScreenPhotoIds) this.#addStatus(id, 'fit-screen');
+		if (view.thumbnailsVisible) for (const id of view.photoIds) this.#addStatus(id, 'thumbnail');
 		this.#notify(); this.#wake();
 	}
 
@@ -133,8 +183,12 @@ export class PixelPreviewPresentationV1 {
 	}
 
 	pause(): Promise<void> {
-		this.#cancel(); this.#view = null; this.#statuses.clear(); this.#clearAll(); this.#notify();
-		return this.#pending ?? Promise.resolve();
+		this.#cancel(); this.#view = null; this.#statuses.clear();
+		let cleanup: unknown, failed = false;
+		try { this.#clearAll(); } catch (error) { failed = true; cleanup = error; }
+		this.#notify();
+		const pending = this.#pending ?? Promise.resolve();
+		return failed ? pending.then(() => { throw cleanup; }) : pending;
 	}
 
 	async drain(): Promise<void> {
@@ -156,7 +210,15 @@ export class PixelPreviewPresentationV1 {
 		this.#statuses.set(targetKey(id, tier), { photoId: id, tier, status: 'pending', error: null, notices: Object.freeze([]) });
 	}
 	#cancel(): void { this.#generation += 1; this.#active?.controller.abort(); }
-	#clearAll(): void { for (const target of this.#targets.values()) { this.#ports.clear(target.canvas); target.bytes = 0; } }
+	#clearAll(): void {
+		const failures: unknown[] = [];
+		for (const target of this.#targets.values()) {
+			try { this.#ports.clear(target.canvas); target.bytes = 0; }
+			catch (error) { failures.push(error); this.#recordCleanup(error); }
+		}
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) throw new AggregateError(failures, 'Preview backing cleanup failed.');
+	}
 	#assertOpen(): void { if (this.#closed) throw new Error('Pixel presentation is closed.'); }
 	#notify(): void {
 		try { this.#listener?.(this.snapshot()); }
@@ -172,7 +234,7 @@ export class PixelPreviewPresentationV1 {
 		const status = [...this.#statuses.values()].find(status => status.status === 'pending' && this.#targets.has(targetKey(status.photoId, status.tier)));
 		if (!status) return;
 		const key = targetKey(status.photoId, status.tier), target = this.#targets.get(key)!;
-		const job: Job = { key, photoId: status.photoId, tier: status.tier, canvas: target.canvas,
+		const job: Job = { key, photoId: status.photoId, tier: status.tier, canvas: target.canvas, profile: this.#view.profile,
 			generation: this.#generation, controller: new AbortController() };
 		this.#active = job;
 		const readPreview = this.#view.readPreview;
@@ -227,19 +289,40 @@ export class PixelPreviewPresentationV1 {
 				outputSha256: field(preview, 'outputSha256', 'pixel preview payload') as string,
 				body: field(preview, 'body', 'pixel preview payload'), signal }, frame => {
 				if (!this.#current(job)) return;
-				const receipt = this.#ports.paint(job.canvas, frame, { limits, signal });
-				if (!Number.isSafeInteger(receipt.byteLength) || receipt.byteLength <= 0 || receipt.byteLength > limits.maximumBytes) {
+				const admitted = readPixelFrameV1(frame, limits);
+				this.#assertBackingBudget(job, admitted.pixels.byteLength);
+				const receipt = this.#ports.paint(job.canvas, admitted, { limits, signal });
+				if (!this.#current(job)) { this.#ports.clear(job.canvas); return; }
+				if (receipt.byteLength !== admitted.pixels.byteLength) {
 					this.#ports.clear(job.canvas); throw new RangeError('Canvas receipt exceeds its surface budget.');
 				}
 				this.#targets.get(job.key)!.bytes = receipt.byteLength;
 			}, { limits });
 			if (this.#current(job)) this.#setStatus(job, 'ready', null, Object.freeze(notices));
 		} catch (error) {
-			if (this.#current(job)) { this.#ports.clear(job.canvas); this.#targets.get(job.key)!.bytes = 0; this.#setStatus(job, 'failed', errorMessage(error)); }
+			if (this.#current(job)) {
+				try { this.#ports.clear(job.canvas); this.#targets.get(job.key)!.bytes = 0; }
+				catch (cleanup) { this.#recordCleanup(cleanup); }
+				this.#setStatus(job, 'failed', errorMessage(error));
+			}
 			else if (error !== Reflect.apply(SIGNAL_REASON, signal, []) && !(error instanceof DOMException && error.name === 'AbortError')) this.#recordCleanup(error);
 		} finally {
 			if (this.#active === job) this.#active = null;
 			this.#notify();
+		}
+	}
+	#assertBackingBudget(job: Job, bytes: number): void {
+		let tierBytes = bytes, backingBytes = bytes;
+		for (const [key, target] of this.#targets) {
+			if (key === job.key) continue;
+			backingBytes += target.bytes;
+			if (key.endsWith(`,"${job.tier}"]`)) tierBytes += target.bytes;
+		}
+		const maximum = job.tier === 'thumbnail' ? PIXEL_PREVIEW_PRESENTATION_LIMITS_V1.maximumThumbnailBytes
+			: job.profile === 'compare' ? PIXEL_COMPARE_PRESENTATION_LIMITS_V1.maximumFitScreenBytes
+				: PIXEL_PREVIEW_PRESENTATION_LIMITS_V1.maximumFitScreenBytes;
+		if (tierBytes > maximum || backingBytes > PIXEL_COMPARE_PRESENTATION_LIMITS_V1.maximumBackingBytes) {
+			throw new RangeError('Preview surfaces exceed their aggregate backing budget.');
 		}
 	}
 	#setStatus(job: Job, status: PixelPreviewTargetStatusV1['status'], error: string | null = null,
@@ -259,7 +342,9 @@ function readTier(value: unknown): PhotoLibraryPreviewTierV1 {
 }
 function targetKey(id: string, tier: PhotoLibraryPreviewTierV1): string { return JSON.stringify([id, tier]); }
 function errorMessage(value: unknown): string {
-	const descriptor = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'message') : undefined;
-	return descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string'
-		? descriptor.value.slice(0, 2048) : 'The photo preview could not be displayed.';
+	try {
+		const descriptor = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'message') : undefined;
+		if (descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string') return descriptor.value.slice(0, 2048);
+	} catch { /* Error diagnostics must not prevent native owner settlement. */ }
+	return 'The photo preview could not be displayed.';
 }

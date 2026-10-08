@@ -45,6 +45,35 @@ operation settles. React retains at most 64 button references, releases them on
 detachment, and observes scalar snapshots; it receives no catalog documents,
 original media bytes, frames or preview bodies through this selection API.
 
+## Compare
+
+View → Compare selected photos captures two through 64 selected IDs in current
+page order. It opens one reference and one distinct candidate; Previous/Next
+walk the captured subset without wrapping or selecting new query results.
+Swap exchanges the pair, and promoting the candidate selects the next captured
+photo when available. Grid selection remains independent of review navigation.
+Focused panes accept rating and flag shortcuts; their native form controls keep
+their own keys. Ratings, flags and color labels use the existing catalog session.
+
+One scalar Compare owner excludes queued gestures and captures page, query and
+session-generation identities. A successful cull reconciles only its exact
+acknowledged page, whether React publishes that page before or after the save
+promise settles. Auto advance follows the captured candidate's surviving
+successor. An unrelated page retires the pair; a new query, hidden library,
+factory or backup-runtime loader retires the gesture and its callbacks.
+
+A saved edit followed by failed refresh retains its durable acknowledgement
+independently of page retirement. A fallback row grants no new Compare page
+authority: the modal stays paused with the saved notice and a Close action.
+Closing aborts and joins borrowed work; a late durable acknowledgement remains
+saved without reopening the dialog. Reopening waits for the prior cull to settle.
+
+Compare uses the existing pixel presenter in an explicit two-fit profile.
+Ordinary thumbnails and loupe targets detach before the Compare pair attaches;
+closing restores the user's opted-in ordinary previews. Once activated, the
+same presenter stays mounted through view transitions, including hiding the
+library, and joins an old body/stage before reading any new one.
+
 ## Memory and ownership
 
 This slice adds only bounded scalar state and button references. It retains no
@@ -75,9 +104,9 @@ real catalog/media stores in Chromium and Firefox, including a 65-photo boundary
 reopen and original digests. The existing three-engine raw canvas qualification
 continues to cover the unchanged pixel route; it is not a WebKit storage claim.
 
-This slice does not add bulk mutation, compare, survey or library stacks. Compare
-and survey need explicit multi-surface residency and phase budgets under one
-presentation owner. Library stacks need an explicit grouping contract, indexed
+Survey and library stacks remain separate L3 work. Survey needs explicit
+multi-surface residency and phase budgets under one presentation owner.
+Library stacks need an explicit grouping contract, indexed
 membership and archive/migration rules; per-photo develop versions are not
 library groups. The full L3 keyboard loop and large-library CI budgets remain
 open until their separate integration gates pass.

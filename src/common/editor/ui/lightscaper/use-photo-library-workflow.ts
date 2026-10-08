@@ -176,13 +176,16 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const readPreview = useCallback(async (photoId: string, tier: PhotoLibraryPreviewTierV1,
 		options: Readonly<{ signal?: AbortSignal }> = {}) => {
 		const current = slot.current;
-		if (!current?.live || current.factory !== createSession) throw new DOMException('Photo preview generation is closed.', 'AbortError');
+		if (!current?.live || current.factory !== createSession || current.factory !== factory.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current) {
+			throw new DOMException('Photo preview generation is closed.', 'AbortError');
+		}
 		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
 		signal.throwIfAborted();
 		const owner = await acquire(current); signal.throwIfAborted();
 		const result = await owner.readPreview(photoId, tier, { signal }); signal.throwIfAborted();
 		return result;
-	}, [createSession]);
+	}, [createSession, loadBackupSaveRuntime]);
 
 	const readPage = useCallback((cursor: string | null = null) => run(async (owner, signal, current) => {
 		const next = current.query ? await readNonemptyQueryPage(owner, current.query, cursor, signal) : await owner.readPage({ cursor, signal });

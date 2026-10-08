@@ -38,3 +38,17 @@ test('server presentation remains inert and its opt-in canvases start with zero 
 	assert.equal((enabled.match(/role="img"/gu) ?? []).length, 2);
 	assert.doesNotMatch(enabled, /<button|tabindex|data:|blob:/iu);
 });
+
+test('explicit Compare renders exactly its two zero-backed fits without ordinary or foreign targets', () => {
+	let reads = 0;
+	const readPreview = () => { reads++; return Promise.resolve({ outcome: 'missing' as const }); };
+	const markup = renderToStaticMarkup(<PhotoPreviewPresentation readPreview={readPreview} photoIds={['a', 'b', 'foreign']}
+		thumbnailsVisible fitScreenPhotoId="a" comparePhotoIds={['a', 'b']}>{view => <>
+			{view.renderThumbnail('a', 'Thumbnail')}{view.renderLoupe('Loupe')}
+			{view.renderFitScreen('a', 'Reference')}{view.renderFitScreen('b', 'Candidate')}{view.renderFitScreen('foreign', 'Foreign')}
+		</>}</PhotoPreviewPresentation>);
+	assert.equal(reads, 0); assert.equal((markup.match(/<canvas /gu) ?? []).length, 2);
+	assert.equal((markup.match(/width="0" height="0"/gu) ?? []).length, 2);
+	assert.match(markup, /aria-label="Reference"/u); assert.match(markup, /aria-label="Candidate"/u);
+	assert.doesNotMatch(markup, /Thumbnail|Loupe|Foreign|data:|blob:/u);
+});
