@@ -227,6 +227,9 @@ export async function transact<Result>(
 	const transaction = database.transaction(names, mode);
 	const stores = Object.fromEntries(names.map((name) => [name, transaction.objectStore(name)]));
 	const completion = transactionCompletion(transaction);
+	// Native completion can fail while the admitted operation still owns a held await.
+	// Observe it now, then join and propagate the original completion below.
+	void completion.catch(() => undefined);
 	let result: Result;
 	try {
 		result = await operation(stores, transaction);
