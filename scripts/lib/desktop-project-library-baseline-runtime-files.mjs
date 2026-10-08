@@ -28,6 +28,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/command-project-view.js',
 	'src/common/editor/project-document-body-types.js',
 	'src/common/editor/scape-archive-zip-profile.js',
+	'src/common/editor/scape-blob-budget.js',
 	'src/common/editor/scape-export-estimate.js',
 	'src/common/editor/scape-export-plan.js',
 	'src/common/editor/scape-project-assets.js',

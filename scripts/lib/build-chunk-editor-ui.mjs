@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { editorOptionalSurfaceModule, editorPath } from './build-chunk-tests.mjs';
+import { mediaRetentionChunkGroups } from './build-chunk-media-retention.mjs';
 
 // The dialog lifecycle is shared by all products. Giving its complete neutral
 // closure one owner keeps optional photo dialogs out of the timeline shell,
@@ -10,6 +11,18 @@ export const EDITOR_DIALOG_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const editorUiChunkGroups = [
+	...mediaRetentionChunkGroups,
+	{
+		// IDs, safe text, cancellation, ordering, worker lifetimes, file failures
+		// and the archive limit share no product domain imports. One neutral owner
+		// avoids timeline passengers and preserves startup request ceilings.
+		name: 'editor-neutral-foundations',
+		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|safe-visual-text|scape-blob-budget|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
 	{
 		// The photo shell composes only scalar selection, culling and name demands.
 		// Sharing the broad timeline controller owner makes those few imports pull

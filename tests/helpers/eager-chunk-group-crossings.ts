@@ -46,6 +46,13 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	// inert value validator is also read by the existing timeline boot domains.
 	'editor-photo-library-scalars',
 	'editor-closed-domain-values',
+	// Existing startup domains use cancellation, ordering, IDs and the inert
+	// limit read by archive estimation; their actual product graphs stay measured.
+	'editor-neutral-foundations',
+	// Existing project storage reaches retention, publication and writer contracts.
+	'editor-media-storage-contracts',
+	// Existing product boot repositories already compose shared original custody.
+	'editor-media-custody-storage',
 	'editor-controller-core',
 	'editor-domain',
 	// Frame's existing image decoder/frame source already compose these common

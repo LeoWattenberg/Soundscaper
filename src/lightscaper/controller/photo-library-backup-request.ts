@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../../common/editor/scape-export-estimate.ts';
+import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../../common/editor/scape-blob-budget.ts';
 import { field, integer, record } from '../catalog/value-validation.ts';
 import { admitPhotoLibraryQueryBuildRequestV1 } from './photo-library-query-v1.ts';
 

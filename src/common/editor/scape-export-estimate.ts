@@ -2,13 +2,13 @@
 
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
 import { maximumScapeStoreCentralDirectoryBytes } from './scape-archive-zip-profile.ts';
+import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from './scape-blob-budget.ts';
+
+export { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from './scape-blob-budget.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 const MAXIMUM_SAFE_BYTES = BigInt(Number.MAX_SAFE_INTEGER);
 const MAXIMUM_ZIP_FILENAME_BYTES = 0xffff;
-
-/** Current non-streaming saves assemble one renderer-resident archive Blob. */
-export const SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES = 512 * 1024 * 1024;
 
 export interface ScapeArchiveSizeEntry {
 	readonly filename: string;
