@@ -368,6 +368,10 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-histogram-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded RGB histogram and clipping diagnostics admit encoded sRGB bytes and publish immutable counts only after complete joined evaluation." }
+		,
 		{"path": "src/common/editor/imaging/pixel-frame-managed-sdr-grade-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped managed SDR grading reuses prepared color math with bounded borrowed chunks and wiped output."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
@@ -519,6 +523,8 @@
 		{ "path": "src/common/editor/video-color-management-v27.ts", "kind": "persisted-contract", "justification": "video-color-management-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization across authoring, preview and export." }
 		,
 		{ "path": "src/common/editor/video-keyframe-export-plan-v7-values.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7-values.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
