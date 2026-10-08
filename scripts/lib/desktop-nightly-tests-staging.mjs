@@ -165,6 +165,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/helpers/lightscaper-photo-orientation-native-fixture.ts', destination: 'tests/helpers/lightscaper-photo-orientation-native-fixture.ts', kind: 'file', label: 'photo metadata query native JPEG encoder' },
 	{ source: 'tests/helpers/lightscaper-photo-orientation-oracle.ts', destination: 'tests/helpers/lightscaper-photo-orientation-oracle.ts', kind: 'file', label: 'photo metadata query JPEG orientation byte support' },
 	{ source: 'tests/helpers/lightscaper-catalog-query-fixture.ts', destination: 'tests/helpers/lightscaper-catalog-query-fixture.ts', kind: 'file', label: 'photo metadata storage native catalog fixture' },
+	{ source: 'tests/helpers/lightscaper-smart-collections-native-fixture.ts', destination: 'tests/helpers/lightscaper-smart-collections-native-fixture.ts', kind: 'file', label: 'saved photo-query native storage qualification' },
+	{ source: 'tests/helpers/lightscaper-smart-collections-native-observer.ts', destination: 'tests/helpers/lightscaper-smart-collections-native-observer.ts', kind: 'file', label: 'saved photo-query native request observation' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
 	{ source: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', destination: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', kind: 'file', label: 'ordinary BWF MetaEdit browser import fixture' },
 	{ source: 'tests/fixtures/nyquist-archive', destination: 'tests/fixtures/nyquist-archive', kind: 'directory', label: 'Nyquist browser archive and notices' },
