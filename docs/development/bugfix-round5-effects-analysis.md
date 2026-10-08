@@ -219,6 +219,17 @@ binding workflow passes Chromium, Firefox and WebKit on immutable green10
 `/tmp/soundscaper-r5-root-source-waveform-shortcut-green10.log`). Both normal
 guarded product builds, targeted type-aware lint and size checks pass.
 
+ROOT-008 follow-through, without an additional count: the Source container
+leaves Shift+Space untouched, but its enclosing Clip properties body still
+intercepts it. Import a normal five-second WAV, focus Source waveform and
+press the default Shift+Space play-from-cursor binding. On immutable green13,
+source audition starts instead of timeline playback
+(`/tmp/soundscaper-r5-root-source-shift-space-green13-red.log`, 7.4 seconds).
+The enclosing owner now likewise reserves only plain Space. Its mounted
+production regression is RED before that guard and GREEN afterward with
+16/16 panel/source support; targeted lint and size gates pass. The extended
+ordinary shortcut spec awaits corrected browser verification.
+
 ## R5-ROOT-009 — First-party selection effects overwrite unselected frequencies
 
 Import a normal mono WAV containing 1 kHz and 6 kHz tones. Select all, enable

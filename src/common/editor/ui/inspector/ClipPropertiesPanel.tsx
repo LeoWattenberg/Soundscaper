@@ -94,7 +94,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
 		&& sourceProject?.sources.some(source => source.id === sourceClip.sourceId);
 	const handlePlaybackKey = (event: KeyboardEvent<HTMLDivElement>) => {
-		if (!hasSourceEditor || !activeClipId || event.defaultPrevented || event.code !== 'Space' || event.altKey || event.ctrlKey || event.metaKey) return;
+		if (!hasSourceEditor || !activeClipId || event.defaultPrevented || event.code !== 'Space' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 		event.stopPropagation();
 		if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], [role="spinbutton"]')) return;
 		event.preventDefault();

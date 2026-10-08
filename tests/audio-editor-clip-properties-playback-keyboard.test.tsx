@@ -43,6 +43,16 @@ test('an already handled source Space never triggers a second transport action',
 	} finally { await f.cleanup(); }
 });
 
+test('Shift Space on the properties body reaches the configured timeline transport', async () => {
+	const f = await fixture();
+	try {
+		const event = await f.space(f.body, false, true);
+		assert.deepEqual(f.sourceCalls, []);
+		assert.equal(f.mainCalls(), 1);
+		assert.equal(event.defaultPrevented, true);
+	} finally { await f.cleanup(); }
+});
+
 async function fixture() {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -74,15 +84,15 @@ async function fixture() {
 	const body = dom.one('[data-clip-properties-active-clip]');
 	return {
 		dom, body, sourceCalls, mainCalls: () => mainCalls,
-		space: async (target: ReactTestElement, defaultPrevented = false) => {
+		space: async (target: ReactTestElement, defaultPrevented = false, shiftKey = false) => {
 			let stopped = false;
 			const event = { target: target as unknown as EventTarget, key: ' ', code: 'Space', defaultPrevented,
-				altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
+				altKey: false, ctrlKey: false, metaKey: false, shiftKey,
 				preventDefault() { this.defaultPrevented = true; }, stopPropagation() { stopped = true; },
 			};
 			await act(async () => {
 				reactProps(body).onKeyDown?.(event);
-				if (!stopped) handleWorkspaceKeyboard(event, { preferences: { shortcuts: { 'action://playback/toggle-play-stop': ['Space'] } } },
+				if (!stopped) handleWorkspaceKeyboard(event, { preferences: { shortcuts: { 'action://playback/toggle-play-stop': ['Space', 'Shift+Space'] } } },
 					handler => handler(), { menus: [{ id: 'action://playback/toggle-play-stop', onClick: () => { mainCalls += 1; } }] });
 			});
 			return event;

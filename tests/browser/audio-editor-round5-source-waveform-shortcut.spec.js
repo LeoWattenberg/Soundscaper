@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('modified Source waveform Space runs the configured command without starting audition', async ({ page }) => {
@@ -24,4 +24,17 @@ test('modified Source waveform Space runs the configured command without startin
 	await expect(editor.locator('[data-label-track]')).toHaveCount(1);
 	await expect(clip).toHaveAttribute('aria-label', original);
 	await expect(properties.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
+});
+
+test('Source waveform leaves Shift Space to the timeline play-from-cursor command', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	const recording = createWavFixture({ name: 'shift-space.wav', frequency: 440, duration: 5, channelCount: 1 });
+	await importFiles(editor, [recording]);
+	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
+	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
+	await waveform.focus();
+	await waveform.press('Shift+Space');
+	await expect(editor.locator('[data-transport="play"]').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+	await expect(properties.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
+	await editor.locator('[data-transport="stop"]').getByRole('button', { name: 'Stop', exact: true }).click();
 });
