@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
@@ -40,6 +40,7 @@ export function useTimelineNavigation({
 		viewportWidth,
 		visualTrackHeight,
 	} = model;
+	const searchRevealRef = useRef(/** @type {{ clipId: string, revision: number | undefined, completed: boolean, activeElement: Element | null } | null} */ (null));
 
 	useEffect(() => {
 		controller.actions.timeline.setVisibleTrackHeights(Object.fromEntries((project?.tracks || []).map((track) => {
@@ -89,10 +90,18 @@ export function useTimelineNavigation({
 	useEffect(() => {
 		const clipId = searchRevealRequest?.clipId;
 		if (!clipId || !project) return undefined;
+		const previous = searchRevealRef.current;
+		const sameRequest = previous?.clipId === clipId && previous.revision === searchRevealRequest.revision;
+		if (sameRequest && previous.completed) return undefined;
 		const clip = project.clips.find((candidate) => String(candidate.id) === String(clipId));
 		const trackIndex = project.tracks.findIndex((track) => track.clipIds?.includes(clip?.id));
 		const scroll = scrollRef.current;
 		if (!clip || trackIndex < 0 || !scroll) return undefined;
+		const request = sameRequest ? previous : {
+			clipId, revision: searchRevealRequest.revision,
+			completed: false, activeElement: scroll.ownerDocument.activeElement,
+		};
+		searchRevealRef.current = request;
 		const clipCenterPixels = CLIP_CONTENT_OFFSET + framesToSeconds(
 			clip.timelineStartFrame + clip.durationFrames / 2,
 			{ sampleRate },
@@ -102,17 +111,32 @@ export function useTimelineNavigation({
 		let frame = 0;
 		let attempts = 0;
 		const focusRevealedClip = () => {
+			const active = scroll.ownerDocument.activeElement;
+			// A search is one request, not a continuing claim on the clip. Preserve
+			// deliberate focus while waiting for its virtualized row to mount.
+			if (active?.isConnected && active !== request.activeElement
+				&& active !== scroll.ownerDocument.body) {
+				request.completed = true;
+				return;
+			}
 			attempts += 1;
-			if (focusTrackClip(trackIndex, false, clip.id) || attempts >= 8) return;
+			const row = trackNavigationRow(navigationRootRef.current, trackIndex);
+			const target = [...(row?.querySelectorAll('[data-clip-id][role="group"]') || [])]
+				.find((element) => String(element.dataset.clipId) === String(clip.id));
+			if (target && focusFirst(target)) {
+				request.completed = true;
+				return;
+			}
+			if (attempts >= 8) return;
 			frame = globalThis.requestAnimationFrame(focusRevealedClip);
 		};
 		frame = globalThis.requestAnimationFrame(focusRevealedClip);
 		return () => globalThis.cancelAnimationFrame(frame);
 	}, [
-		focusTrackClip,
 		pixelsPerSecond,
 		project,
 		sampleRate,
+		searchRevealRequest?.clipId,
 		searchRevealRequest?.revision,
 		viewportWidth,
 	]);
