@@ -262,6 +262,19 @@ test('lease cleanup failure after publication returns interrupted receipt with t
 	} finally { await f.session.close(); }
 });
 
+test('final durable ACK and late cancellation preserve an independent lease cleanup failure', async () => {
+	const f = fixture(1), stop = new AbortController();
+	try {
+		const plan = await f.plan();
+		f.afterSave(async () => { stop.abort(); return undefined; });
+		f.cleanupError(new Error('Final lease cleanup failed'));
+		const result = await f.session.renamePhotos(plan, { signal: stop.signal });
+		assert.equal(result.completion, 'interrupted'); assert.equal(result.message, 'Final lease cleanup failed');
+		assert.equal(result.items[0]?.status, 'renamed'); assert.equal(result.items[0]?.revision, 1); assert.equal(result.undo?.items.length, 1);
+		assert.equal(f.documents.get('photo-1')?.metadata.fileName, plan.items[0]?.fileName);
+	} finally { await f.session.close(); }
+});
+
 test('64 maximally escaped failure records and interruption message fit the finite whole receipt budget', async () => {
 	const f = fixture(64, true);
 	try {

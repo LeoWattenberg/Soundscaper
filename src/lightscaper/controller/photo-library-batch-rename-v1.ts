@@ -114,8 +114,10 @@ async function runBatch(ports: PhotoBatchRenameSessionPortsV1, packet: PhotoLibr
 	} catch (error) {
 		if (!started) throw error;
 		const cancelled = aborted(activeSignal);
-		completion = cancelled ? (outcomes.length === packet.items.length ? 'finished' : 'cancelled') : 'interrupted';
-		message = completion === 'finished' ? null : failureMessage(error);
+		// A normal final late abort returns without reaching this catch. An
+		// independent cleanup failure still needs reporting after every ACK.
+		completion = cancelled && outcomes.length < packet.items.length ? 'cancelled' : 'interrupted';
+		message = failureMessage(error);
 	}
 	const undo = inverse.length === 0 ? null : normalizePhotoBatchRenameUndoV1({ schemaVersion: 1, kind: 'photo-batch-rename-undo', catalogId: packet.catalogId, items: inverse });
 	const receipt: PhotoLibraryBatchRenameReceiptV1 = Object.freeze({ schemaVersion: 1, action, completion, items: Object.freeze(outcomes), undo, message });

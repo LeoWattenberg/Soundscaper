@@ -86,6 +86,8 @@ not mean every rename succeeded. Cancellation or an operational interruption
 stops remaining work and retains every known durable acknowledgment. Close
 cancels and joins the active operation before releasing the owner or storage.
 An abort after the final acknowledged item does not erase a completed batch.
+An independent lease cleanup failure still returns an interrupted receipt and
+its diagnostic, including when that final acknowledgment also causes an abort.
 
 Only changed durable acknowledgments create inverse entries. Each binds the
 catalog, original selected index, photo ID, acknowledged revision, exact current
