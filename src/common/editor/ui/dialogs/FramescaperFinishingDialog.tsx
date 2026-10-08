@@ -257,8 +257,9 @@ export default function FramescaperFinishingDialog({
 			setMotionProgress(null);
 		});
 	};
+	const selectedAudioTrack = records(record(project).tracks).some(track => track.id === selectedTrackId && track.type === 'audio');
 	const applyDialogueChain = (): void => {
-		if (!selectedTrackId) return;
+		if (!selectedTrackId || !selectedAudioTrack) return;
 		perform(() => {
 			const profile = profiledNoiseReduction ? parseNoiseProfile(noiseProfileText) : null;
 			const chain = createFramescaperDialogueChain({
@@ -284,7 +285,7 @@ export default function FramescaperFinishingDialog({
 			rightContent={<span data-dialogue-chain-apply>
 				<Button
 					variant="primary"
-					disabled={blocked || !selectedTrackId || (profiledNoiseReduction && !noiseProfileText.trim())}
+					disabled={blocked || !selectedAudioTrack || (profiledNoiseReduction && !noiseProfileText.trim())}
 					onClick={applyDialogueChain}
 				>{text(copy, 'applyDialogueChain', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.applyDialogueChain)}</Button>
 			</span>}
@@ -365,7 +366,7 @@ export default function FramescaperFinishingDialog({
 					FRAMESCAPER_FINISHING_ADDITIONAL_COPY.noiseProfileDocument)}</span><textarea rows={8}
 						spellCheck={false} value={noiseProfileText}
 						onChange={(event) => setNoiseProfileText(event.currentTarget.value)} /></label>}
-				{!selectedTrackId && <p role="status">{text(copy, 'selectAudioTrack', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.selectAudioTrack)}</p>}
+				{!selectedAudioTrack && <p role="status">{text(copy, 'selectAudioTrack', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.selectAudioTrack)}</p>}
 			</fieldset>}
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>
