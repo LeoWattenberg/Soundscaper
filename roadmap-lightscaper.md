@@ -290,12 +290,13 @@ real-library scale.
   capture-time edit, batch rename, missing-media detection and relink through
   the existing relink path, and catalog snapshot/backup through Scape
   export.
-- **Shared — In progress:** a digest-pinned 20,000-photo synthetic fixture
+- **Shared — Done:** a digest-pinned 20,000-photo synthetic fixture
   measures managed import, rendered-grid scrolling, keyword filtering, and
   distant search against recorded quality-diagnostics thresholds. All nine
-  threshold checks passed locally in Chromium and Firefox; diagnostics
-  collection is validated and the hosted CI workload is registered. An actual
-  hosted CI run remains outstanding. Repeated 2×2 media isolates catalog
+  threshold checks passed locally in Chromium and Firefox and in
+  [hosted Chromium CI](https://github.com/LeoWattenberg/Soundscaper/actions/runs/37763387640)
+  at source revision `39cd7c9b707984425731c96de2a846f7985c0a22`, with one
+  attempt and no retries. Repeated 2×2 media isolates catalog
   scaling; this baseline does not measure large-image decoding or
   representative camera working sets.
 - **Shared — Optional:** merge-on-import of a catalog Scape archive into an open

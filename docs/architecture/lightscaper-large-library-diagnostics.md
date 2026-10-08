@@ -29,3 +29,15 @@ Import, scroll, filter and search timing observations describe only the browser
 and runner actually measured, using one attempt and no retry-to-pass. The
 quality register owns thresholds; timings remain observational under the
 existing quality-diagnostics policy. The fixture alone does not close L3.
+
+[Hosted CI run 37763387640](https://github.com/LeoWattenberg/Soundscaper/actions/runs/37763387640)
+measured source revision `39cd7c9b707984425731c96de2a846f7985c0a22` in Chromium
+151.0.7922.34 on the pinned Ubuntu/Playwright 1.62.1 runner, with one attempt
+and no retries. All nine recorded thresholds passed. Recomputing metrics from
+the downloaded raw artifact reproduced the report exactly: zero result or
+original-digest mismatches, at most 64 rendered photos, 16 published photos per
+batch and 64 candidates per query step. The measured p95 timings were
+1,811.405 ms for import, 16.670 ms for scrolling, 125.180 ms for filtering and
+1,303.075 ms for distant search. These observations qualify that synthetic
+catalog workload on that runner; they retain the media and environment limits
+above.
