@@ -212,7 +212,7 @@ for (const locale of ['en', 'de']) {
 			await expect(opened).toHaveCount(0);
 		}
 		async function expandSource(opened) {
-			const source = opened.getByRole('button', { name: copy.photoOriginalMetadata, exact: true });
+			const source = opened.locator('summary').filter({ hasText: new RegExp(`^${metadataEscaped(copy.photoOriginalMetadata)}$`, 'u') });
 			if (!await opened.getByRole('region', { name: copy.photoExifMetadata, exact: true }).isVisible()) await metadataKeyboard(page, source);
 		}
 		async function assertAlternatives(opened, caption) {
