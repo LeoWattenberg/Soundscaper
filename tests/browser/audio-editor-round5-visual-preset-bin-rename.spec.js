@@ -61,7 +61,7 @@ test('a saved Title preset retains its text and styling after its Bin model is r
 	await expectTitle('Changed title', '72', '#00ff00ff');
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
 	await expectTitle('Saved title', '40', '#ff0000ff');
-	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-save-state', 'saved');
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	await page.reload();
 	await waitForEditor(page);
 	editor = page.locator('[data-audio-editor]');
