@@ -212,6 +212,39 @@ test('Nyquist source selection uses native frame seconds and retains the owning 
 	assert.deepEqual(properties.TRACK.CLIPS, [[0, 0.8]]);
 });
 
+test('Nyquist selected tracks count each owning track once across selected clips', () => {
+	const harness = createHarness();
+	const track = { ...harness.target.track, clipIds: ['clip-a', 'clip-b'] };
+	harness.updateProject({
+		tracks: [track],
+		clips: ['clip-a', 'clip-b'].map((id, index) => ({
+			id, kind: 'audio', sourceId: 'source-a', title: 'Clip',
+			timelineStartFrame: index * 400, sourceStartFrame: index * 400,
+			sourceDurationFrames: 400, durationFrames: 400,
+		})),
+		selection: { startFrame: 0, endFrame: 0, trackIds: ['track-a'], clipIds: track.clipIds },
+	});
+	const first = { ...harness.target, track, startFrame: 0, endFrame: 400 };
+	const second = { ...first, clipId: 'clip-b', clipIds: ['clip-b'], startFrame: 400, endFrame: 800 };
+	for (const [index, target] of [first, second].entries()) {
+		const properties = harness.service.nyquistHostProperties(
+			target, [first, second], index, [new Float32Array([0.25])], {},
+		);
+		assert.deepEqual(properties.SELECTION.TRACKS, [1]);
+	}
+});
+
+test('Nyquist selected tracks retain distinct owning audio tracks across clips', () => {
+	const harness = createHarness();
+	const secondTrack = { ...harness.target.track, id: 'track-b', clipIds: ['clip-b'] };
+	harness.updateProject({ tracks: [harness.target.track, secondTrack] });
+	const second = { ...harness.target, track: secondTrack, clipId: 'clip-b', clipIds: ['clip-b'] };
+	const properties = harness.service.nyquistHostProperties(
+		harness.target, [harness.target, second, harness.target], 0, [new Float32Array([0.25])], {},
+	);
+	assert.deepEqual(properties.SELECTION.TRACKS, [1, 2]);
+});
+
 test('Nyquist host properties fall back to the cursor and request for an untargeted stereo result', () => {
 	const harness = createHarness();
 	harness.updateProject({ title: '', tempo: 0, selection: null });

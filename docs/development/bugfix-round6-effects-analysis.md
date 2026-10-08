@@ -259,5 +259,32 @@ effect/Preview joint-job admission; R3-ROOT-019's macro follow-through corrected
 the separate per-channel independence flag. This macro-service multi-track
 barrier owner remained independent of both.
 
+## R6-EFFECT-011 — Nyquist counts selected clips as separate selected tracks
+
+Import an ordinary mono WAV, split it at its midpoint with the Split tool, and
+Shift-select both clip headers on their one audio track. Tools → Nyquist prompt:
+run `(format nil "selected-tracks=~a" (length (get '*selection* 'tracks)))`.
+The baseline reports `selected-tracks=2` for both evaluations although only one
+track is selected. Scripts that require exactly one selected track consequently
+refuse the selection. The [Audacity plug-in reference](https://plugins.audacityteam.org/contributing/developing-your-own-plugins-and-scripts/creating-your-own-nyquist-plugins/plugin-reference)
+defines this property as the list of selected audio track numbers.
+
+The host adds an owning track number for each effect target without removing
+duplicates. Deduplicate those numbers while retaining native Source ownership,
+distinct track entries and their existing evaluation order.
+
+The unchanged ordinary browser workflow is causally RED at the real Nyquist
+output (`/tmp/soundscaper-r6-effects-nyquist-selected-tracks-browser-red.log`).
+The strict host regression separately fails with `[1,1]` instead of `[1]`,
+while fourteen controls pass
+(`/tmp/soundscaper-r6-effects-nyquist-selected-tracks-node-red.log`). All twenty
+new/existing host, controller, native source-bound and source-tempo cases pass
+after repair, including distinct owning tracks
+(`/tmp/soundscaper-r6-effects-nyquist-selected-tracks-node-green.log`). Strict
+types and targeted type-aware lint pass. Public GREEN awaits the next immutable
+product build. Earlier
+native Source clock, tempo and clip-bound corrections concern independent
+metadata owners.
+
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
