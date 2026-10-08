@@ -206,7 +206,7 @@ test('original recovery composes only scalar, neutral and original-contract owne
 
 test('shared still admission, effect and mask contracts retain only imaging and inert foundation imports', () => {
 	const modules = ['image-import-admission.ts', 'image-format-signature.ts', 'image-decoder-routing.ts',
-		'video-effects.js', 'video-mask-matte-v24.ts', 'video-visual-model-v24.ts',
+		'video-effects.js', 'video-global-develop-v1.ts', 'video-mask-matte-v24.ts', 'video-visual-model-v24.ts',
 		'timeline-image-model.ts', 'timeline-image-frame-pack-v1.ts', 'timeline-image-frame-pack-v1-layout.ts',
 		'timeline-image-native-decode-v1.ts', 'timeline-image-browser-native-port.ts', 'timeline-image-conversion-receipt-v1.ts'];
 	for (const module of modules) {
@@ -227,6 +227,27 @@ test('shared still admission, effect and mask contracts retain only imaging and 
 	assert.equal(chunkGroupForModulePath(directory + 'video-timeline.js'), 'editor-domain');
 	assert.equal(chunkGroupForModulePath(directory + 'video-motion-model-v27.ts'), 'editor-domain');
 	assert.equal(chunkGroupForModulePath(directory + 'timeline-image-trim.ts'), 'editor-domain');
+});
+
+test('global develop and histogram production imports stay within the image processing closure', () => {
+	const pending = ['video-global-develop-v1.ts', 'imaging/pixel-frame-global-develop-v1.ts', 'imaging/pixel-frame-histogram-v1.ts']
+		.map(module => directory + module);
+	const seen = new Set<string>();
+	while (pending.length) {
+		const path = pending.pop()!;
+		if (seen.has(path)) continue;
+		seen.add(path);
+		for (const candidate of [path, path.replaceAll('/', '\\')]) {
+			assert.ok(['editor-imaging', 'editor-neutral-foundations', 'editor-closed-domain-values']
+				.some(owner => owner === chunkGroupForModulePath(candidate)), candidate);
+		}
+		const source = transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code;
+		for (const specifier of staticRelativeDependencies(source)) {
+			const target = resolveRelativeModule(path, specifier); assert.ok(target, specifier); pending.push(target);
+		}
+	}
+	assert.ok(seen.has(directory + 'closed-domain-value.ts'));
+	assert.ok(seen.has(directory + 'imaging/pixel-frame-admission-v1.ts'));
 });
 
 test('shared media storage owns source-reference contracts apart from project construction and timeline effects', () => {
