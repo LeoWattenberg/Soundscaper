@@ -64,7 +64,7 @@ export default function AudacityParameterKnob({
 			aria-valuemax={max}
 			aria-valuenow={actual}
 			onKeyDown={event => {
-				if (disabled || !onChange) return;
+				if (disabled || !onChange || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				if (event.key === 'Escape' && keyboardGesture.current) {
 					event.preventDefault();
 					event.stopPropagation();
@@ -88,6 +88,7 @@ export default function AudacityParameterKnob({
 				onChange(next);
 			}}
 			onKeyUp={event => {
+				if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(event.key)) finishKeyboardGesture();
 			}}
 			onBlur={finishKeyboardGesture}
