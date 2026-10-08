@@ -73,6 +73,7 @@ interface AnalysisRequestSnapshot {
 
 export type AnalysisRepeatRequest = Readonly<
 	| { readonly type: 'levels'; readonly scope: string }
+	| { readonly type: 'loudness'; readonly scope: 'master' }
 	| { readonly type: 'spectrum' | 'clipping'; readonly scope: string; readonly options: Readonly<Record<string, unknown>> }
 	| { readonly type: 'contrast'; readonly role: string; readonly scope: string; readonly options: Readonly<Record<string, unknown>> }
 >;
@@ -147,6 +148,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	function repeatLast(): Promise<unknown> {
 		const request = dependencies.state.lastAnalysisRequest;
 		if (!request) return Promise.resolve(null);
+		if (request.type === 'loudness') return measureLoudness();
 		if (request.type === 'levels') return run(request.scope);
 		if (request.type === 'contrast') return captureContrast(request.role, request.scope, request.options);
 		return runSpecialized(request.type, request.scope, request.options);
@@ -337,7 +339,11 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			assertCurrent(task, projectToken, request);
 			if (identity && loudnessCache?.generation.deref() === identity.generation && loudnessCache.key === identity.key) {
 				const report = structuredClone(loudnessCache.report);
-				complete(task, () => { dependencies.state.deliveryReport = report; setLocalizedStatus(dependencies.setStatus, copy, 'loudnessMeasured', undefined, 'success'); });
+				complete(task, () => {
+					dependencies.state.deliveryReport = report;
+					remember({ type: 'loudness', scope: 'master' });
+					setLocalizedStatus(dependencies.setStatus, copy, 'loudnessMeasured', undefined, 'success');
+				});
 				return report;
 			}
 			const rendered = await dependencies.renderAudio('master', range, task.signal);
@@ -366,6 +372,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			}
 			complete(task, () => {
 				dependencies.state.deliveryReport = report;
+				remember({ type: 'loudness', scope: 'master' });
 				setLocalizedStatus(dependencies.setStatus, copy, "loudnessMeasured", undefined, 'success');
 			});
 			return report;

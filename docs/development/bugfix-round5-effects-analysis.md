@@ -460,3 +460,29 @@ product builds pass. Regressions are
 `audio-editor-round5-rack-source-profile.test.ts` and
 `audio-editor-round5-rack-source-profile.spec.js`. ROOT-015 is counted once.
 Assistance runtime assets are unchanged.
+
+## R5-ROOT-016 — Measure loudness does not become the repeatable analyzer
+
+Import an ordinary WAV, Select all, choose Analyze → Measure loudness, and
+close its populated Delivery Report. Analyze → Repeat last analyzer remains
+disabled. If another analyzer ran previously, it repeats that older analyzer
+instead of the loudness measurement the user just requested.
+
+Remember successful loudness measurements, including a valid cache hit, and
+dispatch their repeat to the same measurement and Delivery Report surface.
+A refused measurement retains the preceding successful analyzer. Ordinary
+levels, spectrum, clipping and contrast repeat behavior is preserved.
+
+The immutable-baseline Chromium workflow reaches the populated report and
+fails at the actual disabled Repeat last analyzer menu item
+(`/tmp/soundscaper-r5-root-repeat-loudness-baseline4.log`). Earlier attempts
+with ambiguous Close, a toolbar button instead of the menubar, and an exact
+name missing the disabled explanation are excluded setup errors. Three strict
+history/cache/menu cases independently fail before correction; new and existing
+measurement, cache, repeat and admission support passes 32/32 afterward.
+Target lint, focused strict types and the size gate pass. Regressions extend
+`audio-editor-loudness-measurement.test.ts` and
+`audio-editor-measure-loudness-surface.test.ts`, with ordinary browser coverage
+in `audio-editor-round5-repeat-loudness.spec.js`. Final guarded browser checks
+remain pending; ROOT-016 is not counted yet. Assistance runtime assets are
+unchanged.

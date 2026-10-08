@@ -108,6 +108,34 @@ test('the measurement renders the master through the shared analysis path', asyn
 	assert.deepEqual(harness.renders, [{ scope: 'master', startFrame: 0, endFrame: SAMPLE_RATE * 3 }]);
 });
 
+test('Repeat last analyzer remembers and repeats a successful loudness measurement', async () => {
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }) });
+	await harness.service.measureLoudness();
+	assert.deepEqual(harness.state.lastAnalysisRequest, { type: 'loudness', scope: 'master' });
+	const repeated = await harness.service.repeatLast();
+	assert.equal((repeated as { subject: { format: string } }).subject.format, 'loudness-measurement');
+	assert.equal(harness.renders.length, 2);
+});
+
+test('a cached loudness measurement replaces the previous repeatable analyzer', async () => {
+	const generation = {};
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }),
+		captureLoudnessGeneration: () => ({ generation, sampleRate: SAMPLE_RATE }) });
+	await harness.service.measureLoudness();
+	await harness.service.run();
+	assert.deepEqual(harness.state.lastAnalysisRequest, { type: 'levels', scope: 'master' });
+	await harness.service.measureLoudness();
+	assert.equal(harness.renders.length, 2, 'the final measurement uses its valid cached render');
+	assert.deepEqual(harness.state.lastAnalysisRequest, { type: 'loudness', scope: 'master' });
+});
+
+test('a failed loudness measurement retains the preceding successful analyzer', async () => {
+	const harness = service({ handleError() {} });
+	await harness.service.run();
+	assert.equal(await harness.service.measureLoudness(), null);
+	assert.deepEqual(harness.state.lastAnalysisRequest, { type: 'levels', scope: 'master' });
+});
+
 test('the report reaches the surface an operator already reads, and releases the busy state', async () => {
 	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }) });
 	const report = await harness.service.measureLoudness();

@@ -371,7 +371,11 @@ export function createWorkspaceApplicationMenus({
 					openSurface('nyquist');
 				},
 				openAnalysis: (mode = 'levels') => openSurface(`offline-analysis-${mode}`),
-				openRepeatAnalyzer: () => openSurface('offline-analysis-repeat'),
+				openRepeatAnalyzer: () => snapshot.lastAnalysisRequest?.type === 'loudness'
+					? run(async () => {
+						const report = await controller.actions.analysis.repeatLast();
+						if (report) setDialog('delivery-report');
+					}) : openSurface('offline-analysis-repeat'),
 				measureLoudness: () => run(async () => {
 					const report = await controller.actions.analysis.measureLoudness();
 					if (report) setDialog('delivery-report');

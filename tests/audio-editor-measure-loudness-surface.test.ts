@@ -6,6 +6,7 @@ import { findMenuItem } from './helpers/application-menu-fixture.ts';
 
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import type { AnalysisState } from '../src/common/editor/controller/analysis/analysis-service.ts';
 
 interface MenuItem {
 	readonly id?: string;
@@ -46,7 +47,27 @@ test('Measure loudness leaves the report closed when no result was produced', as
 	assert.deepEqual(dialogs, []);
 });
 
-function workspaceInput(overrides: Readonly<Record<string, unknown>> = {}) {
+test('Repeat last analyzer presents a repeated loudness report on its existing delivery surface', async () => {
+	const dialogs: string[] = [];
+	const surfaces: string[] = [];
+	let repeats = 0;
+	const menus = createWorkspaceApplicationMenus(workspaceInput({
+		controller: { actions: { analysis: { repeatLast: async () => {
+			repeats++;
+			return { subject: { format: 'loudness-measurement' } };
+		} } } },
+		setDialog: (dialog: string) => { dialogs.push(dialog); },
+		openSurface: (surface: string) => { surfaces.push(surface); },
+	}, { type: 'loudness', scope: 'master' })) as readonly MenuItem[];
+	const command = findMenuItem(menus, 'repeat-analyzer');
+	assert.ok(command?.onClick);
+	await command.onClick();
+	assert.equal(repeats, 1);
+	assert.deepEqual(dialogs, ['delivery-report']);
+	assert.deepEqual(surfaces, []);
+});
+
+function workspaceInput(overrides: Readonly<Record<string, unknown>> = {}, lastAnalysisRequest: AnalysisState['lastAnalysisRequest'] = null) {
 	const project = {
 		id: 'project', sampleRate: 48_000,
 		sources: [{ id: 'source-a', channelCount: 1, sampleRate: 48_000, sampleFormat: 'float32' }],
@@ -63,6 +84,7 @@ function workspaceInput(overrides: Readonly<Record<string, unknown>> = {}) {
 		copy: new Proxy({}, { get: (_target, property) => String(property) }), project,
 		snapshot: {
 			project, selectedTrackId: 'track-a',
+			lastAnalysisRequest, analysisRepeatable: Boolean(lastAnalysisRequest),
 			preferences: { workspace: {
 				activeId: 'editing', custom: [],
 				panels: Object.fromEntries(WORKSPACE_PANEL_IDS.map((id) => [id, { visible: false }])),
