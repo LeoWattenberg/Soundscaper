@@ -77,7 +77,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number} outputBytesPerRender
  * @property {number|null} outputFileBytesPerRender
  * @property {number} requiredTemporaryBytes
- * @property {ReturnType<typeof normalizeMediaExportSettings>} encoding
+ * @property {ReturnType<typeof normalizeMediaExportSettings> & Readonly<{bext?: import('./broadcast-wave.ts').BextMetadata}>} encoding
  * @property {Readonly<Record<string, string>>} metadata
  * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean, reason: 'output-memory'|'total-memory'|'offline-render-output-memory'|null, offlineRenderAdmission?: import('./export-render-admission.ts').ExportOfflineRenderStrategyAdmission }} render
  * @property {AudioExportPlanOutput[]} outputs
