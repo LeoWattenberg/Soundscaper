@@ -1,6 +1,7 @@
 import { projectEffectTailFrames } from './effects.js';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
 import { cartForDeliveryRange } from './cart-delivery-range.ts';
+import { ixmlForDeliveryRange } from './ixml-delivery-timing.ts';
 import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
 import { createBw64AdmExport, resolveBw64Adm } from './export-bw64-adm.js';
 import {
@@ -58,6 +59,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number | null} [outputFileBytes]
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {import('./cart-metadata.ts').CartMetadata | null} [cart]
+ * @property {import('./ixml.ts').IxmlMetadata | null} [ixml]
  * @property {readonly import('./riff-markers.ts').RiffMarkerInput[]} [markers]
  * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} [markerInterchangeReport]
  */
@@ -230,7 +232,11 @@ export function createExportPlan(project, options = {}) {
 		masteringSequenceCues: masteringSequence !== null,
 	}, spans);
 	let markers = masteringSequence ? masteringSequence.cues : markerExport.markers;
-	let ixml = runtimeProject.metadata?.ixml ?? null;
+	const ixmlMetadata = (deliveryRange) => preservedRiffChunks?.ixml ? null : ixmlForDeliveryRange(
+		runtimeProject.metadata?.ixml, deliveryRange, runtimeProject.sampleRate, sampleRate, encoding.bitDepth, masteringSequence?.plan,
+	);
+	const ixml = ixmlMetadata(range);
+	const spanIxml = spans?.map((span) => ixmlMetadata(span));
 	const cartMetadata = (deliveryRange) => cartForDeliveryRange(
 		runtimeProject.metadata?.cart, deliveryRange, runtimeProject.sampleRate, sampleRate,
 	);
@@ -257,7 +263,6 @@ export function createExportPlan(project, options = {}) {
 		delete encodingWithoutBext.bext;
 		encoding = Object.freeze(encodingWithoutBext);
 	}
-	if (preservedRiffChunks?.ixml) ixml = null;
 	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
 	// Sequences, chapters and clips deliver their authored extents without tails.
@@ -286,7 +291,7 @@ export function createExportPlan(project, options = {}) {
 	}) : null;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
 	// Spans share encoding settings but each file has its own container size.
-	const layoutForFrames = (totalFrames, outputMarkers = markers) => (format === 'aiff'
+	const layoutForFrames = (totalFrames, outputMarkers = markers, outputIxml = ixml) => (format === 'aiff'
 		? inspectAiffLayout({
 			sampleRate, channelCount: encoding.channelCount, totalFrames,
 			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers: outputMarkers,
@@ -301,7 +306,7 @@ export function createExportPlan(project, options = {}) {
 				float: encoding.floatingPoint,
 				metadata: encoding.metadata,
 				markers: outputMarkers,
-				ixml,
+				ixml: outputIxml,
 				cart,
 				bext,
 				preDataChunks: adm?.preDataChunks,
@@ -326,11 +331,12 @@ export function createExportPlan(project, options = {}) {
 				durationFrames: span.durationFrames,
 			}),
 			outputFrames: spanOutputFrames[spanIndex],
-			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex], markerExport.outputs[spanIndex].markers)?.byteLength ?? null,
+			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex], markerExport.outputs[spanIndex].markers, spanIxml[spanIndex])?.byteLength ?? null,
 			...markerExport.outputs[spanIndex],
 			// Where this file, rather than the whole delivery, sits on the timeline.
 			...(bext ? { bext: bwfMetadata(span.startFrame) } : {}),
 			...(cart ? { cart: cartMetadata(span) } : {}),
+			...(ixml ? { ixml: spanIxml[spanIndex] } : {}),
 		}))
 		: mode === 'mix'
 			? [{

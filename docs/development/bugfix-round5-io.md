@@ -1,0 +1,13 @@
+# Round five I/O bugs
+
+Only ordinary reachable user workflows qualify. Format variants and support for the same timing adapter count once. A completed entry requires a public baseline failure and supported-browser verification of the repair.
+
+| ID | Ordinary user reproduction | Observed failure and expected behavior | Repair and evidence |
+| --- | --- | --- | --- |
+| R5-IO-001 | File → Import a normal 48 kHz production WAV carrying a BWF MetaEdit recorder slate at 0.5 seconds. Export audio → Broadcast WAV → 96,000 Hz → Export, then read the downloaded production sync point. | The downloaded audio correctly uses 96 kHz, but its relative slate stays at 24,000 samples and moves to 0.25 seconds. It must be 48,000 samples to retain the recorded 0.5-second position. | A focused iXML adapter promotes file-relative sync points into the receiving project clock and placement, then derives each delivery’s relative position, rate and event extent. Chapter and clip outputs carry their own metadata and container size; repeated mastering segments carry each occurrence. Original source XML, digitizer-clock group offsets, absolute clocks and vendor extensions remain intact. Public RED: `/tmp/soundscaper-r5-io-ixml-sync-red2.{log,json}`, with the relative slate assertion first and actual 96 kHz header already verified. Strict causal suite: 4 RED → 10 GREEN; related iXML/CART/span suites: 28/28. Public GREEN is pending the coordinated immutable build; this entry is not yet included in the verified count. |
+
+The primary [Gallery iXML specification](https://www.gallery.co.uk/ixml/object_Details.html) defines relative sync points from the file start. It distinguishes digitizer-clock `GROUP_OFFSET` from ordinary file positions. Its redundant `FILE_SAMPLE_RATE` and `AUDIO_BIT_DEPTH` declarations may legitimately be stale after generic processing, so those declarations are repaired as support and are **not** independent bugs or the qualifying baseline failure.
+
+The unchanged benign fixture is `tests/fixtures/bwfmetaedit-ixml-clock.wav.base64`, SHA-256 `d2b8557f25e3b52d77af06dcd6cdbdd201d27a79880ac481c1315a224da1e265`. Python’s standard `wave` module recorded one second of a 440 Hz, mono, 48 kHz, 16-bit tone. BWF MetaEdit 26.08.1 wrote a normal production project/scene/take, a boom track and a `RELATIVE` / `SLATE_GENERIC` sync point through its documented `--in-iXML` option; no container bytes were changed after the tool wrote the file. The fixture’s normal note and digitizer rate are asserted alongside the downloaded slate. An unchanged 48 kHz/16-bit delivery is an explicit negative control.
+
+Manual **Update AI assets**: No. These changes retain the existing metadata parser and runtime dependencies.
