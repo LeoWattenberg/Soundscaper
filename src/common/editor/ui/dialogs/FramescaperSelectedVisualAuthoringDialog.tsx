@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
 	framescaperSelectedVisualAuthoringRuntimeFor,
@@ -20,6 +20,7 @@ import { SELECTED_VISUAL_AUTHORING_COPY } from '../../../i18n/editor-selected-vi
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { useAvailableAuthoringPreset } from './useAvailableAuthoringPreset.ts';
+import { useAuthoringPresetRemovalFocus } from './useAuthoringPresetRemovalFocus.ts';
 
 interface Props {
 	readonly copy?: Readonly<Record<string, string>>;
@@ -79,6 +80,10 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	]);
 	const runtime = framescaperSelectedVisualAuthoringRuntimeFor(props.controller as object);
 	const blocked = pending || props.editingBlocked || props.readOnly || runtime === null;
+	const authoringRef = useRef<HTMLDivElement | null>(null);
+	const operationOwner = useMemo(() => ({ controller: props.controller, projectId: model.fence.projectId,
+		clipId: model.selectedClipId, surface: model.surface }), [props.controller, model.fence.projectId, model.selectedClipId, model.surface]);
+	const captureRemovalFocus = useAuthoringPresetRemovalFocus(authoringRef, operationOwner, pending, blocked);
 	const perform = (operation: string): void => {
 		if (blocked || !runtime || (props.surface === 'video-adjustment-layer' && !model.selectedClipEditable)) return;
 		const request = requestFor(operation, model, {
@@ -86,6 +91,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 			maskId, shape, maskWidth, maskHeight,
 			visualPresetId, finishingPresetId, presetName, freezeDuration,
 		});
+		captureRemovalFocus(operation);
 		setPending(true);
 		setStatus('');
 		setError('');
@@ -103,7 +109,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		initialFocus={initialFocus(props.surface)}
 		dataAttributes={{ 'data-framescaper-selected-authoring': props.surface }}
 	>
-		<div className="audio-editor-clip-inspector">
+		<div ref={authoringRef} className="audio-editor-clip-inspector">
 			<p>{model.description}</p>
 			<AuthoringFields
 				text={text}
