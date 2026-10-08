@@ -11,7 +11,7 @@ test('Dialogue Chain admits the selected audio track and refuses picture and lab
 	await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New label track']);
 	await expectRefusal(page, editor);
 	await importFiles(editor, [createWavFixture({ name: 'ordinary-voice.wav', duration: 1 })]);
-	await editor.getByRole('group', { name: /^Audio clip: ordinary-voice/u }).press('Enter');
+	await editor.getByRole('group', { name: /^ordinary-voice\.wav clip, starts/u }).press('Enter');
 	await chooseCommandAction(page, editor, 'Window', 'Dialogue Chain');
 	const dialog = page.getByRole('dialog', { name: 'Dialogue Chain', exact: true });
 	await expect(dialog.getByRole('button', { name: 'Apply dialogue chain', exact: true })).toBeEnabled();
