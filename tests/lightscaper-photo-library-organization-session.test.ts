@@ -6,8 +6,11 @@ import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.
 import { PhotoLibrarySessionV1 } from '../src/lightscaper/controller/photo-library-session.ts';
 import type { PhotoLibrarySessionPortsV1 } from '../src/lightscaper/controller/photo-library-session-ports.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { queryCatalogRootV1, queryPhotoV1 } from './helpers/lightscaper-catalog-query-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 async function fixture() {
 	const indexedDB = createInstrumentedIndexedDB();

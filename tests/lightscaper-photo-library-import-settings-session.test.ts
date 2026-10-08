@@ -12,8 +12,11 @@ import type { PhotoLibraryPreparationOutcomeV1 } from '../src/lightscaper/contro
 import { photoImportIntentKeyV1 } from '../src/lightscaper/import/managed-import-v1.ts';
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 const settings: PhotoLibraryImportSettingsV1 = { rename: { template: '{stem}-{sequence}.{extension}', sequenceStart: 10, sequencePadding: 3 },
 	metadata: { title: '', creator: 'Authored creator' }, keywordIds: ['existing-keyword'] };
