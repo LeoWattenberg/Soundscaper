@@ -39,6 +39,7 @@ function formatInline(value: string, start: number, end: number, marker: string,
 	placeholder: string): RecordingNotesSelection {
 	const selected = value.slice(start, end);
 	if (selected.includes('\n')) return formatMultilineInline(value, start, end, marker, placeholder);
+	if (marker === '`') return formatRecordingNotesCode(value, start, end, placeholder);
 	if (marker !== '`' && selected) {
 		const leading = /^\s*/u.exec(selected)?.[0].length ?? 0;
 		const trailing = /\s*$/u.exec(selected)?.[0].length ?? 0;
@@ -89,10 +90,24 @@ function formatMultilineInline(value: string, start: number, end: number, marker
 		const contentEnd = to - (/\s*$/u.exec(content)?.[0].length ?? 0);
 		// The restored selection excludes the first opener and last closer.
 		// Include that matching half when toggling the first or final line.
-		if (next.slice(contentStart, contentEnd).endsWith(marker)
-			&& next.slice(contentStart - marker.length, contentStart) === marker) from = contentStart - marker.length;
-		if (next.slice(contentStart, contentEnd).startsWith(marker)
-			&& next.slice(contentEnd, contentEnd + marker.length) === marker) to = contentEnd + marker.length;
+		if (marker === '`') {
+			let opening = from;
+			while (next[opening - 1] === '`') opening -= 1;
+			if (opening === from && next[from - 1] === ' ') {
+				opening -= 1;
+				while (next[opening - 1] === '`') opening -= 1;
+			}
+			const readCode = recordingNotesCodeReader(next);
+			const enclosing = readCode(opening);
+			if (enclosing?.contentStart === from && enclosing.end === to) from = opening;
+			const selected = readCode(from);
+			if (selected?.contentEnd === to) to = selected.end;
+		} else {
+			if (next.slice(contentStart, contentEnd).endsWith(marker)
+				&& next.slice(contentStart - marker.length, contentStart) === marker) from = contentStart - marker.length;
+			if (next.slice(contentStart, contentEnd).startsWith(marker)
+				&& next.slice(contentEnd, contentEnd + marker.length) === marker) to = contentEnd + marker.length;
+		}
 		const result = formatInline(next, from, to, marker, placeholder);
 		selectionEnd = finalContent ? result.selectionEnd : selectionEnd + result.value.length - next.length;
 		selectionStart = result.selectionStart;
@@ -156,7 +171,7 @@ export function formatRecordingNotes(value: string, selectionStart: number, sele
 	format: RecordingNotesFormat, placeholder: string): RecordingNotesSelection {
 	const start = selectionOffset(selectionStart, value.length);
 	const end = Math.max(start, selectionOffset(selectionEnd, value.length));
-	if (format === 'code') return formatRecordingNotesCode(value, start, end, placeholder);
+	if (format === 'code') return formatInline(value, start, end, '`', placeholder);
 	if (format === 'bold' || format === 'italic') {
 		return formatInline(value, start, end, format === 'bold' ? '**' : '*', placeholder);
 	}

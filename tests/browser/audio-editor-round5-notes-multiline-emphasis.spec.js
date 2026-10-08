@@ -3,7 +3,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, waitForEditor } from './audio-editor-test-helpers.js';
 
-for (const [action, element, marker] of [['Bold', 'strong', '**'], ['Italic', 'em', '*']]) {
+for (const [action, element, marker] of [['Bold', 'strong', '**'], ['Italic', 'em', '*'], ['Code', 'code', '`']]) {
 	test(`${action} preserves two selected notes paragraphs, preview and saved toggle`, async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, editor, 'Window', ['Recording notes']);

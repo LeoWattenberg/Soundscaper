@@ -104,3 +104,16 @@ of the 554-line command producer. The complete public sibling preservation and
 one Undo/Redo workflow passes Chromium, Firefox and WebKit on immutable Green34 (1e11bebe1), alongside the
 unchanged original Inspector isolation case (6/6, 1.7 minutes). This is the same
 selected-source-isolation root, with no additional ID.
+
+Uncounted D028 Code sibling: select two ordinary command paragraphs separated
+by a blank line and choose Code → Preview. The immutable Chromium workflow
+renders literal outer backticks across its two paragraphs with no code spans (6.7 seconds).
+Route this owned action through the same multiline transaction while retaining
+D019's complete variable-backtick matching and literal-command producer. The
+plain-command formatter and faithfully mounted Code action first fail before
+correction. Existing literal delimiters, partial selections, selection offsets,
+paragraph structure and toggle contracts pass with the new multiline coverage
+(50/50 new/existing notes checks). Existing complete code spans still toggle
+rather than being reinterpreted as literal markup. Targeted lint, focused strict compiler and size checks pass; the corrected
+public Code preview, exact toggle and saved reload remain pending. This is the
+same cross-block serialization omission as D028, with no new ID.
