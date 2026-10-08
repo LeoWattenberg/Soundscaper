@@ -336,6 +336,7 @@ function renderClipPcm(
 	const loop = readClipLoop(clip);
 	const clipDuration = positiveFrame(clip.durationFrames, 'clip durationFrames');
 	const gain = Math.max(0, finiteDefault(clip.gain, 1)) * (clip.inverted === true ? -1 : 1);
+	const channelGain = source.channelCount === 1 && outputChannels === 2 ? Math.SQRT1_2 : 1;
 	const fadeIn = boundedFrame(clip.fadeInFrames, outputFrames);
 	const fadeOut = boundedFrame(clip.fadeOutFrames, outputFrames);
 	const envelope = createEnvelopeValueEvaluator(
@@ -357,7 +358,7 @@ function renderClipPcm(
 				typeof clip.fadeInShape === 'number' ? clip.fadeInShape : undefined);
 			const fadeOutGain = evaluateClipFadeAt(frame, outputFrames, fadeOut, 'out',
 				typeof clip.fadeOutShape === 'number' ? clip.fadeOutShape : undefined);
-			output[frame] = input[sourceFrame]! * gain * envelope(frame) * fadeInGain * fadeOutGain;
+			output[frame] = input[sourceFrame]! * gain * envelope(frame) * fadeInGain * fadeOutGain * channelGain;
 		}
 		return output;
 	});
