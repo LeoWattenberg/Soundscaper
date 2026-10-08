@@ -806,4 +806,8 @@ linked silence and mounted dialog support, 39/39
 (`/tmp/soundscaper-r5-root-selection-effect-cancel-support.log`). Targeted
 type-aware lint, focused strict compiler and file-size checks pass. Corrected
 immutable public verification is pending; ROOT-026 is not yet counted.
+The composition support caught an omitted idle cancellation stand-in for
+Framescaper, which intentionally excludes selection effects. That stand-in
+is restored before checkpoint capture; all 37 controller/action/absence
+controls pass, adding no separate count.
 The assistance runtime closure is unchanged.
