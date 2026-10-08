@@ -51,6 +51,20 @@ Immutable `e139818a9` at
 every editing case 014–016 in all three engines
 (`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`).
 
+Uncounted R6-EDIT-022 follow-through: immutable Green8 `03748a70e` exposed that
+the composing-input guard also skipped its established propagation isolation.
+The actual TrackNew clip wrapper then prevented the same composing Enter as clip
+selection (`/tmp/soundscaper-round6-green8-public-browser.log`). Keep the input's
+existing stopPropagation before releasing the native default. The public
+defaultPrevented, retained focus, durable name and Undo/Redo assertions are
+unchanged. An actual mounted TrackNew/ClipHeader pair independently reproduces
+the prevention (`/tmp/soundscaper-r6-edit-clip-name-composition-parent-node-red3.log`)
+and now passes with the established clip-name callback/history, focus and vendor
+support, 23/23 (`/tmp/soundscaper-r6-edit-clip-name-composition-parent-node-green2.log`).
+The child fixture now distinguishes native default preservation from its existing
+input propagation isolation, and explicitly focuses the live input before the
+composing hardware event. This completes 022's public route and adds no count.
+
 Uncounted R6-EDIT-003 follow-through: the same native Add-track flyout also removed
 its focused item on Tab without handing focus back to the surviving trigger.
 Ordinary Tab and Shift+Tab both skipped their corresponding closed-trigger
