@@ -137,49 +137,34 @@ statistics follow the existing processor policy and the
 ## R5-ROOT-006 — A staged Auto Duck macro loses its real control track
 
 Remove the empty starter track through Tracks → Remove tracks, then import
-ordinary music (24 kHz in the regression) and voice (48 kHz) WAVs. Mute the voice for listening, open the
-music's Clip properties, select all in Source waveform, and choose Tools →
-Macros palette → New macro → Add effect → Auto Duck → Run macro. A valid
-second audio track exists and the ordinary Auto Duck effect can use it. The
-baseline refuses the macro: “Auto Duck requires a valid control track.”
+ordinary music (24 kHz in the regression) and voice (48 kHz) WAVs. Mute voice
+for listening. Select music's header, or open its Clip properties and select all
+in Source waveform. Tools → Macros palette → New macro → Add effect → Auto
+Duck → Run macro refuses with “Auto Duck requires a valid control track,” even
+though the second recording is available.
 
-Rack materialization correctly chooses the voice, but the temporary render
-discards its control track and explicit mixer sidechain edge. A leading timeline
-macro and a realtime step after an offline step have the same missing graph
-dependency. Stage the bounded control PCM beside the processed selection and
-connect it to the actual Auto Duck instance, preserving the authored control ID
-without mixing it into the output. Source targets use the existing placement and
-native sample-rate renderer; timeline targets retain their ordinary window.
-Existing memory estimates already account for Auto Duck control channels. Each
-await retains the macro's ownership check.
+The macro's temporary render discards the materialized control track and its
+explicit mixer sidechain edge. Stage bounded control PCM beside the processed
+selection and connect it to the actual Auto Duck instance. Keep valid output
+assignments; the existing selected-track render excludes the control's programme
+output while retaining its detector input. Source targets use the existing
+placement and native-rate control renderer. Each await retains the macro's
+ownership check, and the memory estimates already include control channels.
 
-Both ordinary Chromium baseline workflows fail with the visible valid-control
-refusal (`/tmp/soundscaper-r5-root-source-macro-duck-red2.log` and
-`/tmp/soundscaper-r5-root-timeline-macro-duck-red.log`). Two strict chain cases
-fail because the actual temporary engine project cannot resolve the control.
-The first correction added the control PCM but still failed public verification
-on checkpoint `5832abef0`; those failures exposed the required explicit sidechain
-connection and the leading timeline path. The corrected strict cases assert that
-connection and pass alongside existing source/mixed-rack/lifetime regressions
-(23/23). Target lint passes; final public corrected verification is pending.
-Checkpoint `e476d5766` then exposed a canonical graph reachability refusal because
-the staged control's normal output assignment was removed. Retain every valid
-assignment: the existing selected-track renderer already excludes other tracks'
-programme edges while admitting sidechains. Both strict cases now also run the
-actual graph validator before processing; they fail on the incomplete graph and
-pass with its restored output routes. These corrections complete the same macro
-graph root and add no count.
-The first exported-PCM follow-up retained the empty starter track. Read-only
-native and debugger observations showed Auto Duck had selected that empty
-track, rather than the voice recording. Removing the starter track through its
-ordinary menu makes the actual control unambiguous; this setup correction does
-not weaken the audio assertion or add a bug. The revised workflow still fails
-on the unchanged baseline with the valid-control refusal and passes timeline
-Chromium on `5c194daa1`, with real exported attenuation. The later speculative
-source-loading change was unnecessary and is removed. Both source and timeline
-verification across all three engines is pending.
-This temporary graph ownership defect is independent of earlier regular
-Source Auto Duck placement and selection-edge fade corrections.
+Both public workflows reproduce the missing-control refusal on the unchanged
+baseline. The corrected staging tests validate the actual canonical mixer graph,
+resolve the real control, and verify detector processing; focused macro support
+passes 20/20. The normal guarded product builds pass. Source and timeline
+workflows pass Chromium, Firefox and WebKit on immutable green9 `004e07463`
+(6/6, zero skips, 1.3 minutes). Exported PCM confirms the expected ducking,
+with peak between 0.04 and 0.08 instead of the unducked 0.247.
+Evidence is `/tmp/soundscaper-r5-root-macro-duck-real-voice-baseline.log` and
+`/tmp/soundscaper-r5-root-macro-duck-real-voice-green9-all.log`.
+
+The initial PCM probe left the empty starter track available as a default
+control. Read-only observations exposed that setup error; it adds no bug and
+its speculative source-loading change was removed. This staged graph defect is
+independent of earlier regular Auto Duck placement and selection-edge fades.
 
 ## R5-ROOT-007 — Source Spectral Delete uses the project frequency clock
 

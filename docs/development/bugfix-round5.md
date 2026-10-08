@@ -1,6 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Its immutable
+This audit is in progress toward 100 additional distinct fixes. Twenty-eight
+new roots have completed ordinary browser verification (editing 8, dialogs 9,
+effects/analysis 7, import/export 4). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -20,7 +22,8 @@ The baseline and corrected checkpoints use locked detached checkouts, private
 dependency copies, normal guarded product builds, and ordinary loopback
 production previews. Checkpoint one is `23070df21`; its normal browser-product
 build passes. Checkpoint two is `5948d84d0`; both product builds and the
-coordinated strict test typecheck pass. Browser evidence names each exact checkpoint. Firefox audio
+coordinated strict test typecheck pass. Checkpoint nine is `004e07463`; its guarded Soundscaper and Framescaper builds
+pass. Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
 Final canonical, Node, build, and browser handoff gates have not yet run for
