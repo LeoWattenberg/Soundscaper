@@ -67,6 +67,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
 /**
  * @typedef {Object} AudioExportPlan
  * @property {import('./cart-metadata.ts').CartMetadata | null} cart
+ * @property {import('./ixml.ts').IxmlMetadata | null} ixml
  * @property {'mix' | 'stems' | 'chapters' | 'clips'} mode
  * @property {import('./media-export.js').MediaExportFormatId} format
  * @property {number} sampleRate

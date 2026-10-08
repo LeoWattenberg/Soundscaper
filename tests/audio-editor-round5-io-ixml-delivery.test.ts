@@ -56,8 +56,10 @@ test('split deliveries carry only their own relative sync points and account for
 	assert.doesNotMatch(first.ixml!.rawXml, /<SYNC_POINT>/u);
 	assert.match(second.ixml!.rawXml, /<SYNC_POINT_LOW>24000<\/SYNC_POINT_LOW>/u);
 	for (const chapter of [first, second]) {
+		const bitDepth = chapter.encoding.bitDepth;
+		assert.ok(bitDepth === 16 || bitDepth === 20 || bitDepth === 24 || bitDepth === 32);
 		const layout = inspectWavLayout({ sampleRate: chapter.sampleRate, channelCount: chapter.channelCount,
-			totalFrames: chapter.outputFrames, bitDepth: chapter.encoding.bitDepth, float: chapter.encoding.floatingPoint,
+			totalFrames: chapter.outputFrames, bitDepth, float: chapter.encoding.floatingPoint,
 			metadata: chapter.encoding.metadata, bext: chapter.bext, cart: chapter.cart, ixml: chapter.ixml, markers: chapter.markers });
 		assert.equal(chapter.outputFileBytesPerRender, layout.byteLength);
 	}
