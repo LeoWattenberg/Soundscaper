@@ -190,6 +190,7 @@
 		"recording/take-cycle-value-validation.ts",
 		"shared/absent-subsystem.ts",
 		"shared/app-helpers.ts",
+		"shared/authored-track-sidechain-render.ts",
 		"shared/deferred-module-facade.ts",
 		"shared/file-size-warning-confirmation.ts",
 		"shared/file-size-warning.ts",
