@@ -4,6 +4,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { selectAudioEditorEditBlock } from '../../edit-blocking.ts';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { normalizeSpectrogramScale } from '../timeline/geometry.ts';
 import { moveSpectralBandCenter, spectralBandCenter } from '../timeline/spectral-center-gesture.ts';
@@ -14,6 +15,9 @@ import { spectralSelectionFrequencyRangeValid } from './spectral-selection-frequ
 
 export default function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const project = snapshot.project;
+	const editBlocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const currentEditBlocked = useRef(editBlocked);
+	currentEditBlocked.current = editBlocked;
 	const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId && candidate.type === 'audio') || null;
 	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
 	const existing = snapshot.selection?.frequencyRange;
@@ -66,12 +70,14 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 	});
 	const submit = (operation) => {
 		if (!validRange || (operation === 'amplify' && !spectralSelectionGainValid(gainDb))) return;
+		if (currentEditBlocked.current) return;
 		const projectOwnership = currentProjectOwnership.current;
 		if (!projectIdentity || stateProjectIdentity.current !== projectIdentity || !projectOwnership) return;
 		const options = selectionOptions();
 		const requestedGainDb = Number(gainDb);
 		void runAwaitedAudioEditorOperation(run, async () => {
 			if (currentProjectOwnership.current !== projectOwnership) return;
+			if (currentEditBlocked.current) return;
 			controller.actions.spectral.boxSelect(options);
 			if (currentProjectOwnership.current !== projectOwnership) return;
 			if (operation === 'delete') await controller.actions.spectral.delete();
@@ -92,9 +98,9 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-					<Button variant="secondary" disabled={!validRange} onClick={() => submit('select')}>{copy.selectFrequencyRange}</Button>
-					<Button variant="secondary" disabled={!validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
-					<Button variant="primary" disabled={!validRange || !spectralSelectionGainValid(gainDb)} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
+					<Button variant="secondary" disabled={editBlocked || !validRange} onClick={() => submit('select')}>{copy.selectFrequencyRange}</Button>
+					<Button variant="secondary" disabled={editBlocked || !validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
+					<Button variant="primary" disabled={editBlocked || !validRange || !spectralSelectionGainValid(gainDb)} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
 				</>}
 			/>}
 		>
