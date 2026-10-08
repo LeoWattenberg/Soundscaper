@@ -7,9 +7,7 @@ import { createAraApplicationMenuItems } from '../common/editor/ui/ara-applicati
 
 const EMPTY_ITEMS = Object.freeze([]);
 
-export function createFramescaperEditControlMenuItems() {
-	return Object.freeze({ link: null, visibility: null });
-}
+export { createFramescaperEditControlMenuItems } from '../common/editor/ui/framescaper-edit-control-menu-model.ts';
 
 export function createFramescaperVideoTrimApplicationMenuItems() {
 	return EMPTY_ITEMS;

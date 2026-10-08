@@ -7,6 +7,7 @@ import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { createAudioTrack, createVideoTrack } from '../src/common/editor/project-media-factory.ts';
 import { findControllerClip, type ControllerProject } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
+import { createFramescaperEditControlMenuModel } from '../src/common/editor/ui/framescaper-edit-control-menu-model.ts';
 import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore }
 	from './helpers/audio-editor-controller-harness.js';
 
@@ -28,6 +29,17 @@ async function setup(context: TestContext) {
 	controller.actions.timeline.selectClip('persisted-timeline-audio');
 	return { controller, runtime, project };
 }
+
+test('published linked camera selection keeps the ordinary Unlink recovery available', async context => {
+	const { controller } = await setup(context);
+	controller.actions.timeline.selectClip('persisted-timeline-video');
+	controller.actions.timeline.selectClip('persisted-timeline-audio');
+	const snapshot = controller.getSnapshot();
+	const model = createFramescaperEditControlMenuModel({ productId: 'soundscaper', project: snapshot.project,
+		selectedClipId: snapshot.selectedClipId, selectedTrackId: snapshot.selectedTrackId, editBlocked: false,
+		copy: { linkAudio: 'Link audio', unlinkAudio: 'Unlink audio', showVideo: 'Show video', hideVideo: 'Hide video' } });
+	assert.deepEqual(model.link?.operation, { kind: 'unlink', clipId: 'persisted-timeline-audio' });
+});
 
 for (const change of ['speed', 'linked pitch', 'duration'] as const) test(`linked camera ${change} refuses before any history or clip mutation`, async context => {
 	const { controller } = await setup(context);

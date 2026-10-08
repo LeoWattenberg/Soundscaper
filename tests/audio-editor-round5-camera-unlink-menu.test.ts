@@ -7,6 +7,8 @@ import { createAudioTrack, createVideoTrack } from '../src/common/editor/project
 import { createFramescaperEditControlMenuItems, createFramescaperEditControlMenuModel }
 	from '../src/common/editor/ui/framescaper-edit-control-menu-model.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
+import { createFramescaperEditControlMenuItems as createSoundscaperEditControls }
+	from '../src/soundscaper/editor-application-menu-product-runtime.js';
 
 const copy = { linkAudio: 'Link audio', unlinkAudio: 'Unlink audio', showVideo: 'Show video', hideVideo: 'Hide video' };
 function cameraProject() {
@@ -34,6 +36,20 @@ test('Soundscaper linked camera audio exposes only its existing Unlink action', 
 	assert.equal(items.link?.documentationId, 'video-unlink-audio');
 	items.link?.onClick();
 	assert.deepEqual(calls, ['persisted-timeline-audio']);
+});
+
+test('the shipped Soundscaper menu alias retains linked-audio recovery and excludes picture actions', () => {
+	const calls: string[] = [];
+	const actions = { link: () => { assert.fail('unsupported Link'); }, unlink: (id: string) => { calls.push(id); },
+		setVideoHidden: () => { assert.fail('unsupported visibility'); } };
+	const items = createSoundscaperEditControls(input(), actions);
+	assert.equal(items.link?.label, 'Unlink audio');
+	assert.equal(items.link?.disabled, false);
+	assert.equal(items.visibility, null);
+	items.link?.onClick();
+	assert.deepEqual(calls, ['persisted-timeline-audio']);
+	assert.deepEqual(createSoundscaperEditControls(input(cameraProject(), 'persisted-timeline-video'), actions),
+		{ link: null, visibility: null });
 });
 
 test('Soundscaper keeps picture controls, unlinked companions and foreign projects out of this recovery menu', () => {
