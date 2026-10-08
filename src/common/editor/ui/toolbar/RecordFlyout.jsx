@@ -6,6 +6,7 @@ import { Icon } from '@soundscaper/design-system/Icon';
 
 import SoundActivationSettings from '../SoundActivationSettings.tsx';
 import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.ts';
+import { recordingSettingsOwnNavigation } from './record-flyout-keyboard.ts';
 
 import '../audio-editor-design-system/20a-record-flyout.css';
 
@@ -87,7 +88,7 @@ export default function RecordFlyout({
 					className="kw-audio-editor__record-activation-settings">
 					<div onKeyDown={(event) => {
 						if (closeSettingsOnEscape(event)) return;
-						if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+						if (recordingSettingsOwnNavigation(event)) {
 							event.stopPropagation();
 						}
 					}}>
