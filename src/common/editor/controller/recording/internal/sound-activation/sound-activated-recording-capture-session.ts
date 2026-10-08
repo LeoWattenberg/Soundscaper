@@ -211,9 +211,11 @@ export function createSoundActivatedRecordingCaptureSession(
 				publishState(previous);
 				return result;
 			},
-			stop() {
-				cancel();
-				return controller.stop();
+			async stop() {
+				// Stop flushes the worklet's final partial chunk and drains its
+				// writes. Keep its gate live until that captured PCM is admitted.
+				try { await controller.stop(); }
+				finally { cancel(); }
 			},
 			dispose(options?: Readonly<{ stopTracks?: boolean }>) {
 				cancel();
