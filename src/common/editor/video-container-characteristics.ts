@@ -9,6 +9,7 @@
  */
 
 import type { InputAudioTrack, InputTrack } from 'mediabunny';
+import { readContainerVideoPixelAspect } from './video-container-pixel-aspect.ts';
 import { throwIfAborted } from './video-timing-demux-reader.ts';
 import {
 	normalizeVideoSourceCharacteristics,
@@ -60,6 +61,9 @@ export async function readContainerVideoSourceCharacteristics(
 			tracks.filter((track): track is InputAudioTrack => track.isAudioTrack()),
 			tracks,
 		);
+		const format = await input.getFormat();
+		const declaredAspect = format === MP4 || format === QTFF
+			? await readContainerVideoPixelAspect(blob, video.id, options) : null;
 		throwIfAborted(options.signal);
 		const reportedWidth = boundedPositiveInteger(codedWidth, VIDEO_SOURCE_MAXIMUM_CODED_DIMENSION);
 		const reportedHeight = boundedPositiveInteger(codedHeight, VIDEO_SOURCE_MAXIMUM_CODED_DIMENSION);
@@ -69,7 +73,7 @@ export async function readContainerVideoSourceCharacteristics(
 			codedWidth: reportsGeometry ? reportedWidth : null,
 			codedHeight: reportsGeometry ? reportedHeight : null,
 			rotationDegrees: rotation === 90 || rotation === 180 || rotation === 270 ? rotation : null,
-			pixelAspectRatio: boundedAspect(aspect),
+			pixelAspectRatio: boundedAspect(declaredAspect ?? aspect),
 			fieldOrder: null,
 			hasAlpha: typeof hasAlpha === 'boolean' ? hasAlpha : null,
 			videoCodec: codecName(codec),
