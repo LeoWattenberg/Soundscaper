@@ -63,10 +63,11 @@ export function createProjectSessionSelectionService<
 		project: Project,
 		metadata: Readonly<ProjectSessionSelectionMetadata> = {},
 	): void {
-		dependencies.state.selectedTrackId = dependencies.findTrack(project, metadata.selectedTrackId)?.id
-			?? project.tracks.find((track) => track.type !== 'label')?.id
-			?? project.tracks[0]?.id
-			?? null;
+		dependencies.state.selectedTrackId = metadata.selectedTrackId === null ? null
+			: dependencies.findTrack(project, metadata.selectedTrackId)?.id
+				?? project.tracks.find((track) => track.type !== 'label')?.id
+				?? project.tracks[0]?.id
+				?? null;
 		dependencies.state.selectedClipId = Object.hasOwn(metadata, 'selectedClipId')
 			? dependencies.findClip(project, metadata.selectedClipId)?.id ?? null
 			: firstDurableSelectedClipId(project);
