@@ -139,7 +139,7 @@ export function TelemetryPlayhead({
 				touchAction: 'none',
 			}}
 			onPointerDownCapture={(event) => {
-				if (event.button !== 0 || event.isPrimary === false || !event.target.closest?.('.playhead-cursor')) return;
+				if (event.button !== 0 || event.isPrimary === false || scrubDragRef.current || !event.target.closest?.('.playhead-cursor')) return;
 				event.preventDefault();
 				event.stopPropagation();
 				const liveFrame = Math.max(0, Math.round(
