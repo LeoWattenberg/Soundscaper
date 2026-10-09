@@ -64,6 +64,7 @@ export function createAudioEditorFileService(options = {}) {
 		isDesktop,
 		originalOverwriteAvailable: typeof bridge?.prepareOriginalOverwrite === 'function',
 		prepareOriginalOverwrite: async (id) => { const target = await bridge?.prepareOriginalOverwrite?.(id); return target ? Object.freeze({ ...target, originalOverwrite: true }) : null; },
+		releaseSaveTarget: (target) => bridge?.releaseSaveTarget?.(target?.id),
 		releaseOriginalFile: (id) => bridge?.releaseOriginalFile?.(id),
 		externalMediaResolver: externalMediaFiles.resolve, captureExternalMediaFile: (file) => externalMediaFiles.capture(file),
 		bridge,

@@ -23,15 +23,15 @@ import {
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
-async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA, toneB]) {
+async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA, toneB], holdPreparation = false) {
 	for (const fixture of fixtures) {
 		await page.route(`**/__e2e-overwrite/${fixture.name}`, (route) => route.fulfill({
 			body: fixture.buffer, contentType: fixture.mimeType,
 			headers: { 'Content-Length': String(fixture.buffer.byteLength) },
 		}));
 	}
-	await page.addInitScript(({ productId, files }) => {
-		const state = { imports: 0, preparedOriginals: [], savePickers: 0, completed: [], releasedOriginals: [], statuses: [] };
+	await page.addInitScript(({ productId, files, holdPreparation }) => {
+		const state = { imports: 0, preparedOriginals: [], savePickers: 0, completed: [], releasedOriginals: [], releasedTargets: [], statuses: [] };
 		addEventListener('DOMContentLoaded', () => {
 			new MutationObserver(() => {
 				for (const element of document.querySelectorAll('[data-editor-toast], [data-status]')) {
@@ -56,11 +56,12 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 				state.preparedOriginals.push(id);
 				const targetId = String(state.preparedOriginals.length + 3).repeat(48);
 				targets.set(targetId, files[0].name);
+				if (holdPreparation) await new Promise((resolve) => { state.releasePreparation = resolve; });
 				return { id: targetId, name: files[0].name };
 			},
 			releaseOriginalFile: async (id) => { state.releasedOriginals.push(id); return true; },
 			chooseSaveTarget: async () => { state.savePickers += 1; return null; },
-			releaseSaveTarget: async (id) => targets.delete(id),
+			releaseSaveTarget: async (id) => { state.releasedTargets.push(id); return targets.delete(id); },
 			beginWrite: async ({ targetId, size, maximumSize }) => {
 				if (!targets.has(targetId)) throw new Error('The overwrite save target is unavailable.');
 				const name = targets.get(targetId);
@@ -91,10 +92,27 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 		});
 		Object.defineProperty(globalThis, '__originalOverwriteFixture', { value: state });
 		Object.defineProperty(globalThis, `${productId}Desktop`, { enumerable: true, value: Object.freeze({ v1: bridge }) });
-	}, { productId, files: fixtures.map(({ name, mimeType, buffer }) => ({
+	}, { productId, holdPreparation, files: fixtures.map(({ name, mimeType, buffer }) => ({
 		name, mimeType, size: buffer.byteLength, lastModified: 123,
 	})) });
 }
+
+test('deleting the imported clip during original destination preparation releases the unused target', async ({ page }) => {
+	await installOriginalOverwriteBridge(page, 'soundscaper', [toneA], true);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseFileAction(page, editor, 'Import');
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+	await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.preparedOriginals.length)).toBe(1);
+	const clip = clipByName(editor, toneA.name);
+	await clip.focus();
+	await clip.press('Enter');
+	await clip.press('Delete');
+	await expect(editor).toHaveAttribute('data-clip-count', '0');
+	await page.evaluate(() => globalThis.__originalOverwriteFixture.releasePreparation());
+	await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.releasedTargets)).toEqual(['4'.repeat(48)]);
+	expect(await page.evaluate(() => globalThis.__originalOverwriteFixture.completed)).toEqual([]);
+});
 
 for (const variant of [
 	{ name: 'Dialogue.wav', bitDepth: 24, bext: { description: 'Location dialogue', timeReference: '172800000' } },
