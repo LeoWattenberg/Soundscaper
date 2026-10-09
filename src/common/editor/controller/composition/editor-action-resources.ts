@@ -20,6 +20,7 @@ import type { EffectControlsState } from '../effects/effect-controls-service.ts'
 import type { TrimMediaFfmpegHost } from '../document/trim-media-service.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
 import type { EditorTaskScope } from '../shared/lifecycle.ts';
+import type { InterchangeProductProjection } from '../export/internal/interchange-multicamera-delivery.ts';
 
 type EffectLibraryState =
 	& EffectMacroLibraryServiceRuntime['state']
@@ -78,6 +79,7 @@ export interface EditorActionResources {
 	readonly framescaperCaptureActions?: NonNullable<ReturnType<typeof createFramescaperCaptureAppBinding>>['actions'];
 	readonly framescaperWebVcrActions?: NonNullable<ReturnType<typeof createFramescaperCaptureAppBinding>>['webVcrActions'];
 	readonly productSequenceActions?: unknown;
+	readonly projectForRuntimeConsumers?: InterchangeProductProjection;
 	readonly productId?: string;
 	readonly locale?: string;
 	readonly macroScriptStartedAt?: () => string;

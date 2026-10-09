@@ -354,6 +354,7 @@ export interface NativeAudioBuffer {
 }
 
 export interface NativeProjectServiceRuntime {
+	readonly projectForRuntimeConsumers?: (project: unknown) => Readonly<Record<string, unknown>>;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
