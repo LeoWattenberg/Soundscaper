@@ -27,7 +27,11 @@ new regressions plus existing Echo, live EQ and dynamics continuity pass 40/40.
 Two additional phase-clock regressions pass, including repeated and multiple
 frequency edits. No on-disk fixtures, archives or raw coverage were created. Public Chromium
 witness: `audio-editor-round7-live-compatible-controls.spec.js` (root owns its
-build/run and final evidence). Browser verification is pending.
+build/run and final evidence).
+
+The ordinary native-message/node-retention witness passes Chromium on immutable
+`220719574` in the root-owned public wave 2 (3.7 seconds); DSP continuity is established by
+the strict sample-history regressions above.
 
 The assistance runtime closure is unchanged; no manual **Update AI assets** run
 is required.
@@ -49,7 +53,8 @@ fail before correction at measured amplitudes 0.1923077 (low-pass) and
 live/realtime regressions pass 27/27 after correction. The ordinary
 Apply/decoded WAV witness is
 `audio-editor-round7-classic-filter-cutoff.spec.js`; its root-owned browser
-verification is pending. The one four-second input occupies under one MiB in
+verification passes Chromium on immutable `220719574` (6.2 seconds, root-owned
+public wave 2 retry). The one four-second input occupies under one MiB in
 memory and creates no on-disk fixture. No AI runtime asset update is required.
 
 ## R7-EFFECT-003 — Export clips the audible Classic Filters release
@@ -67,5 +72,68 @@ Five focused cases fail before correction and pass afterward; together with
 the existing standard filter and Audacity live cases they pass 22/22. The
 public export/decoded-WAV witness is
 `audio-editor-round7-classic-filter-tail.spec.js`; root owns its pending browser
-verification. All small PCM fixtures live in memory and create no disk files.
+verification passes Chromium on immutable `220719574` (4.2 seconds, root-owned
+public wave 2 retry). All small PCM fixtures live in memory and create no disk files.
 No AI runtime asset update is required.
+
+## R7-EFFECT-004 — A muted insert pads Export with an irrelevant release
+
+Import two normal one-second recordings, add Feedback delay to the second
+track, set Time to one second, Feedback to zero and Mix to one. Export includes
+the sounding release and contains 96,000 frames. Mute that track and Export
+again: the baseline still appends the same second of digital silence rather
+than delivering the audible dry recording's 48,000 frames. The production tail
+path owner follows structural routes but ignores the strip gates that silence
+post-fader audio. Track/bus mute, solo, zero gain, VCA and zero routing level are
+manifestations of this one omitted audibility decision.
+
+Tail traversal now filters static silent paths through the same production
+solo/VCA logic as the engine. Pre-fader taps remain audible before those gates;
+authored mute/gain/edge automation conservatively retains a possible release.
+Ungated stems and neutral/Mix & Render calls carry their existing mute/solo
+policy through every tail query, including exact warp and native render paths.
+
+Four focused owning export/engine/model cases are causally RED with 48,000
+irrelevant tail frames. Thirteen corrected tail/control/safeguard cases plus
+existing serial/parallel topology and the live control regressions pass 34/34.
+The focused exact-warp, Mix & Render, clip/chapter export and routing cases pass
+64/64, retaining their ordinary stem and neutral-render behavior.
+The exact public healthy-unmuted/muted WAV workflow is causally RED on immutable
+`220719574`: the healthy control passes at 96,000 frames, then the muted export
+is still 96,000 rather than 48,000. Evidence:
+`/tmp/soundscaper-r7-public-wave2-retry.log`. The root-owned corrected Chromium
+verification is pending. The two one-second WAV inputs live in memory and
+temporary browser outputs are cleaned by the root runner. No AI runtime asset
+update is required.
+
+## R7-EFFECT-005 — Live stereo linking keeps unequal Noise gate attenuation
+
+Import an ordinary stereo recording with a loud left channel and a quieter
+right channel. Open track Effects, add Noise gate, set Attack to one second and
+Stereo linking to Independent channels, then Play. Change Stereo linking to
+Link channels while the loud channel is open. The baseline changes its peak
+detector but preserves separate channel envelope histories, so the right
+channel remains attenuated during the authored attack/hold/release while the
+left channel stays open. Reversing which channel is louder is the same root.
+
+Joining channels now copies the most open channel's current gain and attack
+history and shares the maximum remaining hold. The change preserves the
+sounding envelope and existing lookahead/crossover history; unlinking resumes
+the separate detectors. Four strict output cases fail before correction,
+including 0.00000631 versus 0.0001 on the first linked quiet sample. All six
+transition/block/reset cases pass afterward, including preservation of the
+ordinary default lookahead buffer. Together with existing gate, lookahead,
+tail, fixed offline and actual worklet regressions they pass 45/45.
+The fixed offline hashes remain exact; the live relinking snapshot that
+encoded unequal gains now verifies equal attenuation of the delayed source.
+
+The ordinary live control/native stereo output witness is
+`audio-editor-round7-noise-gate-linking.spec.js` is causally RED on immutable
+`220719574`: the healthy independent channel ratio is 0.0006177, then supported
+Attack 1,000 ms reaches native one-second controls and the newly linked channel
+ratios remain 0.00254–0.00493 instead of the common 0.01. Earlier attempts with
+an unexpanded advanced field or Attack 1 ms are excluded setup/settled controls.
+Root owns the pending corrected browser verification. Its small observations
+and 16-second input are held only
+in memory, and no raw coverage or disk fixture is created. No AI runtime asset
+update is required.
