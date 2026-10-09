@@ -148,3 +148,15 @@ on this snapshot with a working Pulse backend and isolated ports
 (`/tmp/soundscaper-round6-checkpoint50-green10-full-browser.log`); it is not
 yet recorded as passing. The next complete Node checkpoint is at 100 verified
 fixes.
+
+The immutable `a870804cd` delta passes all 48 public checks across Chromium,
+Firefox and WebKit (`/tmp/soundscaper-round6-green11-public-browser.log`).
+It verifies two additional editing roots, two effects roots and three dialog
+roots, bringing the distinct verified count to 89. Native video-proxy file
+materialization is verified as an uncounted follow-through of I/O 015. Both
+product builds and the required complete bounded repository lint pass
+(`/tmp/soundscaper-round6-green11-build.log`,
+`/tmp/soundscaper-round6-green11-full-lint.log`). The canonical first-milestone
+browser suite still runs against `68655eafb`; its external Nyquist catalog
+installation test reports Failed to fetch and remains a failed result pending
+investigation. Source-ready later roots await their own public GREEN.
