@@ -157,7 +157,7 @@ export function AudacityAudioMeter({
 					slider.onChange(slider.defaultValue);
 				}}
 			/>}
-			{(clipped || truePeakExceeded) && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
+			{(clipped || (isEbu && truePeakExceeded)) && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
 		</div>
 	);
 }
