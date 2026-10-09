@@ -40,6 +40,16 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 	const opening = new Float64Array(channelCount);
 	const openingGain = new Float64Array(channelCount);
 	let crossovers: ComplementaryCrossover[] = [];
+	function joinEnvelopes() {
+		let loudest = 0;
+		for (let channel = 1; channel < channelCount; channel += 1) {
+			if (gains[channel] > gains[loudest]) loudest = channel;
+		}
+		gains.fill(gains[loudest]);
+		opening.fill(opening[loudest]);
+		openingGain.fill(openingGain[loudest]);
+		held.fill(Math.max(...held));
+	}
 	function configure(changes: Readonly<Record<string, unknown>>) {
 		const merged = { ...current, ...changes };
 		const next = normalizeNoiseGateParams(merged);
@@ -59,6 +69,7 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 		attackFrames = Math.ceil(Number(next.attack) * sampleRate);
 		release = Math.exp(-1 / (Number(next.release) * sampleRate));
 		hold = Math.round(Number(next.hold) * sampleRate);
+		if (!linked && next.stereoLink === 'linked') joinEnvelopes();
 		linked = next.stereoLink === 'linked';
 		if (nextFrequency > 0) for (const crossover of crossovers) crossover.configure(nextFrequency);
 		frequency = nextFrequency;

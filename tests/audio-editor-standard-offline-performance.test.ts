@@ -45,11 +45,11 @@ test('offline linked gates evaluate one envelope and skip unused full-band cross
 	assert.equal(low.mock.callCount(), 0);
 });
 
-test('live gates preserve crossover history and independent envelopes when parameters change', () => {
+test('live gates preserve crossover history and join envelopes when stereo linking changes', () => {
 	const input = [signal(3_077), signal(3_077, 1)];
 	for (const [change, expected] of [
 		[{ gateFrequency: 1_000 }, '7ace1a190f47317afe5ea8b7ee2536f6e4a27d2bac18139808b71b93e3852648'],
-		[{ stereoLink: 'linked' }, '5d67920bb21cbe4009932c571b0ea5b9e237e90bc7ad8c5ba2f3c1a016d9a9a1'],
+		[{ stereoLink: 'linked' }, null],
 	] as const) {
 		const processor = createNoiseGateProcessor({ sampleRate: 8_000, channelCount: 2,
 			params: { ...params, gateFrequency: 0, stereoLink: 'independent' } });
@@ -57,7 +57,13 @@ test('live gates preserve crossover history and independent envelopes when param
 		processor.processBlock(input.map((channel) => channel.subarray(0, 512)), output.map((channel) => channel.subarray(0, 512)), 512);
 		processor.updateParams(change);
 		processor.processBlock(input.map((channel) => channel.subarray(512)), output.map((channel) => channel.subarray(512)), 3_077 - 512);
-		assert.equal(digest(output), expected);
+		if (expected !== null) assert.equal(digest(output), expected);
+		else for (let frame = 512; frame < input[0].length; frame += 1) {
+			const dryFrame = frame - processor.latencyFrames;
+			if (input[0][dryFrame] === 0 || input[1][dryFrame] === 0) continue;
+			assert.ok(Math.abs(output[0][frame] / input[0][dryFrame] - output[1][frame] / input[1][dryFrame]) < 1e-6,
+				`the live linked gate must share channel gain at frame ${frame}`);
+		}
 	}
 });
 
