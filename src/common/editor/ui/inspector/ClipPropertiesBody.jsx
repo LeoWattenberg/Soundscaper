@@ -48,7 +48,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 	const track = clip ? findClipTrack(project, clip.id) : null;
 	const sampleRate = project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE;
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
-	const disabled = blocked || !clip;
+	const disabled = blocked || !clip || track?.locked === true;
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = usePresentationFeedback(copy);
 	const [resampleOpen, setResampleOpen] = useState(false);
