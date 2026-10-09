@@ -387,3 +387,31 @@ checked-JavaScript compilation and existing inspector support types, targeted
 and canonical changed-file lint, size and diff checks pass. This changes only
 the browser fixture and receipt, leaves editing at 54 and the aggregate at 200,
 and requires no manual Update AI assets run.
+
+Uncounted R6-EDIT-044 locked Paste menu completion: retain final Green44's
+complete Chromium failure at 30.1 seconds, case 1389. Healthy Paste/Undo and the
+locked Paste-disabled assertion pass before the subsequent Unlock-track click
+is intercepted by the still-open Edit menu. The exact failure snapshot shows
+the disabled Paste child focused and every submenu child unavailable
+(`/tmp/soundscaper-r6-final-green44-paste-diagnostic/error-context.md`). The
+original whole Green28 pass remains recorded above; the unchanged final failure
+is not dismissed as a deadline-only result. Strict mounted native-key handling
+independently reproduces seven dismissal/deferred-focus failures with four
+modified-key ownership controls passing
+(`/tmp/soundscaper-r6-edit-disabled-submenu-escape-node-red.log`). Allow Escape
+before the empty-enabled-items navigation guard; focus only an enabled direct
+child during generic entry. After those repairs, the application timer still
+independently fails the all-disabled parent-focus control (10/11 pass,
+`/tmp/soundscaper-r6-edit-disabled-submenu-vendor-focus-green.log`). Apply its
+existing direct-enabled selector too. The three source-line replacements keep
+both source file lengths unchanged, preserve owned modifiers and return one
+submenu level when availability changes under the focused child. Corrected
+menu entry, dismissal, focus completion and modifier controls pass 36/36
+(`/tmp/soundscaper-r6-edit-disabled-submenu-escape-node-green.log`); unchanged
+Paste destination, paired/fresh-track and clipboard controls pass 6/6
+(`/tmp/soundscaper-r6-edit-disabled-submenu-paste-controls.log`). Narrow strict
+types, targeted and canonical changed-file lint, size and diff checks pass.
+Native complete Paste/Unlock/Undo/Redo verification remains pending while the
+frozen full browser run continues unchanged. This adds no qualifying count:
+editing remains 54 and the aggregate 200; no manual Update AI assets run is
+required.

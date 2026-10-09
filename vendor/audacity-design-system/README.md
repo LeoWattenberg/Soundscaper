@@ -512,3 +512,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     digit edit, Shift navigation and completion behavior remains unchanged.
     Covered by `tests/audio-editor-round6-timecode-digit-shortcut.test.tsx` and
     the configured-command public browser regression.
+
+66. `ContextMenuItem` keeps Escape available when every submenu child is
+    unavailable, returning focus to its parent before the root menu closes.
+    Deferred keyboard entry focuses the first enabled direct child and leaves
+    focus on the parent when none is available. Existing modified-key ownership
+    and writable submenu navigation remain intact. Covered by
+    `tests/audio-editor-round6-disabled-submenu-escape.test.tsx` and the ordinary
+    locked Paste submenu workflow. Upstream-PR candidate.
