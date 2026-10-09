@@ -6,7 +6,8 @@ import { createFramescaperProjectFinishing } from '../../src/framescaper/editor-
 import { createFramescaperProjectUnifiedExactRenderPlanFinishing } from '../../src/framescaper/editor-project-unified-render-plan-finishing.ts';
 import { bindFramescaperUnifiedRenderTimingSidecarsFinishing } from '../../src/framescaper/editor-project-unified-render-timing-finishing.ts';
 import { createFramescaperSelectedExactFrameExecutionFinishing, type CaptureFrameFinishing } from '../../src/framescaper/selected-finishing-exact-frame-execution.ts';
-import { createVideoEffect } from '../../src/common/editor/video-effects.js';
+import { createVideoEffect, normalizeVideoEffect } from '../../src/common/editor/video-effects.js';
+import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../../src/common/editor/closed-domain-value.ts';
 import { applyVideoExactBrowserEffectsFinishing } from '../../src/framescaper/editor-video-exact-browser-effects-finishing.ts';
 import { renderVideoPreviewStraightRgba } from '../../src/common/editor/ui/video-preview-straight-rgba.ts';
 
@@ -117,4 +118,47 @@ export async function renderGlobalExportFrameV1(context: ReturnType<typeof creat
 					sourceDisplayToCanvas: [1,0,0,1,0,0], opacityStart: 1, opacityEnd: 1, blendMode: 'normal', compositingOrder: 0 } }] }] });
 		return { pixels: Array.from(target), ...result };
 	} finally { target.fill(0); await execution.dispose(); }
+}
+
+/** A real menu-authored video recipe, evaluated on a separate literal PNG source.
+ * Native Canvas ingress and the maintained selected composition deliver the
+ * pre-encode bytes. This does not encode or export the imported A/V original. */
+export async function qualifyAuthoredSpatialExportNativeV1(value: unknown) {
+	const input = readClosedDomainRecord(value, 'authored spatial export witness', ['effects', 'png']);
+	const effects = readClosedDomainArray(readClosedDomainField(input, 'effects', 'authored spatial export witness'),
+		'authored spatial effects', 1, 1).map(candidate => normalizeVideoEffect(candidate));
+	const effect = effects[0]!;
+	if (!effect.enabled || !['noise-reduction-v1', 'grain-v1', 'texture-v1', 'dehaze-v1'].includes(effect.type)) {
+		throw new RangeError('The native witness requires one enabled authored spatial effect.');
+	}
+	const png = readClosedDomainArray(readClosedDomainField(input, 'png', 'authored spatial export witness'),
+		'literal PNG bytes', 1, 32 * 1024).map(byte => {
+		if (typeof byte !== 'number' || !Number.isInteger(byte) || byte < 0 || byte > 255) throw new TypeError('Literal PNG bytes refuse.');
+		return byte;
+	});
+	const bytes = new Uint8Array(png), captured: number[][] = [];
+	const canvas = document.createElement('canvas');
+	const nativeRead = CanvasRenderingContext2D.prototype.getImageData;
+	const receivers = new Set<CanvasRenderingContext2D>();
+	let bitmap: ImageBitmap | undefined;
+	try {
+		bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+		if (bitmap.width !== 2 || bitmap.height !== 2) throw new RangeError('The literal native witness requires a 2 by 2 PNG.');
+		canvas.width = bitmap.width; canvas.height = bitmap.height;
+		const drawing = canvas.getContext('2d');
+		if (!drawing) throw new Error('Native Canvas2D is required.');
+		drawing.drawImage(bitmap, 0, 0);
+		CanvasRenderingContext2D.prototype.getImageData = function (this: CanvasRenderingContext2D, ...args: Parameters<typeof nativeRead>) {
+			const image: unknown = Reflect.apply(nativeRead, this, args);
+			if (!(image instanceof ImageData)) throw new TypeError('The native Canvas capture did not return ImageData.');
+			receivers.add(this); captured.push(Array.from(image.data)); return image;
+		};
+		const context = createGlobalExportContextV1(effects, bitmap.width, bitmap.height);
+		const result = await renderGlobalExportFrameV1(context, canvas);
+		return { ...result, captured, nativeCanvasCapture: receivers.size > 0
+			&& [...receivers].every(receiver => receiver instanceof CanvasRenderingContext2D), effects };
+	} finally {
+		CanvasRenderingContext2D.prototype.getImageData = nativeRead;
+		bitmap?.close(); canvas.width = 0; canvas.height = 0; canvas.remove(); bytes.fill(0);
+	}
 }
