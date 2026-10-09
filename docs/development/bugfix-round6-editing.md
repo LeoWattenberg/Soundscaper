@@ -439,3 +439,38 @@ verification remains pending while the unchanged frozen full run is active;
 the existing WebKit imported-A/V guard remains intact. This is fixture support
 only, leaves editing at 54 and the aggregate at 200, and requires no manual
 Update AI assets run.
+
+Uncounted native plug-in restoration fixture portability completion: preserve
+Green44 Firefox case 3441 as an actual 10.3-second failure and its unchanged
+quiet whole retry as a failure. Both stop before Store or Restore: the first
+native ArrowRight changes Gain from 0.25 to 1 while the fixture expects 0.26.
+The exact full-run diagnostic and screenshot remain under
+`/tmp/soundscaper-r6-final-green44-native-plugin-restored-diagnostic/`; the
+quiet result remains in `/tmp/soundscaper-r6-final-green44-quiet-whole.log`.
+The generated control has always used `step="any"`; parameter metadata and
+its normalized runtime port specify no 0.01 keyboard increment. The independent
+bare native-input observation passes in all three engines, preserving trusted
+events: ArrowRight yields 0.26 in Chromium/WebKit and 1 in Firefox, while Home
+and End yield 0 and 1 in all three
+(`/tmp/soundscaper-r6-native-platform-observer/run.log`, 3/3 PASS in 4.0 seconds).
+This observation is separate from the installed plug-in's whole workflow.
+
+Replace only its three native edit interactions with Home, End and End, and
+compare the corresponding saved 0, changed 1, restored 0 and subsequent 1.
+Preserve initial loading at 0.25, authenticated Store count, enabled controls,
+actual transferred-host restoration, exact visible restoration and the final
+ordinary host edit. Keep the original 30-second whole deadline and all
+5-second assertion budgets. Strict fractional parameter writes, default reset
+and same-instance fractional state restoration remain unchanged; all four
+focused controls pass. Narrow strict checked JavaScript validates the retained
+fixture body against typed Page/Locator ports, while its fractional domain
+controls compile independently under the existing strict test configuration.
+An initial temporary combined check included legacy unchecked runtime JavaScript
+and is excluded; the repository's type rules remain unchanged. Targeted and
+canonical changed-file lint, size and diff checks pass. The original
+R6-EFFECT-035 Chromium causal RED and complete GREEN remain valid; the
+pre-repair guarded Green28 products at `435e1779e` are retained for the revised
+observer's causal replay. Latest whole all-engine verification and that replay
+remain pending root-coordinated browser sequencing. No product behavior,
+parameter grain, qualification count or runtime asset closure changes; editing
+remains 54 and the aggregate 200, with no manual Update AI assets required.
