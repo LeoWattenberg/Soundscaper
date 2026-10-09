@@ -34,6 +34,8 @@ type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fad
 	readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialSelection: SourceSelection | null; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
 
 export default function ClipSourceEditor({ controller, project, clipId, copy, blocked, previewBlocked = blocked }: Props) {
+	const mutationBlockedRef = useRef(blocked);
+	mutationBlockedRef.current = blocked;
 	const clip = project.clips.find(candidate => candidate.id === clipId)!;
 	const source = project.sources.find(candidate => candidate.id === clip.sourceId)!;
 	const preview = controller.actions.clipSourcePreview;
@@ -249,7 +251,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 					loadSourceAudioWindow={controller.actions.effects.loadSourceAudioWindow} onLoadError={cause => setError(feedbackFailure(cause))} />}
 				<div className="audio-editor-source-clip" style={{ left: pixel(range.startFrame), width: pixel(range.endFrame) - pixel(range.startFrame) }} data-source-clip-overlay>
 					<div onPointerDown={event => event.stopPropagation()}><ClipHeader name={clip.title || source.name || copy.clip} selected width={pixel(range.endFrame) - pixel(range.startFrame)} showMenu={false}
-						onRename={title => run(() => controller.actions.clip.update(clipId, { title }))} /></div>
+						onRename={blocked ? undefined : title => { if (!mutationBlockedRef.current) run(() => controller.actions.clip.update(clipId, { title })); }} /></div>
 					{(['start', 'end'] as const).map(edge => <button key={edge} type="button" className={`audio-editor-source-trim audio-editor-source-trim--${edge}`}
 						aria-label={edge === 'start' ? copy.clipSourceTrimStart : copy.clipSourceTrimEnd} disabled={blocked} onPointerDown={event => begin(event, edge)}
 						onKeyDown={event => { if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return; if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); const frame = (edge === 'start' ? clip.sourceStartFrame : clip.sourceStartFrame + clip.sourceDurationFrames) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(source.sampleRate / 10) : 1); run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, edge, frame, project))); } }} />)}
