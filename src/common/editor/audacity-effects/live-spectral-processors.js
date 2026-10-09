@@ -79,6 +79,14 @@ export class ClickRemovalLiveProcessor extends LiveProcessor {
 
 export class EqualizerLiveProcessor extends LiveProcessor {
 	constructor(type, sampleRate, params) { super(type, sampleRate, params); this.configure(); this.reset(); }
+	updateParams(params = {}) {
+		const length = this.kernel.length;
+		const states = this.states;
+		super.updateParams(params);
+		// Band edits replace coefficients; queued input and output keep their
+		// existing convolution clock unless the FIR geometry itself changes.
+		if (this.kernel.length === length) this.states = states;
+	}
 	configure() {
 		this.kernel = buildLiveEqualizerKernel(this.type, this.sampleRate, this.params);
 		this.centerDelay = (this.kernel.length - 1) / 2;

@@ -1485,3 +1485,34 @@ signature checks without changing any golden fixture
 Public GREEN remains pending the next immutable build, and this register
 retains thirty-seven verified roots. No assistance runtime assets change and
 no manual **Update AI assets** run is required.
+
+## R6-EFFECT-040 — Editing a live equalizer band drops the playing recording
+
+Import an ordinary continuous 1000 Hz recording. Track Effects → Add effect
+→ Graphic EQ, Play, focus its 1000 Hz fader and press ArrowUp once. The fader
+correctly moves to +1 dB, but actual native master output drops from a healthy
+minimum RMS 0.296085 to zero for 8960 observed frames, about 187 milliseconds.
+The equalizer clears its queued convolution input, output and overlap on every
+band edit, restarting the declared FIR latency although its filter geometry
+has not changed. This independently owned partitioned equalizer state differs
+from the earlier Echo delay-ring correction.
+
+Preserve the equalizer's complete channel convolution state when the FIR length
+is unchanged; replace coefficients while retaining its running clock. Reset
+normally for a new FIR geometry, explicit reset or a new processor. Group
+Graphic EQ, Filter Curve EQ and unchanged-parameter publication under this one
+convolution ownership root; leave the generic live processor reset policy intact.
+
+The complete normal rack/fader workflow is causally RED on unchanged Green30
+`6f904d0ab` after the continuous native output control passes
+(`/tmp/soundscaper-r6-fx040-public-red.log`, 4.6 seconds). A silent native audio
+observer copies actual master PCM without changing project state or DSP.
+After initializing the fixture's FFT runtime, four strict gain/queued-PCM cases
+are independently RED while both FIR-length and explicit-reset controls pass
+(`/tmp/soundscaper-r6-fx040-node-red2.log`). The narrow repair passes all 36 new
+and existing live equalizer, spectral FIR, filter response and exact prior DSP
+signature cases without repinning output
+(`/tmp/soundscaper-r6-fx040-node-green.log`). Focused strict compilation and
+targeted lint pass. Public GREEN remains pending the next immutable build,
+and this register retains thirty-seven verified roots. No assistance runtime
+assets change and no manual **Update AI assets** run is required.
