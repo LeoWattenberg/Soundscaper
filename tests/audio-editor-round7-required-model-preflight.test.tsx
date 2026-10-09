@@ -79,10 +79,27 @@ test('Transcribe Captions keeps missing required recognizer downloads ahead of r
 	});
 });
 
-test('optional alignment and an alternative recognizer do not replace the default required recognizer', async () => {
-	await mounted('transcribe-captions', [SILERO, PARAKEET, WHISPER, ALIGNMENT], async dom => {
+test('an installed alternative recognizer can satisfy the explicitly selected task before downloads', async () => {
+	await mounted('transcribe-captions', [SILERO, PARAKEET, WHISPER, ALIGNMENT], async (dom, installs) => {
 		assert.ok(dom.find('[data-assistance-model-prerequisites]'));
 		assert.match(dom.container.textContent, /Parakeet TDT/u);
+		const recognizer = dom.container.querySelectorAll('select')
+			.find(select => select.getAttribute('aria-label') === 'Speech recognizer');
+		assert.ok(recognizer, 'the existing recognizer choice must remain reachable before its download');
+		await act(async () => { await reactProps(recognizer).onChange({ currentTarget: { value: 'whisper' } }); });
+		assert.equal(dom.find('[data-assistance-model-prerequisites]'), null);
+		assert.deepEqual(installs, []);
+		const selected = dom.container.querySelectorAll('[role="group"]')
+			.find(group => group.getAttribute('aria-label') === 'Speech recognizer');
+		assert.ok(selected);
+		assert.match(selected.querySelector('button')?.textContent ?? '', /^Whisper/u);
+	});
+});
+
+test('optional alignment alone does not replace the required task recognizer', async () => {
+	await mounted('transcribe-captions', [SILERO, PARAKEET, { ...ALIGNMENT, availability: 'installed' }], async dom => {
+		assert.ok(dom.find('[data-assistance-model-prerequisites]'));
+		assert.equal(dom.find('[data-local-assistance]'), null);
 	});
 });
 

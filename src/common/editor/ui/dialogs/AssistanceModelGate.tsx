@@ -22,6 +22,7 @@ interface Props {
 	readonly bridge: LocalModelManagerBridge | null;
 	readonly modelFilter: (model: LocalModelManagerModel) => boolean;
 	readonly modelsReady?: (installedModels: readonly LocalModelManagerModel[]) => boolean;
+	readonly configuration?: (disabled: boolean) => ReactNode;
 	readonly requiresModel: boolean;
 	readonly onClose: () => void;
 	readonly children: ReactNode;
@@ -29,7 +30,7 @@ interface Props {
 
 /** Admit a model-backed dialog before importing its processing and inference graph. */
 export default function AssistanceModelGate({
-	title, copy, locale, bridge, modelFilter, modelsReady, requiresModel, onClose, children,
+	title, copy, locale, bridge, modelFilter, modelsReady, configuration, requiresModel, onClose, children,
 }: Props) {
 	const store = useMemo(() => bridge ? localModelManagerStoreFor(bridge) : null, [bridge]);
 	const snapshot = useSyncExternalStore(store?.subscribe ?? subscribeToNothing,
@@ -93,6 +94,7 @@ export default function AssistanceModelGate({
 		<div className="kw-assistance-model-prerequisites">
 			<p>{(copy.assistanceModelRequired || '{effect} requires a model to be downloaded before it can be executed:')
 				.replaceAll('{effect}', title)}</p>
+			{configuration?.(downloading)}
 			<ul>{available.map((model) => {
 				const progress = snapshot.progress.find(({ modelId }) => modelId === model.modelId);
 				const name = localModelDisplayName(model.modelId, copy);
