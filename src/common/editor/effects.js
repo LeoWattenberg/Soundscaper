@@ -18,7 +18,7 @@ import {
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
 import { nativeFilterTailFrames } from './native-filter-release.ts';
-import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION } from './first-party-effects/dynamics/definition.ts';
+import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION, bandDynamicsTailSeconds, isBandDynamicsEffect } from './first-party-effects/dynamics/definition.ts';
 import { STANDARD_FILTER_EFFECT_DEFINITIONS } from './first-party-effects/standard/filters-definition.ts';
 import { STANDARD_MODULATION_EFFECT_DEFINITIONS } from './first-party-effects/standard/modulation-definition.ts';
 import { NOISE_GATE_EFFECT_DEFINITION, normalizeNoiseGateParams } from './first-party-effects/standard/noise-gate-definition.ts';
@@ -356,6 +356,7 @@ export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, 
 	}
 	const standardTailSeconds = standardEffectTailSeconds(normalized.type, normalized.params, sampleRate);
 	if (standardTailSeconds !== null) return Math.ceil(standardTailSeconds * sampleRate);
+	if (isBandDynamicsEffect(normalized.type)) return Math.ceil(bandDynamicsTailSeconds(normalized.type, normalized.params, sampleRate) * sampleRate);
 	if (normalized.type === 'reverb' && normalized.params.mix > 0) {
 		return Math.ceil((normalized.params.preDelay + normalized.params.decay) * sampleRate);
 	}

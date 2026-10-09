@@ -359,3 +359,27 @@ passes, then the downloaded spectrum report gives peak frequency 0 instead of
 1500 Hz. Corrected public GREEN is pending the shared production build.
 The bounded WAV remains in memory; failed-run diagnostics and the short log are
 removed immediately after inspection. Assistance runtime assets are unchanged.
+
+## R7-EFFECT-011 — Band dynamics truncate their complementary crossover release
+
+Import a normal one-second stereo bass recording, add Multiband compressor in
+the track Effects rack, set Low/High crossover to 40/2500 Hz, all ratios to one,
+and Low/Mid gain to +12/−12 dB. Export with Include tails. The actual
+complementary crossover retains audible state after the recording, but this
+processor family has no release contract and Export stops at 48000 samples.
+De-esser's upper-band correction uses the same independently owned crossover
+state and shares this one root. This differs from native biquad release and
+Classic Filters' cascaded IIR release.
+
+Derive a conservative silent-release bound from the actual one-pole crossover
+and maximum band corrections, including a negative pole near Nyquist; retain
+one quiet render quantum after the −80 dB bound. Neutral and disabled controls
+retain their original dry duration. Four charged actual-processor cases are
+causally RED with declared release zero, while the neutral control passes.
+Corrected release, native-rate, de-esser, Multiband and valid crossover support
+passes 26/26. The unchanged production capture `48b` is publicly RED (7.2
+seconds): healthy dry length and audible bass pass, then the configured rack's
+export length is 48000 rather than greater than 48128. The subsequent physical
+release assertions were not reached; corrected public GREEN is pending the
+shared build. The bounded PCM stays in memory and owned failed-run diagnostics
+and log are removed immediately after inspection. Assistance assets are unchanged.
