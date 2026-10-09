@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { snapAudioEditorFrameWithProject } from '../../snap-grid.js';
+import { snapAudioEditorFrameWithProject } from './snap-grid.js';
 
 interface KeyboardClipMoveProject extends Readonly<Record<string, unknown>> {
 	readonly snap?: Readonly<{ enabled?: boolean }>;

@@ -46,7 +46,7 @@ interface ItemNavigationController {
 	}> | null;
 	readonly actions: {
 		readonly clip: {
-			move(clipId: string, trackId: string, timelineStartFrame: number): unknown;
+			move(clipId: string, trackId: string, timelineStartFrame: number, options?: Readonly<{ preserveTime: true }>): unknown;
 			trim(clipId: string, changes: Readonly<Record<string, number>>, options?: Readonly<{ minimumDurationFrames?: number }>): unknown;
 		};
 		readonly edit: {
@@ -166,8 +166,10 @@ function moveClip(
 	}
 	const targetTrack = project.tracks[targetTrackIndex];
 	if (!targetTrack || targetTrack.type === 'label') return null;
+	const startFrame = itemNavigationMoveFrame(project, clip, deltaFrames);
+	if (trackDelta) return controller.actions.clip.move(clip.id, targetTrack.id, startFrame, { preserveTime: true });
 	return controller.actions.clip.move(
-		clip.id, targetTrack.id, itemNavigationMoveFrame(project, clip, deltaFrames),
+		clip.id, targetTrack.id, startFrame,
 	);
 }
 
