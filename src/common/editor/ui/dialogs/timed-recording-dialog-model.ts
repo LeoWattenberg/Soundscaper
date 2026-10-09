@@ -5,6 +5,8 @@ export type TimedRecordingEndMode = 'duration' | 'end';
 export interface TimedRecordingDialogValue {
 	readonly startTime: string;
 	readonly endTime: string;
+	readonly startTimeMs?: number;
+	readonly endTimeMs?: number;
 	readonly durationSeconds: number;
 	readonly endMode: TimedRecordingEndMode;
 }
@@ -28,6 +30,8 @@ export function createTimedRecordingDialogValue(
 	return Object.freeze({
 		startTime: formatDateTimeLocalInput(startTimeMs),
 		endTime: formatDateTimeLocalInput(endTimeMs),
+		startTimeMs,
+		endTimeMs,
 		durationSeconds: (endTimeMs - startTimeMs) / 1_000,
 		endMode: 'duration',
 	});
@@ -41,6 +45,8 @@ export function normalizeTimedRecordingDialogValue(value: unknown): TimedRecordi
 	return Object.freeze({
 		startTime,
 		endTime,
+		startTimeMs: dateTimeMs(startTime, value.startTimeMs),
+		endTimeMs: dateTimeMs(endTime, value.endTimeMs),
 		durationSeconds,
 		endMode: value.endMode === 'end' ? 'end' : 'duration',
 	});
@@ -52,11 +58,11 @@ export function updateTimedRecordingDialogStart(
 ): TimedRecordingDialogValue {
 	const startTimeMs = dateTimeMs(startTime);
 	if (value.endMode === 'end') {
-		const durationSeconds = elapsedDuration(startTimeMs, value.endTime, value.durationSeconds);
-		return Object.freeze({ ...value, startTime, durationSeconds });
+		const endTimeMs = dateTimeMs(value.endTime, value.endTimeMs);
+		const durationSeconds = elapsedDuration(startTimeMs, endTimeMs, value.durationSeconds);
+		return Object.freeze({ ...value, startTime, startTimeMs, endTimeMs, durationSeconds });
 	}
-	const endTime = durationEndTime(startTimeMs, value.durationSeconds, value.endTime);
-	return Object.freeze({ ...value, startTime, endTime });
+	return durationEndValue({ ...value, startTime }, startTimeMs, value.durationSeconds);
 }
 
 export function updateTimedRecordingDialogDuration(
@@ -64,31 +70,38 @@ export function updateTimedRecordingDialogDuration(
 	durationValue: unknown,
 ): TimedRecordingDialogValue {
 	const durationSeconds = positiveDuration(durationValue) ?? value.durationSeconds;
-	const startTimeMs = dateTimeMs(value.startTime);
-	const endTime = durationEndTime(startTimeMs, durationSeconds, value.endTime);
-	return Object.freeze({ ...value, durationSeconds, endTime });
+	const startTimeMs = dateTimeMs(value.startTime, value.startTimeMs);
+	return durationEndValue(value, startTimeMs, durationSeconds);
 }
 
 export function updateTimedRecordingDialogEnd(
 	value: TimedRecordingDialogValue,
 	endTime: string,
 ): TimedRecordingDialogValue {
-	const startTimeMs = dateTimeMs(value.startTime);
-	const durationSeconds = elapsedDuration(startTimeMs, endTime, value.durationSeconds);
-	return Object.freeze({ ...value, endTime, durationSeconds });
+	const startTimeMs = dateTimeMs(value.startTime, value.startTimeMs);
+	const endTimeMs = dateTimeMs(endTime);
+	const durationSeconds = elapsedDuration(startTimeMs, endTimeMs, value.durationSeconds);
+	return Object.freeze({ ...value, endTime, startTimeMs, endTimeMs, durationSeconds });
 }
 
-function elapsedDuration(startTimeMs: number, endTime: string, fallback: number): number {
-	const endTimeMs = dateTimeMs(endTime);
+function elapsedDuration(startTimeMs: number, endTimeMs: number, fallback: number): number {
 	return Number.isFinite(startTimeMs) && endTimeMs > startTimeMs
 		? (endTimeMs - startTimeMs) / 1_000
 		: fallback;
 }
 
-function durationEndTime(startTimeMs: number, durationSeconds: number, fallback: string): string {
-	return Number.isFinite(startTimeMs)
-		? formatDateTimeLocalInput(startTimeMs + durationSeconds * 1_000)
-		: fallback;
+function durationEndValue(
+	value: TimedRecordingDialogValue,
+	startTimeMs: number,
+	durationSeconds: number,
+): TimedRecordingDialogValue {
+	const endTimeMs = Number.isFinite(startTimeMs)
+		? startTimeMs + durationSeconds * 1_000
+		: dateTimeMs(value.endTime, value.endTimeMs);
+	return Object.freeze({
+		...value, startTimeMs, endTimeMs, durationSeconds,
+		endTime: Number.isFinite(startTimeMs) ? formatDateTimeLocalInput(endTimeMs) : value.endTime,
+	});
 }
 
 export function updateTimedRecordingDialogEndMode(
@@ -106,10 +119,10 @@ export function timedRecordingDialogRange(
 	nowMs: number = Date.now(),
 ): TimedRecordingDialogRange | null {
 	const normalized = normalizeTimedRecordingDialogValue(value);
-	const startTimeMs = dateTimeMs(normalized.startTime);
+	const startTimeMs = dateTimeMs(normalized.startTime, normalized.startTimeMs);
 	const endTimeMs = normalized.endMode === 'duration'
 		? startTimeMs + normalized.durationSeconds * 1_000
-		: dateTimeMs(normalized.endTime);
+		: dateTimeMs(normalized.endTime, normalized.endTimeMs);
 	if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)
 		|| !Number.isFinite(new Date(endTimeMs).getTime())
 		|| startTimeMs <= nowMs || endTimeMs <= startTimeMs) return null;
@@ -123,7 +136,7 @@ function formatDateTimeLocalInput(value: number): string {
 	return local.toISOString().slice(0, 23).replace(/\.000$/u, '');
 }
 
-function dateTimeMs(value: unknown): number {
+function dateTimeMs(value: unknown, retainedTimeMs?: unknown): number {
 	if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN;
 	if (value instanceof Date) return value.getTime();
 	if (typeof value !== 'string' || value === '') return Number.NaN;
@@ -135,6 +148,11 @@ function dateTimeMs(value: unknown): number {
 		const actual = [date.getFullYear(), date.getMonth() + 1, date.getDate(),
 			date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds()];
 		if (actual.some((part, index) => part !== expected[index])) return Number.NaN;
+	}
+	// A linked local time can occur twice. Keep its instant until the field is edited.
+	if (typeof retainedTimeMs === 'number' && Number.isFinite(retainedTimeMs)
+		&& dateTimeMs(formatDateTimeLocalInput(retainedTimeMs)) === date.getTime()) {
+		return retainedTimeMs;
 	}
 	return date.getTime();
 }
