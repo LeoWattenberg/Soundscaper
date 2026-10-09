@@ -549,6 +549,20 @@ Node suite checkpoint will include this shared helper. Public GREEN awaits the
 next immutable product build. No assistance runtime assets change and no
 manual **Update AI assets** run is required.
 
+The Noise Gate release estimator also derived its crossover poles through the
+old clamp. Derive its tail from the corrected valid cutoff so the rack cannot
+stop while a genuine near-Nyquist release remains audible. The existing strict
+8 kHz/3,999 Hz tail regression now excites the actual corrected high cutoff
+with an ordinary 3,990 Hz tone; its former 1,000 Hz tone no longer supplies the
+same end-of-source amplitude after the cutoff correction. The estimator's
+52-frame tail is causally RED at residual amplitude 0.07404 where the retained
+−80 dB bound requires less than 0.0001
+(`/tmp/soundscaper-r6-effects-crossover-tail-node-red2.log`). All thirty-two
+tail, lookahead, valid-crossover and actual-worklet support cases pass after
+the dependent repair (`/tmp/soundscaper-r6-effects-crossover-tail-node-green.log`),
+with narrow strict types and targeted lint passing. This is required
+follow-through of R6-EFFECT-018 and adds no root.
+
 ## R6-EFFECT-019 — Mono Vocoder filters an incomplete synthesized carrier
 
 Import an ordinary mono recording containing several voice-band tones and a

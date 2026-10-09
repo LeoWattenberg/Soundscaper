@@ -56,7 +56,7 @@ export function standardNoiseGateTailSeconds(params: Readonly<Record<string, unk
 	if (frequency >= sampleRate / 2) throw new RangeError('noise-gate.gateFrequency must be below the Nyquist frequency.');
 	const rangeDb = Number(settings.rangeDb);
 	if (frequency === 0 || rangeDb === 0) return 0;
-	const k = Math.tan(Math.PI * Math.min(frequency, sampleRate * .45) / sampleRate);
+	const k = Math.tan(Math.PI * frequency / sampleRate);
 	const coefficient = k / (1 + k);
 	const radius = Math.abs(1 - 2 * coefficient);
 	if (radius === 0) return 2 / sampleRate;
