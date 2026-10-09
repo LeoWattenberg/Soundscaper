@@ -1,14 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { detachPhotoLibraryImportSettingsV1 } from '../../controller/shared/photo-library-import-gesture-v1.ts';
-import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportRequestOptionsV1, PhotoLibraryImportSettingsV1 } from '../../photo-library-import-settings-port-v1.ts';
+import { detachPhotoLibraryImportSettingsV1, detachPhotoLibraryImportDevelopPresetV1 } from '../../controller/shared/photo-library-import-gesture-v1.ts';
+import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportSettingsV1 } from '../../photo-library-import-settings-port-v1.ts';
+import type { PhotoLibraryImportGestureOptionsV2 } from '../../photo-library-develop-import-port-v1.ts';
+import type { PhotoLibraryDevelopPresetReadV1 } from '../../photo-library-develop-presets-port-v1.ts';
+import { photoDevelopSettingsCopy } from '../../../i18n/lightscaper-develop-settings-copy.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PhotoImportOptions, { type PhotoImportOptionsCopyV1 } from './PhotoImportOptions.tsx';
 import PhotoImportPresetControls, { type PhotoImportPresetControlsPropsV1, type PhotoImportPresetCopyV1, type PhotoImportPresetDraftV1 } from './PhotoImportPresetControls.tsx';
 import PhotoImportKeywordOptions, { type PhotoImportKeywordOptionsPropsV1, type PhotoImportKeywordCopyV1 } from './PhotoImportKeywordOptions.tsx';
+import PhotoImportDevelopPresets, { type PhotoImportDevelopPresetsPropsV1 } from './PhotoImportDevelopPresets.tsx';
 
 interface Props {
+	readonly locale?: string;
 	readonly title: string;
 	readonly filesLabel: string;
 	readonly importLabel: string;
@@ -18,13 +23,14 @@ interface Props {
 	readonly error: string | null;
 	readonly copy: PhotoImportOptionsCopyV1 & PhotoImportPresetCopyV1 & PhotoImportKeywordCopyV1;
 	readonly readPresets: PhotoImportPresetControlsPropsV1['readPresets'];
+	readonly readDevelopPresets?: PhotoImportDevelopPresetsPropsV1['readPresets'];
 	readonly applyPreset: PhotoImportPresetControlsPropsV1['applyPreset'];
 	readonly createId: PhotoImportPresetControlsPropsV1['createId'];
 	readonly readDefinitions: PhotoImportKeywordOptionsPropsV1['readDefinitions'];
 	readonly readDefinition: PhotoImportKeywordOptionsPropsV1['readDefinition'];
 	readonly definitionReader: PhotoImportKeywordOptionsPropsV1['definitionReader'];
 	readonly onClose: () => void;
-	readonly onImport: (files: readonly File[], options?: Pick<PhotoLibraryImportRequestOptionsV1, 'settings' | 'signal'>) => Promise<PhotoLibraryImportGestureReceiptV1>;
+	readonly onImport: (files: readonly File[], options?: PhotoLibraryImportGestureOptionsV2) => Promise<PhotoLibraryImportGestureReceiptV1>;
 }
 
 const PLAIN_SETTINGS: PhotoLibraryImportSettingsV1 = Object.freeze({ rename: null, metadata: Object.freeze({}), keywordIds: Object.freeze([]) });
@@ -36,26 +42,28 @@ export default function PhotoImportDialog(props: Props) {
 	const [selectedCount, setSelectedCount] = useState(0);
 	const [settings, setSettings] = useState(PLAIN_SETTINGS), [pending, setPending] = useState(false), [failure, setFailure] = useState<string | null>(null);
 	const [presetDraft, setPresetDraft] = useState<PhotoImportPresetDraftV1>({ id: '', name: '', allocatedId: null });
+	const [developPreset, setDevelopPreset] = useState<PhotoLibraryDevelopPresetReadV1 | null>(null), [presetPending, setPresetPending] = useState(false);
 	const scope = useRef<Scope | null>(null), active = useRef<Demand | null>(null);
 	useEffect(() => {
 		const current = { live: true }; scope.current = current; setPending(false);
 		return () => { current.live = false; if (active.current?.scope === current) active.current.controller.abort(); };
 	}, [props.onImport]);
 	const close = () => { active.current?.controller.abort(); props.onClose(); };
-	const locked = props.busy || pending;
+	const locked = props.busy || pending || presetPending;
 	const submit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const current = scope.current, files = input.current?.files;
-		if (!current?.live || active.current || props.busy || !files?.length) return;
+		if (!current?.live || active.current || locked || !files?.length) return;
 		try {
 			if (files.length > 64) throw new RangeError('Import requires at most 64 selected Files.');
 			const selected = Object.freeze(Array.from(files)), recipe = detachPhotoLibraryImportSettingsV1(settings);
+			const preset = developPreset === null ? null : detachPhotoLibraryImportDevelopPresetV1(developPreset);
 			const plain = recipe.rename === null && Object.keys(recipe.metadata).length === 0 && recipe.keywordIds.length === 0;
 			const job = { scope: current, controller: new AbortController() }; active.current = job; setPending(true); setFailure(null);
 			// Register ownership before a borrowed callback can synchronously dismiss the form.
 			void Promise.resolve().then(() => {
 				job.controller.signal.throwIfAborted();
-				return props.onImport(selected, { signal: job.controller.signal, ...(plain ? {} : { settings: recipe }) });
+				return props.onImport(selected, { signal: job.controller.signal, ...(plain ? {} : { settings: recipe }), ...(preset === null ? {} : { developPreset: preset }) });
 			}).then(receipt => {
 				if (current.live && active.current === job && !job.controller.signal.aborted && receipt.outcome === 'acknowledged') props.onClose();
 			}).catch(error => {
@@ -77,6 +85,8 @@ export default function PhotoImportDialog(props: Props) {
 			<PhotoImportOptions value={settings} onChange={setSettings} busy={locked} copy={props.copy}>
 				<PhotoImportPresetControls value={settings} onChange={setSettings} busy={locked} copy={props.copy}
 					readPresets={props.readPresets} applyPreset={props.applyPreset} createId={props.createId} draft={presetDraft} onDraftChange={setPresetDraft} />
+				{props.readDevelopPresets && <PhotoImportDevelopPresets readPresets={props.readDevelopPresets} value={developPreset} onChange={setDevelopPreset}
+					busy={locked} onPending={setPresetPending} copy={photoDevelopSettingsCopy(props.locale ?? 'en')} />}
 				<PhotoImportKeywordOptions keywordIds={settings.keywordIds} busy={locked} copy={props.copy}
 					onChange={keywordIds => { setSettings(previous => Object.freeze({ ...previous, keywordIds })); }}
 					readDefinitions={props.readDefinitions} readDefinition={props.readDefinition} definitionReader={props.definitionReader} />

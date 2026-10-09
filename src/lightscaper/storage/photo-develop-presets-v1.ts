@@ -11,6 +11,7 @@ import { array, compareText, field, id, integer, record, unique } from '../catal
 import { borrowPhotoDevelopPresetEntryReader, photoDevelopPresetEntryValue } from './photo-develop-preset-read.ts';
 
 export const PHOTO_DEVELOP_PRESETS_LIMITS_V1 = Object.freeze({ maximumPresets: 16, maximumRowBytes: 10_485_760, maximumMenuBytes: 65_536 });
+export type PhotoDevelopPresetReadPortV1 = Readonly<Partial<Pick<KeyValueRepository, 'get' | 'readEntry'>>>;
 export type PhotoDevelopPresetSettingsPortV1 = Pick<KeyValueRepository, 'get' | 'putIfAbsent' | 'replaceIfCurrent'>
 	& Readonly<Partial<Pick<KeyValueRepository, 'readEntry'>>>;
 export interface PhotoDevelopPresetRowV1 {
@@ -62,7 +63,7 @@ export function normalizePhotoDevelopPresetRowV1(value: unknown, catalogId: stri
 	return row;
 }
 
-export async function readPhotoDevelopPresetsV1(repository: PhotoDevelopPresetSettingsPortV1, catalogId: string,
+export async function readPhotoDevelopPresetsV1(repository: PhotoDevelopPresetReadPortV1, catalogId: string,
 	options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryDevelopPresetSnapshotV1> {
 	const key = photoDevelopPresetsKeyV1(catalogId), { signal } = readPhotoStackSignalOptionsV1(options); checkSignal(signal);
 	const read = borrowPhotoDevelopPresetEntryReader(repository), entry = await read(key); checkSignal(signal);
@@ -70,7 +71,7 @@ export async function readPhotoDevelopPresetsV1(repository: PhotoDevelopPresetSe
 	return snapshot(raw === undefined ? { catalogId, revision: 0, presets: [] } : normalizePhotoDevelopPresetRowV1(raw, catalogId));
 }
 
-export async function readPhotoDevelopPresetV1(repository: PhotoDevelopPresetSettingsPortV1, catalogId: string, presetId: string,
+export async function readPhotoDevelopPresetV1(repository: PhotoDevelopPresetReadPortV1, catalogId: string, presetId: string,
 	expectedRevision: number, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryDevelopPresetBodyV1> {
 	const key = photoDevelopPresetsKeyV1(catalogId), selected = id(presetId, 'Develop preset ID');
 	const expected = integer(expectedRevision, 0, Number.MAX_SAFE_INTEGER, 'Develop preset expected revision');

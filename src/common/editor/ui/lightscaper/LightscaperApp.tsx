@@ -485,9 +485,10 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 				onClose={() => { setMembershipsVisible(false); }} />
 		</Suspense>}
 		{!restore.busy && importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
-			<PhotoImportDialog title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
+			<PhotoImportDialog locale={locale} title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
 				cancelLabel={copy.photoCancelAction} failureLabel={copy.photoImportFailed} busy={library.busy} error={library.error} copy={copy}
 				readPresets={library.readImportPresets} applyPreset={library.applyImportPreset} createId={createPresetId}
+				readDevelopPresets={library.readImportDevelopPresets}
 				readDefinitions={library.readDefinitions} readDefinition={library.readDefinition} definitionReader={definitionReader.current}
 				onClose={closeImport} onImport={onImport} />
 		</Suspense>}

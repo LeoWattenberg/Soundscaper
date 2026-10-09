@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { matchesNormalizedPhotoQuerySubjectV1 } from './smart-query.ts';
+import { matchesNormalizedPhotoQuerySubjectV1, type PhotoQuerySubjectV1 } from './smart-query.ts';
 import type { PhotoCatalogRootV1 } from './types.ts';
 import type { PhotoCatalogQueryV1 } from './photo-query-types-v1.ts';
 import type { PhotoQueryRowV1 } from './photo-query-index-v1.ts';
 
-export function photoQueryMatcherV1(root: PhotoCatalogRootV1, query: PhotoCatalogQueryV1): (row: PhotoQueryRowV1) => boolean {
+/** Trusted matcher input; full stored-row admission remains the scanner's responsibility. */
+export type PhotoQueryMatchRowV1 = Pick<PhotoQueryRowV1, 'title' | 'caption' | 'creator' | 'location' | 'keywordIds' | 'collectionIds'>
+	& Readonly<{ summary: Omit<PhotoQuerySubjectV1, 'keywordIds'> }>;
+
+export function photoQueryMatcherV1(root: PhotoCatalogRootV1, query: PhotoCatalogQueryV1): (row: PhotoQueryMatchRowV1) => boolean {
 	const filter = query.filter;
 	const keywords = new Map(root.keywords.map((node) => [node.id, node.name]));
 	const collection = filter?.kind === 'collection' ? root.collections.find((candidate) => candidate.id === filter.id) : null;

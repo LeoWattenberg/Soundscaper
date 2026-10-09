@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { createPendingLightscaperLargeLibraryResult } from '../../scripts/lib/lightscaper-large-library-diagnostics-v1.ts';
 import { PHOTO_LARGE_LIBRARY_SPECIFICATION_V1 as SPEC, PHOTO_LARGE_LIBRARY_PNG_BASE64_V1 } from '../../src/lightscaper/quality/large-library-workload-v1.ts';
+import { observeLargePhotoLibrarySeedConsoleV1 } from '../helpers/lightscaper-large-library-seed-diagnostic.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
 test.use({ browserCoverage: false });
@@ -26,6 +27,14 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 	}
 	const errors = [];
 	page.on('pageerror', error => { errors.push(error.message); });
+	page.on('console', message => {
+		try {
+			observeLargePhotoLibrarySeedConsoleV1(message.text(), line => {
+				if (++phaseRecords > 64) throw new RangeError('Library phase diagnostics exceed their record bound.');
+				console.log(line);
+			});
+		} catch (error) { errors.push(String(error)); }
+	});
 	await setup(page);
 	const app = page.locator('[data-lightscaper-bound="true"]');
 	await expect(app).toBeVisible(); await expect(app.locator('[data-photo-library]')).toHaveCount(0);
@@ -96,8 +105,13 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 		await menu('View', 'Search, filter and sort');
 		await queryDialog.getByRole('combobox', { name: 'Filter', exact: true }).selectOption('');
 		await queryDialog.getByLabel('Search text', { exact: true }).fill(SPEC.sparseSearchText);
-		searchTrials.push({ trial, ...(await applyQuery()), resultPhotoId: await library.locator('[data-photo-id]').first().getAttribute('data-photo-id'),
-			resultCount: await library.locator('[data-photo-id]').count() });
+		if (trial === 0) await native(page, 'startLargePhotoLibraryQueryTransactionObservationV1');
+		try {
+			searchTrials.push({ trial, ...(await applyQuery(trial === 0)), resultPhotoId: await library.locator('[data-photo-id]').first().getAttribute('data-photo-id'),
+				resultCount: await library.locator('[data-photo-id]').count() });
+		} finally {
+			if (trial === 0) await finishQueryObservation();
+		}
 		phase('search', 'end', trial, searchTrials[searchTrials.length - 1].elapsedMs);
 		await closeQuery();
 	}
@@ -124,14 +138,36 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 		await app.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') }).focus(); await page.keyboard.press('Enter');
 		await app.getByRole('button', { name: action, exact: true }).focus(); await page.keyboard.press('Enter');
 	}
-	async function applyQuery() {
+	async function applyQuery(observeFailure = false) {
 		const action = queryDialog.getByRole('button', { name: 'Apply query', exact: true });
 		await expect(action).toBeEnabled(); await action.focus();
 		const started = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
-		await expect(library).toHaveAttribute('aria-busy', 'false'); await expect(queryDialog.getByRole('alert')).toHaveCount(0);
+		try { await expect(library).toHaveAttribute('aria-busy', 'false'); }
+		catch (error) {
+			if (observeFailure) {
+				try {
+					const state = await library.evaluate(element => ({ busy: element.getAttribute('aria-busy') === 'true',
+						renderedPhotoCount: element.querySelectorAll('[data-photo-id]').length }));
+					const line = JSON.stringify({ kind: 'lightscaper-library-search-state-v1', schemaVersion: 1,
+						elapsedSinceTestStartMs: performance.now() - phaseStarted, ...state });
+					if (++phaseRecords > 64 || Buffer.byteLength(line) > 512) throw new RangeError('Library search state exceeds its diagnostic bound.', { cause: error });
+					console.log(line);
+				} catch (diagnosticError) { errors.push(String(diagnosticError)); }
+			}
+			throw error;
+		}
+		await expect(queryDialog.getByRole('alert')).toHaveCount(0);
 		return { elapsedMs: await page.evaluate(() => performance.now()) - started };
 	}
 	async function closeQuery() { await queryDialog.locator('[data-query-close]').focus(); await page.keyboard.press('Enter'); await expect(queryDialog).toHaveCount(0); }
+	async function finishQueryObservation() {
+		try {
+			const state = await native(page, 'finishLargePhotoLibraryQueryTransactionObservationV1');
+			const line = JSON.stringify({ kind: 'lightscaper-library-query-transaction-state-v1', schemaVersion: 1, ...state });
+			if (++phaseRecords > 64 || Buffer.byteLength(line) > 512) throw new RangeError('Query transaction observation exceeds its diagnostic bound.');
+			console.log(line);
+		} catch (diagnosticError) { errors.push(String(diagnosticError)); }
+	}
 });
 
 async function native(page, method) {

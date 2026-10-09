@@ -4,6 +4,9 @@ import { readFile } from 'node:fs/promises';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
 import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restore-copy.ts';
+import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy.ts';
+import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
+import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
 import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 } from '../../src/lightscaper/storage/photo-library-catalog-pointer.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from '../../src/lightscaper/storage/photo-library-location-v2.ts';
@@ -30,6 +33,7 @@ for (const locale of ['en', 'de']) {
 		await expect(app.locator('[data-photo-library]')).toHaveCount(0);
 		const source = await backup(page, app, copy), original = await decode(source.buffer);
 		expect(original.photos).toEqual([]); expect(original.savedState).toBeNull();
+		expect(original.presetHeader).toBeNull(); expect(original.presets).toBeNull();
 		await restore(page, app, copy, restoreCopy, source);
 		dialog = named(page, 'dialog', restoreCopy.title);
 		await expect(dialog.locator('[data-photo-restore-receipt]')).toContainText(restoreCopy.acknowledged.replace('{name}', original.root.name));
@@ -67,6 +71,7 @@ for (const locale of ['en', 'de']) {
 		await expect(saved.locator('[data-saved-receipt]')).toHaveText(copy.photoSavedFilterSaved); await keyboard(page, bodyClose(saved, copy.photoCloseMetadata));
 		const source = await backup(page, app, copy), original = await decode(source.buffer);
 		expect(original.photos).toHaveLength(2); expect(original.stacks).toHaveLength(1); expect(original.saved).toHaveLength(1);
+		expect(original.presetHeader).toBeNull(); expect(original.presets).toBeNull();
 		expect(original.saved[0]).toMatchObject({ name: savedName, query: QUERY }); expect(original.savedState).toMatchObject({ collectionCount: 1, revision: 1 });
 		for (const item of original.photos) expect(item.original.equals(PNG)).toBe(true);
 		await keyboard(page, photo(page, library, 'First.png'));
@@ -87,11 +92,102 @@ for (const locale of ['en', 'de']) {
 		expect(await decode((await backup(page, app, copy)).buffer)).toEqual(original); expect(errors).toEqual([]);
 	});
 
+	test(`${locale}: full and partial presets survive same-ID restore and reload, then partial apply preserves unselected settings and originals`, async ({ page, browserName }) => {
+		test.skip(browserName === 'webkit', 'Full WebKit catalog Blob/OPFS custody qualification remains deferred.');
+		test.setTimeout(120_000);
+		const { app, copy, restoreCopy, errors } = await setup(page, locale);
+		const library = await importPhotos(page, app, copy, ['Source.png', 'Target one.png', 'Target two.png']);
+		const develop = developTools(page, app, library, copy, locale), messages = develop.messages;
+		await develop.open('Target one.png'); await develop.add('tone-ladder-v1', 'videoEffectParamExposure', '1'); await develop.save(); await develop.close();
+		await develop.open('Source.png'); await develop.add('white-balance-v1', 'videoEffectParamTemperature', '0.25');
+		await develop.add('tone-ladder-v1', 'videoEffectParamExposure', '0.5'); await develop.save();
+		let options = await develop.presets();
+		await develop.savePreset(options, 'Full look', false); await develop.savePreset(options, 'WB only', true);
+		await develop.closeOptions(options); await develop.close();
+		const source = await backup(page, app, copy), original = await decode(source.buffer);
+		expect(original.presetHeader).toMatchObject({ revision: 2, presetCount: 2 });
+		expect(original.presets).toMatchObject({ catalogId: original.root.id, revision: 2 });
+		const full = original.presets.presets.find(preset => preset.identity.name === 'Full look');
+		const partial = original.presets.presets.find(preset => preset.identity.name === 'WB only');
+		expect(full.settings.selection).toEqual({ effectTypes: 'all', geometry: true, localAdjustments: true });
+		expect(partial.settings.selection).toEqual({ effectTypes: ['white-balance-v1'], geometry: false, localAdjustments: false });
+		expect(full.settings.develop.effects.map(effect => effect.type)).toEqual(['white-balance-v1', 'tone-ladder-v1']);
+		expect(partial.settings.develop.effects).toHaveLength(1); expect(partial.settings.develop.effects[0].params.temperature).toBe(0.25);
+		expect(full.settings.develop.effects[1].params.exposure).toBe(0.5); expect(original.photos).toHaveLength(3);
+		for (const item of original.photos) expect(item.original.equals(PNG)).toBe(true);
+		const target = original.photos.find(item => item.document.metadata.fileName === 'Target one.png');
+		expect(activeVersion(target.document).develop.effects[0].params.exposure).toBe(1);
+		// Make the old selected namespace observably different before restoring the archive.
+		await develop.open('Source.png'); options = await develop.presets();
+		await develop.choose(options, 'Full look', false); await keyboard(page, named(options, 'button', messages.deletePreset)); await develop.settled();
+		await develop.choose(options, 'WB only', true); await named(options, 'textbox', messages.presetName).fill('Old namespace WB');
+		await keyboard(page, named(options, 'button', messages.renamePreset)); await develop.settled();
+		await expect(named(options, 'combobox', messages.choosePreset)).toContainText('Old namespace WB');
+		await develop.closeOptions(options); await develop.close();
+		await restoreAndReload(page, app, library, copy, restoreCopy, source, 3);
+		await develop.open('Target one.png'); options = await develop.presets();
+		await expect(named(options, 'combobox', messages.choosePreset).getByRole('option')).toHaveText([
+			messages.noPreset, ...original.presets.presets.map(preset => `${preset.identity.name} (${preset === full ? messages.full : messages.partial})`),
+		]);
+		await develop.closeOptions(options); await develop.close();
+		// A real second backup authenticates all recipes, full photo documents and stored bytes after reload.
+		expect(await decode((await backup(page, app, copy)).buffer)).toEqual(original);
+		await develop.open('Target one.png'); options = await develop.presets(); await develop.choose(options, 'WB only', true);
+		await keyboard(page, named(options, 'button', messages.applyPreset)); await develop.settled();
+		await expect(develop.numberInput('videoEffectParamTemperature')).toHaveValue('0.25');
+		await expect(develop.numberInput('videoEffectParamExposure')).toHaveValue('1');
+		await develop.closeOptions(options); await develop.close();
+		const applied = await decode((await backup(page, app, copy)).buffer);
+		expect(applied.presets).toEqual(original.presets); expect(applied.presetHeader).toEqual(original.presetHeader);
+		for (const before of original.photos) {
+			const after = applied.photos.find(item => item.document.id === before.document.id); expect(after.original).toEqual(before.original);
+			if (before !== target) { expect(after.document).toEqual(before.document); continue; }
+			const { revision, versions, ...immutable } = before.document, { revision: nextRevision, versions: nextVersions, ...nextImmutable } = after.document;
+			expect(nextImmutable).toEqual(immutable); expect(nextRevision).toBe(revision + 1); expect(nextVersions).toHaveLength(versions.length);
+			const version = activeVersion(after.document), prior = activeVersion(before.document);
+			expect(version.id).toBe(prior.id); expect(version.workspace.cursor).toBe(prior.workspace.cursor + 1);
+			expect(version.workspace.entries.slice(0, -1)).toEqual(prior.workspace.entries);
+			const { develop: priorDevelop, workspace: priorWorkspace, ...identity } = prior;
+			const { develop: nextDevelop, workspace: nextWorkspace, ...nextIdentity } = version;
+			expect(nextIdentity).toEqual(identity);
+			expect(nextWorkspace.snapshots).toEqual(priorWorkspace.snapshots);
+			expect(nextVersions.filter(item => item.id !== prior.id)).toEqual(versions.filter(item => item.id !== prior.id));
+			for (const key of ['processVersion', 'geometry', 'masks', 'maskBindings']) expect(nextDevelop[key], key).toEqual(priorDevelop[key]);
+			expect(nextWorkspace.entries[nextWorkspace.cursor].develop).toEqual(nextDevelop);
+			expect(version.develop.effects.find(effect => effect.type === 'white-balance-v1').params.temperature).toBe(0.25);
+			expect(version.develop.effects.find(effect => effect.type === 'tone-ladder-v1')).toEqual(prior.develop.effects[0]);
+		}
+		expect(errors).toEqual([]);
+	});
+
+	test(`${locale}: deleting the final preset preserves a positive empty revision through restore and reload`, async ({ page, browserName }) => {
+		test.skip(browserName === 'webkit', 'Full WebKit catalog Blob/OPFS custody qualification remains deferred.');
+		test.setTimeout(120_000);
+		const { app, copy, restoreCopy, errors } = await setup(page, locale);
+		const library = await importPhotos(page, app, copy, ['Empty presets.png']), develop = developTools(page, app, library, copy, locale);
+		await develop.open('Empty presets.png'); let options = await develop.presets();
+		await develop.savePreset(options, 'Temporary', false); await develop.choose(options, 'Temporary', false);
+		await keyboard(page, named(options, 'button', develop.messages.deletePreset)); await develop.settled();
+		await expect(named(options, 'combobox', develop.messages.choosePreset).getByRole('option')).toHaveText([develop.messages.noPreset]);
+		await develop.closeOptions(options); await develop.close();
+		const source = await backup(page, app, copy), original = await decode(source.buffer);
+		expect(original.presetHeader).toMatchObject({ revision: 2, presetCount: 0 });
+		expect(original.presets).toEqual({ schemaVersion: 1, kind: 'photo-develop-presets', catalogId: original.root.id, revision: 2, presets: [] });
+		await develop.open('Empty presets.png'); options = await develop.presets(); await develop.savePreset(options, 'Old namespace preset', false);
+		await develop.closeOptions(options); await develop.close();
+		await restoreAndReload(page, app, library, copy, restoreCopy, source, 1);
+		await develop.open('Empty presets.png'); options = await develop.presets();
+		await expect(named(options, 'combobox', develop.messages.choosePreset).getByRole('option')).toHaveText([develop.messages.noPreset]);
+		await develop.closeOptions(options); await develop.close();
+		expect(await decode((await backup(page, app, copy)).buffer)).toEqual(original); expect(errors).toEqual([]);
+	});
+
 	test(`${locale}: keyboard Close and Cancel join held native publication and retain its completed acknowledgement`, async ({ page }) => {
 		test.setTimeout(120_000);
 		await installPublicationBarrier(page);
 		const { app, copy, restoreCopy, errors } = await setup(page, locale);
 		const source = await backup(page, app, copy), original = await decode(source.buffer);
+		expect(original.presetHeader).toBeNull(); expect(original.presets).toBeNull();
 		try {
 			await page.evaluate(() => globalThis.__lightscaperRestorePublicationBarrier.arm());
 			await action(page, app, copy.photoFileMenu, restoreCopy.title);
@@ -157,15 +253,52 @@ async function restore(page, app, copy, restoreCopy, source) {
 	await expect(dialog.locator('[data-photo-restore-receipt]')).toBeVisible(); await expect(dialog.getByRole('alert')).toHaveCount(0);
 }
 async function decode(bytes) {
-	const result = { root: null, savedState: null, photos: [], stacks: [], saved: [] };
-	await importPhotoCatalogArchiveV4(new Blob([bytes]), async (root, state, presets) => { expect(presets).toBeNull(); result.root = root; result.savedState = state; return {
+	const result = { root: null, savedState: null, presetHeader: null, presets: null, photos: [], stacks: [], saved: [] };
+	await importPhotoCatalogArchiveV4(new Blob([bytes]), async (root, state, presets) => { result.root = root; result.savedState = state; result.presetHeader = presets; return {
 		async writePhoto(document, chunks) { const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk)); result.photos.push({ document, original: Buffer.concat(parts) }); },
 		async writeStack(stack) { result.stacks.push(stack); }, async writeSavedCollection(definition) { result.saved.push(definition); },
-		async writeDevelopPresets() { throw new Error('Expected absent Develop preset state.'); },
+		async writeDevelopPresets(row) { expect(result.presets).toBeNull(); result.presets = row; },
 		async publish() {}, async rollback() { throw new Error('Backup authentication rolled back.'); },
 	}; });
 	result.photos.sort((a, b) => a.document.id.localeCompare(b.document.id)); result.stacks.sort((a, b) => a.id.localeCompare(b.id)); result.saved.sort((a, b) => a.id.localeCompare(b.id));
 	return result;
+}
+function activeVersion(document) { return document.versions.find(version => version.id === document.activeVersionId); }
+async function importPhotos(page, app, copy, names) {
+	await action(page, app, copy.photoFileMenu, copy.photoImportPhotos); const importer = named(page, 'dialog', copy.photoImportPhotos);
+	await importer.getByLabel(copy.photoChooseFiles, { exact: true }).setInputFiles(names.map(name => ({ name, mimeType: 'image/png', buffer: PNG })));
+	await keyboard(page, named(importer, 'button', copy.photoImportAction)); await expect(importer).toHaveCount(0);
+	const library = app.locator('[data-photo-library]'); await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', String(names.length));
+	await expect(library).toHaveAttribute('aria-busy', 'false'); return library;
+}
+async function restoreAndReload(page, app, library, copy, restoreCopy, source, count) {
+	await restore(page, app, copy, restoreCopy, source); await keyboard(page, bodyClose(named(page, 'dialog', restoreCopy.title), restoreCopy.close));
+	await expect(library).toHaveCount(0); await page.reload(); await expect(app).toBeVisible(); await expect(library).toHaveCount(0);
+	await action(page, app, copy.photoViewMenu, copy.photoShowLibrary);
+	await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', String(count)); await expect(library).toHaveAttribute('aria-busy', 'false');
+}
+function developTools(page, app, library, copy, locale) {
+	const labels = photoDevelopCopy(locale), messages = photoDevelopSettingsCopy(locale); let dialog;
+	const numberInput = key => named(dialog, 'spinbutton', `${labels.shared.videoEffectExactValue}: ${labels.shared[key]}`);
+	const settled = async () => { await expect(named(dialog, 'button', labels.cancel).last()).toBeDisabled(); await expect(library).toHaveAttribute('aria-busy', 'false'); };
+	return { messages, numberInput, settled,
+		async open(fileName) { await keyboard(page, photo(page, library, fileName)); await action(page, app, copy.photoFileMenu, photoDevelopMenuLabel(locale), copy.photoPhotoMenu);
+			dialog = named(page, 'dialog', `${labels.title}: ${fileName}`); await expect(named(dialog, 'region', labels.preview)).toHaveAttribute('data-state', 'ready'); },
+		async add(type, key, value) { await named(dialog, 'combobox', labels.choose).selectOption(type); await keyboard(page, named(dialog, 'button', labels.add));
+			const input = numberInput(key); await input.fill(value); await input.press('Enter'); await expect(input).toHaveValue(value); },
+		async save() { await keyboard(page, named(dialog, 'button', labels.save)); await expect(dialog.locator('[data-photo-develop-ack]')).toContainText(labels.acknowledged); await settled(); },
+		async presets() { const menu = dialog.locator('details').filter({ has: page.locator('summary').filter({ hasText: new RegExp(`^${messages.menu}$`, 'u') }) });
+			if (!(await menu.evaluate(value => value.open))) await keyboard(page, menu.locator('summary'));
+			await keyboard(page, named(menu, 'button', messages.presets)); const options = named(page, 'dialog', messages.presets); await settled(); return options; },
+		async choose(options, name, partial) { await named(options, 'combobox', messages.choosePreset).selectOption({ label: `${name} (${partial ? messages.partial : messages.full})` }); },
+		async savePreset(options, name, partial) { const all = named(options, 'checkbox', messages.all); if (partial) await all.uncheck(); else await all.check();
+			if (partial) await named(options, 'checkbox', labels.shared.videoEffectWhiteBalance).check();
+			await named(options, 'checkbox', messages.geometry).setChecked(!partial); await named(options, 'checkbox', messages.local).setChecked(!partial);
+			await named(options, 'textbox', messages.presetName).fill(name); await keyboard(page, named(options, 'button', messages.savePreset)); await settled();
+			await expect(named(options, 'combobox', messages.choosePreset)).toContainText(`${name} (${partial ? messages.partial : messages.full})`); },
+		async closeOptions(options) { await keyboard(page, bodyClose(options, messages.close)); await expect(options).toHaveCount(0); },
+		async close() { await keyboard(page, bodyClose(dialog, labels.close)); await expect(dialog).toHaveCount(0); },
+	};
 }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 function photo(page, library, name) { return library.getByRole('button').filter({ has: page.getByText(name, { exact: true }) }); }

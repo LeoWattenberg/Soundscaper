@@ -5,6 +5,7 @@ import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibra
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1, PhotoLibraryDefinitionSnapshotV1,
 	PhotoLibraryMembershipAcknowledgementV1, PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../common/editor/photo-library-organization-port-v1.ts';
 import type { PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1, PhotoLibraryImportRequestOptionsV1 } from '../../common/editor/photo-library-import-settings-port-v1.ts';
+import type { PhotoLibraryDevelopImportPortV1, PhotoLibraryDevelopImportRequestV1 } from '../../common/editor/photo-library-develop-import-port-v1.ts';
 import type { PhotoLibraryBackupOptionsV1, PhotoLibraryBackupPortV1, PhotoLibraryBackupResultV1 } from '../../common/editor/photo-library-backup-port-v1.ts';
 import type { PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryOriginalInspectionFailureV1, PhotoLibraryOriginalInspectionPageV1,
 	PhotoLibraryOriginalRestoreTargetV1, PhotoLibraryOriginalRestorationOptionsV1, PhotoLibraryOriginalRestorationReceiptV1 } from '../../common/editor/photo-library-original-recovery-port-v1.ts';
@@ -35,6 +36,8 @@ import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipM
 	readPhotoLibraryMembershipsV1, applyPhotoLibraryMembershipsV1 } from './photo-library-memberships-v1.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibraryPreviewSchedulerPortV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request.ts';
+import { createPhotoLibraryDevelopImportSessionV1 } from './photo-library-develop-import-session-v1.ts';
+import { borrowPhotoImportDevelopPresetV1 } from '../import/photo-import-develop-preset-v1.ts';
 import { admitPhotoLibraryBackupRequestV1 } from './photo-library-backup-request.ts';
 import { planPhotoLibraryBatchRenameV1, readPhotoLibraryBatchRenameSelectionV1, renamePhotoLibraryBatchV1,
 	undoPhotoLibraryBatchRenameV1, type PhotoBatchRenameSessionPortsV1 } from './photo-library-batch-rename-v1.ts';
@@ -52,6 +55,7 @@ import { createPhotoLibraryDevelopSessionV1 } from './photo-library-develop-sess
 export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1 {
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
 	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV1>;
+	readonly developImport: Readonly<PhotoLibraryDevelopImportPortV1>;
 	readonly #ports: PhotoLibrarySessionPortsV1;
 	readonly #developPresetSettings: PhotoLibrarySessionPortsV1['developPresetSettings'];
 	readonly #queries: ReturnType<typeof createPhotoLibraryQuerySessionV1>;
@@ -69,6 +73,8 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	constructor(ports: PhotoLibrarySessionPortsV1) {
 		this.#ports = ports;
 		const presetSettings = ports.developPresetSettings ?? ports.settings; this.#developPresetSettings = presetSettings;
+		this.developImport = createPhotoLibraryDevelopImportSessionV1({ settings: presetSettings, ready: () => this.#ready(),
+			operation: (run, signal) => this.#operation(run, signal), importFiles: (files, request) => this.#importFiles(files, request) });
 		this.develop = createPhotoLibraryDevelopSessionV1({ repository: ports.catalog, ready: () => this.#ready(),
 			presetStorage: presetSettings ? { settings: presetSettings, catalog: ports.catalog } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, run, signal),
@@ -297,12 +303,17 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	}
 
 	async importFiles(files: readonly File[], options: PhotoLibraryImportRequestOptionsV1 = {}): Promise<readonly PhotoLibraryImportItemV1[]> {
-		const request = admitPhotoLibraryImportRequestV1(options);
+		return this.#importFiles(files, admitPhotoLibraryImportRequestV1(options));
+	}
+
+	async #importFiles(files: readonly File[], request: PhotoLibraryImportRequestOptionsV1 | PhotoLibraryDevelopImportRequestV1): Promise<readonly PhotoLibraryImportItemV1[]> {
 		const selected = readClosedDomainArray(files, 'selected photo files', 1, IMAGE_IMPORT_LIMITS.maximumFilesPerGesture) as readonly File[];
+		const captureDevelop = 'developPreset' in request ? borrowPhotoImportDevelopPresetV1(this.#developPresetSettings, request.developPreset) : undefined;
 		return this.#mutation(async (catalogId, signal) => {
 			const root = await this.#ports.catalog.loadCatalog(catalogId);
 			if (!root) throw new ReferenceError('Photo catalog is missing.');
 			const plan = planPhotoImportSettingsV1(selected, root, request.settings);
+			const applyDevelop = await captureDevelop?.(catalogId, signal); signal.throwIfAborted();
 			const createId = this.#ports.createId ?? (() => crypto.randomUUID());
 			const ownership = selected.map(() => ({ photoId: createId(), originalId: createId(), originalStorageKey: createId(), masterVersionId: createId() }));
 			const prepared = (this.#ports.prepare ?? preparePhotoImportGestureV1)({ files: selected, ownership, catalog: root,
@@ -341,7 +352,8 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 						continue;
 					}
 					try {
-						const preparedPhoto = request.settings === undefined ? outcome.photo : applyPhotoImportSettingsV1(outcome.photo, plan, outcome.index);
+						const settingsPhoto = request.settings === undefined ? outcome.photo : applyPhotoImportSettingsV1(outcome.photo, plan, outcome.index);
+						const preparedPhoto = applyDevelop ? applyDevelop(settingsPhoto) : settingsPhoto;
 						const resolved = await this.#keywords(catalogId, { ...outcome, photo: preparedPhoto }, createId, signal);
 						const photo = normalizePhotoDocumentV1({ ...preparedPhoto, keywordIds: resolved.ids });
 						admitted.push({ index: outcome.index, fileName: outcome.fileName,

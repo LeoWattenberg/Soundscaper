@@ -4,6 +4,7 @@ import type { PixelFrameDescriptorV1 } from './imaging/pixel-frame-contract-v1.t
 import type { ImageMetadataV1 } from './imaging/image-metadata-model-v1.ts';
 import type { PhotoLibraryOrganizationPortV1 } from './photo-library-organization-port-v1.ts';
 import type { PhotoLibraryImportSettingsPortV1 } from './photo-library-import-settings-port-v1.ts';
+import type { PhotoLibraryDevelopImportPortV1 } from './photo-library-develop-import-port-v1.ts';
 import type { PhotoLibraryBatchRenamePortV1 } from './photo-library-batch-rename-port-v1.ts';
 import type { PhotoLibraryBackupPortV1 } from './photo-library-backup-port-v1.ts';
 import type { PhotoLibraryOriginalRecoveryPortV1 } from './photo-library-original-recovery-port-v1.ts';
@@ -131,6 +132,7 @@ export interface PhotoLibraryDefinitionPageV1 {
 export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1, PhotoLibraryStackQueryPortV1, PhotoLibraryQueryPortV2 {
 	readonly savedCollections?: Readonly<PhotoLibrarySavedCollectionPortV1>;
 	readonly develop?: Readonly<PhotoLibraryDevelopPortV1>;
+	readonly developImport?: Readonly<PhotoLibraryDevelopImportPortV1>;
 	readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1>;
 	rebuildQueryStep(options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryQueryBuildProgressV1>;
 	readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1>;

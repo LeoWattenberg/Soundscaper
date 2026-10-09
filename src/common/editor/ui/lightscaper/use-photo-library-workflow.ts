@@ -16,10 +16,11 @@ import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-li
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
 import { readPhotoLibrarySelectionIdsV1 } from '../../controller/shared/photo-library-selection-v1.ts';
-import { createPhotoLibraryImportCollectorV1, detachPhotoLibraryImportSettingsV1 } from '../../controller/shared/photo-library-import-gesture-v1.ts';
+import { createPhotoLibraryImportCollectorV1, detachPhotoLibraryImportSettingsV1, detachPhotoLibraryImportDevelopPresetV1 } from '../../controller/shared/photo-library-import-gesture-v1.ts';
+import { readClosedDomainRecord, readClosedDomainField } from '../../closed-domain-value.ts';
+import type { PhotoLibraryImportGestureOptionsV2 } from '../../photo-library-develop-import-port-v1.ts';
 import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../../photo-library-query-port-v2.ts';
-import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1,
-	PhotoLibraryImportRequestOptionsV1 } from '../../photo-library-import-settings-port-v1.ts';
+import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1 } from '../../photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1,
 	PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../photo-library-organization-port-v1.ts';
 import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
@@ -361,26 +362,38 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		if (status === 'cancelled') throw new DOMException('Import preset authoring was cancelled.', 'AbortError');
 		throw new Error(status === 'busy' ? 'A photo library change is already pending.' : 'Import preset authoring failed.');
 	}, [perform]);
-	const importFiles = useCallback(async (files: readonly File[], options: Pick<PhotoLibraryImportRequestOptionsV1, 'settings' | 'signal'> = {}): Promise<PhotoLibraryImportGestureReceiptV1> => {
+	const readImportDevelopPresets = useCallback(async (options: Readonly<{ signal?: AbortSignal }> = {}) => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== createSession) throw new DOMException('Import preset generation is closed.', 'AbortError');
+		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
+		signal.throwIfAborted(); const owner = await acquire(current); signal.throwIfAborted();
+		const capability = owner.developImport;
+		if (!capability) throw new Error('Develop preset import is unavailable.');
+		const result = await capability.listPresets({ signal }); signal.throwIfAborted(); return result;
+	}, [createSession]);
+	const importFiles = useCallback(async (files: readonly File[], options: PhotoLibraryImportGestureOptionsV2 = {}): Promise<PhotoLibraryImportGestureReceiptV1> => {
 		const admission = slot.current;
 		if (!admission?.live || admission.factory !== factory.current || options.signal?.aborted) return Object.freeze({ outcome: 'cancelled' });
 		if (admission.active || controller.isPending() || originalRecovery.isPending()) return Object.freeze({ outcome: 'busy' });
 		// Capture authored state and original source names before the lazy factory can yield.
 		let draft;
 		try {
+			const input = readClosedDomainRecord(options, 'Import options', ['settings', 'signal', 'developPreset'], []);
+			const preset = Object.hasOwn(input, 'developPreset') ? readClosedDomainField(input, 'developPreset', 'Import options') : undefined;
 			if (files.length < 1 || files.length > 64) throw new RangeError('Import requires one through 64 selected Files.');
 			const selected = Object.freeze([...files]);
 			const names = selected.map(file => { const name: unknown = getFileName?.call(file);
 				if (typeof name !== 'string') throw new TypeError('Import requires selected source Files.'); return name; });
 			draft = { selected, collector: createPhotoLibraryImportCollectorV1(names),
-				settings: options.settings === undefined ? undefined : detachPhotoLibraryImportSettingsV1(options.settings) };
+				settings: options.settings === undefined ? undefined : detachPhotoLibraryImportSettingsV1(options.settings),
+				developPreset: preset === undefined ? undefined : detachPhotoLibraryImportDevelopPresetV1(preset) };
 		} catch (failure) {
 			const current = slot.current;
 			if (!current?.live || current.factory !== createSession || options.signal?.aborted) return Object.freeze({ outcome: 'cancelled' });
 			if (current.active) return Object.freeze({ outcome: 'busy' });
 			setError(message(failure)); return Object.freeze({ outcome: 'failed' });
 		}
-		const { selected, collector, settings } = draft;
+		const { selected, collector, settings, developPreset } = draft;
 		setReceipts([]); setImportReceipt(null);
 		let receipt: PhotoLibraryImportGestureReceiptV1 | null = null;
 		const publication: { generation?: SessionSlot } = {};
@@ -393,8 +406,11 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 			};
 			let observing = true;
 			try {
-				const results = await owner.importFiles(selected, { signal, ...(settings === undefined ? {} : { settings }),
-					onAcknowledged: item => { if (observing && collector.acknowledge(item)) publish(); } });
+				const request = { signal, ...(settings === undefined ? {} : { settings }),
+					onAcknowledged: (item: PhotoLibraryImportItemV1) => { if (observing && collector.acknowledge(item)) publish(); } };
+				if (developPreset && !owner.developImport) throw new Error('Develop preset import is unavailable.');
+				const results = developPreset ? await owner.developImport!.importFiles(selected, { ...request, schemaVersion: 1, developPreset })
+					: await owner.importFiles(selected, request);
 				observing = false;
 				collector.finish(results);
 				receipt = Object.freeze({ outcome: 'acknowledged', items: collector.snapshot(), completion: 'finished', notice: 'refresh-failed' });
@@ -485,7 +501,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
-		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
+		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }
 

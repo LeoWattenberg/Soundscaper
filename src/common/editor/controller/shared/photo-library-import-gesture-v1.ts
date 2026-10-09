@@ -3,8 +3,22 @@
 import { readClosedDomainArray, readClosedDomainField as field, readClosedDomainRecord } from '../../closed-domain-value.ts';
 import type { PhotoLibraryImportSettingsV1 } from '../../photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryImportItemV1 } from '../../photo-library-session-port-v1.ts';
+import type { PhotoLibraryDevelopPresetReadV1 } from '../../photo-library-develop-presets-port-v1.ts';
 
 const METADATA_FIELDS = ['title', 'caption', 'creator', 'copyright', 'location'] as const;
+
+/** A saved Develop import choice never embeds settings or grants catalog authority. */
+export function detachPhotoLibraryImportDevelopPresetV1(value: unknown): PhotoLibraryDevelopPresetReadV1 {
+	const source = readClosedDomainRecord(value, 'Import Develop preset', ['schemaVersion', 'catalogId', 'presetId', 'expectedRevision']);
+	if (field(source, 'schemaVersion', 'Import Develop preset') !== 1) throw new RangeError('Unsupported import Develop preset version.');
+	const catalogId = field(source, 'catalogId', 'Import Develop preset'), presetId = field(source, 'presetId', 'Import Develop preset');
+	const expectedRevision = field(source, 'expectedRevision', 'Import Develop preset');
+	for (const value of [catalogId, presetId]) {
+		if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(value)) throw new TypeError('Import Develop presets require stable identities.');
+	}
+	if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new RangeError('Import Develop presets require a bounded revision.');
+	return Object.freeze({ schemaVersion: 1, catalogId: catalogId as string, presetId: presetId as string, expectedRevision });
+}
 
 /** Snapshot authored scalars before asynchronous acquisition; the product admits naming semantics. */
 export function detachPhotoLibraryImportSettingsV1(value: unknown): PhotoLibraryImportSettingsV1 {

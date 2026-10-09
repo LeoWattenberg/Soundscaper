@@ -37,6 +37,7 @@ test('Actual Session preset saves survive production backup, private restore, re
 	try {
 		await restorePhotoLibraryArchiveV1(await developPresetArchiveFixture(null), f.options);
 		const source = await f.open(); let backup: Blob;
+		let archivedPhotos: ReturnType<typeof developPresetArchiveDestination>['photos'];
 		const expected = normalizePhotoDevelopPresetRowV1({ ...rich, revision: 2 }, 'catalog-1');
 		try {
 			const presets = source.develop.presets!;
@@ -56,6 +57,7 @@ test('Actual Session preset saves survive production backup, private restore, re
 			assert.deepEqual([...witness.saved.values()], [savedArchiveDefinitionV3()]);
 			assert.deepEqual([...witness.photos.values()].map(value => value.photo.revision), [13, 14]);
 			for (const value of witness.photos.values()) assert.deepEqual(value.bytes, new Uint8Array([1, 2, 3]));
+			archivedPhotos = witness.photos;
 			assert.deepEqual(await f.anchor.settingsRepository.get(key), f.stale);
 		} finally { await source.close(); }
 		const restored = await restorePhotoLibraryArchiveV1(backup, f.options);
@@ -71,7 +73,9 @@ test('Actual Session preset saves survive production backup, private restore, re
 				await importPhotoCatalogArchiveV4(again.blob, async () => witness.stage);
 				assert.deepEqual(witness.row, expected); assert.deepEqual([...witness.stacks.values()], [stackArchiveRecord()]);
 				assert.deepEqual([...witness.saved.values()], [savedArchiveDefinitionV3()]);
-				for (const value of witness.photos.values()) assert.deepEqual(value.bytes, new Uint8Array([1, 2, 3]));
+				// Compare complete authenticated photo documents, including every version,
+				// workspace, source fact and original binding, across both durable reopens.
+				assert.deepEqual(witness.photos, archivedPhotos);
 			} finally { await selected.close(); }
 		}
 		assert.deepEqual(await f.anchor.settingsRepository.get(key), f.stale); assert.deepEqual(f.deleted, []);
