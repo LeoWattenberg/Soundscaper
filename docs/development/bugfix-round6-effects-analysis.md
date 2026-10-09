@@ -42,7 +42,10 @@ their complete normal Chromium workflows on immutable Green17 `449787703`
 twenty-five verified roots. R6-EFFECT-026–027 pass both complete normal
 Chromium tone workflows on immutable Green18 `d7cb58183`
 (`/tmp/soundscaper-round6-green18-chromium.log`), bringing this register to
-twenty-seven verified roots.
+twenty-seven verified roots. R6-EFFECT-028 passes its complete normal Chromium
+Echo playback/edit workflow on immutable Green19 `18a33ffa1`
+(`/tmp/soundscaper-round6-green19-chromium.log`), bringing this register to
+twenty-eight verified roots.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -1073,7 +1076,9 @@ controls pass after repair
 (`/tmp/soundscaper-r6-effects-echo-live-tail-node-green2.log`). All three exact
 DSP maps remain unchanged
 (`/tmp/soundscaper-r6-effects-echo-live-tail-exact-parity.log`). Focused strict
-compilation, targeted type-aware lint and file-size/diff checks pass. Source is ready;
-post-build public GREEN remains pending and this root is not counted yet.
+compilation, targeted type-aware lint and file-size/diff checks pass. The
+complete normal native-output workflow passes Chromium on immutable Green19
+`18a33ffa1` (`/tmp/soundscaper-round6-green19-chromium.log`): before-edit peak
+0.4242599 and a retained following echo at 0.23758556.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
