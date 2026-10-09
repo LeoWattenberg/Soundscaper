@@ -22,6 +22,7 @@ import WorkspacePanelDock from './WorkspacePanelDock.jsx';
 import AudioEditorWorkspaceOverlays from './AudioEditorWorkspaceOverlays.jsx';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
 import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
+import { handleClipSelectionKeyboardCapture } from '../timeline/selection-keyboard-capture.ts';
 import { useWorkspaceMouseShortcuts } from './useWorkspaceMouseShortcuts.ts';
 import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-runtime.tsx';
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
@@ -210,6 +211,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-workspace-preset={preferences?.workspace?.activeId || 'modern'}
 			data-edit-block-reason={editBlock.reason || undefined}
 			onKeyDown={(event) => handleWorkspaceKeyboard(event, snapshot, run, shortcutRegistry)}
+			onKeyDownCapture={(event) => handleClipSelectionKeyboardCapture(event, snapshot, run, shortcutRegistry)}
 			{...mouseShortcuts}
 			onContextMenu={(event) => event.preventDefault()}
 		>

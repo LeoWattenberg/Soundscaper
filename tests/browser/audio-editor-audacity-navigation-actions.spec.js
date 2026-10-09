@@ -32,21 +32,21 @@ test.describe('Audacity action runtime browser routes', () => {
 		await pressClipShortcut(page, clip, 'Control+ArrowLeft');
 		await expect.poll(async () => (await requiredBox(clip)).x).toBeCloseTo(originalBox.x, 0);
 
-		await pressClipShortcut(page, clip, 'Control+Shift+ArrowLeft');
+		await pressClipShortcut(page, clip, '[');
 		await expect.poll(async () => (await requiredBox(clip)).width).toBeLessThan(
 			originalBox.width - 5,
 		);
 		const reducedRightBox = await requiredBox(clip);
-		await pressClipShortcut(page, clip, 'Shift+ArrowRight');
+		await pressClipShortcut(page, clip, ']');
 		await expect.poll(async () => (await requiredBox(clip)).width).toBeGreaterThan(
 			reducedRightBox.width + 5,
 		);
 
-		await pressClipShortcut(page, clip, 'Control+Shift+ArrowRight');
+		await pressClipShortcut(page, clip, 'Shift+]');
 		const reducedLeftBox = await requiredBox(clip);
 		expect(reducedLeftBox.x).toBeGreaterThan(originalBox.x + 5);
 		expect(reducedLeftBox.width).toBeLessThan(originalBox.width - 5);
-		await pressClipShortcut(page, clip, 'Shift+ArrowLeft');
+		await pressClipShortcut(page, clip, 'Shift+[');
 		await expect.poll(async () => (await requiredBox(clip)).x).toBeCloseTo(originalBox.x, 0);
 
 		const originalTrackId = await clipTrackId(clip);

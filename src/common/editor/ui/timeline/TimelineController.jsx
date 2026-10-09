@@ -123,6 +123,7 @@ export default function TimelineController({
 		controller,
 		snapshot,
 		splitToolActive,
+		automationToolEnabled: toolPrecedence.automationToolEnabled,
 		state,
 		model,
 		hitTesting,

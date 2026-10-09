@@ -14,6 +14,41 @@ whether later material stays in place or moves to close the removed region.
 Use track folders, clip groups, and the Project Bin to keep larger projects
 organized.
 
+### Select and adjust audio {#audio-selection}
+
+Drag across a waveform to select a time range. Drag across adjacent tracks to
+include the same passage on those tracks. Drawing a new selection while
+playback is stopped places the playhead at the selection's beginning; drawing
+one during playback lets playback continue.
+
+With the timeline focused, use these shortcuts to create or adjust a time
+selection. The same commands are available from **Select → Region**.
+
+| Shortcut | Selection change |
+| --- | --- |
+| **Shift+Left** | Extend the left edge to the left. |
+| **Shift+Right** | Extend the right edge to the right. |
+| **Ctrl+Shift+Right** | Contract the left edge to the right. |
+| **Ctrl+Shift+Left** | Contract the right edge to the left. |
+| **Shift+Home** | Extend to the start of the project. |
+| **Shift+End** | Extend to the end of the project. |
+
+Use **Cmd** in place of **Ctrl** on macOS. With no audio selected,
+**Shift+Left** or **Shift+Right** starts a selection at the playhead. Selecting
+a clip header uses that clip's time span as the starting range. Each arrow
+step covers one screen pixel, so zoom in for finer adjustments. Snapping uses
+the next grid position in the chosen direction. Contracting stops when the
+two edges meet.
+
+To adjust a selection with the mouse, hover near either edge in a selected
+track. The cursor changes to a left- or right-pointing arrow beside a vertical
+bar. Drag that edge to extend or shorten the range; the opposite edge stays
+fixed. You can also **Shift+click** in the waveform to move the nearest edge to
+the clicked position, then drag to refine it.
+
+Adjusting selection boundaries leaves the playhead where it is, including
+during playback. The playhead's own arrow controls keep their usual behavior.
+
 ### Adjust clip fades {#clip-fades}
 
 Select an audio clip to reveal small triangular handles along the top of its

@@ -21,6 +21,7 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
+const { createCurrentAudioEditorProject } = await import('../src/common/editor/project-current.ts');
 const {
 	createAudacityActionRuntime,
 	createAudioEditorUiActionController,
@@ -118,113 +119,87 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 	}
 });
 
-test('shared Audacity selection chords trim a selected clip before adjusting the time selection', async () => {
+test('Audacity selection chords edit time boundaries while preserving selected clips and the playhead', async () => {
+	let positionFrame = 20_000;
+	let transportState = 'stopped';
+	const seeks = [];
+	const engine = {
+		...createMemoryEngine(),
+		getPositionFrames: () => positionFrame,
+		getState: () => ({ state: transportState, loop: { enabled: false } }),
+		seek: (frame) => { seeks.push(frame); positionFrame = frame; return frame; },
+	};
+	const store = createMemoryStore();
 	const controller = createAudioEditorController(null, {
 		headless: true,
-		store: createMemoryStore(),
-		engine: createMemoryEngine(),
+		store,
+		engine,
 		ffmpeg: { dispose() {} },
 		clipTimePitchCache: createMemoryTimePitchCache(),
 		copy: COPY,
 	});
 	await controller.ready;
 	try {
-		const base = controller.getSnapshot();
-		const source = { id: 'source-context', frameCount: 100 };
-		const clip = {
-			id: 'clip-context',
-			kind: 'audio',
-			sourceId: source.id,
-			timelineStartFrame: 10,
-			durationFrames: 20,
-			sourceStartFrame: 10,
-			sourceDurationFrames: 20,
+		const project = createCurrentAudioEditorProject({
+			id: 'selection-chords', title: 'Selection chords',
+			sources: [{
+				id: 'source', storageKey: 'source', name: 'source.wav', mimeType: 'audio/wav',
+				frameCount: 48_000, channelCount: 1, sampleRate: 48_000,
+				originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+			}],
+			tracks: [{ id: 'audio', type: 'audio', name: 'Audio', clipIds: ['clip'] }],
+			clips: [{
+				id: 'clip', sourceId: 'source', title: 'Clip', timelineStartFrame: 4_800,
+				durationFrames: 9_600, sourceStartFrame: 4_800, sourceDurationFrames: 9_600,
+			}],
+		});
+		await store.saveProject(project);
+		await controller.actions.project.open(project);
+		const originalClip = structuredClone(controller.getSnapshot().project.clips[0]);
+		const runtime = createAudacityActionRuntime(controller, { uiController: createAudioEditorUiActionController() });
+		const selection = () => {
+			const range = controller.getSnapshot().project.selection;
+			return [range.startFrame, range.endFrame];
 		};
-		const track = { ...base.project.tracks[0], type: 'audio', clipIds: [clip.id] };
-		const state = {
-			selectedClipId: clip.id,
-			selection: { startFrame: 5, endFrame: 15, trackIds: [track.id], clipIds: [] },
-			transportState: 'stopped',
-		};
-		const trims = [];
-		const selections = [];
-		const seeks = [];
-		const probe = {
-			...controller,
-			getTelemetrySnapshot: () => ({ positionFrame: 1_000_000, transportState: state.transportState }),
-			getSnapshot: () => ({
-				...base,
-				selectedClipId: state.selectedClipId,
-				selectedTrackId: track.id,
-				project: {
-					...base.project,
-					sources: [source],
-					clips: [clip],
-					tracks: [track],
-					selection: state.selection,
-				},
-			}),
-			actions: {
-				...controller.actions,
-				clip: {
-					...controller.actions.clip,
-					trim: (clipId, changes) => trims.push([clipId, changes]),
-				},
-				timeline: {
-					...controller.actions.timeline,
-					setSelection: (...args) => selections.push(args),
-				},
-				transport: {
-					...controller.actions.transport,
-					seek: (frame) => seeks.push(frame),
-				},
-			},
-		};
-		const runtime = createAudacityActionRuntime(probe, { uiController: createAudioEditorUiActionController() });
+		controller.actions.timeline.setZoom(120);
+		controller.actions.timeline.selectClip(originalClip.id);
+		controller.actions.transport.seek(20_000);
+		seeks.length = 0;
 
-		await runtime.actions.selection.extendLeft();
-		await runtime.actions.selection.extendRight();
-		await runtime.actions.selection.contractLeft();
-		await runtime.actions.selection.contractRight();
-		assert.deepEqual(trims, [
-			[clip.id, { timelineStartFrame: 0, durationFrames: 30 }],
-			[clip.id, { durationFrames: 90 }],
-		]);
-		assert.deepEqual(selections, []);
+		runtime.actions.selection.extendLeft();
+		assert.deepEqual(selection(), [4_400, 14_400]);
+		runtime.actions.selection.extendRight();
+		assert.deepEqual(selection(), [4_400, 14_800]);
+		runtime.actions.selection.contractLeft();
+		assert.deepEqual(selection(), [4_800, 14_800]);
+		runtime.actions.selection.contractRight();
+		assert.deepEqual(selection(), [4_800, 14_400]);
+		assert.deepEqual(controller.getSnapshot().project.selection.clipIds, []);
+		assert.deepEqual(controller.getSnapshot().project.selection.trackIds, ['audio']);
+		assert.deepEqual(controller.getSnapshot().project.clips[0], originalClip);
+		assert.equal(positionFrame, 20_000);
+		assert.deepEqual(seeks, []);
 
-		state.selectedClipId = null;
-		await runtime.actions.selection.extendLeft();
-		await runtime.actions.selection.extendRight();
-		await runtime.actions.selection.contractLeft();
-		await runtime.actions.selection.contractRight();
-		assert.deepEqual(selections, [
-			[0, 15, {}],
-			[5, 415, {}],
-			[15, 15, {}],
-			[5, 5, {}],
-		]);
+		transportState = 'playing';
+		runtime.actions.navigation.extendItemLeft();
+		runtime.actions.navigation.extendItemRight();
+		assert.deepEqual(selection(), [4_400, 14_800]);
+		runtime.actions.navigation.reduceItemRight();
+		runtime.actions.navigation.reduceItemLeft();
+		assert.deepEqual(selection(), [4_800, 14_400]);
+		assert.equal(positionFrame, 20_000);
+		assert.equal(transportState, 'playing');
+		assert.deepEqual(seeks, [], 'selection chords leave running playback at its current position');
+		assert.deepEqual(controller.getSnapshot().project.clips[0], originalClip);
 
-		state.selection = { startFrame: 0, endFrame: 0, trackIds: [track.id], clipIds: [] };
-		await runtime.actions.selection.extendLeft();
-		await runtime.actions.selection.extendRight();
-		assert.deepEqual(selections.slice(-2), [
-			[999_600, 1_000_000, {}],
-			[1_000_000, 1_000_400, {}],
-		], 'an empty stopped selection extends from the live cursor rather than frame zero');
-
-		state.selectedClipId = clip.id;
-		state.transportState = 'playing';
-		await runtime.actions.selection.extendLeft();
-		await runtime.actions.selection.extendRight();
-		assert.deepEqual(seeks, [280_000, 1_720_000], 'Shift+arrows seek by Audacity\'s 15-second long period');
-		assert.equal(trims.length, 2, 'playback seeking never mutates the selected clip');
-
-		state.selectedClipId = null;
-		state.selection = { startFrame: 5, endFrame: 15, trackIds: [track.id], clipIds: [] };
-		await runtime.actions.selection.contractLeft();
-		await runtime.actions.selection.contractRight();
-		assert.deepEqual(seeks, [280_000, 1_720_000], 'selection contraction never seeks to an undefined direction');
-		assert.deepEqual(selections.slice(-2), [[15, 15, {}], [5, 5, {}]]);
+		transportState = 'stopped';
+		controller.actions.timeline.clearSelection();
+		runtime.actions.selection.extendLeft();
+		assert.deepEqual(selection(), [19_600, 20_000]);
+		runtime.actions.selection.extendRight();
+		assert.deepEqual(selection(), [19_600, 20_400]);
+		assert.equal(positionFrame, 20_000);
+		assert.deepEqual(seeks, [], 'an absent range seeds from the playhead without moving it');
 	} finally {
 		await controller.dispose();
 	}
