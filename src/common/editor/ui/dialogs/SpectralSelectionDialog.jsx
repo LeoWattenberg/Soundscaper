@@ -12,10 +12,14 @@ import {
 	SPECTRAL_SELECTION_MINIMUM_GAIN_DB, SPECTRAL_SELECTION_MAXIMUM_GAIN_DB, spectralSelectionGainValid,
 } from './spectral-selection-gain.ts';
 import { spectralSelectionFrequencyRangeValid } from './spectral-selection-frequency-range.ts';
+import { spectralSelectionTargetLocked } from './spectral-selection-target-lock.ts';
 
 export default function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const project = snapshot.project;
 	const editBlocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const mutationBlocked = editBlocked || spectralSelectionTargetLocked(project, snapshot.selectedTrackId, snapshot.selectedClipId);
+	const currentMutationBlocked = useRef(mutationBlocked);
+	currentMutationBlocked.current = mutationBlocked;
 	const currentEditBlocked = useRef(editBlocked);
 	currentEditBlocked.current = editBlocked;
 	const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId && candidate.type === 'audio') || null;
@@ -70,14 +74,14 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 	});
 	const submit = (operation) => {
 		if (!validRange || (operation === 'amplify' && !spectralSelectionGainValid(gainDb))) return;
-		if (currentEditBlocked.current) return;
+		if (currentEditBlocked.current || (operation !== 'select' && currentMutationBlocked.current)) return;
 		const projectOwnership = currentProjectOwnership.current;
 		if (!projectIdentity || stateProjectIdentity.current !== projectIdentity || !projectOwnership) return;
 		const options = selectionOptions();
 		const requestedGainDb = Number(gainDb);
 		void runAwaitedAudioEditorOperation(run, async () => {
 			if (currentProjectOwnership.current !== projectOwnership) return;
-			if (currentEditBlocked.current) return;
+			if (currentEditBlocked.current || (operation !== 'select' && currentMutationBlocked.current)) return;
 			controller.actions.spectral.boxSelect(options);
 			if (currentProjectOwnership.current !== projectOwnership) return;
 			if (operation === 'delete') await controller.actions.spectral.delete();
@@ -99,8 +103,8 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 				rightContent={<>
 					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
 					<Button variant="secondary" disabled={editBlocked || !validRange} onClick={() => submit('select')}>{copy.selectFrequencyRange}</Button>
-					<Button variant="secondary" disabled={editBlocked || !validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
-					<Button variant="primary" disabled={editBlocked || !validRange || !spectralSelectionGainValid(gainDb)} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
+					<Button variant="secondary" disabled={mutationBlocked || !validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
+					<Button variant="primary" disabled={mutationBlocked || !validRange || !spectralSelectionGainValid(gainDb)} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
 				</>}
 			/>}
 		>
