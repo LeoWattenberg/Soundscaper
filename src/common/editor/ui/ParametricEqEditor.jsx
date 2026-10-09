@@ -144,7 +144,7 @@ export function ParametricEqEditor({
 		onCommit?.(value);
 	};
 	const beginDrag = (event, band) => {
-		if (disabled || event.button !== 0) return;
+		if (disabled || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		event.preventDefault();
 		event.stopPropagation();
 		setSelectedId(band.id);
@@ -158,7 +158,7 @@ export function ParametricEqEditor({
 			automationParameter, band.id, band[automationParameter],
 		);
 		dragRef.current = {
-			bandId: band.id,
+			bandId: band.id, pointerId: event.pointerId,
 			start: draft,
 			latest: draft,
 			startBand: band,
@@ -172,7 +172,7 @@ export function ParametricEqEditor({
 
 	const moveDrag = (event) => {
 		const drag = dragRef.current;
-		if (!drag) return;
+		if (!drag || event.pointerId !== drag.pointerId) return;
 		const graph = event.currentTarget.closest('.audio-editor-parametric-eq__graph');
 		const rect = graph?.getBoundingClientRect();
 		if (!rect?.width || !rect?.height) return;
@@ -202,7 +202,7 @@ export function ParametricEqEditor({
 	};
 
 	const finishDrag = (event) => {
-		if (!dragRef.current) return;
+		if (!dragRef.current || event.pointerId !== dragRef.current.pointerId) return;
 		event.currentTarget.releasePointerCapture?.(event.pointerId);
 		const drag = dragRef.current;
 		const latest = drag.latest;
@@ -413,7 +413,8 @@ export function ParametricEqEditor({
 							onPointerDown={(event) => beginDrag(event, band)}
 							onPointerMove={moveDrag}
 							onPointerUp={finishDrag}
-							onPointerCancel={cancelGesture}
+							onPointerCancel={(event) => { if (event.pointerId === dragRef.current?.pointerId) cancelGesture(); }}
+							onLostPointerCapture={(event) => { if (event.pointerId === dragRef.current?.pointerId) cancelGesture(); }}
 							onKeyDown={(event) => handleBandKeyDown(event, band)}
 						>{index + 1}</button>
 					);
