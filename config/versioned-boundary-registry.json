@@ -482,9 +482,13 @@
 		,
 		{ "path": "src/common/editor/photo-library-batch-rename-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar selection, rename plan, durable partial receipts and bounded revision-fenced inverse without media or catalog documents." }
 		,
+		{"path": "src/common/editor/photo-library-cube-lut-port-v1.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
 		{ "path": "src/common/editor/photo-library-develop-full-resolution-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed full-resolution profile bounds admitted original frames and natural geometry output independently of the unchanged derivative proxy limits." }
 		,
 		{ "path": "src/common/editor/photo-library-develop-import-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import capability carries a closed scalar preset choice and bounded current-catalog menu while retaining the existing import settings and acknowledgement contract." }
+		,
+		{"path": "src/common/editor/photo-library-develop-import-port-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
 		,
 		{ "path": "src/common/editor/photo-library-develop-original-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped original pixel reading names the expected photo revision and lends authenticated oriented frames without exposing original locators or retained media bodies." }
 		,
@@ -519,6 +523,8 @@
 		{ "path": "src/common/editor/photo-library-saved-filter-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 injected pure saved-filter controls preserve complete bounded Query2 JSON and effective metadata fields independently of Session, catalog and media resources." }
 		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
+		,
+		{"path": "src/common/editor/photo-library-session-port-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
 		,
 		{"path": "src/common/editor/photo-library-stack-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar stack presentation commands bind selected membership, ordered drafts and durable acknowledgements to the existing photo Session."}
 		,
@@ -984,7 +990,11 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-import-request-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import requests detach scalar preset identity and the existing import options without widening legacy closed request admission." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-develop-import-request-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-import-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 current-catalog preset menus and imports borrow the existing Session readiness, operation, writer and close join while binding the selected settings reader before acquisition." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-import-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-original-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 original pixel reading borrows the selected Session lifetime, authenticates retained source bytes and orientation, and fences the requested photo revision and immutable binding before and after scoped consumption." }
 		,
@@ -1020,6 +1030,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-library-query-session-v1.ts", "kind": "helper-contract", "justification": "Product query Session facade preserves existing V1/V2 ordinary, collapsed and rebuild admission through the Session's borrowed operation and readiness owners without allocating storage, lifetime or writer resources." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-query-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
 		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 Session metadata query and explicit rebuild adapters admit closed requests before initialization and project authenticated atomic page context into bounded scalar rows with joined cancellation." }
@@ -1031,6 +1043,10 @@
 		{ "path": "src/lightscaper/controller/photo-library-saved-collection-write-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query write adapter borrows the existing catalog writer, forwards one admitted full recipe and validates exact durable revision and count acknowledgements independently of late cancellation." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-saved-collections-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 physically frozen four-method scalar saved-query facade borrows the existing Session readiness, cancellation, settlement and single writer without acquiring resources or exposing repository authority." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-session-ports-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-stack-query-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed Session query admission detaches criteria and preserves scalar cursors, cancellation and selected catalog authority."}
 		,
@@ -1056,6 +1072,8 @@
 		,
 		{ "path": "src/lightscaper/import/photo-import-develop-preset-v1.ts", "kind": "helper-contract", "justification": "Version 1 import preset capture binds one revision-fenced shared recipe before preparation and merges only the unpublished active photo version while preserving other versions and original custody." }
 		,
+		{"path": "src/lightscaper/import/photo-import-develop-preset-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
 		{ "path": "src/lightscaper/import/photo-import-name-template-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored display-name templates preserve immutable source names and selected-file sequence bindings." }
 		,
 		{ "path": "src/lightscaper/import/photo-import-preparation-v1.ts", "kind": "helper-contract", "justification": "Serial admitted source preparation yielding version 1 catalog photo documents and shared decode artifacts." }
@@ -1073,6 +1091,8 @@
 		{"path": "src/lightscaper/photo-library-restore-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert restore runtime owns the fixed settings anchor and one admitted demand through cancellation, native settlement and close."}
 		,
 		{"path": "src/lightscaper/photo-library-session-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 library composition resolves authenticated fixed-anchor location and permanent history before constructing selected resources with physical namespace write leases."}
+		,
+		{"path": "src/lightscaper/photo-library-session-runtime-v3.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
 		,
 		{ "path": "src/lightscaper/photo-saved-filter-ui-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product-owned saved-filter controls parse and serialize complete bounded Query2 recipes through the owning catalog normalizer without acquiring database or media resources." }
 		,

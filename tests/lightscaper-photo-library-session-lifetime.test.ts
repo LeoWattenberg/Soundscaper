@@ -88,3 +88,54 @@ test('cleanup failures retain exact identity on every subsequent Close', async (
 	await closing.then(() => assert.fail('cleanup unexpectedly passed'), error => { assert.equal(error === failure, true); });
 	assert.equal(lifetime.close(async () => undefined), closing);
 });
+
+test('trusted admission finishes before operation returns while resource work stays deferred', async () => {
+	const lifetime = new PhotoLibrarySessionLifetime(), value = { revision: 1 };
+	let admitted = 0, ran = false;
+	const work = lifetime.operation(async () => { ran = true; return admitted; }, undefined, () => { admitted = value.revision; });
+	try {
+		assert.equal(admitted, 1); assert.equal(ran, false); value.revision = 9;
+		assert.equal(await work, 1);
+	} finally { await lifetime.close(async () => undefined); }
+});
+
+test('trusted admission cannot reflect inputs or acquire resources after native pre-abort', async () => {
+	const lifetime = new PhotoLibrarySessionLifetime(), caller = new AbortController();
+	const reason = new Proxy({}, { get() { assert.fail('opaque reason reflected'); } });
+	let calls = 0; caller.abort(reason);
+	const work = lifetime.operation(async () => { calls++; }, caller.signal, () => { calls++; });
+	await work.then(() => assert.fail('pre-aborted operation delivered'), error => { assert.equal(error === reason, true); });
+	await lifetime.close(async () => undefined); assert.equal(calls, 0);
+});
+
+test('admission reentry into Close joins its already-owned work without starting acquisition', async () => {
+	const lifetime = new PhotoLibrarySessionLifetime(); let ran = false, cleanups = 0;
+	const state: { closing: Promise<void> | null } = { closing: null };
+	const work = lifetime.operation(async () => { ran = true; }, undefined, () => {
+		state.closing = lifetime.close(async () => { cleanups++; });
+		assert.equal(lifetime.close(async () => assert.fail('second cleanup')), state.closing);
+		assert.equal(cleanups, 0);
+	});
+	const observed = work.then(() => false, error => error instanceof DOMException && error.name === 'AbortError');
+	try {
+		assert.ok(state.closing); assert.equal(await observed, true); await state.closing;
+		assert.equal(ran, false); assert.equal(cleanups, 1);
+	} finally { await lifetime.close(async () => undefined); }
+});
+
+test('a native abort during throwing admission wins the later validation error without reflecting its reason', async () => {
+	const lifetime = new PhotoLibrarySessionLifetime(), caller = new AbortController(); let ran = false;
+	const reason = new Proxy({}, { get() { assert.fail('opaque reason reflected'); } });
+	const work = lifetime.operation(async () => { ran = true; }, caller.signal, () => {
+		caller.abort(reason); throw new TypeError('Later validation failure');
+	});
+	await work.then(() => assert.fail('cancelled admission delivered'), error => { assert.equal(error === reason, true); });
+	await lifetime.close(async () => undefined); assert.equal(ran, false);
+});
+
+test('failed synchronous admission retains its exact failure and never starts deferred resource work', async () => {
+	const lifetime = new PhotoLibrarySessionLifetime(), failure = Object.freeze({ admission: false }); let ran = false;
+	const work = lifetime.operation(async () => { ran = true; }, undefined, () => { throw failure; });
+	await work.then(() => assert.fail('failed admission delivered'), error => { assert.equal(error === failure, true); });
+	await lifetime.close(async () => undefined); assert.equal(ran, false);
+});

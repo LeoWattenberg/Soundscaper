@@ -26,20 +26,33 @@ export class PhotoLibrarySessionLifetime {
 		if (this.#closed) throw new Error('The photo library session is closed.');
 	}
 
-	operation<Result>(run: (signal: AbortSignal) => Promise<Result>, caller?: AbortSignal): Promise<Result> {
+	operation<Result>(run: (signal: AbortSignal) => Promise<Result>, caller?: AbortSignal, admit?: () => void): Promise<Result> {
 		try { this.assertAccepting(); } catch (error) { return Promise.reject(error); }
 		let resolve!: (value: Result | PromiseLike<Result>) => void, reject!: (reason: unknown) => void;
 		const work = new Promise<Result>((accept, refuse) => { resolve = accept; reject = refuse; });
 		this.#pending.add(work);
 		let detach: () => void = () => undefined;
+		let signal: AbortSignal | null = null;
 		const settled = () => { detach(); this.#pending.delete(work); };
 		void work.then(settled, settled);
 		try {
 			const joined = join(caller, this.signal); detach = joined.detach;
+			signal = joined.signal;
+			Reflect.apply(CHECK, signal, []);
+			// Pin mutable inputs under the pending latch before the public call
+			// returns. Resource work remains deferred so ready caches can settle.
+			admit?.(); Reflect.apply(CHECK, signal, []);
 			void Promise.resolve().then(() => {
 				Reflect.apply(CHECK, joined.signal, []); return run(joined.signal);
 			}).then(resolve, reject);
-		} catch (error) { reject(error); }
+		} catch (error) {
+			// Admission traps can cancel or Close and then throw another error.
+			// The first native reason wins without inspecting that reason.
+			if (signal !== null) {
+				try { Reflect.apply(CHECK, signal, []); } catch (reason) { reject(reason); return work; }
+			}
+			reject(error);
+		}
 		return work;
 	}
 
