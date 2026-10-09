@@ -4,6 +4,7 @@ import type { VideoStillSourceV1 } from '../../common/editor/video-visual-model-
 import type { VideoEffectLeaf } from '../../common/editor/project-media-types.ts';
 import type { VideoMaskMatteGraphV1 } from '../../common/editor/video-mask-matte-v24.ts';
 import type { ImageMetadataV1 } from '../../common/editor/imaging/image-metadata-model-v1.ts';
+import type { PhotoDevelopWorkspaceV1 } from './photo-develop-workspace-v1.ts';
 
 export const LIGHTSCAPER_SCHEMA_FAMILY = 'lightscaper' as const;
 export const LIGHTSCAPER_SCHEMA_VERSION = 1 as const;
@@ -123,6 +124,8 @@ export interface PhotoVersionV1 {
 	readonly name: string;
 	readonly createdAt: string;
 	readonly develop: PhotoDevelopV1;
+	/** Absent legacy state stays absent; explicit workspace commands opt this version in. */
+	readonly workspace?: PhotoDevelopWorkspaceV1;
 }
 
 /** One photo is the unit of revision and history; no edit snapshots the whole catalog. */

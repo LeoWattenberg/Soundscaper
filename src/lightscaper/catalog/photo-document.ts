@@ -4,6 +4,7 @@ import { normalizeVideoStillSourceV1 } from '../../common/editor/video-visual-mo
 import { readExactSafeVisualText } from '../../common/editor/safe-visual-text.ts';
 import { normalizeImageMetadataV1 } from '../../common/editor/imaging/image-metadata-normalizer-v1.ts';
 import { normalizePhotoDevelopV1 } from './develop-state.ts';
+import { normalizePhotoDevelopWorkspaceV1 } from './photo-develop-workspace-v1.ts';
 import { normalizePhotoMetadataV1 } from './photo-metadata.ts';
 import { PHOTO_COLOR_LABELS, PHOTO_FLAGS } from './smart-query.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type PhotoCatalogRootV1, type PhotoDocumentV1, type PhotoOriginalV1, type PhotoVersionV1 } from './types.ts';
@@ -69,13 +70,19 @@ function normalizeOriginal(value: unknown): PhotoOriginalV1 {
 
 function normalizeVersions(value: unknown): readonly PhotoVersionV1[] {
 	const versions = array(value, 'photo versions', 1, LIMITS.maximumVersions).map((candidate) => {
-		const input = record(candidate, 'photo version', ['id', 'kind', 'name', 'createdAt', 'develop']);
+		const input = record(candidate, 'photo version', ['id', 'kind', 'name', 'createdAt', 'develop', 'workspace'], ['id', 'kind', 'name', 'createdAt', 'develop']);
+		const develop = normalizePhotoDevelopV1(field(input, 'develop'));
+		const workspace = Object.hasOwn(input, 'workspace') ? normalizePhotoDevelopWorkspaceV1(field(input, 'workspace')) : undefined;
+		if (workspace && JSON.stringify(workspace.entries[workspace.cursor]!.develop) !== JSON.stringify(develop)) {
+			throw new RangeError('Active develop settings must match the selected version history state.');
+		}
 		return Object.freeze({
 			id: id(field(input, 'id'), 'photo version ID'),
 			kind: oneOf(field(input, 'kind'), ['master', 'virtual-copy'] as const, 'photo version kind'),
 			name: name(field(input, 'name'), 'photo version name'),
 			createdAt: utcTimestamp(field(input, 'createdAt'), 'photo version creation time'),
-			develop: normalizePhotoDevelopV1(field(input, 'develop')),
+			develop,
+			...(workspace ? { workspace } : {}),
 		});
 	});
 	unique(versions.map((version) => version.id), 'photo versions');

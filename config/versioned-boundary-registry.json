@@ -622,6 +622,8 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-catalog-restore-stage-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial catalog restore stage requires native fresh-database proof, joins admission and retirement, and acknowledges audited candidate readiness without publishing a library pointer or original media." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v1.ts", "kind": "persisted-contract", "justification": "Version 1 per-photo-version develop workspace retains bounded ordered history and immutable named snapshots, explicit process versions and a selected-state cursor independently of virtual copies and original identity." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-index-storage-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable query build states bind readiness, bounded resume position and atomic derived-row counts independently of canonical photo and catalog schemas." }
@@ -709,6 +711,8 @@
 		{ "path": "src/lightscaper/controller/photo-batch-rename-inverse-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded compensating filename commands require exact current revision and name while preserving remaining restoration fences." }
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
+		,
+		{ "path": "src/lightscaper/controller/photo-develop-workspace-commands-v1.ts", "kind": "helper-contract", "justification": "Version 1 photo develop history and immutable snapshot drafts preserve explicit per-version state and process versions while borrowing the existing command owner's durable compare-and-swap publication." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-archive-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-library restore joins authenticated archive delivery and fresh catalog/media owners before guarded atomic pointer publication and permanent-history reconciliation."}
 		,

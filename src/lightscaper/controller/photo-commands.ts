@@ -5,9 +5,12 @@ import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';
 import { createPhotoVersionV1 } from '../catalog/photo-history.ts';
 import type { PhotoDevelopV1, PhotoDocumentV1, PhotoMetadataV1 } from '../catalog/types.ts';
 import { field, id, name, oneOf, record } from '../catalog/value-validation.ts';
+import { PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_V1, applyPhotoDevelopWorkspaceCommandV1,
+	applyLegacyPhotoDevelopToVersionV1, type PhotoDevelopWorkspaceCommandV1 } from './photo-develop-workspace-commands-v1.ts';
 
 type Attributes = Pick<PhotoDocumentV1, 'rating' | 'flag' | 'colorLabel' | 'folderId' | 'keywordIds' | 'collectionIds'>;
 export type PhotoCommandV1 =
+	| PhotoDevelopWorkspaceCommandV1
 	| Readonly<{ type: 'set-attributes'; changes: Readonly<Partial<Attributes>> }>
 	| Readonly<{ type: 'set-metadata'; changes: Readonly<Partial<PhotoMetadataV1>> }>
 	| Readonly<{ type: 'set-develop'; develop: PhotoDevelopV1; versionId?: string }>
@@ -19,13 +22,15 @@ const ATTRIBUTE_FIELDS = ['rating', 'flag', 'colorLabel', 'folderId', 'keywordId
 const METADATA_FIELDS = ['fileName', 'modifiedTime', 'captureTime', 'orientation', 'cameraMake', 'cameraModel', 'lens',
 	'exposureSeconds', 'aperture', 'iso', 'focalLengthMm', 'title', 'caption', 'creator', 'copyright', 'location'];
 const COMMAND_TYPES = ['set-attributes', 'set-metadata', 'set-develop', 'create-virtual-copy',
-	'activate-version', 'delete-virtual-copy', 'rename-virtual-copy'] as const;
+	'activate-version', 'delete-virtual-copy', 'rename-virtual-copy', ...PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_V1] as const;
 
 /** One inert authored-state draft; the repository and history own revision publication. */
 export function applyPhotoCommandV1(value: unknown, command: unknown): PhotoDocumentV1 {
 	const photo = readPhoto(value);
-	const input = record(command, 'photo command', ['type', 'changes', 'develop', 'versionId', 'id', 'name', 'createdAt', 'sourceVersionId'], ['type']);
+	const input = record(command, 'photo command', ['type', 'changes', 'develop', 'versionId', 'id', 'name', 'createdAt', 'sourceVersionId',
+		'label', 'cursor', 'snapshotId'], ['type']);
 	const type = oneOf(field(input, 'type'), COMMAND_TYPES, 'photo command type');
+	if (PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_V1.some(candidate => candidate === type)) return applyPhotoDevelopWorkspaceCommandV1(photo, command);
 	if (type === 'set-attributes' || type === 'set-metadata') {
 		record(input, 'photo patch command', ['type', 'changes']);
 		const changes = record(field(input, 'changes'), 'photo authored changes', type === 'set-attributes' ? ATTRIBUTE_FIELDS : METADATA_FIELDS, []);
@@ -45,7 +50,7 @@ export function applyPhotoCommandV1(value: unknown, command: unknown): PhotoDocu
 		const versionId = Object.hasOwn(input, 'versionId') ? id(field(input, 'versionId'), 'develop version ID') : photo.activeVersionId;
 		requireVersion(photo, versionId);
 		const develop = normalizePhotoDevelopV1(field(input, 'develop'));
-		return readPhoto({ ...photo, versions: photo.versions.map((version) => version.id === versionId ? { ...version, develop } : version) });
+		return readPhoto({ ...photo, versions: photo.versions.map((version) => version.id === versionId ? applyLegacyPhotoDevelopToVersionV1(version, develop) : version) });
 	}
 	record(input, 'photo version command', type === 'rename-virtual-copy' ? ['type', 'versionId', 'name'] : ['type', 'versionId']);
 	const versionId = id(field(input, 'versionId'), 'photo command version ID');
