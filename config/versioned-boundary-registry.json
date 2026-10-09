@@ -620,6 +620,8 @@
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-contract-v3.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 3 preserves physical saved-collection state and authenticated full-query definition packs alongside unchanged photo and stack packs."}
 		,
+		{"path": "src/lightscaper/archive/catalog-archive-contract-v4.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 4 adds one authenticated bounded shared Develop preset row with explicit physical absence or retained positive revision while preserving unchanged photo, stack and saved-collection contracts."}
+		,
 		{"path": "src/lightscaper/archive/catalog-archive-export-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog export streams photo and stack packs under the existing archive entry, byte and cleanup bounds."}
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-export-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog export streams authenticated complete saved definitions and physical saved state, binding final source verification before destination completion."}
@@ -629,6 +631,10 @@
 		{"path": "src/lightscaper/archive/catalog-archive-import-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog import preserves physical saved state and complete saved queries while authenticating all packs and joining archive cleanup before provisional publication."}
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-saved-collection-guard-v3.ts", "kind": "helper-contract", "justification": "Version 3 archive saved-definition admission binds bounded global identities, root-only references, disjoint collection IDs and exact physical-state counts independently of streamed recipe bodies."}
+		,
+		{"path": "src/lightscaper/archive/develop-preset-pack-entry-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop preset entry decoding joins bounded ZIP extraction, provisional row staging and final SHA-256 and length authentication while preserving native opaque cancellation."}
+		,
+		{"path": "src/lightscaper/archive/develop-preset-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 Develop preset JSON packs preserve one canonical catalog-scoped shared full or partial preset row within the existing 10 MiB, 16-preset and individual 2 MiB limits with strict streaming UTF8 and joined source retirement."}
 		,
 		{"path": "src/lightscaper/archive/smart-collection-pack-entry-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved collection entry decoding joins authenticated ZIP extraction and provisional record consumption under independent byte bounds and opaque cancellation reasons."}
 		,

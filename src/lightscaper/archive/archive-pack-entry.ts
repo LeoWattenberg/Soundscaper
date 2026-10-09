@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { aggregateScapeErrors, throwIfScapeAborted } from '../../common/editor/scape-abort.ts';
+import { aggregateScapeErrors } from '../../common/editor/scape-abort.ts';
 import type { ScapeArchiveEntry, ScapeAssetDescriptor } from '../../common/editor/scape-archive-envelope.ts';
 import { createScapeDigest, scapeHex, verifyScapeExtractedAsset } from '../../common/editor/scape-archive-media.ts';
 import type { ScapeExpandedByteBudget } from '../../common/editor/scape-expanded-byte-budget.ts';
@@ -8,6 +8,7 @@ import { photoPackByteView } from './pack-byte-chunk.ts';
 
 const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
 const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
+const nativeAbort = AbortSignal.prototype.throwIfAborted;
 
 /** One authenticated backpressure bridge, shared by photo-pack1 and stack-pack1. */
 export async function readCatalogArchivePackEntry(entry: ScapeArchiveEntry, descriptor: ScapeAssetDescriptor,
@@ -19,7 +20,7 @@ export async function readCatalogArchivePackEntry(entry: ScapeArchiveEntry, desc
 	const bridge = new TransformStream<Uint8Array, Uint8Array>({
 		start(controller) { control = controller; },
 		transform(chunk, controller) {
-			throwIfScapeAborted(signal); const view = photoPackByteView(chunk);
+			if (signal) Reflect.apply(nativeAbort, signal, []); const view = photoPackByteView(chunk);
 			if (view.byteLength < 1 || view.byteLength > maximumChunkBytes) throw new RangeError(`${label} archive emission exceeds its chunk bound.`);
 			if (view.byteLength > descriptor.size - size) throw new RangeError(`${label} emits more bytes than its descriptor.`);
 			budget.consume(view.byteLength, entry.filename); const bytes = new Uint8Array(view);

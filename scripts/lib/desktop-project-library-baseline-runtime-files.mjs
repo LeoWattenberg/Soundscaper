@@ -38,6 +38,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/scape-export-plan.js',
 	'src/common/editor/scape-project-assets.js',
 	'src/common/editor/scape-photo-catalog-pack.js',
+	'src/common/editor/scape-photo-develop-preset-pack.js',
 	'src/common/editor/scape-photo-stack-pack.js',
 	'src/common/editor/scape-photo-smart-collection-pack.js',
 	'src/common/editor/storage/derivative-cache-entry.js',

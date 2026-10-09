@@ -186,3 +186,24 @@ failure adds `cleanup-failed` without losing a durable result. Close joins held
 reads and saves, refusing late read publication while retaining acknowledged
 writes. Preset saves do not alter photo facts, catalog revisions, or import
 presets. Menu presentation and browser workflows remain outstanding.
+
+Catalog archive version 4 defines one optional Develop preset pack alongside
+the unchanged photo, stack, and saved-collection packs. Its project document
+retains only the pack identity, entry, row revision, and preset count. Physical
+absence is explicit; a stored empty positive-revision row still has a pack.
+The pack retains the canonical shared full or partial bodies, their selected
+settings, authored digest, names, and process-1 values under the existing
+16-preset, 10 MiB row, and individual 2 MiB wrapper bounds. It consumes one of
+the existing 4094 asset slots without increasing document or archive ceilings.
+
+Encoding detaches before the first asynchronous output and emits 64 KiB chunks.
+Reading uses strict streaming UTF-8, intrinsic fixed byte buffers, a 4 MiB
+emission bound, and joined source retirement. The authenticated entry stages
+only provisional data; extraction, exact length, and SHA-256 checks settle
+before its caller can publish. Captured native cancellation checks preserve
+opaque reasons without inspecting them. The neutral Scape asset-kind leaf lets
+Soundscaper and Framescaper inspect and byte-copy foreign archives without
+borrowing a Lightscaper decoder. Production backup and private restore still
+use archive3; wiring archive4 into those owners remains subsequent integration
+work. These format and host JavaScript changes do not alter the assistance
+runtime closure and do not require a manual **Update AI assets** run.
