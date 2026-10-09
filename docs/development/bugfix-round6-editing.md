@@ -415,3 +415,27 @@ Native complete Paste/Unlock/Undo/Redo verification remains pending while the
 frozen full browser run continues unchanged. This adds no qualifying count:
 editing remains 54 and the aggregate 200; no manual Update AI assets run is
 required.
+
+Uncounted R6-EDIT-046 locked-video fixture completion: retain Green44 Chromium
+cases 1779 and 1787 as actual four-minute whole-test failures. Their exact
+snapshots and screenshots remain under
+`/tmp/soundscaper-r6-final-green44-video-edit-diagnostics/rate-stretch/` and
+`/tmp/soundscaper-r6-final-green44-video-edit-diagnostics/roll-ripple/`.
+Both complete all preceding ordinary menu/gesture/history and linked-timeline
+checks, then persist Track Lock and verify the locked menu leaves. The old
+locked branch waits for a stretch-right or trim-left grip that is correctly
+absent: completion `316440391` carries the host track lock into the existing
+filmstrip's blocked admission, which renders grips only while selected and
+unblocked. The unchanged Green27 workflows passed before that completion in
+Chromium 24.2/37.1 and Firefox 23.0/44.9 seconds; those earlier results do not
+erase the retained final failures. Replace only each impossible locked-grip
+drag with an explicit absent-grips assertion. Preserve every healthy action,
+menu refusal, exact locked timeline, guide/preview absence, product-exclusion
+check and original 240-second test budget. No withdrawn control is synthesized
+and no product behavior changes. Narrow strict compilation checks the changed
+locator assertions and existing clip-lock owners; targeted and canonical
+changed-file lint, size and diff checks pass. Complete latest-product browser
+verification remains pending while the unchanged frozen full run is active;
+the existing WebKit imported-A/V guard remains intact. This is fixture support
+only, leaves editing at 54 and the aggregate at 200, and requires no manual
+Update AI assets run.

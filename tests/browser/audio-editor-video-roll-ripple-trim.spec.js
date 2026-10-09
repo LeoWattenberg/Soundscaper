@@ -131,7 +131,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 		await expectPersistedTimeline(page, projectId, baseline);
 		await selectVideoClip(editor, active.id);
 
-		// Persisted track authority disables every menu route and refuses the pointer route.
+		// Persisted track authority disables every menu route and withdraws the pointer handles.
 		await setProgramFrame(page, editor, baseline, active.sequenceStartFrame + 1);
 		await chooseTrackMenuAction(
 			page, editor,
@@ -144,16 +144,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 		for (const row of MENU_ROWS) await expect(getMenuItem(boundaries, row.label)).toBeDisabled();
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
-		await dragTrimHandle(
-			page,
-			editor,
-			locked,
-			active,
-			'left',
-			active.sequenceStartFrame + 2,
-			['Alt'],
-			{ guide: false },
-		);
+		await expect(editor.locator(`[data-clip-id="${active.id}"] .clip-display__handle`)).toHaveCount(0);
 		await expectPersistedTimeline(page, projectId, locked);
 		await expect(editor.locator('[data-roll-ripple-trim-guide]')).toHaveCount(0);
 
