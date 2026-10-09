@@ -344,3 +344,22 @@ Undo/Redo pass 90/90 (`/tmp/soundscaper-r6-edit-sequence-chunk-owner-green.log`)
 Narrow strict compilation, targeted and canonical changed-file lint, size and
 diff checks pass. No application behavior or qualifying count changes, and no
 manual Update AI assets run is required.
+
+Uncounted full-100 chapter-guide fixture completion: the original WebKit guide
+times out filling a detached second marker rename field before export; its
+unchanged isolated Green23 retry fails at the first overlay's focus in 16.0
+seconds (`/tmp/soundscaper-r6-full100-webkit-chapter-isolated.log`). Adding a
+marker schedules creation focus to its docked-panel row. The runner previously
+moved to the timeline's rename overlay before that completion could finish;
+the pending panel focus can blur and remove the overlay. Await only the new
+unnamed docked marker becoming focused before the existing deliberate timeline
+focus, Enter, name confirmation and complete chapter ZIP export. Product focus
+behavior and the original 120-second deadline remain unchanged. The maintained
+helper completes the entire guide on unchanged immutable `ba2dac3c3` in all
+three engines: Chromium 4.0, Firefox 6.7 and WebKit 6.5 seconds (3/3 PASS in
+21.0 seconds, `/tmp/soundscaper-r6-full100-chapter-focus-all-engines.log`).
+Existing guide/export and annotation-creation controls pass 71/71
+(`/tmp/soundscaper-r6-edit-chapter-focus-node-green.log`); narrow compilation,
+targeted and canonical changed-file lint, size and diff checks pass. This is a
+fixture completion, leaves editing at 54 and the aggregate at 200, and requires
+no manual Update AI assets run.
