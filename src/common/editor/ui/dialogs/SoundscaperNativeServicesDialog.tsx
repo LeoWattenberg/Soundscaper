@@ -93,6 +93,7 @@ function NativeServicesDialog({
 		: initialSurface === 'native-effect-use' ? ['native-effect-use'] : ['native-effect-manage'];
 	const busy = state.pending !== null || Object.values(state.scans).some((scan) => scan.running);
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		const next = adjacentSurface(surface, event.key, surfaces);
 		if (next === null) return;
 		event.preventDefault();
