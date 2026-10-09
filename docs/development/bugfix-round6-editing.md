@@ -119,6 +119,23 @@ and atomic survivor support pass 32/32
 TypeScript and targeted type-aware lint pass. Group this with 031's relationship
 retirement root, adding no count. Both original bus deletion and reassignment controls pass Chromium, Firefox and WebKit on immutable `756da708e` (`/tmp/soundscaper-round6-green14-public-browser.log`).
 
+Uncounted 100-checkpoint desktop test support: the full canonical Node run
+reported three nightly payload closure failures. The ordinary native sidecar
+browser fixture reaches the real chooser/read/save IPC module and its sixteen
+desktop file-capability dependencies, which were missing from the staging
+inventory. Admit that exact fixture and dependency closure and retain each in
+the nightly extra-resources filter. The original spectrogram omission test was
+masked by the earlier missing fixture; its unchanged refusal passes again, and
+an additional omitted native request-lease audit preserves that closure fence.
+All twelve import/closure cases pass
+(`/tmp/soundscaper-r6-edit-nightly-closure-node-green.log`). The minimal staged
+checkout carries the same real fixture bytes, and all 32 packaging, staging,
+refusal and import/closure support cases pass
+(`/tmp/soundscaper-r6-edit-nightly-closure-support-green2.log`). This changes only
+the packaged browser test closure, adds no bug count and does not change any
+assistance engine closure, generated runtime archive or target inventory.
+No manual **Update AI assets** run is required.
+
 Uncounted checkpoint support: the full first-50 Node run discovered two missing
 exact importer classifications for 010's resolved removal adapter and 012's
 type-only channel allocator. Add their named downstream ownership evidence to
