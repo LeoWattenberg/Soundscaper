@@ -850,3 +850,41 @@ The final full 200-fix all-engine run is queued on Green42 behind it
 (`/tmp/soundscaper-round6-checkpoint200-green42-full-browser.log`); neither
 pending run is claimed to pass. All 200 qualifying roots retain causal RED and
 complete public GREEN evidence. No manual **Update AI assets** run is required.
+
+The full 150-fix Firefox recording-meter case exposes one further completion
+of the existing capture-width family. Its unchanged public Record, Stop,
+Float WAV and idle-meter workflow fails the original left-channel peak control
+at 0.565685. Independent native input observation proves two channels with
+peaks [0.8, 0] in all three engines; Firefox and WebKit omit the optional track
+channel setting. A passive whole-workflow observation on unchanged Green42
+confirms that the legacy capture adapter persists one channel and delivers
+both WAV lanes at 0.565685. The ordinary mono center panner's equal-power gain
+accounts for the observed value; neither the native fixture nor export
+assertions are changed.
+
+Commit `9ca719643` uses the existing silent native channel-width probe only
+when that metadata is omitted, keeps explicit widths and the two-channel cap,
+and rechecks capture ownership before publishing storage after the observation.
+Five actual-service regression cases fail before repair while three explicit
+width controls pass. The repaired service and related recording controls pass
+69/69; additional actual-caller recording integration controls pass 24/24.
+Strict types, targeted and changed lint, size and dependency architecture checks
+pass. The unchanged complete browser workflow then passes on immutable Green43
+in Chromium 5.8 seconds, Firefox 8.3 seconds and WebKit 7.9 seconds: **3/3
+passed, actual exit 0 in 25.7 seconds**
+(`/tmp/soundscaper-r6-io-meter-channels-green43.log`). Every original left-peak,
+silent-right-channel, stereo-width and meter assertion and deadline is retained.
+This completion contributes zero further roots; the verified count remains 200.
+
+Green43 `9ca719643` passes both guarded product builds
+(`/tmp/soundscaper-round6-green43-build.log`). The unstarted Green42 final browser
+queue is terminated with actual exit 143 so its replacement includes this
+source correction; no browser case in that queue had started. Green43 repeats
+the complete canonical gate
+(`/tmp/soundscaper-round6-checkpoint200-green43-canonical.log`), and its final
+all-engine browser run is queued behind the continuing immutable Green27
+150-fix run
+(`/tmp/soundscaper-round6-checkpoint200-green43-full-browser.log`). Both remain
+pending at this receipt. No runtime source pin, assistance engine dependency,
+archive recipe or supported target changes, so no manual **Update AI assets**
+run is required.
