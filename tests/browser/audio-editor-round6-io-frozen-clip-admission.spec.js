@@ -57,6 +57,7 @@ for (const frozen of [false, true]) test(`individual clip export ${frozen ? 'exp
 		await chooseDropdown(page, restored.locator('[data-export-field="output"]'), 'Individual clips (split by clips)');
 		await restored.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(restored.locator('[data-export-download]')).toBeVisible({ timeout: 20_000 });
+		await expect(restored.locator('[data-export-download]')).toHaveAttribute('download', /\.zip$/u, { timeout: 20_000 });
 		const clips = Object.values(unzipSync(await readDownloadBytes(page, restored.locator('[data-export-download]'))));
 		expect(clips).toHaveLength(1);
 		const restoredAudio = await audioMetrics(page, clips[0]);
