@@ -48,6 +48,7 @@ test('CI native overlays bind exact HEAD receipts and allow only generated manif
 	const generated = await readFile(join(repositoryRoot, MANIFEST));
 	assert.equal(overlay.manifestBytes.equals(generated), true);
 	const originalOverlayRoot = process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT;
+	const originalSourceRoot = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT;
 	process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT = resultsRoot;
 	try {
 		const audit = await assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] });
@@ -59,11 +60,19 @@ test('CI native overlays bind exact HEAD receipts and allow only generated manif
 		const normalized = await assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] });
 		assert.equal(normalized.repositoryInputsVerified, true);
 		assert.equal(normalized.inputDigests[MANIFEST].sha256, audit.inputDigests[MANIFEST].sha256);
+		const sourceRoot = join(root, 'source-cache');
+		await mkdir(sourceRoot);
+		process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT = `${sourceRoot}/.`;
+		await assert.rejects(assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] }), /missing or unexpected source directories/u);
+		process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT = relative(process.cwd(), sourceRoot);
+		await assert.rejects(assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] }), /absolute normalized path/u);
 		process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT = relative(process.cwd(), resultsRoot);
 		await assert.rejects(assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] }), /absolute normalized path/u);
 	} finally {
 		if (originalOverlayRoot === undefined) delete process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT;
 		else process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT = originalOverlayRoot;
+		if (originalSourceRoot === undefined) delete process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT;
+		else process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT = originalSourceRoot;
 	}
 
 	await writeFile(join(repositoryRoot, 'source.ts'), 'export const source = false;\n');

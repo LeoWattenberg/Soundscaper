@@ -135,6 +135,8 @@ async function assembleMilestone5PackageAuditScope(options, dependencies) {
 	const observedHeadRevision = currentRevision(repositoryRoot);
 	const overlayPath = process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT?.trim() ?? '';
 	const overlayRoot = overlayPath === '' ? '' : normalize(overlayPath);
+	const sourcePath = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT?.trim() ?? '';
+	const sourceRoot = sourcePath === '' ? null : normalize(sourcePath);
 	const overlay = overlayRoot === '' ? null : await authenticateProfessionalNativeBuildOverlay({
 		repositoryRoot, sourceRevision, resultsRoot: overlayRoot,
 	});
@@ -162,9 +164,9 @@ async function assembleMilestone5PackageAuditScope(options, dependencies) {
 		inputDigests[manifestPath] = describeMilestone5PackageAuditBytes(bytes);
 	}
 	inputs.sourceAcquisitions = engineeringScope.kind === 'retained-dual-product'
-		? auditMilestone5NativeSourceAcquisitions(repositoryRoot)
+		? auditMilestone5NativeSourceAcquisitions(repositoryRoot, sourceRoot)
 		: auditMilestone5NativeSourceAcquisitionsForProducts(
-			repositoryRoot, engineeringScope.products,
+			repositoryRoot, engineeringScope.products, sourceRoot,
 		);
 	inputs.payloadAudit = await auditMilestone5Payloads(repositoryRoot, engineeringScope.products);
 	if (packageOptions !== null) {
