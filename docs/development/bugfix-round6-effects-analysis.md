@@ -894,3 +894,38 @@ cases pass after repair
 type-aware lint and size/diff checks pass. Public GREEN awaits the next immutable
 build. No assistance runtime assets change and no manual **Update AI assets**
 run is required.
+
+## R6-EFFECT-025 — A second touch replaces the active Parametric EQ band drag
+
+Import an ordinary WAV, Select all and open Effect → EQ and filters →
+Parametric EQ. Start dragging Band 1 with one finger, put a second finger on
+Band 2 and continue moving the first finger. The first finger changes Band 2
+from 500 Hz at 0 dB to 162 Hz at +5.6 dB. The graph has one drag session but
+admits each touch and accepts any pointer's movement, completion or cancellation.
+
+Admit one primary pointer and retain its identity throughout that graph
+session. Ignore unrelated movement, release and cancellation, and restore the
+original draft if its owning capture is lost. Keep mouse, keyboard, automation
+capture and ordinary one-gesture commits. The existing automation regression
+now carries the same native pointer identity on its movement as on its start
+and release. The graph's independent pointer lifecycle differs from the prior
+Parametric EQ modified-key owner and generic native range controls.
+
+Actual Chromium native multi-touch input reproduces the wrong-band edit after
+a completed ordinary mouse drag control
+(`/tmp/soundscaper-r6-effects-parametric-eq-touch-browser-red2.log`). The fixture
+uses public import/menu/graph controls and native input protocol, without
+installing editor state or calling internal actions. An initial setup run used
+Escape while focus remained outside the graph; that run is excluded. The
+Chromium native input protocol is unavailable in the other Playwright engines,
+which explicitly skip this focused multi-touch case.
+
+Five strict mounted pointer-owner cases are causally RED while the ordinary
+primary drag control passes
+(`/tmp/soundscaper-r6-effects-parametric-eq-pointer-node-red2.log`). All twenty
+new/existing graph, automation, deletion-focus, keyboard selection and modified
+command cases pass after repair
+(`/tmp/soundscaper-r6-effects-parametric-eq-pointer-node-green.log`). Focused
+strict compilation, targeted type-aware lint and size/diff checks pass. Public
+GREEN awaits the next immutable build. No assistance runtime assets change and
+no manual **Update AI assets** run is required.
