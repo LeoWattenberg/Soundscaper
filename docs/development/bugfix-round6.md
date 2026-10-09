@@ -262,3 +262,28 @@ The preview corrections are follow-through of effects017 and add zero count.
 The canonical100-fix gate has passed all four production composition typechecks
 and continues its complete test/tooling compilation. Full-suite results remain
 pending; work continues toward200.
+
+The immutable `449787703` passes both guarded product builds. Its Chromium
+delta completes 7 of 8 public workflows
+(`/tmp/soundscaper-round6-green17-chromium.log`): both locked-track Duplicate
+menus preserve source protection and Undo/Redo; both browser and native
+foreign-project Save As retain exact original archive bytes; Brown noise has
+low/high octave energy ratio 3.6022166; native Parametric EQ multi-touch keeps
+the second band's authored 500 Hz/0 dB while the first moves; and uppercase
+RGBA text applies and reopens canonically. These qualify editing035, I/O021,
+effects024–025 and dialog038, giving **116 distinct verified fixes**.
+
+Dialog037's source-lock and allowed presentation assertions pass before its
+final Unlock/reopen exceeds the unchanged overall deadline. The unchanged
+isolated retry also reaches those assertions before the same overall deadline
+(`/tmp/soundscaper-round6-visual-lock-green17-retry.log`). This root remains
+pending complete public GREEN. The failed batch and retry are retained without
+relaxing assertions or deadlines.
+
+The full100-fix canonical gate has passed lint, production/test/tooling types,
+architecture and documentation builds and is now running the complete Node
+suite. It reports two earlier DSP snapshot failures and three desktop test
+payload closure failures; these are under investigation and this gate is not
+recorded as passing. The full50-fix all-engine browser suite is still running.
+Full100 browser verification will follow it without overlapping full browser
+suites. Work continues toward200, with source-ready candidates kept separate.
