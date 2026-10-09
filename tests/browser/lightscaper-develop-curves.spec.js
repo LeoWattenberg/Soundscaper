@@ -35,7 +35,7 @@ for (const locale of ['en', 'de']) for (const reference of CURVE_REFERENCES) {
 		await expect(history).toHaveValue('0'); const versionId = await version.inputValue();
 		expect(versionId).toBe(initial.document.activeVersionId);
 		await expectPixels(dialog, messages.before, CURVE_SOURCE); await expectPixels(dialog, messages.after, CURVE_SOURCE);
-		await named(dialog, 'combobox', messages.choose).selectOption(reference.type);
+		await chooseFamily(page, named(dialog, 'combobox', messages.choose), reference.type);
 		await keyboard(page, named(dialog, 'button', messages.add));
 		if (reference.type === 'point-curves-v1') await authorPoints(page, dialog, messages);
 		else await authorParametric(page, dialog, messages);
@@ -71,10 +71,10 @@ for (const locale of ['en', 'de']) for (const reference of CURVE_REFERENCES) {
 			await expect(parameter(dialog, messages, 'videoEffectCurveMasterShadows')).toHaveValue('100');
 			await expect(parameter(dialog, messages, 'videoEffectCurveShadowSplit')).toHaveValue('0.25');
 		}
-		await history.selectOption('0'); await settled(); await expect(history).toHaveValue('0');
+		await chooseHistory(page, history, '0'); await settled(); await expect(history).toHaveValue('0');
 		await expectPixels(dialog, messages.after, CURVE_SOURCE);
 		await expect(named(dialog, 'combobox', messages.history).locator('option')).toHaveCount(2);
-		await history.selectOption('1'); await settled(); await expect(history).toHaveValue('1');
+		await chooseHistory(page, history, '1'); await settled(); await expect(history).toHaveValue('1');
 		await expectPixels(dialog, messages.after, reference.pixels); await expectPixels(dialog, messages.before, CURVE_SOURCE);
 		await close();
 		const restored = await backupPhoto(page, app, copy); assertOriginal(restored, initial, 3);
@@ -125,6 +125,23 @@ function point(dialog, messages, channel, coordinate, index) {
 }
 function parameter(dialog, messages, key) { return named(dialog, 'spinbutton', `${messages.shared.videoEffectExactValue}: ${messages.shared[key]}`); }
 async function number(control, value) { await control.fill(value); await control.press('Enter'); await expect(control).toHaveValue(value); }
+async function chooseFamily(page, control, value) {
+	const values = await control.locator('option').evaluateAll(options => options.map(option => option.value)), target = values.indexOf(value);
+	expect(values.length).toBeLessThanOrEqual(16); expect(target).toBeGreaterThanOrEqual(0);
+	await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Home');
+	for (let index = 0; index < target; index++) await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Tab'); await expect(control).toHaveValue(value);
+}
+async function chooseHistory(page, control, value) {
+	const values = await control.locator('option').evaluateAll(options => options.map(option => option.value));
+	expect(values).toEqual(['0', '1']);
+	const current = values.indexOf(await control.inputValue()), target = values.indexOf(value);
+	expect(Math.abs(target - current)).toBe(1);
+	await control.focus(); await expect(control).toBeFocused();
+	// Exactly one native change starts the one revision-fenced writer; no intermediate history selection is issued.
+	await page.keyboard.press(target < current ? 'ArrowUp' : 'ArrowDown');
+	await page.keyboard.press('Tab');
+}
 async function expectPixels(dialog, name, expected) {
 	// Acquire a current canvas and capture extent+pixels together; proxy retirement may replace its backing at any await.
 	await expect.poll(() => named(dialog, 'img', name).evaluate(canvas => canvas.width !== 2 || canvas.height !== 2 ? null
