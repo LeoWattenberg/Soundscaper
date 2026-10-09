@@ -29,7 +29,7 @@ function harness(overrides: Data = {}): Readonly<{ dependencies: never; calls: s
 	const calls: string[] = [];
 	const controller: Data = {
 		project: PROJECT,
-		actions: { project: { openById: async () => { calls.push('openById'); } } },
+		actions: { project: { openById: async () => { calls.push('openById'); }, flush: async () => { calls.push('flush'); } } },
 	};
 	const dependencies = {
 		controller,
@@ -51,6 +51,7 @@ function adopting(overrides: Data = {}): Readonly<{ dependencies: never; calls: 
 	const built = harness(overrides);
 	const controller = (built.dependencies as unknown as Data).controller as Data;
 	(controller.actions as Data).project = {
+		flush: async () => { built.calls.push('flush'); },
 		openById: async (_projectId: string, options: Data = {}) => {
 			built.calls.push(options.adoptSessionRevision === true ? 'openById:adopt' : 'openById');
 			if (options.adoptSessionRevision !== true) return;
@@ -83,7 +84,7 @@ test('a current project publishes and the editor adopts the new revision', async
 
 	assert.equal(published, PUBLISHED);
 	assert.deepEqual(calls, [
-		'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
+		'flush', 'assertToken', 'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
 	]);
 });
 
@@ -94,14 +95,14 @@ test('the history token is reasserted after every await the publication performs
 
 	assert.equal(
 		calls.filter((call) => call === 'assertToken').length,
-		3,
+		4,
 		'each suspension point must revalidate the captured history token',
 	);
 });
 
 test('a project that moved before publication is refused as stale', async () => {
 	const { dependencies } = harness({
-		controller: { project: PUBLISHED, actions: { project: { openById: async () => undefined } } },
+		controller: { project: PUBLISHED, actions: { project: { openById: async () => undefined, flush: async () => undefined } } },
 	});
 
 	await assert.rejects(
@@ -165,6 +166,7 @@ test('the publication port refuses an incomplete dependency composition', () => 
 		{ publishIfCurrent: 1 },
 		{ session: {} },
 		{ controller: { project: PROJECT, actions: {} } },
+		{ controller: { project: PROJECT, actions: { project: { openById: async () => undefined } } } },
 	]) {
 		assert.throws(() => createPort(harness(overrides).dependencies), TypeError);
 	}

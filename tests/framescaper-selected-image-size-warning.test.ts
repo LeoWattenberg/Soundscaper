@@ -15,7 +15,7 @@ test('image authoring forwards its warning callback and rejects a changed projec
 	const controller = {
 		project,
 		getTelemetrySnapshot: () => ({ positionFrame: 0 }),
-		actions: { project: { openById: async () => undefined } },
+		actions: { project: { openById: async () => undefined, flush: async () => undefined } },
 	};
 	const imports: FramescaperTimelineImageImportRequestTimelineImage[] = [];
 	const confirmFileSizeWarning = async (): Promise<boolean> => true;
