@@ -83,6 +83,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 		throw new RangeError('An FCPXML export requires a positive project sample rate.');
 	}
 	const dropFrame = Boolean(request?.dropFrame);
+	const startFrames = nonNegativeInteger(request?.startFrameCount ?? 0, 'startFrameCount');
 	const title = String(request?.title ?? project.title ?? 'Timeline');
 	const draft = createDeliveryReport({
 		format: 'fcpxml', container: `FCPXML ${FCPXML_VERSION}`, codec: null,
@@ -169,7 +170,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 			));
 		for (const clip of ordered) {
 			const emitted = buildClip(clip, {
-				rate, sampleRate, type, assetIdFor, sourceById, draft, laneFor,
+				rate, sampleRate, type, assetIdFor, sourceById, draft, laneFor, startFrames,
 			});
 			if (!emitted) continue;
 			spine.push(emitted.xml);
@@ -177,7 +178,6 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 		}
 	}
 
-	const startFrames = nonNegativeInteger(request?.startFrameCount ?? 0, 'startFrameCount');
 	const resources = [
 		`\t\t<format id="r1" name="${escapeXml(formatName(rate))}"`
 			+ ` frameDuration="${frameDurationAttribute(rate)}"/>`,
@@ -253,6 +253,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	sourceById: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 	draft: Draft;
 	laneFor: (startFrames: number, endFrames: number) => number;
+	startFrames: number;
 }): { xml: string; endFrames: number } | null {
 	const timelineStart = nonNegativeInteger(clip.timelineStartFrame ?? 0, 'clip.timelineStartFrame');
 	const duration = positiveInteger(clip.durationFrames, 'clip.durationFrames');
@@ -311,7 +312,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 		// defaults to every source component, which would restore embedded audio.
 		+ ` srcEnable="${context.type}"`
 		+ (lane === 0 ? '' : ` lane="${lane}"`)
-		+ ` offset="${frameTime(offsetFrames, context.rate)}"`
+		+ ` offset="${frameTime(offsetFrames + context.startFrames, context.rate)}"`
 		+ ` start="${frameTime(startFrames, context.rate)}"`
 		+ ` duration="${frameTime(endFrames - offsetFrames, context.rate)}"`
 		+ ` ${role}/>`;
