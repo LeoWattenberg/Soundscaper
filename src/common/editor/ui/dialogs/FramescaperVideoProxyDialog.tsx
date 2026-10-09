@@ -18,16 +18,14 @@ import {
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { WebFileLoadLimitError, withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import type { FramescaperVideoProxyModeRetime } from '../../../../framescaper/editor-video-proxy-use-policy-retime.ts';
+import type { FramescaperSidecarFileReader } from '../framescaper-sidecar-file.ts';
+import { withFramescaperVideoProxyFile } from '../framescaper-video-proxy-file.ts';
 
-interface ProxyFileService {
+interface ProxyFileService extends FramescaperSidecarFileReader {
 	readonly isDesktop?: boolean;
 	readonly linkedVideoOriginalsAvailable?: boolean;
 	chooseFiles?(request: Readonly<{ readonly purpose: 'video'; readonly multiple: false }>):
 		PromiseLike<readonly unknown[]> | readonly unknown[];
-	openReadDescriptor?(
-		descriptor: unknown,
-		request?: Readonly<{ readonly signal?: AbortSignal }>,
-	): PromiseLike<unknown> | unknown;
 	chooseLinkedVideoOriginal?(): PromiseLike<unknown> | unknown;
 }
 
@@ -166,20 +164,19 @@ export default function FramescaperVideoProxyDialog({
 		if (!runtime || !selectedSourceId) return;
 		if (fileService.isDesktop) {
 			if (typeof fileService.chooseFiles !== 'function'
-				|| typeof fileService.openReadDescriptor !== 'function') return;
+				|| !(typeof fileService.withReadDescriptors === 'function'
+					|| typeof fileService.openReadDescriptor === 'function')) return;
 			perform('attach', async (signal) => {
 				const descriptors = await fileService.chooseFiles!({ purpose: 'video', multiple: false });
 				throwIfAborted(signal);
 				const descriptor = descriptors[0];
 				if (descriptor === undefined) throw new DOMException('Proxy selection cancelled.', 'AbortError');
-				const candidate = proxyCandidate(await fileService.openReadDescriptor!(
-					descriptor,
-					signal ? { signal } : {},
-				));
-				throwIfAborted(signal);
-				await runtime.attachExisting(selectedSourceId, candidate, {
-					...(signal ? { signal } : {}),
-					onProgress: (next) => { setProgress(next); },
+				await withFramescaperVideoProxyFile(fileService, descriptor, signal, async (candidate) => {
+					throwIfAborted(signal);
+					await runtime.attachExisting(selectedSourceId, candidate, {
+						...(signal ? { signal } : {}),
+						onProgress: (next) => { setProgress(next); },
+					});
 				});
 			});
 			return;
@@ -223,7 +220,8 @@ export default function FramescaperVideoProxyDialog({
 	const mutationsDisabled = model.mutationsDisabled || !runtime || pending !== null || !selected;
 	const attachExistingAvailable = !fileService.isDesktop || (
 		typeof fileService.chooseFiles === 'function'
-		&& typeof fileService.openReadDescriptor === 'function'
+		&& (typeof fileService.withReadDescriptors === 'function'
+			|| typeof fileService.openReadDescriptor === 'function')
 	);
 
 	return <AudioEditorDialogShell
@@ -367,11 +365,6 @@ function phaseLabel(copy: Readonly<Record<string, string>>, phase: string): stri
 	const key = `videoProxyPhase${phase[0]?.toUpperCase() ?? ''}${phase.slice(1)}`;
 	const source: Readonly<Record<string, string>> = VIDEO_PROXY_ADDITIONAL_COPY;
 	return label(copy, key, source[key] ?? phase);
-}
-
-function proxyCandidate(value: unknown): Blob {
-	if (!(value instanceof Blob)) throw new TypeError('The selected proxy is not a pathless media body.');
-	return value;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

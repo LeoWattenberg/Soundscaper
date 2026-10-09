@@ -15,7 +15,7 @@ const CHANNELS = Object.freeze({
 	finishWrite: 'save:finish', abortWrite: 'save:abort',
 });
 
-export async function nativeSidecarFixture(name: string, text: string) {
+export async function nativeSidecarFixture(name: string, text: string | Uint8Array) {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-native-sidecar-'));
 	const path = join(directory, name);
 	await writeFile(path, text);
