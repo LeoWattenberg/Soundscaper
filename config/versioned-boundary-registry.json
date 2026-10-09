@@ -640,6 +640,8 @@
 		,
 		{ "path": "src/common/editor/video-effect-parameter-v2.ts", "kind": "helper-contract", "justification": "Version 2 parameter vocabulary explicitly extends unchanged numeric and curve V1 values with a nullable V27 cube reference. Only the owning cube profile admits reference values; current V1 effect leaves, state and preset consumers remain unchanged until coordinated successor adoption. Imports are type-only and no runtime resource authority is added." }
 		,
+		{ "path": "src/common/editor/video-effects-v2.ts", "kind": "helper-contract", "justification": "Explicit version 2 current-consumer definitions and creation append only the closed nullable cube profile to unchanged legacy effect owners. Resource metadata carries no body, shader, numeric expression or render success; old V1 constructors and serializers remain strict. Owning reference admission, dense bounded stacks, immutable envelopes and discrete updates preserve authored order and opaque refusal identity." }
+		,
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization. Owning prepared preview identities expose detached 256-entry RGB transfer tables for exact UNORM8 GPU evaluation; generated export expressions preserve the same sampling and byte quantization." }
