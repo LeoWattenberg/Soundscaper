@@ -94,6 +94,7 @@ test('mixed old/new Frame stacks execute every authored GPU pass through the mai
 		createVideoEffect('pixelate', { params: { blockSize: 8 } }), createVideoEffect('tone-ladder-v1', { params: { exposure: 1 } })];
 	const uploads: Uint8Array[] = []; let creates = 0, afterRead: (() => void) | null = null;
 	let retainedOutput: Uint8Array | null = null;
+	let readback = SOURCE;
 	let cleanupFailure: Error | null = null;
 	const programs: { shaders: { source: string }[] }[] = [], draws: number[] = []; let current: typeof programs[number] | undefined;
 	const constants = new Map<string, number>();
@@ -111,7 +112,7 @@ test('mixed old/new Frame stacks execute every authored GPU pass through the mai
 		drawArrays: () => { const source = current?.shaders.find(shader => shader.source.includes('const int u_effect ='))?.source;
 			if (source) draws.push(Number(/const int u_effect = (\d+)/u.exec(source)?.[1])); },
 		readPixels: (_x: number, _y: number, _width: number, _height: number, _format: number, _type: number, pixels: Uint8Array) => {
-			pixels.set(SOURCE); retainedOutput = pixels; afterRead?.();
+			pixels.set(readback); retainedOutput = pixels; afterRead?.();
 		},
 	};
 	const gl = new Proxy(calls, { get(target, key) { if (typeof key !== 'string') return undefined;
@@ -129,6 +130,14 @@ test('mixed old/new Frame stacks execute every authored GPU pass through the mai
 		assert.equal(output.pixels.length, SOURCE.length);
 		assert.equal(creates, 1); assert.deepEqual(uploads[0], new Uint8Array(SOURCE));
 		assert.equal(uploads.at(-1)![128 * 4], 176, 'settings are detached before browser acquisition');
+		const rows = [10, 40, 90].flatMap(value => [value, value, value, 255, value, value, value, 255]);
+		readback = [90, 40, 10].flatMap(value => [value, value, value, 255, value, value, value, 255]);
+		const uploadCount = uploads.length, rowInput = { width: 2, height: 3, pixels: new Uint8Array(rows) };
+		const rowOutput = await applyVideoExactBrowserEffectsFinishing(rowInput, effects, LIVE);
+		assert.deepEqual(uploads[uploadCount], new Uint8Array(readback), 'typed upload owns the maintained bottom-origin texture layout');
+		assert.deepEqual(Array.from(rowOutput.pixels), rows, 'native bottom-origin readback returns top-origin straight bytes');
+		assert.deepEqual(Array.from(rowInput.pixels), rows, 'the caller retains unchanged top-origin bytes');
+		readback = SOURCE;
 		const stop = new AbortController(); let traps = 0;
 		const reason = new Proxy({}, { get() { traps++; throw Error(); }, getPrototypeOf() { traps++; throw Error(); },
 			getOwnPropertyDescriptor() { traps++; throw Error(); } });

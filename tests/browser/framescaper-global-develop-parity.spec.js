@@ -92,6 +92,19 @@ test('native straight readback cancellation joins cleanup and wipes undelivered 
 	expect(result.rejectedWithReason).toBe(true); expect(result.reasonTraps).toBe(0); expect(result.abandonedOutputZero).toBe(true);
 });
 
+test('mixed Frame spatial effects preserve the maintained top-origin incomplete-block alignment', async ({ page }) => {
+	await prepare(page);
+	const source = [10, 40, 90, 140, 180].flatMap(value => [value, value, value, 255, value, value, value, 255]);
+	const result = await qualify(page, { source, height: 5,
+		effects: [{ ...effect('white-balance-v1'), enabled: false }], mode: 'frame-spatial' });
+	// The unchanged LINEAR legacy sampler blends the last one-row block to175.
+	// This vector avoids the prior200-tail half-byte tie; no rounding tolerance is allowed.
+	const expected = [25, 25, 115, 115, 175].flatMap(value => [value, value, value, 255, value, value, value, 255]);
+	expect(result.pixels).toEqual(expected); expect(result.legacyPresentationPixels).toEqual(expected);
+	expect(result.authoredTypes).toEqual(['white-balance-v1', 'pixelate']);
+	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(2);
+});
+
 async function prepare(page) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalDevelopWebglV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

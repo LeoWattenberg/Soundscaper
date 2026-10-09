@@ -14,8 +14,10 @@ import { createFramescaperProjectFinishing, cloneFramescaperProjectFinishing } f
 import { applyFramescaperProjectCommandFinishing } from '../../src/framescaper/editor-project-finishing-commands.ts';
 import { applyVideoExactBrowserEffectsFinishing } from '../../src/framescaper/editor-video-exact-browser-effects-finishing.ts';
 
-type Mode = 'target' | 'frame' | 'frame-cancel' | 'presentation';
+type Mode = 'target' | 'frame' | 'frame-spatial' | 'frame-cancel' | 'presentation';
 interface Target { readonly framebuffer: WebGLFramebuffer; readonly texture: WebGLTexture; readonly width: number; readonly height: number }
+interface RenderResult { readonly pixels: number[]; readonly legacyPresentationPixels?: number[];
+	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly glError?: number }
 interface Compositor {
 	readonly gl: WebGL2RenderingContext; readonly programs: readonly WebGLProgram[];
 	resizeToDisplaySize(options: Readonly<{ outputWidth: number; outputHeight: number }>): void;
@@ -38,7 +40,7 @@ export async function qualifyGlobalDevelopWebglV1(value: unknown) {
 	const pixels = new Uint8Array(source as number[]), width = pixels.length / (4 * height);
 	const effects = readClosedDomainArray(field(input, 'effects', 'native global render'), 'native global effects', 1, 64).map(normalizeGlobalDevelopEffectV1);
 	const mode = field(input, 'mode', 'native global render');
-	if (mode !== 'target' && mode !== 'frame' && mode !== 'frame-cancel' && mode !== 'presentation') throw new RangeError('Unknown native global fixture mode.');
+	if (mode !== 'target' && mode !== 'frame' && mode !== 'frame-spatial' && mode !== 'frame-cancel' && mode !== 'presentation') throw new RangeError('Unknown native global fixture mode.');
 	const authored = author(effects, width, height), stop = new AbortController(), signal = stop.signal;
 	const cpuPixels = await withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width, height,
 		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels }, effects: authored, signal }, output => Array.from(output.pixels), { limits: LIMITS });
@@ -78,11 +80,14 @@ function author(effects: readonly ReturnType<typeof normalizeGlobalDevelopEffect
 	return persisted.clips.find(clip => clip.id === 'video-clip')?.videoEffects ?? [];
 }
 
-async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number, height: number, effects: readonly unknown[], signal: AbortSignal) {
-	if (mode === 'frame' || mode === 'frame-cancel') {
-		const mixed = [...effects, createVideoEffect('color-adjust', { id: 'legacy-neutral' })];
+async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number, height: number, effects: readonly unknown[], signal: AbortSignal): Promise<RenderResult> {
+	if (mode === 'frame' || mode === 'frame-spatial' || mode === 'frame-cancel') {
+		const mixed = [...effects, mode === 'frame-spatial' ? createVideoEffect('pixelate', { id: 'legacy-spatial', params: { blockSize: 2 } })
+			: createVideoEffect('color-adjust', { id: 'legacy-neutral' })];
 		const output = await applyVideoExactBrowserEffectsFinishing({ width, height, pixels }, mixed, signal);
-		return { pixels: Array.from(output.pixels), authoredTypes: mixed.map(value => field(record(value, 'authored effect', ['id', 'type', 'enabled', 'params']), 'type', 'authored effect')) };
+		const legacyPresentation = mode === 'frame-spatial' ? await render('presentation', pixels, width, height, mixed, signal) : null;
+		return { pixels: Array.from(output.pixels), legacyPresentationPixels: legacyPresentation?.pixels,
+			authoredTypes: mixed.map(value => field(record(value, 'authored effect', ['id', 'type', 'enabled', 'params']), 'type', 'authored effect')) };
 	}
 	const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
 	const compositor = new VideoPreviewCompositor(canvas) as unknown as Compositor, gl = compositor.gl;
