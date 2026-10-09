@@ -182,3 +182,22 @@ in1.9seconds (`/tmp/soundscaper-round6-green31-chromium.log`). The verified
 dialog count is56, excluding019 and retaining057/059 as pending. The same
 unchanged build completes the zero-count DIALOG017 ADM numeric draft workflow
 in2.7seconds, including composing Escape, completed Enter and Undo.
+
+DIALOG057 remains pending after the actual Green31 multi-touch workflow
+fails at0.21 versus the healthy0.53. Passive native event observation proves
+the second finger releases with isPrimary=false and the first finger still
+delivers its later movement. React ownership alone does not refuse the
+browser's default second-finger range start: the native input changes to0.21
+on that start, and its original finger no longer changes the native value.
+Prevent that foreign pointer's default before retaining the existing native
+owner; ordinary primary pointer defaults remain intact. The stricter mounted
+native-admission assertion is causally RED with both foreign-completion controls
+passing (`/tmp/soundscaper-round6-video-range-native-admission-node-red.log`),
+then the actual range/native numeric/Escape controls pass6/6
+(`/tmp/soundscaper-round6-video-range-native-admission-node-green2.log`). Narrow
+strict TypeScript, targeted type-aware lint, changed lint, size and owned diff
+pass. A diagnostic touchEnd payload that actually released the primary finger
+is excluded; the retained public fixture observes the second finger's native
+release before continuing the original finger. The next immutable build must
+complete the entire same public workflow. This is a same-root completion and
+adds zero count until057 qualifies.

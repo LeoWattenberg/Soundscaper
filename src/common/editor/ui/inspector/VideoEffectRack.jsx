@@ -176,7 +176,8 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 		else { pointer.resumeKeyboard(); if (event.key === 'Enter') gesture.commit(); }
 	};
 	const pointerDown = (event) => {
-		if (event.button !== 0 || event.isPrimary === false || !pointer.begin(event.pointerId)) return;
+		if (event.button !== 0) return;
+		if (event.isPrimary === false || !pointer.begin(event.pointerId)) { event.preventDefault(); return; }
 		event.currentTarget.setPointerCapture?.(event.pointerId); gesture.begin();
 	};
 	const reset = (event) => {
