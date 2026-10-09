@@ -10,11 +10,11 @@ repository's qualified CI audio null sink. R6-EFFECT-012–014 pass their comple
 ordinary workflows in all three engines on immutable Green9 `81a707b96`
 (`/tmp/soundscaper-round6-green9-public-browser.log`), bringing this register to
 fourteen verified roots.
-R6-EFFECT-015 has causal public RED and focused GREEN and awaits the next build.
-R6-EFFECT-016 has the same pending validation status.
-R6-EFFECT-017 has causal public RED and focused GREEN and awaits a later build.
-The INDEX follow-through of R6-EFFECT-011 also awaits its new public PCM check;
-it adds no root.
+R6-EFFECT-015–016 and the INDEX follow-through of R6-EFFECT-011 pass all three
+engines on immutable Green10 `68655eafb`
+(`/tmp/soundscaper-round6-green10-public-browser.log`), bringing this register to
+sixteen verified roots. The INDEX follow-through adds no root.
+R6-EFFECT-017–018 have causal public RED and focused GREEN and await a later build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -315,8 +315,9 @@ host cases pass afterward
 Crossfade Tracks workflows passed before this follow-through and remain a
 control, rather than causal evidence. An initial prompt fixture waited for a
 status string instead of its actual frame output and is excluded. Strict
-types, targeted lint and size checks pass; the new PCM workflow awaits public
-GREEN on the next immutable build. This is follow-through of R6-EFFECT-011,
+types, targeted lint and size checks pass. The complete prompt PCM and Crossfade
+controls pass Chromium, Firefox and WebKit on immutable Green10 `68655eafb`
+(`/tmp/soundscaper-round6-green10-public-browser.log`). This is follow-through of R6-EFFECT-011,
 with no additional root counted.
 
 ## R6-EFFECT-012 — Nyquist generators do not replace all selected recordings
@@ -441,7 +442,8 @@ presentation cases pass, including both blocked native form/footer handlers,
 restored editable admission and available Cancel
 (`/tmp/soundscaper-r6-effects-generator-live-lease-focused-green.log`). Focused
 strict types, targeted type-aware lint and the file-size gate pass. Public
-GREEN awaits the next immutable product build. No assistance runtime assets
+GREEN passes in Chromium, Firefox and WebKit on immutable Green10 `68655eafb`
+(`/tmp/soundscaper-round6-green10-public-browser.log`). No assistance runtime assets
 change and no manual **Update AI assets** run is required.
 
 ## R6-EFFECT-016 — An explicitly empty macro track selection retains an edit target
@@ -473,8 +475,9 @@ before repair, with two controls passing
 new/existing macro command, actual-controller selection, spectral/time edges,
 Select All and native navigation cases pass afterward
 (`/tmp/soundscaper-r6-effects-macro-empty-tracks-node-green.log`). Focused strict
-types, targeted type-aware lint and the size gate pass. Public GREEN awaits the
-next immutable product build. The earlier EDIT-010 dispatcher correction
+types, targeted type-aware lint and the size gate pass. Both complete native
+and macro workflows pass Chromium, Firefox and WebKit on immutable Green10
+`68655eafb` (`/tmp/soundscaper-round6-green10-public-browser.log`). The earlier EDIT-010 dispatcher correction
 remains intact; this independently implemented macro publication adapter must
 retire the focus it previously preserved. No assistance runtime assets change
 and no manual **Update AI assets** run is required.
@@ -512,3 +515,36 @@ agreement with the applied ramp and full-extent memory admission
 strict types, targeted type-aware lint and the file-size gate pass. Public GREEN
 awaits the next immutable product build. No assistance runtime assets change
 and no manual **Update AI assets** run is required.
+## R6-EFFECT-018 — A valid native crossover is silently lowered before processing
+
+Import an ordinary one-second 8 kHz WAV containing a 3,800 Hz tone. Select its
+Source waveform and apply a neutral Multiband compressor with all three ratios
+at one. Reopen the same source effect, set High crossover to 3,800 Hz, Low and
+Mid gain to −12 dB, and retain unity ratios. The authored crossover is below the
+recording's 4,000 Hz Nyquist limit, but the applied/exported response uses a
+3,600 Hz cutoff: measured gain is 0.90248 rather than the bilinear crossover's
+0.72907. The neutral pass makes both delivered comparisons use the same source
+rendering path, avoiding unrelated import streaming resampling differences.
+
+The shared complementary crossover clamps every requested cutoff to 45% of
+sample rate. Honor valid frequencies below Nyquist in its actual filter design;
+preserve the exact existing finite fallback for unsupported frequencies at or
+above Nyquist. Static and live changes across native source rates share this
+one DSP design owner. R4-ROOT-002 supplied the source clock to controls; this
+processor receives the correct clock but substitutes a different valid cutoff.
+
+The complete ordinary menu, native source processing and WAV downloads are
+causally RED at gain 0.9024827 versus 0.7290733
+(`/tmp/soundscaper-r6-effects-crossover-frequency-browser-red4.log`). Earlier
+direct imported/processed-buffer comparisons were confounded by resampling,
+and a follow-up fixture retained a clip name after source processing renamed
+it; both are excluded. Four strict actual DSP cases independently fail, while
+the normal 48 kHz cutoff and explicit unsupported-frequency safety controls
+pass (`/tmp/soundscaper-r6-effects-crossover-frequency-node-red.log`). All
+twenty-two new/existing crossover, de-esser, Multiband compressor and real
+worklet cases pass after repair
+(`/tmp/soundscaper-r6-effects-crossover-frequency-node-green.log`). Focused
+strict types, targeted type-aware lint and the size gate pass. The next full
+Node suite checkpoint will include this shared helper. Public GREEN awaits the
+next immutable product build. No assistance runtime assets change and no
+manual **Update AI assets** run is required.
