@@ -54,6 +54,15 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 		source: `desktop/bundled-${format}-stream.ts`, destination: `desktop/bundled-${format}-stream.ts`,
 		kind: 'file', label: `${format} browser import fixture support`,
 	})),
+	...[
+		'constants.js', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
+		'main-file-capability-ipc.mjs', 'product.json', 'protocol.js', 'read-capability-admission.js',
+		'read-capability-range-stream.js', 'read-capability-request-lease.js', 'read-capability-support.js',
+		'read-selection-service.js', 'save-publication-mode.js', 'save-space.js', 'save-targets.js', 'validation.js',
+	].map((file) => ({
+		source: `desktop/${file}`, destination: `desktop/${file}`,
+		kind: 'file', label: 'native file-capability browser fixture support',
+	})),
 	{ source: 'desktop/desktop-audio-codec-capability-contract.ts', destination: 'desktop/desktop-audio-codec-capability-contract.ts', kind: 'file', label: 'browser codec capability source map input' },
 	{ source: 'desktop/desktop-audio-codec-operation-contract.ts', destination: 'desktop/desktop-audio-codec-operation-contract.ts', kind: 'file', label: 'browser codec operation source map input' },
 	{ source: 'desktop/desktop-video-codec-operation-contract.ts', destination: 'desktop/desktop-video-codec-operation-contract.ts', kind: 'file', label: 'browser video codec operation fixture support' },
@@ -157,6 +166,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/electron/local-assistance-models', destination: 'tests/electron/local-assistance-models', kind: 'directory', label: 'real local assistance model tests', exclude: new Set(['AGENTS.md']) },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
 	{ source: 'tests/helpers/png-fixture.mjs', destination: 'tests/helpers/png-fixture.mjs', kind: 'file', label: 'timeline image browser support fixture' },
+	{ source: 'tests/helpers/framescaper-native-sidecar-fixture.ts', destination: 'tests/helpers/framescaper-native-sidecar-fixture.ts', kind: 'file', label: 'native sidecar chooser/read/save browser support fixture' },
 	{ source: 'tests/helpers/libsndfile-rifx-fixture.ts', destination: 'tests/helpers/libsndfile-rifx-fixture.ts', kind: 'file', label: 'normal RIFX browser import fixture' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
 	{ source: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', destination: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', kind: 'file', label: 'ordinary BWF MetaEdit browser import fixture' },
