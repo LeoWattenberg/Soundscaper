@@ -216,7 +216,11 @@ function materializeTarSymlinks(root, links) {
 	for (const { path, target } of links) {
 		const link = containedPath(root, path);
 		const metadata = lstatSync(link);
-		if (!metadata.isSymbolicLink() || readlinkSync(link) !== target) {
+		const actualTarget = metadata.isSymbolicLink() ? readlinkSync(link) : null;
+		// Windows renders the archive's POSIX separators as native separators.
+		const portableTarget = process.platform === 'win32' && actualTarget !== null
+			? actualTarget.replaceAll('\\', '/') : actualTarget;
+		if (portableTarget !== target) {
 			throw new Error(`The extracted source symlink ${path} drifted during extraction.`);
 		}
 		const targetPath = containedPath(root, posix.normalize(posix.join(posix.dirname(path), target)));
