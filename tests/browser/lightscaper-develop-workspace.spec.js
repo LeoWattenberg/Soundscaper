@@ -46,7 +46,9 @@ for (const locale of ['en', 'de']) {
 		await expect(preview).toHaveAttribute('data-state', 'ready');
 		const before = dialog.getByRole('img', { name: messages.before, exact: true }), after = dialog.getByRole('img', { name: messages.after, exact: true });
 		expect(await extent(before)).toEqual([2, 2]); expect(await extent(after)).toEqual([2, 2]);
-		const beforePixels = await pixels(before);
+		const version = dialog.getByRole('combobox', { name: messages.version, exact: true }), masterVersionId = await version.inputValue();
+		expect(masterVersionId).not.toBe('');
+		const beforePixels = await pixels(before, [2, 2]);
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamTemperature', '0.25');
 		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('tone-ladder-v1');
@@ -57,14 +59,17 @@ for (const locale of ['en', 'de']) {
 		await number('videoEffectParamCropWidth', '0.5');
 		await expect.poll(() => extent(after)).toEqual([1, 2]);
 		await expect(preview).toHaveAttribute('data-state', 'ready');
-		expect(await extent(after)).toEqual([1, 2]); expect(await pixels(before)).toEqual(beforePixels);
+		expect(await extent(after)).toEqual([1, 2]); expect(await pixels(before, [2, 2])).toEqual(beforePixels);
 		await expect(dialog.getByRole('img', { name: `${messages.histogram}: ${messages.before}`, exact: true })).toBeVisible();
 		await expect(dialog.getByRole('img', { name: `${messages.histogram}: ${messages.after}`, exact: true })).toBeVisible();
 		await expect(dialog.getByRole('status').filter({ hasText: messages.dirty })).toBeVisible();
 		await keyboard(page, dialog.getByRole('button', { name: messages.save, exact: true }));
 		await expect(dialog.getByRole('button', { name: messages.save, exact: true })).toBeDisabled();
 		await expect(dialog.locator('[data-photo-develop-ack]')).toContainText(messages.acknowledged);
-		const rendered = await pixels(after);
+		await expect(version).toHaveValue(masterVersionId);
+		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true })).toHaveValue('1');
+		await expect(preview).toHaveAttribute('data-state', 'ready');
+		const rendered = await pixels(dialog.getByRole('img', { name: messages.after, exact: true }), [1, 2]);
 		await dialog.getByLabel(messages.snapshotName, { exact: true }).fill('Warm crop');
 		await keyboard(page, dialog.getByRole('button', { name: messages.saveSnapshot, exact: true }));
 		await expect(dialog.getByRole('button', { name: `${messages.restoreSnapshot}: Warm crop`, exact: true })).toBeEnabled();
@@ -74,13 +79,12 @@ for (const locale of ['en', 'de']) {
 		await expect(preview).toHaveAttribute('data-state', 'ready'); expect(await extent(after)).toEqual([2, 2]);
 		await keyboard(page, dialog.getByRole('button', { name: `${messages.restoreSnapshot}: Warm crop`, exact: true }));
 		await expect.poll(() => extent(after)).toEqual([1, 2]);
-		await expect(preview).toHaveAttribute('data-state', 'ready'); expect(await pixels(after)).toEqual(rendered);
+		await expect(preview).toHaveAttribute('data-state', 'ready'); expect(await pixels(after, [1, 2])).toEqual(rendered);
 		await dialog.getByLabel(messages.copyName, { exact: true }).fill('Alternative');
 		await keyboard(page, dialog.getByRole('button', { name: messages.createCopy, exact: true }));
-		const version = dialog.getByRole('combobox', { name: messages.version, exact: true });
-		await expect(version.locator('option')).toHaveCount(2); expect(await version.inputValue()).not.toBe('master');
+		await expect(version.locator('option')).toHaveCount(2); expect(await version.inputValue()).not.toBe(masterVersionId);
 		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(1);
-		await version.selectOption('master'); await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeEnabled();
+		await version.selectOption(masterVersionId); await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeEnabled();
 		await keyboard(page, dialog.getByRole('button', { name: messages.useVersion, exact: true }));
 		await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeDisabled();
 		await closeDevelop();
@@ -91,10 +95,10 @@ for (const locale of ['en', 'de']) {
 		await summary(page, app, copy.photoViewMenu); await keyboard(page, app.getByRole('button', { name: copy.photoShowLibrary, exact: true }));
 		await expect(card).toHaveCount(1); await keyboard(page, card); await openDevelop();
 		await expect(preview).toHaveAttribute('data-state', 'ready');
-		await expect(version).toHaveValue('master'); await expect(version.locator('option')).toHaveCount(2);
+		await expect(version).toHaveValue(masterVersionId); await expect(version.locator('option')).toHaveCount(2);
 		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(2);
 		await expect(dialog.getByRole('spinbutton', { name: exact('videoEffectParamCropWidth'), exact: true })).toHaveValue('0.5');
-		expect(await pixels(before)).toEqual(beforePixels); expect(await pixels(after)).toEqual(rendered); expect(await observe(page, photoId)).toEqual(saved);
+		expect(await pixels(before, [2, 2])).toEqual(beforePixels); expect(await pixels(after, [1, 2])).toEqual(rendered); expect(await observe(page, photoId)).toEqual(saved);
 		await keyboard(page, dialog.getByRole('button', { name: `${messages.deleteSnapshot}: Warm crop`, exact: true }));
 		await expect(dialog.getByRole('button', { name: `${messages.restoreSnapshot}: Warm crop`, exact: true })).toHaveCount(0);
 		await closeDevelop(); expect(errors).toEqual([]);
@@ -112,7 +116,18 @@ for (const locale of ['en', 'de']) {
 async function keyboard(page, locator) { await locator.focus(); await page.keyboard.press('Enter'); }
 async function summary(page, app, name) { await keyboard(page, app.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') })); }
 async function extent(canvas) { return canvas.evaluate(value => [value.width, value.height]); }
-async function pixels(canvas) { return canvas.evaluate(value => Array.from(value.getContext('2d').getImageData(0, 0, value.width, value.height).data)); }
+async function pixels(canvas, expectedExtent) {
+	let captured;
+	await expect.poll(async () => {
+		const value = await canvas.evaluate((element, extent) => {
+			if (element.width !== extent[0] || element.height !== extent[1]) return null;
+			return Array.from(element.getContext('2d').getImageData(0, 0, element.width, element.height).data);
+		}, expectedExtent);
+		if (value !== null) captured = value;
+		return value !== null;
+	}).toBe(true);
+	return captured;
+}
 async function observe(page, photoId) {
 	const result = await build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-photo-library-ui-fixture.ts', import.meta.url))],
 		bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
