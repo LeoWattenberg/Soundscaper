@@ -19,6 +19,7 @@ import type { ControllerEditSessionClipboardCarrier } from '../../document/proje
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
 import { clipboardPasteTrackType, planClipboardPasteTargets } from './clipboard-paste-targets.ts';
+import { createAudioEditorSessionClipboard } from '../../../session-clipboard-codec.ts';
 import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -144,6 +145,7 @@ export interface ClipboardEditServiceDependencies {
 
 export interface ClipboardEditService {
 	setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard;
+	prepareSessionClipboard(descriptor: AudioEditorClipboard): () => AudioEditorClipboard;
 	splitAtFrame(frame: unknown, trackIds?: string | readonly string[] | null): unknown;
 	commitSplitAtFrames(frames: readonly unknown[], trackIds?: string | readonly string[] | null): unknown;
 	prepareControllerPaste(mode: ClipboardPasteMode, atFrame?: number, pasteAsNewClip?: boolean): AudioEditorCommand;
@@ -162,6 +164,7 @@ export function createClipboardEditService(
 	let editSessionClipboard: ControllerEditSessionClipboardCarrier | null = null;
 	return Object.freeze({
 		setSessionClipboard,
+		prepareSessionClipboard,
 		splitAtFrame,
 		commitSplitAtFrames,
 		prepareControllerPaste,
@@ -170,25 +173,38 @@ export function createClipboardEditService(
 	});
 
 	function setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard {
+		return prepareClipboardPublication(descriptor, false)();
+	}
+
+	/** Capture sources before deletion, publishing the clipboard after successful admission. */
+	function prepareSessionClipboard(descriptor: AudioEditorClipboard): () => AudioEditorClipboard {
+		return prepareClipboardPublication(descriptor, true);
+	}
+
+	function prepareClipboardPublication(descriptor: AudioEditorClipboard, captureSources: boolean): () => AudioEditorClipboard {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const carrier: ControllerEditSessionClipboardCarrier = dependencies.createEditSessionClipboard?.(
 			project,
 			descriptor,
 		) ?? Object.freeze({ descriptor });
-		const sessionValue = carrier.sources === undefined ? carrier.descriptor : {
+		const sessionValue = carrier.sources === undefined ? (captureSources
+			? createAudioEditorSessionClipboard(project, { descriptor: carrier.descriptor }) : carrier.descriptor) : {
 			schemaVersion: 1,
 			originProjectId: carrier.originProjectId ?? project.id,
 			descriptor: carrier.descriptor,
 			sources: carrier.sources,
 		};
-		const result = dependencies.session.setClipboard(
-			sessionValue as AudioEditorClipboard,
-			{ originProjectId: project.id },
-		);
-		dependencies.state.clipboard = result.clipboard.descriptor;
-		editSessionClipboard = carrier;
-		return dependencies.state.clipboard;
+		return () => {
+			dependencies.lifetime.assertActive();
+			const result = dependencies.session.setClipboard(
+				sessionValue as AudioEditorClipboard,
+				{ originProjectId: project.id },
+			);
+			dependencies.state.clipboard = result.clipboard.descriptor;
+			editSessionClipboard = carrier;
+			return dependencies.state.clipboard;
+		};
 	}
 
 	function splitAtFrame(
