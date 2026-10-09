@@ -1042,9 +1042,15 @@
 		,
 		{ "path": "src/lightscaper/import/import-intent-v1.ts", "kind": "persisted-contract", "justification": "Scalar durable photo import intent and root reconciliation for version 1 catalogs." }
 		,
+		{"path": "src/lightscaper/import/import-root-settlement-v2.ts", "kind": "helper-contract", "justification": "Fixed mixed Photo1/2 import recovery fully admits each stored document and verifies reachable resources before bounded custody Root1 reconciliation; persisted Intent1 and original root bytes remain unchanged."}
+		,
 		{ "path": "src/lightscaper/import/managed-import-ports-v1.ts", "kind": "helper-contract", "justification": "Narrow storage and custody ports consumed by version 1 managed photo publication." }
 		,
+		{"path": "src/lightscaper/import/managed-import-ports-v2.ts", "kind": "helper-contract", "justification": "Captured receiver-bound current catalog, selected resource verification, original custody and journal capabilities for mixed Photo1/2 managed publication; scalar receipts and writer authority remain V1."}
+		,
 		{ "path": "src/lightscaper/import/managed-import-v1.ts", "kind": "helper-contract", "justification": "Version 1 photo import publication and recovery using immutable original references and the persisted scalar intent." }
+		,
+		{"path": "src/lightscaper/import/managed-import-v2.ts", "kind": "helper-contract", "justification": "Explicit current managed publication admits complete Photo1/2 history and immutable originals, verifies nonnull reachable LUT bodies before publication, and reconciles lost native acknowledgements without downgrading documents or widening Intent1."}
 		,
 		{ "path": "src/lightscaper/import/metadata-adapter-v1.ts", "kind": "helper-contract", "justification": "Maps version 1 immutable extracted image facts into bounded authored photo metadata without changing originals." }
 		,
