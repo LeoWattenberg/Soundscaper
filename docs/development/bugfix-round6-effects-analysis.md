@@ -1349,7 +1349,10 @@ while an unrelated disabled-presentation control passes
 and existing restore, drag, parameter and native dialog cases pass
 (`/tmp/soundscaper-r6-fx035-node-green.log`). Focused strict compilation,
 targeted and canonical changed-file lint, and size/diff checks pass.
-Public GREEN remains pending the next immutable snapshot; this register retains thirty-four verified roots.
+The complete ordinary Store/edit/Restore Chromium workflow passes on immutable
+Green29 `494a0a2b6`, 3.4 seconds: both the actual host and the visible control
+return to 0.26, and the subsequent arrow edit starts from that restored value
+(`/tmp/soundscaper-round6-green29-chromium.log`).
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
 
@@ -1377,6 +1380,43 @@ strict composing cases fail while both completed key controls pass
 negative/decimal-draft and canonical-echo support pass 5/5
 (`/tmp/soundscaper-r6-fx036-node-green.log`). Focused strict compilation,
 targeted and canonical changed-file lint, and size/diff checks pass.
-Public GREEN remains pending the next immutable snapshot; this register retains thirty-four verified roots.
+Both complete native composing Enter and Escape Chromium workflows pass on
+immutable Green29 `494a0a2b6`, 2.5 and 2.3 seconds respectively
+(`/tmp/soundscaper-round6-green29-chromium.log`). This register now has thirty-six
+verified roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-037 — The shared numeric stepper steals modifier and native composition keys
+
+Choose Generate → Tone, click its Frequency field and use ordinary ArrowUp.
+Then press Ctrl+ArrowUp or confirm an unfinished input-method composition with
+ArrowUp or Enter. The shared NumberStepper handles those owned keys as its
+own numeric edit: modified and composing arrows change 1001 Hz to 1002 Hz,
+while composing Enter exits numeric editing and disables the next ordinary
+arrow. This independently implemented shared key handler differs from the
+earlier completed-number parser/bounds correction and from parent form submission.
+
+Release native composing, Ctrl/Meta/Alt and already handled keys before numeric
+stepping or mode changes. Preserve ordinary and Shift arrows, completed Enter
+and Escape, clicking to edit, disabled arrows, numeric format parsing and
+declared bounds. Group all controls and key variants under this single shared
+owner. Vendor deviation 62 records the narrow local correction.
+
+The three normal Chromium menu workflows are causally RED on unchanged Green28
+`435e1779e` after ordinary ArrowUp passes in each
+(`/tmp/soundscaper-r6-fx037-public-red.log`). The retained final baseline also
+completes a healthy ArrowUp/Down → Generate → WAV export control with 48,000
+frames, a 1000 Hz amplitude above 0.5 and the adjacent 1001 Hz amplitude below
+0.01, while all three key variants remain causally RED
+(`/tmp/soundscaper-r6-fx037-public-red2.log`, one control PASS, three RED).
+After correcting a fake DOM class observer, all seven strict owned-key cases
+are causally RED while the plain/Shift and completed-key control passes
+(`/tmp/soundscaper-r6-fx037-node-red2.log`).
+After repair, all eleven new and existing shared-stepper parsing, bounds and
+pending-generator cases pass (`/tmp/soundscaper-r6-fx037-node-green.log`).
+Focused strict compilation, targeted and canonical changed-file lint, and
+size/diff checks pass. Source ready.
+Public GREEN remains pending the next immutable snapshot; this register retains
+thirty-six verified roots. No assistance runtime assets change and no manual
+**Update AI assets** run is required.

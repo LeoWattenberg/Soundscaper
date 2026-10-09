@@ -451,6 +451,14 @@ application overrides and source patches against the pin and upstream master.
     The unused legacy loop-drag callback is outside this user-path correction.
     Upstream-PR candidate.
 
+62. `NumberStepper` leaves composing, modified and already handled keys with
+    their existing owner before stepping or toggling edit mode. Plain and
+    Shift arrows retain numeric edits; completed Enter/Escape retain mode
+    changes. Covered by `tests/audio-editor-round6-number-stepper-ownership.test.tsx`
+    and the normal Generate → Tone frequency/edit/exported-audio workflow.
+    This key admission correction is independent of deviation 37's numeric
+    parser and bounds handling. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
