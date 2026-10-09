@@ -225,7 +225,7 @@ test('shared still admission, effect and mask contracts retain only imaging and 
 	const modules = ['image-import-admission.ts', 'image-format-signature.ts', 'image-decoder-routing.ts',
 		'video-effects.js', 'video-global-develop-v1.ts', 'video-chroma-develop-v1.ts', 'video-black-white-mix-v1.ts', 'video-hsl-mixer-v1.ts',
 		'video-curves-v1.ts', 'video-curve-transfer-v1.ts', 'video-curve-types-v1.ts', 'video-sharpen-v1.ts', 'video-sharpen-ffmpeg-v1.ts',
-		'video-grain-v1.ts', 'video-grain-ffmpeg-v1.ts', 'video-texture-v1.ts', 'video-texture-ffmpeg-v1.ts',
+		'video-grain-v1.ts', 'video-grain-ffmpeg-v1.ts', 'video-texture-v1.ts', 'video-texture-ffmpeg-v1.ts', 'video-dehaze-v1.ts', 'video-dehaze-ffmpeg-v1.ts',
 		'video-post-crop-vignette-v1.ts', 'video-post-crop-vignette-ffmpeg-v1.ts', 'video-clarity-v1.ts', 'video-clarity-ffmpeg-v1.ts', 'video-noise-reduction-v1.ts', 'video-noise-reduction-ffmpeg-v1.ts', 'video-original-alpha-ffmpeg-v1.ts', 'video-effect-closed-creation.ts', 'video-mask-matte-v24.ts', 'video-visual-model-v24.ts',
 		'timeline-image-model.ts', 'timeline-image-frame-pack-v1.ts', 'timeline-image-frame-pack-v1-layout.ts',
 		'timeline-image-native-decode-v1.ts', 'timeline-image-browser-native-port.ts', 'timeline-image-conversion-receipt-v1.ts'];

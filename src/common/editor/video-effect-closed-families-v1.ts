@@ -10,6 +10,8 @@ import { GRAIN_EFFECT_TYPE_V1, GRAIN_VIDEO_EFFECT_DEFINITION_V1, normalizeGrainE
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1, normalizeDetailSharpenEffectV1,
 	normalizeDetailSharpenParamsV1, serializeDetailSharpenEffectToFfmpegV1 } from './video-sharpen-v1.ts';
 import { TEXTURE_EFFECT_TYPE_V1, TEXTURE_VIDEO_EFFECT_DEFINITION_V1, normalizeTextureEffectV1, normalizeTextureParamsV1, createTextureEffectV1, serializeTextureEffectToFfmpegV1 } from './video-texture-v1.ts';
+import { DEHAZE_EFFECT_TYPE_V1, DEHAZE_VIDEO_EFFECT_DEFINITION_V1, normalizeDehazeEffectV1, normalizeDehazeParamsV1 } from './video-dehaze-v1.ts';
+import { serializeDehazeEffectToFfmpegV1 } from './video-dehaze-ffmpeg-v1.ts';
 import { createStableId } from './stable-id.js';
 import { COLOR_WHEELS_EFFECT_TYPE_V1, COLOR_WHEELS_VIDEO_EFFECT_DEFINITION_V1, normalizeColorWheelsEffectV1,
 	normalizeColorWheelsParamsV1, serializeColorWheelsEffectToFfmpegV1 } from './video-color-wheels-v1.ts';
@@ -49,6 +51,7 @@ export const CLOSED_VIDEO_EFFECT_DEFINITIONS_V1 = Object.freeze({
 	[NOISE_REDUCTION_EFFECT_TYPE_V1]:NOISE_REDUCTION_VIDEO_EFFECT_DEFINITION_V1,
 	[GRAIN_EFFECT_TYPE_V1]:GRAIN_VIDEO_EFFECT_DEFINITION_V1,
 	[TEXTURE_EFFECT_TYPE_V1]:TEXTURE_VIDEO_EFFECT_DEFINITION_V1,
+	[DEHAZE_EFFECT_TYPE_V1]:DEHAZE_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 const FAMILIES = Object.freeze({
@@ -75,6 +78,8 @@ const FAMILIES = Object.freeze({
 		create:(value:unknown)=>createClosedVideoEffect(GRAIN_EFFECT_TYPE_V1,value,{name:'grain creation',typeError:'Grain creation requires its exact effect type.',normalizeParams:normalizeGrainParamsV1,normalizeEffect:normalizeGrainEffectV1})},
 	[TEXTURE_EFFECT_TYPE_V1]:{params:normalizeTextureParamsV1,effect:normalizeTextureEffectV1,serialize:serializeTextureEffectToFfmpegV1,
 		create:(value:unknown)=>createTextureEffectV1(value,()=>createStableId('video-effect'))},
+	[DEHAZE_EFFECT_TYPE_V1]:{params:normalizeDehazeParamsV1,effect:normalizeDehazeEffectV1,serialize:serializeDehazeEffectToFfmpegV1,
+		create:(value:unknown)=>createClosedVideoEffect(DEHAZE_EFFECT_TYPE_V1,value,{name:'dehaze creation',typeError:'Dehaze creation requires its exact effect type.',normalizeParams:normalizeDehazeParamsV1,normalizeEffect:normalizeDehazeEffectV1})},
 } satisfies Record<string,Family>);
 
 export function isClosedVideoEffectTypeV1(value:unknown):value is keyof typeof FAMILIES { return typeof value==='string' && Object.hasOwn(FAMILIES,value); }

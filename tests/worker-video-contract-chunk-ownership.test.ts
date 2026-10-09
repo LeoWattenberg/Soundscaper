@@ -20,7 +20,7 @@ const CONTRACTS = [
 	'video-clarity-v1.ts', 'video-clarity-ffmpeg-v1.ts',
 	'video-noise-reduction-v1.ts', 'video-noise-reduction-ffmpeg-v1.ts',
 	'video-grain-v1.ts', 'video-grain-ffmpeg-v1.ts',
-	'video-texture-v1.ts', 'video-texture-ffmpeg-v1.ts',
+	'video-texture-v1.ts', 'video-texture-ffmpeg-v1.ts', 'video-dehaze-v1.ts', 'video-dehaze-ffmpeg-v1.ts',
 	'imaging/image-geometry-v1.ts', 'imaging/image-geometry-plan-v1.ts', 'imaging/pixel-frame-contract-v1.ts',
 ];
 function owner(path: string): string | null {
@@ -50,7 +50,7 @@ test('worker video ownership refuses neighboring processing, UI and filename suf
 	}
 	for (const path of ['src/common/editor/imaging/pixel-frame-global-develop-v1.ts',
 		'src/common/editor/imaging/pixel-frame-noise-reduction-v1.ts', 'src/common/editor/ui/video-preview-effects-shader.js',
-		'src/common/editor/imaging/pixel-frame-grain-v1.ts', 'src/common/editor/imaging/pixel-frame-texture-v1.ts',
+		'src/common/editor/imaging/pixel-frame-grain-v1.ts', 'src/common/editor/imaging/pixel-frame-texture-v1.ts', 'src/common/editor/imaging/pixel-frame-dehaze-v1.ts',
 		'src/common/editor/video-color-management-v27.ts', 'src/common/editor/aup4-worker.js',
 		'src/common/editor/aup4-database.js', 'src/framescaper/video-effects.js']) {
 		assert.notEqual(owner(path), 'editor-video-contracts-worker', path);

@@ -10,6 +10,8 @@ import { GRAIN_EFFECT_TYPE_V1, normalizeGrainEffectV1 } from '../common/editor/v
 import { withGrainPixelFrameV1 } from '../common/editor/imaging/pixel-frame-grain-v1.ts';
 import { TEXTURE_EFFECT_TYPE_V1, normalizeTextureEffectV1 } from '../common/editor/video-texture-v1.ts';
 import { withTexturePixelFrameV1 } from '../common/editor/imaging/pixel-frame-texture-v1.ts';
+import { DEHAZE_EFFECT_TYPE_V1, normalizeDehazeEffectV1 } from '../common/editor/video-dehaze-v1.ts';
+import { withDehazePixelFrameV1 } from '../common/editor/imaging/pixel-frame-dehaze-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, normalizeDetailSharpenEffectV1 } from '../common/editor/video-sharpen-v1.ts';
 import { withDetailSharpenPixelFrameV1 } from '../common/editor/imaging/pixel-frame-sharpen-v1.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
@@ -45,6 +47,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === NOISE_REDUCTION_EFFECT_TYPE_V1) return normalizeNoiseReductionEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === GRAIN_EFFECT_TYPE_V1) return normalizeGrainEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === TEXTURE_EFFECT_TYPE_V1) return normalizeTextureEffectV1(value);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === DEHAZE_EFFECT_TYPE_V1) return normalizeDehazeEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === COLOR_WHEELS_EFFECT_TYPE_V1) return normalizeColorWheelsEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === DETAIL_SHARPEN_EFFECT_TYPE_V1) return normalizeDetailSharpenEffectV1(value);
 		if (isCurvesEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))) return normalizeCurvesEffectV1(value);
@@ -56,7 +59,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
 	const sourceFrame = readAdmittedFrame(frame, signal);
-	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === TEXTURE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === GRAIN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CLARITY_EFFECT_TYPE_V1)) {
+	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === DEHAZE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === TEXTURE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === GRAIN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CLARITY_EFFECT_TYPE_V1)) {
 		let current = clone(sourceFrame);
 		try {
 			for (const effect of admitted) {
@@ -69,6 +72,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 				const noise = Object.getOwnPropertyDescriptor(effect, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1;
 				const grain = Object.getOwnPropertyDescriptor(effect, 'type')?.value === GRAIN_EFFECT_TYPE_V1;
 				const texture = Object.getOwnPropertyDescriptor(effect, 'type')?.value === TEXTURE_EFFECT_TYPE_V1;
+				const dehaze = Object.getOwnPropertyDescriptor(effect, 'type')?.value === DEHAZE_EFFECT_TYPE_V1;
 				const vignette = Object.getOwnPropertyDescriptor(effect, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1;
 				const next = vignette ? await cloneScopedOutput(consume => withPostCropVignettePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS })) : detail ? await cloneScopedOutput(consume => withDetailSharpenPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
@@ -80,6 +84,8 @@ export async function applyVideoExactBrowserEffectsFinishing(
 					: grain ? await cloneScopedOutput(consume => withGrainPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 						height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
 					: texture ? await cloneScopedOutput(consume => withTexturePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+						height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
+					: dehaze ? await cloneScopedOutput(consume => withDehazePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 						height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
 					: geometry ? await cloneScopedOutput(consume => withGeometryPixelFrameV1({ frame: { descriptor: { schemaVersion: 1,
 					width: current.width, height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels },

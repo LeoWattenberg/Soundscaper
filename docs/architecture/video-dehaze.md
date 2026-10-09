@@ -1,7 +1,7 @@
 # Shared Dehaze process
 
 The shared effect type `dehaze-v1` defines the process
-`srgb-alpha-dark3-white-dehaze-q8-v1`, with reserved GPU code 33. Its one finite
+`srgb-alpha-dark3-white-dehaze-q8-v1`, with GPU code 33. Its one finite
 amount is between -100 and 100, defaulting to zero. Fractional amounts are
 retained in recipes and quantized for evaluation with JavaScript
 `Math.round(amount * 256 / 100)`, including IEEE intermediate rounding.
@@ -61,8 +61,17 @@ Independent BigInt fixtures and literal atmospheric goldens cover signed and
 fractional amounts, spatial edges, hidden neighbors, all 256 alpha values,
 ordered repeated stages, and the actual pinned FFmpeg runtime. Scoped tests
 cover held consumers, opaque cancellation, source transfer after a real yield,
-allocation refusal and captured buffer cleanup. Shared registration, Frame and
-Photo authoring/render integration, native GPU execution, and maximum-profile
+allocation refusal and captured buffer cleanup. The closed shared registry
+appends Dehaze without changing earlier recipes or compiled operation identity.
+Existing Frame and Photo menus author the same fractional settings. Photo proxy
+and full-resolution rendering use the same ordered kernel under their unchanged
+fixed admission profiles; crop-first and Dehaze-first recipes use different
+current-stage neighborhoods. Tests cover actual English and German authoring,
+save/reopen and original custody, final Frame cancellation after scoped cloning,
+full-resolution rendering beyond the proxy width, and selected picture-export
+handoff through the owning encoder. The export witness compares exact pre-encode
+bytes after the declared encoded-sRGB/linear-UNORM8 transfer and checks codec handoff;
+it does not assert lossless H264 output. Native GPU execution and maximum-profile
 heap/latency qualification remain pending. No runtime source pins, engine
 closure or asset-publication logic changes; a manual **Update AI assets** run
 is not required.

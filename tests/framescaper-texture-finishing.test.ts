@@ -17,7 +17,7 @@ const expected=[59,59,59,255,128,128,128,255,197,197,197,255];
 
 test('shared Texture admission, code32 planning and compiled export preserve the exact dual-scale process',()=>{
 	const effect=texture();assert.deepEqual(normalizeVideoEffect(effect),effect);
-	assert.equal(Object.getOwnPropertyDescriptor(EFFECT_CODES,'texture-v1')?.value as unknown,32);assert.equal(EFFECT_PROGRAM_COUNT,33);
+	assert.equal(Object.getOwnPropertyDescriptor(EFFECT_CODES,'texture-v1')?.value as unknown,32);assert.equal(EFFECT_PROGRAM_COUNT,34);
 	assert.deepEqual(videoEffectPasses(effect),[{code:32,params0:[256,0,0,0],params1:[0,0,0,0],direction:[0,0]}]);
 	const operation=serializeVideoEffectsToFfmpegOperations([effect])[0];assert.ok(operation);assertTextureFfmpegOperationV1(operation);
 	const filters:string[]=[];appendVideoEffectOperation({filters,inputLabel:'0:v',outputLabel:'texture',operation,width:3,height:1});

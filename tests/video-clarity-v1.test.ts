@@ -25,7 +25,7 @@ test('Clarity owns closed immutable amount, process, prepared Q8 and exact shade
 	assert.throws(() => normalizeClarityParamsV1(getter)); assert.equal(reads, 0);
 	for (const bad of [{ ...effect(0), type: 'clarity-v2' }, { ...effect(0), params: undefined }, { ...effect(0), id: 'x'.repeat(129) }]) assert.throws(() => normalizeClarityEffectV1(bad));
 	assert.deepEqual(clarityPreviewPassV1(effect(50))?.params0, [128,0,0,0]); assert.equal(clarityPreviewPassV1(effect(50))?.code, 29);
-	assert.equal(EFFECT_CODES['clarity-v1'],29);assert.equal(EFFECT_PROGRAM_COUNT,33);
+	assert.equal(EFFECT_CODES['clarity-v1'],29);assert.equal(EFFECT_PROGRAM_COUNT,34);
 	assert.deepEqual(videoEffectPasses(null),[]);assert.deepEqual(videoEffectPasses(undefined),[]);
 	assert.deepEqual(videoEffectPasses(effect(50)),[clarityPreviewPassV1(effect(50))]);
 	assert.equal(clarityPreviewPassV1(effect(0)), null); assert.equal(serializeClarityEffectToFfmpegV1(effect(0)), null);

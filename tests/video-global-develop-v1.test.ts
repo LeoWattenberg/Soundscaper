@@ -62,7 +62,7 @@ test('preview passes carry fixed linear coefficients and reserve distinct shader
 	const tone = createVideoEffect('tone-ladder-v1', { id: 'tone', params: { exposure: 1, contrast: 50, highlights: -100, shadows: 100, whites: -100, blacks: 100 } });
 	assert.deepEqual(videoEffectPasses(white), [{ code: 18, params0: [2, 1, 0.5, 0], params1: [0, 0, 0, 0], direction: [0, 0] }]);
 	assert.deepEqual(videoEffectPasses(tone), [{ code: 19, params0: [2, 2, -0.25, 0.25], params1: [-0.25, 0.25, 0, 0], direction: [0, 0] }]);
-	assert.equal(EFFECT_PROGRAM_COUNT, 33); assert.equal(EFFECT_CODES['white-balance-v1'], 18); assert.equal(EFFECT_CODES['tone-ladder-v1'], 19);
+	assert.equal(EFFECT_PROGRAM_COUNT, 34); assert.equal(EFFECT_CODES['white-balance-v1'], 18); assert.equal(EFFECT_CODES['tone-ladder-v1'], 19);
 	assert.equal(EFFECT_CODES['color-wheels-v1'], 26); assert.equal(EFFECT_CODES['detail-sharpen-v1'], 27);
 	assert.equal(EFFECT_CODES['post-crop-vignette-v1'], 28);
 	assert.equal(EFFECT_CODES['clarity-v1'], 29);

@@ -15,9 +15,9 @@ import { grainReferenceV1 } from './helpers/video-grain-reference.ts';
 import { textureReferenceV1 } from './browser/helpers/lightscaper-texture-reference.ts';
 
 test('Texture appends one exact closed family while preserving Grain and Noise private compiled ownership',()=>{
-	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(-3),['noise-reduction-v1','grain-v1','texture-v1']);
-	assert.equal(VIDEO_EFFECT_TYPES.length,27);assert.equal(Object.keys(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1).length,15);
-	assert.equal(EFFECT_PROGRAM_COUNT,33);assert.equal(EFFECT_CODES['noise-reduction-v1'],30);assert.equal(EFFECT_CODES['grain-v1'],31);assert.equal(EFFECT_CODES['texture-v1'],32);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(-4),['noise-reduction-v1','grain-v1','texture-v1','dehaze-v1']);
+	assert.equal(VIDEO_EFFECT_TYPES.length,28);assert.equal(Object.keys(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1).length,16);
+	assert.equal(EFFECT_PROGRAM_COUNT,34);assert.equal(EFFECT_CODES['noise-reduction-v1'],30);assert.equal(EFFECT_CODES['grain-v1'],31);assert.equal(EFFECT_CODES['texture-v1'],32);
 	const raw={amount:73.25},effect=createClosedVideoEffectFamilyV1('texture-v1',{id:'fixed',params:raw});assert.ok(effect);raw.amount=0;
 	assert.equal(effect.params.amount,73.25);assert.deepEqual(normalizeVideoEffect(effect),effect);
 	assert.deepEqual(normalizeClosedVideoEffectParamsV1('texture-v1',effect.params),{amount:73.25});
