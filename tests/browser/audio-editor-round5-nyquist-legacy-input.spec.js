@@ -3,11 +3,13 @@
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, disableNativeSavePicker, importFiles, openNestedCommandMenu, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 import { exportGuideSamples } from './helpers/guide-audio-results.js';
+import { registerNyquistArchivePublication } from './helpers/nyquist-archive-publication.js';
 
 registerAudioEditorHooks();
 
 test('the published legacy equalizer processes selected audio with one Undo and Redo', async ({ page }) => {
 	test.setTimeout(90_000);
+	await registerNyquistArchivePublication(page);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [createWavFixture({ name: 'legacy-equalizer.wav', frequency: 440, duration: 0.2, channelCount: 2 })]);

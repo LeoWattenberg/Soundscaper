@@ -2,9 +2,11 @@
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, openNestedCommandMenu } from './audio-editor-test-helpers.js';
+import { registerNyquistArchivePublication } from './helpers/nyquist-archive-publication.js';
 
 test('published Nyquist installation preserves its replacement keyboard action', async ({ page }) => {
 	test.setTimeout(60_000);
+	await registerNyquistArchivePublication(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	const menu = await openNestedCommandMenu(page, editor, 'Effect', ['Nyquist']);
 	await menu.getByRole('menuitem', { name: 'Get effects', exact: true }).click();

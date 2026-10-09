@@ -160,3 +160,13 @@ product builds and the required complete bounded repository lint pass
 browser suite still runs against `68655eafb`; its external Nyquist catalog
 installation test reports Failed to fetch and remains a failed result pending
 investigation. Source-ready later roots await their own public GREEN.
+
+The catalog-fetch failure is isolated by an unchanged Chromium retry against
+`68655eafb`, which also reports Failed to fetch before any focus assertion.
+Both prior Nyquist workflows now reuse the already committed publication
+manifest, metadata and Ten Band EQ source fixture used by the established
+Get effects smoke test. Installation/removal focus and actual audio processing
+with Undo/Redo pass all six Chromium, Firefox and WebKit checks against the
+same application build (`/tmp/soundscaper-round6-checkpoint50-archive-fixture.log`).
+This test-support correction adds zero bugs; the complete suite run still
+retains its failure until a full corrected rerun passes.
