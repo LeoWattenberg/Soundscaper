@@ -21,15 +21,17 @@ const type = 'multi-tap-delay';
 const staffPadRuntime = await loadStaffPadWasm(await readFile(new URL('../src/common/editor/staffpad/staffpad.wasm', import.meta.url)));
 
 for (const scenario of [
-	{ name: 'faster echo', seconds: 12, pitchShift: 2, mix: 1, complete: true },
+	{ name: 'faster echo', seconds: 12, pitchShift: 2, mix: 1, bounded: true },
 	{ name: 'slower echo control', seconds: 12, pitchShift: -2, mix: 1, complete: false },
 	{ name: 'dry control', seconds: 12, pitchShift: 2, mix: 0, complete: false },
 	{ name: 'short faster echo control', seconds: 4, pitchShift: 2, mix: 1, complete: true },
+	{ name: 'hour-long faster echo', seconds: 3600, pitchShift: 2, mix: 1, bounded: true },
+	{ name: 'three successive faster echoes', seconds: 12, pitchShift: 2, mix: 1, echoes: 3, bounded: true },
 ]) test(`Speed Delay ${scenario.name} preview retains the applied echo`, async () => {
 	const frames = scenario.seconds * sampleRate;
-	const input = Float32Array.from({ length: frames }, (_, frame) => .2 * Math.sin(2 * Math.PI * 440 * frame / sampleRate));
+	const input = Float32Array.from({ length: Math.min(frames, 12 * sampleRate) }, (_, frame) => .2 * Math.sin(2 * Math.PI * 440 * frame / sampleRate));
 	const params = normalizeAudioSelectionEffectParams(type, { pitchMode: 'speed',
-		pitchShift: scenario.pitchShift, mix: scenario.mix, echoes: 1, echoGain: 0, time: .1 });
+		pitchShift: scenario.pitchShift, mix: scenario.mix, echoes: scenario.echoes ?? 1, echoGain: 0, time: .1 });
 	const applied = (await applyAudioSelectionEffectAsync(type, [input], sampleRate, params, { staffPadRuntime }))[0];
 	let played: Float32Array[] = [];
 	let admittedFrames = 0;
@@ -49,7 +51,7 @@ for (const scenario of [
 		cancelAudacityEffectPreview() {}, copy: {}, currentAudacityEffectParams: () => params,
 		engine: { pause() {}, getPlaybackDestination: () => ({}),
 			getAudioContext: async () => ({ createBufferSource: () => source }) },
-		estimateAudioSelectionEffectPeakBytes: (_type: string, duration: number) => { admittedFrames = duration; return 0; },
+		estimateAudioSelectionEffectPeakBytes: (_type: string, duration: number) => { admittedFrames = duration; return duration * 16; },
 		getProject: () => ({}), mixNyquistPreviewChannels, normalizeAudioSelectionEffectParams,
 		projectDurationFrames: () => frames, projectSampleRate: () => sampleRate, publishDocumentSnapshot() {},
 		renderDryTrackRange: async (_track: string, start: number, end: number) => {
@@ -68,7 +70,10 @@ for (const scenario of [
 		residual = Math.max(residual, Math.abs(played[0][frame] - applied[frame]));
 	}
 	assert.ok(residual < 1e-6, `Preview loses applied echo PCM by ${residual}`);
-	const processingFrames = scenario.complete ? frames : Math.min(frames, sampleRate * 6);
-	assert.equal(admittedFrames, processingFrames, 'Admission covers the actual processing input');
-	assert.deepEqual(renders[0], [0, processingFrames]);
+	if (scenario.bounded) {
+		const boundSeconds = scenario.echoes === 3 ? 12 : 10;
+		assert.ok(admittedFrames > 6 * sampleRate && admittedFrames < boundSeconds * sampleRate,
+			`The six-second pitched audition should need a bounded prefix, received ${admittedFrames} frames`);
+	} else assert.equal(admittedFrames, scenario.complete ? frames : Math.min(frames, sampleRate * 6));
+	assert.deepEqual(renders[0], [0, admittedFrames], 'Admission covers the actual processing input');
 });
