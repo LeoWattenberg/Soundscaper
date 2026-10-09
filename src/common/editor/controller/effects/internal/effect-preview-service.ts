@@ -1,6 +1,7 @@
 import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { independentTrackEffectParams } from './independent-track-effect-params.ts';
+import { paulstretchPreviewInputFrames } from './paulstretch-preview-prefix.ts';
 import { speedDelayPreviewInputFrames } from './speed-delay-preview-prefix.ts';
 
 export interface SelectionEffectPreviewRuntime {
@@ -76,8 +77,12 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 		const targets: PreviewTarget[] = fullPreviewTargets.map(({ full, fullIndex, spectralSelection }) => {
 			const startFrame = Math.max(previewStartFrame, full.startFrame);
 			const auditionFrames = Math.max(0, Math.min(previewEndFrame, full.endFrame) - startFrame);
+			if (auditionFrames === 0) return null;
 			const inputFrames = type === 'multi-tap-delay'
-				? speedDelayPreviewInputFrames(params, sampleRate, auditionFrames) : auditionFrames;
+				? speedDelayPreviewInputFrames(params, sampleRate, auditionFrames)
+				: type === 'audacity-paulstretch' ? paulstretchPreviewInputFrames(params, sampleRate,
+					Math.min(maximumFrames - (startFrame - previewStartFrame),
+						Math.ceil(full.durationFrames * Number(params.stretchFactor)))) : auditionFrames;
 			const endFrame = Math.min(startFrame + inputFrames, full.endFrame);
 			if (endFrame <= startFrame) return null;
 			return {
