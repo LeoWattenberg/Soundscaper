@@ -419,6 +419,7 @@ async function qualify(page, request) {
 
 
 test('actual Clarity29 shader preserves literal positive softening fractional and signed-midpoint goldens',async({page})=>{
+	await prepare(page);
 	const source=[64,64,64,255,128,128,128,255,192,192,192,255];
 	for(const [amount,expected] of [[100,[49,128,206]],[-100,[79,128,178]],[50,[57,128,199]],[37.125,[59,128,197]]]){
 		const result=await qualify(page,{source,effects:[effect('clarity-v1',{amount})],mode:'target'});
@@ -430,6 +431,7 @@ test('actual Clarity29 shader preserves literal positive softening fractional an
 });
 
 test('native Clarity neighborhoods retain all256 alpha with independent BigInt source-weight rounding and ordered curves',async({page})=>{
+	await prepare(page);
 	const source=Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat();
 	for(const amount of [-100,100,37.125]){
 		const result=await qualify(page,{source,height:16,effects:[effect('clarity-v1',{amount})],mode:'target'});
@@ -442,6 +444,7 @@ test('native Clarity neighborhoods retain all256 alpha with independent BigInt s
 });
 
 test('actual persisted mixed Frame wheel sharp curve Clarity retains alpha and opaque canceled native readback custody',async({page})=>{
+	await prepare(page);
 	const source=[40,80,120,0,100,140,180,127,160,200,240,255];
 	const effects=[effect('color-wheels-v1',{highlightsLuminance:100}),effect('detail-sharpen-v1',{amount:50,threshold:3}),
 		effect('point-curves-v1',{master:[{x:0,y:1},{x:1,y:0}]}),effect('clarity-v1',{amount:50})];
