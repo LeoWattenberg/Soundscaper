@@ -18,6 +18,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { generatorReplacementTargetLocked } from './generator-replacement-admission.ts';
 
 // Real hand-sent Morse runs from a beginner's five words per minute to about
 // sixty; the generator itself accepts more for scripted use.
@@ -54,7 +55,8 @@ export default function GeneratorDialog({ type, controller, snapshot = {}, copy,
 	const morse = useMorseSummary(type, params.text, params.wordsPerMinute);
 	const formatters = useGeneratorFormatters(type, locale);
 	const unsendable = Boolean(morse && (morse.empty || morse.unsupported.length));
-	const editBlocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const editBlocked = selectAudioEditorEditBlock(snapshot).blocked
+		|| generatorReplacementTargetLocked(project, snapshot.selectedTrackId);
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
 	const generate = () => {
