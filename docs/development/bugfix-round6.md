@@ -625,3 +625,31 @@ is running for its additional shared type changes. Full100 all-engine browser
 checks on `ba2dac3c3` continue; the full150 all-engine run remains queued behind
 them. These runs are not recorded as passing before their actual completion.
 No assistance runtime asset update is required.
+
+Green34 `08212b4eb` completes12 of13 initial focused Chromium checks in58.3
+seconds (`/tmp/soundscaper-round6-green34-chromium.log`). Editing052's Title
+and PNG retain5 seconds after30→25fps and Undo/Redo; effects043's live
+Compressor keeps continuous native output with zero lost frames; I/O033
+retains playable video while declining the product's unavailable captions;
+and dialog063's open popup releases the configured command while retaining
+ordinary navigation. The failure is dialog062's incorrect Ctrl+Alt+Up fixture
+assumption: the unchanged native-editable policy intentionally owns modified
+arrows. Its corrected ordinary Ctrl+1 binding is explicitly permitted by that
+policy, causally fails Green33 after the idle and plain-digit controls, and
+completes unchanged production Green34 in9.5seconds with time/focus and
+Undo/Redo intact (`/tmp/soundscaper-round6-timecode-digit-numeric-public-green.log`).
+The native digit-listener repair therefore qualifies without changing the
+workspace's native-editable admission. There are **189 distinct verified fixes**:
+editing52, effects43, I/O32 and dialogs62. Pending I/O034 and dialog064 remain
+excluded. The complete Green33 static gate exits0; both guarded Green34 product
+builds pass.
+
+Three initially failed full100 workflows pass unchanged isolated retries on the
+same `ba2dac3c3` source: Chromium playback-follow4.1seconds and Firefox
+mixed-width split17.7seconds/native-rate paste13.2seconds
+(`/tmp/soundscaper-r6-edit-full100-chromium-unchanged-retry.log` and
+`/tmp/soundscaper-r6-edit-full100-firefox-unchanged-retry.log`). The original
+failures are retained: editor boot visibility and whole-test export-close
+deadlines; no PCM failure or changed assertion, source or timeout is involved.
+The complete all-engine run itself continues in WebKit and is not claimed
+to pass. No assistance runtime asset update is required.
