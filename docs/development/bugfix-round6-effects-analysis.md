@@ -1019,3 +1019,17 @@ compilation, targeted type-aware lint and diff checks pass. Source is ready;
 post-build public GREEN remains pending and this root is not counted yet.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+The round-four exact snapshot gate includes nine EBU signatures. Only those
+nine change for this correction; every other PCM, geometry and snapshot entry
+remains exact
+(`/tmp/soundscaper-r6-effects-ebu-sample-peak-parity-diagnostic.log`). An
+isolated pre-repair EBU owner restores all 166 original signatures. Direct
+old/new snapshot comparisons at 8/11.025/48 kHz with 1/2/6 channels retain every
+RMS, true-peak and loudness field byte for byte; only ordinary `peak` and
+`dbfs` change
+(`/tmp/soundscaper-r6-effects-ebu-sample-peak-parity-controls.log`). Correct
+only those nine expectations. This supporting expectation update adds no root.
+Both the complete exact map and all seven independent sample/true-peak controls
+pass, 8/8 (`/tmp/soundscaper-r6-effects-ebu-sample-peak-parity-green.log`);
+targeted type-aware lint passes.
