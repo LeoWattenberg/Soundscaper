@@ -179,3 +179,16 @@ verified count to 93. ADM removal also passes its public export controls, but
 remains excluded pending preservation of track identities that survive a
 compound replace operation. The original inspector workflows remain green.
 Both product builds pass; its required full repository lint is still running.
+
+The immutable `3dfdeb038` delta reports ten passed and five failed checks
+(`/tmp/soundscaper-round6-green13-public-browser.log`). Both ordinary Freesound
+loading and already-loaded Pause/Resume workflows pass all three engines,
+qualifying dialog 030. Bitcrusher passes Chromium and WebKit; its Firefox run
+prints correct retained PCM comparisons before exceeding the unchanged overall
+30-second deadline. An unchanged isolated Firefox retry on that exact build
+passes in 13 seconds (`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-green13-firefox-retry.log`),
+qualifying effects 020. Native capture checks remain incomplete and uncounted.
+The verified total is 95 distinct fixes. Green12's required complete repository
+lint also finishes successfully (`/tmp/soundscaper-round6-green12-full-lint.log`).
+Recording notes composition, loudness weighting, ADM removal and skin modified
+navigation changes await their own immutable public checks.
