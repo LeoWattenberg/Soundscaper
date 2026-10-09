@@ -545,3 +545,17 @@ native equalizer composition all complete. Variant controls add no extra count.
 The full canonical150 rerun has passed static gates and entered the complete
 Node suite; full100 Firefox and its queued full150 browser run remain pending.
 No manual **Update AI assets** run is required.
+
+The third canonical150 attempt on immutable494a0a2b6 completes all static gates
+and both complete Node execution batches, then exits1 with two fixture failures
+(`/tmp/soundscaper-round6-checkpoint150-green29-canonical-retry.log`). The isolated
+batch passes1/1; the parallel batch has24664tests,24629passes,2failures and33skips
+in916349.5ms. An older project-tab fixture omits the browser's getComputedStyle
+primitive needed by the already verified RTL completion. The repository lint
+inventory fixture also exceeds Git's default1MiB captured-output bound as this
+checkout grows. Matching the production lint runner's existing bounded10MiB
+capture preserves the exact complete-inventory and shard assertions; all6focused
+lint-shard cases pass (`/tmp/soundscaper-round6-lint-inventory-node-green.log`) and
+targeted type-aware lint passes. These fixture corrections add zero user bugs
+and weaken no lint, architecture, coverage or behavior gate. A corrected immutable
+canonical150 rerun remains required; the failed complete result is retained.
