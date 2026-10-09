@@ -45,7 +45,10 @@ Chromium tone workflows on immutable Green18 `d7cb58183`
 twenty-seven verified roots. R6-EFFECT-028 passes its complete normal Chromium
 Echo playback/edit workflow on immutable Green19 `18a33ffa1`
 (`/tmp/soundscaper-round6-green19-chromium.log`), bringing this register to
-twenty-eight verified roots.
+twenty-eight verified roots. R6-EFFECT-029 passes both complete normal Chromium
+Warp quantization/groove workflows on immutable Green20 `0b272a361`
+(`/tmp/soundscaper-round6-green20-chromium.log`), bringing this register to
+twenty-nine verified roots.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -1111,7 +1114,9 @@ range cases pass after correction
 compilation, targeted type-aware and canonical changed-file lint, and size/diff
 checks pass. Earlier correction attempts exposed test-DOM selector and
 attribute limitations and are retained as supporting setup failures, not
-additional causal evidence. Built public GREEN is pending the next immutable
-snapshot, so this register still contains twenty-eight verified roots.
+additional causal evidence. Both complete ordinary public workflows pass
+Chromium on immutable Green20 `0b272a361`
+(`/tmp/soundscaper-round6-green20-chromium.log`), retaining plain/Shift editing,
+modal command suspension and the assigned command after Close.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
