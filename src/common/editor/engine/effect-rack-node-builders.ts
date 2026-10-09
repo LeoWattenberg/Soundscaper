@@ -48,11 +48,14 @@ export function connectBiquad(
 	if (typeof context.createBiquadFilter !== 'function') return input;
 	const filter = addNode(nodes, context.createBiquadFilter());
 	filter.type = (typeof params.type === 'string' ? params.type : 'peaking') as BiquadFilterType;
+	// Web Audio low/high-pass Q is in dB; the authored control is a quality factor.
+	const nativeQ = (value: number): number => filter.type === 'lowpass' || filter.type === 'highpass'
+		? 20 * Math.log10(Math.max(0.0001, value)) : Math.max(0.0001, value);
 	setParam(filter.frequency, clamp(finite(params.frequency, 1_000), 10, 24_000), context.currentTime);
-	setParam(filter.Q, Math.max(0.0001, finite(params.q ?? params.Q, 0.707)), context.currentTime);
+	setParam(filter.Q, nativeQ(finite(params.q ?? params.Q, 0.707)), context.currentTime);
 	setParam(filter.gain, finite(params.gain, 0), context.currentTime);
 	registerEffectAudioParam(effect, 'frequency', filter.frequency, options);
-	registerEffectAudioParam(effect, 'q', filter.Q, options);
+	registerEffectAudioParam(effect, 'q', filter.Q, { ...options, transformValue: nativeQ });
 	registerEffectAudioParam(effect, 'gain', filter.gain, options);
 	connect(input, filter);
 	return filter;

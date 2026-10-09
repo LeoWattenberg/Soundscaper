@@ -71,8 +71,8 @@ one focused shared module without changing its calculations. The ordinary
 Five focused cases fail before correction and pass afterward; together with
 the existing standard filter and Audacity live cases they pass 22/22. The
 public export/decoded-WAV witness is
-`audio-editor-round7-classic-filter-tail.spec.js`; root owns its pending browser
-verification passes Chromium on immutable `220719574` (4.2 seconds, root-owned
+`audio-editor-round7-classic-filter-tail.spec.js` passes Chromium on immutable
+`220719574` (4.2 seconds, root-owned
 public wave 2 retry). All small PCM fixtures live in memory and create no disk files.
 No AI runtime asset update is required.
 
@@ -102,7 +102,9 @@ The exact public healthy-unmuted/muted WAV workflow is causally RED on immutable
 `220719574`: the healthy control passes at 96,000 frames, then the muted export
 is still 96,000 rather than 48,000. Evidence:
 `/tmp/soundscaper-r7-public-wave2-retry.log`. The root-owned corrected Chromium
-verification is pending. The two one-second WAV inputs live in memory and
+verification passes on immutable `5c9787bec`, retaining the healthy unmuted
+export, exact muted duration and restored release after unmuting.
+The two one-second WAV inputs live in memory and
 temporary browser outputs are cleaned by the root runner. No AI runtime asset
 update is required.
 
@@ -133,7 +135,33 @@ The ordinary live control/native stereo output witness is
 Attack 1,000 ms reaches native one-second controls and the newly linked channel
 ratios remain 0.00254–0.00493 instead of the common 0.01. Earlier attempts with
 an unexpanded advanced field or Attack 1 ms are excluded setup/settled controls.
-Root owns the pending corrected browser verification. Its small observations
-and 16-second input are held only
+The corrected Chromium witness passes on immutable `5c9787bec`, with native
+linked ratios 0.00978–0.01023. Its small observations and 16-second input are held only
 in memory, and no raw coverage or disk fixture is created. No AI runtime asset
 update is required.
+
+## R7-EFFECT-006 — Native resonant filters apply quality factor as decibels
+
+Import a normal three-second 1,000 Hz stereo recording with peak amplitude
+0.5. Open track Effects, add Resonant low-pass filter, set Frequency to 1,000 Hz
+and keep the authored default Q 0.707. Export the recording. Its cutoff should
+have gain 0.707 and RMS 0.24996, but the baseline writes 0.707 directly into the
+native filter's Q AudioParam. Web Audio interprets low/high-pass Q in decibels,
+making the effective quality factor 1.0848008. Resonant high-pass and authored
+Q automation share this one unit-conversion root.
+
+Convert the authored quality factor to native decibels at graph construction
+and at every scheduled parameter event. The document, control ranges and
+automation descriptors retain their quality factor values. This follows the
+[primary Web Audio coefficient and Q contract](https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-q).
+Ten strict actual graph/scheduling cases fail before correction and pass
+afterward; with the existing parameter registry and rack-width safeguards they
+pass 21/21. The tests evaluate the native coefficient equations independently
+and cover supported Q 0.1, 0.707, 1, 10 and automated 30.
+
+The public native-render/decoded-WAV witnesses are
+`audio-editor-round7-native-filter-q.spec.js` are causally RED on immutable
+`5c9787bec`: both native low/high-pass decoded WAVs measure RMS 0.383523 instead
+of the authored 0.249962. Root owns their pending corrected browser verification.
+Small PCM stays in memory and no verification fixture
+or raw coverage is written. No AI runtime asset update is required.
