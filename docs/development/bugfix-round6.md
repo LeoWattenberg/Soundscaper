@@ -525,3 +525,23 @@ Node execution batches
 all-engine browser run has entered Firefox; the full150 browser checkpoint
 remains queued behind its actual completion. Pending gates remain pending.
 No manual **Update AI assets** run is required.
+
+The immutable `6f904d0ab` batch completes9of10 public Chromium checks in2.7minutes
+(`/tmp/soundscaper-round6-green30-chromium.log`). Both guarded product builds pass
+(`/tmp/soundscaper-round6-green30-build.log`). The final equalizer numeric case
+passes native admission, preserved draft/focus and ordinary completion, then
+asks for a nonexistent Apply button. Correcting its locator to the existing
+Apply to selection control preserves the original behavior assertions; the
+complete workflow passes on the same immutable product in8.7seconds
+(`/tmp/soundscaper-round6-parametric-number-composition-green30-public.log`).
+The fixture mistake adds no product bug and the initial failure remains recorded.
+
+Editing047/048, effects037, I/O030 and dialogs056 now qualify:
+**169 distinct verified fixes** comprise editing48, effects37, I/O29 and dialogs55.
+The actual native one/two-finger video fades, stereo-divider mouse/keyboard/touch
+controls, shared stepper ordinary/modified/composing keys with generated PCM,
+ordinary short/long Japanese stem archives with real filesystem extraction and
+native equalizer composition all complete. Variant controls add no extra count.
+The full canonical150 rerun has passed static gates and entered the complete
+Node suite; full100 Firefox and its queued full150 browser run remain pending.
+No manual **Update AI assets** run is required.

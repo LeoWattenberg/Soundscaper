@@ -26,7 +26,7 @@ test('Parametric EQ retains numeric native composition until the final completed
 	await gain.fill('6');
 	await gain.press('Enter');
 	await expect(gain).toHaveValue('6');
-	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+	await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 	await expect(dialog).toBeHidden();
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
