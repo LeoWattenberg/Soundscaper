@@ -17,6 +17,8 @@ import { audacitySelectionOnlyReason, isAudacityEffectLiveCapable } from './live
 import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 import { audacityBrowserReverbTailFrames } from './reverb-parameters.ts';
 import { audacityDynamicsLookaheadFrames } from './audacity-dynamics-lookahead.ts';
+import { classicFilterCoefficients } from './classic-filter-coefficients.js';
+import { iirReleaseBoundFrames } from '../iir-release-bound.ts';
 
 export const CLICK_WINDOW_SIZE = 8_192;
 export const EQ_PARTITION_SIZE = 128;
@@ -100,6 +102,10 @@ function liveTailFrames(type, sampleRate, params) {
 		return Math.floor(sampleRate * settings.delaySeconds) * Math.ceil(Math.log(0.001) / Math.log(settings.decay));
 	}
 	if (type === 'audacity-distortion' && settings.dcBlock) return Math.max(1, Math.floor(sampleRate / 20));
+	if (type === 'audacity-classic-filters') {
+		return iirReleaseBoundFrames(classicFilterCoefficients(settings, sampleRate / 2)
+			.map(({ b0, b1, b2, a1, a2 }) => [b0, b1, b2, a1, a2]));
+	}
 	if (type === 'audacity-reverb') return audacityBrowserReverbTailFrames(sampleRate, settings);
 	if (type === 'audacity-filter-curve-eq' || type === 'audacity-graphic-eq') return (settings.filterLength - 1) / 2;
 	return 0;
