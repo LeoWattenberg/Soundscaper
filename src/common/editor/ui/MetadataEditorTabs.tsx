@@ -37,11 +37,12 @@ export function MetadataEditorTabs({
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 		event.preventDefault();
+		const forward = window.getComputedStyle(event.currentTarget).direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
 		const nextIndex = event.key === 'Home'
 			? 0
 			: event.key === 'End'
 				? tabs.length - 1
-				: (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+				: (index + (event.key === forward ? 1 : -1) + tabs.length) % tabs.length;
 		onChange(tabs[nextIndex].id);
 		queueMicrotask(() => tabListRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus());
 	};
