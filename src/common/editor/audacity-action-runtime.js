@@ -10,6 +10,7 @@ import { resolveSelectionRange } from './selection-range.ts';
 import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
 import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
 import { relativeNavigationClipId } from './audacity-shortcut-actions/relative-item-navigation.ts';
+import { visibleNavigationTracks } from './audacity-shortcut-actions/visible-navigation-tracks.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -218,7 +219,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	}
 	function selectRelativeTrack(direction, mode = 'replace') {
 		const currentProject = project();
-		const tracks = currentProject?.tracks || [];
+		const tracks = visibleNavigationTracks(currentProject?.tracks || [], snapshot().trackFolders);
 		if (!tracks.length) return null;
 		const current = Math.max(0, tracks.findIndex((track) => track.id === selectedTrackId()));
 		const next = tracks[Math.max(0, Math.min(tracks.length - 1, current + direction))];
