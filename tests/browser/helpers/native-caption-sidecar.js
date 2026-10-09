@@ -2,8 +2,14 @@
 
 import { nativeSidecarFixture } from '../../helpers/framescaper-native-sidecar-fixture.ts';
 
-export async function installNativeCaptionSidecar(page, name, text) {
-	const fixture = await nativeSidecarFixture(name, text);
+export async function installNativeCaptionSidecar(page, name, text, options = {}) {
+	const fixture = await nativeSidecarFixture(name, text, options);
+	await page.exposeBinding('__nativeCaptionSave', async (_source, operation, request) => {
+		if (operation === 'writeChunk' || operation === 'patchFinalPrefix') {
+			request = { ...request, bytes: Uint8Array.from(request.bytes) };
+		}
+		return await fixture.bridge[operation](request);
+	});
 	await page.exposeBinding('__nativeCaptionChoose', async (_source, request) =>
 		await fixture.bridge.chooseFiles(request));
 	await page.exposeBinding('__nativeCaptionRelease', async (_source, id) =>
@@ -15,11 +21,19 @@ export async function installNativeCaptionSidecar(page, name, text) {
 			bytes: [...new Uint8Array(await response.arrayBuffer())],
 		};
 	});
-	await page.addInitScript(() => {
+	await page.addInitScript(({ nativeSave }) => {
 		Object.defineProperty(globalThis, 'framescaperDesktop', { enumerable: true, value: Object.freeze({ v1: Object.freeze({
 			version: 1,
 			chooseFiles: (request) => globalThis.__nativeCaptionChoose(request),
 			releaseRead: (id) => globalThis.__nativeCaptionRelease(id),
+			...(nativeSave ? {
+				chooseSaveTarget: (request) => globalThis.__nativeCaptionSave('chooseSaveTarget', request),
+				beginWrite: (request) => globalThis.__nativeCaptionSave('beginWrite', request),
+				writeChunk: (request) => globalThis.__nativeCaptionSave('writeChunk', { ...request, bytes: [...request.bytes] }),
+				patchFinalPrefix: (request) => globalThis.__nativeCaptionSave('patchFinalPrefix', { ...request, bytes: [...request.bytes] }),
+				finishWrite: (id) => globalThis.__nativeCaptionSave('finishWrite', id),
+				abortWrite: (id) => globalThis.__nativeCaptionSave('abortWrite', id),
+			} : {}),
 		}) }) });
 		const fetchBrowser = globalThis.fetch.bind(globalThis);
 		globalThis.fetch = async (input, init) => {
@@ -30,6 +44,6 @@ export async function installNativeCaptionSidecar(page, name, text) {
 			});
 			return new Response(Uint8Array.from(result.bytes), { status: result.status, headers: result.headers });
 		};
-	});
+	}, { nativeSave: Boolean(options.saveName) });
 	return fixture;
 }
