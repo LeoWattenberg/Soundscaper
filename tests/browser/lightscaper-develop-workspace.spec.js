@@ -54,12 +54,37 @@ for (const locale of ['en', 'de']) {
 		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('tone-ladder-v1');
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamExposure', '-1');
+		await expect.poll(async () => (await pixels(after, [2, 2]))[0]).toBeLessThan(beforePixels[0]);
+		await expect(preview).toHaveAttribute('data-state', 'ready');
+		const tonePixels = await pixels(after, [2, 2]);
+		const mode = dialog.getByRole('combobox', { name: messages.previewMode, exact: true });
+		await expect(dialog.getByRole('slider', { name: messages.divider, exact: true })).toHaveCount(0);
+		await mode.selectOption('split');
+		const divider = dialog.getByRole('slider', { name: messages.divider, exact: true });
+		await expect(divider).toHaveValue('50');
+		await divider.focus(); await page.keyboard.press('Home'); await expect(divider).toHaveValue('0');
+		await page.keyboard.press('End'); await expect(divider).toHaveValue('100');
+		await page.keyboard.press('ArrowLeft'); await expect(divider).toHaveValue('99');
+		await divider.fill('50');
+		const images = preview.locator('.lightscaper-develop-images'); await images.scrollIntoViewIfNeeded();
+		const splitBox = await images.boundingBox(); expect(splitBox).not.toBeNull();
+		const beforeBox = await before.boundingBox(), afterBox = await after.boundingBox();
+		expect(beforeBox).toEqual(afterBox);
+		expect(await screenPixel(page, splitBox, 0.25)).toEqual(beforePixels.slice(0, 4));
+		expect(await screenPixel(page, splitBox, 0.75)).toEqual(tonePixels.slice(0, 4));
+		expect(await pixels(before, [2, 2])).toEqual(beforePixels); expect(await pixels(after, [2, 2])).toEqual(tonePixels);
+		await mode.selectOption('compare'); await expect(divider).toHaveCount(0);
 		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('develop-geometry-v1');
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamCropWidth', '0.5');
 		await expect.poll(() => extent(after)).toEqual([1, 2]);
 		await expect(preview).toHaveAttribute('data-state', 'ready');
 		expect(await extent(after)).toEqual([1, 2]); expect(await pixels(before, [2, 2])).toEqual(beforePixels);
+		await mode.selectOption('split'); await expect(divider).toHaveValue('50');
+		const croppedBoxes = await Promise.all([before.boundingBox(), after.boundingBox()]); expect(croppedBoxes[0]).toEqual(croppedBoxes[1]);
+		expect(await before.evaluate(value => getComputedStyle(value).objectFit)).toBe('contain');
+		expect(await after.evaluate(value => getComputedStyle(value).objectFit)).toBe('contain');
+		await mode.selectOption('compare');
 		await expect(dialog.getByRole('img', { name: `${messages.histogram}: ${messages.before}`, exact: true })).toBeVisible();
 		await expect(dialog.getByRole('img', { name: `${messages.histogram}: ${messages.after}`, exact: true })).toBeVisible();
 		await expect(dialog.getByRole('status').filter({ hasText: messages.dirty })).toBeVisible();
@@ -98,6 +123,7 @@ for (const locale of ['en', 'de']) {
 		await summary(page, app, copy.photoViewMenu); await keyboard(page, app.getByRole('button', { name: copy.photoShowLibrary, exact: true }));
 		await expect(card).toHaveCount(1); await keyboard(page, card); await openDevelop();
 		await expect(preview).toHaveAttribute('data-state', 'ready');
+		await expect(mode).toHaveValue('compare'); await expect(divider).toHaveCount(0);
 		await expect(version).toHaveValue(masterVersionId); await expect(version.locator('option')).toHaveCount(2);
 		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(2);
 		await expect(dialog.getByRole('spinbutton', { name: exact('videoEffectParamCropWidth'), exact: true })).toHaveValue('0.5');
@@ -119,6 +145,15 @@ for (const locale of ['en', 'de']) {
 async function keyboard(page, locator) { await locator.focus(); await page.keyboard.press('Enter'); }
 async function summary(page, app, name) { await keyboard(page, app.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') })); }
 async function extent(canvas) { return canvas.evaluate(value => [value.width, value.height]); }
+async function screenPixel(page, box, position) {
+	const body = await page.screenshot({ clip: { x: Math.floor(box.x + box.width * position), y: Math.floor(box.y + box.height / 2), width: 1, height: 1 }, scale: 'css' });
+	return page.evaluate(async bytes => {
+		const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }));
+		try { const canvas = new OffscreenCanvas(1, 1), context = canvas.getContext('2d'); context.drawImage(bitmap, 0, 0);
+			return Array.from(context.getImageData(0, 0, 1, 1).data);
+		} finally { bitmap.close(); }
+	}, Array.from(body));
+}
 async function pixels(canvas, expectedExtent) {
 	let captured;
 	await expect.poll(async () => {

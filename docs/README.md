@@ -26,8 +26,12 @@ belong in Git history, not in the maintained documentation set.
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Photo Develop workspace](architecture/lightscaper-develop-workspace.md)
   defines per-version history, scoped rendering, settings selection, and durable batch receipts.
+- [Develop split preview](architecture/lightscaper-develop-split-preview.md)
+  defines the opted-in divider, matched viewports and joined presentation ownership.
 - [Develop preset restore](architecture/lightscaper-develop-preset-restore.md)
   defines physical preset presence and archive restoration.
+- [Develop presets during photo import](architecture/lightscaper-develop-import-presets.md)
+  defines explicit preset selection and revision-fenced import preparation.
 - [Opt-in photo import options](architecture/lightscaper-import-options-ui.md)
   defines authored drafts, explicit preset loading, and durable import acknowledgements.
 - [Photo batch rename](architecture/lightscaper-batch-rename.md)
@@ -50,6 +54,8 @@ belong in Git history, not in the maintained documentation set.
   defines disposable paired storage, bounded demand scheduling, and original-custody fences.
 - [Lightscaper editor copy](architecture/lightscaper-editor-copy.md)
   defines the small English/German editor defaults and guarded locale-loading boundary.
+- [Translation catalog build ownership](architecture/translation-catalog-build.md)
+  defines bounded generated chunks with complete lazy-loaded catalog contents.
 - [Photo preview presentation](architecture/lightscaper-preview-presentation.md)
   defines opt-in canvas surfaces, serial pixel custody and compound memory budgets.
 - [Photo catalog query workflows](architecture/lightscaper-catalog-workflows.md)

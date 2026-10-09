@@ -11,9 +11,28 @@ import {
 	createTranslationCatalogBundlePlugin,
 	renderTranslationCatalogModule,
 } from '../scripts/lib/translation-catalog-bundle.mjs';
+import {
+	assembleTranslationCatalogModule,
+	partitionTranslationCatalog,
+	translationCatalogPartId,
+} from '../scripts/lib/translation-catalog-partition.mjs';
 
 async function loadModule(source: string): Promise<Record<string, unknown>> {
 	return await import(`data:text/javascript,${encodeURIComponent(source)}`) as Record<string, unknown>;
+}
+
+async function loadPartition(catalog: Record<string, unknown>): Promise<Record<string, unknown>> {
+	const path = '/catalog.json', partition = partitionTranslationCatalog(catalog, renderTranslationCatalogModule);
+	let source = assembleTranslationCatalogModule(partition, path);
+	for (const [index, part] of partition.parts.entries()) {
+		const { code } = await transform(part, { minify: true, charset: 'utf8' });
+		assert.ok(Buffer.byteLength(code) < 490_000, 'Each generated catalog module retains the existing reserve.');
+		source = source.replaceAll(JSON.stringify(translationCatalogPartId(path, index)),
+			JSON.stringify(`data:text/javascript,${encodeURIComponent(code)}`));
+	}
+	const { code } = await transform(assembleTranslationCatalogModule(partition, path), { minify: true, charset: 'utf8' });
+	assert.ok(Buffer.byteLength(code) < 490_000, 'The generated catalog root retains the existing reserve.');
+	return await loadModule(source);
 }
 
 function literalModule(catalog: Record<string, unknown>): string {
@@ -182,28 +201,33 @@ test('the bundle plugin only substitutes lazy imports from the generated catalog
 	assert.equal(typeof id, 'string');
 	assert.ok(id);
 	const watched: string[] = [];
-	const source = await plugin.load.call({ addWatchFile: (path: string) => watched.push(path) }, id);
+	let source = await plugin.load.call({ addWatchFile: (path: string) => watched.push(path) }, id);
 	assert.ok(source);
 	const path = fileURLToPath(new URL('../src/common/i18n/translations/hi.json', import.meta.url));
 	assert.deepEqual(watched, [path]);
 	const catalog: unknown = JSON.parse(await readFile(path, 'utf8'));
+	for (const match of source.matchAll(/^import \{entries as \$p\d+\} from ("(?:[^"\\]|\\.)*");$/gmu)) {
+		const partId = JSON.parse(match[1]!) as string;
+		assert.equal(plugin.resolveId(partId, id), partId);
+		assert.equal(plugin.resolveId(partId, '/unrelated.js'), null);
+		const part = await plugin.load.call({ addWatchFile: (value: string) => watched.push(value) }, partId);
+		assert.ok(part);
+		source = source.replaceAll(match[1]!, JSON.stringify(`data:text/javascript,${encodeURIComponent(part)}`));
+	}
+	assert.ok(watched.every(value => value === path));
 	assert.deepEqual((await loadModule(source)).default, catalog);
 });
 
-test('the complete Hindi catalog fits the production chunk budget without removing entries', async () => {
+test('the complete Hindi catalog fits bounded production modules without removing entries', async () => {
 	const catalog = JSON.parse(await readFile(new URL('../src/common/i18n/translations/hi.json', import.meta.url), 'utf8')) as Record<string, unknown>;
-	const { code } = await transform(renderTranslationCatalogModule(catalog), { minify: true, charset: 'utf8' });
-	assert.ok(Buffer.byteLength(code) < 490_000, 'Leave room for the bundler runtime under the 500 KB ceiling.');
-	assert.deepEqual((await loadModule(code)).default, catalog);
+	assert.deepEqual((await loadPartition(catalog)).default, catalog);
 });
 
 test('every published machine catalog retains all tuples and named exports within the production ceiling', async t => {
 	const locales = COMMITTED_LOCALE_TAGS.filter(locale => !['en', 'de'].includes(new Intl.Locale(locale).language));
 	for (const locale of locales) await t.test(locale, async () => {
 		const catalog = JSON.parse(await readFile(new URL(`../src/common/i18n/translations/${locale}.json`, import.meta.url), 'utf8')) as Record<string, unknown>;
-		const { code } = await transform(renderTranslationCatalogModule(catalog), { minify: true, charset: 'utf8' });
-		assert.ok(Buffer.byteLength(code) < 500_000, `${locale} must preserve the production JavaScript chunk ceiling.`);
-		const module = await loadModule(code); assert.deepEqual(module.default, catalog);
+		const module = await loadPartition(catalog); assert.deepEqual(module.default, catalog);
 		for (const [key, value] of Object.entries(catalog)) assert.deepEqual(module[key], value, `${locale}.${key}`);
 	});
 });

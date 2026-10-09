@@ -15,6 +15,9 @@ import { publishCatalogOriginalRepair, readCatalogOriginalRepairCapture } from '
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
+const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
+const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
+
 /** Exact bytes repair a retained original's body without changing its logical custody. */
 export class MediaCatalogOriginalRepairRepositoryV1 {
 	readonly #port: StorageRepositoryPort;
@@ -69,13 +72,15 @@ export class MediaCatalogOriginalRepairRepositoryV1 {
 			admission.complete();
 			return Object.freeze({ assetId: binding.assetId, sha256: binding.sha256, size: binding.size });
 		} catch (primary) {
-			if (isErrorInstance(primary, MediaPublicationReconciliationError)) keepBody = true;
+			const cancelled = (Reflect.apply(nativeAborted, admission.signal, []) as boolean)
+				&& Object.is(Reflect.apply(nativeReason, admission.signal, []), primary);
+			if (!cancelled && isErrorInstance(primary, MediaPublicationReconciliationError)) keepBody = true;
 			try { if (prepared && !keepBody) await this.#cleanup(prepared); }
 			catch (cleanup) {
 				admission.failCleanup(cleanup);
 				throw new MediaAssetCleanupError([primary, cleanup], 'Original repair and staged cleanup both failed.');
 			}
-			if (isErrorInstance(primary, MediaAssetCleanupError)) admission.failCleanup(primary);
+			if (!cancelled && isErrorInstance(primary, MediaAssetCleanupError)) admission.failCleanup(primary);
 			else admission.complete();
 			throw primary;
 		} finally { this.#active.delete(binding.assetId); admission.release(); }

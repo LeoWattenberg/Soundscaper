@@ -21,6 +21,7 @@
  */
 
 import { imagingChunkGroups } from './build-chunk-imaging.mjs';
+import { translationCatalogChunkGroups } from './build-chunk-translation-catalogs.mjs';
 import {
 	DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
 	EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
@@ -92,6 +93,7 @@ export {
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	...translationCatalogChunkGroups,
 	{ name: 'editor-assistance-model-preflight', test: EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
 		priority: 100, minSize: 0, maxSize: 400_000,
 		includeDependenciesRecursively: false },
@@ -541,5 +543,6 @@ export function chunkGroupForModulePath(path) {
 	const candidates = chunkGroups
 		.filter((group) => group.test instanceof RegExp && group.test.test(path))
 		.sort((left, right) => right.priority - left.priority);
-	return candidates[0]?.name ?? null;
+	const name = candidates[0]?.name;
+	return typeof name === 'function' ? name(path) : name ?? null;
 }

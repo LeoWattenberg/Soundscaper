@@ -12,6 +12,7 @@ export interface PhotoDevelopPresentationSnapshotV1 {
 	readonly status: 'idle' | 'pending' | 'ready' | 'missing' | 'failed';
 	readonly before: Readonly<PixelFrameHistogramV1> | null;
 	readonly after: Readonly<PixelFrameHistogramV1> | null;
+	readonly extent: Readonly<{ before: Readonly<{ width: number; height: number }>; after: Readonly<{ width: number; height: number }> }> | null;
 	readonly error: string | null;
 }
 interface View {
@@ -35,7 +36,7 @@ const REASON = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!
 const ABORTED = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
 
-/** One source read/body/proxy consumer at a time; only histograms survive it.
+/** One source read/body/proxy consumer at a time; only histograms and scalar extents survive it.
  * Private proxy stages <=96 MiB; borrowed source <=16 MiB; two native canvas
  * backings <=48 MiB are distinct resources, released on retirement/replacement. */
 export class PhotoLibraryDevelopPresentationV1 {
@@ -46,7 +47,7 @@ export class PhotoLibraryDevelopPresentationV1 {
 	#active: AbortController | null = null;
 	#failure: Readonly<{ value: unknown }> | null = null;
 	#closed = false;
-	#snapshot: PhotoDevelopPresentationSnapshotV1 = Object.freeze({ status: 'idle', before: null, after: null, error: null });
+	#snapshot: PhotoDevelopPresentationSnapshotV1 = Object.freeze({ status: 'idle', before: null, after: null, extent: null, error: null });
 	#listener: ((value: PhotoDevelopPresentationSnapshotV1) => void) | null = null;
 	constructor(ports: Ports) {
 		this.#ports = Object.freeze({ readPreview: ports.readPreview.bind(ports), loadProxy: ports.loadProxy.bind(ports),
@@ -61,12 +62,12 @@ export class PhotoLibraryDevelopPresentationV1 {
 		if (this.#closed || this.#failure) return;
 		const view = Object.freeze({ ...value, develop: detachPhotoLibraryDevelopSettingsV1(value.develop) });
 		this.#view = view; this.#active?.abort(); this.#clear(); this.#targets = view;
-		this.#publish({ status: 'pending', before: null, after: null, error: null }); this.#wake();
+		this.#publish({ status: 'pending', before: null, after: null, extent: null, error: null }); this.#wake();
 	}
 	async drain(): Promise<void> { while (this.#pending) await this.#pending; if (this.#failure) throw this.#failure.value; }
 	async pause(): Promise<void> {
 		this.#view = null; this.#active?.abort();
-		try { await this.drain(); } finally { this.#clear(); this.#publish({ status: 'idle', before: null, after: null, error: null }); }
+		try { await this.drain(); } finally { this.#clear(); this.#publish({ status: 'idle', before: null, after: null, extent: null, error: null }); }
 		if (this.#failure) throw this.#failure.value;
 	}
 	close(): Promise<void> { this.#closed = true; this.#listener = null; return this.pause(); }
@@ -76,7 +77,7 @@ export class PhotoLibraryDevelopPresentationV1 {
 		const running = this.#run(view, active.signal).catch(error => {
 			const cancelled = Reflect.apply(ABORTED, active.signal, []) === true;
 			if (cancelled && Reflect.apply(REASON, active.signal, []) !== error) this.#failure = { value: error };
-			if (!cancelled && this.#view === view) this.#publish({ status: 'failed', before: null, after: null, error: 'The develop preview failed.' });
+			if (!cancelled && this.#view === view) this.#publish({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' });
 		}).finally(() => {
 			this.#pending = null; this.#active = null;
 			if (this.#view !== view) this.#wake();
@@ -97,7 +98,9 @@ export class PhotoLibraryDevelopPresentationV1 {
 			await runtime.withProxy({ frame, develop: view.develop, signal }, output => {
 				check(signal); if (this.#view !== view) return;
 				this.#ports.paint(view.after, output.frame, { limits: RENDER, signal }); check(signal);
-				this.#publish({ status: 'ready', before, after: output.histogram, error: null });
+				const extent = Object.freeze({ before: Object.freeze({ width: frame.descriptor.width, height: frame.descriptor.height }),
+					after: Object.freeze({ width: output.frame.descriptor.width, height: output.frame.descriptor.height }) });
+				this.#publish({ status: 'ready', before, after: output.histogram, extent, error: null });
 			});
 		}, { limits: SOURCE });
 	}

@@ -17,6 +17,8 @@ import type { OpfsBinaryWriter, OpfsRepository } from './opfs-repository.ts';
 import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
 
 const throwIfAborted = createAbortGuard('Media storage was cancelled.');
+const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
+const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 
 export interface StagedMediaSink {
 	readonly storage: string;
@@ -57,7 +59,7 @@ export async function prepareMediaAssetStaging({
 	discardStagedPath?: (path: string) => Promise<void>;
 }>): Promise<PreparedMediaAssetStaging> {
 	const plan = database ? await opfs.planBinaryWriter(`media-${sourceId}`, { signal })
-		.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media planning', error); }) : null;
+		.catch((error: unknown) => { throw storageFailure('OPFS media planning', error, signal); }) : null;
 	if (plan) {
 		const lease = await staging.acquire(sourceId, { path: plan.path }, database);
 		let writer: OpfsBinaryWriter | null;
@@ -65,7 +67,7 @@ export async function prepareMediaAssetStaging({
 			writer = await plan.open();
 		} catch (error) {
 			if (discardStagedPath) await discardFailedPlan(plan.path, discardStagedPath, error);
-			return releaseLeaseAfterFailure(lease, browserFileStorageFailure('OPFS media admission', error));
+			return releaseLeaseAfterFailure(lease, storageFailure('OPFS media admission', error, signal));
 		}
 		if (writer) {
 			const sink = opfsSink(writer, lease, discardStagedPath);
@@ -149,13 +151,13 @@ function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease, disca
 		write: async (bytes, _index, signal) => {
 			await lease.checkpoint();
 			try { await writer.write(bytes, { signal }); }
-			catch (error) { throw browserFileStorageFailure('OPFS media write', error); }
+			catch (error) { throw storageFailure('OPFS media write', error, signal); }
 			await lease.checkpoint();
 		},
 		close: async (signal) => {
 			await lease.checkpoint();
 			try { await writer.close({ signal }); }
-			catch (error) { throw browserFileStorageFailure('OPFS media close', error); }
+			catch (error) { throw storageFailure('OPFS media close', error, signal); }
 			await lease.checkpoint();
 		},
 		abort: async () => {
@@ -166,6 +168,12 @@ function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease, disca
 			if (errors.length) throw new MediaAssetCleanupError(errors, 'Strict staged OPFS cleanup failed.');
 		},
 	};
+}
+
+function storageFailure(operation: string, primary: unknown, signal?: AbortSignal): unknown {
+	if (signal && (Reflect.apply(nativeAborted, signal, []) as boolean)
+		&& Object.is(Reflect.apply(nativeReason, signal, []), primary)) return primary;
+	return browserFileStorageFailure(operation, primary);
 }
 
 async function discardFailedPlan(path: string, discard: (path: string) => Promise<void>, primary?: unknown): Promise<void> {

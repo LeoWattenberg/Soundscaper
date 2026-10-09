@@ -3,6 +3,16 @@
 .lightscaper-develop-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .lightscaper-develop-images figure { margin: .5rem 0; min-width: 0; }
 .lightscaper-develop-images canvas { display: block; max-width: 100%; height: auto; background: var(--panel); }
+.lightscaper-develop-images[data-mode="split"] { display: block; position: relative; aspect-ratio: 1; background: var(--panel); }
+.lightscaper-develop-images[data-mode="split"] figure { position: absolute; inset: 0; margin: 0; }
+.lightscaper-develop-images[data-mode="split"] canvas { width: 100%; height: 100%; object-fit: contain; }
+.lightscaper-develop-images[data-mode="split"] figcaption { position: absolute; top: .25rem; left: .25rem; padding: .1rem .25rem; background: var(--panel); }
+.lightscaper-develop-images[data-mode="split"] figure + figure figcaption { left: auto; right: .25rem; }
+.lightscaper-develop-divider { position: absolute; inset-block: 0; width: 1px; background: white; box-shadow: 1px 0 0 black; pointer-events: none; }
+.lightscaper-develop-histograms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.lightscaper-develop-images[data-mode="before"], .lightscaper-develop-images[data-mode="after"] { grid-template-columns: minmax(0, 1fr); }
+.lightscaper-develop-images[data-mode="before"] ~ .lightscaper-develop-histograms,
+.lightscaper-develop-images[data-mode="after"] ~ .lightscaper-develop-histograms { grid-template-columns: minmax(0, 1fr); }
 .lightscaper-develop-histogram svg { width: 100%; height: 100px; background: var(--panel); }
 .lightscaper-develop-histogram dl { display: grid; grid-template-columns: 1fr auto; margin: .5rem 0; font-size: .85rem; }
 .lightscaper-develop-histogram dd { margin: 0; }

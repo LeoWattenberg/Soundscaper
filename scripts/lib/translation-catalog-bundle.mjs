@@ -3,6 +3,12 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { transformSync } from 'esbuild';
+import {
+	assembleTranslationCatalogModule,
+	partitionTranslationCatalog,
+	translationCatalogPartId,
+	TRANSLATION_CATALOG_PART_PREFIX,
+} from './translation-catalog-partition.mjs';
 
 const VIRTUAL_PREFIX = '\0scape:translation-catalog:';
 const VIRTUAL_EXTENSION = '.mjs';
@@ -128,22 +134,47 @@ function renderJsonValue(value, references, table) {
 
 /** Substitute only the generated index's lazy catalog imports during builds. */
 export function createTranslationCatalogBundlePlugin() {
+	/** @type {Map<string, { source: string, path: string }>} */
+	const parts = new Map();
+	/** @type {Map<string, object>} */
+	const loads = new Map();
+	let epoch = {};
 	return {
 		name: 'scape:compact-translation-catalogs',
 		enforce: /** @type {const} */ ('pre'),
 		apply: /** @type {const} */ ('build'),
+		buildStart() { epoch = {}; parts.clear(); loads.clear(); },
 		/** @param {string} source @param {string | undefined} importer */
 		resolveId(source, importer) {
+			if (source.startsWith(TRANSLATION_CATALOG_PART_PREFIX)) {
+				const part = parts.get(source);
+				return part && importer === `${VIRTUAL_PREFIX}${part.path}${VIRTUAL_EXTENSION}` ? source : null;
+			}
 			if (!importer?.replaceAll('\\', '/').endsWith(CATALOG_INDEX_SUFFIX)
 				|| !/^\.\/[^/\\]+\.json$/u.test(source)) return null;
 			return `${VIRTUAL_PREFIX}${resolve(dirname(importer), source)}${VIRTUAL_EXTENSION}`;
 		},
 		/** @this {{ addWatchFile(path: string): void }} @param {string} id */
 		async load(id) {
+			if (id.startsWith(TRANSLATION_CATALOG_PART_PREFIX)) {
+				const part = parts.get(id);
+				if (!part) return null;
+				this.addWatchFile(part.path);
+				return part.source;
+			}
 			if (!id.startsWith(VIRTUAL_PREFIX)) return null;
 			const path = id.slice(VIRTUAL_PREFIX.length, -VIRTUAL_EXTENSION.length);
 			this.addWatchFile(path);
-			return renderTranslationCatalogModule(JSON.parse(await readFile(path, 'utf8')));
+			const owner = epoch, load = {};
+			loads.set(path, load);
+			const bytes = await readFile(path, 'utf8');
+			if (epoch !== owner || loads.get(path) !== load) throw new Error('Translation catalog load was superseded.');
+			const partition = partitionTranslationCatalog(JSON.parse(bytes), renderTranslationCatalogModule);
+			for (const [partId, part] of parts) if (part.path === path) parts.delete(partId);
+			for (const [index, source] of partition.parts.entries()) {
+				parts.set(translationCatalogPartId(path, index), { source, path });
+			}
+			return assembleTranslationCatalogModule(partition, path);
 		},
 	};
 }

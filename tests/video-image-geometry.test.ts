@@ -12,8 +12,10 @@ import { defaultPhotoDevelopV1, normalizePhotoDevelopV1 } from '../src/lightscap
 import { withGeometryPixelFrameV1 } from '../src/common/editor/imaging/pixel-frame-geometry-v1.ts';
 
 test('the versioned geometry effect is a menu-authorable numeric recipe with owning EN/DE controls', () => {
-	assert.equal(VIDEO_EFFECT_TYPES.at(-1), IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1);
-	assert.equal(EFFECT_CODES[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1], 20); assert.equal(EFFECT_PROGRAM_COUNT, 21);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.filter(type => type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1), [IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]);
+	assert.equal(EFFECT_CODES[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1], 20);
+	assert.deepEqual(Object.entries(EFFECT_CODES).filter(([, code]) => code === 20).map(([type]) => type), [IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]);
+	assert.ok(EFFECT_PROGRAM_COUNT > 20, 'The owning geometry program remains linked when other effects are added.');
 	assert.throws(() => normalizeVideoEffect(createVideoEffect(IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1), 'old', { allowedTypes: VIDEO_EFFECT_V5_TYPES }), /not supported/u);
 	for (const copy of [VIDEO_EFFECT_COPY_BY_LOCALE.en, VIDEO_EFFECT_COPY_BY_LOCALE.de]) {
 		const messages: Readonly<Record<string, string>> = copy;
