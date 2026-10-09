@@ -231,6 +231,7 @@ test('Nyquist selected tracks count each owning track once across selected clips
 			target, [first, second], index, [new Float32Array([0.25])], {},
 		);
 		assert.deepEqual(properties.SELECTION.TRACKS, [1]);
+		assert.equal(properties.TRACK.INDEX, 1);
 	}
 });
 
@@ -239,10 +240,12 @@ test('Nyquist selected tracks retain distinct owning audio tracks across clips',
 	const secondTrack = { ...harness.target.track, id: 'track-b', clipIds: ['clip-b'] };
 	harness.updateProject({ tracks: [harness.target.track, secondTrack] });
 	const second = { ...harness.target, track: secondTrack, clipId: 'clip-b', clipIds: ['clip-b'] };
-	const properties = harness.service.nyquistHostProperties(
-		harness.target, [harness.target, second, harness.target], 0, [new Float32Array([0.25])], {},
-	);
-	assert.deepEqual(properties.SELECTION.TRACKS, [1, 2]);
+	const targets = [harness.target, second, harness.target];
+	for (const [index, target] of targets.entries()) {
+		const properties = harness.service.nyquistHostProperties(target, targets, index, [new Float32Array([0.25])], {});
+		assert.deepEqual(properties.SELECTION.TRACKS, [1, 2]);
+		assert.equal(properties.TRACK.INDEX, index === 1 ? 2 : 1);
+	}
 });
 
 test('Nyquist host properties fall back to the cursor and request for an untargeted stereo result', () => {
