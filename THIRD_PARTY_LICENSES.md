@@ -20,14 +20,16 @@ in [`config/soundscaper-professional-native-notices.json`](config/soundscaper-pr
 
 The release edition of this document appends the complete authenticated native
 license texts. They are published in this single document, with byte offsets and
-SHA-256 digests in each product's compliance receipt, rather than as individual
+SHA-256 digests in each product's CI compliance receipt, rather than as individual
 native-notice release downloads. Installed packages retain the target-specific
 notice files described above.
 
-The Stable release inventory includes the exact ten authenticated upstream
-source archives and a canonical compliance receipt binding them to all five
-packaged runtime manifests and their source-authentication receipts. No
-Framescaper video-codec source enters that inventory. This checked technical
+The single `sources.zip` release download contains the committed application
+source, bundled-codec corresponding source, and exact ten authenticated native
+SDK source archives. CI retains the per-target runtime manifests and a canonical
+compliance receipt binding the native sources to all five packaged builds and
+their source-authentication receipts. The native SDK inventory excludes
+Framescaper video-codec archives. This checked technical
 inventory does not claim legal, trademark, or patent clearance beyond the
 recorded owner review.
 

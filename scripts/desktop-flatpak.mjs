@@ -6,7 +6,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { cp, lstat, mkdir, readdir, readlink, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -49,7 +49,7 @@ export async function buildDesktopFlatpak(options, { runCommand = run } = {}) {
 	const applicationId = `org.${product}.desktop`;
 	const architecture = ARCHITECTURES[arch];
 	const version = resolveProductApplicationVersion(product, await readProductReleaseLines(repositoryRoot));
-	const pattern = new RegExp(`^${productName}-${escapeRegex(version)}-linux-${arch === 'x64' ? '(?:x64|amd64)' : 'arm64'}\\.deb$`, 'u');
+	const pattern = new RegExp(`^${productName}-${escapeRegex(version)}-linux-${arch}\\.deb$`, 'u');
 	const matches = (await readdir(packagesRoot, { withFileTypes: true }))
 		.filter((entry) => pattern.test(entry.name));
 	if (matches.length !== 1 || !matches[0].isFile() || matches[0].isSymbolicLink()) {
@@ -108,18 +108,15 @@ export async function buildDesktopFlatpak(options, { runCommand = run } = {}) {
 	}
 	await mkdir(outputRoot, { recursive: true });
 	const bundlePath = resolve(outputRoot, `${productName}-${version}-linux-${arch}.flatpak`);
-	const checksumPath = `${bundlePath}.sha256`;
 	await rm(bundlePath, { force: true });
-	await rm(checksumPath, { force: true });
+	await rm(`${bundlePath}.sha256`, { force: true });
+	await rm(resolve(outputRoot, `${product}-${arch}-manifest.json`), { force: true });
 	await runCommand('flatpak', [
 		'build-bundle', `--arch=${architecture.flatpak}`, `--runtime-repo=${RUNTIME_REPOSITORY}`,
 		repository, bundlePath, applicationId, branch,
 	]);
 	await requireRegularFile(bundlePath, 'bundle');
-	await writeFile(checksumPath, `${await fileSha256(bundlePath)}  ${basename(bundlePath)}\n`);
-	const manifestPath = resolve(outputRoot, `${product}-${arch}-manifest.json`);
-	await cp(stagedManifest, manifestPath);
-	return { bundlePath, checksumPath, manifestPath, applicationId, branch };
+	return { bundlePath, manifestPath: stagedManifest, applicationId, branch };
 }
 
 function flatpakManifest({ product, productName, applicationId, branch, iconSize }) {

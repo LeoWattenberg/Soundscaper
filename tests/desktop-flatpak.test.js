@@ -2,8 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { execFile, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -42,6 +41,9 @@ for (const [product, arch] of [['soundscaper', 'x64'], ['framescaper', 'arm64']]
 	test(`Flatpak repackages ${product} ${arch} without changing application or notices`, requiresDeb, async (context) => {
 		const fixture = await createFixture(context, { product, arch });
 		const calls = [];
+		await mkdir(fixture.options.output);
+		await writeFile(join(fixture.options.output, `${fixture.productName}-${fixture.version}-linux-${arch}.flatpak.sha256`), 'old checksum');
+		await writeFile(join(fixture.options.output, `${product}-${arch}-manifest.json`), 'old manifest');
 		const result = await buildDesktopFlatpak(fixture.options, { runCommand: fakeBuilder(calls) });
 		assert.equal(basename(result.bundlePath), `${fixture.productName}-${fixture.version}-linux-${arch}.flatpak`);
 		const manifest = JSON.parse(await readFile(result.manifestPath, 'utf8'));
@@ -83,18 +85,18 @@ for (const [product, arch] of [['soundscaper', 'x64'], ['framescaper', 'arm64']]
 		assert.ok(bundle.args.includes('--runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo'));
 		assert.equal(bundle.args.at(-2), `org.${product}.desktop`);
 		assert.equal(bundle.args.at(-1), 'nightly');
-		const bytes = await readFile(result.bundlePath);
-		assert.equal(await readFile(result.checksumPath, 'utf8'),
-			`${sha256(bytes)}  ${basename(result.bundlePath)}\n`);
+		assert.equal(Object.hasOwn(result, 'checksumPath'), false);
+		assert.deepEqual(await readdir(fixture.options.output), [basename(result.bundlePath)]);
+		assert.equal(result.manifestPath.startsWith(stage), true);
 	});
 }
 
-test('Flatpak rejects missing, duplicate, or other-product Debian packages', requiresDeb, async (context) => {
+test('Flatpak rejects missing, legacy-named, or other-product Debian packages', requiresDeb, async (context) => {
 	const fixture = await createFixture(context);
 	const calls = [];
 	await assert.rejects(buildDesktopFlatpak({ ...fixture.options, product: 'framescaper' },
 		{ runCommand: fakeBuilder(calls) }), /exactly one.*Debian/iu);
-	await cp(fixture.debPath, join(fixture.options.packages, basename(fixture.debPath).replace('amd64', 'x64')));
+	await rename(fixture.debPath, join(fixture.options.packages, basename(fixture.debPath).replace('x64', 'amd64')));
 	await assert.rejects(buildDesktopFlatpak(fixture.options, { runCommand: fakeBuilder(calls) }), /exactly one.*Debian/iu);
 	assert.equal(calls.length, 0);
 });
@@ -166,7 +168,7 @@ async function createFixture(context, { product = 'soundscaper', arch = 'x64', m
 		`${Object.entries(fields).map(([name, value]) => `${name}: ${value}`).join('\n')}\n`);
 	const packages = join(root, 'packages');
 	await mkdir(packages);
-	const debPath = join(packages, `${productName}-${version}-linux-${arch === 'x64' ? 'amd64' : arch}.deb`);
+	const debPath = join(packages, `${productName}-${version}-linux-${arch}.deb`);
 	await executeFile('dpkg-deb', ['--build', '--root-owner-group', packageRoot, debPath]);
 	return { root, productName, version, debPath, icon, mime, asarBytes: await readFile(asarPath),
 		options: { repositoryRoot: root, packages, product, arch, output: join(root, 'output') } };
@@ -190,8 +192,4 @@ function fakeBuilder(calls, { mutate = false } = {}) {
 		await writeFile(args.at(-3), 'fixture-flatpak-bundle');
 		return { stdout: '', stderr: '' };
 	};
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
 }

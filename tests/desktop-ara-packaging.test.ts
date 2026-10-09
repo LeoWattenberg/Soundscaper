@@ -166,7 +166,8 @@ test('desktop preview builds real ARA peers and retains the same authenticated o
 	}
 	const release = extractJob(workflow, 'release-inventory');
 	assert.match(release, /SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT:/u);
-	assert.match(release, /\*-professional-native-source-\*/u);
+	assert.match(release, /path: release\/desktop\//u);
+	assert.match(release, /path: release\/desktop-ci\/\*\.json/u);
 });
 
 test('built preview audio hosts in both products require the same pinned ARA license notices', () => {

@@ -24,7 +24,7 @@ test('the stable tag runs ordinary checks, packages every target, deploys, and p
 	assert.match(workflow, /stage-soundscaper-professional-native-build-result\.mjs/u);
 	assert.match(workflow, /npm run desktop:smoke/u);
 	assert.match(workflow, /desktop:release-assets -- --product soundscaper/u);
-	assert.match(workflow, /Soundscaper-1\.0\.0-source\.tar\.gz/u);
+	assert.match(workflow, /release\/desktop\/sources\.zip/u);
 	assert.match(workflow, /THIRD_PARTY_LICENSES\.md/u);
 	assert.match(workflow, /SHA256SUMS/u);
 	assert.match(workflow, /gh release create .*--draft/isu);

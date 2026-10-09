@@ -37,16 +37,18 @@ test('Flatpak CI installs the current Electron runtime and smokes the installed 
 		< job.indexOf('dbus-run-session -- npm run desktop:smoke'));
 });
 
-test('Flatpak artifacts stay separate from the existing release package inventory', async () => {
+test('Flatpak bundles join the release checksum inventory while their manifests stay in CI', async () => {
 	const workflow = await readWorkflow('desktop-preview.yml');
 	const job = extractJob(workflow, 'flatpak');
 	assert.match(job, /name: flatpak-\$\{\{ matrix\.product \}\}-linux-\$\{\{ matrix\.target\.arch \}\}/u);
-	assert.match(job, /path: release\/flatpak\//u);
+	assert.match(job, /path: release\/flatpak\/\*\.flatpak/u);
+	assert.match(job, /name: build-evidence-flatpak-/u);
 	assert.match(job, /if-no-files-found: error/u);
 	assert.match(job, /retention-days: 14/u);
-	for (const consumer of ['release-inventory', 'milestone-5-package-audit-summary']) {
-		assert.doesNotMatch(extractJob(workflow, consumer), /pattern: flatpak-|needs:.*flatpak/u);
-	}
+	const release = extractJob(workflow, 'release-inventory');
+	assert.match(release, /needs: \[quality, package, flatpak\]/u);
+	assert.match(release, /pattern: flatpak-\$\{\{ needs\.quality\.outputs\.release-product-pattern \}\}-linux-\*/u);
+	assert.doesNotMatch(extractJob(workflow, 'milestone-5-package-audit-summary'), /pattern: flatpak-|needs:.*flatpak/u);
 	for (const match of job.matchAll(/uses: [^@\s]+@([^\s]+)/gu)) {
 		assert.match(match[1], /^[a-f0-9]{40}$/u, 'actions must use immutable commit pins');
 	}

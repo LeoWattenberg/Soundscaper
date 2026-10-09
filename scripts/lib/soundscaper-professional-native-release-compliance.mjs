@@ -34,6 +34,8 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 	const repositoryRoot = requiredPath(options?.repositoryRoot, 'repository root');
 	const sourceRoot = requiredPath(options?.sourceRoot, 'professional-native source root');
 	const outputRoot = requiredPath(options?.outputRoot, 'release asset root');
+	const sourceOutputRoot = requiredPath(options?.sourceOutputRoot ?? outputRoot, 'source archive staging root');
+	const evidenceRoot = requiredPath(options?.evidenceRoot ?? outputRoot, 'release compliance evidence root');
 	const runtimeManifests = validateRuntimeManifests(options?.runtimeManifests, dependencies, productId);
 	const sourceRegister = dependencies.sourceRegister ?? sourceRegisterDefault;
 	const selectedSources = sourceRegister.sources.filter(({ id }) => SOURCE_IDS.includes(id));
@@ -50,12 +52,15 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 		const archivePath = resolve(sourceRoot, source.id, source.archive.fileName);
 		const archiveBytes = await regularArchiveBytes(archivePath, source);
 		const name = correspondingSourceName(source, productName);
-		await writeFile(resolve(outputRoot, name), archiveBytes, { flag: 'wx', mode: 0o444 });
+		await writeFile(resolve(sourceOutputRoot, name), archiveBytes, { flag: 'wx', mode: 0o444 });
 		sources.push(Object.freeze({
 			id: source.id,
 			version: source.version,
 			licenseSelection: source.licenseSelection,
-			archive: Object.freeze({ name, byteLength: archiveBytes.byteLength, sha256: digest(archiveBytes) }),
+			archive: Object.freeze({
+				name, bundlePath: `sdk/${source.id}/${source.archive.fileName}`,
+				byteLength: archiveBytes.byteLength, sha256: digest(archiveBytes),
+			}),
 			extractedTree: Object.freeze({ ...source.extractedTree }),
 		}));
 	}
@@ -82,7 +87,7 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 		notices,
 		targetBindings,
 	});
-	await writeFile(resolve(outputRoot, `${productName}-professional-native-compliance.json`),
+	await writeFile(resolve(evidenceRoot, `${productName}-professional-native-compliance.json`),
 		Buffer.from(`${JSON.stringify(compliance, null, 2)}\n`), { flag: 'wx', mode: 0o444 });
 	return compliance;
 }

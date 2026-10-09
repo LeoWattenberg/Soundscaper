@@ -85,6 +85,27 @@ test('Framescaper release assembly publishes the same pinned audio-host sources 
 		name.startsWith('Framescaper-') || name === 'THIRD_PARTY_LICENSES.md'), true);
 });
 
+test('release assembly stages SDK archives and compliance outside the public downloads', async (context) => {
+	const fixture = await releaseFixture(context);
+	const evidenceRoot = join(fixture.repositoryRoot, 'ci-evidence');
+	const sourceOutputRoot = join(evidenceRoot, 'source-inputs');
+	await mkdir(sourceOutputRoot, { recursive: true });
+	const result = await stageSoundscaperProfessionalNativeReleaseCompliance({
+		repositoryRoot: fixture.repositoryRoot, sourceRoot: fixture.sourceRoot,
+		outputRoot: fixture.outputRoot, runtimeManifests: fixture.runtimeManifests,
+		evidenceRoot, sourceOutputRoot,
+	}, fixture.dependencies);
+	assert.deepEqual(await readdir(fixture.outputRoot), ['THIRD_PARTY_LICENSES.md']);
+	assert.equal((await readdir(sourceOutputRoot)).length, 10);
+	for (const source of result.sources) {
+		assert.equal(source.archive.bundlePath, `sdk/${source.id}/${source.id}.tar.gz`);
+		assert.deepEqual(descriptor(await readFile(join(sourceOutputRoot, source.archive.name))),
+			{ byteLength: source.archive.byteLength, sha256: source.archive.sha256 });
+	}
+	assert.equal(JSON.parse(await readFile(join(evidenceRoot, 'Soundscaper-professional-native-compliance.json'), 'utf8'))
+		.targetBindings.length, 5);
+});
+
 test('suite assembly shares one native license document across both product receipts', async (context) => {
 	const fixture = await releaseFixture(context);
 	const options = {

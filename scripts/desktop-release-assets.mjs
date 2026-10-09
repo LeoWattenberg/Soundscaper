@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash } from 'node:crypto';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -10,6 +9,8 @@ import {
 	isForbiddenDesktopFfmpegPath,
 } from './lib/desktop-codec-policy.mjs';
 import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
+import { stageDesktopReleaseSources } from './lib/desktop-release-sources.mjs';
+import { finalizeDesktopReleaseAssets } from './lib/desktop-release-evidence.mjs';
 import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import { validateDesktopAssistanceRuntimeDistributionSummary } from './lib/desktop-assistance-runtime-distribution-verification.mjs';
@@ -40,8 +41,8 @@ const RELEASE_TARGET_PACKAGE_ROWS = Object.freeze({
 		['Linux ARM64 Debian package', 'linux-arm64\\.deb'],
 	]),
 	'linux-x64': Object.freeze([
-		['Linux x64 AppImage', 'linux-(?:x64|x86_64)\\.AppImage'],
-		['Linux x64 Debian package', 'linux-(?:x64|amd64)\\.deb'],
+		['Linux x64 AppImage', 'linux-x64\\.AppImage'],
+		['Linux x64 Debian package', 'linux-x64\\.deb'],
 	]),
 	'mac-arm64': Object.freeze([
 		['macOS Apple silicon DMG', 'mac-arm64\\.dmg'],
@@ -80,6 +81,8 @@ export async function main(args = process.argv.slice(2)) {
 	// different upstream translation state or a different reviewed key mapping.
 	const canonical = manifests[0].value;
 	for (const manifest of manifests.slice(1)) {
+		assert(manifest.value.sourceRevision === canonical.sourceRevision,
+			`${manifest.name} carries a different application source revision.`);
 		assert(manifest.value.translations?.headSha === canonical.translations?.headSha
 			&& manifest.value.translations?.mappingSha256 === canonical.translations?.mappingSha256,
 			`${manifest.name} carries a different Audacity translation state.`);
@@ -89,15 +92,23 @@ export async function main(args = process.argv.slice(2)) {
 		productIds,
 	);
 	validateDesktopReleaseInputInventory(packageFiles, expectedVersions, productIds);
+	const evidenceRoot = `${assetRoot}-ci`;
+	const sourceInputsRoot = resolve(evidenceRoot, 'sources');
+	await mkdir(sourceInputsRoot, { recursive: true });
+	const sourceInputs = [];
 	// The Audacity corresponding source is no longer downloaded into the release:
 	// the reviewed strings are committed in this repository and the shipped
 	// NOTICE names the exact upstream commit and artifact they came from.
 	await writeFile(resolve(assetRoot, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
 	for (const applicationVersion of new Set(expectedVersions.values())) {
-		await stageDesktopBundledCodecCorrespondingSource({
+		const archive = await stageDesktopBundledCodecCorrespondingSource({
 			repositoryRoot: ROOT,
-			outputRoot: assetRoot,
+			outputRoot: sourceInputsRoot,
 			applicationVersion,
+		});
+		sourceInputs.push({
+			name: archive.fileName, bundlePath: `bundled-codecs/${archive.fileName}`,
+			byteLength: archive.byteLength, sha256: archive.sha256,
 		});
 	}
 	const professionalProducts = stableSoundscaper ? ['soundscaper'] : productIds.filter((productId) =>
@@ -106,26 +117,24 @@ export async function main(args = process.argv.slice(2)) {
 	for (const productId of professionalProducts) {
 		const sourceRoot = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT?.trim() ?? '';
 		assert(sourceRoot !== '', 'Desktop professional-native release assembly requires SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT.');
-		await stageSoundscaperProfessionalNativeReleaseCompliance({
+		const compliance = await stageSoundscaperProfessionalNativeReleaseCompliance({
 			repositoryRoot: ROOT, sourceRoot, outputRoot: assetRoot, productId,
+			sourceOutputRoot: sourceInputsRoot, evidenceRoot,
 			runtimeManifests: manifests.filter(({ value }) => value.productId === productId),
 		});
+		sourceInputs.push(...compliance.sources.map(({ archive }) => archive));
 	}
 	if (professionalProducts.length === 0) {
 		await writeFile(resolve(assetRoot, 'THIRD_PARTY_LICENSES.md'),
 			await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
 	}
 
-	const releaseFiles = regularDesktopReleaseFileNames(await readdir(assetRoot, { withFileTypes: true }))
-		.filter((name) => name !== 'SHA256SUMS')
-		.sort();
-	const checksums = [];
-	for (const name of releaseFiles) {
-		const bytes = await readFile(resolve(assetRoot, name));
-		checksums.push(`${sha256(bytes)}  ${name}`);
-	}
-	await writeFile(resolve(assetRoot, 'SHA256SUMS'), `${checksums.join('\n')}\n`, { flag: 'wx' });
-	console.log(`Prepared ${releaseFiles.length} release assets and SHA256SUMS in ${assetRoot}`);
+	await stageDesktopReleaseSources({
+		repositoryRoot: ROOT, sourceRevision: canonical.sourceRevision,
+		sourceInputsRoot, outputRoot: assetRoot, inputs: sourceInputs,
+	});
+	await finalizeDesktopReleaseAssets({ assetRoot, evidenceRoot, evidenceNames: manifestNames });
+	console.log(`Prepared public release assets and SHA256SUMS in ${assetRoot}; CI evidence in ${evidenceRoot}`);
 }
 
 export function parseDesktopReleaseAssetArguments(args) {
@@ -222,10 +231,22 @@ export function validateDesktopReleasePackageInventory(
 	const runtimeManifests = productIds.flatMap((productId) => RELEASE_TARGETS.map(
 		(target) => `runtime-manifest-${productId}-${target}.json`,
 	));
+	const flatpaks = packageFiles.filter((name) => name.endsWith('.flatpak'));
+	if (flatpaks.length > 0) {
+		for (const productId of productIds) {
+			const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+			const version = desktopReleaseApplicationVersion(productId, applicationVersionAuthority);
+			for (const arch of ['x64', 'arm64']) {
+				assert(flatpaks.includes(`${productName}-${version}-linux-${arch}.flatpak`),
+					`Expected exactly one ${productName} ${arch} Flatpak.`);
+			}
+		}
+		assert(flatpaks.length === productIds.length * 2, 'Unexpected or duplicate Flatpak package.');
+	}
 	const forbiddenInputs = packageFiles.filter(isForbiddenDesktopFfmpegPath);
 	assert(forbiddenInputs.length === 0,
 		`Desktop release input contains forbidden bundled FFmpeg/libav content: ${forbiddenInputs.join(', ')}.`);
-	const allowedInputs = new Set([...releasePackages, ...runtimeManifests]);
+	const allowedInputs = new Set([...releasePackages, ...flatpaks, ...runtimeManifests]);
 	const unexpectedInputs = packageFiles.filter((name) => !allowedInputs.has(name));
 	assert(unexpectedInputs.length === 0,
 		`Unexpected desktop release input: ${unexpectedInputs.join(', ')}.`);
@@ -369,10 +390,6 @@ function parseJson(bytes, label) {
 	} catch (error) {
 		throw new Error(`${label} is invalid JSON: ${error.message}`);
 	}
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
 }
 
 function escapeRegex(value) {

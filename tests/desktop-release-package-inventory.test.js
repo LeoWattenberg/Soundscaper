@@ -27,7 +27,7 @@ import {
 const VERSION = '1.0.0-rc.1';
 const PACKAGES = [
 	`Soundscaper-${VERSION}-linux-x64.AppImage`,
-	`Soundscaper-${VERSION}-linux-amd64.deb`,
+	`Soundscaper-${VERSION}-linux-x64.deb`,
 	`Soundscaper-${VERSION}-linux-arm64.AppImage`,
 	`Soundscaper-${VERSION}-linux-arm64.deb`,
 	`Soundscaper-${VERSION}-mac-arm64.dmg`,
@@ -59,7 +59,9 @@ test('target package inventory is the exact shared naming authority', () => {
 		'Linux x64 Debian package',
 	]);
 	assert.equal(linux[0].pattern.test(`Framescaper-${VERSION}-linux-x64.AppImage`), true);
-	assert.equal(linux[1].pattern.test(`Framescaper-${VERSION}-linux-amd64.deb`), true);
+	assert.equal(linux[1].pattern.test(`Framescaper-${VERSION}-linux-x64.deb`), true);
+	assert.equal(linux[0].pattern.test(`Framescaper-${VERSION}-linux-x86_64.AppImage`), false);
+	assert.equal(linux[1].pattern.test(`Framescaper-${VERSION}-linux-amd64.deb`), false);
 	assert.equal(linux[0].pattern.test(`Soundscaper-${VERSION}-linux-x64.AppImage`), false);
 	const windows = desktopReleaseTargetPackageInventory('soundscaper', 'win-arm64', VERSION);
 	assert.deepEqual(windows.map(({ label }) => label), [
@@ -84,7 +86,7 @@ test('Soundscaper release inventory is exact and version-bound', () => {
 	);
 	assert.throws(
 		() => validateDesktopReleasePackageInventory([...PACKAGES, `Soundscaper-${VERSION}-linux-x86_64.AppImage`], VERSION),
-		/Expected exactly one Linux x64 AppImage/iu,
+		/Unexpected or duplicate desktop package/iu,
 	);
 	for (const name of [`Soundscaper-${VERSION}-win-x64.EXE`, `Soundscaper-${VERSION}-win-x64.msi`]) {
 		assert.throws(() => validateDesktopReleasePackageInventory([...PACKAGES, name], VERSION),
@@ -99,6 +101,15 @@ test('Soundscaper release inventory is exact and version-bound', () => {
 			() => validateDesktopReleasePackageInventory([...PACKAGES, name], VERSION),
 			/forbidden bundled FFmpeg|Unexpected desktop release input/iu,
 		);
+	}
+});
+
+test('release inventories accept exactly both Flatpak architectures per selected product', () => {
+	const flatpaks = ['x64', 'arm64'].map((arch) => `Soundscaper-${VERSION}-linux-${arch}.flatpak`);
+	assert.doesNotThrow(() => validateDesktopReleasePackageInventory([...PACKAGES, ...flatpaks], VERSION));
+	for (const invalid of [flatpaks.slice(0, 1), [...flatpaks, `Framescaper-${VERSION}-linux-x64.flatpak`],
+		flatpaks.map((name) => name.replace('x64', 'x86_64'))]) {
+		assert.throws(() => validateDesktopReleasePackageInventory([...PACKAGES, ...invalid], VERSION), /Flatpak/iu);
 	}
 });
 
@@ -380,7 +391,7 @@ test('the desktop nightly assembles the release inventory rather than leaving it
 	assert.match(job, /pattern: nightly-\$\{\{ needs\.quality\.outputs\.release-product-pattern \}\}-\*/u,
 		'the job must collect every target in the resolved product scope');
 	assert.match(job, /merge-multiple: true/u, 'the targets must land in one release directory');
-	assert.match(job, /needs: \[quality, package\]/u, 'the assembler needs the resolved scope and packages');
+	assert.match(job, /needs: \[quality, package, flatpak\]/u, 'the assembler needs the resolved scope and every package format');
 	assert.match(job,
 		/npm run desktop:release-assets -- \$\{\{ needs\.quality\.outputs\.release-assembler-arguments \}\}/u,
 		'the assembler must receive the resolved product scope');
