@@ -21,6 +21,7 @@ export async function installNativePluginParameterHost(page) {
 		const values = [.25];
 		const writes = [];
 		const requests = [];
+		const stateBodies = new Map();
 		let delay = 0;
 		let persisted = 0;
 		const encoder = new TextEncoder();
@@ -80,6 +81,9 @@ export async function installNativePluginParameterHost(page) {
 						void authenticate(request.requestId, bytes).then((authentication) => reply({
 							kind: 'state', bytes, authentication,
 						}, [bytes.buffer]));
+					} else if (request.kind === 'load-state') {
+						values.splice(0, values.length, ...JSON.parse(new TextDecoder().decode(request.bytes)));
+						reply({ kind: 'state-loaded' });
 					} else if (request.kind === 'capabilities') reply({ kind: 'capabilities', parameterCount: 1, hasVendorUi: false });
 					else if (request.kind === 'parameters') reply({ kind: 'parameters', parameters: [{
 						index: 0, id: 'gain', name: 'Gain', label: '', minimumValue: 0, maximumValue: 1,
@@ -111,6 +115,7 @@ export async function installNativePluginParameterHost(page) {
 				const expected = await authenticate(authentication.requestId, bytes);
 				if (JSON.stringify(authentication) !== JSON.stringify(expected)) throw new Error('Unauthenticated plug-in state.');
 				persisted += 1;
+				stateBodies.set(expected.sha256, new Uint8Array(bytes));
 				return { outcome: { status: 'persisted' }, projectState: {
 					instanceId, format: 'ladspa', stablePluginId: 'org.test.gain', binarySha256: await binaryHash,
 					stateBody: { kind: 'native-plugin-state', bodyId: `native-plugin-state:${expected.sha256}`,
@@ -118,7 +123,13 @@ export async function installNativePluginParameterHost(page) {
 					enabled: true, bypassed: false, continuity: 'live', latencySamples: 0,
 				} };
 			},
-			restoreNativePluginState: refused, openNativePluginVendorUi: refused,
+			restoreNativePluginState: async ({ instanceId, stateBody }) => {
+				const bytes = stateBodies.get(stateBody.sha256);
+				if (!bytes || bytes.byteLength !== stateBody.byteLength || await digest(bytes) !== stateBody.sha256) throw new Error('The requested saved state is absent.');
+				return { bytes: new Uint8Array(bytes), projectState: { instanceId, format: 'ladspa',
+					stablePluginId: 'org.test.gain', binarySha256: await binaryHash, stateBody,
+					enabled: true, bypassed: false, continuity: 'live', latencySamples: 0 } };
+			}, openNativePluginVendorUi: refused,
 			closeNativePluginVendorUi: refused, closeNativePluginInstance: async () => true,
 		};
 		Object.defineProperty(globalThis, 'soundscaperDesktop', { configurable: true, value: Object.freeze({ v1: bridge }) });

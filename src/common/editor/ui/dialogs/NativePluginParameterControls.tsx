@@ -29,6 +29,7 @@ export interface NativePluginParameterControlsCopy {
 
 export interface NativePluginParameterControlsProps {
 	readonly instanceId: string;
+	readonly stateGeneration?: number;
 	readonly disabled?: boolean;
 	readonly runtime?: NativePluginParameterRuntime;
 	readonly copy?: Partial<NativePluginParameterControlsCopy>;
@@ -64,6 +65,7 @@ const DEFAULT_RUNTIME: NativePluginParameterRuntime = Object.freeze({
 /** Host-generated controls for native formats, including LADSPA plug-ins without vendor UI. */
 export default function NativePluginParameterControls({
 	instanceId,
+	stateGeneration = 0,
 	disabled = false,
 	runtime = DEFAULT_RUNTIME,
 	copy: copyValue,
@@ -90,7 +92,7 @@ export default function NativePluginParameterControls({
 			(error: unknown) => { if (generation.current === current) setSnapshot(failedSnapshot(error)); },
 		);
 		return () => { if (generation.current === current) generation.current += 1; };
-	}, [instanceId, runtime]);
+	}, [instanceId, runtime, stateGeneration]);
 	useEffect(() => {
 		if (!disabled || !writeSession.current) return;
 		const session = writeSession.current;
