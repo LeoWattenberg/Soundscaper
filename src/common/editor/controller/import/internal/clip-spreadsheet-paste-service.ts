@@ -9,6 +9,7 @@ import {
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { peakCacheKey } from '../../../source-analysis-cache.ts';
 import { isAudioEditorVideoFile } from '../../../video-media.js';
+import { resolveMediaImportVideoRoute } from './media-import-video-route.ts';
 import {
 	EDITOR_PROJECT_TASK_SCOPE, isCurrentAssertion,
 	type EditorControllerLifetime, type EditorProjectToken,
@@ -74,7 +75,10 @@ export function createClipSpreadsheetPasteService(dependencies: ClipSpreadsheetP
 			const source = (reference ? sourcesById.get(reference) : undefined) ?? sourcesByName.get(reference);
 			if (source && dependencies.missingSourceIds.has(source.id)) throw new RangeError(`Relink the missing source before pasting clips: ${reference ?? source.id}`);
 		}
-		const fileByReference = validatedFiles(files);
+		const fileByReference = await validatedFiles(files);
+		dependencies.lifetime.assertActive();
+		if (dependencies.getProject() !== project) throw new Error('The project changed before spreadsheet file admission finished.');
+		if (dependencies.editingBlocked()) throw new RangeError('Clip editing is currently unavailable.');
 		for (const reference of missing) {
 			if (!fileByReference.has(reference)) throw new RangeError(`Select the source file: ${reference}`);
 		}
@@ -158,14 +162,17 @@ export function createClipSpreadsheetPasteService(dependencies: ClipSpreadsheetP
 	};
 }
 
-function validatedFiles(files: readonly ClipSpreadsheetImportFile[]): Map<string, File> {
+async function validatedFiles(files: readonly ClipSpreadsheetImportFile[]): Promise<Map<string, File>> {
 	const result = new Map<string, File>();
 	for (const { reference, file } of files) {
 		const key = reference.trim();
 		if (!key || result.has(key)) throw new RangeError('Every selected spreadsheet file needs one unique source reference.');
 		if (!file || typeof file.name !== 'string' || typeof file.arrayBuffer !== 'function'
-			|| isAudioEditorVideoFile(file) || file.type.startsWith('image/')
+			|| file.type.startsWith('image/')
 			|| isProjectFileName(file.name) || /\.(?:aup[34]?|sesx|dawproject|rpp|otio|fcpxml|xml|zip)$/iu.test(file.name)) {
+			throw new TypeError(`Select an audio file for ${reference}.`);
+		}
+		if (await resolveMediaImportVideoRoute(file, isAudioEditorVideoFile(file))) {
 			throw new TypeError(`Select an audio file for ${reference}.`);
 		}
 		result.set(key, file);

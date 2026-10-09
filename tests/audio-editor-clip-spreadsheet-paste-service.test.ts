@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
@@ -110,6 +111,19 @@ test('source edits import replacement files and join other pasted edits in one u
 	assert.deepEqual(f.history.present.sources.map((source: { id: string }) => source.id), ['existing', 'imported-1']);
 	assert.deepEqual(getClipSpreadsheetRows(undoEditorCommand(f.history).present), getClipSpreadsheetRows(f.initial));
 	assert.equal(redoEditorCommand(undoEditorCommand(f.history)).present.clips[0].sourceId, 'imported-1');
+});
+
+test('ordinary audio-only WebM passes spreadsheet file admission and retains one undo entry', async () => {
+	const bytes = Uint8Array.from(Buffer.from(readFileSync(new URL('./fixtures/chromium-audio-only.webm.base64', import.meta.url), 'utf8'), 'base64'));
+	for (const type of ['audio/webm', 'video/webm']) {
+		const f = fixture();
+		const file = new File([bytes], 'Voice memo.webm', { type });
+		await f.paste('sheet', [{ clipId: 'original', column: 'source', value: file.name }], [], [{ reference: file.name, file }]);
+		assert.deepEqual(f.imports, [file.name]);
+		assert.equal(f.history.present.clips[0].sourceId, 'imported-1');
+		assert.equal(f.history.undoStack.length, 1);
+		assert.deepEqual(getClipSpreadsheetRows(undoEditorCommand(f.history).present), getClipSpreadsheetRows(f.initial));
+	}
 });
 
 test('replacement edits and inserted rows sharing a disk reference import and add their source once', async () => {

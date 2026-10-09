@@ -329,7 +329,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => {
 			if (spreadsheetOwnsKeyboard(event, draft !== null) && (!['Escape', 'Tab'].includes(event.key) || draft)) event.stopPropagation();
 		}}>
-			<input ref={filesRef} type="file" multiple hidden accept="audio/*,.aac,.aif,.aiff,.bw64,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.wv"
+			<input ref={filesRef} type="file" multiple hidden accept="audio/*,.aac,.aif,.aiff,.bw64,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv"
 				onChange={event => {
 					const files = Array.from(event.currentTarget.files ?? []);
 					event.currentTarget.value = '';
