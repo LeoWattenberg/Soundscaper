@@ -438,3 +438,15 @@ remain excluded. Recording-target admission, native plug-in idle topology and
 hardware-input meter publication remain source-ready pending the next built
 public verification. The full100 all-engine browser checkpoint continues;
 the required150 canonical checkpoint will use a later immutable checkout.
+
+The immutable `f44d878b0` passes both guarded product builds and all four
+focused public Chromium checks in26.8 seconds
+(`/tmp/soundscaper-round6-green26-chromium.log`). Ordinary authenticated native
+plug-in idle startup, actual silent-right microphone monitoring, and focused/
+multi-track locked-recording refusal with explicit new-track/Undo/Redo controls
+all pass. Effects033, dialog049 and editing043 therefore qualify:
+**149 distinct verified fixes** comprise editing43, effects33, I/O25 and dialogs48.
+The independent ordinary-meter clipping warning and native long-name atomic Save
+remain pending public verification on the next immutable checkout. The required
+150 canonical run will cover those desktop helper and shared type changes; its
+all-engine browser run is queued after the actual full100 browser completion.
