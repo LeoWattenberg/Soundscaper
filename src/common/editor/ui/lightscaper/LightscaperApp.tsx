@@ -7,6 +7,9 @@ import { productHref } from '../../../product-web-links.js';
 import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
 import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-port-v1.ts';
 import type { LoadPhotoLibraryRestoreRuntimeV1 } from '../../photo-library-restore-port-v1.ts';
+import type { LoadPhotoLibraryDevelopProxyRuntimeV1 } from '../../photo-library-develop-proxy-port-v1.ts';
+import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
+import { usePhotoDevelopEntry } from './use-photo-develop-entry.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { lightscaperRestoreCopy } from '../../../i18n/lightscaper-restore-copy.ts';
 import { usePhotoLibraryRestore } from './use-photo-library-restore.ts';
@@ -32,6 +35,7 @@ export interface LightscaperAppProps {
 	readonly loadMetadataQueryRuntime?: LoadPhotoMetadataQueryRuntimeV2;
 	readonly loadSavedFilterRuntime?: LoadPhotoSavedFilterRuntimeV1;
 	readonly loadRestoreRuntime?: LoadPhotoLibraryRestoreRuntimeV1;
+	readonly loadDevelopProxyRuntime?: LoadPhotoLibraryDevelopProxyRuntimeV1;
 }
 
 const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
@@ -49,11 +53,13 @@ const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
 const PhotoStackDialog = lazy(() => import('./PhotoStackDialog.tsx'));
 const PhotoSavedFiltersSurface = lazy(() => import('./PhotoSavedFiltersSurface.tsx'));
+const PhotoDevelopWorkspace = lazy(() => import('./PhotoDevelopWorkspace.tsx'));
 
 const unavailableQueryRuntime: LoadPhotoMetadataQueryRuntimeV2 = async () => { throw new Error('Photo query controls are unavailable.'); };
 const unavailableSavedFilterRuntime: LoadPhotoSavedFilterRuntimeV1 = async () => { throw new Error('Saved photo filters are unavailable.'); };
+const unavailableDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV1 = async () => { throw new Error('Photo develop proxy is unavailable.'); };
 export default function LightscaperApp({ locale, createSession: suppliedCreateSession, loadBackupSaveRuntime, loadMetadataQueryRuntime = unavailableQueryRuntime,
-	loadSavedFilterRuntime = unavailableSavedFilterRuntime, loadRestoreRuntime }: LightscaperAppProps) {
+	loadSavedFilterRuntime = unavailableSavedFilterRuntime, loadRestoreRuntime, loadDevelopProxyRuntime = unavailableDevelopProxyRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
 	const restoreCopy = lightscaperRestoreCopy(locale), [sessionEpoch, setSessionEpoch] = useState(0);
 	const createSession = useMemo(() => suppliedCreateSession ? () => { void sessionEpoch; return suppliedCreateSession(); } : undefined, [suppliedCreateSession, sessionEpoch]);
@@ -86,6 +92,10 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 			if (previewRetirement.current === retire) previewRetirement.current = null;
 		};
 	}, []);
+	const borrowedReadPreview = library.readPreview;
+	const readPreviewAfterDrain = useCallback(async (...args: Parameters<typeof borrowedReadPreview>) => {
+		await previewDrain.current; return borrowedReadPreview(...args);
+	}, [borrowedReadPreview]);
 	const restore = usePhotoLibraryRestore({ loadRuntime: loadRestoreRuntime, retireAndJoin: () => {
 		const presentation = joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]);
 		void presentation.catch(() => undefined);
@@ -93,6 +103,8 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 		setLibraryVisible(false); setPreviewActivated(false); return retiring;
 	}, onSettled: () => { setSessionEpoch(epoch => epoch + 1); } });
 	const savedGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime, loadSavedFilterRuntime }), [createSession, loadBackupSaveRuntime, loadSavedFilterRuntime]);
+	const developGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime, loadDevelopProxyRuntime }), [createSession, loadBackupSaveRuntime, loadDevelopProxyRuntime]);
+	const developSurface = usePhotoDevelopEntry(developGeneration), developEntry = developSurface.entry, developVisible = developEntry !== null;
 	const savedFilters = usePhotoSavedFilters({ generation: savedGeneration, execute: library.executeSavedFilters });
 	const [savedEntry, setSavedEntry] = useState<Readonly<{ generation: typeof savedGeneration; mode: 'create' | 'manage' }> | null>(null);
 	const savedVisible = savedEntry?.generation === savedGeneration;
@@ -200,7 +212,7 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 		const active = reviewMenu.current;
 		if (active.generation !== compareGeneration || active.queryIdentity !== library.queryIdentity || !active.libraryVisible
 			|| active.busy || active.pendingPhotoId !== null || active.selectedIds.length < 2
-			|| active.compare.visible || active.survey.visible || stackMenu.current.stacks.visible || stackMenu.current.stacks.busy || reviewAdmission.current !== null || savedAdmission.current !== null || queryAdmission.current) return;
+			|| active.compare.visible || active.survey.visible || stackMenu.current.stacks.visible || stackMenu.current.stacks.busy || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current) return;
 		reviewAdmission.current = compareGeneration;
 		closeMenu(event); setPreviewActivated(true);
 		try { active[kind].open(Object.freeze([...active.selectedIds])); }
@@ -210,14 +222,14 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 		const current = stackMenu.current;
 		if (current.generation !== compareGeneration || current.query !== library.queryIdentity || current.page !== library.page
 			|| !current.libraryVisible || current.busy || current.reviewing || current.pending !== null || current.stacks.busy
-			|| current.stacks.visible || reviewAdmission.current !== null || savedAdmission.current !== null) return;
+			|| current.stacks.visible || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted()) return;
 		closeMenu(event); void library.setStackCollapsed(!library.stackCollapsed);
 	};
 	const openStack = (kind: 'create' | 'edit', event: MouseEvent<HTMLButtonElement>) => {
 		const current = stackMenu.current;
 		if (current.generation !== compareGeneration || current.query !== library.queryIdentity || current.page !== library.page
 			|| !current.libraryVisible || current.busy || current.reviewing || current.pending !== null || current.stacks.busy
-			|| current.stacks.visible || reviewAdmission.current !== null || savedAdmission.current !== null || queryAdmission.current || (kind === 'create' ? current.selectedIds.length < 2 : current.primaryId === null)) return;
+			|| current.stacks.visible || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || (kind === 'create' ? current.selectedIds.length < 2 : current.primaryId === null)) return;
 		reviewAdmission.current = compareGeneration; closeMenu(event);
 		if (kind === 'create') void current.stacks.openCreate(Object.freeze([...current.selectedIds]));
 		else if (current.primaryId) void current.stacks.openEdit(current.primaryId);
@@ -225,13 +237,23 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 	const openSavedFilters = (mode: 'create' | 'manage', event: MouseEvent<HTMLButtonElement>) => {
 		const current = stackMenu.current;
 		if (savedLatest.current !== savedGeneration || !createSession || current.busy || current.pending !== null
-			|| current.reviewing || current.stacks.visible || current.stacks.busy || reviewAdmission.current !== null || savedAdmission.current !== null || queryAdmission.current) return;
+			|| current.reviewing || current.stacks.visible || current.stacks.busy || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current) return;
 		savedAdmission.current = savedGeneration; closeMenu(event); setSavedEntry({ generation: savedGeneration, mode });
 	};
 	const closeSavedFilters = () => {
 		if (savedLatest.current !== savedGeneration) return;
 		if (savedFilters.busy) library.cancel();
 		savedAdmission.current = null; setSavedEntry(null);
+	};
+	const openDevelop = (event: MouseEvent<HTMLButtonElement>) => {
+		const current = stackMenu.current;
+		if (!developSurface.isCurrent() || !selection || current.primaryId !== selection.id || factory.current !== createSession || !current.libraryVisible || current.busy
+			|| current.pending !== null || current.reviewing || current.stacks.visible || current.stacks.busy || restore.busy
+			|| reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current) return;
+		closeMenu(event); developSurface.begin(selection.id, selection.fileName, () => {
+			const beforePresent = joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]);
+			previewDrain.current = beforePresent; void beforePresent.catch(() => undefined); return beforePresent;
+		});
 	};
 	const closeImport = () => { setImportVisible(false); };
 	const closeBatchRename = () => {
@@ -319,6 +341,8 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
+								<button type="button" data-photo-develop-menu disabled={restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing}
+									onClick={openDevelop}>{photoDevelopMenuLabel(locale)}</button>
 								<button type="button" disabled={restore.busy || !libraryVisible || !library.page?.rows.length} onClick={event => {
 									closeMenu(event); photoSelection.selectAll();
 								}}>{copy.photoSelectAll}</button>
@@ -375,7 +399,7 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 							{libraryVisible ? copy.photoHideLibrary : copy.photoShowLibrary}
 						</button>
 						<button type="button" disabled={restore.busy || library.busy || savedVisible || queryVisible || reviewing || stacks.visible || stacks.busy} onClick={event => {
-							if (savedAdmission.current !== null || queryAdmission.current || reviewAdmission.current !== null
+							if (savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || reviewAdmission.current !== null
 								|| stackMenu.current.reviewing || stackMenu.current.stacks.visible || stackMenu.current.stacks.busy) return;
 							queryAdmission.current = true; closeMenu(event); setQueryVisible(true); void library.probeQuery();
 						}}>{copy.photoQueryTitle}</button>
@@ -406,13 +430,21 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 
 			</nav>
 		</header>
-		{!restore.busy && (previewActivated
-			? <Suspense fallback={libraryVisible ? renderLibrary() : null}><PhotoPreviewPresentation readPreview={library.readPreview}
+		{!restore.busy && (previewActivated && !developVisible
+			? <Suspense fallback={libraryVisible ? renderLibrary() : null}><PhotoPreviewPresentation readPreview={readPreviewAfterDrain}
 				photoIds={libraryVisible ? library.page?.rows.map(row => row.id) ?? [] : []} thumbnailsVisible={libraryVisible && thumbnailsVisible && !reviewing}
 				fitScreenPhotoId={libraryVisible && loupeVisible && !reviewing ? selection?.id ?? null : null}
 				comparePhotoIds={comparePair} surveyPhotoIds={survey.visible ? survey.snapshot.photoIds : null}
 				surveyFocusedPhotoId={survey.snapshot.focusedPhotoId} registerRetirement={registerPreviewRetirement}>{renderScene}</PhotoPreviewPresentation></Suspense>
 			: renderScene())}
+		{!restore.busy && developVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoDevelopWorkspace locale={locale} photoId={developEntry.photoId} label={developEntry.label} generation={developGeneration}
+					execute={library.executeDevelop} readPreview={library.readPreview} loadProxy={loadDevelopProxyRuntime}
+					beforePresent={developEntry.beforePresent} beforeOpen={developEntry.beforeOpen} registerDemandRetirement={developSurface.register}
+					registerRetirement={registerPreviewRetirement} onClose={() => {
+						developSurface.close(joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]));
+					}} />
+		</Suspense>}
 		{restoreVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogRestoreDialog locale={locale} copy={restoreCopy} ready={restore.ready} busy={restore.busy} cancelling={restore.cancelling}
 				cancelled={restore.cancelled} receipt={restore.receipt} error={restore.error} onRestore={restore.restore}

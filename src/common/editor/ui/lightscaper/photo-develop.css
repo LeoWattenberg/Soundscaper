@@ -1,0 +1,15 @@
+.lightscaper-develop-dialog { width: min(96vw, 1200px); max-height: 92vh; overflow: auto; }
+.lightscaper-develop-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 1rem; }
+.lightscaper-develop-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.lightscaper-develop-images figure { margin: .5rem 0; min-width: 0; }
+.lightscaper-develop-images canvas { display: block; max-width: 100%; height: auto; background: var(--panel); }
+.lightscaper-develop-histogram svg { width: 100%; height: 100px; background: var(--panel); }
+.lightscaper-develop-histogram dl { display: grid; grid-template-columns: 1fr auto; margin: .5rem 0; font-size: .85rem; }
+.lightscaper-develop-histogram dd { margin: 0; }
+.lightscaper-develop-layout label { display: grid; gap: .25rem; margin: .5rem 0; }
+.lightscaper-develop-layout ol, .lightscaper-develop-history ul { padding-left: 1.25rem; }
+.lightscaper-develop-layout fieldset { margin: .5rem 0; min-width: 0; }
+.lightscaper-develop-history { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.lightscaper-develop-history label { display: grid; gap: .25rem; }
+.lightscaper-develop-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+@media (max-width: 800px) { .lightscaper-develop-layout, .lightscaper-develop-history { grid-template-columns: 1fr; } }

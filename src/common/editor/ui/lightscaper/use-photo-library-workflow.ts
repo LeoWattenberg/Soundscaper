@@ -11,6 +11,7 @@ import { DEFAULT_PHOTO_LIBRARY_QUERY_V2 as DEFAULT_QUERY, isMetadataQuery, readN
 import { usePhotoOriginalRecovery, type ExecutePhotoOriginalRecoveryV1 } from './use-photo-original-recovery.ts';
 import type { ExecutePhotoStackV1 } from './use-photo-stacks.ts';
 import type { ExecutePhotoSavedFiltersV1 } from './use-photo-saved-filters.ts';
+import type { ExecutePhotoDevelopV1 } from '../../controller/shared/photo-library-develop-workflow-v1.ts';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
@@ -165,6 +166,17 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 				setQueryIdentity(id === null ? null : Object.freeze({ collectionId: id })); setNeedsQueryIndex(false);
 				return publishPage(current, next);
 			} });
+	} }, externalSignal), [perform, publishPage]);
+	const executeDevelop = useCallback<ExecutePhotoDevelopV1>((action, externalSignal) => perform({ start: async (signal, current) => {
+		await action({ signal, acquire: async () => {
+			const owner = await acquire(current); signal.throwIfAborted(); const port = owner.develop;
+			if (!port || typeof port.read !== 'function' || typeof port.apply !== 'function') throw new Error('Photo develop is unavailable.');
+			return Object.freeze({ read: port.read.bind(port), apply: port.apply.bind(port) });
+		}, isCurrent: () => current.live && slot.current === current && current.factory === factory.current && current.backupLoader === loader.current,
+		refresh: async () => {
+			const owner = await acquire(current); signal.throwIfAborted();
+			const next = await readVisiblePage(owner, current, null, signal); signal.throwIfAborted(); return publishPage(current, next);
+		} });
 	} }, externalSignal), [perform, publishPage]);
 	const originalWorkflow = usePhotoOriginalRecovery({ generation: recoveryGeneration, controller: originalRecovery, execute: executeOriginalRecovery });
 	const run = useCallback(async (action: SessionAction): Promise<void> => { await perform(action); }, [perform]);
@@ -464,7 +476,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		updateRow(next.row, current);
 		await refreshQuery(owner, signal, current);
 	});
-	return { ...originalWorkflow, retireAndJoin, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+	return { ...originalWorkflow, retireAndJoin, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,

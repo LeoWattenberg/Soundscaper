@@ -3,6 +3,7 @@
 import LightscaperApp, { type LightscaperAppProps } from '../../common/editor/ui/lightscaper/LightscaperApp.tsx';
 import { useCallback } from 'react';
 import { bundledSiteCopyForLocale } from '../../common/i18n/site-copy.js';
+import type { LoadPhotoLibraryDevelopProxyRuntimeV1, PhotoLibraryDevelopProxyRuntimeV1 } from '../../common/editor/photo-library-develop-proxy-port-v1.ts';
 
 // This product composition deliberately has no audio/timeline controller.
 export default function LightscaperBootstrap(props: LightscaperAppProps) {
@@ -24,9 +25,16 @@ export default function LightscaperBootstrap(props: LightscaperAppProps) {
 	}, []);
 	const loadMetadataQueryRuntime = useCallback(async () => (await import('../photo-metadata-query-ui-runtime.ts')).PHOTO_METADATA_QUERY_RUNTIME_V2, []);
 	const loadSavedFilterRuntime = useCallback(async () => (await import('../photo-saved-filter-ui-runtime-v1.ts')).PHOTO_SAVED_FILTER_RUNTIME_V1, []);
+	const loadDevelopProxyRuntime = useCallback<LoadPhotoLibraryDevelopProxyRuntimeV1>(async () => {
+		const proxy = await import('../controller/photo-develop-proxy-v1.ts'), frames = await import('../../common/editor/imaging/pixel-frame-contract-v1.ts');
+		const runtime: PhotoLibraryDevelopProxyRuntimeV1 = { withProxy: (request, consume) => proxy.withPhotoDevelopProxyV1(request,
+			view => consume({ frame: frames.readPixelFrameV1(view.frame, proxy.PHOTO_DEVELOP_PROXY_LIMITS_V1.render), histogram: view.histogram })) };
+		return Object.freeze(runtime);
+	}, []);
 	return <LightscaperApp {...props} createSession={props.createSession ?? createSession}
 		loadBackupSaveRuntime={props.loadBackupSaveRuntime ?? loadBackupSaveRuntime}
 		loadMetadataQueryRuntime={props.loadMetadataQueryRuntime ?? loadMetadataQueryRuntime}
 		loadSavedFilterRuntime={props.loadSavedFilterRuntime ?? loadSavedFilterRuntime}
-		loadRestoreRuntime={props.loadRestoreRuntime ?? loadRestoreRuntime} />;
+		loadRestoreRuntime={props.loadRestoreRuntime ?? loadRestoreRuntime}
+		loadDevelopProxyRuntime={props.loadDevelopProxyRuntime ?? loadDevelopProxyRuntime} />;
 }

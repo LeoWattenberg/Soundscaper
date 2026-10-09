@@ -292,6 +292,10 @@
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-culling-v1.ts", "kind": "helper-contract", "justification": "Version1 durable culling receipts fence one pending scalar edit observer and identity-based auto advance."}
 		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop presentation joins one authenticated source, shared proxy and canvas consumer through replacement and retirement, retaining only scalar histograms." }
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop coordination borrows the existing Session, detaches complete recipes before acquisition and fences explicit photo versions and durable revision acknowledgements." }
+		,
 		{"path": "src/common/editor/controller/shared/photo-library-import-gesture-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored import snapshots and source-name-bound scalar acknowledgement collection retain at most 64 selected receipts without File or original bodies."}
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-original-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in original inspection and restoration borrow one catalog session, retain bounded scalar pages and durable receipts, and join cancellation without retaining selected bodies after settlement." }
@@ -443,6 +447,8 @@
 		{ "path": "src/common/editor/photo-library-develop-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop presentation carries current shared-effect settings, scalar version/history/snapshot summaries and explicit revision-fenced commands without catalog documents or original custody." }
 		,
 		{ "path": "src/common/editor/photo-library-develop-presets-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional preset capability exposes scalar catalog-bound menus, explicit revision-fenced selected bodies and acknowledged settings-row writes through the existing Session lifetime." }
+		,
+		{ "path": "src/common/editor/photo-library-develop-proxy-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop proxy lends an admitted frame and complete shared recipe to a scoped renderer, exposing borrowed output pixels and scalar histograms without original custody." }
 		,
 		{ "path": "src/common/editor/photo-library-develop-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selections and inert packets support partial copy, relative adjustments and bounded explicit-version batches whose complete scalar receipts preserve each durable photo acknowledgment." }
 		,
