@@ -144,6 +144,18 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 		if (type === 'video' && spineTrackId === null) spineTrackId = String(track.id);
 		else if (type === 'video') lane = (videoLane += 1);
 		else lane = -(audioLane += 1);
+		const lanes: { lane: number; endFrames: number }[] = [];
+		const laneFor = (startFrames: number, endFrames: number): number => {
+			// Each FCP lane is serial even when its authored track permits overlap.
+			// Reserve additional connected lanes globally so later tracks cannot
+			// collide with them; clips that merely touch can reuse the first lane.
+			const available = lanes.find(candidate => candidate.endFrames <= startFrames);
+			if (available) { available.endFrames = endFrames; return available.lane; }
+			const allocated = lanes.length === 0 ? lane
+				: type === 'video' ? (videoLane += 1) : -(audioLane += 1);
+			lanes.push({ lane: allocated, endFrames });
+			return allocated;
+		};
 
 		// clipIds carries authoring order, not time order, and a spine is serial.
 		// The other two exporters sort; this one must too, or a track authored
@@ -157,7 +169,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 			));
 		for (const clip of ordered) {
 			const emitted = buildClip(clip, {
-				rate, sampleRate, type, assetIdFor, sourceById, draft, lane,
+				rate, sampleRate, type, assetIdFor, sourceById, draft, laneFor,
 			});
 			if (!emitted) continue;
 			spine.push(emitted.xml);
@@ -240,7 +252,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	assetIdFor: (sourceId: string) => string | null;
 	sourceById: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 	draft: Draft;
-	lane: number;
+	laneFor: (startFrames: number, endFrames: number) => number;
 }): { xml: string; endFrames: number } | null {
 	const timelineStart = nonNegativeInteger(clip.timelineStartFrame ?? 0, 'clip.timelineStartFrame');
 	const duration = positiveInteger(clip.durationFrames, 'clip.durationFrames');
@@ -293,11 +305,12 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	// `asset-clip` declares audioRole and videoRole; a bare `role` attribute is
 	// not in the DTD at all. One default per track kind; no vocabulary invented.
 	const role = context.type === 'video' ? 'videoRole="video"' : 'audioRole="dialogue"';
+	const lane = context.laneFor(offsetFrames, endFrames);
 	const xml = `\t\t\t\t\t\t<asset-clip ref="${ref}" name="${escapeXml(String(clip.title ?? clip.id ?? ''))}"`
 		// Picture and audio are authored as independent timeline leaves. FCPXML
 		// defaults to every source component, which would restore embedded audio.
 		+ ` srcEnable="${context.type}"`
-		+ (context.lane === 0 ? '' : ` lane="${context.lane}"`)
+		+ (lane === 0 ? '' : ` lane="${lane}"`)
 		+ ` offset="${frameTime(offsetFrames, context.rate)}"`
 		+ ` start="${frameTime(startFrames, context.rate)}"`
 		+ ` duration="${frameTime(endFrames - offsetFrames, context.rate)}"`
