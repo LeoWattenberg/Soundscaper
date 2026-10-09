@@ -908,3 +908,20 @@ browser result remains pending. New deadline observations from the older
 WebKit checkpoint are retained for unchanged complete retries after the Node
 runner and coverage reporter are idle; they are not counted as new roots or
 claimed to pass before those retries complete. The verified count remains 200.
+
+After the canonical runner and coverage reporter exit, all eight retained
+WebKit deadline observations complete unchanged on the original Green27 build:
+**8/8 passed, actual exit 0 in 1.1 minutes**
+(`/tmp/soundscaper-r6-full150-webkit-quiet-indexed.log`). Shape drag/save/reload
+passes in 5.7 seconds; paired end-fade presets with history and reload in 7.7;
+neutral linked pitch admission in 7.5; active clip tabs in 7.0; panel
+dock/resize/restore in 8.0; the complete Clock play/seek/close workflow in 5.6;
+paired crossfade presets with Undo/Redo in 9.4; and crossfade persistence,
+keyboard access and focus restoration in 10.7. The Clock retains its original
+five-second advancement predicate; all other original assertion budgets and
+the eight 30-second workflow deadlines are unchanged. The earlier concurrent
+two-case retry retains its complete shape-drag pass at 26.0 seconds and preset
+reload timeout at 31.1 seconds. Every previous full and isolated failure is
+preserved; none is relabeled a passing run. These complete unchanged controls
+resolve the observations as load-related deadlines, without source or fixture
+changes and without increasing the verified count of 200.
