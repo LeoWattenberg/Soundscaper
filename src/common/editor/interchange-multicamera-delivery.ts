@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { addDeliveryReportItem, createDeliveryReport, sealDeliveryReport, type DeliveryReport } from '../../../delivery-report.ts';
-import { createInterchangeVisibility } from '../../../interchange-track-visibility.ts';
-import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
+import { addDeliveryReportItem, createDeliveryReport, sealDeliveryReport, type DeliveryReport } from './delivery-report.ts';
+import { createInterchangeVisibility } from './interchange-track-visibility.ts';
+import type { RuntimeClipProject } from './runtime-clip-projection.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 export type InterchangeProductProjection = (project: RuntimeClipProject) => DataRecord;

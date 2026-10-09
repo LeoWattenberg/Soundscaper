@@ -14,7 +14,7 @@ import { createCurrentAudioEditorProject } from '../../../../project-current.ts'
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../../../../pcm-chunks.js';
 import { admitAudioImportChannelCount } from '../audio-import-channel-admission.ts';
 import { resolveDeliveredProject } from '../../../export/interchange-export-action.ts';
-import { reportInterchangeMulticameraConversion } from '../../../export/internal/interchange-multicamera-delivery.ts';
+import { reportInterchangeMulticameraConversion } from '../../../../interchange-multicamera-delivery.ts';
 import { DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, dawprojectWavByteLength, dawprojectWavStream } from './dawproject-export-audio.ts';
 import { assertDawprojectCompressedWorkingBudget, stageDawprojectCompressedSource } from './dawproject-import-compressed.ts';
 import { inspectWavBlobPcm } from '../../../../wav-import.js';

@@ -13,7 +13,7 @@ import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-
 import { createExportActionGroup } from '../src/common/editor/controller/export/export-action-group.ts';
 import { projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import type { InterchangeProductProjection } from '../src/common/editor/controller/export/internal/interchange-multicamera-delivery.ts';
+import type { InterchangeProductProjection } from '../src/common/editor/interchange-multicamera-delivery.ts';
 import type { NativeProjectServiceRuntime } from '../src/common/editor/controller/document/native-project-types.ts';
 
 for (const mode of ['ordinary', 'initial', 'switched'] as const) {
