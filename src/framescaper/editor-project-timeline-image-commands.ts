@@ -19,6 +19,7 @@ import {
 	type FramescaperImageCommandTimelineImage,
 } from './editor-project-timeline-image-image-command.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
+import { conformRestoredSequenceVisualClips } from './editor-sequence-visual-rate-conformance.ts';
 import { prepareTimelineImageMoveCommand } from './editor-timeline-image-move-command.ts';
 import { prepareTimelineVisualMoveCommand } from './editor-timeline-visual-move-command.ts';
 import { prepareTimelineImageRemoveCommand } from './editor-timeline-image-remove-command.ts';
@@ -164,7 +165,9 @@ function applyInherited(
 	) as unknown as Record<string, unknown>;
 	return restoreImages(
 		applied,
-		images,
+		{ ...images,
+			timelineClips: conformRestoredSequenceVisualClips(record(project, 'project'), applied, images.timelineClips),
+			binClips: conformRestoredSequenceVisualClips(record(project, 'project'), applied, images.binClips) },
 		selection.selectedClipIds ?? images.selectedClipIds,
 	);
 }
