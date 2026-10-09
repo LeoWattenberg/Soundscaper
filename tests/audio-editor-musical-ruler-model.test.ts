@@ -98,7 +98,9 @@ test('zoomed-out wide meters skip invisible denominator pulses before enumeratio
 		pixelsPerFrame: 2e-12,
 	});
 	const elapsed = performance.now() - startedAt;
-	assert.equal(ticks.length, 4_096);
+	// The whole authored range is narrower than one pixel at this zoom.
+	assert.equal(ticks.length, 1);
+	assert.equal(ticks[0]?.frame, 0);
 	assert.ok(elapsed < 750, `wide-meter ruler generation took ${String(Math.round(elapsed))} ms`);
 });
 
@@ -137,6 +139,7 @@ test('large tempo and signature maps render together without cross-product scans
 		pixelsPerFrame: 1 / 48_000,
 	});
 	const elapsed = performance.now() - startedAt;
-	assert.ok(ticks.length > eventCount);
+	assert.ok(ticks.length > 1);
+	assert.ok(ticks.every((tick, index) => index === 0 || (tick.frame - ticks[index - 1]!.frame) / 48_000 >= 4));
 	assert.ok(elapsed < 750, `combined musical ruler generation took ${String(Math.round(elapsed))} ms`);
 });

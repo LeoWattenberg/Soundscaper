@@ -20,6 +20,7 @@ import {
 const MAXIMUM_TICKS = 8_192;
 const MAXIMUM_MAJOR_TICKS = 4_096;
 const MINIMUM_MINOR_TICK_PIXELS = 4;
+const MINIMUM_MAJOR_LABEL_PIXELS = 60;
 
 export interface MusicalRulerTick {
 	readonly frame: number;
@@ -67,7 +68,9 @@ export function createMusicalRulerTicks(options: MusicalRulerTickOptions): reado
 	const firstBar = Math.max(0, surroundingBarBoundaries(startBeat, options.signatureMap).lowerBar);
 	const lastBar = Math.max(firstBar, surroundingBarBoundaries(endBeat, options.signatureMap).lowerBar);
 	const barCount = lastBar - firstBar + 1;
-	const barStride = Math.max(1, Math.ceil(barCount / MAXIMUM_MAJOR_TICKS));
+	const barPixels = minimumBarPixels(options, pixelsPerFrame);
+	const labelStride = readableBarStride(barPixels, MINIMUM_MAJOR_LABEL_PIXELS);
+	const barStride = Math.max(readableBarStride(barPixels, MINIMUM_MINOR_TICK_PIXELS), Math.ceil(barCount / MAXIMUM_MAJOR_TICKS));
 	const alignedFirstBar = Math.floor(firstBar / barStride) * barStride;
 	const projectBeat = createMonotonicBeatFrameProjector(options.tempoMap, sampleRate);
 	const ticks: MusicalRulerTick[] = [];
@@ -80,7 +83,8 @@ export function createMusicalRulerTicks(options: MusicalRulerTickOptions): reado
 	for (let bar = alignedFirstBar; bar <= lastBar && ticks.length < MAXIMUM_TICKS; bar += barStride) {
 		const barFrame = projectBeat(barBeat);
 		if (barFrame >= startFrame && barFrame <= endFrame && barFrame > previousFrame) {
-			ticks.push(Object.freeze({ frame: barFrame, bar, beat: 0, major: true, label: String(bar + 1) }));
+			const major = bar % labelStride === 0;
+			ticks.push(Object.freeze({ frame: barFrame, bar, beat: 0, major, label: major ? String(bar + 1) : '' }));
 			previousFrame = barFrame;
 		}
 		if (barStride === 1 && minorPulsesMayBeVisible(
@@ -114,6 +118,20 @@ export function createMusicalRulerTicks(options: MusicalRulerTickOptions): reado
 		cursorBar = nextBar;
 	}
 	return Object.freeze(ticks);
+}
+
+/** Keep the same bar-number alignment across scrolling, while admitting only
+ * labels and ticks that fit at the fastest tempo and shortest authored meter.
+ */
+function minimumBarPixels(options: MusicalRulerTickOptions, pixelsPerFrame: number): number {
+	if (!Number.isFinite(pixelsPerFrame)) return Number.POSITIVE_INFINITY;
+	const shortestBar = Math.min(...options.signatureMap.events.map(signature => signature.numerator * 4 / signature.denominator));
+	const fastestBpm = Math.max(...options.tempoMap.events.map(event => event.bpm.num / event.bpm.den));
+	return shortestBar * 60 / fastestBpm * options.sampleRate * pixelsPerFrame;
+}
+
+function readableBarStride(barPixels: number, minimumPixels: number): number {
+	return barPixels >= minimumPixels ? 1 : 2 ** Math.ceil(Math.log2(minimumPixels / barPixels));
 }
 
 function slowestTempoBpm(map: HoldTempoMap, startBeat: Rational, endBeat: Rational): Rational {
