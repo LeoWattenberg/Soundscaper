@@ -762,6 +762,8 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-catalog-restore-stage-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial catalog restore stage requires native fresh-database proof, joins admission and retirement, and acknowledges audited candidate readiness without publishing a library pointer or original media." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-cube-lut-closure-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar LUT-reference collector admits explicit Develop state versions, retains disabled resource references, rejects conflicting digest geometry and seals its identity ledger; complete photo, history, snapshot and preset traversal remains the later product owner's responsibility." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v1.ts", "kind": "persisted-contract", "justification": "Version 1 per-photo-version develop workspace retains bounded ordered history and immutable named snapshots, explicit process versions and a selected-state cursor independently of virtual copies and original identity." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
@@ -957,6 +959,8 @@
 		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
 		,
 		{"path": "src/lightscaper/quality/large-library-workload-v1.ts", "kind": "helper-contract", "justification": "Version 1 digest-pinned deterministic photo catalog workload generates bounded publication batches independently of product schema and runtime capabilities."}
+		,
+		{ "path": "src/lightscaper/storage/photo-cube-lut-repository-v1.ts", "kind": "persisted-contract", "justification": "Version 1 append-only immutable Photo LUT bodies use the existing selected media analysis domain, authenticate complete references and raw bodies on insertion, reuse and scoped read, join native acknowledgements and wipe transient bytes without original, eviction, deletion or connection-close authority." }
 		,
 		{"path": "src/lightscaper/storage/photo-develop-presets-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed preset capture detaches one closed bounded physical row and independently fences its presence, revision and complete canonical digest without editing photo facts or acquiring another resource."}
 		,
