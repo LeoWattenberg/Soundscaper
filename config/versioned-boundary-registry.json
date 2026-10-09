@@ -360,6 +360,10 @@
 		,
 		{ "path": "src/common/editor/imaging/image-develop-contract-v1.ts", "kind": "persisted-contract", "justification": "Product-neutral process-1 develop state and scalar limits preserve the existing Photo geometry, ordered shared effects and coherent mask bindings." }
 		,
+		{ "path": "src/common/editor/imaging/image-develop-effects-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert develop effect capture shares the existing bounded closed envelope and delegates nested parameters to owning families. Normalized process-1 values remain numeric or owning curve arrays after future shared resource-family registration." }
+		,
+		{ "path": "src/common/editor/imaging/image-develop-envelope-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared geometry and mask admission preserves original validation order and bytes using real normalized effect identities. This component does not admit effects, process versions or complete develop states." }
+		,
 		{ "path": "src/common/editor/imaging/image-develop-preset-v1.ts", "kind": "persisted-contract", "justification": "Version 1 full and partial preset bodies bind canonical selected settings to the existing shared digest-bound visual preset identity without photo or external media authority." }
 		,
 		{ "path": "src/common/editor/imaging/image-develop-settings-contract-v1.ts", "kind": "persisted-contract", "justification": "Product-neutral settings selection and packet types preserve the existing photo-develop-settings wire kind and explicit process version." }
@@ -367,6 +371,8 @@
 		{ "path": "src/common/editor/imaging/image-develop-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared selection, partial merge and relative delta evaluation retain the established effect-order and mask-identity rules behind unchanged Photo API aliases." }
 		,
 		{ "path": "src/common/editor/imaging/image-develop-state-v1.ts", "kind": "helper-contract", "justification": "Closed product-neutral process-1 develop normalization preserves existing Photo recipe bytes and delegates effects and masks to their shared owning models." }
+		,
+		{ "path": "src/common/editor/imaging/image-develop-state-v2.ts", "kind": "helper-contract", "justification": "Explicit process-2 develop admission adds only the owning nullable cube LUT profile beside unchanged numeric and curve families. The closed V1-or-V2 dispatcher requires consumer opt-in; geometry, mask identities, ordering and fixed limits remain shared, and recipe references do not authorize body custody or rendering." }
 		,
 		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
 		,
@@ -615,6 +621,8 @@
 		{ "path": "src/common/editor/video-dehaze-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared Dehaze defines one closed fractional amount under srgb-alpha-dark3-white-dehaze-q8-v1. Fixed white airlight, original-alpha-aware dark neighborhoods, bounded Q8 transmission, signed nearest reconstruction, explicit clipping and negative white mixing preserve deterministic byte evaluation without changing older recipes." }
 		,
 		{ "path": "src/common/editor/video-effect-closed-families-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed shared effect families bind each registered numeric or point-curve recipe to its owning definition, closed admission and generated export operation. Static family selection preserves the older eight wrapper prechecks, four complete closed envelopes, all twelve legacy routes and exact option, label, default and serialized bytes; it exposes no caller-configured registry or render resource authority." }
+		,
+		{ "path": "src/common/editor/video-effect-leaf-v2.ts", "kind": "helper-contract", "justification": "Explicit named version 2 leaf fields use the type-only numeric, owning-curve and nullable V27 reference vocabulary without widening legacy V1 leaves. Individual family owners remain the sole runtime parameter admission authority." }
 		,
 		{ "path": "src/common/editor/video-effect-parameter-v2.ts", "kind": "helper-contract", "justification": "Version 2 parameter vocabulary explicitly extends unchanged numeric and curve V1 values with a nullable V27 cube reference. Only the owning cube profile admits reference values; current V1 effect leaves, state and preset consumers remain unchanged until coordinated successor adoption. Imports are type-only and no runtime resource authority is added." }
 		,
