@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "soundscaper",
-	"applicationVersion": "1.0.0-rc.Oct.9.h",
+	"applicationVersion": "1.0.0-rc.Oct.9.i",
 	"applicationVersionChannel": "candidate",
 	"releaseChannel": "candidate",
 	"updateTagPrefix": "soundscaper-v"
