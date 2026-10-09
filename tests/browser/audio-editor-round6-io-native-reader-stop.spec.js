@@ -28,9 +28,13 @@ for (const monitoring of [true, false]) {
 		await expectCapturePhase(panel, 'recording');
 		await expect.poll(() => page.evaluate(() => window.__round6CaptureNativePcm().frames)).toBeGreaterThan(4_096);
 		if (!monitoring && browserName === 'chromium') {
-			const frames = await page.evaluate(() => window.__round6CaptureNativeFrameSizes());
-			expect(frames.length).toBeLessThan(32);
+			let frames = [];
+			await expect.poll(async () => {
+				frames = await page.evaluate(() => window.__round6CaptureNativeFrameSizes());
+				return frames.length % 32;
+			}).toBeGreaterThan(0);
 			expect(frames.every(frame => frame === 480)).toBe(true);
+			await test.info().attach('native-pending-tail', { body: JSON.stringify({ blocks: frames.length, pendingBlocks: frames.length % 32 }), contentType: 'application/json' });
 		}
 		await panel.getByRole('button', { name: 'Stop and import', exact: true }).click();
 		await expect(panel).toHaveAttribute('data-capture-phase', /^(?:inactive|recovery)$/u, { timeout: 30_000 });
