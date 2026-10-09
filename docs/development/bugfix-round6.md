@@ -490,3 +490,38 @@ Its full all-engine browser checkpoint remains queued behind the running
 full100 browser parent; pending runs are not reported as passing. Successful
 Cut clipboard publication is source-ready and remains uncounted pending the
 next built complete public workflow. No manual **Update AI assets** run is required.
+
+The immutable `494a0a2b6` passes both guarded product builds. Its complete
+14-check Chromium delta reports13passed and one failed in1.3minutes
+(`/tmp/soundscaper-round6-green29-chromium.log`). The failure follows repaired
+Resample native admission and both completed source-rate edits: its fixture
+expects a dialog Close button on the workspace panel. A first corrected
+panel-menu fixture reaches Undo but asks for the old clip title; both setup
+errors are excluded. Using the existing panel menu and the actual resampled
+clip title, all original native-default/focus/rate/Undo assertions pass on
+the same immutable build in4.3seconds
+(`/tmp/soundscaper-round6-resample-composition-green29-public2.log`).
+
+Editing045/046, effects035/036, I/O029 and dialogs052–055 now qualify:
+**164 distinct verified fixes** comprise editing46, effects36, I/O28 and dialogs54.
+Ordinary Cut clipboard/history publication, protected timeline renaming,
+restored native state controls, Nyquist and related numeric native composition,
+actual binaural mapping delivery and ordinary library saving all pass.
+No additional count is assigned to the pure shared-policy relocations.
+
+The second150 canonical attempt on `435e1779e` passes full repository lint and
+every source/product/test type check, then fails the unchanged dependency
+cruise at five cross-domain imports
+(`/tmp/soundscaper-round6-checkpoint150-green28-canonical-retry.log`). The owning
+recording, Paste and exchange policies move into permitted common editor
+modules in `bfe50ccee` and `b355c14fe`, preserving their exact runtime behavior
+and callback contracts. The complete architecture gate then passes4746modules
+and18192edges with unchanged controller and dependency rules; the new
+projection type adapter receives its exact existing-audit classification.
+The full canonical150 gate now reruns on corrected immutable `494a0a2b6`,
+including full lint for shared structural/native-control types and complete
+Node execution batches
+(`/tmp/soundscaper-round6-checkpoint150-green29-canonical-retry.log`). The full100
+all-engine browser run has entered Firefox; the full150 browser checkpoint
+remains queued behind its actual completion. Pending gates remain pending.
+No manual **Update AI assets** run is required.

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, closeWorkspacePanel, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('the clip resample field keeps its native composition until the completed Enter', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -15,6 +15,8 @@ test('the clip resample field keeps its native composition until the completed E
 	await rate.press('Enter');
 	await expect(dialog).toBeHidden();
 	await expect(properties.locator('[data-clip-source-fact="sampleRate"]')).toContainText('24000');
+	const resampledName = `${toneA.name} (24000 Hz)`;
+	await expect(clipByName(editor, resampledName)).toBeVisible();
 	await properties.getByRole('button', { name: 'Resample', exact: true }).click();
 	await rate.fill('32000');
 	const prevented = await rate.evaluate(field => {
@@ -32,9 +34,11 @@ test('the clip resample field keeps its native composition until the completed E
 	await rate.press('Enter');
 	await expect(dialog).toBeHidden();
 	await expect(properties.locator('[data-clip-source-fact="sampleRate"]')).toContainText('48000');
-	await properties.getByRole('button', { name: 'Close', exact: true }).click();
+	await closeWorkspacePanel(editor, 'clip-properties');
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
-	const restored = await openClipProperties(page, editor, clipByName(editor, toneA.name));
-	await restored.getByText('Media settings', { exact: true }).click();
+	const restored = await openClipProperties(page, editor, clipByName(editor, resampledName));
+	if (!await restored.locator('[data-clip-source-fact="sampleRate"]').isVisible()) {
+		await restored.getByText('Media settings', { exact: true }).click();
+	}
 	await expect(restored.locator('[data-clip-source-fact="sampleRate"]')).toContainText('24000');
 });
