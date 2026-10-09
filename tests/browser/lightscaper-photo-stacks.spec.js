@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
-import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
-import { normalizePhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-contract-v4.ts';
+import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
+import { normalizePhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-contract-v5.ts';
 import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
 import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { createPngFixture } from '../helpers/png-fixture.mjs';
@@ -17,7 +17,7 @@ const OBSERVER = '/__lightscaper_stack_observation.js';
 const SOURCES = Array.from({ length: 4 }, (_, index) => ({ name: `Stack-${index + 1}.png`, bytes: createPngFixture(index + 1) }));
 
 for (const locale of ['en', 'de']) {
-	test(`${locale}: menus create, reorder, cover, collapse, cull and dissolve a durable stack with authenticated archive3 backup`, async ({ page, browserName }) => {
+	test(`${locale}: menus create, reorder, cover, collapse, cull and dissolve a durable stack with authenticated archive5 backup`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Full WebKit original storage qualification remains deferred.');
 		test.setTimeout(180_000);
 		await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
@@ -33,8 +33,9 @@ for (const locale of ['en', 'de']) {
 		const rows = await cards.evaluateAll(nodes => nodes.map(node => ({ id: node.dataset.photoId, name: node.querySelector('strong').textContent })));
 		const ids = rows.map(row => row.id), selected = ids.slice(0, 3), before = await observe(page, ids);
 		const photoButton = id => library.getByRole('button', { name: new RegExp(`^${escaped(rows.find(row => row.id === id).name)}\\s`, 'u') });
-		assertOriginals(before); expect(before.stacks).toEqual([]); expect(before.photos.every(photo => photo.revision === 0)).toBe(true);
-		await photoButton(selected[0]).click(); await photoButton(selected[1]).click({ modifiers: ['Control'] }); await photoButton(selected[2]).click({ modifiers: ['Control'] });
+		assertOriginals(before); expect(before.stacks).toEqual([]); expect(before.photos.every(item => item.photo.revision === 0)).toBe(true);
+		await keyboard(page, photoButton(selected[0]));
+		for (const id of selected.slice(1)) { const card = photoButton(id); await card.focus(); await expect(card).toBeFocused(); await page.keyboard.press('Control+Space'); }
 		await expect(library.locator('[data-photo-id][aria-pressed="true"]')).toHaveCount(3);
 		await action(page, app, copy.photoFileMenu, copy.photoStackCreate, true);
 		const dialog = page.getByRole('dialog', { name: copy.photoStackTitle, exact: true });
@@ -72,13 +73,13 @@ for (const locale of ['en', 'de']) {
 		await expect(cards).toHaveCount(2);
 		const culled = await observe(page, ids); assertCustody(before, culled);
 		expect(culled.stacks).toEqual(created.stacks); expect(culled.stackState).toEqual(created.stackState);
-		for (const photo of culled.photos) expect(photo).toMatchObject({ revision: photo.id === selected[2] ? 1 : 0, rating: photo.id === selected[2] ? 4 : 0 });
+		for (const item of culled.photos) expect(item.photo).toMatchObject({ revision: item.photo.id === selected[2] ? 1 : 0, rating: item.photo.id === selected[2] ? 4 : 0 });
 		await action(page, app, copy.photoViewMenu, copy.photoStackExpandView); await expect(cards).toHaveCount(4);
 		await action(page, app, copy.photoViewMenu, copy.photoStackCollapseView); await expect(cards).toHaveCount(2);
 		await page.reload(); await expect(app).toBeVisible(); await expect(app.locator('[data-photo-library],canvas')).toHaveCount(0);
 		await action(page, app, copy.photoViewMenu, copy.photoShowLibrary); await expect(cards).toHaveCount(4);
 		expect(await observe(page, ids)).toEqual(culled);
-		await photoButton(selected[2]).click();
+		await keyboard(page, photoButton(selected[2]));
 		await action(page, app, copy.photoFileMenu, copy.photoStackEdit, true);
 		await expect(stackButton(copy.photoStackSave)).toBeEnabled(); expect(await memberIds(dialog)).toEqual(createdOrder);
 		await keyboard(page, memberButton(selected[2], copy.photoStackMoveEarlier));
@@ -119,8 +120,9 @@ test('native65-stack audit and130-member stack qualify continuations, cross-page
 
 async function setup(page, locale) {
 	const errors = [], requests = []; page.on('pageerror', error => { errors.push(error.message); }); page.on('request', request => { requests.push(request.url()); });
-	const bundle = await build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-photo-stack-native-fixture.ts', import.meta.url))],
-		bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
+	const bundle = await build({ stdin: { contents: `export { qualifyPhotoStackStorageNativeV1, stackCopyForLocaleV1 } from './tests/helpers/lightscaper-photo-stack-native-fixture.ts';
+		export { readCurrentCatalogCompanionsV1 as observe } from './tests/helpers/lightscaper-current-catalog-companions-fixture.ts';`,
+		resolveDir: fileURLToPath(new URL('../../', import.meta.url)) }, bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
 	await page.route(`**${OBSERVER}`, route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
 	await page.goto(`${origin}/${locale}/`);
@@ -129,7 +131,8 @@ async function setup(page, locale) {
 	return { app, copy, errors, requests };
 }
 async function observe(page, ids) {
-	return page.evaluate(async ({ ids, path }) => (await import(new URL(path, location.href).href)).observePhotoStackLibraryNativeV1(ids), { ids, path: OBSERVER });
+	const result = await page.evaluate(async ({ ids, path }) => (await import(new URL(path, location.href).href)).observe(ids), { ids, path: OBSERVER });
+	expect(result.namespace).toBeNull(); for (const item of result.photos) assertNumericPhoto(item.photo); return result;
 }
 async function keyboard(page, target) { await expect(target).toBeEnabled(); await target.focus(); await expect(target).toBeFocused(); await page.keyboard.press('Enter'); }
 async function action(page, app, name, actionName, photo = false) {
@@ -140,42 +143,52 @@ async function action(page, app, name, actionName, photo = false) {
 async function memberIds(dialog) { return dialog.locator('[data-stack-member]').evaluateAll(nodes => nodes.map(node => node.dataset.stackMember)); }
 async function visibleIds(cards) { return cards.evaluateAll(nodes => nodes.map(node => node.dataset.photoId)); }
 function escaped(value) { return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'); }
+function assertNumericPhoto(photo) {
+	expect(photo.schemaVersion).toBe(1);
+	for (const version of photo.versions) {
+		expect(version.develop.processVersion).toBe(1);
+		if (version.workspace) { expect(version.workspace.schemaVersion).toBe(1);
+			for (const item of [...version.workspace.entries, ...version.workspace.snapshots]) expect(item.develop.processVersion).toBe(1); }
+	}
+}
 function assertOriginals(observation) {
-	for (const photo of observation.photos) {
-		const source = SOURCES.find(source => source.name === photo.original.name), digest = createHash('sha256').update(source.bytes).digest('hex');
-		expect(photo.bytes).toEqual(Array.from(source.bytes)); expect(photo.actualSha256).toBe(digest); expect(photo.original.contentSha256).toBe(digest);
-		expect(photo.authority.catalogRootCount).toBe(1); expect(photo.authority.roots).toHaveLength(1); expect(photo.authority.roots[0].importId).toBeNull();
-		expect(photo.authority.roots[0].mediaContentToken).toBe(photo.authority.mediaContentToken);
+	for (const item of observation.photos) {
+		const photo = item.photo, source = SOURCES.find(source => source.name === photo.original.name), digest = createHash('sha256').update(source.bytes).digest('hex');
+		expect(item.bytes).toEqual(Array.from(source.bytes)); expect(item.actualSha256).toBe(digest); expect(photo.original.contentSha256).toBe(digest);
+		expect(item.authority.catalogRootCount).toBe(1); expect(item.authority.roots).toHaveLength(1); expect(item.authority.roots[0].importId).toBeNull();
+		expect(item.authority.roots[0].mediaContentToken).toBe(item.authority.mediaContentToken);
 	}
 }
 function assertCustody(before, after) {
-	expect(after.catalogId).toBe(before.catalogId); expect(after.totalCount).toBe(4);
+	expect(after.root.id).toBe(before.root.id); expect(after.root.photoCount).toBe(4); expect(after.namespace).toBe(before.namespace);
 	for (const previous of before.photos) {
-		const current = after.photos.find(photo => photo.id === previous.id);
-		for (const key of ['original', 'authority', 'bytes', 'actualSha256']) expect(current[key]).toEqual(previous[key]);
+		const current = after.photos.find(item => item.photo.id === previous.photo.id);
+		expect(current.photo.original).toEqual(previous.photo.original);
+		for (const key of ['authority', 'bytes', 'actualSha256']) expect(current[key]).toEqual(previous[key]);
 	}
 	assertOriginals(after);
 }
 async function authenticate(bytes, previous) {
 	const blob = new Blob([bytes]);
 	const document = await withScapeArchiveReader(blob, undefined, async entries =>
-		normalizePhotoCatalogArchiveV4(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
-	expect(document.schemaVersion).toBe(4); expect(document.developPresetPack).toBeNull(); expect(document.savedCollectionState).toBeNull(); expect(document.savedCollectionPacks).toEqual([]);
+		normalizePhotoCatalogArchiveV5(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(document.schemaVersion).toBe(5); expect(document.lutResources).toEqual([]); expect(document.developPresetPack).toBeNull(); expect(document.savedCollectionState).toBeNull(); expect(document.savedCollectionPacks).toEqual([]);
 	const photos = [], stacks = []; let published = false;
-	const root = await importPhotoCatalogArchiveV4(blob, async (_catalog, state) => {
-		expect(state).toBeNull(); return {
+	const root = await importPhotoCatalogArchiveV5(blob, async (catalog, state, presets, declaredLuts) => {
+		expect(catalog).toEqual(previous.root); expect(state).toBeNull(); expect(presets).toBeNull(); expect(declaredLuts).toEqual([]); return {
 		async writePhoto(photo, original) {
 			const chunks = []; for await (const chunk of original) chunks.push(Buffer.from(chunk));
 			photos.push({ photo, bytes: Buffer.concat(chunks) });
 		}, async writeStack(stack) { stacks.push(stack); }, async writeSavedCollection() { throw new Error('This catalog has no saved definitions.'); },
 		async writeDevelopPresets() { throw new Error('Expected absent Develop preset state.'); },
+		async writeLut() { throw new Error('Numeric-only stack backup must not contain LUT resources.'); },
 		async publish() { published = true; }, async rollback() { photos.length = 0; stacks.length = 0; },
 	}; });
-	expect(published).toBe(true); expect(root.id).toBe(previous.catalogId); expect(root.photoCount).toBe(4);
+	expect(published).toBe(true); expect(root).toEqual(previous.root); expect(root.photoCount).toBe(4);
 	expect(stacks).toEqual(previous.stacks); expect(photos).toHaveLength(4);
 	for (const { photo, bytes: body } of photos) {
-		const current = previous.photos.find(row => row.id === photo.id), source = SOURCES.find(source => source.name === photo.original.name);
-		expect(photo.revision).toBe(current.revision); expect(photo.original).toEqual(current.original);
+		const current = previous.photos.find(row => row.photo.id === photo.id), source = SOURCES.find(source => source.name === photo.original.name);
+		expect(photo).toEqual(current.photo); assertNumericPhoto(photo); expect(photo.revision).toBe(current.photo.revision); expect(photo.original).toEqual(current.photo.original);
 		expect(body.equals(source.bytes)).toBe(true); expect(createHash('sha256').update(body).digest('hex')).toBe(current.actualSha256);
 	}
 }

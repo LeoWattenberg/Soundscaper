@@ -181,6 +181,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'tests/browser/example.spec.js-snapshots/example-chromium-linux.png',
 		'tests/aup3-fixture.js',
 		'tests/helpers/png-fixture.mjs',
+		'tests/helpers/lightscaper-current-catalog-companions-fixture.ts',
 		'tests/helpers/lightscaper-current-library-loop-fixture.ts',
 		'tests/helpers/libsndfile-rifx-fixture.ts',
 		'tests/fixtures/aup4-native-rich.js',
@@ -212,6 +213,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'licenses/node_modules/@fontsource/inter/LICENSE',
 		'licenses/node_modules/axe-core/LICENSE-3RD-PARTY.txt',
 	]) await access(join(fixture.outputRoot, relativePath));
+	assert.equal(await readFile(join(fixture.outputRoot, 'tests/helpers/lightscaper-current-catalog-companions-fixture.ts'), 'utf8'),
+		await readFile(new URL('./helpers/lightscaper-current-catalog-companions-fixture.ts', import.meta.url), 'utf8'));
 	assert.equal(await readFile(join(fixture.outputRoot, 'tests/helpers/lightscaper-current-library-loop-fixture.ts'), 'utf8'),
 		await readFile(new URL('./helpers/lightscaper-current-library-loop-fixture.ts', import.meta.url), 'utf8'));
 	for (const name of BURN_IN_FONT_FILES) {

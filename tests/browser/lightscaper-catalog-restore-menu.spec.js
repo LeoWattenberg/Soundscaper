@@ -7,7 +7,10 @@ import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restor
 import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy.ts';
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
-import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
+import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
+import { normalizePhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-contract-v5.ts';
+import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
+import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 } from '../../src/lightscaper/storage/photo-library-catalog-pointer.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from '../../src/lightscaper/storage/photo-library-location-v2.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -172,7 +175,7 @@ for (const locale of ['en', 'de']) {
 		await develop.closeOptions(options); await develop.close();
 		const source = await backup(page, app, copy), original = await decode(source.buffer);
 		expect(original.presetHeader).toMatchObject({ revision: 2, presetCount: 0 });
-		expect(original.presets).toEqual({ schemaVersion: 1, kind: 'photo-develop-presets', catalogId: original.root.id, revision: 2, presets: [] });
+		expect(original.presets).toEqual({ schemaVersion: 2, kind: 'photo-develop-presets', catalogId: original.root.id, revision: 2, presets: [] });
 		await develop.open('Empty presets.png'); options = await develop.presets(); await develop.savePreset(options, 'Old namespace preset', false);
 		await develop.closeOptions(options); await develop.close();
 		await restoreAndReload(page, app, library, copy, restoreCopy, source, 1);
@@ -253,11 +256,20 @@ async function restore(page, app, copy, restoreCopy, source) {
 	await expect(dialog.locator('[data-photo-restore-receipt]')).toBeVisible(); await expect(dialog.getByRole('alert')).toHaveCount(0);
 }
 async function decode(bytes) {
+	const blob = new Blob([bytes]), header = await withScapeArchiveReader(blob, undefined, async entries =>
+		normalizePhotoCatalogArchiveV5(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(header.schemaVersion).toBe(5); expect(header.lutResources).toEqual([]);
 	const result = { root: null, savedState: null, presetHeader: null, presets: null, photos: [], stacks: [], saved: [] };
-	await importPhotoCatalogArchiveV4(new Blob([bytes]), async (root, state, presets) => { result.root = root; result.savedState = state; result.presetHeader = presets; return {
-		async writePhoto(document, chunks) { const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk)); result.photos.push({ document, original: Buffer.concat(parts) }); },
+	await importPhotoCatalogArchiveV5(blob, async (root, state, presets, declaredLuts) => {
+		expect(declaredLuts).toEqual([]); expect(root).toEqual(header.catalog); expect(state).toEqual(header.savedCollectionState);
+		expect(presets).toEqual(header.developPresetPack); if (presets) expect(presets.rowSchemaVersion).toBe(2);
+		result.root = root; result.savedState = state; result.presetHeader = presets; return {
+		async writePhoto(document, chunks) { assertNumericPhoto(document); const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk)); result.photos.push({ document, original: Buffer.concat(parts) }); },
 		async writeStack(stack) { result.stacks.push(stack); }, async writeSavedCollection(definition) { result.saved.push(definition); },
-		async writeDevelopPresets(row) { expect(result.presets).toBeNull(); result.presets = row; },
+		async writeDevelopPresets(row) { expect(result.presets).toBeNull(); expect(row.schemaVersion).toBe(2);
+			for (const preset of row.presets) { expect(preset.schemaVersion).toBe(2); expect(preset.settings.schemaVersion).toBe(2); expect(preset.settings.develop.processVersion).toBe(1); }
+			result.presets = row; },
+		async writeLut() { throw Error('Numeric-only restore witness must not contain LUT resources.'); },
 		async publish() {}, async rollback() { throw new Error('Backup authentication rolled back.'); },
 	}; });
 	result.photos.sort((a, b) => a.document.id.localeCompare(b.document.id)); result.stacks.sort((a, b) => a.id.localeCompare(b.id)); result.saved.sort((a, b) => a.id.localeCompare(b.id));
@@ -284,21 +296,45 @@ function developTools(page, app, library, copy, locale) {
 	return { messages, numberInput, settled,
 		async open(fileName) { await keyboard(page, photo(page, library, fileName)); await action(page, app, copy.photoFileMenu, photoDevelopMenuLabel(locale), copy.photoPhotoMenu);
 			dialog = named(page, 'dialog', `${labels.title}: ${fileName}`); await expect(named(dialog, 'region', labels.preview)).toHaveAttribute('data-state', 'ready'); },
-		async add(type, key, value) { await named(dialog, 'combobox', labels.choose).selectOption(type); await keyboard(page, named(dialog, 'button', labels.add));
+		async add(type, key, value) { await chooseValue(page, named(dialog, 'combobox', labels.choose), type); await keyboard(page, named(dialog, 'button', labels.add));
 			const input = numberInput(key); await input.fill(value); await input.press('Enter'); await expect(input).toHaveValue(value); },
 		async save() { await keyboard(page, named(dialog, 'button', labels.save)); await expect(dialog.locator('[data-photo-develop-ack]')).toContainText(labels.acknowledged); await settled(); },
 		async presets() { const menu = dialog.locator('details').filter({ has: page.locator('summary').filter({ hasText: new RegExp(`^${messages.menu}$`, 'u') }) });
 			if (!(await menu.evaluate(value => value.open))) await keyboard(page, menu.locator('summary'));
 			await keyboard(page, named(menu, 'button', messages.presets)); const options = named(page, 'dialog', messages.presets); await settled(); return options; },
-		async choose(options, name, partial) { await named(options, 'combobox', messages.choosePreset).selectOption({ label: `${name} (${partial ? messages.partial : messages.full})` }); },
-		async savePreset(options, name, partial) { const all = named(options, 'checkbox', messages.all); if (partial) await all.uncheck(); else await all.check();
-			if (partial) await named(options, 'checkbox', labels.shared.videoEffectWhiteBalance).check();
-			await named(options, 'checkbox', messages.geometry).setChecked(!partial); await named(options, 'checkbox', messages.local).setChecked(!partial);
+		async choose(options, name, partial) { await chooseLabel(page, named(options, 'combobox', messages.choosePreset), `${name} (${partial ? messages.partial : messages.full})`); },
+		async savePreset(options, name, partial) { await checkbox(page, named(options, 'checkbox', messages.all), !partial);
+			if (partial) await checkbox(page, named(options, 'checkbox', labels.shared.videoEffectWhiteBalance), true);
+			await checkbox(page, named(options, 'checkbox', messages.geometry), !partial); await checkbox(page, named(options, 'checkbox', messages.local), !partial);
 			await named(options, 'textbox', messages.presetName).fill(name); await keyboard(page, named(options, 'button', messages.savePreset)); await settled();
 			await expect(named(options, 'combobox', messages.choosePreset)).toContainText(`${name} (${partial ? messages.partial : messages.full})`); },
 		async closeOptions(options) { await keyboard(page, bodyClose(options, messages.close)); await expect(options).toHaveCount(0); },
 		async close() { await keyboard(page, bodyClose(dialog, labels.close)); await expect(dialog).toHaveCount(0); },
 	};
+}
+function assertNumericPhoto(photo) {
+	expect(photo.schemaVersion).toBe(1);
+	for (const version of photo.versions) {
+		expect(version.develop.processVersion).toBe(1);
+		if (version.workspace) { expect(version.workspace.schemaVersion).toBe(1);
+			for (const item of [...version.workspace.entries, ...version.workspace.snapshots]) expect(item.develop.processVersion).toBe(1); }
+	}
+}
+async function chooseValue(page, combo, value) {
+	const values = await combo.getByRole('option').evaluateAll(options => options.map(option => option.value));
+	const index = values.indexOf(value); expect(index).toBeGreaterThanOrEqual(0);
+	await combo.focus(); await expect(combo).toBeFocused(); await page.keyboard.press('Home');
+	for (let offset = 0; offset < index; offset++) await page.keyboard.press('ArrowDown');
+	await expect(combo).toHaveValue(value);
+}
+async function chooseLabel(page, combo, label) {
+	const option = combo.getByRole('option', { name: label, exact: true }); await expect(option).toHaveCount(1);
+	await chooseValue(page, combo, await option.getAttribute('value'));
+}
+async function checkbox(page, control, checked) {
+	await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused();
+	if (await control.isChecked() !== checked) await page.keyboard.press('Space');
+	await expect(control).toBeChecked({ checked });
 }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 function photo(page, library, name) { return library.getByRole('button').filter({ has: page.getByText(name, { exact: true }) }); }

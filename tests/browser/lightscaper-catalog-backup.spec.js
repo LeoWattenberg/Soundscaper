@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
-import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
-import { normalizePhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-contract-v4.ts';
+import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
+import { normalizePhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-contract-v5.ts';
 import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
 import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -45,15 +45,16 @@ for (const locale of ['en', 'de']) {
 		expect(errors).toEqual([]); expect(requests.filter(url => /\/assets\/editor-copy-/u.test(url))).toEqual([]);
 	});
 
-	test(`${locale}: saved full metadata criteria, physical state and a stack survive the menu archive4 backup`, async ({ page, browserName }) => {
+	test(`${locale}: saved full metadata criteria, physical state and a stack survive the menu archive5 backup`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Full WebKit catalog Blob/OPFS custody qualification remains deferred.');
 		test.setTimeout(120_000);
 		await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
 		const { app, copy, ids, before, requests, errors } = await setup(page, locale);
 		const library = app.locator('[data-photo-library]');
-		for (const [index, photo] of before.photos.entries()) {
-			await library.getByRole('button').filter({ has: page.getByText(photo.fileName, { exact: true }) })
-				.click(index ? { modifiers: ['Control'] } : {});
+		for (const [index, item] of before.photos.entries()) {
+			const card = library.getByRole('button').filter({ has: page.getByText(item.photo.metadata.fileName, { exact: true }) });
+			if (index) { await card.focus(); await expect(card).toBeFocused(); await page.keyboard.press('Control+Space'); }
+			else await keyboard(page, card);
 		}
 		await expect(library.locator('[data-photo-id][aria-pressed="true"]')).toHaveCount(2);
 		await action(page, app, copy.photoFileMenu, copy.photoStackCreate, copy.photoPhotoMenu);
@@ -138,50 +139,40 @@ test('a held picker is joined across Close and reopen, then a genuine native wri
 async function authenticate(bytes, previous, { definitions = [], savedState = null, stacks = [] } = {}) {
 	const blob = new Blob([bytes]);
 	const document = await withScapeArchiveReader(blob, undefined, async entries =>
-		normalizePhotoCatalogArchiveV4(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
-	expect(document.schemaVersion).toBe(4); expect(document.stackCount).toBe(stacks.length);
+		normalizePhotoCatalogArchiveV5(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(document.schemaVersion).toBe(5); expect(document.lutResources).toEqual([]); expect(document.stackCount).toBe(stacks.length);
 	expect(document.savedCollectionState).toEqual(savedState); expect(document.developPresetPack).toBeNull();
 	expect(document.savedCollectionPacks.reduce((count, pack) => count + pack.collectionCount, 0)).toBe(definitions.length);
 	const records = [], restoredStacks = [], restoredDefinitions = []; let published = false;
 	// The generic stage is an authentication witness, not a durable catalog restore.
-	const catalog = await importPhotoCatalogArchiveV4(blob, async (root, state, presetHeader) => {
-		expect(presetHeader).toBeNull(); expect(root).toEqual(previous.root); expect(state).toEqual(savedState); return {
+	const catalog = await importPhotoCatalogArchiveV5(blob, async (root, state, presetHeader, declaredLuts) => {
+		expect(declaredLuts).toEqual([]); expect(presetHeader).toBeNull(); expect(root).toEqual(previous.root); expect(state).toEqual(savedState); return {
 		async writePhoto(photo, chunks) {
 			const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk));
 			records.push({ photo, bytes: Buffer.concat(parts) });
 		}, async writeStack(stack) { restoredStacks.push(stack); }, async writeSavedCollection(definition) { restoredDefinitions.push(definition); },
 		async writeDevelopPresets() { throw new Error('Expected absent Develop preset state.'); },
+		async writeLut() { throw new Error('Numeric-only backup must not contain LUT resources.'); },
 		async publish() { published = true; }, async rollback() { records.length = 0; restoredStacks.length = 0; restoredDefinitions.length = 0; },
 	}; });
 	expect(published).toBe(true); expect(catalog).toEqual(previous.root); expect(records).toHaveLength(previous.photos.length);
 	expect(restoredStacks).toEqual(stacks); expect(restoredDefinitions).toEqual(definitions);
 	for (const record of records) {
-		const source = previous.photos.find(photo => photo.id === record.photo.id); expect(source).toBeDefined();
+		const observed = previous.photos.find(item => item.photo.id === record.photo.id); expect(observed).toBeDefined();
+		const source = observed.photo; expect(record.photo).toEqual(source); assertNumericPhoto(record.photo);
 		expect(record.photo).toMatchObject({ revision: source.revision, rating: source.rating, flag: source.flag, colorLabel: source.colorLabel });
 		expect(record.photo.metadata).toEqual(source.metadata); expect(record.photo.extractedMetadata).toEqual(source.extractedMetadata);
-		expect(record.photo.original).toMatchObject({ id: source.originalId, name: source.originalName,
-			storageKey: source.storageKey, contentSha256: SHA256, byteLength: PNG.length });
+		expect(record.photo.original).toMatchObject({ id: source.original.id, name: source.original.name,
+			storageKey: source.original.storageKey, contentSha256: SHA256, byteLength: PNG.length });
 		expect(record.bytes.equals(PNG)).toBe(true); expect(createHash('sha256').update(record.bytes).digest('hex')).toBe(SHA256);
 	}
 }
 async function setup(page, locale) {
 	const requests = [], errors = []; page.on('request', request => { requests.push(request.url()); });
 	page.on('pageerror', error => { errors.push(error.message); });
-	const bundle = await build({ stdin: { contents: `export { readResidentPhotoLibraryV1 as observe } from "./tests/helpers/lightscaper-photo-library-ui-fixture.ts";
-		export { bundledLightscaperEditorCopyForLocale as copyForLocale } from "./src/common/i18n/lightscaper-editor-copy.ts";
-		import { PhotoCatalogRepositoryV1 } from "./src/lightscaper/catalog/repository.ts";
-		export async function observeSaved(catalogId, collectionId, photoId) {
-			const catalog = new PhotoCatalogRepositoryV1({ indexedDB, verifyOriginal: async () => undefined });
-			try {
-				const snapshot = await catalog.readSmartCollectionSnapshotV1(catalogId, collectionId);
-				const context = await catalog.readSmartCollectionArchiveContextV1(catalogId);
-				const members = await catalog.readStackMembershipPage(catalogId, { photoIds: [photoId] });
-				if (members.items.length !== 1 || !snapshot.definition || !context.state) throw new Error('Expected one menu-authored saved recipe and stack.');
-				const stack = await catalog.loadStack(catalogId, members.items[0].stackId);
-				if (!stack || stack.photoIds.length !== 2) throw new Error('Expected one two-photo stack.');
-				return { definition: snapshot.definition, state: context.state, stack };
-			} finally { await catalog.close(); }
-		}`,
+	const bundle = await build({ stdin: { contents: `export { readResidentPhotoLibraryCurrent as observe } from "./tests/helpers/lightscaper-current-app-fixture.tsx";
+		export { readCurrentCatalogCompanionsV1 as companions } from "./tests/helpers/lightscaper-current-catalog-companions-fixture.ts";
+		export { bundledLightscaperEditorCopyForLocale as copyForLocale } from "./src/common/i18n/lightscaper-editor-copy.ts";`,
 		resolveDir: fileURLToPath(new URL('../../', import.meta.url)) }, bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
 	await page.route(`**${ROOT}`, async route => { await route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }); });
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
@@ -196,12 +187,27 @@ async function setup(page, locale) {
 	const library = app.locator('[data-photo-library]'); await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', '2');
 	await expect(library).toHaveAttribute('aria-busy', 'false');
 	const ids = await library.locator('[data-photo-id]').evaluateAll(nodes => nodes.map(node => node.dataset.photoId));
-	return { app, copy, ids, before: await observe(page, ids), requests, errors };
+	const before = await observe(page, ids); expect(before.namespace).toBeNull();
+	for (const item of before.photos) { assertNumericPhoto(item.photo); expect(item.bytes).toEqual([...PNG]); }
+	return { app, copy, ids, before, requests, errors };
 }
 async function observe(page, ids) { return page.evaluate(async ({ ids, root }) => (await import(new URL(root, location.href).href)).observe(ids), { ids, root: ROOT }); }
 async function observeSaved(page, catalogId, collectionId, photoId) {
-	return page.evaluate(async input => (await import(new URL(input.root, location.href).href)).observeSaved(input.catalogId, input.collectionId, input.photoId),
-		{ root: ROOT, catalogId, collectionId, photoId });
+	return page.evaluate(async input => {
+		const observed = await (await import(new URL(input.root, location.href).href)).companions(input.ids);
+		if (observed.root.id !== input.catalogId || observed.saved.length !== 1 || observed.stacks.length !== 1) throw Error('Expected one selected saved recipe and stack.');
+		const definition = observed.saved.find(item => item.id === input.collectionId), stack = observed.stacks.find(item => item.photoIds.includes(input.photoId));
+		if (!definition || !observed.savedState || !stack || stack.photoIds.length !== 2) throw Error('Expected complete menu-authored saved state and two-photo stack.');
+		return { definition, state: observed.savedState, stack };
+	}, { root: ROOT, catalogId, collectionId, photoId, ids: await page.locator('[data-photo-library] [data-photo-id]').evaluateAll(nodes => nodes.map(node => node.dataset.photoId)) });
+}
+function assertNumericPhoto(photo) {
+	expect(photo.schemaVersion).toBe(1);
+	for (const version of photo.versions) {
+		expect(version.develop.processVersion).toBe(1);
+		if (version.workspace) { expect(version.workspace.schemaVersion).toBe(1);
+			for (const item of [...version.workspace.entries, ...version.workspace.snapshots]) expect(item.develop.processVersion).toBe(1); }
+	}
 }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 function bodyClose(scope, name) { return named(scope, 'button', name).filter({ hasText: new RegExp(`^${name}$`, 'u') }); }
