@@ -267,9 +267,19 @@ export function mimeTypeForPath(filePath) {
 }
 
 function sanitizeSuggestedName(value, fallback) {
-	const candidate = String(value || '').trim().replace(/[\u0000-\u001f<>:"/\\|?*]/gu, '-');
-	const trimmed = candidate.replace(/[. ]+$/u, '').slice(0, 180);
-	return trimmed && trimmed !== '.' && trimmed !== '..' ? trimmed : fallback;
+	const candidate = String(value || '').trim().replace(/[\u0000-\u001f<>:"/\\|?*]/gu, '-').replace(/[. ]+$/u, '');
+	if (!candidate || candidate === '.' || candidate === '..') return fallback;
+	const suppliedExtension = extname(candidate);
+	const extension = suppliedExtension || extname(fallback);
+	const stem = suppliedExtension ? candidate.slice(0, -suppliedExtension.length) : candidate;
+	let prefix = '';
+	for (const character of stem) {
+		const next = `${prefix}${character}${extension}`;
+		if (next.length > 180 || Buffer.byteLength(next, 'utf8') > 255) break;
+		prefix += character;
+	}
+	const trimmed = prefix.replace(/[. ]+$/u, '');
+	return trimmed ? `${trimmed}${extension}` : fallback;
 }
 
 function ensureExtension(name, extension) {
