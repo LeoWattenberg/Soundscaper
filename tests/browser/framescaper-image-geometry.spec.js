@@ -3,7 +3,7 @@
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseDropdown, collectClientErrors, importFiles } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseDropdown, chooseNestedCommandAction, collectClientErrors, importFiles } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 
@@ -33,9 +33,11 @@ for (const [index, fixture] of CASES.entries()) test(`native Frames geometry: ${
 
 const COPY = {
 	en: { properties: 'Clip properties', choose: 'Choose an effect', add: 'Add effect', effect: 'Crop and perspective (contain)', crop: 'Crop width',
+		edit: 'Edit', clips: 'Audio clips', clip: 'Video clip: geometry-source',
 		rotation: 'Clockwise rotation', perspective: 'Rectify source quad', aspect: 'Crop aspect', flip: 'Flip horizontally',
 		right: 'Bottom right X', left: 'Bottom left X', exact: 'Exact value', on: 'On' },
 	de: { properties: 'Clip-Eigenschaften', choose: 'Effekt auswählen', add: 'Effekt hinzufügen', effect: 'Zuschnitt und Perspektive (Einpassen)', crop: 'Zuschnittbreite',
+		edit: 'Bearbeiten', clips: 'Audio-Clips', clip: 'Videoclip: geometry-source',
 		rotation: 'Drehung im Uhrzeigersinn', perspective: 'Quellviereck entzerren', aspect: 'Zuschnittformat', flip: 'Horizontal spiegeln',
 		right: 'Unten rechts X', left: 'Unten links X', exact: 'Genauer Wert', on: 'Ein' },
 };
@@ -65,8 +67,9 @@ for (const locale of ['en', 'de']) test(`Frames ${locale} authors geometry only 
 	}
 	await page.reload();
 	const reopened = page.locator('[data-audio-editor]'); await expect(reopened).toHaveAttribute('data-audio-editor-bound', 'true');
-	await reopened.locator('[data-clip-kind="video"]').first().click({ button: 'right' });
-	await page.getByRole('menuitem', { name: copy.properties, exact: true }).click();
+	const restoredClip = reopened.getByRole('group', { name: copy.clip, exact: true });
+	await restoredClip.focus(); await restoredClip.press('Enter');
+	await chooseNestedCommandAction(page, reopened, copy.edit, [copy.clips, copy.properties]);
 	const restored = reopened.locator('[data-workspace-panel="clip-properties"]');
 	await expect(restored.getByRole('spinbutton', { name: `${copy.exact}: ${copy.crop}`, exact: true })).toHaveValue('0.5');
 	await expect(restored.getByRole('spinbutton', { name: `${copy.exact}: ${copy.rotation}`, exact: true })).toHaveValue('90');
