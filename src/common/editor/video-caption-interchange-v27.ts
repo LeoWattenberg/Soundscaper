@@ -381,6 +381,8 @@ function parseVttCueMarkup(value: string): {
 	if (voice) {
 		speaker = decodePassiveText(voice[1] ?? '');
 		content = content.slice(voice[0].length);
+		// A whole-cue voice may either close explicitly or omit its end tag.
+		if (content.endsWith('</v>')) content = content.slice(0, -4);
 	}
 	let bold = false;
 	let italic = false;
