@@ -7,7 +7,7 @@ import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.
 import type { PhotoLibraryDevelopWorkflowV1 } from '../../controller/shared/photo-library-develop-workflow-v1.ts';
 import VideoEffectNumberInput from '../inspector/VideoEffectNumberInput.tsx';
 
-const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1'] as const;
+const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1'] as const;
 type Parameter = Readonly<{ label: string; labelKey: string; min: number; max: number; step: number; control?: string;
 	options?: readonly Readonly<{ value: number; label: string; labelKey: string }>[] }>;
 export default function PhotoDevelopEffects(props: Readonly<{ effects: readonly VideoEffectLeaf[]; owner: PhotoLibraryDevelopWorkflowV1;

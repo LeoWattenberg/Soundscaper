@@ -52,8 +52,8 @@ test('Develop Session reads detached active settings and scalar history without 
 	try {
 		assert.equal(f.calls.initialize, 0);
 		const snapshot = await f.owner.develop.read(read);
-		assert.deepEqual(Object.keys(snapshot).sort(), ['activeVersionId', 'develop', 'history', 'photoId', 'revision', 'schemaVersion', 'snapshots', 'versionId', 'versions']);
-		assert.equal(snapshot.photoId, photoId); assert.equal(snapshot.versionId, 'master'); assert.equal(snapshot.revision, 0);
+		assert.deepEqual(Object.keys(snapshot).sort(), ['activeVersionId', 'catalogId', 'develop', 'history', 'photoId', 'revision', 'schemaVersion', 'snapshots', 'versionId', 'versions']);
+		assert.equal(snapshot.catalogId, 'catalog'); assert.equal(snapshot.photoId, photoId); assert.equal(snapshot.versionId, 'master'); assert.equal(snapshot.revision, 0);
 		assert.deepEqual(snapshot.develop, before!.versions[0]!.develop);
 		assert.deepEqual(snapshot.history, { cursor: 0, entries: [{ index: 0, label: 'Initial settings', createdAt: '2026-01-01T00:00:00.000Z' }] });
 		assert.deepEqual(snapshot.snapshots, []); assert.ok(Object.isFrozen(snapshot.develop.effects));

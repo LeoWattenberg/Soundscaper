@@ -25,8 +25,9 @@ belong in Git history, not in the maintained documentation set.
 - [Photo library sessions](architecture/lightscaper-photo-library-session.md)
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Photo Develop workspace](architecture/lightscaper-develop-workspace.md)
-- [Develop preset restore](architecture/lightscaper-develop-preset-restore.md)
   defines per-version history, scoped rendering, settings selection, and durable batch receipts.
+- [Develop preset restore](architecture/lightscaper-develop-preset-restore.md)
+  defines physical preset presence and archive restoration.
 - [Opt-in photo import options](architecture/lightscaper-import-options-ui.md)
   defines authored drafts, explicit preset loading, and durable import acknowledgements.
 - [Photo batch rename](architecture/lightscaper-batch-rename.md)

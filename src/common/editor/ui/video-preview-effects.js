@@ -4,10 +4,14 @@ import { VIDEO_PREVIEW_GEOMETRY_VERTEX_SHADER_SOURCE } from './video-preview-geo
 import { FRAGMENT_SHADER_SOURCE, MAX_GAUSSIAN_BLUR_PAIR_COUNT } from './video-preview-effects-shader.js';
 import { GLOBAL_DEVELOP_EFFECT_CODES_V1, globalDevelopPreviewPassV1, isGlobalDevelopEffectTypeV1 } from '../video-global-develop-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, IMAGE_GEOMETRY_VIDEO_EFFECT_CODE_V1, imageGeometryVideoPreviewPassV1 } from '../video-image-geometry-v1.ts';
+import { CHROMA_DEVELOP_EFFECT_TYPE_V1, CHROMA_DEVELOP_EFFECT_CODE_V1, chromaDevelopPreviewPassV1 } from '../video-chroma-develop-v1.ts';
+import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_EFFECT_CODE_V1, blackWhiteMixPreviewPassV1 } from '../video-black-white-mix-v1.ts';
+
+import { HSL_MIXER_EFFECT_TYPE_V1, HSL_MIXER_EFFECT_CODE_V1, hslMixerPreviewPassV1 } from '../video-hsl-mixer-v1.ts';
 
 export { MAX_GAUSSIAN_BLUR_PAIR_COUNT, VIDEO_PREVIEW_PIXELATE_GRID_SIZE } from './video-preview-effects-shader.js';
 
-export const EFFECT_PROGRAM_COUNT = 21;
+export const EFFECT_PROGRAM_COUNT = 24;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
 export const GAUSSIAN_BLUR_RENDER_SCALE = 2 / 3;
 const GAUSSIAN_BLUR_SIGMA_CALIBRATION = 0.85;
@@ -20,6 +24,9 @@ export const BLUR_KERNEL = Symbol('blurKernel');
 
 export const EFFECT_CODES = Object.freeze({
 	[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]: IMAGE_GEOMETRY_VIDEO_EFFECT_CODE_V1,
+	[CHROMA_DEVELOP_EFFECT_TYPE_V1]: CHROMA_DEVELOP_EFFECT_CODE_V1,
+	[BLACK_WHITE_MIX_EFFECT_TYPE_V1]: BLACK_WHITE_MIX_EFFECT_CODE_V1,
+	[HSL_MIXER_EFFECT_TYPE_V1]: HSL_MIXER_EFFECT_CODE_V1,
 	'color-adjust': 1,
 	pixelate: 2,
 	vignette: 3,
@@ -83,6 +90,9 @@ function gaussianBlurPass(sigma, renderScale, direction, kernel) {
  */
 export function videoEffectPasses(effect, previewScale = {}) {
 	if (!effect) return [];
+	if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) { const pass = hslMixerPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { const pass = blackWhiteMixPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { const pass = chromaDevelopPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) { const pass = imageGeometryVideoPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (isGlobalDevelopEffectTypeV1(effect.type)) { const pass = globalDevelopPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.enabled === false) return [];
@@ -278,6 +288,7 @@ export function programLocations(gl, program) {
 		textureTransform: gl.getUniformLocation(program, 'u_texture_transform'),
 		texture: gl.getUniformLocation(program, 'u_texture'),
 		auxTexture: gl.getUniformLocation(program, 'u_aux_texture'),
+		globalLookup: gl.getUniformLocation(program, 'u_global_lookup'),
 		resolution: gl.getUniformLocation(program, 'u_resolution'),
 		sourceResolution: gl.getUniformLocation(program, 'u_source_resolution'),
 		contentRect: gl.getUniformLocation(program, 'u_content_rect'),
@@ -285,6 +296,8 @@ export function programLocations(gl, program) {
 		direction: gl.getUniformLocation(program, 'u_direction'),
 		params0: gl.getUniformLocation(program, 'u_params0'),
 		params1: gl.getUniformLocation(program, 'u_params1'),
+		params2: gl.getUniformLocation(program, 'u_params2'), params3: gl.getUniformLocation(program, 'u_params3'),
+		params4: gl.getUniformLocation(program, 'u_params4'), params5: gl.getUniformLocation(program, 'u_params5'),
 		geometryOutput: gl.getUniformLocation(program, 'u_geometry_output'),
 		geometrySource: gl.getUniformLocation(program, 'u_geometry_source'),
 		geometryBounds: gl.getUniformLocation(program, 'u_geometry_bounds'),

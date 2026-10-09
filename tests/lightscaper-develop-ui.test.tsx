@@ -5,6 +5,7 @@ import test from 'node:test';
 import React, { act, StrictMode } from 'react';
 import LightscaperApp from '../src/common/editor/ui/lightscaper/LightscaperApp.tsx';
 import PhotoDevelopWorkspace from '../src/common/editor/ui/lightscaper/PhotoDevelopWorkspace.tsx';
+import { withPhotoDevelopProxyV1 } from '../src/lightscaper/controller/photo-develop-proxy-v1.ts';
 import { photoDevelopMenuLabel } from '../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { bundledLightscaperEditorCopyForLocale } from '../src/common/i18n/lightscaper-editor-copy.ts';
 import type { PhotoLibraryDevelopApplyV1, PhotoLibraryDevelopSnapshotV1, PhotoLibraryDevelopPortV1 } from '../src/common/editor/photo-library-develop-port-v1.ts';
@@ -141,5 +142,32 @@ test('mounted controls preview shared WB/tone/geometry without a Frame authority
 		assert.equal(requests[0]?.expectedRevision, 5); const command = requests[0]!.command;
 		assert.equal(command.type, 'record-develop'); assert.equal(command.type === 'record-develop' && command.develop.effects[0]?.params.temperature, 0.25);
 		assert.equal(document.develop.effects.length, 0);
+	} finally { await mounted.dispose(); }
+});
+
+for (const [type, expected] of [['chroma-v1', [255, 0, 0, 127]], ['black-white-mix-v1', [54, 54, 54, 127]],
+	['hsl-mixer-v1', [255, 0, 0, 127]]] as const) test(`mounted Photo workspace authors, saves and renders shared ${type}`, async () => {
+	let saved = document.develop;
+	const mounted = await mountPhotoImportUi(() => <PhotoDevelopWorkspace locale="en" photoId="a" label="a.png" generation={document}
+		execute={async (run, signal) => { await run({ signal: signal!, isCurrent: () => true, refresh: async () => undefined,
+			acquire: async () => ({ read: async () => document, apply: async request => {
+				assert.equal(request.command.type, 'record-develop');
+				if (request.command.type === 'record-develop') saved = request.command.develop;
+				return { snapshot: { ...document, revision: 6, develop: saved }, notices: [] }; } }) }); }}
+		readPreview={async () => ({ outcome: 'missing' })} beforePresent={Promise.resolve()} registerRetirement={() => () => undefined}
+		loadProxy={async () => { throw Error('No body expected'); }} onClose={() => undefined} />);
+	try {
+		await act(async () => { await settle(); });
+		const panel = mounted.dom.one('[data-photo-develop-effects]'), select = panel.querySelector('select'); assert.ok(select);
+		assert.ok(select.querySelectorAll('option').some(option => option.getAttribute('value') === type), 'The rendered family must be authorable.');
+		await act(async () => { reactProps(select).onChange?.({ currentTarget: { value: type } }); });
+		const click = async (name: string) => { const button = mounted.dom.container.querySelectorAll('button').find(value => value.textContent === name);
+			assert.ok(button); await act(async () => { reactProps(button).onClick?.({ currentTarget: button }); await settle(); }); };
+		await click('Add adjustment'); await click('Save settings');
+		assert.equal(saved.effects[0]?.type, type);
+		const frame = { descriptor: { schemaVersion: 1, width: 1, height: 1, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' },
+			pixels: new Uint8Array([255, 0, 0, 127]) };
+		assert.deepEqual(await withPhotoDevelopProxyV1({ frame, develop: saved }, view => [...view.frame.pixels]), expected);
+		assert.deepEqual([...frame.pixels], [255, 0, 0, 127]);
 	} finally { await mounted.dispose(); }
 });
