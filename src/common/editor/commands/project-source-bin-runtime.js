@@ -23,6 +23,7 @@ import { projectBinReplacementWarp } from '../project-bin-replacement-warp.ts';
 import { createProjectBinContractionEvaluator } from '../project-bin-replacement-contractions.ts';
 import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
+import { collectTakeGroupSourceIds } from '../take-group-source-references.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -298,8 +299,9 @@ function removeProjectBinSourceFromProject(project, clipId) {
 	);
 	if (timelineIds.length) removeClips(project, timelineIds);
 	projectBin.clips = projectBin.clips.filter((candidate) => !sourceIds.has(candidate.sourceId));
+	const takeSourceIds = collectTakeGroupSourceIds(project);
 	for (const sourceId of sourceIds) {
-		const inUse = [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
+		const inUse = takeSourceIds.has(sourceId) || [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
 		if (!inUse) project.sources = project.sources.filter((source) => source.id !== sourceId);
 	}
 }
@@ -420,8 +422,9 @@ function replaceProjectBinMedia(project, command) {
 		}
 	}
 
+	const takeSourceIds = collectTakeGroupSourceIds(project);
 	for (const { oldSource } of replacementBySourceId.values()) {
-		const inUse = [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
+		const inUse = takeSourceIds.has(oldSource.id) || [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
 		if (!inUse) project.sources = project.sources.filter((source) => source.id !== oldSource.id);
 	}
 }

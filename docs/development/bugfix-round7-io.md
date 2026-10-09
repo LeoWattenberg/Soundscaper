@@ -24,6 +24,8 @@ and raw coverage are removed immediately after verification by the owning runner
 
 | R7-IO-015 | Soundscaper Window → Clip spreadsheet → edit a source reference → Load referenced files → choose an ordinary audio-only Chromium WebM microphone recording. | The spreadsheet rejected a shared video-container suffix before the normal media track probe, despite ordinary File Import supporting the same audio. Resolve actual audio/video tracks at both spreadsheet admission gates, fence project or editing changes while probing, and include the supported .webm suffix in its picker. | Two causal focused RED tests refuse the committed ordinary MediaRecorder bytes before decoding, with 24 existing controls passing. Actual public baseline `48b7bf244` in 8.7 seconds passes WAV replacement/Undo, then retains the picker with `Select an audio file for /recordings/Voice memo.webm.` Corrected spreadsheet preparer/service and ordinary media-router focused suite GREEN 28/28; targeted six-file lint passes. Public postfix verification awaits the next guarded advance build. The owning diagnostics and temporary log were removed after this small receipt. |
 
+| R7-IO-016 | Soundscaper Record options → Record loop into takes; Window → Clip spreadsheet: place the recorded source on another audio track → Move to Project bin → Remove from project. | Bin removal and media replacement pruned sources according only to ordinary clips, despite the editable take graph retaining the same recording. Include surviving take-owned source identities in that pruning decision; preserve removal of media without a take owner. | Strict actual cycle-repository producer and Soundscaper product commands causally RED for removal and replacement, while both ungrouped controls pass. Public baseline `48b7bf244` in 13.1 seconds passes actual oscillator recording, take dialog, spreadsheet placement, Move and confirmation, then reports `project.takeGroups[0].takes[0] references missing source` and retains the bin card. The initial same-track partial placement was correctly refused by take coverage and is excluded setup. Corrected retained/unowned media, subsequent take audition, source retention, take commands and multicamera support GREEN 20/20; targeted three-file lint passes. Public postfix verification awaits the next guarded advance build. Temporary diagnostics and receipt log were removed immediately. |
+
 Checkpoint follow-through retains the multicamera source-retention helper in the
 existing private Framescaper project-command chunk owner. The generic eager
 import ownership guard covers this edge without changing source semantics or
@@ -36,6 +38,6 @@ The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
 application action or adversarial media.
-Fourteen qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+Fifteen qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
