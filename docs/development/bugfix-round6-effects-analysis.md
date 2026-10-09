@@ -1760,3 +1760,34 @@ starts. A private 48 kHz sink still leaves that browser's actual clock at
 The probe is excluded from this batch, adds zero roots and leaves no test or
 source edit. The profile-clock boundary overlaps earlier R5-ROOT-017 admission
 work; it does not substantiate a new live continuity claim.
+
+## Zero-count capture-family completion — Omitted native channel metadata
+
+The full checkpoint150 Firefox recording-meter workflow reaches Record, Stop,
+saved completion and Float WAV delivery, then fails its original left-peak
+control at 0.565685 instead of above 0.7. Independent native input observation
+retains the real two-channel signal at peaks [0.8, 0] in all three engines;
+Firefox and WebKit omit the optional destination-track settings while Chromium
+reports two channels (`/tmp/soundscaper-r6-stream-metadata-observation.log`,
+3/3 complete). An unchanged whole-workflow observation on Green42 additionally
+proves the native recorder input has two channels, the persisted source has
+one, and both delivered WAV channels peak at 0.565685
+(`/tmp/soundscaper-r6-io-meter-native-observer-green42-3.log`). The legacy
+capture adapter assumes mono when channel metadata is omitted; its ordinary
+mono center panner then legitimately applies the equal-power gain.
+
+Use the already maintained native capture-width probe only when that setting
+is omitted, retain the legacy two-channel cap and all explicit metadata
+behavior, and recheck start ownership after the asynchronous observation and
+before storage admission. The probe retains its own silent-node cleanup and
+leaves the stream's owned tracks intact. Five strict actual-service cases fail
+before the correction while three explicit mono/stereo/cap controls pass
+(`/tmp/soundscaper-r6-legacy-channel-node-red.log`). The repaired omitted-width,
+cap, cancellation and inspection-failure cases plus existing recording,
+native-probe, timing, sound-activation and channel-meter controls pass 69/69
+(`/tmp/soundscaper-r6-legacy-channel-node-green.log`). Focused strict types,
+targeted and changed-file lint, size and dependency architecture checks pass;
+the complete unchanged browser workflow remains pending at source handoff.
+This is a conservative completion of the existing capture-width family and
+adds zero roots: this register stays at forty-five and the round stays at 200.
+No manual **Update AI assets** run is required.
