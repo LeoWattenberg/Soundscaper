@@ -49,10 +49,10 @@ for (const locale of ['en', 'de']) {
 		const beforePixels = await pixels(before);
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamTemperature', '0.25');
-		await dialog.getByLabel(messages.choose, { exact: true }).selectOption('tone-ladder-v1');
+		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('tone-ladder-v1');
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamExposure', '-1');
-		await dialog.getByLabel(messages.choose, { exact: true }).selectOption('develop-geometry-v1');
+		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('develop-geometry-v1');
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamCropWidth', '0.5');
 		await expect.poll(() => extent(after)).toEqual([1, 2]);
@@ -68,8 +68,8 @@ for (const locale of ['en', 'de']) {
 		await dialog.getByLabel(messages.snapshotName, { exact: true }).fill('Warm crop');
 		await keyboard(page, dialog.getByRole('button', { name: messages.saveSnapshot, exact: true }));
 		await expect(dialog.getByRole('button', { name: `${messages.restoreSnapshot}: Warm crop`, exact: true })).toBeEnabled();
-		await dialog.getByLabel(messages.history, { exact: true }).selectOption('0');
-		await expect(dialog.getByLabel(messages.history, { exact: true })).toHaveValue('0');
+		await dialog.getByRole('combobox', { name: messages.history, exact: true }).selectOption('0');
+		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true })).toHaveValue('0');
 		await expect.poll(() => extent(after)).toEqual([2, 2]);
 		await expect(preview).toHaveAttribute('data-state', 'ready'); expect(await extent(after)).toEqual([2, 2]);
 		await keyboard(page, dialog.getByRole('button', { name: `${messages.restoreSnapshot}: Warm crop`, exact: true }));
@@ -77,9 +77,9 @@ for (const locale of ['en', 'de']) {
 		await expect(preview).toHaveAttribute('data-state', 'ready'); expect(await pixels(after)).toEqual(rendered);
 		await dialog.getByLabel(messages.copyName, { exact: true }).fill('Alternative');
 		await keyboard(page, dialog.getByRole('button', { name: messages.createCopy, exact: true }));
-		const version = dialog.getByLabel(messages.version, { exact: true });
+		const version = dialog.getByRole('combobox', { name: messages.version, exact: true });
 		await expect(version.locator('option')).toHaveCount(2); expect(await version.inputValue()).not.toBe('master');
-		await expect(dialog.getByLabel(messages.history, { exact: true }).locator('option')).toHaveCount(1);
+		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(1);
 		await version.selectOption('master'); await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeEnabled();
 		await keyboard(page, dialog.getByRole('button', { name: messages.useVersion, exact: true }));
 		await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeDisabled();
@@ -92,7 +92,7 @@ for (const locale of ['en', 'de']) {
 		await expect(card).toHaveCount(1); await keyboard(page, card); await openDevelop();
 		await expect(preview).toHaveAttribute('data-state', 'ready');
 		await expect(version).toHaveValue('master'); await expect(version.locator('option')).toHaveCount(2);
-		await expect(dialog.getByLabel(messages.history, { exact: true }).locator('option')).toHaveCount(2);
+		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(2);
 		await expect(dialog.getByRole('spinbutton', { name: exact('videoEffectParamCropWidth'), exact: true })).toHaveValue('0.5');
 		expect(await pixels(before)).toEqual(beforePixels); expect(await pixels(after)).toEqual(rendered); expect(await observe(page, photoId)).toEqual(saved);
 		await keyboard(page, dialog.getByRole('button', { name: `${messages.deleteSnapshot}: Warm crop`, exact: true }));
