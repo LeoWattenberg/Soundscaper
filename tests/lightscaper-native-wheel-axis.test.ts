@@ -28,3 +28,10 @@ test('the native axis proof refuses untrusted events and off-axis or inactive de
 	assert.throws(() => requireNativeWheelAxis(sample(779, 359, 280), 'center'), /center coordinates/u);
 	assert.throws(() => requireNativeWheelAxis(sample(779, 360, Number.NaN), 'center'), /finite/u);
 });
+
+test('the observed Chromium focus scroll cannot reuse an earlier integral down center for its later native move', () => {
+	requireNativeWheelAxis(sample(779, 109, 29), 'center');
+	assert.throws(() => requireNativeWheelAxis(sample(939, 109, 30), 'horizontal'), /horizontal/u);
+	requireNativeWheelAxis(sample(779, 110, 30), 'center');
+	requireNativeWheelAxis(sample(939, 110, 30), 'horizontal');
+});

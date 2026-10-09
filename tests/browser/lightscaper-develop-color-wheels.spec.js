@@ -152,7 +152,9 @@ async function integralWheelBounds(control) {
 		const rect = element.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
 		// Firefox delivers integer native mouse coordinates. Arrange the actual
 		// DOM center on that shared grid instead of rounding production input.
-		element.style.setProperty('transform', `translate(${Math.round(x) - x}px, ${Math.round(y) - y}px)`);
+		// Move inward to the next grid point so focus does not scroll the wheel
+		// back across the viewport inset after the first native pointerdown.
+		element.style.setProperty('transform', `translate(${Math.ceil(x) - x}px, ${Math.ceil(y) - y}px)`);
 		const { left, top, width, height } = element.getBoundingClientRect();
 		if (!Number.isInteger(left + width / 2) || !Number.isInteger(top + height / 2)) throw Error('Native wheel center alignment did not settle exactly.');
 		return { left, top, width, height };
@@ -160,6 +162,7 @@ async function integralWheelBounds(control) {
 }
 async function requireAxis(control, axis) {
 	const records = await control.evaluate(element => element.__wheelAxisRecords);
+	await test.info().attach(`native-wheel-${axis}-axis`, { body: JSON.stringify(records), contentType: 'application/json' });
 	requireNativeWheelAxis(records.down, 'center'); requireNativeWheelAxis(records.move, axis);
 }
 async function expectPixels(dialog, name, expected) {
