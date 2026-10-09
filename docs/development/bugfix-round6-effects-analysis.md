@@ -29,7 +29,7 @@ bringing this register to twenty verified roots. R6-EFFECT-021 passes its comple
 ordinary Source/menu/Apply/WAV workflow in all three engines on immutable
 Green14 `756da708e`
 (`/tmp/soundscaper-round6-green14-public-browser.log`), bringing this register to
-twenty-one verified roots. R6-EFFECT-022 has focused GREEN and await a later
+twenty-one verified roots. R6-EFFECT-022–023 have focused GREEN and await a later
 build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
@@ -764,3 +764,49 @@ The initial missing style-asset loader is excluded. Focused strict types,
 targeted type-aware lint and size/diff checks pass. Public GREEN awaits
 the next immutable product build. No assistance runtime assets change and no
 manual **Update AI assets** run is required.
+
+## R6-EFFECT-023 — Legacy Compressor refuses ordinary audio followed by silence
+
+Import an ordinary IEEE float WAV with one second of a 330 Hz tone and a
+half-second digital pause. Open its Source waveform, Select all and choose
+Effect → Legacy effects → Legacy Compressor. Applying its defaults refuses
+the finite recording: output channel zero contains a non-finite sample at
+frame 48,099. The recording itself contains only normal finite audio samples.
+
+The RMS follower subtracts squares from its rolling window. Once the last
+real tone samples leave the window, ordinary floating-point cancellation can
+leave a tiny negative power remainder. Taking its square root produces NaN
+and poisons the remaining gain envelope. Bound measured power at zero before
+the square root; preserve the accumulated window, detector/follower ordering,
+per-channel and second-pass normalization, peak mode and upstream seed window.
+
+The complete Source/menu/Apply workflow is causally RED at the retained dialog
+and its exact non-finite-output alert
+(`/tmp/soundscaper-r6-effects-legacy-compressor-silent-tail-browser-red3.log`).
+Initial incorrect menu paths are excluded. Two strict actual-DSP tone/pause
+cases fail at first non-finite frame 48,099; the 440 Hz, peak-detector and
+all-silence controls pass
+(`/tmp/soundscaper-r6-effects-legacy-compressor-silent-tail-node-red.log`).
+All twenty new/existing basic-effect, legacy seed/follower and finite-silence
+cases pass after repair
+(`/tmp/soundscaper-r6-effects-legacy-compressor-silent-tail-node-support.log`).
+Focused strict compilation and targeted type-aware lint pass; public GREEN
+awaits the next immutable product build. No assistance runtime assets change
+and no manual **Update AI assets** run is required.
+
+The Noise Gate release estimator also derived its crossover poles through the
+old clamp. Derive its tail from the corrected valid cutoff so the rack cannot
+stop while a genuine near-Nyquist release remains audible. The existing strict
+8 kHz/3,999 Hz tail regression now excites the actual corrected high cutoff
+with an ordinary 3,990 Hz tone; its former 1,000 Hz tone no longer supplies the
+same end-of-source amplitude after the cutoff correction. The estimator's
+52-frame tail is causally RED at residual amplitude 0.07404 where the retained
+−80 dB bound requires less than 0.0001
+(`/tmp/soundscaper-r6-effects-crossover-tail-node-red2.log`). All thirty-two
+tail, lookahead, valid-crossover and actual-worklet support cases pass after
+the dependent repair (`/tmp/soundscaper-r6-effects-crossover-tail-node-green.log`),
+with narrow strict types and targeted lint passing. This is required
+follow-through of R6-EFFECT-018 and adds no root. Immutable Green12 `8d9d45ff4`
+includes the repaired estimator and passes the complete normal native-cutoff
+workflow in Chromium, Firefox and WebKit
+(`/tmp/soundscaper-round6-green12-public-browser.log`).
