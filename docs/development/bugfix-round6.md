@@ -985,3 +985,56 @@ Final Green44 completes its npm guarded product preparation and actually
 starts the full **6,228-case** browser run with four workers. Its first
 completed Chromium About workflow passes in 3.7 seconds. All configured
 engines and cases are retained; the full final result is still pending.
+
+Green44 subsequently finishes with **actual exit 1**: **6,228 cases,
+5,935 passed, 254 skipped and 39 failed in 3.2 hours**
+(`/tmp/soundscaper-round6-checkpoint200-green44-full-browser.log`). This
+complete run stays failed; individual verification cannot relabel its result.
+All three engines and the standard four local workers completed. The known
+legacy capture-width, native video-dimension and Inspector budget corrections
+are included in this frozen snapshot.
+
+Three locked-Paste failures reveal an additional normal keyboard dismissal
+hole: Escape from an all-disabled submenu leaves Edit open and intercepts the
+later Track menu action. Healthy Paste, Undo and the actual disabled Paste
+admission checks pass first. The mounted strict regression reproduces seven
+causal failures with four modifier-ownership controls passing. Commit
+`13e2669d2` changes exactly three source lines: Escape remains available when
+no child is enabled, and both deferred keyboard entry owners select only an
+enabled direct child. The two source files remain 529 and 123 lines. The
+independent repairs pass 36 menu controls and six unchanged Paste controls;
+strict types, targeted and changed lint, size and diff checks pass. Complete
+native verification is pending. This is a zero-count completion; the verified
+total stays 200.
+
+Four Chromium/Firefox video-edit failures wait for trim/stretch handles
+intentionally withdrawn by the earlier lock-admission correction. Their
+ordinary edits and history controls have already passed. Commit `68dc0bfe6`
+replaces only these unreachable locked-grip fixture actions with explicit
+absent-grip checks, retaining every healthy gesture, exact locked menu,
+guide/preview/timeline assertion, the original 240-second budgets and the
+existing WebKit capability guard. Both fixtures shrink; strict entry/support
+types, targeted and changed lint, size and diff checks pass. The original four
+failed runs remain recorded and complete latest-product verification is
+pending. No product source changes in this fixture completion.
+
+The remaining observations retain their exact diagnostics and original
+assertions. They include unfinished export/capture/save workflows, three
+unexpected PCM or measured-level values, dropdown focus, unavailable native
+WebGL2, a native continuous-slider increment assumption, an initial default
+canvas width sampled before resizing, and an immediately sampled derived
+duration display. They are not automatically attributed to host load or
+declared passing from intermediate controls. Other worktrees' heavy Node
+processes were observed during the Firefox deadline cluster
+(`/tmp/soundscaper-round6-green44-ambient-load.jsonl`); that is scheduling
+context, not proof of any individual cause. Unchanged complete quiet retries
+and independent native observations remain pending.
+
+Latest immutable Green45 `68dc0bfe6` has a clean tracked checkout, Node 26.5.0
+and npm 12.0.1, with private dependency copies completing at actual exit 0.
+Its queued canonical gate actually starts after the full browser process has
+exited, at 2026-10-09 17:35:56 UTC
+(`/tmp/soundscaper-round6-checkpoint200-green45-canonical.log`). This complete
+gate and subsequent native verification remain pending. No runtime source
+pin, engine dependency, recipe, archive or supported target changes; no manual
+**Update AI assets** run is required.
