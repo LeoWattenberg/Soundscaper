@@ -122,6 +122,11 @@ export function FreesoundPanelContainer({
 	const searchSequence = useRef(0);
 	const searchAbort = useRef<AbortController | null>(null);
 	const preview = useRef<ActiveFreesoundPreview | null>(null);
+	const playbackGain = Math.max(0, Math.min(1, Number(dataRecord(snapshot.audioDevices)?.playbackGain ?? 1)));
+
+	useEffect(() => {
+		if (preview.current) preview.current.audio.volume = playbackGain;
+	}, [playbackGain]);
 
 	useEffect(() => { void account.initialize(); }, [account]);
 
@@ -193,6 +198,7 @@ export function FreesoundPanelContainer({
 		if (!panelActive || typeof Audio !== 'function') return;
 		stopPreview();
 		const audio = new Audio(freesoundPreviewUrl(soundId));
+		audio.volume = playbackGain;
 		const active: ActiveFreesoundPreview = {
 			soundId, audio, playing: true, playRequest: 0, metadataLoaded: false, pendingSeekSeconds: null,
 		};
@@ -217,7 +223,7 @@ export function FreesoundPanelContainer({
 		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false,
 			previewPositionSeconds: seekSeconds }));
 		playPreview(active);
-	}, [panelActive, playPreview, stopPreview]);
+	}, [panelActive, playbackGain, playPreview, stopPreview]);
 
 	const pausePreview = useCallback(() => {
 		const active = preview.current;
