@@ -190,7 +190,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 					{!isVideoClip && snapshot.capabilities?.audioEffects && (
 						<div className="audio-editor-clip-properties__toggles">
 							<div data-clip-field="reversed">
-								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled}
+								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled || clip?.warpMap != null}
 									onChange={() => run(controller.actions.clip.reverse)} />
 							</div>
 							<div data-clip-field="inverted">

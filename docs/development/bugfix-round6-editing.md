@@ -47,6 +47,9 @@ disabled public actions, and arbitrary internal inputs are excluded.
 
 | R6-EDIT-025 | Preferences → Keyboard shortcuts: assign Ctrl+Alt+Shift+F10 to New label track. Import an ordinary WAV and focus its clip. Open and dismiss the normal Shift+F10 clip menu, then press the assigned command; Undo and Redo. | The assigned command opens the clip menu and creates no label track. The independently implemented TrackNew clip wrapper consumes modified context entry before the workspace dispatcher receives it, even after 013 repairs native ruler and label entries. | Admit only unclaimed plain ContextMenu/Shift+F10 before the existing clip context callback. Release Ctrl/Meta/Alt and already-handled keys while preserving plain keyboard geometry, pointer context entry and clip selection. Audio/stereo clip wrappers and modifier variants share this one root. | Immutable green1 public Chromium causal RED at zero label tracks after the ordinary Shift+F10 open/Escape control passes (`/tmp/soundscaper-r6-edit-clip-context-shortcut-causal-red2.log`). An initial nonexistent named-menu locator is excluded and corrected before causal RED. Four strict actual mounted TrackNew ownership cases independently RED while ordinary entry passes (`/tmp/soundscaper-r6-edit-clip-context-shortcut-node-red.log`). Corrected ownership and existing native clip-name composition, vendor wrapper and rename focus support pass 17/17 (`/tmp/soundscaper-r6-edit-clip-context-shortcut-node-green.log`). Focused strict compilation, targeted type-aware lint and diff checks pass. Vendor deviation 57 records the independent local wrapper correction. Focused public GREEN pending next build. |
 
+
+| R6-EDIT-026 | Import an ordinary WAV, verify Media settings → Reverse on/off, then author its identity warp through Effect → Pitch and tempo → Audio warp and transients. Reopen Media settings and activate Reverse. | The checkbox remains enabled, but its normal activation reports “warpMap is not valid native runtime authority” and leaves Reverse off. The independent media-settings availability ignores the supported warp profile's forward-only orientation. | Disable only Reverse when the current clip owns a warp map, retaining the canonical supported-profile refusal. Keep ordinary Reverse, warped Invert and the existing Undo recovery to an unwarped clip. Sample/musical map and orientation variants share this one availability root. | Immutable green1 public Chromium causal RED at enabled Reverse after ordinary on/off and warp-authoring controls pass (`/tmp/soundscaper-r6-edit-warp-reverse-public-red.log`). A separate normal activation proof reaches the exact visible refusal and unchanged checkbox in 12.2 seconds (`/tmp/soundscaper-r6-edit-warp-reverse-refusal-public2.log`); an earlier check() helper expected unsupported activation to become checked and is excluded. The strict actual canonical command proves the forward-orientation refusal, then the mounted availability case independently RED while ordinary Reverse remains available (`/tmp/soundscaper-r6-edit-warp-reverse-node-red2.log`); an initial assertion read the wrapper exception rather than its canonical cause and was corrected before causal RED. Corrected availability and existing media clocks, transform controls and operation ownership support pass 25/25 (`/tmp/soundscaper-r6-edit-warp-reverse-node-green.log`). Focused strict compilation and targeted type-aware lint pass. Focused public GREEN pending next build. |
+
 Immutable Green6 `1a269a3fa` passes every editing public regression 001–013,
 including the native ruler, fade and label context-entry variants, in Chromium,
 Firefox and WebKit (`/tmp/soundscaper-round6-green6-browser-all-engines.log`).
@@ -109,6 +112,15 @@ plain-arrow and Undo/Redo controls on unchanged green1. The workspace command
 owner runs first (`/tmp/soundscaper-r6-edit-add-track-modified-navigation-red.log`,
 which records a passing hypothesis run), so no command-loss correction or count
 was added.
+
+An ordinary stereo recording with Feedback delay was frozen, split to left/right
+mono and restored with Undo/Redo on unchanged green1; every action passes
+(`/tmp/soundscaper-r6-edit-frozen-split-probe3.log`). The earlier no-effect
+Freeze-menu probe never reached freezing and is excluded. No frozen-split
+correction or count was added. Vendored mouse trim/stretch callbacks were also
+checked: the active timeline supplies a no-op legacy trim callback and owns
+mutation through its primary-button pointer adapter. Those legacy nonprimary
+callbacks provide no ordinary mutation path and are excluded.
 
 No manual **Update AI assets** run is required: the assistance runtime closure
 and target inventories are unchanged.
