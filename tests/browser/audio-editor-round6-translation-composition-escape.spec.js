@@ -32,6 +32,7 @@ test('canceling native translation composition keeps the translator and its draf
 	await translation.press('Escape');
 	await expect(surface).toBeHidden();
 	await chooseCommandAction(page, editor, 'Help', copy.menu);
+	await surface.getByRole('combobox', { name: copy.language, exact: true }).selectOption('ja');
 	await surface.getByRole('searchbox', { name: copy.search, exact: true }).fill('play');
 	await surface.getByRole('listbox', { name: new RegExp(`^${copy.messages} \\(`, 'u') }).selectOption('play');
 	await expect(surface.getByRole('textbox', { name: copy.translation, exact: true })).toHaveValue('再生');

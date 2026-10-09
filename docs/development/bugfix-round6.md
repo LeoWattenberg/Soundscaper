@@ -113,3 +113,14 @@ its ancestor-propagation follow-through awaits a later immutable verification.
 The other failing audio workflows had previously passed unchanged; their
 load-related timeouts are kept as failed run results pending unchanged retries
 (`/tmp/soundscaper-round6-green8-public-browser.log`, 196 passed, 20 failed).
+
+The repaired first-milestone full Node suite on immutable `81a707b96` passes
+24,179 tests across its two execution batches: 24,146 passed, 33 skipped and
+zero failed (`/tmp/soundscaper-round6-checkpoint50-green9-full-node.log`).
+The three faithful support corrections are verified by that complete rerun.
+Both product builds pass. The independent translation-surface composition
+workflow passes all three engines on this same build after correcting its
+reopen-language fixture (`/tmp/soundscaper-round6-translation-composition-final-green9-browser.log`).
+That brings the individually verified count to 59; the larger public batch
+remains in progress. The unsupported recording-dialog command hypothesis is
+retired and excluded with zero count.
