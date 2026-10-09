@@ -12,6 +12,7 @@ ordinary workflows in all three engines on immutable Green9 `81a707b96`
 fourteen verified roots.
 R6-EFFECT-015 has causal public RED and focused GREEN and awaits the next build.
 R6-EFFECT-016 has the same pending validation status.
+R6-EFFECT-017 has causal public RED and focused GREEN and awaits a later build.
 The INDEX follow-through of R6-EFFECT-011 also awaits its new public PCM check;
 it adds no root.
 
@@ -476,4 +477,38 @@ types, targeted type-aware lint and the size gate pass. Public GREEN awaits the
 next immutable product build. The earlier EDIT-010 dispatcher correction
 remains intact; this independently implemented macro publication adapter must
 retire the focus it previously preserved. No assistance runtime assets change
+and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-017 — Sliding Stretch previews compress the selected pitch and tempo ramps
+
+Import an ordinary twelve-second 440 Hz WAV, select its header, open Effect →
+Pitch and tempo → Sliding stretch, set Final pitch shift to twelve semitones,
+and use Preview followed by Apply to selection and WAV export. At the same
+two-second playback position the baseline preview is about 81 Hz above the
+applied recording. The six-second preview input is incorrectly treated as the
+complete selection over which the initial and final parameters interpolate.
+
+When Sliding Stretch's pitch or tempo endpoints differ, process the complete
+selected extent and retain the existing six-second audition cap. Admit the
+complete processing extent through the existing peak-memory guard before
+rendering. Constant transforms keep their bounded preview render. This pitch
+and tempo ramp geometry is one defect, separate from R5-ROOT-005's whole-selection
+peak, DC and loudness statistics. Setting-free Fade In/Out previews are excluded:
+their ordinary menu entries apply immediately and do not expose Preview.
+
+The actual ordinary preview/apply/export workflow is causally RED at a
+preview/applied frequency discrepancy of 80.70 Hz versus a five-Hz tolerance
+(`/tmp/soundscaper-r6-effects-sliding-preview-duration-browser-red2.log`). An
+earlier menu-label case mismatch never reached the processor and is excluded.
+Two strict tests using the committed StaffPad WASM independently fail: the
+long pitch ramp differs by 0.2782 PCM amplitude, and the long tempo ramp previews
+only four seconds where the full applied result supplies six. Short-selection
+and constant-pitch controls pass before correction
+(`/tmp/soundscaper-r6-effects-sliding-preview-duration-node-red.log`). All
+seventeen new/existing preview, whole-selection normalization, worker-context,
+placement, cancellation and gain cases pass afterward, including exact PCM
+agreement with the applied ramp and full-extent memory admission
+(`/tmp/soundscaper-r6-effects-sliding-preview-duration-node-green.log`). Focused
+strict types, targeted type-aware lint and the file-size gate pass. Public GREEN
+awaits the next immutable product build. No assistance runtime assets change
 and no manual **Update AI assets** run is required.
