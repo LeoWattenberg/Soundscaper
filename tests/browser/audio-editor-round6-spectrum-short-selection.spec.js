@@ -24,7 +24,7 @@ for (const duration of [0.01, 0.02]) test(`Plot spectrum refuses an ordinary ${d
 	}
 	await expect(dialog.getByRole('alert')).toBeVisible();
 	await expect(dialog.locator('[data-analysis-report="spectrum"]')).toHaveCount(0);
-	await expect(editor.locator('[data-status]')).toContainText('at least 2048 samples');
+	await expect(page.getByRole('alert').filter({ hasText: 'at least 2048 samples' })).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
 	if (duration === 0.01) return;
 	await closeDialog(dialog);

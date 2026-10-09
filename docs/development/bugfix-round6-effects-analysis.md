@@ -48,7 +48,10 @@ Echo playback/edit workflow on immutable Green19 `18a33ffa1`
 twenty-eight verified roots. R6-EFFECT-029 passes both complete normal Chromium
 Warp quantization/groove workflows on immutable Green20 `0b272a361`
 (`/tmp/soundscaper-round6-green20-chromium.log`), bringing this register to
-twenty-nine verified roots.
+twenty-nine verified roots. R6-EFFECT-030 passes both complete normal Chromium
+short-selection/refusal/recovery workflows on immutable Green22 `e2e2b5112`
+(`/tmp/soundscaper-r6-effects-spectrum-short-selection-browser-green22.log`),
+bringing this register to thirty verified roots.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -1155,8 +1158,14 @@ repeat, spectrum and clipping cases pass after repair
 existing publication controls now supply a complete 32-frame window instead
 of four frames; every original cache, ordering and transaction assertion stays
 unchanged. Focused strict compilation, targeted and canonical changed-file
-lint and size/diff checks pass. The public regression retains ordinary recovery
-after choosing a smaller default 512 window; built public GREEN is pending the
-next immutable snapshot. This register still has twenty-nine verified roots.
+lint and size/diff checks pass. The first immutable Green22 public run refuses
+the misleading plot correctly but its test watches the cleared global status
+instead of the actual visible warning alert
+(`/tmp/soundscaper-round6-green22-chromium.log`). The exact count-aware instruction
+appears in that alert; only the observer is corrected. Both complete normal
+Chromium workflows then pass unchanged immutable Green22 `e2e2b5112`
+(`/tmp/soundscaper-r6-effects-spectrum-short-selection-browser-green22.log`),
+including ordinary 512-window recovery with the original frequency/level and
+Export assertions. This register now has thirty verified roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
