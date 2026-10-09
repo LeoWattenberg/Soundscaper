@@ -39,7 +39,7 @@ function FreqStepper({ value, onCommit, min, max, step, width, className }: {
   return (
     <div
       onBlur={() => tryCommit(draft)}
-      onKeyDown={(e) => { if (e.key === 'Enter') tryCommit(draft); }}
+      onKeyDown={(e) => { if (!e.nativeEvent?.isComposing && e.key === 'Enter') tryCommit(draft); }}
     >
       <NumberStepper
         ref={ref}
@@ -233,7 +233,7 @@ export const RulerFlyout: React.FC<RulerFlyoutProps> = ({
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.isComposing || e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
