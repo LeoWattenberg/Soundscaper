@@ -58,3 +58,10 @@ AI assets** run is required.
 Complete repository lint passed all eight bounded shards during this wave.
 Size checks pass for 11,078 maintained files. Later source additions receive
 their own focused lint and will be included again in the checkpoint gates.
+
+Prepared Chromium capture `e2a38ecb5` completes EDIT007's plain Tab, configured
+shortcut and Undo/Redo workflow in 2.9 seconds, and EDIT010's horizontal
+dispatch control, both picture-track directions and Undo/Redo in 4.7 seconds.
+Both complete public regressions pass. The native Title regression's track
+inventory uses the same validated-array narrowing as its existing controller
+tests; focused checks and type-aware lint pass after that typing correction.

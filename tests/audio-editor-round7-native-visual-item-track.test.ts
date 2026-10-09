@@ -23,7 +23,7 @@ test('contextual image movement reaches adjacent picture tracks and preserves it
 		id: 'lower-picture', name: 'Lower picture', type: 'video', sequenceId: project.primarySequenceId,
 	} });
 	const original = history.present;
-	const originalTrack = original.tracks.find(track => track.clipIds?.includes(clip.id));
+	const originalTrack = original.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(clip.id));
 	assert.ok(originalTrack);
 	let nextId = 0;
 	const service = createClipTransformService({
@@ -45,15 +45,15 @@ test('contextual image movement reaches adjacent picture tracks and preserves it
 		},
 	};
 	applyAudacityItemNavigationAction('track-view-item-move-down', controller);
-	assert.equal(history.present.tracks.find(track => track.clipIds?.includes(clip.id))?.id, 'lower-picture');
+	assert.equal(history.present.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(clip.id))?.id, 'lower-picture');
 	assert.deepEqual(history.present.clips, original.clips);
 	assert.deepEqual(history.present.sources, original.sources);
 	history = runtime.undo(history);
 	assert.deepEqual(history.present.tracks, original.tracks);
 	history = runtime.redo(history);
-	assert.equal(history.present.tracks.find(track => track.clipIds?.includes(clip.id))?.id, 'lower-picture');
+	assert.equal(history.present.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(clip.id))?.id, 'lower-picture');
 	applyAudacityItemNavigationAction('track-view-item-move-up', controller);
-	assert.equal(history.present.tracks.find(track => track.clipIds?.includes(clip.id))?.id, originalTrack.id);
+	assert.equal(history.present.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(clip.id))?.id, originalTrack.id);
 	assert.deepEqual(history.present.clips, original.clips);
 });
 
@@ -71,20 +71,20 @@ test('published contextual Title movement uses the existing picture track destin
 	await authoring.run('video-title');
 	const clip = controller.project?.clips.at(-1);
 	assert.ok(clip);
-	const originalTrack = controller.project?.tracks.find(track => track.clipIds?.includes(String(clip.id)));
+	const originalTrack = controller.project?.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(String(clip.id)));
 	assert.ok(originalTrack);
 	controller.actions.timeline.selectClip(String(clip.id));
 	controller.actions.clip.moveToNewTrack(String(clip.id), 0);
-	const movedTrack = controller.project?.tracks.find(track => track.clipIds?.includes(String(clip.id)));
+	const movedTrack = controller.project?.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(String(clip.id)));
 	assert.ok(movedTrack);
 	assert.notEqual(movedTrack.id, originalTrack.id);
 	const runtime = createAudacityActionRuntime(controller);
 	context.after(() => runtime.dispose());
 	await runtime.actions.navigation.moveItemUp();
-	assert.equal(controller.project?.tracks.find(track => track.clipIds?.includes(String(clip.id)))?.id, originalTrack.id);
+	assert.equal(controller.project?.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(String(clip.id)))?.id, originalTrack.id);
 	assert.deepEqual(controller.project?.clips.find(candidate => candidate.id === clip.id), clip);
 	controller.actions.edit.undo();
-	assert.equal(controller.project?.tracks.find(track => track.clipIds?.includes(String(clip.id)))?.id, movedTrack.id);
+	assert.equal(controller.project?.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(String(clip.id)))?.id, movedTrack.id);
 	controller.actions.edit.redo();
-	assert.equal(controller.project?.tracks.find(track => track.clipIds?.includes(String(clip.id)))?.id, originalTrack.id);
+	assert.equal(controller.project?.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(String(clip.id)))?.id, originalTrack.id);
 });
