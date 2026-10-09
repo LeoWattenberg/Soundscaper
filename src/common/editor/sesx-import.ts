@@ -22,6 +22,7 @@ export interface SesxAudioReference {
 }
 
 export interface SesxClip {
+	readonly zOrder: number;
 	readonly id: string | null;
 	readonly fileId: string;
 	readonly name: string;
@@ -180,6 +181,7 @@ function readClip(element: XmlElement): SesxClip {
 	const clipPan = childElements(element, 'component').find((component) => attribute(component, 'id') === 'clipPan');
 	const channelMap = childElement(element, 'channelMap');
 	return Object.freeze({
+		zOrder: integerAttribute(element, 'zOrder') ?? 0,
 		id: attribute(element, 'id'),
 		fileId: requiredTextAttribute(element, 'fileID'),
 		name: attribute(element, 'name')?.trim() ?? '',
