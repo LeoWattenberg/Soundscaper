@@ -737,3 +737,33 @@ source bytes are identical. Green39's two guarded product builds exit zero.
 The earlier full100 and full150 browser checkpoint results remain pending.
 The initial Green38 browser queue was replaced before it started so the final
 run includes the verified native observer. No runtime asset update is required.
+
+The first full200 canonical attempt on Green38 exits1 after completing all
+static gates and both Node batches. The isolated batch passes1/1; the parallel
+batch reports24,860 cases,24,825 passes,2 failures and33 skips in826,853ms.
+Combined: **24,861 cases,24,826 passes,2 failures,33 skips**. Both failures are
+retained in `/tmp/soundscaper-round6-checkpoint200-green38-canonical.log`.
+
+The chunk-owner guard identifies exactly two eager project-command consumers
+of EDIT052's unowned pure sequence conformance helper. Assign that helper to
+the existing exact project-command inventory; retain every semantic group and
+the eager/lazy guard. The new mapping regression is independently RED, then
+the correction and unchanged chunk, cross-product and exact sequence/history
+controls pass90/90. Immutable Green40 `f9fcebaeb` passes both guarded builds and
+the complete native pen/mouse, Title and PNG sequence-rate public workflows in
+8.5/11.5/6.0seconds, including exact Undo/Redo
+(`/tmp/soundscaper-round6-green40-ownership-public-green.log`). This is zero-count
+EDIT052 completion.
+
+The archive-focus failure occurs at its initial Install-button admission,
+before installation or either focus assertion: fifty event-loop turns end
+before the real authenticated catalog publishes. The exact unchanged file
+passes2/2 in isolation on Green38. Observe the existing store adapters' real
+catalog and installation completion, retaining their original return values,
+digest-pinned bytes and both focus assertions. The corrected fixture passes
+13/13 authentication/metadata/focus controls, strict types and changed lint
+before test-only commit `1aa233df3`. This contributes zero count and changes no
+product focus timing. The corrected final snapshot will rerun the complete
+canonical gate; its final browser queue replaces the unstarted Green39 queue.
+All200 qualifying roots remain verified. No manual **Update AI assets** run
+is required.
