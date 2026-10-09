@@ -171,6 +171,7 @@ function DraggableCropOverlay({ crop, label, onCrop }: Readonly<{
 	};
 	return <div className="kw-local-assistance__crop-overlay" aria-label={label}
 		onPointerDown={(event) => {
+			if (event.button !== 0) return;
 			event.currentTarget.setPointerCapture(event.pointerId);
 			move(event);
 		}}
