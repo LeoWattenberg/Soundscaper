@@ -51,7 +51,7 @@ for (const locale of ['en', 'de']) {
 		const beforePixels = await pixels(before, [2, 2]);
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamTemperature', '0.25');
-		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('tone-ladder-v1');
+		await choose(page, dialog.getByRole('combobox', { name: messages.choose, exact: true }), 'tone-ladder-v1');
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamExposure', '-1');
 		await expect.poll(async () => (await pixels(after, [2, 2]))[0]).toBeLessThan(beforePixels[0]);
@@ -59,7 +59,7 @@ for (const locale of ['en', 'de']) {
 		const tonePixels = await pixels(after, [2, 2]);
 		const mode = dialog.getByRole('combobox', { name: messages.previewMode, exact: true });
 		await expect(dialog.getByRole('slider', { name: messages.divider, exact: true })).toHaveCount(0);
-		await mode.selectOption('split');
+		await choose(page, mode, 'split');
 		const divider = dialog.getByRole('slider', { name: messages.divider, exact: true });
 		await expect(divider).toHaveValue('50');
 		await divider.focus(); await page.keyboard.press('Home'); await expect(divider).toHaveValue('0');
@@ -73,18 +73,18 @@ for (const locale of ['en', 'de']) {
 		expect(await screenPixel(page, splitBox, 0.25)).toEqual(beforePixels.slice(0, 4));
 		expect(await screenPixel(page, splitBox, 0.75)).toEqual(tonePixels.slice(0, 4));
 		expect(await pixels(before, [2, 2])).toEqual(beforePixels); expect(await pixels(after, [2, 2])).toEqual(tonePixels);
-		await mode.selectOption('compare'); await expect(divider).toHaveCount(0);
-		await dialog.getByRole('combobox', { name: messages.choose, exact: true }).selectOption('develop-geometry-v1');
+		await choose(page, mode, 'compare'); await expect(divider).toHaveCount(0);
+		await choose(page, dialog.getByRole('combobox', { name: messages.choose, exact: true }), 'develop-geometry-v1');
 		await keyboard(page, dialog.getByRole('button', { name: messages.add, exact: true }));
 		await number('videoEffectParamCropWidth', '0.5');
 		await expect.poll(() => extent(after)).toEqual([1, 2]);
 		await expect(preview).toHaveAttribute('data-state', 'ready');
 		expect(await extent(after)).toEqual([1, 2]); expect(await pixels(before, [2, 2])).toEqual(beforePixels);
-		await mode.selectOption('split'); await expect(divider).toHaveValue('50');
+		await choose(page, mode, 'split'); await expect(divider).toHaveValue('50');
 		const croppedBoxes = await Promise.all([before.boundingBox(), after.boundingBox()]); expect(croppedBoxes[0]).toEqual(croppedBoxes[1]);
 		expect(await before.evaluate(value => getComputedStyle(value).objectFit)).toBe('contain');
 		expect(await after.evaluate(value => getComputedStyle(value).objectFit)).toBe('contain');
-		await mode.selectOption('compare');
+		await choose(page, mode, 'compare');
 		await expect(dialog.getByRole('img', { name: `${messages.histogram}: ${messages.before}`, exact: true })).toBeVisible();
 		await expect(dialog.getByRole('img', { name: `${messages.histogram}: ${messages.after}`, exact: true })).toBeVisible();
 		await expect(dialog.getByRole('status').filter({ hasText: messages.dirty })).toBeVisible();
@@ -98,7 +98,7 @@ for (const locale of ['en', 'de']) {
 		await dialog.getByLabel(messages.snapshotName, { exact: true }).fill('Warm crop');
 		await keyboard(page, dialog.getByRole('button', { name: messages.saveSnapshot, exact: true }));
 		await expect(dialog.getByRole('button', { name: `${messages.restoreSnapshot}: Warm crop`, exact: true })).toBeEnabled();
-		await dialog.getByRole('combobox', { name: messages.history, exact: true }).selectOption('0');
+		await choose(page, dialog.getByRole('combobox', { name: messages.history, exact: true }), '0');
 		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true })).toHaveValue('0');
 		await expect.poll(() => extent(after)).toEqual([2, 2]);
 		await expect(preview).toHaveAttribute('data-state', 'ready'); expect(await extent(after)).toEqual([2, 2]);
@@ -109,7 +109,7 @@ for (const locale of ['en', 'de']) {
 		await keyboard(page, dialog.getByRole('button', { name: messages.createCopy, exact: true }));
 		await expect(version.locator('option')).toHaveCount(2); expect(await version.inputValue()).not.toBe(masterVersionId);
 		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(1);
-		await version.selectOption(masterVersionId); await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeEnabled();
+		await choose(page, version, masterVersionId); await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeEnabled();
 		await keyboard(page, dialog.getByRole('button', { name: messages.useVersion, exact: true }));
 		await expect(dialog.getByRole('button', { name: messages.cancel, exact: true })).toBeDisabled();
 		await expect(version).toHaveValue(masterVersionId);
@@ -117,8 +117,11 @@ for (const locale of ['en', 'de']) {
 		await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeDisabled();
 		await closeDevelop();
 		const saved = await observe(page, photoId);
-		expect({ ...saved, revision: original.revision }).toEqual(original); expect(saved.revision).toBe(original.revision + 6);
-		expect(saved.sha256).toBe(createHash('sha256').update(PNG).digest('hex')); expect(saved.bytes).toEqual(Array.from(PNG));
+		expect({ ...saved.photo, schemaVersion: original.photo.schemaVersion, revision: original.photo.revision, versions: original.photo.versions }).toEqual(original.photo);
+		expect(saved.photo.schemaVersion).toBe(original.photo.schemaVersion); expect(saved.photo.revision).toBe(original.photo.revision + 6);
+		const master = saved.photo.versions.find(value => value.id === masterVersionId);
+		expect(master.develop.processVersion).toBe(1); expect(master.workspace.schemaVersion).toBe(1);
+		expect(saved.photo.original.contentSha256).toBe(createHash('sha256').update(PNG).digest('hex')); expect(saved.bytes).toEqual(Array.from(PNG));
 		await page.reload(); await expect(app).toBeVisible(); await expect(app.locator('[data-photo-library]')).toHaveCount(0);
 		await summary(page, app, copy.photoViewMenu); await keyboard(page, app.getByRole('button', { name: copy.photoShowLibrary, exact: true }));
 		await expect(card).toHaveCount(1); await keyboard(page, card); await openDevelop();
@@ -142,7 +145,12 @@ for (const locale of ['en', 'de']) {
 	});
 }
 
-async function keyboard(page, locator) { await locator.focus(); await page.keyboard.press('Enter'); }
+async function keyboard(page, locator) { await expect(locator).toBeEnabled(); await locator.focus(); await expect(locator).toBeFocused(); await page.keyboard.press('Enter'); }
+async function choose(page, combo, value) {
+	const index = await combo.locator('option').evaluateAll((options, value) => options.findIndex(option => option.value === value), value);
+	expect(index).toBeGreaterThanOrEqual(0); expect(index).toBeLessThan(64); await combo.focus(); await expect(combo).toBeFocused(); await page.keyboard.press('Home');
+	for (let step = 0; step < index; step++) await page.keyboard.press('ArrowDown'); await expect(combo).toHaveValue(value);
+}
 async function summary(page, app, name) { await keyboard(page, app.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') })); }
 async function extent(canvas) { return canvas.evaluate(value => [value.width, value.height]); }
 async function screenPixel(page, box, position) {
@@ -167,11 +175,11 @@ async function pixels(canvas, expectedExtent) {
 	return captured;
 }
 async function observe(page, photoId) {
-	const result = await build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-photo-library-ui-fixture.ts', import.meta.url))],
+	const result = await build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-current-app-fixture.tsx', import.meta.url))],
 		bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
 	await page.route('**/__develop_original_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text }));
 	return page.evaluate(async id => {
 		const module = await import(new URL('/__develop_original_observer.js', location.href).href);
-		return (await module.readResidentPhotoLibraryV1([id])).photos[0];
+		return (await module.readResidentPhotoLibraryCurrent([id])).photos[0];
 	}, photoId);
 }
