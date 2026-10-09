@@ -168,18 +168,21 @@ export function createBrowserServiceWorkerCoverageCollector({
 		const workletInstrumented = recorder.type === 'worklet'
 			? recorder.session.send('Runtime.evaluate', { expression: INSTALL_WORKLET_COVERAGE_CHECKPOINT })
 			: Promise.resolve();
+		// Playwright resumes this same target when its attachment callback returns.
+		// Queue our resume first; a later duplicate can hang after module loading fails.
+		const resumed = recorder.waitingForDebugger
+			? recorder.session.send('Runtime.runIfWaitingForDebugger')
+			: Promise.resolve();
 		const startup = await Promise.all([
 			debuggerEnabled,
 			profilerEnabled,
 			runtimeEnabled,
 			coverageStarted,
 			workletInstrumented,
+			resumed,
 		]);
 		if (recorder.type === 'worklet' && startup[4]?.result?.value !== true) {
 			throw new Error('Audio worklet coverage checkpoint instrumentation was not installed.');
-		}
-		if (recorder.waitingForDebugger) {
-			await recorder.session.send('Runtime.runIfWaitingForDebugger');
 		}
 	}
 
