@@ -239,3 +239,26 @@ Uncounted exclusion: the production Soundscaper menu stand-in deliberately omits
 native analyzer entries. Parameter and publication hypotheses in the Vamp dialog
 therefore have no normal shipped menu path; their probes are removed without a
 source change or qualifying count.
+
+The immutable `9bd6730b2` Chromium delta passes Clip Properties lock/unlock,
+the browser PNG control, bounded Speed Delay Preview/Apply PCM parity and valid
+Paulstretch resolution (`/tmp/soundscaper-round6-green16-chromium.log`). Its
+three initial failures remain recorded: native image cleanup was observed
+synchronously before its release completed; the compressor export used the
+default24-bit dither although its exact-zero assertion required float PCM; and
+the color-composition workflow reached its repaired assertions before exceeding
+its unchanged overall deadline at the last cancellation control.
+
+The native image fixture now awaits the same one release within its existing
+budget; both browser and native PNG import/save/reload workflows pass on the
+same product bytes (`/tmp/soundscaper-round6-green16-image-retry.log`,2/2).
+The compressor selects ordinary32-bitFloat WAV output and passes its unchanged
+finite-PCM, exact digital-zero and audible-tone assertions
+(`/tmp/soundscaper-r6-effects-legacy-compressor-green16-float-export.log`).
+The unchanged isolated color workflow passes as well
+(`/tmp/soundscaper-round6-green16-color-retry.log`). These qualify editing034,
+effects023, I/O020 and dialog036, giving **111 distinct verified fixes**.
+The preview corrections are follow-through of effects017 and add zero count.
+The canonical100-fix gate has passed all four production composition typechecks
+and continues its complete test/tooling compilation. Full-suite results remain
+pending; work continues toward200.
