@@ -559,3 +559,22 @@ lint-shard cases pass (`/tmp/soundscaper-round6-lint-inventory-node-green.log`) 
 targeted type-aware lint passes. These fixture corrections add zero user bugs
 and weaken no lint, architecture, coverage or behavior gate. A corrected immutable
 canonical150 rerun remains required; the failed complete result is retained.
+
+Immutablea8a5aaf38 (Green31) builds both products successfully. Its focused
+Chromium batch has5passes and4failures in1.1minutes
+(`/tmp/soundscaper-round6-green31-chromium.log`). Three additional roots complete
+their public workflows: EFFECT038 native effect-picker composition,
+EFFECT039 Reverb's actual stereo-pair WAV output, and DIALOG058 native search
+selection, replacement and command activation. The verified count is172:
+editing48, effects39, I/O29 and dialogs56. ADM numeric composition completes
+DIALOG017 with zero added count. Video range ownership and touch track height
+remain pending after causal public failures; their native browser and timeline
+owners need further correction. Both labeled Cut variants initially fail a
+later range fixture because the playhead icon covers its start hit target.
+The existing Jump to project start action before redrawing the same range
+preserves every clipboard/history assertion and completes both workflows on
+this unchanged build in5.5/5.7seconds
+(`/tmp/soundscaper-r6-edit-green31-labeled-cut-green.log`), adding zero count.
+The fourth canonical150 run on the same immutable checkout remains active;
+the full100 and queued150 browser suites remain pending. No manual
+**Update AI assets** run is required.
