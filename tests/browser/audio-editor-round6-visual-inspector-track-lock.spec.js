@@ -5,6 +5,7 @@ import { bootEditor, chooseNestedCommandAction } from './audio-editor-test-helpe
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 test('Selected Visual Inspector respects an ordinary picture track lock', async ({ page }) => {
+	test.setTimeout(90_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
 	const clip = editor.getByRole('group', { name: 'Video clip: Solid', exact: true });

@@ -363,3 +363,27 @@ Existing guide/export and annotation-creation controls pass 71/71
 targeted and canonical changed-file lint, size and diff checks pass. This is a
 fixture completion, leaves editing at 54 and the aggregate at 200, and requires
 no manual Update AI assets run.
+
+Uncounted full-150 visual-inspector fixture budget completion: the complete
+three-cycle track-lock workflow exceeds its original 30-second overall budget.
+Retain the full Green27 failure and unchanged isolated failure in 30.4 seconds
+(`/tmp/soundscaper-r6-full150-webkit-visual-lock-isolated.log`), plus the unchanged
+Green43 original-budget failure in 33.1 seconds
+(`/tmp/soundscaper-r6-full150-webkit-visual-lock-green43-original.log`). None is
+reported as original-budget GREEN. A nonmaintained 120-second diagnostic copy
+preserving every original action and state assertion completes in 32.6 seconds:
+the last Apply finishes at 30.876 seconds and its original successful status
+assertion at 30.943 seconds
+(`/tmp/soundscaper-r6-full150-webkit-visual-lock-elapsed.log`). This diagnostic
+establishes cumulative budget exhaustion, not a blocked action or state mismatch,
+and is separate from the maintained validation. Change only the existing test's
+overall budget to 90 seconds; preserve every original 5-second assertion budget,
+action and product source byte. The complete maintained test passes against the
+same immutable Green43 `9ca719643` application products with one worker and
+qualified native audio in all three engines: Chromium 17.8, Firefox 16.1 and
+WebKit 47.5 seconds (3/3 PASS, process exit 0, 1.5 minutes total;
+`/tmp/soundscaper-r6-full150-visual-lock-budget-all-engines.log`). Narrow strict
+checked-JavaScript compilation and existing inspector support types, targeted
+and canonical changed-file lint, size and diff checks pass. This changes only
+the browser fixture and receipt, leaves editing at 54 and the aggregate at 200,
+and requires no manual Update AI assets run.
