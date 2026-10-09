@@ -355,3 +355,15 @@ the existing corrected image purpose. These support corrections add zero count.
 Their full canonical rerun remains required; this failed run is not passing
 evidence. Full50 browser verification continues, followed sequentially by
 full100 browser verification.
+
+The immutable `4e4d8ac7b` passes both guarded product builds and all three
+public Chromium checks in9 seconds (`/tmp/soundscaper-round6-green21-chromium.log`).
+The camera-folder operation retains its linked picture/audio block from either
+track menu, through atomic Undo/Redo and folder collapse. The floating-panel move
+retains its first native touch when a second finger begins. Editing038 and
+dialog045 therefore qualify, giving **133 distinct verified fixes**: editing38,
+effects29, I/O22 and dialogs44. The next spectrum and timeline annotation changes
+remain uncounted until later built public verification. The complete full100
+canonical retry is running on this immutable snapshot with both faithful support
+corrections (`/tmp/soundscaper-round6-checkpoint100-green21-canonical-retry.log`).
+Full50 browser verification continues; full100 follows it sequentially.
