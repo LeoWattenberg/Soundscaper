@@ -426,3 +426,15 @@ passes but secondary-release and20px pan checks still fail; editing042 remains
 uncounted while its actual pointer payload and CSS authority are investigated.
 The independently repaired workspace-resize admission also remains source-ready
 until a later built public verification.
+
+The immutable `050940077` passes both guarded product builds and all seven
+focused public Chromium checks in28.4 seconds
+(`/tmp/soundscaper-round6-green25-chromium.log`). Corrected native automation
+pointer-release and20px pan workflows, ordinary/switched-camera OTIO delivery,
+and single/two-finger floating-panel resize all pass. Editing042, I/O026 and
+dialog048 therefore qualify: **146 distinct verified fixes** comprise editing42,
+effects32, I/O25 and dialogs47. Earlier incorrect native pointer-release payloads
+remain excluded. Recording-target admission, native plug-in idle topology and
+hardware-input meter publication remain source-ready pending the next built
+public verification. The full100 all-engine browser checkpoint continues;
+the required150 canonical checkpoint will use a later immutable checkout.
