@@ -584,6 +584,10 @@
 		,
 		{"path": "src/common/editor/ui/lightscaper/photo-library-workflow-import-v2.ts", "kind": "helper-contract", "justification": "Current closed import gesture admits scalar schema2 saved-preset choices while preserving existing preparation, settings and receipt profiles."}
 		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-settings-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in current Photo settings and presets hook owns one fixed mixed authoring coordinator and joins predecessor retirement without widening its legacy hook."}
+		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in current Photo Develop hook owns one fixed mixed authoring coordinator and joins predecessor retirement without widening its legacy hook."}
+		,
 		{"path": "src/common/editor/ui/lightscaper/use-photo-library-workflow-v2.ts", "kind": "helper-contract", "justification": "Current UI workflow selects fixed current Session and Develop envelopes, source-bound lazy renderers and scoped resource import without widening named legacy owners."}
 		,
 		{"path": "src/common/editor/ui/video-preview-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 native Clarity shader samples original straight byte alpha and luma through texelFetch, protects hidden RGB at zero-alpha centers and evaluates dense seven-by-seven replicated-edge neighborhoods with bounded highp signed integer arithmetic and exact signed rounding."}
