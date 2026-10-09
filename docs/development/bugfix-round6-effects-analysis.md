@@ -1204,3 +1204,34 @@ snapshot; this register retains thirty verified
 roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-032 — Rate effects advertise an incorrect sample duration
+
+Import a one-second 48-kHz recording, select it and open Change Tempo or Change
+Speed and Pitch. Set Percent change to 50 and choose Samples from the Desired
+duration format menu. The field promises 32,016 samples, but Apply followed by
+the ordinary WAV export produces 32,000. The preceding 100-percent comparison
+correctly promises 24,000. Both effects share this one duration-value owner.
+
+Retain the exact derived duration until the existing time-code formatter
+formats it. The owner previously rounded its value to milliseconds before
+the formatter could show samples. Preserve the existing percentage precision,
+limits, automation commit callback and ordinary duration editing. R2-ROOT-012
+corrected absent selection context; this independent value-rounding defect
+occurs with a complete, correct selection context.
+
+Both complete normal menu, Samples, Apply and actual WAV-export workflows are
+causally RED on unchanged immutable Green22
+(`/tmp/soundscaper-r6-effects-rate-sample-duration-browser-red.log`). Four strict
+mounted production-format cases independently show 29,414 instead of 29,400
+samples at 44.1 kHz and 32,016 instead of 32,000 at 48 kHz, with exact-duration
+comparisons and the two existing editable-duration controls passing
+(`/tmp/soundscaper-r6-effects-rate-sample-duration-node-red.log`). All sixteen
+new and existing rate-duration and time-code cases pass after repair,
+including format/blur without a parameter write
+(`/tmp/soundscaper-r6-effects-rate-sample-duration-node-green.log`). Focused
+strict compilation, targeted and canonical changed-file lint, and size/diff
+checks pass. Built public GREEN is pending the next immutable snapshot;
+this register retains thirty verified roots.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
