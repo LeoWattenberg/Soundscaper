@@ -53,8 +53,9 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 		const configurable = String(effect?.type || '').toLowerCase();
 		const equalizer = configurable === 'audacity-graphic-eq' || configurable === 'audacity-filter-curve-eq';
 		const dynamics = configurable === 'audacity-compressor' || configurable === 'audacity-limiter';
+		const reverb = configurable === 'audacity-reverb';
 		if (!effect || (!CONFIGURABLE_RACK_EFFECT_TYPES.has(configurable) && !isStandardEffect(configurable)
-			&& configurable !== 'audacity-echo' && !equalizer && !dynamics)) return false;
+			&& configurable !== 'audacity-echo' && !equalizer && !dynamics && !reverb)) return false;
 		const normalized = normalizeEffect({
 			...effect,
 			params: { ...(effect.params || {}), ...params },
@@ -79,6 +80,13 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 			const sampleRate = this.context?.sampleRate || this.sampleRate;
 			if (effectLatencyFrames(effect, sampleRate) !== effectLatencyFrames({ ...effect, params: normalized }, sampleRate)) return false;
 		}
+		if (reverb) {
+			const sampleRate = this.context?.sampleRate || this.sampleRate;
+			const previous: Readonly<Record<string, unknown>> = normalizeEffect(effect).params;
+			const next: Readonly<Record<string, unknown>> = normalized;
+			if (Math.round(Number(previous.preDelay) / 1_000 * sampleRate)
+				!== Math.round(Number(next.preDelay) / 1_000 * sampleRate)) return false;
+		}
 		if (isStandardEffect(configurable)) {
 			const key = effectGraphKey(scope, targetId, effectId);
 			const node = this.graph?.effectNodes?.get(key);
@@ -93,7 +101,7 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 			scope,
 			targetId,
 			effectId,
-			{ type: configurable === 'audacity-echo' || equalizer || dynamics ? 'params' : 'configure', params: normalized },
+			{ type: configurable === 'audacity-echo' || equalizer || dynamics || reverb ? 'params' : 'configure', params: normalized },
 			options.revision,
 		);
 		if (sequence !== false) {

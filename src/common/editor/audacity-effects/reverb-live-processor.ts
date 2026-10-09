@@ -72,7 +72,7 @@ export class ReverbLiveProcessor {
 
 	updateParams(params: Partial<ReverbParams> = {}): void {
 		const normalized = normalizeReverbParams({ ...this.params, ...params });
-		const rebuild = normalized.preDelay !== this.params.preDelay;
+		const rebuild = Math.round(normalized.preDelay / 1_000 * this.sampleRate) !== this.preDelayFrames;
 		this.params = normalized;
 		this.configure();
 		if (rebuild) this.reset();
