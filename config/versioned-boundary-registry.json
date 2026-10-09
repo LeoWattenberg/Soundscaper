@@ -632,6 +632,8 @@
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-import-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog import preserves physical saved state and complete saved queries while authenticating all packs and joining archive cleanup before provisional publication."}
 		,
+		{"path": "src/lightscaper/archive/catalog-archive-import-v4.ts", "kind": "helper-contract", "justification": "Version 4 catalog import authenticates the complete Develop preset row and its declared revision/count alongside unchanged photo, stack and saved-query packs, preserving explicit legacy absence and joining archive closure before provisional publication."}
+		,
 		{"path": "src/lightscaper/archive/catalog-archive-saved-collection-guard-v3.ts", "kind": "helper-contract", "justification": "Version 3 archive saved-definition admission binds bounded global identities, root-only references, disjoint collection IDs and exact physical-state counts independently of streamed recipe bodies."}
 		,
 		{"path": "src/lightscaper/archive/develop-preset-pack-entry-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop preset entry decoding joins bounded ZIP extraction, provisional row staging and final SHA-256 and length authentication while preserving native opaque cancellation."}
@@ -873,6 +875,8 @@
 		{"path": "src/lightscaper/storage/photo-media-restore-candidate-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media restore candidate preserves exact archived storage keys, streams every original and joins native owners through readiness and rollback."}
 		,
 		{ "path": "src/lightscaper/storage/photo-media-restore-namespace-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media namespace creation commits its scalar allocation marker with the owning DB2 schema, joins native lifetime and rechecks current ownership before private rollback." }
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-presets-v1.ts", "kind": "helper-contract", "justification": "Version 1 private preset restore admission detaches one bounded complete row and binds its canonical digest, authenticating physical absence or exact delivered contents before custody promotion and final native readiness without introducing pointer or CRUD authority."}
 		,
 		{"path": "src/lightscaper/storage/photo-media-restore-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 versionless candidate reads authenticate current media ownership and bounded persisted original descriptors without creating or adopting resources."}
 		,

@@ -19,13 +19,17 @@ import { normalizePhotoLibraryRestoreAllocationV1, photoLibraryRestoreNamespaces
 import { assertMediaRestoreOwnerV1, openMediaRestoreExistingV1, readMediaRestoreDescriptorV1 } from './photo-media-restore-read-v1.ts';
 import { finishPhotoMediaRestoreV1, type PhotoMediaRestoreCountsV1 } from './photo-media-restore-audit-v1.ts';
 import { assertMediaRestoreSignalV1, checkMediaRestoreSignalV1, forwardMediaRestoreSignalV1, mediaRestoreCancellationV1 } from './photo-media-restore-signal-v1.ts';
+import { photoDevelopPresetsKeyV1 } from './photo-develop-presets-v1.ts';
+import { admitPhotoMediaRestorePresetHeaderV1, admitPhotoMediaRestorePresetsV1, bindPhotoMediaRestorePresetsV1,
+	type PhotoMediaRestorePresetHeaderV1, type PhotoMediaRestorePresetBindingV1 } from './photo-media-restore-presets-v1.ts';
 
-export interface PhotoMediaRestoreCandidateOptionsV1 { readonly indexedDB: IDBFactory; readonly allocation: unknown; readonly root: unknown; readonly signal?: AbortSignal }
+export interface PhotoMediaRestoreCandidateOptionsV1 { readonly indexedDB: IDBFactory; readonly allocation: unknown; readonly root: unknown; readonly signal?: AbortSignal; readonly developPresets?: PhotoMediaRestorePresetHeaderV1 | null }
 export interface PhotoMediaRestoreOriginalReceiptV1 { readonly photoId: string; readonly assetId: string; readonly sha256: string; readonly size: number; readonly reused: boolean }
 export interface PhotoMediaRestoreReceiptV1 extends PhotoMediaRestoreCountsV1 { readonly databaseName: string; readonly catalogId: string }
 export interface PhotoMediaRestoreCandidateV1 {
 	readonly databaseName: string; readonly catalogId: string;
 	writeOriginal(photo: unknown, source: AsyncIterable<Uint8Array>): Promise<Readonly<PhotoMediaRestoreOriginalReceiptV1>>;
+	writeDevelopPresets(value: unknown): Promise<void>;
 	finish(): Promise<Readonly<PhotoMediaRestoreReceiptV1>>;
 	close(): Promise<void>; rollback(): Promise<void>;
 }
@@ -33,12 +37,13 @@ const names = new WeakMap<object, Set<string>>();
 
 /** Fresh private IDB-only candidate. Incoming originals are serial; no default namespace or digest deduplication. */
 export async function createPhotoMediaRestoreCandidateV1(value: PhotoMediaRestoreCandidateOptionsV1): Promise<PhotoMediaRestoreCandidateV1> {
-	const input = readClosedDomainRecord(value, 'media restore candidate', ['indexedDB', 'allocation', 'root', 'signal'], ['indexedDB', 'allocation', 'root']);
+	const input = readClosedDomainRecord(value, 'media restore candidate', ['indexedDB', 'allocation', 'root', 'signal', 'developPresets'], ['indexedDB', 'allocation', 'root']);
 	const field = (name: string) => readClosedDomainField(input, name, 'media restore candidate');
 	const signal = Object.hasOwn(input, 'signal') ? field('signal') : undefined;
 	if (signal !== undefined) assertMediaRestoreSignalV1(signal);
 	const allocation = normalizePhotoLibraryRestoreAllocationV1(field('allocation')), root = readValidatedPhotoCatalogRootV1(field('root'));
 	if (root.id !== allocation.catalogId) throw new Error('Media restore root and allocation differ.');
+	const presets = admitPhotoMediaRestorePresetHeaderV1(Object.hasOwn(input, 'developPresets') ? field('developPresets') : null);
 	const factory = field('indexedDB') as IDBFactory, open = factory?.open, remove = factory?.deleteDatabase;
 	if (typeof open !== 'function' || typeof remove !== 'function') throw new TypeError('Media restore requires durable IndexedDB.');
 	checkMediaRestoreSignalV1(signal);
@@ -47,10 +52,11 @@ export async function createPhotoMediaRestoreCandidateV1(value: PhotoMediaRestor
 	let owns = false;
 	const claim = (): void => { if (owns) return; if (held.has(databaseName)) throw new Error('A restore already owns this media name.'); held.add(databaseName); names.set(factory, held); owns = true; };
 	const release = (): void => { if (owns) { held.delete(databaseName); owns = false; } };
-	claim(); const owner = new Candidate(captured, allocation, root, signal, claim, release);
+	claim(); const owner = new Candidate(captured, allocation, root, signal, claim, release, presets);
 	try {
 		await owner.initialize();
 		return Object.freeze({ databaseName, catalogId: root.id, writeOriginal: (photo: unknown, source: AsyncIterable<Uint8Array>) => owner.write(photo, source),
+			writeDevelopPresets: (value: unknown) => owner.writePresets(value),
 			finish: () => owner.finish(), close: () => owner.close(), rollback: () => owner.rollback() });
 	} catch (error) {
 		const cleanup: unknown[] = []; try { await owner.rollback(); } catch (failure) { cleanup.push(failure); }
@@ -73,8 +79,10 @@ class Candidate {
 	#closing: Promise<void> | null = null; #rollback: Promise<void> | null = null; #removing = false;
 	#receipt: Readonly<PhotoMediaRestoreReceiptV1> | null = null;
 	#photos = 0; #assets = 0; #bytes = 0;
+	#presets: Readonly<PhotoMediaRestorePresetBindingV1> | null = null;
 	constructor(readonly factory: IDBFactory, readonly allocation: PhotoLibraryRestoreAllocationV1,
-		readonly root: PhotoCatalogRootV1, signal: AbortSignal | undefined, readonly claim: () => void, readonly release: () => void) {
+		readonly root: PhotoCatalogRootV1, signal: AbortSignal | undefined, readonly claim: () => void, readonly release: () => void,
+		readonly presetHeader: PhotoMediaRestorePresetHeaderV1 | null) {
 		this.stop = forwardMediaRestoreSignalV1(signal); this.databaseName = photoLibraryRestoreNamespacesV1(allocation).mediaDatabaseName;
 	}
 	cancelled(error: unknown): boolean { return mediaRestoreCancellationV1(error, this.stop.signal); }
@@ -98,6 +106,17 @@ class Candidate {
 		return work;
 	}
 	write(value: unknown, source: AsyncIterable<Uint8Array>): Promise<Readonly<PhotoMediaRestoreOriginalReceiptV1>> { return this.#run(() => this.#write(value, source)); }
+	writePresets(value: unknown): Promise<void> {
+		return this.#run(async () => {
+			if (this.#presets !== null) throw new Error('Restore preset row was already delivered.');
+			const row = admitPhotoMediaRestorePresetsV1(value, this.root.id, this.presetHeader), binding = bindPhotoMediaRestorePresetsV1(row);
+			await catalogTransaction(this.#database!, ['settings'], 'readwrite', async stores => {
+				await assertMediaRestoreOwnerV1(stores, this.allocation);
+				await request(stores.settings!.add({ key: photoDevelopPresetsKeyV1(this.root.id), value: row }));
+			}, this.stop.signal);
+			this.#presets = binding;
+		});
+	}
 	async #write(value: unknown, source: AsyncIterable<Uint8Array>): Promise<Readonly<PhotoMediaRestoreOriginalReceiptV1>> {
 		const photo = validateLightscaperDocumentV1(value);
 		if (photo.kind !== 'photo' || photo.catalogId !== this.root.id) throw new TypeError('Restore original requires a photo in the allocated catalog.');
@@ -150,12 +169,13 @@ class Candidate {
 	finish(): Promise<Readonly<PhotoMediaRestoreReceiptV1>> {
 		if (this.#receipt) return Promise.resolve(this.#receipt);
 		return this.#run(async () => {
+			if (this.presetHeader !== null && this.#presets === null) throw new Error('Restore preset row was not delivered.');
 			if (await inspectPhotoMediaRestoreNamespaceV1({ indexedDB: this.factory, allocation: this.allocation, signal: this.stop.signal }) !== 'owned') throw new Error('Media restore owner/profile differs.');
 			const catalog = await openMediaRestoreExistingV1(this.factory.open.bind(this.factory), photoLibraryRestoreNamespacesV1(this.allocation).catalogDatabaseName, this.stop.signal);
 			this.#catalog = catalog;
 			let failed = false, failure: unknown, counts: Readonly<PhotoMediaRestoreCountsV1> | undefined; const cleanup: unknown[] = [];
 			try { counts = await finishPhotoMediaRestoreV1(this.#database!, catalog, this.allocation, this.root,
-				{ photoCount: this.#photos, originalCount: this.#assets, originalByteLength: this.#bytes }, this.stop.signal); }
+				{ photoCount: this.#photos, originalCount: this.#assets, originalByteLength: this.#bytes }, this.stop.signal, this.#presets); }
 			catch (error) { failed = true; failure = error; }
 			try { catalog.close(); this.#catalog = null; } catch (error) { cleanup.push(error); }
 			this.#cleanupErrors.push(...cleanup);

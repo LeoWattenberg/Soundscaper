@@ -4,7 +4,7 @@ import type { PhotoLibraryRestoreReceiptV1 } from '../../common/editor/photo-lib
 import { readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
 import { aggregateScapeErrors } from '../../common/editor/scape-abort.ts';
 import type { ScapeProjectInput, ScapeProjectInputReaderFactories } from '../../common/editor/scape-project-input.ts';
-import { importPhotoCatalogArchiveV3, type PhotoCatalogArchiveStageV3 } from '../archive/catalog-archive-import-v3.ts';
+import { importPhotoCatalogArchiveV4, type PhotoCatalogArchiveStageV4 } from '../archive/catalog-archive-import-v4.ts';
 import { readValidatedPhotoCatalogRootV1, validateLightscaperDocumentV1 } from '../catalog/documents.ts';
 import { name } from '../catalog/value-validation.ts';
 import { createPhotoCatalogRestoreStageV1, type PhotoCatalogRestoreStageV1 } from '../catalog/photo-catalog-restore-stage-v1.ts';
@@ -143,17 +143,19 @@ export async function restorePhotoLibraryArchiveV1(input: ScapeProjectInput,
 					})(); return cleaning;
 				};
 				try {
-					await importPhotoCatalogArchiveV3(input, (rootValue, savedState) => throughCodec(async () => {
+					await importPhotoCatalogArchiveV4(input, (rootValue, savedState, presetPack) => throughCodec(async () => {
 						assertHeld(); const root = readValidatedPhotoCatalogRootV1(rootValue);
 						allocation = normalizePhotoLibraryRestoreAllocationV1({ ...reservation, catalogId: root.id });
 						await journal.stage(allocation, selected.pointer); assertHeld();
 						catalog = await createPhotoCatalogRestoreStageV1({ indexedDB: native, databaseName: names.catalogDatabaseName,
 							root, savedState, restoreAllocation: allocation, signal: stop.signal });
-						assertHeld(); media = await createPhotoMediaRestoreCandidateV1({ indexedDB: native, allocation, root, signal: stop.signal });
+						assertHeld(); media = await createPhotoMediaRestoreCandidateV1({ indexedDB: native, allocation, root, signal: stop.signal,
+							developPresets: presetPack === null ? null : { revision: presetPack.revision, presetCount: presetPack.presetCount } });
 						const writePhoto = catalog.writePhoto.bind(catalog), writeStack = catalog.writeStack.bind(catalog);
 						const writeSavedCollection = catalog.writeSavedCollection.bind(catalog), writeOriginal = media.writeOriginal.bind(media);
+						const writeDevelopPresets = media.writeDevelopPresets.bind(media);
 						const finishCatalog = catalog.finish.bind(catalog), finishMedia = media.finish.bind(media);
-						return Object.freeze<PhotoCatalogArchiveStageV3>({
+						return Object.freeze<PhotoCatalogArchiveStageV4>({
 							writePhoto: (value, original) => throughCodec(async () => {
 								assertHeld(); const photo = validateLightscaperDocumentV1(value);
 								if (photo.kind !== 'photo') throw new TypeError('Archive original requires a photo.');
@@ -161,6 +163,7 @@ export async function restorePhotoLibraryArchiveV1(input: ScapeProjectInput,
 							}),
 							writeStack: value => throughCodec(async () => { assertHeld(); await writeStack(value); }),
 							writeSavedCollection: value => throughCodec(async () => { assertHeld(); await writeSavedCollection(value); }),
+							writeDevelopPresets: value => throughCodec(async () => { assertHeld(); await writeDevelopPresets(value); }),
 							publish: () => throughCodec(async () => {
 								assertHeld(); const catalogReady = await finishCatalog(); assertHeld();
 								const mediaReady = await finishMedia(); assertHeld();

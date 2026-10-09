@@ -9,6 +9,7 @@ import type { PhotoLibraryRestoreAllocationV1 } from './photo-library-restore-ow
 import { assertMediaRestoreOwnerV1, assertMediaRestorePhotoRootV1, readMediaRestoreCatalogPageV1,
 	verifyMediaRestoreAssetV1 } from './photo-media-restore-read-v1.ts';
 import { checkMediaRestoreSignalV1 } from './photo-media-restore-signal-v1.ts';
+import { assertPhotoMediaRestorePresetsV1, type PhotoMediaRestorePresetBindingV1 } from './photo-media-restore-presets-v1.ts';
 
 export interface PhotoMediaRestoreCountsV1 {
 	readonly photoCount: number; readonly originalCount: number; readonly originalByteLength: number;
@@ -18,7 +19,11 @@ export interface PhotoMediaRestoreCountsV1 {
  * Counts are controls, not substitutes for the canonical binding/body audit. No whole-heap claim. */
 export async function finishPhotoMediaRestoreV1(media: IDBDatabase, catalog: IDBDatabase,
 	allocation: PhotoLibraryRestoreAllocationV1, root: PhotoCatalogRootV1, expected: PhotoMediaRestoreCountsV1,
-	signal: AbortSignal): Promise<Readonly<PhotoMediaRestoreCountsV1>> {
+	signal: AbortSignal, presets: PhotoMediaRestorePresetBindingV1 | null = null): Promise<Readonly<PhotoMediaRestoreCountsV1>> {
+	await catalogTransaction(media, ['settings'], 'readonly', async stores => {
+		await assertMediaRestoreOwnerV1(stores, allocation);
+		await assertPhotoMediaRestorePresetsV1(stores.settings!, root.id, presets);
+	}, signal);
 	let photoCount = 0, after: string | null = null;
 	for (;;) {
 		const page = await readMediaRestoreCatalogPageV1(catalog, allocation, root, after, signal);
@@ -52,6 +57,7 @@ export async function finishPhotoMediaRestoreV1(media: IDBDatabase, catalog: IDB
 	// Scalar native count fence supplements the completed bounded canonical audit. Backend count cost is not claimed O(1).
 	return catalogTransaction(media, ['settings', 'mediaAssets', 'mediaAssetChunks', 'catalogOriginalRoots'], 'readwrite', async stores => {
 		await assertMediaRestoreOwnerV1(stores, allocation);
+		await assertPhotoMediaRestorePresetsV1(stores.settings!, root.id, presets);
 		for (const [name, count] of [['mediaAssets', originalCount], ['mediaAssetChunks', chunks], ['catalogOriginalRoots', photoCount]] as const) {
 			if (await request(stores[name]!.count()) !== count) throw new Error('Restore inventory changed before completion.');
 		}
