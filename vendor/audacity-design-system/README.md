@@ -426,6 +426,14 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-round6-mixer-knob-shortcut.test.tsx` and the native
     mixer pan/send command and endpoint browser workflows.
 
+59. `EnvelopeInteractionLayer` admits only the primary mouse button before
+    starting clip-gain point insertion, removal or dragging. Context clicks and
+    middle-button gestures preserve the authored envelope; ordinary primary
+    gestures, Escape cancellation and publication remain unchanged. Covered by
+    `tests/audio-editor-round6-envelope-pointer-button.test.tsx` and the ordinary
+    clip-gain/context-click/exported-audio/Undo browser workflow. Upstream-PR
+    candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
