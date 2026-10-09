@@ -195,12 +195,14 @@ export function createEbuR128Meter(options = {}) {
 		}
 	}
 
-	function snapshot() {
+	function snapshot({ finishTruePeak = false } = {}) {
 		const truePeakAmplitude = liveSquareSamples
 			? maximumChannelPeak(livePeak, liveTruePeak)
 			: lastLiveTruePeak;
 		const peak = liveSquareSamples ? livePeak : lastLivePeak;
 		const rms = liveSquareSamples ? Math.sqrt(liveSquares / liveSquareSamples) : lastLiveRms;
+		const programmeTruePeak = finishTruePeak && running
+			? completedTruePeakMaximum(liveTruePeak, maximumTruePeak) : maximumTruePeak;
 		return Object.freeze({
 			peak,
 			rms,
@@ -219,7 +221,7 @@ export function createEbuR128Meter(options = {}) {
 				loudnessRangeLu: lraBlocks.loudnessRangeLu(),
 				loudnessRangeStable: programmeFrames >= sampleRate * 60,
 				truePeakDbtp: ebuAmplitudeToDb(truePeakAmplitude),
-				maximumTruePeakDbtp: programmeFrames ? ebuAmplitudeToDb(maximumTruePeak) : null,
+				maximumTruePeakDbtp: programmeFrames ? ebuAmplitudeToDb(programmeTruePeak) : null,
 				measuredSeconds: programmeFrames / sampleRate,
 				state: running ? 'running' : 'standby',
 			}),
@@ -462,6 +464,19 @@ function pushTruePeak(state, sample) {
 function maximumChannelPeak(peak, states) {
 	for (const state of states) peak = Math.max(peak, state.peak);
 	return peak;
+}
+
+/** Resolve the finite programme's pending FIR output without advancing its
+ * measurement windows or changing histories used by realtime continuation.
+ */
+function completedTruePeakMaximum(states, maximum) {
+	for (const state of states) {
+		const pending = { ...state, history: state.history.slice() };
+		for (let frame = 0; frame < TRUE_PEAK_FIR.length; frame += 1) {
+			maximum = Math.max(maximum, pushTruePeak(pending, 0));
+		}
+	}
+	return maximum;
 }
 
 function validateChannels(channels, channelCount) {

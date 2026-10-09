@@ -198,3 +198,37 @@ lint passes.
 samples instead of more than 48,128. Corrected public verification is pending.
 PCM stays in memory; no generated verification files are retained. Assistance
 runtime assets are unchanged.
+
+## R7-EFFECT-008 — Analyze selection loses an ordinary crescendo's ending true peak
+
+Import a normal one-second, 48 kHz, 12 kHz mono tone with amplitude 0.5.
+Select all, choose Effect → Fading → Fade In, then Analyze → Analyze selection.
+The displayed sample peak is −9.0 dBFS after the ordinary mono pan law. True
+peak also reports −9.0 dBTP, although the finite programme's reconstructed end
+reaches −8.9 dBTP. The analyzer takes the EBU meter snapshot before the 12-tap,
+four-phase true-peak interpolator has emitted its pending ending response.
+
+Resolve that finite response on copied FIR histories when finishing offline
+analysis. Keep the programme's exact frame count, RMS and loudness windows,
+realtime snapshots and later live continuation. Cached finish remains
+idempotent; paused live input cannot contribute to the completed programme.
+Advance the persisted levels cache namespace so previous incomplete true peaks
+cannot survive an ordinary app update and Analyze selection on the same clip.
+This is one offline true-peak finalization root, independent of R6-EFFECT-027's
+sample-peak telemetry field mapping.
+
+Five causal focused cases fail before correction, while paused/silent guards
+already pass. The fixtures use the actual Tone generator and Fade In at
+supported 0.001, 0.01 and one-second durations; an independent complete finite
+programme with twelve zero frames establishes the missed 0.083–0.089 dB peak.
+All six new ending/history/cadence/chunk cases and existing worker, analysis,
+EBU Tech 3341/3342 conformance and audit support pass 41/41. The persisted cache
+case independently fails before its namespace correction; new ending, cache
+and actual analysis-composition support passes 24/24. Target type-aware lint
+passes. `audio-editor-round7-analysis-true-peak-ending.spec.js` is causally RED
+on immutable `5c9787bec`: ordinary Fade In completion and the healthy sample
+peak −9.0 dBFS pass, then true peak is −9.0 dBTP instead of −8.9. Its initial
+nonexistent Apply dialog setup is excluded because parameter-free Fade In
+applies directly from its menu. Corrected public verification is pending.
+PCM remains in memory and no verification fixture or raw coverage is created.
+No AI runtime asset update is required.

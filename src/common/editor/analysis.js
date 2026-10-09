@@ -114,7 +114,7 @@ export function createStreamingAudioAnalyzer(options = {}) {
 
 	function finish() {
 		if (result) return result;
-		const ebu = ebuMeter.snapshot().loudness;
+		const ebu = ebuMeter.snapshot({ finishTruePeak: true }).loudness;
 		const peakAmplitude = Math.max(0, ...samplePeaks);
 		const truePeakAmplitude = Number.isFinite(ebu.maximumTruePeakDbtp)
 			? Math.max(peakAmplitude, 10 ** (ebu.maximumTruePeakDbtp / 20))

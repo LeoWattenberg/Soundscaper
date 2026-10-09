@@ -162,7 +162,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const projectToken = dependencies.captureProject();
 		const task = begin('analysisRendering');
 		const key = [
-			'audio-editor-analysis-v2',
+			'audio-editor-analysis-v3',
 			request.projectId,
 			request.revision,
 			request.scope,

@@ -22,6 +22,20 @@ test('valid cached analysis keeps its result and skips rendering', async () => {
 	assert.equal(fixture.saved.length, 0);
 });
 
+test('updated true-peak finalization does not reuse an older persisted level report', async () => {
+	const previous = { truePeakDbtp: -6.020781116947984 };
+	const corrected = { truePeakDbtp: -5.932175728261639 };
+	const fixture = createFixture(null);
+	const service = createAudioAnalysisService({ ...fixture.dependencies,
+		loadAnalysis: async key => key.startsWith('audio-editor-analysis-v2:')
+			? { result: previous, visuals: null, report: null } : null,
+		analyzeChannels: async () => corrected,
+	});
+	assert.deepEqual(await service.run(), corrected);
+	assert.equal(fixture.renders(), 1);
+	assert.equal(fixture.saved.length, 1);
+});
+
 test('track analysis renders the track captured for its cache key while selection changes', async () => {
 	let selectedTrackId = 'track-a';
 	let releaseLookup!: () => void;
