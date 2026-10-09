@@ -1417,6 +1417,40 @@ After repair, all eleven new and existing shared-stepper parsing, bounds and
 pending-generator cases pass (`/tmp/soundscaper-r6-fx037-node-green.log`).
 Focused strict compilation, targeted and canonical changed-file lint, and
 size/diff checks pass. Source ready.
-Public GREEN remains pending the next immutable snapshot; this register retains
-thirty-six verified roots. No assistance runtime assets change and no manual
+All four complete ordinary, modified-arrow and native composing Arrow/Enter
+Chromium workflows pass on immutable Green30 `6f904d0ab`, including the actual
+1000 Hz generated/exported PCM controls, in 9.7–11.8 seconds
+(`/tmp/soundscaper-round6-green30-chromium.log`). This register now has
+thirty-seven verified roots. No assistance runtime assets change and no manual
 **Update AI assets** run is required.
+
+## R6-EFFECT-038 — Canceling a native effect-search composition dismisses its flyout
+
+Import an ordinary WAV, open its track Effects and choose Add effect. Compose
+an unfinished query in Search effects and press Escape to cancel only the
+input method's composition. The shared vendored Flyout document listener
+treats that native composing Escape as application dismissal, removes the
+search field and loses its unfinished query. This separate flyout owner does
+not use the corrected modal dialog Escape registry or native Add-track teardown.
+
+Release native composing Escape before dismissal or trigger focus restoration.
+Preserve completed Escape, ordinary trigger focus, reopening, outside dismissal,
+disabled Escape dismissal, unrelated keys and listener cleanup. Group all
+flyout consumers under this single shared owner; vendor deviation 63 records
+the narrow correction.
+
+The normal Chromium Effects → Add effect → Search effects workflow is
+causally RED on unchanged Green28 `435e1779e` after ordinary Escape, trigger
+focus and reopening controls pass: the composing Escape removes the whole
+picker (`/tmp/soundscaper-r6-fx038-public-red.log`). The regression targets its
+real native search input and injects neither project state nor internal actions.
+The strict mounted production listener independently claims the composing key
+and closes its surface while both completed-key and disabled/unrelated controls
+pass (`/tmp/soundscaper-r6-fx038-node-red.log`).
+After repair, all eighteen new and existing shared-flyout, transport and native
+Add-track teardown/focus cases pass (`/tmp/soundscaper-r6-fx038-node-green.log`).
+Focused strict compilation, targeted lint, explicit vendored-source lint,
+canonical changed-file lint, and size/diff checks pass. Public GREEN remains
+pending the next immutable snapshot; this register retains thirty-seven verified
+roots. No assistance runtime assets change and no manual **Update AI assets**
+run is required.
