@@ -925,3 +925,45 @@ reload timeout at 31.1 seconds. Every previous full and isolated failure is
 preserved; none is relabeled a passing run. These complete unchanged controls
 resolve the observations as load-related deadlines, without source or fixture
 changes and without increasing the verified count of 200.
+
+The later WebKit playback-projection case stops at the engine's shared-start
+refusal before proving a projection mismatch. Its complete unchanged Green27
+isolate passes in 5.5 seconds, actual exit 0 in 7.9 seconds
+(`/tmp/soundscaper-r6-io-full150-tracks-playback-retry.log`), retaining the
+original five-second advancement predicate and 30-second workflow deadline.
+The original full-run refusal remains recorded.
+
+The Selected Visual Inspector track-lock workflow has a cumulative fixture
+budget failure. The original Green27 30-second isolate reaches the third
+inspector after all unlocked/locked editing controls pass; the original
+Green43 retry reaches the final expected fields and status but still exceeds
+that total deadline. Neither is claimed as a whole passing run. A separate
+nonmaintained 120-second diagnostic retains every original action and
+five-second assertion and completes them all in 32.6 seconds, actual exit 0
+in 34.8 seconds. Final Apply finishes at 30.876 seconds and its status check at
+30.943 (`/tmp/soundscaper-r6-full150-webkit-visual-lock-elapsed.log`); this is
+diagnostic evidence, not original-budget GREEN.
+
+Commit `713f12114` gives the three complete inspector edit cycles a 90-second
+workflow budget. Every original state assertion and five-second predicate is
+retained, and no production or helper code changes. The maintained complete
+workflow then passes on unchanged Green43 products in Chromium 17.8 seconds,
+Firefox 16.1 seconds and WebKit 47.5 seconds: **3/3 passed, actual exit 0 in
+1.5 minutes** (`/tmp/soundscaper-r6-full150-visual-lock-budget-all-engines.log`).
+Strict entry/support types, targeted and changed lint, size and diff checks
+pass. The original failures and the larger diagnostic remain separate; this
+test-only correction adds zero qualifying roots.
+
+Final snapshot Green44 `713f12114` passes both guarded product builds, actual
+exit 0 (`/tmp/soundscaper-round6-green44-build.log`). A successful Git byte
+comparison confirms that its only differences from the passing Green43
+canonical snapshot are that one browser budget line and three verification
+documents (`/tmp/soundscaper-round6-green44-source-equivalence.log`): production,
+tooling, Node tests/helpers, configuration and dependency bytes are identical.
+The unstarted four-worker Green43 queue is terminated with actual exit 143
+before any case starts. Its Green44 replacement waits for the full 150-fix
+browser checkpoint and canonical check process to finish, then runs every
+case on every configured engine with the standard four local workers
+(`/tmp/soundscaper-round6-checkpoint200-green44-full-browser.log`). That final
+result remains pending at this receipt. The count stays 200; no manual
+**Update AI assets** run is required.
