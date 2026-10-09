@@ -5,6 +5,8 @@ import { createPngFixture } from '../helpers/png-fixture.mjs';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel, openClipProperties } from './audio-editor-test-helpers.js';
 
 for (const kind of ['title', 'image']) test(`sequence rate preserves an ordinary ${kind}'s wall-clock duration`, async ({ page }) => {
+	// Four property inspections plus Undo/Redo take nearly 30 seconds in WebKit.
+	test.setTimeout(60_000);
 	const editor = await bootEditor(page, '/framescaper/en/');
 	await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
 	const metadata = editor.locator('[data-workspace-panel="metadata"]');
