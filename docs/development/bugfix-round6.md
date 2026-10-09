@@ -450,3 +450,20 @@ The independent ordinary-meter clipping warning and native long-name atomic Save
 remain pending public verification on the next immutable checkout. The required
 150 canonical run will cover those desktop helper and shared type changes; its
 all-engine browser run is queued after the actual full100 browser completion.
+
+The immutable `0729264e1` passes both guarded product builds and all five
+focused public Chromium checks in20.4 seconds
+(`/tmp/soundscaper-round6-green27-chromium.log`). Short and valid223-byte native
+Japanese Save filenames complete actual atomic archive publication, and all
+ordinary/EBU meter warning controls pass. I/O027 and dialog050 therefore qualify:
+**151 distinct verified fixes** comprise editing43, effects33, I/O26 and dialogs49.
+The required150 full canonical check is now running on that immutable checkout
+(`/tmp/soundscaper-round6-checkpoint150-green27-canonical.log`), including full
+repository lint and both Node execution batches. Its all-engine full browser
+run is already queued behind the full100 parent process's actual completion
+(`/tmp/soundscaper-round6-checkpoint150-green27-full-browser.log`); neither
+checkpoint is reported as passing while pending. The recovered timeline
+annotation size ratchet is lowered to550, and the shrunk desktop Save test
+leaves its warning band; no size gate is weakened. Selected generator-target
+admission, final native suggested-name suffixes, clipboard destinations and
+late native parameter writes remain uncounted pending built public checks.
