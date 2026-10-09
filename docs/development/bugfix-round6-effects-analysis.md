@@ -33,8 +33,10 @@ twenty-one verified roots. R6-EFFECT-022 passes both complete normal Chromium
 workflows on immutable Green15 `de04b82c9`
 (`/tmp/soundscaper-round6-green15-public-browser.log`), bringing this register to
 twenty-two verified roots; Firefox/WebKit verification remains pending after
-the retained failed runs. R6-EFFECT-023 has focused GREEN and awaits a later
-build.
+the retained failed runs. R6-EFFECT-023 passes its complete normal Chromium
+workflow on immutable Green16 `9bd6730b2`
+(`/tmp/soundscaper-r6-effects-legacy-compressor-green16-float-export.log`),
+bringing this register to twenty-three verified roots.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -848,6 +850,12 @@ all-silence controls pass
 All twenty new/existing basic-effect, legacy seed/follower and finite-silence
 cases pass after repair
 (`/tmp/soundscaper-r6-effects-legacy-compressor-silent-tail-node-support.log`).
-Focused strict compilation and targeted type-aware lint pass; public GREEN
-awaits the next immutable product build. No assistance runtime assets change
-and no manual **Update AI assets** run is required.
+Focused strict compilation and targeted type-aware lint pass. The complete
+Source/menu/Apply/WAV workflow passes Chromium on immutable Green16 `9bd6730b2`
+(`/tmp/soundscaper-r6-effects-legacy-compressor-green16-float-export.log`).
+The first Green16 run completes Apply and exports finite audio, then finds a
+single quantization step of default 24-bit export dither in its digital-silence
+control. Explicitly choosing the ordinary 32-bit Float export preserves the
+exact-zero control, all-finite assertion, audible tone and unchanged deadline;
+the corrected fixture passes on the same product bytes. No assistance runtime
+assets change and no manual **Update AI assets** run is required.

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, closeClipProperties, disableNativeSavePicker,
-	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
-import { exportSamples } from './helpers/round2-audio-export.js';
+import { bootEditor, chooseDropdown, chooseNestedCommandAction, closeClipProperties, disableNativeSavePicker,
+	importFiles, openClipProperties, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
+import { inspectWavBlobPcm, streamWavBlobPcm } from '../../src/common/editor/wav-import.js';
 
 // An ordinary IEEE float WAV containing a one-second tone and a digital pause.
 const buffer = Buffer.alloc(44 + 72_000 * 4);
@@ -35,7 +35,17 @@ test('Source Legacy Compressor accepts a normal float recording followed by digi
 	await effect.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 	await expect(effect).toBeHidden({ timeout: 20_000 });
 	await closeClipProperties(properties);
-	const output = await exportSamples(page, editor);
+	const delivery = await openExportDialog(page, editor);
+	await chooseDropdown(page, delivery.locator('[data-export-field="bitDepth"]'), '32-bit Float');
+	await delivery.getByRole('button', { name: 'Export', exact: true }).click();
+	const link = delivery.locator('[data-export-download]');
+	await expect(link).toBeVisible({ timeout: 20_000 });
+	const blob = new Blob([await readDownloadBytes(page, link)]);
+	const descriptor = await inspectWavBlobPcm(blob);
+	const output = new Float32Array(descriptor.frameCount);
+	await streamWavBlobPcm(blob, { descriptor, onChunk: (channels, metadata) => {
+		output.set(channels[0], metadata.frameOffset);
+	} });
 	expect(output.every(Number.isFinite)).toBe(true);
 	expect(Math.max(...output.slice(55_000, 65_000).map(Math.abs))).toBe(0);
 	expect(Math.max(...output.slice(10_000, 20_000).map(Math.abs))).toBeGreaterThan(.5);
