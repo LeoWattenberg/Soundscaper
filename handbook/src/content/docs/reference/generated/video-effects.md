@@ -18,6 +18,7 @@ One definition owns each effect’s parameters, and the preview and the export b
 | --- | --- | --- |
 | Chroma Key | `chroma-key` | 3 |
 | Color Adjust | `color-adjust` | 5 |
+| Crop and perspective (contain) | `develop-geometry-v1` | 17 |
 | Drop Shadow | `drop-shadow` | 5 |
 | Gaussian Blur | `gaussian-blur` | 1 |
 | Glow | `glow` | 3 |
@@ -27,7 +28,9 @@ One definition owns each effect’s parameters, and the preview and the export b
 | RGB Split | `rgb-split` | 2 |
 | Sharpen | `sharpen` | 1 |
 | Spill Suppression | `spill-suppression` | 2 |
+| Tone | `tone-ladder-v1` | 6 |
 | Vignette | `vignette` | 1 |
+| White balance | `white-balance-v1` | 2 |
 
 ## Parameters
 
@@ -43,6 +46,23 @@ Defaults and limits come from the same definitions the editor validates against.
 | Color Adjust | Saturation | 1 | 0 to 3 | — |
 | Color Adjust | Gamma | 1 | 0.25 to 4 | — |
 | Color Adjust | Hue | 0 | -180 to 180 | degrees |
+| Crop and perspective (contain) | Crop left | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Crop top | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Crop width | 1 | 0.001 to 1 | — |
+| Crop and perspective (contain) | Crop height | 1 | 0.001 to 1 | — |
+| Crop and perspective (contain) | Crop aspect | free | free; source; 1:1; 4:3; 3:2; 16:9; 9:16 | — |
+| Crop and perspective (contain) | Clockwise rotation | 0 | -180 to 180 | — |
+| Crop and perspective (contain) | Flip horizontally | Off | Off; On | — |
+| Crop and perspective (contain) | Flip vertically | Off | Off; On | — |
+| Crop and perspective (contain) | Rectify source quad | Off | Off; On | — |
+| Crop and perspective (contain) | Top left X | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Top left Y | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Top right X | 1 | 0 to 1 | — |
+| Crop and perspective (contain) | Top right Y | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom right X | 1 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom right Y | 1 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom left X | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom left Y | 1 | 0 to 1 | — |
 | Drop Shadow | Horizontal offset | 8 | -64 to 64 | pixels |
 | Drop Shadow | Vertical offset | 8 | -64 to 64 | pixels |
 | Drop Shadow | Radius | 6 | 0 to 20 | pixels |
@@ -64,4 +84,12 @@ Defaults and limits come from the same definitions the editor validates against.
 | Sharpen | Amount | 0.5 | 0 to 2 | — |
 | Spill Suppression | Screen color | Green | Green; Blue | — |
 | Spill Suppression | Strength | 0.5 | 0 to 1 | — |
+| Tone | Exposure (stops) | 0 | -5 to 5 | — |
+| Tone | Contrast | 0 | -100 to 100 | — |
+| Tone | Highlights | 0 | -100 to 100 | — |
+| Tone | Shadows | 0 | -100 to 100 | — |
+| Tone | Whites | 0 | -100 to 100 | — |
+| Tone | Blacks | 0 | -100 to 100 | — |
 | Vignette | Amount | 0.5 | 0 to 1 | — |
+| White balance | Temperature (relative) | 0 | -100 to 100 | — |
+| White balance | Tint (relative) | 0 | -100 to 100 | — |
