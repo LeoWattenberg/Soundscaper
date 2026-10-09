@@ -4,6 +4,7 @@ import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtu
 import { bootEditor, chooseCommandAction, chooseDropdown, clipByName, closeDialog,
 	closeWorkspacePanel, disableNativeSavePicker, importFiles, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { persistedProject } from './helpers/complex-editing-workflows.js';
 
 test('stereo Split keeps the authored left and right ADM channels deliverable', async ({ page }) => {
 	test.setTimeout(90_000);
@@ -32,6 +33,7 @@ test('Make stereo keeps both authored mono ADM channels deliverable', async ({ p
 	test.setTimeout(90_000);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
+	const projectId = await editor.getAttribute('data-project-id');
 	await disableNewClipFades(page, editor);
 	const left = createWavFixture({ name: 'round6-adm-left.wav', frequency: 440, duration: .8, channelCount: 1 });
 	const right = createWavFixture({ name: 'round6-adm-right.wav', frequency: 660, duration: .8, channelCount: 1 });
@@ -44,8 +46,22 @@ test('Make stereo keeps both authored mono ADM channels deliverable', async ({ p
 	await metadata.getByRole('combobox', { name: /round6-adm-right.*channel 1/u }).selectOption('R');
 	await closeWorkspacePanel(editor, 'metadata');
 	const original = await exportBw64(page, editor);
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+	const before = await persistedProject(page, projectId);
 	await chooseTrackMenuAction(page, editor, track, ['Track channels', 'Make stereo track']);
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+	await expect.poll(async () => (await persistedProject(page, projectId)).clips.length).toBe(1);
+	const after = await persistedProject(page, projectId);
+	const mergedTrack = after.tracks.find(candidate => candidate.clipIds.includes(after.clips[0].id));
+	expect(mergedTrack).toBeTruthy();
+	const rightTrack = before.tracks.find(candidate => candidate.name === 'round6-adm-right');
+	expect(rightTrack).toBeTruthy();
+	const originalRight = before.metadata.adm.bed.assignments.find(assignment => assignment.stripId === rightTrack.id);
+	expect(after.metadata.adm.bed.assignments.find(assignment => assignment.stripId === mergedTrack.id && assignment.bedChannel === 'R'))
+		.toEqual({ ...originalRight, stripId: mergedTrack.id, sourceChannel: 1 });
+	console.log('ADM Make stereo delivered references', { before: before.metadata.adm.bed.assignments,
+		after: after.metadata.adm.bed.assignments });
 	assertSamePcm(await exportBw64(page, editor), original);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
