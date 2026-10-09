@@ -13,6 +13,7 @@ import { DEHAZE_PNG_BASE64, DEHAZE_SOURCE, DEHAZE_PARAMS, DEHAZE_PIXELS, DEHAZE_
 import { dehazeReferenceV1 } from '../helpers/video-dehaze-reference.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 const PNG=Buffer.from(DEHAZE_PNG_BASE64,'base64'),NAME='Dehaze reference.png';
 const REFERENCE={type:'dehaze-v1',params:DEHAZE_PARAMS,pixels:DEHAZE_PIXELS,low:0,high:0,bins:DEHAZE_BINS};
 const ENTRY=new URL('./helpers/lightscaper-dehaze-reference.ts',import.meta.url),MODULE='/__dehaze_native.js';
@@ -164,7 +165,7 @@ async function action(page, app, menu, name, submenu) {
 }
 
 
-test('actual native Dehaze33 shader matches independent fractional37.125 hazy2x2 literal bytes',async({page})=>{
+syntheticRouteTest('actual native Dehaze33 shader matches independent fractional37.125 hazy2x2 literal bytes',async({page})=>{
 	await prepareNative(page);const result=await qualify(page,DEHAZE_SOURCE,2,DEHAZE_PARAMS);
 	expect(result.pixels).toEqual(DEHAZE_PIXELS);expect(result.cpuPixels).toEqual(DEHAZE_PIXELS);
 	expect(result.dehazeProgramLinked).toBe(true);expect(result.passCodes).toEqual([33]);expect(result.authoredTypes).toEqual(['dehaze-v1']);
@@ -174,7 +175,7 @@ test('actual native Dehaze33 shader matches independent fractional37.125 hazy2x2
 	expect(failed.nativeReadbacks).toBe(1);expect(failed.nativeWebgl2).toBe(true);expect(failed.source).toEqual(DEHAZE_SOURCE);
 });
 
-test('native Dehaze retains all256alpha and signed fractional atmospheric endpoints against independent dark-channel neighborhoods',async({page})=>{
+syntheticRouteTest('native Dehaze retains all256alpha and signed fractional atmospheric endpoints against independent dark-channel neighborhoods',async({page})=>{
 	await prepareNative(page);const source=Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat();
 	for(const amount of [37.125,-37.125,-100,100]){
 		const result=await qualify(page,source,16,{amount}),expected=dehazeReferenceV1(source,16,amount);
@@ -184,7 +185,7 @@ test('native Dehaze retains all256alpha and signed fractional atmospheric endpoi
 	}
 });
 
-test('actual persisted mixed Frame Dehaze preserves straight alpha and joins opaque canceled native readback',async({page})=>{
+syntheticRouteTest('actual persisted mixed Frame Dehaze preserves straight alpha and joins opaque canceled native readback',async({page})=>{
 	await prepareNative(page);const source=[64,96,128,0,128,160,192,1,160,160,160,127,224,192,96,255];
 	const result=await qualify(page,source,2,DEHAZE_PARAMS,'frame');
 	expect(result.pixels).toEqual(dehazeReferenceV1(source,2,DEHAZE_PARAMS.amount));expect(result.authoredTypes).toEqual(['dehaze-v1','color-adjust']);

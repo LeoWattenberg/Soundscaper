@@ -13,6 +13,7 @@ import { NOISE_PNG_BASE64, NOISE_SOURCE, NOISE_PARAMS, NOISE_PIXELS, NOISE_BINS 
 import { noiseReductionReferenceV1 } from '../helpers/video-noise-reduction-reference.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 const PNG=Buffer.from(NOISE_PNG_BASE64,'base64'),NAME='Noise reference.png';
 const REFERENCE={type:'noise-reduction-v1',params:NOISE_PARAMS,pixels:NOISE_PIXELS,low:0,high:0,bins:NOISE_BINS};
 const ENTRY=new URL('./helpers/lightscaper-noise-reference.ts',import.meta.url),MODULE='/__noise_reduction_native.js';
@@ -163,7 +164,7 @@ async function action(page, app, menu, name, submenu) {
 }
 
 
-test('actual native Noise30 shader matches independent all-six-control2x2 literal bytes',async({page})=>{
+syntheticRouteTest('actual native Noise30 shader matches independent all-six-control2x2 literal bytes',async({page})=>{
 	await prepareNative(page);const result=await qualify(page,NOISE_SOURCE,2,NOISE_PARAMS);
 	expect(result.pixels).toEqual(NOISE_PIXELS);expect(result.cpuPixels).toEqual(NOISE_PIXELS);
 	expect(result.noiseProgramLinked).toBe(true);expect(result.passCodes).toEqual([30]);expect(result.authoredTypes).toEqual(['noise-reduction-v1']);
@@ -173,7 +174,7 @@ test('actual native Noise30 shader matches independent all-six-control2x2 litera
 	expect(failed.nativeReadbacks).toBe(1);expect(failed.nativeWebgl2).toBe(true);expect(failed.source).toEqual(NOISE_SOURCE);
 });
 
-test('native Noise retains all256alpha and signed chroma rounding against independent neighborhoods',async({page})=>{
+syntheticRouteTest('native Noise retains all256alpha and signed chroma rounding against independent neighborhoods',async({page})=>{
 	await prepareNative(page);const source=Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat();
 	for(const params of [NOISE_PARAMS,{...NOISE_PARAMS,luminance:100,luminanceDetail:0,color:100,colorDetail:0,colorSmoothness:100}]){
 		const result=await qualify(page,source,16,params),expected=noiseReductionReferenceV1(source,16,params);
@@ -183,7 +184,7 @@ test('native Noise retains all256alpha and signed chroma rounding against indepe
 	}
 });
 
-test('actual persisted mixed Frame Noise preserves straight alpha and joins opaque canceled native readback',async({page})=>{
+syntheticRouteTest('actual persisted mixed Frame Noise preserves straight alpha and joins opaque canceled native readback',async({page})=>{
 	await prepareNative(page);const source=[0,32,64,0,64,128,192,1,128,128,128,127,255,224,16,255];
 	const result=await qualify(page,source,2,NOISE_PARAMS,'frame');
 	expect(result.pixels).toEqual(noiseReductionReferenceV1(source,2,NOISE_PARAMS));expect(result.authoredTypes).toEqual(['noise-reduction-v1','color-adjust']);

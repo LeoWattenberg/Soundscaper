@@ -12,6 +12,7 @@ import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-si
 import { TEXTURE_PNG_BASE64, TEXTURE_SOURCE, TEXTURE_PARAMS, TEXTURE_PIXELS, TEXTURE_BINS, textureReferenceV1 } from './helpers/lightscaper-texture-reference.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 const PNG=Buffer.from(TEXTURE_PNG_BASE64,'base64'),NAME='Texture reference.png';
 const REFERENCE={type:'texture-v1',params:TEXTURE_PARAMS,pixels:TEXTURE_PIXELS,low:1,high:1,bins:TEXTURE_BINS};
 const ENTRY=new URL('./helpers/lightscaper-texture-reference.ts',import.meta.url),MODULE='/__texture_reduction_native.js';
@@ -162,7 +163,7 @@ async function action(page, app, menu, name, submenu) {
 }
 
 
-test('actual native Texture32 shader matches independent fractional-amount2x2 literal bytes',async({page})=>{
+syntheticRouteTest('actual native Texture32 shader matches independent fractional-amount2x2 literal bytes',async({page})=>{
 	await prepareNative(page);const result=await qualify(page,TEXTURE_SOURCE,2,TEXTURE_PARAMS);
 	expect(result.pixels).toEqual(TEXTURE_PIXELS);expect(result.cpuPixels).toEqual(TEXTURE_PIXELS);
 	expect(result.textureProgramLinked).toBe(true);expect(result.passCodes).toEqual([32]);expect(result.authoredTypes).toEqual(['texture-v1']);
@@ -172,7 +173,7 @@ test('actual native Texture32 shader matches independent fractional-amount2x2 li
 	expect(failed.nativeReadbacks).toBe(1);expect(failed.nativeWebgl2).toBe(true);expect(failed.source).toEqual(TEXTURE_SOURCE);
 });
 
-test('native Texture retains all256alpha and signed chroma rounding against independent neighborhoods',async({page})=>{
+syntheticRouteTest('native Texture retains all256alpha and signed chroma rounding against independent neighborhoods',async({page})=>{
 	await prepareNative(page);const source=Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat();
 	for(const params of [TEXTURE_PARAMS,{amount:-100},{amount:100}]){
 		const result=await qualify(page,source,16,params),expected=textureReferenceV1(source,16,params.amount);
@@ -182,7 +183,7 @@ test('native Texture retains all256alpha and signed chroma rounding against inde
 	}
 });
 
-test('actual persisted mixed Frame Texture preserves straight alpha and joins opaque canceled native readback',async({page})=>{
+syntheticRouteTest('actual persisted mixed Frame Texture preserves straight alpha and joins opaque canceled native readback',async({page})=>{
 	await prepareNative(page);const source=[0,32,64,0,64,128,192,1,128,128,128,127,255,224,16,255];
 	const result=await qualify(page,source,2,TEXTURE_PARAMS,'frame');
 	expect(result.pixels).toEqual(textureReferenceV1(source,2,TEXTURE_PARAMS.amount));expect(result.authoredTypes).toEqual(['texture-v1','color-adjust']);

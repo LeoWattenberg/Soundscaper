@@ -13,6 +13,7 @@ import { GRAIN_PNG_BASE64, GRAIN_SOURCE, GRAIN_PARAMS, GRAIN_PIXELS, GRAIN_BINS 
 import { grainReferenceV1 } from '../helpers/video-grain-reference.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 const PNG=Buffer.from(GRAIN_PNG_BASE64,'base64'),NAME='Grain reference.png';
 const REFERENCE={type:'grain-v1',params:GRAIN_PARAMS,pixels:GRAIN_PIXELS,low:1,high:0,bins:GRAIN_BINS};
 const ENTRY=new URL('./helpers/lightscaper-grain-reference.ts',import.meta.url),MODULE='/__grain_native.js';
@@ -163,7 +164,7 @@ async function action(page, app, menu, name, submenu) {
 }
 
 
-test('actual native Grain31 shader matches independent all-four-control2x2 literal bytes',async({page})=>{
+syntheticRouteTest('actual native Grain31 shader matches independent all-four-control2x2 literal bytes',async({page})=>{
 	await prepareNative(page);const result=await qualify(page,GRAIN_SOURCE,2,GRAIN_PARAMS);
 	expect(result.pixels).toEqual(GRAIN_PIXELS);expect(result.cpuPixels).toEqual(GRAIN_PIXELS);
 	expect(result.grainProgramLinked).toBe(true);expect(result.passCodes).toEqual([31]);expect(result.authoredTypes).toEqual(['grain-v1']);
@@ -173,7 +174,7 @@ test('actual native Grain31 shader matches independent all-four-control2x2 liter
 	expect(failed.nativeReadbacks).toBe(1);expect(failed.nativeWebgl2).toBe(true);expect(failed.source).toEqual(GRAIN_SOURCE);
 });
 
-test('native Grain retains all256alpha, unsigned seed endpoints and signed lattice rounding against independent neighborhoods',async({page})=>{
+syntheticRouteTest('native Grain retains all256alpha, unsigned seed endpoints and signed lattice rounding against independent neighborhoods',async({page})=>{
 	await prepareNative(page);const source=Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat();
 	for(const params of [GRAIN_PARAMS,{amount:100,size:1,roughness:100,seed:65520},{amount:37.125,size:2.25,roughness:49.8,seed:7},{amount:100,size:8,roughness:0,seed:19}]){
 		const result=await qualify(page,source,16,params),expected=grainReferenceV1(source,16,params);
@@ -183,7 +184,7 @@ test('native Grain retains all256alpha, unsigned seed endpoints and signed latti
 	}
 });
 
-test('actual persisted mixed Frame Grain preserves straight alpha and joins opaque canceled native readback',async({page})=>{
+syntheticRouteTest('actual persisted mixed Frame Grain preserves straight alpha and joins opaque canceled native readback',async({page})=>{
 	await prepareNative(page);const source=[0,32,64,0,64,128,192,1,128,128,128,127,255,224,16,255];
 	const result=await qualify(page,source,2,GRAIN_PARAMS,'frame');
 	expect(result.pixels).toEqual(grainReferenceV1(source,2,GRAIN_PARAMS));expect(result.authoredTypes).toEqual(['grain-v1','color-adjust']);
