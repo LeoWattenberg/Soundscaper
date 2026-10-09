@@ -16,6 +16,7 @@ import { retainAudioEditorDialogFocusOwner } from './dialog-focus-ownership.ts';
 import { resolveEditorReturnFocus, restoreEditorDialogReturnFocus } from './focus-restoration.ts';
 import { constrainDialogDragOffset, retainDialogGeometryLifecycle } from './dialog-drag-bounds.ts';
 import { retainDialogMoveLifecycle } from './dialog-move-lifecycle.ts';
+import { guardModalNativeRangeKey } from './modal-native-range-keys.ts';
 
 interface ResizableSurfaceProps extends React.HTMLAttributes<HTMLElement> {
 	readonly children?: ReactNode;
@@ -271,6 +272,8 @@ export default function AudioEditorDialogShell({
 				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
 				aria-describedby={ariaDescribedBy}
+				onKeyDownCapture={event => guardModalNativeRangeKey(event, modal)}
+				onKeyUpCapture={event => guardModalNativeRangeKey(event, modal)}
 				resizeLabel={resizeLabel}
 				style={{
 					width: `min(${resolvedWidth}, calc(100vw - 32px))`,
