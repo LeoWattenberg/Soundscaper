@@ -46,8 +46,17 @@ export function resolveExportClips(projectValue: unknown, range: ExportClipRange
 /** Allow the export dialog to offer clips only when audio clips are available. */
 export function exportClipCount(projectValue: unknown): number {
 	try {
+		if (exportClipsRequireUnfreeze(projectValue)) return 0;
 		return resolveExportClips(projectValue, { startFrame: 0, endFrame: Number.MAX_SAFE_INTEGER }).length;
 	} catch {
 		return 0;
 	}
+}
+
+/** A frozen lane is one rendered track; its retained editable clips cannot be delivered separately. */
+export function exportClipsRequireUnfreeze(projectValue: unknown): boolean {
+	if (!projectValue || typeof projectValue !== 'object' || !('tracks' in projectValue)
+		|| !Array.isArray(projectValue.tracks)) return false;
+	return projectValue.tracks.some((track: unknown) => Boolean(track && typeof track === 'object'
+		&& 'type' in track && track.type === 'audio' && 'audioFreeze' in track && track.audioFreeze != null));
 }
