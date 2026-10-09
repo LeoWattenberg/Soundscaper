@@ -46,10 +46,12 @@ import { admitPhotoLibraryStackCommandV1, admitPhotoLibraryStackReadV1, admitPho
 	applyPhotoLibraryStackV1, type PhotoLibraryStackRepositoryV1 } from './photo-library-stacks-v1.ts';
 import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository-v1.ts';
 import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../../common/editor/photo-library-query-port-v2.ts';
+import { createPhotoLibraryDevelopSessionV1 } from './photo-library-develop-session-v1.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1 {
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
+	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV1>;
 	readonly #ports: PhotoLibrarySessionPortsV1;
 	readonly #queries: ReturnType<typeof createPhotoLibraryQuerySessionV1>;
 	readonly #lifetime = new AbortController();
@@ -65,6 +67,8 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 
 	constructor(ports: PhotoLibrarySessionPortsV1) {
 		this.#ports = ports;
+		this.develop = createPhotoLibraryDevelopSessionV1({ repository: ports.catalog, ready: () => this.#ready(),
+			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, run, signal) });
 		this.#queries = createPhotoLibraryQuerySessionV1({ repositories: ports,
 			operation: (run, signal) => this.#operation(run, signal), ready: () => this.#ready() });
 		this.savedCollections = createPhotoLibrarySavedCollectionsSessionV1({ repositories: ports,

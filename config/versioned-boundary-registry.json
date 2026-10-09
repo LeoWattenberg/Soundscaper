@@ -430,6 +430,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-batch-rename-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar selection, rename plan, durable partial receipts and bounded revision-fenced inverse without media or catalog documents." }
 		,
+		{ "path": "src/common/editor/photo-library-develop-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop presentation carries current shared-effect settings, scalar version/history/snapshot summaries and explicit revision-fenced commands without catalog documents or original custody." }
+		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
@@ -739,6 +741,8 @@
 		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop facade detaches explicit version commands before initialization and borrows the existing Session writer, lifetime and photo compare-and-swap owner for durable publication." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
 		,

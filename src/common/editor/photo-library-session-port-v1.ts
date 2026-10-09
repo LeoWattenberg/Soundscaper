@@ -11,6 +11,7 @@ import type { PhotoLibraryStackQueryPortV1 } from './photo-library-stack-query-p
 import type { PhotoLibraryStackPortV1 } from './photo-library-stack-port-v1.ts';
 import type { PhotoLibraryQueryPortV2 } from './photo-library-query-port-v2.ts';
 import type { PhotoLibrarySavedCollectionPortV1 } from './photo-library-saved-collection-port-v1.ts';
+import type { PhotoLibraryDevelopPortV1 } from './photo-library-develop-port-v1.ts';
 
 /** Scalar presentation boundary; owning catalog documents stay in the product. */
 export interface PhotoLibraryRowV1 {
@@ -129,6 +130,7 @@ export interface PhotoLibraryDefinitionPageV1 {
 
 export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1, PhotoLibraryStackQueryPortV1, PhotoLibraryQueryPortV2 {
 	readonly savedCollections?: Readonly<PhotoLibrarySavedCollectionPortV1>;
+	readonly develop?: Readonly<PhotoLibraryDevelopPortV1>;
 	readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1>;
 	rebuildQueryStep(options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryQueryBuildProgressV1>;
 	readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1>;

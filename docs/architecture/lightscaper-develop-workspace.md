@@ -62,4 +62,30 @@ permission, or AI runtime closure is introduced by this model.
 This foundation has focused tests for generated ordered stacks, history
 branching, byte retention, detached snapshots, legacy serialization, version
 isolation, durable reopen, failed publication, and actual Scape round trips.
-The Develop menu and workspace presentation are a subsequent integration step.
+The optional `PhotoLibrarySessionPortV1.develop` capability connects this model
+to presentation. Its version 1 read packet selects one photo and optionally one
+version. The result contains current shared-effect settings and scalar version,
+history, and snapshot summaries; it contains no catalog document, original
+locator, metadata donor, or media body. Reading a legacy version presents an
+initial history entry without persisting a workspace or changing its revision.
+
+Every mutation binds the expected photo revision and explicitly names the
+target version (or the source version for a new virtual copy). The closed command
+subset admits workspace actions and virtual-copy create, activate, rename, and
+delete. It refuses metadata and attribute commands. Complete settings and
+command text are validated and detached before lazy initialization or a write
+lease. Complete normalized workspace commands also pass the 2 MiB UTF-8 byte
+budget before acquiring those resources. The existing Session owns the single writer, cancellation, and retirement;
+the facade creates no new storage or lifetime owner. A stale revision refuses
+after the owning photo has reloaded, before any draft is published.
+
+Read cancellation joins the borrowed repository read before refusing late
+publication. Edits preserve the ordinary photo owner's durable acknowledgment:
+if cancellation or Close arrives after the native save completed, the result
+still reports the committed revision and settings. The apply result wraps the
+snapshot in an acknowledgment with bounded notices: a lease cleanup failure
+after persistence retains that snapshot and adds `cleanup-failed`. Failures
+before acknowledgment still reject. Failed saves retain the
+previous history. Focused Session tests cover these boundaries using the actual
+catalog repository and held read/save completion. The Develop menu and workspace
+presentation remain a subsequent integration step.
