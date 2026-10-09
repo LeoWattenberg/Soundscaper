@@ -68,7 +68,7 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 				aria-orientation="horizontal" tabIndex={-1} disabled={blocked}
 				onClick={event => { event.stopPropagation(); }}
 				onPointerDown={event => {
-					if (event.button !== 0 || blocked) return;
+					if (event.button !== 0 || blocked || gesture.current) return;
 					event.preventDefault(); event.stopPropagation();
 					gesture.current = { edge, initial: value, startX: event.clientX, pointerId: event.pointerId };
 					event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus();
@@ -86,7 +86,10 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 					const duration = durationAt(session, event.clientX);
 					if (!blocked && duration !== session.initial) update(edge, duration);
 				}}
-				onPointerCancel={() => { gesture.current = null; setPreview(null); }}
+				onPointerCancel={event => {
+					if (gesture.current?.pointerId !== event.pointerId) return;
+					gesture.current = null; setPreview(null);
+				}}
 				onKeyDown={event => {
 					if (event.altKey || event.ctrlKey || event.metaKey) return;
 					if (event.key === 'Escape' && gesture.current) {
