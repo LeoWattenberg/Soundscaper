@@ -15,6 +15,7 @@ import './ProcessingDialogs.css';
 import React, { useEffect, useMemo, useSyncExternalStore, type KeyboardEvent } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { useNativePluginParameterClose } from './useNativePluginParameterClose.ts';
 import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 import {
 	type NativeAudioInventory,
@@ -84,6 +85,7 @@ function NativeServicesDialog({
 	);
 	const runtime = workspaceRuntime ?? localRuntime;
 	const state = useSyncExternalStore(runtime.subscribe, runtime.getState, runtime.getState);
+	const close = useNativePluginParameterClose(state.pluginInstance?.instanceId ?? null, onClose);
 	const perform = useMemo(() => (action: SoundscaperNativeServicesDialogAction): void => {
 		void runtime.perform(action);
 	}, [runtime]);
@@ -107,12 +109,12 @@ function NativeServicesDialog({
 	return <AudioEditorDialogShell
 		title={initialSurface.startsWith('native-audio') ? copy.audioDevices
 			: initialSurface === 'native-effect-use' ? copy.audioPluginEffects : copy.pluginManage.replace(/…$/u, '')}
-		onClose={onClose}
+		onClose={close}
 		width={760}
 		initialFocus={`[data-native-service-tab="${surface}"]`}
 		dataAttributes={{ 'data-soundscaper-native-services-dialog': 'true' }}
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={
-			<Button variant="primary" onClick={onClose}>{copy.close}</Button>} />}
+			<Button variant="primary" onClick={close}>{copy.close}</Button>} />}
 	>
 		<div className="audio-editor-soundscaper-native-services">
 			<div className="kw-processing-tabs" role="tablist" aria-label={copy.nativeServiceSurfaces}>
