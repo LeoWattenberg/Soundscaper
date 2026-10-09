@@ -340,7 +340,7 @@ sync — entirely on shared effects.
   shared geometry, plus manual perspective correction.
 - **Web Core — Optional:** geometric auto-straighten and auto/guided upright;
   the ML fence applies only to ML-based implementations.
-- **Web Core — Planned:** proxy develop: adjustments evaluated on
+- **Web Core — In progress:** proxy develop: adjustments evaluated on
   preview-resolution derivatives with the full-resolution render reserved for
   zoom and export, within recorded latency budgets.
 
