@@ -366,9 +366,17 @@
 		,
 		{ "path": "src/common/editor/imaging/image-develop-preset-v1.ts", "kind": "persisted-contract", "justification": "Version 1 full and partial preset bodies bind canonical selected settings to the existing shared digest-bound visual preset identity without photo or external media authority." }
 		,
+		{"path": "src/common/editor/imaging/image-develop-preset-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 preset bodies bind complete selected numeric, curve and nullable LUT-reference recipes through the unchanged scalar visual identity digest. Closed V1-or-V2 dispatch preserves old body bytes and does not confer body custody or render authority."}
+		,
 		{ "path": "src/common/editor/imaging/image-develop-settings-contract-v1.ts", "kind": "persisted-contract", "justification": "Product-neutral settings selection and packet types preserve the existing photo-develop-settings wire kind and explicit process version." }
 		,
+		{"path": "src/common/editor/imaging/image-develop-settings-contract-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 settings bodies retain strict process-1 or process-2 states and unchanged selected-group fields. This type-only successor does not widen the old settings contract or provide raw resource bodies."}
+		,
+		{"path": "src/common/editor/imaging/image-develop-settings-groups-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure group copy and merge algorithms preserve authored order and real effect and mask identities for both owning settings versions. Nested parameters and complete states remain admitted only by their respective owners."}
+		,
 		{ "path": "src/common/editor/imaging/image-develop-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared selection, partial merge and relative delta evaluation retain the established effect-order and mask-identity rules behind unchanged Photo API aliases." }
+		,
+		{"path": "src/common/editor/imaging/image-develop-settings-v2.ts", "kind": "helper-contract", "justification": "Version 2 settings copy, partial merge and relative scalar edits retain closed LUT references and exact group closure under unchanged two-MiB bounds. Legacy dispatch preserves schema-1 bytes; process-1 targets promote only when the merged authored recipe contains the exact resource profile."}
 		,
 		{ "path": "src/common/editor/imaging/image-develop-state-v1.ts", "kind": "helper-contract", "justification": "Closed product-neutral process-1 develop normalization preserves existing Photo recipe bytes and delegates effects and masks to their shared owning models." }
 		,
