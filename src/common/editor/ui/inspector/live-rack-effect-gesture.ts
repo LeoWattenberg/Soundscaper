@@ -20,7 +20,7 @@ export function nativeRackEffectCommit(
 	onCommit: GestureCommit | null | undefined,
 	onCancel?: GestureBegin | null,
 ): (() => Promise<void>) | null {
-	if (!effect || !isStandardEffect(effect.type) || !onBegin || !onCommit) return null;
+	if (!effect || (!isStandardEffect(effect.type) && effect.type !== 'audacity-echo') || !onBegin || !onCommit) return null;
 	return async () => {
 		try {
 			await onBegin();
@@ -37,6 +37,6 @@ export function supportsLiveRackEffectGesture(
 	effectOwner: Readonly<{ effectsActive?: boolean }> | null | undefined,
 ): boolean {
 	if (!effect || effect.enabled === false || effectOwner?.effectsActive === false) return false;
-	if (isStandardEffect(effect.type)) return effect.bypassed !== true;
+	if (isStandardEffect(effect.type) || effect.type === 'audacity-echo') return effect.bypassed !== true;
 	return effect.type === 'delay' && Number(effect.params?.mix) > 0;
 }
