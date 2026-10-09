@@ -14,7 +14,7 @@ const VINYL_OPTIONS = [{ value: 'n/a', label: 'n/a' }, ...VINYL_RATES.map(value 
 /** Audacity's alternate rate and duration fields express the same supported
  * percent parameter; their edits keep the ordinary automation commit path. */
 export default function AudacityRateControls({ effectType, parameters, effectContext = {}, renderParameter, copy,
-	disabled = false, parameterRange = [-50, 100], sampleRate = undefined }) {
+	disabled = false, parameterRange = [-50, 100], sampleRate = /** @type {number | undefined} */ (undefined) }) {
 	const tempo = effectType === 'audacity-change-tempo';
 	const name = tempo ? 'tempoPercent' : 'speedPercent';
 	const control = renderParameter(name);
@@ -83,7 +83,7 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 			<h3 className="audio-editor-audacity-port__heading">{label('effectAudacitySelectionLength')}</h3>
 			<div className="audio-editor-audacity-pitch__pair">
 				{number('effectAudacityCurrentLength', sourceDuration, [0, sourceDuration], () => undefined, 's', true)}
-				{number('effectAudacityNewLength', Number((sourceDuration / multiplier).toFixed(3)),
+				{number('effectAudacityNewLength', sourceDuration / multiplier,
 					[sourceDuration / 2, sourceDuration * 2], next => commit((sourceDuration / next - 1) * 100), 's')}
 			</div>
 		</section>}
