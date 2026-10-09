@@ -40,6 +40,7 @@ import type {
 import { isStandardEffect } from '../first-party-effects/standard/definition.ts';
 import { standardEffectStateBytes } from '../first-party-effects/standard/selection-contract.ts';
 import { effectMessageHandler } from './effect-message-dispatch.ts';
+import { canRetainAdditionalAudacityState, isAdditionalContinuousAudacityEffect } from '../audacity-effects/live-update-geometry.ts';
 
 /** Rack effects whose processors accept a live parameter frame over their port. */
 const CONFIGURABLE_RACK_EFFECT_TYPES = new Set(['delay', 'bitcrusher', 'deesser', 'multiband-compressor']);
@@ -55,12 +56,18 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 		const dynamics = configurable === 'audacity-compressor' || configurable === 'audacity-limiter';
 		const reverb = configurable === 'audacity-reverb';
 		const clickRemoval = configurable === 'audacity-click-removal';
+		const continuous = isAdditionalContinuousAudacityEffect(configurable);
 		if (!effect || (!CONFIGURABLE_RACK_EFFECT_TYPES.has(configurable) && !isStandardEffect(configurable)
-			&& configurable !== 'audacity-echo' && !equalizer && !dynamics && !reverb && !clickRemoval)) return false;
+			&& configurable !== 'audacity-echo' && !equalizer && !dynamics && !reverb && !clickRemoval && !continuous)) return false;
 		const normalized = normalizeEffect({
 			...effect,
 			params: { ...(effect.params || {}), ...params },
 		}).params;
+		if (continuous) {
+			const sampleRate = this.context?.sampleRate || this.sampleRate;
+			if (!canRetainAdditionalAudacityState(configurable, normalizeEffect(effect).params, normalized)
+				|| effectLatencyFrames(effect, sampleRate) !== effectLatencyFrames({ ...effect, params: normalized }, sampleRate)) return false;
+		}
 		if (configurable === 'audacity-echo') {
 			const sampleRate = this.context?.sampleRate || this.sampleRate;
 			const previous: Readonly<Record<string, unknown>> = normalizeEffect(effect).params;
@@ -102,7 +109,7 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 			scope,
 			targetId,
 			effectId,
-			{ type: configurable === 'audacity-echo' || equalizer || dynamics || reverb || clickRemoval ? 'params' : 'configure', params: normalized },
+			{ type: configurable === 'audacity-echo' || equalizer || dynamics || reverb || clickRemoval || continuous ? 'params' : 'configure', params: normalized },
 			options.revision,
 		);
 		if (sequence !== false) {

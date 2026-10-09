@@ -8,6 +8,7 @@
  */
 
 import { normalizeAudacityEffectParams } from './manifest.js';
+import { canRetainAdditionalAudacityState } from './live-update-geometry.ts';
 export {
 	audacityShelfCoefficients as shelfCoefficients,
 	processAudacityShelfSample as processShelf,
@@ -34,11 +35,13 @@ export class LiveProcessor {
 			...params,
 		});
 		validateLiveParamRanges(audacityLiveEffectCapability(this.type), normalized);
+		const previous = this.params;
+		const latencyFrames = this.latencyFrames;
 		this.params = normalized;
 		this.latencyFrames = liveLatencyFrames(this.type, this.sampleRate, this.params);
 		this.tailFrames = liveTailFrames(this.type, this.sampleRate, this.params);
 		this.configure();
-		this.reset();
+		if (this.latencyFrames !== latencyFrames || !canRetainAdditionalAudacityState(this.type, previous, normalized)) this.reset();
 	}
 
 	setNoiseProfile() {

@@ -177,14 +177,14 @@ class PhaserLiveProcessor extends LiveProcessor {
 	constructor(sampleRate, params) { super('audacity-phaser', sampleRate, params); this.configure(); this.reset(); }
 	configure() {
 		this.stages = this.params.stages & ~1;
-		this.lfoStep = this.params.frequency * 2 * Math.PI / this.sampleRate;
+		this.lfoStep = preserveModulationClock(this, this.params.frequency * 2 * Math.PI / this.sampleRate);
 		this.phase = this.params.phaseDegrees * Math.PI / 180;
 		this.outputGain = dbToLinear(this.params.outputGainDb);
 	}
 	reset() { this.states = []; }
 	process(input, output) {
 		const frames = validateBlock(input, output);
-		ensureArrayLength(this.states, output.length, () => ({ old: new Float64Array(this.stages), skip: 0, gain: 0, feedback: 0 }));
+		ensureArrayLength(this.states, output.length, () => ({ old: new Float64Array(this.stages), skip: 0, phaseCorrection: 0, gain: 0, feedback: 0 }));
 		for (let channel = 0; channel < output.length; channel += 1) {
 			const source = channelAt(input, channel);
 			const state = this.states[channel];
@@ -197,7 +197,7 @@ class PhaserLiveProcessor extends LiveProcessor {
 				const update = state.skip % 20 === 0;
 				state.skip += 1;
 				if (update) {
-					state.gain = (1 + Math.cos(state.skip * this.lfoStep + channelPhase)) / 2;
+					state.gain = (1 + Math.cos(state.skip * this.lfoStep + state.phaseCorrection + channelPhase)) / 2;
 					state.gain = Math.expm1(state.gain * PHASER_LFO_SHAPE) / PHASER_LFO_NORMALIZATION;
 					state.gain = 1 - state.gain / 255 * this.params.depth;
 				}
@@ -217,7 +217,7 @@ class PhaserLiveProcessor extends LiveProcessor {
 class WahwahLiveProcessor extends LiveProcessor {
 	constructor(sampleRate, params) { super('audacity-wahwah', sampleRate, params); this.configure(); this.reset(); }
 	configure() {
-		this.lfoStep = this.params.frequency * 2 * Math.PI / this.sampleRate;
+		this.lfoStep = preserveModulationClock(this, this.params.frequency * 2 * Math.PI / this.sampleRate);
 		this.phase = this.params.phaseDegrees * Math.PI / 180;
 		this.depth = this.params.depthPercent / 100;
 		this.offset = this.params.frequencyOffsetPercent / 100;
@@ -226,7 +226,7 @@ class WahwahLiveProcessor extends LiveProcessor {
 	reset() { this.states = []; }
 	process(input, output) {
 		const frames = validateBlock(input, output);
-		ensureArrayLength(this.states, output.length, () => ({ skip: 0, x1: 0, x2: 0, y1: 0, y2: 0, b0: 0, b1: 0, b2: 0, a0: 1, a1: 0, a2: 0 }));
+		ensureArrayLength(this.states, output.length, () => ({ skip: 0, phaseCorrection: 0, x1: 0, x2: 0, y1: 0, y2: 0, b0: 0, b1: 0, b2: 0, a0: 1, a1: 0, a2: 0 }));
 		for (let channel = 0; channel < output.length; channel += 1) {
 			const source = channelAt(input, channel);
 			const state = this.states[channel];
@@ -237,7 +237,7 @@ class WahwahLiveProcessor extends LiveProcessor {
 				const update = state.skip % 30 === 0;
 				state.skip += 1;
 				if (update) {
-					let center = (1 + Math.cos(state.skip * this.lfoStep + channelPhase)) / 2;
+					let center = (1 + Math.cos(state.skip * this.lfoStep + state.phaseCorrection + channelPhase)) / 2;
 					center = center * this.depth * (1 - this.offset) + this.offset;
 					center = Math.exp((center - 1) * 6);
 					const omega = Math.PI * center;
@@ -259,6 +259,14 @@ class WahwahLiveProcessor extends LiveProcessor {
 		}
 		return true;
 	}
+}
+
+/** A rate edit advances from the current angle, preserving the elapsed clock. */
+function preserveModulationClock(processor, nextStep) {
+	for (const state of processor.states || []) {
+		state.phaseCorrection += state.skip * (processor.lfoStep - nextStep);
+	}
+	return nextStep;
 }
 
 class DistortionLiveProcessor extends LiveProcessor {
