@@ -331,12 +331,12 @@ sync — entirely on shared effects.
   sharpening; noise reduction; post-crop vignette; grain; and LUT profiles
   over `.cube`. Every new operation is a shared effect authorable from
   Framescaper in the same change.
-- **Web Core — Planned:** the develop workspace: a histogram with clipping
+- **Web Core — In progress:** the develop workspace: a histogram with clipping
   indicators, before/after and split views, per-version history and named
   snapshots, copy/paste with a settings picker, sync and auto-sync across
   selections, relative quick-develop batch adjustments, and full and partial
   presets on the shared preset model.
-- **Shared — Planned:** crop, straighten, rotate, flip, and aspect presets on
+- **Shared — In progress:** crop, straighten, rotate, flip, and aspect presets on
   shared geometry, plus manual perspective correction.
 - **Web Core — Optional:** geometric auto-straighten and auto/guided upright;
   the ML fence applies only to ML-based implementations.
