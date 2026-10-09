@@ -171,8 +171,12 @@ soundscaper_pro_status JuceAraSession::bind()
 	auto &s = *impl;
 	if (s.document != nullptr || !s.data.ready()) return SOUNDSCAPER_PRO_MODE_REFUSED;
 	s.factory = factoryFor(s.plugin);
-	if (s.factory.get() == nullptr || s.factory.get()->highestSupportedApiGeneration < ARA::kARAAPIGeneration_2_0_Final) return SOUNDSCAPER_PRO_UNSUPPORTED;
-	if (!s.factoryLibrary.retain(reinterpret_cast<const void *>(s.factory.get()->initializeARAWithConfiguration))) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	if (s.factory.get() == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	if (!s.factoryLibrary.retain(reinterpret_cast<const void *>(s.factory.get()->initializeARAWithConfiguration))) {
+		s.factory = {}; // Uninitialise while the opened plug-in still owns its code.
+		return SOUNDSCAPER_PRO_UNSUPPORTED;
+	}
+	if (s.factory.get()->highestSupportedApiGeneration < ARA::kARAAPIGeneration_2_0_Final) return SOUNDSCAPER_PRO_UNSUPPORTED;
 	s.plugin.releaseResources();
 	s.plugin.setNonRealtime(true);
 	auto updates = std::make_unique<ModelUpdates>();
