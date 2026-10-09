@@ -1269,6 +1269,48 @@ and existing worklet, parameter RPC and mounted parameter controls pass after
 repair, including idle native-tail output and resumed real input
 (`/tmp/soundscaper-r6-effects-native-plugin-idle-node-green.log`). Focused strict
 compilation, targeted and canonical changed-file lint, and size/diff checks pass.
-Built public GREEN is pending the next immutable snapshot; this register retains thirty-two
-verified roots. No assistance runtime assets change and no manual
+The complete ordinary native Chromium workflow passes on immutable Green26
+`f44d878b0` in 3.0 seconds
+(`/tmp/soundscaper-round6-green26-chromium.log`, complete batch 4/4 PASS).
+This register now has thirty-three verified roots. No assistance runtime assets
+change and no manual **Update AI assets** run is required.
+
+
+## R6-EFFECT-034 — Native parameter drags lose their final requested position
+
+With an enabled, allowed native effect, import a normal recording and open it
+through Effect → Audio Plugins. Drag its generated Gain slider to 80 percent
+while its host takes 200 milliseconds to reply. The host stays at about 37
+percent: every pending parameter write disables all generated controls and
+rejects the remaining drag events. Waiting, pressing Close or pressing Escape
+all leave the same incorrect host value. These manifestations share this one
+parameter-write admission owner, independently of 033's idle audio processor.
+
+Keep the native controls editable, serialize host writes and coalesce each
+parameter's unsent changes to its latest requested value. Retain the latest
+native draft when an earlier acknowledgement arrives. Close and Escape wait
+for accepted writes before unmounting their owner; instance replacement,
+forced disposal and disabled editing retire unsent changes. A genuine host
+rejection stays visible and cancels its remaining queue. Preserve ordinary
+settled writes, default reset, normalized parameter bounds and static native
+host state custody.
+
+The complete ordinary Chromium workflow is causally RED on unchanged Green26
+`f44d878b0` after authenticated installation and a settled ArrowRight control
+pass: the transferred host receives only 0.366703539823009 rather than the
+final position above 0.75
+(`/tmp/soundscaper-r6-effects-native-plugin-parameter-browser-red4.log`). The
+retained wait, Close and Escape workflows independently reproduce that exact
+incorrect value on the same built bytes
+(`/tmp/soundscaper-r6-effects-native-plugin-parameter-browser-red5.log`). Two
+strict mounted cases lose the last position and an independent parameter
+while four disabled/lifetime controls pass before repair
+(`/tmp/soundscaper-r6-effects-native-plugin-parameter-node-red.log`). All
+thirty-four new and existing mounted parameter, close-drain, native dialog,
+RPC and worklet cases pass afterward, including repeated Close, obsolete
+Close authority and a refused host write
+(`/tmp/soundscaper-r6-effects-native-plugin-parameter-node-green3.log`). Focused
+strict compilation, targeted and canonical changed-file lint, and size/diff
+checks pass. Public GREEN is pending the next immutable snapshot; this register retains
+thirty-three verified roots. No assistance runtime assets change and no manual
 **Update AI assets** run is required.
