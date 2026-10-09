@@ -10,6 +10,7 @@ import { normalizePhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/ca
 import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
 import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const ROOT = '/__photo_catalog_backup_observer.js';
@@ -168,6 +169,7 @@ async function authenticate(bytes, previous, { definitions = [], savedState = nu
 	}
 }
 async function setup(page, locale) {
+	await installNativeOpfsWorkerCompanion(page);
 	const requests = [], errors = []; page.on('request', request => { requests.push(request.url()); });
 	page.on('pageerror', error => { errors.push(error.message); });
 	const bundle = await build({ stdin: { contents: `export { readResidentPhotoLibraryCurrent as observe } from "./tests/helpers/lightscaper-current-app-fixture.tsx";
@@ -191,7 +193,8 @@ async function setup(page, locale) {
 	for (const item of before.photos) { assertNumericPhoto(item.photo); expect(item.bytes).toEqual([...PNG]); }
 	return { app, copy, ids, before, requests, errors };
 }
-async function observe(page, ids) { return page.evaluate(async ({ ids, root }) => (await import(new URL(root, location.href).href)).observe(ids), { ids, root: ROOT }); }
+async function observe(page, ids) { const result = await page.evaluate(async ({ ids, root }) => (await import(new URL(root, location.href).href)).observe(ids), { ids, root: ROOT });
+	await assertNativeOpfsWorkerExecution(page); return result; }
 async function observeSaved(page, catalogId, collectionId, photoId) {
 	return page.evaluate(async input => {
 		const observed = await (await import(new URL(input.root, location.href).href)).companions(input.ids);

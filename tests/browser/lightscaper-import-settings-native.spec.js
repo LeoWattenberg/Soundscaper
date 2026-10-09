@@ -3,11 +3,13 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { watchNativeOpfsWorkerExecution, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const ROOT = '/__lightscaper_import_settings_native__';
 
 async function scenario(page, mode) {
+	watchNativeOpfsWorkerExecution(page);
 	const [bundle, worker] = await Promise.all([
 		build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-import-settings-native-fixture.ts', import.meta.url))],
 			bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] }),
@@ -20,12 +22,17 @@ async function scenario(page, mode) {
 		if (!html && path !== `${ROOT}/entry.js` && path !== `${ROOT}/opfs-sync-worker.ts`) {
 			await route.abort(); return;
 		}
-		await route.fulfill({ contentType: html ? 'text/html' : 'text/javascript', body: html
+		const response = await route.fetch(), headers = response.headers();
+		delete headers['content-length']; delete headers['content-encoding'];
+		headers['content-type'] = html ? 'text/html' : 'text/javascript';
+		try { await route.fulfill({ status: 200, headers, body: html
 			? '<!doctype html><title>Native photo import settings qualification</title>'
-			: path.endsWith('/opfs-sync-worker.ts') ? worker.outputFiles[0].text : bundle.outputFiles[0].text });
+			: path.endsWith('/opfs-sync-worker.ts') ? worker.outputFiles[0].text : bundle.outputFiles[0].text }); }
+		finally { await response.dispose(); }
 	});
 	await page.goto(`${ROOT}/index.html`);
-	return page.evaluate(async ({ root, mode }) => (await import(new URL(`${root}/entry.js`, location.href).href)).qualifyPhotoImportSettingsNativeV1(mode), { root: ROOT, mode });
+	const result = await page.evaluate(async ({ root, mode }) => (await import(new URL(`${root}/entry.js`, location.href).href)).qualifyPhotoImportSettingsNativeV1(mode), { root: ROOT, mode });
+	await assertNativeOpfsWorkerExecution(page); return result;
 }
 
 test('native production session applies import settings, retains exact deduped originals and persists preset CAS across reopen', async ({ page, browserName }) => {

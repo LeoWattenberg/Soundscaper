@@ -9,6 +9,7 @@ import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
@@ -155,8 +156,10 @@ async function choose(page, combo, choice) {
 }
 async function summary(page, root, name) { await keyboard(page, root.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') })); }
 async function observe(page, ids) {
+	await installNativeOpfsWorkerCompanion(page);
 	const result = await build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-current-app-fixture.tsx', import.meta.url))], bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
 	await page.route('**/__develop_settings_original_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text }));
-	return page.evaluate(async photoIds => { const module = await import(new URL('/__develop_settings_original_observer.js', location.href).href); return module.readResidentPhotoLibraryCurrent(photoIds); }, ids);
+	const observed = await page.evaluate(async photoIds => { const module = await import(new URL('/__develop_settings_original_observer.js', location.href).href); return module.readResidentPhotoLibraryCurrent(photoIds); }, ids);
+	await assertNativeOpfsWorkerExecution(page); return observed;
 }
 async function pixels(canvas) { return canvas.evaluate(element => element.width === 2 && element.height === 2 ? [...element.getContext('2d').getImageData(0, 0, 2, 2).data] : null); }

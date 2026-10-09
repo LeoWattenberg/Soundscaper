@@ -11,6 +11,7 @@ import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-
 import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { createPngFixture } from '../helpers/png-fixture.mjs';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const OBSERVER = '/__lightscaper_stack_observation.js';
@@ -119,6 +120,7 @@ test('native65-stack audit and130-member stack qualify continuations, cross-page
 });
 
 async function setup(page, locale) {
+	await installNativeOpfsWorkerCompanion(page);
 	const errors = [], requests = []; page.on('pageerror', error => { errors.push(error.message); }); page.on('request', request => { requests.push(request.url()); });
 	const bundle = await build({ stdin: { contents: `export { qualifyPhotoStackStorageNativeV1, stackCopyForLocaleV1 } from './tests/helpers/lightscaper-photo-stack-native-fixture.ts';
 		export { readCurrentCatalogCompanionsV1 as observe } from './tests/helpers/lightscaper-current-catalog-companions-fixture.ts';`,
@@ -132,6 +134,7 @@ async function setup(page, locale) {
 }
 async function observe(page, ids) {
 	const result = await page.evaluate(async ({ ids, path }) => (await import(new URL(path, location.href).href)).observe(ids), { ids, path: OBSERVER });
+	await assertNativeOpfsWorkerExecution(page);
 	expect(result.namespace).toBeNull(); for (const item of result.photos) assertNumericPhoto(item.photo); return result;
 }
 async function keyboard(page, target) { await expect(target).toBeEnabled(); await target.focus(); await expect(target).toBeFocused(); await page.keyboard.press('Enter'); }

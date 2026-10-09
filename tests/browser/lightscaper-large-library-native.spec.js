@@ -8,6 +8,7 @@ import { createPendingLightscaperLargeLibraryResult } from '../../scripts/lib/li
 import { PHOTO_LARGE_LIBRARY_SPECIFICATION_V1 as SPEC, PHOTO_LARGE_LIBRARY_PNG_BASE64_V1 } from '../../src/lightscaper/quality/large-library-workload-v1.ts';
 import { observeLargePhotoLibrarySeedConsoleV1 } from '../helpers/lightscaper-large-library-seed-diagnostic.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { watchNativeOpfsWorkerExecution, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const ROOT = '/__lightscaper_large_library_native__';
@@ -171,10 +172,12 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 });
 
 async function native(page, method) {
-	return page.evaluate(async ({ root, method }) => (await import(new URL(`${root}/entry.js`, location.href).href))[method](), { root: ROOT, method });
+	const result = await page.evaluate(async ({ root, method }) => (await import(new URL(`${root}/entry.js`, location.href).href))[method](), { root: ROOT, method });
+	await assertNativeOpfsWorkerExecution(page); return result;
 }
 
 async function setup(page) {
+	watchNativeOpfsWorkerExecution(page);
 	const [bundle, worker] = await Promise.all([
 		build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-large-library-native-fixture.ts', import.meta.url))],
 			bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] }),
@@ -184,7 +187,10 @@ async function setup(page) {
 	await page.route(`**${ROOT}/**`, async route => {
 		const path = new URL(route.request().url()).pathname;
 		if (path !== `${ROOT}/entry.js` && path !== `${ROOT}/opfs-sync-worker.ts`) { await route.abort(); return; }
-		await route.fulfill({ contentType: 'text/javascript', body: path.endsWith('/opfs-sync-worker.ts') ? worker.outputFiles[0].text : bundle.outputFiles[0].text });
+		const response = await route.fetch(), headers = response.headers();
+		delete headers['content-length']; delete headers['content-encoding']; headers['content-type'] = 'text/javascript';
+		try { await route.fulfill({ status: 200, headers, body: path.endsWith('/opfs-sync-worker.ts') ? worker.outputFiles[0].text : bundle.outputFiles[0].text }); }
+		finally { await response.dispose(); }
 	});
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS
 		? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;

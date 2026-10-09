@@ -8,6 +8,7 @@ import { bundledSiteCopyForLocale } from '../../src/common/i18n/site-copy.js';
 import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy.ts';
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
@@ -175,11 +176,13 @@ async function pixels(canvas, expectedExtent) {
 	return captured;
 }
 async function observe(page, photoId) {
+	await installNativeOpfsWorkerCompanion(page);
 	const result = await build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-current-app-fixture.tsx', import.meta.url))],
 		bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
 	await page.route('**/__develop_original_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text }));
-	return page.evaluate(async id => {
+	const observed = await page.evaluate(async id => {
 		const module = await import(new URL('/__develop_original_observer.js', location.href).href);
 		return (await module.readResidentPhotoLibraryCurrent([id])).photos[0];
 	}, photoId);
+	await assertNativeOpfsWorkerExecution(page); return observed;
 }

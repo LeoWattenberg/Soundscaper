@@ -12,6 +12,7 @@ import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restor
 import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 // Actual UI commands publish all records. The bounded fixture observes the selected
 // namespace, corrupts one body for recovery, and invokes the real preview trim owner.
@@ -202,7 +203,8 @@ for (const locale of ['en', 'de']) test(`${locale}: current keyboard library loo
 	async function action(title, label, photo = false) { await menu(page, app, title, label, photo ? copy.photoPhotoMenu : null); }
 	async function close(dialog, label) { await key(named(dialog, 'button', label).filter({ hasText: exact(label) })); await expect(dialog).toHaveCount(0); }
 	async function observe(photoIds) { return fixture('readResidentPhotoLibraryCurrent', photoIds); }
-	async function fixture(method, photoIds) { return page.evaluate(async ({ path, method, photoIds }) => (await import(new URL(path, location.href).href))[method](photoIds), { path: OBSERVER, method, photoIds }); }
+	async function fixture(method, photoIds) { const result = await page.evaluate(async ({ path, method, photoIds }) => (await import(new URL(path, location.href).href))[method](photoIds), { path: OBSERVER, method, photoIds });
+		await assertNativeOpfsWorkerExecution(page); return result; }
 	async function selectBoth() { await key(card(currentId)); await card(legacyId).focus(); await page.keyboard.press('Control+Space'); await expect(library.locator('[data-photo-id][aria-pressed=true]')).toHaveCount(2); }
 	async function savePreset(name, partial) {
 		await checkbox(named(presets, 'checkbox', settings.all), !partial);
@@ -237,6 +239,7 @@ for (const locale of ['en', 'de']) test(`${locale}: current keyboard library loo
 });
 
 async function setup(page, locale) {
+	await installNativeOpfsWorkerCompanion(page);
 	const errors = []; page.on('pageerror', error => { errors.push(error.message); });
 	await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents:

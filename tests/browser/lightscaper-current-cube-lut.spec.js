@@ -12,6 +12,7 @@ import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restor
 import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
 const CUBE = Buffer.from(`LUT_3D_SIZE 2\n${Array.from({ length: 8 }, () => '0.25 0 0\n').join('')}`);
@@ -46,7 +47,7 @@ for (const locale of ['en', 'de']) {
 		await choose(page, named(dialog, 'combobox', messages.choose), 'cube-lut-profile-v1');
 		await keyboard(page, named(dialog, 'button', messages.add));
 		await expect(dialog.getByText(messages.shared.videoEffectCubeLutNone, { exact: true })).toBeVisible();
-		expect(await pixels(after)).toEqual(before);
+		await expect.poll(() => pixels(after)).toEqual(before);
 		await dialog.getByLabel(messages.shared.videoEffectCubeLutImport, { exact: true }).setInputFiles({ name: 'Quarter red.cube', mimeType: 'text/plain', buffer: CUBE });
 		await expect.poll(() => pixels(after)).toEqual(LUT_PIXELS);
 		const histogram = named(dialog, 'img', `${messages.histogram}: ${messages.after}`);
@@ -90,7 +91,9 @@ for (const locale of ['en', 'de']) {
 		expect(restored.root.id).toBe(saved.root.id); expect(restored.photos).toEqual(saved.photos);
 		await openDevelop(); await expect(preview).toHaveAttribute('data-state', 'ready'); await expect.poll(() => pixels(after)).toEqual(LUT_PIXELS);
 		const restoredOptions = await presets();
-		await expect(named(restoredOptions, 'combobox', settings.choosePreset).getByRole('option')).toHaveText([settings.noPreset, `Full LUT (${settings.full})`, `LUT only (${settings.partial})`]);
+		const expectedLabels = [[full.identity.id, `Full LUT (${settings.full})`], [partial.identity.id, `LUT only (${settings.partial})`]]
+			.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([, label]) => label);
+		await expect(named(restoredOptions, 'combobox', settings.choosePreset).getByRole('option')).toHaveText([settings.noPreset, ...expectedLabels]);
 		await keyboard(page, closeButton(restoredOptions, settings.close)); await closeDevelop();
 		expect(await decodeCurrentPhotoArchive((await downloadBackup(page, app, copy)).buffer)).toEqual(authenticated); expect(errors).toEqual([]);
 
@@ -125,10 +128,12 @@ export async function decodeCurrentPhotoArchive(bytes) {
 	result.photos.sort((a, b) => a.document.id.localeCompare(b.document.id)); return result;
 }
 async function observe(page, photoId) {
+	await installNativeOpfsWorkerCompanion(page);
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents:
 		`export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser' });
 	await page.route('**/__current_photo_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
-	return page.evaluate(async id => (await import(new URL('/__current_photo_observer.js', location.href).href)).readResidentPhotoLibraryCurrent([id]), photoId);
+	const observed = await page.evaluate(async id => (await import(new URL('/__current_photo_observer.js', location.href).href)).readResidentPhotoLibraryCurrent([id]), photoId);
+	await assertNativeOpfsWorkerExecution(page); return observed;
 }
 async function setup(page, locale) {
 	const errors = []; page.on('pageerror', error => { errors.push(error.message); });

@@ -9,6 +9,7 @@ import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
 test.use({ browserCoverage: false });
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
@@ -131,11 +132,13 @@ for (const locale of ['en', 'de']) test(`${locale}: keyboard Import options appl
 
 /** Current admission authenticates complete Photo1/2 documents and retained LUT bodies as well as original bytes. */
 async function observe(page, ids) {
+	await installNativeOpfsWorkerCompanion(page);
 	if (ids.length > 4) throw new RangeError('Develop import observation is bounded to four photos.');
 	const result = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents:
 		`export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
 	await page.route('**/__develop_import_original_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text }));
-	return page.evaluate(async photoIds => { const module = await import(new URL('/__develop_import_original_observer.js', location.href).href); return module.readResidentPhotoLibraryCurrent(photoIds); }, ids);
+	const observed = await page.evaluate(async photoIds => { const module = await import(new URL('/__develop_import_original_observer.js', location.href).href); return module.readResidentPhotoLibraryCurrent(photoIds); }, ids);
+	await assertNativeOpfsWorkerExecution(page); return observed;
 }
 async function pixels(canvas) { return canvas.evaluate(element => element.width === 2 && element.height === 2
 	? [...element.getContext('2d').getImageData(0, 0, 2, 2).data] : null); }
