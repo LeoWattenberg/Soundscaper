@@ -920,6 +920,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-original-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 original pixel reading borrows the selected Session lifetime, authenticates retained source bytes and orientation, and fences the requested photo revision and immutable binding before and after scoped consumption." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-develop-original-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 original pixel reader fully admits each recipe before the unchanged scoped original presentation, preserving revision and immutable-source fences and native lifetime joins."}
+		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-presets-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 preset requests detach before lazy initialization, bind the catalog and settings revision, and retain acknowledged publication beside independent lease cleanup failures while borrowing the Session writer and Close join." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop facade detaches explicit version commands before initialization and borrows the existing Session writer, lifetime and photo compare-and-swap owner for durable publication." }
@@ -927,6 +929,8 @@
 		{ "path": "src/lightscaper/controller/photo-library-develop-settings-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial settings batches borrow the Session writer and photo CAS owner, admit the whole selection before initialization and retain durable scalar outcomes through cancellation and independent cleanup failures." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-metadata-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 full-document admission before the unchanged bounded descriptive metadata presentation; named V1 readers remain strict."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
 		,
@@ -995,6 +999,8 @@
 		{ "path": "src/lightscaper/preview/photo-preview-preparation-v1.ts", "kind": "ipc-contract", "justification": "Version 1 prepared disposable photo body carries an independent pixel descriptor and output digest without embedding immutable original bytes." }
 		,
 		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
+		,
+		{"path": "src/lightscaper/preview/photo-preview-scheduler-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 original preview demand retains the shared V1 cache identity, byte profile, bounded scalar queue and joined cancellation; no recipe resource is delivered as original presentation."}
 		,
 		{"path": "src/lightscaper/quality/large-library-workload-v1.ts", "kind": "helper-contract", "justification": "Version 1 digest-pinned deterministic photo catalog workload generates bounded publication batches independently of product schema and runtime capabilities."}
 		,
