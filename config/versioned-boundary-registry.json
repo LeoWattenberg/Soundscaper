@@ -1046,6 +1046,8 @@
 		,
 		{"path": "src/lightscaper/storage/photo-library-selected-exclusive-v2.ts", "kind": "helper-contract", "justification": "Version 2 selected-library writer leases both physical resources and rechecks fixed-anchor location while sharing legacy logical locks for old pointers."}
 		,
+		{"path": "src/lightscaper/storage/photo-media-cube-lut-resources-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed selected-media LUT capabilities share the private guarded DB2 analysis port, authenticate full Photo1/2 and preset1/2 reachability before writes, keep three bounded operation slots and join scoped consumers through the owning media lifetime without another retention session or deletion authority."}
+		,
 		{"path": "src/lightscaper/storage/photo-media-restore-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original audit authenticates finished catalog bindings, stored custody, chunk geometry and body hashes before candidate readiness."}
 		,
 		{"path": "src/lightscaper/storage/photo-media-restore-candidate-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media restore candidate preserves exact archived storage keys, streams every original and joins native owners through readiness and rollback."}

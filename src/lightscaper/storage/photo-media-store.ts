@@ -10,10 +10,12 @@ import { getMemoryDatabase } from '../../common/editor/storage/memory-backend.ts
 import { OpfsRepository } from '../../common/editor/storage/opfs-repository.ts';
 import type { OpfsSyncStoragePort } from '../../common/editor/storage/opfs-sync-worker-client.ts';
 import { RetentionSessionGuard } from '../../common/editor/storage/retention-session-guard.ts';
+import type { StorageRepositoryPort } from '../../common/editor/storage/repository-port.ts';
 import { EditorStoreClosedError, EditorStoreVersionStaleError } from '../../common/editor/storage/status.ts';
 import type { PhotoOriginalV1 } from '../catalog/types.ts';
 import { PhotoPreviewCacheV1, PHOTO_PREVIEW_CACHE_PROFILE_V1, type PhotoPreviewCachePortV1 } from '../preview/photo-preview-cache-v1.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from './photo-library-location-v2.ts';
+import type { PhotoMediaCubeLutResourcesV1, PhotoMediaCubeLutResourceOwnerV1 } from './photo-media-cube-lut-resources-v1.ts';
 
 export const PHOTO_MEDIA_NAMESPACES_V1 = Object.freeze({
 	databaseName: 'lightscaper-photo-media-v2',
@@ -54,8 +56,11 @@ export class PhotoMediaStoreV1 {
 	readonly #databaseName: string;
 	readonly #opfs: OpfsRepository;
 	readonly #guard: RetentionSessionGuard;
+	readonly #guardedPort: StorageRepositoryPort;
 	readonly #owned = new Set<Promise<unknown>>();
 	#previewCache: PhotoPreviewCachePortV1 | null = null;
+	#cubeLutResources: Promise<Readonly<PhotoMediaCubeLutResourcesV1>> | null = null;
+	#cubeLutOwner: Readonly<PhotoMediaCubeLutResourceOwnerV1> | null = null;
 	#opening: Promise<IDBDatabase> | null = null;
 	#connection: IDBDatabase | null = null;
 	#closing: Promise<void> | null = null;
@@ -84,6 +89,7 @@ export class PhotoMediaStoreV1 {
 			opfsDirectoryName, opfsWorkerName,
 		});
 		const guarded = this.#guard.port();
+		this.#guardedPort = guarded;
 		const media = new MediaRepository(guarded, this.#opfs, { sessionGuard: this.#guard });
 		this.#media = media;
 		this.mediaRepository = Object.freeze({
@@ -130,6 +136,19 @@ export class PhotoMediaStoreV1 {
 		return this.#previewCache;
 	}
 
+	/** Fixed scoped LUT capabilities; the selected guard and connection stay private. */
+	getCubeLutResources(): Promise<Readonly<PhotoMediaCubeLutResourcesV1>> {
+		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
+		this.#cubeLutResources ??= this.#own(async () => {
+			const { createPhotoMediaCubeLutResourcesV1 } = await import('./photo-media-cube-lut-resources-v1.ts');
+			this.#assertAccepting();
+			this.#cubeLutOwner = createPhotoMediaCubeLutResourcesV1(this.#guardedPort,
+				operation => this.#ownCubeLut(operation), () => this.#assertAccepting());
+			return this.#cubeLutOwner.resources;
+		});
+		return this.#cubeLutResources;
+	}
+
 	readonly verifyOriginal = (original: PhotoOriginalV1, signal?: AbortSignal): Promise<void> => {
 		return this.#own(async () => {
 			throwIfAborted(signal);
@@ -153,8 +172,12 @@ export class PhotoMediaStoreV1 {
 	close(): Promise<void> {
 		if (this.#closing) return this.#closing;
 		this.#closeRequested = true;
-		const maintenance = this.#media.beginAssetMaintenance({ permanent: true });
-		this.#closing = this.#close(maintenance);
+		let resolve!: () => void, reject!: (reason: unknown) => void;
+		this.#closing = new Promise<void>((accept, refuse) => { resolve = accept; reject = refuse; });
+		try {
+			const maintenance = this.#media.beginAssetMaintenance({ permanent: true });
+			void this.#close(maintenance).then(resolve, reject);
+		} catch (error) { reject(error); }
 		return this.#closing;
 	}
 
@@ -162,6 +185,7 @@ export class PhotoMediaStoreV1 {
 		const errors: unknown[] = [];
 		try { await maintenance.abortActive(); } catch (error) { errors.push(error); }
 		await Promise.allSettled([...this.#owned]);
+		try { await this.#cubeLutOwner?.close(); } catch (error) { errors.push(error); }
 		// A pending opening owns any late successful handle until this cleanup.
 		await this.#opening?.catch(() => undefined);
 		try { await this.#guard.release(this.#connection); } catch (error) { errors.push(error); }
@@ -183,6 +207,17 @@ export class PhotoMediaStoreV1 {
 		const pending = Promise.resolve().then(operation);
 		this.#owned.add(pending);
 		void pending.then(() => { this.#owned.delete(pending); }, () => { this.#owned.delete(pending); });
+		return pending;
+	}
+
+	#ownCubeLut<Result>(operation: () => Promise<Result>): Promise<Result> {
+		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
+		let resolve!: (value: Result | PromiseLike<Result>) => void, reject!: (reason: unknown) => void;
+		const pending = new Promise<Result>((accept, refuse) => { resolve = accept; reject = refuse; });
+		this.#owned.add(pending);
+		void pending.then(() => { this.#owned.delete(pending); }, () => { this.#owned.delete(pending); });
+		// Latch before synchronous recipe reflection or a consumer can reenter Close.
+		try { resolve(operation()); } catch (error) { reject(error); }
 		return pending;
 	}
 
