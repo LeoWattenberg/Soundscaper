@@ -3,7 +3,7 @@
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseDropdown, chooseNestedCommandAction, collectClientErrors, importFiles } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseDropdown, chooseNestedCommandAction, collectClientErrors, importFiles, waitForEditor, waitForProjectActivation } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 
@@ -67,7 +67,7 @@ for (const locale of ['en', 'de']) test(`Frames ${locale} authors geometry only 
 	}
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	await page.reload();
-	const reopened = page.locator('[data-audio-editor]'); await expect(reopened).toHaveAttribute('data-audio-editor-bound', 'true');
+	const reopened = await waitForEditor(page); await waitForProjectActivation(reopened);
 	const restoredClip = reopened.getByRole('group', { name: copy.clip, exact: true });
 	await restoredClip.focus(); await restoredClip.press('Enter');
 	await chooseNestedCommandAction(page, reopened, copy.edit, [copy.clips, copy.properties]);
