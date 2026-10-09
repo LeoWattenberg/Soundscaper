@@ -9,8 +9,9 @@ import { field, id, integer, name, oneOf, record, utcTimestamp } from '../catalo
 import type { PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 import type { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoDevelopWorkspaceCommandV1, PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_V1 } from './photo-develop-workspace-commands-v1.ts';
+import { createPhotoLibraryDevelopSettingsSessionV1, type PhotoLibraryDevelopSettingsSessionHostV1 } from './photo-library-develop-settings-session-v1.ts';
 
-export interface PhotoLibraryDevelopSessionHostV1 {
+export interface PhotoLibraryDevelopSessionHostV1 extends PhotoLibraryDevelopSettingsSessionHostV1 {
 	readonly repository: Pick<PhotoLibrarySessionPortsV1['catalog'], 'loadPhoto'>;
 	readonly ready: () => Promise<string>;
 	readonly operation: <Result>(run: (signal: AbortSignal) => Promise<Result>, signal?: AbortSignal) => Promise<Result>;
@@ -20,6 +21,7 @@ export interface PhotoLibraryDevelopSessionHostV1 {
 /** Borrows the existing Session's lifetime, single writer and durable photo owner. */
 export function createPhotoLibraryDevelopSessionV1(host: PhotoLibraryDevelopSessionHostV1): Readonly<PhotoLibraryDevelopPortV1> {
 	return Object.freeze({
+		settings: createPhotoLibraryDevelopSettingsSessionV1(host),
 		async read(value, options = {}) {
 			const input = request(value, ['schemaVersion', 'photoId', 'versionId'], ['schemaVersion', 'photoId']);
 			const photoId = id(field(input, 'photoId'), 'develop photo ID');
