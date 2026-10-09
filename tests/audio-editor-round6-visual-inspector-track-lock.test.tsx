@@ -31,7 +31,7 @@ for (const initiallyLocked of [false, true]) {
 				assert.equal(color.hasAttribute('disabled'), locked, 'source editing follows the existing native lock contract');
 				const opacity = dom.one('[data-visual-inspector-opacity]');
 				assert.equal(opacity.hasAttribute('disabled'), false, 'presentation controls retain their existing admission');
-				await act(async () => reactProps(opacity).onChange({ currentTarget: { valueAsNumber: 0.75 } }));
+				await act(async () => reactProps(opacity).onChange({ currentTarget: { value: '0.75', valueAsNumber: 0.75 } }));
 				await act(async () => reactProps(dom.one('form')).onSubmit({ preventDefault() {} }));
 			}
 			assert.equal(commits, 3);
