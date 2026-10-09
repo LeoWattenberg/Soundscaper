@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { ReadCapabilityStore } from '../../desktop/file-capabilities.js';
 import { registerFileCapabilityIpc } from '../../desktop/main-file-capability-ipc.mjs';
@@ -16,7 +16,7 @@ const CHANNELS = Object.freeze({
 	finishWrite: 'save:finish', abortWrite: 'save:abort',
 });
 
-export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean }> = {}) {
+export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean; saveSuggestedName?: boolean }> = {}) {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-native-sidecar-'));
 	const path = join(directory, name);
 	await writeFile(path, text);
@@ -25,7 +25,7 @@ export async function nativeSidecarFixture(name: string, text: string | Uint8Arr
 	const targets = new SaveTargetStore();
 	const saveOptions = { targets, openImpl: open };
 	const saves = new AtomicSaveManager(saveOptions);
-	const savePath = options.saveName ? join(directory, options.saveName) : null;
+	let savePath = options.saveName ? join(directory, options.saveName) : null;
 	const calls: unknown[] = [];
 	const saveChoices: unknown[] = [];
 	const releases: string[] = [];
@@ -40,6 +40,11 @@ export async function nativeSidecarFixture(name: string, text: string | Uint8Arr
 			},
 			showSaveDialog: async (_window: unknown, request: unknown) => {
 				saveChoices.push(request);
+				if (options.saveSuggestedName) {
+					assert.ok(request && typeof request === 'object' && 'defaultPath' in request);
+					assert.equal(typeof request.defaultPath, 'string');
+					savePath = join(directory, basename(request.defaultPath as string));
+				}
 				return { canceled: options.cancelSave === true || savePath === null, filePath: savePath ?? '' };
 			},
 		},
