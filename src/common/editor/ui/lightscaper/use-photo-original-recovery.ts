@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PhotoLibraryOriginalRecoveryV1 } from '../../controller/shared/photo-library-original-recovery-v1.ts';
 import type { PhotoLibraryOriginalInspectionPageV1, PhotoLibraryOriginalRestorationReceiptV1,
-	PhotoLibraryOriginalRestoreTargetV1 } from '../../photo-library-original-recovery-port-v1.ts';
-import type { PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
+	PhotoLibraryOriginalRestoreTargetV1, PhotoLibraryOriginalRecoveryPortV1 } from '../../photo-library-original-recovery-port-v1.ts';
 
 export interface PhotoOriginalRecoveryContextV1 {
 	readonly signal: AbortSignal;
-	readonly acquire: () => Promise<PhotoLibrarySessionPortV1>;
+	readonly acquire: () => Promise<PhotoLibraryOriginalRecoveryPortV1>;
 	readonly refresh: () => Promise<void>;
 	readonly isCurrent: () => boolean;
 }

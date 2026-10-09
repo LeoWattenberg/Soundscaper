@@ -10,7 +10,7 @@ import type { PhotoLibraryPageV1, PhotoLibrarySessionPortV1 } from '../../photo-
 
 export interface PhotoSavedFilterExecutionContextV1 {
 	readonly signal: AbortSignal;
-	readonly acquire: () => Promise<PhotoLibrarySessionPortV1>;
+	readonly acquire: () => Promise<Pick<PhotoLibrarySessionPortV1, 'savedCollections'>>;
 	readonly isCurrent: () => boolean;
 	readonly refresh: () => Promise<PhotoLibraryPageV1 | null>;
 	readonly activate: (selection: Readonly<{ kind: 'all' }> | Readonly<{ kind: 'saved'; collectionId: string }>) => Promise<PhotoLibraryPageV1 | null>;
@@ -167,7 +167,7 @@ function checkSignal(signal: AbortSignal): void { Reflect.apply(nativeThrow, sig
 function cancelled(signal: AbortSignal, value: unknown): boolean {
 	return Reflect.apply(nativeAborted, signal, []) === true && value === Reflect.apply(nativeReason, signal, []);
 }
-function savedPort(session: PhotoLibrarySessionPortV1) {
+function savedPort(session: Pick<PhotoLibrarySessionPortV1, 'savedCollections'>) {
 	if (!session.savedCollections) throw new Error('Saved photo filters are unavailable.');
 	return session.savedCollections;
 }

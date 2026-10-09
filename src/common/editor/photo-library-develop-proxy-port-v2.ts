@@ -4,6 +4,7 @@ import type { ImageDevelopStateV1 } from './imaging/image-develop-contract-v1.ts
 import type { ImageDevelopStateV2 } from './imaging/image-develop-state-v2.ts';
 import type { PixelFrameV1 } from './imaging/pixel-frame-contract-v1.ts';
 import type { PhotoLibraryDevelopProxyViewV1 } from './photo-library-develop-proxy-port-v1.ts';
+import type { CubeLutSourcePortV1 } from './imaging/cube-lut-source-port-v1.ts';
 
 export interface PhotoLibraryDevelopFrameRequestV2 {
 	readonly frame: PixelFrameV1;
@@ -18,3 +19,5 @@ export interface PhotoLibraryDevelopProxyRuntimeV2 {
 		consume: (view: PhotoLibraryDevelopProxyViewV1) => Result | Promise<Result>): Promise<Result>;
 }
 export type LoadPhotoLibraryDevelopProxyRuntimeV2 = () => Promise<Readonly<PhotoLibraryDevelopProxyRuntimeV2>>;
+/** The UI generation supplies its selected library source before constructing a renderer. */
+export type CreatePhotoLibraryDevelopProxyRuntimeV2 = (source: Readonly<CubeLutSourcePortV1>) => Promise<Readonly<PhotoLibraryDevelopProxyRuntimeV2>>;
