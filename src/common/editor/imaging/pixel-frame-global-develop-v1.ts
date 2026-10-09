@@ -2,6 +2,7 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
 import { readClosedDomainArray } from '../closed-domain-value.ts';
+import { isCurvesEffectTypeV1, prepareCurvesEffectV1, createCurvesTransferV1 } from '../video-curves-v1.ts';
 import { globalDevelopByteChannelV1, prepareGlobalDevelopEffectV1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1, applyChromaDevelopPixelV1, prepareChromaDevelopEffectV1 } from '../video-chroma-develop-v1.ts';
 import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, applyBlackWhiteMixPixelV1, prepareBlackWhiteMixEffectV1 } from '../video-black-white-mix-v1.ts';
@@ -37,6 +38,7 @@ export async function withGlobalDevelopPixelFrameV1<Result>(value: unknown,
 		const id = field(effect, 'id', 'global develop effect');
 		if (ids.has(id)) throw new RangeError('Global develop effects require unique IDs.'); ids.add(id);
 		const type=field(effect, 'type', 'global develop effect');
+		if(isCurvesEffectTypeV1(type))return prepareCurvesEffectV1(value);
 		if(type===HSL_MIXER_EFFECT_TYPE_V1)return prepareHslMixerEffectV1(value);
 		if(type===BLACK_WHITE_MIX_EFFECT_TYPE_V1)return prepareBlackWhiteMixEffectV1(value);
 		return type === CHROMA_DEVELOP_EFFECT_TYPE_V1 ? prepareChromaDevelopEffectV1(value) : prepareGlobalDevelopEffectV1(value);
@@ -51,9 +53,14 @@ export async function withGlobalDevelopPixelFrameV1<Result>(value: unknown,
 		let processedBytes = 0;
 		for (const effect of prepared) {
 			if (!effect.enabled || effect.neutral) continue;
-			for (let start = 0; start < pixels.length; start += CHUNK_BYTES) {
+			const lookup = isCurvesEffectTypeV1(effect.type) ? createCurvesTransferV1(effect) : null;
+			try { for (let start = 0; start < pixels.length; start += CHUNK_BYTES) {
 				check(); const end = Math.min(pixels.length, start + CHUNK_BYTES);
 				for (let offset = start; offset < end; offset += 4) {
+					if (effect.type === 'point-curves-v1' || effect.type === 'parametric-curves-v1') {
+						if (!lookup) throw new Error('An admitted curve transfer is unavailable.');
+						for (let channel = 0; channel < 3; channel++) pixels[offset + channel] = lookup[4 * pixels[offset + channel]! + channel]!; continue;
+					}
 					if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) { applyHslMixerPixelV1(effect, pixels, offset); continue; }
 					if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { applyBlackWhiteMixPixelV1(effect, pixels, offset); continue; }
 					if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { applyChromaDevelopPixelV1(effect, pixels, offset); continue; }
@@ -63,7 +70,7 @@ export async function withGlobalDevelopPixelFrameV1<Result>(value: unknown,
 				}
 				processedBytes += end - start;
 				if (processedBytes >= CHUNK_BYTES) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); processedBytes = 0; check(); }
-			}
+			} } finally { lookup?.fill(0); }
 		}
 		check(); const result = await consume(Object.freeze({ descriptor: source.descriptor, pixels })); check(); return result;
 	} finally { if (Number(Reflect.apply(BUFFER_SIZE, buffer, [])) > 0) new Uint8Array(buffer).fill(0); }

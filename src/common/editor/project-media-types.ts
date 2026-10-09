@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { VideoEffectParameterV1 } from './video-curve-types-v1.ts';
 import type { PersistedAudioEffect } from './persisted-audio-effect-validation.ts';
 import type { SourceProvenanceV1 } from './source-provenance.ts';
 import type { TrackDisplayMode } from './track-display-mode.ts';
@@ -118,7 +119,7 @@ export interface VideoEffectLeaf extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly type: string;
 	readonly enabled: boolean;
-	readonly params: Readonly<Record<string, number>>;
+	readonly params: Readonly<Record<string, VideoEffectParameterV1>>;
 }
 
 export interface VideoClipLeaf extends Omit<VideoClipFixtureLeaf,

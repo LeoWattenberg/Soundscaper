@@ -5,6 +5,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { renderVideoEffectReference } from '../scripts/lib/docs-reference/video-effects.mjs';
+import { VIDEO_EFFECT_DEFINITIONS } from '../src/common/editor/video-effects.js';
 
 import { SOUNDSCAPER_GUIDE_GROUPS, SOUNDSCAPER_GUIDES } from '../handbook/guides/soundscaper.mjs';
 import { SOUNDSCAPER_TUTORIALS } from '../handbook/guides/tutorials.mjs';
@@ -217,6 +219,15 @@ test('capability reference renders product-owned families and a reviewed feature
 	assert.match(rendered, /disabled capability can still be preserved/u);
 	assert.match(rendered, /\[Export formats\]\(\/reference\/generated\/formats\/\)/u);
 	assert.doesNotMatch(rendered, /\d{4}-\d{2}-\d{2}T\d{2}:/u);
+});
+
+test('owning curve reference explains structured coordinate bounds beside unchanged numeric defaults', () => {
+	const rendered = renderVideoEffectReference({ products, definitions: VIDEO_EFFECT_DEFINITIONS });
+	assert.match(rendered, /Point curves.*`point-curves-v1`.*4/u);
+	assert.match(rendered, /Parametric curves.*`parametric-curves-v1`.*19/u);
+	assert.match(rendered, /\(0, 0\); \(1, 1\)/u);
+	assert.match(rendered, /2–32 points; input\/output 0–1; strictly increasing inputs, endpoints 0 and 1/u);
+	assert.match(rendered, /Brightness.*0.*-1/u);
 });
 
 test('capability reference rejects a product family with no declared suffix', () => {

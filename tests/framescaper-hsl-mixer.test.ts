@@ -27,7 +27,7 @@ test('actual Frame effect authoring persists and renders all eight HSL bands thr
 	const rendered=await applyVideoExactBrowserEffectsFinishing({width:4,height:1,pixels},clip?.videoEffects??[],new AbortController().signal);
 	assert.deepEqual([...rendered.pixels],[254,254,0,0,127,254,0,1,0,254,254,127,254,0,254,255]);
 	assert.deepEqual([...pixels],[254,0,0,0,254,127,0,1,0,254,0,127,0,0,254,255]);
-	assert.equal(VIDEO_EFFECT_TYPES.at(-1),'hsl-mixer-v1');
+	assert.equal(VIDEO_EFFECT_TYPES[17],'hsl-mixer-v1');
 	assert.throws(()=>createVideoEffect('hsl-mixer-v1',{id:'x'.repeat(129)}));
 });
 

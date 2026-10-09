@@ -18,3 +18,20 @@ export const translationCatalogChunkGroups = [{
 	maxSize: 400_000,
 	includeDependenciesRecursively: false,
 }];
+
+/**
+ * Catalog roots already statically import their parts. Speculative preload
+ * lists otherwise duplicate every locale's part filenames in the eager loader
+ * chunk, growing startup even when that locale is never selected. Preserve all
+ * unrelated JS/CSS dependencies and let native imports discover these parts.
+ *
+ * @param {string} filename
+ * @param {string[]} dependencies
+ * @returns {string[]}
+ */
+export function translationCatalogPreloadDependencies(filename, dependencies) {
+	if (!/(?:^|\/)[^/]+\.json-[^/]+\.m?js$/u.test(filename)) return dependencies;
+	const part = /(?:^|\/)locale-[^/]+-entries-\d+-[^/]+\.m?js$/u;
+	if (!dependencies.some(dependency => part.test(dependency))) return dependencies;
+	return dependencies.filter(dependency => dependency !== filename && !part.test(dependency));
+}

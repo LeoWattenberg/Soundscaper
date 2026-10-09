@@ -26,7 +26,9 @@ One definition owns each effect’s parameters, and the preview and the export b
 | HSL mixer | `hsl-mixer-v1` | 24 |
 | Luma Key | `luma-key` | 3 |
 | Outline | `outline` | 3 |
+| Parametric curves | `parametric-curves-v1` | 19 |
 | Pixelate | `pixelate` | 1 |
+| Point curves | `point-curves-v1` | 4 |
 | RGB Split | `rgb-split` | 2 |
 | Sharpen | `sharpen` | 1 |
 | Spill Suppression | `spill-suppression` | 2 |
@@ -113,7 +115,30 @@ Defaults and limits come from the same definitions the editor validates against.
 | Outline | Width | 4 | 0 to 16 | pixels |
 | Outline | Color | `#ffffff` | Any RGB color | — |
 | Outline | Opacity | 1 | 0 to 1 | — |
+| Parametric curves | Master shadows | 0 | -100 to 100 | — |
+| Parametric curves | Master darks | 0 | -100 to 100 | — |
+| Parametric curves | Master lights | 0 | -100 to 100 | — |
+| Parametric curves | Master highlights | 0 | -100 to 100 | — |
+| Parametric curves | Red shadows | 0 | -100 to 100 | — |
+| Parametric curves | Red darks | 0 | -100 to 100 | — |
+| Parametric curves | Red lights | 0 | -100 to 100 | — |
+| Parametric curves | Red highlights | 0 | -100 to 100 | — |
+| Parametric curves | Green shadows | 0 | -100 to 100 | — |
+| Parametric curves | Green darks | 0 | -100 to 100 | — |
+| Parametric curves | Green lights | 0 | -100 to 100 | — |
+| Parametric curves | Green highlights | 0 | -100 to 100 | — |
+| Parametric curves | Blue shadows | 0 | -100 to 100 | — |
+| Parametric curves | Blue darks | 0 | -100 to 100 | — |
+| Parametric curves | Blue lights | 0 | -100 to 100 | — |
+| Parametric curves | Blue highlights | 0 | -100 to 100 | — |
+| Parametric curves | Shadow split | 0.25 | 0 to 1 | — |
+| Parametric curves | Midtone split | 0.5 | 0 to 1 | — |
+| Parametric curves | Highlight split | 0.75 | 0 to 1 | — |
 | Pixelate | Block size | 16 | 2 to 128 | pixels |
+| Point curves | Master | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Point curves | Red | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Point curves | Green | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Point curves | Blue | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
 | RGB Split | Horizontal offset | 6 | -64 to 64 | pixels |
 | RGB Split | Vertical offset | 0 | -64 to 64 | pixels |
 | Sharpen | Amount | 0.5 | 0 to 2 | — |

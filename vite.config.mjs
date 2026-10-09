@@ -19,6 +19,7 @@ import {
 import { authoredWildcardResponseHeaders } from './scripts/lib/static-response-headers.mjs';
 import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
 import { createTranslationCatalogBundlePlugin } from './scripts/lib/translation-catalog-bundle.mjs';
+import { translationCatalogPreloadDependencies } from './scripts/lib/build-chunk-translation-catalogs.mjs';
 import layerAudacityDesignSystemCss, {
 	getLayeredDesignSystemFiles,
 	isDesignSystemCssFile,
@@ -154,6 +155,7 @@ export default defineConfig({
 		},
 	},
 	build: {
+		modulePreload: { resolveDependencies: translationCatalogPreloadDependencies },
 		manifest: '.offline-build-manifest.json',
 		assetsInlineLimit: 0,
 		sourcemap: buildSourceMaps ? 'hidden' : false,

@@ -21,6 +21,10 @@ function optionLabel(parameter, value) {
 }
 
 function parameterRow(parameter) {
+	if (parameter.control === 'curve') {
+		return [parameter.label, parameter.default.map(point => `(${formatNumber(point.x)}, ${formatNumber(point.y)})`).join('; '),
+			`2–${parameter.maximumPoints} points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1`, '—'];
+	}
 	if (parameter.control === 'color') {
 		return [parameter.label, colorLiteral(parameter.default), 'Any RGB color', '—'];
 	}

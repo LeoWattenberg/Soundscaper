@@ -14,6 +14,13 @@ and ordinal chunk owner, preventing the bundler from recombining the entire
 catalog into one oversized JavaScript chunk. Small catalogs keep one module.
 The production 500,000-byte chunk ceiling remains authoritative.
 
+Vite's speculative preload lists omit these part filenames and the redundant
+catalog-root entry. Otherwise the eager loader's preload table names every
+locale's parts even before any locale is selected. The root's native static
+imports still fetch every part before its import resolves, and unrelated
+JavaScript and CSS preload dependencies remain unchanged. Startup byte and
+request ceilings continue to apply without adjustments.
+
 The lazy root retains the original field order and populates its existing entries
 object with data properties. Named `entries` and default-catalog exports therefore
 refer to the same object. Numeric and prototype-like keys, malformed JSON rows
@@ -34,5 +41,7 @@ on the complete Hindi catalog and a grown fixture. They check emitted chunk
 sizes, absence from the entry's static dependency graph, exact lazy-loaded data,
 named-export identity and runtime staleness. The fixture disables browser module
 preloading so Node can execute its output; full product builds and browser tests
-remain separate validation. Renderer tests also evaluate every published locale,
+remain separate validation. A separate fixture builds with the production
+preload configuration and checks that part filenames stay out of the eager
+loader while its lazy root retains every native dependency. Renderer tests also evaluate every published locale,
 and watch tests cover replacement and cross-locale ownership.

@@ -3,7 +3,7 @@
 import type { ImageDevelopSelectionV1, ImageDevelopSettingsPacketV1 } from './image-develop-settings-contract-v1.ts';
 import type { VideoEffectLeaf } from '../project-media-types.ts';
 import { VIDEO_EFFECT_DEFINITIONS, createVideoEffect } from '../video-effects.js';
-import { GLOBAL_DEVELOP_EFFECT_TYPES_V1, GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1 } from '../video-global-develop-v1.ts';
+import { GLOBAL_DEVELOP_EFFECT_TYPES_V1, GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1, normalizeGlobalDevelopParamsV1 } from '../video-global-develop-v1.ts';
 import { defaultImageDevelopStateV1, normalizeImageDevelopStateV1 } from './image-develop-state-v1.ts';
 import { IMAGE_DEVELOP_LIMITS_V1, type ImageDevelopStateV1 } from './image-develop-contract-v1.ts';
 import { array, boolean, compareText, field, number, oneOf, record, unique } from './image-develop-value.ts';
@@ -107,7 +107,7 @@ export function adjustImageDevelopSettingsV1(value: unknown): ImageDevelopStateV
 	const source = position < 0 ? createVideoEffect(action.effectType, {
 		id: allocate(new Set(target.effects.map(effect => effect.id)), 'quick-develop'),
 	}) as VideoEffectLeaf : target.effects[position]!;
-	const definitions = GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1[action.effectType].params, params = { ...source.params };
+	const definitions = GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1[action.effectType].params, params = { ...normalizeGlobalDevelopParamsV1(action.effectType, source.params) };
 	for (const [key, delta] of Object.entries(action.changes)) {
 		const definition = definitions[key]!;
 		params[key] = Math.min(definition.max, Math.max(definition.min, params[key]! + delta));

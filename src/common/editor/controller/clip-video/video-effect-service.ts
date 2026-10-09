@@ -3,13 +3,14 @@
 import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { AudioEditorCommand, CommandObject } from '../../commands/protocol.ts';
 import type { EditorProjectToken } from '../shared/lifecycle.ts';
 import { EffectGestureTargetChangedError, effectParametersMatch } from '../effects/effect-gesture-safety.ts';
+import type { VideoEffectParameterV1 } from '../../video-curve-types-v1.ts';
 import { createVideoEffect, normalizeVideoEffect } from '../../video-effects.js';
 
 export interface ControllerVideoEffect {
 	readonly id: string;
 	readonly type: string;
 	readonly enabled: boolean;
-	readonly params: Readonly<Record<string, number>>;
+	readonly params: Readonly<Record<string, VideoEffectParameterV1>>;
 }
 
 export interface ControllerVideoClip {
@@ -26,8 +27,8 @@ export interface VideoEffectProject {
 export interface VideoEffectGestureSession {
 	readonly project: EditorProjectToken;
 	readonly effectType: string;
-	readonly original: Readonly<Record<string, number>>;
-	params: Readonly<Record<string, number>>;
+	readonly original: Readonly<Record<string, VideoEffectParameterV1>>;
+	params: Readonly<Record<string, VideoEffectParameterV1>>;
 }
 
 export interface VideoEffectControllerState {
@@ -61,7 +62,7 @@ export interface VideoEffectServiceRuntime {
 export interface AddVideoEffectOptions {
 	readonly id?: string;
 	readonly enabled?: boolean;
-	readonly params?: Readonly<Record<string, number>>;
+	readonly params?: Readonly<Record<string, VideoEffectParameterV1>>;
 	readonly index?: number;
 }
 
@@ -176,7 +177,7 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 	function beginVideoEffectGesture(
 		clipId: string,
 		effectId: string,
-	): Readonly<Record<string, number>> | null {
+	): Readonly<Record<string, VideoEffectParameterV1>> | null {
 		if (editingBlocked()) return null;
 		const { effect } = videoClipEffect(clipId, effectId);
 		const key = videoEffectGestureKey(clipId, effectId);
@@ -196,8 +197,8 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 	function previewVideoEffectGesture(
 		clipId: string,
 		effectId: string,
-		params: Readonly<Record<string, number>> = {},
-	): Readonly<Record<string, number>> | null {
+		params: Readonly<Record<string, VideoEffectParameterV1>> = {},
+	): Readonly<Record<string, VideoEffectParameterV1>> | null {
 		if (editingBlocked()) return null;
 		const { effect } = videoClipEffect(clipId, effectId);
 		const key = videoEffectGestureKey(clipId, effectId);
@@ -216,7 +217,7 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 	function commitVideoEffectGesture(
 		clipId: string,
 		effectId: string,
-		params: Readonly<Record<string, number>> = {},
+		params: Readonly<Record<string, VideoEffectParameterV1>> = {},
 	): VideoEffectProject {
 		if (state.readOnly) throw createLocalizedError(Error, copy, 'projectReadOnly');
 		const { effect } = videoClipEffect(clipId, effectId);

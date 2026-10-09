@@ -35,7 +35,8 @@ import {
 	type VideoClipComposition,
 	type VideoClipCompositionNumericParameterId,
 } from './video-clip-composition.ts';
-import { normalizeVideoEffects, videoEffectDefinition } from './video-effects.js';
+import { videoEffectDefinition } from './video-effects.js';
+import { normalizeContextVideoEffects, type NormalizedContextVideoEffect } from './video-keyframe-effect-context.ts';
 
 export const VIDEO_KEYFRAME_CURVES_SCHEMA_VERSION = 1 as const;
 export const MAXIMUM_VIDEO_KEYFRAME_CURVES = 256;
@@ -83,17 +84,12 @@ interface VideoEffectParameterDescriptor {
 interface VideoEffectDefinition {
 	readonly params: Readonly<Record<string, VideoEffectParameterDescriptor>>;
 }
-interface NormalizedVideoEffect {
-	readonly id: string; readonly type: string; readonly enabled: boolean;
-	readonly params: Readonly<Record<string, number>>;
-}
 interface NormalizationContext {
 	readonly duration: Rational;
 	readonly composition: VideoClipComposition;
-	readonly videoEffects: readonly NormalizedVideoEffect[];
+	readonly videoEffects: readonly NormalizedContextVideoEffect[];
 }
 interface NormalizedCurveEntry extends VideoKeyframeCurve { readonly key: string }
-const MAXIMUM_CONTEXT_VIDEO_EFFECTS = 4_096;
 const NORMALIZED_COLLECTIONS = new WeakMap<object, Readonly<{
 	duration: Rational;
 	timeDomain: VideoKeyframeTimeDomain;
@@ -309,6 +305,7 @@ function normalizeTarget(value: unknown, context: NormalizationContext, name: st
 	if (!Object.hasOwn(parameters, parameterId)) throw new RangeError(`${name}.parameterId is not registered for video effect ${effectId}.`);
 	const parameter = parameters[parameterId];
 	if (!parameter) throw new Error('A registered video effect parameter descriptor is unavailable.');
+	if (typeof effect.params[parameterId] !== 'number') throw new RangeError(`${name}.parameterId is not an interpolable numeric target.`);
 	return Object.freeze({
 		target: Object.freeze({ kind, effectId, parameterId }),
 		key: JSON.stringify([kind, effectId, parameterId]),
@@ -453,29 +450,6 @@ function normalizationContext(value: unknown, name: string): NormalizationContex
 		composition: normalizeVideoClipComposition(field(options, 'composition', name), `${name}.composition`),
 		videoEffects: normalizeContextVideoEffects(field(options, 'videoEffects', name), `${name}.videoEffects`),
 	});
-}
-
-function normalizeContextVideoEffects(value: unknown, name: string): readonly NormalizedVideoEffect[] {
-	const effects = readClosedDomainArray(value, name, 0, MAXIMUM_CONTEXT_VIDEO_EFFECTS);
-	const snapshots = effects.map((candidate, index) => {
-		const effectName = `${name}[${String(index)}]`;
-		const effect = readClosedDomainRecord(candidate, effectName, ['id', 'type', 'enabled', 'params']);
-		const type = nonEmptyString(field(effect, 'type', effectName), `${effectName}.type`);
-		const parameterIds = Object.keys(effectDefinition(type).params);
-		const params = readClosedDomainRecord(field(effect, 'params', effectName), `${effectName}.params`, parameterIds, []);
-		return {
-			id: field(effect, 'id', effectName), type,
-			enabled: field(effect, 'enabled', effectName),
-			params: Object.fromEntries(Object.keys(params).map((key) => [key, field(params, key, `${effectName}.params`)])),
-		};
-	});
-	return Object.freeze(normalizeVideoEffects(snapshots, name).map((effect, index): NormalizedVideoEffect => {
-		const params = Object.fromEntries(Object.entries(effect.params).map(([key, value]) => {
-			if (typeof value !== 'number') throw new TypeError(`${name}[${String(index)}].params.${key} must be numeric.`);
-			return [key, value] as const;
-		}));
-		return Object.freeze({ id: effect.id, type: effect.type, enabled: effect.enabled, params: Object.freeze(params) });
-	}));
 }
 
 function collectionSnapshot(

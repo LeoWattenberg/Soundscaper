@@ -8,10 +8,11 @@ import { CHROMA_DEVELOP_EFFECT_TYPE_V1, CHROMA_DEVELOP_EFFECT_CODE_V1, chromaDev
 import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_EFFECT_CODE_V1, blackWhiteMixPreviewPassV1 } from '../video-black-white-mix-v1.ts';
 
 import { HSL_MIXER_EFFECT_TYPE_V1, HSL_MIXER_EFFECT_CODE_V1, hslMixerPreviewPassV1 } from '../video-hsl-mixer-v1.ts';
+import { CURVES_EFFECT_CODES_V1, curvesPreviewPassV1, isCurvesEffectTypeV1 } from '../video-curves-v1.ts';
 
 export { MAX_GAUSSIAN_BLUR_PAIR_COUNT, VIDEO_PREVIEW_PIXELATE_GRID_SIZE } from './video-preview-effects-shader.js';
 
-export const EFFECT_PROGRAM_COUNT = 24;
+export const EFFECT_PROGRAM_COUNT = 26;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
 export const GAUSSIAN_BLUR_RENDER_SCALE = 2 / 3;
 const GAUSSIAN_BLUR_SIGMA_CALIBRATION = 0.85;
@@ -40,6 +41,7 @@ export const EFFECT_CODES = Object.freeze({
 	outline: 13,
 	'drop-shadow': 14,
 	...GLOBAL_DEVELOP_EFFECT_CODES_V1,
+	...CURVES_EFFECT_CODES_V1,
 });
 
 export function finiteNumber(value, fallback) {
@@ -90,6 +92,7 @@ function gaussianBlurPass(sigma, renderScale, direction, kernel) {
  */
 export function videoEffectPasses(effect, previewScale = {}) {
 	if (!effect) return [];
+	if (isCurvesEffectTypeV1(effect.type)) { const pass = curvesPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) { const pass = hslMixerPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { const pass = blackWhiteMixPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { const pass = chromaDevelopPreviewPassV1(effect); return pass ? [pass] : []; }

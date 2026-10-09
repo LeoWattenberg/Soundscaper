@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { build } from 'vite';
+import { build, type BuildOptions } from 'vite';
+import productionViteConfig from '../vite.config.mjs';
 import { chunkGroups } from '../scripts/lib/build-chunk-groups.mjs';
 import { createTranslationCatalogBundlePlugin } from '../scripts/lib/translation-catalog-bundle.mjs';
 import { currentTranslations } from '../src/common/i18n/translation-catalog.js';
@@ -42,7 +43,7 @@ function grownCatalog(): Catalog {
 
 async function withBuiltCatalogs(catalogs: Catalog[], inspect: (context: {
 	directory: string; output: Awaited<ReturnType<typeof build>>; snapshots: string[];
-}) => Promise<void>): Promise<void> {
+}) => Promise<void>, modulePreload: BuildOptions['modulePreload'] = false): Promise<void> {
 	const directory = await mkdtemp(join(tmpdir(), 'scape-translation-catalog-parts-'));
 	const catalogDirectory = join(directory, 'src/common/i18n/translations');
 	const snapshots = catalogs.map(catalog => JSON.stringify(catalog));
@@ -56,7 +57,7 @@ async function withBuiltCatalogs(catalogs: Catalog[], inspect: (context: {
 		await writeFile(join(directory, 'entry.js'), 'export {loaders} from "./src/common/i18n/translations/index.js";');
 		const output = await build({ root: directory, configFile: false, logLevel: 'silent',
 			plugins: [createTranslationCatalogBundlePlugin()], build: { outDir: join(directory, 'built'),
-				target: 'esnext', modulePreload: false, rolldownOptions: { input: join(directory, 'entry.js'),
+				modulePreload, rolldownOptions: { input: join(directory, 'entry.js'),
 					preserveEntrySignatures: 'allow-extension', output: { entryFileNames: 'entry.mjs',
 						chunkFileNames: '[name]-[hash].mjs', codeSplitting: { groups: chunkGroups, minSize: 20_000 },
 						strictExecutionOrder: true } } } });
@@ -126,4 +127,27 @@ test('small catalogs keep one lazy module and preserve an explicitly empty entri
 		const module = await loaded.loaders.fr!();
 		assert.deepEqual(module.default, catalog); assert.equal(module.entries, module.default.entries);
 	});
+});
+
+test('production preloading keeps locale entry-part filenames out of the eager loader graph', async () => {
+	await withBuiltCatalogs([await hindiCatalog(), grownCatalog()], async ({ output }) => {
+		assert.ok(!Array.isArray(output) && 'output' in output);
+		const chunks = output.output.filter(chunk => chunk.type === 'chunk');
+		const entry = chunks.find(chunk => chunk.isEntry); assert.ok(entry);
+		const byName = new Map(chunks.map(chunk => [chunk.fileName, chunk])), initial = new Set<string>();
+		function visit(name: string): void {
+			if (initial.has(name)) return;
+			initial.add(name); for (const dependency of byName.get(name)?.imports ?? []) visit(dependency);
+		}
+		visit(entry.fileName);
+		const eagerCode = [...initial].map(name => byName.get(name)!.code).join('\n');
+		const parts = chunks.filter(chunk => Object.keys(chunk.modules).some(id => id.startsWith('\0scape:translation-catalog-part:')));
+		assert.ok(parts.length > 1);
+		for (const part of parts) {
+			assert.equal(eagerCode.includes(part.fileName), false,
+				`Optional ${part.fileName} must be discovered by its lazy catalog root.`);
+			assert.ok(chunks.some(chunk => !initial.has(chunk.fileName) && chunk.imports.includes(part.fileName)),
+				'The native module graph still requires every part before resolving its catalog import.');
+		}
+	}, productionViteConfig.build?.modulePreload ?? true);
 });

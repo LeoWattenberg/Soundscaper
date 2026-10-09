@@ -61,6 +61,19 @@ test('native Canvas capture and selected composition retain authored HSL before 
 	expect(result.authoredTypes).toEqual(['hsl-mixer-v1','tone-ladder-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
 });
 
+for (const reverse of [false, true]) test(`native Canvas and actual selected composition retain full point/parametric recipes; reverse=${String(reverse)}`, async ({ page }) => {
+	const result = await qualify(page, reverse ? 'curves-reverse' : 'curves');
+	const source = [0,32,64,255,64,128,192,255,128,128,128,255,255,224,16,255];
+	const effected = reverse ? [255,191,175,255,175,127,63,255,127,127,127,255,0,31,223,255]
+		: [255,223,191,255,191,127,79,255,127,127,127,255,0,62,239,255];
+	const expected = reverse ? [255,191,175,255,175,127,64,255,127,127,127,255,0,28,223,255]
+		: [255,223,191,255,191,127,79,255,127,127,127,255,0,61,239,255];
+	expect(result.captured).toEqual([source]); expect(result.sourceUnchanged).toEqual(source);
+	expect(result.effectedPixels).toEqual(effected); expect(result.pixels).toEqual(expected);
+	expect(result.authoredTypes).toEqual(reverse ? ['parametric-curves-v1', 'point-curves-v1'] : ['point-curves-v1', 'parametric-curves-v1']);
+	expect(result.consumedNodeIds.length).toBeGreaterThan(0);
+});
+
 async function qualify(page, mode) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalExportNativeV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

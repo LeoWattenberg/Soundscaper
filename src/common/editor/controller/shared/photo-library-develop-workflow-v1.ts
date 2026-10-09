@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { VideoEffectParameterV1 } from '../../video-curve-types-v1.ts';
 import { normalizeVideoEffects, createVideoEffect } from '../../video-effects.js';
 import type { VideoEffectLeaf } from '../../project-media-types.ts';
 import type { PhotoLibraryDevelopAcknowledgementV1, PhotoLibraryDevelopCommandV1, PhotoLibraryDevelopPortV1,
@@ -77,7 +78,7 @@ export class PhotoLibraryDevelopWorkflowV1 {
 		this.#setDraft(detachPhotoLibraryDevelopSettingsV1({ ...this.#view.draft, effects }));
 	}
 	beginGesture(): void { if (this.#editable() && !this.#gesture) this.#gesture = this.#view.draft; }
-	previewEffect(id: string, params: Readonly<Record<string, number>>): void {
+	previewEffect(id: string, params: Readonly<Record<string, VideoEffectParameterV1>>): void {
 		if (!this.#editable()) return; this.beginGesture();
 		this.setEffects(this.#view.draft!.effects.map(effect => effect.id === id
 			? createVideoEffect(effect.type, { ...effect, params: { ...effect.params, ...params } }) as VideoEffectLeaf : effect));

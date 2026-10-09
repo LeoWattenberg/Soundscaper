@@ -560,6 +560,12 @@
 		,
 		{ "path": "src/common/editor/video-color-management-v27.ts", "kind": "persisted-contract", "justification": "video-color-management-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/video-curve-transfer-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded curve preparation maps exact admitted Float64 coordinates to binary-rational arithmetic, retaining at most four arrays of thirty-two point pairs and one detached 256-entry RGBA table. Balanced FFmpeg byte decisions have depth eight and preserve the fixed master-before-channel quantization contract." }
+		,
+		{ "path": "src/common/editor/video-curve-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared effect parameters add only closed immutable dimensionless point arrays alongside existing numeric values. Runtime point-array admission remains exclusively with the owning point-curve normalizer; old numeric effect profiles remain unchanged." }
+		,
+		{ "path": "src/common/editor/video-curves-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared point curves retain closed two-to-thirty-two dimensionless Float64 knots per channel, strict input order and zero/one input endpoints. Separate parametric curves retain ordered Float64 splits and signed Q16 regional gains. Master then red/green/blue interpolation uses exact binary-rational coordinates and nearest byte rounding toward positive infinity; derived one-KiB transfer tables serve CPU, native GPU and alpha-preserving FFmpeg evaluation without persisted LUTs or coordinate aliasing." }
+		,
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization. Owning prepared preview identities expose detached 256-entry RGB transfer tables for exact UNORM8 GPU evaluation; generated export expressions preserve the same sampling and byte quantization." }

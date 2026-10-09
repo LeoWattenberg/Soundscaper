@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { chunkGroupForModulePath } from '../scripts/lib/build-chunk-groups.mjs';
-import { translationCatalogPartChunkName } from '../scripts/lib/build-chunk-translation-catalogs.mjs';
+import { translationCatalogPartChunkName, translationCatalogPreloadDependencies } from '../scripts/lib/build-chunk-translation-catalogs.mjs';
 import { createTranslationCatalogBundlePlugin, renderTranslationCatalogModule } from '../scripts/lib/translation-catalog-bundle.mjs';
 import { assembleTranslationCatalogModule, partitionTranslationCatalog, translationCatalogPartId,
 	TRANSLATION_CATALOG_MODULE_BYTES } from '../scripts/lib/translation-catalog-partition.mjs';
@@ -69,6 +69,20 @@ test('generated part owners include locale and ordinal and preserve Windows path
 	}
 	assert.equal(translationCatalogPartChunkName('/workspace/fr.json:12.mjs'), null);
 	assert.equal(translationCatalogPartChunkName('\0scape:translation-catalog-part:/fr.json:invalid.mjs'), null);
+});
+
+test('catalog preload filtering preserves unrelated dependencies and the input inventory', () => {
+	const root = 'assets/fr.json-abcd.js', dependencies = [root, 'assets/locale-fr-entries-0-abcd.js',
+		'assets/vendor-react-abcd.js', 'assets/locale-fr-entries-1-efgh.js', 'assets/style-abcd.css',
+		'assets/locale-fr-settings-abcd.js', 'assets/locale-fr-entries-invalid-abcd.js'];
+	const before = [...dependencies];
+	assert.deepEqual(translationCatalogPreloadDependencies(root, dependencies), [
+		'assets/vendor-react-abcd.js', 'assets/style-abcd.css', 'assets/locale-fr-settings-abcd.js',
+		'assets/locale-fr-entries-invalid-abcd.js']);
+	assert.deepEqual(dependencies, before);
+	assert.equal(translationCatalogPreloadDependencies('assets/editor-abcd.js', dependencies), dependencies);
+	const ordinary = ['assets/vendor-react-abcd.js', 'assets/style-abcd.css'];
+	assert.equal(translationCatalogPreloadDependencies(root, ordinary), ordinary);
 });
 
 test('catalog reloads and build epochs discard obsolete parts and prohibit cross-locale part imports', async () => {

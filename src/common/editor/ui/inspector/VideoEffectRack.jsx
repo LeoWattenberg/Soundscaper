@@ -3,6 +3,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import VideoEffectNumberInput from './VideoEffectNumberInput.tsx';
+import VideoCurveControl from './VideoCurveControl.tsx';
 
 export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	const effects = clip.videoEffects || [];
@@ -101,9 +102,18 @@ function useEffectGesture({ actions, clipId, effectId, disabled, onError }) {
 }
 
 function VideoEffectParameter(props) {
+	if (props.parameter.control === 'curve') return <VideoEffectCurve {...props} />;
 	if (props.parameter.control === 'color') return <VideoEffectColor {...props} />;
 	if (props.parameter.control === 'select') return <VideoEffectSelect {...props} />;
 	return <VideoEffectSlider {...props} />;
+}
+
+function VideoEffectCurve({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {
+	const gesture = useEffectGesture({ actions, clipId, effectId, disabled, onError });
+	return <VideoCurveControl label={parameterLabel(parameter, copy)} points={value} disabled={disabled} isCurrent={() => !disabled}
+		messages={{ addPoint: copy.videoEffectCurveAddPoint, removePoint: copy.videoEffectCurveRemovePoint,
+			input: copy.videoEffectCurveInput, output: copy.videoEffectCurveOutput, invalid: copy.videoEffectCurveInvalid }}
+		onBegin={gesture.begin} onPreview={points => gesture.preview({ [name]: points })} onCommit={gesture.commit} onCancel={gesture.cancel} />;
 }
 
 function VideoEffectSelect({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {

@@ -226,6 +226,57 @@ test('actual Frame authoring and mixed native renderer preserve fractional HSL h
 	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
 });
 
+test('actual point-curve shader preserves all256 independent master/channel samples, free endpoints and straight alpha', async ({ page }) => {
+	await prepare(page);
+	const source = Array.from({ length: 256 }, (_, n) => [n, n, n, n]).flat();
+	const params = { master: [{ x: 0, y: 0 }, { x: 0.5, y: 1 }, { x: 1, y: 0 }],
+		red: [{ x: 0, y: 1 }, { x: 1, y: 0 }], green: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }] };
+	const expected = Array.from({ length: 256 }, (_, n) => {
+		const master = n <= 127 ? n * 2 : 510 - n * 2; return [255 - master, 128, master, n];
+	}).flat();
+	const result = await qualify(page, { source, effects: [effect('point-curves-v1', params)], mode: 'target' });
+	expect(result.curveProgramLinks).toBe(2); expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+	expect(result.pixels).toEqual(expected); expect(result.cpuPixels).toEqual(expected); expect(result.glError).toBe(0);
+	for (const effects of [[effect('point-curves-v1')], [{ ...effect('point-curves-v1', params), enabled: false }]]) {
+		expect((await qualify(page, { source, effects, mode: 'target' })).pixels).toEqual(source);
+	}
+	const exact = await qualify(page, { source, effects: [effect('point-curves-v1', { master: [{ x: 0, y: 0 },
+		{ x: 64 / 255, y: 0 }, { x: 0.2509803921568628, y: 1 }, { x: 1, y: 1 }] })], mode: 'target' });
+	// This one-ULP interval has independently derived sample16; fixed-coordinate aliasing cannot pass.
+	expect(exact.pixels).toEqual(Array.from({ length: 256 }, (_, n) => { const value = n < 64 ? 0 : n === 64 ? 16 : 255; return [value,value,value,n]; }).flat());
+	expect(exact.pixels).toEqual(exact.cpuPixels); expect(exact.nativeReadbacks).toBe(1); expect(exact.glError).toBe(0);
+});
+
+test('actual parametric-curve shader retains independent Q16 fractional/negative shadows, every byte and authored curve order', async ({ page }) => {
+	await prepare(page); const source = Array.from({ length: 256 }, (_, n) => [n, n, n, n]).flat();
+	for (const control of [100, -100, 33.3, -37.125]) {
+		const q = BigInt(Math.round(control / 100 * 65536));
+		const sample = n => {
+			const numerator = n <= 31 ? BigInt(n) * (65536n + q) : n <= 95 ? BigInt(n) * (1048576n - 8n * q) + 765n * q : BigInt(n);
+			const denominator = n <= 31 ? 65536n : n <= 95 ? 1048576n : 1n;
+			return Number((2n * numerator + denominator) / (2n * denominator));
+		};
+		const expected = Array.from({ length: 256 }, (_, n) => [sample(n), sample(n), sample(n), n]).flat();
+		const result = await qualify(page, { source, effects: [effect('parametric-curves-v1', { masterShadows: control })], mode: 'target' });
+		expect(result.curveProgramLinks).toBe(2); expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+		expect(result.pixels).toEqual(expected); expect(result.cpuPixels).toEqual(expected); expect(result.glError).toBe(0);
+	}
+	const point = effect('point-curves-v1', { master: [{ x: 0, y: 1 }, { x: 1, y: 0 }] }), parametric = effect('parametric-curves-v1', { masterShadows: 100 });
+	for (const [effects, expected] of [[[point, parametric], [255,223,191,1,127,79,0,127]], [[parametric, point], [255,191,175,1,127,63,0,127]]]) {
+		const result = await qualify(page, { source: [0,32,64,1,128,192,255,127], effects, mode: 'target' });
+		expect(result.pixels).toEqual(expected); expect(result.cpuPixels).toEqual(expected); expect(result.nativeReadbacks).toBe(1); expect(result.glError).toBe(0);
+	}
+});
+
+test('actual persisted Frame curves consume the mixed native renderer with hidden RGB and sampled straight alpha', async ({ page }) => {
+	await prepare(page); const source = [0,1,127,255].flatMap(alpha => [0,32,64,alpha]);
+	const result = await qualify(page, { source, effects: [effect('point-curves-v1', { master: [{ x: 0, y: 1 }, { x: 1, y: 0 }] }),
+		effect('parametric-curves-v1', { masterShadows: 100 })], mode: 'frame' });
+	expect(result.pixels).toEqual([0,1,127,255].flatMap(alpha => [255,223,191,alpha]));
+	expect(result.authoredTypes).toEqual(['point-curves-v1', 'parametric-curves-v1', 'color-adjust']);
+	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+});
+
 // Independent exact rational reference: no production HSL classifier/kernel.
 function hslReference(rgb,controls){
 	const Q=65536n,v=rgb.map(BigInt),max=v.reduce((a,b)=>a>b?a:b),min=v.reduce((a,b)=>a<b?a:b),c=max-min;if(c===0n)return rgb;
