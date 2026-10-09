@@ -1532,8 +1532,10 @@ revision and FIR-geometry controls (`/tmp/soundscaper-r6-fx040-rack-node-green.l
 and both exact round-two/round-three DSP parity cases remain unchanged
 (`/tmp/soundscaper-r6-fx040-rack-parity-green.log`). Focused strict compilation,
 targeted/canonical changed lint, size and diff checks pass. Complete native
-public GREEN remains pending the next immutable build; this follow-through
-adds no new root. No assistance runtime assets change and no manual
+Chromium verification passes in 4.1 seconds on immutable Green33 `ae7939d4e`
+(`/tmp/soundscaper-round6-green33-chromium.log`): minimum RMS remains
+0.296085 before and 0.296450 after the band edit, with zero lost frames.
+The dispatch completion adds no new root. No assistance runtime assets change and no manual
 **Update AI assets** run is required.
 
 ## R6-EFFECT-041 — Contrast changes its decision after equal attenuation
@@ -1610,6 +1612,14 @@ Four strict identity/admission cases are independently RED while the primary
 completion control passes (`/tmp/soundscaper-r6-fx042-node-red.log`). All 19
 new and existing identity, cancellation, numeric and exact-default controls
 pass after repair (`/tmp/soundscaper-r6-fx042-node-green2.log`). Focused strict
-compilation and targeted lint pass. Complete built native touch verification
-remains pending; this entry adds no verified count yet. No assistance runtime
+compilation and targeted lint pass. Complete built native Chromium touch
+verification passes on immutable Green33 `ae7939d4e`
+(`/tmp/soundscaper-round6-green33-chromium.log`): the one-finger control takes
+3.0 seconds and the second-finger workflow takes 3.2 seconds, retaining Apply,
+the exported PCM peak, Undo and Redo. The earlier ClipFadeShapeField supporting
+fixture invoked pointer callbacks without an event; supplying its ordinary
+primary pointer preserves every preview, cancellation and history assertion.
+All 20 retained/new slider controls pass
+(`/tmp/soundscaper-r6-fx042-retained-fade-green.log`), with no added root.
+This register now has forty-two verified roots. No assistance runtime
 assets change and no manual **Update AI assets** run is required.
