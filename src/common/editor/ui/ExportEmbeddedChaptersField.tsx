@@ -2,7 +2,7 @@
 
 import EditorHelpTooltip from './EditorHelpTooltip.tsx';
 import PreferenceCheckbox from './EditorPreferenceCheckbox.tsx';
-import { exportDialogHasChapterLabels, exportDialogSupportsEmbeddedChapters } from './export-dialog-embedded-chapters.ts';
+import { exportDialogHasDeliveredChapterLabels, exportDialogSupportsEmbeddedChapters } from './export-dialog-embedded-chapters.ts';
 
 interface ExportEmbeddedChaptersFieldProps {
 	readonly copy: Readonly<{
@@ -23,14 +23,14 @@ export default function ExportEmbeddedChaptersField({
 	copy, settings, desktop, project, exporting, onChange,
 }: ExportEmbeddedChaptersFieldProps) {
 	if (!exportDialogSupportsEmbeddedChapters(settings, desktop)) return null;
-	const hasLabels = exportDialogHasChapterLabels(project);
+	const hasLabels = exportDialogHasDeliveredChapterLabels(project, settings);
 	return <>
 		<div className="audio-editor-export-check" data-export-field="embedLabelChapters">
 			<span aria-hidden="true" />
 			<span className="audio-editor-help-label">
 				<PreferenceCheckbox
 					label={copy.embedLabelChapters}
-					checked={settings.embedLabelChapters === true}
+					checked={hasLabels && settings.embedLabelChapters === true}
 					disabled={exporting || !hasLabels}
 					onChange={(checked) => onChange('embedLabelChapters', checked)}
 				/>

@@ -20,6 +20,7 @@ interface ExportDialogFixtureOptions {
 	readonly output?: Readonly<Record<string, unknown>>;
 	readonly video?: boolean;
 	readonly presets?: readonly DeliveryPreset[];
+	readonly selection?: Readonly<{ startFrame: number; endFrame: number }>;
 }
 
 export async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
@@ -32,9 +33,9 @@ export async function mountedExportDialog(options: ExportDialogFixtureOptions = 
 	const requests: Readonly<Record<string, unknown>>[] = [];
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
-	let project = exportProject(options.labels ?? [
+	let project = { ...exportProject(options.labels ?? [
 		{ id: 'one', title: 'Intro', startFrame: 0, endFrame: SAMPLE_RATE },
-	], options.video === true, options.metadata);
+	], options.video === true, options.metadata), selection: options.selection ?? null };
 	const render = async (output: Readonly<Record<string, unknown>> | null = null) => {
 		await act(async () => root.render(React.createElement(ExportDialog, {
 			isOpen: true,
@@ -47,7 +48,7 @@ export async function mountedExportDialog(options: ExportDialogFixtureOptions = 
 				missingSourceIds: [],
 				exporting: false,
 				export: { progress: 0, output },
-				selection: null,
+				selection: project.selection,
 				masteringSequences: { sequences: options.masteringSequences ?? [] },
 				project,
 			},

@@ -284,7 +284,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				copyright: settings.metadataCopyright,
 			});
 			const request = createExportDialogRequest(admittedSettings, {
-				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop, captionDeliveryUnavailable,
+				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop, captionDeliveryUnavailable, project: snapshot.project,
 				bext: admittedSettings.bext,
 				adm: admittedSettings.adm,
 				channelMapping: videoFormat
