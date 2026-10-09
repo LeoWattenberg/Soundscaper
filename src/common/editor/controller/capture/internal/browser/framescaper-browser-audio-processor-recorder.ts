@@ -183,7 +183,7 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 	function cancelReader(): Promise<void> {
 		if (cancelPromise) return cancelPromise;
 		if (!reader) return Promise.resolve();
-		cancelPromise = Promise.resolve().then(() => reader?.cancel?.()).then(() => undefined).catch((error: unknown) => {
+		cancelPromise = Promise.resolve().then(() => released ? undefined : reader?.cancel?.()).then(() => undefined).catch((error: unknown) => {
 			if (!failures.failure) failures.fail(error);
 			throw failures.failure ?? error;
 		});
