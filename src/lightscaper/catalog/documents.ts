@@ -2,7 +2,8 @@
 
 import { normalizePhotoCatalogRootV1 } from './catalog-root.ts';
 import { normalizePhotoDocumentV1 } from './photo-document.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type LightscaperDocumentV1, type PhotoCatalogRootV1 } from './types.ts';
+import { assertPhotoDocumentByteBudgetV1 as assertByteBudget, canonicalPhotoDocumentJsonV1 as canonicalJson } from './photo-document-json-v1.ts';
+import type { LightscaperDocumentV1, PhotoCatalogRootV1 } from './types.ts';
 import { field, record, requireSchema } from './value-validation.ts';
 
 const validatedCatalogRoots = new WeakSet<object>();
@@ -52,20 +53,4 @@ export function parseLightscaperDocumentV1(value: string): LightscaperDocumentV1
 	assertByteBudget(value);
 	const parsed: unknown = JSON.parse(value);
 	return migrateLightscaperDocumentV1(parsed);
-}
-
-function assertByteBudget(value: string): void {
-	if (value.length > LIMITS.maximumDocumentBytes || new TextEncoder().encode(value).byteLength > LIMITS.maximumDocumentBytes) {
-		throw new RangeError('Lightscaper document exceeds its byte budget.');
-	}
-}
-
-/** Called only on normalized inert data. Object keys sort by codepoint, never locale. */
-function canonicalJson(value: unknown): string {
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	if (value !== null && typeof value === 'object') {
-		const record = value as Readonly<Record<string, unknown>>;
-		return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
 }

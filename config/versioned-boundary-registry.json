@@ -766,6 +766,14 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v1.ts", "kind": "persisted-contract", "justification": "Version 1 per-photo-version develop workspace retains bounded ordered history and immutable named snapshots, explicit process versions and a selected-state cursor independently of virtual copies and original identity." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 develop workspaces retain mixed strict process-1 and resource-bearing process-2 history and snapshots under unchanged byte and count limits. The closed dispatcher preserves V1 reads; explicit successor edits alone upgrade the workspace envelope without dropping redo, disabled LUT references or named snapshots." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-document-envelope-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert Photo envelope capture and shared original, metadata and membership components preserve legacy rules, validation order and bytes using actual admitted version identities. They do not admit schema versions or develop recipes." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-document-json-v1.ts", "kind": "helper-contract", "justification": "Version 1 canonical JSON ordering and fixed Photo document byte budget preserve the exact legacy persistence algorithm beside explicit successor document admission; this helper alone grants no schema authority." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-document-v2.ts", "kind": "persisted-contract", "justification": "Explicit Photo document version 2 owns mixed strict process-1 and process-2 versions and workspace states with real selected-history coherence, original and metadata rules and unchanged whole-document limits. Closed V1-or-V2 dispatch preserves old reads and explicit upgrade retains original identity; LUT bodies and catalog root versions remain independently owned." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-index-storage-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable query build states bind readiness, bounded resume position and atomic derived-row counts independently of canonical photo and catalog schemas." }

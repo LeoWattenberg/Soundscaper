@@ -1,41 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { normalizeVideoStillSourceV1 } from '../../common/editor/video-visual-model-v24.ts';
-import { readExactSafeVisualText } from '../../common/editor/safe-visual-text.ts';
-import { normalizeImageMetadataV1 } from '../../common/editor/imaging/image-metadata-normalizer-v1.ts';
 import { normalizePhotoDevelopV1 } from './develop-state.ts';
 import { normalizePhotoDevelopWorkspaceV1 } from './photo-develop-workspace-v1.ts';
-import { normalizePhotoMetadataV1 } from './photo-metadata.ts';
-import { PHOTO_COLOR_LABELS, PHOTO_FLAGS } from './smart-query.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type PhotoCatalogRootV1, type PhotoDocumentV1, type PhotoOriginalV1, type PhotoVersionV1 } from './types.ts';
-import { array, field, id, integer, name, oneOf, record, requireSchema, unique, uniqueIds, utcTimestamp } from './value-validation.ts';
-
-const STILL_FIELDS = ['schemaVersion', 'kind', 'id', 'name', 'mimeType', 'storageKey', 'contentSha256', 'width', 'height', 'hasAlpha'];
-const PHOTO_FIELDS = ['schemaFamily', 'schemaVersion', 'kind', 'id', 'catalogId', 'revision', 'original', 'metadata', 'folderId', 'collectionIds', 'keywordIds', 'rating', 'flag', 'colorLabel', 'versions', 'activeVersionId'];
+import { capturePhotoDocumentEnvelopeV1, normalizePhotoDocumentEnvelopeV1 } from './photo-document-envelope-v1.ts';
+import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type PhotoCatalogRootV1, type PhotoDocumentV1, type PhotoVersionV1 } from './types.ts';
+import { array, field, id, name, oneOf, record, requireSchema, unique, utcTimestamp } from './value-validation.ts';
 
 export function normalizePhotoDocumentV1(value: unknown): PhotoDocumentV1 {
-	const input = record(value, 'photo', [...PHOTO_FIELDS, 'extractedMetadata'], PHOTO_FIELDS);
+	const input = capturePhotoDocumentEnvelopeV1(value);
 	requireSchema(input);
 	oneOf(field(input, 'kind'), ['photo'] as const, 'photo kind');
 	const versions = normalizeVersions(field(input, 'versions'));
-	const activeVersionId = id(field(input, 'activeVersionId'), 'active photo version');
-	if (!versions.some((version) => version.id === activeVersionId)) throw new ReferenceError('The active photo version is missing.');
-	const folder = field(input, 'folderId');
-	const extracted = Object.hasOwn(input, 'extractedMetadata') ? field(input, 'extractedMetadata') : null;
+	const { fields, activeVersionId } = normalizePhotoDocumentEnvelopeV1(input, versions);
 	return Object.freeze({
 		schemaFamily: 'lightscaper', schemaVersion: 1, kind: 'photo',
-		id: id(field(input, 'id'), 'photo ID'),
-		catalogId: id(field(input, 'catalogId'), 'photo catalog ID'),
-		revision: integer(field(input, 'revision'), 0, Number.MAX_SAFE_INTEGER, 'photo revision'),
-		original: normalizeOriginal(field(input, 'original')),
-		metadata: normalizePhotoMetadataV1(field(input, 'metadata')),
-		extractedMetadata: extracted === null ? null : normalizeImageMetadataV1(extracted),
-		folderId: folder === null ? null : id(folder, 'photo folder ID'),
-		collectionIds: uniqueIds(field(input, 'collectionIds'), 'photo collections', LIMITS.maximumMemberships),
-		keywordIds: uniqueIds(field(input, 'keywordIds'), 'photo keywords', LIMITS.maximumMemberships),
-		rating: integer(field(input, 'rating'), 0, 5, 'photo rating'),
-		flag: oneOf(field(input, 'flag'), PHOTO_FLAGS, 'photo flag'),
-		colorLabel: oneOf(field(input, 'colorLabel'), PHOTO_COLOR_LABELS, 'photo color label'),
+		...fields,
 		versions, activeVersionId,
 	});
 }
@@ -53,19 +32,6 @@ export function validatePhotoCatalogReferencesV1(photo: PhotoDocumentV1, root: P
 	for (const collection of photo.collectionIds) {
 		if (!manualCollections.has(collection)) throw new ReferenceError('Photo must reference an existing manual collection.');
 	}
-}
-
-function normalizeOriginal(value: unknown): PhotoOriginalV1 {
-	const input = record(value, 'photo original', [...STILL_FIELDS, 'byteLength', 'retention']);
-	const still = Object.fromEntries(STILL_FIELDS.map((key) => [key, field(input, key)]));
-	const originalName = readExactSafeVisualText(field(input, 'name'), 'photo original filename', 512, false);
-	return Object.freeze({
-		// Shared visual labels are NFC; immutable photo filenames retain exact Unicode.
-		...normalizeVideoStillSourceV1({ ...still, name: 'Photo' }),
-		name: originalName,
-		byteLength: integer(field(input, 'byteLength'), 1, Number.MAX_SAFE_INTEGER, 'original byte length'),
-		retention: oneOf(field(input, 'retention'), ['managed', 'linked'] as const, 'original retention'),
-	});
 }
 
 function normalizeVersions(value: unknown): readonly PhotoVersionV1[] {
