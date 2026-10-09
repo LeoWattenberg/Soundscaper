@@ -50,3 +50,11 @@ vendor file retains its previous line count. Corrected public proof is pending.
 
 No assistance runtime closure or target inventory changes. No manual **Update
 AI assets** run is required.
+
+| ID | Ordinary user path | Root and correction | Focused evidence |
+| --- | --- | --- | --- |
+| R7-EDIT-010 | Framescaper: Generate → Add video still twice to create two picture tracks. Select the first image, focus Playhead and press Ctrl+Down, then Ctrl+Up. Generated Titles use the same published command. | The global vertical item dispatcher compares native image/still/generator clip kinds with track types. No track has those kinds, so it silently skips compatible picture destinations. Classify those visual leaves as video before finding the destination; retain the existing exact time-preserving move command. This destination search is independent from R3-EDIT-021's context menu and R4-EDIT-010's horizontal clock conversion. | Actual canonical image history and the published Title action/controller both causally RED at unchanged track ownership. The public horizontal move/Undo control passes, then Ctrl+Down causally RED at the original track instead of the next picture track on fef78921b (8.8 seconds). Corrected native clock, source identity, bidirectional movement, Undo/Redo and existing horizontal/grid/generator support pass 11/11; target lint passes. Initial Title test setup used the wrong runtime return field and is excluded. Corrected complete public proof pending. |
+
+Complete repository lint passed all eight bounded shards during this wave.
+Size checks pass for 11,078 maintained files. Later source additions receive
+their own focused lint and will be included again in the checkpoint gates.

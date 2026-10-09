@@ -160,7 +160,8 @@ function moveClip(
 	if (!currentTrack || currentTrack.type === 'label') return null;
 	let targetTrackIndex = currentTrackIndex;
 	if (trackDelta) {
-		const targetType = typeof clip.kind === 'string' ? clip.kind : currentTrack.type;
+		const targetType = clip.kind === 'image' || clip.kind === 'still' || clip.kind === 'generator'
+			? 'video' : typeof clip.kind === 'string' ? clip.kind : currentTrack.type;
 		do targetTrackIndex += Math.sign(trackDelta);
 		while (project.tracks[targetTrackIndex] && project.tracks[targetTrackIndex]?.type !== targetType);
 	}
