@@ -1,18 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { VideoEffectLeaf } from './project-media-types.ts';
-import type { VideoMaskMatteGraphV1 } from './video-mask-matte-v24.ts';
+import type { ImageDevelopStateV1 } from './imaging/image-develop-contract-v1.ts';
 import type { PhotoLibraryDevelopSettingsPortV1 } from './photo-library-develop-settings-port-v1.ts';
 
 /** Authored shared-effect settings only; no photo document, original locator or media body. */
-export interface PhotoLibraryDevelopSettingsV1 {
-	readonly processVersion: 1;
-	readonly effects: readonly VideoEffectLeaf[];
-	readonly geometry: Readonly<{ crop: Readonly<{ x: number; y: number; width: number; height: number }> | null;
-		rotationDegrees: number; flipHorizontal: boolean; flipVertical: boolean }>;
-	readonly masks: readonly VideoMaskMatteGraphV1[];
-	readonly maskBindings: readonly Readonly<{ effectId: string; maskId: string }>[];
-}
+export type PhotoLibraryDevelopSettingsV1 = ImageDevelopStateV1;
 
 export interface PhotoLibraryDevelopSnapshotV1 {
 	readonly schemaVersion: 1;

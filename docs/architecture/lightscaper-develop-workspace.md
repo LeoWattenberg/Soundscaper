@@ -150,3 +150,21 @@ receipt, whose UTF-8 bound is 64 KiB. Close and cancellation join a held save
 and retain any durable acknowledgment. A separate cleanup error remains visible
 even if cancellation also arrived. Menu integration and batch interaction
 qualification remain part of the Develop workspace work.
+
+The process-1 recipe and pure settings operations have one product-neutral owner
+under `common/editor/imaging/`. Photo's existing types and functions are narrow
+aliases; its serialized effect order, parameter defaults, geometry, masks,
+bindings, packet kind, and scalar limits remain unchanged. The constants/types
+contract is separate from normalization, so reading catalog limits does not
+acquire the effect evaluator.
+
+Full and partial preset bodies use the same selection and merge rules. A preset
+contains an existing `VideoVisualPresetV1` identity with model kind
+`adjustment-layer`, plus normalized selected settings. The identity's SHA-256
+binds the complete canonical settings packet, including its selector and explicit
+process version. Admission recomputes that digest, rejects unsupported fields
+and external mask references, and detaches the body. JSON parsing checks the
+2 MiB UTF-8 budget before interpretation; creation and serialization also bound
+the complete wrapper. Renaming the identity does not reinterpret the settings.
+Preset storage, menu entry points, and browser interaction qualification remain
+subsequent workspace integration work.

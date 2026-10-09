@@ -1,20 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ImageDevelopSelectionV1, ImageDevelopSettingsPacketV1 } from './imaging/image-develop-settings-contract-v1.ts';
 import type { PhotoLibraryDevelopSettingsV1 } from './photo-library-develop-port-v1.ts';
 
-export interface PhotoLibraryDevelopSelectionV1 {
-	readonly effectTypes: 'all' | readonly string[];
-	readonly geometry: boolean;
-	/** Includes mask-bound instances; false selects only global instances. */
-	readonly localAdjustments: boolean;
-}
-/** Only authored settings; no catalog/photo identity, original locator or external mask media. */
-export interface PhotoLibraryDevelopSettingsPacketV1 {
-	readonly schemaVersion: 1;
-	readonly kind: 'photo-develop-settings';
-	readonly selection: Readonly<PhotoLibraryDevelopSelectionV1>;
-	readonly develop: Readonly<PhotoLibraryDevelopSettingsV1>;
-}
+export type PhotoLibraryDevelopSelectionV1 = ImageDevelopSelectionV1;
+export type PhotoLibraryDevelopSettingsPacketV1 = ImageDevelopSettingsPacketV1;
 export interface PhotoLibraryDevelopCopyV1 {
 	readonly schemaVersion: 1;
 	readonly develop: PhotoLibraryDevelopSettingsV1;
