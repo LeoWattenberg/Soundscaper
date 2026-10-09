@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { HSL_MIXER_PROCESS_V1, normalizeHslMixerEffectV1, prepareHslMixerEffectV1,
+import { HSL_MIXER_PROCESS_V1, HSL_MIXER_GLSL_V1, normalizeHslMixerEffectV1, prepareHslMixerEffectV1,
 	applyHslMixerPixelV1, hslMixerPreviewPassV1 } from '../src/common/editor/video-hsl-mixer-v1.ts';
 import { withGlobalDevelopPixelFrameV1 } from '../src/common/editor/imaging/pixel-frame-global-develop-v1.ts';
 import { withPhotoDevelopProxyV1 } from '../src/lightscaper/controller/photo-develop-proxy-v1.ts';
@@ -19,6 +19,19 @@ function render(params={},source= CENTERS.flatMap((rgb,i)=>[...rgb,[0,1,127,255]
 	for(let i=0;i<pixels.length;i+=4)applyHslMixerPixelV1(prepared,pixels,i);
 	return [...pixels];
 }
+
+test('GLSL hue remainder receives only nonnegative admitted integers, including the native negative-red regression',()=>{
+	// Native WebKit produced cyan/blue for red -37.125 degrees. GLSL does
+	// not define signed remainder with a negative operand.
+	const expression=/int phase=\(hsl_nearest\(n\*65536,c\)\+hue(?:\+(\d+))?\)%393216/.exec(HSL_MIXER_GLSL_V1);
+	assert.ok(expression);const offset=Number(expression[1]??0),Q=65536,period=6*Q;
+	for(const sourcePhase of [0,1,period-1])for(const hue of [-3*Q,-40550,0,3*Q]){
+		const dividend=sourcePhase+hue+offset;
+		assert.ok(dividend>=0&&dividend<2**31,'GLSL signed remainder requires a nonnegative dividend');
+		assert.equal(dividend%period,((sourcePhase+hue)%period+period)%period);
+	}
+	assert.equal((offset-40550)%period,352666);
+});
 
 test('enabled neutral and disabled HSL retain every byte, including all256 alpha and hidden RGB',()=>{
 	assert.equal(HSL_MIXER_PROCESS_V1,'srgb-hsl-hue-q16-v1');

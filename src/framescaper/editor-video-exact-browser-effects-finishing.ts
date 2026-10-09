@@ -42,12 +42,12 @@ export async function applyVideoExactBrowserEffectsFinishing(
 				const geometry = Object.getOwnPropertyDescriptor(effect, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1
 					? normalizeImageGeometryVideoEffectV1(effect) : null;
 				if (geometry && !geometry.enabled) continue;
-				const next = geometry ? await withGeometryPixelFrameV1({ frame: { descriptor: { schemaVersion: 1,
+				const next = geometry ? await cloneScopedOutput(consume => withGeometryPixelFrameV1({ frame: { descriptor: { schemaVersion: 1,
 					width: current.width, height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels },
 					geometry: imageGeometryForVideoEffectV1(geometry, current.width, current.height), signal },
-					output => Object.freeze({ width: output.descriptor.width, height: output.descriptor.height, pixels: output.pixels.slice() }),
+					consume,
 					{ limits: GEOMETRY_LIMITS,
-						delivery: { width: current.width, height: current.height } }) : await applyVideoExactBrowserEffectsFinishing(current, [effect], signal);
+						delivery: { width: current.width, height: current.height } })) : await applyVideoExactBrowserEffectsFinishing(current, [effect], signal);
 				current.pixels.fill(0); current = next;
 			}
 			return current;
@@ -55,10 +55,10 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	}
 	if (admitted.length === 0) return clone(sourceFrame);
 	if (admitted.every(value => isCpuEffect(Object.getOwnPropertyDescriptor(value, 'type')?.value))) {
-		return withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: sourceFrame.width, height: sourceFrame.height,
+		return cloneScopedOutput(consume => withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: sourceFrame.width, height: sourceFrame.height,
 			sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: sourceFrame.pixels }, effects: admitted, signal },
-			output => Object.freeze({ width: output.descriptor.width, height: output.descriptor.height, pixels: output.pixels.slice() }),
-			{ maximumEffects: 100_000, limits: { maximumSidePixels: 65_536, maximumPixels: 33_554_432, maximumBytes: 128 * 1024 * 1024 } });
+			consume,
+			{ maximumEffects: 100_000, limits: { maximumSidePixels: 65_536, maximumPixels: 33_554_432, maximumBytes: 128 * 1024 * 1024 } }));
 	}
 	// Own bytes and settings before loading resources; capture native source
 	// geometry once for every route, including empty and disabled recipes.
@@ -68,6 +68,17 @@ export async function applyVideoExactBrowserEffectsFinishing(
 		throwIfAborted(signal);
 		return await backend.renderVideoPreviewStraightRgba({ width: sourceFrame.width, height: sourceFrame.height, pixels }, admitted, signal);
 	} finally { pixels.fill(0); }
+}
+
+type ScopedFrame = Readonly<{ descriptor: Readonly<{ width: number; height: number }>; pixels: Uint8Array<ArrayBuffer> }>;
+async function cloneScopedOutput(borrow: (consume: (frame: ScopedFrame) => UnifiedExactRenderRgbaFrameV13) => Promise<UnifiedExactRenderRgbaFrameV13>): Promise<UnifiedExactRenderRgbaFrameV13> {
+	const owner: { pixels: Uint8Array<ArrayBuffer> | null } = { pixels: null };
+	try {
+		return await borrow(frame => {
+			owner.pixels = frame.pixels.slice();
+			return Object.freeze({ width: frame.descriptor.width, height: frame.descriptor.height, pixels: owner.pixels });
+		});
+	} catch (error) { owner.pixels?.fill(0); throw error; }
 }
 
 function clone(frame: UnifiedExactRenderRgbaFrameV13): UnifiedExactRenderRgbaFrameV13 {

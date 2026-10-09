@@ -136,7 +136,7 @@ vec3 hsl_mixer_rgb(vec3 rgb,vec4 p0,vec4 p1,vec4 p2,vec4 p3,vec4 p4,vec4 p5){
 	int nextL=l+hsl_nearest((lum>=0?510-l:l)*lum,65536),nextD=255-abs(nextL-255);
 	int nextC=clamp(hsl_nearest(saturated*nextD,d),0,nextD),base=nextL-nextC;
 	if(hue==0)return vec3(clamp(ivec3(hsl_nearest(base*c+2*nextC*(v.r-low),2*c),hsl_nearest(base*c+2*nextC*(v.g-low),2*c),hsl_nearest(base*c+2*nextC*(v.b-low),2*c)),ivec3(0),ivec3(255)))/255.0;
-	int phase=(hsl_nearest(n*65536,c)+hue)%393216;if(phase<0)phase+=393216;
+	int phase=(hsl_nearest(n*65536,c)+hue+393216)%393216;
 	int sector=phase/65536,x=nextC*(65536-abs(phase%131072-65536)),top=nextC*65536;
 	int rn=sector==0||sector==5?top:sector==1||sector==4?x:0;
 	int gn=sector==1||sector==2?top:sector==0||sector==3?x:0;
