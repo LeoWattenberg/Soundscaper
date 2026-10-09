@@ -489,13 +489,19 @@
 		,
 		{ "path": "src/common/editor/photo-library-develop-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop presentation carries current shared-effect settings, scalar version/history/snapshot summaries and explicit revision-fenced commands without catalog documents or original custody." }
 		,
+		{"path": "src/common/editor/photo-library-develop-port-v2.ts", "kind": "helper-contract", "justification": "Fixed current Develop envelopes explicitly carry schema2 and admit real mixed process1/2 recipes with scalar version/history acknowledgements; the original pixel presentation contract remains unchanged."}
+		,
 		{ "path": "src/common/editor/photo-library-develop-presets-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional preset capability exposes scalar catalog-bound menus, explicit revision-fenced selected bodies and acknowledged settings-row writes through the existing Session lifetime." }
+		,
+		{"path": "src/common/editor/photo-library-develop-presets-port-v2.ts", "kind": "helper-contract", "justification": "Current schema2 preset menu and selected-body requests retain mixed strict preset1/2 identities and explicit revision authority through the existing writer."}
 		,
 		{ "path": "src/common/editor/photo-library-develop-proxy-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop proxy lends an admitted frame and complete shared recipe to a scoped renderer, exposing borrowed output pixels and scalar histograms without original custody." }
 		,
 		{"path": "src/common/editor/photo-library-develop-proxy-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 current scoped Photo renderer admits exact process1/2 recipes while keeping resource capabilities in selected runtime composition and retaining the fixed proxy/full-resolution profiles and borrowed output view."}
 		,
 		{ "path": "src/common/editor/photo-library-develop-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selections and inert packets support partial copy, relative adjustments and bounded explicit-version batches whose complete scalar receipts preserve each durable photo acknowledgment." }
+		,
+		{"path": "src/common/editor/photo-library-develop-settings-port-v2.ts", "kind": "helper-contract", "justification": "Current schema2 settings requests and bounded serial batch receipts retain mixed strict settings packets and every acknowledged photo result without resource bodies."}
 		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
@@ -936,9 +942,15 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-presets-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 preset requests detach before lazy initialization, bind the catalog and settings revision, and retain acknowledged publication beside independent lease cleanup failures while borrowing the Session writer and Close join." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-develop-presets-session-v2.ts", "kind": "helper-contract", "justification": "Current preset sessions pin selected storage and verifier receivers before initialization and preserve schema2 scalar acknowledgements through writer cleanup."}
+		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop facade detaches explicit version commands before initialization and borrows the existing Session writer, lifetime and photo compare-and-swap owner for durable publication." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-develop-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current Develop session composition admits complete Photo1/2 before projection and borrows the selected Session writer and current command owner without widening legacy ports."}
+		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-settings-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial settings batches borrow the Session writer and photo CAS owner, admit the whole selection before initialization and retain durable scalar outcomes through cancellation and independent cleanup failures." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-settings-session-v2.ts", "kind": "helper-contract", "justification": "Current serial settings batches detach the complete mixed recipe and target plan before acquisition and preserve native photo acknowledgements through cancellation and independent cleanup."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
 		,
@@ -1018,11 +1030,15 @@
 		,
 		{ "path": "src/lightscaper/storage/photo-cube-lut-repository-v1.ts", "kind": "persisted-contract", "justification": "Version 1 append-only immutable Photo LUT bodies use the existing selected media analysis domain, authenticate complete references and raw bodies on insertion, reuse and scoped read, join native acknowledgements and wipe transient bytes without original, eviction, deletion or connection-close authority." }
 		,
+		{"path": "src/lightscaper/storage/photo-develop-preset-read-v2.ts", "kind": "helper-contract", "justification": "Current preset point reads and signal admission capture callable receivers without metadata reads and preserve physical malformed presence and intrinsic native cancellation."}
+		,
 		{"path": "src/lightscaper/storage/photo-develop-preset-row-v2.ts", "kind": "persisted-contract", "justification": "Explicit preset row2 carries owning shared preset1/2 settings references without bodies; reads preserve old row1 bytes, physical key, absence and positive-empty revisions under unchanged bounds."}
 		,
 		{"path": "src/lightscaper/storage/photo-develop-presets-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed preset capture detaches one closed bounded physical row and independently fences its presence, revision and complete canonical digest without editing photo facts or acquiring another resource."}
 		,
 		{ "path": "src/lightscaper/storage/photo-develop-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped shared develop preset rows preserve exact bounded recipe bodies with revision-fenced compare-and-swap, no-op stability and exact post-publication reconciliation independently of photo and import-preset schemas." }
+		,
+		{"path": "src/lightscaper/storage/photo-develop-presets-v2.ts", "kind": "helper-contract", "justification": "Fixed current preset CRUD admits mixed strict rows without read migration, retains durable row2, authenticates every next-row resource before conditional publication and reconciles exact native acknowledgement."}
 		,
 		{ "path": "src/lightscaper/storage/photo-import-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped import preset rows use bounded settings storage and exact revision-fenced publication independently of photo and archive schemas." }
 		,
