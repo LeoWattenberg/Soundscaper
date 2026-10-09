@@ -363,6 +363,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-project-visual-command-inheritance',
 	'editor-project-visual-commands',
 	'editor-project-visual-visual-command',
+	'editor-sequence-visual-rate-conformance',
 	'editor-session-clipboard-v9',
 	'editor-video-proxy-attachment-retention-sequence',
 	'editor-video-proxy-command-retime',

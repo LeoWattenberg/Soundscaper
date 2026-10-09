@@ -137,9 +137,9 @@ test('shared Framescaper project helpers retain explicit eager chunk owners', ()
 		['src/framescaper/editor-project-sequence-nested-sequence.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-retime-clip-collections.ts', 'framescaper-project-commands'],
 		['src/framescaper/editor-clip-placement-command.ts', 'framescaper-project-commands'],
+		['src/framescaper/editor-sequence-visual-rate-conformance.ts', 'framescaper-project-commands'],
 	] as const) {
-		assert.equal(chunkGroupForModulePath(path), owner, path);
-		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), owner, path);
+		for (const variant of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(variant), owner, variant);
 	}
 });
 
