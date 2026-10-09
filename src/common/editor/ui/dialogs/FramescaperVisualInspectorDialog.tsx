@@ -65,8 +65,8 @@ export default function FramescaperVisualInspectorDialog({
 		let command: unknown;
 		try {
 			const generator = draft.generator;
-			const completedDraft = generator?.kind === 'title' || generator?.kind === 'text'
-				? { ...draft, generator: { ...generator, text: generator.text.normalize('NFC') } } : draft;
+			const completedDraft = generator === null ? draft
+				: { ...draft, generator: completeGeneratorDraft(generator) };
 			command = createFramescaperVisualInspectorCommand(project, model.clipId, completedDraft);
 		} catch (cause) {
 			setError(feedbackFailure(cause));
@@ -287,6 +287,25 @@ function draftFor(model: ReturnType<typeof createFramescaperVisualInspectorModel
 		maskWidth: model.maskWidth,
 		presetId: null,
 	};
+}
+
+/** Complete native text fields at Apply while preserving their unfinished drafts. */
+function completeGeneratorDraft(generator: VideoGeneratorDocumentV1): VideoGeneratorDocumentV1 {
+	switch (generator.kind) {
+		case 'title':
+		case 'text':
+			return { ...generator, text: generator.text.normalize('NFC'), color: generator.color.toLowerCase() };
+		case 'solid':
+			return { ...generator, color: generator.color.toLowerCase() };
+		case 'shape':
+			return { ...generator, fillColor: generator.fillColor?.toLowerCase() ?? null,
+				strokeColor: generator.strokeColor?.toLowerCase() ?? null };
+		case 'sound-visualizer':
+			return { ...generator, foregroundColor: generator.foregroundColor.toLowerCase(),
+				backgroundColor: generator.backgroundColor.toLowerCase() };
+		default:
+			return generator;
+	}
 }
 
 function label(copy: Readonly<Record<string, string>>, key: string, fallback: string): string {
