@@ -1450,10 +1450,12 @@ pass (`/tmp/soundscaper-r6-fx038-node-red.log`).
 After repair, all eighteen new and existing shared-flyout, transport and native
 Add-track teardown/focus cases pass (`/tmp/soundscaper-r6-fx038-node-green.log`).
 Focused strict compilation, targeted lint, explicit vendored-source lint,
-canonical changed-file lint, and size/diff checks pass. Public GREEN remains
-pending the next immutable snapshot; this register retains thirty-seven verified
-roots. No assistance runtime assets change and no manual **Update AI assets**
-run is required.
+canonical changed-file lint, and size/diff checks pass. On immutable Green31
+`a8a5aaf38`, the complete ordinary composition/Escape/focus/reopen/choose-effect
+Chromium workflow passes in
+2.9 seconds (`/tmp/soundscaper-round6-green31-chromium.log`).
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
 
 ## R6-EFFECT-039 — Reverb crossmixes independent stereo pairs in a wider recording
 
@@ -1482,9 +1484,11 @@ are independently RED while the unchanged-width 32-channel control passes
 new and existing selection/live Reverb and round-two/round-three exact DSP
 signature checks without changing any golden fixture
 (`/tmp/soundscaper-r6-fx039-node-green.log`). Focused strict compilation passes.
-Public GREEN remains pending the next immutable build, and this register
-retains thirty-seven verified roots. No assistance runtime assets change and
-no manual **Update AI assets** run is required.
+The complete normal two-channel/quad Source/Apply/float WAV Chromium workflow
+passes on immutable Green31 `a8a5aaf38` in 6.7 seconds
+(`/tmp/soundscaper-round6-green31-chromium.log`). This register now has
+thirty-nine verified roots. No assistance runtime assets change and no manual
+**Update AI assets** run is required.
 
 ## R6-EFFECT-040 — Editing a live equalizer band drops the playing recording
 
@@ -1514,5 +1518,41 @@ and existing live equalizer, spectral FIR, filter response and exact prior DSP
 signature cases without repinning output
 (`/tmp/soundscaper-r6-fx040-node-green.log`). Focused strict compilation and
 targeted lint pass. Public GREEN remains pending the next immutable build,
-and this register retains thirty-seven verified roots. No assistance runtime
+and this register retains thirty-nine verified roots. No assistance runtime
 assets change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-041 — Contrast changes its decision after equal attenuation
+
+Import ordinary foreground/background recordings, set the background clip's
+gain to −30 dB in Clip Properties and measure each through Analyze → Contrast.
+The normal report gives a 30.00 dB difference and passes its 20 dB recommendation.
+Select all and apply ordinary Effect → Volume and compression → Amplify at
+−50 dB twice. Re-measure: both recordings retain their relative 30 dB contrast,
+but the report changes to 7.86 dB and Fail because it subtracts the analyzer's
+absolute, display-clamped RMS values. This relative computation is separate
+from the earlier interactive Contrast admission and report reopening roots.
+
+Retain the analyzer's already measured raw RMS amplitude alongside each
+Contrast capture and use it only for the relative difference and decision.
+Preserve the absolute −120 dB display floor and older meter-only captures.
+Classify nonzero against truly silent audio using signed infinite differences,
+display those differences explicitly and keep the existing zero-against-zero
+0 dB/Fail convention. Group attenuation and physical-zero manifestations as
+one relative measurement root; leave the shared absolute analysis engine intact.
+
+The complete ordinary import/gain/Contrast/Amplify/export workflow is causally
+RED on unchanged Green30 `6f904d0ab`, after its original 30 dB/Pass control and
+both normal −50 dB applications complete. Normal float WAV exports prove
+foreground RMS 2.472328969e−6, nonzero background RMS 7.818190228e−8 and actual
+difference 30.000000488 dB, while the reopened report still says 7.86 dB/Fail
+(`/tmp/soundscaper-r6-fx041-public-scaled-red3.log`). The initial closed drawer
+fixture is excluded, and the earlier infinity-only lead is excluded because
+the normal absolute analyzer deliberately returns its finite floor.
+Six strict relative/physical-zero/presentation cases are RED while legacy,
+both-silent and finite-presentation controls pass
+(`/tmp/soundscaper-r6-fx041-node-red.log`). After repair, all 33 new and existing
+Contrast reopening, repeat, analysis cache, composition and report cases pass
+(`/tmp/soundscaper-r6-fx041-node-green.log`). Focused strict compilation passes.
+Complete built public verification remains pending; this register retains
+thirty-nine verified roots. No assistance runtime assets change and no manual
+**Update AI assets** run is required.

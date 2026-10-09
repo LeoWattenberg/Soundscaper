@@ -156,7 +156,8 @@ function ClippingResult({ report, copy, sampleRate }) {
 }
 
 function ContrastResult({ report, copy }) {
-	const difference = Number.isFinite(report.differenceDb) ? `${report.differenceDb.toFixed(2)} dB` : '—';
+	const difference = report.differenceDb === Infinity ? '∞ dB' : report.differenceDb === -Infinity ? '−∞ dB'
+		: Number.isFinite(report.differenceDb) ? `${report.differenceDb.toFixed(2)} dB` : '—';
 	return <section className="audio-editor-analysis-report" data-analysis-report="contrast">
 		<h4>{copy.contrast}</h4>
 		<p>{copy.contrastForeground}: <strong>{formatDb(report.foreground?.rmsDb, 'dBFS')}</strong></p>

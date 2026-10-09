@@ -60,6 +60,7 @@ interface ContrastSelection {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly rmsDb: number;
+	readonly rmsAmplitude?: number;
 	readonly scope: string;
 }
 
@@ -281,22 +282,24 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			const request = captureRequest(project, scope, selection, dependencies.getSelectedTrackId());
 			const { channels, sampleRate, result } = await renderAndAnalyze(request, task, projectToken);
 			const rmsDb = Number(result.rmsDbfs);
+			const rawRms = result.rmsAmplitude;
+			const amplitude = typeof rawRms === 'number' && Number.isFinite(rawRms) && rawRms >= 0 ? { rmsAmplitude: rawRms } : {};
 			const selections = {
 				...dependencies.getContrastSelections(),
-				[role]: Object.freeze({ ...selection, rmsDb, scope }),
+				[role]: Object.freeze({ ...selection, rmsDb, ...amplitude, scope }),
 			};
 			dependencies.setContrastSelections(selections);
 			const foreground = selections.foreground;
 			const background = selections.background;
 			const minimumDifferenceDb = Number(options.minimumDifferenceDb ?? 20);
-			const differenceDb = foreground && background ? foreground.rmsDb - background.rmsDb : null;
+			const differenceDb = foreground && background ? contrastDifferenceDb(foreground, background) : null;
 			const report = Object.freeze({
 				type: 'contrast',
 				foreground,
 				background,
 				minimumDifferenceDb,
 				differenceDb,
-				passes: Number.isFinite(differenceDb) ? Number(differenceDb) >= minimumDifferenceDb : null,
+				passes: differenceDb === null || Number.isNaN(differenceDb) ? null : differenceDb >= minimumDifferenceDb,
 			});
 			const roleLabel = { key: role === 'foreground' ? 'contrastForegroundRole' : 'contrastBackgroundRole' };
 			complete(task, () => {
@@ -514,4 +517,11 @@ function readStoredAnalysis(value: unknown): StoredAnalysis | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function contrastDifferenceDb(foreground: ContrastSelection, background: ContrastSelection): number {
+	if (foreground.rmsAmplitude === 0 && background.rmsAmplitude === 0) return 0;
+	const decibels = (selection: ContrastSelection) => selection.rmsAmplitude === undefined
+		? selection.rmsDb : 20 * Math.log10(selection.rmsAmplitude);
+	return decibels(foreground) - decibels(background);
 }
