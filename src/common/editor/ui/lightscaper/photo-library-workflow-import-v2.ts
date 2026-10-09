@@ -34,7 +34,7 @@ export function detachPhotoLibraryImportGestureV2(files: unknown, options: unkno
 		const developPreset = Object.hasOwn(record, 'developPreset') ? field(record, 'developPreset', 'Import options') : undefined;
 		const draft = Object.freeze({ selected, signal, collector: createPhotoLibraryImportCollectorV1(names),
 			settings: settings === undefined ? undefined : detachPhotoLibraryImportSettingsV1(settings),
-			developPreset: developPreset === undefined ? undefined : detachPreset(developPreset) });
+			developPreset: developPreset === undefined ? undefined : detachPhotoLibraryImportDevelopPresetV2(developPreset) });
 		check(); return draft;
 	} catch (error) { check(); throw error; }
 }
@@ -58,7 +58,7 @@ export async function executePhotoLibraryImportGestureV2(owner: PhotoLibrarySess
 	} finally { observing = false; }
 }
 
-function detachPreset(value: unknown): PhotoLibraryDevelopPresetReadV2 {
+export function detachPhotoLibraryImportDevelopPresetV2(value: unknown): PhotoLibraryDevelopPresetReadV2 {
 	const name = 'Import Develop preset', record = readClosedDomainRecord(value, name, ['schemaVersion', 'catalogId', 'presetId', 'expectedRevision']);
 	if (field(record, 'schemaVersion', name) !== 2) throw new RangeError('Unsupported current import Develop preset version.');
 	const catalogId = field(record, 'catalogId', name), presetId = field(record, 'presetId', name), expectedRevision = field(record, 'expectedRevision', name);
