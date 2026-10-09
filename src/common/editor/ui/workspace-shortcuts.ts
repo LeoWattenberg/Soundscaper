@@ -8,6 +8,7 @@ import {
 import { audacityShortcutCommandUnassignable } from '../audacity-shortcut-command-inventory.ts';
 import { audioEditorShortcutParts, normalizeAudioEditorShortcut } from '../preferences.js';
 import { keyboardShortcutEventKey } from './keyboard-shortcut-key.ts';
+import { portalDialogOwnsShortcuts } from './portal-dialog-shortcut-owner.ts';
 import { controlOwnsNavigationKeys } from '@soundscaper/design-system/hooks/control-navigation-ownership';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -140,6 +141,7 @@ export function isWorkspaceModalShortcutTarget(target: EventTarget | null): bool
 	const element = target as Element | null;
 	if (typeof element?.closest !== 'function') return false;
 	if (element.closest('[role="dialog"], [role="alertdialog"]') !== null) return true;
+	if (portalDialogOwnsShortcuts(element)) return true;
 	const body = element.ownerDocument?.body;
 	return typeof body?.querySelectorAll === 'function'
 		&& [...body.querySelectorAll('[aria-modal="true"]')]
