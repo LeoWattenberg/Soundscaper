@@ -36,7 +36,7 @@ test('Track menu source and structure commands follow the ordinary track lock', 
 	await page.keyboard.press('Escape');
 	await page.keyboard.press('Escape');
 	await chooseTrackMenuAction(page, editor, row, ['Track channels', 'Split stereo to left/right mono']);
-	await expect(editor.getByRole('group', { name: /^Audio clip browser-tone-a/u })).toHaveCount(2);
+	await expect(editor.getByRole('group', { name: /^browser-tone-a.* clip, starts/u })).toHaveCount(2);
 });
 
 
@@ -65,5 +65,5 @@ test('Make stereo menu declines the ordinary locked mono partner', async ({ page
 	await page.keyboard.press('Escape');
 	await page.keyboard.press('Escape');
 	await chooseTrackMenuAction(page, editor, row, ['Track channels', 'Make stereo track']);
-	await expect(editor.getByRole('group', { name: /^Audio clip/u })).toHaveCount(1);
+	await expect(editor.getByRole('group', { name: /^browser-mono-tone clip, starts/u })).toHaveCount(1);
 });

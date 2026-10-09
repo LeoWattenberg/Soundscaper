@@ -305,3 +305,21 @@ negative omitted-painter and native-lease closure checks (32/32 focused passing)
 These narrow support corrections are committed and add zero bug count. A full
 canonical retry on the next immutable snapshot remains required. Full50 browser
 verification is still running; full100 browser verification follows it.
+
+The immutable `d7cb58183` passes both guarded product builds. Its public
+Chromium delta reports17 passed and two failures across19 cases
+(`/tmp/soundscaper-round6-green18-chromium.log`). Completed workflows qualify
+editing036, effects026–027, I/O022 and dialogs040–042. The two dialog039
+failures occur after every repaired admission assertion and successful channel
+conversion: the final observers use retired Audio clip accessible names. Using
+the actual rendered clip names preserves both command/count expectations and
+the same product bytes; both complete workflows pass12 seconds
+(`/tmp/soundscaper-round6-track-menu-green18-retry.log`,2/2). This gives
+**125 distinct verified fixes**: editing36, effects27, I/O21 and dialogs41.
+
+The same batch also verifies the uncounted native BWF/AIFF-C purpose admission
+and browser BWF recorder metadata follow-through. The full canonical100 retry
+is running on this immutable snapshot
+(`/tmp/soundscaper-round6-checkpoint100-green18-canonical-retry.log`). Full50
+all-engine browser verification has entered WebKit; failed earlier runs are
+preserved, and full100 browser verification follows it sequentially.
