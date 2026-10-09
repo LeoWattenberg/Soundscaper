@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 
 import { AudioDevicesFlyout } from '../toolbar/AudioEditorMeterControls.jsx';
@@ -17,7 +17,10 @@ import RecordingOffsetInput from './RecordingOffsetInput.tsx';
  * discovered rather than chosen — so the page begins at the devices.
  */
 export default function AudioSettingsPreferencesPage({ controller, snapshot, copy, run, displayAudioSupported = true }) {
-	const [sourceKey, setSourceKey] = useState('global');
+	const [requestedSourceKey, setSourceKey] = useState('global');
+	const sources = recordingOffsetSources(snapshot, copy);
+	const sourceKey = sources.some((source) => source.key === requestedSourceKey) ? requestedSourceKey : 'global';
+	useEffect(() => { if (sourceKey !== requestedSourceKey) setSourceKey(sourceKey); }, [requestedSourceKey, sourceKey]);
 	const sourceOffset = sourceKey === 'global'
 		? snapshot.monitor?.latencyOffsetMs ?? 0
 		: snapshot.recordingInputs?.offsets?.[sourceKey] ?? 0;
@@ -38,7 +41,7 @@ export default function AudioSettingsPreferencesPage({ controller, snapshot, cop
 					<label className="kw-audio-editor-preferences__field">
 						<span>{copy.recordingOffsetSource}</span>
 						<select value={sourceKey} onChange={(event) => setSourceKey(event.currentTarget.value)}>
-							{recordingOffsetSources(snapshot, copy).map((source) => (
+							{sources.map((source) => (
 								<option key={source.key} value={source.key}>{source.label}</option>
 							))}
 						</select>

@@ -77,7 +77,7 @@ export default function DesktopFfmpegPreferencePanel({
 		void fileService.getExternalFfmpegStatus!().then((nextStatus) => {
 			if (current) setStatus(normalizeDesktopFfmpegStatus(nextStatus));
 		}).catch((error: unknown) => {
-			if (current) setStatus(errorStatus(error));
+			if (current) setStatus((prior) => errorStatus(error, prior));
 		});
 		return () => { current = false; };
 	}, [fileService, getterAvailable]);
@@ -99,7 +99,7 @@ export default function DesktopFfmpegPreferencePanel({
 		try {
 			setStatus(normalizeDesktopFfmpegStatus(await operation.call(fileService)));
 		} catch (error) {
-			setStatus(errorStatus(error));
+			setStatus((prior) => errorStatus(error, prior));
 		}
 	}
 
@@ -158,9 +158,9 @@ function unavailableStatus(): DesktopFfmpegStatus {
 	});
 }
 
-function errorStatus(error: unknown): DesktopFfmpegStatus {
+function errorStatus(error: unknown, prior: DesktopFfmpegStatus): DesktopFfmpegStatus {
 	return Object.freeze({
-		...unavailableStatus(),
+		...prior,
 		state: 'error',
 		detail: error instanceof Error ? text(error.message, 2_048) : '',
 	});
