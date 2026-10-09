@@ -80,3 +80,8 @@ selected product bootstrap rather than their importing domain. Place them
 beside the existing domain adapters so the unchanged semantic ownership rule
 claims them. These build corrections add no count and preserve the chunk
 ownership rules and unchanged graph ceilings.
+
+Prepared capture `58264ec46` completes EDIT011's assigned native item order
+in 4.1 seconds, EDIT012's expanded/collapsed/restored track navigation in
+3.4 seconds and EDIT013's effective recording extent in 2.4 seconds. All three
+public regressions pass; the complete last-wave Chromium batch passes 9/9.
