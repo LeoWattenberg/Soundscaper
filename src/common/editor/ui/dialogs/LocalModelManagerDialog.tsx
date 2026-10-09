@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocalModelCatalog, useLocalModelActivity, useLocalModelTaskOptions, useOfflineModelChoices } from './useLocalModelPresentation.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -21,6 +21,7 @@ import type {
 import './LocalModelManagerDialog.css';
 import { localModelDisplayName } from './local-model-display-name.ts';
 import { formatLocalModelBytes } from '../local-model-bytes.ts';
+import { useLocalModelRemovalFocus } from './useLocalModelRemovalFocus.ts';
 
 export { formatLocalModelBytes } from '../local-model-bytes.ts';
 
@@ -106,6 +107,8 @@ export function LocalModelManagerDialogView({
 	const [task, setTask] = useState('all');
 	const [status, setStatus] = useState('all');
 	const [relatedOnly, setRelatedOnly] = useState(true);
+	const modelControls = useRef<HTMLDivElement | null>(null);
+	const captureRemovalFocus = useLocalModelRemovalFocus(modelControls, snapshot.models, snapshot.busyModelIds);
 	const models = useLocalModelCatalog(snapshot.models, copy, locale, modelPurpose, query, task, status, relatedOnly, modelFilter);
 	const { progress, busy, installing, cancelling } = useLocalModelActivity(snapshot.progress, snapshot.busyModelIds, snapshot.installingModelIds, snapshot.cancellingModelIds);
 	const taskOptions = useLocalModelTaskOptions(snapshot.models, copy, modelPurpose);
@@ -155,6 +158,7 @@ export function LocalModelManagerDialogView({
 				{text(copy, 'localModelsRetry', 'Retry')}
 			</Button>
 		</div>}
+		<div ref={modelControls}>
 		<div className="kw-processing-filters">
 			<ProcessingSearchField value={query} onChange={setQuery} label={text(copy, 'assistanceSearchModels', 'Search models')} />
 			<PreferenceDropdownField label={text(copy, 'assistanceModelTask', 'Task')} value={task} onChange={setTask}
@@ -187,11 +191,12 @@ export function LocalModelManagerDialogView({
 				progress={progress.get(model.modelId) ?? null}
 				onInstall={onInstall}
 				onCancelInstall={onCancelInstall}
-				onRemove={onRemove}
+				onRemove={(modelId, control) => { captureRemovalFocus(modelId, control); return onRemove(modelId); }}
 			/>)}
 			</tbody></table>
 		</Table>
 		{models.length === 0 && snapshot.phase === 'ready' && <p role="status">{text(copy, 'assistanceNoMatchingModels', 'No models match these filters.')}</p>}
+		</div>
 		<details className="kw-processing-details">
 			<summary>{text(copy, 'localModelsMaintenance', 'Storage and verification')}</summary>
 		<MaintenanceControls
@@ -223,7 +228,7 @@ function ModelRow({
 	progress: LocalModelManagerSnapshot['progress'][number] | null;
 	onInstall: (modelId: string) => unknown;
 	onCancelInstall: (modelId: string) => unknown;
-	onRemove: (modelId: string) => unknown;
+	onRemove: (modelId: string, control: HTMLButtonElement) => unknown;
 }>) {
 	const installed = model.installedBytes !== null;
 	const actionAvailable = installed || model.availability === 'installable';
@@ -261,8 +266,8 @@ function ModelRow({
 				value={progress.completedBytes} max={progress.totalBytes} />
 		</div>}
 		{actionAvailable && <div className="kw-local-model-manager__actions">
-			{installed && <Button variant="secondary" disabled={busy || maintenanceBusy} onClick={() => {
-				void onRemove(model.modelId);
+			{installed && <Button variant="secondary" disabled={busy || maintenanceBusy} onClick={(event) => {
+				if (event) void onRemove(model.modelId, event.currentTarget);
 			}}>{busy
 				? text(copy, 'localModelsRemoving', 'Removing…')
 				: text(copy, 'localModelsRemove', 'Remove')}</Button>}
