@@ -156,6 +156,7 @@ function VideoEffectColor({ clipId, effectId, name, parameter, value, actions, c
 			<div className="audio-editor-video-effect__color">
 				<input type="color" value={canonical} disabled={disabled} aria-label={label} onFocus={gesture.begin} onChange={(event) => previewText(event.currentTarget.value.toUpperCase())} onBlur={commit} />
 				<input type="text" value={draft} disabled={disabled} aria-label={`${copy.videoEffectExactValue}: ${label}`} inputMode="text" maxLength={7} onFocus={gesture.begin} onChange={(event) => previewText(event.currentTarget.value)} onBlur={commit} onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); }
 					if (event.key === 'Enter') { event.preventDefault(); commit(); event.currentTarget.blur(); }
 				}} />
