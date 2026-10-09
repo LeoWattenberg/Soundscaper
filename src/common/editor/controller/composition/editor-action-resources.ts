@@ -20,7 +20,7 @@ import type { EffectControlsState } from '../effects/effect-controls-service.ts'
 import type { TrimMediaFfmpegHost } from '../document/trim-media-service.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
 import type { EditorTaskScope } from '../shared/lifecycle.ts';
-import type { InterchangeProductProjection } from '../export/internal/interchange-multicamera-delivery.ts';
+import type { InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
 
 type EffectLibraryState =
 	& EffectMacroLibraryServiceRuntime['state']

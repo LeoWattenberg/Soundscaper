@@ -8,7 +8,7 @@ import { createDeliveryReportStateAccess } from './export-state.ts';
 import type { DeliveryQueue } from '../../delivery-queue.ts';
 import { createOriginalOverwriteActions, type OriginalOverwriteState, type OriginalOverwriteFileService } from './internal/overwrite-original-action.ts';
 import type { BlenderPublishRequest } from './blender-publication.ts';
-import type { InterchangeProductProjection } from './internal/interchange-multicamera-delivery.ts';
+import type { InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
 
 /** Delivery owns these optional workspace slots; reports remain inert domain data. */
 export interface ExportActionState extends OriginalOverwriteState {

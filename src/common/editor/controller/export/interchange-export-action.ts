@@ -14,7 +14,7 @@ import type { DeliveryReportState } from './export-state.ts';
 import type { DeliveryReport } from '../../delivery-report.ts';
 import { reportInterchangeAudioOmissions } from './internal/interchange-audio-omissions.ts';
 import { reportInterchangePictureOmissions } from './internal/interchange-picture-omissions.ts';
-import { projectInterchangeMulticamera, reportInterchangeMulticameraConversion, type InterchangeProductProjection } from './internal/interchange-multicamera-delivery.ts';
+import { projectInterchangeMulticamera, reportInterchangeMulticameraConversion, type InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
 import {
 	admitInterchangeVisualProject,
 	reportInterchangeVisualOmissions,

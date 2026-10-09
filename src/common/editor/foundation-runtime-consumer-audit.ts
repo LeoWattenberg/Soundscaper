@@ -203,6 +203,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
 	{
+		file: 'src/common/editor/interchange-multicamera-delivery.ts',
+		reason: 'The shared exchange adapter imports only the owning runtime project type for its injected product projection port; it delegates the selected active-angle projection and reports group identities without reading clip timing coordinates.',
+	},
+	{
 		file: 'src/common/editor/controller/edit/internal/generator-channel-groups.ts',
 		reason: 'The signal width allocator imports only generator projection types and groups selected track identities by source channel count; it executes no clip timing reads or runtime media projection.',
 	},

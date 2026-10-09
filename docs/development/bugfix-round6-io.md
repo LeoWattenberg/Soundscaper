@@ -189,3 +189,24 @@ pass. The canonical checkpoint preserves its original snapshot's evidence and
 will retry its complete shared-type gate on the corrected source snapshot.
 
 | R6-IO-029 | Soundscaper: import an ordinary WAV, Edit → Metadata editor → ADM → Enable ADM; Export audio → Mono, then enable Render for headphones and Export. The same ordinary route occurs after choosing Custom channel mapping before configuring its matrix. | Headphone rendering deliberately delivers stereo, but its independent channel field still shows Mono selected and allows edits the renderer ignores. An unconfigured latent Custom choice instead refuses the headphone delivery for a matrix it will never consume. State Preserve and disable mapping while headphone rendering owns routing; forward that same neutral mapping at submission. Retain the user's prior Mono/custom choice and matrix for turning headphones off. All ignored-choice and latent-matrix manifestations share one headphone mapping owner, independently from IO-010's split-mode lifetime. | Public Chromium causal RED on immutable 435e1779e (green28): ordinary ADM/Mono control delivers healthy one-channel 38400-frame PCM; enabling headphones delivers healthy two-channel PCM while Mono remains selected and Preserve unchecked (/tmp/soundscaper-r6-io-headphone-channel-mapping-public-red.log, one PASS/one RED in 13.6 seconds). The passive delivered-audio attachment retains actual channels and the displayed choice. The unconfigured Custom→Headphones workflow independently reaches Custom channel mapping requires a JSON channel matrix and no download (/tmp/soundscaper-r6-io-headphone-empty-mapping-public-red.log). Three strict mounted Mono/custom/unconfigured-choice cases independently RED with the actual ADM factory (/tmp/soundscaper-r6-io-headphone-channel-mapping-node-red3.log); the initial abbreviated ADM setup omitted required programme fields and is excluded. Corrected routing, exact request, preserved prior choice/matrix, disabled custom editing, ordinary stereo edit and original export/project/matrix/binaural support pass 50/50 (/tmp/soundscaper-r6-io-headphone-channel-mapping-node-green.log). Narrow strict TypeScript, targeted type-aware ESLint, complete retained-tree changed-file lint, size and own diff checks pass; ExportDialog remains 523 lines. The final exact restored Mono/custom-matrix request controls pass all three mounted cases (/tmp/soundscaper-r6-io-headphone-channel-mapping-node-green3.log). Source ready; immutable public GREEN is pending, zero count until verification. No assistance runtime asset update is required. |
+
+IO-026 also has an uncounted ownership completion from the full 150 canonical
+gate. Its active-camera exchange policy and exact projection port are consumed
+by native DAWproject, export and composition owners, but initially lived under
+export/internal. The complete dependency graph correctly rejects those three
+foreign internal imports. Move this pure policy to the shared editor domain
+beside the existing interchange visibility and omission owners, preserving all
+projection/report behavior and the faithful RuntimeClipProject port. Update only
+its direct consumers; no architecture rule or controller policy inventory is
+relaxed, and no additional application bug is counted. The complete architecture
+gate passes 4746 modules and 18192 dependencies with the unchanged 16-domain,
+228-public-module inventory (/tmp/soundscaper-r6-io-interchange-shared-owner-architecture.log).
+The exact shared port enters the existing projection importer audit as a
+type-only adapter which delegates projection and reads no clip timing; its
+unchanged inventory assertion first fails for that newly discovered path, then
+passes with the specific rationale. All 33 owning multicamera/DAWproject cases
+and 27 export-action/current-document/foundation audit cases pass
+(/tmp/soundscaper-r6-io-interchange-shared-owner-node-green.log and
+/tmp/soundscaper-r6-io-interchange-shared-owner-support2.log). Narrow strict
+TypeScript, targeted type-aware ESLint, retained-tree changed lint, size and
+own diff checks pass. No assistance runtime asset update is required.
