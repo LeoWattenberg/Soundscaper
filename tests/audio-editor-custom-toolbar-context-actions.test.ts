@@ -69,13 +69,31 @@ test('channel commands reuse track source layout and bind their selected track I
 	const calls: unknown[] = [];
 	const mono = collectCustomToolbarButtonActions(createCustomToolbarContextMenus(fixtureInput('a', calls)));
 	assert.equal(mono.find(({ actionId }) => actionId === 'track-swap-channels')?.disabled, true);
-	const stereo = collectCustomToolbarButtonActions(createCustomToolbarContextMenus(fixtureInput('b', calls)));
+	const input = fixtureInput('b', calls);
+	const project = input.snapshot.project!;
+	const stereo = collectCustomToolbarButtonActions(createCustomToolbarContextMenus({ ...input,
+		snapshot: { ...input.snapshot, project: { ...project,
+			tracks: project.tracks.map(track => track.id === 'track-b' ? { ...track, locked: false } : track),
+		} },
+	}));
 	for (const actionId of ['track-swap-channels', 'track-split-stereo-to-lr', 'track-split-stereo-to-center']) {
 		stereo.find((action) => action.actionId === actionId)?.onClick?.();
 	}
 	assert.deepEqual(calls, [
 		['track.swapChannels', 'track-b'], ['track.splitStereoLR', 'track-b'], ['track.splitStereoCenter', 'track-b'],
 	]);
+});
+
+test('locked selected tracks withhold custom toolbar channel mutations', () => {
+	const calls: unknown[] = [];
+	const actions = collectCustomToolbarButtonActions(createCustomToolbarContextMenus(fixtureInput('b', calls)));
+	for (const actionId of ['track-swap-channels', 'track-split-stereo-to-lr', 'track-split-stereo-to-center']) {
+		const action = actions.find(candidate => candidate.actionId === actionId);
+		assert.ok(action);
+		assert.equal(action.disabled, true);
+		action.onClick?.();
+	}
+	assert.deepEqual(calls, []);
 });
 
 test('read-only and unavailable product audio capabilities withhold contextual audio processing', () => {

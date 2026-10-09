@@ -334,3 +334,24 @@ ordinary live edit retains its existing recurring echo, giving **126 distinct
 verified fixes**: editing36, effects28, I/O21 and dialogs41. The full100 canonical
 retry has passed static checks and entered the complete Node suite; full50
 browser verification remains in progress.
+
+The immutable `0b272a361` passes both guarded product builds and every one of
+seven public Chromium checks (`/tmp/soundscaper-round6-green20-chromium.log`,
+44 seconds). The unchanged ADM split/merge PCM assertions now preserve both
+channels through Undo/Redo within2.384e-7 after isolating private track captures
+from the authored programme router. Editing037, effects029, I/O023 and dialogs043–044
+therefore qualify. This gives **131 distinct verified fixes**: editing37,
+effects29, I/O22 and dialogs43. The floating-panel and camera-folder corrections
+await their own later immutable public verification and are not counted here.
+
+The full100 canonical retry on `d7cb58183` passes its complete static gate but
+fails in its parallel Node batch:24,449 cases,24,414 passed,two failed and33
+skipped (`/tmp/soundscaper-round6-checkpoint100-green18-canonical-retry.log`).
+The older custom-toolbar fixture asks source mutations to dispatch on a locked
+track, conflicting with the repaired canonical lock admission; its binding
+control now uses an unlocked track and a separate locked control requires no
+dispatch. The older native still-picker expectation retains media instead of
+the existing corrected image purpose. These support corrections add zero count.
+Their full canonical rerun remains required; this failed run is not passing
+evidence. Full50 browser verification continues, followed sequentially by
+full100 browser verification.
