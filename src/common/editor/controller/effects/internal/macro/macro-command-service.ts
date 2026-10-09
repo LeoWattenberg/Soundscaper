@@ -114,6 +114,14 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 			details.frequencyRange = frequencyRange(params, selection);
 		}
 		runtime.setExactSelection(range.startFrame, range.endFrame, details);
+		// Native No tracks also retires the focused-track edit fallback. A macro
+		// that explicitly removes every track must publish the same empty scope.
+		if (changesTracks && Array.isArray(details.trackIds) && details.trackIds.length === 0) {
+			const timeline = runtime.getActions?.()?.timeline;
+			const action = timeline && typeof timeline === 'object'
+				? (timeline as Readonly<Record<string, unknown>>).selectNoTracks : null;
+			if (typeof action === 'function') (action as () => unknown)();
+		}
 	}
 
 	/**
