@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction } from './audio-editor-test-helpers.js';
 
 for (const [label, saved, draft] of [
 	['Project tempo (BPM)', '130', '140'],
@@ -27,9 +27,9 @@ for (const [label, saved, draft] of [
 			await expect(field).toBeFocused();
 		}
 		await field.press('Enter');
-		await editor.locator('.audio-editor-toolbar-button[data-action-id="undo"]').click();
+		await chooseCommandAction(page, editor, 'Edit', 'Undo');
 		await expect(field).toHaveValue(saved);
-		await editor.locator('.audio-editor-toolbar-button[data-action-id="redo"]').click();
+		await chooseCommandAction(page, editor, 'Edit', 'Redo');
 		await expect(field).toHaveValue(draft);
 		await expect(editor.getByRole('alert')).toHaveCount(0);
 	});
