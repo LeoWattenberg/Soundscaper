@@ -62,6 +62,7 @@ export function useTimelinePointerFinish({
 
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
+		if (session?.pointerId !== undefined && session.pointerId !== event.pointerId) return;
 		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
 			&& event.pointerId !== session.pointerId) return;
 		pointerMoveFlushRef?.current?.(cancelled);

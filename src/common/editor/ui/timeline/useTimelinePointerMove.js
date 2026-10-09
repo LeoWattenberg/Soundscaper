@@ -166,6 +166,7 @@ export function useTimelinePointerMove({
 			if (touchPointers.current.size !== 1 || pointerSession.current?.kind !== 'track-resize') return;
 		}
 		const session = pointerSession.current;
+		if (session?.pointerId !== undefined && session.pointerId !== event.pointerId) return;
 		if (session?.kind === 'crossfade-shape') {
 			if (session.pointerId !== event.pointerId) return;
 			if (session.rollMode) {
