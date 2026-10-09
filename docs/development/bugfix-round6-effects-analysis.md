@@ -1787,7 +1787,12 @@ cap, cancellation and inspection-failure cases plus existing recording,
 native-probe, timing, sound-activation and channel-meter controls pass 69/69
 (`/tmp/soundscaper-r6-legacy-channel-node-green.log`). Focused strict types,
 targeted and changed-file lint, size and dependency architecture checks pass;
-the complete unchanged browser workflow remains pending at source handoff.
+the complete unchanged recording, saved-source, Float WAV, silent-right and
+native meter workflow passes all three engines on immutable Green43
+`9ca719643`: Chromium 5.8 seconds, Firefox 8.3 seconds and WebKit 7.9 seconds,
+3/3 complete in 25.7 seconds with actual exit 0
+(`/tmp/soundscaper-r6-io-meter-channels-green43.log`). Every original PCM and
+meter assertion and deadline remains unchanged.
 This is a conservative completion of the existing capture-width family and
 adds zero roots: this register stays at forty-five and the round stays at 200.
 No manual **Update AI assets** run is required.
