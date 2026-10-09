@@ -111,7 +111,7 @@ export const LabelMarker: React.FC<LabelMarkerProps> = ({
 
   // Handle drag start for resizing (ears only)
   const handleDragStart = (side: 'left' | 'right') => (e: React.MouseEvent) => {
-    if (onRegionResize) {
+    if (e.button === 0 && onRegionResize) {
       // Prevent focus on mouse down (only allow tab-based focus)
       e.preventDefault();
       e.stopPropagation();
@@ -121,7 +121,7 @@ export const LabelMarker: React.FC<LabelMarkerProps> = ({
 
   // Handle drag start for moving (label box for all types, stalk for point labels)
   const handleMoveStart = (e: React.MouseEvent) => {
-    if (onLabelMove) {
+    if (e.button === 0 && onLabelMove) {
       // Prevent focus on mouse down (only allow tab-based focus)
       e.preventDefault();
 
