@@ -48,7 +48,7 @@ import { remapScapeProjectSourceReferences } from './scape-project-source-remap.
 import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension, retryScapeImportSourceIdentityCollision } from './scape-project-asset-extension.ts';
 import { inspectScapeCanonicalEvidence } from './scape-project-canonical-inspection.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
-import { duplicatedAdmRevision } from './storage/project-duplication-adm.ts';
+import { createProjectCopyDocument } from './storage/project-copy-document.ts';
 import {
 	validateVideoTimingAssetBytes,
 } from './video-timing-asset.ts';
@@ -231,11 +231,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 			});
 			throwIfScapeAborted(signal);
 			if (existingProject && collision === 'copy') {
-				project.id = createStableId('project');
-				project.title = `${project.title || 'Untitled'} copy`;
-				Object.assign(project, duplicatedAdmRevision(project));
-				project.createdAt = new Date().toISOString();
-				project.updatedAt = project.createdAt;
+				project = createProjectCopyDocument(project, { id: createStableId('project'), timestamp: new Date().toISOString() });
 			}
 			transaction = await beginScapeImportTransaction(store, signal, project.id,
 				existingProject && collision === 'replace' ? existingProject : null,
