@@ -578,3 +578,28 @@ this unchanged build in5.5/5.7seconds
 The fourth canonical150 run on the same immutable checkout remains active;
 the full100 and queued150 browser suites remain pending. No manual
 **Update AI assets** run is required.
+
+The fourth complete canonical150 run succeeds on immutablea8a5aaf38 (Green31),
+actualexit0 (`/tmp/soundscaper-round6-checkpoint150-green31-canonical-retry.log`).
+All repository lint shards, TypeScript boundaries, architecture, audits,
+documentation and guarded product builds pass. The isolated Node batch passes1/1
+in3289.9ms; the complete parallel batch has24706tests,24673passes,33skips and
+zero failures in854118.5ms. Together this is24707tests,24674passes and33skips.
+The completed Node-only reporter measures90.1%statements/lines,82.3%branches and
+90.69%functions; the unchanged CI floors still apply to the merged Node and
+Chromium union. No failed earlier checkpoint result is replaced or omitted.
+The full100 and queued150 browser runs remain pending.
+
+Immutablea1a725fc1 (Green32) builds both products and its focused public batch
+completes10passes/5failures in1.5minutes
+(`/tmp/soundscaper-round6-green32-chromium.log`). EDIT049 native height resizing
+completes Undo/Redo in2.6seconds, EDIT050 both spectral-brush creation workflows
+retain the exact center/time/frequency bounds in3.4/3.2seconds, and DIALOG059
+ordinary and pen-interrupted playhead scrubs complete in2.2/2.0seconds. These
+raise the verified count to175: editing50, effects39, I/O29 and dialogs57.
+Both existing Parametric EQ graph/composition controls also pass. The video and
+EQ native ranges still require browser touch-default protection, live Graphic
+EQ still has an actual silent output gap, and frozen-export/Contrast workflows
+reach their repaired causal assertions before later download/zero controls
+fail. All five remain pending until their entire retained workflows pass.
+No manual **Update AI assets** run is required.
