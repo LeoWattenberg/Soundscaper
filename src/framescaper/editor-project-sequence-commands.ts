@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { applyEditorCommand } from '../common/editor/commands.js';
+import { retainFramescaperMulticameraSourcesSequence } from './editor-multicamera-source-retention-sequence.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY } from '../common/editor/project-schema-identity.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import type { AudioEditorProjectV17 } from '../common/editor/project-v17-validation.ts';
@@ -72,6 +73,7 @@ export function applyFramescaperProjectCommandSequence(
 	) as unknown as Record<string, unknown>;
 	commanded.schemaFamily = FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
 	commanded.schemaVersion = 1;
+	retainFramescaperMulticameraSourcesSequence(persisted, commanded);
 	retainFramescaperVideoProxyAttachmentsSequence(commanded, attachments);
 	commanded.multicameraGroups = structuredClone(persisted.multicameraGroups);
 	commanded.featureRequirements = reconcileFramescaperProjectFeatureRequirementsSequence(profile, commanded);
