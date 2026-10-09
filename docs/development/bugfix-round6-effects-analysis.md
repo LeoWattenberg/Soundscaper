@@ -25,8 +25,12 @@ included in that snapshot. R6-EFFECT-020 passes Chromium/WebKit on immutable
 Green13 `3dfdeb038` and
 the unchanged Firefox retry on the same assets
 (`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-green13-firefox-retry.log`),
-bringing this register to twenty verified roots. R6-EFFECT-021–022 have focused
-GREEN and await a later build.
+bringing this register to twenty verified roots. R6-EFFECT-021 passes its complete
+ordinary Source/menu/Apply/WAV workflow in all three engines on immutable
+Green14 `756da708e`
+(`/tmp/soundscaper-round6-green14-public-browser.log`), bringing this register to
+twenty-one verified roots. R6-EFFECT-022 has focused GREEN and await a later
+build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -535,11 +539,12 @@ With an ordinary twelve-second mono tone, select Delay → Pitch/Tempo (change
 speed), set Pitch shift per echo to the supported two semitones, Number of
 echoes to one, Gain per echo to zero and Delay time to 0.1 seconds. In the last
 quarter-second of the six-second audition the shortened input has already
-lost its echo, while the full applied recording retains it. Process the full
-selected input only for audible positive speed echoes, keeping the six-second
-audition and existing full-extent admission; slower, dry and short controls
-retain their bounded behavior. This follows the same preview-extent owner and
-adds no root.
+lost its echo, while the full applied recording retains it. Read the required
+selected input prefix for audible positive speed echoes, carrying the audition
+horizon and pinned FFT/block/resampler support backwards through each audible
+echo stage. Keep the six-second audition and admission over the actual input;
+slower, dry and short controls retain their bounded behavior. This follows the
+same preview-extent owner and adds no root.
 
 The normal menu/Preview/Apply/WAV workflow is causally RED at echo/dry ratios
 0.022174 versus 0.943426
@@ -552,8 +557,27 @@ All seventeen new/existing Delay, Sliding Stretch and whole-selection
 normalization preview cases pass after correction
 (`/tmp/soundscaper-r6-effects-speed-delay-preview-duration-node-green.log`),
 including full memory admission and exact PCM. Focused strict compilation,
-targeted type-aware lint, the size gate and diff checks pass. Public GREEN awaits
-the next immutable build.
+targeted type-aware lint, the size gate and diff checks pass. The original
+complete-input repair passes the normal Preview/Apply/WAV comparison in all
+three engines on immutable Green14 `756da708e`, with preview/applied echo ratios
+both 0.943426
+(`/tmp/soundscaper-round6-green14-public-browser.log`).
+
+The first complete-input repair preserves the echo, but needlessly admits and
+loads an entire long recording. The strict hour-long range then refuses a
+six-second audition on memory admission, while a normal twelve-second range
+reads all 96,000 native frames. Both are causally RED against bounded input;
+three slower/dry/short controls pass
+(`/tmp/soundscaper-r6-effects-speed-delay-preview-prefix-node-red.log`).
+The corrected one-echo audition reads under ten seconds and the three-stage
+echo control under twelve seconds, independent of the selected recording's
+length. Exact Preview/Apply PCM and memory/render-extent assertions remain in
+place. All nineteen actual Delay, Sliding Stretch and whole-selection normalization
+preview/support cases pass, including the exact PCM comparison through three
+successive echoes
+(`/tmp/soundscaper-r6-effects-speed-delay-preview-prefix-node-support2.log`).
+Focused strict compilation and targeted type-aware lint pass; public GREEN
+awaits the next immutable product build.
 
 ## R6-EFFECT-018 — A valid native crossover is silently lowered before processing
 
@@ -590,23 +614,6 @@ Source-effect/apply/export workflow passes Chromium, Firefox and WebKit on
 immutable Green11 `a870804cd`
 (`/tmp/soundscaper-round6-green11-public-browser.log`). No assistance runtime assets change and no
 manual **Update AI assets** run is required.
-
-The Noise Gate release estimator also derived its crossover poles through the
-old clamp. Derive its tail from the corrected valid cutoff so the rack cannot
-stop while a genuine near-Nyquist release remains audible. The existing strict
-8 kHz/3,999 Hz tail regression now excites the actual corrected high cutoff
-with an ordinary 3,990 Hz tone; its former 1,000 Hz tone no longer supplies the
-same end-of-source amplitude after the cutoff correction. The estimator's
-52-frame tail is causally RED at residual amplitude 0.07404 where the retained
-−80 dB bound requires less than 0.0001
-(`/tmp/soundscaper-r6-effects-crossover-tail-node-red2.log`). All thirty-two
-tail, lookahead, valid-crossover and actual-worklet support cases pass after
-the dependent repair (`/tmp/soundscaper-r6-effects-crossover-tail-node-green.log`),
-with narrow strict types and targeted lint passing. This is required
-follow-through of R6-EFFECT-018 and adds no root. Immutable Green12 `8d9d45ff4`
-includes the repaired estimator and passes the complete normal native-cutoff
-workflow in Chromium, Firefox and WebKit
-(`/tmp/soundscaper-round6-green12-public-browser.log`).
 
 ## R6-EFFECT-019 — Mono Vocoder filters an incomplete synthesized carrier
 
@@ -717,7 +724,9 @@ contract. All twenty-seven new/existing basic-effect, loudness histogram,
 dual-mono, RMS and native-rate loudness cases pass after repair
 (`/tmp/soundscaper-r6-effects-loudness-channel-weighting-node-green.log`).
 Focused strict compilation, targeted type-aware lint and size/diff checks pass.
-Public GREEN awaits the next immutable product build. No assistance runtime
+The complete ordinary Source/menu/Apply/WAV workflow passes Chromium, Firefox
+and WebKit on immutable Green14 `756da708e`
+(`/tmp/soundscaper-round6-green14-public-browser.log`). No assistance runtime
 assets change and no manual **Update AI assets** run is required.
 
 ## R6-EFFECT-022 — Live Spectrogram loses narrow tones between its visible rows
