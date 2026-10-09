@@ -427,7 +427,7 @@ export function TrackAutomationOverlay({
 				aria-valuemax={target.descriptor.maximum}
 				aria-valuenow={point.value}
 				tabIndex={interactive ? 0 : -1}
-				onPointerDown={(event) => attempt(() => event.altKey
+				onPointerDown={(event) => event.button === 0 && attempt(() => event.altKey
 					? (event.preventDefault(), event.stopPropagation(), removePoint(point.id))
 					: beginPointDrag(event, { startFrame: point.frame, endFrame: point.frame }, point.id))}
 				onKeyDown={(event) => attempt(() => editPointFromKeyboard(event, point.id))}
