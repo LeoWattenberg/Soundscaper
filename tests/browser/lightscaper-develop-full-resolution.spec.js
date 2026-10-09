@@ -79,7 +79,10 @@ for (const locale of ['en', 'de']) test(`${locale}: keyboard full-resolution ins
 
 async function chooseFamily(page, control, value) {
 	const values = await control.locator('option').evaluateAll(options => options.map(option => option.value)), target = values.indexOf(value);
-	expect(values.length).toBeLessThanOrEqual(16); expect(target).toBeGreaterThanOrEqual(0); await control.focus(); await expect(control).toBeFocused();
+	expect(values).toEqual(['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1',
+		'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1',
+		'noise-reduction-v1', 'grain-v1', 'texture-v1', 'dehaze-v1', 'cube-lut-profile-v1']); expect(target).toBeGreaterThanOrEqual(0);
+	await control.focus(); await expect(control).toBeFocused();
 	await page.keyboard.press('Home'); for (let index = 0; index < target; index++) await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('Tab'); await expect(control).toHaveValue(value);
 }
