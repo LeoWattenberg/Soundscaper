@@ -1238,3 +1238,37 @@ Green24 `97b556b6d`: the Samples field and delivered WAV both contain exactly
 thirty-two verified roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-033 — An idle native effect closes its own host after instantiation
+
+With native effects enabled and an allowed stereo LADSPA installation, import
+an ordinary recording and choose Effect → Audio Plugins. Open the installed
+effect. Its initial state saves successfully, but its parameter section then
+reports "The native plug-in host failed: topology-mismatch." The live processor
+mistakes the empty input-channel array of a disconnected Web Audio source for
+a changed plug-in topology and closes the bound host before its controls load.
+
+Feed declared-width silence through the existing live processing pool when
+the input is disconnected. Reuse those zero planes across blocks and continue
+processing native tails. Preserve strict-render admission and every nonempty
+input/output topology refusal. This independently implemented worklet owner
+is separate from parameter-control gestures and earlier output-meter adapters.
+
+The complete ordinary Chromium menu workflow is causally RED on unchanged
+immutable Green24 `97b556b6d`: initial SHA/HMAC-authenticated state persistence
+succeeds, then the actual worklet closes the real transferred MessagePort and
+the visible alert appears before parameter reads
+(`/tmp/soundscaper-r6-effects-native-plugin-idle-browser-red.log`). A production
+desktop-host protocol fixture supplies installation discovery, state bytes,
+authentication and processing RPC; it never injects an editor document or
+calls an internal editor entrypoint. Earlier missing-consent and fixture-width
+setup failures are excluded. One strict production-worklet case is RED while
+strict-render and nonempty-width refusal controls pass
+(`/tmp/soundscaper-r6-effects-native-plugin-idle-node-red.log`). All eleven new
+and existing worklet, parameter RPC and mounted parameter controls pass after
+repair, including idle native-tail output and resumed real input
+(`/tmp/soundscaper-r6-effects-native-plugin-idle-node-green.log`). Focused strict
+compilation, targeted and canonical changed-file lint, and size/diff checks pass.
+Built public GREEN is pending the next immutable snapshot; this register retains thirty-two
+verified roots. No assistance runtime assets change and no manual
+**Update AI assets** run is required.
