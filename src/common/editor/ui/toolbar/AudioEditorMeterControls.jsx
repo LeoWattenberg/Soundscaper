@@ -17,6 +17,7 @@ import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { MeterPanelGrip } from '../workspace/MeterPanelControls.jsx';
 import { formatDb } from '../meter-settings.ts';
+import { playbackMeterWithChannels } from '../playback-meter-channel-presentation.ts';
 import { AudacityAudioMeter, MeterSettingsFlyout } from './AudioEditorMeters.jsx';
 
 // Browser adaptations of Audacity's RecordLevel.qml/RecordLevelPopup.qml and
@@ -413,7 +414,7 @@ export function PlaybackMeterToolbarGroup({
 	isCompact,
 	run,
 }) {
-	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => playbackMeterWithChannels(telemetry.meters));
 	return <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
 		<AudacityToolbarFlyoutButton
 			icon={iconNameToChar('AUDIO')}
@@ -453,7 +454,7 @@ export function SidePlaybackMeter({
 	run,
 	orientation = 'vertical',
 }) {
-	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => playbackMeterWithChannels(telemetry.meters));
 	return (
 		<aside
 			className="kw-audio-editor__side-playback-meter"
