@@ -493,6 +493,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-develop-proxy-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop proxy lends an admitted frame and complete shared recipe to a scoped renderer, exposing borrowed output pixels and scalar histograms without original custody." }
 		,
+		{"path": "src/common/editor/photo-library-develop-proxy-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 current scoped Photo renderer admits exact process1/2 recipes while keeping resource capabilities in selected runtime composition and retaining the fixed proxy/full-resolution profiles and borrowed output view."}
+		,
 		{ "path": "src/common/editor/photo-library-develop-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selections and inert packets support partial copy, relative adjustments and bounded explicit-version batches whose complete scalar receipts preserve each durable photo acknowledgment." }
 		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
@@ -878,6 +880,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-develop-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 Photo ordered-frame owner admits separate named fixed proxy and full-resolution profiles, evaluates natural geometry and supported shared effects, measures rendered histograms, joins cancellation and wipes every replaced stage independently of original custody; callers cannot select arbitrary limits." }
 		,
+		{"path": "src/lightscaper/controller/photo-develop-frame-v2.ts", "kind": "helper-contract", "justification": "Version 2 Photo ordered-frame owner explicitly admits process1/2, preflights and pins each active LUT resource before pixel stages await, authenticates its body through the shared scoped kernel, preserves natural geometry and fixed proxy/full-resolution limits, and joins delivery before wiping replaced pixel stages."}
+		,
 		{ "path": "src/lightscaper/controller/photo-develop-proxy-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped photo proxy preserves its public signature, limits and view type while delegating ordered evaluation and bounded pixel retirement to the named fixed-profile Photo frame owner." }
 		,
 		{ "path": "src/lightscaper/controller/photo-develop-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selection, deterministic partial merge and shared-range relative deltas retain effect order and coherent mask identities without donating photo identity or external media authority." }
@@ -963,6 +967,8 @@
 		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
 		,
 		{ "path": "src/lightscaper/photo-develop-render-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product composition exposes named fixed proxy and full-resolution scoped render paths using the same ordered Photo frame owner without retaining source bodies or weakening either profile." }
+		,
+		{"path": "src/lightscaper/photo-develop-render-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Photo render composition captures the selected resource method and receiver before UI awaits and exposes scoped proxy/full-resolution process1/2 paths without retaining original bodies or placing resource capabilities in recipes."}
 		,
 		{"path": "src/lightscaper/photo-library-restore-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert restore runtime owns the fixed settings anchor and one admitted demand through cancellation, native settlement and close."}
 		,

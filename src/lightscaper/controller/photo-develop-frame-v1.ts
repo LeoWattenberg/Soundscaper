@@ -1,145 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
-import { admitPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-admission-v1.ts';
-import { readPixelFrameV1, type PixelFrameDescriptorV1, type PixelFrameLimitsV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../../common/editor/photo-library-develop-full-resolution-port-v1.ts';
-import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1 } from '../../common/editor/video-post-crop-vignette-v1.ts';
-import { withPostCropVignettePixelFrameV1 } from '../../common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts';
-import { CLARITY_EFFECT_TYPE_V1 } from '../../common/editor/video-clarity-v1.ts';
-import { withClarityPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-clarity-v1.ts';
-import { NOISE_REDUCTION_EFFECT_TYPE_V1 } from '../../common/editor/video-noise-reduction-v1.ts';
-import { withNoiseReductionPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-noise-reduction-v1.ts';
-import { GRAIN_EFFECT_TYPE_V1 } from '../../common/editor/video-grain-v1.ts';
-import { withGrainPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-grain-v1.ts';
-import { TEXTURE_EFFECT_TYPE_V1 } from '../../common/editor/video-texture-v1.ts';
-import { withTexturePixelFrameV1 } from '../../common/editor/imaging/pixel-frame-texture-v1.ts';
-import { DEHAZE_EFFECT_TYPE_V1 } from '../../common/editor/video-dehaze-v1.ts';
-import { withDehazePixelFrameV1 } from '../../common/editor/imaging/pixel-frame-dehaze-v1.ts';
-import { DETAIL_SHARPEN_EFFECT_TYPE_V1 } from '../../common/editor/video-sharpen-v1.ts';
-import { COLOR_WHEELS_EFFECT_TYPE_V1 } from '../../common/editor/video-color-wheels-v1.ts';
-import { withDetailSharpenPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-sharpen-v1.ts';
-import { withGlobalDevelopPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-global-develop-v1.ts';
-import { withGeometryPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-geometry-v1.ts';
-import { createPixelFrameHistogramV1, type PixelFrameHistogramV1 } from '../../common/editor/imaging/pixel-frame-histogram-v1.ts';
-import { isCurvesEffectTypeV1 } from '../../common/editor/video-curves-v1.ts';
-import { isGlobalDevelopEffectTypeV1 } from '../../common/editor/video-global-develop-v1.ts';
-import { CHROMA_DEVELOP_EFFECT_TYPE_V1 } from '../../common/editor/video-chroma-develop-v1.ts';
-import { BLACK_WHITE_MIX_EFFECT_TYPE_V1 } from '../../common/editor/video-black-white-mix-v1.ts';
-import { HSL_MIXER_EFFECT_TYPE_V1 } from '../../common/editor/video-hsl-mixer-v1.ts';
-import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../common/editor/video-image-geometry-v1.ts';
-import type { ImageGeometryV1 } from '../../common/editor/imaging/image-geometry-v1.ts';
 import { normalizePhotoDevelopV1 } from '../catalog/develop-state.ts';
-import { assertPhotoStackQuerySignalV1 } from '../catalog/photo-stack-query-signal-v1.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS } from '../catalog/types.ts';
+import { withPhotoDevelopFrameCore, PHOTO_DEVELOP_PROXY_LIMITS_V1, type PhotoDevelopFrameViewV1 } from './photo-develop-frame-core.ts';
+export { PHOTO_DEVELOP_PROXY_LIMITS_V1 } from './photo-develop-frame-core.ts';
+export type { PhotoDevelopFrameViewV1 } from './photo-develop-frame-core.ts';
 
-export const PHOTO_DEVELOP_PROXY_LIMITS_V1 = Object.freeze({
-	source: Object.freeze({ maximumSidePixels: 2048, maximumPixels: 4_194_304, maximumBytes: 16_777_216 }),
-	render: Object.freeze({ maximumSidePixels: 4096, maximumPixels: 8_388_608, maximumBytes: 33_554_432 }),
-});
-interface Frame {
-	readonly descriptor: Readonly<PixelFrameDescriptorV1>;
-	readonly pixels: Uint8Array<ArrayBuffer>;
-}
-export interface PhotoDevelopFrameViewV1 {
-	readonly frame: Readonly<Frame>;
-	readonly histogram: Readonly<PixelFrameHistogramV1>;
-}
-const CHECK = AbortSignal.prototype.throwIfAborted;
-const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
-
-/** One already-oriented derivative; source/settings are detached before awaiting.
- * Natural geometry stays Photo-owned. Each completed stage replaces/wipes its
- * predecessor, so stack length never multiplies retained pixel backing. */
+/** One already-oriented derivative under the unchanged strict process1 owner. */
 export function withPhotoDevelopProxyFrameV1<Result>(value: unknown,
 	consume: (view: Readonly<PhotoDevelopFrameViewV1>) => Result | Promise<Result>): Promise<Result> {
-	return withPhotoDevelopFrame(value, consume, PHOTO_DEVELOP_PROXY_LIMITS_V1);
+	return withPhotoDevelopFrameCore(value, consume, PHOTO_DEVELOP_PROXY_LIMITS_V1, { normalizeDevelop: normalizePhotoDevelopV1 });
 }
 
-/** Full-resolution inspection borrows the authenticated, already-oriented
- * original and runs the same ordered kernels under its own fixed limits. */
+/** Full-resolution inspection borrows the authenticated, already-oriented original. */
 export function withPhotoDevelopFullResolutionFrameV1<Result>(value: unknown,
 	consume: (view: Readonly<PhotoDevelopFrameViewV1>) => Result | Promise<Result>): Promise<Result> {
-	return withPhotoDevelopFrame(value, consume, PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1);
-}
-
-interface Profile { readonly source: PixelFrameLimitsV1; readonly render: PixelFrameLimitsV1 }
-async function withPhotoDevelopFrame<Result>(value: unknown,
-	consume: (view: Readonly<PhotoDevelopFrameViewV1>) => Result | Promise<Result>, profile: Profile): Promise<Result> {
-	const input = record(value, 'photo develop proxy', ['frame', 'develop', 'signal'], ['frame', 'develop']);
-	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'photo develop proxy') : undefined;
-	if (signal !== undefined) assertPhotoStackQuerySignalV1(signal);
-	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
-	check(); if (typeof consume !== 'function') throw new TypeError('Photo develop proxy requires a scoped consumer.');
-	const develop = normalizePhotoDevelopV1(field(input, 'develop', 'photo develop proxy'));
-	const serialized = JSON.stringify(develop), maximum = LIGHTSCAPER_CATALOG_LIMITS.maximumDocumentBytes;
-	if (serialized.length > maximum || new TextEncoder().encode(serialized).byteLength > maximum) throw new RangeError('Photo proxy settings exceed their byte budget.');
-	if (develop.maskBindings.length) throw new RangeError('Photo proxy mask-bound adjustments are unsupported.');
-	for (const effect of develop.effects) {
-		if (effect.enabled && effect.type !== DEHAZE_EFFECT_TYPE_V1 && effect.type !== TEXTURE_EFFECT_TYPE_V1 && effect.type !== GRAIN_EFFECT_TYPE_V1 && effect.type !== NOISE_REDUCTION_EFFECT_TYPE_V1 && effect.type !== POST_CROP_VIGNETTE_EFFECT_TYPE_V1 && effect.type !== CLARITY_EFFECT_TYPE_V1 && effect.type !== DETAIL_SHARPEN_EFFECT_TYPE_V1 && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1
-			&& effect.type !== BLACK_WHITE_MIX_EFFECT_TYPE_V1 && effect.type !== HSL_MIXER_EFFECT_TYPE_V1 && effect.type !== COLOR_WHEELS_EFFECT_TYPE_V1
-			&& !isGlobalDevelopEffectTypeV1(effect.type) && !isCurvesEffectTypeV1(effect.type)) {
-			throw new RangeError(`Unsupported photo proxy effect: ${effect.type}.`);
-		}
-	}
-	const raw = record(field(input, 'frame', 'photo develop proxy'), 'photo proxy source', ['descriptor', 'pixels']);
-	const admitted = admitPixelFrameV1(field(raw, 'descriptor', 'photo proxy source'), { limits: profile.source });
-	const source = readPixelFrameV1({ descriptor: admitted.descriptor, pixels: field(raw, 'pixels', 'photo proxy source') }, profile.source);
-	let current: Frame = Object.freeze({ descriptor: source.descriptor, pixels: new Uint8Array(source.pixels) });
-	let owned = current.pixels.buffer;
-	const replace = (next: Frame) => { wipe(owned); current = next; owned = next.pixels.buffer; };
-	try {
-		const legacy = develop.geometry;
-		if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) {
-			replace(await geometry(current, { schemaVersion: 1, ...legacy, perspective: null }, signal as AbortSignal | undefined, profile.render));
-		}
-		for (const effect of develop.effects) {
-			check(); if (!effect.enabled) continue;
-			if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) {
-				replace(await geometry(current, imageGeometryForVideoEffectV1(effect, current.descriptor.width, current.descriptor.height), signal as AbortSignal | undefined, profile.render));
-			} else if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withPostCropVignettePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else if (effect.type === CLARITY_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withClarityPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else if (effect.type === NOISE_REDUCTION_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withNoiseReductionPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else if (effect.type === GRAIN_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withGrainPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else if (effect.type === TEXTURE_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withTexturePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else if (effect.type === DEHAZE_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withDehazePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else if (effect.type === DETAIL_SHARPEN_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withDetailSharpenPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
-			} else {
-				replace(await stage(accept => withGlobalDevelopPixelFrameV1({ frame: current, effects: [effect], signal }, accept,
-					{ limits: profile.render, maximumEffects: 1 })));
-			}
-		}
-		check();
-		const histogram = await createPixelFrameHistogramV1(current, { limits: profile.render, ...(signal ? { signal } : {}) });
-		check(); const result = await consume(Object.freeze({ frame: current, histogram })); check(); return result;
-	} finally { wipe(owned); }
-}
-
-function geometry(frame: Frame, geometry: Readonly<ImageGeometryV1>, signal: AbortSignal | undefined, limits: PixelFrameLimitsV1): Promise<Frame> {
-	return stage(accept => withGeometryPixelFrameV1({ frame, geometry, signal }, accept, { limits }));
-}
-
-/** A kernel may cancel after its callback returns. Retain and wipe that staged
- * copy if delivery refuses, rather than abandoning an allocated output. */
-async function stage(run: (accept: (frame: Frame) => void) => Promise<void>): Promise<Frame> {
-	const staged: { frame: Frame | null; buffer: ArrayBuffer | null } = { frame: null, buffer: null };
-	try {
-		await run(frame => {
-			const pixels = new Uint8Array(frame.pixels); staged.buffer = pixels.buffer;
-			staged.frame = Object.freeze({ descriptor: frame.descriptor, pixels });
-		});
-		if (!staged.frame) throw new Error('Photo proxy stage produced no frame.');
-		return staged.frame;
-	} catch (error) { if (staged.buffer) wipe(staged.buffer); throw error; }
-}
-
-function wipe(buffer: ArrayBuffer): void {
-	if (Number(Reflect.apply(BUFFER_SIZE, buffer, [])) > 0) new Uint8Array(buffer).fill(0);
+	return withPhotoDevelopFrameCore(value, consume, PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1, { normalizeDevelop: normalizePhotoDevelopV1 });
 }
