@@ -207,3 +207,49 @@ for (const failure of [false, true]) test(`actual Restore waits the registered w
 		assert.deepEqual(canvas.painted[0], [64, 128, 192, 255]);
 	} finally { release.resolve(); await flush(); await mounted.dispose(); canvas.restore(); }
 });
+
+for (const locale of ['en', 'de']) test(`${locale}: actual current Import survives parent busy and same-generation rerenders until native publication closes the dialog`, async () => {
+	const native = mediaRestoreFixture(), locks = currentAppLocks(), release = deferred<void>(), entered = deferred<void>();
+	const source = new File([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64')], 'Current import.png', { type: 'image/png' });
+	const boundary = ['createImageBitmap', 'OffscreenCanvas'] as const, prior = boundary.map(key => Object.getOwnPropertyDescriptor(globalThis, key));
+	let closes = 0, imports = 0, signal: AbortSignal | undefined;
+	Object.defineProperty(globalThis, 'createImageBitmap', { configurable: true, value: async (body: Blob) => {
+		assert.deepEqual(new Uint8Array(await body.arrayBuffer()), new Uint8Array(await source.arrayBuffer())); entered.resolve(); await release.promise;
+		return { width: 2, height: 2, close() { closes++; } };
+	} });
+	class Canvas { constructor(readonly width: number, readonly height: number) {} getContext() { return {
+		clearRect() {}, drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(Array.from({ length: 4 }, () => [255, 32, 0, 255]).flat()) }),
+	}; } }
+	Object.defineProperty(globalThis, 'OffscreenCanvas', { configurable: true, value: Canvas });
+	const createSession = async () => {
+		const session = await createPhotoLibrarySessionV3({ name: 'Import scope', indexedDB: native.factory, locks }), importFiles = session.importFiles;
+		session.importFiles = (...args: Parameters<typeof importFiles>) => { imports++; signal = args[1]?.signal; return Reflect.apply(importFiles, session, args) as ReturnType<typeof importFiles>; };
+		return session;
+	};
+	const mounted = await mountPhotoImportUi(() => { Object.defineProperty(window, 'dispatchEvent', { configurable: true, value: () => true });
+		return <StrictMode><LightscaperAppV2 locale={locale} createSession={createSession} /></StrictMode>; });
+	const flush = async (run: () => void = () => undefined) => { await act(async () => { run(); await settle(); }); };
+	try {
+		await flush(); const menu = mounted.dom.container.querySelectorAll('button').find(button => button.textContent === (locale === 'de' ? 'Fotos importieren' : 'Import photos')); assert.ok(menu);
+		await flush(() => { reactProps(menu).onClick?.({ currentTarget: menu }); });
+		const form = mounted.dom.one('[data-photo-import-form]'), input = mounted.dom.one('input'); Reflect.set(input, 'files', [source]);
+		await mounted.event('input', 'onChange'); await mounted.event('[data-photo-import-form]', 'onSubmit', { preventDefault() {} });
+		for (let turn = 0; turn < 64 && imports === 0; turn++) await flush();
+		assert.equal(imports, 1, 'Parent busy must not retire the admitted import before selected Session admission');
+		await entered.promise; assert.equal(signal?.aborted, false); assert.equal(mounted.dom.find('[data-photo-import-form]'), form);
+		await mounted.render(); await flush(); assert.equal(signal?.aborted, false, 'A harmless same-generation App render must retain the active native request');
+		const action = mounted.dom.container.querySelectorAll('button').find(button => button.textContent === (locale === 'de' ? 'Importieren' : 'Import')); assert.ok(action?.hasAttribute('disabled'));
+		await flush(() => { release.resolve(); });
+		for (let turn = 0; turn < 64 && mounted.dom.find('[data-photo-import-form]'); turn++) await flush();
+		assert.equal(mounted.dom.find('[data-photo-import-form]'), null, mounted.dom.container.textContent);
+		const card = mounted.dom.one('[data-photo-id]'), id = card.getAttribute('data-photo-id'); assert.ok(id);
+		const observed = await readResidentPhotoLibraryCurrent([id], native.factory), photo = observed.photos[0]!.photo;
+		assert.deepEqual(observed.photos[0]!.bytes, [...new Uint8Array(await source.arrayBuffer())]);
+		assert.equal(photo.original.name, source.name); assert.equal(photo.original.width, 2); assert.equal(photo.original.height, 2);
+		assert.equal(photo.schemaVersion, 1); assert.equal(photo.revision, 0); assert.equal(imports, 1); assert.equal(closes, 1);
+		assert.equal(mounted.dom.find('[role="alert"]'), null);
+	} finally {
+		release.resolve(); await flush(); await mounted.dispose();
+		for (const [index, key] of boundary.entries()) { const value = prior[index]; if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); }
+	}
+});

@@ -284,7 +284,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 			previewDrain.current = beforePresent; void beforePresent.catch(() => undefined); return beforePresent;
 		});
 	};
-	const closeImport = () => { if (isCurrent()) setImportVisible(false); };
+	const closeImport = useCallback(() => { if (isCurrent()) setImportVisible(false); }, [isCurrent]);
 	const closeBatchRename = () => {
 		if (factory.current !== generation) return;
 		library.cancel(); setBatchRenameVisible(false);
