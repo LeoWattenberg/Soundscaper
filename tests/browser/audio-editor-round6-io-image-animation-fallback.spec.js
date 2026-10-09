@@ -15,8 +15,7 @@ for (const animated of [false, true]) test(`browser bitmap fallback preserves ${
 	await (await chooser).setFiles({ name: 'animation.png', mimeType: 'image/png',
 		buffer: animated ? ordinaryFramescaperImage('animated.png') : createPngFixture(16) });
 	if (animated) {
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
-		await expect(editor.locator('[data-status]')).toContainText(/animat/iu);
+		await expect(page.getByRole('alert').filter({ hasText: 'This animated image requires an available browser animation decoder.' })).toBeVisible();
 		await expect(editor.getByRole('group', { name: 'Image clip: animation', exact: true })).toHaveCount(0);
 	} else {
 		await expect(editor.getByRole('group', { name: 'Image clip: animation', exact: true })).toBeVisible();
