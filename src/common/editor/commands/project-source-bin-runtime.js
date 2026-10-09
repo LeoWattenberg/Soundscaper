@@ -20,6 +20,7 @@ import {
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { clipLoopTransformFields } from '../audio-clip-loop.ts';
 import { projectBinReplacementWarp } from '../project-bin-replacement-warp.ts';
+import { createProjectBinContractionEvaluator } from '../project-bin-replacement-contractions.ts';
 import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
 import {
@@ -405,11 +406,10 @@ function replaceProjectBinMedia(project, command) {
 			if (!Array.isArray(track.clipIds)) continue;
 			const contractions = removedDurationsByTrack.get(track.id) || [];
 			if (!contractions.length) continue;
+			const contractionAt = createProjectBinContractionEvaluator(contractions);
 			for (const clipId of track.clipIds) {
 				const clip = requireClip(project, clipId);
-				const shift = contractions.reduce((sum, entry) => (
-					clip.timelineStartFrame >= entry.endFrame ? sum + entry.frames : sum
-				), 0);
+				const shift = contractionAt(clip.timelineStartFrame);
 				if (shift > 0) replaceClip(project, normalizeClipForProject(project, {
 					...clip,
 					timelineStartFrame: Math.max(0, clip.timelineStartFrame - shift),
