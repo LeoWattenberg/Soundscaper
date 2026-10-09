@@ -50,6 +50,26 @@ unreachable internal inputs are excluded.
 
 | R6-IO-022 (public GREEN pending; not yet counted) | Soundscaper: import an ordinary WAV and File → Export project file. In Framescaper use the normal browser File Open picker to open the unchanged Soundscaper archive; inspect Video preview. | The selected visual-preview binding interprets the opaque foreign document as a Framescaper graph, raising a misleading mixerGraphV21 validation alert in Video preview. Return no visual session for an admitted foreign/future identity before loading or cloning a product graph. Current Framescaper documents and their genuine validation failures retain the exact selected factory; Project Bin thumbnails and timeline filmstrips use the same identity boundary. | Public Chromium causal RED on immutable 9bd6730b2 (green16): the actual unmodified Soundscaper UI archive opens read-only and Video preview reports mixerGraphV21 contains an unsupported field, while the ordinary Framescaper PNG preview control renders one picture without an error (/tmp/soundscaper-r6-io-foreign-video-preview-public-red.log). A strict real current Soundscaper factory through the same foundation/multicamera clone fails with the identical graph error while valid current-domain and retained validation-error controls pass (/tmp/soundscaper-r6-io-foreign-video-preview-node-red2.log). Corrected identity, actual graph, thumbnail, filmstrip, image and finishing-preview support pass 73/73 (/tmp/soundscaper-r6-io-foreign-video-preview-node-green.log). Targeted type-aware ESLint passes; public GREEN awaits the corrected build. The initial strict fixture omitted the owning assistance foundation and is excluded; the corrected causal fixture delegates the exact public controller clone. This read-only preview admission defect occurs with the ordinary browser archive and is independent of IO-021's native retained-byte Save owner. Only the ordinary current other-product archive qualifies; synthetic future/invalid fixtures add no count. |
 
+IO-014's uncounted native picker catalog completion admits the already-maintained
+BWF and AIFF-C suffixes in its audio/media/project purposes and assigns their
+existing WAV/AIFF MIME types. Ordinary unchanged BWF MetaEdit and Python AIFF-C
+recordings both import, save and survive reload through browser File Import,
+while actual native chooser IPC refuses both with The selected file type is not
+allowed on immutable 9bd6730b2
+(/tmp/soundscaper-r6-io-native-broadcast-suffix-public-red2.log,
+/tmp/soundscaper-r6-io-native-broadcast-suffix-aifc-public-red2.log).
+Six actual native project/media/audio suffix cases are causally RED while
+existing WAV and unrelated-purpose refusals pass; corrected native selected
+ranges, original PCM geometry/recorder notes, exact capability cleanup and
+existing chooser/preload/decoder support pass 19/19
+(/tmp/soundscaper-r6-io-native-broadcast-suffix-node-green.log).
+Focused strict TypeScript, targeted type-aware lint and the size gate pass.
+An initial inaccessible audio-clip locator and an AIFF-C browser fixture with
+an unsupported generic MIME are excluded; corrected causal workflows retain
+the ordinary existing MIME and actual timeline clip observation.
+Corrected-build public verification is pending. These missing dictionary
+entries belong to IO-014's native purpose family and add zero further count.
+
 IO-017's first green13 run was not qualifying: the monitored control stalled at
 its unchanged Start deadline, and the unmonitored producer had delivered only
 14 actual blocks after the one-second wall wait. The observer now additionally
