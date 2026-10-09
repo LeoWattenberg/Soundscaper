@@ -170,3 +170,12 @@ with Undo/Redo pass all six Chromium, Firefox and WebKit checks against the
 same application build (`/tmp/soundscaper-round6-checkpoint50-archive-fixture.log`).
 This test-support correction adds zero bugs; the complete suite run still
 retains its failure until a full corrected rerun passes.
+
+The immutable `8d9d45ff4` delta passes all 36 public checks across the three
+browsers (`/tmp/soundscaper-round6-green12-public-browser.log`). It verifies
+neutral native-rate source scheduling, equivalent Vocoder carriers, ordinary
+closed WebVTT voices and omitted routing-level admission. That brings the
+verified count to 93. ADM removal also passes its public export controls, but
+remains excluded pending preservation of track identities that survive a
+compound replace operation. The original inspector workflows remain green.
+Both product builds pass; its required full repository lint is still running.
