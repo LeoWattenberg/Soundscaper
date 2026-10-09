@@ -514,6 +514,7 @@ function determineTailFrames(project, mode, includeTail) {
 	if (!includeTail) return 0;
 	return projectEffectTailFrames(project, {
 		includeMaster: deliversMasterMix(mode),
+		respectMuteSolo: deliversMasterMix(mode),
 		maximumSeconds: 10,
 	});
 }

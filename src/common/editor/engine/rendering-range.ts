@@ -10,6 +10,7 @@ const tailFrames = projectEffectTailFrames as (
 	options?: Readonly<{
 		trackId?: unknown;
 		includeMaster?: boolean;
+		respectMuteSolo?: boolean;
 		maximumSeconds?: number;
 	}>,
 ) => number;
@@ -17,9 +18,10 @@ const tailFrames = projectEffectTailFrames as (
 export function resolveRenderTailSeconds(
 	project: EngineProject,
 	includeTail: boolean | number,
-	{ trackId = null, includeMaster = true }: Readonly<{
+	{ trackId = null, includeMaster = true, respectMuteSolo = true }: Readonly<{
 		trackId?: unknown;
 		includeMaster?: boolean;
+		respectMuteSolo?: boolean;
 	}> = {},
 ): number {
 	if (!includeTail) return 0;
@@ -29,6 +31,7 @@ export function resolveRenderTailSeconds(
 	return tailFrames(project, {
 		trackId: trackId == null ? null : String(trackId),
 		includeMaster,
+		respectMuteSolo,
 		maximumSeconds: MAX_EFFECT_TAIL_SECONDS,
 	}) / (project.sampleRate || DEFAULT_SAMPLE_RATE);
 }

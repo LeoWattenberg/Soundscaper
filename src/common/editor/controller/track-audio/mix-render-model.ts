@@ -196,7 +196,7 @@ export function mixRenderTailFrames(
 	if (options.renderEffects === false) return 0;
 	if ((options.includeBuses ?? targetTracks.length > 1) && isSoundscaperProductionProject(snapshot)) {
 		const tail = projectEffectTailFramesV21({ ...snapshot, tracks: targetTracks }, {
-			trackId: null, includeMaster: false, maximum: sampleRate * 10,
+			trackId: null, includeMaster: false, respectMuteSolo: false, maximum: sampleRate * 10,
 			rackTail: owner => owner?.effectsActive === false ? 0
 				: rackTailFrames((owner?.effects ?? []) as readonly ControllerEffect[], sampleRate, 10),
 		});

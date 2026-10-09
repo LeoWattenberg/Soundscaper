@@ -373,6 +373,7 @@ export function rackTailFrames(effects, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, m
 export function projectEffectTailFrames(project, {
 	trackId = null,
 	includeMaster = true,
+	respectMuteSolo = true,
 	maximumSeconds = 10,
 } = {}) {
 	const sampleRate = Number.isSafeInteger(project?.sampleRate) && project.sampleRate > 0
@@ -382,7 +383,7 @@ export function projectEffectTailFrames(project, {
 	const rackTail = (owner) => owner?.effectsActive === false
 		? 0
 		: rackTailFrames(owner?.effects || [], sampleRate, maximumSeconds);
-	const v21Tail = projectEffectTailFramesV21(project, { trackId, includeMaster, maximum, rackTail });
+	const v21Tail = projectEffectTailFramesV21(project, { trackId, includeMaster, respectMuteSolo, maximum, rackTail });
 	if (v21Tail !== null) return v21Tail;
 	const tracks = (project?.tracks || []).filter((track) => (
 		track?.type !== 'label'

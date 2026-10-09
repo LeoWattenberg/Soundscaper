@@ -78,7 +78,7 @@ export async function renderMix(this: EngineRuntimeHost, {
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
 		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
 		const warmupFrames = fromFrame - renderFromFrame;
-		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
+		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster, respectMuteSolo }) * this.sampleRate);
 		const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
 			trackId,
 			includeMaster,
