@@ -62,8 +62,10 @@ export function createLabeledAudioEditService(runtime: LabeledAudioEditRuntime):
 			if (action === 'labeled-disjoin') return disjoinLabeledRegions(spans, targets.trackIds);
 			if (action === 'labeled-split') return splitAtRegionBoundaries(targets);
 			if (action === 'labeled-join') return joinWithinRegions(targets);
-			if (action !== 'labeled-delete' && action !== 'labeled-split-delete') copyRegions(targets, spans);
+			const publishClipboard = action !== 'labeled-delete' && action !== 'labeled-split-delete'
+				? prepareRegionsClipboard(targets, spans, action !== 'labeled-copy') : null;
 			if (action !== 'labeled-copy') removeRegions(action, targets, spans);
+			publishClipboard?.();
 			publishDocumentSnapshot();
 			return undefined;
 		} catch (error) {
@@ -84,14 +86,18 @@ export function createLabeledAudioEditService(runtime: LabeledAudioEditRuntime):
 		return targets;
 	}
 
-	/** Fill the clipboard with the labelled regions, gaps and all. */
-	function copyRegions(targets: LabeledAudioTargets, spans: readonly LabeledAudioRegion[]): void {
+	/** Capture labelled regions before removal, and publish only after successful admission. */
+	function prepareRegionsClipboard(targets: LabeledAudioTargets, spans: readonly LabeledAudioRegion[], deferred: boolean): () => void {
 		if (spans.length === 0) throw createLocalizedError(Error, copy, 'labeledAudioRequired');
 		const descriptor = labeledClipboard.create(spans, targets.trackIds);
 		if (!descriptor) throw createLocalizedError(Error, copy, 'labeledAudioRequired');
-		setSessionClipboard(descriptor);
-		compactLiveSourceState();
-		void garbageCollectSources().catch(handleError);
+		const publish = deferred && typeof runtime.prepareSessionClipboard === 'function'
+			? runtime.prepareSessionClipboard(descriptor) : () => setSessionClipboard(descriptor);
+		return () => {
+			publish();
+			compactLiveSourceState();
+			void garbageCollectSources().catch(handleError);
+		};
 	}
 
 	/**

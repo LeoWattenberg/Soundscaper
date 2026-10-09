@@ -101,6 +101,27 @@ every editing case 014–016 in all three engines
 
 
 
+Uncounted R6-EDIT-045 labeled Cut completion: the separate labeled-audio
+continuation still copied regions before attempting protected-track deletion.
+The ordinary Copy A → healthy Paste/Undo → ruler region label over B → Lock B
+→ Edit → Labeled audio → Cut or Cut and leave gap → fresh track Paste workflow
+causally inserts B instead of A on immutable `494a0a2b6` in both variants
+(`/tmp/soundscaper-r6-edit-labeled-cut-clipboard-public-red.log`, 17.8 and
+17.4 seconds). Two actual native-controller regressions independently fail at
+the pasted source identity
+(`/tmp/soundscaper-r6-edit-labeled-cut-clipboard-node-red.log`). Prepare the
+existing clipboard publication closure while sources remain available, complete
+the labeled removal transaction and only then publish/compact/collect. Ordinary
+labeled Copy keeps its original publication path. Both corrected refusal and
+successful Cut/source-retention/history/Undo/Redo cases plus ordinary Cut,
+labeled copy/region/service and native camera copy support pass 29/29
+(`/tmp/soundscaper-r6-edit-labeled-cut-clipboard-node-green2.log`). The original
+refusal toast can remain after a successful edit; an extra test assumption that
+it must clear is removed, while exact successful history and retained source
+assertions remain. Narrow strict compilation, targeted and changed-file lint,
+size/diff checks pass. Complete retained public GREEN is pending. This completes
+the same premature clipboard publication family and adds no qualifying root.
+
 Uncounted R6-EDIT-043/044 architecture follow-through: the checkpoint150
 canonical gate correctly rejected UI → controller recording policy and document
 → private edit destination-planner imports. Move both import-free policies to
