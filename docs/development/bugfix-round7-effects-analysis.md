@@ -208,8 +208,8 @@ lint passes.
 `5c9787bec` after the normal import/rack/export flow: the WAV contains 48,000
 samples instead of more than 48,128. On the corrected immutable `fef78921b`
 capture the reserved length passes, but the first 128 physical release samples
-still peak at only 0.0000001192 instead of above 0.1. The normal render flow is
-under investigation; corrected physical release verification remains pending.
+still peak at only 0.0000001192 instead of above 0.1. The subsequent explicit
+width correction completes that normal render flow.
 PCM stays in memory; no generated verification files are retained. Assistance
 runtime assets are unchanged.
 
@@ -220,8 +220,9 @@ ends, which [reinitializes the native channel histories](https://chromium.google
 Pin the actual rack channel width in explicit mode so silence preserves those
 histories. Six mono/stereo/surround LP/HP graph-width cases are RED before the
 repair; corrected native Q/tail/actual-worker/rack support passes 40/40.
-This completes the physical release owner without another count; its unchanged
-public physical-sample assertions await the root-owned new capture.
+This completes the physical release owner without another count. Its unchanged
+public length, audible first release samples and settled ending assertions all
+pass on the root-owned immutable `e2a38ecb5` capture (4.1 seconds).
 
 ## R7-EFFECT-008 — Analyze selection loses an ordinary crescendo's ending true peak
 
@@ -260,7 +261,14 @@ Selection end format to samples and edits its digits from 48,000 through
 true-peak assertions. The exact quantized WAV/Fade In/interior PCM reference
 proves the unfinished meter reports −11.5304 instead of −11.4418 dBTP, and the
 actual analysis worker now resolves that peak while preserving 36,000 frames.
-Root owns the pending public causal RED/GREEN verification of that selection.
+The corrected exact interior-selection public sample-peak/true-peak workflow
+passes on the root-owned immutable `e2a38ecb5` capture (2.6 seconds).
+The actual worker and analysis owners from immutable `5c9787bec`, executed
+directly in memory on that same quantized ordinary recording/Fade In/interior
+selection, retain 36,000 frames but report sample peak and true peak both
+−11.5303984047. The independently padded finite reference and corrected actual
+worker both report true peak −11.4418123249. No verification files are created
+and the maintained worker regression does not depend on repository history.
 The first interior digit attempt is excluded setup: changing the seconds digit
 to zero collapses the selection before its following millisecond digits can
 publish. Sample-format edits keep a positive selection throughout.
