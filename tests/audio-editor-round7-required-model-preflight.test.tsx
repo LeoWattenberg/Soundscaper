@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 
 import LocalAssistanceDialogSurface from '../src/common/editor/ui/dialogs/LocalAssistanceDialogSurface.tsx';
 import type { LocalModelManagerBridge, LocalModelManagerModel } from
@@ -53,7 +54,7 @@ async function mounted(workflowId: AssistanceGuidedWorkflowId,
 	try {
 		await act(async () => root.render(<LocalAssistanceDialogSurface bridgeScope={bridge}
 			request={{ mode: 'task', workflowId }} projectId="project" preparation={null}
-			copy={{}} onClose={() => undefined} />));
+			copy={ENGLISH_COPY} onClose={() => undefined} />));
 		await run(dom, installs);
 	} finally {
 		await act(async () => root.unmount());
@@ -116,5 +117,23 @@ test('a ready default transcript task admits without requiring optional models o
 	await mounted('transcribe-captions', [SILERO, { ...PARAKEET, availability: 'installed' },
 		{ ...WHISPER, availability: 'installable' }, ALIGNMENT], async dom => {
 		assert.equal(dom.find('[data-assistance-model-prerequisites]'), null);
+	});
+});
+
+test('installed exact editorial model admits its default opt-in control without requiring another download', async () => {
+	const qwen = model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 'installed');
+	await mounted('generate-editorial-text', [qwen], async (dom, installs) => {
+		assert.equal(dom.find('[data-assistance-model-prerequisites]') === null, true,
+			'installed exact Qwen must admit the existing Generate text suggestions choice');
+		for (let attempt = 0; attempt < 100 && !dom.find('[data-local-assistance]'); attempt += 1) {
+			await act(async () => new Promise<void>(resolve => setTimeout(resolve, 10)));
+		}
+		const choice = dom.container.querySelectorAll('[role="checkbox"]')
+			.find(node => node.getAttribute('aria-label') === 'Generate text suggestions');
+		assert.ok(choice);
+		assert.equal(choice.getAttribute('aria-checked'), 'false');
+		await act(async () => reactProps(choice).onClick());
+		assert.equal(choice.getAttribute('aria-checked'), 'true');
+		assert.deepEqual(installs, []);
 	});
 });

@@ -4,10 +4,14 @@ import test from 'node:test';
 import {
 	assistanceTaskAvailableModelFilter,
 	assistanceTaskModelFilter,
+	assistanceTaskModelsReady,
 	assistanceTaskRequiresModels,
 } from '../src/common/editor/controller/assistance/local-assistance-task-models.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
+import { assistanceWorkflowStageGraph } from '../src/common/editor/assistance/workflow-recipes.ts';
+import { selectLocalAssistanceGuidedStages } from
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-stage-selection.ts';
 
 test('enhancement preflight uses exact catalog identities without installed artifact metadata', () => {
 	const settings = defaultAssistanceWorkflowSettingsV1('enhance-dialogue');
@@ -69,4 +73,19 @@ test('fast cut marking and default highlights can start without installing optio
 	assert.equal(assistanceTaskRequiresModels(highlights), false);
 	if (highlights.workflowId !== 'make-highlights') assert.fail('Expected highlight settings.');
 	assert.equal(assistanceTaskRequiresModels({ ...highlights, editorialRerank: true }), true);
+});
+
+test('editorial model readiness permits installed defaults while execution still requires explicit opt-in', () => {
+	const settings = defaultAssistanceWorkflowSettingsV1('generate-editorial-text');
+	if (settings.workflowId !== 'generate-editorial-text') assert.fail('Expected editorial settings.');
+	const qwen = { modelId: 'qwen3-4b-q4-k-m', version: '1.0.0', task: 'editorial-generation' };
+	const enabled = { ...settings, enabled: true };
+	assert.equal(assistanceTaskModelsReady(enabled, [qwen], []), true, 'the enabled installed control is healthy');
+	assert.equal(assistanceTaskModelsReady(settings, [], []), false);
+	assert.equal(assistanceTaskModelsReady(settings, [{ ...qwen, version: '1.0.1' }], []), false);
+	assert.equal(assistanceTaskModelsReady(settings, [qwen], []), true, 'catalog readiness precedes editorial opt-in');
+	const graph = assistanceWorkflowStageGraph(settings.workflowId);
+	assert.equal(selectLocalAssistanceGuidedStages(graph, settings, [qwen], []), null);
+	assert.equal(selectLocalAssistanceGuidedStages(graph, enabled, [qwen], [])?.length, 1);
+	assert.equal(settings.enabled, false);
 });

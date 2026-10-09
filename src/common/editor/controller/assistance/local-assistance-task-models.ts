@@ -35,10 +35,9 @@ export function assistanceTaskRequiresModels(settings: AssistanceWorkflowSetting
 export function assistanceTaskModelsReady(settings: AssistanceWorkflowSettingsV1,
 	models: readonly Model[], inventory: readonly Readonly<{ mediaKind: string }>[],
 ): boolean {
-	const stages = selectLocalAssistanceGuidedStages(
-		assistanceWorkflowStageGraph(settings.workflowId), settings, models, inventory,
-	);
-	return stages !== null && stages.every((stage) => stage.modelSlots.every((slot) => {
+	const graph = assistanceWorkflowStageGraph(settings.workflowId);
+	const stages = selectLocalAssistanceGuidedStages(graph, settings, models, inventory) ?? graph;
+	return stages.every((stage) => stage.modelSlots.every((slot) => {
 		if (!slot.required && !requiresAccurateModel(settings)) return true;
 		return models.filter((model) => localAssistanceGuidedModelMatches(slot.slotId, model, settings)).length === 1;
 	}));

@@ -112,3 +112,18 @@ by inspection. The correction adds one source line to the 544-line review
 module, keeping it below the warning band. Its ordinary two-second imported
 audio fixture exists only in memory, and existing media-URL lifetimes still
 revoke every audition on replacement or unmount.
+
+The 50-fix full-browser checkpoint also identifies a D010 follow-through in
+Generate Editorial Text. Its default settings deliberately leave generation
+unchecked, and the execution-stage selector returns no stages until the user
+opts in. Model preflight incorrectly interpreted that state as missing models
+even with exact Qwen installed, making the published opt-in checkbox unreachable.
+The unchanged public transcript-to-editorial workflow stops at that prerequisite
+dialog before its checkbox; the strict readiness and actual mounted preflight
+regressions independently reproduce the dead end. Catalog readiness now checks
+the workflow graph when execution is disabled, while actual execution still
+requires the original explicit opt-in. Installed defaults, absent/wrong-version
+models, ordinary checkbox interaction and existing prerequisites/Guided controls
+pass 37/37. This repairs D010 without adding another counted root; the unchanged
+full-workflow public retry awaits the parent capture. Original checkpoint
+diagnostics were read in place and remain under the parent's cleanup owner.
