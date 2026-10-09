@@ -16,7 +16,7 @@ const CHANNELS = Object.freeze({
 	finishWrite: 'save:finish', abortWrite: 'save:abort',
 });
 
-export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean; saveSuggestedName?: boolean }> = {}) {
+export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean; saveSuggestedName?: boolean; openSavedFile?: boolean }> = {}) {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-native-sidecar-'));
 	const path = join(directory, name);
 	await writeFile(path, text);
@@ -34,9 +34,9 @@ export async function nativeSidecarFixture(name: string, text: string | Uint8Arr
 		channels: CHANNELS,
 		desktopSmokeProbe: { resolveOpenPaths: () => null, resolveSavePath: async () => null },
 		dialog: {
-			showOpenDialog: async (_window: unknown, options: unknown) => {
-				calls.push(options);
-				return { canceled: false, filePaths: [path] };
+			showOpenDialog: async (_window: unknown, request: unknown) => {
+				calls.push(request);
+				return { canceled: false, filePaths: [options.openSavedFile && savePath ? savePath : path] };
 			},
 			showSaveDialog: async (_window: unknown, request: unknown) => {
 				saveChoices.push(request);
