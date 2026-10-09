@@ -937,3 +937,36 @@ Green17 `449787703`, retaining Band 2 at 500 Hz and 0 dB while the first finger
 moves Band 1
 (`/tmp/soundscaper-round6-green17-chromium.log`). No assistance runtime assets
 change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-026 — Parametric EQ hides and misplaces ordinary high-frequency peaks
+
+Import an ordinary 48 kHz mono WAV, open the track's Effects panel, add
+Parametric EQ and Play. Its input spectrum samples one nearest FFT bin every
+two graph pixels. At high frequencies, several intervening bins never reach
+the graph: an ordinary 18,109 Hz tone measured at -19.67 dB by the actual
+native analyser appears near the graph's -109 dB floor. A neighboring 17,948
+Hz tone remains visible but its peak is displaced 8.61 pixels because the
+48 kHz project clock was used to position the 44.1 kHz native analyser's bins.
+
+Retain the reader's native sample-rate metadata and draw the maximum finite
+FFT level in each graph point's covered interval. Preserve the published
+project-frequency axis, the digital-silence floor, subscriptions, input/output
+colors and existing reader fallback. This is one independently implemented
+Parametric EQ spectrum projection owner; peak omission and clock displacement
+are grouped as its manifestations. The live Spectrogram row owner in
+R6-EFFECT-022 remains separate.
+
+The complete ordinary import/track-effect/Play workflow is causally RED for
+both the omitted high-frequency peak and the displaced neighboring control
+(`/tmp/soundscaper-r6-effects-parametric-eq-spectrum-browser-red3.log`). It
+passively observes the actual native FFT without supplying audio or editor
+state. An earlier setup run left the floating effect window open over the
+parent panel's Close button and is excluded. Four strict mounted projection
+cases independently fail while the digital-silence control passes
+(`/tmp/soundscaper-r6-effects-parametric-eq-spectrum-node-red2.log`). All
+eighteen new/existing spectrum and graph gesture cases pass after correction
+(`/tmp/soundscaper-r6-effects-parametric-eq-spectrum-node-green.log`). Focused
+strict compilation and targeted type-aware lint pass. Source is ready;
+post-build public GREEN remains pending and this root is not counted yet.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
