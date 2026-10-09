@@ -292,11 +292,19 @@
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-culling-v1.ts", "kind": "helper-contract", "justification": "Version1 durable culling receipts fence one pending scalar edit observer and identity-based auto advance."}
 		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-command-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Develop transport detaches full strict process1/process2 recipes and pins scalar authoring capabilities without resource or Session ownership."}
+		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop presentation joins one authenticated source, shared proxy and canvas consumer through replacement and retirement, retaining only scalar histograms." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-settings-intent-v2.ts", "kind": "helper-contract", "justification": "Version 2 current settings intent closes schema2 source identity and mixed authored settings before borrowing the selected Session."}
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-settings-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 menu-owned settings and preset coordination borrows the existing Session writer, retains one copied packet and scalar target/menu authority, and preserves every acknowledged batch outcome through joined retirement." }
 		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-settings-workflow-v2.ts", "kind": "helper-contract", "justification": "Version 2 current settings and preset coordination preserves closed LUT references, selected group and revision authority, serial batch acknowledgments and joined retirement."}
+		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop coordination borrows the existing Session, detaches complete recipes before acquisition and fences explicit photo versions and durable revision acknowledgements." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-workflow-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Develop coordination uses explicit schema2 authoring capabilities and mixed process1/process2 drafts while retaining gestures, version history and durable acknowledgments."}
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-import-gesture-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored import snapshots and source-name-bound scalar acknowledgement collection retain at most 64 selected receipts without File or original bodies."}
 		,
