@@ -428,9 +428,11 @@ function PortButton({ kind, nodeKey, label, disabled, active, sidechainIndex = 0
 		disabled={disabled}
 		{...data}
 		onPointerDown={kind === 'source' ? (event: PointerEvent<HTMLButtonElement>) => {
+			if (event.button !== 0) return;
 			event.preventDefault(); onActivate();
 		} : undefined}
 		onPointerUp={kind !== 'source' ? (event: PointerEvent<HTMLButtonElement>) => {
+			if (event.button !== 0) return;
 			event.preventDefault(); if (active) onActivate();
 		} : undefined}
 		onKeyDown={activate}
