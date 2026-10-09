@@ -261,6 +261,27 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	}), /authenticated build plan/u);
 });
 
+test('professional CTest failures retain the failing test name from stdout beside stderr', async (context) => {
+	const { archives, manifestPath, roots } = await sourceRoots(context);
+	const plan = createSoundscaperProfessionalNativeBuildPlan({
+		repositoryRoot: ROOT, target: 'linux-x64', sourceRoots: roots, sourceArchives: archives,
+		sourceManifestPath: manifestPath,
+		sourceSnapshotRoot: await createSnapshotParent(roots.juce, 'snapshots-ctest-diagnostics'),
+		buildRoot: join(roots.juce, '..', 'build-ctest-diagnostics'),
+	});
+	assert.throws(() => executeSoundscaperProfessionalNativeBuild(plan, {
+		run: (command) => command === 'ctest'
+			? { status: 8, signal: null, stderr: 'Errors while running CTest',
+				stdout: 'The following tests FAILED:\n  3 - soundscaper_vamp_analyzer_self_test (Failed)\n' }
+			: { status: 0, stderr: '', stdout: '' },
+	}), (error) => {
+		assert.match(error.message, /soundscaper_vamp_analyzer_self_test/u);
+		assert.match(error.message, /Errors while running CTest/u);
+		assert.match(error.message, /status=8/u);
+		return true;
+	});
+});
+
 test('professional build refuses a JUCE embedded VST3 API other than exact 3.8.0', async (context) => {
 	const { archives, manifestPath, roots } = await sourceRoots(context, null, '3.7.0');
 	const sourceSnapshotRoot = await createSnapshotParent(roots.juce, 'snapshots-wrong-vst3');

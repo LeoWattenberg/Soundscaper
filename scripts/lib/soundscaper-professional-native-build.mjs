@@ -13,6 +13,9 @@ import {
 	snapshotMilestone5NativeSourceInput,
 	verifyMilestone5NativeSourceInput,
 } from './milestone-5-native-source-acquisitions.mjs';
+import {
+	soundscaperProfessionalNativeProcessFailureMessage,
+} from './soundscaper-professional-native-process-diagnostics.mjs';
 
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_ROOT = 'native/soundscaper-professional-host';
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS = Object.freeze([
@@ -227,7 +230,11 @@ export function executeSoundscaperProfessionalNativeBuild(plan, options = {}) {
 				encoding: 'utf8', maxBuffer: MAXIMUM_BUILD_STEP_OUTPUT_BYTES,
 				stdio: options.stdio ?? 'pipe',
 			});
-			assert(result.status === 0, `Professional native build failed: ${result.stderr || result.stdout || 'unknown error'}`);
+			if (result.status !== 0) {
+				throw new Error(soundscaperProfessionalNativeProcessFailureMessage(
+					`build (${step.command})`, result,
+				));
+			}
 		}
 		for (const witness of plan.sourceAuthentication) verifyMilestone5NativeSourceInput(witness);
 		return Object.freeze({
