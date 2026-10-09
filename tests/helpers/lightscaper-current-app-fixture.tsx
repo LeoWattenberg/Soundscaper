@@ -41,7 +41,7 @@ export async function seedCurrentAppPhoto(indexedDB: IDBFactory, locks: LockMana
 /** Authenticate the actual selected namespace, including a private same-ID restored library. */
 export async function readResidentPhotoLibraryCurrent(photoIds: readonly string[], indexedDB: IDBFactory = globalThis.indexedDB) {
 	if (photoIds.length > 64) throw new RangeError('Current UI observation exceeds one page.');
-	const anchor = new PhotoMediaStoreV1({ indexedDB, preferOpfs: false });
+	const anchor = new PhotoMediaStoreV1({ indexedDB });
 	let media: PhotoMediaStoreV1 | null = null, catalog: PhotoCatalogRepositoryV2 | null = null;
 	try {
 		await anchor.ready();
