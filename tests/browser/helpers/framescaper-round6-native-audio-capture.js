@@ -4,6 +4,15 @@ export async function installRound6NativeCapture(page) {
 	await page.addInitScript(() => {
 		const frameSizes = [];
 		const pcm = { frames: 0, peak: 0 };
+		const failures = [];
+		window.__round6CaptureNativeFailures = () => [...failures];
+		const nativeCancel = ReadableStreamDefaultReader.prototype.cancel;
+		ReadableStreamDefaultReader.prototype.cancel = function(...args) {
+			return nativeCancel.apply(this, args).catch(error => {
+				failures.push(`Native reader cancellation: ${String(error)}`);
+				throw error;
+			});
+		};
 		const copied = new WeakSet();
 		if (typeof AudioData === 'function') {
 			const nativeCopy = AudioData.prototype.copyTo;
