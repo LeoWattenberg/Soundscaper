@@ -18,5 +18,14 @@ The potential stale session-folder creation candidate is excluded: the only
 published New folder entry supplies an explicit surviving parent. The suspect
 default-parent internal call is unreachable through that menu.
 
+The unchanged EDIT005 horizontal and vertical placement/history workflows pass
+on prepared Chromium capture `5c9787bec` (2.4 seconds each); EDIT006's complete
+compound-meter control and readable zoomed-out labels pass in 3.6 seconds. The
+whole accompanying corrected batch passes 21/21.
+
+| ID | Ordinary user path | Root and correction | Focused evidence |
+| --- | --- | --- | --- |
+| R7-EDIT-007 | Add a Send track, assign Ctrl+Alt+Tab to New label track in Preferences, focus the output header and use the assigned command after ordinary Tab traversal. | The independent output-header capture handler consumes every Tab before the workspace dispatcher, even when modified or already handled. Release claimed and modified keys before its existing local traversal. This is distinct from R5-EDIT-025's output-lane handler. | Four actual mounted capture cases causally RED with prevention/traversal instead of no consumption; ordinary Tab/Shift+Tab control passes. Corrected output-header/lane/name/composition regressions pass 16/16. Public Chromium first completes plain Tab traversal, then causally RED at zero label tracks after the assigned command. Corrected public workflow pending. |
+
 No assistance runtime closure or target inventory changes. No manual **Update
 AI assets** run is required.

@@ -430,6 +430,7 @@ export function OutputTrackControls({
 			data-output-track-header
 			style={{ width: trackHeaderWidth }}
 			onKeyDownCapture={(event) => {
+				if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				const panel = controlsRef.current?.querySelector('.track-control-panel');
 				if (event.key !== 'Tab' || event.target !== panel) return;
 				const moved = event.shiftKey ? onShiftTabOut?.() : onTabOut?.();
