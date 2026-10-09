@@ -824,3 +824,29 @@ deadlines and product focus behavior and contributes zero additional roots.
 All 26 observations from the failed full 100-fix browser run now have retained
 diagnoses and complete unchanged or faithful-fixture verification. The final
 all-engine checkpoint will include both test-only fixture completions.
+
+The final source/test snapshot Green42 `7e48ce29d` includes both narrow browser
+fixture completions and passes both guarded product builds. Its complete
+`npm run check` exits 0
+(`/tmp/soundscaper-round6-checkpoint200-green42-canonical.log`), including every
+static gate and both Node batches. The isolated batch passes 1/1; the parallel
+batch reports 24,860 cases, 24,827 passes, 33 skips and zero failures in
+855,572 ms. Combined: **24,861 cases, 24,828 passed, 33 skipped, zero failed**.
+Node-only coverage remains 90.13% statements/lines, 82.33% branches and 90.73%
+functions. No CI union floor, chunk ceiling or startup graph ceiling changed.
+
+Every required 50-fix milestone has a completed passing full Node run, with
+both execution batches combined here:
+
+| Verified fixes | Immutable run | Cases | Passed | Skipped | Failed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 50 | Green9 | 24,179 | 24,146 | 33 | 0 |
+| 100 | Green21 | 24,491 | 24,458 | 33 | 0 |
+| 150 | Green31 | 24,707 | 24,674 | 33 | 0 |
+| 200 | Green42 | 24,861 | 24,828 | 33 | 0 |
+
+The full 150-fix all-engine browser checkpoint on Green27 is still running.
+The final full 200-fix all-engine run is queued on Green42 behind it
+(`/tmp/soundscaper-round6-checkpoint200-green42-full-browser.log`); neither
+pending run is claimed to pass. All 200 qualifying roots retain causal RED and
+complete public GREEN evidence. No manual **Update AI assets** run is required.
