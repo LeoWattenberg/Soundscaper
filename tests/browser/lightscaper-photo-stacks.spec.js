@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
-import { importPhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-import-v3.ts';
-import { normalizePhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-contract-v3.ts';
+import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
+import { normalizePhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-contract-v4.ts';
 import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
 import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { createPngFixture } from '../helpers/png-fixture.mjs';
@@ -159,15 +159,16 @@ function assertCustody(before, after) {
 async function authenticate(bytes, previous) {
 	const blob = new Blob([bytes]);
 	const document = await withScapeArchiveReader(blob, undefined, async entries =>
-		normalizePhotoCatalogArchiveV3(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
-	expect(document.schemaVersion).toBe(3); expect(document.savedCollectionState).toBeNull(); expect(document.savedCollectionPacks).toEqual([]);
+		normalizePhotoCatalogArchiveV4(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(document.schemaVersion).toBe(4); expect(document.developPresetPack).toBeNull(); expect(document.savedCollectionState).toBeNull(); expect(document.savedCollectionPacks).toEqual([]);
 	const photos = [], stacks = []; let published = false;
-	const root = await importPhotoCatalogArchiveV3(blob, async (_catalog, state) => {
+	const root = await importPhotoCatalogArchiveV4(blob, async (_catalog, state) => {
 		expect(state).toBeNull(); return {
 		async writePhoto(photo, original) {
 			const chunks = []; for await (const chunk of original) chunks.push(Buffer.from(chunk));
 			photos.push({ photo, bytes: Buffer.concat(chunks) });
 		}, async writeStack(stack) { stacks.push(stack); }, async writeSavedCollection() { throw new Error('This catalog has no saved definitions.'); },
+		async writeDevelopPresets() { throw new Error('Expected absent Develop preset state.'); },
 		async publish() { published = true; }, async rollback() { photos.length = 0; stacks.length = 0; },
 	}; });
 	expect(published).toBe(true); expect(root.id).toBe(previous.catalogId); expect(root.photoCount).toBe(4);

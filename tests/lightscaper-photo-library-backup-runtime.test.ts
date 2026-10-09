@@ -15,7 +15,7 @@ import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { normalizePhotoStackV1 } from '../src/lightscaper/catalog/photo-stack-v1.ts';
 import { importPhotoCatalogArchiveV1 } from '../src/lightscaper/archive/catalog-archive-import.ts';
 import { stackArchiveDestination } from './helpers/lightscaper-stack-archive-fixture.ts';
-import { importPhotoCatalogArchiveV3 } from '../src/lightscaper/archive/catalog-archive-import-v3.ts';
+import { importPhotoCatalogArchiveV4 } from '../src/lightscaper/archive/catalog-archive-import-v4.ts';
 import { normalizePhotoSmartCollectionV1 } from '../src/lightscaper/catalog/photo-smart-collection-v1.ts';
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 
@@ -83,9 +83,9 @@ test('production backup preserves complete saved metadata criteria and a retaine
 		const f = await fixture(3, mode), target = stackArchiveDestination(), definitions: unknown[] = [];
 		try {
 			const output = await f.session.backupCatalog(); assert.ok(output.blob);
-			await importPhotoCatalogArchiveV3(output.blob, async (_root, state) => {
+			await importPhotoCatalogArchiveV4(output.blob, async (_root, state) => {
 				assert.deepEqual(state, f.savedState);
-				return { ...target.stage, writeSavedCollection: async definition => { definitions.push(definition); } };
+				return { ...target.stage, writeDevelopPresets: async () => { assert.fail('No Develop presets'); }, writeSavedCollection: async definition => { definitions.push(definition); } };
 			});
 			assert.deepEqual(definitions, mode === 'defined' ? [f.definition] : []);
 			assert.deepEqual([...target.stacks.values()], [f.stack]); assert.equal(target.photos.size, 3);
@@ -94,14 +94,14 @@ test('production backup preserves complete saved metadata criteria and a retaine
 	}
 });
 
-test('default production session exports archive3 with absent saved state, the durable ordered stack and exact retained originals', async () => {
+test('default production session exports archive4 with absent saved state, the durable ordered stack and exact retained originals', async () => {
 	const f = await fixture(3), target = stackArchiveDestination();
 	try {
 		const output = await f.session.backupCatalog(); assert.ok(output.blob); assert.ok(f.stack);
 		assert.equal(output.photoCount, 3); assert.deepEqual(output.notices, []);
-		const restored = await importPhotoCatalogArchiveV3(output.blob, async (_root, state) => {
+		const restored = await importPhotoCatalogArchiveV4(output.blob, async (_root, state) => {
 			assert.equal(state, null);
-			return { ...target.stage, writeSavedCollection: async () => { assert.fail('No saved filters'); } };
+			return { ...target.stage, writeDevelopPresets: async () => { assert.fail('No Develop presets'); }, writeSavedCollection: async () => { assert.fail('No saved filters'); } };
 		});
 		assert.equal(restored.id, 'catalog-1'); assert.equal(restored.revision, 2);
 		assert.deepEqual([...target.stacks.values()], [f.stack]);

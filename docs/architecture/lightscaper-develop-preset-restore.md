@@ -40,3 +40,11 @@ custody, archived revisions, absent/empty state, synchronous admission, held
 request delivery, full-row drift, reopening and post-pointer ACK behavior.
 Synthetic authenticated ZIP fixtures qualify codec behavior. Native browser
 backup/restore qualification belongs to the integrated V4 export/import packet.
+
+The production Session's V4 backup feeds this same private restore owner.
+Session-level tests save full and partial recipes through the normal preset
+writer, back up the selected library, restore its actual output, reopen it,
+and authenticate a second backup. Catalog definitions and revisions, ordered
+stacks, saved criteria, originals and preset bodies survive together. The
+same-catalog-ID anchor row stays unchanged, including when the selected row is
+absent or retains a positive empty revision.

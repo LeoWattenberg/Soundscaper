@@ -220,7 +220,15 @@ abort output instead of acknowledging a stale backup. V3 remains an explicit
 legacy API and reuses its unchanged companion contracts and inventory audits.
 Borrowed native cancellation checks preserve opaque reasons beside independent
 destination cleanup failures; fulfilled output close remains acknowledged.
-The production Session menu and private restore composition still use archive3;
-their V4 integration remains subsequent work. These format and host JavaScript
+The production Session menu exports archive version 4 and private restore accepts
+versions 1 through 4. Both use the selected media settings namespace for presets;
+the fixed anchor continues to own library pointers. The Session captures its
+selected preset repository at construction and binds its point-read method
+before lazy backup work, so a later flat-port replacement cannot retarget it.
+Legacy archive absence stays physical absence, and a retained positive empty
+row keeps its revision. Actual Session save, backup, private restore, reopening
+and a second backup preserve complete full/partial recipes alongside photos,
+ordered stacks, saved criteria and original custody. Native browser qualification
+of that combined workflow remains separate. These format and host JavaScript
 changes do not alter the assistance
 runtime closure and do not require a manual **Update AI assets** run.

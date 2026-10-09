@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
-import { importPhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-import-v3.ts';
-import { normalizePhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-contract-v3.ts';
+import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
+import { normalizePhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-contract-v4.ts';
 import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
 import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -45,7 +45,7 @@ for (const locale of ['en', 'de']) {
 		expect(errors).toEqual([]); expect(requests.filter(url => /\/assets\/editor-copy-/u.test(url))).toEqual([]);
 	});
 
-	test(`${locale}: saved full metadata criteria, physical state and a stack survive the menu archive3 backup`, async ({ page, browserName }) => {
+	test(`${locale}: saved full metadata criteria, physical state and a stack survive the menu archive4 backup`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Full WebKit catalog Blob/OPFS custody qualification remains deferred.');
 		test.setTimeout(120_000);
 		await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
@@ -138,18 +138,19 @@ test('a held picker is joined across Close and reopen, then a genuine native wri
 async function authenticate(bytes, previous, { definitions = [], savedState = null, stacks = [] } = {}) {
 	const blob = new Blob([bytes]);
 	const document = await withScapeArchiveReader(blob, undefined, async entries =>
-		normalizePhotoCatalogArchiveV3(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
-	expect(document.schemaVersion).toBe(3); expect(document.stackCount).toBe(stacks.length);
-	expect(document.savedCollectionState).toEqual(savedState);
+		normalizePhotoCatalogArchiveV4(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(document.schemaVersion).toBe(4); expect(document.stackCount).toBe(stacks.length);
+	expect(document.savedCollectionState).toEqual(savedState); expect(document.developPresetPack).toBeNull();
 	expect(document.savedCollectionPacks.reduce((count, pack) => count + pack.collectionCount, 0)).toBe(definitions.length);
 	const records = [], restoredStacks = [], restoredDefinitions = []; let published = false;
 	// The generic stage is an authentication witness, not a durable catalog restore.
-	const catalog = await importPhotoCatalogArchiveV3(blob, async (root, state) => {
-		expect(root).toEqual(previous.root); expect(state).toEqual(savedState); return {
+	const catalog = await importPhotoCatalogArchiveV4(blob, async (root, state, presetHeader) => {
+		expect(presetHeader).toBeNull(); expect(root).toEqual(previous.root); expect(state).toEqual(savedState); return {
 		async writePhoto(photo, chunks) {
 			const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk));
 			records.push({ photo, bytes: Buffer.concat(parts) });
 		}, async writeStack(stack) { restoredStacks.push(stack); }, async writeSavedCollection(definition) { restoredDefinitions.push(definition); },
+		async writeDevelopPresets() { throw new Error('Expected absent Develop preset state.'); },
 		async publish() { published = true; }, async rollback() { records.length = 0; restoredStacks.length = 0; restoredDefinitions.length = 0; },
 	}; });
 	expect(published).toBe(true); expect(catalog).toEqual(previous.root); expect(records).toHaveLength(previous.photos.length);

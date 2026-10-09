@@ -14,6 +14,12 @@ backup ports borrow snapshot and original reads from the same live owners.
 Closing joins pending original reads and destination close or abort before
 closing storage. Overlapping writers are refused rather than queued.
 
+The live Session exports archive version 4. Its selected preset settings repository is
+captured at construction, shared with Develop, and required before initialization
+or output acquisition. The backup binds its point-read method and receiver
+before lazy work. A later replacement of the flat Session ports cannot redirect
+the backup to another namespace. Explicit older exporter APIs remain available.
+
 The neutral result contains catalog ID/name/count, byte length, the completed
 output Blob or null, and zero or one cleanup notice. It exposes no root, photo
 document, original reference or manifest. A completed result is captured inside
@@ -43,6 +49,15 @@ Both must still equal the initial snapshot before it finishes its iterator.
 This fences an edit to a photo whose bytes were exported earlier, as well as
 definition, title, publication and count changes. A conflicting export aborts
 before the ZIP destination closes; it never reports a mixed snapshot as saved.
+
+Develop presets have an independent settings revision. A presence-aware point
+read distinguishes a physically missing key from a malformed present row;
+malformed presence refuses the backup. Capture admits at most 16 full/partial
+recipes in one 10 MiB canonical row before original access. Its complete digest
+and physical absence are rechecked during the final companion audit, alongside
+saved-collection and stack fences. Same-revision name, selection or recipe
+changes therefore refuse output. A positive empty row keeps its revision and
+pack; a physically absent row emits no pack. Backup never writes that row.
 
 ## Original and archive ownership
 

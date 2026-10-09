@@ -17,7 +17,7 @@ export class PhotoLibraryRestoreJournalOwnerV1 {
 	readonly #delete: PhotoMediaSettingsRepositoryV1['deleteIfCurrent'];
 	#raw: unknown;
 	#journal: Readonly<PhotoLibraryRestoreJournalV1> | null = null;
-	constructor(settings: PhotoMediaSettingsRepositoryV1, readonly assertHeld: () => void) {
+	constructor(settings: Pick<PhotoMediaSettingsRepositoryV1, 'get' | 'putIfAbsent' | 'replaceIfCurrent' | 'deleteIfCurrent'>, readonly assertHeld: () => void) {
 		this.#read = settings.get.bind(settings); this.#insert = settings.putIfAbsent.bind(settings);
 		this.#replace = settings.replaceIfCurrent.bind(settings); this.#delete = settings.deleteIfCurrent.bind(settings);
 	}

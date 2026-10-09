@@ -53,6 +53,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
 	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV1>;
 	readonly #ports: PhotoLibrarySessionPortsV1;
+	readonly #developPresetSettings: PhotoLibrarySessionPortsV1['developPresetSettings'];
 	readonly #queries: ReturnType<typeof createPhotoLibraryQuerySessionV1>;
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
@@ -67,7 +68,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 
 	constructor(ports: PhotoLibrarySessionPortsV1) {
 		this.#ports = ports;
-		const presetSettings = ports.developPresetSettings ?? ports.settings;
+		const presetSettings = ports.developPresetSettings ?? ports.settings; this.#developPresetSettings = presetSettings;
 		this.develop = createPhotoLibraryDevelopSessionV1({ repository: ports.catalog, ready: () => this.#ready(),
 			presetStorage: presetSettings ? { settings: presetSettings, catalog: ports.catalog } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, run, signal),
@@ -142,7 +143,8 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 
 	async backupCatalog(options: PhotoLibraryBackupOptionsV1 = {}): Promise<PhotoLibraryBackupResultV1> {
 		const request = admitPhotoLibraryBackupRequestV1(options), backup = this.#ports.backup, stacks = this.#ports.stacks, catalog = this.#ports.catalog;
-		if (!backup || !stacks || typeof backup.captureSmartCollectionArchiveV1 !== 'function'
+		const presetSettings = this.#developPresetSettings;
+		if (!backup || !stacks || !presetSettings || typeof presetSettings.readEntry !== 'function' || typeof backup.captureSmartCollectionArchiveV1 !== 'function'
 			|| typeof backup.readSnapshot !== 'function' || typeof backup.loadOriginal !== 'function'
 			|| typeof catalog.readSummaryPage !== 'function' || typeof catalog.loadPhoto !== 'function'
 			|| typeof stacks.readStackState !== 'function' || typeof stacks.readStackPage !== 'function'
@@ -152,14 +154,15 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 			catalog: { readSnapshot: backup.readSnapshot.bind(backup), captureSmartCollectionArchiveV1: backup.captureSmartCollectionArchiveV1.bind(backup),
 				readSummaryPage: catalog.readSummaryPage.bind(catalog), loadPhoto: catalog.loadPhoto.bind(catalog) },
 			loadOriginal: backup.loadOriginal.bind(backup),
+			developPresetSettings: { readEntry: presetSettings.readEntry.bind(presetSettings) },
 		};
 		const completed: { result: PhotoLibraryBackupResultV1 | null } = { result: null };
 		try {
 			return await this.#mutation(async (catalogId, signal) => {
 				signal.throwIfAborted();
-				const { exportPhotoLibraryBackupV3 } = await import('./photo-library-backup-v3.ts');
+				const { exportPhotoLibraryBackupV4 } = await import('./photo-library-backup-v4.ts');
 				signal.throwIfAborted();
-				const result = await exportPhotoLibraryBackupV3(catalogId, borrowed, { ...request, signal });
+				const result = await exportPhotoLibraryBackupV4(catalogId, borrowed, { ...request, signal });
 				completed.result = Object.freeze({ catalogId, catalogName: result.document.catalog.name, photoCount: result.document.catalog.photoCount,
 					byteLength: result.byteLength, blob: result.blob, notices: Object.freeze([]) });
 				return completed.result;

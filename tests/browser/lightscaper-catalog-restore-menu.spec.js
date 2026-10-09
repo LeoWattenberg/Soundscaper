@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
 import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restore-copy.ts';
-import { importPhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-import-v3.ts';
+import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
 import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 } from '../../src/lightscaper/storage/photo-library-catalog-pointer.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from '../../src/lightscaper/storage/photo-library-location-v2.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -158,9 +158,10 @@ async function restore(page, app, copy, restoreCopy, source) {
 }
 async function decode(bytes) {
 	const result = { root: null, savedState: null, photos: [], stacks: [], saved: [] };
-	await importPhotoCatalogArchiveV3(new Blob([bytes]), async (root, state) => { result.root = root; result.savedState = state; return {
+	await importPhotoCatalogArchiveV4(new Blob([bytes]), async (root, state, presets) => { expect(presets).toBeNull(); result.root = root; result.savedState = state; return {
 		async writePhoto(document, chunks) { const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk)); result.photos.push({ document, original: Buffer.concat(parts) }); },
 		async writeStack(stack) { result.stacks.push(stack); }, async writeSavedCollection(definition) { result.saved.push(definition); },
+		async writeDevelopPresets() { throw new Error('Expected absent Develop preset state.'); },
 		async publish() {}, async rollback() { throw new Error('Backup authentication rolled back.'); },
 	}; });
 	result.photos.sort((a, b) => a.document.id.localeCompare(b.document.id)); result.stacks.sort((a, b) => a.id.localeCompare(b.id)); result.saved.sort((a, b) => a.id.localeCompare(b.id));

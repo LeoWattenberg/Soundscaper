@@ -9,15 +9,17 @@ import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.
 import { normalizePhotoCatalogRootV1 } from '../src/lightscaper/catalog/catalog-root.ts';
 import { normalizePhotoStackV1 } from '../src/lightscaper/catalog/photo-stack-v1.ts';
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
-import { importPhotoCatalogArchiveV3 } from '../src/lightscaper/archive/catalog-archive-import-v3.ts';
+import { importPhotoCatalogArchiveV4 } from '../src/lightscaper/archive/catalog-archive-import-v4.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
+import { developPresetArchiveRow, developPresetArchiveDestination } from './helpers/lightscaper-develop-preset-archive-fixture.ts';
+import { photoDevelopPresetsKeyV1 } from '../src/lightscaper/storage/photo-develop-presets-v1.ts';
 
 Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
-async function fixture(count = 1, stacked = false) {
+async function fixture(count = 1, stacked = false, withPresetSettings = true) {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory;
 	const suffix = crypto.randomUUID();
 	const media = new PhotoMediaStoreV1({ indexedDB, databaseName: `lightscaper-backup-session-${suffix}`, preferOpfs: false, locks: null });
@@ -41,7 +43,7 @@ async function fixture(count = 1, stacked = false) {
 	let beforeLoad = async () => undefined;
 	let cleanup: (() => undefined) | undefined;
 	const ports: { -readonly [Key in keyof PhotoLibrarySessionPortsV1]: PhotoLibrarySessionPortsV1[Key] } = {
-		catalog, stacks: catalog, journal: media.settingsRepository, media: { writeAsset: media.mediaRepository.writeAsset, custody: media.mediaRepository.catalogOriginals },
+		catalog, stacks: catalog, developPresetSettings: withPresetSettings ? { ...media.settingsRepository } : undefined, journal: media.settingsRepository, media: { writeAsset: media.mediaRepository.writeAsset, custody: media.mediaRepository.catalogOriginals },
 		initialize: async () => { calls.push('initialize'); return root; },
 		exclusive: async (_id, run, signal) => { calls.push('lease'); const result = await run(signal); cleanup?.(); return result; },
 		closeResources: async () => { calls.push('close'); await Promise.all([catalog.close(), media.close()]); },
@@ -75,12 +77,12 @@ test('Session backup returns only completed output and scalar catalog facts whil
 		assert.equal(result.catalogId, f.root.id); assert.equal(result.catalogName, f.root.name); assert.equal(result.photoCount, 1);
 		assert.ok(result.blob instanceof Blob); assert.equal(result.blob.size, result.byteLength); assert.equal(Object.isFrozen(result), true);
 		let imported = 0;
-		await importPhotoCatalogArchiveV3(result.blob, async (_root, state) => ({ writePhoto: async (photo, chunks) => {
+		await importPhotoCatalogArchiveV4(result.blob, async (_root, state) => ({ writePhoto: async (photo, chunks) => {
 			assert.equal(state, null);
 			assert.deepEqual(photo, f.source.photo); const parts = [];
 			for await (const chunk of chunks) parts.push(new Uint8Array(chunk));
 			assert.deepEqual(new Uint8Array(await new Blob(parts).arrayBuffer()), new Uint8Array(await f.source.original.arrayBuffer())); imported++;
-		}, writeStack: async () => { assert.fail('No stacks'); }, writeSavedCollection: async () => { assert.fail('No saved filters'); },
+		}, writeStack: async () => { assert.fail('No stacks'); }, writeDevelopPresets: async () => { assert.fail('No Develop presets'); }, writeSavedCollection: async () => { assert.fail('No saved filters'); },
 		publish: async () => undefined, rollback: async () => { assert.fail('Valid output'); } }));
 		assert.equal(imported, 1); assert.deepEqual(await f.catalog.readSnapshot(f.root.id), before);
 		assert.deepEqual(await f.media.mediaRepository.catalogOriginals.readPage({ catalogId: f.root.id }), roots);
@@ -98,6 +100,36 @@ test('admission and unavailable backup refuse before initialization and leave un
 		assert.equal(getters, 0); assert.deepEqual(f.calls, []); assert.equal(target.writable.locked, false);
 		assert.equal(target.aborts(), 0); assert.equal(target.closes(), 0);
 	} finally { await target.writable.abort(); await f.session.close(); }
+});
+
+test('Session refuses unavailable selected preset storage before initialization or destination acquisition', async () => {
+	const f = await fixture(1, false, false), target = destination();
+	try {
+		await assert.rejects(f.session.backupCatalog({ writable: target.writable }), /unavailable/iu);
+		assert.deepEqual(f.calls, []); assert.equal(target.writable.locked, false);
+		assert.equal(target.aborts() + target.closes(), 0);
+	} finally { await target.writable.abort(); await f.session.close(); }
+});
+
+test('Session requires a presence-aware preset reader before initialization instead of silently exporting an incomplete archive', async () => {
+	const f = await fixture(), target = destination();
+	try {
+		assert.ok(f.ports.developPresetSettings); Reflect.deleteProperty(f.ports.developPresetSettings, 'readEntry');
+		await assert.rejects(f.session.backupCatalog({ writable: target.writable }), /unavailable/iu);
+		assert.deepEqual(f.calls, []); assert.equal(target.writable.locked, false); assert.equal(target.aborts() + target.closes(), 0);
+	} finally { await target.writable.abort(); await f.session.close(); }
+});
+
+test('Session backup and Develop retain the same constructor-selected preset repository after a flat port replacement', async () => {
+	const f = await fixture(), row = developPresetArchiveRow(11, 1, 'Selected library');
+	try {
+		await f.media.settingsRepository.put(photoDevelopPresetsKeyV1('catalog-1'), row);
+		f.ports.developPresetSettings = { get: () => { assert.fail('A later flat port cannot retarget selected settings.'); },
+			putIfAbsent: () => { assert.fail('Unexpected preset write.'); }, replaceIfCurrent: () => { assert.fail('Unexpected preset write.'); } };
+		assert.equal((await f.session.develop.presets!.list({ schemaVersion: 1, catalogId: 'catalog-1' })).revision, 11);
+		const output = await f.session.backupCatalog(), witness = developPresetArchiveDestination(); assert.ok(output.blob);
+		await importPhotoCatalogArchiveV4(output.blob, async () => witness.stage); assert.deepEqual(witness.row, row);
+	} finally { await f.session.close(); }
 });
 
 test('streaming Session backup reports no Blob and releases the acquired destination', async () => {
@@ -137,6 +169,7 @@ for (const method of ['readStackState', 'readStackPage', 'loadStack'] as const) 
 test('Session captures borrowed method identities and receivers before a held original allows replacement', async () => {
 	const f = await fixture(2, true), entered = deferred<void>(), held = deferred<void>();
 	assert.ok(f.ports.backup); const backup = f.ports.backup, catalog = f.catalog;
+	assert.ok(f.ports.developPresetSettings); const presets = f.ports.developPresetSettings;
 	const reads = new Map<string, number>(), restore: Array<() => void> = [];
 	function bindWitness<Args extends unknown[], Result>(owner: object, key: string, original: (...args: Args) => Result): void {
 		const descriptor = Object.getOwnPropertyDescriptor(owner, key);
@@ -149,12 +182,13 @@ test('Session captures borrowed method identities and receivers before a held or
 	bindWitness(catalog, 'readSummaryPage', catalog.readSummaryPage); bindWitness(catalog, 'loadPhoto', catalog.loadPhoto);
 	bindWitness(catalog, 'readStackState', catalog.readStackState); bindWitness(catalog, 'readStackPage', catalog.readStackPage);
 	bindWitness(catalog, 'loadStack', catalog.loadStack);
+	assert.ok(presets.readEntry); bindWitness(presets, 'readEntry', presets.readEntry);
 	f.beforeLoad(async () => { entered.resolve(); await held.promise; });
 	const work = f.session.backupCatalog(), settled = work.catch(() => undefined);
 	try {
 		await entered.promise;
 		for (const [owner, keys] of [[backup, ['readSnapshot', 'loadOriginal']],
-			[catalog, ['readSummaryPage', 'loadPhoto', 'readStackState', 'readStackPage', 'loadStack']]] as const) {
+			[catalog, ['readSummaryPage', 'loadPhoto', 'readStackState', 'readStackPage', 'loadStack']], [presets, ['readEntry']]] as const) {
 			for (const key of keys) Object.defineProperty(owner, key, { configurable: true, writable: true,
 				value: () => { assert.fail(`Late ${key} replacement must not run.`); } });
 		}
@@ -162,14 +196,15 @@ test('Session captures borrowed method identities and receivers before a held or
 		assert.equal(reads.get('loadOriginal'), 2); assert.equal(reads.get('loadPhoto'), 2);
 		assert.ok((reads.get('readSnapshot') ?? 0) >= 2); assert.ok((reads.get('readStackState') ?? 0) >= 2);
 		assert.equal(reads.get('readSummaryPage'), 1); assert.equal(reads.get('readStackPage'), 1); assert.equal(reads.get('loadStack'), 1);
+		assert.equal(reads.get('readEntry'), 2);
 		let photos = 0, stacks = 0;
-		await importPhotoCatalogArchiveV3(result.blob, async (_root, state) => ({
+		await importPhotoCatalogArchiveV4(result.blob, async (_root, state) => ({
 			writePhoto: async (photo, chunks) => {
 				assert.equal(state, null); const selected = f.sources.find(value => value.photo.id === photo.id); assert.ok(selected);
 				assert.deepEqual(photo, selected.photo); const parts = []; for await (const chunk of chunks) parts.push(new Uint8Array(chunk));
 				assert.deepEqual(new Uint8Array(await new Blob(parts).arrayBuffer()), new Uint8Array(await selected.original.arrayBuffer())); photos++;
 			}, writeStack: async stack => { assert.deepEqual(stack.photoIds, ['photo-1', 'photo-2']); stacks++; },
-			writeSavedCollection: async () => { assert.fail('No saved filters'); }, publish: async () => undefined,
+			writeDevelopPresets: async () => { assert.fail('No Develop presets'); }, writeSavedCollection: async () => { assert.fail('No saved filters'); }, publish: async () => undefined,
 			rollback: async () => { assert.fail('Valid output'); },
 		}));
 		assert.equal(photos, 2); assert.equal(stacks, 1);
