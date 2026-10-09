@@ -24,6 +24,24 @@ test('native audio preference tabs preserve modified navigation without changing
 	await expect(dialog.getByRole('tab', { name: 'Devices', exact: true })).toHaveAttribute('aria-selected', 'true');
 });
 
+test('native audio Channels retains an unfinished replacement before accepting a valid channel count', async ({ page }) => {
+	await installNativeServicesFixture(page, false, true);
+	const editor = await bootEditor(page, '/embed/en/');
+	await openNativePreferences(page, editor, 'Audio settings', 'Native audio and latency');
+	const dialog = page.getByRole('dialog', { name: 'Audio devices', exact: true });
+	await dialog.getByRole('tab', { name: 'Devices', exact: true }).click();
+	await dialog.locator('[data-native-audio-describe="alsa"]').click();
+	const channels = dialog.getByRole('spinbutton', { name: 'Channels', exact: true });
+	await expect(channels).toHaveValue('2');
+	await channels.focus();
+	await channels.press('ControlOrMeta+A');
+	await channels.press('Backspace');
+	await expect(channels).toHaveValue('');
+	await channels.pressSequentially('5');
+	await channels.press('Tab');
+	await expect(channels).toHaveValue('5');
+});
+
 test('selected Soundscaper exposes the default-off native tier only through menus', async ({ page }) => {
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/embed/en/');

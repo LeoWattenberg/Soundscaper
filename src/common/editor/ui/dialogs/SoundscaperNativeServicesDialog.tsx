@@ -15,6 +15,7 @@ import './ProcessingDialogs.css';
 import React, { useEffect, useMemo, useSyncExternalStore, type KeyboardEvent } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 import {
 	type NativeAudioInventory,
 	type NativeAudioSessionOpenRequestV1,
@@ -333,10 +334,9 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 			onChange={(event) => setPeriodFrames(Number(event.currentTarget.value))}>
 			{periods.map((value) => <option key={value} value={value}>{value}</option>)}
 		</select></label>
-		<label>{copy.audioRouteChannels} <input type="number" min={1} max={maximumChannels} value={channelCount}
-			disabled={disabled} data-native-audio-channel-count={route.handle}
-			onChange={(event) => setChannelCount(Math.max(1,
-				Math.min(maximumChannels, Number(event.currentTarget.value))))} /></label>
+		<label>{copy.audioRouteChannels} <PreferenceNumberInput label={copy.audioRouteChannels}
+			value={channelCount} minimum={1} maximum={maximumChannels} integer disabled={disabled}
+			dataAttributes={{ 'data-native-audio-channel-count': route.handle }} onCommit={setChannelCount} /></label>
 		<Button variant="secondary" disabled={disabled || !isNativeAudioStreamingBackend(backend)}
 			data-native-audio-open={route.handle} onClick={open}>{copy.openAudioSession}</Button>
 	</li>;
