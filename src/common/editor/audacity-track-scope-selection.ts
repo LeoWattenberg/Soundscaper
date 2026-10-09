@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { resolveSelectionRange } from '../selection-range.ts';
-import type { ControllerProject } from '../controller/track-audio/track-domain-types.ts';
+import { resolveSelectionRange } from './selection-range.ts';
+import type { ControllerProject } from './controller/track-audio/track-domain-types.ts';
 
 type AdjustSelection = (
 	startFrame: number,

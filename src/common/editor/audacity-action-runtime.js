@@ -9,8 +9,8 @@ import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
 import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
 import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
-import { visibleNavigationTracks } from './audacity-shortcut-actions/visible-navigation-tracks.ts';
-import { applyAudacityTrackScope } from './audacity-shortcut-actions/track-scope-selection.ts';
+import { visibleNavigationTracks } from './audacity-visible-navigation-tracks.ts';
+import { applyAudacityTrackScope } from './audacity-track-scope-selection.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
