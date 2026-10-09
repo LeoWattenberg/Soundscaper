@@ -21,7 +21,12 @@ eighteen verified roots. R6-EFFECT-019 passes its complete ordinary carrier
 comparison in all three engines on immutable Green12 `8d9d45ff4`
 (`/tmp/soundscaper-round6-green12-public-browser.log`), bringing this register to
 nineteen verified roots. R6-EFFECT-018's dependent tail-estimator repair is
-included in that snapshot. R6-EFFECT-020–021 have focused GREEN and await a later build.
+included in that snapshot. R6-EFFECT-020 passes Chromium/WebKit on immutable
+Green13 `3dfdeb038` and
+the unchanged Firefox retry on the same assets
+(`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-green13-firefox-retry.log`),
+bringing this register to twenty verified roots. R6-EFFECT-021 has focused GREEN
+and awaits a later build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -501,7 +506,7 @@ complete selection over which the initial and final parameters interpolate.
 When Sliding Stretch's pitch or tempo endpoints differ, process the complete
 selected extent and retain the existing six-second audition cap. Admit the
 complete processing extent through the existing peak-memory guard before
-rendering. Constant transforms keep their bounded preview render. This pitch
+rendering. Constant Sliding Stretch transforms keep their bounded preview render. This pitch
 and tempo ramp geometry is one defect, separate from R5-ROOT-005's whole-selection
 peak, DC and loudness statistics. Setting-free Fade In/Out previews are excluded:
 their ordinary menu entries apply immediately and do not expose Preview.
@@ -524,6 +529,32 @@ ordinary preview/apply/export workflow passes Chromium, Firefox and WebKit on
 immutable Green11 `a870804cd`
 (`/tmp/soundscaper-round6-green11-public-browser.log`). No assistance runtime assets change
 and no manual **Update AI assets** run is required.
+
+The same preview-input extent also shortened a faster finite Speed Delay echo.
+With an ordinary twelve-second mono tone, select Delay → Pitch/Tempo (change
+speed), set Pitch shift per echo to the supported two semitones, Number of
+echoes to one, Gain per echo to zero and Delay time to 0.1 seconds. In the last
+quarter-second of the six-second audition the shortened input has already
+lost its echo, while the full applied recording retains it. Process the full
+selected input only for audible positive speed echoes, keeping the six-second
+audition and existing full-extent admission; slower, dry and short controls
+retain their bounded behavior. This follows the same preview-extent owner and
+adds no root.
+
+The normal menu/Preview/Apply/WAV workflow is causally RED at echo/dry ratios
+0.022174 versus 0.943426
+(`/tmp/soundscaper-r6-effects-speed-delay-preview-duration-browser-red2.log`).
+The strict actual StaffPad/preview regression fails at peak PCM residual
+0.188234 while three controls pass
+(`/tmp/soundscaper-r6-effects-speed-delay-preview-duration-node-red2.log`).
+The initial missing TypeScript loader and wrong echo-gain label are excluded.
+All seventeen new/existing Delay, Sliding Stretch and whole-selection
+normalization preview cases pass after correction
+(`/tmp/soundscaper-r6-effects-speed-delay-preview-duration-node-green.log`),
+including full memory admission and exact PCM. Focused strict compilation,
+targeted type-aware lint, the size gate and diff checks pass. Public GREEN awaits
+the next immutable build.
+
 ## R6-EFFECT-018 — A valid native crossover is silently lowered before processing
 
 Import an ordinary one-second 8 kHz WAV containing a 3,800 Hz tone. Select its
@@ -641,8 +672,16 @@ repair (`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-node-red.log`).
 All twenty-three new/existing Bitcrusher DSP, seeded dither, reset, interpolation, destructive
 selection and render-partition parity cases pass after correction
 (`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-node-green.log`). Focused
-strict types, targeted type-aware lint and the size gate pass. Public GREEN
-awaits the next immutable product build. No assistance runtime assets change
+strict types, targeted type-aware lint and the size gate pass. The complete
+ordinary WAV boundary workflow passes Chromium and WebKit on immutable Green13
+`3dfdeb038`
+(`/tmp/soundscaper-round6-green13-public-browser.log`). Its initial Firefox run
+prints correct PCM before exceeding the unchanged thirty-second total budget;
+the unchanged isolated Firefox retry on the same built assets passes in
+13 seconds
+(`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-green13-firefox-retry.log`).
+No assertion, fixture, source or deadline changes were made for that retry.
+No assistance runtime assets change
 and no manual **Update AI assets** run is required.
 
 ## R6-EFFECT-021 — Native surround Loudness Normalization counts the wrong channel roles
