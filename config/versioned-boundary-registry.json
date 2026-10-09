@@ -936,6 +936,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
+		{"path": "src/lightscaper/controller/photo-batch-rename-v2.ts", "kind": "helper-contract", "justification": "Current serial rename and compensating undo items admit complete Photo1/2 owners while retaining original metadata, resource history and unchanged scalar revision/name fences."}
+		,
 		{"path": "src/lightscaper/controller/photo-command-owner-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current command owner pins mixed repository operations, detaches authoring under one demand before awaits, publishes history only after durable CAS acknowledgement, and joins cancellation and Close without owning the repository."}
 		,
 		{"path": "src/lightscaper/controller/photo-commands-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current photo commands preserve legacy authored bytes while explicitly promoting real process2 recipes and retaining all versions, originals and extracted import facts."}
@@ -976,6 +978,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-batch-rename-v2.ts", "kind": "helper-contract", "justification": "Current bounded batch rename borrows one selected writer and current photo owner, pins callable receivers before acquisition and retains each native acknowledgement and exact scalar inverse."}
+		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-import-request-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import requests detach scalar preset identity and the existing import options without widening legacy closed request admission." }
@@ -1000,13 +1004,19 @@
 		,
 		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
 		,
+		{"path": "src/lightscaper/controller/photo-library-memberships-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before bounded scalar membership reads and durable current command acknowledgements; legacy named V1 remains strict."}
+		,
 		{"path": "src/lightscaper/controller/photo-library-metadata-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 full-document admission before the unchanged bounded descriptive metadata presentation; named V1 readers remain strict."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-original-inspection-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in pre-recovery inspection enumerates bounded published-photo and retained-original bindings under the existing Session writer, preserving strict startup recovery and rejecting custody conflicts without mutating photo documents." }
 		,
+		{"path": "src/lightscaper/controller/photo-library-original-inspection-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before unchanged bounded root/intent/custody scalar original inspection, sharing private implementation with strict legacy wrappers."}
+		,
 		{ "path": "src/lightscaper/controller/photo-library-original-restoration-v1.ts", "kind": "helper-contract", "justification": "Version 1 original restoration revalidates catalog, active intent, photo revision and immutable source authority before selected bytes, preserving durable body acknowledgement independently of subsequent strict library recovery." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-original-restoration-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before immutable original body repair binding and native acknowledgement, with unchanged original and scalar transport contracts."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-query-session-v1.ts", "kind": "helper-contract", "justification": "Product query Session facade preserves existing V1/V2 ordinary, collapsed and rebuild admission through the Session's borrowed operation and readiness owners without allocating storage, lifetime or writer resources." }
 		,
