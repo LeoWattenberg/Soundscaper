@@ -166,5 +166,23 @@ process version. Admission recomputes that digest, rejects unsupported fields
 and external mask references, and detaches the body. JSON parsing checks the
 2 MiB UTF-8 budget before interpretation; creation and serialization also bound
 the complete wrapper. Renaming the identity does not reinterpret the settings.
-Preset storage, menu entry points, and browser interaction qualification remain
-subsequent workspace integration work.
+Menu entry points and browser interaction qualification remain subsequent
+workspace integration work.
+
+The optional `develop.presets` capability uses the Session's existing settings
+repository. It keeps one catalog-scoped compare-and-swap row containing at most
+16 shared preset bodies and 10 MiB in total. Body normalization checks the
+aggregate while admitting each bounded preset. An empty row retains its revision
+after the last delete; an identical save preserves that revision. Exact row
+reconciliation can recover an acknowledged write whose completion threw, but
+cannot replace it with a later winner sharing the same settings digest.
+
+List results contain only identity/name/digest and full/partial scope, bounded to
+64 KiB. A selected-body read binds the explicit catalog and menu row revision;
+it never silently borrows a newer preset. Save/delete admission detaches the
+complete request within 2 MiB before initialization. Writes borrow the existing
+catalog writer lease and return scalar acknowledgments; independent cleanup
+failure adds `cleanup-failed` without losing a durable result. Close joins held
+reads and saves, refusing late read publication while retaining acknowledged
+writes. Preset saves do not alter photo facts, catalog revisions, or import
+presets. Menu presentation and browser workflows remain outstanding.

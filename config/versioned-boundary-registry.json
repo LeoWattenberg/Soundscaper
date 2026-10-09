@@ -442,6 +442,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-develop-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop presentation carries current shared-effect settings, scalar version/history/snapshot summaries and explicit revision-fenced commands without catalog documents or original custody." }
 		,
+		{ "path": "src/common/editor/photo-library-develop-presets-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional preset capability exposes scalar catalog-bound menus, explicit revision-fenced selected bodies and acknowledged settings-row writes through the existing Session lifetime." }
+		,
 		{ "path": "src/common/editor/photo-library-develop-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selections and inert packets support partial copy, relative adjustments and bounded explicit-version batches whose complete scalar receipts preserve each durable photo acknowledgment." }
 		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
@@ -758,6 +760,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
 		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-presets-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 preset requests detach before lazy initialization, bind the catalog and settings revision, and retain acknowledged publication beside independent lease cleanup failures while borrowing the Session writer and Close join." }
+		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop facade detaches explicit version commands before initialization and borrows the existing Session writer, lifetime and photo compare-and-swap owner for durable publication." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-settings-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial settings batches borrow the Session writer and photo CAS owner, admit the whole selection before initialization and retain durable scalar outcomes through cancellation and independent cleanup failures." }
@@ -827,6 +831,8 @@
 		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
 		,
 		{"path": "src/lightscaper/quality/large-library-workload-v1.ts", "kind": "helper-contract", "justification": "Version 1 digest-pinned deterministic photo catalog workload generates bounded publication batches independently of product schema and runtime capabilities."}
+		,
+		{ "path": "src/lightscaper/storage/photo-develop-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped shared develop preset rows preserve exact bounded recipe bodies with revision-fenced compare-and-swap, no-op stability and exact post-publication reconciliation independently of photo and import-preset schemas." }
 		,
 		{ "path": "src/lightscaper/storage/photo-import-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped import preset rows use bounded settings storage and exact revision-fenced publication independently of photo and archive schemas." }
 		,

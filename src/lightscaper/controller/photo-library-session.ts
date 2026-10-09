@@ -68,6 +68,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	constructor(ports: PhotoLibrarySessionPortsV1) {
 		this.#ports = ports;
 		this.develop = createPhotoLibraryDevelopSessionV1({ repository: ports.catalog, ready: () => this.#ready(),
+			presetStorage: ports.settings ? { settings: ports.settings, catalog: ports.catalog } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, run, signal),
 			mutate: (run, signal) => this.#mutation(run, signal), withPhoto: (catalogId, key, signal, run) => this.#withPhoto(catalogId, key, signal, run) });
 		this.#queries = createPhotoLibraryQuerySessionV1({ repositories: ports,

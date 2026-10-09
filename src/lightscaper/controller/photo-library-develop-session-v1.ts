@@ -10,8 +10,10 @@ import type { PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.t
 import type { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoDevelopWorkspaceCommandV1, PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_V1 } from './photo-develop-workspace-commands-v1.ts';
 import { createPhotoLibraryDevelopSettingsSessionV1, type PhotoLibraryDevelopSettingsSessionHostV1 } from './photo-library-develop-settings-session-v1.ts';
+import { createPhotoLibraryDevelopPresetsSessionV1, type PhotoLibraryDevelopPresetStorageV1 } from './photo-library-develop-presets-session-v1.ts';
 
 export interface PhotoLibraryDevelopSessionHostV1 extends PhotoLibraryDevelopSettingsSessionHostV1 {
+	readonly presetStorage?: PhotoLibraryDevelopPresetStorageV1;
 	readonly repository: Pick<PhotoLibrarySessionPortsV1['catalog'], 'loadPhoto'>;
 	readonly ready: () => Promise<string>;
 	readonly operation: <Result>(run: (signal: AbortSignal) => Promise<Result>, signal?: AbortSignal) => Promise<Result>;
@@ -22,6 +24,8 @@ export interface PhotoLibraryDevelopSessionHostV1 extends PhotoLibraryDevelopSet
 export function createPhotoLibraryDevelopSessionV1(host: PhotoLibraryDevelopSessionHostV1): Readonly<PhotoLibraryDevelopPortV1> {
 	return Object.freeze({
 		settings: createPhotoLibraryDevelopSettingsSessionV1(host),
+		...(host.presetStorage ? { presets: createPhotoLibraryDevelopPresetsSessionV1({ storage: host.presetStorage,
+			ready: host.ready, operation: host.operation, mutate: host.mutate }) } : {}),
 		async read(value, options = {}) {
 			const input = request(value, ['schemaVersion', 'photoId', 'versionId'], ['schemaVersion', 'photoId']);
 			const photoId = id(field(input, 'photoId'), 'develop photo ID');
