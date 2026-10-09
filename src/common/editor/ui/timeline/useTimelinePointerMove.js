@@ -163,7 +163,7 @@ export function useTimelinePointerMove({
 					pendingPinchAnchorRef.current = null;
 				}
 			}
-			return;
+			if (touchPointers.current.size !== 1 || pointerSession.current?.kind !== 'track-resize') return;
 		}
 		const session = pointerSession.current;
 		if (session?.kind === 'crossfade-shape') {
