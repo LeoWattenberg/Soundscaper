@@ -170,6 +170,7 @@ function flattenRenderProject(
 		createId('take-flatten-render-clip'),
 	));
 	const sourceIds = new Set(takeSegments.map(({ takeId }) => requireTake(takeById, takeId).sourceId));
+	const sources = project.sources.filter(({ id }) => sourceIds.has(String(id)));
 	const track = {
 		id: createId('take-flatten-render-track'),
 		name: 'Take comp render',
@@ -184,7 +185,8 @@ function flattenRenderProject(
 	return createAudioPreviewProject({
 		title: 'Take comp render',
 		sampleRate: project.sampleRate,
-		sources: project.sources.filter(({ id }) => sourceIds.has(String(id))),
+		masterChannels: sources.length ? Math.max(...sources.map(source => Number(source.channelCount))) : 2,
+		sources,
 		clips,
 		tracks: [track],
 	});
