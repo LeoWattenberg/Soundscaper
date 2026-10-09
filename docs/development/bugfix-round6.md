@@ -192,3 +192,24 @@ The verified total is 95 distinct fixes. Green12's required complete repository
 lint also finishes successfully (`/tmp/soundscaper-round6-green12-full-lint.log`).
 Recording notes composition, loudness weighting, ADM removal and skin modified
 navigation changes await their own immutable public checks.
+
+The immutable `756da708e` delta passes 32 of 33 checks across Chromium,
+Firefox and WebKit (`/tmp/soundscaper-round6-green14-public-browser.log`).
+ADM's unchanged-ID split control exceeds Firefox's original 30-second overall
+deadline during history menu navigation; no ADM/state assertion fails. The
+unchanged isolated Firefox retry on that exact build passes in 19.6 seconds
+(`/tmp/soundscaper-r6-edit-adm-track-replacement-green14-firefox-retry.log`).
+All deletion, surviving-ID replacement and bus-removal/reassignment controls
+are now green. Together with loudness weighting, notes composition, skin
+navigation and routing pointer admission, this qualifies five additional roots
+and reaches **100 distinct verified fixes**. Positive Speed Delay's complete
+Preview/Apply PCM comparison also passes all three engines as an uncounted
+follow-through of effects 017. Both guarded product builds pass.
+
+The full 100-fix canonical non-browser gate starts on that exact immutable
+source (`/tmp/soundscaper-round6-checkpoint100-canonical.log`); it includes the
+complete Node suite after its static checks and is not yet recorded as passing.
+The first checkpoint's complete browser suite still runs against `68655eafb`,
+with its failures retained. The full 100-fix browser checkpoint is queued after
+that run so complete suites do not overlap. Later source-ready roots remain
+uncounted until their own public checks pass. The target remains 200.
