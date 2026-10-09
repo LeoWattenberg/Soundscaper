@@ -1496,16 +1496,22 @@ Import an ordinary continuous 1000 Hz recording. Track Effects → Add effect
 → Graphic EQ, Play, focus its 1000 Hz fader and press ArrowUp once. The fader
 correctly moves to +1 dB, but actual native master output drops from a healthy
 minimum RMS 0.296085 to zero for 8960 observed frames, about 187 milliseconds.
-The equalizer clears its queued convolution input, output and overlap on every
-band edit, restarting the declared FIR latency although its filter geometry
-has not changed. This independently owned partitioned equalizer state differs
-from the earlier Echo delay-ring correction.
+The parameter adapter replaces the complete rack graph on every band edit,
+and the equalizer also clears its queued convolution input, output and overlap
+when its parameters are delivered to an existing processor. Both restart the
+declared FIR latency although the filter geometry has not changed. This
+independently owned partitioned equalizer state differs from the earlier Echo
+delay-ring correction.
 
 Preserve the equalizer's complete channel convolution state when the FIR length
 is unchanged; replace coefficients while retaining its running clock. Reset
 normally for a new FIR geometry, explicit reset or a new processor. Group
 Graphic EQ, Filter Curve EQ and unchanged-parameter publication under this one
 convolution ownership root; leave the generic live processor reset policy intact.
+Admit the existing Graphic/Filter Curve rack controls to a live parameter
+transaction and send their native worklet parameter message only while the
+normalized FIR length is unchanged. Preserve graph rebuilding for a changed
+length and unrelated processors.
 
 The complete normal rack/fader workflow is causally RED on unchanged Green30
 `6f904d0ab` after the continuous native output control passes
@@ -1517,9 +1523,18 @@ are independently RED while both FIR-length and explicit-reset controls pass
 and existing live equalizer, spectral FIR, filter response and exact prior DSP
 signature cases without repinning output
 (`/tmp/soundscaper-r6-fx040-node-green.log`). Focused strict compilation and
-targeted lint pass. Public GREEN remains pending the next immutable build,
-and this register retains thirty-nine verified roots. No assistance runtime
-assets change and no manual **Update AI assets** run is required.
+targeted lint pass. Green32 honestly retains a native failure with 8448 silent
+frames because the parameter adapter still rebuilt the graph. Four new strict
+public rack/engine boundary cases are causally RED before that adapter repair
+(`/tmp/soundscaper-r6-fx040-rack-node-red.log`). The completed adapter and
+processor pass 36 focused cases, including prior Echo, bypass, cancellation,
+revision and FIR-geometry controls (`/tmp/soundscaper-r6-fx040-rack-node-green.log`),
+and both exact round-two/round-three DSP parity cases remain unchanged
+(`/tmp/soundscaper-r6-fx040-rack-parity-green.log`). Focused strict compilation,
+targeted/canonical changed lint, size and diff checks pass. Complete native
+public GREEN remains pending the next immutable build; this follow-through
+adds no new root. No assistance runtime assets change and no manual
+**Update AI assets** run is required.
 
 ## R6-EFFECT-041 — Contrast changes its decision after equal attenuation
 
