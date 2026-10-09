@@ -25,6 +25,10 @@ for (const effect of [
 	await expect.poll(displayedFrames).toBe(24_000);
 	await commitInput(percent, '50');
 	await expect(percent).toHaveValue('50');
+	await expect.poll(async () => {
+		const frames = await displayedFrames();
+		return Number.isInteger(frames) && frames > 0 && frames !== 24_000;
+	}).toBe(true);
 	const claimedFrames = await displayedFrames();
 	await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 	await expect(dialog).toBeHidden({ timeout: 20_000 });
