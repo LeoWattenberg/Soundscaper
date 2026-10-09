@@ -9,13 +9,14 @@ interface PreferenceNumberInputProps {
 	readonly maximum: number;
 	readonly disabled?: boolean;
 	readonly integer?: boolean;
+	readonly step?: number | 'any';
 	readonly dataAttributes?: Readonly<Record<`data-${string}`, string>>;
 	readonly onCommit: (value: number) => unknown;
 }
 
 /** Retain incomplete keystrokes until the user commits a bounded number. */
 export default function PreferenceNumberInput({
-	label, value, minimum, maximum, disabled, integer = false, dataAttributes, onCommit,
+	label, value, minimum, maximum, disabled, integer = false, step = 1, dataAttributes, onCommit,
 }: PreferenceNumberInputProps) {
 	const [draft, setDraft] = useState(String(value));
 	const canceled = useRef(false);
@@ -30,7 +31,7 @@ export default function PreferenceNumberInput({
 		if (next !== value) onCommit(next);
 	};
 	return <input aria-label={label} disabled={disabled} type="number" min={minimum} max={maximum}
-		step="1" {...dataAttributes} value={draft} onChange={(event) => { canceled.current = false; setDraft(event.currentTarget.value); }}
+		step={step} {...dataAttributes} value={draft} onChange={(event) => { canceled.current = false; setDraft(event.currentTarget.value); }}
 		onBlur={commit} onKeyDown={(event) => {
 			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape' && draft !== String(value)) {

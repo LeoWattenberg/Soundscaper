@@ -10,6 +10,7 @@ import type {
 } from '../text-to-speech-port.ts';
 import type { LocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import LocalModelManagerDialog from './LocalModelManagerDialog.tsx';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 import './ProcessingDialogs.css';
 import './TextToSpeechDialog.css';
 
@@ -235,8 +236,8 @@ export function TextToSpeechDialogView({
 				</select>
 			</label>
 			<label>{text(copy, 'speed', 'Speed')}
-				<input type="number" min="0.5" max="2" step="0.05" value={state.speed}
-					disabled={locked} onChange={(event) => onSpeedChange(Number(event.currentTarget.value))} />
+				<PreferenceNumberInput label={text(copy, 'speed', 'Speed')} minimum={0.5} maximum={2}
+					step={0.05} value={state.speed} disabled={locked} onCommit={onSpeedChange} />
 			</label>
 		</div>
 		{state.error && <p role="alert">{state.error}</p>}
