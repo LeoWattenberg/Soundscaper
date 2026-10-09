@@ -398,6 +398,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 						isOpen
 						type={generatorType}
 						controller={controller}
+						snapshot={snapshot}
 						copy={copy}
 						locale={locale}
 						run={run}
