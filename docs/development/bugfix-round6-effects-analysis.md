@@ -1656,7 +1656,43 @@ assertion is preserved and its input is corrected to the ordinary Release
 edit. All 39 new and existing dynamics, telemetry, bypass, revision,
 geometry, EQ and exact round-two/round-three DSP parity cases pass after
 repair without changing expected PCM (`/tmp/soundscaper-r6-fx043-node-green2.log`).
-Focused strict compilation and targeted lint pass. Complete built public
-verification is pending, so this entry adds no verified count yet. No
-assistance runtime assets change and no manual **Update AI assets** run is
-required.
+Focused strict compilation and targeted lint pass. Complete native Chromium
+verification passes in 5.3 seconds on immutable Green34 `08212b4eb`
+(`/tmp/soundscaper-round6-green34-chromium.log`): native minimum RMS stays
+0.296087 before and 0.296085 after the edit, with zero lost frames. This
+register now has forty-three verified roots. No assistance runtime assets
+change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-044 — Reverb erases its tail when pre-delay keeps the same frame geometry
+
+Import an ordinary recorded note followed by silence, add Reverb (Audacity)
+through the Effects panel and play until the actual wet tail is audible.
+Change its normal numeric Pre-delay from 10 to 10.01 ms. Both values round to
+the same implemented delay frame at the observed native sample rate, but the
+Reverb processor clears its complete network because the raw millisecond
+values differ. The remaining audible tail disappears entirely. Its existing
+non-delay parameter edits correctly retain that network; this is its own
+raw-unit geometry comparison, independently from EQ and dynamics history.
+
+Compare the normalized pre-delay's realized frame count before resetting the
+Reverb network. Preserve reset for a changed frame count or explicit reset,
+and retain every original gain, stereo, tone and tail operation. Extend the
+existing native rack parameter route only across unchanged pre-delay geometry;
+its generic dispatch admission follows R6-EFFECT-040 with zero added roots.
+
+The complete ordinary rack/numeric/native-tail workflow is causally RED on
+unchanged Green34 `08212b4eb`, after its physically audible tail control and
+accepted 10.01 ms value pass. The observed native sample clock gives identical
+rounded frame counts, but the subsequent tail peak is exactly zero
+(`/tmp/soundscaper-r6-fx044-public-red2.log`, 14.6 seconds). The initial fixture
+chose the distinct native Reverb instead of Reverb (Audacity); its unavailable
+parameter failure is excluded. Four strict same-frame exact-PCM cases fail
+at 8, 44.1, 48 and 96 kHz while all four changed-frame/reset controls pass
+(`/tmp/soundscaper-r6-fx044-node-red.log`). Two native rack admission cases are
+also RED before repair (`/tmp/soundscaper-r6-fx044-rack-node-red.log`). The
+correction and existing Reverb lifecycle, worklet integration,
+geometry, bypass, revision, dynamics, EQ and exact prior DSP controls pass
+48/48 (`/tmp/soundscaper-r6-fx044-node-green.log`). Focused strict compilation
+passes. Complete built native public verification remains pending; this entry
+adds no verified count yet. No assistance runtime assets change and no manual
+**Update AI assets** run is required.
