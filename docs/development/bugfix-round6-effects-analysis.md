@@ -984,3 +984,38 @@ strict compilation and targeted type-aware lint pass. Source is ready;
 post-build public GREEN remains pending and this root is not counted yet.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-027 — Ordinary microphone meters report true peak as sample dBFS
+
+Window → Recording meter, open Record level and enable Show mic metering when
+not recording. A normal phase-shifted calibration tone has actual native
+sample peak 0.424264 (-7.45 dBFS), but the ordinary meter displays -4.39 dBFS
+and amplitude 0.603095. The EBU meter mixes its interpolated true peak into
+the live sample-peak accumulator, then publishes that accumulator as ordinary
+`peak` and `dbfs`. Intersample peak is a separate reading and must not inflate
+the displayed sample level.
+
+Keep the sample accumulator based on actual input frames. Retain the separate
+true-peak FIR histories and maxima, RMS, loudness, paused/running measurement
+state, arbitrary capture blocks and native worklet telemetry. This DSP meter
+owner is independent of R2-ROOT-017's mixer UI display-percentage clipping
+threshold.
+
+The complete normal monitor workflow is causally RED after the sample-aligned
+tone control passes
+(`/tmp/soundscaper-r6-effects-input-sample-peak-browser-red2.log`). The fixture
+provides a real native audio MediaStream and passively observes time-domain
+samples; it neither calls editor internals nor substitutes meter readings or
+track sample-rate metadata. The initial run captured the first transient
+window and is excluded; the retained workflow waits for four actual native
+meter windows with unchanged deadlines and level assertions. Four strict
+actual-DSP cases independently fail while aligned-tone, exact true-peak/RMS/
+loudness and block-continuity controls pass
+(`/tmp/soundscaper-r6-effects-ebu-sample-peak-node-red.log`). All twenty-nine
+new/existing EBU conformance, worklet, production analysis and BEXT silence
+cases pass after correction
+(`/tmp/soundscaper-r6-effects-ebu-sample-peak-node-green.log`). Focused strict
+compilation, targeted type-aware lint and diff checks pass. Source is ready;
+post-build public GREEN remains pending and this root is not counted yet.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
