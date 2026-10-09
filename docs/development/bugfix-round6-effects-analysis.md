@@ -1318,3 +1318,37 @@ seconds. The actual transferred host accepts `[0.26, 0.366703539823009,
 (`/tmp/soundscaper-round6-green28-chromium.log`, complete batch 9/9 PASS).
 This register now has thirty-four verified roots. No assistance runtime assets
 change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-035 — Restoring native state leaves the open controls at the previous values
+
+With a normally enabled, allowed LADSPA installation, import a recording and
+open Effect → Audio Plugins. Instantiate its Gain effect, move Gain from
+0.25 to 0.26 and choose Store state. Move Gain to 0.27, then Restore state.
+The transferred host correctly restores 0.26, but its enabled generated slider
+still displays 0.27. The next ordinary arrow edit starts from that stale value.
+The control's read lifetime depends only on the instance identity and runtime,
+although restoring a saved state deliberately preserves that instance. This
+read synchronization owner is independent of 034's asynchronous write admission.
+
+Include the existing native state generation in the parameter-read lifetime
+and supply it from the native effect panel. Reload all generated values after
+a successful state transition, preserving ordinary writes, disabled controls,
+instance replacement and stale asynchronous-read fencing. An unrelated
+presentation update does not discard a parameter draft or issue extra reads.
+
+The complete ordinary Chromium Store/edit/Restore workflow is causally RED
+on unchanged Green28 `435e1779e`: authenticated state bytes are persisted and
+restored through the production bridge and actual `load-state` MessagePort
+RPC; the host is 0.26 while the visible slider remains 0.27
+(`/tmp/soundscaper-r6-fx035-public-red.log`). Its desktop-host fixture adds
+normal immutable state-body lookup and integrity checks to the existing
+installation fixture; it never injects an editor document or invokes an
+internal editor entrypoint. A strict same-instance parameter reload is RED
+while an unrelated disabled-presentation control passes
+(`/tmp/soundscaper-r6-fx035-node-red.log`). After repair, all twenty-seven new
+and existing restore, drag, parameter and native dialog cases pass
+(`/tmp/soundscaper-r6-fx035-node-green.log`). Focused strict compilation,
+targeted and canonical changed-file lint, and size/diff checks pass.
+Public GREEN remains pending the next immutable snapshot; this register retains thirty-four verified roots.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
