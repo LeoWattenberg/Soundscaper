@@ -13,8 +13,8 @@ test('Classic Filters applies the exact supported cutoff near Nyquist', async ({
 	await chooseCommandAction(page, editor, 'Select', 'Select all');
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Legacy effects', 'Classic Filters']);
 	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
-	await commitInput(dialog.getByRole('spinbutton', { name: 'Cutoff frequency', exact: true }), '23999');
-	await expect(dialog.getByRole('spinbutton', { name: 'Cutoff frequency', exact: true })).toHaveValue('23999');
+	await commitInput(dialog.getByRole('spinbutton', { name: 'Cutoff frequency (Hz)', exact: true }), '23999');
+	await expect(dialog.getByRole('spinbutton', { name: 'Cutoff frequency (Hz)', exact: true })).toHaveValue('23999');
 	await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 	await expect(dialog).toBeHidden();
 	const samples = await exportSamples(page, editor);

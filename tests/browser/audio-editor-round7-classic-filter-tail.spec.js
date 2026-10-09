@@ -13,7 +13,7 @@ test('Export includes the audible release of a Classic Filters rack insert', asy
 	const panel = await openEffectsForTrack(editor, 1);
 	await addRackEffect(page, panel, 'track', 'Classic Filters');
 	const dialog = page.getByRole('dialog', { name: 'Classic Filters', exact: true });
-	await commitInput(dialog.getByRole('spinbutton', { name: 'Cutoff frequency', exact: true }), '10');
+	await commitInput(dialog.getByRole('spinbutton', { name: 'Cutoff frequency (Hz)', exact: true }), '10');
 	await closeDialog(dialog);
 	const samples = await exportSamples(page, editor);
 	expect(samples.length).toBeGreaterThan(48_128);

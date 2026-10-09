@@ -76,13 +76,14 @@ for (const type of ['audacity-phaser', 'audacity-wahwah'] as const) {
 		processor.updateParams({ frequency: 1.5 });
 		processor.process([tone(1, 6000)], [new Float32Array(1)]);
 		const phase = (4800 * 1 + 600 * 2 + 600 * .5 + 1.5) * 2 * Math.PI / RATE;
-		const state = processor.states[0];
 		if (type === 'audacity-phaser') {
+			const phaser = processor as unknown as { states: readonly { gain: number }[]; params: { depth: number } };
 			const shaped = Math.expm1((1 + Math.cos(phase)) / 2 * 4) / Math.expm1(4);
-			assert.ok(Math.abs(state.gain - (1 - shaped / 255 * processor.params.depth)) < 1e-12);
+			assert.ok(Math.abs(phaser.states[0]!.gain - (1 - shaped / 255 * phaser.params.depth)) < 1e-12);
 		} else {
-			const center = ((1 + Math.cos(phase)) / 2 * processor.depth * (1 - processor.offset) + processor.offset);
-			assert.ok(Math.abs(state.a1 + 2 * Math.cos(Math.PI * Math.exp((center - 1) * 6))) < 1e-12);
+			const wahwah = processor as unknown as { states: readonly { a1: number }[]; depth: number; offset: number };
+			const center = ((1 + Math.cos(phase)) / 2 * wahwah.depth * (1 - wahwah.offset) + wahwah.offset);
+			assert.ok(Math.abs(wahwah.states[0]!.a1 + 2 * Math.cos(Math.PI * Math.exp((center - 1) * 6))) < 1e-12);
 		}
 	});
 }

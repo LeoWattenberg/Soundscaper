@@ -6,15 +6,23 @@ import { bootEditor, chooseCommandAction } from './audio-editor-test-helpers.js'
 test('Audio settings edits the visible Default input after an unsaved offset source is unplugged', async ({ page }) => {
 	await page.addInitScript(() => {
 		const events = new EventTarget();
+		const usbStreams = [];
 		let devices = [{ kind: 'audioinput', deviceId: 'usb-offset-mic', groupId: 'usb', label: 'USB offset microphone' }];
 		Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
 			enumerateDevices: async () => devices,
-			getUserMedia: async () => new AudioContext().createMediaStreamDestination().stream,
+			getUserMedia: async ({ audio }) => {
+				const usb = audio?.deviceId?.exact === 'usb-offset-mic';
+				if (usb && devices.length === 0) throw new DOMException('The microphone is unplugged.', 'NotFoundError');
+				const stream = new AudioContext().createMediaStreamDestination().stream;
+				if (usb) usbStreams.push(stream);
+				return stream;
+			},
 			addEventListener: events.addEventListener.bind(events),
 			removeEventListener: events.removeEventListener.bind(events),
 		} });
 		globalThis.__unplugOffsetMic = () => {
 			devices = [];
+			for (const stream of usbStreams) for (const track of stream.getTracks()) track.stop();
 			events.dispatchEvent(new Event('devicechange'));
 		};
 	});
@@ -23,7 +31,7 @@ test('Audio settings edits the visible Default input after an unsaved offset sou
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 	await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
 	await preferences.getByRole('button', { name: 'Refresh devices', exact: true }).click();
-	const source = preferences.getByLabel('Recording source', { exact: true });
+	const source = preferences.getByRole('combobox', { name: 'Recording source', exact: true });
 	const offset = preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true });
 	await offset.fill('10');
 	await offset.press('Tab');

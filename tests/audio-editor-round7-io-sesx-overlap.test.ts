@@ -46,6 +46,9 @@ test('desktop File Open preserves ordinary Audition overlap order through PCM st
 		createStableId: ids(),
 		fileService: {
 			isDesktop: true,
+			chooseSaveTarget: async () => { throw new Error('Open must not choose a save target.'); },
+			prepareSave: async () => { throw new Error('Open must not prepare a save.'); },
+			saveFile: async () => { throw new Error('Open must not save a file.'); },
 			resolveSesxMedia: async () => ({ status: 'found', descriptor: { id: 'read', name: 'audio.wav', size: audio.size, lastModified: 0, mimeType: 'audio/wav', readProfile: 'linked-audio-range-v1', url: 'soundscaper-app://bundle/_desktop/read/audio' } }),
 			chooseSesxMediaFolder: async () => ({ status: 'cancelled' }),
 			withReadDescriptors: async (_descriptors, _options, consume) => await consume([audio]),
