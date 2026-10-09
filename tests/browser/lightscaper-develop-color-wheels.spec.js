@@ -7,6 +7,7 @@ import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
 import { WHEEL_PNG_BASE64, WHEEL_SOURCE, WHEEL_REFERENCES } from './helpers/lightscaper-color-wheels-reference.ts';
+import { requireNativeWheelAxis } from './helpers/native-wheel-axis.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
 const PNG = Buffer.from(WHEEL_PNG_BASE64, 'base64'), NAME = 'Wheel reference.png';
@@ -51,9 +52,10 @@ for (const locale of ['en', 'de']) test(`${locale}: Photo wheels author through 
 		await expect(dialog.getByRole('alert')).toHaveText(messages.shared.videoEffectWheelInvalid);
 		// The first real pointerdown cancels the invalid numeric preview before
 		// acquiring native capture; no second click or synthetic pointer event.
-		await shadows.scrollIntoViewIfNeeded(); const bounds = await shadows.boundingBox(); expect(bounds).not.toBeNull();
-		const x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2;
+		await shadows.scrollIntoViewIfNeeded(); const bounds = await integralWheelBounds(shadows);
+		const x = bounds.left + bounds.width / 2, y = bounds.top + bounds.height / 2;
 		await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + bounds.width, y);
+		await requireAxis(shadows, 'horizontal');
 		await expect(shadows).toHaveAttribute('data-wheel-native-got', '1');
 		await expect(shadows).toHaveAttribute('data-wheel-native-trusted', 'true');
 		await expect(luminance).toHaveValue('0'); await expect(dialog.getByRole('alert')).toHaveCount(0);
@@ -64,6 +66,7 @@ for (const locale of ['en', 'de']) test(`${locale}: Photo wheels author through 
 		// Loss of actual native capture cancels this second drag and retains
 		// the previously accepted red shadow recipe.
 		await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x, y - bounds.height);
+		await requireAxis(shadows, 'vertical');
 		await expect(shadows).toHaveAttribute('data-wheel-native-got', '2');
 		await expect(parameter(dialog, messages, 'Shadows', 'Hue')).toHaveValue('-90');
 		await shadows.evaluate(element => {
@@ -126,12 +129,39 @@ async function observeCapture(control) {
 		let got = 0, lost = 0;
 		const gained = event => { element.setAttribute('data-wheel-native-got', String(++got)); element.setAttribute('data-wheel-native-id', String(event.pointerId)); element.setAttribute('data-wheel-native-trusted', String(event.isTrusted)); };
 		const released = () => { element.setAttribute('data-wheel-native-lost', String(++lost)); };
+		element.__wheelAxisRecords = { down: null, move: null };
+		const recorded = event => {
+			if (event.buttons !== 1) return;
+			const { left, top, width, height } = element.getBoundingClientRect();
+			element.__wheelAxisRecords[event.type === 'pointerdown' ? 'down' : 'move'] = { trusted: event.isTrusted, buttons: event.buttons, clientX: event.clientX, clientY: event.clientY, rect: { left, top, width, height } };
+		};
+		element.addEventListener('pointerdown', recorded, { capture: true, passive: true }); element.addEventListener('pointermove', recorded, { capture: true, passive: true });
 		element.addEventListener('gotpointercapture', gained); element.addEventListener('lostpointercapture', released);
-		element.__wheelCaptureObserver = () => { element.removeEventListener('gotpointercapture', gained); element.removeEventListener('lostpointercapture', released); };
+		element.__wheelCaptureObserver = () => { element.removeEventListener('gotpointercapture', gained); element.removeEventListener('lostpointercapture', released);
+			element.removeEventListener('pointerdown', recorded, true); element.removeEventListener('pointermove', recorded, true); };
 	});
 }
-async function stopCapture(control) { await control.evaluate(element => { element.__wheelCaptureObserver(); delete element.__wheelCaptureObserver;
+async function stopCapture(control) { await control.evaluate(element => { element.__wheelCaptureObserver(); element.__wheelRestoreAxis?.();
+	delete element.__wheelCaptureObserver; delete element.__wheelRestoreAxis; delete element.__wheelAxisRecords;
 	for (const name of ['got', 'lost', 'id', 'trusted']) element.removeAttribute(`data-wheel-native-${name}`); }); }
+async function integralWheelBounds(control) {
+	return control.evaluate(element => {
+		const original = element.style.getPropertyValue('transform'), priority = element.style.getPropertyPriority('transform');
+		if (getComputedStyle(element).transform !== 'none') throw Error('The native axis fixture expects an untransformed wheel.');
+		element.__wheelRestoreAxis = () => { if (original) element.style.setProperty('transform', original, priority); else element.style.removeProperty('transform'); };
+		const rect = element.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+		// Firefox delivers integer native mouse coordinates. Arrange the actual
+		// DOM center on that shared grid instead of rounding production input.
+		element.style.setProperty('transform', `translate(${Math.round(x) - x}px, ${Math.round(y) - y}px)`);
+		const { left, top, width, height } = element.getBoundingClientRect();
+		if (!Number.isInteger(left + width / 2) || !Number.isInteger(top + height / 2)) throw Error('Native wheel center alignment did not settle exactly.');
+		return { left, top, width, height };
+	});
+}
+async function requireAxis(control, axis) {
+	const records = await control.evaluate(element => element.__wheelAxisRecords);
+	requireNativeWheelAxis(records.down, 'center'); requireNativeWheelAxis(records.move, axis);
+}
 async function expectPixels(dialog, name, expected) {
 	await expect.poll(() => named(dialog, 'img', name).evaluate(canvas => canvas.width !== 2 || canvas.height !== 2 ? null
 		: Array.from(canvas.getContext('2d').getImageData(0, 0, 2, 2).data))).toEqual(expected);
