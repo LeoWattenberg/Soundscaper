@@ -135,3 +135,16 @@ retries of the prior load-related failures. Editing 001–025, effects 001–014
 ten qualifying I/O roots (001–003 and 005–011), and twenty qualifying dialog
 roots (001–018, 020–021) give 69 distinct publicly verified fixes. Source edits
 after that immutable build remain pending and do not add to this count.
+
+The next immutable checkout `68655eafb` builds both products and passes all
+78 focused public checks across Chromium, Firefox and WebKit
+(`/tmp/soundscaper-round6-green10-public-browser.log`, 6.2 minutes). It adds
+editing 026–028, effects 015–016, I/O 012–015 and dialogs 022–025: thirteen
+newly verified roots, giving 82 distinct fixes. The same run verifies the
+uncounted Nyquist track-index and Arabic metadata-tab follow-through, plus
+the corrected translation persistence fixture. Later committed source
+corrections are still pending. The canonical complete browser suite now runs
+on this snapshot with a working Pulse backend and isolated ports
+(`/tmp/soundscaper-round6-checkpoint50-green10-full-browser.log`); it is not
+yet recorded as passing. The next complete Node checkpoint is at 100 verified
+fixes.

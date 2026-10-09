@@ -28,8 +28,13 @@ import {
 	TRACK_RATE_DIALOG_MISSING_TRACK,
 } from './editor-dialog-model.js';
 import { timedRecordingDialogRange } from './timed-recording-dialog-model.ts';
+import { selectAudioEditorEditBlock } from '../../edit-blocking.ts';
 
 export default function EditorDialog({ type, value, onValueChange, trackId, controller, snapshot, copy, locale, run, showArmControls = false, onClose }) {
+	const editBlocked = ['rename', 'track-rename', 'resample', 'track-rate'].includes(type)
+		&& selectAudioEditorEditBlock(snapshot).blocked;
+	const editBlockedRef = useRef(editBlocked);
+	editBlockedRef.current = editBlocked;
 	const cancelTimedRecordingOnClose = useRef(false);
 	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
@@ -38,6 +43,7 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 		onClose();
 	};
 	const runThenClose = (operation, shouldClose = () => true) => {
+		if (editBlockedRef.current) return;
 		void runAwaitedAudioEditorOperation(run, operation)
 			.then((result) => { if (shouldClose(result)) onClose(); })
 			.catch(() => undefined);
@@ -124,7 +130,7 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 		<Button variant="secondary" onClick={onDismiss}>{copy.cancel}</Button>
 	);
 	const confirm = (label, onConfirm, disabled = false) => (
-		<Button variant="primary" disabled={disabled} onClick={onConfirm}>{label}</Button>
+		<Button variant="primary" disabled={disabled || editBlocked} onClick={onConfirm}>{label}</Button>
 	);
 	const footerActions = () => {
 		if (type === 'rename' || type === 'track-rename') return <>
