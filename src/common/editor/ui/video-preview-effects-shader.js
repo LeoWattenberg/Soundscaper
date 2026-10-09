@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_GLSL_V1 } from '../video-chroma-develop-v1.ts';
+import { HSL_MIXER_GLSL_V1 } from '../video-hsl-mixer-v1.ts';
 import { BLACK_WHITE_MIX_GLSL_V1 } from '../video-black-white-mix-v1.ts';
 import { IMAGE_GEOMETRY_PREVIEW_GLSL_V1 } from './video-preview-image-geometry-v1.ts';
 
@@ -21,6 +22,10 @@ uniform vec4 u_source_rect;
 uniform vec2 u_direction;
 uniform vec4 u_params0;
 uniform vec4 u_params1;
+uniform vec4 u_params2;
+uniform vec4 u_params3;
+uniform vec4 u_params4;
+uniform vec4 u_params5;
 uniform float u_opacity;
 uniform vec2 u_blur_pairs[${MAX_GAUSSIAN_BLUR_PAIR_COUNT}];
 uniform int u_blur_pair_count;
@@ -32,6 +37,7 @@ out vec4 out_color;
 ${GLOBAL_DEVELOP_GLSL_V1}
 ${CHROMA_DEVELOP_GLSL_V1}
 ${BLACK_WHITE_MIX_GLSL_V1}
+${HSL_MIXER_GLSL_V1}
 ${IMAGE_GEOMETRY_PREVIEW_GLSL_V1}
 
 vec4 sample_frame(vec2 uv) {
@@ -135,6 +141,8 @@ void main() {
 		yuv.x = clamp(yuv.x, 16.0 / 255.0, 235.0 / 255.0);
 		yuv.yz = clamp(yuv.yz, vec2(16.0 / 255.0), vec2(240.0 / 255.0));
 		color.rgb = limited_yuv_to_rgb(yuv);
+	} else if (u_effect == 23) {
+		color.rgb = hsl_mixer_rgb(color.rgb, u_params0, u_params1, u_params2, u_params3, u_params4, u_params5);
 	} else if (u_effect == 22) {
 		color.rgb = black_white_mix_rgb(color.rgb, u_params0, u_params1);
 	} else if (u_effect == 21) {

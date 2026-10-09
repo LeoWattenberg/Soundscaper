@@ -30,7 +30,7 @@ test('actual Frame authoring persists and renders the black-and-white mix throug
 	const output = await applyVideoExactBrowserEffectsFinishing({ width: 4, height: 1, pixels }, clip?.videoEffects ?? [], new AbortController().signal);
 	assert.deepEqual([...output.pixels], [54,54,54,0,144,144,144,1,182,182,182,127,19,19,19,255]);
 	assert.deepEqual([...pixels], [254,0,0,0,254,127,0,1,0,254,0,127,0,0,254,255]);
-	assert.equal(VIDEO_EFFECT_TYPES.at(-1), 'black-white-mix-v1');
+	assert.equal(VIDEO_EFFECT_TYPES[16], 'black-white-mix-v1');
 	assert.throws(() => createVideoEffect('black-white-mix-v1', { id: 'x'.repeat(129) }));
 });
 

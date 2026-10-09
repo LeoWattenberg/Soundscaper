@@ -7,9 +7,11 @@ import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, IMAGE_GEOMETRY_VIDEO_EFFECT_CODE_V
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1, CHROMA_DEVELOP_EFFECT_CODE_V1, chromaDevelopPreviewPassV1 } from '../video-chroma-develop-v1.ts';
 import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_EFFECT_CODE_V1, blackWhiteMixPreviewPassV1 } from '../video-black-white-mix-v1.ts';
 
+import { HSL_MIXER_EFFECT_TYPE_V1, HSL_MIXER_EFFECT_CODE_V1, hslMixerPreviewPassV1 } from '../video-hsl-mixer-v1.ts';
+
 export { MAX_GAUSSIAN_BLUR_PAIR_COUNT, VIDEO_PREVIEW_PIXELATE_GRID_SIZE } from './video-preview-effects-shader.js';
 
-export const EFFECT_PROGRAM_COUNT = 23;
+export const EFFECT_PROGRAM_COUNT = 24;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
 export const GAUSSIAN_BLUR_RENDER_SCALE = 2 / 3;
 const GAUSSIAN_BLUR_SIGMA_CALIBRATION = 0.85;
@@ -24,6 +26,7 @@ export const EFFECT_CODES = Object.freeze({
 	[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]: IMAGE_GEOMETRY_VIDEO_EFFECT_CODE_V1,
 	[CHROMA_DEVELOP_EFFECT_TYPE_V1]: CHROMA_DEVELOP_EFFECT_CODE_V1,
 	[BLACK_WHITE_MIX_EFFECT_TYPE_V1]: BLACK_WHITE_MIX_EFFECT_CODE_V1,
+	[HSL_MIXER_EFFECT_TYPE_V1]: HSL_MIXER_EFFECT_CODE_V1,
 	'color-adjust': 1,
 	pixelate: 2,
 	vignette: 3,
@@ -87,6 +90,7 @@ function gaussianBlurPass(sigma, renderScale, direction, kernel) {
  */
 export function videoEffectPasses(effect, previewScale = {}) {
 	if (!effect) return [];
+	if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) { const pass = hslMixerPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { const pass = blackWhiteMixPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { const pass = chromaDevelopPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) { const pass = imageGeometryVideoPreviewPassV1(effect); return pass ? [pass] : []; }
@@ -292,6 +296,8 @@ export function programLocations(gl, program) {
 		direction: gl.getUniformLocation(program, 'u_direction'),
 		params0: gl.getUniformLocation(program, 'u_params0'),
 		params1: gl.getUniformLocation(program, 'u_params1'),
+		params2: gl.getUniformLocation(program, 'u_params2'), params3: gl.getUniformLocation(program, 'u_params3'),
+		params4: gl.getUniformLocation(program, 'u_params4'), params5: gl.getUniformLocation(program, 'u_params5'),
 		geometryOutput: gl.getUniformLocation(program, 'u_geometry_output'),
 		geometrySource: gl.getUniformLocation(program, 'u_geometry_source'),
 		geometryBounds: gl.getUniformLocation(program, 'u_geometry_bounds'),

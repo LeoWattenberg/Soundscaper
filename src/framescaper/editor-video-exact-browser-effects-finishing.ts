@@ -5,6 +5,7 @@ import { withGlobalDevelopPixelFrameV1 } from '../common/editor/imaging/pixel-fr
 import { isGlobalDevelopEffectTypeV1, normalizeGlobalDevelopEffectV1 } from '../common/editor/video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1, normalizeChromaDevelopEffectV1 } from '../common/editor/video-chroma-develop-v1.ts';
 import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, normalizeBlackWhiteMixEffectV1 } from '../common/editor/video-black-white-mix-v1.ts';
+import { HSL_MIXER_EFFECT_TYPE_V1, normalizeHslMixerEffectV1 } from '../common/editor/video-hsl-mixer-v1.ts';
 import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1, normalizeImageGeometryVideoEffectV1 } from '../common/editor/video-image-geometry-v1.ts';
 import { withGeometryPixelFrameV1 } from '../common/editor/imaging/pixel-frame-geometry-v1.ts';
@@ -27,6 +28,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return normalizeImageGeometryVideoEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === CHROMA_DEVELOP_EFFECT_TYPE_V1) return normalizeChromaDevelopEffectV1(value);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === HSL_MIXER_EFFECT_TYPE_V1) return normalizeHslMixerEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === BLACK_WHITE_MIX_EFFECT_TYPE_V1) return normalizeBlackWhiteMixEffectV1(value);
 		return isGlobalDevelopEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
@@ -86,7 +88,7 @@ function throwIfAborted(signal: AbortSignal): void {
 	Reflect.apply(CHECK_ABORT, signal, []);
 }
 
-function isCpuEffect(type: unknown): boolean { return type === BLACK_WHITE_MIX_EFFECT_TYPE_V1 || type === CHROMA_DEVELOP_EFFECT_TYPE_V1 || isGlobalDevelopEffectTypeV1(type); }
+function isCpuEffect(type: unknown): boolean { return type === HSL_MIXER_EFFECT_TYPE_V1 || type === BLACK_WHITE_MIX_EFFECT_TYPE_V1 || type === CHROMA_DEVELOP_EFFECT_TYPE_V1 || isGlobalDevelopEffectTypeV1(type); }
 
 function readLegacyEffect(effect: Record<string, unknown>) {
 	const type = readClosedDomainField(effect, 'type', 'Frame browser effect');

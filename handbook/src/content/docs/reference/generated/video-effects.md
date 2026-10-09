@@ -23,6 +23,7 @@ One definition owns each effect’s parameters, and the preview and the export b
 | Drop Shadow | `drop-shadow` | 5 |
 | Gaussian Blur | `gaussian-blur` | 1 |
 | Glow | `glow` | 3 |
+| HSL mixer | `hsl-mixer-v1` | 24 |
 | Luma Key | `luma-key` | 3 |
 | Outline | `outline` | 3 |
 | Pixelate | `pixelate` | 1 |
@@ -82,6 +83,30 @@ Defaults and limits come from the same definitions the editor validates against.
 | Glow | Threshold | 0.7 | 0 to 1 | — |
 | Glow | Radius | 8 | 0 to 20 | pixels |
 | Glow | Intensity | 0.5 | 0 to 1 | — |
+| HSL mixer | Red hue | 0 | -180 to 180 | — |
+| HSL mixer | Orange hue | 0 | -180 to 180 | — |
+| HSL mixer | Yellow hue | 0 | -180 to 180 | — |
+| HSL mixer | Green hue | 0 | -180 to 180 | — |
+| HSL mixer | Aqua hue | 0 | -180 to 180 | — |
+| HSL mixer | Blue hue | 0 | -180 to 180 | — |
+| HSL mixer | Purple hue | 0 | -180 to 180 | — |
+| HSL mixer | Magenta hue | 0 | -180 to 180 | — |
+| HSL mixer | Red saturation | 0 | -100 to 100 | — |
+| HSL mixer | Orange saturation | 0 | -100 to 100 | — |
+| HSL mixer | Yellow saturation | 0 | -100 to 100 | — |
+| HSL mixer | Green saturation | 0 | -100 to 100 | — |
+| HSL mixer | Aqua saturation | 0 | -100 to 100 | — |
+| HSL mixer | Blue saturation | 0 | -100 to 100 | — |
+| HSL mixer | Purple saturation | 0 | -100 to 100 | — |
+| HSL mixer | Magenta saturation | 0 | -100 to 100 | — |
+| HSL mixer | Red lightness | 0 | -100 to 100 | — |
+| HSL mixer | Orange lightness | 0 | -100 to 100 | — |
+| HSL mixer | Yellow lightness | 0 | -100 to 100 | — |
+| HSL mixer | Green lightness | 0 | -100 to 100 | — |
+| HSL mixer | Aqua lightness | 0 | -100 to 100 | — |
+| HSL mixer | Blue lightness | 0 | -100 to 100 | — |
+| HSL mixer | Purple lightness | 0 | -100 to 100 | — |
+| HSL mixer | Magenta lightness | 0 | -100 to 100 | — |
 | Luma Key | Mode | Dark | Dark; Bright | — |
 | Luma Key | Cutoff | 0.2 | 0 to 1 | — |
 | Luma Key | Softness | 0.1 | 0 to 1 | — |

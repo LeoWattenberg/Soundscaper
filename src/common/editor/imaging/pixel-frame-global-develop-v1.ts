@@ -5,6 +5,7 @@ import { readClosedDomainArray } from '../closed-domain-value.ts';
 import { globalDevelopByteChannelV1, prepareGlobalDevelopEffectV1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1, applyChromaDevelopPixelV1, prepareChromaDevelopEffectV1 } from '../video-chroma-develop-v1.ts';
 import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, applyBlackWhiteMixPixelV1, prepareBlackWhiteMixEffectV1 } from '../video-black-white-mix-v1.ts';
+import { HSL_MIXER_EFFECT_TYPE_V1, applyHslMixerPixelV1, prepareHslMixerEffectV1 } from '../video-hsl-mixer-v1.ts';
 import { admitPixelFrameV1 } from './pixel-frame-admission-v1.ts';
 import { readPixelFrameV1, type PixelFrameDescriptorV1, type PixelFrameLimitsV1 } from './pixel-frame-contract-v1.ts';
 
@@ -36,6 +37,7 @@ export async function withGlobalDevelopPixelFrameV1<Result>(value: unknown,
 		const id = field(effect, 'id', 'global develop effect');
 		if (ids.has(id)) throw new RangeError('Global develop effects require unique IDs.'); ids.add(id);
 		const type=field(effect, 'type', 'global develop effect');
+		if(type===HSL_MIXER_EFFECT_TYPE_V1)return prepareHslMixerEffectV1(value);
 		if(type===BLACK_WHITE_MIX_EFFECT_TYPE_V1)return prepareBlackWhiteMixEffectV1(value);
 		return type === CHROMA_DEVELOP_EFFECT_TYPE_V1 ? prepareChromaDevelopEffectV1(value) : prepareGlobalDevelopEffectV1(value);
 	});
@@ -52,6 +54,7 @@ export async function withGlobalDevelopPixelFrameV1<Result>(value: unknown,
 			for (let start = 0; start < pixels.length; start += CHUNK_BYTES) {
 				check(); const end = Math.min(pixels.length, start + CHUNK_BYTES);
 				for (let offset = start; offset < end; offset += 4) {
+					if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) { applyHslMixerPixelV1(effect, pixels, offset); continue; }
 					if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { applyBlackWhiteMixPixelV1(effect, pixels, offset); continue; }
 					if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { applyChromaDevelopPixelV1(effect, pixels, offset); continue; }
 					pixels[offset] = globalDevelopByteChannelV1(effect, pixels[offset]!, 0);

@@ -183,6 +183,65 @@ test('actual Frame authoring/mixed native renderer preserves monochrome hidden R
 	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
 });
 
+test('actual HSL shader owns eight original-hue bands, signed ties and fractional wrapped controls',async({page})=>{
+	await prepare(page);const colors=['red','orange','yellow','green','aqua','blue','purple','magenta'];
+	const centers=[[254,0,0],[254,127,0],[254,254,0],[0,254,0],[0,254,254],[0,0,254],[127,0,254],[254,0,254]];
+	const rotated=[[254,254,0],[127,254,0],[0,254,0],[0,254,254],[0,0,254],[254,0,254],[254,0,127],[254,0,0]];
+	const source=centers.flatMap((rgb,i)=>[...rgb,[0,1,127,255][i%4]]);
+	for(const [index,color]of colors.entries()){
+		const result=await qualify(page,{source,effects:[effect('hsl-mixer-v1',{[`${color}Hue`]:60})],mode:'target'});
+		const expected=centers.flatMap((rgb,i)=>[...(i===index?rotated[i]:rgb),[0,1,127,255][i%4]]);
+		expect(result.hslProgramLinked).toBe(true);expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+		expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	}
+	for(const [params,expected]of [[{redHue:73.25,redSaturation:-37.125,redLuminance:33.3},[200,224,117,127]],
+		[{redHue:-37.125},[255,0,158,127]],[{redLuminance:-50},[128,0,0,127]],[{redHue:180},[0,255,255,127]]]){
+		const result=await qualify(page,{source:[255,0,0,127],effects:[effect('hsl-mixer-v1',params)],mode:'target'});
+		expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	}
+});
+
+test('actual HSL native target matches all256 rational multichannel/alpha values, neutral/gray identity and both authored orders',async({page})=>{
+	await prepare(page);const colors=['red','orange','yellow','green','aqua','blue','purple','magenta'];
+	const source=Array.from({length:256},(_,n)=>[n,(17*n)%256,255-n,n]).flat();
+	const controls=[180,-180,73.25,-37.125,12.5,0,120,-60,100,-100,33.3,-73.25,12.5,-37.125,50,0,100,-100,33.3,-73.25,12.5,-37.125,50,0];
+	const params=Object.fromEntries(['Hue','Saturation','Luminance'].flatMap((suffix,group)=>colors.map((color,i)=>[`${color}${suffix}`,controls[group*8+i]]))),expected=[];
+	for(let i=0;i<source.length;i+=4)expected.push(...hslReference(source.slice(i,i+3),controls),source[i+3]);
+	const result=await qualify(page,{source,effects:[effect('hsl-mixer-v1',params)],mode:'target'});
+	expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	for(const effects of [[effect('white-balance-v1',{temperature:73}),effect('hsl-mixer-v1',params)],
+		[effect('hsl-mixer-v1',params),effect('white-balance-v1',{temperature:73})],
+		[effect('hsl-mixer-v1')],[{...effect('hsl-mixer-v1',params),enabled:false}]]){
+		const output=await qualify(page,{source,effects,mode:'target'});expect(output.pixels).toEqual(output.cpuPixels);expect(output.glError).toBe(0);
+	}
+	const gray=Array.from({length:256},(_,n)=>[n,n,n,n]).flat(),grays=await qualify(page,{source:gray,effects:[effect('hsl-mixer-v1',params)],mode:'target'});
+	expect(grays.pixels).toEqual(gray);expect(grays.cpuPixels).toEqual(gray);expect(grays.glError).toBe(0);
+});
+
+test('actual Frame authoring and mixed native renderer preserve fractional HSL hidden RGB and every sampled alpha',async({page})=>{
+	await prepare(page);const source=[0,1,127,255].flatMap(alpha=>[255,0,0,alpha]);
+	const result=await qualify(page,{source,effects:[effect('hsl-mixer-v1',{redHue:73.25,redSaturation:-37.125,redLuminance:33.3})],mode:'frame'});
+	expect(result.authoredTypes).toEqual(['hsl-mixer-v1','color-adjust']);
+	expect(result.pixels).toEqual([0,1,127,255].flatMap(alpha=>[200,224,117,alpha]));
+	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+});
+
+// Independent exact rational reference: no production HSL classifier/kernel.
+function hslReference(rgb,controls){
+	const Q=65536n,v=rgb.map(BigInt),max=v.reduce((a,b)=>a>b?a:b),min=v.reduce((a,b)=>a<b?a:b),c=max-min;if(c===0n)return rgb;
+	const abs=n=>n<0n?-n:n,clamp=(n,lo,hi)=>n<lo?lo:n>hi?hi:n;
+	const nearest=(n,d)=>{const value=2n*n+d;return value>=0n?value/(2n*d):-((-value+2n*d-1n)/(2n*d));};
+	let n=max===v[0]?v[1]-v[2]:max===v[1]?v[2]-v[0]+2n*c:v[0]-v[1]+4n*c;if(n<0n)n+=6n*c;
+	const h=(n*512n+c)/(2n*c),centers=[0n,128n,256n,512n,768n,1024n,1152n,1280n,1536n],left=centers.findIndex((_,i)=>i<8&&h<centers[i+1]);
+	const coeff=controls.map((value,i)=>BigInt(Math.round(value/(i<8?60:100)*65536))),width=centers[left+1]-centers[left],distance=h-centers[left];
+	const mix=group=>{const a=coeff[group*8+left],z=coeff[group*8+(left+1)%8];return a+nearest((z-a)*distance,width);};
+	const hue=mix(0),sat=mix(1),lum=mix(2),l=max+min,d=255n-abs(l-255n),saturated=clamp(nearest(c*(Q+sat),Q),0n,d);
+	const nextL=l+nearest((lum>=0n?510n-l:l)*lum,Q),nextD=255n-abs(nextL-255n),nextC=clamp(nearest(saturated*nextD,d),0n,nextD),base=nextL-nextC;
+	if(hue===0n)return v.map(channel=>Number(clamp(nearest(base*c+2n*nextC*(channel-min),2n*c),0n,255n)));
+	const phase=((nearest(n*Q,c)+hue)%(6n*Q)+6n*Q)%(6n*Q),sector=Number(phase/Q),x=nextC*(Q-abs(phase%(2n*Q)-Q)),top=nextC*Q;
+	return [[top,x,0n],[x,top,0n],[0n,top,x],[0n,x,top],[x,0n,top],[top,0n,x]][sector].map(channel=>Number(clamp(nearest(base*Q+2n*channel,2n*Q),0n,255n)));
+}
+
 // Independent BigInt reference uses exact rational hue and signed floor division.
 function blackWhiteReference(rgb,controls){
 	const [r,g,b]=rgb.map(BigInt),max=[r,g,b].reduce((a,c)=>a>c?a:c),min=[r,g,b].reduce((a,c)=>a<c?a:c),c=max-min;
