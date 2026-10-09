@@ -59,9 +59,13 @@ export function calculateAudioSpectrum(
 	const { real, imaginary, powers } = workspace;
 	try {
 	const { samples: window, sum: windowSum } = hannWindow(requestedSize);
-	const windowCount = options.average ? Math.max(1, Math.floor((frameCount - offset - requestedSize) / (requestedSize / 2)) + 1) : 1;
+	const hop = requestedSize / 2;
+	const completeWindows = Math.max(1, Math.floor((frameCount - offset - requestedSize) / hop) + 1);
+	const finalStart = Math.max(offset, frameCount - requestedSize);
+	const includeEnding = Boolean(options.average) && finalStart > offset + (completeWindows - 1) * hop;
+	const windowCount = options.average ? completeWindows + Number(includeEnding) : 1;
 	for (let block = 0; block < windowCount; block += 1) {
-		const start = offset + block * (requestedSize / 2);
+		const start = includeEnding && block === completeWindows ? finalStart : offset + block * hop;
 		for (const channel of channels) {
 			const nativeLength = ArrayBuffer.isView(channel) && nativeSampleLength.call(channel) === frameCount;
 			const sourceFrames = Number.isInteger(start) && nativeLength ? Math.min(requestedSize, frameCount - start) : requestedSize;

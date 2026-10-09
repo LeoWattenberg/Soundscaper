@@ -339,3 +339,23 @@ Forty focused worker-ownership, Classic/standard/native release and native-Q
 regressions pass after correction; targeted type-aware lint passes. No temporary
 verification files are created. This effect-contract ownership completion does
 not change the assistance runtime closure and requires no Update AI assets run.
+
+## R7-EFFECT-010 — Plot Spectrum omits the final selection remainder
+
+Import an ordinary one-second mono recording containing a 1500 Hz whistle near
+its end, choose Select → Select all, then Analyze → Plot spectrum. The averaged
+FFT visits only hop-aligned full windows; at 48000 samples and size 2048, the
+last window ends at sample 47104. A tone at samples 47200–47799 is audible in
+Analyze selection but entirely absent from Plot Spectrum. This differs from
+R5's level calibration and R6's admission of selections shorter than one window.
+
+Include one complete, end-aligned window when a selection has a final hop
+remainder. Do not append a duplicate to aligned selections or pad extra silence.
+Three focused cases are causally RED before correction, including the actual
+report worker; the aligned-weighting control already passes. Corrected spectrum,
+calibration and short-selection support passes 27/27. The unchanged production
+capture `48b` is publicly RED (6.6 seconds): the healthy level-analysis peak
+passes, then the downloaded spectrum report gives peak frequency 0 instead of
+1500 Hz. Corrected public GREEN is pending the shared production build.
+The bounded WAV remains in memory; failed-run diagnostics and the short log are
+removed immediately after inspection. Assistance runtime assets are unchanged.
