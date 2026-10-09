@@ -31,7 +31,8 @@ for (const confirmed of [true, false]) {
 			postMessage(message: WorkletMessage) { processor.port.onmessage({ data: message }); },
 			start() {}, close() {},
 		} };
-		const controller = await createRecordingController({
+		const options = {
+			chunkFrames: 128,
 			context: { sampleRate: 48_000, destination: {},
 				audioWorklet: { async addModule() {} },
 				createMediaStreamSource: () => ({ connect() {}, disconnect() {} }),
@@ -39,7 +40,8 @@ for (const confirmed of [true, false]) {
 			stream: { getTracks: () => [] }, nodeFactory: () => node,
 			onChunk: (chunk: Readonly<{ channels: Float32Array[] }>) => { chunks.push(chunk.channels); },
 			onError: (error: unknown) => { errors.push(error); },
-		});
+		};
+		const controller = await createRecordingController(options);
 		const receive = (): void => {
 			while (pending.length) node.port.onmessage?.({ data: pending.shift()! });
 		};
