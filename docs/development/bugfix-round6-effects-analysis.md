@@ -36,7 +36,10 @@ twenty-two verified roots; Firefox/WebKit verification remains pending after
 the retained failed runs. R6-EFFECT-023 passes its complete normal Chromium
 workflow on immutable Green16 `9bd6730b2`
 (`/tmp/soundscaper-r6-effects-legacy-compressor-green16-float-export.log`),
-bringing this register to twenty-three verified roots.
+bringing this register to twenty-three verified roots. R6-EFFECT-024–025 pass
+their complete normal Chromium workflows on immutable Green17 `449787703`
+(`/tmp/soundscaper-round6-green17-chromium.log`), bringing this register to
+twenty-five verified roots.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -891,9 +894,11 @@ new/existing generator, Pink spectrum, seed, streamed transfer and pinned RNG
 cases pass after repair
 (`/tmp/soundscaper-r6-effects-brown-noise-spectrum-node-green.log`), with corrected
 8/48/96 kHz octave ratios 4.398/4.214/3.953. Focused strict compilation, targeted
-type-aware lint and size/diff checks pass. Public GREEN awaits the next immutable
-build. No assistance runtime assets change and no manual **Update AI assets**
-run is required.
+type-aware lint and size/diff checks pass. The complete ordinary Generate/WAV
+workflow passes Chromium on immutable Green17 `449787703`, with exported
+octave ratio 3.602
+(`/tmp/soundscaper-round6-green17-chromium.log`). No assistance runtime assets
+change and no manual **Update AI assets** run is required.
 
 ## R6-EFFECT-025 — A second touch replaces the active Parametric EQ band drag
 
@@ -926,6 +931,9 @@ primary drag control passes
 new/existing graph, automation, deletion-focus, keyboard selection and modified
 command cases pass after repair
 (`/tmp/soundscaper-r6-effects-parametric-eq-pointer-node-green.log`). Focused
-strict compilation, targeted type-aware lint and size/diff checks pass. Public
-GREEN awaits the next immutable build. No assistance runtime assets change and
-no manual **Update AI assets** run is required.
+strict compilation, targeted type-aware lint and size/diff checks pass. The
+complete ordinary mouse/native-touch workflow passes Chromium on immutable
+Green17 `449787703`, retaining Band 2 at 500 Hz and 0 dB while the first finger
+moves Band 1
+(`/tmp/soundscaper-round6-green17-chromium.log`). No assistance runtime assets
+change and no manual **Update AI assets** run is required.
