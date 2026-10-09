@@ -25,6 +25,7 @@ export default function RecordingOffsetInput({ value, label, onCommit }: Readonl
 	return <input aria-label={label} type="number" min="-500" max="500" step="any" value={draft}
 		onChange={(event) => { canceled.current = false; setDraft(event.currentTarget.value); }}
 		onBlur={commit} onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); }
 			if (event.key !== 'Escape' || draft === String(value)) return;
 			event.preventDefault();
