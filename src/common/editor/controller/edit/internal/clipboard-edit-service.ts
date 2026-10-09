@@ -208,25 +208,25 @@ export function createClipboardEditService(
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const targetClipIds = collectSplitTargetClipIds(project, trackIds);
-		const frames = [...new Set(requestedFrames.map((frame) => dependencies.normalizeFrame(frame)))]
-			.sort((left, right) => right - left);
+		const frames = [...new Set(requestedFrames.map((frame) => dependencies.normalizeFrame(frame)))].sort((left, right) => right - left);
 		const commands: AudioEditorCommand[] = [];
 		const handledLinks = new Set<string>();
 		for (const clipId of targetClipIds) {
 			const clip = findClip(project, clipId);
-			if (!clip) continue;
-			if (clip.avLinkId && handledLinks.has(clip.avLinkId)) continue;
+			if (!clip || (clip.avLinkId && handledLinks.has(clip.avLinkId))) continue;
 			if (clip.avLinkId) handledLinks.add(clip.avLinkId);
+			const handledFrames = new Set<number>();
 			const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 			for (const frame of frames) {
 				if (frame <= clip.timelineStartFrame || frame >= clipEndFrame) continue;
-				commands.push(prepareLinkedSplit(project, clip.id, frame));
+				const split = prepareLinkedSplit(project, clip.id, frame);
+				if (handledFrames.has(split.atFrame)) continue;
+				handledFrames.add(split.atFrame);
+				commands.push(split);
 			}
 		}
 		if (!commands.length) return null;
-		const command: AudioEditorCommand = commands.length === 1
-			? commands[0]
-			: { type: 'batch', commands };
+		const command: AudioEditorCommand = commands.length === 1 ? commands[0] : { type: 'batch', commands };
 		return dependencies.commit(command);
 	}
 
