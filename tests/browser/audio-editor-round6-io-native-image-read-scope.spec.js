@@ -22,7 +22,7 @@ for (const desktop of [false, true]) {
 			await expect(clip).toBeVisible();
 			await expect(clip.locator('[data-product-visual-thumbnail]')).toHaveCount(1);
 			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
-			if (native) expect(native.releases).toHaveLength(1);
+			if (native) await expect.poll(() => native.releases.length).toBe(1);
 			await page.reload();
 			await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 			await expect(editor).toHaveAttribute('data-project-id', projectId);
