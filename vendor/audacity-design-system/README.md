@@ -459,6 +459,13 @@ application overrides and source patches against the pin and upstream master.
     This key admission correction is independent of deviation 37's numeric
     parser and bounds handling. Upstream-PR candidate.
 
+63. `Flyout` leaves native composing Escape with the input method before
+    dismissing an open surface or restoring its trigger focus. Ordinary Escape,
+    disabled dismissal and listener cleanup retain their existing behavior.
+    Covered by `tests/audio-editor-round6-flyout-composition.test.tsx` and the
+    normal Effects → Add effect → Search effects composition/reopen workflow.
+    Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
