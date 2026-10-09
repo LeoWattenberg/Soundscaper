@@ -122,6 +122,22 @@ test.describe('AI effect model prerequisites', () => {
 		await expect(assistance.getByText('Required models are installed.', { exact: true })).toBeVisible();
 		expect(errors).toEqual([]);
 	});
+
+	test('partial transcript models keep the missing required recognizer in preflight', async ({ page }) => {
+		const { editor, errors } = await bootFixture(page, { installed: ['silero-vad-v6'] });
+		await openAssistanceTask(page, editor, 'Transcribe & Captions');
+		const prerequisite = page.locator('[data-assistance-model-prerequisites]');
+		await expect(prerequisite).toBeVisible();
+		await expect(prerequisite).toContainText('Parakeet TDT 0.6B v3');
+		await expect(prerequisite).not.toContainText('Silero Voice Activity Detection');
+		expect(await fixtureSnapshot(page)).toMatchObject({ modelCalls: 0, installCalls: [] });
+		await prerequisite.getByRole('button', { name: 'Download all', exact: true }).click();
+		await expect(prerequisite).toBeHidden();
+		const assistance = page.getByRole('dialog', { name: 'Transcribe & Captions', exact: true });
+		await expect(assistance.getByRole('button', { name: 'Run locally', exact: true })).toBeEnabled();
+		expect(await fixtureSnapshot(page)).toMatchObject({ installCalls: ['parakeet-tdt-0.6b-v3'] });
+		expect(errors).toEqual([]);
+	});
 });
 
 async function bootFixture(page, options = {}) {

@@ -33,7 +33,7 @@ export function assistanceTaskRequiresModels(settings: AssistanceWorkflowSetting
 }
 
 export function assistanceTaskModelsReady(settings: AssistanceWorkflowSettingsV1,
-	models: readonly LocalAssistanceModel[], inventory: readonly Readonly<{ mediaKind: string }>[],
+	models: readonly Model[], inventory: readonly Readonly<{ mediaKind: string }>[],
 ): boolean {
 	const stages = selectLocalAssistanceGuidedStages(
 		assistanceWorkflowStageGraph(settings.workflowId), settings, models, inventory,

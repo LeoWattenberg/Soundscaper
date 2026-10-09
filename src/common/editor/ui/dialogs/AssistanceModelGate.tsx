@@ -21,6 +21,7 @@ interface Props {
 	readonly locale: string;
 	readonly bridge: LocalModelManagerBridge | null;
 	readonly modelFilter: (model: LocalModelManagerModel) => boolean;
+	readonly modelsReady?: (installedModels: readonly LocalModelManagerModel[]) => boolean;
 	readonly requiresModel: boolean;
 	readonly onClose: () => void;
 	readonly children: ReactNode;
@@ -28,7 +29,7 @@ interface Props {
 
 /** Admit a model-backed dialog before importing its processing and inference graph. */
 export default function AssistanceModelGate({
-	title, copy, locale, bridge, modelFilter, requiresModel, onClose, children,
+	title, copy, locale, bridge, modelFilter, modelsReady, requiresModel, onClose, children,
 }: Props) {
 	const store = useMemo(() => bridge ? localModelManagerStoreFor(bridge) : null, [bridge]);
 	const snapshot = useSyncExternalStore(store?.subscribe ?? subscribeToNothing,
@@ -38,6 +39,9 @@ export default function AssistanceModelGate({
 	const [managingModels, setManagingModels] = useState(false);
 	const [downloading, setDownloading] = useState(false);
 	const downloads = useRef<AbortController | null>(null);
+	const ready = snapshot !== null && (modelsReady
+		? modelsReady(snapshot.models.filter(model => model.availability === 'installed'))
+		: snapshot.models.some(model => modelFilter(model) && model.availability === 'installed'));
 	useEffect(() => {
 		if (!store || !requiresModel || managingModels) return undefined;
 		let active = true;
@@ -48,10 +52,10 @@ export default function AssistanceModelGate({
 	}, [store, requiresModel, managingModels]);
 	useEffect(() => {
 		if (checked && !downloading && !managingModels && snapshot?.phase === 'ready'
-			&& !snapshot.error && snapshot.models.some((model) => modelFilter(model) && model.availability === 'installed')) {
+			&& !snapshot.error && ready) {
 			setAdmitted(true);
 		}
-	}, [checked, downloading, managingModels, modelFilter, snapshot]);
+	}, [checked, downloading, managingModels, ready, snapshot]);
 	useEffect(() => () => downloads.current?.abort(), []);
 	const close = (): void => { downloads.current?.abort(); onClose(); };
 	const loading = <AssistanceLoadingDialog title={title} copy={copy} onClose={close} />;
@@ -62,7 +66,7 @@ export default function AssistanceModelGate({
 	</Suspense>;
 	if (!checked || snapshot.phase === 'loading' || snapshot.phase === 'idle') return loading;
 	const models = snapshot.models.filter(modelFilter);
-	if (!downloading && !snapshot.error && models.some(({ availability }) => availability === 'installed')) {
+	if (!downloading && !snapshot.error && ready) {
 		return <Suspense fallback={loading}>{children}</Suspense>;
 	}
 	const available = models.filter(({ availability }) => availability === 'installable');
