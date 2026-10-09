@@ -189,6 +189,8 @@ test('project close buttons share the disabled state and retain one keyboard-acc
 
 async function mountTabs() {
 	const dom = installReactTestDom();
+	const priorStyle = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+	Object.defineProperty(window, 'getComputedStyle', { configurable: true, value: () => ({ direction: 'ltr' }) });
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
@@ -221,6 +223,8 @@ async function mountTabs() {
 			actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
 			if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
 			else Reflect.deleteProperty(globalThis, 'React');
+			if (priorStyle) Object.defineProperty(window, 'getComputedStyle', priorStyle);
+			else Reflect.deleteProperty(window, 'getComputedStyle');
 			dom.restore();
 		},
 	};

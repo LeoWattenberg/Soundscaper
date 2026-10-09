@@ -36,8 +36,10 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 		: unique[0]?.id;
 	const handleTabKeyDown = (event, index) => {
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+		if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+		const rightDelta = window.getComputedStyle(tabListRef.current).direction === 'rtl' ? -1 : 1;
 		const nextIndex = {
-			ArrowRight: index + 1, ArrowLeft: index - 1 + unique.length,
+			ArrowRight: index + rightDelta + unique.length, ArrowLeft: index - rightDelta + unique.length,
 			Home: 0, End: unique.length - 1,
 		}[event.key] % unique.length;
 		const next = unique[nextIndex];
