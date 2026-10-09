@@ -65,6 +65,7 @@ for (const locale of ['en', 'de']) test(`Frames ${locale} authors geometry only 
 		const point = panel.getByRole('spinbutton', { name: `${copy.exact}: ${label}`, exact: true });
 		await point.fill(value); await point.press('Enter'); await expect(point).toHaveValue(value);
 	}
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	await page.reload();
 	const reopened = page.locator('[data-audio-editor]'); await expect(reopened).toHaveAttribute('data-audio-editor-bound', 'true');
 	const restoredClip = reopened.getByRole('group', { name: copy.clip, exact: true });
