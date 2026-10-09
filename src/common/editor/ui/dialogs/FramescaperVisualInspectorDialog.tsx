@@ -49,6 +49,7 @@ export default function FramescaperVisualInspectorDialog({
 		setError('');
 	}, [model, setError, setStatus]);
 	const blocked = pending || editingBlocked || readOnly || model.clipId === null;
+	const sourceBlocked = blocked || !model.generatorEditable;
 	const formId = 'framescaper-visual-inspector-form';
 	const updateGenerator = (changes: Readonly<Record<string, unknown>>): void => {
 		setDraft((current) => current.generator === null ? current : {
@@ -102,11 +103,11 @@ export default function FramescaperVisualInspectorDialog({
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
 				FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualInspectorSelection)}</p> : <>
 				<p data-visual-inspector-kind>{model.kind}</p>
-					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={blocked} copy={copy}
+					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={sourceBlocked} copy={copy}
 						onChange={updateGenerator} />
 				{model.presets.length > 0 && <label>
 					<span>{label(copy, 'visualPreset', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualPreset)}</span>
-					<select data-visual-inspector-preset value={draft.presetId ?? ''} disabled={blocked}
+					<select data-visual-inspector-preset value={draft.presetId ?? ''} disabled={sourceBlocked}
 						onChange={(event) => {
 							const selectedId = event.currentTarget.value;
 							const preset = model.presets.find(({ id }) => id === selectedId);
