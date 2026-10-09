@@ -56,8 +56,9 @@ function CommandNumber({ descriptor, value, onChange }: Readonly<{
 					&& next <= (descriptor.maximum ?? Infinity)) onChange(next);
 				else setDraft(current);
 			}}
-			onKeyDown={(event) => {
-				if (event.key === 'Escape') {
+		onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
+			if (event.key === 'Escape') {
 					event.preventDefault();
 					event.stopPropagation();
 					cancelled.current = true;
