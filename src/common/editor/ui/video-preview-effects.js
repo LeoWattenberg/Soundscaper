@@ -2,6 +2,7 @@
 
 import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1, POST_CROP_VIGNETTE_EFFECT_CODE_V1, postCropVignettePreviewPassV1 } from '../video-post-crop-vignette-v1.ts';
 import { CLARITY_EFFECT_TYPE_V1, CLARITY_EFFECT_CODE_V1, clarityPreviewPassV1 } from '../video-clarity-v1.ts';
+import { NOISE_REDUCTION_EFFECT_TYPE_V1, NOISE_REDUCTION_EFFECT_CODE_V1, noiseReductionPreviewPassV1 } from '../video-noise-reduction-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_EFFECT_CODE_V1, detailSharpenPreviewPassV1 } from '../video-sharpen-v1.ts';
 import { VIDEO_PREVIEW_GEOMETRY_VERTEX_SHADER_SOURCE } from './video-preview-geometry-shader.ts';
 import { FRAGMENT_SHADER_SOURCE, MAX_GAUSSIAN_BLUR_PAIR_COUNT } from './video-preview-effects-shader.js';
@@ -16,7 +17,7 @@ import { COLOR_WHEELS_EFFECT_TYPE_V1, COLOR_WHEELS_EFFECT_CODE_V1, colorWheelsPr
 
 export { MAX_GAUSSIAN_BLUR_PAIR_COUNT, VIDEO_PREVIEW_PIXELATE_GRID_SIZE } from './video-preview-effects-shader.js';
 
-export const EFFECT_PROGRAM_COUNT = 30;
+export const EFFECT_PROGRAM_COUNT = 31;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
 export const GAUSSIAN_BLUR_RENDER_SCALE = 2 / 3;
 const GAUSSIAN_BLUR_SIGMA_CALIBRATION = 0.85;
@@ -28,6 +29,7 @@ export const VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA = (
 export const BLUR_KERNEL = Symbol('blurKernel');
 
 export const EFFECT_CODES = Object.freeze({
+	[NOISE_REDUCTION_EFFECT_TYPE_V1]: NOISE_REDUCTION_EFFECT_CODE_V1,
 	[CLARITY_EFFECT_TYPE_V1]: CLARITY_EFFECT_CODE_V1,
 	[COLOR_WHEELS_EFFECT_TYPE_V1]: COLOR_WHEELS_EFFECT_CODE_V1,
 	[DETAIL_SHARPEN_EFFECT_TYPE_V1]: DETAIL_SHARPEN_EFFECT_CODE_V1,
@@ -100,6 +102,7 @@ function gaussianBlurPass(sigma, renderScale, direction, kernel) {
  */
 export function videoEffectPasses(effect, previewScale = {}) {
 	if (!effect) return [];
+	if (effect.type === NOISE_REDUCTION_EFFECT_TYPE_V1) { const pass = noiseReductionPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) { const pass = postCropVignettePreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === CLARITY_EFFECT_TYPE_V1) { const pass = clarityPreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === COLOR_WHEELS_EFFECT_TYPE_V1) { const pass = colorWheelsPreviewPassV1(effect); return pass ? [pass] : []; }

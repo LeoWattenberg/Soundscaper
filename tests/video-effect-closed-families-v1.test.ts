@@ -14,22 +14,22 @@ import { appendClarityFfmpegOperationV1 } from '../src/common/editor/video-clari
 import { EFFECT_PROGRAM_COUNT } from '../src/common/editor/ui/video-preview-effects.js';
 
 const TYPES=['white-balance-v1','tone-ladder-v1','develop-geometry-v1','chroma-v1','black-white-mix-v1','hsl-mixer-v1',
-	'point-curves-v1','parametric-curves-v1','color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1'] as const;
-const ENVELOPES=['color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1'];
+	'point-curves-v1','parametric-curves-v1','color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1','noise-reduction-v1'] as const;
+const ENVELOPES=['color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1','noise-reduction-v1'];
 
-test('fixed closed family ownership preserves the exact24-type and30-program inventory without new registrations',()=>{
+test('fixed closed family ownership retains the old inventory and appends the exact noise registration',()=>{
 	assert.deepEqual(Object.keys(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1),TYPES);assert.ok(Object.isFrozen(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1));
-	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(12),TYPES);assert.equal(VIDEO_EFFECT_TYPES.length,24);assert.equal(EFFECT_PROGRAM_COUNT,30);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(12),TYPES);assert.equal(VIDEO_EFFECT_TYPES.length,25);assert.equal(EFFECT_PROGRAM_COUNT,31);
 	assert.deepEqual(VIDEO_EFFECT_V5_TYPES,['color-adjust','pixelate','vignette','gaussian-blur','sharpen','rgb-split']);
 	for(const type of TYPES){assert.equal(isClosedVideoEffectTypeV1(type),true);assert.equal(hasClosedVideoEffectEnvelopeV1(type),ENVELOPES.includes(type));
 		assert.equal(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1[type],videoEffectDefinition(type));}
 	let reads=0;const hostile={toString(){reads++;return'clarity-v1';}};
-	for(const value of [hostile,'__proto__','constructor','color-adjust','noise-reduction-v1','grain-v1','clarity-v2'])assert.equal(isClosedVideoEffectTypeV1(value),false);
+	for(const value of [hostile,'__proto__','constructor','color-adjust','noise-reduction-v2','grain-v1','clarity-v2'])assert.equal(isClosedVideoEffectTypeV1(value),false);
 	assert.equal(reads,0);assert.throws(()=>normalizeClosedVideoEffectParamsV1('__proto__',{}));
 });
 
 test('all existing default/label/option/recipe/operation bytes equal the pre-extraction24-family capture',()=>{
-	const output=VIDEO_EFFECT_TYPES.map(type=>{
+	const output=VIDEO_EFFECT_TYPES.slice(0,24).map(type=>{
 		const params=videoEffectDefaults(type),first=Object.entries(videoEffectDefinition(type).params as Record<string,{default:unknown;step:number;max:number}>).find(([,p])=>typeof p.default==='number'&&p.default+p.step<=p.max);
 		if(first && typeof first[1].default==='number'){const[key,p]=first;params[key]=first[1].default+p.step;}
 		if(type==='develop-geometry-v1')Object.assign(params,{cropX:0,rotationDegrees:0.01});

@@ -3,6 +3,8 @@
 import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1, POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1, normalizePostCropVignetteEffectV1,
 	normalizePostCropVignetteParamsV1, createPostCropVignetteEffectV1, serializePostCropVignetteEffectToFfmpegV1 } from './video-post-crop-vignette-v1.ts';
 import { CLARITY_EFFECT_TYPE_V1, CLARITY_VIDEO_EFFECT_DEFINITION_V1, normalizeClarityEffectV1, normalizeClarityParamsV1, serializeClarityEffectToFfmpegV1 } from './video-clarity-v1.ts';
+import { NOISE_REDUCTION_EFFECT_TYPE_V1, NOISE_REDUCTION_VIDEO_EFFECT_DEFINITION_V1, normalizeNoiseReductionEffectV1, normalizeNoiseReductionParamsV1 } from './video-noise-reduction-v1.ts';
+import { serializeNoiseReductionEffectToFfmpegV1 } from './video-noise-reduction-ffmpeg-v1.ts';
 import { createClosedVideoEffect } from './video-effect-closed-creation.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1, normalizeDetailSharpenEffectV1,
 	normalizeDetailSharpenParamsV1, serializeDetailSharpenEffectToFfmpegV1 } from './video-sharpen-v1.ts';
@@ -42,6 +44,7 @@ export const CLOSED_VIDEO_EFFECT_DEFINITIONS_V1 = Object.freeze({
 	[DETAIL_SHARPEN_EFFECT_TYPE_V1]:DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1,
 	[POST_CROP_VIGNETTE_EFFECT_TYPE_V1]:POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1,
 	[CLARITY_EFFECT_TYPE_V1]:CLARITY_VIDEO_EFFECT_DEFINITION_V1,
+	[NOISE_REDUCTION_EFFECT_TYPE_V1]:NOISE_REDUCTION_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 const FAMILIES = Object.freeze({
@@ -62,6 +65,8 @@ const FAMILIES = Object.freeze({
 		create:(value:unknown)=>createPostCropVignetteEffectV1(value,()=>createStableId('video-effect'))},
 	[CLARITY_EFFECT_TYPE_V1]:{params:normalizeClarityParamsV1,effect:normalizeClarityEffectV1,serialize:serializeClarityEffectToFfmpegV1,
 		create:(value:unknown)=>createClosedVideoEffect(CLARITY_EFFECT_TYPE_V1,value,{name:'clarity creation',typeError:'Clarity creation requires its exact effect type.',normalizeParams:normalizeClarityParamsV1,normalizeEffect:normalizeClarityEffectV1})},
+	[NOISE_REDUCTION_EFFECT_TYPE_V1]:{params:normalizeNoiseReductionParamsV1,effect:normalizeNoiseReductionEffectV1,serialize:serializeNoiseReductionEffectToFfmpegV1,
+		create:(value:unknown)=>createClosedVideoEffect(NOISE_REDUCTION_EFFECT_TYPE_V1,value,{name:'noise reduction creation',typeError:'Noise reduction creation requires its exact effect type.',normalizeParams:normalizeNoiseReductionParamsV1,normalizeEffect:normalizeNoiseReductionEffectV1})},
 } satisfies Record<string,Family>);
 
 export function isClosedVideoEffectTypeV1(value:unknown):value is keyof typeof FAMILIES { return typeof value==='string' && Object.hasOwn(FAMILIES,value); }
@@ -69,7 +74,7 @@ function family(type:string):Family {
 	if(!isClosedVideoEffectTypeV1(type))throw new RangeError('Unsupported closed video effect family.');
 	return FAMILIES[type];
 }
-/** Only the four previously closed complete envelopes bypass legacy prechecks. */
+/** Complete closed envelopes bypass legacy prechecks; older families retain them. */
 export function hasClosedVideoEffectEnvelopeV1(value:unknown):value is string { return isClosedVideoEffectTypeV1(value) && Boolean(family(value).create); }
 export function normalizeClosedVideoEffectParamsV1(type:string,value:unknown) { return {...family(type).params(value)}; }
 export function normalizeClosedVideoEffectV1(type:string,value:unknown) {

@@ -31,6 +31,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Glow | `glow` | 3 |
 | HSL mixer | `hsl-mixer-v1` | 24 |
 | Luma Key | `luma-key` | 3 |
+| Noise reduction | `noise-reduction-v1` | 6 |
 | Outline | `outline` | 3 |
 | Parametric curves | `parametric-curves-v1` | 19 |
 | Pixelate | `pixelate` | 1 |
@@ -131,6 +132,12 @@ Defaults and limits come from the same definitions the editor validates against.
 | Luma Key | Mode | Dark | Dark; Bright | — |
 | Luma Key | Cutoff | 0.2 | 0 to 1 | — |
 | Luma Key | Softness | 0.1 | 0 to 1 | — |
+| Noise reduction | Luminance | 0 | 0 to 100 | — |
+| Noise reduction | Luminance detail | 50 | 0 to 100 | — |
+| Noise reduction | Luminance contrast | 0 | 0 to 100 | — |
+| Noise reduction | Color | 0 | 0 to 100 | — |
+| Noise reduction | Color detail | 50 | 0 to 100 | — |
+| Noise reduction | Color smoothness | 50 | 0 to 100 | — |
 | Outline | Width | 4 | 0 to 16 | pixels |
 | Outline | Color | `#ffffff` | Any RGB color | — |
 | Outline | Opacity | 1 | 0 to 1 | — |

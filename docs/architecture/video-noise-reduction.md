@@ -1,11 +1,11 @@
 # Shared RGB noise reduction
 
-This foundation advances the missing noise-reduction operation in Lightscaper
-L4. The versioned process is `srgb-alpha-bilateral-ycocg-noise-q8-v1` and its
-effect type is `noise-reduction-v1`. Its reserved shared GPU code is 30.
-Registration, Frame/Photo authoring and native qualification are still pending;
-this document does not declare that vertical slice complete. The existing
-gray-frame temporal denoiser and older effect recipes remain unchanged.
+Lightscaper L4 and Frame share the versioned process
+`srgb-alpha-bilateral-ycocg-noise-q8-v1`, effect type `noise-reduction-v1`, and
+GPU code 30. The existing Frame effect menu and opted-in Photo Develop
+adjustment selector expose its six controls. Saved recipes retain the same
+closed shared effect through project validation, preview and export.
+Native browser qualification remains a separate gate.
 
 The process admits straight UNORM8 encoded sRGB. It has six finite controls,
 all between 0 and 100: luminance (default 0), luminance detail (50), luminance
@@ -67,8 +67,17 @@ allocation failure. No image-sized color planes, masks or caches are retained.
 FFmpeg authenticates the compiled operation and uses the shared original-alpha
 transport; it does not rely on RGBA-to-GBRAP conversion to preserve alpha.
 
-Focused literal goldens, scoped cleanup/cancellation tests and actual pinned
-FFmpeg comparisons qualify this foundation. GPU execution, production picture
-export, persisted menu authoring and maximum-profile memory/latency remain
-separate pending checks. There are no runtime source-pin, engine closure or
-asset-publication changes; a manual **Update AI assets** run is not required.
+The Frame CPU route and both fixed Photo proxy/full-resolution profiles apply
+the kernel to the current natural stage in authored order, including after
+crop. Each completed stage replaces and wipes its predecessor; final delivery
+checks native cancellation again. Authoring preserves accepted values when
+an invalid numeric draft is cancelled. It does not modify original custody
+or metadata.
+
+Focused literal goldens, scoped cleanup/cancellation tests, mounted English and
+German authoring, the 2052-pixel full-resolution boundary, and actual pinned
+FFmpeg comparisons qualify these paths. Production selected finishing and the
+picture encoder also verify exact pre-encode bytes. Native GPU execution and
+maximum-profile memory/latency remain pending. There are no runtime source-pin,
+engine closure or asset-publication changes; a manual **Update AI assets** run
+is not required.

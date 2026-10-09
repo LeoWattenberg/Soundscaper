@@ -9,7 +9,7 @@ import VideoEffectNumberInput from '../inspector/VideoEffectNumberInput.tsx';
 import VideoCurveControl from '../inspector/VideoCurveControl.tsx';
 import PhotoDevelopColorWheels from './PhotoDevelopColorWheels.tsx';
 
-const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1'] as const;
+const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1', 'noise-reduction-v1'] as const;
 type Parameter = Readonly<{ label: string; labelKey: string; min: number; max: number; step: number; control?: string;
 	options?: readonly Readonly<{ value: number; label: string; labelKey: string }>[] }>;
 export default function PhotoDevelopEffects(props: Readonly<{ effects: readonly VideoEffectLeaf[]; owner: PhotoLibraryDevelopWorkflowV1;

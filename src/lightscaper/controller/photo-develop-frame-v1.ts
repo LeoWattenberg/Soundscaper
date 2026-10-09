@@ -8,6 +8,8 @@ import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1 } from '../../common/editor/video-pos
 import { withPostCropVignettePixelFrameV1 } from '../../common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts';
 import { CLARITY_EFFECT_TYPE_V1 } from '../../common/editor/video-clarity-v1.ts';
 import { withClarityPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-clarity-v1.ts';
+import { NOISE_REDUCTION_EFFECT_TYPE_V1 } from '../../common/editor/video-noise-reduction-v1.ts';
+import { withNoiseReductionPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-noise-reduction-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1 } from '../../common/editor/video-sharpen-v1.ts';
 import { COLOR_WHEELS_EFFECT_TYPE_V1 } from '../../common/editor/video-color-wheels-v1.ts';
 import { withDetailSharpenPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-sharpen-v1.ts';
@@ -68,7 +70,7 @@ async function withPhotoDevelopFrame<Result>(value: unknown,
 	if (serialized.length > maximum || new TextEncoder().encode(serialized).byteLength > maximum) throw new RangeError('Photo proxy settings exceed their byte budget.');
 	if (develop.maskBindings.length) throw new RangeError('Photo proxy mask-bound adjustments are unsupported.');
 	for (const effect of develop.effects) {
-		if (effect.enabled && effect.type !== POST_CROP_VIGNETTE_EFFECT_TYPE_V1 && effect.type !== CLARITY_EFFECT_TYPE_V1 && effect.type !== DETAIL_SHARPEN_EFFECT_TYPE_V1 && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1
+		if (effect.enabled && effect.type !== NOISE_REDUCTION_EFFECT_TYPE_V1 && effect.type !== POST_CROP_VIGNETTE_EFFECT_TYPE_V1 && effect.type !== CLARITY_EFFECT_TYPE_V1 && effect.type !== DETAIL_SHARPEN_EFFECT_TYPE_V1 && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1
 			&& effect.type !== BLACK_WHITE_MIX_EFFECT_TYPE_V1 && effect.type !== HSL_MIXER_EFFECT_TYPE_V1 && effect.type !== COLOR_WHEELS_EFFECT_TYPE_V1
 			&& !isGlobalDevelopEffectTypeV1(effect.type) && !isCurvesEffectTypeV1(effect.type)) {
 			throw new RangeError(`Unsupported photo proxy effect: ${effect.type}.`);
@@ -93,6 +95,8 @@ async function withPhotoDevelopFrame<Result>(value: unknown,
 				replace(await stage(accept => withPostCropVignettePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === CLARITY_EFFECT_TYPE_V1) {
 				replace(await stage(accept => withClarityPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+			} else if (effect.type === NOISE_REDUCTION_EFFECT_TYPE_V1) {
+				replace(await stage(accept => withNoiseReductionPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === DETAIL_SHARPEN_EFFECT_TYPE_V1) {
 				replace(await stage(accept => withDetailSharpenPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else {

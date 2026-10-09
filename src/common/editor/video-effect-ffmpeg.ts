@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { appendClarityFfmpegOperationV1 } from './video-clarity-ffmpeg-v1.ts';
+import { appendNoiseReductionFfmpegOperationV1 } from './video-noise-reduction-ffmpeg-v1.ts';
 import { imageGeometryVideoFfmpegFilterV1 } from './video-image-geometry-ffmpeg-v1.ts';
 import { appendPostCropVignetteFfmpegOperationV1 } from './video-post-crop-vignette-ffmpeg-v1.ts';
 import { appendDetailSharpenFfmpegOperationV1 } from './video-sharpen-ffmpeg-v1.ts';
@@ -162,6 +163,7 @@ export function appendVideoEffectOperation(context: VideoEffectGraphContext): vo
 	const { filters, inputLabel, outputLabel, operation } = context;
 	if (operation.kind === 'post-crop-vignette-v1') { appendPostCropVignetteFfmpegOperationV1(context); return; }
 	if (operation.kind === 'clarity-v1') { appendClarityFfmpegOperationV1(context); return; }
+	if (operation.kind === 'noise-reduction-v1') { appendNoiseReductionFfmpegOperationV1(context); return; }
 	if (operation.kind === 'detail-sharpen-v1') { appendDetailSharpenFfmpegOperationV1(context); return; }
 	if (typeof operation.expression === 'string') {
 		if (operation.preserveAlpha) appendPreserveAlpha(filters, inputLabel, outputLabel, operation.expression);
