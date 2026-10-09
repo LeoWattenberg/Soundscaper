@@ -467,3 +467,26 @@ annotation size ratchet is lowered to550, and the shrunk desktop Save test
 leaves its warning band; no size gate is weakened. Selected generator-target
 admission, final native suggested-name suffixes, clipboard destinations and
 late native parameter writes remain uncounted pending built public checks.
+
+The immutable `435e1779e` passes both guarded product builds and all nine
+focused public Chromium checks in39.7seconds
+(`/tmp/soundscaper-round6-green28-chromium.log`). Selected generator replacement
+and allowed cursor generation, locked Paste destination admission, all three
+native parameter completion paths and native Save/New/Open-copy filename
+round trips pass. Editing044, effects034, I/O028 and dialog051 therefore qualify:
+**155 distinct verified fixes** comprise editing44, effects34, I/O27 and dialogs50.
+The Source-header lock and captured-callback correction passes its complete
+ordinary rename/Undo/Redo workflow as an uncounted EDIT034 follow-through.
+
+The initial150 canonical run on `0729264e1` passes all seven bounded repository
+lint shards, then fails strict source typing at the two common runtime-project
+projection ports (`src/common/editor/app.js`404/580); its result remains failed
+(`/tmp/soundscaper-round6-checkpoint150-green27-canonical.log`). The owning
+callback contract is corrected without app casts or weakened typing in
+`9255dd695`, included in `435e1779e`. The full canonical gate is now rerunning
+on that corrected immutable checkout, including complete lint and both Node
+execution batches (`/tmp/soundscaper-round6-checkpoint150-green28-canonical-retry.log`).
+Its full all-engine browser checkpoint remains queued behind the running
+full100 browser parent; pending runs are not reported as passing. Successful
+Cut clipboard publication is source-ready and remains uncounted pending the
+next built complete public workflow. No manual **Update AI assets** run is required.
