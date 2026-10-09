@@ -432,6 +432,7 @@ export function AudioTrackRow({
 						&& ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralBrushOverlay
 							track={track}
+							channelCount={rulerChannelCount} channelHeightRatio={displayChannelHeightRatio}
 							displayMode={displayMode}
 							trackHeight={trackHeight}
 							windowWidth={windowWidth}
@@ -446,6 +447,7 @@ export function AudioTrackRow({
 					{activeSpectralSelection && ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralSelectionOverlay
 							selection={activeSpectralSelection}
+							channelCount={rulerChannelCount} channelHeightRatio={displayChannelHeightRatio}
 							track={track}
 							displayMode={displayMode}
 							trackHeight={trackHeight}
