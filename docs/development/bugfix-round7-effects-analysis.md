@@ -305,8 +305,9 @@ lint passes. The actual native running-rack control witness in
 `e2a38ecb5` (4.2 seconds): the healthy closed output passes, then the normal
 attenuation edit produces peak 0.00345497485 instead of at most 0.000102. The
 accepted actual running-node update and at least four measured changed blocks
-also pass. The corrected peak bounds and unchanged node identity assertion await
-the root-owned new capture.
+also pass. The corrected public workflow is GREEN on immutable `58264ec46`
+(3.9 seconds): actual peak 0.0001000057018 remains within the 0.000102 bound,
+and the healthy baseline and final unchanged node identity assertion pass.
 PCM and observations remain bounded in memory, with no generated
 verification files or raw coverage. Assistance runtime assets are unchanged.
 The initial browser setup attempted a Lookahead field omitted by the shipped
