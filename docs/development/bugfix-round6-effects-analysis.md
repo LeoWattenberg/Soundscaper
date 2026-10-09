@@ -294,6 +294,25 @@ passes in all three engines on Green7 `e139818a9`. Earlier
 native Source clock, tempo and clip-bound corrections concern independent
 metadata owners.
 
+The same track-identity boundary also exposes `TRACK.INDEX` as an effect-target
+number. With those two header-selected clips, run
+`(mult *track* (get '*track* 'index))` through the normal Nyquist prompt and
+export WAV. The second clip gains 6 dB although it belongs to the same first
+track. The public exported-PCM regression reports a second/first amplitude
+ratio of `2.000000009` instead of one
+(`/tmp/soundscaper-r6-effects-nyquist-track-index-browser-prompt-red2.log`).
+Derive INDEX from the same distinct owning-track list, preserving the
+untargeted fallback. Two strict host cases are RED before repair
+(`/tmp/soundscaper-r6-effects-nyquist-track-index-node-red.log`); all sixteen
+host cases pass afterward
+(`/tmp/soundscaper-r6-effects-nyquist-track-index-node-green.log`). Two ordinary
+Crossfade Tracks workflows passed before this follow-through and remain a
+control, rather than causal evidence. An initial prompt fixture waited for a
+status string instead of its actual frame output and is excluded. Strict
+types, targeted lint and size checks pass; the new PCM workflow awaits public
+GREEN on the next immutable build. This is follow-through of R6-EFFECT-011,
+with no additional root counted.
+
 ## R6-EFFECT-012 — Nyquist generators do not replace all selected recordings
 
 Import two ordinary one-second mono recordings containing 1 kHz and 2 kHz
