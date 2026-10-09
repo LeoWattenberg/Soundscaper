@@ -235,7 +235,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		<div className="audio-editor-source-body">
 			<div className="audio-editor-source-vertical-ruler" role="region" aria-label={copy.clipSourceVerticalRuler} tabIndex={0}
 				onContextMenu={event => { event.preventDefault(); setMenu({ kind: 'view', x: event.clientX, y: event.clientY, frame: 0 }); }}
-				onKeyDown={event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); setMenu({ kind: 'view', x: rect.left, y: rect.bottom, frame: 0 }); } }}>
+				onKeyDown={event => { if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return; if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); setMenu({ kind: 'view', x: rect.left, y: rect.bottom, frame: 0 }); } }}>
 				{spectral && renderFrequencyRulers(source.channelCount, displayMode === 'multiview' ? bodyHeight / 2 : bodyHeight, 40, 0, source.sampleRate / 2, 'linear', 0.5)}
 				{displayMode !== 'spectrogram' && amplitudeRulers(source.channelCount, displayMode === 'multiview' ? bodyHeight / 2 : bodyHeight, 40, displayMode, 'linear-db', verticalZoom, 0.5)}
 			</div>
