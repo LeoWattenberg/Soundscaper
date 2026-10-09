@@ -348,6 +348,7 @@ function MixerSendKnob({ label, value, disabled, onChange, onGestureStart, onGes
 		// steps by the same 1 dB within the same bounds. Handling them here too
 		// moved the send twice per press. Home and End remain ours.
 		const handleKeyDown = (event) => {
+			if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 			if (!['Home', 'End'].includes(event.key)) return;
 			event.preventDefault();
 			const next = event.key === 'Home' ? -60 : 12;
@@ -357,7 +358,7 @@ function MixerSendKnob({ label, value, disabled, onChange, onGestureStart, onGes
 		};
 		knob.addEventListener('keydown', handleKeyDown);
 		return () => knob.removeEventListener('keydown', handleKeyDown);
-	}, [label, onChange, onGestureEnd, onGestureStart, value]);
+	}, [disabled, label, onChange, onGestureEnd, onGestureStart, value]);
 	return <div ref={wrapperRef} className="kw-audio-editor__mixer-send-knob"><Knob value={value} defaultValue={-60} min={-60} max={12} step={1} label={label} mode="unipolar" disabled={disabled} onChange={onChange} onGestureStart={onGestureStart} onGestureEnd={onGestureEnd} onGestureCancel={onGestureCancel} /></div>;
 }
 

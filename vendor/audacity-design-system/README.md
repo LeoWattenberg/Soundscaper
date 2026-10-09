@@ -418,6 +418,14 @@ application overrides and source patches against the pin and upstream master.
     callbacks. Covered by `tests/audio-editor-round6-clip-context-shortcut.test.tsx`
     and its ordinary Preferences/header/menu/Undo browser workflow.
 
+58. `Knob` leaves modified or already handled navigation with its existing
+    command owner before starting a parameter gesture. The application send
+    endpoint adapter applies the same admission; its prevented Home/End event
+    is not processed again by the generic knob. Preserve ordinary arrows,
+    endpoints, Shift stepping and pointer lifetimes. Covered by
+    `tests/audio-editor-round6-mixer-knob-shortcut.test.tsx` and the native
+    mixer pan/send command and endpoint browser workflows.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
