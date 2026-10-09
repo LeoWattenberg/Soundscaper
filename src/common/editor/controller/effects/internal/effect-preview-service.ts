@@ -66,7 +66,8 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
 		const processCompleteSelection = type === 'audacity-normalize' || type === 'audacity-loudness-normalization'
 			|| (type === 'audacity-sliding-stretch' && (params.startTempoPercent !== params.endTempoPercent
-				|| params.startPitchSemitones !== params.endPitchSemitones));
+				|| params.startPitchSemitones !== params.endPitchSemitones))
+			|| (type === 'multi-tap-delay' && params.pitchMode === 'speed' && params.pitchShift > 0 && params.mix > 0);
 		const fullPreviewTargets: FullPreviewTarget[] = fullTargets.map((full: RuntimeValue, fullIndex: number) => ({
 			full,
 			fullIndex,
