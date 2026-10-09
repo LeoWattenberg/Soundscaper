@@ -91,6 +91,11 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	}, [persistedProject, runtimeProject]);
 	const runtimeSnapshot = sourceProject ? { ...snapshot, project: sourceProject } : snapshot;
 	const sourceClip = sourceProject?.clips.find(clip => clip.id === activeClipId);
+	const ownerLocked = sourceProject?.tracks?.some(value => {
+		const track = value as Readonly<{ readonly locked?: boolean; readonly clipIds?: readonly string[] }>;
+		return track.locked === true && activeClipId !== null && track.clipIds?.includes(activeClipId);
+	}) === true;
+	const mutationBlocked = ownerLocked || selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked;
 	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
 		&& sourceProject?.sources.some(source => source.id === sourceClip.sourceId);
 	const handlePlaybackKey = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -116,14 +121,14 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 			onKeyDown={handlePlaybackKey}
 			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>
 			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
-				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked}
+				project={sourceProject} clipId={activeClipId} copy={copy} blocked={mutationBlocked}
 				previewBlocked={selectAudioEditorBusyBlock(snapshot as Parameters<typeof selectAudioEditorBusyBlock>[0]).blocked} />}
 			{sourceClip?.kind === 'image' ? <ImageClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])}
 				controller={controller} project={persistedProject} clipId={activeClipId} copy={copy}
-				disabled={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />
+				disabled={mutationBlocked} />
 				: sourceClip?.kind === 'generator' ? <GeneratorClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])}
 					controller={controller} project={sourceProject} clipId={activeClipId} copy={copy}
-					disabled={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />
+					disabled={mutationBlocked} />
 				: <ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
 					snapshot={runtimeSnapshot} copy={copy} clipId={activeClipId} />}
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
