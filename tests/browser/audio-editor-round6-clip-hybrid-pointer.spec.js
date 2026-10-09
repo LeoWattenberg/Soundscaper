@@ -12,7 +12,7 @@ test('a timeline clip retains its first pen move through a mouse tap', async ({ 
 	await clip.locator('.clip-header').click();
 	const id = await clip.getAttribute('data-clip-id');
 	const projectId = await editor.getAttribute('data-project-id');
-	const position = async () => (await persistedProject(page, projectId)).clips.find(item => item.id === id).timelineStartFrame;
+	const position = async () => (await persistedProject(page, projectId)).clips.find(item => item.id === id)?.timelineStartFrame;
 	const firstBox = await clip.locator('.clip-header').boundingBox();
 	expect(firstBox).not.toBeNull();
 	const first = { x: firstBox.x + 30, y: firstBox.y + firstBox.height / 2 };
