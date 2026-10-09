@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 #include "juce_ara_adapter.h"
+#include "ara_factory_library_lease.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -110,6 +111,9 @@ public:
 	PlayHead playHead;
 	juce::AudioBuffer<float> buffer;
 	juce::MidiBuffer midi;
+	// The ARA document outlives the VST3 instance. JUCE releases the instance's
+	// DLL handle first, so retain Windows code until document and factory teardown.
+	AraFactoryLibraryLease factoryLibrary;
 	juce::ARAFactoryWrapper factory;
 	ModelUpdates *updates = nullptr;
 	std::unique_ptr<juce::ARAHostDocumentController> document;
@@ -168,6 +172,7 @@ soundscaper_pro_status JuceAraSession::bind()
 	if (s.document != nullptr || !s.data.ready()) return SOUNDSCAPER_PRO_MODE_REFUSED;
 	s.factory = factoryFor(s.plugin);
 	if (s.factory.get() == nullptr || s.factory.get()->highestSupportedApiGeneration < ARA::kARAAPIGeneration_2_0_Final) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	if (!s.factoryLibrary.retain(reinterpret_cast<const void *>(s.factory.get()->initializeARAWithConfiguration))) return SOUNDSCAPER_PRO_UNSUPPORTED;
 	s.plugin.releaseResources();
 	s.plugin.setNonRealtime(true);
 	auto updates = std::make_unique<ModelUpdates>();

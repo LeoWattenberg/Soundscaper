@@ -76,6 +76,7 @@ add_library(soundscaper_professional_audio STATIC
 add_library(soundscaper_professional_plugin STATIC
 	src/direct_clap_adapter.cpp src/juce_message_dispatcher.cpp
 	src/juce_plugin_adapter.cpp src/juce_ara_adapter.cpp src/ara_clip_data.cpp
+	src/ara_factory_library_lease.cpp
 	src/ladspa_host_state.cpp src/professional_host.cpp
 )
 include(cmake/exact-vamp-host-adapter.cmake)
