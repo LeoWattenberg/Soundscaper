@@ -1018,6 +1018,8 @@
 		,
 		{ "path": "src/lightscaper/storage/photo-cube-lut-repository-v1.ts", "kind": "persisted-contract", "justification": "Version 1 append-only immutable Photo LUT bodies use the existing selected media analysis domain, authenticate complete references and raw bodies on insertion, reuse and scoped read, join native acknowledgements and wipe transient bytes without original, eviction, deletion or connection-close authority." }
 		,
+		{"path": "src/lightscaper/storage/photo-develop-preset-row-v2.ts", "kind": "persisted-contract", "justification": "Explicit preset row2 carries owning shared preset1/2 settings references without bodies; reads preserve old row1 bytes, physical key, absence and positive-empty revisions under unchanged bounds."}
+		,
 		{"path": "src/lightscaper/storage/photo-develop-presets-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed preset capture detaches one closed bounded physical row and independently fences its presence, revision and complete canonical digest without editing photo facts or acquiring another resource."}
 		,
 		{ "path": "src/lightscaper/storage/photo-develop-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped shared develop preset rows preserve exact bounded recipe bodies with revision-fenced compare-and-swap, no-op stability and exact post-publication reconciliation independently of photo and import-preset schemas." }
