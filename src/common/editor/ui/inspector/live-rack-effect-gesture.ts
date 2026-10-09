@@ -14,7 +14,7 @@ type GestureBegin = () => unknown;
 type GestureCommit = (params: RackParams) => unknown;
 
 function supportsNativeCommit(type: string): boolean {
-	return isStandardEffect(type) || ['audacity-echo', 'audacity-graphic-eq', 'audacity-filter-curve-eq'].includes(type);
+	return isStandardEffect(type) || ['audacity-echo', 'audacity-graphic-eq', 'audacity-filter-curve-eq', 'audacity-compressor', 'audacity-limiter'].includes(type);
 }
 
 export function nativeRackEffectCommit(

@@ -52,8 +52,9 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 		const effect = projectRackEffect(this.project, scope, targetId, effectId);
 		const configurable = String(effect?.type || '').toLowerCase();
 		const equalizer = configurable === 'audacity-graphic-eq' || configurable === 'audacity-filter-curve-eq';
+		const dynamics = configurable === 'audacity-compressor' || configurable === 'audacity-limiter';
 		if (!effect || (!CONFIGURABLE_RACK_EFFECT_TYPES.has(configurable) && !isStandardEffect(configurable)
-			&& configurable !== 'audacity-echo' && !equalizer)) return false;
+			&& configurable !== 'audacity-echo' && !equalizer && !dynamics)) return false;
 		const normalized = normalizeEffect({
 			...effect,
 			params: { ...(effect.params || {}), ...params },
@@ -74,6 +75,10 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 			const next: Readonly<Record<string, unknown>> = normalized;
 			if (previous.filterLength !== next.filterLength) return false;
 		}
+		if (dynamics) {
+			const sampleRate = this.context?.sampleRate || this.sampleRate;
+			if (effectLatencyFrames(effect, sampleRate) !== effectLatencyFrames({ ...effect, params: normalized }, sampleRate)) return false;
+		}
 		if (isStandardEffect(configurable)) {
 			const key = effectGraphKey(scope, targetId, effectId);
 			const node = this.graph?.effectNodes?.get(key);
@@ -88,7 +93,7 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 			scope,
 			targetId,
 			effectId,
-			{ type: configurable === 'audacity-echo' || equalizer ? 'params' : 'configure', params: normalized },
+			{ type: configurable === 'audacity-echo' || equalizer || dynamics ? 'params' : 'configure', params: normalized },
 			options.revision,
 		);
 		if (sequence !== false) {
