@@ -434,6 +434,14 @@ application overrides and source patches against the pin and upstream master.
     clip-gain/context-click/exported-audio/Undo browser workflow. Upstream-PR
     candidate.
 
+60. `LabelMarker` starts move and ear-resize gestures only from the primary
+    mouse button. Preserve secondary context entry and ordinary primary label
+    movement, point-to-region conversion and resizing. Covered by the actual
+    timeline wrapper in `tests/audio-editor-round6-label-pointer-button.test.tsx`
+    and the ordinary label/context-drag/Undo browser workflow. Unused legacy
+    point/region components do not participate in this adaptation. Upstream-PR
+    candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
