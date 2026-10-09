@@ -146,7 +146,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		setView({ startFrame: nextStart, endFrame: nextStart + nextSpan });
 	});
 	const begin = (event: PointerEvent<HTMLElement>, kind: Gesture['kind'], pointIndex?: number) => {
-		if (event.button !== 0 || blocked) return;
+		if (event.button !== 0 || event.isPrimary === false || gesture.current || blocked) return;
 		const handle = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-clip-fade-handle], [data-clip-fade-shape-handle]') : null;
 		if (handle?.dataset.clipFadeHandle) kind = handle.dataset.clipFadeHandle === 'in' ? 'fade-in' : 'fade-out';
 		if (handle?.dataset.clipFadeShapeHandle) kind = handle.dataset.clipFadeShapeHandle === 'in' ? 'shape-in' : 'shape-out';
@@ -173,7 +173,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 			: { [fadeField(edge)]: fadeDurationAtPointer(edge, current.initialValue!, current.startX, event.clientX, width * project.sampleRate / (endFrame - startFrame), project.sampleRate, clip.durationFrames) };
 	};
 	const move = (event: PointerEvent<HTMLDivElement>) => {
-		const current = gesture.current; if (!current) return;
+		const current = gesture.current; if (!current || current.pointerId !== event.pointerId) return;
 		const frame = frameAt(event.clientX); setDragFrame(frame);
 		if (current.kind === 'selection') setSelection({ startFrame: Math.min(current.startFrame, frame), endFrame: Math.max(current.startFrame, frame) });
 		if (current.kind.startsWith('fade-') || current.kind.startsWith('shape-')) setFadePreview(fadeChanges(current, event));
@@ -183,7 +183,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		if (feedback?.canMove) run(() => controller.actions.audioWarp.moveSourceMarker(clipId, pointIndex, feedback.displayFrame - range.startFrame));
 	};
 	const finish = (event: PointerEvent<HTMLDivElement>) => {
-		const current = gesture.current; if (!current) return;
+		const current = gesture.current; if (!current || current.pointerId !== event.pointerId) return;
 		gesture.current = null; setDragFrame(null); setFadePreview(null);
 		const frame = frameAt(event.clientX);
 		if (current.kind === 'selection') {
@@ -199,8 +199,8 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const cancelGesture = () => {
 		const current = gesture.current;
 		if (current?.kind === 'selection') setSelection(current.initialSelection);
-		if (current && waveRef.current?.hasPointerCapture?.(current.pointerId)) waveRef.current.releasePointerCapture(current.pointerId);
 		gesture.current = null; setDragFrame(null); setFadePreview(null);
+		if (current && waveRef.current?.hasPointerCapture?.(current.pointerId)) waveRef.current.releasePointerCapture(current.pointerId);
 	};
 	const previewClip = useMemo(() => fadePreview ? { ...clip, ...fadePreview } : clip, [clip, fadePreview]);
 	const fadeClip = useMemo(() => ({ ...previewClip, timelineStartFrame: range.startFrame }), [previewClip, range.startFrame]);
@@ -241,7 +241,8 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 			</div>
 			<div ref={waveRef} className="audio-editor-source-wave-area" role="region" aria-label={copy.clipSourceWaveform} tabIndex={0}
 				data-source-frame-count={source.frameCount} data-source-gesture={gesture.current?.kind} onPointerDown={event => begin(event, 'selection')} onPointerMove={move} onPointerUp={finish}
-				onPointerCancel={cancelGesture}
+				onPointerCancel={event => { if (gesture.current?.pointerId === event.pointerId) cancelGesture(); }}
+				onLostPointerCapture={event => { if (gesture.current?.pointerId === event.pointerId) cancelGesture(); }}
 				onContextMenu={event => { event.preventDefault(); setMenu({ kind: 'wave', x: event.clientX, y: event.clientY, frame: frameAt(event.clientX) }); }}>
 				{visual && <ClipSourceWaveforms project={project} clip={previewClip} source={source} visual={visual} width={width} startFrame={startFrame} endFrame={endFrame}
 					displayMode={displayMode} verticalZoom={verticalZoom} selection={selection} copy={copy}
