@@ -41,6 +41,7 @@ export interface FramescaperVisualInspectorModel {
 	readonly kind: 'still' | 'title' | 'text' | 'shape' | 'solid' | 'test-image' | 'noise'
 		| 'sound-visualizer' | null;
 	readonly generator: VideoGeneratorDocumentV1 | null;
+	readonly generatorEditable: boolean;
 	readonly audioSources: readonly FramescaperVisualInspectorAudioSource[];
 	readonly opacity: number;
 	readonly blendMode: VideoVisualPresentationV1['blendMode'];
@@ -91,6 +92,7 @@ export function createFramescaperVisualInspectorModel(input: Readonly<{
 		sourceId: source.id,
 		kind: source.kind === 'still' ? 'still' : generatorKind(source.generator),
 		generator: source.kind === 'generator' ? source.generator : null,
+		generatorEditable: selectedGeneratorEditable(project, clip.id),
 		audioSources: sequenceAudioSources(project, clip.sequenceId),
 		opacity: presentation?.opacity ?? 1,
 		blendMode: presentation?.blendMode ?? 'normal',
@@ -159,7 +161,7 @@ export function createFramescaperVisualInspectorCommand(
 
 function emptyModel(project: Data): FramescaperVisualInspectorModel {
 	return Object.freeze({
-		clipId: null, sourceId: null, kind: null, generator: null,
+		clipId: null, sourceId: null, kind: null, generator: null, generatorEditable: false,
 		audioSources: Object.freeze([]),
 		opacity: 1, blendMode: 'normal', maskId: null, maskWidth: 1,
 		masks: Object.freeze(supportedMasks(project).map(({ id }) => Object.freeze({ id, name: id, width: maskWidth(project, id) }))),
@@ -263,6 +265,12 @@ function sequenceAudioSources(project: Data, sequenceId: string): readonly Frame
 
 function displayAudioSourceName(source: Data): string {
 	return typeof source.name === 'string' && source.name.trim() ? source.name : String(source.id);
+}
+
+function selectedGeneratorEditable(project: Data, clipId: string): boolean {
+	const owners = optionalRecords(project.tracks).filter(track =>
+		Array.isArray(track.clipIds) && track.clipIds.includes(clipId));
+	return owners.length === 1 && owners[0]?.locked !== true;
 }
 
 function optionalRecords(value: unknown): Data[] {
