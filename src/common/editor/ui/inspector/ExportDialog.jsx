@@ -289,7 +289,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				adm: admittedSettings.adm,
 				channelMapping: videoFormat
 					? undefined
-					: admittedSettings.channelMapping === 'custom'
+					: admittedSettings.binaural ? 'preserve' : admittedSettings.channelMapping === 'custom'
 						? parseJsonChannelMapping(admittedSettings.channelMatrix, copy.customChannelMapping, copy)
 						: admittedSettings.channelMapping,
 			});
@@ -426,8 +426,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					{!videoFormat && (
 						<ExportChannelsField
 							copy={copy}
-							value={settings.channelMapping}
-							disabled={exporting || settings.format === 'bw64'}
+							value={settings.binaural ? 'preserve' : settings.channelMapping}
+							disabled={exporting || settings.format === 'bw64' || settings.binaural}
 							onChange={(value) => setCodec('channelMapping', value)}
 							onEditMapping={() => setMappingOpen(true)}
 						/>

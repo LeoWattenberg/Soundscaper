@@ -14,6 +14,7 @@ const SAMPLE_RATE = 48_000;
 
 interface ExportDialogFixtureOptions {
 	readonly productId?: string;
+	readonly metadata?: Readonly<Record<string, unknown>>;
 	readonly labels?: readonly Readonly<Record<string, unknown>>[];
 	readonly masteringSequences?: readonly Readonly<Record<string, unknown>>[];
 	readonly output?: Readonly<Record<string, unknown>>;
@@ -33,7 +34,7 @@ export async function mountedExportDialog(options: ExportDialogFixtureOptions = 
 	const root = createRoot(dom.container as unknown as Element);
 	let project = exportProject(options.labels ?? [
 		{ id: 'one', title: 'Intro', startFrame: 0, endFrame: SAMPLE_RATE },
-	], options.video === true);
+	], options.video === true, options.metadata);
 	const render = async (output: Readonly<Record<string, unknown>> | null = null) => {
 		await act(async () => root.render(React.createElement(ExportDialog, {
 			isOpen: true,
@@ -160,14 +161,14 @@ export async function mountedExportDialog(options: ExportDialogFixtureOptions = 
 	};
 }
 
-function exportProject(labels: readonly Readonly<Record<string, unknown>>[], video: boolean) {
+function exportProject(labels: readonly Readonly<Record<string, unknown>>[], video: boolean, metadata: Readonly<Record<string, unknown>> = {}) {
 	return {
 		id: 'export-surface',
 		revision: 1,
 		title: 'Export surface',
 		sampleRate: SAMPLE_RATE,
 		masterChannels: 2,
-		metadata: {},
+		metadata,
 		clips: [
 			{ id: 'clip', kind: 'audio', timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0 },
 			...(video ? [{ id: 'video-clip', kind: 'video', timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0 }] : []),
