@@ -1,8 +1,9 @@
 # Sixth user-path regression audit
 
-Target: 200 additional distinct bugs. All 200 fixes have focused regressions and
-complete public workflow verification; full-suite validation continues. The
-initial revision is `ee0d3fabd`; work is isolated on
+Completed: 200 additional distinct bugs, each with a causal focused regression
+and complete public workflow verification. The final canonical gate passes;
+the full browser checkpoints and their complete corrective checks are recorded
+below. The initial revision is `ee0d3fabd`; work is isolated on
 `fix/user-path-bugs-round6`.
 
 Only defects reached through ordinary menus, input fields, media imports and
@@ -1038,3 +1039,122 @@ exited, at 2026-10-09 17:35:56 UTC
 gate and subsequent native verification remain pending. No runtime source
 pin, engine dependency, recipe, archive or supported target changes; no manual
 **Update AI assets** run is required.
+
+Green45's complete canonical gate subsequently finishes with **actual exit 0**
+(`/tmp/soundscaper-round6-checkpoint200-green45-canonical.log`). All seven full
+lint shards, product/test/tooling types, architecture and size guards,
+runtime/notice/security audits, documentation checks and guarded application
+build pass. The isolated protocol batch passes 1/1; the main batch reports
+24,879 tests, 24,846 passes, 33 skips and zero failures in 932,246 ms. Combined:
+**24,880 tests, 24,847 passed, 33 skipped, zero failed**. Coverage reporting
+finishes at 90.13% statements/lines, 82.33% branches and 90.73% functions.
+These are Node-only measurements; the CI union floors are unchanged.
+
+The exact 32 remaining original Green44 cases complete unchanged with one
+worker: **29 passed, three failed, actual exit 1 in 6.0 minutes**
+(`/tmp/soundscaper-r6-final-green44-quiet-whole.log`). The two Firefox video
+exports still report unavailable WebGL2, and Firefox's continuous native
+plug-in slider still reaches 1 rather than the fixture's assumed 0.26 before
+Store/Restore. All other 29 complete workflows pass with their original
+assertions and budgets. This quiet run stays failed; its three failures are
+resolved by the faithful fixture completions below.
+
+A separate native platform observer completes **3/3 passed, actual exit 0**
+in 4.0 seconds (`/tmp/soundscaper-r6-native-platform-observer/run.log`). With
+an independent ordinary HTML range input at 0.25 and `step="any"`, ArrowRight
+produces 0.26 in Chromium/WebKit and 1 in Firefox; Home and End produce 0 and 1
+in all three engines. An independent native canvas obtains WebGL2 in
+Chromium/WebKit and returns null in Firefox. These platform observations are
+separate from complete application verification and add zero bug roots.
+
+Commit `e4e858958` replaces only the plug-in fixture's assumed incremental
+keyboard granularity with native Home/End endpoints. Host and visible state,
+Store/Restore, subsequent editing, enabled controls and the original assertion
+budgets remain checked. The revised public fixture causally fails on the
+pre-FX035 Green28 products, **actual exit 1**
+(`/tmp/soundscaper-r6-native-plugin-endpoint-causal-red.log`): all preceding
+controls pass, Restore actually restores host 0, and the old visible control
+remains 1 at the original five-second assertion. The revised fixture therefore
+retains the original stale-control regression.
+
+Commit `307fe9e9f` makes three browser witnesses faithful to independently
+observable publication. Both caption fixtures retain the ordinary menu and
+delivery assertions, then explicitly verify the actual unavailable-WebGL2
+error and absent download when the independently measured native capability
+is absent. Capable engines retain the original delivered-video geometry and
+duration checks. The EQ fixture waits for native canvas sizing and measures
+pixels and geometry atomically, retaining the exact physical bin and
+less-than-four-pixel predicate. The Samples fixture waits for a finite changed
+publication before capturing its claim, retaining exact exported 32,000-frame
+output and claim equality. No production, helper or dependency changes occur
+in these fixture commits; no cases are newly skipped.
+
+Latest immutable Green46 `307fe9e9f` completes both guarded product builds
+with **actual exit 0** (`/tmp/soundscaper-round6-green46-build.log`). Soundscaper
+has 455 JavaScript chunks and Framescaper 491; the largest is 484,468 bytes.
+Both startup graphs and FFmpeg bundle guards pass. The frozen product copies
+verify every byte length and SHA for 632 Soundscaper and 665 Framescaper files
+against the authenticated build manifests. A successful strict Git comparison
+(`/tmp/soundscaper-round6-green46-source-equivalence.log`) permits exactly four
+browser fixtures and three verification documents to differ from Green45:
+all production, tooling, Node tests/helpers, types, configuration and dependency
+bytes are identical to the passing canonical gate.
+
+The latest complete all-engine matrix finishes with **actual exit 0: 30 cases,
+28 passed, two existing WebKit capability skips, zero failed in 3.8 minutes**
+(`/tmp/soundscaper-r6-final-green46-completion-whole.log`). All three locked
+Paste workflows and all three native plug-in Restore workflows pass. Both
+complete video-edit workflows pass in Chromium and Firefox, retaining their
+existing imported-linked-A/V WebKit guards. All 18 caption, EQ and duration
+workflows pass across the three engines, including Firefox's explicit negative
+WebGL2 branches. No source assertion, physical tolerance or assertion deadline
+is weakened by this completion matrix.
+
+Every one of the final full run's 39 failed observations now has complete
+verification; the original full run remains **failed**:
+
+| Original observations | Count | Complete verification |
+| --- | --- | --- |
+| Unchanged ordinary workflows | 29 | Original Green44 whole quiet cases pass |
+| Locked Paste keyboard dismissal | 3 | Latest Green46 whole cases pass in all engines |
+| Withdrawn locked video grips | 4 | Latest Green46 whole video workflows pass in Chromium/Firefox |
+| Native unavailable-WebGL2 video export | 2 | Latest Firefox whole fixtures verify the actual error and absent output |
+| Native plug-in endpoint portability | 1 | Revised causal RED retained; latest Firefox whole Restore workflow passes |
+
+The original 39-case index and every diagnostic remain preserved under
+`/tmp/soundscaper-r6-final-green44-failure-index/`; the unchanged quiet evidence
+is under `/tmp/soundscaper-r6-final-green44-quiet-evidence/` and the latest
+complete output under `/tmp/soundscaper-r6-final-green46-completion-results/`.
+Intermediate assertions are never promoted to whole workflow passes.
+The independent 39-case resolution audit under
+`/tmp/soundscaper-r6-final-original39-resolution-overlay/index.json` matches
+every original identity exactly once, retains both failed batch exits, and
+confirms that the two latest WebKit skips already occur in the original run.
+
+All four required full-suite milestones have actual complete results:
+
+| Verified fixes | Full Node passed / skipped / failed | Full all-engine browser passed / skipped / failed |
+| --- | --- | --- |
+| 50 | 24,146 / 33 / 0 | 5,267 / 196 / 150 |
+| 100 | 24,458 / 33 / 0 | 5,662 / 210 / 26 |
+| 150 | 24,674 / 33 / 0 | 5,726 / 220 / 21 |
+| 200, latest canonical | 24,847 / 33 / 0 | 5,935 / 254 / 39 |
+
+The failed full browser checkpoints remain failed; their complete diagnoses,
+unchanged retries and explicit fixture/source completions are recorded above
+and in the owning registers. The verified total remains **200 distinct causal
+roots: 54 editing, 45 effects, 35 import/export and 66 dialogs**. I/O004 and
+dialog019 remain excluded. All later completion and verification changes add
+zero roots. No generated bundle, coverage, browser report or dependency content
+is committed. Assistance runtime source pins, recipes, bundled dependencies,
+archive/signing logic and supported targets are unchanged, so no manual
+**Update AI assets** run is required.
+
+Final handoff `npm run lint:changed`, `npm run docs:reference:check` and
+`git diff --check` complete with actual exit 0. Only verification Markdown is
+modified at that handoff, so changed lint reports no added or modified lintable
+files; the latest four browser witnesses already have focused strict types and
+targeted/changed lint recorded in their owning receipts. Documentation
+references are current for 141 documents and local model pages for 23 pages.
+The full canonical source gate, guarded product builds, causal focused tests
+and complete native completion matrix remain the applicable final checks.
