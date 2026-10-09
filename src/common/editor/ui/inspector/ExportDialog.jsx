@@ -31,6 +31,7 @@ import ExportChannelMappingDialog from './ExportChannelMappingDialog.tsx';
 import ExportChannelsField from './ExportChannelsField.jsx';
 import ExportDialogMetadataPanel from './ExportDialogMetadataPanel.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
+import ExportOutputHints from './ExportOutputHints.tsx';
 import ExportRenderingSection from './ExportRenderingSection.jsx';
 import ExportEmbeddedChaptersField from '../ExportEmbeddedChaptersField.tsx';
 import {
@@ -52,7 +53,6 @@ import {
 } from '../export-dialog-audio-codec-options.ts';
 import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-capabilities.ts';
 import { samePresetParams } from './effect-helpers.ts';
-
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.taskProgress?.kind === 'export' ? telemetry.taskProgress.value : telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
@@ -418,7 +418,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						})) : []),
 					]} />
 					<LabeledDropdown label={copy.exportMode} hook="output" value={outputValue} onChange={chooseOutput} disabled={exporting || admPassthrough} options={outputOptions} />
-					{outputNoLabelsHint && <p className="audio-editor-panel-hint" data-export-no-labels>{outputNoLabelsHint}</p>}
+					<ExportOutputHints copy={copy} project={snapshot.project} noLabelsHint={outputNoLabelsHint} singleFileOnly={videoFormat || settings.format === 'bw64'} />
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">
