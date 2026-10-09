@@ -716,3 +716,24 @@ whole Firefox capture checks are running. Full100 and queued full150 browser
 checkpoints remain pending. The final full200 canonical and browser gates use
 the committed source and faithful observers. No manual **Update AI assets**
 run is required.
+
+The final read-only register audit confirms exactly54 editing,45 effects,
+35 I/O and66 dialog roots, each with causal RED and complete built public GREEN.
+Current dialog table statuses now refer to the later immutable receipts;
+historical pending and failed checkpoint prose is retained. Green37 completes
+all18 unchanged native capture monitoring, batching and Stop-tail workflows
+across Chromium, Firefox and WebKit, including exact channel/PCM assertions
+(`/tmp/soundscaper-round6-green37-capture-public-green.log` and
+`/tmp/soundscaper-round6-green37-capture-controls-green.log`). The independently
+measured native video observer preserves exact coded/display dimensions and
+declared40:33 on all three engines, while unchanged pre-fix Green18 remains
+causally RED at97:80. These completions add zero count.
+
+Final canonical validation runs on Green38 `74ee50e15`
+(`/tmp/soundscaper-round6-checkpoint200-green38-canonical.log`). The final
+all-engine browser checkpoint is queued on Green39 `b6ee08055`, which changes
+only the faithful video observer and its receipt after Green38; production
+source bytes are identical. Green39's two guarded product builds exit zero.
+The earlier full100 and full150 browser checkpoint results remain pending.
+The initial Green38 browser queue was replaced before it started so the final
+run includes the verified native observer. No runtime asset update is required.
