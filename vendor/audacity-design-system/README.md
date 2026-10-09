@@ -466,6 +466,15 @@ application overrides and source patches against the pin and upstream master.
     normal Effects → Add effect → Search effects composition/reopen workflow.
     Upstream-PR candidate.
 
+64. `RulerFlyout` leaves native composing Escape with its frequency field
+    before dismissing the popup, and its `FreqStepper` leaves composing Enter
+    before publishing the unfinished numeric draft. Completed scientific
+    entries, ordinary Escape, trigger focus and arrow ownership are retained.
+    Covered by `tests/audio-editor-round6-ruler-composition.test.tsx` and the
+    normal Spectrogram → frequency ruler → exact frequency draft workflow.
+    This independently registered popup listener and field wrapper do not use
+    the shared `Flyout` dismissal owner. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
