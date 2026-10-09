@@ -40,7 +40,7 @@ for (const modifier of ['ctrlKey', 'altKey', 'metaKey', 'handled'] as const) tes
 		assert.ok(Math.abs(values[0]! - 30.001) < 1e-9);
 		values.length = 0;
 		const modified = Object.assign(new Event('keydown', { cancelable: true }), {
-			key: 'ArrowUp', ctrlKey: modifier === 'ctrlKey', altKey: modifier === 'altKey', metaKey: modifier === 'metaKey',
+			key: modifier === 'ctrlKey' ? '1' : 'ArrowUp', ctrlKey: modifier === 'ctrlKey', altKey: modifier === 'altKey', metaKey: modifier === 'metaKey',
 		});
 		if (modifier === 'handled') modified.preventDefault();
 		await dispatch(modified);
