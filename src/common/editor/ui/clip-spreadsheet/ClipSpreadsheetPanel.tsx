@@ -271,6 +271,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		event.stopPropagation();
 		if (event.target instanceof HTMLButtonElement) return;
 		if (draft) {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape') {
 				event.preventDefault(); updateDraft(null); setError(''); focusCell(active);
 			} else if (event.key === 'Enter' || event.key === 'Tab') {
