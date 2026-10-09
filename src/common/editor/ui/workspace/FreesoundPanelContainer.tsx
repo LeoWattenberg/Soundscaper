@@ -52,6 +52,7 @@ interface ActiveFreesoundPreview {
 	readonly soundId: number;
 	readonly audio: HTMLAudioElement;
 	playing: boolean;
+	playRequest: number;
 	metadataLoaded: boolean;
 	pendingSeekSeconds: number | null;
 }
@@ -134,6 +135,12 @@ export function FreesoundPanelContainer({
 		}
 		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false, previewPositionSeconds: 0 }));
 	}, []);
+	const playPreview = useCallback((active: ActiveFreesoundPreview) => {
+		const request = ++active.playRequest;
+		void active.audio.play().catch(() => {
+			if (preview.current === active && active.playRequest === request) stopPreview();
+		});
+	}, [stopPreview]);
 
 	useEffect(() => {
 		if (!panelActive) stopPreview();
@@ -187,7 +194,7 @@ export function FreesoundPanelContainer({
 		stopPreview();
 		const audio = new Audio(freesoundPreviewUrl(soundId));
 		const active: ActiveFreesoundPreview = {
-			soundId, audio, playing: true, metadataLoaded: false, pendingSeekSeconds: null,
+			soundId, audio, playing: true, playRequest: 0, metadataLoaded: false, pendingSeekSeconds: null,
 		};
 		preview.current = active;
 		const finish = () => { if (preview.current === active) stopPreview(); };
@@ -209,13 +216,14 @@ export function FreesoundPanelContainer({
 		if (seekSeconds > 0) seekPreviewTime(active, seekSeconds);
 		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false,
 			previewPositionSeconds: seekSeconds }));
-		void audio.play().catch(finish);
-	}, [panelActive, stopPreview]);
+		playPreview(active);
+	}, [panelActive, playPreview, stopPreview]);
 
 	const pausePreview = useCallback(() => {
 		const active = preview.current;
 		if (!active) return;
 		active.playing = false;
+		active.playRequest += 1;
 		active.audio.pause();
 		setState((current) => ({ ...current, previewPaused: true }));
 	}, []);
@@ -225,8 +233,8 @@ export function FreesoundPanelContainer({
 		if (!panelActive || !active) return;
 		active.playing = true;
 		setState((current) => ({ ...current, previewPaused: false }));
-		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
-	}, [panelActive, stopPreview]);
+		playPreview(active);
+	}, [panelActive, playPreview]);
 
 	const seekPreview = useCallback((soundId: number, seconds: number) => {
 		if (!panelActive || typeof Audio !== 'function') return;
@@ -240,8 +248,8 @@ export function FreesoundPanelContainer({
 		if (active.playing) return;
 		active.playing = true;
 		setState((current) => ({ ...current, previewPaused: false }));
-		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
-	}, [panelActive, startPreview, stopPreview]);
+		playPreview(active);
+	}, [panelActive, playPreview, startPreview]);
 
 	const executeImport = useCallback((request: FreesoundImportRequest) => {
 		setPendingSoundId(request.soundId);
