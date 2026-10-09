@@ -16,6 +16,7 @@ import { captureTimelineRollRippleTrimPointerMode } from './roll-ripple-trim-poi
 import { captureTimelineSlipSlidePointerGesture } from './slip-slide-pointer-routing.ts';
 import { isRulerLoopBand, samplePointAtPointer } from './track-row-helpers.jsx';
 import { readTimelineContentScrollX } from './timeline-scroll-space.ts';
+import { clipGestureBlocked } from './clip-gesture-admission.ts';
 import {
 	resolveSplitToolGuidelineFrame,
 	splitToolTargetTrackIds,
@@ -88,7 +89,8 @@ export function useTimelinePointerStart({
 			const incomingClipId = crossfadeHandle.dataset.incomingClipId;
 			const outgoing = project.clips.find(item => String(item.id) === outgoingClipId);
 			const incoming = project.clips.find(item => String(item.id) === incomingClipId);
-			if (outgoing?.kind !== 'audio' || incoming?.kind !== 'audio') return;
+			if (outgoing?.kind !== 'audio' || incoming?.kind !== 'audio'
+				|| clipGestureBlocked(project, [outgoing.id, incoming.id])) return;
 			const initialPosition = Number(crossfadeHandle.dataset.crossfadePosition);
 			const initialGain = Number(crossfadeHandle.dataset.crossfadeGain);
 			const width = Number(crossfadeHandle.dataset.crossfadeWidth);
@@ -115,7 +117,7 @@ export function useTimelinePointerStart({
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
 			const clipId = fadeShapeHandle.closest('[data-clip-id]')?.dataset.clipId;
 			const clip = project.clips.find(item => item.id === clipId);
-			if (clip?.kind !== 'audio') return;
+			if (clip?.kind !== 'audio' || clipGestureBlocked(project, [clip.id])) return;
 			const edge = fadeShapeHandle.dataset.clipFadeShapeHandle;
 			pointerSession.current = {
 				kind: 'fade-shape', edge, clipId, original: { ...clip }, startY: event.clientY,
@@ -136,7 +138,7 @@ export function useTimelinePointerStart({
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
 			const clipId = fadeHandle.closest('[data-clip-id]')?.dataset.clipId;
 			const clip = project.clips.find(item => item.id === clipId);
-			if (clip?.kind !== 'audio') return;
+			if (clip?.kind !== 'audio' || clipGestureBlocked(project, [clip.id])) return;
 			const edge = fadeHandle.dataset.clipFadeHandle;
 			pointerSession.current = {
 				kind: 'fade', edge, clipId, original: { ...clip }, startX: event.clientX,
@@ -240,7 +242,7 @@ export function useTimelinePointerStart({
 		}
 		const trackId = lane.dataset.trackId;
 		const laneTrack = project.tracks.find((track) => track.id === trackId);
-		if (splitToolActive && !event.altKey && trackId
+		if (splitToolActive && !event.altKey && trackId && laneTrack?.locked !== true
 			&& lane.dataset.rulerInteraction === undefined
 			&& laneTrack?.type !== 'label' && Array.isArray(laneTrack?.clipIds)) {
 			const rawStartFrame = frameAtClientX(event.clientX, lane);
@@ -277,7 +279,7 @@ export function useTimelinePointerStart({
 		const samplePencilAvailable = Boolean(clip.kind === 'audio' && source && clip.durationFrames && sourceDurationFrames
 			&& clipDisplayMode === 'waveform'
 			&& pixelsPerSecond >= sampleRate * sourceDurationFrames / clip.durationFrames);
-		if (snapshot.sampleEdit?.available && snapshot.sampleEdit.mode === 'pencil' && samplePencilAvailable) {
+		if (snapshot.sampleEdit?.available && snapshot.sampleEdit.mode === 'pencil' && samplePencilAvailable && clipTrack?.locked !== true) {
 			const point = samplePointAtPointer(event, lane, clip, source, frameAtClientX);
 			pointerSession.current = {
 				kind: 'sample-pencil',
@@ -326,6 +328,7 @@ export function useTimelinePointerStart({
 		const interactionClipIds = kind === 'clip-loop' || clipHasLoopRepeats(clip) && (kind === 'trim-left' || kind === 'trim-right') ? [clip.id] : kind === 'trim-left' || kind === 'trim-right'
 			? collectClipTrimIds(project, clip.id, kind === 'trim-left' ? 'left' : 'right')
 			: transformClipIds;
+		const interactionBlocked = clipGestureBlocked(project, interactionClipIds);
 		const session = {
 			kind,
 			moveOptions: moveOptions ? { ...moveOptions, clipIds: transformClipIds } : undefined,
@@ -343,7 +346,7 @@ export function useTimelinePointerStart({
 				< Math.abs(frameAtClientX(event.clientX, lane) - clip.timelineStartFrame),
 			lane,
 		};
-		const slipSlideGesture = captureTimelineSlipSlidePointerGesture({
+		const slipSlideGesture = interactionBlocked ? null : captureTimelineSlipSlidePointerGesture({
 			session,
 			canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
 			pointerType: event.pointerType,
@@ -368,6 +371,11 @@ export function useTimelinePointerStart({
 			run(() => controller.actions.timeline.selectTrack(trackId));
 			run(() => controller.actions.timeline.selectClip(null));
 			beginSelection(lane, frameAtClientX(event.clientX, lane), [trackId]);
+			return;
+		}
+		if (interactionBlocked) {
+			run(() => controller.actions.timeline.selectClip(clip.id, event.shiftKey ? { additive: true }
+				: event.metaKey || event.ctrlKey ? { toggle: true } : undefined));
 			return;
 		}
 		const rollRippleMode = kind === 'trim-left' || kind === 'trim-right'

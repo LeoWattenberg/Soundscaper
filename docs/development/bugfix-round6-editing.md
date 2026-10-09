@@ -127,6 +127,27 @@ range, because Paste/Undo/Redo had moved the playhead handle over its former
 starting point; all exact clipboard counts and history assertions remain. This
 completes the same premature clipboard publication family and adds no qualifying root.
 
+Uncounted R6-EDIT-046 timeline gesture follow-through: ordinary audio and picture
+Fade in controls remain enabled after healthy editing/Undo and Track → Lock.
+The normal locked audio header also previews a refused move at x370 instead of
+x346, despite a healthy mouse/Undo control. All three public cases causally RED
+on immutable `a8a5aaf38`
+(`/tmp/soundscaper-r6-edit-timeline-clip-lock-public-red.log`). The mounted main
+pointer adapter independently opens a move session for that locked header,
+while locked body time selection and ordinary controls pass
+(`/tmp/soundscaper-r6-edit-timeline-clip-pointer-lock-node-red.log`). Carry the
+owning track lock into clip callbacks, fades, loops, crossfades, envelopes and
+picture filmstrip edits, and reject locked source participants before pointer
+capture/preview. Preserve read-only body/header selection, track mixing,
+presentation and global timeline pinch. Grouped locked companions use the same
+admission. Corrected owning/read-only selection, locked grouped companions,
+ordinary pointer and split/trim/rate-stretch routes, keyboard navigation, fades,
+loops, native lock refusal and existing rename admission pass 62/62
+(`/tmp/soundscaper-r6-edit-timeline-clip-lock-node-support.log`). Narrow strict
+compilation, targeted and changed-file lint, size and diff checks pass. This
+completes the existing host-track lock family and adds no root; complete built
+public GREEN remains pending.
+
 Uncounted R6-EDIT-043/044 architecture follow-through: the checkpoint150
 canonical gate correctly rejected UI → controller recording policy and document
 → private edit destination-planner imports. Move both import-free policies to
