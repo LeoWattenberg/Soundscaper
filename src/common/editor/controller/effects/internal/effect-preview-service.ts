@@ -63,7 +63,10 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			Math.max(...fullTargets.map((target: RuntimeValue) => target.endFrame)),
 		);
 		const previewFrameCount = previewEndFrame - previewStartFrame;
-		const processCompleteSelection = type === 'audacity-normalize' || type === 'audacity-loudness-normalization';
+		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
+		const processCompleteSelection = type === 'audacity-normalize' || type === 'audacity-loudness-normalization'
+			|| (type === 'audacity-sliding-stretch' && (params.startTempoPercent !== params.endTempoPercent
+				|| params.startPitchSemitones !== params.endPitchSemitones));
 		const fullPreviewTargets: FullPreviewTarget[] = fullTargets.map((full: RuntimeValue, fullIndex: number) => ({
 			full,
 			fullIndex,
@@ -81,7 +84,6 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				spectralSelection,
 			};
 		}).filter((target): target is PreviewTarget => target !== null);
-		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
 		const resolveFromFullSelection = type === 'audacity-amplify'
 			&& !state.audacityEffectTouchedParams.get(type)?.has('gainDb')
 			&& fullTargets.some((full: RuntimeValue) => (
