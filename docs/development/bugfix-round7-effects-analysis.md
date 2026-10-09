@@ -162,7 +162,8 @@ and cover supported Q 0.1, 0.707, 1, 10 and automated 30.
 The public native-render/decoded-WAV witnesses in
 `audio-editor-round7-native-filter-q.spec.js` are causally RED on immutable
 `5c9787bec`: both native low/high-pass decoded WAVs measure RMS 0.383523 instead
-of the authored 0.249962. Root owns their pending corrected browser verification.
+of the authored 0.249962. Both corrected native LP/HP witnesses pass on the
+root-owned immutable `fef78921b` capture.
 Small PCM stays in memory and no verification fixture
 or raw coverage is written. No AI runtime asset update is required.
 
@@ -173,7 +174,7 @@ the authored 1.09. Independent native LP/HP interior gain regressions are RED
 after the endpoint repair, then GREEN with bounded native subdivisions whose
 quality-factor error stays within the descriptor tolerance. Ordinary ascending
 and descending 0.1 → 10/30 sweeps remain below 2,048 subdivisions. Native Q,
-registry and real lane compiler support passes 27/27. This completes
+registry, real lane compiler and tail support passes 39/39. This completes
 R7-EFFECT-006 without another count.
 
 ## R7-EFFECT-007 — Native Resonant filters truncate their audible export release
@@ -205,17 +206,31 @@ Mix and Render, and track transform support they pass 93/93. Type-aware target
 lint passes.
 `audio-editor-round7-native-filter-tail.spec.js` is causally RED on immutable
 `5c9787bec` after the normal import/rack/export flow: the WAV contains 48,000
-samples instead of more than 48,128. Corrected public verification is pending.
+samples instead of more than 48,128. On the corrected immutable `fef78921b`
+capture the reserved length passes, but the first 128 physical release samples
+still peak at only 0.0000001192 instead of above 0.1. The normal render flow is
+under investigation; corrected physical release verification remains pending.
 PCM stays in memory; no generated verification files are retained. Assistance
 runtime assets are unchanged.
+
+The bounded diagnostic render confirms charged output −0.35319045 at frame
+47,999 followed by exact zero at frame 48,000, before WAV encoding. The native
+Biquad's default `max` input width narrows from stereo to mono when the source
+ends, which [reinitializes the native channel histories](https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webaudio/biquad_filter_handler.cc).
+Pin the actual rack channel width in explicit mode so silence preserves those
+histories. Six mono/stereo/surround LP/HP graph-width cases are RED before the
+repair; corrected native Q/tail/actual-worker/rack support passes 40/40.
+This completes the physical release owner without another count; its unchanged
+public physical-sample assertions await the root-owned new capture.
 
 ## R7-EFFECT-008 — Analyze selection loses an ordinary crescendo's ending true peak
 
 Import a normal one-second, 48 kHz, 12 kHz mono tone with amplitude 0.5.
-Select all, choose Effect → Fading → Fade In, then Analyze → Analyze selection.
-The displayed sample peak is −9.0 dBFS after the ordinary mono pan law. True
-peak also reports −9.0 dBTP, although the finite programme's reconstructed end
-reaches −8.9 dBTP. The analyzer takes the EBU meter snapshot before the 12-tap,
+Select all, choose Effect → Fading → Fade In, then set Selection end to
+0.750 seconds and choose Analyze → Analyze selection. The displayed sample
+peak is −11.5 dBFS after the ordinary mono pan law. The unfinished meter also
+reports true peak −11.5 dBTP, although that finite selection's reconstructed end
+reaches −11.4 dBTP. The analyzer takes the EBU meter snapshot before the 12-tap,
 four-phase true-peak interpolator has emitted its pending ending response.
 
 Resolve that finite response on copied FIR histories when finishing offline
@@ -235,11 +250,20 @@ All six new ending/history/cadence/chunk cases and existing worker, analysis,
 EBU Tech 3341/3342 conformance and audit support pass 41/41. The persisted cache
 case independently fails before its namespace correction; new ending, cache
 and actual analysis-composition support passes 24/24. Target type-aware lint
-passes. `audio-editor-round7-analysis-true-peak-ending.spec.js` is causally RED
-on immutable `5c9787bec`: ordinary Fade In completion and the healthy sample
-peak −9.0 dBFS pass, then true peak is −9.0 dBTP instead of −8.9. Its initial
-nonexistent Apply dialog setup is excluded because parameter-free Fade In
-applies directly from its menu. Corrected public verification is pending.
+passes. The first whole-clip browser attempt is excluded as a causal meter
+witness: the existing source edge taper makes its expected −8.9 dBTP invalid,
+as confirmed by bounded native render observations on `fef78921b`. Its earlier
+nonexistent Apply dialog setup is also excluded; parameter-free Fade In applies
+directly from its menu. The corrected witness edits the ordinary visible
+Selection end format to samples and edits its digits from 48,000 through
+38,000 to 36,000, retaining exact range, sample-peak and
+true-peak assertions. The exact quantized WAV/Fade In/interior PCM reference
+proves the unfinished meter reports −11.5304 instead of −11.4418 dBTP, and the
+actual analysis worker now resolves that peak while preserving 36,000 frames.
+Root owns the pending public causal RED/GREEN verification of that selection.
+The first interior digit attempt is excluded setup: changing the seconds digit
+to zero collapses the selection before its following millisecond digits can
+publish. Sample-format edits keep a positive selection throughout.
 PCM remains in memory and no verification fixture or raw coverage is created.
 No AI runtime asset update is required.
 

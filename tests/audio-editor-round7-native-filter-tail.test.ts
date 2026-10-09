@@ -15,6 +15,22 @@ import { evaluateAutomationLaneAtFrameV21, normalizeAutomationLaneV21 } from '..
 const RATE = 48_000;
 type Direction = 'lowpass' | 'highpass';
 
+for (const type of ['lowpass', 'highpass'] as const) {
+	for (const channelCount of [1, 2, 6]) {
+		test(`native ${type} retains its ${channelCount}-channel state when the recording ends`, () => {
+			const context = new MockAudioContext({ sampleRate: RATE });
+			const native = applyEffect(context as unknown as BaseAudioContext,
+				context.createGain() as unknown as AudioNode,
+				createEffect(type, { params: { frequency: 10, q: .707 } }), [],
+				{ effectChannelCount: channelCount }) as BiquadFilterNode;
+			// A disconnected native source narrows max-mode input to mono; changing
+			// Biquad input width reinitializes its channel histories instead of releasing them.
+			assert.equal(native.channelCountMode, 'explicit', 'Source silence must retain charged filter channels.');
+			assert.equal(native.channelCount, channelCount, 'The native filter must preserve the authored strip width.');
+		});
+	}
+}
+
 /** Independent reference for the browser's installed low/high-pass biquad. */
 function chargedFilter(type: Direction, frequency: number, q: number): (sample: number) => number {
 	const context = new MockAudioContext({ sampleRate: RATE });

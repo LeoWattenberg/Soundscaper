@@ -48,6 +48,10 @@ export function connectBiquad(
 ): AudioNode {
 	if (typeof context.createBiquadFilter !== 'function') return input;
 	const filter = addNode(nodes, context.createBiquadFilter());
+	// A max-mode filter loses its channel histories when an ended source narrows
+	// the silent input to mono. Retain the strip width through the filter release.
+	filter.channelCount = clamp(positiveInteger(options.effectChannelCount, 2), 1, 32);
+	filter.channelCountMode = 'explicit';
 	filter.type = (typeof params.type === 'string' ? params.type : 'peaking') as BiquadFilterType;
 	// Web Audio low/high-pass Q is in dB; the authored control is a quality factor.
 	const nativeQ = (value: number): number => filter.type === 'lowpass' || filter.type === 'highpass'

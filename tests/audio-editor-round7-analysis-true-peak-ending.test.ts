@@ -96,3 +96,38 @@ test('finite loudness and BEXT measurements retain the same ending true peak', (
 	control.push(channels);
 	assert.equal(actual.maxMomentaryLoudness, control.snapshot().loudness.maximumMomentaryLufs);
 });
+
+test('the actual analysis worker completes a normal interior Fade In selection', async () => {
+	const recording = Float32Array.from({ length: RATE }, (_, frame) =>
+		Math.round(.5 * Math.sin(2 * Math.PI * 12_000 * frame / RATE) * 32767) / 32768);
+	const programme = applyAudacityFadeIn([recording], RATE)[0]!.slice(0, 36_000).map((value: number) => value * Math.SQRT1_2);
+	const oldMeter = createEbuR128Meter({ sampleRate: RATE, channelCount: 1, running: true });
+	oldMeter.push([programme]);
+	assert.equal(oldMeter.snapshot().loudness.maximumTruePeakDbtp!.toFixed(1), '-11.5',
+		'The prior unfinished meter misses this ordinary interior-selection ending peak.');
+	const padded = new Float32Array(programme.length + 12);
+	padded.set(programme);
+	const reference = analyzeAudioChannels([padded], RATE);
+	assert.equal(reference.truePeakDbtp.toFixed(1), '-11.4');
+	const previousSelf = Object.getOwnPropertyDescriptor(globalThis, 'self');
+	const messages: unknown[] = [];
+	const worker = { onmessage: null as ((event: MessageEvent<unknown>) => void) | null,
+		postMessage: (message: unknown): void => { messages.push(message); } };
+	Object.defineProperty(globalThis, 'self', { configurable: true, value: worker });
+	try {
+		await import('../src/common/editor/analysis-worker.js');
+		const dispatch = (data: unknown): void => { worker.onmessage?.({ data } as MessageEvent<unknown>); };
+		dispatch({ type: 'start', options: { sampleRate: RATE, channelCount: 1 } });
+		dispatch({ type: 'chunk', channels: [programme.buffer] });
+		dispatch({ type: 'finish' });
+		const response = messages.at(-1);
+		assert.ok(response && typeof response === 'object' && 'result' in response);
+		const result = response.result;
+		assert.ok(result && typeof result === 'object' && 'truePeakDbtp' in result && 'frameCount' in result);
+		assert.ok(typeof result.truePeakDbtp === 'number' && Math.abs(result.truePeakDbtp - reference.truePeakDbtp) < 1e-12);
+		assert.equal(result.frameCount, 36_000);
+	} finally {
+		if (previousSelf) Object.defineProperty(globalThis, 'self', previousSelf);
+		else Reflect.deleteProperty(globalThis, 'self');
+	}
+});
