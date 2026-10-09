@@ -122,8 +122,11 @@ function paintSpectrogramColumn(context, bins) {
 	const count = Math.min(MAXIMUM_SPECTRUM_BINS, bins?.length ?? 0);
 	if (!count) return;
 	for (let row = 0; row < SPECTROGRAM_HEIGHT; row += 1) {
-		const index = Math.min(count - 1, Math.floor((SPECTROGRAM_HEIGHT - 1 - row) / SPECTROGRAM_HEIGHT * count));
-		const brightness = intensity(bins[index]);
+		const band = SPECTROGRAM_HEIGHT - 1 - row;
+		const start = Math.floor(band / SPECTROGRAM_HEIGHT * count);
+		const end = Math.max(start + 1, Math.floor((band + 1) / SPECTROGRAM_HEIGHT * count));
+		let brightness = 0;
+		for (let index = start; index < end; index += 1) brightness = Math.max(brightness, intensity(bins[index]));
 		context.fillStyle = `hsl(${Math.round(220 - brightness * 180)} 90% ${Math.round(7 + brightness * 60)}%)`;
 		context.fillRect(SPECTROGRAM_WIDTH - 1, row, 1, 1);
 	}

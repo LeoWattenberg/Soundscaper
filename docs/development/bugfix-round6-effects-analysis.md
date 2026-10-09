@@ -25,8 +25,8 @@ included in that snapshot. R6-EFFECT-020 passes Chromium/WebKit on immutable
 Green13 `3dfdeb038` and
 the unchanged Firefox retry on the same assets
 (`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-green13-firefox-retry.log`),
-bringing this register to twenty verified roots. R6-EFFECT-021 has focused GREEN
-and awaits a later build.
+bringing this register to twenty verified roots. R6-EFFECT-021–022 have focused
+GREEN and await a later build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -719,3 +719,39 @@ dual-mono, RMS and native-rate loudness cases pass after repair
 Focused strict compilation, targeted type-aware lint and size/diff checks pass.
 Public GREEN awaits the next immutable product build. No assistance runtime
 assets change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-022 — Live Spectrogram loses narrow tones between its visible rows
+
+Import an ordinary mono WAV with a steady tone, open Analyze → Analysis,
+expand Spectrum and Spectrogram, and play it. A tone in the ninety-fifth live
+frequency bucket remains audible and visible in Spectrum but disappears from
+the current Spectrogram column. A neighboring bucket displays normally.
+At the ordinary local device's 44.1 kHz playback clock these two recordings
+contain 3,186.914 Hz and 2,993.115 Hz tones respectively.
+
+The live renderer point-samples 128 frequency buckets into 96 rows, omitting
+one bucket in each group of four, including the highest bucket. Retain the
+strongest bucket covered by each visible row instead. Preserve the logarithmic
+frequency order, palette, scrolling history, project replacement and the
+existing expanded-section subscription/analysis-lease lifecycle. This live
+heatmap owner is independent of R2-ROOT-018's offline Plot Spectrum renderer.
+
+The complete ordinary playback workflow is causally RED at maximum current
+column RGB 34 against a required visible signal above 190, after the real
+native FFT peak at bin 296 reaches −22.5867 dB and Spectrum controls pass.
+The neighboring bin-278 tone passes at RGB 243
+(`/tmp/soundscaper-r6-effects-live-spectrogram-frequency-buckets-browser-red3.log`).
+The fixtures use the native device's default playback clock to choose their
+normal frequencies; the passive native analyser observer forwards every real
+read. The initial 48 kHz assumption selected a different, retained bucket on
+this 44.1 kHz device and is excluded. Two strict mounted production-renderer
+cases fail at lightness 7 instead of 59 for buckets 95 and 127, while the
+neighboring-bucket and silence controls pass
+(`/tmp/soundscaper-r6-effects-live-spectrogram-frequency-buckets-node-red2.log`).
+All nine new/existing renderer, native stereo-spectrum, section lifecycle and
+project-history cases pass after repair
+(`/tmp/soundscaper-r6-effects-live-spectrogram-frequency-buckets-node-green.log`).
+The initial missing style-asset loader is excluded. Focused strict types,
+targeted type-aware lint and size/diff checks pass. Public GREEN awaits
+the next immutable product build. No assistance runtime assets change and no
+manual **Update AI assets** run is required.
