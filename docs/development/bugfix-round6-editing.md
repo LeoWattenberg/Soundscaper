@@ -98,6 +98,30 @@ every editing case 014–016 in all three engines
 
 
 
+Uncounted R6-EDIT-043/044 architecture follow-through: the checkpoint150
+canonical gate correctly rejected UI → controller recording policy and document
+→ private edit destination-planner imports. Move both import-free policies to
+`src/common/editor/recording-target-admission.ts` and
+`src/common/editor/clipboard-paste-targets.ts`, where UI and controller domains
+can share their ownership. The recording policy declares only the structural
+track/project fields it reads; it imports no controller transaction types. Keep
+all algorithm branches and canonical admission unchanged and update owning
+imports directly. No dependency rule, controller-domain allowlist, foundation
+consumer gate or runtime inventory is weakened. Existing capture, Paste, Cut
+and architecture-rule support passes 50/50
+(`/tmp/soundscaper-r6-edit-policy-architecture-node-green.log`), narrow combined
+strict TypeScript passes (`/tmp/soundscaper-r6-edit-policy-architecture-types.log`)
+and the controller-domain gate passes. The complete cruise after these moves
+retires both original violations and initially reports only the independently
+owned IO relocation edges (`/tmp/soundscaper-r6-edit-policy-architecture-cruise.log`).
+The final complete dependency, controller-domain and size gate passes on the
+combined faithful shared-owner relocations
+(`/tmp/soundscaper-r6-io-interchange-shared-owner-architecture.log`, 4746 modules
+and 18192 dependencies, no violations). Targeted and changed-file lint and
+size/diff checks pass. The next frozen full canonical gate covers the required
+full lint after the shared structural-type move. This repairs the earlier fixes
+and adds no root or verified count.
+
 Uncounted R6-EDIT-031 atomic survivor safeguard: the initial dependency cleanup
 ran within each remove leaf, also erasing the original left track's assignment
 when an ordinary stereo split removed and re-added that same identity. The

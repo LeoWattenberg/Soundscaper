@@ -18,7 +18,7 @@ import type { FramescaperCaptureSessionSnapshot } from '../capture/framescaper-c
 import type { FramescaperWebVcrUiSnapshot } from '../capture/framescaper-web-vcr-controller-types.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../track-folder-media-runtime.ts';
 import { rememberDeliveryReportOrigin } from '../../delivery-report-origin.ts';
-import { hasLockedClipboardPasteTarget } from '../edit/internal/clipboard-paste-targets.ts';
+import { hasLockedClipboardPasteTarget } from '../../clipboard-paste-targets.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PROJECTS = new WeakMap<object, object>();

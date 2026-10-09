@@ -18,7 +18,7 @@ import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
-import { clipboardPasteTrackType, planClipboardPasteTargets } from './clipboard-paste-targets.ts';
+import { clipboardPasteTrackType, planClipboardPasteTargets } from '../../../clipboard-paste-targets.ts';
 import { createAudioEditorSessionClipboard } from '../../../session-clipboard-codec.ts';
 import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {

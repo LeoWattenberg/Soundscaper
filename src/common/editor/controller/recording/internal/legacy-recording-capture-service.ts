@@ -18,7 +18,7 @@ import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.t
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 import { recordingSourceAlignment } from './recording-source-alignment.ts';
-import { assertRecordingTargetsUnlocked } from '../recording-target-admission.ts';
+import { assertRecordingTargetsUnlocked } from '../../../recording-target-admission.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;

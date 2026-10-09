@@ -36,7 +36,7 @@ import {
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { supportsDisplayAudioCapture } from '../../recording-display-input.ts';
-import { focusedRecordingTrackId, hasLockedRecordingTarget } from '../../controller/recording/recording-target-admission.ts';
+import { focusedRecordingTrackId, hasLockedRecordingTarget } from '../../recording-target-admission.ts';
 import { importWorkspaceRoutedFiles } from './import-workspace-routed-files.ts';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
