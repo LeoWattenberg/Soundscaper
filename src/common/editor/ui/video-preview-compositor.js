@@ -51,6 +51,7 @@ import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-si
 import { compositeVideoPreviewAdjustedLayer } from './video-preview-layer-effects.js';
 import { applyVideoPreviewEntryEffects } from './video-preview-entry-effects.js';
 import { bindImageGeometryVideoUniformsV1 } from './video-preview-image-geometry-v1.ts';
+import { bindVideoGlobalDevelopGpu, disposeVideoGlobalDevelopGpu } from '../controller/clip-video/video-global-develop-gpu.ts';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -129,6 +130,7 @@ export class VideoPreviewCompositor {
 	}
 
 	initializeResources() {
+		disposeVideoGlobalDevelopGpu(this.gl);
 		this.effectResultCache.clear();
 		this.programs = Array.from(
 			{ length: EFFECT_PROGRAM_COUNT },
@@ -242,6 +244,7 @@ export class VideoPreviewCompositor {
 			gl.vertexAttribPointer(locations.position, 2, gl.FLOAT, false, 0, 0);
 			this.currentProgram = program;
 		}
+		if (effectCode === 18 || effectCode === 19) bindVideoGlobalDevelopGpu(gl, locations.globalLookup, pass);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer || null);
 		if (viewport) gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 		else gl.viewport(0, 0, targetWidth, targetHeight);
@@ -524,6 +527,7 @@ export class VideoPreviewCompositor {
 		this.gl.deleteBuffer(this.positionBuffer);
 		for (const program of this.programs) this.gl.deleteProgram(program);
 		disposeVideoPreviewCompositionBlendRuntime(this.gl, this.compositionBlend);
+		disposeVideoGlobalDevelopGpu(this.gl);
 	}
 }
 

@@ -8,6 +8,7 @@ export const GLOBAL_DEVELOP_EFFECT_TYPES_V1 = Object.freeze(['white-balance-v1',
 export type GlobalDevelopEffectTypeV1 = typeof GLOBAL_DEVELOP_EFFECT_TYPES_V1[number];
 export const GLOBAL_DEVELOP_EFFECT_CODES_V1 = Object.freeze({ 'white-balance-v1': 18, 'tone-ladder-v1': 19 });
 const PIVOT = 0.18, TONE_SCALE = 0.25;
+const PREVIEW_LOOKUPS = new WeakMap<object, Uint8Array>();
 
 function parameter(label: string, labelKey: string, min = -100, max = 100, step = 1) {
 	return Object.freeze({ label, labelKey, default: 0, min, max, step, integer: false, control: 'number' });
@@ -94,10 +95,26 @@ export function globalDevelopByteChannelV1(prepared: PreparedGlobalDevelopEffect
 	return Math.floor(clamp(output) * 255 + 0.5);
 }
 
+/** UNORM8 separable operations compile their owning CPU rounding into a private 1KiB transfer texture. */
 export function globalDevelopPreviewPassV1(value: unknown) {
 	const prepared = prepareGlobalDevelopEffectV1(value);
-	return !prepared.enabled || prepared.neutral ? null : Object.freeze({ code: GLOBAL_DEVELOP_EFFECT_CODES_V1[prepared.type],
+	if (!prepared.enabled || prepared.neutral) return null;
+	const pass = Object.freeze({ code: GLOBAL_DEVELOP_EFFECT_CODES_V1[prepared.type],
 		params0: prepared.params0, params1: prepared.params1, direction: Object.freeze([0, 0]) });
+	const bytes = new Uint8Array(1024);
+	for (let byte = 0; byte < 256; byte++) {
+		for (const channel of [0, 1, 2] as const) bytes[byte * 4 + channel] = globalDevelopByteChannelV1(prepared, byte, channel);
+		bytes[byte * 4 + 3] = 255;
+	}
+	PREVIEW_LOOKUPS.set(pass, bytes);
+	return pass;
+}
+
+/** Only the exact owning pass identity is accepted; returned upload bytes never expose private storage. */
+export function copyGlobalDevelopPreviewLookupV1(value: unknown): Uint8Array<ArrayBuffer> {
+	const bytes = value && typeof value === 'object' ? PREVIEW_LOOKUPS.get(value) : undefined;
+	if (!bytes) throw new TypeError('Global develop GPU transfer requires its owning prepared pass.');
+	return bytes.slice();
 }
 
 /** The same fixed linear masks/gains, explicit byte rounding, and unmodified alpha; no user expression enters this graph. */
@@ -117,26 +134,15 @@ export function serializeGlobalDevelopEffectToFfmpegV1(value: unknown): Readonly
 		const tone = prepared.type === 'tone-ladder-v1' ? `st(1,clip((ld(0)*${token(p[0])}-${token(PIVOT)})*${token(p[1])}+${token(PIVOT)},0,1));` : '';
 		return `${channel}='st(0,${decode});${tone}st(2,${linear});floor(255*clip(if(lte(ld(2),0.0031308),12.92*ld(2),1.055*pow(ld(2),1/2.4)-0.055),0,1)+0.5)'`;
 	});
-	return Object.freeze({ expression: `format=pix_fmts=gbrap,geq=${expressions.join(':')}:a='alpha(X,Y)',format=pix_fmts=rgba`, preserveAlpha: false });
+	return Object.freeze({ expression: `format=pix_fmts=gbrap,geq=${expressions.join(':')}:a='alpha(X,Y)':interpolation=nearest,format=pix_fmts=rgba`, preserveAlpha: false });
 }
 
-/** Versioned GLSL uses the same prepared numeric parameters and exactly the owning CPU equations. */
+/** Actual native shaders read the same compiled byte transfer, avoiding device-dependent pow precision. */
 export const GLOBAL_DEVELOP_GLSL_V1 = `
-float global_srgb_decode(float x) { return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4); }
-float global_srgb_encode(float x) { return floor(clamp(x <= 0.0031308 ? 12.92 * x : 1.055 * pow(x, 1.0 / 2.4) - 0.055, 0.0, 1.0) * 255.0 + 0.5) / 255.0; }
-float global_smooth(float lo, float hi, float x) { float t = clamp((x - lo) / (hi - lo), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
-float global_develop_channel(float x, int code, float gain, vec4 p, vec4 q) {
-	float linear = global_srgb_decode(x);
-	float result;
-	if (code == ${GLOBAL_DEVELOP_EFFECT_CODES_V1['white-balance-v1']}) result = clamp(linear * gain, 0.0, 1.0);
-	else {
-		float v = clamp((linear * p.x - ${PIVOT}) * p.y + ${PIVOT}, 0.0, 1.0);
-		result = clamp(v + p.z * global_smooth(0.5, 1.0, v) + p.w * (1.0 - global_smooth(0.0, 0.5, v))
-			+ q.x * global_smooth(0.75, 1.0, v) + q.y * (1.0 - global_smooth(0.0, 0.25, v)), 0.0, 1.0);
-	}
-	return global_srgb_encode(result);
-}
+uniform sampler2D u_global_lookup;
 vec3 global_develop_rgb(vec3 rgb, int code, vec4 p, vec4 q) {
-	return vec3(global_develop_channel(rgb.r, code, p.r, p, q), global_develop_channel(rgb.g, code, p.g, p, q), global_develop_channel(rgb.b, code, p.b, p, q));
-}
-`;
+	ivec3 sample_byte = ivec3(floor(clamp(rgb, 0.0, 1.0) * 255.0 + 0.5));
+	return vec3(texelFetch(u_global_lookup, ivec2(sample_byte.r, 0), 0).r,
+		texelFetch(u_global_lookup, ivec2(sample_byte.g, 0), 0).g,
+		texelFetch(u_global_lookup, ivec2(sample_byte.b, 0), 0).b);
+}`;

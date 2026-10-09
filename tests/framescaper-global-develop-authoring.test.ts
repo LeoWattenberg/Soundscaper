@@ -90,6 +90,11 @@ test('a real Frame project with65 admitted global effects renders the complete a
 
 test('mixed old/new Frame stacks execute every authored GPU pass through the maintained compositor', async () => {
 	const nativeDocument = Object.getOwnPropertyDescriptor(globalThis, 'document'), nativeImage = Object.getOwnPropertyDescriptor(globalThis, 'ImageData');
+	const input = frame(), effects = [createVideoEffect('white-balance-v1', { params: { temperature: 20 } }),
+		createVideoEffect('pixelate', { params: { blockSize: 8 } }), createVideoEffect('tone-ladder-v1', { params: { exposure: 1 } })];
+	const uploads: Uint8Array[] = []; let creates = 0, afterRead: (() => void) | null = null;
+	let retainedOutput: Uint8Array | null = null;
+	let cleanupFailure: Error | null = null;
 	const programs: { shaders: { source: string }[] }[] = [], draws: number[] = []; let current: typeof programs[number] | undefined;
 	const constants = new Map<string, number>();
 	const constant = (name: string) => { if (!constants.has(name)) constants.set(name, constants.size + 100); return constants.get(name)!; };
@@ -99,25 +104,57 @@ test('mixed old/new Frame stacks execute every authored GPU pass through the mai
 		createProgram: () => { const program = { shaders: [] as { source: string }[] }; programs.push(program); return program; },
 		attachShader: (program: typeof programs[number], shader: { source: string }) => { program.shaders.push(shader); },
 		createBuffer: () => ({}), createTexture: () => ({}), createFramebuffer: () => ({}), createVertexArray: () => ({}),
+		deleteTexture: () => { if (cleanupFailure) { const failure = cleanupFailure; cleanupFailure = null; throw failure; } },
 		checkFramebufferStatus: () => constant('FRAMEBUFFER_COMPLETE'), useProgram: (program: typeof programs[number]) => { current = program; },
+		getError: () => constant('NO_ERROR'),
+		texImage2D: (...args: unknown[]) => { if (args[8] instanceof Uint8Array) uploads.push(args[8].slice()); },
 		drawArrays: () => { const source = current?.shaders.find(shader => shader.source.includes('const int u_effect ='))?.source;
 			if (source) draws.push(Number(/const int u_effect = (\d+)/u.exec(source)?.[1])); },
-		readPixels: (_x: number, _y: number, _width: number, _height: number, _format: number, _type: number, pixels: Uint8Array) => { pixels.set(SOURCE); },
+		readPixels: (_x: number, _y: number, _width: number, _height: number, _format: number, _type: number, pixels: Uint8Array) => {
+			pixels.set(SOURCE); retainedOutput = pixels; afterRead?.();
+		},
 	};
 	const gl = new Proxy(calls, { get(target, key) { if (typeof key !== 'string') return undefined;
 		if (Object.hasOwn(target, key)) return target[key]; if (/^[A-Z][A-Z0-9_]*$/u.test(key)) return constant(key); return () => undefined; } });
-	const canvas = () => ({ width: 2, height: 1, addEventListener() {}, removeEventListener() {}, getBoundingClientRect: () => ({ width: 2, height: 1 }),
+	const canvas = () => ({ width: 2, height: 1, remove() {}, addEventListener() {}, removeEventListener() {}, getBoundingClientRect: () => ({ width: 2, height: 1 }),
 		getContext: (kind: string) => kind === '2d' ? { putImageData() {} } : gl });
-	Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: canvas } });
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement() {
+		creates++; Object.assign(input, { width: 1 }); input.pixels.fill(0); Object.assign(effects[2]!.params, { exposure: 5 }); return canvas();
+	} } });
 	Object.defineProperty(globalThis, 'ImageData', { configurable: true, value: class { constructor(readonly data: Uint8ClampedArray, readonly width: number, readonly height: number) {} } });
 	try {
-		const output = await applyVideoExactBrowserEffectsFinishing(frame(), [createVideoEffect('white-balance-v1', { params: { temperature: 20 } }),
-			createVideoEffect('pixelate', { params: { blockSize: 8 } }), createVideoEffect('tone-ladder-v1', { params: { exposure: 1 } })], LIVE);
+		const output = await applyVideoExactBrowserEffectsFinishing(input, effects, LIVE);
 		assert.deepEqual(draws.filter(code => code === 18 || code === 2 || code === 19), [18, 2, 19]);
 		assert.equal(programs.some(program => program.shaders.some(shader => shader.source.includes('global_develop_rgb'))), true);
 		assert.equal(output.pixels.length, SOURCE.length);
+		assert.equal(creates, 1); assert.deepEqual(uploads[0], new Uint8Array(SOURCE));
+		assert.equal(uploads.at(-1)![128 * 4], 176, 'settings are detached before browser acquisition');
+		const stop = new AbortController(); let traps = 0;
+		const reason = new Proxy({}, { get() { traps++; throw Error(); }, getPrototypeOf() { traps++; throw Error(); },
+			getOwnPropertyDescriptor() { traps++; throw Error(); } });
+		afterRead = () => { stop.abort(reason); };
+		const outcome = await applyVideoExactBrowserEffectsFinishing(frame(), effects, stop.signal)
+			.then(() => ({ rejected: false, reason: undefined }), error => ({ rejected: true, reason: error as unknown }));
+		assert.equal(outcome.rejected, true); assert.equal(outcome.reason, reason); assert.equal(traps, 0);
+		assert.equal((retainedOutput as Uint8Array | null)?.every(byte => byte === 0), true, 'abandoned readback is wiped after native settlement');
+		const finalStop = new AbortController(), cleanup = new Error('texture cleanup');
+		afterRead = () => { cleanupFailure = cleanup; finalStop.abort(null); };
+		const final = await applyVideoExactBrowserEffectsFinishing(frame(), effects, finalStop.signal)
+			.then(() => ({ error: undefined as unknown }), error => ({ error: error as unknown }));
+		assert.ok(final.error instanceof AggregateError); assert.deepEqual(final.error.errors, [null, cleanup]);
+		assert.equal(final.error.name, 'AbortError'); assert.equal((retainedOutput as Uint8Array | null)?.every(byte => byte === 0), true);
 	} finally {
 		if (nativeDocument) Object.defineProperty(globalThis, 'document', nativeDocument); else Reflect.deleteProperty(globalThis, 'document');
 		if (nativeImage) Object.defineProperty(globalThis, 'ImageData', nativeImage); else Reflect.deleteProperty(globalThis, 'ImageData');
 	}
+});
+
+test('mixed Frame dispatch rejects legacy accessors and unknown types before browser acquisition', async () => {
+	let reads = 0;
+	const legacy = createVideoEffect('color-adjust');
+	const accessor = { ...legacy, params: Object.defineProperty({}, 'contrast', { enumerable: true, get() { reads++; return 1; } }) };
+	for (const effect of [accessor, { ...legacy, type: 'constructor' }, { ...legacy, params: { future: 0 } }]) {
+		await assert.rejects(applyVideoExactBrowserEffectsFinishing(frame(), [createVideoEffect('tone-ladder-v1'), effect], LIVE));
+	}
+	assert.equal(reads, 0);
 });

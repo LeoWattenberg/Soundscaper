@@ -72,6 +72,26 @@ test('transparent presentation explicitly retains the compositor premultiplied o
 	expect(result.nativeReadbacks).toBe(1); expect(result.glError).toBe(0);
 });
 
+test('actual mixed Frame effects retain straight RGB at alpha0/1/127/255 and native row order', async ({ page }) => {
+	await prepare(page);
+	const effects = [effect('white-balance-v1', { temperature: 100 }), effect('tone-ladder-v1')];
+	const source = [64, 128, 192, 0, 64, 128, 192, 1, 64, 128, 192, 127, 64, 128, 192, 255];
+	const result = await qualify(page, { source, effects, mode: 'frame' });
+	expect(result.pixels).toEqual([90, 128, 140, 0, 90, 128, 140, 1, 90, 128, 140, 127, 90, 128, 140, 255]);
+	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+	const rows = await qualify(page, { source: [64, 128, 192, 0, 255, 224, 16, 1, 128, 128, 128, 127, 0, 32, 64, 255],
+		height: 2, effects, mode: 'frame' });
+	expect(rows.pixels).toEqual([90, 128, 140, 0, 255, 224, 9, 1, 176, 128, 92, 127, 0, 32, 44, 255]);
+	expect(rows.nativeWebgl2).toBe(true); expect(rows.nativeReadbacks).toBe(1);
+});
+
+test('native straight readback cancellation joins cleanup and wipes undelivered pixels without inspecting its reason', async ({ page }) => {
+	await prepare(page);
+	const result = await qualify(page, { source: SOURCE, effects: [effect('white-balance-v1', { temperature: 100 })], mode: 'frame-cancel' });
+	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+	expect(result.rejectedWithReason).toBe(true); expect(result.reasonTraps).toBe(0); expect(result.abandonedOutputZero).toBe(true);
+});
+
 async function prepare(page) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalDevelopWebglV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

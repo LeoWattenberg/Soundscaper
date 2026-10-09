@@ -278,6 +278,7 @@ export function programLocations(gl, program) {
 		textureTransform: gl.getUniformLocation(program, 'u_texture_transform'),
 		texture: gl.getUniformLocation(program, 'u_texture'),
 		auxTexture: gl.getUniformLocation(program, 'u_aux_texture'),
+		globalLookup: gl.getUniformLocation(program, 'u_global_lookup'),
 		resolution: gl.getUniformLocation(program, 'u_resolution'),
 		sourceResolution: gl.getUniformLocation(program, 'u_source_resolution'),
 		contentRect: gl.getUniformLocation(program, 'u_content_rect'),

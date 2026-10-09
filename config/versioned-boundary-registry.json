@@ -534,7 +534,7 @@
 		,
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
-		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization across authoring, preview and export." }
+		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization. Owning prepared preview identities expose detached 256-entry RGB transfer tables for exact UNORM8 GPU evaluation; generated export expressions preserve the same sampling and byte quantization." }
 		,
 		{"path": "src/common/editor/video-image-geometry-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed Frame FFmpeg geometry derives allowlisted geq equations from the same contained inverse map and four premultiplied samples as shared pixel and preview evaluation."}
 		,

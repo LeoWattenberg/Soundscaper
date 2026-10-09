@@ -64,7 +64,8 @@ test('preview passes carry fixed linear coefficients and reserve distinct shader
 	assert.deepEqual(videoEffectPasses(tone), [{ code: 19, params0: [2, 2, -0.25, 0.25], params1: [-0.25, 0.25, 0, 0], direction: [0, 0] }]);
 	assert.equal(EFFECT_PROGRAM_COUNT, 21); assert.equal(EFFECT_CODES['white-balance-v1'], 18); assert.equal(EFFECT_CODES['tone-ladder-v1'], 19);
 	assert.match(FRAGMENT_SHADER_SOURCE, /color\.rgb = global_develop_rgb/u);
-	assert.match(FRAGMENT_SHADER_SOURCE, /floor\(clamp\(x <= 0\.0031308/u);
+	assert.match(FRAGMENT_SHADER_SOURCE, /uniform sampler2D u_global_lookup/u);
+	assert.match(FRAGMENT_SHADER_SOURCE, /texelFetch\(u_global_lookup/u);
 	assert.deepEqual(videoEffectPasses(createVideoEffect('tone-ladder-v1')), []);
 	assert.deepEqual(videoEffectPasses({ ...white, enabled: false }), []);
 });
@@ -78,7 +79,7 @@ test('export expressions use the same linear coefficients and preserve alpha exp
 	assert.equal(operations.length, 2);
 	for (const operation of operations) {
 		assert.equal(operation.preserveAlpha, false); assert.match(operation.expression, /^format=pix_fmts=gbrap,geq=r=/u);
-		assert.match(operation.expression, /a='alpha\(X,Y\)',format=pix_fmts=rgba$/u);
+		assert.match(operation.expression, /a='alpha\(X,Y\)':interpolation=nearest,format=pix_fmts=rgba$/u);
 		assert.match(operation.expression, /0\.04045/u); assert.match(operation.expression, /0\.0031308/u);
 		assert.match(operation.expression, /floor\(255\*clip/u);
 	}
