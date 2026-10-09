@@ -48,8 +48,11 @@ for (const variant of ['secondary-down', 'foreign-up', 'foreign-cancel']) test(`
 		await change(0.2);
 		assert.equal(effect.params.brightness, 0.2);
 		if (variant === 'secondary-down') {
+			let consumed = false;
 			await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 2, button: 0, isPrimary: false,
+				preventDefault() { consumed = true; },
 				currentTarget: { setPointerCapture(id: number) { captures.push(id); } } }); });
+			assert.equal(consumed, true, 'a secondary finger must not take over the native range drag');
 		} else await act(async () => { reactProps(input)[variant === 'foreign-up' ? 'onPointerUp' : 'onPointerCancel']?.({ pointerId: 2 }); });
 		assert.deepEqual(captures, [1]);
 		assert.deepEqual(committed, [], 'a foreign pointer cannot publish the primary preview');

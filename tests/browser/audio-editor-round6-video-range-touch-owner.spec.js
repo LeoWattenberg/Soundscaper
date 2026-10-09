@@ -29,6 +29,11 @@ for (const interrupted of [false, true]) test(`a native video-effect range compl
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(numeric).toHaveValue('0');
 	const native = await page.context().newCDPSession(page);
+	const releases = [];
+	page.on('console', message => { if (message.text().startsWith('video-range-touch-release')) releases.push(message.text()); });
+	await range.evaluate(node => node.ownerDocument.addEventListener('pointerup', event => {
+		if (event.pointerType === 'touch') console.log('video-range-touch-release', event.isPrimary);
+	}, true));
 	const middle = { ...first, x: first.x + 10 };
 	await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [first] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [middle] });
@@ -37,6 +42,7 @@ for (const interrupted of [false, true]) test(`a native video-effect range compl
 		const second = { x: middle.x + 2, y: middle.y + 2, id: 2 };
 		await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [middle, second] });
 		await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [second] });
+		expect(releases).toEqual(['video-range-touch-release false']);
 	}
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [final] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
