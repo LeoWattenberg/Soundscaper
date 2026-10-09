@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useRef, type PointerEvent } from 'react';
+import { useNativeRangeTouchOwner } from './useNativeRangeTouchOwner.ts';
 
 interface ParametricEqOutputRangeProps {
 	readonly disabled: boolean;
@@ -19,13 +20,14 @@ const RANGE_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', '
 export function ParametricEqOutputRange({ disabled, value, minimum, maximum, onBegin,
 	onValueChange, onFinish, onCancel, onReset }: ParametricEqOutputRangeProps) {
 	const owner = useRef<number | null>(null);
+	const input = useNativeRangeTouchOwner();
 	const finish = (event: PointerEvent<HTMLInputElement>, canceled: boolean): void => {
 		if (owner.current !== event.pointerId) return;
 		owner.current = null;
 		if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
 		if (canceled) onCancel(); else onFinish();
 	};
-	return <input disabled={disabled} type="range" min={minimum} max={maximum} step="0.1" value={value}
+	return <input ref={input} disabled={disabled} type="range" min={minimum} max={maximum} step="0.1" value={value}
 		onPointerDown={event => {
 			if (disabled || event.button !== 0) return;
 			if (event.isPrimary === false || owner.current !== null) { event.preventDefault(); return; }

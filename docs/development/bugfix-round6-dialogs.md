@@ -210,3 +210,20 @@ interference workflows in2.2/2.0seconds on immutablea1a725fc1
 057/060 remain pending and019 remains excluded.
 
 | R6-DIALOG-061 | Soundscaper: import an ordinary recording, enable Spectrogram, right-click its frequency ruler, enter1e3 as Maximum frequency and complete Enter. Type2e3 through a native input method and press composing Enter or Escape before completing the draft. | The independent frequency popup capture listener dismisses composing Escape, and its numeric field wrapper publishes composing Enter as2000Hz and replaces the unfinished2e3 draft. Release native composition in both existing owners before their completion/dismissal, preserving completed scientific entry, number bounds, text arrows, ordinary Escape and trigger focus. Immutablea8a5aaf38 completes the healthy1000Hz control in each variant before both public cases causally fail (`/tmp/soundscaper-round6-ruler-composition-public-red.log`). Both strict actual mounted listener/field cases likewise fail after their completed-entry controls (`/tmp/soundscaper-round6-ruler-composition-node-red.log`); the correction plus unchanged scientific-number and native-arrow ownership cases pass4/4 (`/tmp/soundscaper-round6-ruler-composition-node-green2.log`). The optional native-event access retains older strict fixtures' completed behavior; the earlier missing-fixture-native-event error is excluded. Narrow strict TypeScript, targeted type-aware lint, explicit vendored-source lint, changed lint, size and owned diff pass. Vendor deviation64 records both changes without changing source pins or third-party notices. The popup's field variants count once and its document listener is independent of EFFECT038's shared Flyout. Complete built public verification is pending. No assistance runtime asset update is required. | Source ready; public GREEN pending |
+
+DIALOG057/060 remain pending after Green32's exact range workflows still
+fail. Native pointer admission alone does not retain the browser's touch
+range owner. A diagnostic native capture listener allows the first touch's
+start/end and movement, and prevents a foreign touch's start/end using the
+actual Touch.identifier. It completes both unchanged video workflows on
+Green32 in18seconds (`/tmp/soundscaper-round6-native-range-diagnostic.log`),
+but this diagnostic instrumentation is excluded from the qualifying count.
+The production range controls now attach that focused native interceptor
+through their own input refs with capture=true and passive=false, retaining
+their independent React pointer sessions. Three native admission cases are
+causally RED against the initial no-op owner, then native teardown/next-gesture,
+mounted video/EQ ownership and unchanged Escape/keyboard/automation controls
+pass18/18 (`/tmp/soundscaper-round6-native-range-touch-owner-node-green2.log`).
+Narrow strict TypeScript, targeted lint, changed lint, size and owned diff pass.
+Both whole public workflows must pass the next actual build. This completion
+adds zero roots; the only pending candidates are the original057 and060.
