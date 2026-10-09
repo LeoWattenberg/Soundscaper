@@ -306,9 +306,7 @@ async function stageVerifiedBuildResult(verified, repositoryRoot) {
 			throw new Error('The professional payload manifest changed while staging was prepared.');
 		}
 		temporaryManifest = `${manifestPath}.build-result-${process.pid}-${Date.now()}-${verified.receipt.target}`;
-		await writeFile(temporaryManifest, manifestBytes, { flag: 'wx', mode: 0o644 });
-		const handle = await open(temporaryManifest, 'r');
-		try { await handle.sync(); } finally { await handle.close(); }
+		await writeSyncedSoundscaperProfessionalNativeManifest(temporaryManifest, manifestBytes);
 		assertBuildSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
 		await rename(temporaryManifest, manifestPath);
 		temporaryManifest = null;
@@ -319,6 +317,21 @@ async function stageVerifiedBuildResult(verified, repositoryRoot) {
 		if (temporaryManifest !== null) await rm(temporaryManifest, { force: true });
 		if (targetCreated && !manifestPublished) await rm(targetRoot, { recursive: true, force: true });
 	}
+}
+
+/**
+ * Flush the exclusive writer before its manifest can be atomically published.
+ * Windows FlushFileBuffers requires a writable handle, so keep the original
+ * writer open through the flush instead of reopening the file read-only.
+ * @param {string} path
+ * @param {Uint8Array} bytes
+ */
+export async function writeSyncedSoundscaperProfessionalNativeManifest(path, bytes) {
+	const handle = await open(path, 'wx', 0o644);
+	try {
+		await handle.writeFile(bytes);
+		await handle.sync();
+	} finally { await handle.close(); }
 }
 
 function installedPaths(target, professionalRoot, isolationRoot) {

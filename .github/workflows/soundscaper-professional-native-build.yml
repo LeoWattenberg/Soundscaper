@@ -84,6 +84,8 @@ jobs:
           cache: npm
       - run: npm install --global npm@12.0.1
       - run: npm ci
+      - name: Verify durable native manifest staging
+        run: node --import tsx --test tests/soundscaper-professional-native-manifest-sync.test.ts
       - name: Install pinned uv for the Kokoro G2P helper
         uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
         with:

@@ -335,6 +335,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify durable native manifest staging
+        run: node --import tsx --test tests/soundscaper-professional-native-manifest-sync.test.ts
+
       - name: Build and test the authenticated target-native OS audio codec host
         run: >-
           node scripts/ci-build-os-audio-codec-host.mjs
