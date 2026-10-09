@@ -1,22 +1,21 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { VideoStillSourceV1 } from '../../common/editor/video-visual-model-v24.ts';
-import type { VideoEffectLeaf } from '../../common/editor/project-media-types.ts';
-import type { VideoMaskMatteGraphV1 } from '../../common/editor/video-mask-matte-v24.ts';
+import { IMAGE_DEVELOP_LIMITS_V1, type ImageDevelopGeometryV1, type ImageDevelopMaskBindingV1, type ImageDevelopStateV1 } from '../../common/editor/imaging/image-develop-contract-v1.ts';
 import type { ImageMetadataV1 } from '../../common/editor/imaging/image-metadata-model-v1.ts';
 import type { PhotoDevelopWorkspaceV1 } from './photo-develop-workspace-v1.ts';
 
 export const LIGHTSCAPER_SCHEMA_FAMILY = 'lightscaper' as const;
 export const LIGHTSCAPER_SCHEMA_VERSION = 1 as const;
 export const LIGHTSCAPER_CATALOG_LIMITS = Object.freeze({
-	maximumDocumentBytes: 2_097_152,
+	maximumDocumentBytes: IMAGE_DEVELOP_LIMITS_V1.maximumBytes,
 	maximumPhotos: 10_000_000,
 	maximumFolders: 10_000,
 	maximumKeywords: 10_000,
 	maximumCollections: 10_000,
 	maximumVersions: 128,
-	maximumEffects: 256,
-	maximumMasks: 64,
+	maximumEffects: IMAGE_DEVELOP_LIMITS_V1.maximumEffects,
+	maximumMasks: IMAGE_DEVELOP_LIMITS_V1.maximumMasks,
 	maximumMemberships: 1_024,
 	maximumQueryDepth: 16,
 	maximumQueryNodes: 256,
@@ -97,26 +96,9 @@ export interface PhotoMetadataV1 {
 	readonly location: string;
 }
 
-export interface PhotoGeometryV1 {
-	/** Crop coordinates refer to the original normalized image before rotation. */
-	readonly crop: Readonly<{ x: number; y: number; width: number; height: number }> | null;
-	readonly rotationDegrees: number;
-	readonly flipHorizontal: boolean;
-	readonly flipVertical: boolean;
-}
-
-export interface PhotoMaskBindingV1 {
-	readonly effectId: string;
-	readonly maskId: string;
-}
-
-export interface PhotoDevelopV1 {
-	readonly processVersion: 1;
-	readonly effects: readonly VideoEffectLeaf[];
-	readonly geometry: PhotoGeometryV1;
-	readonly masks: readonly VideoMaskMatteGraphV1[];
-	readonly maskBindings: readonly PhotoMaskBindingV1[];
-}
+export type PhotoGeometryV1 = ImageDevelopGeometryV1;
+export type PhotoMaskBindingV1 = ImageDevelopMaskBindingV1;
+export type PhotoDevelopV1 = ImageDevelopStateV1;
 
 export interface PhotoVersionV1 {
 	readonly id: string;
