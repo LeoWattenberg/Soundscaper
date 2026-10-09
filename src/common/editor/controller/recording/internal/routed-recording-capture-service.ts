@@ -17,7 +17,7 @@ import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 import { recordingSourceAlignment } from './recording-source-alignment.ts';
-import { assertRecordingTargetsUnlocked } from '../recording-target-admission.ts';
+import { assertRecordingTargetsUnlocked } from '../../../recording-target-admission.ts';
 import type {
 	RecordingMediaStream,
 	RecordingStartOptions,

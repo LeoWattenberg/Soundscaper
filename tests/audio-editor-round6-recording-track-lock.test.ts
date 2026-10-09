@@ -6,7 +6,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createLegacyRecordingCaptureService } from '../src/common/editor/controller/recording/internal/legacy-recording-capture-service.ts';
 import { createRoutedRecordingCaptureService } from '../src/common/editor/controller/recording/internal/routed-recording-capture-service.ts';
-import { focusedRecordingTrackId, hasLockedRecordingTarget } from '../src/common/editor/controller/recording/recording-target-admission.ts';
+import { focusedRecordingTrackId, hasLockedRecordingTarget } from '../src/common/editor/recording-target-admission.ts';
 import type { RecordingTrack } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import TransportToolbarGroup from '../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';

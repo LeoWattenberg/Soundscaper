@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { createWorkspaceEditItems } from '../src/common/editor/ui/workspace/workspace-edit-items.js';
-import { hasLockedClipboardPasteTarget, planClipboardPasteTargets } from '../src/common/editor/controller/edit/internal/clipboard-paste-targets.ts';
+import { hasLockedClipboardPasteTarget, planClipboardPasteTargets } from '../src/common/editor/clipboard-paste-targets.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/editor-project-runtime-selection.ts';
 import type { SoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';

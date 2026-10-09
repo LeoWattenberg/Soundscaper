@@ -1,10 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { RecordingProject, RecordingTrack } from './recording-transaction-types.ts';
+export interface RecordingAdmissionTrack {
+	readonly id: string;
+	readonly type?: string;
+	readonly armed?: boolean;
+	readonly locked?: unknown;
+	readonly laneGroupId?: unknown;
+}
+
+export interface RecordingAdmissionProject {
+	readonly tracks: readonly RecordingAdmissionTrack[];
+}
 
 /** Resolve the same focused audio owner used by the ordinary Record action. */
 export function focusedRecordingTrackId(
-	project: RecordingProject | null | undefined,
+	project: RecordingAdmissionProject | null | undefined,
 	selectedTrackId: string | null | undefined,
 	multitrack: boolean,
 ): string | undefined {
@@ -19,7 +29,7 @@ export function focusedRecordingTrackId(
 
 /** Unassigned armed tracks are skipped by routed capture, rather than edited. */
 export function hasLockedRecordingTarget(
-	project: RecordingProject | null | undefined,
+	project: RecordingAdmissionProject | null | undefined,
 	trackId: string | undefined,
 	routes: Readonly<Record<string, unknown>> | null | undefined,
 ): boolean {
@@ -29,7 +39,7 @@ export function hasLockedRecordingTarget(
 }
 
 /** Refuse before requesting native input or creating PCM that cannot be saved. */
-export function assertRecordingTargetsUnlocked(tracks: readonly RecordingTrack[]): void {
+export function assertRecordingTargetsUnlocked(tracks: readonly RecordingAdmissionTrack[]): void {
 	const locked = tracks.find(track => track.locked === true);
 	if (locked) throw new RangeError(`Track ${locked.id} is locked.`);
 }
