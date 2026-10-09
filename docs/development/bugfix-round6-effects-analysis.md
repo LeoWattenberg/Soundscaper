@@ -704,6 +704,20 @@ immutable Green12 `8d9d45ff4`
 (`/tmp/soundscaper-round6-green12-public-browser.log`). No assistance runtime assets change
 and no manual **Update AI assets** run is required.
 
+The full 100-fix Node checkpoint exposes two stale exact-parity expectations,
+one `vocoder-1` signature in each of the round-two and round-three maps.
+Focused unchanged replay reproduces only those differences; every other
+signature, including explicit stereo/surround Vocoder, remains exact
+(`/tmp/soundscaper-r6-effects-exact-parity-diagnostic.log`). Substituting only
+the pre-repair Vocoder into isolated ignored copies restores both complete
+old maps while the corrected owner's independent full-carrier, continuity,
+routing and silence controls pass
+(`/tmp/soundscaper-r6-effects-exact-parity-owner-control.log`). Correct only
+the two mono expectations and document their owning behavioral regression;
+both complete exact maps and all four independent controls pass, 6/6
+(`/tmp/soundscaper-r6-effects-exact-parity-green.log`). Targeted type-aware
+lint passes. This is uncounted test support for the existing carrier repair.
+
 ## R6-EFFECT-020 — Bitcrusher misses an exact authored sample-hold boundary
 
 Import an ordinary one-second 48 kHz mono WAV containing a 1,200 Hz tone.
