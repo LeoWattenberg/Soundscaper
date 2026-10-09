@@ -16,7 +16,7 @@ const PROJECT_EXTENSIONS = Object.freeze(
 );
 const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
 const MEDIA_IMPORT_EXTENSIONS = Object.freeze([
-	'aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4',
+	'aac', 'aif', 'aifc', 'aiff', 'bw64', 'bwf', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4',
 	'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv',
 ]);
 const PROJECT_OPEN_EXTENSIONS = Object.freeze([
@@ -33,8 +33,8 @@ const FILE_PURPOSES = Object.freeze({
 		}]),
 	}),
 	audio: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'bw64', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'bw64', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aifc', 'aiff', 'bw64', 'bwf', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aifc', 'aiff', 'bw64', 'bwf', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
 	}),
 	video: Object.freeze({
 		extensions: Object.freeze(['m4v', 'mp4', 'webm']),
@@ -120,11 +120,13 @@ const MIME_TYPES = Object.freeze({
 	'.7z': 'application/x-7z-compressed',
 	'.aac': 'audio/aac',
 	'.aif': 'audio/aiff',
+	'.aifc': 'audio/aiff',
 	'.aiff': 'audio/aiff',
 	'.apng': 'image/png',
 	'.aup3': 'application/x-audacity-project',
 	'.aup4': 'application/vnd.audacity.aup4',
 	'.bw64': 'audio/bw64',
+	'.bwf': 'audio/wav',
 	'.bmp': 'image/bmp',
 	'.cue': 'application/x-cue',
 	'.csv': 'text/csv',
