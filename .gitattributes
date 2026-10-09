@@ -1,5 +1,7 @@
 patches/**/*.patch text eol=lf
 /.gitattributes text eol=lf
+/LICENSE text eol=lf
+/LICENSES/GPL-3.0.txt text eol=lf
 /LICENSES/Playwright-winldd-MIT.txt text eol=lf
 /THIRD_PARTY_LICENSES.md text eol=lf
 /config/ffmpeg-runtime-manifest.json text eol=lf
