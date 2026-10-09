@@ -323,3 +323,14 @@ is running on this immutable snapshot
 (`/tmp/soundscaper-round6-checkpoint100-green18-canonical-retry.log`). Full50
 all-engine browser verification has entered WebKit; failed earlier runs are
 preserved, and full100 browser verification follows it sequentially.
+
+The immutable `18a33ffa1` passes both guarded product builds. The next three
+public Chromium workflows pass the ADM stereo Split and live Echo Decay cases,
+but Make stereo still loses the right-channel PCM despite passing the routing
+metadata assertions (`/tmp/soundscaper-round6-green19-chromium.log`, two passed,
+one failed). The exact decoded-audio assertions remain unchanged, and editing037
+stays uncounted until its complete split/merge workflow passes. Effects028's
+ordinary live edit retains its existing recurring echo, giving **126 distinct
+verified fixes**: editing36, effects28, I/O21 and dialogs41. The full100 canonical
+retry has passed static checks and entered the complete Node suite; full50
+browser verification remains in progress.
