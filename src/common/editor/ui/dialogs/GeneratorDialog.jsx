@@ -7,6 +7,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import { useGeneratorFormatters, useMorseSummary } from './useGeneratorPresentation.ts';
 import { resolveSelectionRange } from '../../selection-range.ts';
+import { selectAudioEditorEditBlock } from '../../edit-blocking.ts';
 import {
 	GeneratorKnob,
 	GeneratorNumberField,
@@ -22,7 +23,7 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 // sixty; the generator itself accepts more for scripted use.
 const MORSE_SPEED_RANGE = Object.freeze({ minimum: 5, maximum: 60 });
 
-export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
+export default function GeneratorDialog({ type, controller, snapshot = {}, copy, locale, run, onClose }) {
 	const project = controller.project;
 	const sampleRate = project?.sampleRate || 48_000;
 	const [params, setParams] = useState(() => generatorDefaults(type, project));
@@ -53,10 +54,11 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const morse = useMorseSummary(type, params.text, params.wordsPerMinute);
 	const formatters = useGeneratorFormatters(type, locale);
 	const unsendable = Boolean(morse && (morse.empty || morse.unsupported.length));
+	const editBlocked = selectAudioEditorEditBlock(snapshot).blocked;
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
 	const generate = () => {
-		if (unsendable || invalidDtmfTiming || activeGenerationRef.current !== null) return;
+		if (editBlocked || unsendable || invalidDtmfTiming || activeGenerationRef.current !== null) return;
 		const options = type === 'dtmf'
 			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 			: params;
@@ -151,7 +153,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={cancelAndClose}>{copy.cancel}</Button>
-					<Button variant="primary" disabled={unsendable || invalidDtmfTiming || pending} onClick={generate}>{copy.generate}</Button>
+					<Button variant="primary" disabled={editBlocked || unsendable || invalidDtmfTiming || pending} onClick={generate}>{copy.generate}</Button>
 				</>}
 			/>}
 		>

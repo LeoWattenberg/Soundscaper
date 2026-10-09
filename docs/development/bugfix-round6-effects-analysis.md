@@ -9,6 +9,9 @@ WebKit on immutable Green7 `e139818a9`
 repository's qualified CI audio null sink. R6-EFFECT-012 remains pending public
 GREEN on a later build and is not yet counted. R6-EFFECT-013 has focused GREEN
 and remains pending public GREEN as well, as does R6-EFFECT-014.
+R6-EFFECT-015 has causal public RED and focused GREEN and awaits the next build.
+The INDEX follow-through of R6-EFFECT-011 also awaits its new public PCM check;
+it adds no root.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -407,3 +410,30 @@ the next immutable product build.
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
+
+## R6-EFFECT-015 — An open generator ignores a normal editing lease takeover
+
+Import an ordinary WAV and wait for autosave, then open Generate → Tone. Open
+the same editor in a second normal tab so it acquires the saved project's
+editing lease. The first editor becomes read-only, but its existing generator
+still offers Generate. Its handler admits the operation and closes the draft
+after the domain correctly refuses generation, giving no generated result.
+
+Pass the current workspace snapshot to the generator dialog. Use the existing
+canonical editing-block selector for the footer and shared form/button handler,
+preserving ordinary generation, pending-job ownership and cancellation. The
+live lease and other canonical editing blockers share this one missing dialog
+admission boundary; no extra roots are counted per state or generator type.
+
+The unchanged actual second-tab workflow is causally RED at the enabled
+Generate button after the editor reports `read-only`
+(`/tmp/soundscaper-r6-effects-generator-live-lease-browser-red.log`). The strict
+mounted production dialog separately fails before repair
+(`/tmp/soundscaper-r6-effects-generator-live-lease-node-red.log`). After repair,
+all twelve new/existing lease, pending, DTMF draft, duration and generator
+presentation cases pass, including both blocked native form/footer handlers,
+restored editable admission and available Cancel
+(`/tmp/soundscaper-r6-effects-generator-live-lease-focused-green.log`). Focused
+strict types, targeted type-aware lint and the file-size gate pass. Public
+GREEN awaits the next immutable product build. No assistance runtime assets
+change and no manual **Update AI assets** run is required.
