@@ -77,6 +77,7 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 	// sample frames would cut at frame 480,000 of a three-hundred-frame file.
 	const sources = new Map<string, {
 		video: boolean;
+		image: boolean;
 		frameCount: number;
 		ranges: TrimMediaRange[];
 		untrimmable: 'timing-bound' | 'multicamera-bound' | null;
@@ -89,9 +90,12 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 		const id = String(source.id ?? '');
 		if (!id) continue;
 		const video = source.kind === 'video';
+		const image = source.kind === 'image';
 		const frameCount = video
 			? nonNegativeInteger(source.sourceFrameCount ?? source.frameCount ?? 0, 'source.sourceFrameCount')
-			: nonNegativeInteger(source.frameCount ?? 0, 'source.frameCount');
+			: nonNegativeInteger(image
+				? (source.canonical as Record<string, unknown> | undefined)?.frameCount ?? 0
+				: source.frameCount ?? 0, 'source.frameCount');
 		// A video source states its timing twice, and the second statement — the
 		// timing asset — is bound to the exact content digest of the file it was
 		// probed from. A trim changes the digest and the picture count, and nothing
@@ -102,7 +106,7 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 			: multicameraSourceIds.has(id)
 				? 'multicamera-bound'
 				: source.timingAsset == null ? null : 'timing-bound';
-		sources.set(id, { video, frameCount, ranges: [], untrimmable });
+		sources.set(id, { video, image, frameCount, ranges: [], untrimmable });
 	}
 
 	// Every clip, from every track, visible or not, and every clip in the Project
@@ -123,6 +127,15 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 				data: { sourceId },
 				message: 'The clip references a source the project does not contain, so nothing can be proven about it.',
 			});
+			continue;
+		}
+		if (entry.image) {
+			// Image clips reference a timed, immutable frame pack rather than PCM
+			// sample spans. No image cutter is supported, so any live image clip
+			// protects that complete asset, including unused animation frames.
+			if (nonNegativeInteger(clip.sequenceFrameCount ?? 0, 'image.sequenceFrameCount') > 0) {
+				entry.ranges.push(Object.freeze({ startFrame: 0, endFrame: entry.frameCount }));
+			}
 			continue;
 		}
 		const start = entry.video
@@ -201,7 +214,7 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 				severity: 'info',
 				scope: { kind: 'source', id: sourceId },
 				data: { frameCount: entry.frameCount },
-				message: 'Every frame is referenced, so there is nothing to trim.',
+				message: 'The complete source is retained, so there is nothing to trim.',
 			});
 		}
 
