@@ -442,6 +442,15 @@ application overrides and source patches against the pin and upstream master.
     point/region components do not participate in this adaptation. Upstream-PR
     candidate.
 
+61. `TimelineRuler` starts and completes playback-loop mouse clicks only with
+    the primary button. Secondary and middle clicks preserve the authored loop
+    flag and redo history while native context entry remains available. An
+    unowned release cannot settle a primary click. Covered by
+    `tests/audio-editor-round6-ruler-loop-button.test.tsx` and the ordinary
+    loop-authoring/primary-click/Undo/context-click/Redo browser workflow.
+    The unused legacy loop-drag callback is outside this user-path correction.
+    Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
