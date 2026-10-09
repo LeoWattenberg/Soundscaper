@@ -56,6 +56,8 @@ export function VideoTrackRow({
 }) {
 	const trackWindowRef = useRef(null);
 	const [renameRequest, setRenameRequest] = useState(null);
+	const renameBlockedRef = useRef(blocked || track.locked);
+	renameBlockedRef.current = blocked || track.locked;
 	const renameRequestIdRef = useRef(0);
 	const trackHeight = visualHeight;
 	const clips = useMemo(() => {
@@ -149,7 +151,7 @@ export function VideoTrackRow({
 				&& !event.metaKey
 				&& !event.shiftKey
 				&& !event.repeat
-				&& !blocked
+				&& !renameBlockedRef.current
 				&& selectedClipIdSet.has(String(event.target.dataset.clipId))
 			) {
 				event.preventDefault();
@@ -271,9 +273,9 @@ export function VideoTrackRow({
 								run={run}
 								onFadeTabOut={focusAfterTrack}
 								onOpenMenu={onOpenClipMenu}
-								onRename={(title) => {
+								onRename={renameBlockedRef.current ? undefined : (title) => {
 									const nextTitle = String(title).trim();
-									if (blocked || !nextTitle) return;
+									if (renameBlockedRef.current || !nextTitle) return;
 									run(() => controller.actions.clip.update(clip.id, { title: nextTitle }));
 								}}
 								renameRequestId={renameRequest?.clipId === String(clip.id) ? renameRequest.id : undefined}

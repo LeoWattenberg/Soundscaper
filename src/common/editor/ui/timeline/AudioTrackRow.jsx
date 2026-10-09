@@ -95,6 +95,8 @@ export function AudioTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const renameBlockedRef = useRef(blocked || track.locked);
+	renameBlockedRef.current = blocked || track.locked;
 	const [channelHeightRatioPreview, setChannelHeightRatioPreview] = useState(null);
 	const { top: channelBodyTop, height: channelBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const visualSelectedClipIds = selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId]);
@@ -340,9 +342,9 @@ export function AudioTrackRow({
 								toggle: Boolean(metaKey),
 							}));
 						}}
-						onClipRename={blocked ? undefined : (clipId, title) => {
+						onClipRename={renameBlockedRef.current ? undefined : (clipId, title) => {
 							const nextTitle = String(title).trim();
-							if (!nextTitle) return;
+							if (renameBlockedRef.current || !nextTitle) return;
 							run(() => controller.actions.clip.update(String(clipId), { title: nextTitle }));
 						}}
 						onClipMenuClick={onOpenClipMenu}
