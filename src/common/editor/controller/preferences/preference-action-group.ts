@@ -2,7 +2,7 @@
 
 import type { createEditorPreferenceActionDelegates } from './internal/preferences-service.ts';
 import type { createPreferencesComposition } from './preferences-composition.ts';
-import { createDefaultTrackViewPreferenceAction } from './default-track-view-preference-action.ts';
+import { createDefaultTrackViewPreferenceAction } from './internal/default-track-view-preference-action.ts';
 
 type RuntimeAction = (...args: unknown[]) => unknown;
 type PreferenceActions = ReturnType<typeof createEditorPreferenceActionDelegates>;

@@ -17,8 +17,15 @@ The worktree is `/home/splowatt/git/Soundscaper-user-path-bugs-200`, branch
 The unchanged complete last-wave workflows pass 9/9 in Chromium against
 prepared capture `58264ec46`. Earlier focused public batches and their exact
 receipts are recorded in the area registers. The first complete repository and
-browser-suite gates are pending; no further bug implementation starts until
-this checkpoint has run.
+browser-suite gates are running against this checkpoint. The browser suite
+contains 6,414 cases across Chromium, Firefox and WebKit. Its source checkout
+stays frozen while the next fixes use the independent
+`Soundscaper-user-path-bugs-200-advance` worktree. Full lint and source/test
+typechecking passed; the controller guard then identified D012's private helper
+outside its internal directory. Moving the unchanged helper into that directory
+and updating its sole owning import passes the guard and all five default-view
+regressions. This architecture follow-through adds no count; the canonical gate
+is rerun with the correction.
 
 Setup failures, unsupported int32 delivery, unpublished image-boundary commands,
 and the surround-Reverb hypothesis do not count. Repeated manifestations and
