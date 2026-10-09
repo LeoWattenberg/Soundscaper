@@ -4,6 +4,7 @@ import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
 import { ordinaryTailM4aFixture } from '../helpers/ordinary-tail-m4a-fixture.ts';
+import { ordinaryOggOpusFixture } from '../helpers/ordinary-ogg-opus-fixture.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { decodePinnedVideoRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
 import {
@@ -125,6 +126,19 @@ test('ordinary tail-metadata AAC import keeps the original overwrite menu availa
 	const menu = await openNestedCommandMenu(page, editor, 'File', []);
 	await expect(menu.getByRole('menuitem', { name: `Overwrite ${fixture.name}`, exact: true })).toBeEnabled();
 });
+
+for (const extension of ['opus', 'ogg']) {
+	test(`ordinary Ogg Opus import retains its supported overwrite action as .${extension}`, async ({ page }) => {
+		const file = await ordinaryOggOpusFixture(extension);
+		const fixture = { name: file.name, mimeType: file.type, buffer: Buffer.from(await file.arrayBuffer()) };
+		await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseFileAction(page, editor, 'Import');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		const menu = await openNestedCommandMenu(page, editor, 'File', []);
+		await expect(menu.getByRole('menuitem', { name: `Overwrite ${fixture.name}`, exact: true })).toBeEnabled();
+	});
+}
 
 for (const variant of [
 	{ name: 'Dialogue.wav', bitDepth: 24, bext: { description: 'Location dialogue', timeReference: '172800000' } },

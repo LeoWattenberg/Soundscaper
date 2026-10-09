@@ -44,10 +44,11 @@ export async function resolveDesktopOriginalExportSettings(
 	const video = sources.find((source) => source.kind === 'video');
 	if (video) return videoSettings(extension, video, sources);
 	const source = sources.find((candidate) => candidate.kind === 'audio' || candidate.kind == null);
-	const format = EXTENSIONS[extension];
+	let format = EXTENSIONS[extension];
 	if (!source || !format) return null;
 	try {
 		const header = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
+		if (format === 'ogg-vorbis' && matchesEncodedContainer('opus', header)) format = 'opus';
 		const pcm = await pcmSettings(format, file, header);
 		if (pcm !== undefined) {
 			if (!pcm || pcm.channelCount > 2) return null;
