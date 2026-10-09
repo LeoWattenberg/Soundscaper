@@ -327,3 +327,20 @@ Narrow strict TypeScript, targeted and canonical changed-file lint, size and dif
 checks pass. Immutable `1f33ae496` completes the retained locked-label selection, refused writing, Unlock and restored title Undo/Redo workflow in 2.9 seconds (`/tmp/soundscaper-round6-green35-chromium.log`). Built public GREEN complete; this adds no qualifying count.
 
 Uncounted full-100 WebKit diagnostic follow-through: the full run’s two playback-follow failures displayed the existing streamed/buffered shared-start refusal under load; the multiselection move/trim control failed an immediate transient waveform draw-scale observation. The exact three tests pass unchanged on immutable `ba2dac3c3` with qualified native audio, one isolated worker and their original assertions/deadlines: multiselection 4.6 seconds, right-edge following 4.9 seconds and pinned off-screen following 6.3 seconds (`/tmp/soundscaper-r6-edit-full100-webkit-unchanged-retry.log`, 3/3 PASS in 17.8 seconds). No source, fixture, deadline or count changes were needed.
+
+Uncounted R6-EDIT-052 chunk-ownership completion: the final canonical eager/lazy
+guard finds both existing `framescaper-project-commands` restoration adapters
+statically importing the newly unregistered visual rate-conformance helper
+(`/tmp/soundscaper-r6-io-channel-probe-chunk-owner-red.log`). An exact Unix-path
+owner assertion independently fails at null instead of that same command owner
+(`/tmp/soundscaper-r6-edit-sequence-chunk-mapping-red.log`). Assign only that
+pure helper's exact module name in the existing project-command inventory;
+preserve every semantic group, priority, size, nonrecursive setting and the
+original graph guard. The existing helper mapping also checks Windows paths.
+Both path checks remain intact while the test stays at its previous 549 lines.
+Corrected explicit ownership, eager/lazy and handoff boundaries, native image
+commands, unchanged-rate controls, exact sequence conformance and atomic
+Undo/Redo pass 90/90 (`/tmp/soundscaper-r6-edit-sequence-chunk-owner-green.log`).
+Narrow strict compilation, targeted and canonical changed-file lint, size and
+diff checks pass. No application behavior or qualifying count changes, and no
+manual Update AI assets run is required.
