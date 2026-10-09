@@ -16,6 +16,7 @@ import {
 	validateProjectEnvelope,
 } from './project-validation-primitives.ts';
 import { normalizeVideoEffects } from './video-effects.js';
+import { normalizeVideoEffectsV2 } from './video-effects-v2.ts';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import { hasCoreEditingProjectAuthority } from './project-schema-version.ts';
 import { isTrackDisplayMode } from './track-display-mode.ts';
@@ -38,6 +39,13 @@ export function validateProjectMedia(
 	sampleRate: number,
 	options: ProjectMediaValidationOptions = {},
 ): ProjectMediaCollections {
+	return validateMedia(project, sampleRate, options, false);
+}
+export function validateProjectMediaForFrameV2(project: ProjectDataRecord, sampleRate: number,
+	options: ProjectMediaValidationOptions = {}): ProjectMediaCollections {
+	return validateMedia(project, sampleRate, options, true);
+}
+function validateMedia(project: ProjectDataRecord, sampleRate: number, options: ProjectMediaValidationOptions, resourceV2: boolean): ProjectMediaCollections {
 	const foundation = hasCoreEditingProjectAuthority(project);
 	const sources = recordArray(project.sources, 'project.sources');
 	const clips = recordArray(project.clips, 'project.clips');
@@ -48,8 +56,8 @@ export function validateProjectMedia(
 	projectUniqueIds([...clips, ...binClips], 'project clips');
 	projectUniqueIds(tracks, 'project.tracks');
 	for (const source of sources) validateSource(source, foundation);
-	for (const clip of clips) validateClip(clip, false, foundation);
-	for (const clip of binClips) validateClip(clip, true, foundation);
+	for (const clip of clips) validateClip(clip, false, foundation, resourceV2);
+	for (const clip of binClips) validateClip(clip, true, foundation, resourceV2);
 	for (const track of tracks) validateTrack(
 		track,
 		sampleRate,
@@ -132,7 +140,7 @@ function validateSourceProvenanceEnvelope(value: unknown, name: string): void {
 	}
 }
 
-function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation: boolean): void {
+function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation: boolean, resourceV2: boolean): void {
 	const prefix = `clip ${String(clip.id)}`;
 	projectString(clip.id, `${prefix}.id`);
 	projectString(clip.sourceId, `${prefix}.sourceId`);
@@ -184,7 +192,7 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation
 	}
 	if (clip.kind !== 'video') throw new RangeError(`Unsupported clip kind: ${String(clip.kind)}.`);
 	projectPositiveFinite(clip.speedRatio, `${prefix}.speedRatio`);
-	normalizeVideoEffects(clip.videoEffects, `${prefix}.videoEffects`);
+	(resourceV2 ? normalizeVideoEffectsV2 : normalizeVideoEffects)(clip.videoEffects, `${prefix}.videoEffects`);
 }
 
 function validateTrack(

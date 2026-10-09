@@ -10,11 +10,11 @@ import {
 	admitAudioEditorProjectValidationStructure,
 } from '../common/editor/project-validation-budget.ts';
 import {
-	createDefaultVideoKeyframeCurves,
-	normalizeVideoKeyframeCurves,
+	createDefaultVideoKeyframeCurvesV2 as createDefaultVideoKeyframeCurves,
+	normalizeVideoKeyframeCurvesV2 as normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
-} from '../common/editor/video-keyframe-curves.ts';
-import { createVideoKeyframesRuntimeHandlers } from '../common/editor/commands/video-keyframes-runtime.ts';
+} from '../common/editor/video-keyframe-curves-v2.ts';
+import { createVideoKeyframesRuntimeHandlersV2 as createVideoKeyframesRuntimeHandlers } from '../common/editor/commands/video-keyframes-runtime.ts';
 import {
 	snapshotVideoKeyframesSetCommand,
 	type VideoKeyframesSetCommand,

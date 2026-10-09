@@ -3,7 +3,7 @@
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY } from '../common/editor/project-schema-identity.ts';
 import {
-	createAudioEditorProjectV17,
+	createFrameResourceProjectFoundationV2,
 	type AudioEditorProjectV17Options,
 } from '../common/editor/project-v17.ts';
 import { normalizeVideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
@@ -38,7 +38,7 @@ export function createFramescaperProjectSequence(
 	assertFramescaperProjectSequenceProfile(profile);
 	const subsequences = collectionInput(options, 'subsequences');
 	const multicameraGroups = collectionInput(options, 'multicameraGroups');
-	const foundation = createAudioEditorProjectV17(options) as unknown as Record<string, unknown>;
+	const foundation = createFrameResourceProjectFoundationV2(options) as unknown as Record<string, unknown>;
 	const sources = (foundation.sources as readonly Record<string, unknown>[]).map((source) => {
 		const result = { ...source };
 		if (source.kind === 'video') result.proxyAttachment = null;

@@ -2,6 +2,9 @@
 
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
+import { createTimelineImageResourcePreviewV16, requiresTimelineImageResourcePreviewV16 } from './editor-selected-timeline-image-resource-preview-v16.ts';
+import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
+import { createDefaultInheritedSession, createDefaultInheritedThumbnail } from './timeline-image-native-preview-companions.ts';
 import type {
 	ProductVideoVisualPreviewCreateRequest,
 	ProductVideoVisualPreviewFrame,
@@ -30,9 +33,6 @@ import {
 	assertFramescaperImagePreviewReaderMetadataTimelineImage,
 	FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_CONTEXTS_TIMELINE_IMAGE,
 } from './editor-selected-timeline-image-image-preview-resources.ts';
-import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
-import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
-import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
 import {
 	cloneFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
@@ -71,6 +71,8 @@ export interface FramescaperSelectedVisualPreviewOptionsTimelineImage
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
 	readonly signal?: AbortSignal;
+	readonly openFxExecute?: FramescaperSelectedOpenFxExecutionNativeMedia['execute'];
+	readonly assertCurrentV16?: () => void;
 	readonly createImageDrawable?: CreateFramescaperImagePreviewDrawableTimelineImage;
 	readonly createInheritedSession?: CreateFramescaperInheritedVisualPreviewSessionTimelineImage;
 	readonly cloneProject?: (profile: unknown, project: unknown) => FramescaperProjectTimelineImage;
@@ -115,6 +117,7 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 	options: FramescaperSelectedVisualPreviewOptionsTimelineImage,
 ): Promise<ProductVideoVisualPreviewSession | null> {
 	const project = admittedProject(options?.profile, options?.project, options?.cloneProject);
+	if (requiresTimelineImageResourcePreviewV16(project)) return createTimelineImageResourcePreviewV16(options, project);
 	const canvas = previewCanvas(options?.width, options?.height, options?.fit);
 	throwIfFramescaperImagePreviewAbortedTimelineImage(options.signal);
 	const contexts = imageClipContexts(project);
@@ -124,7 +127,7 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 		return { source: planned.source, width: planned.width, height: planned.height };
 	}));
 	const inheritedFactory = options.createInheritedSession ?? ((request) => (
-		createDefaultInheritedSession(request, options.store)
+		createDefaultInheritedSession(request, options.store, options.openFxExecute)
 	));
 	const inheritedPromise = Promise.resolve().then(() => inheritedFactory({ project, ...canvas }));
 	const imagePromise = loadTimelineSources(
@@ -181,10 +184,7 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 	const resolve = (timelineSample: number): ProductVideoVisualPreviewFrame => (
 		mergePreviewFrames(inherited?.resolve(timelinePosition(timelineSample)) ?? emptyFrame(), imageFrame(timelineSample))
 	);
-	// The inherited exact executor owns a flattened finishing graph and cannot place a
-	// new timelineImage image between its already-composited tracks. Keep the exact route
-	// only when this session has no image node; image projects retain the layered
-	// compositor path until the timelineImage exact plan owns image nodes itself.
+	// Ordinary non-resource image previews retain the existing layered compositor.
 	const renderExact = clips.length === 0 ? inherited?.renderExact : undefined;
 	return Object.freeze({
 		resolve,
@@ -444,36 +444,6 @@ function emptyFrame(): ProductVideoVisualPreviewFrame {
 		layers: Object.freeze([]), adjustments: Object.freeze([]),
 		activeFreezeNodeIds: empty, availablePresetIds: empty,
 		ledger: Object.freeze({ requestedNodeIds: empty, consumedNodeIds: empty, omittedNodeIds: empty }),
-	});
-}
-
-async function createDefaultInheritedSession(
-	request: ProductVideoVisualPreviewCreateRequest,
-	store: AudioEditorProjectStore,
-): Promise<ProductVideoVisualPreviewSession | null> {
-	const module = await import('./editor-selected-finishing-visual-preview.ts');
-	return module.createFramescaperSelectedVisualPreviewSessionFinishing({
-		...request,
-		project: framescaperProjectFinishingFoundationShapeNativeMedia(
-			framescaperProjectNativeMediaFoundationShapeTimelineImage(request.project),
-		),
-		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
-		store,
-	});
-}
-
-async function createDefaultInheritedThumbnail(
-	request: ProductVideoVisualProjectBinThumbnailRequest,
-	store: AudioEditorProjectStore,
-): Promise<ProductVideoVisualProjectBinThumbnail | null> {
-	const module = await import('./editor-selected-finishing-visual-preview.ts');
-	return module.createFramescaperSelectedProjectBinThumbnailFinishing({
-		...request,
-		project: framescaperProjectFinishingFoundationShapeNativeMedia(
-			framescaperProjectNativeMediaFoundationShapeTimelineImage(request.project),
-		),
-		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
-		store,
 	});
 }
 

@@ -4,6 +4,7 @@ import type { FileSizeWarningOptions } from '../common/editor/controller/shared/
 import type { ScapeManifest } from '../common/editor/scape-archive-envelope.ts';
 import type { PlannedScapeExportAsset } from '../common/editor/scape-export-plan.ts';
 import type { VideoCubeLutReferenceV1 } from '../common/editor/video-color-management-v27.ts';
+import { collectCubeLutProfileProjectReferencesV1 } from '../common/editor/video-cube-lut-project-references-v1.ts';
 import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
 import {
 	collectFramescaperDurableScapeAssetReferences,
@@ -81,5 +82,6 @@ function projectLuts(project: FramescaperProjectFinishing): readonly VideoCubeLu
 	return [
 		...project.videoVisualPresentations.map(({ grade }) => grade?.lut ?? null),
 		...project.videoFinishingPresets.map(({ template }) => template.grade?.lut ?? null),
+		...collectCubeLutProfileProjectReferencesV1(project),
 	].filter((value): value is VideoCubeLutReferenceV1 => value !== null);
 }

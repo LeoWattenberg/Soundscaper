@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../commands/clipboard-command-v2.ts';
+
 import { createEnvelopeValueEvaluator } from '../../automation.js';
 import { evaluateClipFadeAt } from '../../audio-clip-transition-gain.ts';
 import { readClipLoop } from '../../audio-clip-loop.ts';
 import type {
 	AudioEditorClipboardTrack,
-	AudioEditorCommand,
 	CommandObject,
 } from '../../commands/protocol.ts';
 import {

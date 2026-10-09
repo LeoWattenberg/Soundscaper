@@ -11,6 +11,7 @@ import {
 } from './project-schema-version.ts';
 import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 import { videoSourceCharacteristicsAreReported } from './video-source-characteristics.ts';
+import { collectCubeLutProfileProjectReferencesV1 } from './video-cube-lut-project-references-v1.ts';
 
 const MAXIMUM_FRAMESCAPER_PROJECT_ASSET_ROOTS = 16_384;
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -203,6 +204,7 @@ export function collectFramescaperProjectAssetStorageKeys(
 		const lut = preset?.template?.grade?.lut;
 		if (lut !== null && lut !== undefined) add('LUT', lut, 'lut-sha256:');
 	}
+	for (const lut of collectCubeLutProfileProjectReferencesV1(project)) add('LUT', lut, 'lut-sha256:');
 	for (const storageKey of identities.keys()) target.add(storageKey);
 	return target;
 }

@@ -15,6 +15,17 @@ export function createFramescaperOpenFxPlanForFoundationNativeMedia(options: Rea
 	readonly foundationPlan: UnifiedExactRenderPlanV13;
 	readonly timingViews: ReadonlyMap<string, VideoSourceTimingView>;
 }>): UnifiedExactRenderPlanV14 {
+	return createFramescaperOpenFxPlanForSourceProjectionNativeMedia(options);
+}
+
+/** Internal geometry-only projection. Named current companions authenticate
+ * complete resources before using it; the named legacy factory remains13. */
+export function createFramescaperOpenFxPlanForSourceProjectionNativeMedia(options: Readonly<{
+	readonly profile: unknown;
+	readonly project: FramescaperProjectNativeMedia;
+	readonly foundationPlan: Pick<UnifiedExactRenderPlanV13, 'timebase' | 'output'>;
+	readonly timingViews: ReadonlyMap<string, VideoSourceTimingView>;
+}>): UnifiedExactRenderPlanV14 {
 	const plan = options.foundationPlan;
 	const project = framescaperProjectFinishingFoundationShapeNativeMedia(options.project);
 	return createFramescaperProjectUnifiedExactRenderPlanNativeMedia(options.profile, options.project, Object.freeze({

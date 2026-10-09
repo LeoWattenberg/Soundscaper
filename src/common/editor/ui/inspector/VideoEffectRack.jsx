@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
+import { VIDEO_EFFECT_TYPES_V2, videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
+import { cubeLutEffectPortV1For } from '../../controller/clip-video/cube-lut-effect-port-v1.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import VideoEffectNumberInput from './VideoEffectNumberInput.tsx';
 import VideoCurveControl from './VideoCurveControl.tsx';
 import VideoColorWheelsControls from './VideoColorWheelsControls.tsx';
+import VideoEffectCubeLut from './VideoEffectCubeLut.tsx';
 
 export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	const effects = clip.videoEffects || [];
+	const resourcePort = cubeLutEffectPortV1For(controller), types = resourcePort ? VIDEO_EFFECT_TYPES_V2 : VIDEO_EFFECT_TYPES;
 	const [effectType, setEffectType] = useState(VIDEO_EFFECT_TYPES[0] || '');
 	const actions = controller.actions.video?.effects;
 	const mutationDisabled = disabled || !actions;
-	const effectOptions = useMemo(() => VIDEO_EFFECT_TYPES.map((type) => {
-		const descriptor = videoEffectDefinition(type);
+	const effectOptions = useMemo(() => types.map((type) => {
+		const descriptor = resourcePort ? videoEffectDefinitionV2(type) : videoEffectDefinition(type);
 		return { value: type, label: labelFor(descriptor, copy) };
-	}), [copy]);
+	}), [copy, types, resourcePort]);
 
 	const run = (work) => {
 		if (mutationDisabled) return;
@@ -38,15 +42,15 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 			{effects.length === 0 && <p className="audio-editor-panel-hint" data-video-effect-empty>{copy.videoEffectsEmpty}</p>}
 			{effects.length > 0 && <ol className="audio-editor-video-effects__list">
 				{effects.map((effect, index) => (
-					<VideoEffectRow key={effect.id} effect={effect} clipId={clip.id} index={index} count={effects.length} actions={actions} copy={copy} disabled={mutationDisabled} onError={onError} onRun={run} />
+					<VideoEffectRow key={effect.id} effect={effect} effects={effects} resourcePort={resourcePort} clipId={clip.id} index={index} count={effects.length} actions={actions} copy={copy} disabled={mutationDisabled} onError={onError} onRun={run} />
 				))}
 			</ol>}
 		</section>
 	);
 }
 
-function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun }) {
-	const descriptor = videoEffectDefinition(effect.type);
+function VideoEffectRow({ effect, effects, resourcePort, clipId, index, count, actions, copy, disabled, onError, onRun }) {
+	const descriptor = resourcePort ? videoEffectDefinitionV2(effect.type) : videoEffectDefinition(effect.type);
 	const label = labelFor(descriptor, copy);
 	return (
 		<li className="audio-editor-video-effect" data-video-effect-id={effect.id} data-video-effect-type={effect.type} data-enabled={effect.enabled !== false ? 'true' : 'false'}>
@@ -59,7 +63,8 @@ function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled,
 				</div>
 			</header>
 			<div className="audio-editor-video-effect__params">
-				{effect.type === 'color-wheels-v1' ? <VideoEffectWheels effect={effect} clipId={clipId} actions={actions} copy={copy}
+				{effect.type === 'cube-lut-profile-v1' && resourcePort ? <VideoEffectCubeLut clipId={clipId} effect={effect} effects={effects}
+					port={resourcePort} copy={copy} disabled={disabled || effect.enabled === false} /> : effect.type === 'color-wheels-v1' ? <VideoEffectWheels effect={effect} clipId={clipId} actions={actions} copy={copy}
 					disabled={disabled || effect.enabled === false} onError={onError} /> : Object.entries(descriptor.params).map(([name, parameter]) => (
 					<VideoEffectParameter key={name} clipId={clipId} effectId={effect.id} name={name} parameter={parameter} value={effect.params[name]} actions={actions} copy={copy} disabled={disabled || effect.enabled === false} onError={onError} />
 				))}

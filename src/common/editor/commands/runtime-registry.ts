@@ -4,14 +4,14 @@ import { createClipRangeClipboardRuntimeHandlers } from './clip-range-clipboard-
 import { createAudioWarpRuntimeHandlers } from './audio-warp-runtime.ts';
 import { createAudioProductionRuntimeHandlers } from './audio-production.ts';
 import { createMasteringSequenceRuntimeHandlers } from './mastering-sequence-runtime.ts';
-import { createEffectsVideoRuntimeHandlers } from './effects-video-runtime.js';
+import { createEffectsVideoRuntimeHandlers, createEffectsVideoRuntimeHandlersV2 } from './effects-video-runtime.js';
 import { createProjectSourceBinRuntimeHandlers } from './project-source-bin-runtime.js';
 import { createSequenceTimingRuntimeHandlers } from './sequence-timing-runtime.ts';
 import { createTempoSignatureRuntimeHandlers } from './tempo-signature-runtime.ts';
 import { createTakeCompRuntimeHandlers } from './take-comp-runtime.ts';
 import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-runtime.ts';
 import { createVideoCompositionRuntimeHandlers } from './video-composition-runtime.ts';
-import { createVideoKeyframesRuntimeHandlers } from './video-keyframes-runtime.ts';
+import { createVideoKeyframesRuntimeHandlers, createVideoKeyframesRuntimeHandlersV2 } from './video-keyframes-runtime.ts';
 import {
 	defineEditorCommandHandlerRegistry,
 } from './registry.ts';
@@ -31,6 +31,12 @@ export type ChildCommandDispatcher = (
 export function createEditorCommandRuntime(
 	dispatchChild: ChildCommandDispatcher,
 ): Readonly<EditorCommandHandlerRegistry> {
+	return createRuntime(dispatchChild, false);
+}
+export function createEditorCommandRuntimeV2(dispatchChild: ChildCommandDispatcher): Readonly<EditorCommandHandlerRegistry> {
+	return createRuntime(dispatchChild, true);
+}
+function createRuntime(dispatchChild: ChildCommandDispatcher, resourceV2: boolean): Readonly<EditorCommandHandlerRegistry> {
 	return defineEditorCommandHandlerRegistry({
 		projectSourceBin: createProjectSourceBinRuntimeHandlers(dispatchChild),
 		tempoSignature: createTempoSignatureRuntimeHandlers(),
@@ -40,10 +46,10 @@ export function createEditorCommandRuntime(
 		takeComp: createTakeCompRuntimeHandlers(dispatchChild),
 		audioWarp: createAudioWarpRuntimeHandlers(),
 		clipRangeClipboard: createClipRangeClipboardRuntimeHandlers(),
-		effectsVideo: createEffectsVideoRuntimeHandlers(),
+		effectsVideo: (resourceV2 ? createEffectsVideoRuntimeHandlersV2 : createEffectsVideoRuntimeHandlers)(),
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),
 		videoComposition: createVideoCompositionRuntimeHandlers(),
-		videoKeyframes: createVideoKeyframesRuntimeHandlers(),
+		videoKeyframes: (resourceV2 ? createVideoKeyframesRuntimeHandlersV2 : createVideoKeyframesRuntimeHandlers)(),
 		audioProduction: createAudioProductionRuntimeHandlers(),
 		masteringSequence: createMasteringSequenceRuntimeHandlers(),
 	});

@@ -14,6 +14,7 @@ import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-
 import { framescaperProjectCompositionFoundationRetime } from './editor-project-retime-validation.ts';
 import { framescaperProjectForAuthoredFoundationSequence } from './editor-project-sequence-runtime.ts';
 import { validateFramescaperProject, type FramescaperProject } from './editor-project.ts';
+import { brandFrameResourceCommandProjectV2 } from '../common/editor/commands/frame-resource-command-carriers-v2.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -42,10 +43,12 @@ export function framescaperProjectForEditClipboardConsumers(
 	project: unknown,
 ): Readonly<DataRecord> {
 	validateFramescaperProject(profile, project);
-	return baselineProjection(framescaperProjectForEditClipboardConsumersAssistance(
+	const projected = baselineProjection(framescaperProjectForEditClipboardConsumersAssistance(
 		profile,
 		project,
 	));
+	brandFrameResourceCommandProjectV2(projected);
+	return projected;
 }
 
 /**

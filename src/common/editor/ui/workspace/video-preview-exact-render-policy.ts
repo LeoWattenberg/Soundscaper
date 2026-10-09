@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Exact RGBA composition is the settled-frame/export oracle. During playback,
- * keep frames on the complete GPU shader-preview path so readback and full CPU
- * linear composition do not serialize the real-time render loop.
+ * Ordinary playing frames retain the shader path. Resource-dependent current
+ * sessions explicitly own continuous exact execution; a resource is never
+ * omitted to keep playback on a shader-only route.
  */
 export function shouldRenderExactProductVideoPreview(
-	session: Readonly<{ readonly renderExact?: unknown }> | null | undefined,
+	session: Readonly<{ readonly renderExact?: unknown; readonly exactPlaying?: true }> | null | undefined,
 	transportState: unknown,
 ): boolean {
-	return transportState !== 'playing' && typeof session?.renderExact === 'function';
+	return (transportState !== 'playing' || session?.exactPlaying === true) && typeof session?.renderExact === 'function';
 }
 
 /** Read back decoded media after its seek drains; readiness alone can still name the old picture. */

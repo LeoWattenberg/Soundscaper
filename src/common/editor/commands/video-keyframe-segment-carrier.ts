@@ -1,12 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	rebindVideoKeyframeCarrierEffects,
-	trimVideoKeyframeCarrierToSequenceRange,
-	transformVideoKeyframeCarrier,
-	transformVideoKeyframeCarrierFromSourceBounds,
-	videoKeyframeSequencePositionAtTimelineFrame,
-} from './video-keyframe-carrier.ts';
+import { frameCommandCarriersV2 } from './frame-resource-command-carriers-v2.ts';
 import { isRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import { VIDEO_KEYFRAME_CARRIER_EDITED } from './command-projection-transients.ts';
 import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
@@ -44,7 +38,7 @@ export function applyCanonicalVideoKeyframeTransform(
 		return {
 			...placement,
 			sequenceTrimRange,
-			updated: transformVideoKeyframeCarrier(
+			updated: frameCommandCarriersV2(project).transformVideoKeyframeCarrier(
 				placement.updated, source, placement.updated, changes, name,
 			),
 		};
@@ -56,7 +50,7 @@ export function applyCanonicalVideoKeyframeTransform(
 	return {
 		...placement,
 		sequenceTrimRange,
-		updated: trimVideoKeyframeCarrierToSequenceRange(
+		updated: frameCommandCarriersV2(project).trimVideoKeyframeCarrierToSequenceRange(
 			placement.updated,
 			source,
 			trimStart,
@@ -96,13 +90,13 @@ export function finalizeVideoKeyframeSegmentCarrier<Result extends DataRecord>(
 ): Result {
 	if (!hasOwnCarrier(source)) return result;
 	const clip = source as DataRecord;
-	const localStart = videoKeyframeSequencePositionAtTimelineFrame(project, clip, segmentStartFrame, name);
-	const localEnd = videoKeyframeSequencePositionAtTimelineFrame(project, clip, segmentEndFrame, name);
+	const localStart = frameCommandCarriersV2(project).videoKeyframeSequencePositionAtTimelineFrame(project, clip, segmentStartFrame, name);
+	const localEnd = frameCommandCarriersV2(project).videoKeyframeSequencePositionAtTimelineFrame(project, clip, segmentEndFrame, name);
 	if (localStart === null || localEnd === null) throw new Error(`${name} lost its keyframe sequence range.`);
 	const rebound = rebindEffects
-		? rebindVideoKeyframeCarrierEffects(result, clip, result, name)
+		? frameCommandCarriersV2(project).rebindVideoKeyframeCarrierEffects(result, clip, result, name)
 		: result;
-	return trimVideoKeyframeCarrierToSequenceRange(
+	return frameCommandCarriersV2(project).trimVideoKeyframeCarrierToSequenceRange(
 		rebound,
 		rebound,
 		Number(clip.sequenceStartFrame) + localStart,
@@ -123,8 +117,8 @@ export function transformVideoKeyframeCarrierForOverwrite<Result extends DataRec
 	const clip = source as DataRecord;
 	const sourceStartFrame = safeInteger(clip.timelineStartFrame, `${name}.timelineStartFrame`);
 	const durationFrames = positiveSafeInteger(result.durationFrames, `${name} destination.durationFrames`);
-	const localStart = videoKeyframeSequencePositionAtTimelineFrame(project, clip, sourceStartFrame, name);
-	const localEnd = videoKeyframeSequencePositionAtTimelineFrame(
+	const localStart = frameCommandCarriersV2(project).videoKeyframeSequencePositionAtTimelineFrame(project, clip, sourceStartFrame, name);
+	const localEnd = frameCommandCarriersV2(project).videoKeyframeSequencePositionAtTimelineFrame(
 		project,
 		clip,
 		safeAdd(sourceStartFrame, durationFrames, `${name} destination timeline extent`),
@@ -133,7 +127,7 @@ export function transformVideoKeyframeCarrierForOverwrite<Result extends DataRec
 	if (localStart === null || localEnd === null || localEnd <= localStart) {
 		throw new Error(`${name} lost its keyframe sequence range.`);
 	}
-	return transformVideoKeyframeCarrierFromSourceBounds(result, clip, {
+	return frameCommandCarriersV2(project).transformVideoKeyframeCarrierFromSourceBounds(result, clip, {
 		...result,
 		sequenceFrameCount: localEnd - localStart,
 	}, changes, name);

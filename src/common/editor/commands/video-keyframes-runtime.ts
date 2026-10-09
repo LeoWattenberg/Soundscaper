@@ -4,6 +4,7 @@ import {
 	normalizeVideoKeyframeCurves,
 	videoKeyframeCurvesEqual,
 } from '../video-keyframe-curves.ts';
+import { normalizeVideoKeyframeCurvesV2, videoKeyframeCurvesEqualV2 } from '../video-keyframe-curves-v2.ts';
 import {
 	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	admitAudioEditorProjectValidationStructure,
@@ -25,26 +26,33 @@ export function createVideoKeyframesRuntimeHandlers(): Readonly<VideoKeyframesCo
 		'video-keyframes/set': setVideoKeyframes,
 	});
 }
+/** Only the explicit current Frame command owner binds the resource context. */
+export function createVideoKeyframesRuntimeHandlersV2(): Readonly<VideoKeyframesCommandHandlers> {
+	return defineVideoKeyframesCommandHandlers({ 'video-keyframes/set': (project, command) => setVideoKeyframes(project, command, true) });
+}
 
 function setVideoKeyframes(
 	projectValue: EditorCommandProject,
 	commandValue: Parameters<VideoKeyframesCommandHandlers['video-keyframes/set']>[1],
+	resourceV2 = false,
 ): void {
+	const normalize = resourceV2 ? normalizeVideoKeyframeCurvesV2 : normalizeVideoKeyframeCurves;
+	const equal = resourceV2 ? videoKeyframeCurvesEqualV2 : videoKeyframeCurvesEqual;
 	const command = snapshotVideoKeyframesSetCommand(commandValue);
 	const clip = uniqueClip(dataRecord(projectValue, 'project'), command.clipId);
 	if (dataProperty(clip, 'kind', `clip ${command.clipId}`) !== 'video') {
 		throw new TypeError(`Clip ${command.clipId} is not a video clip.`);
 	}
 	const context = normalizationContext(clip, command.clipId);
-	const current = normalizeVideoKeyframeCurves(
+	const current = normalize(
 		dataProperty(clip, 'videoKeyframes', `video clip ${command.clipId}`),
 		context,
 		`video clip ${command.clipId}.videoKeyframes`,
 	);
-	if (!videoKeyframeCurvesEqual(current, command.expectedKeyframes, context)) {
+	if (!equal(current, command.expectedKeyframes, context)) {
 		throw new RangeError(`Video clip ${command.clipId} keyframes changed before the edit was committed.`);
 	}
-	clip.videoKeyframes = normalizeVideoKeyframeCurves(
+	clip.videoKeyframes = normalize(
 		command.keyframes,
 		context,
 		`video clip ${command.clipId}.nextVideoKeyframes`,

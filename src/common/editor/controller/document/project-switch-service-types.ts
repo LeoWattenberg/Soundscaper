@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { FileSizeWarningOptions } from '../shared/file-size-warning.ts';
 
-import type { AudioEditorClipboard } from '../../commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard } from '../../commands/clipboard-command-v2.ts';
 
 import type { EditorCancellableHandle, EditorLifetimeToken } from '../shared/lifecycle.ts';
 import type { PlaybackProjectService } from '../source/playback-project-service.ts';

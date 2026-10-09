@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
+import { createTimelineImageNativePreviewCompanions } from './timeline-image-native-preview-companions.ts';
+import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import type {
 	ProductVideoTimelineFilmstripFrame,
 	ProductVideoTimelineFilmstripRequest,
@@ -30,6 +32,7 @@ export interface FramescaperSelectedTimelineFilmstripOptionsTimelineImage
 	extends ProductVideoTimelineFilmstripRequest {
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
+	readonly openFxExecute?: FramescaperSelectedOpenFxExecutionNativeMedia['execute'];
 	readonly createInheritedFilmstrip?: (
 		request: ProductVideoTimelineFilmstripRequest,
 	) => Promise<readonly ProductVideoTimelineFilmstripFrame[] | null>;
@@ -79,7 +82,7 @@ export async function createFramescaperSelectedTimelineFilmstripTimelineImage(
 	})));
 	const output = new Array<ProductVideoTimelineFilmstripFrame>(frames.length);
 	const inheritedFactory = options.createInheritedFilmstrip ?? ((request) => (
-		createDefaultInheritedFilmstrip(request, options.store)
+		createDefaultInheritedFilmstrip(request, options.store, options.openFxExecute)
 	));
 	const inheritedPromise = inheritedRequests.length === 0 ? Promise.resolve(Object.freeze([]))
 		: Promise.resolve().then(() => inheritedFactory({ ...options, project, frames: inheritedRequests }));
@@ -173,13 +176,14 @@ function disposeUnpublishedOutputs(
 async function createDefaultInheritedFilmstrip(
 	request: ProductVideoTimelineFilmstripRequest,
 	store: AudioEditorProjectStore,
+	execute?: FramescaperSelectedOpenFxExecutionNativeMedia['execute'],
 ): Promise<readonly ProductVideoTimelineFilmstripFrame[] | null> {
+	const native = framescaperProjectNativeMediaFoundationShapeTimelineImage(request.project);
+	const project = framescaperProjectFinishingFoundationShapeNativeMedia(native);
+	const companions = createTimelineImageNativePreviewCompanions(native, execute);
 	const module = await import('./editor-selected-finishing-timeline-filmstrip.ts');
 	return module.createFramescaperSelectedTimelineFilmstripFinishing({
-		...request,
-		project: framescaperProjectFinishingFoundationShapeNativeMedia(
-			framescaperProjectNativeMediaFoundationShapeTimelineImage(request.project),
-		),
+		...request, project, ...companions,
 		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
 		store,
 	});

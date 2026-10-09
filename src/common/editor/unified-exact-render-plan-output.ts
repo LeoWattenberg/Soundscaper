@@ -25,7 +25,7 @@ const CANVAS_FIELDS = Object.freeze(['width', 'height', 'fit', 'pixelFormat', 'b
 export function normalizeUnifiedExactRenderOutput(
 	value: unknown,
 	codecs: UnifiedExactRenderPlan['codecs'],
-	version: UnifiedExactRenderPlanVersion,
+	version: UnifiedExactRenderPlanVersion | 16,
 ): UnifiedExactRenderPlan['output'] {
 	const record = readClosedDomainRecord(value, 'unified render output', OUTPUT_FIELDS);
 	const canvasRecord = readClosedDomainRecord(

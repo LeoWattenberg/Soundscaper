@@ -91,6 +91,19 @@ import type {
 } from './unified-exact-render-plan.ts';
 import { UNIFIED_EXACT_RENDER_PLAN_VERSIONS } from './unified-exact-render-plan-versions.ts';
 
+
+import { normalizeUnifiedExactRenderClipNodeV2, type UnifiedExactRenderClipNodeV2 } from './unified-exact-render-clip-picture-v2.ts';
+import type { UnifiedExactRenderPlanV16 } from './unified-exact-render-plan-v16.ts';
+type AnyNode = UnifiedExactRenderNode | UnifiedExactRenderClipNodeV2;
+type AnyPlan = UnifiedExactRenderPlan | UnifiedExactRenderPlanV16;
+
+export function normalizePlan(value: unknown, timingSidecars?: UnifiedExactRenderTimingSidecars, deferTiming = false): UnifiedExactRenderPlan {
+ return normalizePlanCore(value, timingSidecars, deferTiming, false) as UnifiedExactRenderPlan;
+}
+export function normalizeResourcePlanV16(value: unknown, timingSidecars?: UnifiedExactRenderTimingSidecars, deferTiming = false): UnifiedExactRenderPlanV16 {
+ return normalizePlanCore(value, timingSidecars, deferTiming, true) as UnifiedExactRenderPlanV16;
+}
+
 const PLAN_FIELDS = Object.freeze([
 	'version', 'strategy', 'project', 'format', 'codecs', 'timebase', 'output', 'tracks', 'sources', 'nodes',
 ]);
@@ -114,19 +127,22 @@ const ALL_NODE_FIELDS = Object.freeze([
 ]);
 const MAXIMUM_NODES = 100_000;
 
-export function normalizePlan(
+function normalizePlanCore(
 	value: unknown,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
 	deferTiming = false,
-): UnifiedExactRenderPlan {
+	resourceV2 = false,
+): AnyPlan {
 	const candidate = value && typeof value === 'object' && !Array.isArray(value)
 		? value as Readonly<Record<string, unknown>> : null;
-	const candidateVersion = candidate?.version;
+	const candidateVersion = resourceV2 ? 16 : candidate?.version;
 	const input = readClosedDomainRecord(
 		value, 'unified exact render plan', candidateVersion === 15
 			? PLAN_V15_FIELDS : candidateVersion === 14 ? PLAN_V14_FIELDS : PLAN_FIELDS,
 	);
-	const version = planVersion(field(input, 'version', 'unified exact render plan'));
+	const rawVersion = field(input, 'version', 'unified exact render plan');
+	if (resourceV2 && rawVersion !== 16) throw new RangeError('A resource picture plan requires generation 16.');
+	const version = resourceV2 ? 16 : planVersion(rawVersion);
 	const deliveryProfile = version === 14 || version === 15
 		? normalizeUnifiedExactRenderDeliveryProfile(field(input, 'deliveryProfile', 'unified exact render plan'))
 		: undefined;
@@ -173,7 +189,7 @@ export function normalizePlan(
 	});
 	const nodes = normalizeNodes(
 		field(input, 'nodes', 'unified exact render plan'), version, project.id,
-		context, sourceResult.index, trackResult.index, timingIndex,
+		context, sourceResult.index, trackResult.index, timingIndex, resourceV2,
 	);
 	if (delivery !== null) {
 		assertUnifiedExactRenderDeliveryReferencesV15(
@@ -200,31 +216,34 @@ export function normalizePlan(
 		tracks: trackResult.tracks,
 		sources: sourceResult.sources,
 		nodes,
-	};
+	} as AnyPlan;
 }
 
 function normalizeNodes(
 	value: unknown,
-	version: UnifiedExactRenderPlanVersion,
+	version: UnifiedExactRenderPlanVersion | 16,
 	projectId: string,
 	context: UnifiedExactRenderTemporalContext,
 	sources: UnifiedExactRenderSourceIndex,
 	tracks: UnifiedExactRenderTrackIndexV1,
 	timing: UnifiedExactRenderTimingIndex,
-): readonly UnifiedExactRenderNode[] {
+	resourceV2: boolean,
+): readonly AnyNode[] {
 	const candidates = readClosedDomainArray(value, 'unified render nodes', 0, MAXIMUM_NODES);
 	const kinds = candidates.map((candidate, index) => {
 		const name = `unified render nodes[${String(index)}]`;
 		const record = readClosedDomainRecord(candidate, name, ALL_NODE_FIELDS, ['kind']);
 		return field(record, 'kind', name);
 	});
-	const normalized = new Map<number, UnifiedExactRenderNode>();
-	const clipsById = new Map<string, UnifiedExactRenderClipNode>();
+	const normalized = new Map<number, AnyNode>();
+	const clipsById = new Map<string, UnifiedExactRenderClipNode | UnifiedExactRenderClipNodeV2>();
 	const professionalSourceNodeIds = new Set<string>();
 	let finishingNodeCount = 0;
 	for (let index = 0; index < candidates.length; index += 1) {
 		if (kinds[index] !== 'clip') continue;
-		const clip = normalizeUnifiedExactRenderClipNode(candidates[index], context, sources, tracks, timing);
+		const clip = resourceV2
+			? normalizeUnifiedExactRenderClipNodeV2(candidates[index], context, sources, tracks, timing)
+			: normalizeUnifiedExactRenderClipNode(candidates[index], context, sources, tracks, timing);
 		if (clipsById.has(clip.clipId)) throw new RangeError('Unified clip IDs must be unique.');
 		clipsById.set(clip.clipId, clip);
 		normalized.set(index, clip);
@@ -232,7 +251,7 @@ function normalizeNodes(
 	for (let index = 0; index < candidates.length; index += 1) {
 		const kind = kinds[index];
 		if (kind === 'clip' || kind === 'openfx') continue;
-		let node: UnifiedExactRenderNode;
+		let node: AnyNode;
 		if (kind === 'transition') {
 			node = normalizeUnifiedExactRenderTransitionNode(candidates[index], context, clipsById, sources);
 		} else if (kind === 'visual') {
@@ -248,14 +267,14 @@ function normalizeNodes(
 			}
 			professionalSourceNodeIds.add(node.sourceNodeId);
 		} else if (kind === 'finishing') {
-			if (version !== 14 && version !== 15) requireSelectedGeneration(version, 13, kind);
+			if (version !== 14 && version !== 15 && version !== 16) requireSelectedGeneration(version, 13, kind);
 			finishingNodeCount += 1;
 			if (finishingNodeCount > 1) throw new RangeError('A selected finishing plan requires exactly one finishing node.');
 			node = normalizeUnifiedExactRenderFinishingNode(candidates[index], context.sequenceId, sources.bySourceId);
 		} else throw new RangeError('Unified exact render plan node kind is unsupported.');
 		normalized.set(index, node);
 	}
-	if ((version === 13 || version === 14 || version === 15) && finishingNodeCount !== 1) {
+	if ((version === 13 || version === 14 || version === 15 || version === 16) && finishingNodeCount !== 1) {
 		throw new RangeError('A selected finishing plan requires exactly one finishing node.');
 	}
 	const identities = graphIdentities(projectId, context.sequenceId, tracks, sources, normalized.values());
@@ -291,7 +310,7 @@ function graphIdentities(
 	sequenceId: string,
 	tracks: UnifiedExactRenderTrackIndexV1,
 	sources: UnifiedExactRenderSourceIndex,
-	nodes: Iterable<UnifiedExactRenderNode>,
+	nodes: Iterable<AnyNode>,
 ): UnifiedExactRenderIdentityIndex {
 	const claims: UnifiedExactRenderIdentityClaim[] = [];
 	const generatorSources = new Map<string, string>();

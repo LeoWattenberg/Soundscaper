@@ -2,9 +2,9 @@
 
 import type { ProjectFeatureRequirementsManifest } from '../common/editor/project-feature-requirements.ts';
 import {
-	normalizeVideoKeyframeCurves,
+	normalizeVideoKeyframeCurvesV2 as normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
-} from '../common/editor/video-keyframe-curves.ts';
+} from '../common/editor/video-keyframe-curves-v2.ts';
 import {
 	framescaperProjectFeatureRequirementsForCompositionFoundationRetime,
 	validateFramescaperProjectFeatureRequirementsRetime,

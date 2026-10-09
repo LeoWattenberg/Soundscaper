@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createControllerDisposal, type ControllerDisposalDependencies } from '../src/common/editor/controller/composition/controller-disposal.ts';
 import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { deferred, remainsPending } from './helpers/async-test-control.ts';
 
 function fixture() {
 	const calls: string[] = [];
@@ -79,6 +80,24 @@ test('failed source readers retain source resources and storage even when they t
 	assert.equal(dispose.canCloseStore(), false);
 	assert.ok(f.calls.includes('waveforms'));
 	assert.equal(f.lifetime.phase, 'disposed');
+});
+
+test('product resource retirement seals synchronously and joins its held writer before storage is closed', async () => {
+	const f = fixture(), held = deferred<void>(); let retirements = 0;
+	const dispose = createControllerDisposal({ ...f.dependencies, disposeProductResources() { retirements++; return held.promise; } });
+	dispose.beginDisposal(); assert.equal(retirements, 1);
+	const pending = dispose(); assert.equal(await remainsPending(pending), true); assert.ok(!f.calls.includes('store'));
+	assert.equal(retirements, 1); held.resolve(); await pending; assert.ok(f.calls.includes('store'));
+});
+
+test('failed product resource retirement remains opaque and fences native storage close after all cleanup joins', async () => {
+	const f = fixture(), held = deferred<void>(); let traps = 0;
+	const reason = new Proxy({}, { get() { traps++; throw Error('get'); }, getPrototypeOf() { traps++; throw Error('prototype'); },
+		getOwnPropertyDescriptor() { traps++; throw Error('descriptor'); } });
+	const dispose = createControllerDisposal({ ...f.dependencies, disposeProductResources: () => held.promise });
+	const observed = dispose().then(() => ({ error: undefined as unknown }), (error: unknown) => ({ error }));
+	held.reject(reason); assert.equal((await observed).error, reason); assert.equal(traps, 0);
+	assert.equal(dispose.canCloseStore(), false); assert.ok(!f.calls.includes('store')); assert.ok(f.calls.includes('engine'));
 });
 
 test('an external product reader can veto source retirement and store close', async () => {

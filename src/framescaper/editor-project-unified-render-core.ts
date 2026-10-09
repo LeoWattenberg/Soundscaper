@@ -3,7 +3,6 @@
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import {
 	createUnifiedExactRenderPlanWithTimingSidecars,
-	type UnifiedExactRenderClipPictureStateV1,
 	type UnifiedExactRenderNode,
 	type UnifiedExactRenderPlan,
 	type UnifiedExactRenderPlanSource,
@@ -139,7 +138,7 @@ export function createFramescaperUnifiedRenderFoundation(
 				composition: data(placement.clip, 'videoComposition', `video clip ${clipId}`),
 				videoEffects: data(placement.clip, 'videoEffects', `video clip ${clipId}`),
 				videoKeyframes: data(placement.clip, 'videoKeyframes', `video clip ${clipId}`),
-			}) as UnifiedExactRenderClipPictureStateV1,
+			}),
 			sourceTimeMapping: Object.freeze({
 				kind: 'video-retime-export-intent-v6' as const,
 				sourceRate: data(sourceById.get(sourceId)!, 'frameRate', `source ${sourceId}`),

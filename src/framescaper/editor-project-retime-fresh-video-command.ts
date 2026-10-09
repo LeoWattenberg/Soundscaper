@@ -8,6 +8,7 @@ import {
 import {
 	normalizeAudioEditorClipboardDescriptor,
 } from '../common/editor/commands/clipboard-codec.ts';
+import { normalizeAudioEditorClipboardDescriptorV7 } from '../common/editor/commands/clipboard-codec-v7.ts';
 import {
 	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 } from '../common/editor/project-validation-budget.ts';
@@ -78,15 +79,16 @@ function collectThreePointVideoIds(
 
 function collectClipboardVideoIds(command: unknown, result: Set<string>): void {
 	const record = dataRecord(command, 'Framescaper retime clipboard/paste command');
-	const clipboard = normalizeAudioEditorClipboardDescriptor(dataProperty(
-		record, 'clipboard', 'Framescaper retime clipboard/paste command',
-	));
+	const raw = dataProperty(record, 'clipboard', 'Framescaper retime clipboard/paste command');
+	const version = Object.getOwnPropertyDescriptor(dataRecord(raw, 'Framescaper retime clipboard'), 'schemaVersion');
+	const clipboard = version && Object.hasOwn(version, 'value') && version.value === 7
+		? normalizeAudioEditorClipboardDescriptorV7(raw) : normalizeAudioEditorClipboardDescriptor(raw);
 	const videoClips = clipboard.tracks.flatMap((track) => track.clips.filter((clip) => (
 		dataProperty(dataRecord(clip, 'Framescaper retime clipboard clip'), 'kind', 'Framescaper retime clipboard clip')
 			=== 'video'
 	)));
 	if (videoClips.length === 0) return;
-	if (clipboard.schemaVersion !== 6) {
+	if (clipboard.schemaVersion !== 6 && clipboard.schemaVersion !== 7) {
 		throw new RangeError('Framescaper retime video clipboard content requires V6 recopy.');
 	}
 	const clipIds = dataRecord(

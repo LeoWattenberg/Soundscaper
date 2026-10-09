@@ -13,6 +13,8 @@ import type { FramescaperProjectNativeMedia } from './editor-project-native-medi
 import { framescaperProjectNativeMediaFoundationShapeAssistance } from './editor-project-assistance-foundation.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import { createFramescaperOpenFxExecutionForFoundationNativeMedia } from './selected-native-media-openfx-execution.ts';
+import { createFramescaperOpenFxExecutionForResourceFoundationV16 } from './selected-native-media-openfx-resource-v16.ts';
+import type { CreateFramescaperOpenFxExactExecutionV16 } from './video-export-exact-execution-v16.ts';
 import type { CreateFramescaperOpenFxExactExecutionNativeMedia } from './video-export-exact-execution-finishing.ts';
 
 /** Bind the selected nativeMedia preview implementation to assistance's detached foundation. */
@@ -30,44 +32,37 @@ export function bindFramescaperSelectedVisualPreviewControllerAssistance(options
 		framescaperProjectNativeMediaFoundationShapeAssistance(foundationInput(project))
 	);
 	const openFxExecute = options.openFxExecute;
-	const inherited = <Request extends Readonly<{ readonly project: unknown }>>(request: Request) => ({
-		...request,
-		project: framescaperProjectFinishingFoundationShapeNativeMedia(projectNativeMedia(request.project)),
-		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
-		store: options.store,
-	});
+	const store = options.store;
+	const inherited = <Request extends Readonly<{ readonly project: unknown }>>(request: Request) => {
+		const nativeProject = projectNativeMedia(request.project);
+		return { nativeProject, request: { ...request,
+			project: framescaperProjectFinishingFoundationShapeNativeMedia(nativeProject),
+			profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, store,
+		} };
+	};
+	const companions = (nativeProject: FramescaperProjectNativeMedia) => openFxExecute ? {
+		createOpenFxExecution: ({ foundationPlan, timingViews }: Parameters<CreateFramescaperOpenFxExactExecutionNativeMedia>[0]) =>
+			createFramescaperOpenFxExecutionForFoundationNativeMedia({ profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+				project: nativeProject, foundationPlan, timingViews, execute: openFxExecute }),
+		createOpenFxExecutionV16: ({ foundationPlan, timingViews }: Parameters<CreateFramescaperOpenFxExactExecutionV16>[0]) =>
+			createFramescaperOpenFxExecutionForResourceFoundationV16({ profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+				project: nativeProject, foundationPlan, timingViews, execute: openFxExecute }),
+	} : {};
 	bindProductVideoVisualPreviewRuntime(options.controller, createProductVideoVisualPreviewRuntime(
 		async (request) => {
+			const captured = inherited(request), ports = companions(captured.nativeProject);
 			const module = await import('./editor-selected-finishing-visual-preview.ts');
-			return module.createFramescaperSelectedVisualPreviewSessionFinishing({
-				...inherited(request),
-				...(openFxExecute ? { createOpenFxExecution: ({ foundationPlan, timingViews }:
-					Parameters<CreateFramescaperOpenFxExactExecutionNativeMedia>[0]) => (
-					createFramescaperOpenFxExecutionForFoundationNativeMedia({
-						profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
-						project: projectNativeMedia(request.project), foundationPlan, timingViews,
-						execute: openFxExecute,
-					})
-				) } : {}),
-			});
+			return module.createFramescaperSelectedVisualPreviewSessionFinishing({ ...captured.request, ...ports });
 		},
 		async (request) => {
+			const captured = inherited(request);
 			const module = await import('./editor-selected-finishing-visual-preview.ts');
-			return module.createFramescaperSelectedProjectBinThumbnailFinishing(inherited(request) as never);
+			return module.createFramescaperSelectedProjectBinThumbnailFinishing(captured.request as never);
 		},
 		async (request) => {
+			const captured = inherited(request), ports = companions(captured.nativeProject);
 			const module = await import('./editor-selected-finishing-timeline-filmstrip.ts');
-			return module.createFramescaperSelectedTimelineFilmstripFinishing({
-				...inherited(request),
-				...(openFxExecute ? { createOpenFxExecution: ({ foundationPlan, timingViews }:
-					Parameters<CreateFramescaperOpenFxExactExecutionNativeMedia>[0]) => (
-					createFramescaperOpenFxExecutionForFoundationNativeMedia({
-						profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
-						project: projectNativeMedia(request.project), foundationPlan, timingViews,
-						execute: openFxExecute,
-					})
-				) } : {}),
-			} as never);
+			return module.createFramescaperSelectedTimelineFilmstripFinishing({ ...captured.request, ...ports } as never);
 		},
 	));
 }

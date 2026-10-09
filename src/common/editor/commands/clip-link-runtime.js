@@ -32,10 +32,7 @@ import { readClipLoop } from '../audio-clip-loop.ts';
 import { createClipEditIndex, mediaClipOwnerIndex, requireIndexedOwner } from './clip-edit-index.ts';
 import { clipLoopJoinFields } from './clip-loop-join.ts';
 import { joinClipEnvelopes } from './joined-clip-envelope.ts';
-import {
-	joinVideoKeyframeCarrierSequenceFields,
-	videoKeyframeCarriersJoinable,
-} from './video-keyframe-carrier.ts';
+import { frameCommandCarriersV2 } from './frame-resource-command-carriers-v2.ts';
 
 // foundation-edit-matrix: split
 
@@ -343,7 +340,7 @@ function createSingleTrackJoinRun(project, clips, owners) {
 		if (previous.kind === 'audio' && ((previous.fadeOutFrames ?? 0) > 0 || (current.fadeInFrames ?? 0) > 0)) {
 			throw new RangeError('Clips with internal fades must be rendered before joining.');
 		}
-		if (!clipsHaveContiguousSource(previous, current, loopFields !== null)) {
+		if (!clipsHaveContiguousSource(project, previous, current, loopFields !== null)) {
 			throw new RangeError('Clips with different processing or source regions must be rendered before joining.');
 		}
 	}
@@ -376,7 +373,7 @@ function applyClipJoinRun(project, { clips, track, loopFields }) {
 	}
 	joined = {
 		...joined,
-		...joinVideoKeyframeCarrierSequenceFields(clips, joined, `Joined clip ${first.id}`),
+		...frameCommandCarriersV2(project).joinVideoKeyframeCarrierSequenceFields(clips, joined, `Joined clip ${first.id}`),
 	};
 	const removedIds = new Set(clips.slice(1).map((clip) => clip.id));
 	const survivors = [];
@@ -389,7 +386,7 @@ function applyClipJoinRun(project, { clips, track, loopFields }) {
 	sortTrack(project, track);
 }
 
-function clipsHaveContiguousSource(left, right, loopJoin = false) {
+function clipsHaveContiguousSource(project, left, right, loopJoin = false) {
 	if (
 		left.sourceId !== right.sourceId
 		|| left.reversed !== right.reversed
@@ -404,7 +401,7 @@ function clipsHaveContiguousSource(left, right, loopJoin = false) {
 		|| right.warpMap != null
 		|| !videoEffectStacksEquivalent(left.videoEffects, right.videoEffects)
 		|| !videoCompositionCarriersEqual(left, right)
-		|| !videoKeyframeCarriersJoinable(left, right)
+		|| !frameCommandCarriersV2(project).videoKeyframeCarriersJoinable(left, right)
 	) return false;
 	if (loopJoin) return true;
 	const leftDuration = left.sourceDurationFrames ?? left.durationFrames;

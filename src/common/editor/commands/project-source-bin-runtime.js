@@ -53,9 +53,7 @@ import {
 import { createClipEditIndex } from './clip-edit-index.ts';
 import { movedBinItemIds } from './bin-move-index.ts';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
-import {
-	rebindVideoKeyframeCarrierEffects,
-} from './video-keyframe-carrier.ts';
+import { frameCommandCarriersV2 } from './frame-resource-command-carriers-v2.ts';
 
 function setSelection(project, command) {
 	const startFrame = assertFrame(command.startFrame, 'selection.startFrame');
@@ -210,6 +208,7 @@ function placeProjectBinClip(project, command) {
 				itemClip.videoEffects,
 				placement.videoEffectIds,
 				`Project Bin placement ${itemClip.id}`,
+				project,
 			)
 			: undefined;
 		let candidate = {
@@ -221,7 +220,7 @@ function placeProjectBinClip(project, command) {
 			...(videoEffects ? { videoEffects } : {}),
 			...(hasProjectBinMediaAuthority(project) ? { avLinkId, binItemId: null } : {}),
 		};
-		candidate = rebindVideoKeyframeCarrierEffects(
+		candidate = frameCommandCarriersV2(project).rebindVideoKeyframeCarrierEffects(
 			candidate,
 			itemClip,
 			candidate,

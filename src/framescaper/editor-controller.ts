@@ -210,6 +210,7 @@ export function createFramescaperAudioEditorController(
 	});
 	bindFramescaperSelectedImagePreviewControllerTimelineImage({
 		controller,
+		...(openFxExecute ? { openFxExecute } : {}),
 		profile: environment.runtime.profile,
 		store: environment.controllerStore,
 		cloneProject: (_profile, project) => materializeFramescaperSelectedMulticameraVisualPreviewProject(

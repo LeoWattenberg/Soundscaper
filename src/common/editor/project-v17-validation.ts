@@ -4,7 +4,7 @@ import type { ProjectDocumentBody, ProjectDocumentLegacyMixer } from './project-
 import { validateFolderBusesV13 } from './folder-bus-v13.ts';
 import { validateProjectAudioWarpRuntimeAuthority } from './project-audio-warp-validation.ts';
 import {
-	validateProjectHierarchyDocument,
+	validateProjectHierarchyDocument, validateProjectHierarchyDocumentForFrameV2,
 	type ProjectHierarchyDocumentValidationOptions,
 } from './project-hierarchy-document-validation.ts';
 import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-version.ts';
@@ -30,7 +30,15 @@ export function validateAudioEditorProjectV17(
 	project: unknown,
 	options: AudioEditorProjectV17ValidationOptions = {},
 ): project is AudioEditorProjectV17 {
-	validateProjectHierarchyDocument(
+	return validateFoundation(project, options, false);
+}
+/** A named transient Frame owner; public V17 admission stays strictly V1. */
+export function validateFrameResourceProjectFoundationV2(project: unknown,
+	options: AudioEditorProjectV17ValidationOptions = {}): project is AudioEditorProjectV17 {
+	return validateFoundation(project, options, true);
+}
+function validateFoundation(project: unknown, options: AudioEditorProjectV17ValidationOptions, resourceV2: boolean): project is AudioEditorProjectV17 {
+	(resourceV2 ? validateProjectHierarchyDocumentForFrameV2 : validateProjectHierarchyDocument)(
 		project,
 		AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION,
 		options,

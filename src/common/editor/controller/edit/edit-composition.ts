@@ -29,7 +29,8 @@ import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-servic
 import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 import { findControllerSource } from '../track-audio/track-domain-types.ts';
 import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
-import type { AudioEditorClipboard, AudioEditorCommand } from '../../commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard, CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../commands/clipboard-command-v2.ts';
+import { normalizeAudioEditorClipboardDescriptor } from '../../commands/clipboard-codec.ts';
 
 export type {
 	EditCommandProject,
@@ -219,7 +220,9 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		createClipboardDescriptor: (commandProject: unknown, descriptorOptions: Parameters<typeof createClipboardDescriptor>[1]) => (
 			projectRuntime.prepareEditClipboardDescriptor(
 				dependencies.getProject(),
-				createClipboardDescriptor(clipboardProject(commandProject), descriptorOptions),
+				projectRuntime.captureEditClipboardDescriptor
+					? projectRuntime.captureEditClipboardDescriptor(requireProject(), descriptorOptions ?? {})
+					: createClipboardDescriptor(clipboardProject(commandProject), descriptorOptions),
 			)
 		),
 		createStableId,
@@ -236,7 +239,12 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		labeledClipboard: createLabeledAudioClipboardPort({
 			getProject: dependencies.getProject,
 			getCommandProject: dependencies.getCommandProject,
-			projectRuntime,
+			projectRuntime: {
+				projectForEditClipboardConsumers: projectRuntime.projectForEditClipboardConsumers,
+				prepareEditClipboardDescriptor: (project, descriptor) => normalizeAudioEditorClipboardDescriptor(
+					projectRuntime.prepareEditClipboardDescriptor(project, descriptor),
+				),
+			},
 			createDescriptor: createClipboardDescriptor,
 		}),
 		disjoinLabeledRegions: clipboard.disjoinLabeledRegions,

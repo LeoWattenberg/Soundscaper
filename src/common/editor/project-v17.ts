@@ -4,7 +4,7 @@ import { normalizeProjectFeatureRequirements } from './project-feature-requireme
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-version.ts';
 import {
-	createProjectFoundation,
+	createProjectFoundation, createProjectFoundationForFrameV2,
 	type ProjectFoundationOptions,
 } from './project-foundation-factory.ts';
 import {
@@ -16,7 +16,7 @@ import {
 	type ProjectStructureFoundationOptions,
 } from './project-structure-factory.ts';
 import {
-	validateAudioEditorProjectV17,
+	validateAudioEditorProjectV17, validateFrameResourceProjectFoundationV2,
 	type AudioEditorProjectV17,
 } from './project-v17-validation.ts';
 import { createTakeCompDocumentGroupsV17 } from './take-comp-document-v17.ts';
@@ -38,12 +38,19 @@ export interface AudioEditorProjectV17Options
 export function createAudioEditorProjectV17(
 	options: AudioEditorProjectV17Options = {},
 ): AudioEditorProjectV17 {
+	return createFoundation(options, false);
+}
+/** The current Frame constructor explicitly selects resource-capable leaves. */
+export function createFrameResourceProjectFoundationV2(options: AudioEditorProjectV17Options = {}): AudioEditorProjectV17 {
+	return createFoundation(options, true);
+}
+function createFoundation(options: AudioEditorProjectV17Options, resourceV2: boolean): AudioEditorProjectV17 {
 	const { takeGroups: takeGroupInput = [], ...foundationOptions } = options;
 	const foundation = createProjectRetimeFoundation(
 		foundationOptions,
 		(retimeOptions) => createProjectStructureFoundation(
 			retimeOptions,
-			createProjectFoundation,
+			resourceV2 ? createProjectFoundationForFrameV2 : createProjectFoundation,
 		),
 	) as unknown as Record<string, unknown>;
 	const draft: Record<string, unknown> = {
@@ -66,7 +73,7 @@ export function createAudioEditorProjectV17(
 		primarySequenceId: draft.primarySequenceId,
 	});
 	draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, featureRequirements);
-	validateAudioEditorProjectV17(draft);
+	(resourceV2 ? validateFrameResourceProjectFoundationV2 : validateAudioEditorProjectV17)(draft);
 	return draft as unknown as AudioEditorProjectV17;
 }
 

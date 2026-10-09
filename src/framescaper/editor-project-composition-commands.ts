@@ -11,6 +11,7 @@ import {
 	normalizeAudioEditorClipboardDescriptor,
 } from '../common/editor/commands/clipboard-codec.ts';
 import { snapshotInertEditorCommand } from '../common/editor/commands/editor-command-snapshot.ts';
+import { normalizeAudioEditorClipboardDescriptorV7 } from '../common/editor/commands/clipboard-codec-v7.ts';
 import {
 	readClosedDomainArray,
 	readClosedDomainField,
@@ -200,10 +201,12 @@ function assertCurrentVideoClipboardComposition(command: FramescaperProjectComma
 			continue;
 		}
 		if (type !== 'clipboard/paste') continue;
-		const clipboard = normalizeAudioEditorClipboardDescriptor(
-			dataProperty(candidate, 'clipboard', 'Framescaper composition clipboard paste'),
-		);
+		const raw = dataProperty(candidate, 'clipboard', 'Framescaper composition clipboard paste');
+		const version = Object.getOwnPropertyDescriptor(dataRecord(raw, 'Framescaper composition clipboard'), 'schemaVersion');
+		const clipboard = version && Object.hasOwn(version, 'value') && version.value === 7
+			? normalizeAudioEditorClipboardDescriptorV7(raw) : normalizeAudioEditorClipboardDescriptor(raw);
 		if (clipboard.schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION
+			&& clipboard.schemaVersion !== 7
 			&& clipboard.tracks.some((track) => track.sourceTrackType === 'video')) {
 			throw new RangeError(
 				`Framescaper composition video clipboard content requires V${String(AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION)} recopy.`,

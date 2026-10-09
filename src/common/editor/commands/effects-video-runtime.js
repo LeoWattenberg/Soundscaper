@@ -10,6 +10,7 @@ import {
 	normalizeVideoEffect,
 	updateVideoEffect,
 } from '../video-effects.js';
+import { createVideoEffectV2, normalizeVideoEffectV2, updateVideoEffectV2 } from '../video-effects-v2.ts';
 import { hasVideoEffectsProjectAuthority } from '../project-schema-version.ts';
 import {
 	insertionIndex,
@@ -80,11 +81,11 @@ function requireVideoEffectStack(project, clipId) {
 	return clip.videoEffects;
 }
 
-function addVideoEffect(project, command) {
+function addVideoEffect(project, command, resourceV2 = false) {
 	const stack = requireVideoEffectStack(project, command.clipId);
 	const effect = command.effect?.type
-		? normalizeVideoEffect(command.effect)
-		: createVideoEffect(command.effectType, command.effect || {});
+		? (resourceV2 ? normalizeVideoEffectV2 : normalizeVideoEffect)(command.effect)
+		: (resourceV2 ? createVideoEffectV2 : createVideoEffect)(command.effectType, command.effect || {});
 	if (stack.some((candidate) => candidate.id === effect.id)) {
 		throw new RangeError(`Duplicate video effect ID: ${effect.id}.`);
 	}
@@ -92,11 +93,11 @@ function addVideoEffect(project, command) {
 	stack.splice(index, 0, effect);
 }
 
-function updateClipVideoEffect(project, command) {
+function updateClipVideoEffect(project, command, resourceV2 = false) {
 	const stack = requireVideoEffectStack(project, command.clipId);
 	const index = stack.findIndex((effect) => effect.id === command.effectId);
 	if (index < 0) throw new ReferenceError(`Unknown video effect: ${command.effectId}.`);
-	stack[index] = updateVideoEffect(stack[index], command.changes || {});
+	stack[index] = (resourceV2 ? updateVideoEffectV2 : updateVideoEffect)(stack[index], command.changes || {});
 }
 
 function removeVideoEffect(project, command) {
@@ -144,5 +145,13 @@ export function createEffectsVideoRuntimeHandlers() {
 		'video-effect/update': updateClipVideoEffect,
 		'video-effect/remove': removeVideoEffect,
 		'video-effect/reorder': reorderVideoEffect,
+	};
+}
+
+/** Explicit current Frame command owner; the old registry remains V1. */
+export function createEffectsVideoRuntimeHandlersV2() {
+	return { ...createEffectsVideoRuntimeHandlers(),
+		'video-effect/add': (project, command) => addVideoEffect(project, command, true),
+		'video-effect/update': (project, command) => updateClipVideoEffect(project, command, true),
 	};
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand } from '../../../commands/protocol.ts';
+import type { CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../../commands/clipboard-command-v2.ts';
 import type { LinkedOriginalBinding } from '../../../storage/linked-original-binding.ts';
 import type { LinkedOriginalSource } from '../../../storage/linked-original-resolver.ts';
 import { discoverPasteCommandTree } from './paste-command-tree.ts';

@@ -10,6 +10,7 @@ import { createAudioEditorFileService } from '../../file-service.js';
 import { createProjectStore } from '../../storage.js';
 import { createSourceBufferCache } from '../../source-buffer-cache.js';
 import { createAudioEditorSessionController } from '../../session.js';
+import type { createAudioEditorSessionControllerV2 } from '../../session-v2.ts';
 import { ClipTimePitchRenderCacheCoordinator, loadStoredSourceChannels } from '../../clip-time-pitch-cache.js';
 import { createEditorCodecRuntime } from '../../editor-codec-runtime.ts';
 import { AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES } from '../../audacity-effects/contracts.js';
@@ -36,7 +37,7 @@ export interface ControllerResourceOptions {
 	readonly store?: ReturnType<typeof createProjectStore>;
 	readonly sourceBufferCacheMaxBytes?: number;
 	readonly mixRenderMemoryLimitBytes?: number;
-	readonly sessionController?: ReturnType<typeof createAudioEditorSessionController>;
+	readonly sessionController?: ReturnType<typeof createAudioEditorSessionController | typeof createAudioEditorSessionControllerV2>;
 	readonly engine?: EnginePublicApi;
 	readonly engineFactory?: typeof createAudioEditorEngine;
 	readonly clipTimePitchCache?: ControllerTimePitchCache;

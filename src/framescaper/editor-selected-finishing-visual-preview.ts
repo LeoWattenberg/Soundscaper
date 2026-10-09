@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
+import { createUnifiedExactRenderVisualPreviewConsumerV16 } from '../common/editor/unified-exact-render-visual-consumers-v16.ts';
+import type { UnifiedExactRenderPlanV16 } from '../common/editor/unified-exact-render-plan-v16.ts';
+import { createFramescaperSelectedExactPreviewV16, createFramescaperSelectedExactPreviewJoinedV13 } from './editor-selected-finishing-exact-preview-v16.ts';
+import { createSelectedPreviewPlan } from './selected-preview-plan.ts';
+import { hasSelectedCubeLutPictureV2, requiresSelectedExactPlaying } from './selected-preview-resource-policy.ts';
+import { createSelectedPreviewRetirement } from './selected-preview-retirement.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import { multiplyDivideRationals } from '../common/editor/timeline-time.ts';
@@ -40,9 +45,9 @@ import {
 	normalizeVideoStillClipV1,
 	normalizeVideoStillSourceV1,
 } from '../common/editor/video-visual-model-v24.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanFinishing } from './editor-project-unified-render-plan-finishing.ts';
-import { createFramescaperSelectedExactPreviewFinishing } from './editor-selected-finishing-exact-preview.ts';
 import type { CreateFramescaperOpenFxExactExecutionNativeMedia } from './video-export-exact-execution-finishing.ts';
+import type { CreateFramescaperOpenFxExactExecutionV16 } from './video-export-exact-execution-v16.ts';
+import type { CreateFramescaperSupplementalPictureExecutionV16 } from './video-export-exact-execution-v16.ts';
 import {
 	assertFramescaperProjectFinishingProfile,
 } from './editor-domain-runtime-profile.ts';
@@ -50,7 +55,6 @@ import {
 	validateFramescaperProjectFinishing,
 	type FramescaperProjectFinishing,
 } from './editor-project-finishing.ts';
-import { createFramescaperVideoExportVisualFreshnessFinishing } from './video-export-visual-freshness-finishing.ts';
 import { createFramescaperSoundVisualizerWindowReader } from './sound-visualizer-window.ts';
 import { createSelectedFinishingSoundVisualizerPreview } from './selected-finishing-sound-visualizer-preview.ts';
 import { createSelectedFinishingNoisePreview } from './selected-finishing-noise-preview.ts';
@@ -63,6 +67,9 @@ export interface FramescaperSelectedVisualPreviewOptionsFinishing
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
+	readonly createOpenFxExecutionV16?: CreateFramescaperOpenFxExactExecutionV16;
+	readonly createSupplementalPictureExecutionV16?: CreateFramescaperSupplementalPictureExecutionV16;
+	readonly assertCurrentV16?: () => void;
 }
 
 export interface FramescaperSelectedProjectBinThumbnailOptionsFinishing
@@ -90,35 +97,53 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 	if (!hasExecutableVisualState(project)) return null;
 	const canvas = previewCanvas(options.width, options.height, options.fit);
 	const timingViews = previewTimingViews(project);
-	const plan = createPreviewPlan(options.profile, project, canvas, timingViews);
-	const consumer = createUnifiedExactRenderVisualPreviewConsumerV13(
-		plan, previewTimingSidecars(project, timingViews),
-		{ allowExternalGenerators: options.createOpenFxExecution !== undefined },
-	);
+	const createSupplemental = options.createSupplementalPictureExecutionV16;
+	const assertCurrentV16 = options.assertCurrentV16;
+	const resourcePicture = createSupplemental !== undefined || hasSelectedCubeLutPictureV2(options.project as FramescaperProjectFinishing);
+	const createOpenFx = options.createOpenFxExecution, createOpenFxV16 = options.createOpenFxExecutionV16;
+	if (resourcePicture && createOpenFx && !createOpenFxV16) throw new Error('A named resource-capable OpenFX companion adapter is required.');
+	const plan = createSelectedPreviewPlan(options.profile, project, canvas, timingViews, resourcePicture);
+	const consumerOptions = { allowExternalGenerators: createOpenFx !== undefined || createOpenFxV16 !== undefined };
+	const consumer = plan.version === 16 ? createUnifiedExactRenderVisualPreviewConsumerV16(plan, previewTimingSidecars(project, timingViews), consumerOptions)
+		: createUnifiedExactRenderVisualPreviewConsumerV13(plan, previewTimingSidecars(project, timingViews), consumerOptions);
 	const abort = new AbortController();
+	const signal = options.signal ? AbortSignal.any([options.signal, abort.signal]) : abort.signal;
 	const drawables = await materializeDrawables(
-		plan, consumer, options.store, canvas, abort.signal,
+		plan, consumer, options.store, canvas, signal,
 	);
-	const exact = await createFramescaperSelectedExactPreviewFinishing({
+	const exactOptions = {
 		profile: options.profile,
 		project: options.project as never, plan, store: options.store, timingViews,
-		boundTimingViews: previewTimingSidecars(project, timingViews), signal: abort.signal,
-		assertCurrent() { if (abort.signal.aborted) throw abort.signal.reason; },
-		...(options.createOpenFxExecution ? { openFx: options.createOpenFxExecution({
-			foundationPlan: plan, timingViews,
-		}) } : {}),
-	});
+		boundTimingViews: previewTimingSidecars(project, timingViews), signal,
+		assertCurrent() {
+			Reflect.apply(AbortSignal.prototype.throwIfAborted, signal, []);
+			if (plan.version === 16 && assertCurrentV16) try { Reflect.apply(assertCurrentV16, options, []); }
+			catch (error) { Reflect.apply(AbortSignal.prototype.throwIfAborted, signal, []); throw error; }
+			Reflect.apply(AbortSignal.prototype.throwIfAborted, signal, []);
+		},
+		...(createSupplemental ? { createSupplementalPictureExecution: createSupplemental } : {}),
+		...(plan.version === 16 && createOpenFxV16 ? { openFx: Reflect.apply(createOpenFxV16, options, [{ foundationPlan: plan, timingViews }]) as ReturnType<typeof createOpenFxV16> }
+			: plan.version === 13 && createOpenFx ? { openFx: Reflect.apply(createOpenFx, options, [{ foundationPlan: plan, timingViews }]) as ReturnType<typeof createOpenFx> } : {}),
+	};
+	const exact = plan.version === 16
+		? await createFramescaperSelectedExactPreviewV16({ ...exactOptions, plan })
+		: await createFramescaperSelectedExactPreviewJoinedV13({ ...exactOptions, plan });
 	const soundPreview = plan.nodes.some((node) => node.kind === 'visual'
 		&& node.modelKind === 'sound-visualizer' && node.placement !== null)
 		? createSelectedFinishingSoundVisualizerPreview({
 			reader: createFramescaperSoundVisualizerWindowReader({ project, store: options.store }),
-			drawables, sampleRate: plan.timebase.sampleRate, signal: abort.signal,
+			drawables, sampleRate: plan.timebase.sampleRate, signal,
 		}) : null;
 	const noisePreview = plan.nodes.some((node) => node.kind === 'visual'
 		&& node.modelKind === 'noise' && node.placement !== null)
-		? createSelectedFinishingNoisePreview({ drawables, signal: abort.signal }) : null;
+		? createSelectedFinishingNoisePreview({ drawables, signal }) : null;
 	const effectsById = exactEffectsById(plan);
 	let disposed = false;
+	const close = createSelectedPreviewRetirement(() => {
+		disposed = true;
+		abort.abort(new DOMException('The selected preview session was retired.', 'AbortError'));
+	}, [() => exact.close(), () => soundPreview?.dispose(), () => noisePreview?.dispose(), () => drawables.clear()]);
+	const exactPlaying = createSupplemental !== undefined || requiresSelectedExactPlaying(plan);
 	let cachedSample = -1;
 	let cached: ReturnType<typeof consumer.resolveFrame> | null = null;
 	const resolve = (timelineSample: number) => {
@@ -168,6 +193,8 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 			});
 	};
 	return Object.freeze({
+		...(exactPlaying ? { exactPlaying: true as const } : {}),
+		close,
 		resolve: publish,
 		resolveTransitionWeight(clipId: string, timelineSample: number): number | null {
 			if (typeof clipId !== 'string' || !clipId) throw new TypeError('A transition clip ID is required.');
@@ -176,18 +203,12 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 		async renderExact(request: Readonly<{
 			readonly timelineSample: number;
 			readonly mediaLayers: readonly unknown[];
+			readonly signal?: AbortSignal;
 		}>) {
 			const frame = publish(request.timelineSample);
 			return exact.render({ ...request, frame });
 		},
-		dispose(): void {
-			if (disposed) return;
-			disposed = true;
-			abort.abort(new DOMException('The V13 preview session was disposed.', 'AbortError'));
-			soundPreview?.dispose();
-			noisePreview?.dispose();
-			exact.dispose();
-			drawables.clear();
+		dispose(): void { void close();
 		},
 	});
 }
@@ -247,47 +268,6 @@ export async function createFramescaperSelectedProjectBinThumbnailFinishing(
 	});
 }
 
-function createPreviewPlan(
-	profile: unknown,
-	project: Data,
-	canvas: Readonly<{ width: number; height: number; fit?: VideoCanvasFit }>,
-	timingViews: ReadonlyMap<string, VideoSourceTimingView>,
-): UnifiedExactRenderPlanV13 {
-	const sequence = primarySequence(project);
-	const rate = rational(sequence.rate, 'Selected finishing sequence rate');
-	const sampleRate = positiveInteger(project.sampleRate, 'Selected finishing sample rate');
-	const maximumFrame = records(project.clips, 'Selected finishing clips').reduce((maximum, clip) => (
-		clip.sequenceId === sequence.id && ['video', 'still', 'generator'].includes(String(clip.kind))
-			? Math.max(maximum, safeEnd(clip)) : maximum
-	), 0);
-	if (maximumFrame < 1) throw new RangeError('Selected finishing visual preview requires a non-empty picture range.');
-	const sampleDuration = sequenceFrameBoundarySample(maximumFrame, rate, sampleRate);
-	return createFramescaperProjectUnifiedExactRenderPlanFinishing(profile, project, {
-		sequenceId: stableId(sequence.id, 'Selected finishing sequence ID'),
-		sampleStart: 0,
-		sampleDuration,
-		outputRate: rate,
-		format: { container: 'mp4', extension: 'mp4', mimeType: 'video/mp4' },
-		codecs: {
-			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null,
-			pixelFormat: 'yuv420p',
-		},
-		canvas: {
-			...canvas,
-			fit: canvas.fit ?? 'contain',
-			pixelFormat: 'yuv420p',
-			backgroundColor: '#000000',
-		},
-		quality: 'balanced',
-		includeAudio: false,
-		audioLayout: null,
-		timingViews,
-		visualFreshnessByModelId: createFramescaperVideoExportVisualFreshnessFinishing(
-			project as unknown as FramescaperProjectFinishing,
-			{ startFrame: 0, durationFrames: sampleDuration },
-		),
-	});
-}
 
 function previewTimingSidecars(
 	project: Data,
@@ -329,8 +309,8 @@ function previewTimingViews(project: Data): ReadonlyMap<string, VideoSourceTimin
 }
 
 async function materializeDrawables(
-	plan: UnifiedExactRenderPlanV13,
-	consumer: ReturnType<typeof createUnifiedExactRenderVisualPreviewConsumerV13>,
+	plan: UnifiedExactRenderPlanV13 | UnifiedExactRenderPlanV16,
+	consumer: ReturnType<typeof createUnifiedExactRenderVisualPreviewConsumerV13> | ReturnType<typeof createUnifiedExactRenderVisualPreviewConsumerV16>,
 	store: AudioEditorProjectStore,
 	canvas: Readonly<{ width: number; height: number }>,
 	signal: AbortSignal,
@@ -433,7 +413,7 @@ function rgbaDrawable(frame: UnifiedExactRenderVisualRgbaV13): DrawableVideo {
 	});
 }
 
-function exactEffectsById(plan: UnifiedExactRenderPlanV13): ReadonlyMap<string, unknown> {
+function exactEffectsById(plan: UnifiedExactRenderPlanV13 | UnifiedExactRenderPlanV16): ReadonlyMap<string, unknown> {
 	const effects = new Map<string, unknown>();
 	for (const node of plan.nodes) {
 		if (node.kind !== 'clip') continue;
@@ -445,7 +425,7 @@ function exactEffectsById(plan: UnifiedExactRenderPlanV13): ReadonlyMap<string, 
 	return effects;
 }
 
-function sequencePosition(plan: UnifiedExactRenderPlanV13, sample: number) {
+function sequencePosition(plan: UnifiedExactRenderPlanV13 | UnifiedExactRenderPlanV16, sample: number) {
 	const rate = plan.timebase.sequenceRate;
 	return multiplyDivideRationals(
 		sample,
@@ -454,12 +434,6 @@ function sequencePosition(plan: UnifiedExactRenderPlanV13, sample: number) {
 	);
 }
 
-function primarySequence(project: Data): Data {
-	const id = stableId(project.primarySequenceId, 'Selected finishing primary sequence ID');
-	const sequence = records(project.sequences, 'Selected finishing sequences').find((candidate) => candidate.id === id);
-	if (!sequence) throw new ReferenceError(`Selected finishing primary sequence ${id} is unavailable.`);
-	return sequence;
-}
 
 function hasExecutableVisualState(project: Data): boolean {
 	return records(project.clips, 'Selected finishing clips').some(({ kind }) => (
@@ -492,12 +466,6 @@ function previewCanvas(
 	});
 }
 
-function safeEnd(clip: Data): number {
-	const start = nonNegativeInteger(clip.sequenceStartFrame, 'clip sequence start');
-	const count = positiveInteger(clip.sequenceFrameCount, 'clip sequence duration');
-	if (!Number.isSafeInteger(start + count)) throw new RangeError('Clip sequence range overflows.');
-	return start + count;
-}
 
 function timelinePosition(value: unknown): number {
 	return nonNegativeInteger(value, 'preview timeline sample');
