@@ -27,14 +27,25 @@ The recording offset physical-unplug witness is public GREEN on prepared product
 `220719574` (2.0 seconds). Its earlier label and live-stream scaffold failures
 are excluded. The same product's short OpenFX gesture completes normally before
 the real 300-step drag causally fails at terminal `motion/motion` instead of
-`pointer:up/focus:false`; bounded Interact completion awaits corrected build.
+`pointer:up/focus:false`. The corrected complete short/long gesture, exact
+256-event release/blur replay and authored mutation workflow is public GREEN
+on prepared product `5c9787bec` (13.7 seconds).
 Native plug-in state ordering is public causal RED on that capture after its
 healthy settled Store control: Restore returns `0.3667` instead of the completed
-slider position above `0.75`. Corrected public verification awaits the next build.
+slider position above `0.75`. The corrected delayed drag/Store/reset/Restore
+workflow is public GREEN on prepared product `5c9787bec`.
 Required-model preflight is public causal RED on the old capture: the actual
 Transcribe & Captions menu opens processing and omits its prerequisite with only
 Silero installed. An initial witness used the unpublished title Transcribe
-Captions and is excluded as setup. Corrected public verification awaits the next
-build. Visual Inspector is public causal RED after the healthy `0.5`
+Captions and is excluded as setup. The actual missing-model download and task
+admission workflow is public GREEN on prepared product `5c9787bec`.
+Visual Inspector is public causal RED after the healthy `0.5`
 Apply/reopen: ordinary Backspace and typing `2.5e-1` leaves `1`. Its corrected
-typing/Enter/reopen workflow awaits the next build.
+typing/Enter/reopen workflow is public GREEN on prepared product `5c9787bec`.
+The first corrected Interact attempt observed the most recent RPC, which an
+automatic empty redraw replaces after a successful commit. Its observer now
+waits for the healthy short gesture's commit, records the long gesture's call
+offset, and inspects the newest nonempty replay since that offset. Terminal
+release/blur, the exact 256-event bound and the later authored-state revision
+assertions remain intact. The parent rerun passes the complete workflow, and
+the earlier healthy-state fixture mismatch is excluded as setup.

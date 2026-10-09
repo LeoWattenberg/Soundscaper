@@ -275,8 +275,15 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 		'focus:true', 'pointer:down', 'pointer:motion', 'pointer:up',
 		'keyboard:down', 'keyboard:up', 'focus:false',
 	]);
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1]), {
+		timeout: 120_000,
+	}).toMatchObject({ events: [], effect: { parameters: replay.effect.parameters.map((parameter) => (
+		parameter.name === 'enabled' ? { ...parameter, value: false } : parameter
+	)) } });
 
 	// A continuous real pointer gesture must leave room for release and save.
+	const longGestureOffset = await page.evaluate(() => globalThis.__framescaperNativeCalls.length);
 	await canvas.focus();
 	const bounds = await canvas.boundingBox();
 	expect(bounds).not.toBeNull();
@@ -285,13 +292,15 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 	await page.mouse.move(bounds.x + 224, bounds.y + 128, { steps: 300 });
 	await page.mouse.up();
 	await dialog.locator('[data-framescaper-openfx-interact-target="true"]').focus();
-	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
-		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1].events.slice(-2)
-		.map((event) => event.kind === 'focus' ? `focus:${event.focused}` : `${event.kind}:${event.phase}`)), {
+	await expect.poll(() => page.evaluate((offset) => globalThis.__framescaperNativeCalls.slice(offset)
+		.filter(([kind, request]) => kind === 'runOpenFxInteract' && request.events.length > 0)
+		.at(-1)?.[1].events.slice(-2)
+		.map((event) => event.kind === 'focus' ? `focus:${event.focused}` : `${event.kind}:${event.phase}`), longGestureOffset), {
 		timeout: 120_000,
 	}).toEqual(['pointer:up', 'focus:false']);
-	const longReplay = await page.evaluate(() => globalThis.__framescaperNativeCalls
-		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)[1]);
+	const longReplay = await page.evaluate((offset) => globalThis.__framescaperNativeCalls.slice(offset)
+		.filter(([kind, request]) => kind === 'runOpenFxInteract' && request.events.length > 0)
+		.at(-1)[1], longGestureOffset);
 	expect(longReplay.events).toHaveLength(256);
 
 	const retainedPixel = await canvas.evaluate((element) => Array.from(
