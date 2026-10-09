@@ -1454,3 +1454,34 @@ canonical changed-file lint, and size/diff checks pass. Public GREEN remains
 pending the next immutable snapshot; this register retains thirty-seven verified
 roots. No assistance runtime assets change and no manual **Update AI assets**
 run is required.
+
+## R6-EFFECT-039 — Reverb crossmixes independent stereo pairs in a wider recording
+
+Import an ordinary four-channel PCM WAV whose first channel contains a 440 Hz
+recording and whose other channels are silent. Open its Source editor, select
+the waveform and choose Effect → Delay and reverb → Reverb. Set Stereo width
+to zero and Wet only, apply, then export normal stereo float WAV. A healthy
+two-channel recording gives equal left and right wet output, while adding two
+silent channels makes the right output completely silent. The processor reads
+the next channel in a circular chain instead of the other side of the same
+stereo pair; it also leaks the first pair's wet output into the last channel.
+This is independent of source speaker-role inference: ordinary discrete source
+mapping selects the first two channels, and the fixture uses no channel mask.
+
+Mix adjacent channel pairs and leave a final unpaired channel mono. Preserve
+the existing per-channel delay banks, exact Float32 rounding boundaries and
+all mono/stereo output. Group front/rear leakage and odd-channel wraparound as
+one DSP channel-pair geometry root.
+
+The complete ordinary Source → Reverb → float WAV export is causally RED on
+unchanged Green30 `6f904d0ab`: the healthy stereo control has equal left/right
+RMS 0.02278763697, while the quad export has the same left RMS and right RMS
+zero (`/tmp/soundscaper-r6-fx039-public-red.log`). Four strict pair/orphan cases
+are independently RED while the unchanged-width 32-channel control passes
+(`/tmp/soundscaper-r6-fx039-node-red2.log`). The narrow repair passes all 27
+new and existing selection/live Reverb and round-two/round-three exact DSP
+signature checks without changing any golden fixture
+(`/tmp/soundscaper-r6-fx039-node-green.log`). Focused strict compilation passes.
+Public GREEN remains pending the next immutable build, and this register
+retains thirty-seven verified roots. No assistance runtime assets change and
+no manual **Update AI assets** run is required.

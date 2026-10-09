@@ -155,7 +155,8 @@ export class ReverbLiveProcessor {
 				this.wetValues[channel] = Math.fround(this.processWet(this.states[channel]!, this.dryValues[channel]!));
 			}
 			for (let channel = 0; channel < output.length; channel += 1) {
-				const opposite = this.wetValues[(channel + 1) % output.length]!;
+				const partner = channel ^ 1;
+				const opposite = this.wetValues[partner < output.length ? partner : channel]!;
 				output[channel]![frame] = this.dryValues[channel]! * this.dryGain
 					+ (this.wetValues[channel]! * this.directWet + opposite * this.crossWet) * this.wetGain;
 			}
