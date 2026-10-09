@@ -204,6 +204,7 @@
 		"shared/photo-library-develop-command-v2.ts",
 		"shared/photo-library-develop-command.ts",
 		"shared/photo-library-develop-presentation-v1.ts",
+		"shared/photo-library-develop-presentation-v2.ts",
 		"shared/photo-library-develop-settings-intent-v2.ts",
 		"shared/photo-library-develop-settings-intent.ts",
 		"shared/photo-library-develop-settings-workflow-v1.ts",

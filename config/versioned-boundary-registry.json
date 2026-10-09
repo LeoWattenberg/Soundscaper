@@ -296,6 +296,8 @@
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop presentation joins one authenticated source, shared proxy and canvas consumer through replacement and retirement, retaining only scalar histograms." }
 		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in Develop presentation admits complete mixed recipes, captures externally bound renderer capabilities, and joins authenticated proxy or original scopes through current canvas publication and retirement." }
+		,
 		{"path": "src/common/editor/controller/shared/photo-library-develop-settings-intent-v2.ts", "kind": "helper-contract", "justification": "Version 2 current settings intent closes schema2 source identity and mixed authored settings before borrowing the selected Session."}
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-settings-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 menu-owned settings and preset coordination borrows the existing Session writer, retains one copied packet and scalar target/menu authority, and preserves every acknowledged batch outcome through joined retirement." }
