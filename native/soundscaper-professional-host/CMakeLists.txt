@@ -78,9 +78,14 @@ add_library(soundscaper_professional_plugin STATIC
 	src/juce_plugin_adapter.cpp src/juce_ara_adapter.cpp src/ara_clip_data.cpp
 	src/ladspa_host_state.cpp src/professional_host.cpp
 )
+include(cmake/exact-vamp-host-adapter.cmake)
+set(SOUNDSCAPER_VAMP_HOST_ADAPTER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/vamp-exact-PluginHostAdapter.cpp")
+soundscaper_write_exact_vamp_host_adapter(
+	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginHostAdapter.cpp"
+	"${SOUNDSCAPER_VAMP_HOST_ADAPTER_SOURCE}")
 add_library(soundscaper_professional_vamp STATIC
 	src/vamp_exact_library.cpp src/vamp_analyzer_adapter.cpp src/vamp_analyzer_peer.cpp
-	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginHostAdapter.cpp"
+	"${SOUNDSCAPER_VAMP_HOST_ADAPTER_SOURCE}"
 	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginInputDomainAdapter.cpp"
 	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginWrapper.cpp"
 	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/RealTime.cpp"
@@ -97,9 +102,6 @@ if(MSVC)
 	target_compile_options(soundscaper_professional_vamp PRIVATE
 		/Gy /Gw /FIcorecrt_math_defines.h)
 else()
-	# PluginHostAdapter.cpp also defines the SDK's legacy getPluginPath helper.
-	# We never link its ambient-search section: exact-path loading lives solely
-	# in vamp_exact_library.cpp.
 	target_compile_options(soundscaper_professional_vamp PRIVATE
 		-ffunction-sections -fdata-sections)
 endif()
