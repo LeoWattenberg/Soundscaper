@@ -62,7 +62,7 @@ export function useTimelinePointerStart({
 			});
 			const startFrame = startSnap.frame;
 			pointerSession.current = {
-				kind: 'selection', startFrame, rawStartFrame, startX: event.clientX, lane,
+				kind: 'selection', pointerId: event.pointerId, startFrame, rawStartFrame, startX: event.clientX, lane,
 				snapIndex,
 				startSnapGuideFrame: startSnap.snapped ? startFrame : null,
 				lastRawEndFrame: rawStartFrame, lastTrackIds: trackIds,
@@ -82,6 +82,8 @@ export function useTimelinePointerStart({
 			event.stopPropagation();
 			return;
 		}
+		if (pointerSession.current
+			&& !(event.pointerType === 'touch' && touchPointers.current.size === 1)) return;
 		const crossfadeHandle = event.target.closest?.('[data-crossfade-handle]');
 		if (crossfadeHandle) {
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
@@ -187,6 +189,7 @@ export function useTimelinePointerStart({
 					const timelineInnerHeight = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect().height || originalVisualHeight;
 					pointerSession.current = {
 						kind: 'track-resize',
+						pointerId: event.pointerId,
 						trackId,
 						edge,
 						startY: event.clientY,
@@ -228,6 +231,7 @@ export function useTimelinePointerStart({
 				&& startFrame >= loop.startFrame && startFrame <= loop.endFrame);
 			pointerSession.current = {
 				kind: 'loop',
+				pointerId: event.pointerId,
 				startFrame,
 				startX: event.clientX,
 				startY: event.clientY,
@@ -253,7 +257,7 @@ export function useTimelinePointerStart({
 				sampleRate,
 			});
 			const trackIds = splitToolTargetTrackIds(project.tracks, trackId, event.shiftKey);
-			pointerSession.current = { kind: 'split', startFrame, lane };
+			pointerSession.current = { kind: 'split', pointerId: event.pointerId, startFrame, lane };
 			if (clipElement) run(() => controller.actions.edit.splitAt(startFrame, trackIds));
 			event.preventDefault();
 			event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -283,6 +287,7 @@ export function useTimelinePointerStart({
 			const point = samplePointAtPointer(event, lane, clip, source, frameAtClientX);
 			pointerSession.current = {
 				kind: 'sample-pencil',
+				pointerId: event.pointerId,
 				clipId: clip.id,
 				trackId,
 				channel: point.channel,
@@ -331,6 +336,7 @@ export function useTimelinePointerStart({
 		const interactionBlocked = clipGestureBlocked(project, interactionClipIds);
 		const session = {
 			kind,
+			pointerId: event.pointerId,
 			moveOptions: moveOptions ? { ...moveOptions, clipIds: transformClipIds } : undefined,
 			clipId: clip.id,
 			clipIds: interactionClipIds,
