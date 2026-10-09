@@ -51,9 +51,7 @@ for (const [locale, route] of Object.entries(ROUTES)) {
 		await selectClip(editor, originalVideo.id);
 		let rack = await openRack(page, editor, route);
 		const picker = rack.getByRole('group', { name: copy.chooseEffect, exact: true }).getByRole('button');
-		await key(picker, 'Enter');
-		await key(page.getByRole('option', { name: copy.videoEffectCubeLutProfile, exact: true }), 'Enter');
-		await expect(picker).toContainText(copy.videoEffectCubeLutProfile);
+		await chooseEffectByKeyboard(page, picker, copy.videoEffectCubeLutProfile);
 		await key(rack.getByRole('button', { name: copy.addEffect, exact: true }), 'Enter');
 		await expect(rack.getByRole('status')).toHaveText(copy.videoEffectCubeLutNone);
 		await rack.getByLabel(copy.videoEffectCubeLutImport, { exact: true })
@@ -130,6 +128,20 @@ async function key(target, action) {
 	await target.focus();
 	await expect(target).toBeFocused();
 	await target.press(action);
+}
+async function chooseEffectByKeyboard(page, button, label) {
+	await key(button, 'Enter');
+	const listbox = page.getByRole('listbox');
+	await expect(listbox).toBeVisible(); await expect(listbox).toBeFocused();
+	const options = listbox.getByRole('option'), names = await options.allTextContents(), targetIndex = names.indexOf(label);
+	expect(targetIndex).toBeGreaterThanOrEqual(0);
+	const targetId = await options.nth(targetIndex).getAttribute('id'); expect(targetId).toBeTruthy();
+	// The maintained portal bridges arrows and Enter; ArrowUp clamps at the first option.
+	for (let step = 0; step < names.length; step++) await listbox.press('ArrowUp');
+	for (let step = 0; step < targetIndex; step++) await listbox.press('ArrowDown');
+	await expect(listbox).toHaveAttribute('aria-activedescendant', targetId);
+	await listbox.press('Enter');
+	await expect(listbox).toBeHidden(); await expect(button).toContainText(label);
 }
 async function selectClip(editor, id) {
 	await key(editor.locator(`[data-clip-id="${id}"]`).first(), 'Enter');
