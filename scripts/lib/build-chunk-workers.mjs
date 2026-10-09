@@ -51,4 +51,14 @@ export const workerChunkGroups = [
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
+	{
+		// Both Audacity database generations encode and decode typed XML records.
+		// This dependency-closed codec has no imports back into the worker protocol.
+		name: 'audacity-binary-xml-worker',
+		test: /(?:^|[\\/])src[\\/]common[\\/]editor[\\/]audacity-binary-xml\.js$/,
+		priority: 96,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
 ];
