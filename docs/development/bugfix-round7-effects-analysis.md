@@ -232,3 +232,10 @@ nonexistent Apply dialog setup is excluded because parameter-free Fade In
 applies directly from its menu. Corrected public verification is pending.
 PCM remains in memory and no verification fixture or raw coverage is created.
 No AI runtime asset update is required.
+
+The same finite-programme caller in `broadcast-loudness.ts` also completes
+pending true-peak interpolation before publishing BEXT/Loudness measurements
+or planning normalized export. Its actual normal crescendo regression is RED
+at −6.02078 dBTP instead of −5.93218; the one-line caller correction keeps
+integrated/momentary loudness unchanged. Ending/BEXT/normalized-render/export
+plan support passes 35/35. This closes R7-EFFECT-008 without another count.

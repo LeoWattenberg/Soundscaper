@@ -19,7 +19,7 @@ export function measureBextLoudness(
 		running: true,
 	});
 	meter.push(channels);
-	const value = meter.snapshot().loudness;
+	const value = meter.snapshot({ finishTruePeak: true }).loudness;
 	// The meter answers in its own range, which is wider than the chunk's: it
 	// floors true peak at -120 dBTP and gates nothing off momentary loudness, so
 	// a silent or near-silent programme reports numbers no BEXT field can hold.
