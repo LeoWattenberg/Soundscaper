@@ -1352,3 +1352,31 @@ targeted and canonical changed-file lint, and size/diff checks pass.
 Public GREEN remains pending the next immutable snapshot; this register retains thirty-four verified roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-036 — Nyquist numeric keys replace an unfinished native composition
+
+Choose Generate → Nyquist → Risset Drum and edit its ordinary Amplitude field
+with a native input method. Confirm an unfinished numeric composition with
+Enter or cancel the input method's current composition with Escape. The field
+consumes both keys as application edits: Enter clamps the unfinished amplitude
+2 to 1, while Escape replaces an unfinished 0.5 with the previous 0.8. This
+independent Nyquist numeric draft handler differs from the shared modal shell
+and from the existing ordinary decimal-draft and idle-Escape corrections.
+
+Release native composing key events before this field's own completion and
+cancellation handlers. Preserve ordinary Enter normalization, Escape draft
+rollback, subsequent idle Escape dismissal, live numeric updates and focus.
+Group Enter/Escape and installed plug-in manifestations as one owner.
+
+Both complete ordinary Chromium menu workflows are causally RED on unchanged
+Green28 `435e1779e`, after their ordinary Escape control passes
+(`/tmp/soundscaper-r6-fx036-public-red.log`). The native composing keyboard
+fixture targets the real numeric input and never injects project state. Both
+strict composing cases fail while both completed key controls pass
+(`/tmp/soundscaper-r6-fx036-node-red.log`). The repaired cases and original
+negative/decimal-draft and canonical-echo support pass 5/5
+(`/tmp/soundscaper-r6-fx036-node-green.log`). Focused strict compilation,
+targeted and canonical changed-file lint, and size/diff checks pass.
+Public GREEN remains pending the next immutable snapshot; this register retains thirty-four verified roots.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
