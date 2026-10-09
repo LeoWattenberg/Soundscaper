@@ -11,6 +11,8 @@ import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 for (const modified of [true, false]) {
 	test(`project tab navigation ${modified ? 'preserves command chords' : 'keeps its plain arrow and endpoint contract'}`, async () => {
 		const dom = installReactTestDom();
+		Object.defineProperty(window, 'getComputedStyle', { configurable: true,
+			value: () => ({ direction: 'ltr' }) });
 		const root = createRoot(dom.container as unknown as HTMLElement);
 		const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 		const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
