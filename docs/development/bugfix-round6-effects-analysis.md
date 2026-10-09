@@ -1311,6 +1311,10 @@ RPC and worklet cases pass afterward, including repeated Close, obsolete
 Close authority and a refused host write
 (`/tmp/soundscaper-r6-effects-native-plugin-parameter-node-green3.log`). Focused
 strict compilation, targeted and canonical changed-file lint, and size/diff
-checks pass. Public GREEN is pending the next immutable snapshot; this register retains
-thirty-three verified roots. No assistance runtime assets change and no manual
-**Update AI assets** run is required.
+checks pass. All three complete ordinary Chromium workflows pass on immutable
+Green28 `435e1779e`: waiting 3.3 seconds, Close 3.4 seconds and Escape 4.5
+seconds. The actual transferred host accepts `[0.26, 0.366703539823009,
+0.842367]`, retaining the final requested value
+(`/tmp/soundscaper-round6-green28-chromium.log`, complete batch 9/9 PASS).
+This register now has thirty-four verified roots. No assistance runtime assets
+change and no manual **Update AI assets** run is required.
