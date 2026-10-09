@@ -5,6 +5,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { useEffect, useRef, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { AudioEditorListeningPreview } from '../audio-editor-listening-preview.tsx';
 import type {
 	TextToSpeechPort, TextToSpeechRequest, TextToSpeechReviewed, TextToSpeechVoice,
 } from '../text-to-speech-port.ts';
@@ -249,7 +250,7 @@ export function TextToSpeechDialogView({
 				? text(copy, 'replaceReview', 'Listen before replacing the selected clip’s audio.')
 				: text(copy, 'review',
 					'Listen before adding this audio on a new track at the playhead.')}</p>
-			{previewUrl && <audio controls preload="metadata" src={previewUrl} />}
+			{previewUrl && <AudioEditorListeningPreview controls preload="metadata" src={previewUrl} />}
 		</section>}
 		{state.phase === 'accepting' && <p role="status" aria-live="polite">{
 			state.placement === 'regenerate-selected'
