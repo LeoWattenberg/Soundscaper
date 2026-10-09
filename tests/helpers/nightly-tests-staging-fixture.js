@@ -159,6 +159,7 @@ export async function createFixture(context) {
 		['tests/browser/handbook/handbook.spec.js', 'export const handbook = true;\n'],
 		['tests/aup3-fixture.js', 'export const fixture = true;\n'],
 		['tests/helpers/png-fixture.mjs', await readFile(new URL('./png-fixture.mjs', import.meta.url), 'utf8')],
+		['tests/helpers/lightscaper-current-library-loop-fixture.ts', await readFile(new URL('./lightscaper-current-library-loop-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/libsndfile-rifx-fixture.ts', await readFile(new URL('./libsndfile-rifx-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-metadata-query-byte-fixture.ts', await readFile(new URL('./lightscaper-metadata-query-byte-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/image-metadata-fixtures.ts', await readFile(new URL('./image-metadata-fixtures.ts', import.meta.url), 'utf8')],
