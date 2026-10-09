@@ -2,6 +2,9 @@
 
 export const VIDEO_EFFECT_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
+		videoEffectCubeLutProfile: 'Würfel-LUT', videoEffectCubeLutImport: '.cube-LUT auswählen',
+		videoEffectCubeLutClear: 'LUT entfernen', videoEffectCubeLutNone: 'Keine LUT ausgewählt.',
+		videoEffectCubeLutAttached: 'LUT ausgewählt.', videoEffectCubeLutFailed: 'Die LUT konnte nicht angewendet werden.',
 		videoEffectPostCropVignette: 'Vignette nach Beschnitt', videoEffectPostCropVignetteAmount: 'Stärke', videoEffectPostCropVignetteMidpoint: 'Mittelpunkt',
 		videoEffectPostCropVignetteRoundness: 'Rundung', videoEffectPostCropVignetteFeather: 'Weiche Kante', videoEffectPostCropVignetteHighlights: 'Lichterschutz',
 		videoEffectPostCropVignetteInvalid: 'Vignettenwerte müssen endlich und innerhalb ihrer Grenzen sein.',
@@ -120,6 +123,9 @@ export const VIDEO_EFFECT_COPY_BY_LOCALE = Object.freeze({
 		videoEffectColorInvalid: 'Gib die Farbe als #RRGGBB ein.',
 	}),
 	en: Object.freeze({
+		videoEffectCubeLutProfile: 'Cube LUT', videoEffectCubeLutImport: 'Choose .cube LUT',
+		videoEffectCubeLutClear: 'Clear LUT', videoEffectCubeLutNone: 'No LUT selected.',
+		videoEffectCubeLutAttached: 'LUT selected.', videoEffectCubeLutFailed: 'The LUT could not be applied.',
 		videoEffectPostCropVignette: 'Post-crop vignette', videoEffectPostCropVignetteAmount: 'Amount', videoEffectPostCropVignetteMidpoint: 'Midpoint',
 		videoEffectPostCropVignetteRoundness: 'Roundness', videoEffectPostCropVignetteFeather: 'Feather', videoEffectPostCropVignetteHighlights: 'Highlight protection',
 		videoEffectPostCropVignetteInvalid: 'Vignette values must be finite and within their limits.',
