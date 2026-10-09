@@ -40,7 +40,7 @@ for (const desktop of [false, true]) {
 		const project = createFramescaperProjectTimelineImage(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {});
 		const history = createFramescaperProjectHistoryTimelineImage(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, project);
 		const controller = { project, getTelemetrySnapshot: () => ({ positionFrame: 0 }),
-			actions: { project: { openById: () => undefined } } };
+			actions: { project: { openById: () => undefined, flush: () => undefined } } };
 		let consumed = 0;
 		let retained: FramescaperImageImportFileTimelineImage | undefined;
 		const options: BindFramescaperSelectedImageAuthoringControllerTimelineImageOptions = {

@@ -60,7 +60,7 @@ function controllerStub(positionFrame: unknown = 0, calls: string[] = []): Data 
 	const controller: Data = {
 		project: PROJECT,
 		getTelemetrySnapshot: () => ({ positionFrame }),
-		actions: { project: { openById } },
+		actions: { project: { openById, flush: async () => { calls.push('flush'); } } },
 	};
 	return controller;
 }
@@ -379,7 +379,7 @@ test('the publisher handed to the import writes through the injected session por
 
 	assert.equal(published, PUBLISHED);
 	assert.deepEqual(built.calls, [
-		'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
+		'flush', 'assertToken', 'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
 	]);
 	assert.deepEqual(built.commands, [{ command: { type: 'batch', commands: [] }, now: NOW }]);
 });
