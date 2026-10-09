@@ -101,7 +101,7 @@ export function prepareDuplicateSelectionCommand(
 		const labels = track.type === 'label' ? duplicateLabels(runtime, track.labels ?? [], range) : undefined;
 		commands.push({
 			...createAddTrackCommand({
-				...structuredClone(track), id: trackId,
+				...structuredClone(track), id: trackId, locked: false,
 				...(track.type === 'label' ? { labels } : { armed: false, effects, clipIds: [] }),
 				laneGroupId: laneGroupId ? laneGroups.get(laneGroupId) : null,
 			}),
@@ -129,7 +129,9 @@ export function prepareDuplicateSelectionCommand(
 		clipIds: range.exactClips ? [...range.clipIds ?? [], ...clipIds] : [],
 		frequencyRange: range.frequencyRange ?? null,
 	};
-	return { command: { type: 'batch', commands: [...routed.commands, selection] },
+	const locks: AudioEditorCommand[] = sourceTracks.filter(track => track.locked === true)
+		.map(track => ({ type: 'track/update', trackId: trackMap[track.id]!, changes: { locked: true } }));
+	return { command: { type: 'batch', commands: [...routed.commands, ...locks, selection] },
 		selectTrackId: trackMap[sourceTracks[0]!.id]!, selectClipId: range.exactClips ? clipIds[0] ?? null : null };
 }
 
