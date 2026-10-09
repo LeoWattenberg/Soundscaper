@@ -1556,3 +1556,35 @@ Contrast reopening, repeat, analysis cache, composition and report cases pass
 Complete built public verification remains pending; this register retains
 thirty-nine verified roots. No assistance runtime assets change and no manual
 **Update AI assets** run is required.
+
+
+## R6-EFFECT-042 — A second finger interrupts a fractional native effect slider
+
+Import a normal recording, Select all and open Effect → Volume and compression
+→ Amplify. Drag its New peak amplitude slider with one finger, briefly tap the
+same slider with a second finger and continue the first drag. The shared
+fractional slider tracks only a boolean, so another pointer can end or cancel
+its transaction and the browser can replace its native range gesture. The
+final value differs by about 10.8 dB from the ordinary mouse and one-finger
+controls. This independently implemented shared SteppedSlider owner differs
+from the parametric output, video-effect and vendored slider owners; group all
+its effect/inspector consumers under this one root.
+
+Extract the existing presentation into a strict component with the same named
+export and DOM/CSS contract. Admit one primary pointer, refuse foreign or
+nonprimary-button starts, and finish or cancel only the admitted pointer.
+Retain the shared native touch owner so secondary TouchStart and TouchEnd
+cannot steal the browser range. Preserve owning cancellation, held Escape,
+late draft restoration, later gestures and exact default reset behavior.
+
+The complete unchanged Green31 `a8a5aaf38` workflow has a healthy mouse and
+one-finger Apply/PCM-peak/Undo/Redo control, but the second-finger case is
+causally RED: final peak −14.619245 instead of −25.419245
+(`/tmp/soundscaper-r6-fx042-public-red.log`, one PASS and one RED).
+Four strict identity/admission cases are independently RED while the primary
+completion control passes (`/tmp/soundscaper-r6-fx042-node-red.log`). All 19
+new and existing identity, cancellation, numeric and exact-default controls
+pass after repair (`/tmp/soundscaper-r6-fx042-node-green2.log`). Focused strict
+compilation and targeted lint pass. Complete built native touch verification
+remains pending; this entry adds no verified count yet. No assistance runtime
+assets change and no manual **Update AI assets** run is required.
