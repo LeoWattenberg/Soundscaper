@@ -18,6 +18,7 @@ import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.t
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 import { recordingSourceAlignment } from './recording-source-alignment.ts';
+import { assertRecordingTargetsUnlocked } from '../recording-target-admission.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -43,6 +44,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			? runtime.findTrack(project, options.trackId)
 			: project.tracks.find((item) => item.armed) || null;
 		if (!track) throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
+		assertRecordingTargetsUnlocked([track]);
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
 		state.recordingDiscardRequested = false;

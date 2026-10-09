@@ -36,6 +36,7 @@ import {
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { supportsDisplayAudioCapture } from '../../recording-display-input.ts';
+import { focusedRecordingTrackId, hasLockedRecordingTarget } from '../../controller/recording/recording-target-admission.ts';
 import { importWorkspaceRoutedFiles } from './import-workspace-routed-files.ts';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
@@ -197,19 +198,9 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 			? controller.actions.transport.stop()
 			: controller.actions.recording.pause());
 		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
-		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
-		const pairedAudioTrack = selectedTrack?.type === 'video' && selectedTrack.laneGroupId
-			? project?.tracks.find((track) => (
-				track.type === 'audio' && track.laneGroupId === selectedTrack.laneGroupId
-			))
-			: null;
-		const trackId = showArmControls
-			? undefined
-			: selectedTrack?.type === 'audio'
-				? selectedTrack.id
-				: pairedAudioTrack?.id || project?.tracks.find((track) => track.type === 'audio')?.id;
+		const trackId = focusedRecordingTrackId(project, snapshot.selectedTrackId, showArmControls);
 		return run(() => controller.actions.recording.start({ trackId }));
-	}, [controller, project?.tracks, run, showArmControls, snapshot.recording, snapshot.recordingKind, snapshot.recordingScheduling, snapshot.scheduledRecording, snapshot.selectedTrackId]);
+	}, [controller, project, run, showArmControls, snapshot.recording, snapshot.recordingKind, snapshot.recordingScheduling, snapshot.scheduledRecording, snapshot.selectedTrackId]);
 
 	const openTimedRecording = useCallback(() => {
 		const startTimeMs = snapshot.scheduledRecording?.startTimeMs ?? Date.now() + 5 * 60_000;
@@ -275,6 +266,8 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 			? copy.projectDirty
 			: copy.projectSaved;
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
+	const recordingTargetLocked = hasLockedRecordingTarget(project,
+		focusedRecordingTrackId(project, snapshot.selectedTrackId, showArmControls), snapshot.recordingInputs?.routes);
 	const editItems = createWorkspaceEditItems({
 		copy, editBlocked, editSelectionActive, hasClipboard: Boolean(snapshot.history?.hasClipboard), splitAvailable: editingActions.split,
 	});
@@ -461,7 +454,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		onJumpToStart: jumpToStart, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
 		onPlaybackMeterSettingsChange: changePlaybackMeterSettings, onRecordingMeterSettingsChange: changeRecordingMeterSettings,
-		onToggleAutomationTool: toggleAutomationTool, onToggleSplitTool: toggleSplitTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
+		onToggleAutomationTool: toggleAutomationTool, onToggleSplitTool: toggleSplitTool, playbackMeterSettings, recordLabel, recordingTargetLocked, recordingMeterSettings, run, snapshot,
 		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject, toolbarDock, onToolbarDock: setToolbarDock,
 	};
 	const overlayModel = createWorkspaceOverlayModel({

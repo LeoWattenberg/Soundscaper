@@ -51,6 +51,7 @@ export default function EditorToolToolbar({
 	editItems,
 	executeEdit,
 	recordLabel,
+	recordingTargetLocked = false,
 	toggleRecording,
 	run,
 	toolbars,
@@ -188,6 +189,7 @@ export default function EditorToolToolbar({
 					onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
 					onOpenTimedRecording={onOpenTimedRecording}
 					recordLabel={recordLabel}
+					recordingTargetLocked={recordingTargetLocked}
 					run={run}
 					snapshot={snapshot}
 					toggleRecording={toggleRecording}
