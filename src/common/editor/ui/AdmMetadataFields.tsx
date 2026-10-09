@@ -122,6 +122,7 @@ function DraftNumberInput({ value, onCommit, ...props }: Readonly<{
 		}}
 		onBlur={(event) => commit(event.currentTarget)}
 		onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape') {
 				cancelDraftEditOnEscape(blurCommitGuard, event, () => setDraft(String(value)));
 			} else if (event.key === 'Enter') { event.preventDefault(); commit(event.currentTarget); }
