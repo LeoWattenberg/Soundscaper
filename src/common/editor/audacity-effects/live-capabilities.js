@@ -18,7 +18,7 @@ import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 import { audacityBrowserReverbTailFrames } from './reverb-parameters.ts';
 import { audacityDynamicsLookaheadFrames } from './audacity-dynamics-lookahead.ts';
 import { classicFilterCoefficients } from './classic-filter-coefficients.js';
-import { iirReleaseBoundFrames } from '../iir-release-bound.ts';
+import { iirReleaseBoundFrames } from '../first-party-effects/standard/filters-coefficients.ts';
 
 export const CLICK_WINDOW_SIZE = 8_192;
 export const EQ_PARTITION_SIZE = 128;

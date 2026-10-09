@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { iirReleaseBoundFrames, type NormalizedIirCoefficients } from './iir-release-bound.ts';
+import { iirReleaseBoundFrames, type NormalizedIirCoefficients } from './first-party-effects/standard/filters-coefficients.ts';
 
 interface NativeFilterEffect {
 	readonly id: string;

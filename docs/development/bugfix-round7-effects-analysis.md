@@ -319,3 +319,22 @@ its corrected ordinary playback/front-pair control passes on immutable
 `e2a38ecb5` (4.1 seconds), so the wider mocked input is not established through
 that available route. Both uncounted verification specs were removed immediately
 and no Reverb source or admission contract was changed.
+
+## Zero-count filter release chunk-ownership completion
+
+The 50-fix checkpoint's worker contract guard rejects the release-bound leaf
+outside its explicitly owned effect-contract closure. Move the unchanged
+normalized-IIR type and pole/release calculations into the existing
+`first-party-effects/standard/filters-coefficients.ts` owner, already included
+in both editor and worker contract groups and desktop staging. Import the leaf
+from that exact module in standard filters, Classic Filters and native filters;
+remove the redundant flat module. No release arithmetic or public behavior is
+changed, and this adds no bug count. Root separately assigns the existing
+Classic coefficient and compatible-live-admission leaves to their semantic
+editor contract group without changing guards or chunk ceilings.
+
+The actual worker-closure guard is RED before the move and GREEN after it.
+Forty focused worker-ownership, Classic/standard/native release and native-Q
+regressions pass after correction; targeted type-aware lint passes. No temporary
+verification files are created. This effect-contract ownership completion does
+not change the assistance runtime closure and requires no Update AI assets run.

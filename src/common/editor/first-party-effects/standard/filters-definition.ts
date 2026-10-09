@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { standardFilterCoefficients } from './filters-coefficients.ts';
-import { iirReleaseBoundFrames } from '../../iir-release-bound.ts';
+import { iirReleaseBoundFrames, standardFilterCoefficients } from './filters-coefficients.ts';
 
 // The startup catalogue owns controls only. DSP is imported by the renderer.
 const LIVE_CONTROL_REASON = 'This processor supports live controls but not timeline automation.';
