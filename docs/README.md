@@ -30,6 +30,8 @@ belong in Git history, not in the maintained documentation set.
   defines authenticated original reads, fixed render profiles and scoped zoom presentation.
 - [Shared RGB noise reduction](architecture/video-noise-reduction.md)
   defines reversible luma/chroma neighborhoods, integer process math and original-alpha transport.
+- [Shared Dehaze process](architecture/video-dehaze.md)
+  defines alpha-aware transmission, bounded white-atmosphere reconstruction and shared pixel ownership.
 - [Shared post-crop vignette](architecture/video-post-crop-vignette.md)
   defines natural-stage coordinates, integer process math, and original-alpha transport.
 - [Shared color grading wheels](architecture/color-grading-wheels.md)

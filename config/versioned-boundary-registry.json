@@ -390,6 +390,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Dehaze owns one immutable encoded-sRGB snapshot and one output, estimates white-atmosphere transmission from replicated-edge alpha-aware three-by-three dark neighborhoods, joins native cancellation and consumer settlement, and wipes captured backings including second allocation refusal." }
+		,
 		{"path": "src/common/editor/imaging/pixel-frame-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped image geometry evaluates encoded sRGB through bounded premultiplied bilinear samples, joins cancellation and wipes owned output after the consumer settles."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
@@ -528,6 +530,8 @@
 		,
 		{"path": "src/common/editor/ui/video-preview-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 native Clarity shader samples original straight byte alpha and luma through texelFetch, protects hidden RGB at zero-alpha centers and evaluates dense seven-by-seven replicated-edge neighborhoods with bounded highp signed integer arithmetic and exact signed rounding."}
 		,
+		{ "path": "src/common/editor/ui/video-preview-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 reserved code 33 Dehaze shader specifies original straight-byte alpha-aware dark neighborhoods with highp integer transmission and explicit signed floor reconstruction. Alpha and hidden RGB are exact; registration and native execution qualification remain separate work." }
+		,
 		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
 		,
 		{ "path": "src/common/editor/ui/video-preview-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 reserved code 30 noise shader specifies original straight-byte neighborhoods with reversible integer YCoCg lifting, bounded signed accumulators and explicit signed floor rounding. Alpha and hidden RGB remain exact; production registration and native execution qualification are separate pending work." }
@@ -593,6 +597,10 @@
 		{ "path": "src/common/editor/video-curve-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared effect parameters add only closed immutable dimensionless point arrays alongside existing numeric values. Runtime point-array admission remains exclusively with the owning point-curve normalizer; old numeric effect profiles remain unchanged." }
 		,
 		{ "path": "src/common/editor/video-curves-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared point curves retain closed two-to-thirty-two dimensionless Float64 knots per channel, strict input order and zero/one input endpoints. Separate parametric curves retain ordered Float64 splits and signed Q16 regional gains. Master then red/green/blue interpolation uses exact binary-rational coordinates and nearest byte rounding toward positive infinity; derived one-KiB transfer tables serve CPU, native GPU and alpha-preserving FFmpeg evaluation without persisted LUTs or coordinate aliasing." }
+		,
+		{ "path": "src/common/editor/video-dehaze-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 compiled Dehaze graph authenticates its private owning operation, initializes each RGB dark/transmission register independently and delegates exact original-alpha transport through output-scoped labels for ordered repeated stages." }
+		,
+		{ "path": "src/common/editor/video-dehaze-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared Dehaze defines one closed fractional amount under srgb-alpha-dark3-white-dehaze-q8-v1. Fixed white airlight, original-alpha-aware dark neighborhoods, bounded Q8 transmission, signed nearest reconstruction, explicit clipping and negative white mixing preserve deterministic byte evaluation without changing older recipes." }
 		,
 		{ "path": "src/common/editor/video-effect-closed-families-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed shared effect families bind each registered numeric or point-curve recipe to its owning definition, closed admission and generated export operation. Static family selection preserves the older eight wrapper prechecks, four complete closed envelopes, all twelve legacy routes and exact option, label, default and serialized bytes; it exposes no caller-configured registry or render resource authority." }
 		,
