@@ -166,7 +166,7 @@ test('shipped Electron is tracked separately from the non-development npm closur
 	}]);
 	assert.equal(electron.dev, true);
 	assert.match(builderConfig, /!node_modules\/\*\*\/\*/u);
-	assert.match(builderConfig, /THIRD_PARTY_LICENSES\.md/u);
+	assert.match(builderConfig, /from: ['"]\.desktop-build\/licenses['"], to: ['"]licenses['"]/u);
 	await assertEvidence(matrix.shippedDevelopmentDependencies[0].evidence);
 });
 

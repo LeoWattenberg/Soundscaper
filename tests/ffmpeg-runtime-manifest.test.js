@@ -396,7 +396,7 @@ test('desktop entry points enforce absence without consuming the browser FFmpeg 
 	assert.doesNotMatch(releaseAssets, /\bfetch\(/u,
 		'public desktop release assembly makes no network request');
 	assert.match(builderConfig, /beforePack: ['"]\.\/scripts\/desktop-before-pack\.mjs['"]/u);
-	assert.match(builderConfig, /from: ['"]\.desktop-build\/licenses\/THIRD_PARTY_LICENSES\.md['"]/u);
+	assert.match(builderConfig, /from: ['"]\.desktop-build\/licenses['"], to: ['"]licenses['"]/u);
 	assert.match(packageMetadata.scripts['audit:ci'], /audit:ffmpeg-runtime/u);
 });
 
