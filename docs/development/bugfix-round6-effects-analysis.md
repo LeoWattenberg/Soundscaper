@@ -3,6 +3,10 @@
 Only distinct normal-user-path defects qualify. Earlier roots, unsupported
 operations, adversarial inputs and unavailable internal actions are excluded.
 
+This register has forty-five verified roots. Its final two complete native
+playback workflows pass on immutable Green35 `1f33ae496`
+(`/tmp/soundscaper-round6-green35-chromium.log`).
+
 R6-EFFECT-001–011 pass their ordinary public workflows in Chromium, Firefox and
 WebKit on immutable Green7 `e139818a9`
 (`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`). Firefox uses the
@@ -32,8 +36,9 @@ Green14 `756da708e`
 twenty-one verified roots. R6-EFFECT-022 passes both complete normal Chromium
 workflows on immutable Green15 `de04b82c9`
 (`/tmp/soundscaper-round6-green15-public-browser.log`), bringing this register to
-twenty-two verified roots; Firefox/WebKit verification remains pending after
-the retained failed runs. R6-EFFECT-023 passes its complete normal Chromium
+twenty-two verified roots. Its unchanged Firefox workflows later pass the full
+Green23 `ba2dac3c3` checkpoint; WebKit remains pending after the retained runs.
+R6-EFFECT-023 passes its complete normal Chromium
 workflow on immutable Green16 `9bd6730b2`
 (`/tmp/soundscaper-r6-effects-legacy-compressor-green16-float-export.log`),
 bringing this register to twenty-three verified roots. R6-EFFECT-024–025 pass
@@ -850,7 +855,11 @@ signal and its skipped-bucket case paints correct RGB 243 but reads a decaying
 native spectrum at −38.52 dB. The unchanged isolated Firefox/WebKit retry also
 fails under host load above 100 and full swap
 (`/tmp/soundscaper-r6-effects-live-spectrogram-green15-isolated-retry.log`).
-Those engines remain pending; no assertion, deadline or fixture was relaxed.
+The complete full-browser checkpoint at immutable Green23 `ba2dac3c3` later
+passes both unchanged Firefox workflows, in 4.5 and 5.4 seconds
+(`/tmp/soundscaper-round6-checkpoint100-green23-full-browser.log`). WebKit
+verification remains pending while that full run continues; no assertion,
+deadline or fixture was relaxed.
 No assistance runtime assets change and no manual **Update AI assets** run is
 required.
 
@@ -1692,9 +1701,13 @@ at 8, 44.1, 48 and 96 kHz while all four changed-frame/reset controls pass
 also RED before repair (`/tmp/soundscaper-r6-fx044-rack-node-red.log`). The
 correction and existing Reverb lifecycle, worklet integration,
 geometry, bypass, revision, dynamics, EQ and exact prior DSP controls pass
-48/48 (`/tmp/soundscaper-r6-fx044-node-green.log`). Focused strict compilation
-passes. Complete built native public verification remains pending; this entry
-adds no verified count yet. No assistance runtime assets change and no manual
+48/48 (`/tmp/soundscaper-r6-fx044-node-green.log`). Focused strict compilation,
+targeted and changed-file lint, size and diff checks pass. The complete built
+native Chromium workflow passes on immutable Green35 `1f33ae496`, in 6.6
+seconds (`/tmp/soundscaper-round6-green35-chromium.log`). The actual 44.1 kHz
+clock realizes both values as 441 frames and the retained tail peaks at
+0.106307 after the edit. This is the forty-fourth verified root. No assistance
+runtime assets change and no manual
 **Update AI assets** run is required.
 
 ## R6-EFFECT-045 — A Click Removal threshold edit forgets already repaired audio
@@ -1730,7 +1743,20 @@ before repair (`/tmp/soundscaper-r6-fx045-rack-node-red.log`). All 57 new and
 existing live processors, Reverb, rack revision, geometry, bypass and gesture
 controls pass (`/tmp/soundscaper-r6-fx045-node-green.log`), and both original
 round-two and round-three exact DSP parity cases retain their expected PCM and
-profile words (`/tmp/soundscaper-r6-fx045-parity.log`). Focused strict compilation
-passes. Complete built native public verification remains pending; this entry
-adds no verified count yet. No assistance runtime assets change and no manual
+profile words (`/tmp/soundscaper-r6-fx045-parity.log`). Focused strict compilation,
+targeted and changed-file lint, size and diff checks pass. The complete built
+native Chromium workflow passes on immutable Green35 `1f33ae496`, in 4.6
+seconds (`/tmp/soundscaper-round6-green35-chromium.log`): the real minimum RMS
+stays 0.296085868 before and 0.296085073 after, with zero lost frames. This
+register now has forty-five verified roots. No assistance runtime assets change
+and no manual
 **Update AI assets** run is required.
+
+A later Noise Reduction continuity probe cannot establish its healthy playback
+control: normal profile capture succeeds at the project clock, but the real
+44.1 kHz playback device rejects the incompatible 48 kHz profile before audio
+starts. A private 48 kHz sink still leaves that browser's actual clock at
+44.1 kHz; it is removed afterward and the shared audio defaults stay intact.
+The probe is excluded from this batch, adds zero roots and leaves no test or
+source edit. The profile-clock boundary overlaps earlier R5-ROOT-017 admission
+work; it does not substantiate a new live continuity claim.
