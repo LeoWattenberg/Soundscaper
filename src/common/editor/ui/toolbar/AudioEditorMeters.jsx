@@ -9,6 +9,7 @@ import {
 	playbackMeterPercent,
 } from '../../playback-meter.js';
 import { MeterPanelPositionMenu } from '../workspace/MeterPanelControls.jsx';
+import { audioMeterChannelStyle } from '../playback-meter-channel-presentation.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	METER_DB_RANGES,
@@ -122,7 +123,8 @@ export function AudacityAudioMeter({
 				aria-valuetext={isEbu ? formatEbuLoudness(liveLufs, settings.ebuUnit) : undefined}
 			>
 				{Array.from({ length: isEbu ? 1 : channelCount === 2 ? 2 : 1 }, (_, channel) => (
-					<span className="kw-audio-editor__playback-meter-channel" key={channel} aria-hidden="true">
+					<span className="kw-audio-editor__playback-meter-channel" key={channel} aria-hidden="true"
+						style={audioMeterChannelStyle(meter?.channels?.[channel], settings.type, range, orientation)}>
 						<i className="kw-audio-editor__playback-meter-peak" />
 						{settings.style === 'rms' && <i className="kw-audio-editor__playback-meter-rms" />}
 						<b className="kw-audio-editor__playback-meter-peak-mark" />

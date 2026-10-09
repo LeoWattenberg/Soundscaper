@@ -367,3 +367,19 @@ remain uncounted until later built public verification. The complete full100
 canonical retry is running on this immutable snapshot with both faithful support
 corrections (`/tmp/soundscaper-round6-checkpoint100-green21-canonical-retry.log`).
 Full50 browser verification continues; full100 follows it sequentially.
+
+The immutable `e2e2b5112` passes both guarded product builds. Native timeline
+annotation and spectral-band multi-touch workflows pass in3.7 and3.4 seconds,
+respectively (`/tmp/soundscaper-round6-green22-chromium.log`). Editing039–040
+qualify, giving **135 distinct verified fixes**: editing40, effects29, I/O22
+and dialogs44. Both short-spectrum checks reach the repaired refusal and absent
+report, then fail at an empty global status observer. Their exact warning and
+ordinary smaller-window recovery remain required; effects030 stays uncounted.
+The playback-meter correction likewise awaits its later built public GREEN.
+
+Both exact short-spectrum warning and the ordinary smaller-window level/frequency
+recovery pass on the unchanged `e2e2b5112` build after observing its actual alert
+region (`/tmp/soundscaper-r6-effects-spectrum-short-selection-browser-green22.log`,
+2/2 in6.3 and6.7 seconds). Effects030 therefore qualifies: **136 distinct verified
+fixes** comprise editing40, effects30, I/O22 and dialogs44. The caption Save Cancel
+and playback-meter corrections remain source-ready and uncounted.
