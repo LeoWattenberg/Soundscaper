@@ -8,6 +8,7 @@ import type { PhotoCatalogImportExclusiveV1 } from '../import/catalog-write-lock
 import type { PhotoImportOutcomeV1, PhotoImportPreparedV1 } from '../import/photo-import-preparation-v1.ts';
 import type { importManagedPhotosV1 } from '../import/managed-import-v1.ts';
 import type { PhotoImportPresetSettingsPortV1 } from '../storage/photo-import-presets-v1.ts';
+import type { PhotoDevelopPresetSettingsPortV1 } from '../storage/photo-develop-presets-v1.ts';
 import type { MediaRepository } from '../../common/editor/storage/media-repository.ts';
 import type { PhotoLibraryOriginalInspectionPortV1 } from './photo-library-original-inspection-v1.ts';
 import type { PhotoLibraryStackRepositoryV1 } from './photo-library-stacks-v1.ts';
@@ -35,6 +36,7 @@ export interface PhotoLibrarySessionPortsV1 {
 	readonly media: PhotoManagedImportPortsV1['media'];
 	readonly journal: PhotoManagedImportPortsV1['journal'];
 	readonly settings?: PhotoImportPresetSettingsPortV1;
+	readonly developPresetSettings?: PhotoDevelopPresetSettingsPortV1;
 	readonly initialize: (signal: AbortSignal) => Promise<PhotoCatalogRootV1>;
 	readonly closeResources: () => Promise<void>;
 	readonly exclusive?: PhotoCatalogImportExclusiveV1;

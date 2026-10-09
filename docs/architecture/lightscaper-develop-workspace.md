@@ -169,13 +169,19 @@ the complete wrapper. Renaming the identity does not reinterpret the settings.
 Menu entry points and browser interaction qualification remain subsequent
 workspace integration work.
 
-The optional `develop.presets` capability uses the Session's existing settings
+The optional `develop.presets` capability uses the Session's selected media settings
 repository. It keeps one catalog-scoped compare-and-swap row containing at most
 16 shared preset bodies and 10 MiB in total. Body normalization checks the
 aggregate while admitting each bounded preset. An empty row retains its revision
 after the last delete; an identical save preserves that revision. Exact row
 reconciliation can recover an acknowledged write whose completion threw, but
 cannot replace it with a later winner sharing the same settings digest.
+
+Restored libraries bind `developPresetSettings` to their selected physical media
+namespace, including when an older library has the same archived catalog ID.
+The fixed anchor still owns location pointers and import presets. Legacy Session
+compositions without an explicit Develop repository use their existing settings
+port; an absent row in an explicitly selected repository stays absent.
 
 List results contain only identity/name/digest and full/partial scope, bounded to
 64 KiB. A selected-body read binds the explicit catalog and menu row revision;

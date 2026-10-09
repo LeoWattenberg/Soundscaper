@@ -47,6 +47,23 @@ test('Preset capability remains absent when no settings repository exists', asyn
 	finally { await f.close(); }
 });
 
+test('An explicitly owned Develop preset repository enables presets without an import-settings port', async () => {
+	const f = await developBatchFixture();
+	const repository = new KeyValueRepository({ memory: getMemoryDatabase(`explicit-develop-presets-${crypto.randomUUID()}`), database: async () => null }, 'settings');
+	f.ports.developPresetSettings = repository;
+	const owner = new PhotoLibrarySessionV1(f.ports);
+	try {
+		assert.equal(f.ports.settings, undefined); assert.ok(owner.develop.presets);
+		const packet = f.settings.copy({ schemaVersion: 1, develop: defaultPhotoDevelopV1(),
+			selection: { effectTypes: 'all', geometry: true, localAdjustments: true } });
+		const preset = owner.develop.presets.create({ schemaVersion: 1, id: 'explicit', name: 'Explicit', settings: packet });
+		const saved = await owner.develop.presets.write({ schemaVersion: 1, catalogId: 'catalog',
+			command: { type: 'save', expectedRevision: 0, preset } });
+		assert.equal(saved.snapshot.revision, 1);
+		assert.equal((await owner.develop.presets.list({ schemaVersion: 1, catalogId: 'catalog' })).presets[0]?.name, 'Explicit');
+	} finally { await owner.close(); await f.close(); }
+});
+
 test('Closed preset requests refuse accessors before lazy initialization and fence catalog/revision explicitly', async () => {
 	const f = await fixture();
 	try {

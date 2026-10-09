@@ -13,6 +13,10 @@ import { photoLibraryRestoreCommitV1, photoLibraryRestoreCommitKeyV1 } from '../
 import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 as POINTER } from '../src/lightscaper/storage/photo-library-catalog-pointer.ts';
 import { photoImportIntentKeyV1 } from '../src/lightscaper/import/managed-import-v1.ts';
 import { photoImportPresetsKeyV1 } from '../src/lightscaper/storage/photo-import-presets-v1.ts';
+import { photoDevelopPresetsKeyV1 } from '../src/lightscaper/storage/photo-develop-presets-v1.ts';
+import { defaultPhotoDevelopV1 } from '../src/lightscaper/catalog/develop-state.ts';
+import { copyImageDevelopSettingsV1 } from '../src/common/editor/imaging/image-develop-settings-v1.ts';
+import { createImageDevelopPresetV1 } from '../src/common/editor/imaging/image-develop-preset-v1.ts';
 import { mediaRestoreFixture, mediaRestoreAllocation, mediaRestoreRoot } from './helpers/lightscaper-media-restore-fixture.ts';
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
@@ -33,6 +37,11 @@ function lockFixture() {
 }
 const preset = (name: string) => ({ schemaVersion: 1, kind: 'photo-import-presets', catalogId: 'catalog-1', revision: 1,
 	presets: [{ id: 'preset', name, settings: { rename: null, metadata: {}, keywordIds: [] } }] });
+const developPreset = (name: string) => createImageDevelopPresetV1({ schemaVersion: 1, id: 'develop-preset', name,
+	settings: copyImageDevelopSettingsV1({ schemaVersion: 1, develop: defaultPhotoDevelopV1(),
+		selection: { effectTypes: 'all', geometry: true, localAdjustments: true } }) });
+const developPresetRow = (name: string, revision: number) => ({ schemaVersion: 1, kind: 'photo-develop-presets',
+	catalogId: 'catalog-1', revision, presets: [developPreset(name)] });
 
 function observeCloses(factory: IDBFactory) {
 	const closed: string[] = [], decorated = new WeakSet<object>(), open = factory.open.bind(factory);
@@ -157,6 +166,60 @@ test('import presets use fixed anchor while startup import journal uses selected
 	f.raw(f.names.mediaDatabaseName).seedRecord(f.names.mediaDatabaseName, 'settings', { key: photoImportIntentKeyV1('catalog-1'), value: { bad: 'selected journal' } });
 	const damaged = await createPhotoLibrarySessionV2(f.options);
 	try { await assert.rejects(damaged.readPage()); } finally { await damaged.close(); await f.anchor.close(); }
+});
+
+test('Develop presets read and write the selected physical media namespace despite identical archived catalog IDs', async () => {
+	const f = await fixture(), key = photoDevelopPresetsKeyV1('catalog-1');
+	const anchorRow = developPresetRow('Old anchor preset', 2), selectedRow = developPresetRow('Restored preset', 8);
+	await f.anchor.settingsRepository.put(key, anchorRow);
+	f.raw(f.names.mediaDatabaseName).seedRecord(f.names.mediaDatabaseName, 'settings', { key, value: selectedRow });
+	const pointerBefore = await f.anchor.settingsRepository.get(POINTER);
+	const session = await createPhotoLibrarySessionV2(f.options);
+	try {
+		const presets = session.develop.presets!;
+		const initial = await presets.list({ schemaVersion: 1, catalogId: 'catalog-1' });
+		assert.equal(initial.revision, 8); assert.equal(initial.presets[0]?.name, 'Restored preset');
+		assert.equal((await presets.read({ schemaVersion: 1, catalogId: 'catalog-1', presetId: 'develop-preset', expectedRevision: 8 })).preset.identity.name, 'Restored preset');
+		const saved = await presets.write({ schemaVersion: 1, catalogId: 'catalog-1',
+			command: { type: 'save', expectedRevision: 8, preset: developPreset('Edited restored preset') } });
+		assert.equal(saved.snapshot.revision, 9);
+		assert.deepEqual(await f.anchor.settingsRepository.get(key), anchorRow);
+		const physical = f.raw(f.names.mediaDatabaseName).records(f.names.mediaDatabaseName, 'settings')
+			.find((row: { key: string }) => row.key === key) as { value: { revision: number; presets: { identity: { name: string } }[] } };
+		assert.equal(physical.value.revision, 9); assert.equal(physical.value.presets[0]?.identity.name, 'Edited restored preset');
+		assert.deepEqual(await f.anchor.settingsRepository.get(POINTER), pointerBefore);
+		assert.equal((f.raw(f.names.catalogDatabaseName).records(f.names.catalogDatabaseName, 'catalogs')[0] as { revision: number }).revision, 23);
+	} finally { await session.close(); }
+	const reopened = await createPhotoLibrarySessionV2(f.options);
+	try { assert.equal((await reopened.develop.presets!.list({ schemaVersion: 1, catalogId: 'catalog-1' })).presets[0]?.name, 'Edited restored preset'); }
+	finally { await reopened.close(); await f.anchor.close(); }
+});
+
+test('an absent selected Develop preset row never falls back to the same catalog ID in the fixed anchor', async () => {
+	const f = await fixture(), key = photoDevelopPresetsKeyV1('catalog-1'), old = developPresetRow('Old anchor preset', 7);
+	await f.anchor.settingsRepository.put(key, old);
+	const session = await createPhotoLibrarySessionV2(f.options);
+	try {
+		assert.deepEqual(await session.develop.presets!.list({ schemaVersion: 1, catalogId: 'catalog-1' }),
+			{ schemaVersion: 1, catalogId: 'catalog-1', revision: 0, presets: [] });
+		const saved = await session.develop.presets!.write({ schemaVersion: 1, catalogId: 'catalog-1',
+			command: { type: 'save', expectedRevision: 0, preset: developPreset('First selected preset') } });
+		assert.equal(saved.snapshot.revision, 1); assert.deepEqual(await f.anchor.settingsRepository.get(key), old);
+	} finally { await session.close(); await f.anchor.close(); }
+});
+
+test('a selected Develop preset writer refuses a same-catalog-ID pointer replacement before changing either namespace', async () => {
+	const f = await fixture(), key = photoDevelopPresetsKeyV1('catalog-1'), selected = developPresetRow('Selected preset', 3);
+	f.raw(f.names.mediaDatabaseName).seedRecord(f.names.mediaDatabaseName, 'settings', { key, value: selected });
+	const session = await createPhotoLibrarySessionV2(f.options);
+	try {
+		await session.readPage(); await f.seed('c', 'd');
+		await assert.rejects(session.develop.presets!.write({ schemaVersion: 1, catalogId: 'catalog-1',
+			command: { type: 'save', expectedRevision: 3, preset: developPreset('Stale write') } }), /location|changed|stale/iu);
+		const physical = f.raw(f.names.mediaDatabaseName).records(f.names.mediaDatabaseName, 'settings')
+			.find((row: { key: string }) => row.key === key) as { value: unknown };
+		assert.deepEqual(physical.value, selected); assert.equal(await f.anchor.settingsRepository.get(key), undefined);
+	} finally { await session.close(); await f.anchor.close(); }
 });
 
 test('trusted restore recovery runs after fixed anchor opens and before initializer lock admission', async () => {

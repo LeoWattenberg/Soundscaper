@@ -11,6 +11,7 @@ export function createPhotoLibrarySessionV1(options: Readonly<{ name: string }>)
 	const catalog = new PhotoCatalogRepositoryV1({ indexedDB: globalThis.indexedDB, verifyOriginal: media.verifyOriginal });
 	return new PhotoLibrarySessionV1({ catalog, stacks: catalog, smartCollections: catalog, media: { writeAsset: media.mediaRepository.writeAsset,
 		custody: media.mediaRepository.catalogOriginals }, journal: media.settingsRepository, settings: media.settingsRepository,
+		developPresetSettings: media.settingsRepository,
 		originalInspection: { inspect: (binding, signal) => media.mediaRepository.inspectCatalogOriginalBody(binding, { signal }) },
 		originalRestoration: { restoreCatalogOriginalBody: (...args) => media.mediaRepository.restoreCatalogOriginalBody(...args) },
 		backup: { readSnapshot: (...args) => catalog.readSnapshot(...args),

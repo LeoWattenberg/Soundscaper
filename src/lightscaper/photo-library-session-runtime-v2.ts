@@ -72,7 +72,8 @@ export async function createPhotoLibrarySessionV2(options: PhotoLibrarySessionRu
 			const loadOriginal = selectedMedia.mediaRepository.loadAsset;
 			return new PhotoLibrarySessionV1({ catalog: selectedCatalog, stacks: selectedCatalog, smartCollections: selectedCatalog,
 				media: { writeAsset: selectedMedia.mediaRepository.writeAsset, custody: selectedMedia.mediaRepository.catalogOriginals },
-				journal: selectedMedia.settingsRepository, settings: anchor.settingsRepository, exclusive,
+				journal: selectedMedia.settingsRepository, settings: anchor.settingsRepository,
+				developPresetSettings: selectedMedia.settingsRepository, exclusive,
 				initialize: async admitted => { assertNotAborted(admitted); const root = await selectedCatalog.loadCatalog(catalogId);
 					assertNotAborted(admitted); if (!root) throw new ReferenceError('Selected photo library catalog is missing.'); return root; },
 				originalInspection: { inspect: (binding, admitted) => selectedMedia.mediaRepository.inspectCatalogOriginalBody(binding, { signal: admitted }) },
