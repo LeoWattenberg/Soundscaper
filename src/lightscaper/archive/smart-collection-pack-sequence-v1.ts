@@ -10,6 +10,8 @@ type Prepared = ReturnType<typeof preparePhotoSmartCollectionPackRecordV1>;
 const nativeThrow = AbortSignal.prototype.throwIfAborted;
 const NativeAbortController = AbortController;
 const nativeAbort = NativeAbortController.prototype.abort;
+const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
+const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 
 /** One canonical current recipe plus one boundary lookahead; byte measurement retains only a scalar. */
 export class PhotoSmartCollectionPackSequence {
@@ -42,7 +44,7 @@ export class PhotoSmartCollectionPackSequence {
 				if (!this.#pending) return null;
 				this.#active = true; const pack = this.#records(); this.#pack = pack; return pack;
 			} catch (error) {
-				this.#retire(); try { await this.#returnSource(); } catch (cleanup) { throw combined(error, cleanup); } throw error;
+				this.#retire(); try { await this.#returnSource(); } catch (cleanup) { throw combined(error, cleanup, this.signal); } throw error;
 			}
 		}).finally(() => { if (this.#opening === task) this.#opening = null; });
 		this.#opening = task; return task;
@@ -58,7 +60,7 @@ export class PhotoSmartCollectionPackSequence {
 			const pack = this.#pack; this.#pack = null;
 			let failed = false, failure: unknown;
 			try { await pack?.return(undefined); } catch (error) { failed = true; failure = error; }
-			try { await this.#returnSource(); } catch (cleanup) { if (failed && failure !== cleanup) throw combined(failure, cleanup); throw cleanup; }
+			try { await this.#returnSource(); } catch (cleanup) { if (failed && failure !== cleanup) throw combined(failure, cleanup, this.signal); throw cleanup; }
 			if (failed) throw failure;
 		});
 		return this.#closing;
@@ -79,7 +81,7 @@ export class PhotoSmartCollectionPackSequence {
 			this.#active = false; this.#pack = null;
 			if (!completed) {
 				this.#retire();
-				try { await this.#returnSource(); } catch (cleanup) { rethrowCleanup(failed, failure, cleanup); }
+				try { await this.#returnSource(); } catch (cleanup) { rethrowCleanup(failed, failure, cleanup, this.signal); }
 			}
 		}
 		if (failed) throw failure;
@@ -115,9 +117,12 @@ export class PhotoSmartCollectionPackSequence {
 		Reflect.apply(nativeThrow, this.#stop.signal, []);
 	}
 }
-function combined(primary: unknown, cleanup: unknown): AggregateError {
-	return new AggregateError([primary, cleanup], 'Smart collection enumeration and cleanup both failed.', { cause: primary });
+function combined(primary: unknown, cleanup: unknown, signal?: AbortSignal): AggregateError {
+	const aggregate = new AggregateError([primary, cleanup], 'Smart collection enumeration and cleanup both failed.', { cause: primary });
+	if (signal !== undefined && Reflect.apply(nativeAborted, signal, []) === true
+		&& Object.is(primary, Reflect.apply(nativeReason, signal, []))) aggregate.name = 'AbortError';
+	return aggregate;
 }
-function rethrowCleanup(failed: boolean, failure: unknown, cleanup: unknown): never {
-	throw failed ? combined(failure, cleanup) : cleanup;
+function rethrowCleanup(failed: boolean, failure: unknown, cleanup: unknown, signal?: AbortSignal): never {
+	throw failed ? combined(failure, cleanup, signal) : cleanup;
 }

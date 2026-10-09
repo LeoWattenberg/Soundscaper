@@ -209,7 +209,18 @@ only provisional data; extraction, exact length, and SHA-256 checks settle
 before its caller can publish. Captured native cancellation checks preserve
 opaque reasons without inspecting them. The neutral Scape asset-kind leaf lets
 Soundscaper and Framescaper inspect and byte-copy foreign archives without
-borrowing a Lightscaper decoder. Production backup and private restore still
-use archive3; wiring archive4 into those owners remains subsequent integration
-work. These format and host JavaScript changes do not alter the assistance
+borrowing a Lightscaper decoder.
+
+The V4 backup controller borrows selected media settings under the existing
+catalog writer. It admits the physical row before originals or destination
+acquisition and captures its complete canonical digest. The final inventory
+audit checks preset presence, revision, names, selection, authored settings,
+and process bytes independently of the catalog revision. Same-revision changes
+abort output instead of acknowledging a stale backup. V3 remains an explicit
+legacy API and reuses its unchanged companion contracts and inventory audits.
+Borrowed native cancellation checks preserve opaque reasons beside independent
+destination cleanup failures; fulfilled output close remains acknowledged.
+The production Session menu and private restore composition still use archive3;
+their V4 integration remains subsequent work. These format and host JavaScript
+changes do not alter the assistance
 runtime closure and do not require a manual **Update AI assets** run.
