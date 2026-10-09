@@ -6,6 +6,7 @@ import { EditorProjectGeneration } from '../../src/common/editor/controller/shar
 import { createVideoSource, createVideoTrack } from '../../src/common/editor/project-media-factory.ts';
 import { createVideoEffect } from '../../src/common/editor/video-effects.js';
 import { normalizeGlobalDevelopEffectV1 } from '../../src/common/editor/video-global-develop-v1.ts';
+import { normalizeChromaDevelopEffectV1 } from '../../src/common/editor/video-chroma-develop-v1.ts';
 import { withGlobalDevelopPixelFrameV1 } from '../../src/common/editor/imaging/pixel-frame-global-develop-v1.ts';
 import { VideoPreviewCompositor } from '../../src/common/editor/ui/video-preview-compositor.js';
 import { applyVideoPreviewEntryEffects } from '../../src/common/editor/ui/video-preview-entry-effects.js';
@@ -17,7 +18,7 @@ import { applyVideoExactBrowserEffectsFinishing } from '../../src/framescaper/ed
 type Mode = 'target' | 'frame' | 'frame-spatial' | 'frame-cancel' | 'presentation';
 interface Target { readonly framebuffer: WebGLFramebuffer; readonly texture: WebGLTexture; readonly width: number; readonly height: number }
 interface RenderResult { readonly pixels: number[]; readonly legacyPresentationPixels?: number[];
-	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly glError?: number }
+	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly chromaProgramLinked?: boolean; readonly glError?: number }
 interface Compositor {
 	readonly gl: WebGL2RenderingContext; readonly programs: readonly WebGLProgram[];
 	resizeToDisplaySize(options: Readonly<{ outputWidth: number; outputHeight: number }>): void;
@@ -38,7 +39,7 @@ export async function qualifyGlobalDevelopWebglV1(value: unknown) {
 	const height = Object.hasOwn(input, 'height') ? field(input, 'height', 'native global render') : 1;
 	if (typeof height !== 'number' || !Number.isSafeInteger(height) || height < 1 || height > 256 || source.length % (4 * height)) throw new RangeError('Invalid native frame height.');
 	const pixels = new Uint8Array(source as number[]), width = pixels.length / (4 * height);
-	const effects = readClosedDomainArray(field(input, 'effects', 'native global render'), 'native global effects', 1, 64).map(normalizeGlobalDevelopEffectV1);
+	const effects = readClosedDomainArray(field(input, 'effects', 'native global render'), 'native global effects', 1, 64).map(normalizeEffect);
 	const mode = field(input, 'mode', 'native global render');
 	if (mode !== 'target' && mode !== 'frame' && mode !== 'frame-spatial' && mode !== 'frame-cancel' && mode !== 'presentation') throw new RangeError('Unknown native global fixture mode.');
 	const authored = author(effects, width, height), stop = new AbortController(), signal = stop.signal;
@@ -62,7 +63,11 @@ export async function qualifyGlobalDevelopWebglV1(value: unknown) {
 	} finally { WebGL2RenderingContext.prototype.readPixels = nativeRead; pixels.fill(0); }
 }
 
-function author(effects: readonly ReturnType<typeof normalizeGlobalDevelopEffectV1>[], width: number, height: number) {
+function normalizeEffect(value: unknown) {
+	const input = record(value,'native shared effect',['id','type','enabled','params']);
+	return field(input,'type','native shared effect') === 'chroma-v1' ? normalizeChromaDevelopEffectV1(value) : normalizeGlobalDevelopEffectV1(value);
+}
+function author(effects: readonly ReturnType<typeof normalizeEffect>[], width: number, height: number) {
 	let project = createFramescaperProjectFinishing(PROFILE, { id: 'native-global-project', title: 'Native global', now: '2026-10-09T00:00:00.000Z',
 		sources: [createVideoSource({ id: 'video-source', name: 'Fixture', storageKey: 'fixture', mimeType: 'video/mp4', contentSha256: '12'.repeat(32),
 			frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width, height })],
@@ -95,6 +100,7 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 	try {
 		compositor.resizeToDisplaySize({ outputWidth: width, outputHeight: height });
 		const globalProgramLinks = [18, 19].filter(index => gl.getProgramParameter(compositor.programs[index], gl.LINK_STATUS) === true).length;
+		const chromaProgramLinked = gl.getProgramParameter(compositor.programs[21],gl.LINK_STATUS) === true;
 		if (mode === 'presentation') {
 			const drawable = new ImageData(new Uint8ClampedArray(pixels), width, height);
 			const report = compositor.render([{ entries: [{ clipId: 'native-global', video: { drawable, videoWidth: width, videoHeight: height,
@@ -104,7 +110,7 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 				throw new Error('Native presentation omitted authored effects.');
 			}
 			gl.finish(); const output = compositor.captureEvaluatedRgba(); if (!output) throw new Error('Native presentation was not captured.');
-			return { pixels: Array.from(output.rgba), globalProgramLinks, glError: gl.getError() };
+			return { pixels: Array.from(output.rgba), globalProgramLinks, chromaProgramLinked, glError: gl.getError() };
 		}
 		texture = gl.createTexture(); if (!texture) throw new Error('Native source texture allocation failed.');
 		gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -116,6 +122,6 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 		const target = applyVideoPreviewEntryEffects(compositor, texture, passes, { x: 0, y: 0, width, height }, undefined, 'native-global') as Target;
 		const output = new Uint8Array(pixels.length); gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer); gl.finish();
 		gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, output);
-		return { pixels: Array.from(output), globalProgramLinks, glError: gl.getError() };
+		return { pixels: Array.from(output), globalProgramLinks, chromaProgramLinked, glError: gl.getError() };
 	} finally { if (texture) gl.deleteTexture(texture); compositor.dispose(); canvas.remove(); }
 }

@@ -105,6 +105,51 @@ test('mixed Frame spatial effects preserve the maintained top-origin incomplete-
 	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(2);
 });
 
+test('actual integer chroma shader matches independent saturation and adaptive vibrance straight-alpha goldens', async ({page})=>{
+	await prepare(page);
+	for(const [params,expected]of [
+		[{saturation:-100},[28,28,28,0,119,119,119,1,128,128,128,127,215,215,215,255]],
+		[{saturation:100},[0,36,100,0,9,137,255,1,128,128,128,127,255,233,0,255]],
+	]){
+		const result=await qualify(page,{source:SOURCE,effects:[effect('chroma-v1',params)],mode:'target'});
+		expect(result.chromaProgramLinked).toBe(true);expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+		expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	}
+	const vibrant=await qualify(page,{source:[64,128,192,127,100,110,120,1,255,0,0,0],effects:[effect('chroma-v1',{vibrance:100})],mode:'target'});
+	expect(vibrant.pixels).toEqual([37,132,228,127,92,111,130,1,255,0,0,0]);expect(vibrant.glError).toBe(0);
+});
+
+test('actual chroma native target retains exact all256 multichannel integer rounding and ordered global passes',async({page})=>{
+	await prepare(page);const source=Array.from({length:256},(_,n)=>[n,(17*n)%256,255-n,[0,1,127,255][n%4]]).flat();
+	for(const [saturation,vibrance]of [[12.5,-37.125],[-33.3,73.25],[100,100],[-100,-100]]){
+		const expected=[];for(let i=0;i<source.length;i+=4)expected.push(...chromaReference(source.slice(i,i+3),saturation,vibrance),source[i+3]);
+		const result=await qualify(page,{source,effects:[effect('chroma-v1',{saturation,vibrance})],mode:'target'});
+		expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	}
+	for(const effects of [[effect('white-balance-v1',{temperature:73}),effect('chroma-v1',{vibrance:100})],
+		[effect('chroma-v1',{vibrance:100}),effect('white-balance-v1',{temperature:73})],
+		[effect('chroma-v1')],[{...effect('chroma-v1',{vibrance:100}),enabled:false}]]){
+		const result=await qualify(page,{source,effects,mode:'target'});expect(result.pixels).toEqual(result.cpuPixels);expect(result.glError).toBe(0);
+	}
+});
+
+test('actual Frame authoring and mixed native renderer preserve chroma at every alpha including hidden RGB',async({page})=>{
+	await prepare(page);const source=[0,1,127,255].flatMap(alpha=>[64,128,192,alpha]);
+	const result=await qualify(page,{source,effects:[effect('chroma-v1',{saturation:100})],mode:'frame'});
+	expect(result.authoredTypes).toEqual(['chroma-v1','color-adjust']);
+	expect(result.pixels).toEqual([0,1,127,255].flatMap(alpha=>[9,137,255,alpha]));
+	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+});
+
+// Independent BigInt reference, not the CPU/shader owner; division explicitly floors negative adaptive gain.
+function chromaReference(input,saturation,vibrance){
+	const Q=65536n,sat=BigInt(Math.round((1+saturation/100)*65536)),vib=BigInt(Math.round(vibrance/100*65536));
+	const step=(rgb,factor)=>{const y=(54n*rgb[0]+183n*rgb[1]+19n*rgb[2]+128n)/256n;
+		return rgb.map(c=>{const n=y*Q+(c-y)*factor+Q/2n;return n<=0n?0n:n>=255n*Q?255n:n/Q;});};
+	const rgb=step(input.map(BigInt),sat),range=rgb.reduce((a,b)=>a>b?a:b)-rgb.reduce((a,b)=>a<b?a:b),n=vib*(255n-range)+127n;
+	return step(rgb,Q+(n>=0n?n/255n:-((-n+254n)/255n))).map(Number);
+}
+
 async function prepare(page) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalDevelopWebglV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

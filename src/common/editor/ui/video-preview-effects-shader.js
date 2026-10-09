@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
+import { CHROMA_DEVELOP_GLSL_V1 } from '../video-chroma-develop-v1.ts';
 import { IMAGE_GEOMETRY_PREVIEW_GLSL_V1 } from './video-preview-image-geometry-v1.ts';
 
 export const MAX_GAUSSIAN_BLUR_PAIR_COUNT = 30;
@@ -7,6 +8,7 @@ export const VIDEO_PREVIEW_PIXELATE_GRID_SIZE = 2;
 
 export const FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision highp float;
+precision highp int;
 
 uniform sampler2D u_texture;
 uniform sampler2D u_aux_texture;
@@ -27,6 +29,7 @@ in vec2 v_uv;
 out vec4 out_color;
 
 ${GLOBAL_DEVELOP_GLSL_V1}
+${CHROMA_DEVELOP_GLSL_V1}
 ${IMAGE_GEOMETRY_PREVIEW_GLSL_V1}
 
 vec4 sample_frame(vec2 uv) {
@@ -130,6 +133,8 @@ void main() {
 		yuv.x = clamp(yuv.x, 16.0 / 255.0, 235.0 / 255.0);
 		yuv.yz = clamp(yuv.yz, vec2(16.0 / 255.0), vec2(240.0 / 255.0));
 		color.rgb = limited_yuv_to_rgb(yuv);
+	} else if (u_effect == 21) {
+		color.rgb = chroma_develop_rgb(color.rgb, u_params0);
 	} else if (u_effect == 18 || u_effect == 19) {
 		color.rgb = global_develop_rgb(color.rgb, u_effect, u_params0, u_params1);
 	} else if (u_effect == 2) {

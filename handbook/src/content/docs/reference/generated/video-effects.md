@@ -29,6 +29,7 @@ One definition owns each effect’s parameters, and the preview and the export b
 | Sharpen | `sharpen` | 1 |
 | Spill Suppression | `spill-suppression` | 2 |
 | Tone | `tone-ladder-v1` | 6 |
+| Vibrance and saturation | `chroma-v1` | 2 |
 | Vignette | `vignette` | 1 |
 | White balance | `white-balance-v1` | 2 |
 
@@ -90,6 +91,8 @@ Defaults and limits come from the same definitions the editor validates against.
 | Tone | Shadows | 0 | -100 to 100 | — |
 | Tone | Whites | 0 | -100 to 100 | — |
 | Tone | Blacks | 0 | -100 to 100 | — |
+| Vibrance and saturation | Saturation | 0 | -100 to 100 | — |
+| Vibrance and saturation | Vibrance | 0 | -100 to 100 | — |
 | Vignette | Amount | 0.5 | 0 to 1 | — |
 | White balance | Temperature (relative) | 0 | -100 to 100 | — |
 | White balance | Tint (relative) | 0 | -100 to 100 | — |

@@ -3,6 +3,7 @@
 import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
 import { withGlobalDevelopPixelFrameV1 } from '../common/editor/imaging/pixel-frame-global-develop-v1.ts';
 import { isGlobalDevelopEffectTypeV1, normalizeGlobalDevelopEffectV1 } from '../common/editor/video-global-develop-v1.ts';
+import { CHROMA_DEVELOP_EFFECT_TYPE_V1, normalizeChromaDevelopEffectV1 } from '../common/editor/video-chroma-develop-v1.ts';
 import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1, normalizeImageGeometryVideoEffectV1 } from '../common/editor/video-image-geometry-v1.ts';
 import { withGeometryPixelFrameV1 } from '../common/editor/imaging/pixel-frame-geometry-v1.ts';
@@ -24,6 +25,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	const admitted = readClosedDomainArray(effects, 'Frame browser effects', 0, 100_000).map(value => {
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return normalizeImageGeometryVideoEffectV1(value);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === CHROMA_DEVELOP_EFFECT_TYPE_V1) return normalizeChromaDevelopEffectV1(value);
 		return isGlobalDevelopEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
@@ -48,7 +50,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 		} catch (error) { current.pixels.fill(0); throw error; }
 	}
 	if (admitted.length === 0) return clone(sourceFrame);
-	if (admitted.every(value => isGlobalDevelopEffectTypeV1(Object.getOwnPropertyDescriptor(value, 'type')?.value))) {
+	if (admitted.every(value => isCpuEffect(Object.getOwnPropertyDescriptor(value, 'type')?.value))) {
 		return withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: sourceFrame.width, height: sourceFrame.height,
 			sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: sourceFrame.pixels }, effects: admitted, signal },
 			output => Object.freeze({ width: output.descriptor.width, height: output.descriptor.height, pixels: output.pixels.slice() }),
@@ -81,6 +83,8 @@ function readAdmittedFrame(value: unknown, signal: AbortSignal): UnifiedExactRen
 function throwIfAborted(signal: AbortSignal): void {
 	Reflect.apply(CHECK_ABORT, signal, []);
 }
+
+function isCpuEffect(type: unknown): boolean { return type === CHROMA_DEVELOP_EFFECT_TYPE_V1 || isGlobalDevelopEffectTypeV1(type); }
 
 function readLegacyEffect(effect: Record<string, unknown>) {
 	const type = readClosedDomainField(effect, 'type', 'Frame browser effect');

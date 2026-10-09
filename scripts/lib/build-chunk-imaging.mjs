@@ -6,7 +6,7 @@
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const imagingChunkGroups = [{
 	name: 'editor-imaging',
-	test: /src[\\/]common[\\/]editor[\\/](?:imaging[\\/][^\\/]+\.ts|(?:image-import-admission|image-format-signature|image-decoder-routing|video-global-develop-v1|video-image-geometry-(?:v1|ffmpeg-v1)|video-mask-matte-v24|video-visual-model-v24|timeline-image-(?:model|frame-pack-v1(?:-layout)?|native-decode-v1|browser-native-port|conversion-receipt-v1))\.ts|video-effects\.js)$/,
+	test: /src[\\/]common[\\/]editor[\\/](?:imaging[\\/][^\\/]+\.ts|(?:image-import-admission|image-format-signature|image-decoder-routing|video-global-develop-v1|video-chroma-develop-v1|video-image-geometry-(?:v1|ffmpeg-v1)|video-mask-matte-v24|video-visual-model-v24|timeline-image-(?:model|frame-pack-v1(?:-layout)?|native-decode-v1|browser-native-port|conversion-receipt-v1))\.ts|video-effects\.js)$/,
 	priority: 66,
 	minSize: 0,
 	maxSize: 400_000,

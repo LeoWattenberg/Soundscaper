@@ -66,7 +66,7 @@ function effectProject(effects = [createVideoEffect('pixelate', { id: 'pixelate-
 }
 
 test('video effect registry exposes canonical defaults and rejects injected parameters', () => {
-	assert.equal(VIDEO_EFFECT_TYPES.length, 15);
+	assert.equal(VIDEO_EFFECT_TYPES.length, 16);
 	assert.equal(VIDEO_EFFECT_DEFINITIONS.pixelate.ffmpegFilter, 'pixelize');
 	assert.deepEqual(videoEffectDefaults('rgb-split'), { offsetX: 6, offsetY: 0 });
 	assert.equal(validateVideoEffectParams(

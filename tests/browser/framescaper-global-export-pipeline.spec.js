@@ -34,6 +34,15 @@ test('native capture and selected composition preserve ordered geometry legacy t
 	expect(result.nativeReadbacks).toBe(2); expect(result.consumedNodeIds.length).toBeGreaterThan(0);
 });
 
+test('native Canvas capture feeds persisted chroma into actual selected composition with independent pre-encode gray goldens',async({page})=>{
+	const result=await qualify(page,'chroma');
+	const source=[0,32,64,255,64,128,192,255,128,128,128,255,255,224,16,255];
+	const expected=[28,28,28,255,119,119,119,255,128,128,128,255,215,215,215,255];
+	expect(result.captured).toEqual([source]);expect(result.sourceUnchanged).toEqual(source);
+	expect(result.effectedPixels).toEqual(expected);expect(result.pixels).toEqual(expected);
+	expect(result.authoredTypes).toEqual(['chroma-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
+});
+
 async function qualify(page, mode) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalExportNativeV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },
