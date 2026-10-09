@@ -66,7 +66,8 @@ function effectProject(effects = [createVideoEffect('pixelate', { id: 'pixelate-
 }
 
 test('video effect registry exposes canonical defaults and rejects injected parameters', () => {
-	assert.equal(VIDEO_EFFECT_TYPES.length, 21);
+	assert.equal(VIDEO_EFFECT_TYPES.length, 22);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.filter(type => type === 'detail-sharpen-v1'), ['detail-sharpen-v1']);
 	assert.equal(VIDEO_EFFECT_DEFINITIONS.pixelate.ffmpegFilter, 'pixelize');
 	assert.deepEqual(videoEffectDefaults('rgb-split'), { offsetX: 6, offsetY: 0 });
 	assert.equal(validateVideoEffectParams(

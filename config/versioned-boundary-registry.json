@@ -398,6 +398,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped detail sharpening snapshots bounded straight encoded-sRGB pixels, evaluates alpha-weighted replicated-edge three-by-three binomial neighborhoods with exact Q8 gain, joins cancellation and wipes both owned backings after consumer settlement or failed allocation." }
+		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
 		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -516,6 +518,8 @@
 		,
 		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
 		,
+		{ "path": "src/common/editor/ui/video-preview-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 native detail shader evaluates straight byte alpha-weighted replicated-edge three-by-three binomial neighborhoods through texelFetch and bounded highp integers with explicit signed Q8 floor rounding." }
+		,
 		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-delivery-v15.ts", "kind": "persisted-contract", "justification": "unified-exact-render-delivery-v15.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -601,6 +605,10 @@
 		{ "path": "src/common/editor/video-proxy-attachment-v18.ts", "kind": "persisted-contract", "justification": "video-proxy-attachment-v18.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-retime-v16.ts", "kind": "persisted-contract", "justification": "video-retime-v16.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-sharpen-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning detail-sharpen graph transports original byte alpha separately from RGB conversion into neighborhood GEQ and exact output publication; output-scoped plane labels compose consecutive and mixed authored stages." }
+		,
+		{ "path": "src/common/editor/video-sharpen-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared detail sharpening retains closed amount and threshold parameters under the encoded-sRGB alpha-weighted binomial Q8 process. Three-by-three replicated edges, positive blur ties, signed gain ties toward positive infinity, unchanged threshold deltas and hidden RGB at zero-alpha centers define ordered CPU, native integer shader and original-alpha-preserving GEQ evaluation; legacy unsharp recipes remain unchanged." }
 		,
 		{ "path": "src/common/editor/video-source-color-interpretation-v27.ts", "kind": "persisted-contract", "justification": "video-source-color-interpretation-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -776,7 +784,9 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
-		{ "path": "src/lightscaper/controller/photo-develop-proxy-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped photo proxy consumes already-oriented derivatives through ordered shared global and natural geometry kernels, measures rendered histograms and bounds/wipes every staged pixel buffer independently of original custody." }
+		{ "path": "src/lightscaper/controller/photo-develop-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 Photo ordered-frame owner admits one private fixed proxy profile, evaluates natural geometry and supported shared effects, measures rendered histograms, joins cancellation and wipes every replaced stage independently of original custody; callers cannot select arbitrary limits." }
+		,
+		{ "path": "src/lightscaper/controller/photo-develop-proxy-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped photo proxy preserves its public signature, limits and view type while delegating ordered evaluation and bounded pixel retirement to the named fixed-profile Photo frame owner." }
 		,
 		{ "path": "src/lightscaper/controller/photo-develop-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selection, deterministic partial merge and shared-range relative deltas retain effect order and coherent mask identities without donating photo identity or external media authority." }
 		,

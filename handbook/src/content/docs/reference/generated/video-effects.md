@@ -24,6 +24,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Color Adjust | `color-adjust` | 5 |
 | Color grading wheels | `color-wheels-v1` | 9 |
 | Crop and perspective (contain) | `develop-geometry-v1` | 17 |
+| Detail sharpening | `detail-sharpen-v1` | 2 |
 | Drop Shadow | `drop-shadow` | 5 |
 | Gaussian Blur | `gaussian-blur` | 1 |
 | Glow | `glow` | 3 |
@@ -89,6 +90,8 @@ Defaults and limits come from the same definitions the editor validates against.
 | Crop and perspective (contain) | Bottom right Y | 1 | 0 to 1 | — |
 | Crop and perspective (contain) | Bottom left X | 0 | 0 to 1 | — |
 | Crop and perspective (contain) | Bottom left Y | 1 | 0 to 1 | — |
+| Detail sharpening | Amount | 100 | 0 to 200 | — |
+| Detail sharpening | Threshold | 0 | 0 to 255 | — |
 | Drop Shadow | Horizontal offset | 8 | -64 to 64 | pixels |
 | Drop Shadow | Vertical offset | 8 | -64 to 64 | pixels |
 | Drop Shadow | Radius | 6 | 0 to 20 | pixels |

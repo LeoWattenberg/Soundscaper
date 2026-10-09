@@ -307,6 +307,64 @@ test('actual persisted Frame curves consume the mixed native renderer with hidde
 	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
 });
 
+test('actual neighborhood shader preserves replicated edges, signed half ties, threshold and transparent-neighbor bytes', async ({ page }) => {
+	await prepare(page);
+	const source = [40,40,40,255,100,100,100,255,160,160,160,255];
+	for (const [params,expected] of [[{amount:100},[25,25,25,255,100,100,100,255,175,175,175,255]],
+		[{amount:50},[33,33,33,255,100,100,100,255,168,168,168,255]], [{amount:200,threshold:15},source]]) {
+		const result = await qualify(page,{source,effects:[effect('detail-sharpen-v1',params)],mode:'target'});
+		expect(result.detailProgramLinked).toBe(true); expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+		expect(result.pixels).toEqual(expected); expect(result.cpuPixels).toEqual(expected); expect(result.glError).toBe(0);
+	}
+	const hidden=[255,0,255,0,100,40,10,127,0,255,0,0];
+	const result=await qualify(page,{source:hidden,effects:[effect('detail-sharpen-v1')],mode:'target'});
+	expect(result.pixels).toEqual(hidden);expect(result.cpuPixels).toEqual(hidden);expect(result.glError).toBe(0);
+});
+
+test('actual detail shader matches independent two-dimensional alpha-weighted neighborhoods over all256 alphas and ordered passes', async ({ page }) => {
+	await prepare(page);const source=Array.from({length:256},(_,n)=>[n,255-n,(17*n)%256,n]).flat();
+	for(const [amount,threshold]of [[37.125,3],[200,0],[50,1],[0,0]]){
+		const expected=detailReference(source,16,amount,threshold);
+		const result=await qualify(page,{source,height:16,effects:[effect('detail-sharpen-v1',{amount,threshold})],mode:'target'});
+		expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+		expect(result.detailProgramLinked).toBe(true);expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+	}
+	const first=detailReference(source,16,37.125,3),invert=bytes=>bytes.map((n,i)=>i%4===3?n:255-n);
+	const effects=[effect('detail-sharpen-v1',{amount:37.125,threshold:3}),effect('point-curves-v1',{master:[{x:0,y:1},{x:1,y:0}]}),effect('detail-sharpen-v1',{amount:50,threshold:1},'last')];
+	const result=await qualify(page,{source,height:16,effects,mode:'target'});
+	expect(result.pixels).toEqual(detailReference(invert(first),16,50,1));expect(result.pixels).toEqual(result.cpuPixels);expect(result.glError).toBe(0);
+});
+
+test('actual persisted Frame spatial detail and curve consume the mixed renderer with unchanged straight alpha', async ({ page }) => {
+	await prepare(page);const source=[40,40,40,255,100,100,100,127,160,160,160,255];
+	const result=await qualify(page,{source,effects:[effect('detail-sharpen-v1',{amount:50}),effect('point-curves-v1',{master:[{x:0,y:1},{x:1,y:0}]})],mode:'frame'});
+	expect(result.authoredTypes).toEqual(['detail-sharpen-v1','point-curves-v1','color-adjust']);
+	expect(result.pixels).toEqual([219,219,219,255,155,155,155,127,90,90,90,255]);
+	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+});
+
+test('native wheel → detail → point-curve union preserves independently rounded partial-alpha literals', async ({ page }) => {
+	await prepare(page); const source = [40,80,120,0,100,140,180,127,160,200,240,255];
+	const effects = [effect('color-wheels-v1', { highlightsLuminance: 100 }),
+		effect('detail-sharpen-v1', { amount: 50, threshold: 3 }), effect('point-curves-v1', { master: [{ x: 0, y: 1 }, { x: 1, y: 0 }] })];
+	const result = await qualify(page, { source, effects, mode: 'target' });
+	expect(result.pixels).toEqual([197,144,90,0,137,79,12,127,31,0,0,255]); expect(result.cpuPixels).toEqual(result.pixels);
+	expect(result.wheelsProgramLinked).toBe(true); expect(result.detailProgramLinked).toBe(true);
+	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1); expect(result.glError).toBe(0);
+});
+
+// Independently addressed nine neighbors and BigInt rational blur/gain rounding.
+function detailReference(source,width,amount,threshold){
+	const height=source.length/(4*width),gain=BigInt(Math.round(amount*256/100)),neighbors=[[-1,-1,1],[0,-1,2],[1,-1,1],[-1,0,2],[0,0,4],[1,0,2],[-1,1,1],[0,1,2],[1,1,1]];
+	return source.map((original,offset)=>{
+		const channel=offset%4,pixel=Math.floor(offset/4);if(channel===3||source[pixel*4+3]===0)return original;
+		const x=pixel%width,y=Math.floor(pixel/width);let sum=0n,weight=0n;
+		for(const[dx,dy,w]of neighbors){const n=4*(Math.min(height-1,Math.max(0,y+dy))*width+Math.min(width-1,Math.max(0,x+dx))),a=BigInt(w*source[n+3]);weight+=a;sum+=a*BigInt(source[n+channel]);}
+		const blur=(2n*sum+weight)/(2n*weight),delta=BigInt(original)-blur;if((delta<0n?-delta:delta)<=BigInt(threshold))return original;
+		const n=delta*gain+128n,adjust=n>=0n?n/256n:-((-n+255n)/256n),value=BigInt(original)+adjust;return Number(value<0n?0n:value>255n?255n:value);
+	});
+}
+
 // Independent exact rational reference: no production HSL classifier/kernel.
 function hslReference(rgb,controls){
 	const Q=65536n,v=rgb.map(BigInt),max=v.reduce((a,b)=>a>b?a:b),min=v.reduce((a,b)=>a<b?a:b),c=max-min;if(c===0n)return rgb;

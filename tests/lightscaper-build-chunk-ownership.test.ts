@@ -214,7 +214,7 @@ test('original recovery composes only scalar, neutral and original-contract owne
 test('shared still admission, effect and mask contracts retain only imaging and inert foundation imports', () => {
 	const modules = ['image-import-admission.ts', 'image-format-signature.ts', 'image-decoder-routing.ts',
 		'video-effects.js', 'video-global-develop-v1.ts', 'video-chroma-develop-v1.ts', 'video-black-white-mix-v1.ts', 'video-hsl-mixer-v1.ts',
-		'video-curves-v1.ts', 'video-curve-transfer-v1.ts', 'video-curve-types-v1.ts', 'video-mask-matte-v24.ts', 'video-visual-model-v24.ts',
+		'video-curves-v1.ts', 'video-curve-transfer-v1.ts', 'video-curve-types-v1.ts', 'video-sharpen-v1.ts', 'video-sharpen-ffmpeg-v1.ts', 'video-mask-matte-v24.ts', 'video-visual-model-v24.ts',
 		'timeline-image-model.ts', 'timeline-image-frame-pack-v1.ts', 'timeline-image-frame-pack-v1-layout.ts',
 		'timeline-image-native-decode-v1.ts', 'timeline-image-browser-native-port.ts', 'timeline-image-conversion-receipt-v1.ts'];
 	for (const module of modules) {

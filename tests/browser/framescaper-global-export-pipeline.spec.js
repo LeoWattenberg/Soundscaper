@@ -74,6 +74,16 @@ for (const reverse of [false, true]) test(`native Canvas and actual selected com
 	expect(result.consumedNodeIds.length).toBeGreaterThan(0);
 });
 
+test('native Canvas capture and actual selected composition consume the persisted neighborhood recipe with exact pre-encode goldens', async ({ page }) => {
+	const result=await qualify(page,'detail');
+	const source=[40,80,120,255,100,140,180,255,160,200,240,255,220,60,20,255];
+	expect(result.captured).toEqual([source]);expect(result.sourceUnchanged).toEqual(source);
+	expect(result.effectedPixels).toEqual([0,47,92,255,85,162,217,255,175,252,255,255,255,17,0,255]);
+	// Declared existing linear UNORM8 composition quantization:47→46 and17→13.
+	expect(result.pixels).toEqual([0,46,92,255,85,162,217,255,175,252,255,255,255,13,0,255]);
+	expect(result.authoredTypes).toEqual(['detail-sharpen-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
+});
+
 async function qualify(page, mode) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalExportNativeV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

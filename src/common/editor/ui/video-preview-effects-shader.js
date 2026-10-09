@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { DETAIL_SHARPEN_GLSL_V1 } from './video-preview-sharpen-v1.ts';
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_GLSL_V1 } from '../video-chroma-develop-v1.ts';
 import { HSL_MIXER_GLSL_V1 } from '../video-hsl-mixer-v1.ts';
@@ -34,6 +35,7 @@ uniform float u_blur_weight_sum;
 in vec2 v_uv;
 out vec4 out_color;
 
+${DETAIL_SHARPEN_GLSL_V1}
 ${GLOBAL_DEVELOP_GLSL_V1}
 ${CHROMA_DEVELOP_GLSL_V1}
 ${BLACK_WHITE_MIX_GLSL_V1}
@@ -104,6 +106,7 @@ void main() {
 		out_color = vec4(0.0);
 		return;
 	}
+	if (u_effect == 27) { out_color = detail_sharpen_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 20) { out_color = geometry_render(content_uv) * vec4(1.0, 1.0, 1.0, u_opacity); return; }
 	vec4 color = u_effect == 0 ? sample_frame(v_uv) : sample_content(content_uv);
 

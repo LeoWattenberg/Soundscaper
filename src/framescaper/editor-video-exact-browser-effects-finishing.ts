@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { DETAIL_SHARPEN_EFFECT_TYPE_V1, normalizeDetailSharpenEffectV1 } from '../common/editor/video-sharpen-v1.ts';
+import { withDetailSharpenPixelFrameV1 } from '../common/editor/imaging/pixel-frame-sharpen-v1.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
 import { COLOR_WHEELS_EFFECT_TYPE_V1, normalizeColorWheelsEffectV1 } from '../common/editor/video-color-wheels-v1.ts';
 import { withGlobalDevelopPixelFrameV1 } from '../common/editor/imaging/pixel-frame-global-develop-v1.ts';
@@ -29,6 +31,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	const admitted = readClosedDomainArray(effects, 'Frame browser effects', 0, 100_000).map(value => {
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === COLOR_WHEELS_EFFECT_TYPE_V1) return normalizeColorWheelsEffectV1(value);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === DETAIL_SHARPEN_EFFECT_TYPE_V1) return normalizeDetailSharpenEffectV1(value);
 		if (isCurvesEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))) return normalizeCurvesEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return normalizeImageGeometryVideoEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === CHROMA_DEVELOP_EFFECT_TYPE_V1) return normalizeChromaDevelopEffectV1(value);
@@ -38,7 +41,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
 	const sourceFrame = readAdmittedFrame(frame, signal);
-	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1)) {
+	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1)) {
 		let current = clone(sourceFrame);
 		try {
 			for (const effect of admitted) {
@@ -46,7 +49,10 @@ export async function applyVideoExactBrowserEffectsFinishing(
 				const geometry = Object.getOwnPropertyDescriptor(effect, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1
 					? normalizeImageGeometryVideoEffectV1(effect) : null;
 				if (geometry && !geometry.enabled) continue;
-				const next = geometry ? await cloneScopedOutput(consume => withGeometryPixelFrameV1({ frame: { descriptor: { schemaVersion: 1,
+				const detail = Object.getOwnPropertyDescriptor(effect, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1;
+				const next = detail ? await cloneScopedOutput(consume => withDetailSharpenPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
+					: geometry ? await cloneScopedOutput(consume => withGeometryPixelFrameV1({ frame: { descriptor: { schemaVersion: 1,
 					width: current.width, height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels },
 					geometry: imageGeometryForVideoEffectV1(geometry, current.width, current.height), signal },
 					consume,

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { imageGeometryVideoFfmpegFilterV1 } from './video-image-geometry-ffmpeg-v1.ts';
+import { appendDetailSharpenFfmpegOperationV1 } from './video-sharpen-ffmpeg-v1.ts';
 
 type FilterOperation = Readonly<Record<string, unknown>>;
 
@@ -157,6 +158,7 @@ function appendAlphaUnderlay(context: VideoEffectGraphContext): void {
 
 export function appendVideoEffectOperation(context: VideoEffectGraphContext): void {
 	const { filters, inputLabel, outputLabel, operation } = context;
+	if (operation.kind === 'detail-sharpen-v1') { appendDetailSharpenFfmpegOperationV1(context); return; }
 	if (typeof operation.expression === 'string') {
 		if (operation.preserveAlpha) appendPreserveAlpha(filters, inputLabel, outputLabel, operation.expression);
 		else filters.push(`[${inputLabel}]${operation.expression}[${outputLabel}]`);
