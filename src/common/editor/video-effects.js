@@ -1,3 +1,5 @@
+import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1, POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1, normalizePostCropVignetteEffectV1,
+	normalizePostCropVignetteParamsV1, createPostCropVignetteEffectV1, serializePostCropVignetteEffectToFfmpegV1 } from './video-post-crop-vignette-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1, normalizeDetailSharpenEffectV1,
 	normalizeDetailSharpenParamsV1, serializeDetailSharpenEffectToFfmpegV1 } from './video-sharpen-v1.ts';
 import { readClosedDomainField, readClosedDomainRecord } from './closed-domain-value.ts';
@@ -120,6 +122,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 	...CURVES_VIDEO_EFFECT_DEFINITIONS_V1,
 	[COLOR_WHEELS_EFFECT_TYPE_V1]: COLOR_WHEELS_VIDEO_EFFECT_DEFINITION_V1,
 	[DETAIL_SHARPEN_EFFECT_TYPE_V1]: DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1,
+	[POST_CROP_VIGNETTE_EFFECT_TYPE_V1]: POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -156,6 +159,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
+	if (type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) { normalizePostCropVignetteParamsV1(params); return true; }
 	if (type === COLOR_WHEELS_EFFECT_TYPE_V1) { normalizeColorWheelsParamsV1(params); return true; }
 	if (type === DETAIL_SHARPEN_EFFECT_TYPE_V1) { normalizeDetailSharpenParamsV1(params); return true; }
 	if (type === 'point-curves-v1') { normalizePointCurvesParamsV1(params); return true; }
@@ -188,6 +192,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
+	if (type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return { ...normalizePostCropVignetteParamsV1(params) };
 	if (type === COLOR_WHEELS_EFFECT_TYPE_V1) return { ...normalizeColorWheelsParamsV1(params) };
 	if (type === DETAIL_SHARPEN_EFFECT_TYPE_V1) return { ...normalizeDetailSharpenParamsV1(params) };
 	if (type === 'point-curves-v1') return { ...normalizePointCurvesParamsV1(params) };
@@ -224,6 +229,7 @@ function normalizeVideoEffectParams(type, params, name) {
 export function createVideoEffect(type, options = {}) {
 	const stableType = nonEmptyString(type, 'videoEffect.type');
 	videoEffectDefinition(stableType);
+	if (stableType === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return createPostCropVignetteEffectV1(options, () => createStableId('video-effect'));
 	if (stableType === COLOR_WHEELS_EFFECT_TYPE_V1) {
 		const closed = readClosedDomainRecord(options, 'color wheel creation', ['id', 'type', 'enabled', 'params', 'index'], []);
 		const take = key => Object.hasOwn(closed, key) ? readClosedDomainField(closed, key, 'color wheel creation') : undefined;
@@ -263,6 +269,11 @@ export function createVideoEffect(type, options = {}) {
 export function normalizeVideoEffect(effect, name = 'videoEffect', options = {}) {
 	const typeDescriptor = Object.getOwnPropertyDescriptor(effect ?? {}, 'type');
 	if (typeDescriptor && !Object.hasOwn(typeDescriptor, 'value')) throw new TypeError(`${name}.type requires a data field.`);
+	if (typeDescriptor?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) {
+		const normalized = normalizePostCropVignetteEffectV1(effect);
+		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
+		return { ...normalized, params: { ...normalized.params } };
+	}
 	if (typeDescriptor?.value === COLOR_WHEELS_EFFECT_TYPE_V1) {
 		const normalized = normalizeColorWheelsEffectV1(effect);
 		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
@@ -335,6 +346,9 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
+	if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) {
+		const operation = serializePostCropVignetteEffectToFfmpegV1(effect); return operation ? [operation] : [];
+	}
 	if (effect.type === COLOR_WHEELS_EFFECT_TYPE_V1) {
 		const operation = serializeColorWheelsEffectToFfmpegV1(effect); return operation ? [operation] : [];
 	}

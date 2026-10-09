@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1, normalizePostCropVignetteEffectV1 } from '../common/editor/video-post-crop-vignette-v1.ts';
+import { withPostCropVignettePixelFrameV1 } from '../common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, normalizeDetailSharpenEffectV1 } from '../common/editor/video-sharpen-v1.ts';
 import { withDetailSharpenPixelFrameV1 } from '../common/editor/imaging/pixel-frame-sharpen-v1.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
@@ -30,6 +32,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	// A valid owning project is already bounded by the 100,000-node interchange ceiling.
 	const admitted = readClosedDomainArray(effects, 'Frame browser effects', 0, 100_000).map(value => {
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return normalizePostCropVignetteEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === COLOR_WHEELS_EFFECT_TYPE_V1) return normalizeColorWheelsEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === DETAIL_SHARPEN_EFFECT_TYPE_V1) return normalizeDetailSharpenEffectV1(value);
 		if (isCurvesEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))) return normalizeCurvesEffectV1(value);
@@ -41,7 +44,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
 	const sourceFrame = readAdmittedFrame(frame, signal);
-	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1)) {
+	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1)) {
 		let current = clone(sourceFrame);
 		try {
 			for (const effect of admitted) {
@@ -50,7 +53,9 @@ export async function applyVideoExactBrowserEffectsFinishing(
 					? normalizeImageGeometryVideoEffectV1(effect) : null;
 				if (geometry && !geometry.enabled) continue;
 				const detail = Object.getOwnPropertyDescriptor(effect, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1;
-				const next = detail ? await cloneScopedOutput(consume => withDetailSharpenPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+				const vignette = Object.getOwnPropertyDescriptor(effect, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1;
+				const next = vignette ? await cloneScopedOutput(consume => withPostCropVignettePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS })) : detail ? await cloneScopedOutput(consume => withDetailSharpenPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
 					: geometry ? await cloneScopedOutput(consume => withGeometryPixelFrameV1({ frame: { descriptor: { schemaVersion: 1,
 					width: current.width, height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels },

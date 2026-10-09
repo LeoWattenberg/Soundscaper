@@ -396,6 +396,8 @@
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-managed-sdr-grade-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped managed SDR grading reuses prepared color math with bounded borrowed chunks and wiped output."}
 		,
+		{"path": "src/common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped post-crop vignette snapshots one bounded straight-sRGB output, evaluates current natural coordinates through exact integer scalar math without lookup or mask arrays, joins native cancellation and consumer settlement, and wipes the captured backing on every retirement path."}
+		,
 		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped detail sharpening snapshots bounded straight encoded-sRGB pixels, evaluates alpha-weighted replicated-edge three-by-three binomial neighborhoods with exact Q8 gain, joins cancellation and wipes both owned backings after consumer settlement or failed allocation." }
@@ -522,6 +524,8 @@
 		,
 		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
 		,
+		{"path": "src/common/editor/ui/video-preview-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 code28 native post-crop vignette uses current texture dimensions and bounded highp integer coordinate, radius, smoothstep and signed byte arithmetic. Original maximum RGB and literal alpha preserve the shared straight encoded-sRGB process without Float32 large-product rounding."}
+		,
 		{ "path": "src/common/editor/ui/video-preview-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 native detail shader evaluates straight byte alpha-weighted replicated-edge three-by-three binomial neighborhoods through texelFetch and bounded highp integers with explicit signed Q8 floor rounding." }
 		,
 		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -605,6 +609,10 @@
 		{ "path": "src/common/editor/video-motion-processing-v27.ts", "kind": "persisted-contract", "justification": "video-motion-processing-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-motion-webgl2-v27.ts", "kind": "persisted-contract", "justification": "video-motion-webgl2-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{"path": "src/common/editor/video-post-crop-vignette-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning post-crop vignette graph requires the exact compiled scalar recipe and carries original alpha into ten-register spatial GEQ and final publication. Output-scoped labels preserve sequential mixed-stage composition without caller expressions or retained pixel masks."}
+		,
+		{"path": "src/common/editor/video-post-crop-vignette-v1.ts", "kind": "persisted-contract", "justification": "Version 1 post-crop vignette retains five closed numeric controls under the srgb-natural-output-vignette-q8-v1 process. Current natural-stage pixel centers, bounded integer radius interpolation, hard feather endpoints, signed half-up byte mixing and original-maximum highlight protection define ordered Frame and Photo evaluation; every alpha byte and zero-alpha hidden RGB remain unchanged, and legacy vignette recipes retain their bytes."}
 		,
 		{ "path": "src/common/editor/video-proxy-attachment-v18.ts", "kind": "persisted-contract", "justification": "video-proxy-attachment-v18.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,

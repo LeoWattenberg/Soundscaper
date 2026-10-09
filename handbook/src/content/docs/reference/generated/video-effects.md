@@ -34,6 +34,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Parametric curves | `parametric-curves-v1` | 19 |
 | Pixelate | `pixelate` | 1 |
 | Point curves | `point-curves-v1` | 4 |
+| Post-crop vignette | `post-crop-vignette-v1` | 5 |
 | RGB Split | `rgb-split` | 2 |
 | Sharpen | `sharpen` | 1 |
 | Spill Suppression | `spill-suppression` | 2 |
@@ -155,6 +156,11 @@ Defaults and limits come from the same definitions the editor validates against.
 | Point curves | Red | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
 | Point curves | Green | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
 | Point curves | Blue | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Post-crop vignette | Amount | 0 | -100 to 100 | — |
+| Post-crop vignette | Midpoint | 50 | 0 to 100 | — |
+| Post-crop vignette | Roundness | 0 | -100 to 100 | — |
+| Post-crop vignette | Feather | 50 | 0 to 100 | — |
+| Post-crop vignette | Highlights | 0 | 0 to 100 | — |
 | RGB Split | Horizontal offset | 6 | -64 to 64 | pixels |
 | RGB Split | Vertical offset | 0 | -64 to 64 | pixels |
 | Sharpen | Amount | 0.5 | 0 to 2 | — |

@@ -8,6 +8,28 @@ import { bindFramescaperUnifiedRenderTimingSidecarsFinishing } from '../../src/f
 import { createFramescaperSelectedExactFrameExecutionFinishing, type CaptureFrameFinishing } from '../../src/framescaper/selected-finishing-exact-frame-execution.ts';
 import { createVideoEffect } from '../../src/common/editor/video-effects.js';
 import { applyVideoExactBrowserEffectsFinishing } from '../../src/framescaper/editor-video-exact-browser-effects-finishing.ts';
+import { renderVideoPreviewStraightRgba } from '../../src/common/editor/ui/video-preview-straight-rgba.ts';
+
+/** Maintained real WebGL2 code28 over typed straight bytes; no Canvas ingress
+ * quantization or capability skip is substituted for shader execution. */
+export async function qualifyPostCropVignetteNativeV1() {
+	const cases=[{width:3,height:3,pixels:new Uint8Array(Array.from({length:9},()=>[128,64,255,127]).flat()),params:{amount:-100}},
+		{width:3,height:3,pixels:new Uint8Array(Array.from({length:9},()=>[128,64,255,127]).flat()),params:{amount:100}},
+		{width:16,height:16,pixels:new Uint8Array(Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat()),params:{amount:-100,midpoint:0,feather:0,roundness:100}},
+		{width:4095,height:1,pixels:new Uint8Array(Array.from({length:4095},()=>[128,64,255,127]).flat()),params:{amount:-100,roundness:100}},
+		{width:2,height:1,pixels:new Uint8Array([255,255,255,127,128,64,32,127]),params:{amount:-100,midpoint:0,feather:0,highlights:100}}];
+	const results=[];
+	for(const input of cases){
+		const before=[...input.pixels],effects=[createVideoEffect('post-crop-vignette-v1',{id:'vignette',params:input.params})];
+		let rendered:Awaited<ReturnType<typeof renderVideoPreviewStraightRgba>>|undefined,cpu:Awaited<ReturnType<typeof applyVideoExactBrowserEffectsFinishing>>|undefined;
+		try{
+			rendered=await renderVideoPreviewStraightRgba({width:input.width,height:input.height,pixels:input.pixels},effects,new AbortController().signal);
+			cpu=await applyVideoExactBrowserEffectsFinishing({width:input.width,height:input.height,pixels:input.pixels},effects,new AbortController().signal);
+			results.push({pixels:[...rendered.pixels],cpu:[...cpu.pixels],source:[...input.pixels],before});
+		}finally{rendered?.pixels.fill(0);cpu?.pixels.fill(0);input.pixels.fill(0);}
+	}
+	return results;
+}
 
 /** One actual persisted Frame recipe and its owning exact render/timing authority. */
 export function createGlobalExportContextV1(effects: readonly unknown[], width: number, height: number, backgroundColor = '#00000000') {

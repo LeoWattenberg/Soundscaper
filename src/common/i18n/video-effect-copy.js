@@ -2,6 +2,9 @@
 
 export const VIDEO_EFFECT_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
+		videoEffectPostCropVignette: 'Vignette nach Beschnitt', videoEffectPostCropVignetteAmount: 'Stärke', videoEffectPostCropVignetteMidpoint: 'Mittelpunkt',
+		videoEffectPostCropVignetteRoundness: 'Rundung', videoEffectPostCropVignetteFeather: 'Weiche Kante', videoEffectPostCropVignetteHighlights: 'Lichterschutz',
+		videoEffectPostCropVignetteInvalid: 'Vignettenwerte müssen endlich und innerhalb ihrer Grenzen sein.',
 		videoEffectColorWheels: 'Farbkorrekturräder',
 		videoEffectWheelShadows: 'Tiefen',
 		videoEffectWheelMidtones: 'Mitteltöne',
@@ -110,6 +113,9 @@ export const VIDEO_EFFECT_COPY_BY_LOCALE = Object.freeze({
 		videoEffectColorInvalid: 'Gib die Farbe als #RRGGBB ein.',
 	}),
 	en: Object.freeze({
+		videoEffectPostCropVignette: 'Post-crop vignette', videoEffectPostCropVignetteAmount: 'Amount', videoEffectPostCropVignetteMidpoint: 'Midpoint',
+		videoEffectPostCropVignetteRoundness: 'Roundness', videoEffectPostCropVignetteFeather: 'Feather', videoEffectPostCropVignetteHighlights: 'Highlight protection',
+		videoEffectPostCropVignetteInvalid: 'Vignette values must be finite and within their limits.',
 		videoEffectColorWheels: 'Color grading wheels',
 		videoEffectWheelShadows: 'Shadows',
 		videoEffectWheelMidtones: 'Midtones',

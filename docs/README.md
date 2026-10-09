@@ -26,6 +26,8 @@ belong in Git history, not in the maintained documentation set.
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Photo Develop workspace](architecture/lightscaper-develop-workspace.md)
   defines per-version history, scoped rendering, settings selection, and durable batch receipts.
+- [Shared post-crop vignette](architecture/video-post-crop-vignette.md)
+  defines natural-stage coordinates, integer process math, and original-alpha transport.
 - [Shared color grading wheels](architecture/color-grading-wheels.md)
   defines overlapping LGG authoring, the explicit scalar process and shared render ownership.
 - [Develop split preview](architecture/lightscaper-develop-split-preview.md)
