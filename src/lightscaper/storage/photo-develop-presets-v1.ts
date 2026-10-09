@@ -8,9 +8,11 @@ import type { KeyValueRepository } from '../../common/editor/storage/key-value-r
 import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';
 import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository-v1.ts';
 import { array, compareText, field, id, integer, record, unique } from '../catalog/value-validation.ts';
+import { borrowPhotoDevelopPresetEntryReader, photoDevelopPresetEntryValue } from './photo-develop-preset-read.ts';
 
 export const PHOTO_DEVELOP_PRESETS_LIMITS_V1 = Object.freeze({ maximumPresets: 16, maximumRowBytes: 10_485_760, maximumMenuBytes: 65_536 });
-export type PhotoDevelopPresetSettingsPortV1 = Pick<KeyValueRepository, 'get' | 'putIfAbsent' | 'replaceIfCurrent'>;
+export type PhotoDevelopPresetSettingsPortV1 = Pick<KeyValueRepository, 'get' | 'putIfAbsent' | 'replaceIfCurrent'>
+	& Readonly<Partial<Pick<KeyValueRepository, 'readEntry'>>>;
 export interface PhotoDevelopPresetRowV1 {
 	readonly schemaVersion: 1;
 	readonly kind: 'photo-develop-presets';
@@ -63,7 +65,8 @@ export function normalizePhotoDevelopPresetRowV1(value: unknown, catalogId: stri
 export async function readPhotoDevelopPresetsV1(repository: PhotoDevelopPresetSettingsPortV1, catalogId: string,
 	options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryDevelopPresetSnapshotV1> {
 	const key = photoDevelopPresetsKeyV1(catalogId), { signal } = readPhotoStackSignalOptionsV1(options); checkSignal(signal);
-	const raw = await repository.get(key); checkSignal(signal);
+	const read = borrowPhotoDevelopPresetEntryReader(repository), entry = await read(key); checkSignal(signal);
+	const raw = photoDevelopPresetEntryValue(entry);
 	return snapshot(raw === undefined ? { catalogId, revision: 0, presets: [] } : normalizePhotoDevelopPresetRowV1(raw, catalogId));
 }
 
@@ -72,7 +75,8 @@ export async function readPhotoDevelopPresetV1(repository: PhotoDevelopPresetSet
 	const key = photoDevelopPresetsKeyV1(catalogId), selected = id(presetId, 'Develop preset ID');
 	const expected = integer(expectedRevision, 0, Number.MAX_SAFE_INTEGER, 'Develop preset expected revision');
 	const { signal } = readPhotoStackSignalOptionsV1(options); checkSignal(signal);
-	const raw = await repository.get(key); checkSignal(signal);
+	const read = borrowPhotoDevelopPresetEntryReader(repository), entry = await read(key); checkSignal(signal);
+	const raw = photoDevelopPresetEntryValue(entry);
 	const row = raw === undefined ? { catalogId, revision: 0, presets: [] } : normalizePhotoDevelopPresetRowV1(raw, catalogId);
 	if (row.revision !== expected) throw new PhotoDevelopPresetRevisionConflictError();
 	const preset = row.presets.find(preset => preset.identity.id === selected);
@@ -86,7 +90,8 @@ export async function applyPhotoDevelopPresetV1(repository: PhotoDevelopPresetSe
 	const command = normalizePhotoDevelopPresetCommandV1(value), { signal } = readPhotoStackSignalOptionsV1(options); checkSignal(signal);
 	const root = validateLightscaperDocumentV1(catalog);
 	if (root.kind !== 'photo-catalog') throw new TypeError('Develop presets require the current catalog root.');
-	const key = photoDevelopPresetsKeyV1(root.id), raw = await repository.get(key); checkSignal(signal);
+	const key = photoDevelopPresetsKeyV1(root.id), read = borrowPhotoDevelopPresetEntryReader(repository), entry = await read(key); checkSignal(signal);
+	const raw = photoDevelopPresetEntryValue(entry);
 	const current = raw === undefined ? { catalogId: root.id, revision: 0, presets: [] } : normalizePhotoDevelopPresetRowV1(raw, root.id);
 	if (current.revision !== command.expectedRevision) throw new PhotoDevelopPresetRevisionConflictError();
 	const selected = command.type === 'save' ? command.preset.identity.id : command.presetId;
@@ -101,7 +106,7 @@ export async function applyPhotoDevelopPresetV1(repository: PhotoDevelopPresetSe
 	try { published = raw === undefined ? await repository.putIfAbsent(key, next) : await repository.replaceIfCurrent(key, raw, next); }
 	catch (failure) {
 		let actual: PhotoDevelopPresetRowV1 | undefined;
-		try { const recovered = await repository.get(key); actual = recovered === undefined ? undefined : normalizePhotoDevelopPresetRowV1(recovered, root.id); }
+		try { const recovered = photoDevelopPresetEntryValue(await read(key)); actual = recovered === undefined ? undefined : normalizePhotoDevelopPresetRowV1(recovered, root.id); }
 		catch (reconciliationFailure) { throw new AggregateError([failure, reconciliationFailure], 'Develop preset publication could not be reconciled.', { cause: reconciliationFailure }); }
 		if (actual && sameRow(actual, next)) return snapshot(actual);
 		throw failure;

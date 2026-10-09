@@ -34,7 +34,7 @@ export interface PhotoMediaStoreOptionsV1 {
 }
 
 export type PhotoMediaSettingsRepositoryV1 = Readonly<Pick<KeyValueRepository,
-	'get' | 'put' | 'delete' | 'putIfAbsent' | 'replaceIfCurrent' | 'replaceIfCurrentAndPutIfAbsent' | 'deleteIfCurrent'>>;
+	'get' | 'readEntry' | 'put' | 'delete' | 'putIfAbsent' | 'replaceIfCurrent' | 'replaceIfCurrentAndPutIfAbsent' | 'deleteIfCurrent'>>;
 export type PhotoOriginalMediaRepositoryV1 = Readonly<Pick<MediaRepository,
 	'catalogOriginals' | 'beginAssetWrite' | 'writeAsset' | 'loadAsset' | 'getAssetMetadata' | 'deleteAsset'
 	| 'inspectCatalogOriginalBody' | 'restoreCatalogOriginalBody'>>;
@@ -99,6 +99,7 @@ export class PhotoMediaStoreV1 {
 		const settings = new KeyValueRepository(guarded, 'settings');
 		this.settingsRepository = Object.freeze({
 			get: (key: string) => this.#own(() => settings.get(key)),
+			readEntry: (key: string) => this.#own(() => settings.readEntry(key)),
 			put: (key: string, value: unknown) => this.#own(() => settings.put(key, value)),
 			delete: (key: string) => this.#own(() => settings.delete(key)),
 			putIfAbsent: (key: string, value: unknown) => this.#own(() => settings.putIfAbsent(key, value)),

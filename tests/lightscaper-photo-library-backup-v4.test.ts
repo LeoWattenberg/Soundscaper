@@ -99,14 +99,14 @@ test('physical absence and retained empty revisions remain distinct through live
 	} finally { await f.close(); }
 });
 
-test('borrowed preset get identity and receiver are pinned before held originals allow replacement', async () => {
+test('borrowed preset readEntry identity and receiver are pinned before held originals allow replacement', async () => {
 	const f = await fixture(), entered = deferred<void>(), release = deferred<void>(); await f.settings.put(f.key, presetRow());
 	let reads = 0;
-	const settings = { async get(key: string) { assert.equal(this, settings); reads++; return f.settings.get(key); } };
+	const settings = { async readEntry(key: string) { assert.equal(this, settings); reads++; return f.settings.readEntry(key); } };
 	const work = exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: settings,
 		async loadOriginal(...args) { entered.resolve(); await release.promise; return f.ports.loadOriginal(...args); } });
 	try {
-		await entered.promise; settings.get = async () => { assert.fail('Replaced get must not run'); }; release.resolve();
+		await entered.promise; settings.readEntry = async () => { assert.fail('Replaced readEntry must not run'); }; release.resolve();
 		assert.equal((await work).document.developPresetPack?.revision, 37); assert.equal(reads, 2);
 	} finally { release.resolve(); await work; await f.close(); }
 });
@@ -115,8 +115,8 @@ for (const phase of ['capture', 'verify'] as const) test(`held preset ${phase} c
 	const f = await fixture(), target = destination(), stop = new AbortController(), entered = deferred<void>(), release = deferred<void>();
 	await f.settings.put(f.key, presetRow()); let reads = 0;
 	const reason = Object.freeze({ cancelled: phase });
-	const work = exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: { async get(key) {
-		reads++; if (reads === (phase === 'capture' ? 1 : 2)) { entered.resolve(); await release.promise; } return f.settings.get(key);
+	const work = exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: { async readEntry(key) {
+		reads++; if (reads === (phase === 'capture' ? 1 : 2)) { entered.resolve(); await release.promise; } return f.settings.readEntry(key);
 	} } }, { signal: stop.signal, writable: target.writable });
 	const joined = work.catch(() => undefined);
 	try {
@@ -132,8 +132,12 @@ test('a missing preset reader refuses before initial catalog capture and never s
 	const f = await fixture(false), target = destination(); let snapshots = 0;
 	try {
 		const read = f.catalog.readSnapshot.bind(f.catalog); f.catalog.readSnapshot = async (...args) => { snapshots++; return read(...args); };
-		await assert.rejects(exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: undefined } as unknown as PhotoLibraryBackupPortsV4,
-			{ writable: target.writable }), /capabilit/iu);
+		let legacyReads = 0;
+		for (const settings of [undefined, { async get() { legacyReads++; return undefined; } }]) {
+			await assert.rejects(exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: settings } as unknown as PhotoLibraryBackupPortsV4,
+				{ writable: target.writable }), /capabilit/iu);
+		}
+		assert.equal(legacyReads, 0);
 		assert.equal(snapshots, 0); assert.deepEqual(target.events, []); assert.equal(target.writable.locked, false);
 	} finally { await f.close(); }
 });
@@ -144,8 +148,8 @@ test('opaque final preset cancellation survives a distinct failed destination ab
 	const reason = new Proxy({}, { get() { inspections++; throw new Error('Opaque read'); }, getPrototypeOf() { inspections++; throw new Error('Opaque prototype'); } });
 	const cleanup = new Error('Destination abort failed');
 	const writable = new WritableStream<Uint8Array>({ write() {}, abort() { throw cleanup; } });
-	const work = exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: { async get(key) {
-		reads++; if (reads === 2) { entered.resolve(); await release.promise; } return f.settings.get(key);
+	const work = exportPhotoLibraryBackupV4(f.root.id, { ...f.ports, developPresetSettings: { async readEntry(key) {
+		reads++; if (reads === 2) { entered.resolve(); await release.promise; } return f.settings.readEntry(key);
 	} } }, { signal: stop.signal, writable });
 	let failure: unknown; const joined = work.catch((error: unknown) => { failure = error; });
 	try {

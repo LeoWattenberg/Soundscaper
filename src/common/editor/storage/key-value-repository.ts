@@ -7,6 +7,7 @@ import { cloneStorageValue as clone } from './storage-clone.ts';
 
 type KeyValueStoreName = 'settings' | 'analysis';
 export type KeyValueWriteAdmission = (durable: boolean) => void;
+export type KeyValueEntry = Readonly<{ present: false }> | Readonly<{ present: true; value: unknown }>;
 const KEY_VALUE_INVENTORY_PAGE_SIZE = 64;
 const MAXIMUM_KEY_VALUE_INVENTORY_RECORDS = 65_536;
 const MAXIMUM_KEY_VALUE_PREFIX_RECORDS = 4_096;
@@ -285,6 +286,23 @@ export class KeyValueRepository {
 			store.put(inventoryRecord);
 			return true;
 		});
+	}
+
+	/** One point read preserves physical presence even when a retained wrapper has no value. */
+	async readEntry(key: string): Promise<KeyValueEntry> {
+		const database = await this.#port.database();
+		let value: unknown;
+		if (!database) {
+			const rows = this.#port.memory[this.#storeName];
+			if (!rows.has(key)) return Object.freeze({ present: false });
+			value = rows.get(key);
+		} else {
+			value = await transact(database, this.#storeName, 'readonly', stores => request(stores[this.#storeName].get(key)));
+			if (value === undefined) return Object.freeze({ present: false });
+		}
+		const descriptor = value !== null && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'value') : undefined;
+		if (descriptor && !Object.hasOwn(descriptor, 'value')) throw new TypeError('A stored key/value wrapper requires an own data value.');
+		return Object.freeze({ present: true, value: clone(descriptor?.value as unknown) });
 	}
 
 	async get(key: string): Promise<unknown> {

@@ -132,8 +132,8 @@ test('A saved partial body applies through the existing revision-fenced photo hi
 
 test('Close joins a held preset read and refuses stale body publication with an opaque caller cancellation unchanged', async () => {
 	const f = await fixture(), entered = deferred<void>(), held = deferred<void>(), controller = new AbortController(), reason = Object.freeze({ cancelled: 'read' });
-	const get = f.repository.get.bind(f.repository);
-	f.repository.get = async key => { entered.resolve(); await held.promise; return get(key); };
+	const readEntry = f.repository.readEntry.bind(f.repository);
+	f.repository.readEntry = async key => { entered.resolve(); await held.promise; return readEntry(key); };
 	try {
 		const reading = f.presets.list({ schemaVersion: 1, catalogId: 'catalog' }, { signal: controller.signal }).catch((error: unknown) => error);
 		await entered.promise; controller.abort(reason);
