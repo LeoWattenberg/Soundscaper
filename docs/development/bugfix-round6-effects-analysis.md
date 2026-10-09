@@ -29,7 +29,11 @@ bringing this register to twenty verified roots. R6-EFFECT-021 passes its comple
 ordinary Source/menu/Apply/WAV workflow in all three engines on immutable
 Green14 `756da708e`
 (`/tmp/soundscaper-round6-green14-public-browser.log`), bringing this register to
-twenty-one verified roots. R6-EFFECT-022–023 have focused GREEN and await a later
+twenty-one verified roots. R6-EFFECT-022 passes both complete normal Chromium
+workflows on immutable Green15 `de04b82c9`
+(`/tmp/soundscaper-round6-green15-public-browser.log`), bringing this register to
+twenty-two verified roots; Firefox/WebKit verification remains pending after
+the retained failed runs. R6-EFFECT-023 has focused GREEN and awaits a later
 build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
@@ -805,9 +809,19 @@ All nine new/existing renderer, native stereo-spectrum, section lifecycle and
 project-history cases pass after repair
 (`/tmp/soundscaper-r6-effects-live-spectrogram-frequency-buckets-node-green.log`).
 The initial missing style-asset loader is excluded. Focused strict types,
-targeted type-aware lint and size/diff checks pass. Public GREEN awaits
-the next immutable product build. No assistance runtime assets change and no
-manual **Update AI assets** run is required.
+targeted type-aware lint and size/diff checks pass. Both complete ordinary
+Chromium workflows pass on immutable Green15 `de04b82c9`, with current-column
+RGB 243 and native bin/clock/Spectrum controls retained
+(`/tmp/soundscaper-round6-green15-public-browser.log`). The batch's Firefox
+cases exceed their unchanged 30-second deadline, one before playback and one
+after printing the correct RGB 243. WebKit's neighboring control loses its
+signal and its skipped-bucket case paints correct RGB 243 but reads a decaying
+native spectrum at −38.52 dB. The unchanged isolated Firefox/WebKit retry also
+fails under host load above 100 and full swap
+(`/tmp/soundscaper-r6-effects-live-spectrogram-green15-isolated-retry.log`).
+Those engines remain pending; no assertion, deadline or fixture was relaxed.
+No assistance runtime assets change and no manual **Update AI assets** run is
+required.
 
 ## R6-EFFECT-023 — Legacy Compressor refuses ordinary audio followed by silence
 
