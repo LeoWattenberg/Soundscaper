@@ -11,6 +11,10 @@ import { exportProjectEdl, exportProjectOtio, exportProjectFcpxml, resolveDelive
 import { createDawprojectExport } from '../src/common/editor/dawproject-export.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
 import { createExportActionGroup } from '../src/common/editor/controller/export/export-action-group.ts';
+import { projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import type { InterchangeProductProjection } from '../src/common/editor/controller/export/internal/interchange-multicamera-delivery.ts';
+import type { NativeProjectServiceRuntime } from '../src/common/editor/controller/document/native-project-types.ts';
 
 for (const mode of ['ordinary', 'initial', 'switched'] as const) {
 	for (const [format, action] of [['edl', exportProjectEdl], ['otio', exportProjectOtio], ['fcpxml', exportProjectFcpxml]] as const) {
@@ -103,3 +107,13 @@ function fixture(mode: 'ordinary' | 'initial' | 'switched', options: { opacity?:
 	assert.equal(validateFramescaperProject(PROFILE, project), true);
 	return project;
 }
+
+test('the actual common controller projection binds to native and exchange export ports', () => {
+	const exchange: InterchangeProductProjection = projectForRuntimeConsumers;
+	const native: NonNullable<NativeProjectServiceRuntime['projectForRuntimeConsumers']> = projectForRuntimeConsumers;
+	const project = createCurrentAudioEditorProject();
+	const before = structuredClone(project);
+	assert.equal(exchange(project).sampleRate, project.sampleRate);
+	assert.equal(native(project).sampleRate, project.sampleRate);
+	assert.deepEqual(project, before);
+});

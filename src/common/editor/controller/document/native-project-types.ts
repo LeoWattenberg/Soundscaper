@@ -17,6 +17,7 @@ import type { ProjectFlushOptions } from './project-save-service.ts';
 import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.ts';
 import type { ExternalAudioDecoder, ExternalMediaResolver } from '../../scape-external-media.ts';
 import type { DawprojectImportRoutingContext } from '../../dawproject-import-structure.ts';
+import type { InterchangeProductProjection } from '../export/internal/interchange-multicamera-delivery.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -354,7 +355,7 @@ export interface NativeAudioBuffer {
 }
 
 export interface NativeProjectServiceRuntime {
-	readonly projectForRuntimeConsumers?: (project: unknown) => Readonly<Record<string, unknown>>;
+	readonly projectForRuntimeConsumers?: InterchangeProductProjection;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
