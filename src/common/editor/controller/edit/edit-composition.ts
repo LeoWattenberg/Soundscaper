@@ -270,6 +270,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		redoEditorCommand: projectRuntime.redo,
 		resolveEditingSelection,
 		setSessionClipboard: clipboard.setSessionClipboard,
+		prepareSessionClipboard: clipboard.prepareSessionClipboard,
 		state,
 		undoEditorCommand: projectRuntime.undo,
 	});
