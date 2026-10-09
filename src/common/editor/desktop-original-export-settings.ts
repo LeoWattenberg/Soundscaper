@@ -4,6 +4,7 @@ import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
 import { inspectAiffBlobPcm } from './aiff-pcm-chunk-reader.ts';
 import { inspectWavBlobPcm } from './wav-import.js';
 import { originalMpegExportSettings } from './desktop-original-mpeg-settings.ts';
+import { readDesktopOriginalM4aMovie } from './desktop-original-m4a-movie.ts';
 import { BIT_RATES } from './media-export-values.js';
 import { sampleFrameToSeconds } from './timeline-time.ts';
 
@@ -53,7 +54,11 @@ export async function resolveDesktopOriginalExportSettings(
 			return Object.freeze({ ...audioBase(pcm.format ?? format, pcm.sampleRate, pcm.channelCount),
 				sampleFormat: pcm.sampleFormat, bitDepth: pcm.bitDepth });
 		}
-		if (!matchesEncodedContainer(format, header)) return null;
+		if (!matchesEncodedContainer(format, header)) {
+			const movie = format === 'aac-m4a' && ascii(header, 4, 4) === 'ftyp'
+				? await readDesktopOriginalM4aMovie(file, MAXIMUM_HEADER_BYTES) : null;
+			if (!movie || !hasAacSampleEntry(movie)) return null;
+		}
 		const sampleRate = positiveInteger(source.originalSampleRate) ?? positiveInteger(source.sampleRate)
 			?? inspectEncodedAudioSampleRate(header);
 		const channels = positiveInteger(source.channelCount);

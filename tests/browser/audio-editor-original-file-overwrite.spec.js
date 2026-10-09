@@ -3,6 +3,7 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
+import { ordinaryTailM4aFixture } from '../helpers/ordinary-tail-m4a-fixture.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { decodePinnedVideoRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
 import {
@@ -112,6 +113,17 @@ test('deleting the imported clip during original destination preparation release
 	await page.evaluate(() => globalThis.__originalOverwriteFixture.releasePreparation());
 	await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.releasedTargets)).toEqual(['4'.repeat(48)]);
 	expect(await page.evaluate(() => globalThis.__originalOverwriteFixture.completed)).toEqual([]);
+});
+
+test('ordinary tail-metadata AAC import keeps the original overwrite menu available', async ({ page }) => {
+	const file = await ordinaryTailM4aFixture();
+	const fixture = { name: file.name, mimeType: file.type, buffer: Buffer.from(await file.arrayBuffer()) };
+	await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseFileAction(page, editor, 'Import');
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	const menu = await openNestedCommandMenu(page, editor, 'File', []);
+	await expect(menu.getByRole('menuitem', { name: `Overwrite ${fixture.name}`, exact: true })).toBeEnabled();
 });
 
 for (const variant of [
