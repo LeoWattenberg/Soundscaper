@@ -653,3 +653,41 @@ failures are retained: editor boot visibility and whole-test export-close
 deadlines; no PCM failure or changed assertion, source or timeout is involved.
 The complete all-engine run itself continues in WebKit and is not claimed
 to pass. No assistance runtime asset update is required.
+
+Immutable Green35 `1f33ae496` passes both guarded product builds and completes
+14 of18 initial Chromium workflows (`/tmp/soundscaper-round6-green35-chromium.log`).
+Seven newly verified roots complete their entire retained public paths: I/O034
+publishes and reloads images after dirty timing Undo; editing053 keeps native
+mono Take Comp output and Undo/Redo; effects044/045 preserve actual Reverb tail
+and Click Removal PCM with zero lost frames; dialogs064/065/067 retain locked
+target admission, native source frequency defaults and effect-popup shortcut
+ownership. The existing native spectral worker control and zero-count label-lock
+and native reader-stop completions also pass.
+
+The four initial failures are fixture observers after the repaired behavior:
+I/O036 correctly refuses the real16-bit PNG through the normal visible alert,
+while its fixture expects the toolbar status; dialog066 retains all native
+composition assertions, then waits for a nonexistent Undo toolbar selector.
+Use the actual visible refusal alert and existing Edit → Undo/Redo menu.
+The corrected fixtures retain exact no-publication, saved/reopened static image,
+native draft and history assertions; each remains causally RED on unchanged
+Green34. Without any production change, Green35 completes all three musical
+field workflows in2.7/2.3/2.7seconds (`/tmp/soundscaper-round6-musical-number-composition-public-green.log`)
+and both ordinary image precision controls in4.2/2.1seconds
+(`/tmp/soundscaper-round6-image-precision-public-green.log`). Native WebKit's
+actual static-only bitmap route completes both static PNG and visible APNG
+refusal workflows in7.2/4.2seconds (`/tmp/soundscaper-round6-image-animation-public-green.log`);
+its faithful alert fixture also remains causally RED on unchanged Green34.
+These qualify dialog066 and I/O035/036. There are **199 distinct publicly
+verified fixes**: editing53, effects45, I/O35 and dialogs66. EDIT054 is the sole
+pending qualifying candidate and contributes zero until its whole build passes.
+
+Three additional full100 WebKit failures pass unchanged isolated retries on
+the same `ba2dac3c3`: complete multi-selection move/trim/stretch4.6seconds,
+right-edge playback follow4.9seconds and pinned off-screen follow6.3seconds
+(`/tmp/soundscaper-r6-edit-full100-webkit-unchanged-retry.log`,3/3). The original
+failures retain their actual shared playback-start refusal or transient canvas
+observation; all assertions, deadlines and source stay unchanged. The complete
+all-engine full100 run and queued150 run remain pending; neither is claimed
+to pass. Green35's complete static gate is running. No manual **Update AI assets**
+run is required: the browser/UI/test changes retain the assistance runtime closure.
