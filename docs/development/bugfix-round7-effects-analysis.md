@@ -281,3 +281,41 @@ or planning normalized export. Its actual normal crescendo regression is RED
 at −6.02078 dBTP instead of −5.93218; the one-line caller correction keeps
 integrated/momentary loudness unchanged. Ending/BEXT/normalized-render/export
 plan support passes 35/35. This closes R7-EFFECT-008 without another count.
+
+## R7-EFFECT-009 — A closed live Noise gate opens when its attenuation is reduced
+
+Import a normal quiet recording with peak amplitude 0.1. Track Effects → Add
+Noise gate, set Gate threshold to −6 dB, Attack to 1 ms, Release to 4 seconds,
+Hold to zero and Level reduction to −80 dB. Play, then change
+Level reduction to −60 dB. The recording never crosses the gate threshold,
+but the accepted floor edit attacks toward unity instead of the new 0.001
+closed-gate gain, briefly amplifying the output far beyond that floor.
+
+Use the actual envelope target in the existing attack interpolation and its
+completed endpoint. Preserve normal unity opening, held audio, delayed audio,
+release, linked/independent detection and unchanged controls. This attack-target
+root is separate from R7-EFFECT-005's live channel-state joining.
+
+Six actual processor regressions fail before correction at the supported
+−80 → −60/−24/−6 dB floor edits in both linking modes; genuine open/hold/release
+and block cadence controls already pass. Corrected floor, linking, default
+lookahead and physical crossover-tail support passes 24/24. Target type-aware
+lint passes. The actual native running-rack control witness in
+`audio-editor-round7-noise-gate-floor.spec.js` is causally RED on immutable
+`e2a38ecb5` (4.2 seconds): the healthy closed output passes, then the normal
+attenuation edit produces peak 0.00345497485 instead of at most 0.000102. The
+accepted actual running-node update and at least four measured changed blocks
+also pass. The corrected peak bounds and unchanged node identity assertion await
+the root-owned new capture.
+PCM and observations remain bounded in memory, with no generated
+verification files or raw coverage. Assistance runtime assets are unchanged.
+The initial browser setup attempted a Lookahead field omitted by the shipped
+Noise gate layout and is excluded before playback or the causal edit; the
+corrected witness retains the ordinary default preview buffer.
+
+The earlier uncounted native surround Reverb candidate is excluded. Its normal
+export is deliberately refused by the existing stereo-width admission owner;
+its corrected ordinary playback/front-pair control passes on immutable
+`e2a38ecb5` (4.1 seconds), so the wider mocked input is not established through
+that available route. Both uncounted verification specs were removed immediately
+and no Reverb source or admission contract was changed.
