@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { PhotoCatalogIndexSourceV1 } from './photo-catalog-index-source-v1.ts';
+
 import { validateLightscaperDocumentV1 } from './documents.ts';
 import { PHOTO_CATALOG_REPOSITORY_LIMITS as LIMITS, type PhotoCatalogFilterV1, type PhotoCatalogIndexStateV1, type PhotoMembershipV1, type PhotoSummaryV1 } from './repository-types.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoCatalogRootV1, type PhotoDocumentV1 } from './types.ts';
@@ -25,7 +27,7 @@ export function readIndexState(value: unknown): PhotoCatalogIndexStateV1 {
 		photoCount: integer(field(input, 'photoCount'), 0, LIGHTSCAPER_CATALOG_LIMITS.maximumPhotos, 'catalog photo count') });
 }
 
-export function photoSummary(photo: PhotoDocumentV1): PhotoSummaryV1 {
+export function photoSummary(photo: PhotoCatalogIndexSourceV1): PhotoSummaryV1 {
 	return readPhotoSummary({ key: photoStorageKey(photo.catalogId, photo.id), catalogId: photo.catalogId,
 		photoId: photo.id, photoRevision: photo.revision, fileName: photo.metadata.fileName,
 		captureLocal: photo.metadata.captureTime?.local ?? null, rating: photo.rating, flag: photo.flag,
@@ -81,7 +83,7 @@ export function filterScope(catalogId: string, value?: PhotoCatalogFilterV1): st
 	return `${catalog}|${kind}|${filter}`;
 }
 
-export function photoMemberships(photo: PhotoDocumentV1): readonly PhotoMembershipV1[] {
+export function photoMemberships(photo: PhotoCatalogIndexSourceV1): readonly PhotoMembershipV1[] {
 	const photoKey = photoStorageKey(photo.catalogId, photo.id);
 	const filters: PhotoCatalogFilterV1[] = [
 		{ kind: 'rating', value: photo.rating }, { kind: 'flag', value: photo.flag }, { kind: 'label', value: photo.colorLabel },

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { PhotoCatalogIndexSourceV1 } from './photo-catalog-index-source-v1.ts';
+
 import { normalizePhotoDevelopV1 } from './develop-state.ts';
 import { normalizePhotoDevelopWorkspaceV1 } from './photo-develop-workspace-v1.ts';
 import { capturePhotoDocumentEnvelopeV1, normalizePhotoDocumentEnvelopeV1 } from './photo-document-envelope-v1.ts';
@@ -20,7 +22,7 @@ export function normalizePhotoDocumentV1(value: unknown): PhotoDocumentV1 {
 }
 
 /** Run at the catalog transaction boundary, after independently reading one photo row. */
-export function validatePhotoCatalogReferencesV1(photo: PhotoDocumentV1, root: PhotoCatalogRootV1): void {
+export function validatePhotoCatalogReferencesV1(photo: PhotoCatalogIndexSourceV1, root: PhotoCatalogRootV1): void {
 	if (photo.catalogId !== root.id) throw new ReferenceError('Photo belongs to a different catalog.');
 	const folders = new Set(root.folders.map((folder) => folder.id));
 	const keywords = new Set(root.keywords.map((keyword) => keyword.id));

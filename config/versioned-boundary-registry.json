@@ -762,6 +762,12 @@
 		,
 		{"path": "src/lightscaper/archive/smart-collection-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 canonical framed saved-collection records preserve complete Query2 criteria under independent streamed record, pack, chunk and cleanup bounds."}
 		,
+		{"path": "src/lightscaper/catalog/photo-catalog-index-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 admitted metadata field projection lends only index facts from whole Photo1 or Photo2 documents without changing legacy document authority."}
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-records-v2.ts", "kind": "helper-contract", "justification": "Version 2 stored photo reader admits exact Photo1 or Photo2 documents and binds the closed wrapper to the requested physical key."}
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-repository-v2.ts", "kind": "helper-contract", "justification": "Version 2 explicit mixed-photo durable facade joins its own database lifetime and requires complete selected-library resource verification before native photo writes."}
+		,
 		{ "path": "src/lightscaper/catalog/photo-catalog-restore-audit-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 restored candidate inventories retain bounded ASCII primary-key pages, refuse the first excess key, and compare closed persisted projections without bulk record arrays." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-catalog-restore-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private restored source audits bind delivered document digests to exact derived rows, paired summaries, memberships and all referenced catalog authority." }
@@ -775,6 +781,8 @@
 		{ "path": "src/lightscaper/catalog/photo-catalog-restore-records-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh catalog restore projections preserve archived documents and revisions while explicitly deriving pending index state and exact physical saved-state presence." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-catalog-restore-stage-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial catalog restore stage requires native fresh-database proof, joins admission and retirement, and acknowledges audited candidate readiness without publishing a library pointer or original media." }
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-writes-v2.ts", "kind": "helper-contract", "justification": "Version 2 mixed-photo native publication preserves aggregate schema and original facts while atomically updating unchanged catalog and metadata indexes."}
 		,
 		{ "path": "src/lightscaper/catalog/photo-cube-lut-closure-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar LUT-reference collector admits explicit Develop state versions, retains disabled resource references, rejects conflicting digest geometry and seals its identity ledger; complete photo, history, snapshot and preset traversal remains the later product owner's responsibility." }
 		,
@@ -807,6 +815,8 @@
 		{ "path": "src/lightscaper/catalog/photo-query-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 catalog query pages traverse globally ordered indexes with bounded candidate work and live smart collection evaluation." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-pages-v2.ts", "kind": "helper-contract", "justification": "Version 2 metadata query pages traverse bounded globally ordered derived rows and return catalog context, revisions and scalar summaries from one native transaction." }
+		,
+		{"path": "src/lightscaper/catalog/photo-query-rebuild-photos-v2.ts", "kind": "helper-contract", "justification": "Version 2 bounded mixed-photo source rebuild publishes unchanged query row profiles with canonical source admission and readiness count fences."}
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v1.ts", "kind": "helper-contract", "justification": "Version 1 resumable query index rebuild publishes bounded derived rows and progress atomically without rewriting original photo documents." }
 		,

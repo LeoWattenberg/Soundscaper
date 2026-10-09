@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { PhotoCatalogIndexSourceV1 } from './photo-catalog-index-source-v1.ts';
+
 import { normalizePhotoMetadataV1 } from './photo-metadata.ts';
 import { photoStorageKey, readPhotoSummary } from './repository-records.ts';
 import type { PhotoSummaryV1 } from './repository-types.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoDocumentV1, type PhotoMetadataV1, type PhotoFlagV1, type PhotoColorLabelV1 } from './types.ts';
+import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoMetadataV1, type PhotoFlagV1, type PhotoColorLabelV1 } from './types.ts';
 import { field, oneOf, record, uniqueIds } from './value-validation.ts';
 
 /** All five legal16384-unit texts, camera strings and both membership sets fit without truncation. */
@@ -45,7 +47,7 @@ const FIELDS = ['schemaVersion', 'key', 'catalogId', 'photoId', 'photoRevision',
 	'colorLabel', 'folderId', 'activeVersionId', 'originalSha256', 'width', 'height', 'keywordIds', 'collectionIds',
 	'fileNameSort', 'captureBucket', 'captureSort', 'ratingSort'];
 
-export function projectPhotoQueryRowV2(photo: PhotoDocumentV1): PhotoQueryRowV2 {
+export function projectPhotoQueryRowV2(photo: PhotoCatalogIndexSourceV1): PhotoQueryRowV2 {
 	const metadata = normalizePhotoMetadataV1(photo.metadata);
 	return readPhotoQueryRowV2({ schemaVersion: 2, key: photoStorageKey(photo.catalogId, photo.id), catalogId: photo.catalogId,
 		photoId: photo.id, photoRevision: photo.revision, ...metadata, rating: photo.rating, flag: photo.flag,

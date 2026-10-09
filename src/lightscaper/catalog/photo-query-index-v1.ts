@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { PhotoCatalogIndexSourceV1 } from './photo-catalog-index-source-v1.ts';
+
 import { photoSummary, readPhotoSummary } from './repository-records.ts';
 import type { PhotoSummaryV1 } from './repository-types.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoDocumentV1 } from './types.ts';
+import { LIGHTSCAPER_CATALOG_LIMITS } from './types.ts';
 import { field, id, integer, record, text, uniqueIds } from './value-validation.ts';
 import { PHOTO_QUERY_LIMITS_V1, type PhotoCatalogQueryV1 } from './photo-query-types-v1.ts';
 import { request } from '../../common/editor/storage/indexeddb-backend.ts';
@@ -29,7 +31,7 @@ export const PHOTO_QUERY_INDEXES_V1 = Object.freeze({
 	'capture-time': ['catalogId', 'captureBucket', 'captureSort', 'photoId'], 'rating': ['catalogId', 'ratingSort', 'photoId'],
 });
 
-export function projectPhotoQueryRowV1(photo: PhotoDocumentV1): PhotoQueryRowV1 {
+export function projectPhotoQueryRowV1(photo: PhotoCatalogIndexSourceV1): PhotoQueryRowV1 {
 	const summary = photoSummary(photo);
 	return readPhotoQueryRowV1({ schemaVersion: 1, key: summary.key, catalogId: summary.catalogId, photoId: summary.photoId, summary,
 		title: photo.metadata.title, caption: photo.metadata.caption, creator: photo.metadata.creator, location: photo.metadata.location,
