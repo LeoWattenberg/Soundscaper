@@ -197,7 +197,8 @@ export default function AudioEditorSearch({
 
 	const onInputKeyDown = (event) => {
 		if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+		if ((event.key === 'ArrowDown' || event.key === 'ArrowUp')
+			&& !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
 			event.preventDefault();
 			event.stopPropagation();
 			moveActive(event.key === 'ArrowDown' ? 1 : -1);
