@@ -266,6 +266,7 @@ export function AudacityLabelMarker({
 				if (!blocked) { onSelect(); onEdit(); }
 			}}
 			onContextMenu={(event) => {
+				if (event.target.closest('input, textarea, [contenteditable="true"]')) return;
 				event.preventDefault();
 				event.stopPropagation();
 				select();
