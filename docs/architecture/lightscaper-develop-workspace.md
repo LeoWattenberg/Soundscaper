@@ -113,3 +113,40 @@ bindings refuse explicitly. Disabled known effects remain in authored settings
 without being evaluated. Additional global operations, mask evaluation, full
 resolution zoom/export, workspace presentation, and latency qualification
 remain outstanding; this processor does not mark the Develop milestone done.
+
+The optional `develop.settings` capability provides the domain foundation for
+Copy settings, Paste settings, Sync, Auto-sync, and relative quick Develop.
+Its settings picker names shared effect types, legacy geometry, and whether
+to include local adjustments. Excluding local adjustments selects only
+unmasked instances and leaves the target's masked instances intact. A full
+selection replaces the complete recipe. A partial selection replaces the
+selected group at its first target position, preserving source order within
+that group and target order elsewhere. An empty source group clears the
+corresponding target group. Effect and mask ID collisions are remapped
+deterministically, with bindings updated together. Masks used by retained
+effects and independently authored unbound masks remain; masks owned only
+by replaced effects retire. Repeating a paste does not accumulate masks.
+
+Packets contain only normalized, process-versioned authored settings and
+their selection. External raster/alpha mask references require a separately
+authenticated adapter and refuse here. Imported packets cannot carry settings
+outside their selection. Relative white-balance/tone edits add deltas to the
+first enabled, unmasked instance, clamping at the shared parameter ranges;
+other instances keep their order. If none exists, a new enabled instance uses
+shared defaults. Zero deltas and unchanged pastes preserve revision/history.
+
+Each batch binds the catalog, up to 64 unique photos, explicit versions, and
+expected revisions. Admission detaches the entire request before initialization
+and checks its 2 MiB byte budget. One existing Session writer/lease applies
+one revision-fenced history command per changed photo; the batch is serial,
+with explicit partial outcomes rather than an all-or-nothing transaction.
+Conflicts and missing versions cannot overwrite a newer recipe or borrow the
+currently active version. Other selected photos may still complete.
+
+Every selected slot appears in a scalar receipt, including unattempted slots
+after interruption. Only acknowledged or verified unchanged slots carry
+revision/history cursor values; recipes and catalog documents do not enter the
+receipt, whose UTF-8 bound is 64 KiB. Close and cancellation join a held save
+and retain any durable acknowledgment. A separate cleanup error remains visible
+even if cancellation also arrived. Menu integration and batch interaction
+qualification remain part of the Develop workspace work.
