@@ -411,8 +411,11 @@ menu entry, dismissal, focus completion and modifier controls pass 36/36
 Paste destination, paired/fresh-track and clipboard controls pass 6/6
 (`/tmp/soundscaper-r6-edit-disabled-submenu-paste-controls.log`). Narrow strict
 types, targeted and canonical changed-file lint, size and diff checks pass.
-Native complete Paste/Unlock/Undo/Redo verification remains pending while the
-frozen full browser run continues unchanged. This adds no qualifying count:
+Native complete Paste/Unlock/Undo/Redo verification passes on immutable Green46
+`307fe9e9f` in Chromium 2.5, Firefox 4.4 and WebKit 4.4 seconds, retaining every
+healthy copy, locked refusal, submenu dismissal, later Unlock and history
+assertion (`/tmp/soundscaper-r6-final-green46-completion-whole.log`). The retained
+Green44 failure remains a failed pre-completion result. This adds no qualifying count:
 editing remains 54 and the aggregate 200; no manual Update AI assets run is
 required.
 
@@ -434,9 +437,13 @@ menu refusal, exact locked timeline, guide/preview absence, product-exclusion
 check and original 240-second test budget. No withdrawn control is synthesized
 and no product behavior changes. Narrow strict compilation checks the changed
 locator assertions and existing clip-lock owners; targeted and canonical
-changed-file lint, size and diff checks pass. Complete latest-product browser
-verification remains pending while the unchanged frozen full run is active;
-the existing WebKit imported-A/V guard remains intact. This is fixture support
+changed-file lint, size and diff checks pass. Complete latest-product rate-stretch
+and roll/ripple workflows pass on immutable Green46 `307fe9e9f`: Chromium
+22.8/35.0 and Firefox 22.1/40.4 seconds. Both existing WebKit imported-A/V guards
+skip unchanged; no unsupported decoder path is forced
+(`/tmp/soundscaper-r6-final-green46-completion-whole.log`). The original
+four-minute failures remain retained as failed obsolete locked-grip observers.
+This is fixture support
 only, leaves editing at 54 and the aggregate at 200, and requires no manual
 Update AI assets run.
 
@@ -468,9 +475,33 @@ controls compile independently under the existing strict test configuration.
 An initial temporary combined check included legacy unchecked runtime JavaScript
 and is excluded; the repository's type rules remain unchanged. Targeted and
 canonical changed-file lint, size and diff checks pass. The original
-R6-EFFECT-035 Chromium causal RED and complete GREEN remain valid; the
-pre-repair guarded Green28 products at `435e1779e` are retained for the revised
-observer's causal replay. Latest whole all-engine verification and that replay
-remain pending root-coordinated browser sequencing. No product behavior,
+R6-EFFECT-035 Chromium causal RED and complete GREEN remain valid. The revised
+Home/End observer also causally fails on pre-repair guarded Green28 `435e1779e`:
+initial 0.25, Home/host 0, authenticated Store, End/host 1 and actual Restore/host 0
+all pass; enabled visible Gain remains 1 instead of restored 0 at the original
+5-second assertion. Root session 81280 closes with actual exit 1
+(`/tmp/soundscaper-r6-native-plugin-endpoint-causal-red.log`), demonstrating the
+same restored-control cause with the portable observer. Complete corrected
+Store/change/Restore/subsequent edit passes on immutable Green46 `307fe9e9f`
+in Chromium 3.0, Firefox 3.7 and WebKit 4.3 seconds, including exact actual host
+and visible state (`/tmp/soundscaper-r6-final-green46-completion-whole.log`).
+No product behavior,
 parameter grain, qualification count or runtime asset closure changes; editing
 remains 54 and the aggregate 200, with no manual Update AI assets required.
+
+Uncounted final verification receipt: Green46 root session 43565 closes with
+actual exit 0, 28 whole workflows passed, two original WebKit guards skipped
+and zero failures in 3.8 minutes. Its detached cache is clean at
+`307fe9e9fef8416774129c1ec1618eb6ef453a84`; Node 26.5.0 and npm 12.0.1 are
+retained. Sequential guarded Soundscaper and Framescaper product pretests close
+with actual exit 0 (`/tmp/soundscaper-round6-green46-build.log`), preserving
+startup/chunk/FFmpeg guards and the 484,468-byte largest JavaScript chunk.
+Frozen products authenticate 632 Soundscaper and 665 Framescaper files against
+their unchanged recorded lengths/digests and exact source revision. The complete
+Green45 canonical gate at `68dc0bfe6` closes with actual exit 0: all static/build
+checks, combined 24,880 Node tests, 24,847 passes, 33 skips and zero failures,
+including completed coverage reporting
+(`/tmp/soundscaper-round6-checkpoint200-green45-canonical.log`). Green45 to
+Green46 changes only four browser fixtures and three verification documents;
+every production, Node test and shared source/helper byte remains identical.
+These completions preserve all full-run failures and add no qualifying bugs.
