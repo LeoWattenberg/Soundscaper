@@ -70,6 +70,23 @@ the ordinary existing MIME and actual timeline clip observation.
 Corrected-build public verification is pending. These missing dictionary
 entries belong to IO-014's native purpose family and add zero further count.
 
+R4-IO-016's uncounted BWF suffix follow-through also routes ordinary .bwf files
+through the maintained WAV metadata inspector. Its earlier workspace admission
+allowed audible fallback decoding, but the independent import predicate still
+excluded an unassociated BWF suffix, silently dropping BEXT and iXML metadata.
+The unchanged BWF MetaEdit recording imports and exports its exact recorder
+iXML under .wav, while the normal .bwf file imports audio successfully but its
+actual Broadcast WAV download contains no iXML on immutable 9bd6730b2
+(/tmp/soundscaper-r6-io-bwf-import-metadata-public-red.log; WAV control passes).
+Two actual import-route cases are causally RED while five MIME/WAV/refusal
+controls pass. Corrected recorder description/slate, unchanged PCM geometry,
+original MIME controls, import-origin and iXML delivery support pass 28/28
+(/tmp/soundscaper-r6-io-bwf-import-metadata-node-green.log).
+Focused strict TypeScript and targeted type-aware lint pass. The predicate
+grows by zero source lines and delegates the unchanged validated WAV reader.
+Corrected-build public verification is pending. This completion adds zero
+further count and is separate from the native picker dictionary completion.
+
 IO-017's first green13 run was not qualifying: the monitored control stalled at
 its unchanged Start deadline, and the unmonitored producer had delivered only
 14 actual blocks after the one-second wall wait. The observer now additionally
