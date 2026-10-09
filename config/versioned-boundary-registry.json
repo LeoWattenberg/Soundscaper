@@ -602,6 +602,8 @@
 		,
 		{ "path": "src/common/editor/video-color-wheels-v1.ts", "kind": "persisted-contract", "justification": "Version 1 color grading wheels retain nine closed finite numeric hue/saturation/luminance controls for overlapping shadow lift, midtone gamma and highlight gain. The srgb-scalar-lgg-wheels-v1 process preserves alpha, derives one private transient one-KiB table only for the current CPU stage or native upload, and supplies the same scalar byte authority to shared Frame and Photo rendering and bounded FFmpeg expressions." }
 		,
+		{ "path": "src/common/editor/video-cube-lut-profile-v1.ts", "kind": "persisted-contract", "justification": "Version 1 cube LUT profile owns one nullable exact V27 reference, closed effect admission and private scalar resource plans using inherited linear Rec709 trilinear semantics. Disabled references remain retained for custody; null explicitly bypasses processing. No parsed body, runtime effect registration, GPU code or expression is persisted." }
+		,
 		{ "path": "src/common/editor/video-curve-transfer-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded curve preparation maps exact admitted Float64 coordinates to binary-rational arithmetic, retaining at most four arrays of thirty-two point pairs and one detached 256-entry RGBA table. Balanced FFmpeg byte decisions have depth eight and preserve the fixed master-before-channel quantization contract." }
 		,
 		{ "path": "src/common/editor/video-curve-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared effect parameters add only closed immutable dimensionless point arrays alongside existing numeric values. Runtime point-array admission remains exclusively with the owning point-curve normalizer; old numeric effect profiles remain unchanged." }
@@ -613,6 +615,8 @@
 		{ "path": "src/common/editor/video-dehaze-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared Dehaze defines one closed fractional amount under srgb-alpha-dark3-white-dehaze-q8-v1. Fixed white airlight, original-alpha-aware dark neighborhoods, bounded Q8 transmission, signed nearest reconstruction, explicit clipping and negative white mixing preserve deterministic byte evaluation without changing older recipes." }
 		,
 		{ "path": "src/common/editor/video-effect-closed-families-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed shared effect families bind each registered numeric or point-curve recipe to its owning definition, closed admission and generated export operation. Static family selection preserves the older eight wrapper prechecks, four complete closed envelopes, all twelve legacy routes and exact option, label, default and serialized bytes; it exposes no caller-configured registry or render resource authority." }
+		,
+		{ "path": "src/common/editor/video-effect-parameter-v2.ts", "kind": "helper-contract", "justification": "Version 2 parameter vocabulary explicitly extends unchanged numeric and curve V1 values with a nullable V27 cube reference. Only the owning cube profile admits reference values; current V1 effect leaves, state and preset consumers remain unchanged until coordinated successor adoption. Imports are type-only and no runtime resource authority is added." }
 		,
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
