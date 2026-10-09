@@ -23,11 +23,12 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 	const currentEditBlocked = useRef(editBlocked);
 	currentEditBlocked.current = editBlocked;
 	const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId && candidate.type === 'audio') || null;
-	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
+	const sampleRate = controller.actions.effects?.readSourceSelectionSampleRate?.() ?? project?.sampleRate ?? 48_000;
+	const nyquist = Math.max(1, sampleRate / 2);
 	const existing = snapshot.selection?.frequencyRange;
 	const projectIdentity = project?.id ?? null;
 	const defaultMinimumFrequency = existing?.minimumFrequency ?? track?.spectrogram?.minimumFrequency ?? 0;
-	const defaultMaximumFrequency = existing?.maximumFrequency ?? track?.spectrogram?.maximumFrequency ?? Math.min(20_000, nyquist);
+	const defaultMaximumFrequency = existing?.maximumFrequency ?? Math.min(track?.spectrogram?.maximumFrequency ?? 20_000, nyquist);
 	const currentProjectOwnership = useRef({ projectIdentity });
 	const stateProjectIdentity = useRef(projectIdentity);
 	if (currentProjectOwnership.current?.projectIdentity !== projectIdentity) {
