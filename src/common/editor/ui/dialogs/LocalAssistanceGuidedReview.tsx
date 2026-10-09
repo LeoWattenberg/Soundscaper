@@ -23,6 +23,7 @@ import { createLocalAssistanceGuidedHighlightPreviewPlanV1,
 import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
 	'../../controller/assistance/local-assistance-selected-video-source-time.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import { AudioEditorListeningPreview } from '../audio-editor-listening-preview.tsx';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 type ReviewCrop = Readonly<{ left: number; top: number; right: number; bottom: number }>;
@@ -462,7 +463,7 @@ function AudioAudition({ body, label, skipRanges = [] }: Readonly<{
 			if (url !== null) URL.revokeObjectURL(url);
 		};
 	}, [body, serializedSkipRanges]);
-	return <label>{label}<audio controls preload="metadata" src={source}
+	return <label>{label}<AudioEditorListeningPreview controls preload="metadata" src={source}
 		data-skip-range-count={skipRanges.length} /></label>;
 }
 
