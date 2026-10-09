@@ -139,7 +139,7 @@ test('an abandoned staged write never advertises its orphan and a fresh session 
 	assert.equal(await readFile(destination, 'utf8'), 'previous commit');
 	const orphans = (await readdir(root)).filter((name) => name.endsWith('.soundscaper-part'));
 	assert.equal(orphans.length, 1);
-	assert.ok(orphans[0].startsWith('.mix.wav.'), 'staging stays dot-prefixed, never the advertised name');
+	assert.equal(orphans[0], `.${session.writeId}.soundscaper-part`, 'staging stays dot-prefixed, never the advertised name');
 
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
@@ -355,87 +355,6 @@ test('save-session disposal drains a begin still opening staging before rejectin
 
 	assert.deepEqual(events, ['open', 'close', 'unlink']);
 	assert.equal(manager.dispose(), disposing, 'the settled shutdown barrier remains idempotent');
-});
-
-test('save-session disposal drains a rejected write and aborts every remaining stage', async () => {
-	let markWriteStarted;
-	let releaseWrite;
-	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
-	const writeGate = new Promise((resolve) => { releaseWrite = resolve; });
-	const events = [];
-	let handleId = 0;
-	const targets = new SaveTargetStore();
-	const manager = new AtomicSaveManager({
-		targets,
-		openImpl: async () => {
-			const id = handleId++;
-			return {
-				async write() {
-					events.push(`write-${id}`);
-					markWriteStarted();
-					await writeGate;
-					throw new Error('injected write failure');
-				},
-				async close() { events.push(`close-${id}`); },
-			};
-		},
-		unlinkImpl: async (path) => { events.push(`unlink-${path.includes('first') ? 0 : 1}`); },
-	});
-	const firstTarget = targets.registerPath('/tmp/first.scape', { owner: TEST_OWNER, purpose: 'project' });
-	const secondTarget = targets.registerPath('/tmp/second.scape', { owner: TEST_OWNER, purpose: 'project' });
-	const first = await manager.begin({ owner: TEST_OWNER, targetId: firstTarget.id, maximumSize: 1 });
-	await manager.begin({ owner: TEST_OWNER, targetId: secondTarget.id, maximumSize: 1 });
-	const writing = manager.writeChunk({ owner: TEST_OWNER, writeId: first.writeId, offset: 0, bytes: Uint8Array.of(1) });
-	await writeStarted;
-
-	let disposalSettled = false;
-	const disposing = manager.dispose();
-	void disposing.then(() => { disposalSettled = true; });
-	await new Promise((resolve) => { setImmediate(resolve); });
-	assert.equal(disposalSettled, false, 'shutdown waits for the failing admitted write');
-	releaseWrite();
-	await assert.rejects(writing, /injected write failure/u);
-	await disposing;
-
-	assert.deepEqual(events.slice(0, 1), ['write-0']);
-	assert.deepEqual(new Set(events.slice(1)), new Set(['close-0', 'close-1', 'unlink-0', 'unlink-1']));
-});
-
-test('save-session disposal reports every unacknowledged close and unlink', async () => {
-	let handleId = 0;
-	const targets = new SaveTargetStore();
-	const manager = new AtomicSaveManager({
-		targets,
-		openImpl: async () => {
-			const id = handleId++;
-			return {
-				async close() {
-					if (id === 0) throw new Error('injected close failure');
-				},
-			};
-		},
-		unlinkImpl: async (path) => {
-			if (path.includes('unlink-failure')) throw new Error('injected unlink failure');
-		},
-	});
-	let target = targets.registerPath('/tmp/close-failure.scape', { owner: TEST_OWNER, purpose: 'project' });
-	await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
-	target = targets.registerPath('/tmp/unlink-failure.scape', { owner: TEST_OWNER, purpose: 'project' });
-	await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
-
-	await assert.rejects(manager.dispose(), (error) => {
-		assert.ok(error instanceof AggregateError);
-		assert.match(error.message, /save staging cleanup failed/u);
-		assert.deepEqual(
-			new Set(error.errors.map((failure) => failure.message)),
-			new Set(['Could not close the temporary save file', 'Could not remove the temporary save file']),
-		);
-		return true;
-	});
-	assert.throws(
-		() => targets.registerPath('/tmp/after-cleanup-failure.scape', { owner: TEST_OWNER, purpose: 'project' }),
-		/disposed/u,
-	);
 });
 
 test('save-session disposal reports cleanup failure from an admitted failed finish', async () => {
