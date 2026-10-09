@@ -171,7 +171,12 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		await action({ signal, acquire: async () => {
 			const owner = await acquire(current); signal.throwIfAborted(); const port = owner.develop;
 			if (!port || typeof port.read !== 'function' || typeof port.apply !== 'function') throw new Error('Photo develop is unavailable.');
-			return Object.freeze({ read: port.read.bind(port), apply: port.apply.bind(port) });
+			const settings = port.settings, presets = port.presets;
+			return Object.freeze({ read: port.read.bind(port), apply: port.apply.bind(port),
+				...(settings ? { settings: Object.freeze({ copy: settings.copy.bind(settings), merge: settings.merge.bind(settings),
+					adjust: settings.adjust.bind(settings), applyBatch: settings.applyBatch.bind(settings) }) } : {}),
+				...(presets ? { presets: Object.freeze({ create: presets.create.bind(presets), parse: presets.parse.bind(presets),
+					serialize: presets.serialize.bind(presets), list: presets.list.bind(presets), read: presets.read.bind(presets), write: presets.write.bind(presets) }) } : {}) });
 		}, isCurrent: () => current.live && slot.current === current && current.factory === factory.current && current.backupLoader === loader.current,
 		refresh: async () => {
 			const owner = await acquire(current); signal.throwIfAborted();

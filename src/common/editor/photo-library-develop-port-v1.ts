@@ -9,6 +9,8 @@ export type PhotoLibraryDevelopSettingsV1 = ImageDevelopStateV1;
 
 export interface PhotoLibraryDevelopSnapshotV1 {
 	readonly schemaVersion: 1;
+	/** Production snapshots bind settings/preset commands to the canonical catalog. */
+	readonly catalogId?: string;
 	readonly photoId: string;
 	readonly revision: number;
 	readonly activeVersionId: string;

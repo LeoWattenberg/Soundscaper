@@ -294,6 +294,8 @@
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop presentation joins one authenticated source, shared proxy and canvas consumer through replacement and retirement, retaining only scalar histograms." }
 		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-settings-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 menu-owned settings and preset coordination borrows the existing Session writer, retains one copied packet and scalar target/menu authority, and preserves every acknowledged batch outcome through joined retirement." }
+		,
 		{ "path": "src/common/editor/controller/shared/photo-library-develop-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop coordination borrows the existing Session, detaches complete recipes before acquisition and fences explicit photo versions and durable revision acknowledgements." }
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-import-gesture-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored import snapshots and source-name-bound scalar acknowledgement collection retain at most 64 selected receipts without File or original bodies."}

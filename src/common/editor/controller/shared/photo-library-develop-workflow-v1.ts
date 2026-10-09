@@ -58,6 +58,19 @@ export class PhotoLibraryDevelopWorkflowV1 {
 			if (this.#current(context)) this.#accept(document); return null;
 		});
 	}
+	/** Keep the opted-in child dialog mounted while acknowledging an external batch. */
+	reload(): Promise<null> {
+		return this.#run(() => {
+			const document = this.#view.document;
+			if (!document || this.#view.dirty) throw new Error('Reload requires an unchanged Develop selection.');
+			return { photoId: document.photoId, versionId: document.versionId };
+		}, async (context, request) => {
+			const port = await context.acquire(); check(context.signal); if (!this.#current(context)) return null;
+			const document = await port.read({ schemaVersion: 1, ...request }, { signal: context.signal }); check(context.signal);
+			if (document.photoId !== request.photoId || document.versionId !== request.versionId) throw new Error('Develop response changed the requested photo or version.');
+			if (this.#current(context)) this.#accept(document); return null;
+		});
+	}
 	setEffects(value: readonly VideoEffectLeaf[]): void {
 		if (!this.#editable()) return;
 		const effects = normalizeVideoEffects(value) as VideoEffectLeaf[];

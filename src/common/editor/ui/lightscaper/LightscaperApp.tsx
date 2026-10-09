@@ -10,6 +10,7 @@ import type { LoadPhotoLibraryRestoreRuntimeV1 } from '../../photo-library-resto
 import type { LoadPhotoLibraryDevelopProxyRuntimeV1 } from '../../photo-library-develop-proxy-port-v1.ts';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntry } from './use-photo-develop-entry.ts';
+import { usePhotoDevelopSettings } from './use-photo-develop-settings.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { lightscaperRestoreCopy } from '../../../i18n/lightscaper-restore-copy.ts';
 import { usePhotoLibraryRestore } from './use-photo-library-restore.ts';
@@ -105,6 +106,7 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 	const savedGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime, loadSavedFilterRuntime }), [createSession, loadBackupSaveRuntime, loadSavedFilterRuntime]);
 	const developGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime, loadDevelopProxyRuntime }), [createSession, loadBackupSaveRuntime, loadDevelopProxyRuntime]);
 	const developSurface = usePhotoDevelopEntry(developGeneration), developEntry = developSurface.entry, developVisible = developEntry !== null;
+	const developSettings = usePhotoDevelopSettings({ generation: developGeneration, execute: library.executeDevelop });
 	const savedFilters = usePhotoSavedFilters({ generation: savedGeneration, execute: library.executeSavedFilters });
 	const [savedEntry, setSavedEntry] = useState<Readonly<{ generation: typeof savedGeneration; mode: 'create' | 'manage' }> | null>(null);
 	const savedVisible = savedEntry?.generation === savedGeneration;
@@ -439,6 +441,7 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 			: renderScene())}
 		{!restore.busy && developVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoDevelopWorkspace locale={locale} photoId={developEntry.photoId} label={developEntry.label} generation={developGeneration}
+					selectedIds={photoSelection.snapshot.selectedIds} settings={developSettings}
 					execute={library.executeDevelop} readPreview={library.readPreview} loadProxy={loadDevelopProxyRuntime}
 					beforePresent={developEntry.beforePresent} beforeOpen={developEntry.beforeOpen} registerDemandRetirement={developSurface.register}
 					registerRetirement={registerPreviewRetirement} onClose={() => {

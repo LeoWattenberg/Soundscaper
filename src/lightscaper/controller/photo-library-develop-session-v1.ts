@@ -67,7 +67,7 @@ export function readPhotoLibraryDevelopSnapshotV1(photo: PhotoDocumentV1, versio
 	const version = photo.versions.find(candidate => candidate.id === versionId);
 	if (!version) throw new ReferenceError('The requested photo version is missing.');
 	const entries = version.workspace?.entries ?? [{ label: 'Initial settings', createdAt: version.createdAt }];
-	return Object.freeze({ schemaVersion: 1, photoId: photo.id, revision: photo.revision, activeVersionId: photo.activeVersionId, versionId,
+	return Object.freeze({ schemaVersion: 1, catalogId: photo.catalogId, photoId: photo.id, revision: photo.revision, activeVersionId: photo.activeVersionId, versionId,
 		versions: Object.freeze(photo.versions.map(candidate => Object.freeze({ id: candidate.id, name: candidate.name, kind: candidate.kind }))),
 		develop: normalizePhotoDevelopV1(version.develop),
 		history: Object.freeze({ cursor: version.workspace?.cursor ?? 0,
