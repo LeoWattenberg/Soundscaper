@@ -383,3 +383,23 @@ region (`/tmp/soundscaper-r6-effects-spectrum-short-selection-browser-green22.lo
 2/2 in6.3 and6.7 seconds). Effects030 therefore qualifies: **136 distinct verified
 fixes** comprise editing40, effects30, I/O22 and dialogs44. The caption Save Cancel
 and playback-meter corrections remain source-ready and uncounted.
+
+The immutable `ba2dac3c3` passes both guarded product builds and all six public
+Chromium checks in48.7 seconds (`/tmp/soundscaper-round6-green23-chromium.log`).
+The playback meter retains a silent right channel, native caption save cancellation
+reports no completed publication, and project switching retains explicit No tracks
+while its focused-track control still supports Remove/Undo/Redo. Dialog046, I/O024
+and editing041 therefore qualify: **139 distinct verified fixes** comprise editing41,
+effects30, I/O23 and dialogs45. The same build verifies the Arabic project-tab
+direction follow-through, which continues the prior RTL family and adds zero count.
+
+The complete first-milestone all-engine browser run on `68655eafb` finishes with
+5,267 passed,196 skipped and150 failed in4.0 hours
+(`/tmp/soundscaper-round6-checkpoint50-green10-full-browser.log`). Those failures
+remain failed evidence, including external Nyquist fixture failures whose faithful
+correction is separately recorded above; the complete run is not a PASS. The
+next sequential full-browser checkpoint runs on immutable `ba2dac3c3` with two
+workers and the working Pulse backend
+(`/tmp/soundscaper-round6-checkpoint100-green23-full-browser.log`). No full-browser
+suites overlap. The full100 canonical non-browser retry on `4e4d8ac7b` has passed
+the static gate and is running its Node suite; its final result remains pending.
