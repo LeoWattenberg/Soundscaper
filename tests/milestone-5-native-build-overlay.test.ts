@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import test from 'node:test';
 import { authenticateProfessionalNativeBuildOverlay }
 	from '../scripts/lib/milestone-5-native-build-overlay.mjs';
@@ -55,6 +55,12 @@ test('CI native overlays bind exact HEAD receipts and allow only generated manif
 		assert.equal(audit.sourceRevision, sourceRevision);
 		assert.equal(audit.payloads.built, 1);
 		assert.equal(audit.inputDigests[MANIFEST].sha256, overlay.sourceBinding.buildResultOverlay.manifestSha256);
+		process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT = `${resultsRoot}/.`;
+		const normalized = await assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] });
+		assert.equal(normalized.repositoryInputsVerified, true);
+		assert.equal(normalized.inputDigests[MANIFEST].sha256, audit.inputDigests[MANIFEST].sha256);
+		process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT = relative(process.cwd(), resultsRoot);
+		await assert.rejects(assembleMilestone5ProductPackageAudit({ repositoryRoot, sourceRevision, productIds: ['soundscaper'] }), /absolute normalized path/u);
 	} finally {
 		if (originalOverlayRoot === undefined) delete process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT;
 		else process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT = originalOverlayRoot;

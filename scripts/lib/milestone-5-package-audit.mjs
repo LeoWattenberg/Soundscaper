@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { execFileSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { normalize, resolve } from 'node:path';
 
 import {
 	auditMilestone5NativeSourceAcquisitions,
@@ -133,7 +133,8 @@ async function assembleMilestone5PackageAuditScope(options, dependencies) {
 	const { repositoryRoot, sourceRevision, packageOptions } = options;
 	const engineeringScope = milestone5EngineeringScope(options.productIds);
 	const observedHeadRevision = currentRevision(repositoryRoot);
-	const overlayRoot = process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT?.trim() ?? '';
+	const overlayPath = process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT?.trim() ?? '';
+	const overlayRoot = overlayPath === '' ? '' : normalize(overlayPath);
 	const overlay = overlayRoot === '' ? null : await authenticateProfessionalNativeBuildOverlay({
 		repositoryRoot, sourceRevision, resultsRoot: overlayRoot,
 	});
