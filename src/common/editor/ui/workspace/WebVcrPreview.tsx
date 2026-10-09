@@ -136,7 +136,8 @@ export default function WebVcrPreview({
 		event: PointerEvent<HTMLButtonElement>,
 		handle: WebVcrCropHandle,
 	): void => {
-		if (manualCropDisabled || !snapshot.surface || event.button !== 0) return;
+		if (manualCropDisabled || !snapshot.surface || event.button !== 0
+			|| event.isPrimary === false || dragRef.current) return;
 		event.preventDefault();
 		event.currentTarget.setPointerCapture(event.pointerId);
 		dragRef.current = {
