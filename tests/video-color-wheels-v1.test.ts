@@ -173,7 +173,26 @@ test('private table generation failure wipes its partial output without inspecti
 	assert.equal(failure, reason); assert.ok(table); assert.equal(table.every(value => value === 0), true); assert.equal(inspections, 0);
 });
 
-test('private prepared/preview tables retire once their held lifetime settles', async () => {
+test('preview planning retains only admitted recipes and derives one fresh buffer on authenticated copy demand', () => {
+	const NativeBytes = Uint8Array, allocations: Uint8Array[] = [], raw = effect({ highlightsLuminance: 100 });
+	globalThis.Uint8Array = new Proxy(NativeBytes, { construct(target, args, receiver) {
+		const bytes = Reflect.construct(target, args, receiver) as Uint8Array<ArrayBuffer>;
+		if (args[0] === 1024) allocations.push(bytes); return bytes;
+	} });
+	let plans: NonNullable<ReturnType<typeof colorWheelsPreviewPassV1>>[] = [];
+	try {
+		plans = [colorWheelsPreviewPassV1(raw)!, colorWheelsPreviewPassV1(effect({ shadowsHue: 120, shadowsSaturation: 50 }))!,
+			colorWheelsPreviewPassV1(effect({ midtonesLuminance: 20 }))!];
+		assert.equal(allocations.length, 0, 'Planned passes must not allocate a lookup table per effect.');
+		raw.params = { highlightsLuminance: -100 };
+		const first = copyColorWheelsPreviewLookupV1(plans[0]); assert.equal(allocations.length, 1); assert.equal(first[128 * 4], 176);
+		first.fill(0); const second = copyColorWheelsPreviewLookupV1(plans[0]);
+		assert.equal(allocations.length, 2); assert.equal(second[128 * 4], 176); assert.notEqual(first.buffer, second.buffer); second.fill(0);
+	} finally { globalThis.Uint8Array = NativeBytes; for (const plan of plans) releaseColorWheelsPreviewPassV1(plan); }
+	for (const plan of plans) assert.throws(() => copyColorWheelsPreviewLookupV1(plan));
+});
+
+test('current CPU table and recipe-only preview binding retire once their held lifetime settles', async () => {
 	const nativeArray = globalThis.Uint8Array, tables: Uint8Array[] = [];
 	globalThis.Uint8Array = new Proxy(nativeArray, { construct(target, args) {
 		const result = Reflect.construct(target, args) as Uint8Array; if (result.byteLength === 1024) tables.push(result); return result;
@@ -181,10 +200,8 @@ test('private prepared/preview tables retire once their held lifetime settles', 
 	let prepared: ReturnType<typeof prepareColorWheelsEffectV1>, pass: ReturnType<typeof colorWheelsPreviewPassV1>;
 	try { prepared = prepareColorWheelsEffectV1(effect({ highlightsLuminance: 100 })); pass = colorWheelsPreviewPassV1(effect({ highlightsLuminance: 100 })); }
 	finally { globalThis.Uint8Array = nativeArray; }
-	// Native slice allocates the detached preview copy internally; this observer
-	// witnesses both prepared tables, rather than claiming every allocation.
-	assert.ok(pass); assert.equal(tables.length, 2);
-	assert.equal(tables[0]![128 * 4], 176); assert.equal(tables[1]!.every(value => value === 0), true);
+	assert.ok(pass); assert.equal(tables.length, 1, 'Only the currently prepared CPU stage owns a lookup table.');
+	assert.equal(tables[0]![128 * 4], 176);
 	let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
 	const stop = new AbortController(), reason = new DOMException('held wheel render canceled', 'AbortError');
 	const pending = (async () => {

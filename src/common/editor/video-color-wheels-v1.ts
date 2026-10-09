@@ -4,7 +4,7 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import {
 	normalizeVideoColorGradeV1, type VideoColorGradeV1,
 } from './video-color-management-v27.ts';
-import { COLOR_WHEELS_SCALAR_PROCESS_V1, prepareScalarColorWheelsGradeV1, scalarColorWheelsByteV1 } from './video-color-wheels-scalar-v1.ts';
+import { COLOR_WHEELS_SCALAR_PROCESS_V1, prepareScalarColorWheelsGradeV1, scalarColorWheelsByteV1, type ScalarColorWheelsGradeV1 } from './video-color-wheels-scalar-v1.ts';
 
 /** Straight encoded UNORM8 sRGB → managed linear Rec.709 LGG → sRGB byte rounding.
  * Shadows/midtones/highlights are overlapping lift/gamma/gain wheels, not hard tonal bands.
@@ -38,7 +38,7 @@ export interface PreparedColorWheelsEffectV1 {
 	readonly grade: VideoColorGradeV1;
 }
 interface PreparedState { live: boolean; readonly table: Uint8Array<ArrayBuffer> | null }
-const PREPARED = new WeakMap<object, PreparedState>(), PREVIEW = new WeakMap<object, Uint8Array<ArrayBuffer>>();
+const PREPARED = new WeakMap<object, PreparedState>(), PREVIEW = new WeakMap<object, Readonly<ScalarColorWheelsGradeV1>>();
 const SLICE = Uint8Array.prototype.slice;
 
 export function normalizeColorWheelsParamsV1(value: unknown): ColorWheelsParamsV1 {
@@ -83,16 +83,21 @@ function grade(params: ColorWheelsParamsV1): VideoColorGradeV1 {
 }
 export function colorWheelsGradeV1(value: unknown): VideoColorGradeV1 { return grade(normalizeColorWheelsParamsV1(value)); }
 
+function neutral(params: ColorWheelsParamsV1): boolean {
+	return COLOR_WHEEL_GROUPS_V1.every(group => params[`${group}Saturation`] === 0 && params[`${group}Luminance`] === 0);
+}
+
 export function prepareColorWheelsEffectV1(value: unknown): Readonly<PreparedColorWheelsEffectV1> {
-	const effect = normalizeColorWheelsEffectV1(value), neutral = COLOR_WHEEL_GROUPS_V1.every(group =>
-		effect.params[`${group}Saturation`] === 0 && effect.params[`${group}Luminance`] === 0);
-	const prepared = Object.freeze({ ...effect, neutral, grade: grade(effect.params) });
-	const table = effect.enabled && !neutral ? transfer(prepared.grade) : null;
+	const effect = normalizeColorWheelsEffectV1(value), prepared = Object.freeze({ ...effect, neutral: neutral(effect.params), grade: grade(effect.params) });
+	const table = effect.enabled && !prepared.neutral ? transfer(prepared.grade) : null;
 	PREPARED.set(prepared, { live: true, table }); return prepared;
 }
 
 function transfer(grade: VideoColorGradeV1): Uint8Array<ArrayBuffer> {
-	const prepared = prepareScalarColorWheelsGradeV1(grade), bytes = new Uint8Array(1024);
+	return scalarTransfer(prepareScalarColorWheelsGradeV1(grade));
+}
+function scalarTransfer(prepared: ScalarColorWheelsGradeV1): Uint8Array<ArrayBuffer> {
+	const bytes = new Uint8Array(1024);
 	try {
 		// The new scalar process owns exact independent-channel byte rounding.
 		for (let byte = 0; byte < 256; byte++) {
@@ -126,22 +131,22 @@ export function createColorWheelsTransferV1(value: unknown): Uint8Array<ArrayBuf
 }
 
 export function colorWheelsPreviewPassV1(value: unknown) {
-	const prepared = prepareColorWheelsEffectV1(value);
-	try {
-		if (!prepared.enabled || prepared.neutral) return null;
-		const pass = Object.freeze({ code: COLOR_WHEELS_EFFECT_CODE_V1, params0: Object.freeze([0, 0, 0, 0]),
-			params1: Object.freeze([0, 0, 0, 0]), direction: Object.freeze([0, 0]) });
-		PREVIEW.set(pass, createColorWheelsTransferV1(prepared)); return pass;
-	} finally { releaseColorWheelsEffectV1(prepared); }
+	const effect = normalizeColorWheelsEffectV1(value); if (!effect.enabled || neutral(effect.params)) return null;
+	const admitted = prepareScalarColorWheelsGradeV1(grade(effect.params));
+	const pass = Object.freeze({ code: COLOR_WHEELS_EFFECT_CODE_V1, params0: Object.freeze([0, 0, 0, 0]),
+		params1: Object.freeze([0, 0, 0, 0]), direction: Object.freeze([0, 0]) });
+	// Planning retains only immutable admitted numbers; native upload derives
+	// and owns the sole transient1KiB table through its finally retirement.
+	PREVIEW.set(pass, admitted); return pass;
 }
 export function copyColorWheelsPreviewLookupV1(value: unknown): Uint8Array<ArrayBuffer> {
-	const bytes = value && typeof value === 'object' ? PREVIEW.get(value) : undefined;
-	if (!bytes) throw new TypeError('Color wheel transfer requires its owning preview pass.');
-	return Reflect.apply(SLICE, bytes, []) as Uint8Array<ArrayBuffer>;
+	const admitted = value && typeof value === 'object' ? PREVIEW.get(value) : undefined;
+	if (!admitted) throw new TypeError('Color wheel transfer requires its owning preview pass.');
+	return scalarTransfer(admitted);
 }
-/** The preview owner retires its private pass after native rendering settles. */
+/** The preview owner retires its numeric recipe binding after native rendering settles. */
 export function releaseColorWheelsPreviewPassV1(value: object): void {
-	const bytes = PREVIEW.get(value); if (!bytes) return; bytes.fill(0); PREVIEW.delete(value);
+	PREVIEW.delete(value);
 }
 
 export function serializeColorWheelsEffectToFfmpegV1(value: unknown): Readonly<{ expression: string; preserveAlpha: true }> | null {
