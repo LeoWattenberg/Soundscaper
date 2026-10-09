@@ -15,6 +15,7 @@ export function relativeNavigationClipId(
 		startFrame: itemNavigationClipGeometry(project, clip).timelineStartFrame,
 	})).sort((left, right) => left.startFrame - right.startFrame
 		|| (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
-	const index = Math.max(0, clips.findIndex(clip => clip.id === selectedClipId));
+	const index = clips.findIndex(clip => clip.id === selectedClipId);
+	if (index < 0) return clips[0]?.id ?? null;
 	return clips[Math.max(0, Math.min(clips.length - 1, index + direction))]?.id ?? null;
 }
