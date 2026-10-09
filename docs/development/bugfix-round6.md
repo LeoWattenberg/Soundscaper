@@ -19,8 +19,9 @@ The registers distinguish verified fixes from changes awaiting public checks:
 | Effects, generators and analysis | [Effects and analysis](bugfix-round6-effects-analysis.md) |
 | Import, export and bin playback | [Import and export](bugfix-round6-io.md) |
 
-Focused regressions run for each correction. The full Node suite is required
-after each 50 verified fixes; the first milestone is now reached.
+Focused regressions run for each correction. The full Node suite runs after
+each 50 verified fixes; immutable checkpoint results and complete browser
+workflow results are recorded below.
 
 The immutable checkout at `c85e613cf` verifies 25 distinct roots through
 29 public Chromium regressions, all passing in 34.3 seconds
@@ -767,3 +768,59 @@ product focus timing. The corrected final snapshot will rerun the complete
 canonical gate; its final browser queue replaces the unstarted Green39 queue.
 All200 qualifying roots remain verified. No manual **Update AI assets** run
 is required.
+
+The full 100-fix all-engine browser run on Green23 `ba2dac3c3` completes with
+**5,898 cases: 5,662 passed, 26 failed and 210 skipped** in 5.0 hours, exiting 1
+(`/tmp/soundscaper-round6-checkpoint100-green23-full-browser.log`). Fifteen
+complete unchanged isolated retries pass on that same build with their
+original assertions and deadlines. The six native capture metadata failures,
+one incidental short-tail block observer and two native video dimension
+observers have the later verified zero-count completions recorded above.
+The remaining two failures occur before post-reload project activation or
+normal marker-creation autofocus has completed; their faithful fixture
+completion checks are recorded separately. The failed full checkpoint remains
+a failed result, rather than being replaced by isolated passes.
+
+Green41 `b102ebd34` completes the corrected full 200-fix canonical gate with
+actual exit 0 (`/tmp/soundscaper-round6-checkpoint200-green41-canonical-retry.log`).
+All seven repository lint shards, strict types, architecture and size guards,
+runtime/notice audits, documentation checks and guarded production build pass.
+The isolated Node batch passes 1/1; the parallel batch passes 24,827 with 33 skips
+and zero failures in 867,485 ms. Combined: **24,861 cases, 24,828 passed,
+33 skipped and zero failed**. Node-only coverage is 90.13% statements/lines,
+82.33% branches and 90.73% functions; this is not the CI union on which coverage
+floors are scored, and no floor was lowered.
+
+The unstarted Green41 final browser queue is terminated with actual exit 143
+so its replacement includes the final test-only readiness/focus completions.
+No test in that queue had started. The full 150-fix all-engine run continues on its
+immutable Green27 build; the final snapshot also repeats the complete canonical
+gate after the browser helper edit. The verified count remains 200. No manual
+**Update AI assets** run is required.
+
+The maintained visual-inspector fixture now waits for the editor's existing
+ready and project-activation completion after reload, then verifies selection
+after each native Enter. It retains every original Pattern, Noise, saved-state,
+digest and restored-value assertion, the 180-second workflow deadline and the
+5-second field assertion budgets. It completes on unchanged Green23 with two
+passes (Chromium 37.8 seconds, WebKit 1.2 minutes) and the existing Firefox
+WebGL2 capability skip, exiting 0 in 2.1 minutes
+(`/tmp/soundscaper-r6-visual-inspector-ready-green23-all.log`). Green41 likewise
+exits 0 with two passes (15.2/33.6 seconds) and that same original skip in
+58.2 seconds (`/tmp/soundscaper-r6-visual-inspector-ready-green41-all.log`).
+Strict types, changed lint, size and diff checks pass. Seven added test lines
+complete fixture admission without changing product selection behavior or
+adding a qualifying root.
+
+The chapter guide fixture now observes normal Add-marker completion in the
+docked panel before deliberately moving focus to the timeline. Its unchanged
+rename and complete chapter ZIP export assertions pass on unchanged Green23
+in Chromium 4.0 seconds, Firefox 6.7 seconds and WebKit 6.5 seconds: three
+passes, actual exit 0 in 21.0 seconds
+(`/tmp/soundscaper-r6-full100-chapter-focus-all-engines.log`). Focused guide and
+annotation controls pass 71/71; narrow types, targeted and changed lint, size
+and diff checks pass. This two-line helper completion preserves all original
+deadlines and product focus behavior and contributes zero additional roots.
+All 26 observations from the failed full 100-fix browser run now have retained
+diagnoses and complete unchanged or faithful-fixture verification. The final
+all-engine checkpoint will include both test-only fixture completions.
