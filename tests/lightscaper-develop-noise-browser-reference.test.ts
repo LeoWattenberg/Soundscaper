@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { inflateSync } from 'node:zlib';
-import { NOISE_PNG_BASE64, NOISE_SOURCE, NOISE_PARAMS, NOISE_PIXELS, NOISE_BINS } from './browser/helpers/lightscaper-noise-reference.ts';
+import { NOISE_PNG_BASE64, NOISE_SOURCE, NOISE_PARAMS, NOISE_PIXELS, NOISE_BINS, qualifyNoiseNativeV1 } from './browser/helpers/lightscaper-noise-reference.ts';
 import { noiseReductionReferenceV1 } from './helpers/video-noise-reduction-reference.ts';
 import { withNoiseReductionPixelFrameV1 } from '../src/common/editor/imaging/pixel-frame-noise-reduction-v1.ts';
 import { withPhotoDevelopProxyV1 } from '../src/lightscaper/controller/photo-develop-proxy-v1.ts';
@@ -49,3 +49,32 @@ test('actual registered Photo proxy matches literal Noise pixels, every histogra
 function crc32(bytes:Uint8Array):number{
 	let value=0xffffffff;for(const byte of bytes){value^=byte;for(let bit=0;bit<8;bit++)value=(value>>>1)^(value&1?0xedb88320:0);}return(value^0xffffffff)>>>0;
 }
+
+
+test('native Noise capability refusal occurs before owning any fixture source allocation',async()=>{
+	const previous=Object.getOwnPropertyDescriptor(globalThis,'WebGL2RenderingContext'),Native=Uint8Array;let allocations=0,checks=0,traps=0;
+	const reason=new Proxy({}, {get(){traps++;throw Error();},getOwnPropertyDescriptor(){traps++;throw Error();},getPrototypeOf(){traps++;throw Error();}});
+	Object.defineProperty(globalThis,'WebGL2RenderingContext',{configurable:true,get(){checks++;throw reason;}});
+	globalThis.Uint8Array=new Proxy(Native,{construct(target,args){if(Array.isArray(args[0]))allocations++;return Reflect.construct(target,args);}});
+	let result:Readonly<{failed:boolean;reason:unknown}>;
+	try{result=await qualifyNoiseNativeV1({source:NOISE_SOURCE,height:2,params:NOISE_PARAMS,mode:'target'})
+		.then(()=>({failed:false,reason:undefined}),error=>({failed:true,reason:error as unknown}));}
+	finally{globalThis.Uint8Array=Native;if(previous)Object.defineProperty(globalThis,'WebGL2RenderingContext',previous);else Reflect.deleteProperty(globalThis,'WebGL2RenderingContext');}
+	assert.equal(allocations,0);assert.equal(checks,1);assert.equal(result.failed,true);assert.equal(result.reason===reason,true);assert.equal(traps,0);
+});
+
+test('native Noise model creation refusal retires its already-owned source without reflecting the opaque reason',async()=>{
+	const previous=Object.getOwnPropertyDescriptor(globalThis,'WebGL2RenderingContext'),Native=Uint8Array,clone=globalThis.structuredClone;
+	let owned:Uint8Array|undefined,clones=0,traps=0,nativeCalls=0;
+	const reason=new Proxy({}, {get(){traps++;throw Error();},getOwnPropertyDescriptor(){traps++;throw Error();},getPrototypeOf(){traps++;throw Error();}});
+	Object.defineProperty(globalThis,'WebGL2RenderingContext',{configurable:true,value:{prototype:{readPixels(){nativeCalls++;throw Error('No native output is admitted.');}}}});
+	globalThis.Uint8Array=new Proxy(Native,{construct(target,args){const view=Reflect.construct(target,args)as Uint8Array;if(Array.isArray(args[0]))owned=view;return view;}});
+	globalThis.structuredClone=()=>{clones++;throw reason;};
+	let result:Readonly<{failed:boolean;reason:unknown}>;
+	try{result=await qualifyNoiseNativeV1({source:NOISE_SOURCE,height:2,params:NOISE_PARAMS,mode:'target'})
+		.then(()=>({failed:false,reason:undefined}),error=>({failed:true,reason:error as unknown}));}
+	finally{globalThis.Uint8Array=Native;globalThis.structuredClone=clone;
+		if(previous)Object.defineProperty(globalThis,'WebGL2RenderingContext',previous);else Reflect.deleteProperty(globalThis,'WebGL2RenderingContext');}
+	assert.equal(result.failed,true);assert.equal(result.reason===reason,true);assert.equal(clones,1);assert.equal(traps,0);assert.equal(nativeCalls,0);
+	assert.ok(owned);assert.ok(owned.every(byte=>byte===0));
+});

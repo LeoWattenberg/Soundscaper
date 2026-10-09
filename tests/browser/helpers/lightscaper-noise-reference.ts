@@ -39,13 +39,14 @@ export async function qualifyNoiseNativeV1(value:unknown){
 	if(typeof height!=='number'||!Number.isSafeInteger(height)||height<1||height>256||source.length%(4*height))throw new RangeError('Native noise height refuses.');
 	if(mode!=='target'&&mode!=='frame'&&mode!=='cancel'&&mode!=='fault')throw new RangeError('Native noise mode refuses.');
 	const noise=normalizeNoiseReductionEffectV1({id:'native-noise',type:'noise-reduction-v1',enabled:true,params:field(input,'params','native noise')});
+	const nativeRead=WebGL2RenderingContext.prototype.readPixels;
 	const pixels=new Uint8Array(source as number[]),before=[...pixels],width=pixels.length/(4*height),stop=new AbortController();
-	const context=createGlobalExportContextV1([noise],width,height),persisted=cloneFramescaperProjectFinishing(PROFILE,context.project)as unknown as VideoEffectProject;
-	const effects=persisted.clips.find(clip=>clip.id==='video-clip')!.videoEffects!;
-	const nativeRead=WebGL2RenderingContext.prototype.readPixels;let reads=0,traps=0,abandoned:Uint8Array|null=null;
+	let reads=0,traps=0,abandoned:Uint8Array|null=null;
 	const receivers=new Set<WebGL2RenderingContext>(),reason=new Proxy({}, {get(){traps++;throw Error();},getOwnPropertyDescriptor(){traps++;throw Error();},getPrototypeOf(){traps++;throw Error();}});
 	let cpu:Awaited<ReturnType<typeof applyVideoExactBrowserEffectsFinishing>>|undefined,output:Awaited<ReturnType<typeof applyVideoExactBrowserEffectsFinishing>>|undefined;
 	try{
+		const context=createGlobalExportContextV1([noise],width,height),persisted=cloneFramescaperProjectFinishing(PROFILE,context.project)as unknown as VideoEffectProject;
+		const effects=persisted.clips.find(clip=>clip.id==='video-clip')!.videoEffects!;
 		cpu=await applyVideoExactBrowserEffectsFinishing({width,height,pixels},effects,stop.signal);const cpuPixels=[...cpu.pixels];cpu.pixels.fill(0);cpu=undefined;
 		WebGL2RenderingContext.prototype.readPixels=function(this:WebGL2RenderingContext,...args:unknown[]){
 			reads++;receivers.add(this);Reflect.apply(nativeRead,this,args);
