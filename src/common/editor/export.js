@@ -1,4 +1,5 @@
 import { projectEffectTailFrames } from './effects.js';
+import { fitExportFileName } from './export-name-byte-budget.ts';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
 import { createMasteringSequenceBext } from './mastering-sequence-bext.ts';
 import { cartForDeliveryRange } from './cart-delivery-range.ts';
@@ -174,10 +175,10 @@ export function createExportFileName(project, options = {}) {
 	if (options.mode === 'stem' || options.mode === 'chapter' || options.mode === 'clip') {
 		const index = Number(options.trackIndex ?? 0) + 1;
 		const fallback = options.mode === 'stem' ? 'track' : options.mode;
-		return `${String(index).padStart(2, '0')}-${sanitizeExportName(options.trackName, fallback)}.${extension}`;
+		return fitExportFileName(sanitizeExportName(options.trackName, fallback), `${String(index).padStart(2, '0')}-`, `.${extension}`);
 	}
 	const date = isoDate(options.date);
-	return `${sanitizeExportName(project.title)}-mix-${date}.${extension}`;
+	return fitExportFileName(sanitizeExportName(project.title), '', `-mix-${date}.${extension}`);
 }
 
 /** @returns {AudioExportPlan} */
@@ -431,7 +432,7 @@ export function createExportPlan(project, options = {}) {
 		: multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
 	const archive = mode !== 'mix'
 		? createStemArchivePlan(
-			`${sanitizeExportName(runtimeProject.title)}-${mode}-${isoDate(options.date)}`,
+			fitExportFileName(sanitizeExportName(runtimeProject.title), '', `-${mode}-${isoDate(options.date)}`, '.zip'.length),
 			outputs.map((output) => ({
 				fileName: output.fileName,
 				expectedByteLength: spans
