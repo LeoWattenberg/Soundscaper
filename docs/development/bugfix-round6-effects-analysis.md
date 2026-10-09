@@ -1169,3 +1169,38 @@ including ordinary 512-window recovery with the original frequency/level and
 Export assertions. This register now has thirty verified roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-031 — Undo leaves half of a linked Bass/Treble adjustment applied
+
+Import an ordinary recording, open its Effects rack and add Bass and Treble.
+Enable Auto-adjust volume to preserve loudness and set Bass or Treble to 12 dB.
+The tone becomes 12 and its compensated output volume becomes -6. Close the
+dialog and press Undo once. Only output volume returns to zero; the tone stays
+at 12, leaving an unintended uncompensated boost. Both tone controls share this
+one independently implemented linked-parameter publication owner.
+
+Publish the two static parameter changes in one existing effect-update
+transaction. Preserve the preceding ordinary per-parameter path when either
+control belongs to live automation, and retain gesture cancellation and
+failure admission. Existing mixer/fade gesture-history roots concern their
+separate continuous-draft owners; this linked edit already finishes both
+values successfully but publishes two complete commands.
+
+Both actual public rack/edit/Close/Undo workflows are causally RED on immutable
+Green21 after ordinary unlinked Undo controls pass: the dialog reads tone 12
+and output 0 after one Undo
+(`/tmp/soundscaper-r6-effects-linked-tone-browser-red.log`). Two strict mounted
+production-editor cases independently create two canonical Soundscaper history
+entries while unlinked, rejected-write and both live-lane controls pass
+(`/tmp/soundscaper-r6-effects-linked-tone-node-red3.log`). Earlier legacy-history
+schema and native-checkbox assumptions are excluded fixture setup failures.
+All twenty-four new and existing linked, derived, automation-routing, layout
+and rack-command cases pass after repair
+(`/tmp/soundscaper-r6-effects-linked-tone-node-green2.log`), including complete
+one-entry Undo/Redo and unchanged independently owned automation values.
+Focused strict compilation, targeted and canonical changed-file lint, and
+size/diff checks pass. Built public GREEN is pending the next immutable
+snapshot; this register retains thirty verified
+roots.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
