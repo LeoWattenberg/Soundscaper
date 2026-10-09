@@ -310,3 +310,18 @@ and target inventories are unchanged.
 Detached take-track duplication is excluded: recorded take lanes stay outside timeline playback until the ordinary Flatten action, and the published Duplicate contract promises timeline clips. The initial probe failed its pre-Duplicate audible control before any copy occurred. The initial take-Flatten setup likewise did not reach a reliable audible control and was excluded; its later retained native mono recording and promotion control independently establishes the channel-layout defect documented as R6-EDIT-053. The failed temporary probes were retired.
 
 Uncounted R6-EDIT-046 timeline gesture completion is publicly GREEN on immutable `ae7939d4e`: unchanged audio fade, picture fade and locked header workflows pass in 2.3/6.7/3.1 seconds (`/tmp/soundscaper-round6-green33-chromium.log`, full delta 15/15 PASS). Ordinary unlocked edits, read-only selection and Undo/Redo remain intact; this adds no root.
+
+Uncounted R6-EDIT-046 label-lane completion: ordinary label creation, title
+confirmation and Undo pass on immutable `08212b4eb`, then label-track Lock → F2
+still opens a writable title field (`/tmp/soundscaper-r6-edit-label-track-lock-public-red.log`,
+12.2 seconds). This is the same host-track protected-content admission family,
+not a new root. Carry the owning label-track lock into its Add/title/drag/remove
+presentation and preserve read-only selection. Recheck live label authority
+before captured title, drag, Add and removal callbacks publish, retaining the
+existing recording-annotation exception. Three strict mounted entry/late-lock/
+late-lease cases independently RED after fixture selector mistakes are corrected
+(`/tmp/soundscaper-r6-edit-label-track-lock-node-red3.log`); corrected admission,
+restored writing and original composition, primary-button, Escape and capture
+annotation support pass17/17 (`/tmp/soundscaper-r6-edit-label-track-lock-node-support.log`).
+Narrow strict TypeScript, targeted and canonical changed-file lint, size and diff
+checks pass. Built public GREEN pending; this adds no qualifying count.
