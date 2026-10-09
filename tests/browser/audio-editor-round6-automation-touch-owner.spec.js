@@ -10,12 +10,17 @@ for (const { interrupted, distance } of [{ interrupted: false, distance: 12 }, {
 	await importFiles(editor, [monoTone]);
 	const row = clipByName(editor, monoTone.name).locator('xpath=ancestor::div[@data-track-row][1]');
 	await chooseTrackMenuAction(page, editor, row, 'Add automation');
+	const releasedPointers = [];
 	page.on('console', message => {
 		if (message.text().startsWith('automation-pointercancel')) console.log(message.text());
+		if (message.text().startsWith('automation-touch-release')) releasedPointers.push(message.text());
 	});
 	await row.locator('[data-track-automation-overlay]').evaluate(element => element.addEventListener('pointercancel', event => {
 		console.log('automation-pointercancel', event.pointerType, event.pointerId);
 	}));
+	await row.locator('[data-track-automation-overlay]').evaluate(element => element.ownerDocument.addEventListener('pointerup', event => {
+		if (event.pointerType === 'touch') console.log('automation-touch-release', event.isPrimary);
+	}, true));
 	await row.locator('[data-automation-insert-point]').first().press('i');
 	const points = row.locator('[data-automation-point-id]');
 	await expect(points).toHaveCount(2);
@@ -45,7 +50,8 @@ for (const { interrupted, distance } of [{ interrupted: false, distance: 12 }, {
 		expect(originBox).not.toBeNull();
 		const second = { x: originBox.x + originBox.width / 2, y: originBox.y + originBox.height / 2, id: 2 };
 		await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [middle, second] });
-		await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [middle] });
+		await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [second] });
+		expect(releasedPointers).toEqual(['automation-touch-release false']);
 	}
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [final] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });

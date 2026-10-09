@@ -51,6 +51,7 @@
 	pointer-events: none;
 }
 
+.audio-editor-track-automation-overlay[data-track-automation-interactive],
 .audio-editor-track-automation-overlay [data-track-automation-interactive] {
 	touch-action: none;
 }
