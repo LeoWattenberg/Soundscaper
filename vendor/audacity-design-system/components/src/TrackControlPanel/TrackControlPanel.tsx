@@ -407,10 +407,10 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.defaultPrevented || (e.key === 'Tab' && (e.ctrlKey || e.metaKey || e.altKey))) return;
     const panelElement = e.currentTarget as HTMLElement;
     const currentElement = document.activeElement;
     const isPanelFocused = currentElement === panelElement;
-
     // Slot-based focus model: Pan and Volume are wrapped in focusable
     // "slot" containers. Arrow nav lands on the slot (so the focus ring
     // wraps the whole control); Enter pushes DOM focus into the inner

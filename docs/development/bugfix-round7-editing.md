@@ -18,6 +18,12 @@ The potential stale session-folder creation candidate is excluded: the only
 published New folder entry supplies an explicit surviving parent. The suspect
 default-parent internal call is unreachable through that menu.
 
+Native image boundary resizing in `applyAudacityItemNavigationAction` is also
+excluded: published Extend/Contract commands call the selection controller
+directly, and only item movement reaches this helper. Its failing internal
+image trim tests and browser verification files were removed without a source
+change or count.
+
 The unchanged EDIT005 horizontal and vertical placement/history workflows pass
 on prepared Chromium capture `5c9787bec` (2.4 seconds each); EDIT006's complete
 compound-meter control and readable zoomed-out labels pass in 3.6 seconds. The
@@ -28,6 +34,19 @@ whole accompanying corrected batch passes 21/21.
 | R7-EDIT-007 | Add a Send track, assign Ctrl+Alt+Tab to New label track in Preferences, focus the output header and use the assigned command after ordinary Tab traversal. | The independent output-header capture handler consumes every Tab before the workspace dispatcher, even when modified or already handled. Release claimed and modified keys before its existing local traversal. This is distinct from R5-EDIT-025's output-lane handler. | Four actual mounted capture cases causally RED with prevention/traversal instead of no consumption; ordinary Tab/Shift+Tab control passes. Corrected output-header/lane/name/composition regressions pass 16/16. Public Chromium first completes plain Tab traversal, then causally RED at zero label tracks after the assigned command. Corrected public workflow pending. |
 | R7-EDIT-008 | Import an ordinary two-minute recording, choose Beats & measures in its source ruler, then author 960 BPM followed by 30 BPM at beat 40 through Musical timeline. | The independent source ruler chooses label stride from average bar count and viewport width. A tempo change clusters those chosen bars in sample space. Admit labels by their actual projected distance while preserving exact native frames and musical origins. | Constant-tempo control passes, but the owning model causally RED shows labels only 3.75 pixels apart. The public healthy source ruler passes before authoring the tempo change, then actual SVG labels overlap: next starts at 872.375 while its predecessor ends at 873. Corrected new and existing source-origin/signature regressions pass 7/7. Corrected public workflow pending. |
 | R7-EDIT-009 | Import an ordinary stereo WAV, enable Spectrogram, choose Select → Spectral → Spectral brush and click the same frequency position halfway down each channel. | The spectral authoring surface treats both channels as one frequency axis. Forward actual display channel count/ratio, resolve the stroke in its originating channel and present the resulting band at the matching position in both channels. Keep one set of editing handles and existing mono/keyboard/pointer ownership. | Two actual mounted stereo cases causally RED at 18,000/20,400 Hz instead of the displayed 12,000 Hz; mono control passes. Public Chromium ordinary upper/lower clicks select centers 7,231.44 Hz apart. Corrected mounted/model/channel/cancellation/touch support passes 35/35. Corrected public workflow pending. |
+
+Prepared Chromium capture `fef78921b` passes EDIT008's complete tempo-change
+workflow in 4.7 seconds and EDIT009's upper/lower channel authoring and displayed
+selection placement in 2.5 seconds.
+
+EDIT007's first header correction exposed the same modified-Tab consumption
+in its nested design-system panel under the published grouped navigation
+profile. The complete public workflow remained RED at zero label tracks.
+Four mounted panel-handler cases with that profile also causally RED at one
+prevented event instead of zero. Release handled events and modified Tab in
+that nested owner as well; panel/header/lane/name/composition and existing
+vendor checks now pass 23/23. This follow-through adds no count. The shared
+vendor file retains its previous line count. Corrected public proof is pending.
 
 No assistance runtime closure or target inventory changes. No manual **Update
 AI assets** run is required.
