@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { POST_CROP_VIGNETTE_GLSL_V1 } from './video-preview-post-crop-vignette-v1.ts';
+import { CLARITY_GLSL_V1 } from './video-preview-clarity-v1.ts';
 import { DETAIL_SHARPEN_GLSL_V1 } from './video-preview-sharpen-v1.ts';
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_GLSL_V1 } from '../video-chroma-develop-v1.ts';
@@ -37,6 +38,7 @@ in vec2 v_uv;
 out vec4 out_color;
 
 ${POST_CROP_VIGNETTE_GLSL_V1}
+${CLARITY_GLSL_V1}
 ${DETAIL_SHARPEN_GLSL_V1}
 ${GLOBAL_DEVELOP_GLSL_V1}
 ${CHROMA_DEVELOP_GLSL_V1}
@@ -109,6 +111,7 @@ void main() {
 		return;
 	}
 	if (u_effect == 28) { out_color = post_crop_vignette_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
+	if (u_effect == 29) { out_color = clarity_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 27) { out_color = detail_sharpen_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 20) { out_color = geometry_render(content_uv) * vec4(1.0, 1.0, 1.0, u_opacity); return; }
 	vec4 color = u_effect == 0 ? sample_frame(v_uv) : sample_content(content_uv);

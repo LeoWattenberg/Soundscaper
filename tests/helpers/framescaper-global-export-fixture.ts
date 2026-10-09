@@ -57,14 +57,16 @@ export function createGlobalExportContextV1(effects: readonly unknown[], width: 
 }
 
 /** Actual browser Canvas capture, maintained selected finishing and native mixed effect readback. */
-export async function qualifyGlobalExportNativeV1(mode: 'opaque' | 'geometry-alpha' | 'chroma' | 'black-white' | 'hsl' | 'curves' | 'curves-reverse' | 'detail') {
-	const source = new Uint8Array(mode === 'detail' ? [40,80,120,255,100,140,180,255,160,200,240,255,220,60,20,255]
+export async function qualifyGlobalExportNativeV1(mode: 'opaque' | 'geometry-alpha' | 'chroma' | 'black-white' | 'hsl' | 'curves' | 'curves-reverse' | 'detail' | 'clarity') {
+	const source = new Uint8Array(mode === 'clarity' ? [64,64,64,255,128,128,128,255,192,192,192,255,128,128,128,255]
+		: mode === 'detail' ? [40,80,120,255,100,140,180,255,160,200,240,255,220,60,20,255]
 		: (mode === 'black-white'||mode==='hsl') ? [255,0,0,255,0,0,0,255,128,128,128,255,0,0,255,255] : mode !== 'geometry-alpha'
 		? [0,32,64,255,64,128,192,255,128,128,128,255,255,224,16,255]
 		: [0,0,0,0,255,255,255,1,255,255,255,127,128,128,128,255]);
 	const curves = [createVideoEffect('point-curves-v1', { id: 'point', params: { master: [{ x: 0, y: 1 }, { x: 1, y: 0 }] } }),
 		createVideoEffect('parametric-curves-v1', { id: 'parametric', params: { masterShadows: 100 } })];
-	const effects = mode === 'detail' ? [createVideoEffect('detail-sharpen-v1',{id:'detail',params:{amount:100,threshold:0}})]
+	const effects = mode === 'clarity' ? [createVideoEffect('clarity-v1',{id:'clarity',params:{amount:100}})]
+		: mode === 'detail' ? [createVideoEffect('detail-sharpen-v1',{id:'detail',params:{amount:100,threshold:0}})]
 		: mode === 'curves' ? curves : mode === 'curves-reverse' ? [...curves].reverse()
 		: mode === 'hsl' ? [createVideoEffect('hsl-mixer-v1',{id:'hsl',params:{redHue:60,orangeHue:60,yellowHue:60,greenHue:60,aquaHue:60,blueHue:60,purpleHue:60,magentaHue:60}}),
 		createVideoEffect('tone-ladder-v1',{id:'tone',params:{exposure:-1}})]

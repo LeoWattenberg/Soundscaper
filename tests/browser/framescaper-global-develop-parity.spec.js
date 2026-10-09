@@ -416,3 +416,55 @@ async function qualify(page, request) {
 	return page.evaluate(async ({ path, request }) => (await import(new URL(path, location.href).href)).qualifyGlobalDevelopWebglV1(request),
 		{ path: MODULE, request });
 }
+
+
+test('actual Clarity29 shader preserves literal positive softening fractional and signed-midpoint goldens',async({page})=>{
+	const source=[64,64,64,255,128,128,128,255,192,192,192,255];
+	for(const [amount,expected] of [[100,[49,128,206]],[-100,[79,128,178]],[50,[57,128,199]],[37.125,[59,128,197]]]){
+		const result=await qualify(page,{source,effects:[effect('clarity-v1',{amount})],mode:'target'});
+		expect(result.clarityProgramLinked).toBe(true);expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+		expect(result.pixels).toEqual(expected.flatMap(n=>[n,n,n,255]));expect(result.cpuPixels).toEqual(result.pixels);expect(result.glError).toBe(0);
+	}
+	const hidden=[255,0,255,0,64,128,192,127,0,255,0,0],result=await qualify(page,{source:hidden,effects:[effect('clarity-v1',{amount:100})],mode:'target'});
+	expect(result.pixels).toEqual(hidden);expect(result.cpuPixels).toEqual(hidden);
+});
+
+test('native Clarity neighborhoods retain all256 alpha with independent BigInt source-weight rounding and ordered curves',async({page})=>{
+	const source=Array.from({length:256},(_,n)=>[n,255-n,(n*17)%256,n]).flat();
+	for(const amount of [-100,100,37.125]){
+		const result=await qualify(page,{source,height:16,effects:[effect('clarity-v1',{amount})],mode:'target'});
+		expect(result.clarityProgramLinked).toBe(true);expect(result.pixels).toEqual(clarityReference(source,16,amount));expect(result.cpuPixels).toEqual(result.pixels);
+		expect(result.pixels.filter((_,n)=>n%4===3)).toEqual(Array.from({length:256},(_,n)=>n));expect(result.glError).toBe(0);
+	}
+	const first=clarityReference(source,16,37.125),inverted=first.map((n,i)=>i%4===3?n:255-n);
+	const result=await qualify(page,{source,height:16,effects:[effect('clarity-v1',{amount:37.125}),effect('point-curves-v1',{master:[{x:0,y:1},{x:1,y:0}]}),effect('clarity-v1',{amount:-50},'last')],mode:'target'});
+	expect(result.pixels).toEqual(clarityReference(inverted,16,-50));expect(result.cpuPixels).toEqual(result.pixels);
+});
+
+test('actual persisted mixed Frame wheel sharp curve Clarity retains alpha and opaque canceled native readback custody',async({page})=>{
+	const source=[40,80,120,0,100,140,180,127,160,200,240,255];
+	const effects=[effect('color-wheels-v1',{highlightsLuminance:100}),effect('detail-sharpen-v1',{amount:50,threshold:3}),
+		effect('point-curves-v1',{master:[{x:0,y:1},{x:1,y:0}]}),effect('clarity-v1',{amount:50})];
+	const previous=[197,144,90,0,137,79,12,127,31,0,0,255],result=await qualify(page,{source,effects,mode:'frame'});
+	expect(result.authoredTypes).toEqual(['color-wheels-v1','detail-sharpen-v1','point-curves-v1','clarity-v1','color-adjust']);
+	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);expect(result.pixels).toEqual(clarityReference(previous,3,50));
+	const canceled=await qualify(page,{source,effects,mode:'frame-cancel'});
+	expect(canceled.rejectedWithReason).toBe(true);expect(canceled.abandonedOutputZero).toBe(true);expect(canceled.reasonTraps).toBe(0);expect(canceled.nativeReadbacks).toBe(1);
+});
+
+// Independent source-addressed dense binomial rational oracle; no production projector.
+function clarityReference(source, width, amount) {
+	const height = source.length / (4 * width), bins = [1n,6n,15n,20n,15n,6n,1n], gain = BigInt(Math.round(amount*256/100));
+	const luma = (n) => (54n*BigInt(source[n])+183n*BigInt(source[n+1])+19n*BigInt(source[n+2])+128n)/256n;
+	return [...source].map((byte, offset) => {
+		const c = offset%4, p = Math.floor(offset/4); if (c===3 || source[p*4+3]===0) return byte;
+		const x=p%width,y=Math.floor(p/width); let sum=0n,weight=0n;
+		for(let row=0;row<7;row++)for(let column=0;column<7;column++){
+			const n=4*(Math.min(height-1,Math.max(0,y+row-3))*width+Math.min(width-1,Math.max(0,x+column-3)));
+			const w=bins[row]*bins[column]*BigInt(source[n+3]);weight+=w;sum+=w*luma(n);
+		}
+		const original=luma(p*4),blur=(2n*sum+weight)/(2n*weight),mid=2n*(original<255n-original?original:255n-original);
+		const numerator=(original-blur)*gain*mid+32512n,adjustment=numerator>=0n?numerator/65024n:-((-numerator+65023n)/65024n);
+		const output=BigInt(byte)+adjustment;return Number(output<0n?0n:output>255n?255n:output);
+	});
+}

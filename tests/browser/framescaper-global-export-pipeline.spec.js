@@ -84,6 +84,14 @@ test('native Canvas capture and actual selected composition consume the persiste
 	expect(result.authoredTypes).toEqual(['detail-sharpen-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
 });
 
+test('native Canvas capture and selected composition consume persisted Clarity with exact declared pre-encode gray bytes',async({page})=>{
+	const result=await qualify(page,'clarity'),source=[64,64,64,255,128,128,128,255,192,192,192,255,128,128,128,255];
+	const expected=[38,38,38,255,135,135,135,255,217,217,217,255,121,121,121,255];
+	expect(result.captured).toEqual([source]);expect(result.sourceUnchanged).toEqual(source);
+	expect(result.effectedPixels).toEqual(expected);expect(result.pixels).toEqual(expected);
+	expect(result.authoredTypes).toEqual(['clarity-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
+});
+
 async function qualify(page, mode) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalExportNativeV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

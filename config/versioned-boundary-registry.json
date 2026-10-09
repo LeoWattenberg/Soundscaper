@@ -386,6 +386,8 @@
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-canvas-presenter-v1.ts", "kind": "helper-contract", "justification": "Version1 shared canvas presentation admits current profiles, preserves oriented straight-alpha pixels and deterministically releases bounded backing."}
 		,
+		{"path": "src/common/editor/imaging/pixel-frame-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Clarity owns one bounded encoded-sRGB source snapshot and one output, applies replicated-edge alpha-weighted seven-by-seven binomial luma neighborhoods with exact signed Q8 midtone contrast, and joins cancellation and consumer settlement before wiping both owned backings."}
+		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped image geometry evaluates encoded sRGB through bounded premultiplied bilinear samples, joins cancellation and wipes owned output after the consumer settles."}
@@ -522,6 +524,8 @@
 		,
 		{ "path": "src/common/editor/track-hierarchy-v12.ts", "kind": "persisted-contract", "justification": "track-hierarchy-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/ui/video-preview-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 native Clarity shader samples original straight byte alpha and luma through texelFetch, protects hidden RGB at zero-alpha centers and evaluates dense seven-by-seven replicated-edge neighborhoods with bounded highp signed integer arithmetic and exact signed rounding."}
+		,
 		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
 		,
 		{"path": "src/common/editor/ui/video-preview-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 code28 native post-crop vignette uses current texture dimensions and bounded highp integer coordinate, radius, smoothstep and signed byte arithmetic. Original maximum RGB and literal alpha preserve the shared straight encoded-sRGB process without Float32 large-product rounding."}
@@ -568,6 +572,10 @@
 		,
 		{ "path": "src/common/editor/video-chroma-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared vibrance and saturation recipes retain encoded-sRGB Rec709 integer luma and Q16 gains, saturation-before-vibrance ordering and byte rounding/clamping at each substep. CPU, highp integer GPU and owning FFmpeg algebra preserve multichannel straight RGB and unchanged alpha without a separable lookup approximation." }
 		,
+		{"path": "src/common/editor/video-clarity-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning Clarity graph authenticates its compiled process before composing original-alpha-preserving neighborhood GEQ with output-scoped labels for repeated and mixed authored stages."}
+		,
+		{"path": "src/common/editor/video-clarity-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared Clarity retains closed fractional amount under the encoded-sRGB alpha-weighted seven-bin luma process. Replicated edges, positive nearest blur ties, signed Q8 common RGB midtone offsets, clipping, unchanged alpha and hidden RGB at transparent centers define ordered CPU, integer native shader and original-alpha-preserving GEQ evaluation; Texture, Dehaze and legacy unsharp remain separate processes."}
+		,
 		{ "path": "src/common/editor/video-color-cube-lut-v27.ts", "kind": "persisted-contract", "justification": "video-color-cube-lut-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-color-management-v27.ts", "kind": "persisted-contract", "justification": "video-color-management-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -609,6 +617,8 @@
 		{ "path": "src/common/editor/video-motion-processing-v27.ts", "kind": "persisted-contract", "justification": "video-motion-processing-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-motion-webgl2-v27.ts", "kind": "persisted-contract", "justification": "video-motion-webgl2-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{"path": "src/common/editor/video-original-alpha-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 internal compiled-effect graph keeps original byte alpha separate from RGB conversion before neighborhood evaluation and exact output publication. Output-scoped plane labels preserve existing sharpen transport bytes and compose repeated and mixed owning operations."}
 		,
 		{"path": "src/common/editor/video-post-crop-vignette-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning post-crop vignette graph requires the exact compiled scalar recipe and carries original alpha into ten-register spatial GEQ and final publication. Output-scoped labels preserve sequential mixed-stage composition without caller expressions or retained pixel masks."}
 		,

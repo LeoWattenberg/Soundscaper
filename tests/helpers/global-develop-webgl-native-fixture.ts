@@ -11,6 +11,7 @@ import { normalizeChromaDevelopEffectV1 } from '../../src/common/editor/video-ch
 import { normalizeBlackWhiteMixEffectV1 } from '../../src/common/editor/video-black-white-mix-v1.ts';
 import { normalizeHslMixerEffectV1 } from '../../src/common/editor/video-hsl-mixer-v1.ts';
 import { isCurvesEffectTypeV1, normalizeCurvesEffectV1 } from '../../src/common/editor/video-curves-v1.ts';
+import { normalizeClarityEffectV1 } from '../../src/common/editor/video-clarity-v1.ts';
 import { normalizeDetailSharpenEffectV1 } from '../../src/common/editor/video-sharpen-v1.ts';
 import { withGlobalDevelopPixelFrameV1 } from '../../src/common/editor/imaging/pixel-frame-global-develop-v1.ts';
 import { VideoPreviewCompositor } from '../../src/common/editor/ui/video-preview-compositor.js';
@@ -23,7 +24,7 @@ import { applyVideoExactBrowserEffectsFinishing } from '../../src/framescaper/ed
 type Mode = 'target' | 'frame' | 'frame-spatial' | 'frame-cancel' | 'presentation';
 interface Target { readonly framebuffer: WebGLFramebuffer; readonly texture: WebGLTexture; readonly width: number; readonly height: number }
 interface RenderResult { readonly pixels: number[]; readonly legacyPresentationPixels?: number[];
-	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly curveProgramLinks?: number; readonly wheelsProgramLinked?: boolean; readonly chromaProgramLinked?: boolean; readonly blackWhiteProgramLinked?: boolean; readonly hslProgramLinked?: boolean; readonly detailProgramLinked?: boolean; readonly glError?: number }
+	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly curveProgramLinks?: number; readonly wheelsProgramLinked?: boolean; readonly chromaProgramLinked?: boolean; readonly blackWhiteProgramLinked?: boolean; readonly hslProgramLinked?: boolean; readonly detailProgramLinked?: boolean; readonly clarityProgramLinked?: boolean; readonly glError?: number }
 interface Compositor {
 	readonly gl: WebGL2RenderingContext; readonly programs: readonly WebGLProgram[];
 	resizeToDisplaySize(options: Readonly<{ outputWidth: number; outputHeight: number }>): void;
@@ -48,8 +49,8 @@ export async function qualifyGlobalDevelopWebglV1(value: unknown) {
 	const mode = field(input, 'mode', 'native global render');
 	if (mode !== 'target' && mode !== 'frame' && mode !== 'frame-spatial' && mode !== 'frame-cancel' && mode !== 'presentation') throw new RangeError('Unknown native global fixture mode.');
 	const authored = author(effects, width, height), stop = new AbortController(), signal = stop.signal;
-	const cpuPixels = effects.some(effect => effect.type === 'detail-sharpen-v1')
-		? await detailCpuPixels(pixels, width, height, authored, signal)
+	const cpuPixels = effects.some(effect => effect.type === 'detail-sharpen-v1' || effect.type === 'clarity-v1')
+		? await spatialCpuPixels(pixels, width, height, authored, signal)
 		: await withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width, height,
 		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels }, effects: authored, signal }, output => Array.from(output.pixels), { limits: LIMITS });
 	const nativeRead = WebGL2RenderingContext.prototype.readPixels, receivers = new Set<WebGL2RenderingContext>(); let nativeReadbacks = 0;
@@ -70,7 +71,7 @@ export async function qualifyGlobalDevelopWebglV1(value: unknown) {
 	} finally { WebGL2RenderingContext.prototype.readPixels = nativeRead; pixels.fill(0); }
 }
 
-async function detailCpuPixels(pixels:Uint8Array<ArrayBuffer>,width:number,height:number,effects:readonly unknown[],signal:AbortSignal){
+async function spatialCpuPixels(pixels:Uint8Array<ArrayBuffer>,width:number,height:number,effects:readonly unknown[],signal:AbortSignal){
 	const output=await applyVideoExactBrowserEffectsFinishing({width,height,pixels},effects,signal);
 	try{return Array.from(output.pixels);}finally{output.pixels.fill(0);}
 }
@@ -78,6 +79,7 @@ async function detailCpuPixels(pixels:Uint8Array<ArrayBuffer>,width:number,heigh
 function normalizeEffect(value: unknown) {
 	const input = record(value,'native shared effect',['id','type','enabled','params']);
 	if (field(input, 'type', 'native shared effect') === COLOR_WHEELS_EFFECT_TYPE_V1) return normalizeColorWheelsEffectV1(value);
+	if(field(input,'type','native shared effect')==='clarity-v1')return normalizeClarityEffectV1(value);
 	if(field(input,'type','native shared effect')==='detail-sharpen-v1')return normalizeDetailSharpenEffectV1(value);
 	if (isCurvesEffectTypeV1(field(input, 'type', 'native shared effect'))) return normalizeCurvesEffectV1(value);
 	if(field(input,'type','native shared effect')==='hsl-mixer-v1')return normalizeHslMixerEffectV1(value);
@@ -123,6 +125,7 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 		const blackWhiteProgramLinked = gl.getProgramParameter(compositor.programs[22],gl.LINK_STATUS) === true;
 		const hslProgramLinked = gl.getProgramParameter(compositor.programs[23],gl.LINK_STATUS) === true;
 		const detailProgramLinked = gl.getProgramParameter(compositor.programs[27],gl.LINK_STATUS) === true;
+		const clarityProgramLinked = gl.getProgramParameter(compositor.programs[29],gl.LINK_STATUS) === true;
 		if (mode === 'presentation') {
 			const drawable = new ImageData(new Uint8ClampedArray(pixels), width, height);
 			const report = compositor.render([{ entries: [{ clipId: 'native-global', video: { drawable, videoWidth: width, videoHeight: height,
@@ -144,6 +147,6 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 		const target = applyVideoPreviewEntryEffects(compositor, texture, passes, { x: 0, y: 0, width, height }, undefined, 'native-global') as Target;
 		const output = new Uint8Array(pixels.length); gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer); gl.finish();
 		gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, output);
-		return { pixels: Array.from(output), globalProgramLinks, curveProgramLinks, wheelsProgramLinked, detailProgramLinked, chromaProgramLinked, blackWhiteProgramLinked, hslProgramLinked, glError: gl.getError() };
+		return { pixels: Array.from(output), globalProgramLinks, curveProgramLinks, wheelsProgramLinked, detailProgramLinked, clarityProgramLinked, chromaProgramLinked, blackWhiteProgramLinked, hslProgramLinked, glError: gl.getError() };
 	} finally { if (texture) gl.deleteTexture(texture); compositor.dispose(); canvas.remove(); }
 }

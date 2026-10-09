@@ -50,10 +50,10 @@ for (const locale of ['en', 'de']) for (const type of ['point-curves-v1', 'param
 			beforePresent={Promise.resolve()} registerRetirement={() => () => undefined} onClose={() => undefined} />);
 		const button = (label: string) => { const value = mounted.dom.container.querySelectorAll('button').find(row => row.textContent === label); assert.ok(value, label); return value; };
 		const click = async (target: ReactTestElement) => { await act(async () => { reactProps(target).onClick?.({ currentTarget: target }); await settle(); }); };
-		const change = async (label: string, value: string) => {
+		const change = async (label: string, value: string, commit = true) => {
 			const input = mounted.dom.container.querySelectorAll('input').find(row => row.getAttribute('aria-label') === label); assert.ok(input, label);
 			await act(async () => { reactProps(input).onFocus?.({}); reactProps(input).onChange?.({ currentTarget: { value, valueAsNumber: Number(value) } }); });
-			await act(async () => { reactProps(input).onKeyDown?.({ key: 'Enter', preventDefault() {} }); });
+			if (commit) await act(async () => { reactProps(input).onKeyDown?.({ key: 'Enter', preventDefault() {} }); });
 		};
 		try {
 			await act(async () => { await settle(); });
@@ -66,7 +66,7 @@ for (const locale of ['en', 'de']) for (const type of ['point-curves-v1', 'param
 			} else {
 				await change(`${messages.shared.videoEffectExactValue}: ${messages.shared.videoEffectCurveMasterShadows}`, '100');
 				const split = `${messages.shared.videoEffectExactValue}: ${messages.shared.videoEffectCurveShadowSplit}`;
-				await change(split, '0.5');
+				await change(split, '0.5', false);
 				assert.equal(mounted.dom.one('[data-photo-develop-effects]').querySelector('[role="alert"]')?.textContent,
 					messages.shared.videoEffectCurveParametersInvalid);
 				await change(split, '0.25');
