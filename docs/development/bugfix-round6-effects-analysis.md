@@ -39,7 +39,10 @@ workflow on immutable Green16 `9bd6730b2`
 bringing this register to twenty-three verified roots. R6-EFFECT-024–025 pass
 their complete normal Chromium workflows on immutable Green17 `449787703`
 (`/tmp/soundscaper-round6-green17-chromium.log`), bringing this register to
-twenty-five verified roots.
+twenty-five verified roots. R6-EFFECT-026–027 pass both complete normal
+Chromium tone workflows on immutable Green18 `d7cb58183`
+(`/tmp/soundscaper-round6-green18-chromium.log`), bringing this register to
+twenty-seven verified roots.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -980,8 +983,10 @@ cases independently fail while the digital-silence control passes
 (`/tmp/soundscaper-r6-effects-parametric-eq-spectrum-node-red2.log`). All
 eighteen new/existing spectrum and graph gesture cases pass after correction
 (`/tmp/soundscaper-r6-effects-parametric-eq-spectrum-node-green.log`). Focused
-strict compilation and targeted type-aware lint pass. Source is ready;
-post-build public GREEN remains pending and this root is not counted yet.
+strict compilation and targeted type-aware lint pass. Both complete normal
+tone workflows pass Chromium on immutable Green18 `d7cb58183`
+(`/tmp/soundscaper-round6-green18-chromium.log`), including the omitted peak
+and native-clock position control.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
 
@@ -1015,8 +1020,10 @@ loudness and block-continuity controls pass
 new/existing EBU conformance, worklet, production analysis and BEXT silence
 cases pass after correction
 (`/tmp/soundscaper-r6-effects-ebu-sample-peak-node-green.log`). Focused strict
-compilation, targeted type-aware lint and diff checks pass. Source is ready;
-post-build public GREEN remains pending and this root is not counted yet.
+compilation, targeted type-aware lint and diff checks pass. Both complete
+normal native microphone workflows pass Chromium on immutable Green18
+`d7cb58183` (`/tmp/soundscaper-round6-green18-chromium.log`), retaining the
+aligned sample control and the repaired phase-shifted reading.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
 
