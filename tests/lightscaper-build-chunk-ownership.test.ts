@@ -14,6 +14,16 @@ const scalarModules = ['controller/shared/photo-library-definition-reader.ts', '
 	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
 	'controller/shared/photo-library-compare-v1.ts', 'controller/shared/photo-library-survey-v1.ts'];
 
+test('fixed closed effect families own one exact imaging leaf without foreign registrations', () => {
+	const path = directory + 'video-effect-closed-families-v1.ts';
+	for (const candidate of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), 'editor-imaging');
+	for (const candidate of [path + '.foreign', path.replace('-v1.ts', '-future-v1.ts')]) assert.notEqual(chunkGroupForModulePath(candidate), 'editor-imaging');
+	const dependencies = staticRelativeDependencies(transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code);
+	assert.ok(dependencies.includes('./video-effect-closed-creation.ts'));
+	assert.ok(dependencies.every(specifier => /^\.\/(?:video-[^/]+\.ts|stable-id\.js)$/u.test(specifier)));
+	assert.ok(!dependencies.includes('./video-effects.js'));
+});
+
 test('scalar color wheels own exact imaging contracts without foreign suffix or timeline passengers', () => {
 	for (const path of ['video-color-wheels-v1.ts', 'video-color-wheels-scalar-v1.ts']) {
 		for (const candidate of [directory + path, (directory + path).replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), 'editor-imaging');

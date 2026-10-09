@@ -1,24 +1,7 @@
-import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1, POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1, normalizePostCropVignetteEffectV1,
-	normalizePostCropVignetteParamsV1, createPostCropVignetteEffectV1, serializePostCropVignetteEffectToFfmpegV1 } from './video-post-crop-vignette-v1.ts';
-import { CLARITY_EFFECT_TYPE_V1, CLARITY_VIDEO_EFFECT_DEFINITION_V1, normalizeClarityEffectV1, normalizeClarityParamsV1, serializeClarityEffectToFfmpegV1 } from './video-clarity-v1.ts';
-import { createClosedVideoEffect } from './video-effect-closed-creation.ts';
-import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1, normalizeDetailSharpenEffectV1,
-	normalizeDetailSharpenParamsV1, serializeDetailSharpenEffectToFfmpegV1 } from './video-sharpen-v1.ts';
+import { CLOSED_VIDEO_EFFECT_DEFINITIONS_V1, isClosedVideoEffectTypeV1, hasClosedVideoEffectEnvelopeV1,
+	normalizeClosedVideoEffectParamsV1, normalizeClosedVideoEffectV1, createClosedVideoEffectFamilyV1,
+	serializeClosedVideoEffectV1 } from './video-effect-closed-families-v1.ts';
 import { createStableId } from './stable-id.js';
-import { COLOR_WHEELS_EFFECT_TYPE_V1, COLOR_WHEELS_VIDEO_EFFECT_DEFINITION_V1, normalizeColorWheelsEffectV1,
-	normalizeColorWheelsParamsV1, serializeColorWheelsEffectToFfmpegV1 } from './video-color-wheels-v1.ts';
-import { CURVES_VIDEO_EFFECT_DEFINITIONS_V1, isCurvesEffectTypeV1, normalizeCurvesEffectV1,
-	normalizePointCurvesParamsV1, normalizeParametricCurvesParamsV1, serializeCurvesEffectToFfmpegV1 } from './video-curves-v1.ts';
-import { GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1, isGlobalDevelopEffectTypeV1,
-	normalizeGlobalDevelopEffectV1, normalizeGlobalDevelopParamsV1, serializeGlobalDevelopEffectToFfmpegV1 } from './video-global-develop-v1.ts';
-import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, IMAGE_GEOMETRY_VIDEO_EFFECT_DEFINITION_V1,
-	normalizeImageGeometryVideoEffectV1, normalizeImageGeometryVideoParamsV1 } from './video-image-geometry-v1.ts';
-import { CHROMA_DEVELOP_EFFECT_TYPE_V1, CHROMA_DEVELOP_VIDEO_EFFECT_DEFINITION_V1,
-	normalizeChromaDevelopEffectV1, normalizeChromaDevelopParamsV1, serializeChromaDevelopEffectToFfmpegV1 } from './video-chroma-develop-v1.ts';
-import { HSL_MIXER_EFFECT_TYPE_V1, HSL_MIXER_VIDEO_EFFECT_DEFINITION_V1,
-	normalizeHslMixerEffectV1, normalizeHslMixerParamsV1, serializeHslMixerEffectToFfmpegV1 } from './video-hsl-mixer-v1.ts';
-import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_VIDEO_EFFECT_DEFINITION_V1,
-	normalizeBlackWhiteMixEffectV1, normalizeBlackWhiteMixParamsV1, serializeBlackWhiteMixEffectToFfmpegV1 } from './video-black-white-mix-v1.ts';
 
 function parameter(label, labelKey, defaultValue, minimum, maximum, step, options = {}) {
 	return Object.freeze({
@@ -115,16 +98,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 		opacity: parameter('Opacity', 'videoEffectParamOpacity', 0.6, 0, 1, 0.01),
 		color: parameter('Color', 'videoEffectParamColor', 0x000000, 0, 0xffffff, 1, { integer: true, control: 'color' }),
 	}),
-	...GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1,
-	[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]: IMAGE_GEOMETRY_VIDEO_EFFECT_DEFINITION_V1,
-	[CHROMA_DEVELOP_EFFECT_TYPE_V1]: CHROMA_DEVELOP_VIDEO_EFFECT_DEFINITION_V1,
-	[BLACK_WHITE_MIX_EFFECT_TYPE_V1]: BLACK_WHITE_MIX_VIDEO_EFFECT_DEFINITION_V1,
-	[HSL_MIXER_EFFECT_TYPE_V1]: HSL_MIXER_VIDEO_EFFECT_DEFINITION_V1,
-	...CURVES_VIDEO_EFFECT_DEFINITIONS_V1,
-	[COLOR_WHEELS_EFFECT_TYPE_V1]: COLOR_WHEELS_VIDEO_EFFECT_DEFINITION_V1,
-	[DETAIL_SHARPEN_EFFECT_TYPE_V1]: DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1,
-	[POST_CROP_VIGNETTE_EFFECT_TYPE_V1]: POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1,
-	[CLARITY_EFFECT_TYPE_V1]: CLARITY_VIDEO_EFFECT_DEFINITION_V1,
+	...CLOSED_VIDEO_EFFECT_DEFINITIONS_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -161,17 +135,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
-	if (type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) { normalizePostCropVignetteParamsV1(params); return true; }
-	if (type === CLARITY_EFFECT_TYPE_V1) { normalizeClarityParamsV1(params); return true; }
-	if (type === COLOR_WHEELS_EFFECT_TYPE_V1) { normalizeColorWheelsParamsV1(params); return true; }
-	if (type === DETAIL_SHARPEN_EFFECT_TYPE_V1) { normalizeDetailSharpenParamsV1(params); return true; }
-	if (type === 'point-curves-v1') { normalizePointCurvesParamsV1(params); return true; }
-	if (type === 'parametric-curves-v1') { normalizeParametricCurvesParamsV1(params); return true; }
-	if (type === HSL_MIXER_EFFECT_TYPE_V1) { normalizeHslMixerParamsV1(params); return true; }
-	if (type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { normalizeBlackWhiteMixParamsV1(params); return true; }
-	if (type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { normalizeChromaDevelopParamsV1(params); return true; }
-	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) { normalizeImageGeometryVideoParamsV1(params); return true; }
-	if (isGlobalDevelopEffectTypeV1(type)) { normalizeGlobalDevelopParamsV1(type, params); return true; }
+	if (isClosedVideoEffectTypeV1(type)) { normalizeClosedVideoEffectParamsV1(type, params); return true; }
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
 	}
@@ -195,17 +159,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
-	if (type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return { ...normalizePostCropVignetteParamsV1(params) };
-	if (type === CLARITY_EFFECT_TYPE_V1) return { ...normalizeClarityParamsV1(params) };
-	if (type === COLOR_WHEELS_EFFECT_TYPE_V1) return { ...normalizeColorWheelsParamsV1(params) };
-	if (type === DETAIL_SHARPEN_EFFECT_TYPE_V1) return { ...normalizeDetailSharpenParamsV1(params) };
-	if (type === 'point-curves-v1') return { ...normalizePointCurvesParamsV1(params) };
-	if (type === 'parametric-curves-v1') return { ...normalizeParametricCurvesParamsV1(params) };
-	if (type === HSL_MIXER_EFFECT_TYPE_V1) return { ...normalizeHslMixerParamsV1(params) };
-	if (type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) return { ...normalizeBlackWhiteMixParamsV1(params) };
-	if (type === CHROMA_DEVELOP_EFFECT_TYPE_V1) return { ...normalizeChromaDevelopParamsV1(params) };
-	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return { ...normalizeImageGeometryVideoParamsV1(params) };
-	if (isGlobalDevelopEffectTypeV1(type)) return { ...normalizeGlobalDevelopParamsV1(type, params) };
+	if (isClosedVideoEffectTypeV1(type)) return normalizeClosedVideoEffectParamsV1(type, params);
 	if (params === undefined) params = {};
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
@@ -233,13 +187,8 @@ function normalizeVideoEffectParams(type, params, name) {
 export function createVideoEffect(type, options = {}) {
 	const stableType = nonEmptyString(type, 'videoEffect.type');
 	videoEffectDefinition(stableType);
-	if (stableType === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return createPostCropVignetteEffectV1(options, () => createStableId('video-effect'));
-	if (stableType === COLOR_WHEELS_EFFECT_TYPE_V1) return createClosedVideoEffect(stableType, options, {
-		name: 'color wheel creation', typeError: 'Color wheel creation requires its exact effect type.', normalizeParams: normalizeColorWheelsParamsV1, normalizeEffect: normalizeColorWheelsEffectV1 });
-	if (stableType === DETAIL_SHARPEN_EFFECT_TYPE_V1) return createClosedVideoEffect(stableType, options, {
-		name: 'detail sharpening creation', typeError: 'Detail sharpening creation requires its exact effect type.', normalizeParams: normalizeDetailSharpenParamsV1, normalizeEffect: normalizeDetailSharpenEffectV1 });
-	if (stableType === CLARITY_EFFECT_TYPE_V1) return createClosedVideoEffect(stableType, options, {
-		name: 'clarity creation', typeError: 'Clarity creation requires its exact effect type.', normalizeParams: normalizeClarityParamsV1, normalizeEffect: normalizeClarityEffectV1 });
+	const closed = createClosedVideoEffectFamilyV1(stableType, options);
+	if (closed) return closed;
 	if (options.enabled != null && typeof options.enabled !== 'boolean') {
 		throw new TypeError('videoEffect.enabled must be a boolean.');
 	}
@@ -249,33 +198,17 @@ export function createVideoEffect(type, options = {}) {
 		enabled: options.enabled !== false,
 		params: normalizeVideoEffectParams(stableType, options.params, 'videoEffect.params'),
 	};
-	if (isGlobalDevelopEffectTypeV1(stableType)) normalizeGlobalDevelopEffectV1(effect);
-	if (stableType === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) normalizeImageGeometryVideoEffectV1(effect);
-	if (stableType === CHROMA_DEVELOP_EFFECT_TYPE_V1) normalizeChromaDevelopEffectV1(effect);
-	if (stableType === BLACK_WHITE_MIX_EFFECT_TYPE_V1) normalizeBlackWhiteMixEffectV1(effect);
-	if (stableType === HSL_MIXER_EFFECT_TYPE_V1) normalizeHslMixerEffectV1(effect);
-	if (isCurvesEffectTypeV1(stableType)) normalizeCurvesEffectV1(effect);
+	if (isClosedVideoEffectTypeV1(stableType)) normalizeClosedVideoEffectV1(stableType, effect);
 	return effect;
 }
 
 export function normalizeVideoEffect(effect, name = 'videoEffect', options = {}) {
 	const typeDescriptor = Object.getOwnPropertyDescriptor(effect ?? {}, 'type');
 	if (typeDescriptor && !Object.hasOwn(typeDescriptor, 'value')) throw new TypeError(`${name}.type requires a data field.`);
-	if (typeDescriptor?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || typeDescriptor?.value === CLARITY_EFFECT_TYPE_V1) {
-		const normalized = typeDescriptor.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1
-			? normalizePostCropVignetteEffectV1(effect) : normalizeClarityEffectV1(effect);
+	if (hasClosedVideoEffectEnvelopeV1(typeDescriptor?.value)) {
+		const normalized = normalizeClosedVideoEffectV1(typeDescriptor.value, effect);
 		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
-		return { ...normalized, params: { ...normalized.params } };
-	}
-	if (typeDescriptor?.value === COLOR_WHEELS_EFFECT_TYPE_V1) {
-		const normalized = normalizeColorWheelsEffectV1(effect);
-		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
-		return { ...normalized, params: { ...normalized.params } };
-	}
-	if (typeDescriptor?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1) {
-		const normalized = normalizeDetailSharpenEffectV1(effect);
-		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
-		return { ...normalized, params: { ...normalized.params } };
+		return normalized;
 	}
 	if (!effect || typeof effect !== 'object' || Array.isArray(effect)) {
 		throw new TypeError(`${name} must be an object.`);
@@ -303,12 +236,7 @@ export function normalizeVideoEffect(effect, name = 'videoEffect', options = {})
 		enabled: effect.enabled,
 		params: normalizeVideoEffectParams(type, effect.params, `${name}.params`),
 	};
-	if (isGlobalDevelopEffectTypeV1(type)) normalizeGlobalDevelopEffectV1(normalized);
-	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) normalizeImageGeometryVideoEffectV1(normalized);
-	if (type === CHROMA_DEVELOP_EFFECT_TYPE_V1) normalizeChromaDevelopEffectV1(normalized);
-	if (type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) normalizeBlackWhiteMixEffectV1(normalized);
-	if (type === HSL_MIXER_EFFECT_TYPE_V1) normalizeHslMixerEffectV1(normalized);
-	if (isCurvesEffectTypeV1(type)) normalizeCurvesEffectV1(normalized);
+	if (isClosedVideoEffectTypeV1(type)) normalizeClosedVideoEffectV1(type, normalized);
 	return normalized;
 }
 
@@ -339,32 +267,7 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
-	if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) {
-		const operation = serializePostCropVignetteEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (effect.type === CLARITY_EFFECT_TYPE_V1) { const operation = serializeClarityEffectToFfmpegV1(effect); return operation ? [operation] : []; }
-	if (effect.type === COLOR_WHEELS_EFFECT_TYPE_V1) {
-		const operation = serializeColorWheelsEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (effect.type === DETAIL_SHARPEN_EFFECT_TYPE_V1) {
-		const operation = serializeDetailSharpenEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (isCurvesEffectTypeV1(effect.type)) {
-		const operation = serializeCurvesEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) {
-		const operation = serializeHslMixerEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) {
-		const operation = serializeBlackWhiteMixEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) {
-		const operation = serializeChromaDevelopEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
-	if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return [{ kind: 'image-geometry-v1', effect: normalizeImageGeometryVideoEffectV1(effect) }];
-	if (isGlobalDevelopEffectTypeV1(effect.type)) {
-		const operation = serializeGlobalDevelopEffectToFfmpegV1(effect); return operation ? [operation] : [];
-	}
+	if (isClosedVideoEffectTypeV1(effect.type)) return serializeClosedVideoEffectV1(effect.type, effect);
 	const definitionValue = videoEffectDefinition(effect.type);
 	const params = effect.params;
 	switch (definitionValue.ffmpegFilter) {
