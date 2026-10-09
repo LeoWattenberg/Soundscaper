@@ -141,6 +141,60 @@ test('actual Frame authoring and mixed native renderer preserve chroma at every 
 	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
 });
 
+test('actual monochrome shader owns eight hue centers, red wrap and signed half rounding with unchanged alpha',async({page})=>{
+	await prepare(page);
+	const source=[[254,0,0],[254,127,0],[254,254,0],[0,254,0],[0,254,254],[0,0,254],[127,0,254],[254,0,254]]
+		.flatMap((rgb,i)=>[...rgb,[0,1,127,255][i%4]]);
+	for(const [params,grays]of [[{},[54,144,235,182,200,19,46,72]],
+		[{red:5,orange:10,yellow:-15,green:-20,aqua:-5,blue:2,purple:15,magenta:20},[67,169,197,131,187,24,84,123]]]){
+		const expected=grays.flatMap((gray,i)=>[gray,gray,gray,[0,1,127,255][i%4]]);
+		const result=await qualify(page,{source,effects:[effect('black-white-mix-v1',params)],mode:'target'});
+		expect(result.blackWhiteProgramLinked).toBe(true);expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+		expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	}
+	const negative=await qualify(page,{source:[254,127,0,127],effects:[effect('black-white-mix-v1',{orange:-25})],mode:'target'});
+	expect(negative.pixels).toEqual([81,81,81,127]);expect(negative.cpuPixels).toEqual([81,81,81,127]);expect(negative.glError).toBe(0);
+	const wrap=await qualify(page,{source:[254,0,1,0,254,1,0,1],effects:[effect('black-white-mix-v1',{red:25})],mode:'target'});
+	expect(wrap.pixels).toEqual([117,117,117,0,117,117,117,1]);expect(wrap.glError).toBe(0);
+});
+
+test('actual monochrome shader retains all256 multichannel/gray bytes, disabled identity and authored operation order',async({page})=>{
+	await prepare(page);const keys=['red','orange','yellow','green','aqua','blue','purple','magenta'];
+	const source=Array.from({length:256},(_,n)=>[n,(17*n)%256,255-n,[0,1,127,255][n%4]]).flat();
+	const controls=[12.5,-37.125,33.3,-73.25,50,100,-100,25],params=Object.fromEntries(keys.map((key,i)=>[key,controls[i]])),expected=[];
+	for(let i=0;i<source.length;i+=4){const gray=blackWhiteReference(source.slice(i,i+3),controls);expected.push(gray,gray,gray,source[i+3]);}
+	const result=await qualify(page,{source,effects:[effect('black-white-mix-v1',params)],mode:'target'});
+	expect(result.pixels).toEqual(expected);expect(result.cpuPixels).toEqual(expected);expect(result.glError).toBe(0);
+	for(const effects of [[effect('white-balance-v1',{temperature:73}),effect('black-white-mix-v1',params)],
+		[effect('black-white-mix-v1',params),effect('white-balance-v1',{temperature:73})],
+		[{...effect('black-white-mix-v1',params),enabled:false}]]){
+		const output=await qualify(page,{source,effects,mode:'target'});expect(output.pixels).toEqual(output.cpuPixels);expect(output.glError).toBe(0);
+	}
+	const gray=Array.from({length:256},(_,n)=>[n,n,n,n]).flat();
+	const grays=await qualify(page,{source:gray,effects:[effect('black-white-mix-v1',Object.fromEntries(keys.map(key=>[key,100])))],mode:'target'});
+	expect(grays.pixels).toEqual(gray);expect(grays.cpuPixels).toEqual(gray);expect(grays.glError).toBe(0);
+});
+
+test('actual Frame authoring/mixed native renderer preserves monochrome hidden RGB and alpha0/1/127/255',async({page})=>{
+	await prepare(page);const source=[0,1,127,255].flatMap(alpha=>[254,127,0,alpha]);
+	const result=await qualify(page,{source,effects:[effect('black-white-mix-v1',{orange:-25})],mode:'frame'});
+	expect(result.authoredTypes).toEqual(['black-white-mix-v1','color-adjust']);
+	expect(result.pixels).toEqual([0,1,127,255].flatMap(alpha=>[81,81,81,alpha]));
+	expect(result.nativeWebgl2).toBe(true);expect(result.nativeReadbacks).toBe(1);
+});
+
+// Independent BigInt reference uses exact rational hue and signed floor division.
+function blackWhiteReference(rgb,controls){
+	const [r,g,b]=rgb.map(BigInt),max=[r,g,b].reduce((a,c)=>a>c?a:c),min=[r,g,b].reduce((a,c)=>a<c?a:c),c=max-min;
+	const y=(54n*r+183n*g+19n*b+128n)/256n;if(c===0n)return Number(y);
+	let n=max===r?g-b:max===g?b-r+2n*c:r-g+4n*c;if(n<0n)n+=6n*c;
+	const h=((n*512n+c)/(2n*c))%1536n,centers=[0n,128n,256n,512n,768n,1024n,1152n,1280n,1536n];
+	const left=centers.findIndex((_,i)=>i<8&&h<centers[i+1]),p=controls.map(value=>BigInt(Math.round(value/100*65536)));
+	const floor=(value,divisor)=>value>=0n?value/divisor:-((-value+divisor-1n)/divisor);
+	const width=centers[left+1]-centers[left],a=p[left],z=p[(left+1)%8],mix=a+floor((z-a)*(h-centers[left])+width/2n,width);
+	const gray=y+floor(c*mix+32768n,65536n);return Number(gray<0n?0n:gray>255n?255n:gray);
+}
+
 // Independent BigInt reference, not the CPU/shader owner; division explicitly floors negative adaptive gain.
 function chromaReference(input,saturation,vibrance){
 	const Q=65536n,sat=BigInt(Math.round((1+saturation/100)*65536)),vib=BigInt(Math.round(vibrance/100*65536));

@@ -5,6 +5,8 @@ import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, IMAGE_GEOMETRY_VIDEO_EFFECT_DEFINI
 	normalizeImageGeometryVideoEffectV1, normalizeImageGeometryVideoParamsV1 } from './video-image-geometry-v1.ts';
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1, CHROMA_DEVELOP_VIDEO_EFFECT_DEFINITION_V1,
 	normalizeChromaDevelopEffectV1, normalizeChromaDevelopParamsV1, serializeChromaDevelopEffectToFfmpegV1 } from './video-chroma-develop-v1.ts';
+import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_VIDEO_EFFECT_DEFINITION_V1,
+	normalizeBlackWhiteMixEffectV1, normalizeBlackWhiteMixParamsV1, serializeBlackWhiteMixEffectToFfmpegV1 } from './video-black-white-mix-v1.ts';
 
 function parameter(label, labelKey, defaultValue, minimum, maximum, step, options = {}) {
 	return Object.freeze({
@@ -104,6 +106,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 	...GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1,
 	[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]: IMAGE_GEOMETRY_VIDEO_EFFECT_DEFINITION_V1,
 	[CHROMA_DEVELOP_EFFECT_TYPE_V1]: CHROMA_DEVELOP_VIDEO_EFFECT_DEFINITION_V1,
+	[BLACK_WHITE_MIX_EFFECT_TYPE_V1]: BLACK_WHITE_MIX_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -140,6 +143,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
+	if (type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { normalizeBlackWhiteMixParamsV1(params); return true; }
 	if (type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { normalizeChromaDevelopParamsV1(params); return true; }
 	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) { normalizeImageGeometryVideoParamsV1(params); return true; }
 	if (isGlobalDevelopEffectTypeV1(type)) { normalizeGlobalDevelopParamsV1(type, params); return true; }
@@ -166,6 +170,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
+	if (type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) return { ...normalizeBlackWhiteMixParamsV1(params) };
 	if (type === CHROMA_DEVELOP_EFFECT_TYPE_V1) return { ...normalizeChromaDevelopParamsV1(params) };
 	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return { ...normalizeImageGeometryVideoParamsV1(params) };
 	if (isGlobalDevelopEffectTypeV1(type)) return { ...normalizeGlobalDevelopParamsV1(type, params) };
@@ -208,6 +213,7 @@ export function createVideoEffect(type, options = {}) {
 	if (isGlobalDevelopEffectTypeV1(stableType)) normalizeGlobalDevelopEffectV1(effect);
 	if (stableType === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) normalizeImageGeometryVideoEffectV1(effect);
 	if (stableType === CHROMA_DEVELOP_EFFECT_TYPE_V1) normalizeChromaDevelopEffectV1(effect);
+	if (stableType === BLACK_WHITE_MIX_EFFECT_TYPE_V1) normalizeBlackWhiteMixEffectV1(effect);
 	return effect;
 }
 
@@ -241,6 +247,7 @@ export function normalizeVideoEffect(effect, name = 'videoEffect', options = {})
 	if (isGlobalDevelopEffectTypeV1(type)) normalizeGlobalDevelopEffectV1(normalized);
 	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) normalizeImageGeometryVideoEffectV1(normalized);
 	if (type === CHROMA_DEVELOP_EFFECT_TYPE_V1) normalizeChromaDevelopEffectV1(normalized);
+	if (type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) normalizeBlackWhiteMixEffectV1(normalized);
 	return normalized;
 }
 
@@ -271,6 +278,9 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
+	if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) {
+		const operation = serializeBlackWhiteMixEffectToFfmpegV1(effect); return operation ? [operation] : [];
+	}
 	if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) {
 		const operation = serializeChromaDevelopEffectToFfmpegV1(effect); return operation ? [operation] : [];
 	}

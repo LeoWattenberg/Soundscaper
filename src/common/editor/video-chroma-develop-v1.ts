@@ -65,7 +65,7 @@ export function chromaDevelopPreviewPassV1(value: unknown) {
 }
 
 /** Generated algebra only. All integer intermediates are exact in FFmpeg's double evaluator. */
-export function serializeChromaDevelopEffectToFfmpegV1(value: unknown): Readonly<{ expression: string; preserveAlpha: false }> | null {
+export function serializeChromaDevelopEffectToFfmpegV1(value: unknown): Readonly<{ expression: string; preserveAlpha: true }> | null {
 	const prepared = prepareChromaDevelopEffectV1(value); if (!prepared.enabled || prepared.neutral) return null;
 	const y = (rgb: string[]) => `floor((54*(${rgb[0]!})+183*(${rgb[1]!})+19*(${rgb[2]!})+128)/256)`;
 	const convert = (c: string,l: string,f: string) => `floor(clip((${l})*65536+((${c})-(${l}))*(${f})+32768,0,16711680)/65536)`;
@@ -75,7 +75,7 @@ export function serializeChromaDevelopEffectToFfmpegV1(value: unknown): Readonly
 	const range = 'max(max(ld(0),ld(1)),ld(2))-min(min(ld(0),ld(1)),ld(2))';
 	const factor = `65536+floor((${String(prepared.params0[1])}*(255-(${range}))+127)/255)`;
 	const expressions = ['r','g','b'].map((name,index)=>`${name}='${first.map((c,i)=>`st(${String(i)},${c});`).join('')}st(3,${factor});${convert(retained[index]!,secondY,'ld(3)')}'`);
-	return Object.freeze({expression:`format=pix_fmts=gbrap,geq=${expressions.join(':')}:a='alpha(X,Y)':interpolation=nearest,format=pix_fmts=rgba`,preserveAlpha:false});
+	return Object.freeze({expression:`format=pix_fmts=gbrap,geq=${expressions.join(':')}:a='alpha(X,Y)':interpolation=nearest,format=pix_fmts=rgba`,preserveAlpha:true});
 }
 
 /** Q16 coefficients fit exactly in float uniforms; all shader intermediates are highp signed integers below 34 million. */

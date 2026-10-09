@@ -16,6 +16,7 @@ One definition owns each effect’s parameters, and the preview and the export b
 
 | Effect | Effect ID | Parameters |
 | --- | --- | --- |
+| Black-and-white mix | `black-white-mix-v1` | 8 |
 | Chroma Key | `chroma-key` | 3 |
 | Color Adjust | `color-adjust` | 5 |
 | Crop and perspective (contain) | `develop-geometry-v1` | 17 |
@@ -39,6 +40,14 @@ Defaults and limits come from the same definitions the editor validates against.
 
 | Effect | Parameter | Default | Range | Unit |
 | --- | --- | --- | --- | --- |
+| Black-and-white mix | Red | 0 | -100 to 100 | — |
+| Black-and-white mix | Orange | 0 | -100 to 100 | — |
+| Black-and-white mix | Yellow | 0 | -100 to 100 | — |
+| Black-and-white mix | Green | 0 | -100 to 100 | — |
+| Black-and-white mix | Aqua | 0 | -100 to 100 | — |
+| Black-and-white mix | Blue | 0 | -100 to 100 | — |
+| Black-and-white mix | Purple | 0 | -100 to 100 | — |
+| Black-and-white mix | Magenta | 0 | -100 to 100 | — |
 | Chroma Key | Key color | `#00ff00` | Any RGB color | — |
 | Chroma Key | Similarity | 0.1 | 0.01 to 1 | — |
 | Chroma Key | Softness | 0.1 | 0 to 1 | — |

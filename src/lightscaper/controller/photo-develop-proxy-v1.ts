@@ -8,6 +8,7 @@ import { withGeometryPixelFrameV1 } from '../../common/editor/imaging/pixel-fram
 import { createPixelFrameHistogramV1, type PixelFrameHistogramV1 } from '../../common/editor/imaging/pixel-frame-histogram-v1.ts';
 import { isGlobalDevelopEffectTypeV1 } from '../../common/editor/video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1 } from '../../common/editor/video-chroma-develop-v1.ts';
+import { BLACK_WHITE_MIX_EFFECT_TYPE_V1 } from '../../common/editor/video-black-white-mix-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../common/editor/video-image-geometry-v1.ts';
 import type { ImageGeometryV1 } from '../../common/editor/imaging/image-geometry-v1.ts';
 import { normalizePhotoDevelopV1 } from '../catalog/develop-state.ts';
@@ -44,7 +45,8 @@ export async function withPhotoDevelopProxyV1<Result>(value: unknown,
 	if (serialized.length > maximum || new TextEncoder().encode(serialized).byteLength > maximum) throw new RangeError('Photo proxy settings exceed their byte budget.');
 	if (develop.maskBindings.length) throw new RangeError('Photo proxy mask-bound adjustments are unsupported.');
 	for (const effect of develop.effects) {
-		if (effect.enabled && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1 && !isGlobalDevelopEffectTypeV1(effect.type)) {
+		if (effect.enabled && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1
+			&& effect.type !== BLACK_WHITE_MIX_EFFECT_TYPE_V1 && !isGlobalDevelopEffectTypeV1(effect.type)) {
 			throw new RangeError(`Unsupported photo proxy effect: ${effect.type}.`);
 		}
 	}

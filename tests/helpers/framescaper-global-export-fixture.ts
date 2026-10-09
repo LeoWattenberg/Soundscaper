@@ -35,11 +35,13 @@ export function createGlobalExportContextV1(effects: readonly unknown[], width: 
 }
 
 /** Actual browser Canvas capture, maintained selected finishing and native mixed effect readback. */
-export async function qualifyGlobalExportNativeV1(mode: 'opaque' | 'geometry-alpha' | 'chroma') {
-	const source = new Uint8Array(mode !== 'geometry-alpha'
+export async function qualifyGlobalExportNativeV1(mode: 'opaque' | 'geometry-alpha' | 'chroma' | 'black-white') {
+	const source = new Uint8Array(mode === 'black-white' ? [255,0,0,255,0,0,0,255,128,128,128,255,0,0,255,255] : mode !== 'geometry-alpha'
 		? [0,32,64,255,64,128,192,255,128,128,128,255,255,224,16,255]
 		: [0,0,0,0,255,255,255,1,255,255,255,127,128,128,128,255]);
-	const effects = mode === 'chroma' ? [createVideoEffect('chroma-v1',{id:'chroma',params:{saturation:-100,vibrance:73.25}})]
+	const effects = mode === 'black-white' ? [createVideoEffect('black-white-mix-v1',{id:'mono',params:{red:100,blue:100}}),
+		createVideoEffect('tone-ladder-v1',{id:'tone',params:{exposure:-1}})]
+		: mode === 'chroma' ? [createVideoEffect('chroma-v1',{id:'chroma',params:{saturation:-100,vibrance:73.25}})]
 		: mode === 'opaque' ? [createVideoEffect('white-balance-v1', { id: 'wb', params: { temperature: 100 } }),
 		createVideoEffect('tone-ladder-v1', { id: 'tone', params: { exposure: -1 } })]
 		: [createVideoEffect('develop-geometry-v1', { id: 'geometry', params: { rotationDegrees: 90 } }),

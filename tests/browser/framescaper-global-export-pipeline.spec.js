@@ -43,6 +43,15 @@ test('native Canvas capture feeds persisted chroma into actual selected composit
 	expect(result.authoredTypes).toEqual(['chroma-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
 });
 
+test('native Canvas capture and selected composition retain authored monochrome before tone with independent pre-encode goldens',async({page})=>{
+	const result=await qualify(page,'black-white');
+	const source=[255,0,0,255,0,0,0,255,128,128,128,255,0,0,255,255];
+	const expected=[188,188,188,255,0,0,0,255,92,92,92,255,188,188,188,255];
+	expect(result.captured).toEqual([source]);expect(result.sourceUnchanged).toEqual(source);
+	expect(result.effectedPixels).toEqual(expected);expect(result.pixels).toEqual(expected);
+	expect(result.authoredTypes).toEqual(['black-white-mix-v1','tone-ladder-v1']);expect(result.consumedNodeIds.length).toBeGreaterThan(0);
+});
+
 async function qualify(page, mode) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
 		`export { qualifyGlobalExportNativeV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};` },

@@ -30,7 +30,7 @@ test('actual Frame authoring/persistence renders admitted chroma from the existi
 	const output = await applyVideoExactBrowserEffectsFinishing({width:4,height:1,pixels:source},clip?.videoEffects ?? [],new AbortController().signal);
 	assert.deepEqual(Array.from(output.pixels), [0,36,100,0,9,137,255,1,128,128,128,127,255,233,0,255]);
 	assert.deepEqual(Array.from(source), [0,32,64,0,64,128,192,1,128,128,128,127,255,224,16,255]);
-	assert.equal(VIDEO_EFFECT_TYPES.at(-1), 'chroma-v1');
+	assert.equal(VIDEO_EFFECT_TYPES[15], 'chroma-v1');
 	assert.throws(()=>createVideoEffect('chroma-v1',{id:'x'.repeat(129)}));
 });
 

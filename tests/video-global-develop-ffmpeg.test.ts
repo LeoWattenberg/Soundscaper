@@ -54,6 +54,19 @@ test('pinned native WASM agrees byte-exactly for all256 samples, alpha and order
 	}
 });
 
+test('pinned WASM preserves every alpha byte through white balance, tone and both authored orders', async () => {
+	const source = new Uint8Array(Array.from({ length: 256 }, (_, n) => [n, (17 * n) % 256, 255 - n, n]).flat());
+	const white = () => effect('white-balance-v1', { temperature: 73, tint: -41 });
+	const tone = () => effect('tone-ladder-v1', { exposure: 0.37, contrast: 29, highlights: -63, shadows: 47, whites: 21, blacks: -33 });
+	for (const effects of [[white()], [tone()], [white(), tone()], [tone(), white()]]) {
+		const expected = await withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: 256, height: 1,
+			sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: source }, effects },
+			view => [...view.pixels], { limits: { maximumSidePixels: 256, maximumPixels: 256, maximumBytes: 1024 } });
+		assert.deepEqual(execute(source, effects), expected, JSON.stringify(effects));
+		for (let n = 0; n < 256; n++) assert.equal(expected[n * 4 + 3], n);
+	}
+});
+
 function execute(source: Uint8Array, effects: readonly unknown[]): number[] {
 	const filters: string[] = []; let label = '0:v';
 	for (const [i, operation] of serializeVideoEffectsToFfmpegOperations(effects).entries()) {

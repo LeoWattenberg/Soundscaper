@@ -118,7 +118,7 @@ export function copyGlobalDevelopPreviewLookupV1(value: unknown): Uint8Array<Arr
 }
 
 /** The same fixed linear masks/gains, explicit byte rounding, and unmodified alpha; no user expression enters this graph. */
-export function serializeGlobalDevelopEffectToFfmpegV1(value: unknown): Readonly<{ expression: string; preserveAlpha: false }> | null {
+export function serializeGlobalDevelopEffectToFfmpegV1(value: unknown): Readonly<{ expression: string; preserveAlpha: true }> | null {
 	const prepared = prepareGlobalDevelopEffectV1(value);
 	if (!prepared.enabled || prepared.neutral) return null;
 	const token = (value: number) => String(Object.is(value, -0) ? 0 : value), p = prepared.params0, q = prepared.params1;
@@ -134,7 +134,7 @@ export function serializeGlobalDevelopEffectToFfmpegV1(value: unknown): Readonly
 		const tone = prepared.type === 'tone-ladder-v1' ? `st(1,clip((ld(0)*${token(p[0])}-${token(PIVOT)})*${token(p[1])}+${token(PIVOT)},0,1));` : '';
 		return `${channel}='st(0,${decode});${tone}st(2,${linear});floor(255*clip(if(lte(ld(2),0.0031308),12.92*ld(2),1.055*pow(ld(2),1/2.4)-0.055),0,1)+0.5)'`;
 	});
-	return Object.freeze({ expression: `format=pix_fmts=gbrap,geq=${expressions.join(':')}:a='alpha(X,Y)':interpolation=nearest,format=pix_fmts=rgba`, preserveAlpha: false });
+	return Object.freeze({ expression: `format=pix_fmts=gbrap,geq=${expressions.join(':')}:a='alpha(X,Y)':interpolation=nearest,format=pix_fmts=rgba`, preserveAlpha: true });
 }
 
 /** Actual native shaders read the same compiled byte transfer, avoiding device-dependent pow precision. */

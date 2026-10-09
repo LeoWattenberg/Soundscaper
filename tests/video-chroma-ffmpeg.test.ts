@@ -35,6 +35,18 @@ test('actual pinned WASM graph exactly matches bounded CPU over all256 mixed RGB
 	}
 });
 
+test('pinned WASM preserves all256 alpha values through chroma and both global/chroma orders',async()=>{
+	const source=new Uint8Array(Array.from({length:256},(_,n)=>[n,(17*n)%256,255-n,n]).flat());
+	const chroma=()=>createVideoEffect('chroma-v1',{params:{saturation:33.3,vibrance:-37.125}});
+	const white=()=>createVideoEffect('white-balance-v1',{params:{temperature:73}});
+	for(const effects of [[chroma()],[white(),chroma()],[chroma(),white()]]){
+		const expected=await withGlobalDevelopPixelFrameV1({frame:{descriptor:{schemaVersion:1,width:256,height:1,sampleFormat:'unorm8',primaries:'srgb',transfer:'srgb'},pixels:source},effects},
+			view=>[...view.pixels],{limits:{maximumSidePixels:256,maximumPixels:256,maximumBytes:1024}});
+		assert.deepEqual(execute(source,effects),expected,JSON.stringify(effects));
+		for(let n=0;n<256;n++)assert.equal(expected[n*4+3],n);
+	}
+});
+
 function execute(source:Uint8Array,effects:readonly unknown[]):number[]{
 	const filters:string[]=[];let label='0:v';const logs:string[]=[];
 	for(const [i,operation]of serializeVideoEffectsToFfmpegOperations(effects).entries()){
