@@ -22,6 +22,36 @@ const GOLDENS = [
 	['blacks', [effect('tone-ladder-v1', { blacks: 100 })], [137, 140, 143, 0, 143, 131, 192, 1, 131, 131, 131, 127, 255, 224, 138, 255]],
 ];
 
+test('actual wheel26 native shader preserves independent LGG primary goldens and all256 scalar levels', async ({ page }) => {
+	await prepare(page);
+	const source = [0,0,0,1,128,128,128,127,0,255,255,0,255,255,255,255];
+	const effects = [effect('color-wheels-v1', { shadowsHue: 0, shadowsSaturation: 100 })];
+	const literal = await qualify(page, { source, effects, mode: 'target' });
+	expect(literal.wheelsProgramLinked).toBe(true); expect(literal.nativeWebgl2).toBe(true); expect(literal.nativeReadbacks).toBe(1);
+	expect(literal.pixels).toEqual([123,0,0,1,172,112,112,127,123,249,249,0,255,249,249,255]);
+	expect(literal.cpuPixels).toEqual(literal.pixels); expect(literal.glError).toBe(0);
+	const all = Array.from({ length: 256 }, (_, byte) => [byte,(byte * 17) % 256,255 - byte,byte]).flat();
+	for (const params of [{ highlightsLuminance: -9.310940439148165 }, { highlightsLuminance: 8.74628412503394 },
+		{ shadowsHue: 45, shadowsSaturation: 78.125, shadowsLuminance: -37.5, midtonesHue: -179.125,
+			midtonesSaturation: 100, midtonesLuminance: 33.3, highlightsHue: 120.01, highlightsSaturation: 50, highlightsLuminance: -100 }]) {
+		const result = await qualify(page, { source: all, effects: [effect('color-wheels-v1', params)], mode: 'target' });
+		expect(result.wheelsProgramLinked).toBe(true); expect(result.pixels).toEqual(result.cpuPixels); expect(result.glError).toBe(0);
+	}
+});
+
+test('actual authored mixed Frame wheel route preserves straight alpha and joins opaque canceled readback retirement', async ({ page }) => {
+	await prepare(page);
+	const source = [128,128,128,0,128,128,128,1,128,128,128,127,128,128,128,255];
+	const effects = [effect('color-wheels-v1', { highlightsLuminance: 100 })];
+	const result = await qualify(page, { source, effects, mode: 'frame' });
+	expect(result.authoredTypes).toEqual(['color-wheels-v1', 'color-adjust']);
+	expect(result.pixels).toEqual([176,176,176,0,176,176,176,1,176,176,176,127,176,176,176,255]);
+	expect(result.nativeWebgl2).toBe(true); expect(result.nativeReadbacks).toBe(1);
+	const canceled = await qualify(page, { source, effects, mode: 'frame-cancel' });
+	expect(canceled.rejectedWithReason).toBe(true); expect(canceled.reasonTraps).toBe(0);
+	expect(canceled.abandonedOutputZero).toBe(true); expect(canceled.nativeReadbacks).toBe(1);
+});
+
 test('real WebGL2 global passes match independent straight-alpha byte goldens and every neutral byte', async ({ page }) => {
 	await prepare(page);
 	for (const [name, effects, expected] of GOLDENS) {

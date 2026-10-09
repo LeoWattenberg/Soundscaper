@@ -4,6 +4,7 @@ import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.j
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import VideoEffectNumberInput from './VideoEffectNumberInput.tsx';
 import VideoCurveControl from './VideoCurveControl.tsx';
+import VideoColorWheelsControls from './VideoColorWheelsControls.tsx';
 
 export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	const effects = clip.videoEffects || [];
@@ -58,7 +59,8 @@ function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled,
 				</div>
 			</header>
 			<div className="audio-editor-video-effect__params">
-				{Object.entries(descriptor.params).map(([name, parameter]) => (
+				{effect.type === 'color-wheels-v1' ? <VideoEffectWheels effect={effect} clipId={clipId} actions={actions} copy={copy}
+					disabled={disabled || effect.enabled === false} onError={onError} /> : Object.entries(descriptor.params).map(([name, parameter]) => (
 					<VideoEffectParameter key={name} clipId={clipId} effectId={effect.id} name={name} parameter={parameter} value={effect.params[name]} actions={actions} copy={copy} disabled={disabled || effect.enabled === false} onError={onError} />
 				))}
 			</div>
@@ -106,6 +108,12 @@ function VideoEffectParameter(props) {
 	if (props.parameter.control === 'color') return <VideoEffectColor {...props} />;
 	if (props.parameter.control === 'select') return <VideoEffectSelect {...props} />;
 	return <VideoEffectSlider {...props} />;
+}
+
+function VideoEffectWheels({ effect, clipId, actions, copy, disabled, onError }) {
+	const gesture = useEffectGesture({ actions, clipId, effectId: effect.id, disabled, onError });
+	return <VideoColorWheelsControls params={effect.params} copy={copy} disabled={disabled} isCurrent={() => !disabled}
+		onBegin={gesture.begin} onPreview={(_group, params) => gesture.preview(params)} onCommit={gesture.commit} onCancel={gesture.cancel} />;
 }
 
 function VideoEffectCurve({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {

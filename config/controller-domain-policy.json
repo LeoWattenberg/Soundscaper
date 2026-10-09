@@ -45,6 +45,7 @@
 		"clip-video/exact-preview-render-coordinator.ts",
 		"clip-video/linked-video-original-generation.ts",
 		"clip-video/video-action-group.ts",
+		"clip-video/video-color-wheels-gpu.ts",
 		"clip-video/video-curves-gpu.ts",
 		"clip-video/video-effect-service.ts",
 		"clip-video/video-global-develop-gpu.ts",

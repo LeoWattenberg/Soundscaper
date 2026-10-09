@@ -14,6 +14,13 @@ const scalarModules = ['controller/shared/photo-library-definition-reader.ts', '
 	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
 	'controller/shared/photo-library-compare-v1.ts', 'controller/shared/photo-library-survey-v1.ts'];
 
+test('scalar color wheels own exact imaging contracts without foreign suffix or timeline passengers', () => {
+	for (const path of ['video-color-wheels-v1.ts', 'video-color-wheels-scalar-v1.ts']) {
+		for (const candidate of [directory + path, (directory + path).replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), 'editor-imaging');
+		assert.notEqual(chunkGroupForModulePath(directory + path + '.foreign'), 'editor-imaging');
+	}
+});
+
 test('the actual metadata query copy leaf stays with photo copy without a domain or shell dependency', () => {
 	const path = fileURLToPath(new URL('../src/common/i18n/lightscaper-metadata-query-copy.ts', import.meta.url));
 	for (const candidate of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), 'lightscaper-editor-copy');

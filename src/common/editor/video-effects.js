@@ -1,4 +1,7 @@
 import { createStableId } from './stable-id.js';
+import { COLOR_WHEELS_EFFECT_TYPE_V1, COLOR_WHEELS_VIDEO_EFFECT_DEFINITION_V1, normalizeColorWheelsEffectV1,
+	normalizeColorWheelsParamsV1, serializeColorWheelsEffectToFfmpegV1 } from './video-color-wheels-v1.ts';
+import { readClosedDomainRecord, readClosedDomainField } from './closed-domain-value.ts';
 import { CURVES_VIDEO_EFFECT_DEFINITIONS_V1, isCurvesEffectTypeV1, normalizeCurvesEffectV1,
 	normalizePointCurvesParamsV1, normalizeParametricCurvesParamsV1, serializeCurvesEffectToFfmpegV1 } from './video-curves-v1.ts';
 import { GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1, isGlobalDevelopEffectTypeV1,
@@ -113,6 +116,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 	[BLACK_WHITE_MIX_EFFECT_TYPE_V1]: BLACK_WHITE_MIX_VIDEO_EFFECT_DEFINITION_V1,
 	[HSL_MIXER_EFFECT_TYPE_V1]: HSL_MIXER_VIDEO_EFFECT_DEFINITION_V1,
 	...CURVES_VIDEO_EFFECT_DEFINITIONS_V1,
+	[COLOR_WHEELS_EFFECT_TYPE_V1]: COLOR_WHEELS_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -149,6 +153,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
+	if (type === COLOR_WHEELS_EFFECT_TYPE_V1) { normalizeColorWheelsParamsV1(params); return true; }
 	if (type === 'point-curves-v1') { normalizePointCurvesParamsV1(params); return true; }
 	if (type === 'parametric-curves-v1') { normalizeParametricCurvesParamsV1(params); return true; }
 	if (type === HSL_MIXER_EFFECT_TYPE_V1) { normalizeHslMixerParamsV1(params); return true; }
@@ -179,6 +184,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
+	if (type === COLOR_WHEELS_EFFECT_TYPE_V1) return { ...normalizeColorWheelsParamsV1(params) };
 	if (type === 'point-curves-v1') return { ...normalizePointCurvesParamsV1(params) };
 	if (type === 'parametric-curves-v1') return { ...normalizeParametricCurvesParamsV1(params) };
 	if (type === HSL_MIXER_EFFECT_TYPE_V1) return { ...normalizeHslMixerParamsV1(params) };
@@ -213,6 +219,15 @@ function normalizeVideoEffectParams(type, params, name) {
 export function createVideoEffect(type, options = {}) {
 	const stableType = nonEmptyString(type, 'videoEffect.type');
 	videoEffectDefinition(stableType);
+	if (stableType === COLOR_WHEELS_EFFECT_TYPE_V1) {
+		const closed = readClosedDomainRecord(options, 'color wheel creation', ['id', 'type', 'enabled', 'params', 'index'], []);
+		const take = key => Object.hasOwn(closed, key) ? readClosedDomainField(closed, key, 'color wheel creation') : undefined;
+		if (Object.hasOwn(closed, 'type') && take('type') !== stableType) throw new RangeError('Color wheel creation requires its exact effect type.');
+		const index = take('index'); if (index !== undefined && (!Number.isSafeInteger(index) || index < 0 || index > 100_000)) throw new RangeError('Invalid effect insertion index.');
+		const normalized = normalizeColorWheelsEffectV1({ id: Object.hasOwn(closed, 'id') ? take('id') : createStableId('video-effect'), type: stableType,
+			enabled: Object.hasOwn(closed, 'enabled') ? take('enabled') : true, params: normalizeColorWheelsParamsV1(take('params')) });
+		return { ...normalized, params: { ...normalized.params } };
+	}
 	if (options.enabled != null && typeof options.enabled !== 'boolean') {
 		throw new TypeError('videoEffect.enabled must be a boolean.');
 	}
@@ -232,6 +247,13 @@ export function createVideoEffect(type, options = {}) {
 }
 
 export function normalizeVideoEffect(effect, name = 'videoEffect', options = {}) {
+	const typeDescriptor = Object.getOwnPropertyDescriptor(effect ?? {}, 'type');
+	if (typeDescriptor && !Object.hasOwn(typeDescriptor, 'value')) throw new TypeError(`${name}.type requires a data field.`);
+	if (typeDescriptor?.value === COLOR_WHEELS_EFFECT_TYPE_V1) {
+		const normalized = normalizeColorWheelsEffectV1(effect);
+		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
+		return { ...normalized, params: { ...normalized.params } };
+	}
 	if (!effect || typeof effect !== 'object' || Array.isArray(effect)) {
 		throw new TypeError(`${name} must be an object.`);
 	}
@@ -294,6 +316,9 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
+	if (effect.type === COLOR_WHEELS_EFFECT_TYPE_V1) {
+		const operation = serializeColorWheelsEffectToFfmpegV1(effect); return operation ? [operation] : [];
+	}
 	if (isCurvesEffectTypeV1(effect.type)) {
 		const operation = serializeCurvesEffectToFfmpegV1(effect); return operation ? [operation] : [];
 	}

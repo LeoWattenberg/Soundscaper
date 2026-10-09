@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
-import {
-	normalizeVideoColorGradeV1, type VideoColorGradeV1,
-} from './video-color-management-v27.ts';
-import { COLOR_WHEELS_SCALAR_PROCESS_V1, prepareScalarColorWheelsGradeV1, scalarColorWheelsByteV1, type ScalarColorWheelsGradeV1 } from './video-color-wheels-scalar-v1.ts';
+import type { VideoColorGradeV1 } from './video-color-management-v27.ts';
+import { COLOR_WHEELS_SCALAR_PROCESS_V1, normalizeScalarColorWheelsGradeV1, prepareScalarColorWheelsGradeV1, scalarColorWheelsByteV1, type ScalarColorWheelsGradeV1 } from './video-color-wheels-scalar-v1.ts';
 
 /** Straight encoded UNORM8 sRGB → managed linear Rec.709 LGG → sRGB byte rounding.
  * Shadows/midtones/highlights are overlapping lift/gamma/gain wheels, not hard tonal bands.
@@ -76,7 +74,7 @@ function chroma(params: ColorWheelsParamsV1, group: Group): readonly number[] {
 }
 function grade(params: ColorWheelsParamsV1): VideoColorGradeV1 {
 	const shadows = chroma(params, 'shadows'), midtones = chroma(params, 'midtones'), highlights = chroma(params, 'highlights');
-	return normalizeVideoColorGradeV1({ schemaVersion: 1, exposureStops: 0, contrast: 1, pivot: 0.18,
+	return normalizeScalarColorWheelsGradeV1({ schemaVersion: 1, exposureStops: 0, contrast: 1, pivot: 0.18,
 		lift: shadows.map(value => 0.25 * (params.shadowsLuminance / 100 + value)),
 		gamma: midtones.map(value => 2 ** (params.midtonesLuminance / 100 + value)),
 		gain: highlights.map(value => 2 ** (params.highlightsLuminance / 100 + value)), saturation: 1, lut: null });
@@ -140,9 +138,14 @@ export function colorWheelsPreviewPassV1(value: unknown) {
 	PREVIEW.set(pass, admitted); return pass;
 }
 export function copyColorWheelsPreviewLookupV1(value: unknown): Uint8Array<ArrayBuffer> {
+	assertColorWheelsPreviewPassV1(value);
 	const admitted = value && typeof value === 'object' ? PREVIEW.get(value) : undefined;
 	if (!admitted) throw new TypeError('Color wheel transfer requires its owning preview pass.');
 	return scalarTransfer(admitted);
+}
+/** Cached native upload use still requires a live owning recipe identity. */
+export function assertColorWheelsPreviewPassV1(value: unknown): void {
+	if (!value || typeof value !== 'object' || !PREVIEW.has(value)) throw new TypeError('Color wheels require their live owning preview pass.');
 }
 /** The preview owner retires its numeric recipe binding after native rendering settles. */
 export function releaseColorWheelsPreviewPassV1(value: object): void {

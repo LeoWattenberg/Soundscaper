@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
+import { COLOR_WHEELS_EFFECT_TYPE_V1, normalizeColorWheelsEffectV1 } from '../common/editor/video-color-wheels-v1.ts';
 import { withGlobalDevelopPixelFrameV1 } from '../common/editor/imaging/pixel-frame-global-develop-v1.ts';
 import { isCurvesEffectTypeV1, normalizeCurvesEffectV1 } from '../common/editor/video-curves-v1.ts';
 import { isGlobalDevelopEffectTypeV1, normalizeGlobalDevelopEffectV1 } from '../common/editor/video-global-develop-v1.ts';
@@ -27,6 +28,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	// A valid owning project is already bounded by the 100,000-node interchange ceiling.
 	const admitted = readClosedDomainArray(effects, 'Frame browser effects', 0, 100_000).map(value => {
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === COLOR_WHEELS_EFFECT_TYPE_V1) return normalizeColorWheelsEffectV1(value);
 		if (isCurvesEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))) return normalizeCurvesEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return normalizeImageGeometryVideoEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === CHROMA_DEVELOP_EFFECT_TYPE_V1) return normalizeChromaDevelopEffectV1(value);
@@ -101,7 +103,7 @@ function throwIfAborted(signal: AbortSignal): void {
 	Reflect.apply(CHECK_ABORT, signal, []);
 }
 
-function isCpuEffect(type: unknown): boolean { return isCurvesEffectTypeV1(type) || type === HSL_MIXER_EFFECT_TYPE_V1 || type === BLACK_WHITE_MIX_EFFECT_TYPE_V1 || type === CHROMA_DEVELOP_EFFECT_TYPE_V1 || isGlobalDevelopEffectTypeV1(type); }
+function isCpuEffect(type: unknown): boolean { return type === COLOR_WHEELS_EFFECT_TYPE_V1 || isCurvesEffectTypeV1(type) || type === HSL_MIXER_EFFECT_TYPE_V1 || type === BLACK_WHITE_MIX_EFFECT_TYPE_V1 || type === CHROMA_DEVELOP_EFFECT_TYPE_V1 || isGlobalDevelopEffectTypeV1(type); }
 
 function readLegacyEffect(effect: Record<string, unknown>) {
 	const type = readClosedDomainField(effect, 'type', 'Frame browser effect');

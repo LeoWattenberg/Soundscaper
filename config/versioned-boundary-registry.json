@@ -560,6 +560,10 @@
 		,
 		{ "path": "src/common/editor/video-color-management-v27.ts", "kind": "persisted-contract", "justification": "video-color-management-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/video-color-wheels-scalar-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar LGG wheel evaluation owns closed admitted lift/gamma/gain triples, independently decodes each straight sRGB byte to linear Rec.709 and encodes with positive half-up quantization. Its explicit new process preserves legacy GradeV1 bytes without claiming multichannel Float64 recombination equivalence." }
+		,
+		{ "path": "src/common/editor/video-color-wheels-v1.ts", "kind": "persisted-contract", "justification": "Version 1 color grading wheels retain nine closed finite numeric hue/saturation/luminance controls for overlapping shadow lift, midtone gamma and highlight gain. The srgb-scalar-lgg-wheels-v1 process preserves alpha, derives one private transient one-KiB table only for the current CPU stage or native upload, and supplies the same scalar byte authority to shared Frame and Photo rendering and bounded FFmpeg expressions." }
+		,
 		{ "path": "src/common/editor/video-curve-transfer-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded curve preparation maps exact admitted Float64 coordinates to binary-rational arithmetic, retaining at most four arrays of thirty-two point pairs and one detached 256-entry RGBA table. Balanced FFmpeg byte decisions have depth eight and preserve the fixed master-before-channel quantization contract." }
 		,
 		{ "path": "src/common/editor/video-curve-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared effect parameters add only closed immutable dimensionless point arrays alongside existing numeric values. Runtime point-array admission remains exclusively with the owning point-curve normalizer; old numeric effect profiles remain unchanged." }

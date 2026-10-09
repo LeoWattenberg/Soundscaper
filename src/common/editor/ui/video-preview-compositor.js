@@ -29,6 +29,7 @@ import {
 } from './video-preview-render-ledger.js';
 import { videoPreviewViewports } from './video-preview-viewports.js';
 import { bindVideoCurvesGpu } from '../controller/clip-video/video-curves-gpu.ts';
+import { bindVideoColorWheelsGpu } from '../controller/clip-video/video-color-wheels-gpu.ts';
 import {
 	createVideoPreviewCompositionBlendRuntime,
 	disposeVideoPreviewCompositionBlendRuntime,
@@ -247,6 +248,7 @@ export class VideoPreviewCompositor {
 		}
 		if (effectCode === 18 || effectCode === 19) bindVideoGlobalDevelopGpu(gl, locations.globalLookup, pass);
 		if (effectCode === 24 || effectCode === 25) bindVideoCurvesGpu(gl, locations.globalLookup, pass);
+		if (effectCode === 26) bindVideoColorWheelsGpu(gl, locations.globalLookup, pass);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer || null);
 		if (viewport) gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 		else gl.viewport(0, 0, targetWidth, targetHeight);

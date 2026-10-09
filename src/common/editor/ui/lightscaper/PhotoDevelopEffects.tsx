@@ -8,8 +8,9 @@ import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.
 import type { PhotoLibraryDevelopWorkflowV1 } from '../../controller/shared/photo-library-develop-workflow-v1.ts';
 import VideoEffectNumberInput from '../inspector/VideoEffectNumberInput.tsx';
 import VideoCurveControl from '../inspector/VideoCurveControl.tsx';
+import PhotoDevelopColorWheels from './PhotoDevelopColorWheels.tsx';
 
-const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1'] as const;
+const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1'] as const;
 type Parameter = Readonly<{ label: string; labelKey: string; min: number; max: number; step: number; control?: string;
 	options?: readonly Readonly<{ value: number; label: string; labelKey: string }>[] }>;
 export default function PhotoDevelopEffects(props: Readonly<{ effects: readonly VideoEffectLeaf[]; owner: PhotoLibraryDevelopWorkflowV1;
@@ -52,7 +53,8 @@ export default function PhotoDevelopEffects(props: Readonly<{ effects: readonly 
 					}}>↓</button>
 					<button type="button" aria-label={`${messages.remove}: ${title}`} onClick={() => { set(effects.filter(candidate => candidate.id !== effect.id)); }}>×</button>
 					{!supported && <p>{messages.unsupported}</p>}
-					{supported && Object.entries(definition.params).map(([name, raw]) => {
+					{effect.type === 'color-wheels-v1' ? <PhotoDevelopColorWheels effect={effect} effects={effects} owner={owner} copy={messages.shared}
+						disabled={disabled || !effect.enabled} isCurrent={props.isCurrent} /> : supported && Object.entries(definition.params).map(([name, raw]) => {
 						const parameter = raw as Parameter, text = messages.shared[parameter.labelKey] ?? parameter.label;
 						const exact = `${messages.shared.videoEffectExactValue}: ${text}`, value = effect.params[name] ?? 0;
 						if (parameter.control === 'curve') {

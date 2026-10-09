@@ -73,6 +73,8 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-hsl-mixer-v1.js',
 	'src/common/editor/video-chroma-develop-v1.js',
 	'src/common/editor/video-curves-v1.js',
+	'src/common/editor/video-color-wheels-v1.js',
+	'src/common/editor/video-color-wheels-scalar-v1.js',
 	'src/common/editor/video-curve-transfer-v1.js',
 	'src/common/editor/video-curve-types-v1.js',
 	'src/common/editor/video-keyframe-effect-context.js',

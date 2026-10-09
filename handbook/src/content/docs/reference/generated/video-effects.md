@@ -12,6 +12,9 @@ Video effects are registered by Framescaper. They are stacked on a clip, an adju
 
 One definition owns each effect’s parameters, and the preview and the export both read it, so an effect that is visible in the preview is the effect the export renders.
 
+Color grading wheels use the explicit `srgb-scalar-lgg-wheels-v1` process. Shadows, midtones and highlights control overlapping lift, gamma and gain. Each straight encoded sRGB channel decodes to linear Rec.709, applies lift → gain → gamma, clips, encodes sRGB and rounds half up to a byte. Alpha stays unchanged. Only nine numeric controls persist; lookup tables are derived when the current CPU stage or native upload needs them.
+This scalar process preserves its own exact byte contract. Legacy managed GradeV1 retains its existing luminance recombination and rounding; the two processes can differ at half-byte boundaries.
+
 ## Effects
 
 | Effect | Effect ID | Parameters |
@@ -19,6 +22,7 @@ One definition owns each effect’s parameters, and the preview and the export b
 | Black-and-white mix | `black-white-mix-v1` | 8 |
 | Chroma Key | `chroma-key` | 3 |
 | Color Adjust | `color-adjust` | 5 |
+| Color grading wheels | `color-wheels-v1` | 9 |
 | Crop and perspective (contain) | `develop-geometry-v1` | 17 |
 | Drop Shadow | `drop-shadow` | 5 |
 | Gaussian Blur | `gaussian-blur` | 1 |
@@ -59,6 +63,15 @@ Defaults and limits come from the same definitions the editor validates against.
 | Color Adjust | Saturation | 1 | 0 to 3 | — |
 | Color Adjust | Gamma | 1 | 0.25 to 4 | — |
 | Color Adjust | Hue | 0 | -180 to 180 | degrees |
+| Color grading wheels | Shadows hue | 0 | -180 to 180 | — |
+| Color grading wheels | Shadows saturation | 0 | 0 to 100 | — |
+| Color grading wheels | Shadows luminance | 0 | -100 to 100 | — |
+| Color grading wheels | Midtones hue | 0 | -180 to 180 | — |
+| Color grading wheels | Midtones saturation | 0 | 0 to 100 | — |
+| Color grading wheels | Midtones luminance | 0 | -100 to 100 | — |
+| Color grading wheels | Highlights hue | 0 | -180 to 180 | — |
+| Color grading wheels | Highlights saturation | 0 | 0 to 100 | — |
+| Color grading wheels | Highlights luminance | 0 | -100 to 100 | — |
 | Crop and perspective (contain) | Crop left | 0 | 0 to 1 | — |
 | Crop and perspective (contain) | Crop top | 0 | 0 to 1 | — |
 | Crop and perspective (contain) | Crop width | 1 | 0.001 to 1 | — |

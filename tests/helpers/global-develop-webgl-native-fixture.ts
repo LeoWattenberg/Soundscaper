@@ -6,6 +6,7 @@ import { EditorProjectGeneration } from '../../src/common/editor/controller/shar
 import { createVideoSource, createVideoTrack } from '../../src/common/editor/project-media-factory.ts';
 import { createVideoEffect } from '../../src/common/editor/video-effects.js';
 import { normalizeGlobalDevelopEffectV1 } from '../../src/common/editor/video-global-develop-v1.ts';
+import { COLOR_WHEELS_EFFECT_TYPE_V1, normalizeColorWheelsEffectV1 } from '../../src/common/editor/video-color-wheels-v1.ts';
 import { normalizeChromaDevelopEffectV1 } from '../../src/common/editor/video-chroma-develop-v1.ts';
 import { normalizeBlackWhiteMixEffectV1 } from '../../src/common/editor/video-black-white-mix-v1.ts';
 import { normalizeHslMixerEffectV1 } from '../../src/common/editor/video-hsl-mixer-v1.ts';
@@ -21,7 +22,7 @@ import { applyVideoExactBrowserEffectsFinishing } from '../../src/framescaper/ed
 type Mode = 'target' | 'frame' | 'frame-spatial' | 'frame-cancel' | 'presentation';
 interface Target { readonly framebuffer: WebGLFramebuffer; readonly texture: WebGLTexture; readonly width: number; readonly height: number }
 interface RenderResult { readonly pixels: number[]; readonly legacyPresentationPixels?: number[];
-	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly curveProgramLinks?: number; readonly chromaProgramLinked?: boolean; readonly blackWhiteProgramLinked?: boolean; readonly hslProgramLinked?: boolean; readonly glError?: number }
+	readonly authoredTypes?: unknown[]; readonly globalProgramLinks?: number; readonly curveProgramLinks?: number; readonly wheelsProgramLinked?: boolean; readonly chromaProgramLinked?: boolean; readonly blackWhiteProgramLinked?: boolean; readonly hslProgramLinked?: boolean; readonly glError?: number }
 interface Compositor {
 	readonly gl: WebGL2RenderingContext; readonly programs: readonly WebGLProgram[];
 	resizeToDisplaySize(options: Readonly<{ outputWidth: number; outputHeight: number }>): void;
@@ -68,6 +69,7 @@ export async function qualifyGlobalDevelopWebglV1(value: unknown) {
 
 function normalizeEffect(value: unknown) {
 	const input = record(value,'native shared effect',['id','type','enabled','params']);
+	if (field(input, 'type', 'native shared effect') === COLOR_WHEELS_EFFECT_TYPE_V1) return normalizeColorWheelsEffectV1(value);
 	if (isCurvesEffectTypeV1(field(input, 'type', 'native shared effect'))) return normalizeCurvesEffectV1(value);
 	if(field(input,'type','native shared effect')==='hsl-mixer-v1')return normalizeHslMixerEffectV1(value);
 	if(field(input,'type','native shared effect')==='black-white-mix-v1')return normalizeBlackWhiteMixEffectV1(value);
@@ -107,6 +109,7 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 		compositor.resizeToDisplaySize({ outputWidth: width, outputHeight: height });
 		const globalProgramLinks = [18, 19].filter(index => gl.getProgramParameter(compositor.programs[index], gl.LINK_STATUS) === true).length;
 		const curveProgramLinks = [24, 25].filter(index => gl.getProgramParameter(compositor.programs[index], gl.LINK_STATUS) === true).length;
+		const wheelsProgramLinked = gl.getProgramParameter(compositor.programs[26], gl.LINK_STATUS) === true;
 		const chromaProgramLinked = gl.getProgramParameter(compositor.programs[21],gl.LINK_STATUS) === true;
 		const blackWhiteProgramLinked = gl.getProgramParameter(compositor.programs[22],gl.LINK_STATUS) === true;
 		const hslProgramLinked = gl.getProgramParameter(compositor.programs[23],gl.LINK_STATUS) === true;
@@ -119,7 +122,7 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 				throw new Error('Native presentation omitted authored effects.');
 			}
 			gl.finish(); const output = compositor.captureEvaluatedRgba(); if (!output) throw new Error('Native presentation was not captured.');
-			return { pixels: Array.from(output.rgba), globalProgramLinks, curveProgramLinks, chromaProgramLinked, blackWhiteProgramLinked, hslProgramLinked, glError: gl.getError() };
+			return { pixels: Array.from(output.rgba), globalProgramLinks, curveProgramLinks, wheelsProgramLinked, chromaProgramLinked, blackWhiteProgramLinked, hslProgramLinked, glError: gl.getError() };
 		}
 		texture = gl.createTexture(); if (!texture) throw new Error('Native source texture allocation failed.');
 		gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -131,6 +134,6 @@ async function render(mode: Mode, pixels: Uint8Array<ArrayBuffer>, width: number
 		const target = applyVideoPreviewEntryEffects(compositor, texture, passes, { x: 0, y: 0, width, height }, undefined, 'native-global') as Target;
 		const output = new Uint8Array(pixels.length); gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer); gl.finish();
 		gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, output);
-		return { pixels: Array.from(output), globalProgramLinks, curveProgramLinks, chromaProgramLinked, blackWhiteProgramLinked, hslProgramLinked, glError: gl.getError() };
+		return { pixels: Array.from(output), globalProgramLinks, curveProgramLinks, wheelsProgramLinked, chromaProgramLinked, blackWhiteProgramLinked, hslProgramLinked, glError: gl.getError() };
 	} finally { if (texture) gl.deleteTexture(texture); compositor.dispose(); canvas.remove(); }
 }

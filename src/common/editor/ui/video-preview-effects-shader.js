@@ -147,7 +147,7 @@ void main() {
 		color.rgb = black_white_mix_rgb(color.rgb, u_params0, u_params1);
 	} else if (u_effect == 21) {
 		color.rgb = chroma_develop_rgb(color.rgb, u_params0);
-	} else if (u_effect == 18 || u_effect == 19 || u_effect == 24 || u_effect == 25) {
+	} else if (u_effect == 18 || u_effect == 19 || u_effect == 24 || u_effect == 25 || u_effect == 26) {
 		color.rgb = global_develop_rgb(color.rgb, u_effect, u_params0, u_params1);
 	} else if (u_effect == 2) {
 		float block_size = max(1.0, u_params0.x);

@@ -7,6 +7,7 @@ import { withGlobalDevelopPixelFrameV1 } from '../../common/editor/imaging/pixel
 import { withGeometryPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-geometry-v1.ts';
 import { createPixelFrameHistogramV1, type PixelFrameHistogramV1 } from '../../common/editor/imaging/pixel-frame-histogram-v1.ts';
 import { isCurvesEffectTypeV1 } from '../../common/editor/video-curves-v1.ts';
+import { COLOR_WHEELS_EFFECT_TYPE_V1 } from '../../common/editor/video-color-wheels-v1.ts';
 import { isGlobalDevelopEffectTypeV1 } from '../../common/editor/video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_EFFECT_TYPE_V1 } from '../../common/editor/video-chroma-develop-v1.ts';
 import { BLACK_WHITE_MIX_EFFECT_TYPE_V1 } from '../../common/editor/video-black-white-mix-v1.ts';
@@ -48,7 +49,8 @@ export async function withPhotoDevelopProxyV1<Result>(value: unknown,
 	if (develop.maskBindings.length) throw new RangeError('Photo proxy mask-bound adjustments are unsupported.');
 	for (const effect of develop.effects) {
 		if (effect.enabled && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1
-			&& effect.type !== BLACK_WHITE_MIX_EFFECT_TYPE_V1 && effect.type !== HSL_MIXER_EFFECT_TYPE_V1 && !isGlobalDevelopEffectTypeV1(effect.type) && !isCurvesEffectTypeV1(effect.type)) {
+			&& effect.type !== BLACK_WHITE_MIX_EFFECT_TYPE_V1 && effect.type !== HSL_MIXER_EFFECT_TYPE_V1 && effect.type !== COLOR_WHEELS_EFFECT_TYPE_V1
+			&& !isGlobalDevelopEffectTypeV1(effect.type) && !isCurvesEffectTypeV1(effect.type)) {
 			throw new RangeError(`Unsupported photo proxy effect: ${effect.type}.`);
 		}
 	}
