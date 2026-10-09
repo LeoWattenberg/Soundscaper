@@ -1568,9 +1568,19 @@ both-silent and finite-presentation controls pass
 (`/tmp/soundscaper-r6-fx041-node-red.log`). After repair, all 33 new and existing
 Contrast reopening, repeat, analysis cache, composition and report cases pass
 (`/tmp/soundscaper-r6-fx041-node-green.log`). Focused strict compilation passes.
-Complete built public verification remains pending; this register retains
-thirty-nine verified roots. No assistance runtime assets change and no manual
-**Update AI assets** run is required.
+The complete Chromium workflow passes in 10.5 seconds on immutable Green32
+`a1a725fc1` (`/tmp/soundscaper-r6-fx041-public-zero-green3.log`). It retains the
+original 30 dB control, normal double Amplify application, both nonzero exported
+PCM measurements and corrected report/decision. Additional ordinary Silence
+audio and float-WAV export prove exact physical zero; signed infinite and
+zero-against-zero controls pass, and Undo restores the nonzero recording for
+the inverse decision. The initial all-muted control is excluded because normal
+analysis intentionally includes muted tracks when every track is muted. The
+retained asynchronous-operation fixture failures are corrected by awaiting
+the existing visible measurement/task progress before the next menu action.
+This register now has forty verified roots (R6-EFFECT-040 remains pending).
+No assistance runtime assets change and no manual **Update AI assets** run is
+required.
 
 
 ## R6-EFFECT-042 — A second finger interrupts a fractional native effect slider
