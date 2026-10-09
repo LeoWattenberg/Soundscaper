@@ -213,3 +213,29 @@ The first checkpoint's complete browser suite still runs against `68655eafb`,
 with its failures retained. The full 100-fix browser checkpoint is queued after
 that run so complete suites do not overlap. Later source-ready roots remain
 uncounted until their own public checks pass. The target remains 200.
+
+The immutable `de04b82c9` delta completes 33 checks with 13 passed and 20 failed
+(`/tmp/soundscaper-round6-green15-public-browser.log`). Chromium verifies the
+guided crop, keyframe transfer, ruler loop and spectrogram corrections. Native
+microphone/screen persistence and short capture Stop passed Chromium on the
+preceding immutable `756da708e`; WebKit now passes those four cases and both
+microphone-only monitoring controls. These actual public workflows qualify
+editing 033, effects 022, dialogs 034–035 and I/O 017–019, bringing the distinct
+verified count to **107**. Each has causal regression and focused GREEN evidence;
+portable failures are retained separately from that reachability qualification.
+
+The unchanged isolated Firefox ruler workflow passes on `de04b82c9`
+(`/tmp/soundscaper-r6-edit-ruler-loop-button-green15-firefox-retry.log`). Other
+unchanged retries retain setup, audio-observer or overall-deadline failures.
+No assertions, deadlines, pressure ceilings or coverage gates are relaxed.
+Unrelated host workloads exhaust swap and cause substantial scheduling delays;
+new portable retry batches are deferred while that load persists. Both guarded
+product builds pass on the next immutable `9bd6730b2`, whose Chromium delta is
+in progress (`/tmp/soundscaper-round6-green16-chromium.log`). The full 100-fix
+canonical gate has passed repository lint and is still running its static checks
+before the complete Node suite. The target remains 200 and work continues.
+
+Uncounted exclusion: the production Soundscaper menu stand-in deliberately omits
+native analyzer entries. Parameter and publication hypotheses in the Vamp dialog
+therefore have no normal shipped menu path; their probes are removed without a
+source change or qualifying count.
