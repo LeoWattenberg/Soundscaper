@@ -24,6 +24,7 @@ import {
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import type { EffectRackOptions } from './effect-rack.ts';
 import { audioWorkletNodeConstructor, registerEffectNode } from './effect-rack-node-registry.ts';
+import { qualityFactorLinearRamp } from './native-filter-quality-ramp.ts';
 
 const MAX_DELAY_SECONDS = 5;
 const DELAY_WORKLET_NAME = 'kw-audio-delay';
@@ -55,7 +56,8 @@ export function connectBiquad(
 	setParam(filter.Q, nativeQ(finite(params.q ?? params.Q, 0.707)), context.currentTime);
 	setParam(filter.gain, finite(params.gain, 0), context.currentTime);
 	registerEffectAudioParam(effect, 'frequency', filter.frequency, options);
-	registerEffectAudioParam(effect, 'q', filter.Q, { ...options, transformValue: nativeQ });
+	registerEffectAudioParam(effect, 'q', filter.Q, { ...options, transformValue: nativeQ,
+		...(filter.type === 'lowpass' || filter.type === 'highpass' ? { transformLinearRamp: qualityFactorLinearRamp } : {}) });
 	registerEffectAudioParam(effect, 'gain', filter.gain, options);
 	connect(input, filter);
 	return filter;

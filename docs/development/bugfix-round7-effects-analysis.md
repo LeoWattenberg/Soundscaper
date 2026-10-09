@@ -166,6 +166,16 @@ of the authored 0.249962. Root owns their pending corrected browser verification
 Small PCM stays in memory and no verification fixture
 or raw coverage is written. No AI runtime asset update is required.
 
+Q automation follow-through also preserves authored Linear interpolation.
+Converting only its endpoints makes native decibel ramps interpolate quality
+geometrically: a supported Q 0.1 → 10 curve reads 0.158489 at 10% instead of
+the authored 1.09. Independent native LP/HP interior gain regressions are RED
+after the endpoint repair, then GREEN with bounded native subdivisions whose
+quality-factor error stays within the descriptor tolerance. Ordinary ascending
+and descending 0.1 → 10/30 sweeps remain below 2,048 subdivisions. Native Q,
+registry and real lane compiler support passes 27/27. This completes
+R7-EFFECT-006 without another count.
+
 ## R7-EFFECT-007 — Native Resonant filters truncate their audible export release
 
 Import an ordinary one-second, 48 kHz, 10 Hz stereo recording. Open its track

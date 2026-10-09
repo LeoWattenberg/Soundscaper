@@ -39,6 +39,18 @@ function nativeCutoffGain(filter: ReturnType<typeof installedFilter>): number {
 	return Math.hypot(numeratorReal, numeratorImaginary) / Math.hypot(denominatorReal, denominatorImaginary);
 }
 
+function scheduledNativeValue(param: MockParam, time: number): number {
+	const events = param.events as readonly (readonly ['set' | 'ramp', number, number])[];
+	let previousValue = 0;
+	let previousTime = 0;
+	for (const [kind, value, at] of events) {
+		if (at > time) return kind === 'ramp'
+			? previousValue + (value - previousValue) * (time - previousTime) / (at - previousTime) : previousValue;
+		previousValue = value; previousTime = at;
+	}
+	return previousValue;
+}
+
 for (const type of ['lowpass', 'highpass'] as const) {
 	for (const q of [.1, .707, 1, 10]) {
 		test(`the native ${type} cutoff honors authored quality factor ${q}`, () => {
@@ -60,6 +72,28 @@ for (const type of ['lowpass', 'highpass'] as const) {
 				{ fromFrame: 0, contextStartTime: 0, sampleRate, contextSampleRate: sampleRate });
 			assert.ok(Math.abs(nativeCutoffGain(filter) - q) < 1e-9,
 				`automated Q ${q} must retain the authored units`);
+		}
+	});
+
+	test(`the native ${type} preserves the interior of an authored Linear Q curve`, () => {
+		const registry = new ScheduledParameterRegistry();
+		const filter = installedFilter(type, .1, registry);
+		const target = registry.get({ kind: 'effect', strip: { kind: 'track', id: 'recording' },
+			effectId: 'resonant-filter', parameterId: 'q' });
+		assert.ok(target?.descriptor.automatable);
+		Object.assign(filter.Q, { cancelScheduledValues: () => undefined });
+		for (const [start, end] of [[.1, 10], [10, .1], [.1, 30], [30, .1]] as const) {
+			filter.Q.events.length = 0;
+			target.schedule([{ kind: 'set', frame: 0, value: start }, { kind: 'linear', frame: sampleRate, value: end }],
+				{ fromFrame: 0, contextStartTime: 0, sampleRate, contextSampleRate: sampleRate });
+			assert.ok(filter.Q.events.length <= 2049, 'A complete supported Q sweep must stay bounded.');
+			for (let percent = 1; percent < 100; percent++) {
+				const progress = percent / 100;
+				filter.Q.value = scheduledNativeValue(filter.Q, progress);
+				const expected = start + (end - start) * progress;
+				assert.ok(Math.abs(nativeCutoffGain(filter) - expected) <= target.descriptor.automationTolerance + 1e-8,
+					`The authored Q must be ${expected} at ${progress}, received ${nativeCutoffGain(filter)}.`);
+			}
 		}
 	});
 }
