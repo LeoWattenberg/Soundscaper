@@ -124,6 +124,7 @@ export function StereoChannelDivider({
 					transform: 'translateY(-2px)',
 					cursor: 'ns-resize',
 					pointerEvents: 'auto',
+					touchAction: 'none',
 					background: 'transparent',
 				}}
 				onPointerDown={(event) => {
