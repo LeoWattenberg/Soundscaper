@@ -2,6 +2,7 @@
 
 /** Exact native image/library support leaves; no directory-wide helper admission. */
 export const NIGHTLY_IMAGE_TEST_HELPER_INPUTS = Object.freeze([
+	{ source: 'tests/helpers/lightscaper-current-app-fixture.tsx', destination: 'tests/helpers/lightscaper-current-app-fixture.tsx', kind: 'file', label: 'current Photo2 selected-namespace UI observation' },
 	{ source: 'tests/helpers/lightscaper-metadata-query-byte-fixture.ts', destination: 'tests/helpers/lightscaper-metadata-query-byte-fixture.ts', kind: 'file', label: 'photo metadata query source-byte fixture' },
 	{ source: 'tests/helpers/image-metadata-fixtures.ts', destination: 'tests/helpers/image-metadata-fixtures.ts', kind: 'file', label: 'EXIF and IPTC browser source-byte support' },
 	{ source: 'tests/helpers/lightscaper-metadata-query-native-fixture.ts', destination: 'tests/helpers/lightscaper-metadata-query-native-fixture.ts', kind: 'file', label: 'photo metadata query native observation entry' },

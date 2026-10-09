@@ -15,6 +15,12 @@ import { createHash } from 'node:crypto';
 import { createPhotoMediaCubeLutResourcesV1 } from '../src/lightscaper/storage/photo-media-cube-lut-resources-v1.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { createPhotoDevelopRenderRuntimeV2 } from '../src/lightscaper/photo-develop-render-runtime-v2.ts';
+import { usePhotoDevelopEntryV2 } from '../src/common/editor/ui/lightscaper/use-photo-develop-entry-v2.ts';
+import { PhotoLibraryDevelopSettingsWorkflowV2 } from '../src/common/editor/controller/shared/photo-library-develop-settings-workflow-v2.ts';
+
+function observeRejection(operation: Promise<void>) {
+	return operation.then(() => ({ fulfilled: true as const }), (error: unknown) => ({ fulfilled: false as const, error }));
+}
 
 function canvasBoundary(painted?: number[][]) {
 	const keys = ['HTMLCanvasElement', 'CanvasRenderingContext2D', 'ImageData'] as const, prior = keys.map(key => Object.getOwnPropertyDescriptor(globalThis, key));
@@ -190,4 +196,116 @@ test('retained Close and name handlers from a previous photo cannot retire or ed
 		assert.equal(closed, 0); assert.equal(reactProps(name()).value, '');
 		await act(async () => { reactProps(name()).onChange?.({ currentTarget: { value: 'Current name' } }); }); assert.equal(reactProps(name()).value, 'Current name');
 	} finally { await mounted.dispose(); await fixture.close(); }
+});
+
+for (const outcome of ['ready', 'held', 'failed'] as const) test(`actual Entry2 and Workspace2 StrictMode replay joins whole retirement before a fresh owner: ${outcome}`, async () => {
+	const fixture = await currentDevelopFixture(1), restoreCanvas = canvasBoundary(), messages = photoDevelopCopy('en');
+	const released = deferred<void>(); let acquisitions = 0, dismissals = 0, traps = 0;
+	const failure: unknown = new Proxy(Object.create(null) as object, {
+		get() { traps++; throw Error('Opaque cleanup must not be inspected'); }, getPrototypeOf() { traps++; throw Error('Opaque cleanup must not be inspected'); },
+	});
+	const execute: import('../src/common/editor/controller/shared/photo-library-develop-workflow-v2.ts').ExecutePhotoDevelopV2 = async (run, signal) => {
+		await run({ signal: signal!, isCurrent: () => true, acquire: async () => { acquisitions++; return fixture.develop; }, refresh: async () => undefined });
+	};
+	const settingsOwner = new PhotoLibraryDevelopSettingsWorkflowV2({ execute }), dismiss = settingsOwner.dismiss;
+	Object.defineProperty(settingsOwner, 'dismiss', { value: async () => {
+		await Reflect.apply(dismiss, settingsOwner, []); dismissals++;
+		if (dismissals === 1 && outcome !== 'ready') { await released.promise; if (outcome === 'failed') throw failure; }
+	} });
+	const settings = { owner: settingsOwner, drain: () => settingsOwner.cancel(), snapshot: settingsOwner.snapshot() };
+	let entry!: ReturnType<typeof usePhotoDevelopEntryV2>;
+	function Surface() {
+		entry = usePhotoDevelopEntryV2(fixture);
+		return entry.entry && <PhotoDevelopWorkspaceV2 locale="en" photoId={fixture.photos[0]!.id} label="Photo" generation={fixture} execute={execute}
+			readPreview={async () => ({ outcome: 'missing' })} loadProxy={async () => { throw Error('Missing source'); }}
+			beforePresent={entry.entry.beforePresent} beforeOpen={entry.entry.beforeOpen} registerRetirement={() => () => undefined}
+			registerDemandRetirement={entry.register} settings={settings} onClose={() => { entry.close(Promise.resolve()); }} />;
+	}
+	const mounted = await mountPhotoImportUi(() => <StrictMode><Surface /></StrictMode>);
+	const flush = async () => { await act(async () => { await settle(); }); };
+	try {
+		await act(async () => { entry.begin(fixture.photos[0]!.id, 'Photo', () => Promise.resolve()); });
+		for (let turn = 0; turn < 32 && dismissals === 0; turn++) await flush(); assert.equal(dismissals, 1);
+		if (outcome !== 'ready') {
+			await flush(); assert.equal(acquisitions, 0); assert.equal(mounted.dom.find('[data-photo-develop-effects]'), null);
+			await act(async () => { released.resolve(); await settle(); });
+		}
+		for (let turn = 0; turn < 64 && !mounted.dom.find(outcome === 'failed' ? '[role="alert"]' : '[data-photo-develop-effects]'); turn++) await flush();
+		if (outcome === 'failed') {
+			assert.equal(acquisitions, 0); assert.ok(mounted.dom.find('[role="alert"]'));
+			const contains = (value: unknown): boolean => Object.is(value, failure) || (value instanceof AggregateError && (value.errors as unknown[]).some(contains));
+			let closing!: Promise<void>; await act(async () => { closing = entry.retireAndJoin(); const outcome = await observeRejection(closing); assert.ok(!outcome.fulfilled && contains(outcome.error)); });
+			assert.equal(entry.closing, true); assert.equal(entry.retireAndJoin(), closing);
+			const outcome = await observeRejection(closing); assert.ok(!outcome.fulfilled && contains(outcome.error)); assert.equal(traps, 0);
+		} else {
+			assert.equal(acquisitions, 1); assert.ok(mounted.dom.find('[data-photo-develop-effects]'), mounted.dom.container.textContent);
+			const choose = mounted.dom.container.querySelectorAll('select').find(value => value.parentNode?.textContent.startsWith(messages.choose)); assert.ok(choose);
+			await act(async () => { reactProps(choose).onChange?.({ currentTarget: { value: 'cube-lut-profile-v1' } }); });
+			const add = mounted.dom.container.querySelectorAll('button').find(value => value.textContent === messages.add); assert.ok(add);
+			await act(async () => { reactProps(add).onClick?.({}); await settle(); });
+			assert.ok(mounted.dom.container.querySelectorAll('input').some(value => value.getAttribute('aria-label') === messages.shared.videoEffectCubeLutImport));
+			await act(async () => { await entry.retireAndJoin(); await settle(); }); assert.equal(mounted.dom.find('[data-photo-develop-workspace]'), null);
+			assert.equal(acquisitions, 1); assert.equal(dismissals, 2);
+		}
+		assert.deepEqual(await fixture.repository.loadPhoto('catalog-1', fixture.photos[0]!.id), fixture.photos[0]);
+	} finally { released.resolve(); await mounted.dispose(); await settingsOwner.close(); await fixture.close(); restoreCanvas(); }
+});
+
+for (const failed of [false, true]) test(`actual Entry2 capability-only replacement joins the old whole owner before reading its saved mixed recipe; cleanup failure=${String(failed)}`, async () => {
+	const fixture = await currentDevelopFixture(1), restoreCanvas = canvasBoundary(), messages = photoDevelopCopy('en'), released = deferred<void>();
+	let acquisitions = 0, previews = 0, dismissals = 0, traps = 0;
+	const failure: unknown = new Proxy(Object.create(null) as object, {
+		get() { traps++; throw Error('Opaque cleanup must not be inspected'); }, getPrototypeOf() { traps++; throw Error('Opaque cleanup must not be inspected'); },
+	});
+	const execute: import('../src/common/editor/controller/shared/photo-library-develop-workflow-v2.ts').ExecutePhotoDevelopV2 = async (run, signal) => {
+		await run({ signal: signal!, isCurrent: () => true, acquire: async () => { acquisitions++; return fixture.develop; }, refresh: async () => undefined });
+	};
+	const settingsOwner = new PhotoLibraryDevelopSettingsWorkflowV2({ execute }), dismiss = settingsOwner.dismiss;
+	Object.defineProperty(settingsOwner, 'dismiss', { value: async () => {
+		await Reflect.apply(dismiss, settingsOwner, []); dismissals++;
+		if (dismissals === 1) { await released.promise; if (failed) throw failure; }
+	} });
+	const settings = { owner: settingsOwner, drain: () => settingsOwner.cancel(), snapshot: settingsOwner.snapshot() };
+	const readPreview = async () => { previews++; return { outcome: 'missing' as const }; }, registerRetirement = () => () => undefined;
+	const oldLoader = async () => { throw Error('Missing old source'); }, nextLoader = async () => { throw Error('Missing next source'); }; let loadProxy = oldLoader;
+	let entry!: ReturnType<typeof usePhotoDevelopEntryV2>;
+	function Surface() {
+		entry = usePhotoDevelopEntryV2(fixture);
+		return entry.entry && <PhotoDevelopWorkspaceV2 locale="en" photoId={fixture.photos[0]!.id} label="Photo" generation={fixture} execute={execute}
+			readPreview={readPreview} loadProxy={loadProxy} beforePresent={entry.entry.beforePresent} beforeOpen={entry.entry.beforeOpen}
+			registerRetirement={registerRetirement} registerDemandRetirement={entry.register} settings={settings} onClose={() => { entry.close(Promise.resolve()); }} />;
+	}
+	const mounted = await mountPhotoImportUi(() => <Surface />), flush = async () => { await act(async () => { await settle(); }); };
+	const button = (text: string) => { const value = mounted.dom.container.querySelectorAll('button').find(element => element.textContent === text); assert.ok(value, text); return value; };
+	try {
+		await act(async () => { entry.begin(fixture.photos[0]!.id, 'Photo', () => Promise.resolve()); });
+		for (let turn = 0; turn < 64 && !mounted.dom.find('[data-photo-develop-effects]'); turn++) await flush();
+		const choose = mounted.dom.container.querySelectorAll('select').find(value => value.parentNode?.textContent.startsWith(messages.choose)); assert.ok(choose);
+		await act(async () => { reactProps(choose).onChange?.({ currentTarget: { value: 'cube-lut-profile-v1' } }); });
+		await act(async () => { reactProps(button(messages.add)).onClick?.({}); await settle(); });
+		await act(async () => { reactProps(button(messages.save)).onClick?.({}); await settle(); });
+		const saved = await fixture.repository.loadPhoto('catalog-1', fixture.photos[0]!.id); assert.ok(saved); assert.equal(saved.schemaVersion, 2);
+		for (let turn = 0; turn < 64 && (!button(messages.cancel).hasAttribute('disabled') || mounted.dom.one('[data-photo-develop-preview]').getAttribute('data-state') !== 'missing'); turn++) await flush();
+		assert.equal(mounted.dom.one('[data-photo-develop-preview]').getAttribute('data-state'), 'missing'); assert.equal(button(messages.cancel).hasAttribute('disabled'), true);
+		const oldClose = reactProps(button(messages.close)).onClick!, oldAdd = reactProps(button(messages.add)).onClick!;
+		const priorAcquisitions = acquisitions, priorPreviews = previews; loadProxy = nextLoader; await mounted.render(); await flush();
+		assert.equal(dismissals, 1); assert.equal(acquisitions, priorAcquisitions); assert.equal(previews, priorPreviews);
+		await act(async () => { oldAdd({}); oldClose({}); await settle(); }); assert.ok(entry.entry);
+		await act(async () => { released.resolve(); await settle(); });
+		if (failed) {
+			for (let turn = 0; turn < 64 && !mounted.dom.find('[role="alert"]'); turn++) await flush(); assert.ok(mounted.dom.find('[role="alert"]'));
+			assert.equal(acquisitions, priorAcquisitions); assert.equal(previews, priorPreviews);
+			const contains = (value: unknown): boolean => Object.is(value, failure) || (value instanceof AggregateError && (value.errors as unknown[]).some(contains));
+			let closing!: Promise<void>; await act(async () => { closing = entry.retireAndJoin(); const outcome = await observeRejection(closing); assert.ok(!outcome.fulfilled && contains(outcome.error)); });
+			assert.equal(entry.retireAndJoin(), closing); const outcome = await observeRejection(closing);
+			assert.ok(!outcome.fulfilled && contains(outcome.error)); assert.equal(entry.closing, true); assert.equal(traps, 0);
+		} else {
+			for (let turn = 0; turn < 64 && acquisitions === priorAcquisitions; turn++) await flush();
+			assert.equal(acquisitions, priorAcquisitions + 1); assert.equal(previews, priorPreviews + 1);
+			assert.ok(mounted.dom.container.querySelectorAll('input').some(value => value.getAttribute('aria-label') === messages.shared.videoEffectCubeLutImport));
+			await act(async () => { await entry.retireAndJoin(); });
+		}
+		assert.deepEqual(await fixture.repository.loadPhoto('catalog-1', fixture.photos[0]!.id), saved);
+		assert.equal(dismissals, 2);
+	} finally { released.resolve(); await mounted.dispose(); await settingsOwner.close(); await fixture.close(); restoreCanvas(); }
 });

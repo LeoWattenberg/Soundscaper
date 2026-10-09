@@ -167,6 +167,7 @@ export async function createFixture(context) {
 		['tests/helpers/lightscaper-photo-orientation-oracle.ts', await readFile(new URL('./lightscaper-photo-orientation-oracle.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-catalog-query-fixture.ts', await readFile(new URL('./lightscaper-catalog-query-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-library-restore-native-fixture.ts', await readFile(new URL('./lightscaper-library-restore-native-fixture.ts', import.meta.url), 'utf8')],
+		['tests/helpers/lightscaper-current-app-fixture.tsx', await readFile(new URL('./lightscaper-current-app-fixture.tsx', import.meta.url), 'utf8')],
 		['tests/helpers/image-geometry-native-fixture.ts', await readFile(new URL('./image-geometry-native-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-native-scale-seed.ts', await readFile(new URL('./lightscaper-native-scale-seed.ts', import.meta.url), 'utf8')],
 		['tests/helpers/global-develop-webgl-native-fixture.ts', await readFile(new URL('./global-develop-webgl-native-fixture.ts', import.meta.url), 'utf8')],

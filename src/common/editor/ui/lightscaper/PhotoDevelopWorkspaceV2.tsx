@@ -28,7 +28,15 @@ export interface PhotoDevelopWorkspacePropsV2 extends Omit<PhotoDevelopPreviewPr
 	readonly importCubeLut?: PhotoLibraryCubeLutPortV1['importFile'];
 }
 export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspacePropsV2) {
-	const { owner, drain, snapshot } = usePhotoDevelopV2(props), messages = photoDevelopCopy(props.locale);
+	const { beforeOpen, photoId, readPreview, loadProxy, withOriginalFrame, importCubeLut: importMethod, registerRetirement, registerDemandRetirement } = props;
+	const selectedGeneration = props.generation, settingsOwner = props.settings?.owner, settingsDrain = props.settings?.drain;
+	const [lifecycle, setLifecycle] = useState(0);
+	const generation = useMemo(() => ({ selectedGeneration, lifecycle, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, settingsOwner }),
+		[selectedGeneration, lifecycle, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, settingsOwner]);
+	const execution = useRef({ method: props.execute, invoke: pin(props.execute, props) });
+	if (execution.current.method !== props.execute) execution.current = { method: props.execute, invoke: pin(props.execute, props) };
+	const execute = execution.current.invoke;
+	const { owner, drain, snapshot } = usePhotoDevelopV2({ generation, execute }), messages = photoDevelopCopy(props.locale);
 	const [snapshotName, setSnapshotName] = useState(''), [copyName, setCopyName] = useState('');
 	const predecessor = useRef<Promise<void>>(Promise.resolve());
 	const [entryFailure, setEntryFailure] = useState(() => ({ owner, failed: false }));
@@ -38,7 +46,6 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const live = useRef(true);
 	const owned = useRef(owner); owned.current = owner;
 	const rendered = useRef(snapshot); rendered.current = snapshot;
-	const { beforeOpen, photoId, readPreview, loadProxy, withOriginalFrame, importCubeLut: importMethod, registerRetirement, registerDemandRetirement } = props;
 	const capabilityRef = useRef({ owner, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, receiver: props });
 	const previous = capabilityRef.current;
 	if (previous.owner !== owner || previous.readPreview !== readPreview || previous.loadProxy !== loadProxy || previous.withOriginalFrame !== withOriginalFrame
@@ -48,7 +55,6 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const capability = capabilityRef.current;
 	const presentation = useMemo(() => ({ owner, capability, photoId }), [owner, capability, photoId]);
 	const presented = useRef(presentation); presented.current = presentation;
-	const settingsOwner = props.settings?.owner, settingsDrain = props.settings?.drain;
 	const tasks = useMemo(() => ({ owner, imports: new Set<() => Promise<void>>(), previews: new Set<() => Promise<void>>(),
 		joined: Promise.resolve(), closing: null as Promise<void> | null, importing: false }), [owner]);
 	const [importState, setImportState] = useState(() => ({ tasks, pending: false }));
@@ -87,17 +93,22 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	}, [capability, retire]);
 	useEffect(() => {
 		let current = true; live.current = true; setEntryFailure({ owner, failed: false });
-		void joinPhotoLibraryRetirementV1([predecessor.current, drain(), settingsDrain?.() ?? null, beforeOpen ?? null]).then(() => {
-			if (current) return owner.open(photoId);
+		const closing = tasks.closing;
+		void joinPhotoLibraryRetirementV1([predecessor.current, closing, drain(), settingsDrain?.() ?? null, beforeOpen ?? null]).then(() => {
+			if (!current) return;
+			// Registration cleanup permanently retires this owner. An active
+			// effect replay receives a fresh owner only after its whole join.
+			if (closing) { setLifecycle(value => value + 1); return; }
+			return owner.open(photoId);
 		}).catch(() => { if (current) setEntryFailure({ owner, failed: true }); });
 		return () => {
 			current = false; live.current = false;
 			let resolve!: () => void, reject!: (error: unknown) => void;
 			const pending = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
 			predecessor.current = joinPhotoLibraryRetirementV1([predecessor.current, pending]); void predecessor.current.catch(() => undefined);
-			void joinPhotoLibraryRetirementV1([tasks.joined, ...collect(tasks.imports), ...collect(tasks.previews)]).then(resolve, reject);
+			void joinPhotoLibraryRetirementV1([tasks.closing, tasks.joined, ...collect(tasks.imports), ...collect(tasks.previews)]).then(resolve, reject);
 		};
-	}, [owner, drain, settingsDrain, photoId, beforeOpen, tasks]);
+	}, [owner, drain, settingsDrain, photoId, beforeOpen, tasks, retire]);
 	const mounted = () => live.current && owned.current === owner && presented.current === presentation;
 	const close = () => { if (!mounted()) return; void retire().catch(() => undefined); Reflect.apply(props.onClose, props, []); };
 	const current = () => mounted() && rendered.current === snapshot;
