@@ -383,7 +383,7 @@ export async function createRecordingController({
 			} catch (error) {
 				failRecording(error);
 			}
-		} else if (message.type === 'started' && startRequest?.requestId === message.requestId) {
+		} else if (message.type === 'started' && startRequest && startRequest.requestId === message.requestId) {
 			if (message.startFrame !== startRequest.startFrame) {
 				failRecording(new Error('The recording worklet acknowledged a different start frame.'));
 				return;
