@@ -96,7 +96,7 @@ export class ReadCapabilityStore {
 
 	registerSelectedRangePath(filePath, { owner, expectedIdentity } = {}) {
 		try {
-			if (!['project', 'audio', 'video', 'media', 'labels', 'lut'].some((purpose) => acceptsFile(purpose, filePath))
+			if (!['project', 'audio', 'video', 'media', 'image', 'labels', 'lut'].some((purpose) => acceptsFile(purpose, filePath))
 				|| mimeTypeForPath(filePath) === SCAPE_PROJECT_MIME_TYPE) throw new TypeError('Selected range requires an accepted non-Scape path');
 			return this.#admitPath(filePath, { owner, ...(expectedIdentity ? { expectedIdentity: normalizeReadCapabilityFileIdentity(expectedIdentity) } : {}) }, READ_PROFILE_SELECTED_RANGE_V1);
 		} catch (error) { return Promise.reject(error); }

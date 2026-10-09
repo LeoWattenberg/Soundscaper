@@ -442,7 +442,7 @@ test('a desktop picker imports a frozen snapshot of the files its read scope yie
 
 	await still(controller);
 
-	assert.deepEqual(requests[0], { purpose: 'media', multiple: true });
+	assert.deepEqual(requests[0], { purpose: 'image', multiple: true });
 	assert.deepEqual(requests[1], { descriptors: ['descriptor-1'], request: {} });
 	assert.deepEqual(imports[0]?.files.map(({ name }) => name), ['desktop.png']);
 	assert.ok(Object.isFrozen(imports[0]?.files), 'the selection is snapshotted before it is imported');
