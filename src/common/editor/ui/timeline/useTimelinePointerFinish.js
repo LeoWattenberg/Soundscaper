@@ -21,6 +21,8 @@ import {
 } from './timeline-tool-precedence.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 import { timelineSelectionDragTrackIds } from './track-selection-scope.ts';
+import { previewTimelineSelectionBoundaryEdit } from './selection-pointer-edit.ts';
+import { setTimelineSelectionPointerCursor } from './selection-pointer-target.ts';
 
 export function useTimelinePointerFinish({
 	controller,
@@ -63,7 +65,7 @@ export function useTimelinePointerFinish({
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
 		if (session?.pointerId !== undefined && session.pointerId !== event.pointerId) return;
-		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
+		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape' || session?.kind === 'selection-resize')
 			&& event.pointerId !== session.pointerId) return;
 		pointerMoveFlushRef?.current?.(cancelled);
 		pointerSession.current = null;
@@ -74,6 +76,7 @@ export function useTimelinePointerFinish({
 		setTrackResizePreview(null);
 		setSelectionPreview(null);
 		setBoundarySnapGuideFrames([]);
+		setTimelineSelectionPointerCursor(scrollRef?.current, null);
 		if (session?.kind === 'track-resize') {
 			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
 				run(() => controller.actions.timeline.resizeTrackHeight(
@@ -99,6 +102,17 @@ export function useTimelinePointerFinish({
 			return;
 		}
 		if (!session || cancelled || pinchSession.current || !project) return;
+		if (session.kind === 'selection-resize') {
+			const { selection } = previewTimelineSelectionBoundaryEdit({
+				session, project, rawFrame: frameAtClientX(event.clientX, session.lane),
+				currentTrackId: session.lane.dataset.trackId ?? null, pixelsPerSecond, sampleRate,
+			});
+			run(() => controller.actions.timeline.adjustSelection(selection.startFrame, selection.endFrame, {
+				...(session.trackIds ? { trackIds: session.trackIds } : {}),
+				...(session.frequencyRange ? { frequencyRange: session.frequencyRange } : {}),
+			}, { snap: false }));
+			return;
+		}
 		if (session.kind === 'fade') {
 			const clip = project.clips.find(item => item.id === session.clipId);
 			const field = fadeField(session.edge);
@@ -337,6 +351,7 @@ export function useTimelinePointerFinish({
 		setClipDragPreview(null);
 		setSelectionPreview(null);
 		setBoundarySnapGuideFrames([]);
+		setTimelineSelectionPointerCursor(scrollRef?.current, null);
 		setLoopPreview(null);
 		setTrackResizePreview(null);
 		setProjectBinDropActive(false);
@@ -359,7 +374,7 @@ export function useTimelinePointerFinish({
 		};
 		const cancelLostFadeCapture = (event) => {
 			const session = pointerSession.current;
-			if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
+			if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape' || session?.kind === 'selection-resize')
 				&& event.pointerId === session.pointerId) {
 				finishPointerSession(event, true);
 			}

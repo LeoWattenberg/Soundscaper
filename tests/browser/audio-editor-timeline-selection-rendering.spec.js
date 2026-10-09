@@ -69,6 +69,8 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		await expect.poll(() => secondCanvas.evaluate((canvas) => canvas.toDataURL())).toBe(secondImage);
 		await page.mouse.up();
 		await page.mouse.click(firstBox.x + firstBox.width * 0.25, y);
+		await expect.poll(() => firstCanvas.evaluate((canvas) => canvas.toDataURL())).not.toBe(firstImage);
+		await page.mouse.click(firstBox.x + firstBox.width * 0.125, y);
 		await expect.poll(() => firstCanvas.evaluate((canvas) => canvas.toDataURL())).toBe(firstImage);
 	});
 

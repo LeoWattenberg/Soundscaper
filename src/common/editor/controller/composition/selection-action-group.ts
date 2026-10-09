@@ -25,23 +25,30 @@ export function createEditorSelectionActionGroup(dependencies: EditorSelectionAc
 			'selectNoTracks',
 		],
 	);
+	const boundaryAdjustment = deferControllerMethods(
+		() => dependencies.getSelectionView().boundaryAdjustment,
+		['extendSelectionLeft', 'extendSelectionRight', 'contractSelectionLeft', 'contractSelectionRight',
+			'extendSelectionToProjectStart', 'extendSelectionToProjectEnd'],
+	);
 	const {
-		selectTrack, selectClip, setSelection, setExactSelection, selectAll, selectAllTracks,
+		selectTrack, selectClip, setSelection, setExactSelection, adjustSelection, selectAll, selectAllTracks,
 		selectLeftOfPlaybackPosition, selectRightOfPlaybackPosition, selectTrackStartToCursor,
 		selectCursorToTrackEnd, selectTrackStartToEnd, setSnapSettings, snapTimelineFrame,
 		selectAtZeroCrossings,
 	} = deferControllerMethods(dependencies.getSelectionView, [
-		'selectTrack', 'selectClip', 'setSelection', 'setExactSelection', 'selectAll', 'selectAllTracks',
+		'selectTrack', 'selectClip', 'setSelection', 'setExactSelection', 'adjustSelection', 'selectAll', 'selectAllTracks',
 		'selectLeftOfPlaybackPosition', 'selectRightOfPlaybackPosition', 'selectTrackStartToCursor',
 		'selectCursorToTrackEnd', 'selectTrackStartToEnd', 'setSnapSettings', 'snapTimelineFrame',
 		'selectAtZeroCrossings',
 	]);
 	const actions = Object.freeze({
 		...navigation,
+		...boundaryAdjustment,
 		selectTrack,
 		selectClip,
 		setSelection,
 		setExactSelection,
+		adjustSelection,
 		clearSelection: () => setSelection(0, 0, { trackIds: [], frequencyRange: null }),
 		selectAll,
 		selectAllTracks,

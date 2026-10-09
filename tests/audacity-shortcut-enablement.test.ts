@@ -41,12 +41,12 @@ test('contextual selection contractions are enabled for an editable selected cli
 	assert.equal(evaluateAudacityActionEnablement('sel-cntr-right', readOnlyContext), false);
 });
 
-test('selection extension shortcuts support long seek during playback or editable selection work', () => {
+test('selection extension shortcuts edit ranges during stopped and running playback on editable projects', () => {
 	for (const id of [
 		'sel-ext-left', 'sel-ext-right',
 		'track-view-item-extend-left', 'track-view-item-extend-right',
 	]) {
-		assert.equal(audacityActionDefinition(id).enableWhen, 'playing-or-editable-clip-or-project-cursor', id);
+		assert.equal(audacityActionDefinition(id).enableWhen, 'editable-project', id);
 		assert.equal(evaluateAudacityActionEnablement(id, editableClipContext), true, `${id}: editable clip`);
 		const readOnly = {
 			snapshot: { ...structuredClone(editableClipContext.snapshot), readOnly: true },
@@ -55,7 +55,11 @@ test('selection extension shortcuts support long seek during playback or editabl
 		assert.equal(evaluateAudacityActionEnablement(id, {
 			...readOnly,
 			telemetry: { transportState: 'playing' },
-		}), true, `${id}: playback seek`);
+		}), false, `${id}: read-only during playback`);
+		assert.equal(evaluateAudacityActionEnablement(id, {
+			...editableClipContext,
+			telemetry: { transportState: 'playing' },
+		}), true, `${id}: editable during playback`);
 		assert.equal(evaluateAudacityActionEnablement(id, {
 			snapshot: {
 				project: { tracks: [], clips: [], selection: { startFrame: 0, endFrame: 0 } },
@@ -64,7 +68,7 @@ test('selection extension shortcuts support long seek during playback or editabl
 	}
 });
 
-test('item extension remains a non-destructive project-cursor action while editing is blocked', () => {
+test('range extension from a project cursor honors editor edit blocks', () => {
 	const cursorOnlyContext = {
 		snapshot: {
 			...structuredClone(editableClipContext.snapshot),
@@ -81,7 +85,7 @@ test('item extension remains a non-destructive project-cursor action while editi
 	assert.equal(evaluateAudacityActionEnablement('track-view-item-extend-left', cursorOnlyContext), true);
 	assert.equal(evaluateAudacityActionEnablement('track-view-item-extend-left', {
 		snapshot: { ...cursorOnlyContext.snapshot, importing: true },
-	}), true);
+	}), false);
 });
 
 test('selection, draw, and pitch tools expose the state they can actually operate on', () => {
