@@ -579,6 +579,33 @@ successive echoes
 Focused strict compilation and targeted type-aware lint pass; public GREEN
 awaits the next immutable product build.
 
+Paulstretch has the same shortened preview-input boundary. An ordinary
+twelve-second mono recording accepts an eight-second Time resolution with
+Stretch factor one when applied, but Preview rejects it as too short because
+only six input seconds reach the processor. With the ordinary 0.25-second
+resolution, the shortened future FFT window also changes the last part of the
+audition. Read the complete contributing FFT input windows, honor the existing
+minimum input, and move the processor's endpoint fade beyond the six-second
+audition. Clamp the prefix to the selected extent, retain refusal for genuinely
+short selections, and keep ordinary windows bounded for long recordings.
+This is another manifestation of R6-EFFECT-017, with no additional root.
+
+The complete public menu, visible Time resolution entry, Preview, Apply and
+WAV workflow is causally RED: Preview reports a minimum of 524,289 samples,
+while Apply successfully exports 576,000 finite samples
+(`/tmp/soundscaper-r6-effects-paulstretch-preview-window-browser-red2.log`).
+The strict actual preview/DSP regression rejects the valid long window and
+differs from applied PCM by 0.109613 at ordinary resolution; the stretched
+short-selection and genuinely insufficient input controls pass
+(`/tmp/soundscaper-r6-effects-paulstretch-preview-window-node-red.log`).
+All 37 new/existing Paulstretch, spectral, Delay, Sliding Stretch, normalization
+and preview-context cases pass afterward, including exact PCM, the six-second
+audition, selected input limits, the hour-long bounded-prefix control and actual
+render/memory admission
+(`/tmp/soundscaper-r6-effects-paulstretch-preview-window-node-support.log`).
+Focused strict compilation, targeted type-aware lint and file-size/diff checks
+pass. Public GREEN awaits the next immutable build.
+
 ## R6-EFFECT-018 — A valid native crossover is silently lowered before processing
 
 Import an ordinary one-second 8 kHz WAV containing a 3,800 Hz tone. Select its
@@ -614,6 +641,23 @@ Source-effect/apply/export workflow passes Chromium, Firefox and WebKit on
 immutable Green11 `a870804cd`
 (`/tmp/soundscaper-round6-green11-public-browser.log`). No assistance runtime assets change and no
 manual **Update AI assets** run is required.
+
+The Noise Gate release estimator also derived its crossover poles through the
+old clamp. Derive its tail from the corrected valid cutoff so the rack cannot
+stop while a genuine near-Nyquist release remains audible. The existing strict
+8 kHz/3,999 Hz tail regression now excites the actual corrected high cutoff
+with an ordinary 3,990 Hz tone; its former 1,000 Hz tone no longer supplies the
+same end-of-source amplitude after the cutoff correction. The estimator's
+52-frame tail is causally RED at residual amplitude 0.07404 where the retained
+−80 dB bound requires less than 0.0001
+(`/tmp/soundscaper-r6-effects-crossover-tail-node-red2.log`). All thirty-two
+tail, lookahead, valid-crossover and actual-worklet support cases pass after
+the dependent repair (`/tmp/soundscaper-r6-effects-crossover-tail-node-green.log`),
+with narrow strict types and targeted lint passing. This is required
+follow-through of R6-EFFECT-018 and adds no root. Immutable Green12 `8d9d45ff4`
+includes the repaired estimator and passes the complete normal native-cutoff
+workflow in Chromium, Firefox and WebKit
+(`/tmp/soundscaper-round6-green12-public-browser.log`).
 
 ## R6-EFFECT-019 — Mono Vocoder filters an incomplete synthesized carrier
 
@@ -793,20 +837,3 @@ cases pass after repair
 Focused strict compilation and targeted type-aware lint pass; public GREEN
 awaits the next immutable product build. No assistance runtime assets change
 and no manual **Update AI assets** run is required.
-
-The Noise Gate release estimator also derived its crossover poles through the
-old clamp. Derive its tail from the corrected valid cutoff so the rack cannot
-stop while a genuine near-Nyquist release remains audible. The existing strict
-8 kHz/3,999 Hz tail regression now excites the actual corrected high cutoff
-with an ordinary 3,990 Hz tone; its former 1,000 Hz tone no longer supplies the
-same end-of-source amplitude after the cutoff correction. The estimator's
-52-frame tail is causally RED at residual amplitude 0.07404 where the retained
-−80 dB bound requires less than 0.0001
-(`/tmp/soundscaper-r6-effects-crossover-tail-node-red2.log`). All thirty-two
-tail, lookahead, valid-crossover and actual-worklet support cases pass after
-the dependent repair (`/tmp/soundscaper-r6-effects-crossover-tail-node-green.log`),
-with narrow strict types and targeted lint passing. This is required
-follow-through of R6-EFFECT-018 and adds no root. Immutable Green12 `8d9d45ff4`
-includes the repaired estimator and passes the complete normal native-cutoff
-workflow in Chromium, Firefox and WebKit
-(`/tmp/soundscaper-round6-green12-public-browser.log`).
