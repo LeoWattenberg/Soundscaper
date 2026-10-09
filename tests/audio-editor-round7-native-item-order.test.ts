@@ -31,9 +31,9 @@ test('published item navigation orders normal Titles by their native sequence po
 	controller.actions.timeline.selectClip(chronological[0]);
 	const runtime = createAudacityActionRuntime(controller, { productId: 'framescaper' });
 	context.after(() => runtime.dispose());
-	assert.equal(runtime.actions.navigation.nextItem(), chronological[1]);
+	assert.equal(await runtime.actions.navigation.nextItem(), chronological[1]);
 	assert.equal(controller.getSnapshot().selectedClipId, chronological[1]);
-	assert.equal(runtime.actions.navigation.nextItem(), chronological[2]);
-	assert.equal(runtime.actions.navigation.previousItem(), chronological[1]);
-	assert.equal(runtime.actions.navigation.previousItem(), chronological[0]);
+	assert.equal(await runtime.actions.navigation.nextItem(), chronological[2]);
+	assert.equal(await runtime.actions.navigation.previousItem(), chronological[1]);
+	assert.equal(await runtime.actions.navigation.previousItem(), chronological[0]);
 });

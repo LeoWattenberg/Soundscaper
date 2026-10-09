@@ -9,7 +9,6 @@ import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
 import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
 import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
-import { relativeNavigationClipId } from './audacity-shortcut-actions/relative-item-navigation.ts';
 import { visibleNavigationTracks } from './audacity-shortcut-actions/visible-navigation-tracks.ts';
 import { applyAudacityTrackScope } from './audacity-shortcut-actions/track-scope-selection.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
@@ -213,10 +212,12 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	function updateSelectedTrack(changes) { const track = selectedTrack(); return track ? controllerActions.track.update(track.id, changes) : null; }
 
 	function selectRelativeClip(direction) {
-		const id = relativeNavigationClipId(project(), snapshot().selectedClipId, direction);
-		if (!id) return null;
-		controllerActions.timeline.selectClip(id);
-		return id;
+		return import('./audacity-shortcut-actions/relative-item-navigation.ts').then(({ relativeNavigationClipId }) => {
+			const id = relativeNavigationClipId(project(), snapshot().selectedClipId, direction);
+			if (!id) return null;
+			controllerActions.timeline.selectClip(id);
+			return id;
+		});
 	}
 	function selectRelativeTrack(direction, mode = 'replace') {
 		const currentProject = project();
