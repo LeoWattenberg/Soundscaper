@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createRecordingController } from '../../../../recording.js';
+import { probeCaptureAudioInputChannelCount } from '../../../../capture-audio-input-channel-probe.ts';
 import { createFramescaperBrowserAudioProcessorRecorder } from './framescaper-browser-audio-processor-recorder.ts';
 import { createFramescaperCapturePcmFrameMapper } from '../framescaper-capture-pcm-frame-mapper.ts';
+import { acquireFramescaperCaptureAudioContext, type FramescaperCaptureAudioContextFactory } from './framescaper-capture-audio-context.ts';
 import type { CapturePcmChunk } from '../framescaper-capture-pcm-packetizer.ts';
 const CAPTURE_AUDIO_CHANNEL_COUNT_MAXIMUM = 32;
 const CAPTURE_AUDIO_SAMPLE_RATE_MAXIMUM = 768_000;
@@ -83,9 +85,11 @@ export interface FramescaperBrowserAudioRecorderOptions {
 	readonly track: FramescaperAudioTrackLike;
 	readonly stream: unknown;
 	readonly context?: Readonly<{ sampleRate: number }> | null;
+	readonly createAudioContext?: FramescaperCaptureAudioContextFactory;
 	/** Undefined probes the runtime constructor; null explicitly disables it. */
 	readonly MediaStreamTrackProcessor?: FramescaperAudioTrackProcessorConstructor | null;
 	readonly recordingControllerFactory?: FramescaperWorkletRecordingControllerFactory;
+	readonly probeInputChannelCount?: (context: unknown, stream: unknown) => Promise<number>;
 	readonly monitoring?: boolean;
 	readonly inputGain?: number;
 	readonly chunkFrames?: number;
@@ -130,7 +134,7 @@ export async function createFramescaperBrowserAudioRecorder(
 	options: FramescaperBrowserAudioRecorderOptions,
 ): Promise<FramescaperBrowserAudioRecorder> {
 	validateOptions(options);
-	const format = actualTrackFormat(options.track);
+	const format = await actualTrackFormat(options);
 	const monitoring = Boolean(options.monitoring);
 	const inputGain = normalizeCaptureInputGain(options.inputGain ?? 1);
 	const chunkFrames = boundedInteger(
@@ -157,7 +161,7 @@ export async function createFramescaperBrowserAudioRecorder(
 	const Processor = options.MediaStreamTrackProcessor === undefined
 		? runtimeTrackProcessorConstructor()
 		: options.MediaStreamTrackProcessor;
-	if (Processor && !monitoring) {
+	if (Processor && !monitoring && format.nativeSampleRateAvailable && format.nativeChannelCountAvailable) {
 		return createFramescaperBrowserAudioProcessorRecorder({
 			options, Processor, format, chunkFrames, maximumPendingChunks, inputGain, sink, failures,
 			...(options.context ? { createFallback: () => createWorkletRecorder({
@@ -176,6 +180,8 @@ export async function createFramescaperBrowserAudioRecorder(
 interface ActualAudioFormat {
 	readonly sampleRate: number;
 	readonly channelCount: number;
+	readonly nativeSampleRateAvailable: boolean;
+	readonly nativeChannelCountAvailable: boolean;
 }
 
 interface FailureChannel {
@@ -204,17 +210,15 @@ async function createWorkletRecorder(input: Readonly<{
 	if (!options.context) {
 		throw new Error('Capture audio requires an AudioWorklet context.');
 	}
-	if (options.context.sampleRate !== format.sampleRate) {
-		throw new Error('Capture AudioWorklet context must retain the source track sample rate.');
-	}
+	const context = await acquireFramescaperCaptureAudioContext(options.context, format.sampleRate, options.createAudioContext);
 	const factory = options.recordingControllerFactory
 		?? (createRecordingController as unknown as FramescaperWorkletRecordingControllerFactory);
 	const frameMapper = createFramescaperCapturePcmFrameMapper();
 	let state: FramescaperCaptureAudioRecorderState = 'ready';
 	let stopPromise: Promise<void> | null = null;
 	let disposePromise: Promise<void> | null = null;
-	const delegate = await factory({
-		context: options.context,
+	const delegate = await Promise.resolve().then(() => factory({
+		context: context.context,
 		stream: options.stream,
 		channelCount: format.channelCount,
 		chunkFrames,
@@ -226,7 +230,7 @@ async function createWorkletRecorder(input: Readonly<{
 			failures.fail(error);
 			state = 'failed';
 		},
-	});
+	})).catch(async (error: unknown) => { await context.dispose(); throw error; });
 
 	function start(startFrameValue = 0): void {
 		assertStartable(state, failures.failure);
@@ -273,6 +277,7 @@ async function createWorkletRecorder(input: Readonly<{
 				if (delegate.detach) await delegate.detach();
 				else await delegate.dispose?.({ stopTracks: false });
 			} catch (error) { failures.fail(error); }
+			try { await context.dispose(); } catch (error) { failures.fail(error); }
 			state = 'disposed';
 			if (failures.failure) throw failures.failure;
 		});
@@ -365,21 +370,27 @@ function validateOptions(options: FramescaperBrowserAudioRecorderOptions): void 
 	if (typeof options.onChunk !== 'function') throw new TypeError('Capture audio requires a PCM chunk sink.');
 }
 
-function actualTrackFormat(track: FramescaperAudioTrackLike): ActualAudioFormat {
+async function actualTrackFormat(options: FramescaperBrowserAudioRecorderOptions): Promise<ActualAudioFormat> {
+	const { track, context } = options;
 	const settings = track.getSettings?.();
+	const nativeSampleRateAvailable = settings?.sampleRate !== undefined;
+	const nativeChannelCountAvailable = settings?.channelCount !== undefined;
+	// Some browsers omit this optional hardware setting. Their worklet output
+	// remains on a known context grid; do not claim an unknown AudioData rate.
 	const sampleRate = boundedInteger(
-		settings?.sampleRate,
+		nativeSampleRateAvailable ? settings?.sampleRate : context?.sampleRate,
 		1,
 		CAPTURE_AUDIO_SAMPLE_RATE_MAXIMUM,
 		'Capture audio actual sample rate',
 	);
 	const channelCount = boundedInteger(
-		settings?.channelCount,
+		nativeChannelCountAvailable ? settings?.channelCount
+			: await (options.probeInputChannelCount ?? probeCaptureAudioInputChannelCount)(context, options.stream),
 		1,
 		CAPTURE_AUDIO_CHANNEL_COUNT_MAXIMUM,
 		'Capture audio actual channel count',
 	);
-	return Object.freeze({ sampleRate, channelCount });
+	return Object.freeze({ sampleRate, channelCount, nativeSampleRateAvailable, nativeChannelCountAvailable });
 }
 
 function validatePcmChunk(

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React, { act } from 'react';
+import React, { act, useState } from 'react';
 import MacroScriptEditor from '../src/common/editor/ui/inspector/MacroScriptEditor.jsx';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
@@ -16,11 +16,15 @@ test('a macro name keyboard draft cancels without a blur save and commits on Ent
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	const changes: Array<{ name: string }> = [];
-	try {
-		await act(async () => root.render(<MacroScriptEditor script={{ id: 'program', name: 'Original', source: '' }}
+	function Control() {
+		const [script, setScript] = useState({ id: 'program', name: 'Original', source: '' });
+		return <MacroScriptEditor script={script}
 			copy={{ programName: 'Program name' }} log={[]} running={false} blocked={false} failure={null}
-			onChange={(value: { name: string }) => changes.push(value)}
-			onRun={() => undefined} onCancel={() => undefined} onTrust={() => undefined} />));
+			onChange={(value: typeof script) => { changes.push(value); setScript(value); }}
+			onRun={() => undefined} onCancel={() => undefined} onTrust={() => undefined} />;
+	}
+	try {
+		await act(async () => root.render(<Control />));
 		const input = dom.one('input');
 		const label = dom.container.querySelectorAll('label')[0]!;
 		await act(async () => reactProps(input).onFocus());

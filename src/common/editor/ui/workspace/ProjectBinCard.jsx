@@ -6,11 +6,7 @@ import {
 	clearActiveProjectBinDragPayload,
 	createProjectBinDragPayload,
 } from '../../project-bin-dnd.js';
-import {
-	cancelDraftEditOnEscape,
-	createDraftBlurCommitGuard,
-	draftBlurShouldCommit,
-} from '../draft-blur-commit.ts';
+import ProjectBinNameEditor from './ProjectBinNameEditor.tsx';
 import { formatProjectBinSource } from './project-bin-model.ts';
 import { useProjectBinWaveformPath, useProjectBinTransformBadges, useProjectBinMediaTiming, useProjectBinDuration, useProjectBinInstanceCount } from './useProjectBinPresentation.ts';
 import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
@@ -321,42 +317,4 @@ function ProjectBinVisualThumbnail({ state }) {
 	if (state.error) return <span aria-hidden="true">!</span>;
 	if (!state.value) return <span aria-hidden="true">◇</span>;
 	return <canvas ref={canvasRef} data-project-bin-visual-canvas aria-hidden="true" />;
-}
-
-function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
-	const [draft, setDraft] = useState(name);
-	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
-	useEffect(() => setDraft(name), [clip.id, name]);
-	const commit = () => {
-		if (!draftBlurShouldCommit(blurCommitGuard)) return;
-		const nextName = draft.trim();
-		if (!nextName) {
-			setDraft(name);
-			return;
-		}
-		if (nextName !== name) onCommit(nextName);
-	};
-	return (
-		<label className="kw-audio-editor__project-bin-name">
-			<span className="kw-audio-editor-sr-only">{copy.projectBinRename}</span>
-			<input
-				data-project-bin-name
-				aria-label={`${copy.projectBinRename}: ${name}`}
-				value={draft}
-				disabled={disabled}
-				onChange={(event) => setDraft(event.currentTarget.value)}
-				onBlur={commit}
-				onKeyDown={(event) => {
-					if (event.key === 'Enter') event.currentTarget.blur();
-					else if (event.key === 'Escape') {
-						cancelDraftEditOnEscape(
-							blurCommitGuard,
-							event,
-							() => setDraft(name),
-						);
-					}
-				}}
-			/>
-		</label>
-	);
 }

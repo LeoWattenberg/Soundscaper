@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
+import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY, classifyProjectSchemaIdentity } from '../common/editor/project-schema-identity.ts';
 import {
 	bindProductVideoVisualPreviewRuntime,
 	createProductVideoVisualPreviewRuntime,
@@ -18,6 +19,7 @@ export function bindFramescaperSelectedImagePreviewControllerTimelineImage(optio
 	}
 	bindProductVideoVisualPreviewRuntime(options.controller, createProductVideoVisualPreviewRuntime(
 		async (request) => {
+			if (isOpaquePreviewProject(request.project)) return null;
 			const module = await import('./editor-selected-timeline-image-image-preview.ts');
 			return module.createFramescaperSelectedVisualPreviewSessionTimelineImage({
 				...request, profile: options.profile, store: options.store,
@@ -25,6 +27,7 @@ export function bindFramescaperSelectedImagePreviewControllerTimelineImage(optio
 			});
 		},
 		async (request) => {
+			if (isOpaquePreviewProject(request.project)) return null;
 			const module = await import('./editor-selected-timeline-image-image-preview.ts');
 			return module.createFramescaperSelectedProjectBinThumbnailTimelineImage({
 				...request, profile: options.profile, store: options.store,
@@ -32,6 +35,7 @@ export function bindFramescaperSelectedImagePreviewControllerTimelineImage(optio
 			});
 		},
 		async (request) => {
+			if (isOpaquePreviewProject(request.project)) return null;
 			const module = await import('./editor-selected-timeline-image-image-filmstrip.ts');
 			return module.createFramescaperSelectedTimelineFilmstripTimelineImage({
 				...request, profile: options.profile, store: options.store,
@@ -39,4 +43,13 @@ export function bindFramescaperSelectedImagePreviewControllerTimelineImage(optio
 			});
 		},
 	));
+}
+
+/** Opaque custody has no owning visual runtime; malformed inputs retain factory validation. */
+function isOpaquePreviewProject(project: unknown): boolean {
+	try {
+		return classifyProjectSchemaIdentity(project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY).disposition !== 'current';
+	} catch {
+		return false;
+	}
 }

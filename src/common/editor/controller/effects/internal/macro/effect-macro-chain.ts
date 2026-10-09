@@ -18,6 +18,7 @@ import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts
 import { runOfflineSelectionSegment, type RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { createMacroNeighbourPcmCache, type MacroNeighbourPcmCache } from './macro-neighbour-pcm-cache.ts';
 import { independentTrackEffectParams } from '../independent-track-effect-params.ts';
+import { composeMacroSpectralResult, type MacroSpectralSelection } from './macro-spectral-context.ts';
 
 const selectionEffectDefinitions = AUDIO_SELECTION_EFFECT_DEFINITIONS as unknown as
 	Readonly<Record<string, SelectionEffectDefinition | undefined>>;
@@ -65,6 +66,7 @@ interface ChainCopy {
 }
 
 export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
+	readonly spectralSelection?: MacroSpectralSelection;
 	readonly contextCacheBytes?: number;
 	/** Opt-in private worker port guarantees the canonical per-step channel match. */
 	readonly runSelectionEffectChain?: RunOfflineSelectionChain;
@@ -142,6 +144,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		if (!definition) throw new RangeError(`Unsupported macro effect: ${step.type}.`);
 		if (definition.requiresControlTrack) throw createLocalizedError(Error, runtime.copy, 'autoDuckControlTrack');
 		const context: Record<string, unknown> = {};
+		if (runtime.spectralSelection && step.type !== 'eq') context.spectralSelection = runtime.spectralSelection;
 		if (definition.requiresNoiseProfile) {
 			const noiseProfile = step.context?.noiseProfile;
 			if (!isRecord(noiseProfile)) throw createLocalizedError(Error, runtime.copy, 'noiseProfileMissing');
@@ -296,13 +299,23 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		let channels = initialChannels;
 		for (const segment of segments) {
 			if (segment.realtime) {
-				channels = await renderRackSegment(segment.steps, channels, target);
+				if (runtime.spectralSelection) {
+					// Each step receives audio with the preceding step's unselected
+					// bins intact. A final-only blend changes nonlinear detectors.
+					for (const step of segment.steps) {
+						const processed = await renderRackSegment([step], channels, target);
+						channels = step.type === 'eq' ? processed : await composeMacroSpectralResult(
+							channels, processed, runtime.sampleRate, runtime.spectralSelection);
+						runtime.assertCurrent();
+					}
+				} else channels = await renderRackSegment(segment.steps, channels, target);
 				continue;
 			}
 			const steps = segment.steps.map(step => ({ ...step,
 				params: independentTrackEffectParams(step.type, step.params) }));
 			channels = await runOfflineSelectionSegment(steps, channels,
-				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent, runtime.runSelectionEffectChain);
+				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent,
+				runtime.spectralSelection ? undefined : runtime.runSelectionEffectChain);
 		}
 		return channels;
 	}

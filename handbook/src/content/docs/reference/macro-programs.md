@@ -395,11 +395,20 @@ Audacity reads them too.
 
 | Group | Commands |
 | --- | --- |
-| Selection | `SelectAll`, `SelectNone`, `SelCursorStoredCursor`, `SelTrackStartToEnd`, `SelCursorToTrackEnd`, `SelPrevClip`, `SelNextClip`, `ZeroCross` |
+| Selection | `SelectAll`, `SelectNone`, `SelTrackStartToCursor`, `SelTrackStartToEnd`, `SelCursorToTrackEnd`, `SelPrevClip`, `SelNextClip`, `ZeroCross` |
 | Editing | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
 | Tracks | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
 | Labels | `AddLabel` |
-| Analysis | `FindClipping`, `ContrastAnalyser`, `PlotSpectrum`, `RepeatLastEffect` |
+| Analysis | `FindClipping`, `PlotSpectrum`, `RepeatLastEffect` |
+
+Contrast requires foreground and background measurements chosen by the user.
+Open **Analyze → Contrast** to take them; `ContrastAnalyser` cannot run as a
+parameterless macro command. Earlier saved steps remain readable and exportable.
+
+`SelTrackStartToCursor` runs **Select → Region → Track start to cursor**.
+`SelCursorStoredCursor` is Audacity's separate stored-cursor command, which this
+editor does not implement; earlier saved steps remain readable and exportable,
+and refuse execution instead of making an unrelated selection.
 
 ### What is deliberately missing
 

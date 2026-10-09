@@ -25,12 +25,13 @@ import { useExportDialogOutput } from '../use-export-dialog-output.ts';
 import { createExportPresetActions } from '../export-preset-actions.js';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
-import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
+import { videoCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { LabeledDropdown } from './inspector-controls.jsx';
 import ExportChannelMappingDialog from './ExportChannelMappingDialog.tsx';
 import ExportChannelsField from './ExportChannelsField.jsx';
 import ExportDialogMetadataPanel from './ExportDialogMetadataPanel.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
+import ExportOutputHints from './ExportOutputHints.tsx';
 import ExportRenderingSection from './ExportRenderingSection.jsx';
 import ExportEmbeddedChaptersField from '../ExportEmbeddedChaptersField.tsx';
 import {
@@ -52,7 +53,6 @@ import {
 } from '../export-dialog-audio-codec-options.ts';
 import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-capabilities.ts';
 import { samePresetParams } from './effect-helpers.ts';
-
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.taskProgress?.kind === 'export' ? telemetry.taskProgress.value : telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
@@ -111,7 +111,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
-	const captionDeliveryUnavailable = framescaperCaptionDeliveryUnavailable(
+	const captionDeliveryUnavailable = videoCaptionDeliveryUnavailable(
 		productId, snapshot.project,
 	);
 	// Generic video delivery captions from label tracks. Selected Framescaper owns its
@@ -284,12 +284,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				copyright: settings.metadataCopyright,
 			});
 			const request = createExportDialogRequest(admittedSettings, {
-				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop,
+				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop, captionDeliveryUnavailable,
 				bext: admittedSettings.bext,
 				adm: admittedSettings.adm,
 				channelMapping: videoFormat
 					? undefined
-					: admittedSettings.channelMapping === 'custom'
+					: admittedSettings.binaural ? 'preserve' : admittedSettings.channelMapping === 'custom'
 						? parseJsonChannelMapping(admittedSettings.channelMatrix, copy.customChannelMapping, copy)
 						: admittedSettings.channelMapping,
 			});
@@ -418,7 +418,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						})) : []),
 					]} />
 					<LabeledDropdown label={copy.exportMode} hook="output" value={outputValue} onChange={chooseOutput} disabled={exporting || admPassthrough} options={outputOptions} />
-					{outputNoLabelsHint && <p className="audio-editor-panel-hint" data-export-no-labels>{outputNoLabelsHint}</p>}
+					<ExportOutputHints copy={copy} project={snapshot.project} noLabelsHint={outputNoLabelsHint} singleFileOnly={videoFormat || settings.format === 'bw64'} />
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">
@@ -426,8 +426,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					{!videoFormat && (
 						<ExportChannelsField
 							copy={copy}
-							value={settings.channelMapping}
-							disabled={exporting || settings.format === 'bw64'}
+							value={settings.binaural ? 'preserve' : settings.channelMapping}
+							disabled={exporting || settings.format === 'bw64' || settings.binaural}
 							onChange={(value) => setCodec('channelMapping', value)}
 							onEditMapping={() => setMappingOpen(true)}
 						/>
@@ -464,7 +464,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 							labelTracks={labelTracks}
 							settings={settings}
 							onChange={setVideoDeliverySetting}
-							captionDeliveryUnavailable={captionDeliveryUnavailable}
+							captionDeliveryUnavailable={captionDeliveryUnavailable} productId={productId}
 						/>
 					)}
 				</section>

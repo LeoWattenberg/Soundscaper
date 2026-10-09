@@ -65,7 +65,7 @@ export function SpectralSelectionOverlay({
 		event.stopPropagation();
 	};
 	const beginDrag = (kind, event) => {
-		if (disabled) return;
+		if (disabled || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		stopClick(event);
 		dragRef.current = {
 			kind,

@@ -176,6 +176,7 @@ export async function scheduleProjectClips({
 		sources,
 		chunkSources,
 		trackInputs,
+		offlineSampleRate: mode === 'offline' ? context.sampleRate : undefined,
 		fromFrame,
 		toFrame,
 		sampleRate,

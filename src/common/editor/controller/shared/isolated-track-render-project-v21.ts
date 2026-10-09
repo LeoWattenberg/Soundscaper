@@ -58,7 +58,8 @@ export function createIsolatedTrackRenderProjectV21(
 	const widths = resolveTerminalChannelWidths(project, project.masterChannels).tracks;
 	if (request.preserveTrackProcessing && project.mixer.edges.some(edge => edge.destination.kind === 'effect-sidechain'
 		&& edge.destination.strip.kind === 'track' && edge.destination.strip.id === request.trackId)) {
-		const capture = createAuthoredTrackSidechainRender(project, request, widths);
+		const capture = { ...createAuthoredTrackSidechainRender(project, request, widths),
+			metadata: preMasterMetadata(project) };
 		projectTransientRenderFeatures(capture);
 		return inheritTrackFolderMediaStateProjectionV12(project, capture);
 	}
@@ -83,6 +84,7 @@ export function createIsolatedTrackRenderProjectV21(
 	if (!request.preserveTrackProcessing) delete track.envelope;
 	const isolated = {
 		...project,
+		metadata: preMasterMetadata(project),
 		tracks: [track as IsolatedTrackRenderTrackV21],
 		// A dry projection owns no lanes; an authored projection keeps only the
 		// selected strip's processing and cannot address removed mixer authority.
@@ -96,6 +98,14 @@ export function createIsolatedTrackRenderProjectV21(
 	};
 	projectTransientRenderFeatures(isolated);
 	return inheritTrackFolderMediaStateProjectionV12(project, isolated);
+}
+
+function preMasterMetadata(project: IsolatedTrackRenderProjectV21) {
+	const metadata = project.metadata as Readonly<Record<string, unknown>> | null | undefined;
+	// A private capture owns source channels, before the authored ADM programme
+	// maps them to bed/object outputs. Keeping that map can turn a mono right
+	// recording into silent channel zero and bake assignment gain twice.
+	return metadata?.adm ? { ...metadata, adm: null } : metadata;
 }
 
 function laneTargetsTrack(value: unknown, trackId: string): boolean {

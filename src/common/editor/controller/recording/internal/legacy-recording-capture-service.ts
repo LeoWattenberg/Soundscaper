@@ -18,6 +18,8 @@ import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.t
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 import { recordingSourceAlignment } from './recording-source-alignment.ts';
+import { assertRecordingTargetsUnlocked } from '../../../recording-target-admission.ts';
+import { probeCaptureAudioInputChannelCount } from '../../../capture-audio-input-channel-probe.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -43,6 +45,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			? runtime.findTrack(project, options.trackId)
 			: project.tracks.find((item) => item.armed) || null;
 		if (!track) throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
+		assertRecordingTargetsUnlocked([track]);
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
 		state.recordingDiscardRequested = false;
@@ -82,7 +85,10 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			scope.assertCurrent();
 			const inputTrack = stream.getAudioTracks()[0];
 			const trackSettings = inputTrack?.getSettings?.() || {};
-			const channelCount = Math.min(2, Number(trackSettings.channelCount) || 1);
+			const channelCount = Math.min(2, trackSettings.channelCount === undefined
+				? await probeCaptureAudioInputChannelCount(context, stream)
+				: Number(trackSettings.channelCount) || 1);
+			scope.assertCurrent();
 			const captureSampleRate = context.sampleRate || sampleRate;
 			const selection = runtime.activeSelection(project);
 			await runtime.preflightStorage(

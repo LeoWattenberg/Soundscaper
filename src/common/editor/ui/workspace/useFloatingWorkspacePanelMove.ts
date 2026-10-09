@@ -33,7 +33,8 @@ export function useFloatingWorkspacePanelMove(input: Readonly<{
 	}, [dock]);
 
 	return (event: ReactPointerEvent<HTMLElement>, panelId: string): void => {
-		if (dock !== 'floating' || event.button !== 0 || input.resizeSessionRef.current) return;
+		if (dock !== 'floating' || event.button !== 0 || event.isPrimary === false
+			|| input.resizeSessionRef.current || sessionRef.current) return;
 		const target = event.target instanceof Element ? event.target : null;
 		const meterGrip = Boolean(target?.closest('[data-meter-panel-grip]'));
 		if (target?.closest('button, select, input, label, a, [role="menu"]') && !meterGrip) return;
@@ -47,7 +48,6 @@ export function useFloatingWorkspacePanelMove(input: Readonly<{
 			width: elementBounds.width, height: elementBounds.height,
 		}, workspaceBounds, panelId);
 		const root = workspace.closest<HTMLElement>('[data-audio-editor]');
-		sessionRef.current?.cancel();
 		sessionRef.current = new FloatingWorkspacePanelMove({
 			panelId, element, pointerId: event.pointerId,
 			startClientX: event.clientX, startClientY: event.clientY, startGeometry, workspaceBounds,

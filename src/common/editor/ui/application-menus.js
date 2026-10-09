@@ -322,9 +322,9 @@ export default function createApplicationMenus({
 					id: 'paste',
 					label: copy.paste,
 					items: [
-						{ id: 'action://paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('paste') },
-						{ id: 'insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteInsert') },
-						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteAllTracksRipple') },
+						{ id: 'action://paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard || Boolean(snapshot.history?.pasteTargetLocked), onClick: () => actions.executeEdit('paste') },
+						{ id: 'insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard || Boolean(snapshot.history?.pasteTargetLocked), onClick: () => actions.executeEdit('pasteInsert') },
+						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard || Boolean(snapshot.history?.pasteTargetLocked), onClick: () => actions.executeEdit('pasteAllTracksRipple') },
 					],
 				},
 				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('duplicate') },

@@ -14,6 +14,7 @@ import { createCurrentAudioEditorProject } from '../../../../project-current.ts'
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../../../../pcm-chunks.js';
 import { admitAudioImportChannelCount } from '../audio-import-channel-admission.ts';
 import { resolveDeliveredProject } from '../../../export/interchange-export-action.ts';
+import { reportInterchangeMulticameraConversion } from '../../../../interchange-multicamera-delivery.ts';
 import { DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, dawprojectWavByteLength, dawprojectWavStream } from './dawproject-export-audio.ts';
 import { assertDawprojectCompressedWorkingBudget, stageDawprojectCompressedSource } from './dawproject-import-compressed.ts';
 import { inspectWavBlobPcm } from '../../../../wav-import.js';
@@ -228,13 +229,13 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 		try {
 			setLocalizedStatus(runtime.setStatus, runtime.copy, 'dawprojectSaving', undefined, undefined, { fallback: 'Exporting DAWproject' });
 			const delivered = resolveDeliveredProject({
-				getProject: () => snapshot, state: runtime.state as unknown as Record<string, unknown>,
+				getProject: () => snapshot, state: runtime.state as unknown as Record<string, unknown>, projectForRuntimeConsumers: runtime.projectForRuntimeConsumers,
 			});
 			if (!delivered) throw createLocalizedError(Error, runtime.copy, 'projectNotFound');
 			const embeddableVideoSourceIds = typeof runtime.store.loadMediaAsset === 'function'
 				? snapshot.sources.filter((source) => source.kind === 'video').map((source) => source.id)
 				: [];
-			const exported = createDawprojectExport({
+			const generated = createDawprojectExport({
 				project: delivered,
 				title: snapshot.title,
 				application: {
@@ -243,6 +244,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 				},
 				embeddableVideoSourceIds,
 			});
+			const exported = { ...generated, report: reportInterchangeMulticameraConversion(generated.report, snapshot, delivered) };
 			// Publish before the save dialog: a cancelled save keeps the report.
 			runtime.state.deliveryReport = exported.report;
 			runtime.publishDocumentSnapshot();

@@ -47,6 +47,7 @@ export default function VideoEffectNumberInput({ value, minimum, maximum, step, 
 			setDraft(event.currentTarget.value);
 			if (Number.isFinite(event.currentTarget.valueAsNumber)) onPreview(event.currentTarget.valueAsNumber);
 		}} onPointerUp={commit} onPointerCancel={cancel} onBlur={commit} onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); }
 			else if (event.key === 'Enter') { event.preventDefault(); commit(); }
 		}} />;

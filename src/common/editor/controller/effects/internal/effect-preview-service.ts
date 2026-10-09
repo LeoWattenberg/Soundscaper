@@ -1,6 +1,8 @@
 import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { independentTrackEffectParams } from './independent-track-effect-params.ts';
+import { paulstretchPreviewInputFrames } from './paulstretch-preview-prefix.ts';
+import { speedDelayPreviewInputFrames } from './speed-delay-preview-prefix.ts';
 
 export interface SelectionEffectPreviewRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -63,7 +65,10 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			Math.max(...fullTargets.map((target: RuntimeValue) => target.endFrame)),
 		);
 		const previewFrameCount = previewEndFrame - previewStartFrame;
-		const processCompleteSelection = type === 'audacity-normalize' || type === 'audacity-loudness-normalization';
+		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
+		const processCompleteSelection = type === 'audacity-normalize' || type === 'audacity-loudness-normalization'
+			|| (type === 'audacity-sliding-stretch' && (params.startTempoPercent !== params.endTempoPercent
+				|| params.startPitchSemitones !== params.endPitchSemitones));
 		const fullPreviewTargets: FullPreviewTarget[] = fullTargets.map((full: RuntimeValue, fullIndex: number) => ({
 			full,
 			fullIndex,
@@ -71,7 +76,14 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 		}));
 		const targets: PreviewTarget[] = fullPreviewTargets.map(({ full, fullIndex, spectralSelection }) => {
 			const startFrame = Math.max(previewStartFrame, full.startFrame);
-			const endFrame = Math.min(previewEndFrame, full.endFrame);
+			const auditionFrames = Math.max(0, Math.min(previewEndFrame, full.endFrame) - startFrame);
+			if (auditionFrames === 0) return null;
+			const inputFrames = type === 'multi-tap-delay'
+				? speedDelayPreviewInputFrames(params, sampleRate, auditionFrames)
+				: type === 'audacity-paulstretch' ? paulstretchPreviewInputFrames(params, sampleRate,
+					Math.min(maximumFrames - (startFrame - previewStartFrame),
+						Math.ceil(full.durationFrames * Number(params.stretchFactor)))) : auditionFrames;
+			const endFrame = Math.min(startFrame + inputFrames, full.endFrame);
 			if (endFrame <= startFrame) return null;
 			return {
 				full,
@@ -81,7 +93,6 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				spectralSelection,
 			};
 		}).filter((target): target is PreviewTarget => target !== null);
-		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
 		const resolveFromFullSelection = type === 'audacity-amplify'
 			&& !state.audacityEffectTouchedParams.get(type)?.has('gainDb')
 			&& fullTargets.some((full: RuntimeValue) => (

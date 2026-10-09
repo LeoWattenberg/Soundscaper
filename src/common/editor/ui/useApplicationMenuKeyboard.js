@@ -28,7 +28,8 @@ export function useApplicationMenuKeyboard({
 	setOpenMenu,
 }) {
 	const onOpenMenuKeyDownCapture = (event) => {
-		if (!openMenu || !(event.target instanceof Element)) return;
+		if (!openMenu || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey
+			|| !(event.target instanceof Element)) return;
 		const menu = event.target.closest('[role="menu"]');
 		if (!menu?.closest('.kw-audio-editor__application-menu')) return;
 		if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -69,7 +70,7 @@ export function useApplicationMenuKeyboard({
 					// Do not override a choice made while the submenu was opening.
 					if (!submenuItem?.isConnected || submenuItem.ownerDocument.activeElement !== submenuItem) return;
 					focusVisibleMenuItem(submenuItem?.querySelector(':scope > .context-menu-submenu')
-						?.querySelector(MENU_ITEM_SELECTOR));
+						?.querySelector(DIRECT_ENABLED_MENU_ITEM_SELECTOR));
 				}, 0);
 			}, 0);
 		} else if (event.key === 'Tab') {

@@ -12,6 +12,8 @@ import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type { EffectSelection, EffectTarget } from '../../effect-selection-service.ts';
 import type { EditorProjectToken } from '../../../shared/lifecycle.ts';
 import { createNonImportedSourceProvenance } from '../../../../source-provenance-root.ts';
+import { resolveSelectionRange } from '../../../../selection-range.ts';
+import type { PersistEffectResultOptions, SelectionEffectResult } from '../effect-result-service.ts';
 
 export interface NyquistGeneratedTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -88,6 +90,10 @@ export interface NyquistGeneratedAudioServiceRuntime<Buffer extends NyquistGener
 	readonly assertProject: (token: EditorProjectToken) => void;
 	readonly activeSelection: () => EffectSelection | null;
 	readonly audacityEffectTarget: (trackId?: string | null) => EffectTarget | null;
+	readonly audacityEffectTargets?: () => readonly EffectTarget[];
+	readonly persistAudacityEffectResults?: (
+		results: readonly SelectionEffectResult[], type: null, options: PersistEffectResultOptions,
+	) => Promise<unknown>;
 	readonly persistAudacityEffectResult: (
 		target: EffectTarget,
 		type: null,
@@ -149,8 +155,30 @@ export function createNyquistGeneratedAudioService<Buffer extends NyquistGenerat
 			throw createLocalizedError(Error, runtime.copy, 'effectInvalidAudio');
 		}
 		const sampleRate = runtime.projectSampleRate();
-		const selection = runtime.activeSelection();
-		const replacementTarget = selection ? runtime.audacityEffectTarget(options.trackId) : null;
+		const activeSelection = runtime.activeSelection();
+		const selection = activeSelection ?? (project.selection?.clipIds?.length ? resolveSelectionRange(project) : null);
+		const replacementTargets = selection && runtime.audacityEffectTargets && runtime.persistAudacityEffectResults
+			? runtime.audacityEffectTargets().filter(target => (!options.trackId || target.track.id === options.trackId)
+				// A native Source focus must not turn a timeline header fallback into source processing.
+				&& (activeSelection !== null || !target.sourceId))
+			: [];
+		if (replacementTargets.length && runtime.persistAudacityEffectResults) {
+			await runtime.preflightStorage(replacementTargets.reduce((bytes, target) => bytes
+				+ channels[0].byteLength * target.channelCount, 0), 'effect');
+			assertOwnership();
+			const replacements = replacementTargets.map(target => ({ target,
+				channels: runtime.matchAudacitySelectionChannels(channels, target.channelCount) }));
+			const result = await runtime.persistAudacityEffectResults(replacements, null, {
+				assertCurrent: assertOwnership,
+				effectName: String(options.name || publishedCopyFor(runtime.copy).nyquistPrompt),
+				selectionDetails: { trackIds: [...new Set(replacements.map(item => item.target.track.id))] },
+				signal,
+			});
+			assertOwnership();
+			return result;
+		}
+		const focusedTarget = selection ? runtime.audacityEffectTarget(options.trackId) : null;
+		const replacementTarget = !activeSelection && focusedTarget?.sourceId ? null : focusedTarget;
 		if (replacementTarget) {
 			const result = await runtime.persistAudacityEffectResult(
 				replacementTarget,

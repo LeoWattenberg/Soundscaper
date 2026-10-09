@@ -57,6 +57,7 @@ export function ContainerAddTrackFlyout({
 				return;
 			}
 			if (event.key === 'Tab') {
+				if (flyoutRef.current?.contains(document.activeElement)) triggerRef?.current?.focus();
 				onClose();
 				return;
 			}
@@ -119,7 +120,10 @@ export function ContainerAddTrackFlyout({
 							role="menuitem"
 							tabIndex={index === 0 ? 0 : -1}
 							disabled={mutationsBlocked}
-							onClick={() => onSelectTrackType(option.type)}
+							onClick={(event) => {
+								if (event.detail === 0) triggerRef?.current?.focus();
+								onSelectTrackType(option.type);
+							}}
 						>
 							<Icon name={option.icon} size={16} />
 							<span className="add-track-flyout__option-label">{option.label}</span>

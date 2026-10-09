@@ -132,6 +132,16 @@ class EchoLiveProcessor extends LiveProcessor {
 		this.configure();
 		this.reset();
 	}
+	updateParams(params = {}) {
+		const delayFrames = this.delayFrames;
+		const histories = this.histories;
+		const positions = this.positions;
+		super.updateParams(params);
+		if (this.delayFrames === delayFrames) {
+			this.histories = histories;
+			this.positions = positions;
+		}
+	}
 	configure() {
 		this.delayFrames = Math.floor(this.sampleRate * this.params.delaySeconds);
 		if (this.delayFrames < 1) throw new RangeError('Echo delay must span at least one frame.');

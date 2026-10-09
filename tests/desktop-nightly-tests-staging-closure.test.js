@@ -60,7 +60,22 @@ test('nightly payload production modules have a closed local-import graph', () =
 	assert.ok(result.visited.has('src/common/editor/macro-script/dynamic-source-contract.js'));
 	assert.ok(result.visited.has('src/common/editor/native-plugin-realtime-worklet.js'));
 	assert.ok(result.visited.has('vendor/audacity-design-system/components/src/utils/roseus-colormap.ts'));
+	assert.ok(result.visited.has('tests/helpers/framescaper-native-sidecar-fixture.ts'));
+	assert.ok(result.visited.has('tests/helpers/framescaper-ordinary-animation-fixture.ts'));
+	assert.ok(result.visited.has('tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts'));
+	assert.ok(result.visited.has('tests/helpers/interchange-reference.ts'));
+	assert.ok(result.visited.has('desktop/main-file-capability-ipc.mjs'));
 	assert.ok(result.queryImports.some(({ specifier }) => specifier.endsWith('?worker&url')));
+});
+
+test('nightly payload audit rejects an omitted native sidecar fixture dependency', () => {
+	const withoutReadLease = NIGHTLY_TEST_PAYLOAD_INPUTS.filter(({ source }) => (
+		source !== 'desktop/read-capability-request-lease.js'
+	));
+	assert.throws(
+		() => inspectLocalImportClosure(withoutReadLease),
+		/Unstaged local import .*file-capabilities\.js.*read-capability-request-lease\.js/u,
+	);
 });
 
 test('nightly payload audit rejects an omitted spectrogram painter dependency', () => {

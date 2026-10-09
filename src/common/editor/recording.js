@@ -512,7 +512,7 @@ function normalizeRecordingStartTimeout(value) {
 	return number;
 }
 
-async function loadRecordingWorklet(context, workletUrl) {
+export async function loadRecordingWorklet(context, workletUrl) {
 	const url = String(workletUrl);
 	let contextLoads = recordingWorkletLoads.get(context);
 	if (!contextLoads) {

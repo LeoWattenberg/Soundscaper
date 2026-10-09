@@ -23,6 +23,7 @@ import { projectForAudioGeneratorCommands, type AudioGeneratorSelection, type Au
 	type AudioGeneratorClip, type AudioGeneratorProject, type AudioGeneratorDocument } from './internal/generator-project-view.ts';
 import { createLabeledAudioSilence } from './internal/labeled-audio-silence.ts';
 import { prepareGeneratorRangeReplacement } from './internal/generator-range-replacement.ts';
+import { generatorChannelGroups } from './internal/generator-channel-groups.ts';
 import type { GeneratedSignalStream } from '../../signal-generator-stream-client.ts';
 
 export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf' | 'morse';
@@ -257,7 +258,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		if (signal?.aborted) cancel();
 		signal?.addEventListener('abort', cancel, { once: true });
 		let processing = false;
-		let stream: GeneratedSignalStream | null = null;
+		const streams: GeneratedSignalStream[] = [];
 		try {
 			assertOwnership(ownership);
 			const project = ownership.project;
@@ -273,69 +274,60 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 			const channelCount = Number(options.channelCount
 				|| dependencies.trackChannelCount(project, targetTrack, project.masterChannels || 2));
 			processing = markProcessing();
-			const generatorOptions = {
-				...generationOptions,
-				durationSeconds,
-				sampleRate,
-				channelCount,
-			};
-			const generated = dependencies.generateStream
-				? (stream = await dependencies.generateStream(type, generatorOptions, ownership.task.signal))
-				: dependencies.generateChannels
-				? await dependencies.generateChannels(type, generatorOptions, ownership.task.signal)
-				: generateAudioEditorSignal(type, generatorOptions) as GeneratedSignal;
-			assertOwnership(ownership);
-			await dependencies.preflightStorage(
-				generated.frameCount * generated.channelCount * Float32Array.BYTES_PER_ELEMENT,
-				'effect',
-			);
-			assertOwnership(ownership);
+			const groups = generatorChannelGroups(project, selection, targetTrack, channelCount,
+				options, dependencies.trackChannelCount);
+			const preparedGroups: Array<Readonly<{ command: AudioEditorCommand; trackId: string; clipId: string }>> = [];
 			const name = generatorName(type, publishedCopyFor(dependencies.copy));
-			return await publishGeneratedAudioSource(dependencies, {
-				name,
-				sampleRate,
-				channelCount,
-				frameCount: generated.frameCount,
-				channels: 'channels' in generated ? generated.channels : undefined,
-				stream: stream ?? undefined,
-				ownership: {
-					signal: ownership.task.signal,
-					assertCurrent: () => assertOwnership(ownership),
-				},
-				prepare: (source) => {
-					const prepared = prepareGeneratorCommand(
-						project,
-						selection,
-						targetTrack,
-						generated.frameCount,
-						source,
-						name,
-						options,
-					);
+			return await publishGroup(0);
+
+			async function publishGroup(index: number): Promise<string> {
+				const group = groups[index]!;
+				const generatorOptions = { ...generationOptions, durationSeconds, sampleRate, channelCount: group.channelCount };
+				const generated = dependencies.generateStream
+					? await dependencies.generateStream(type, generatorOptions, ownership.task.signal)
+					: dependencies.generateChannels
+					? await dependencies.generateChannels(type, generatorOptions, ownership.task.signal)
+					: generateAudioEditorSignal(type, generatorOptions) as GeneratedSignal;
+				const stream = 'chunks' in generated ? generated : null;
+				if (stream) streams.push(stream);
+				assertOwnership(ownership);
+				if (index === 0) {
+					await dependencies.preflightStorage(generated.frameCount
+						* groups.reduce((sum, target) => sum + target.channelCount, 0) * Float32Array.BYTES_PER_ELEMENT, 'effect');
 					assertOwnership(ownership);
-					return prepared;
-				},
-				accept: (_source, prepared) => {
-					const publish = (): void => {
-						dependencies.commit(prepared.command, {
-							selectTrackId: prepared.trackId,
-							selectClipId: prepared.clipId,
-						});
-						dependencies.state.lastGeneratorRequest = Object.freeze({
-							type,
-							options: Object.freeze(generationOptions),
-						});
-						setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
-						finishOperation(ownership, processing);
-						processing = false;
-					};
-					if (dependencies.batchPresentation) dependencies.batchPresentation(publish); else publish();
-					return prepared.clipId;
-				},
-			});
+				}
+				return await publishGeneratedAudioSource(dependencies, {
+					name, sampleRate, channelCount: group.channelCount, frameCount: generated.frameCount,
+					channels: 'channels' in generated ? generated.channels : undefined,
+					stream: stream ?? undefined,
+					ownership: { signal: ownership.task.signal, assertCurrent: () => assertOwnership(ownership) },
+					prepare: source => prepareGeneratorCommand(project, group.selection, group.track,
+						generated.frameCount, source, name, options),
+					accept: (_source, prepared) => {
+						preparedGroups.push(prepared);
+						// Retain every earlier publisher's rollback boundary until the complete edit commits.
+						if (index + 1 < groups.length) return publishGroup(index + 1);
+						const primary = preparedGroups.find(item => item.trackId === targetTrack?.id) ?? preparedGroups[0]!;
+						const publish = (): void => {
+							dependencies.commit(preparedGroups.length === 1 ? primary.command
+								: { type: 'batch', commands: preparedGroups.map(item => item.command) },
+							{ selectTrackId: primary.trackId, selectClipId: primary.clipId });
+							dependencies.state.lastGeneratorRequest = Object.freeze({
+								type, options: Object.freeze(generationOptions),
+							});
+							setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+							finishOperation(ownership, processing);
+							processing = false;
+						};
+						if (dependencies.batchPresentation) dependencies.batchPresentation(publish); else publish();
+						return primary.clipId;
+					},
+				});
+			}
+
 		} finally {
 			signal?.removeEventListener('abort', cancel);
-			stream?.close();
+			for (const stream of streams) stream.close();
 			finishOperation(ownership, processing);
 		}
 	}

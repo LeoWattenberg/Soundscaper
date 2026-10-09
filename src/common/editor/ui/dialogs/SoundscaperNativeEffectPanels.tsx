@@ -103,7 +103,8 @@ function PluginInstanceControls({ copy, state, disabled, perform }: SoundscaperN
 	const vendorWindow = state.pluginVendorWindow;
 	return <section data-native-plugin-instance={instance.instanceId}>
 		<h3>{`${instance.format} — ${instance.state}`}</h3>
-		<NativePluginParameterControls instanceId={instance.instanceId} disabled={disabled} copy={{
+		<NativePluginParameterControls instanceId={instance.instanceId} stateGeneration={state.pluginStateGeneration}
+			disabled={disabled} copy={{
 			title: copy.pluginParametersTitle,
 			loading: copy.pluginParametersLoading,
 			unavailable: copy.pluginParametersUnavailable,

@@ -170,6 +170,7 @@ function AuthoritativeNumberField({ value, accepts, onCommit, ariaLabel, min, ma
 		disabled={disabled}
 		onBlur={(event) => commitDraft(event.currentTarget)}
 		onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Enter') {
 				event.preventDefault();
 				commitDraft(event.currentTarget);

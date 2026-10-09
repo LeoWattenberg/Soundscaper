@@ -30,6 +30,7 @@ export interface FramescaperTimelineImagePublicationControllerTimelineImage {
 	readonly project: FramescaperProjectTimelineImage | null;
 	readonly actions: Readonly<{
 		readonly project: Readonly<{
+			flush(): PromiseLike<unknown> | unknown;
 			openById(projectId: string, options?: Readonly<{
 				readonly adoptSessionRevision?: boolean;
 			}>): PromiseLike<unknown> | unknown;
@@ -62,7 +63,8 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		|| typeof dependencies.executeCommand !== 'function'
 		|| typeof dependencies.publishIfCurrent !== 'function'
 		|| typeof dependencies.session?.captureProjectHistory !== 'function'
-		|| typeof dependencies.controller?.actions?.project?.openById !== 'function') {
+		|| typeof dependencies.controller?.actions?.project?.openById !== 'function'
+		|| typeof dependencies.controller?.actions?.project?.flush !== 'function') {
 		throw new TypeError('Timeline image publication requires exact controller, session, runtime, and storage ports.');
 	}
 	const now = dependencies.now ?? (() => new Date());
@@ -79,6 +81,11 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		const capture = dependencies.session.captureProjectHistory(expected.id);
 		if (!sameProject(capture.history.present, expected)) {
 			throw stale('The active Framescaper history changed before image publication.');
+		}
+		await dependencies.controller.actions.project.flush();
+		dependencies.session.assertProjectHistoryToken(expected.id, capture.token);
+		if (!sameProject(dependencies.controller.project, expected)) {
+			throw stale('The active Framescaper project changed while its image import base was saved.');
 		}
 		const nextHistory = dependencies.executeCommand(
 			capture.history,

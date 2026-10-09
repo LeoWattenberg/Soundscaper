@@ -13,6 +13,8 @@ import {
 import type { DeliveryReportState } from './export-state.ts';
 import type { DeliveryReport } from '../../delivery-report.ts';
 import { reportInterchangeAudioOmissions } from './internal/interchange-audio-omissions.ts';
+import { reportInterchangePictureOmissions } from './internal/interchange-picture-omissions.ts';
+import { projectInterchangeMulticamera, reportInterchangeMulticameraConversion, type InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
 import {
 	admitInterchangeVisualProject,
 	reportInterchangeVisualOmissions,
@@ -37,6 +39,7 @@ interface InterchangeRuntime {
 	readonly fileService?: { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown } | null;
 	readonly publishDocumentSnapshot?: () => void;
 	readonly sequenceId?: string;
+	readonly projectForRuntimeConsumers?: InterchangeProductProjection;
 }
 
 export async function exportProjectEdl(runtime: InterchangeRuntime & {
@@ -45,13 +48,13 @@ export async function exportProjectEdl(runtime: InterchangeRuntime & {
 }): Promise<EdlExportResult | null> {
 	const delivery = resolveInterchangeDelivery(runtime);
 	if (!delivery) return null;
-	const { project, omissions } = delivery;
+	const { project, omissions, original } = delivery;
 	return deliver(runtime, createProjectEdlExport({
 		project,
 		sequenceId: runtime.sequenceId,
 		trackId: runtime.trackId,
 		reelNames: runtime.reelNames,
-	}), omissions, project);
+	}), omissions, project, original);
 }
 
 export async function exportProjectOtio(
@@ -59,7 +62,7 @@ export async function exportProjectOtio(
 ): Promise<OtioExportResult | null> {
 	const delivery = resolveInterchangeDelivery(runtime);
 	if (!delivery) return null;
-	const { project, omissions } = delivery;
+	const { project, omissions, original } = delivery;
 	// The sequence is the rate authority; OTIO must never infer one from media.
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createOtioExport({
@@ -68,7 +71,7 @@ export async function exportProjectOtio(
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
-	}), omissions, project);
+	}), omissions, project, original);
 }
 
 export async function exportProjectFcpxml(
@@ -76,7 +79,7 @@ export async function exportProjectFcpxml(
 ): Promise<FcpxmlExportResult | null> {
 	const delivery = resolveInterchangeDelivery(runtime);
 	if (!delivery) return null;
-	const { project, omissions } = delivery;
+	const { project, omissions, original } = delivery;
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createFcpxmlExport({
 		project,
@@ -84,15 +87,16 @@ export async function exportProjectFcpxml(
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
-	}), omissions, project);
+	}), omissions, project, original);
 }
 
 function resolveInterchangeDelivery(runtime: InterchangeRuntime) {
 	const original = runtime.getProject();
 	if (!original) return null;
-	const admission = admitInterchangeVisualProject(original);
+	const selected = projectInterchangeMulticamera(original, runtime.projectForRuntimeConsumers);
+	const admission = admitInterchangeVisualProject(selected, original);
 	const project = resolveDeliveredProject({ ...runtime, getProject: () => admission.project });
-	return project ? { project, omissions: admission.omissions } : null;
+	return project ? { project, omissions: admission.omissions, original } : null;
 }
 
 /**
@@ -113,7 +117,8 @@ export function resolveDeliveredProject(
 ): Readonly<Record<string, unknown>> | null {
 	const persistedProject = runtime?.getProject?.();
 	if (!persistedProject) return null;
-	const mediaProject = projectTrackFolderMediaStateV12(persistedProject);
+	const selectedProject = projectInterchangeMulticamera(persistedProject, runtime.projectForRuntimeConsumers);
+	const mediaProject = projectTrackFolderMediaStateV12(selectedProject);
 	const project = projectForRuntimeConsumers(mediaProject as never);
 	return project === mediaProject
 		? project
@@ -122,8 +127,10 @@ export function resolveDeliveredProject(
 
 async function deliver<T extends {
 	text: string; fileName: string; mimeType: string; report: DeliveryReport;
-}>(runtime: InterchangeRuntime, result: T, omissions: readonly InterchangeVisualOmission[], project: Readonly<Record<string, unknown>>): Promise<T> {
-	const report = reportInterchangeAudioOmissions(reportInterchangeVisualOmissions(result.report, omissions), project);
+}>(runtime: InterchangeRuntime, result: T, omissions: readonly InterchangeVisualOmission[], project: Readonly<Record<string, unknown>>, original: Readonly<Record<string, unknown>>): Promise<T> {
+	const report = reportInterchangeMulticameraConversion(reportInterchangePictureOmissions(
+		reportInterchangeAudioOmissions(reportInterchangeVisualOmissions(result.report, omissions), project), project), original, project, runtime.sequenceId,
+	);
 	const delivered = report !== result.report
 		? Object.freeze({ ...result, report })
 		: result;

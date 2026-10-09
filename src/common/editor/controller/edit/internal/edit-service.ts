@@ -172,7 +172,9 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 					void garbageCollectSources().catch(handleError);
 				}
 				else {
-					setSessionClipboard(createClipboardDescriptor(getProject(), clipboardOptions));
+					const descriptor = createClipboardDescriptor(getProject(), clipboardOptions);
+					const publishClipboard = typeof runtime.prepareSessionClipboard === 'function'
+						? runtime.prepareSessionClipboard(descriptor) : () => setSessionClipboard(descriptor);
 					commit(exactClipEdit
 						? {
 							type: 'clip/remove-many',
@@ -191,6 +193,8 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 							trackIds: affectedTrackIds,
 							rippleMode: cutModes[action],
 						}));
+					publishClipboard();
+					compactLiveSourceState();
 					if (!baseSelection) state.selectedClipId = null;
 				}
 				publishDocumentSnapshot();

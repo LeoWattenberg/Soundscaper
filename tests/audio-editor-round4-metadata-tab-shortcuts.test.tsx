@@ -11,6 +11,8 @@ for (const modified of [true, false]) {
 	test(`metadata tab navigation ${modified ? 'preserves command chords' : 'keeps its plain arrow and endpoint contract'}`, async () => {
 		const dom = installReactTestDom();
 		const root = createRoot(dom.container as unknown as HTMLElement);
+		const priorStyle = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+		Object.defineProperty(window, 'getComputedStyle', { configurable: true, value: () => ({ direction: 'ltr' }) });
 		const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 		const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
@@ -32,6 +34,8 @@ for (const modified of [true, false]) {
 			if (!modified) assert.equal(document.activeElement, tab);
 		} finally {
 			await act(async () => { root.unmount(); });
+			if (priorStyle) Object.defineProperty(window, 'getComputedStyle', priorStyle);
+			else Reflect.deleteProperty(window, 'getComputedStyle');
 			dom.restore(); actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
 		}
 	});

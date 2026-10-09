@@ -43,6 +43,7 @@ import {
 } from '../../../../framescaper/editor-motion-analysis-actions-finishing.ts';
 import { framescaperCubeLutActionsFor } from '../../../../framescaper/editor-cube-lut-actions-finishing.ts';
 import { useCaptionTrackFields } from './useCaptionTrackFields.ts';
+import { withFramescaperSidecarFile } from '../framescaper-sidecar-file.ts';
 
 interface FramescaperFinishingControllerPort {
 	readonly actions: Readonly<{
@@ -179,10 +180,11 @@ export default function FramescaperFinishingDialog({
 				project, trackId: captionTrackId, format: captionFormat,
 			});
 			setCaptionSidecar(exported.text);
-			await saveFramescaperCaptionSidecarFile({
+			const saved = await saveFramescaperCaptionSidecarFile({
 				fileService, format: captionFormat, trackId: captionTrackId, text: exported.text,
 			});
-			captionImportSummary = lossSummary(exported.losses.length);
+			captionImportSummary = record(saved).cancelled === true
+				? { key: 'captionFileSaveCancelled' } : lossSummary(exported.losses.length);
 		}, () => captionImportSummary, true);
 	let cubeLutSummary: PresentationFeedback = '';
 	const importCubeLutFile = (file?: Blob): void => {
@@ -192,8 +194,11 @@ export default function FramescaperFinishingDialog({
 		}
 		perform(async () => {
 			if (!cubeLutRuntime || !cubeLutTarget) throw new Error('Select one cube LUT target first.');
-			let body: unknown = file;
-			if (!body) {
+			const runtime = cubeLutRuntime;
+			const target = cubeLutTarget;
+			const importBody = (body: Blob) => runtime.importCubeLut({ target, file: body });
+			let reference;
+			if (!file) {
 				if (typeof fileService.chooseFiles !== 'function') {
 					throw new Error('Desktop cube LUT file selection is unavailable.');
 				}
@@ -202,13 +207,8 @@ export default function FramescaperFinishingDialog({
 					cubeLutSummary = { key: 'cubeLutSelectionCancelled' };
 					return;
 				}
-				if (typeof fileService.openReadDescriptor !== 'function') {
-					throw new Error('Desktop cube LUT file reading is unavailable.');
-				}
-				body = await fileService.openReadDescriptor(descriptors[0]);
-			}
-			if (!(body instanceof Blob)) throw new TypeError('The selected cube LUT is not a pathless file body.');
-			const reference = await cubeLutRuntime.importCubeLut({ target: cubeLutTarget, file: body });
+				reference = await withFramescaperSidecarFile(fileService, descriptors[0], undefined, importBody);
+			} else reference = await importBody(file);
 			cubeLutSummary = `${cubeLutTarget.label}: ${reference.sha256.slice(0, 12)}`;
 		}, () => cubeLutSummary);
 	};

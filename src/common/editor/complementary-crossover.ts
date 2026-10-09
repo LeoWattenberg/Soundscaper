@@ -28,7 +28,8 @@ export class ComplementaryCrossover {
 		if (!Number.isFinite(frequency) || frequency < 0) {
 			throw new RangeError('Crossover frequency must be finite and non-negative.');
 		}
-		const k = Math.tan(Math.PI * Math.min(frequency, this.rate * 0.45) / this.rate);
+		const cutoff = frequency < this.rate / 2 ? frequency : this.rate * 0.45;
+		const k = Math.tan(Math.PI * cutoff / this.rate);
 		return k / (1 + k);
 	}
 

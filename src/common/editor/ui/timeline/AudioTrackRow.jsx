@@ -26,6 +26,7 @@ import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
+import { handleTrackRulerKeyboard } from './track-ruler-keyboard.ts';
 export function AudioTrackRow({
 	controller,
 	project,
@@ -94,6 +95,9 @@ export function AudioTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const clipMutationsBlocked = blocked || Boolean(track.locked);
+	const renameBlockedRef = useRef(blocked || track.locked);
+	renameBlockedRef.current = blocked || track.locked;
 	const [channelHeightRatioPreview, setChannelHeightRatioPreview] = useState(null);
 	const { top: channelBodyTop, height: channelBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const visualSelectedClipIds = selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId]);
@@ -142,7 +146,7 @@ export function AudioTrackRow({
 		draggingClipIds,
 		copy,
 		run,
-		blocked,
+		blocked: clipMutationsBlocked,
 		automationToolEnabled,
 	});
 	const crossfadedFadeEdges = useMemo(() => crossfadedClipFadeEdges(trackClips), [trackClips]);
@@ -193,7 +197,7 @@ export function AudioTrackRow({
 		isFlatNavigation,
 		trackBaseTabIndex,
 		sampleRate,
-		blocked,
+		blocked: clipMutationsBlocked,
 		canonicalVideoTrim,
 		run,
 		onFocusTimelineRuler,
@@ -293,13 +297,13 @@ export function AudioTrackRow({
 					onKeyDownCapture={handleClipKeyDownCapture}
 				>
 					<TrackNew
-						{...clipHeaderActions({ controller, blocked, run, onOpenClipProperties, copy })}
+						{...clipHeaderActions({ controller, blocked: clipMutationsBlocked, run, onOpenClipProperties, copy })}
 						clips={projectedClips}
 						height={trackHeight}
 						trackIndex={trackIndex}
 						isSelected={selectedTrackId === track.id}
 						isMuted={track.mute}
-						envelopeMode={automationToolEnabled && !blocked}
+						envelopeMode={automationToolEnabled && !clipMutationsBlocked}
 						onEnvelopePointsChange={updateEnvelope}
 						pixelsPerSecond={pixelsPerSecond}
 						width={windowWidth}
@@ -339,9 +343,9 @@ export function AudioTrackRow({
 								toggle: Boolean(metaKey),
 							}));
 						}}
-						onClipRename={blocked ? undefined : (clipId, title) => {
+						onClipRename={renameBlockedRef.current ? undefined : (clipId, title) => {
 							const nextTitle = String(title).trim();
-							if (!nextTitle) return;
+							if (renameBlockedRef.current || !nextTitle) return;
 							run(() => controller.actions.clip.update(String(clipId), { title: nextTitle }));
 						}}
 						onClipMenuClick={onOpenClipMenu}
@@ -383,7 +387,7 @@ export function AudioTrackRow({
 					/>)}
 					<CrossfadeOverlays overlays={crossfadeOverlays} clipLookup={clipLookup}
 						selectedIds={visualSelectedClipIds} top={channelBodyTop + 1} height={Math.max(0, channelBodyHeight - 2)}
-						blocked={blocked} copy={copy} controller={controller} run={run}
+						blocked={clipMutationsBlocked} copy={copy} controller={controller} run={run}
 						onTabOut={(index, backwards) => {
 							if (focusCrossfadeHandle(index + (backwards ? -1 : 1))) return;
 							if (backwards) {
@@ -391,13 +395,13 @@ export function AudioTrackRow({
 							}
 							else focusCurrentRuler();
 						}} />
-					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
+					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={clipMutationsBlocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
 						crossfadedFadeEdges={crossfadedFadeEdges}
 						selectedIds={visualSelectedClipIds}
 						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
-						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}
+						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={clipMutationsBlocked} copy={copy}
 						onTabOut={(id) => {
 							const clips = clipGroups(currentTrackRow());
 							const index = clips.findIndex(clip => clip.dataset.clipId === id);
@@ -484,23 +488,11 @@ export function AudioTrackRow({
 					onFrequencyRange={(range) => run(() => controller.actions.track.update(track.id, {
 						spectrogram: { ...track.spectrogram, ...range },
 					}))}
-					onKeyDown={(event) => {
-						if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
-							onOpenRulerFlyout(displayMode, event);
-						} else if (event.key === 'Tab') {
-							event.preventDefault();
-							if (event.shiftKey) {
-								if (!focusCrossfadeHandle(crossfadeOverlays.length - 1)) focusBeforeRuler();
-							}
-							else focusAfterRuler();
-						} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-							event.preventDefault();
-							focusRulerVertical(event.key === 'ArrowDown' ? 'down' : 'up');
-						} else if (event.key === 'Escape') {
-							event.preventDefault();
-							focusCurrentTrack();
-						}
-					}}
+					onKeyDown={(event) => handleTrackRulerKeyboard(event, {
+						openMenu: () => onOpenRulerFlyout(displayMode, event),
+						focusBefore: () => { if (!focusCrossfadeHandle(crossfadeOverlays.length - 1)) focusBeforeRuler(); },
+						focusAfter: focusAfterRuler, focusVertical: focusRulerVertical, focusTrack: focusCurrentTrack,
+					})}
 				/>}
 				{rangeSelected && <TimeSelectionOverlay
 					selection={selection}

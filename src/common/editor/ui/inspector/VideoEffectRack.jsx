@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNativeRangeTouchOwner } from '../useNativeRangeTouchOwner.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
@@ -156,6 +157,7 @@ function VideoEffectColor({ clipId, effectId, name, parameter, value, actions, c
 			<div className="audio-editor-video-effect__color">
 				<input type="color" value={canonical} disabled={disabled} aria-label={label} onFocus={gesture.begin} onChange={(event) => previewText(event.currentTarget.value.toUpperCase())} onBlur={commit} />
 				<input type="text" value={draft} disabled={disabled} aria-label={`${copy.videoEffectExactValue}: ${label}`} inputMode="text" maxLength={7} onFocus={gesture.begin} onChange={(event) => previewText(event.currentTarget.value)} onBlur={commit} onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); }
 					if (event.key === 'Enter') { event.preventDefault(); commit(); event.currentTarget.blur(); }
 				}} />
@@ -165,6 +167,7 @@ function VideoEffectColor({ clipId, effectId, name, parameter, value, actions, c
 }
 
 function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {
+	const nativeInput = useNativeRangeTouchOwner();
 	const gesture = useEffectGesture({ actions, clipId, effectId, disabled, onError });
 	const pointer = useRef(createVideoEffectPointerCancellation()).current;
 	const label = parameterLabel(parameter, copy);
@@ -174,7 +177,11 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 		if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); pointer.cancel(); gesture.cancel(); }
 		else { pointer.resumeKeyboard(); if (event.key === 'Enter') gesture.commit(); }
 	};
-	const pointerDown = (event) => { event.currentTarget.setPointerCapture?.(event.pointerId); pointer.begin(); gesture.begin(); };
+	const pointerDown = (event) => {
+		if (event.button !== 0) return;
+		if (event.isPrimary === false || !pointer.begin(event.pointerId)) { event.preventDefault(); return; }
+		event.currentTarget.setPointerCapture?.(event.pointerId); gesture.begin();
+	};
 	const reset = (event) => {
 		if (disabled) return;
 		event.preventDefault();
@@ -192,7 +199,7 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 				<output>{parameterUnit(parameter, copy)}</output>
 			</div>
 			<div className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`} style={{ '--slider-track-bg': 'var(--line)', '--slider-fill-bg': 'var(--accent)', '--slider-handle-bg': 'var(--panel)', '--slider-handle-border': 'var(--accent-strong)' }}>
-				<input type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => { if (pointer.allowsPreview()) gesture.preview({ [name]: Number(event.currentTarget.value) }); }} onPointerUp={() => { if (pointer.finish()) gesture.commit(); }} onPointerCancel={() => { pointer.finish(); gesture.cancel(); }} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
+				<input ref={nativeInput} type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => { if (pointer.allowsPreview()) gesture.preview({ [name]: Number(event.currentTarget.value) }); }} onPointerUp={(event) => { if (pointer.finish(event.pointerId)) gesture.commit(); }} onPointerCancel={(event) => { if (pointer.finish(event.pointerId)) gesture.cancel(); }} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
 				<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
 				<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
 			</div>

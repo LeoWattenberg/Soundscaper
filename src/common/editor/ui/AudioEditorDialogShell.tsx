@@ -16,6 +16,7 @@ import { retainAudioEditorDialogFocusOwner } from './dialog-focus-ownership.ts';
 import { resolveEditorReturnFocus, restoreEditorDialogReturnFocus } from './focus-restoration.ts';
 import { constrainDialogDragOffset, retainDialogGeometryLifecycle } from './dialog-drag-bounds.ts';
 import { retainDialogMoveLifecycle } from './dialog-move-lifecycle.ts';
+import { guardModalNativeRangeKey } from './modal-native-range-keys.ts';
 
 interface ResizableSurfaceProps extends React.HTMLAttributes<HTMLElement> {
 	readonly children?: ReactNode;
@@ -42,6 +43,7 @@ type InitialFocus = 'first' | 'dialog' | string;
 export interface AudioEditorDialogShellProps {
 	readonly isOpen?: boolean;
 	readonly title: string;
+	readonly role?: 'dialog' | 'alertdialog';
 	readonly headerTitle?: string;
 	readonly headerOs?: 'windows' | 'macos' | null;
 	readonly onClose?: () => void;
@@ -81,6 +83,7 @@ interface DragSession {
 export default function AudioEditorDialogShell({
 	isOpen = true,
 	title,
+	role = 'dialog',
 	headerTitle = title,
 	headerOs = 'windows',
 	onClose,
@@ -265,10 +268,12 @@ export default function AudioEditorDialogShell({
 				ref={panelRef}
 				tabIndex={-1}
 				className={panelClasses}
-				role="dialog"
+				role={role}
 				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
 				aria-describedby={ariaDescribedBy}
+				onKeyDownCapture={event => guardModalNativeRangeKey(event, modal)}
+				onKeyUpCapture={event => guardModalNativeRangeKey(event, modal)}
 				resizeLabel={resizeLabel}
 				style={{
 					width: `min(${resolvedWidth}, calc(100vw - 32px))`,

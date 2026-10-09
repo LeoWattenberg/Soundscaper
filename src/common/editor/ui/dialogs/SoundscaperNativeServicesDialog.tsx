@@ -15,6 +15,8 @@ import './ProcessingDialogs.css';
 import React, { useEffect, useMemo, useSyncExternalStore, type KeyboardEvent } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { useNativePluginParameterClose } from './useNativePluginParameterClose.ts';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 import {
 	type NativeAudioInventory,
 	type NativeAudioSessionOpenRequestV1,
@@ -83,6 +85,7 @@ function NativeServicesDialog({
 	);
 	const runtime = workspaceRuntime ?? localRuntime;
 	const state = useSyncExternalStore(runtime.subscribe, runtime.getState, runtime.getState);
+	const close = useNativePluginParameterClose(state.pluginInstance?.instanceId ?? null, onClose);
 	const perform = useMemo(() => (action: SoundscaperNativeServicesDialogAction): void => {
 		void runtime.perform(action);
 	}, [runtime]);
@@ -93,6 +96,7 @@ function NativeServicesDialog({
 		: initialSurface === 'native-effect-use' ? ['native-effect-use'] : ['native-effect-manage'];
 	const busy = state.pending !== null || Object.values(state.scans).some((scan) => scan.running);
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		const next = adjacentSurface(surface, event.key, surfaces);
 		if (next === null) return;
 		event.preventDefault();
@@ -105,12 +109,12 @@ function NativeServicesDialog({
 	return <AudioEditorDialogShell
 		title={initialSurface.startsWith('native-audio') ? copy.audioDevices
 			: initialSurface === 'native-effect-use' ? copy.audioPluginEffects : copy.pluginManage.replace(/…$/u, '')}
-		onClose={onClose}
+		onClose={close}
 		width={760}
 		initialFocus={`[data-native-service-tab="${surface}"]`}
 		dataAttributes={{ 'data-soundscaper-native-services-dialog': 'true' }}
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={
-			<Button variant="primary" onClick={onClose}>{copy.close}</Button>} />}
+			<Button variant="primary" onClick={close}>{copy.close}</Button>} />}
 	>
 		<div className="audio-editor-soundscaper-native-services">
 			<div className="kw-processing-tabs" role="tablist" aria-label={copy.nativeServiceSurfaces}>
@@ -332,10 +336,9 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 			onChange={(event) => setPeriodFrames(Number(event.currentTarget.value))}>
 			{periods.map((value) => <option key={value} value={value}>{value}</option>)}
 		</select></label>
-		<label>{copy.audioRouteChannels} <input type="number" min={1} max={maximumChannels} value={channelCount}
-			disabled={disabled} data-native-audio-channel-count={route.handle}
-			onChange={(event) => setChannelCount(Math.max(1,
-				Math.min(maximumChannels, Number(event.currentTarget.value))))} /></label>
+		<label>{copy.audioRouteChannels} <PreferenceNumberInput label={copy.audioRouteChannels}
+			value={channelCount} minimum={1} maximum={maximumChannels} integer disabled={disabled}
+			dataAttributes={{ 'data-native-audio-channel-count': route.handle }} onCommit={setChannelCount} /></label>
 		<Button variant="secondary" disabled={disabled || !isNativeAudioStreamingBackend(backend)}
 			data-native-audio-open={route.handle} onClick={open}>{copy.openAudioSession}</Button>
 	</li>;

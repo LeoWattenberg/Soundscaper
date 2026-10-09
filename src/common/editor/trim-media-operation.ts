@@ -189,7 +189,7 @@ export async function runTrimMedia(
 				severity: 'info',
 				scope: { kind: 'source', id: source.sourceId },
 				data: { frameCount: source.frameCount },
-				message: 'Every frame is referenced, so rewriting this source would only copy it.',
+				message: 'The complete source is retained, so rewriting it would only copy it.',
 			});
 			continue;
 		}

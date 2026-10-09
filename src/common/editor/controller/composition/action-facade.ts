@@ -451,7 +451,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
 		}),
-		export: createExportActionGroup({ handleExportAction, publishBlenderTracks, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
+		export: createExportActionGroup({ handleExportAction, publishBlenderTracks, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, projectForRuntimeConsumers: scope.projectForRuntimeConsumers, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 		media: createProjectMediaActionGroup({
 			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit, saveScape: () => Promise.resolve(saveScape()),
 		}),

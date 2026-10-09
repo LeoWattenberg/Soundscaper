@@ -73,6 +73,7 @@ function DraftField({ name, label, value, disabled, maxLength = 512, pattern, on
 				onChange={(event) => setDraft(event.currentTarget.value)}
 				onBlur={(event) => commit(event.currentTarget)}
 				onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					if (event.key === 'Escape') {
 						cancelDraftEditOnEscape(
 							blurCommitGuard,
@@ -121,6 +122,7 @@ function DraftNumberInput({ value, onCommit, ...props }: Readonly<{
 		}}
 		onBlur={(event) => commit(event.currentTarget)}
 		onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape') {
 				cancelDraftEditOnEscape(blurCommitGuard, event, () => setDraft(String(value)));
 			} else if (event.key === 'Enter') { event.preventDefault(); commit(event.currentTarget); }

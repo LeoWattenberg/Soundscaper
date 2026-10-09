@@ -209,8 +209,9 @@ export function createBitcrusherProcessor(options) {
 					captured = true;
 					first = true;
 					phase = 0;
-				} else if (phase >= 1) {
-					phase -= 1;
+				} else if (phase >= 1 - Number.EPSILON * holdLength) {
+					// Reciprocal addition may finish an exact hold just below one.
+					phase = Math.max(0, phase - 1);
 					captured = true;
 				}
 				if (captured) {

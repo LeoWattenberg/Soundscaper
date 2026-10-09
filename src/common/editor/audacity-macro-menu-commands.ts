@@ -36,6 +36,8 @@ export interface AudacityMacroMenuCommand {
 	readonly command: string;
 	/** The path into `controller.actions` that runs it. */
 	readonly path: string;
+	/** Preserve an earlier stored step even when its action needs interactive input. */
+	readonly runnable?: false;
 }
 
 export const AUDACITY_MACRO_MENU_COMMANDS: readonly AudacityMacroMenuCommand[] = Object.freeze([
@@ -43,7 +45,9 @@ export const AUDACITY_MACRO_MENU_COMMANDS: readonly AudacityMacroMenuCommand[] =
 	{ command: 'SelectAll', path: 'timeline.selectAll' },
 	{ command: 'SelAllTracks', path: 'timeline.selectAllTracks' },
 	{ command: 'SelectNone', path: 'timeline.clearSelection' },
-	{ command: 'SelCursorStoredCursor', path: 'timeline.selectTrackStartToCursor' },
+	{ command: 'SelTrackStartToCursor', path: 'timeline.selectTrackStartToCursor' },
+	// Earlier builds stored this unrelated upstream name for the action above.
+	{ command: 'SelCursorStoredCursor', path: 'timeline.selectTrackStartToCursor', runnable: false },
 	{ command: 'SelTrackStartToEnd', path: 'timeline.selectTrackStartToEnd' },
 	{ command: 'SelCursorToTrackEnd', path: 'timeline.selectCursorToTrackEnd' },
 	{ command: 'SelPrevClip', path: 'timeline.selectPreviousClip' },
@@ -79,7 +83,7 @@ export const AUDACITY_MACRO_MENU_COMMANDS: readonly AudacityMacroMenuCommand[] =
 
 	// Analysis
 	{ command: 'FindClipping', path: 'analysis.findClipping' },
-	{ command: 'ContrastAnalyser', path: 'analysis.contrast' },
+	{ command: 'ContrastAnalyser', path: 'analysis.contrast', runnable: false },
 	{ command: 'PlotSpectrum', path: 'analysis.plotSpectrum' },
 	{ command: 'RepeatLastEffect', path: 'effects.repeatLast' },
 ]);
@@ -91,5 +95,5 @@ export function audacityMacroMenuCommand(command: unknown): AudacityMacroMenuCom
 }
 
 export function audacityMacroMenuCommandNames(): readonly string[] {
-	return AUDACITY_MACRO_MENU_COMMANDS.map(({ command }) => command);
+	return AUDACITY_MACRO_MENU_COMMANDS.filter(({ runnable }) => runnable !== false).map(({ command }) => command);
 }

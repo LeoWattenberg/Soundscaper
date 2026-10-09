@@ -7,7 +7,7 @@ import type { LinkedVideoOriginalProjectAliasRepository } from './linked-video-o
 import type { LinkedOriginalSource } from './linked-original-resolver.ts';
 import type { LinkedVideoOriginalSource } from './linked-video-original-resolver.ts';
 import type { ProjectDocument } from './project-repository.ts';
-import { duplicatedAdmRevision } from './project-duplication-adm.ts';
+import { createProjectCopyDocument } from './project-copy-document.ts';
 
 const MAXIMUM_REACHABLE_SOURCE_COUNT = SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2;
 
@@ -59,7 +59,7 @@ export async function duplicateProjectWithLinkedVideoOriginals(
 	request: ProjectDuplicationRequest,
 ): Promise<ProjectDocument> {
 	const source = await duplicationSource(port, request);
-	const copy = duplicateDocument(source, request);
+	const copy = createProjectCopyDocument(source, { id: request.copyProjectId, title: request.title, timestamp: request.timestamp });
 	const sources = reachableVideoSources(source);
 	const aliases = port.aliases
 		? await port.aliases.copyReachableAliases(request.sourceProjectId, request.copyProjectId, sources)
@@ -87,7 +87,7 @@ export async function duplicateProjectWithLinkedOriginals<Alias>(
 	request: ProjectDuplicationRequest,
 ): Promise<ProjectDocument> {
 	const source = await duplicationSource(port, request);
-	const copy = duplicateDocument(source, request);
+	const copy = createProjectCopyDocument(source, { id: request.copyProjectId, title: request.title, timestamp: request.timestamp });
 	const sources = reachableOriginalSources(source);
 	const aliases = port.aliases
 		? await port.aliases.copyReachableAliases(request.sourceProjectId, request.copyProjectId, sources)
@@ -123,20 +123,6 @@ async function duplicationSource(
 		throw new Error('The project duplication destination already exists.');
 	}
 	return source;
-}
-
-function duplicateDocument(
-	source: ProjectDocument,
-	request: ProjectDuplicationRequest,
-): ProjectDocument {
-	return {
-		...source,
-		id: request.copyProjectId,
-		title: request.title || `${String(source.title || 'Untitled')} copy`,
-		...duplicatedAdmRevision(source),
-		createdAt: request.timestamp,
-		updatedAt: request.timestamp,
-	};
 }
 
 function reachableVideoSources(project: ProjectDocument): readonly LinkedVideoOriginalSource[] {

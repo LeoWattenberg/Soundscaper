@@ -54,12 +54,14 @@ interface AutomationEditController {
 
 interface PointDragState {
 	readonly kind: 'point';
+	readonly pointerId: number;
 	readonly expected: AutomationLaneV21 | null;
 	readonly pointId: string;
 }
 
 interface BezierDragState {
 	readonly kind: 'bezier';
+	readonly pointerId: number;
 	readonly expected: AutomationLaneV21;
 	readonly segmentIndex: number;
 	readonly control: 'control1' | 'control2';
@@ -180,7 +182,7 @@ export function TrackAutomationOverlay({
 		span: Readonly<{ startFrame: number; endFrame: number }>,
 		pointId?: string,
 	) => {
-		if (!interactive || event.button !== 0) return;
+		if (!interactive || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		event.preventDefault();
 		event.stopPropagation();
 		const frame = frameAtPointer(event.clientX, span.startFrame, span.endFrame);
@@ -218,6 +220,7 @@ export function TrackAutomationOverlay({
 		updateDraftLane(next);
 		dragRef.current = {
 			kind: 'point',
+			pointerId: event.pointerId,
 			expected: target.lane,
 			pointId: editPointId,
 		};
@@ -226,7 +229,7 @@ export function TrackAutomationOverlay({
 	const applyPointMove = (event: React.PointerEvent<SVGSVGElement>) => {
 		const drag = dragRef.current;
 		const current = draftLaneRef.current;
-		if (!drag || !current) return;
+		if (!drag || !current || drag.pointerId !== event.pointerId) return;
 		event.preventDefault();
 		event.stopPropagation();
 		if (drag.kind === 'bezier') {
@@ -342,13 +345,14 @@ export function TrackAutomationOverlay({
 		event: React.PointerEvent<SVGCircleElement>,
 		handle: ProjectedTrackAutomationBezierHandle,
 	) => {
-		if (!interactive || !lane || event.button !== 0) return;
+		if (!interactive || !lane || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		event.preventDefault();
 		event.stopPropagation();
 		setCurveMenu(null);
 		updateDraftLane(lane);
 		dragRef.current = {
 			kind: 'bezier',
+			pointerId: event.pointerId,
 			expected: target.lane!,
 			segmentIndex: handle.segmentIndex,
 			control: handle.control,
@@ -391,7 +395,7 @@ export function TrackAutomationOverlay({
 			role="group"
 			aria-label={`${target.label} ${copy.automation || 'automation'}`}
 			onClick={interactive ? (event) => event.stopPropagation() : undefined}
-			onPointerMove={(event) => attempt(() => movePoint(event))}
+			onPointerMove={(event) => event.pointerId === dragRef.current?.pointerId && attempt(() => movePoint(event))}
 			onPointerUp={(event) => attempt(() => finishPointDrag(event))}
 			onPointerCancel={(event) => finishPointDrag(event, true)}
 		>
@@ -427,7 +431,7 @@ export function TrackAutomationOverlay({
 				aria-valuemax={target.descriptor.maximum}
 				aria-valuenow={point.value}
 				tabIndex={interactive ? 0 : -1}
-				onPointerDown={(event) => attempt(() => event.altKey
+				onPointerDown={(event) => event.button === 0 && event.isPrimary !== false && !dragRef.current && attempt(() => event.altKey
 					? (event.preventDefault(), event.stopPropagation(), removePoint(point.id))
 					: beginPointDrag(event, { startFrame: point.frame, endFrame: point.frame }, point.id))}
 				onKeyDown={(event) => attempt(() => editPointFromKeyboard(event, point.id))}

@@ -17,6 +17,7 @@ import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 import { recordingSourceAlignment } from './recording-source-alignment.ts';
+import { assertRecordingTargetsUnlocked } from '../../../recording-target-admission.ts';
 import type {
 	RecordingMediaStream,
 	RecordingStartOptions,
@@ -57,6 +58,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			state.recordingRouting.routes,
 			runtime.recordingRouteSourceKey,
 		);
+		assertRecordingTargetsUnlocked(plan.assigned.map(entry => entry.track));
 		for (const trackId of plan.skippedTrackIds) state.recordingRouteHealth[trackId] = 'skipped';
 		if (!plan.assigned.length) throw createLocalizedError(Error, { ['recordingAssignInput']: runtime.messages.assignInput }, 'recordingAssignInput');
 

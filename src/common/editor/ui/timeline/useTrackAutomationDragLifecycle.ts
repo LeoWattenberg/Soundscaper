@@ -3,13 +3,14 @@
 import { useCallback, useEffect, type RefObject } from 'react';
 
 interface DragEvent {
+	readonly pointerId?: number;
 	preventDefault(): void;
 	stopPropagation(): void;
 }
 
 export function useTrackAutomationDragLifecycle<
 	Lane,
-	Drag extends { readonly expected: Lane | null },
+	Drag extends { readonly expected: Lane | null; readonly pointerId: number },
 >(
 	svgRef: RefObject<SVGSVGElement | null>,
 	dragRef: RefObject<Drag | null>,
@@ -20,7 +21,7 @@ export function useTrackAutomationDragLifecycle<
 ) {
 	const finishDrag = useCallback((event: DragEvent, cancel = false) => {
 		const drag = dragRef.current;
-		if (!drag) return;
+		if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.pointerId)) return;
 		flushDraft?.current?.(cancel);
 		event.preventDefault();
 		event.stopPropagation();

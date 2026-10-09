@@ -11,6 +11,7 @@ import {
 	writeNativePluginRuntimeParameter,
 } from './native-plugin-parameter-runtime.ts';
 import { SOUNDSCAPER_NATIVE_SERVICES_COPY } from '../../../i18n/editor-soundscaper-native-services-copy.ts';
+import { trackNativePluginParameterWrites } from './native-plugin-parameter-write-drain.ts';
 
 const BOOLEAN_PARAMETER_FLAG = 1;
 
@@ -28,6 +29,7 @@ export interface NativePluginParameterControlsCopy {
 
 export interface NativePluginParameterControlsProps {
 	readonly instanceId: string;
+	readonly stateGeneration?: number;
 	readonly disabled?: boolean;
 	readonly runtime?: NativePluginParameterRuntime;
 	readonly copy?: Partial<NativePluginParameterControlsCopy>;
@@ -38,6 +40,13 @@ interface ParameterSnapshot {
 	readonly parameters: readonly NativePluginParameterDescriptor[];
 	readonly values: readonly number[];
 	readonly error: string;
+}
+
+interface ParameterWriteSession {
+	readonly generation: number;
+	readonly pending: Map<number, number>;
+	confirmed: number[];
+	operation: Promise<void> | null;
 }
 
 const DEFAULT_COPY = Object.freeze({
@@ -56,48 +65,80 @@ const DEFAULT_RUNTIME: NativePluginParameterRuntime = Object.freeze({
 /** Host-generated controls for native formats, including LADSPA plug-ins without vendor UI. */
 export default function NativePluginParameterControls({
 	instanceId,
+	stateGeneration = 0,
 	disabled = false,
 	runtime = DEFAULT_RUNTIME,
 	copy: copyValue,
 }: NativePluginParameterControlsProps) {
 	const copy = { ...DEFAULT_COPY, ...copyValue };
 	const generation = useRef(0);
+	const writeSession = useRef<ParameterWriteSession | null>(null);
+	const disabledRef = useRef(disabled);
+	disabledRef.current = disabled;
 	const [snapshot, setSnapshot] = useState<ParameterSnapshot>(() => loadingSnapshot());
-	const [pendingIndex, setPendingIndex] = useState<number | null>(null);
 
 	useEffect(() => {
 		const current = generation.current + 1;
 		generation.current = current;
+		const session: ParameterWriteSession = { generation: current, pending: new Map(), confirmed: [], operation: null };
+		writeSession.current = session;
 		setSnapshot(loadingSnapshot());
-		setPendingIndex(null);
 		void loadParameters(runtime, instanceId).then(
-			(value) => { if (generation.current === current) setSnapshot(value); },
+			(value) => {
+				if (generation.current !== current) return;
+				session.confirmed = [...value.values];
+				setSnapshot(value);
+			},
 			(error: unknown) => { if (generation.current === current) setSnapshot(failedSnapshot(error)); },
 		);
 		return () => { if (generation.current === current) generation.current += 1; };
-	}, [instanceId, runtime]);
+	}, [instanceId, runtime, stateGeneration]);
+	useEffect(() => {
+		if (!disabled || !writeSession.current) return;
+		const session = writeSession.current;
+		session.pending.clear();
+		setSnapshot((value) => ({ ...value, values: [...session.confirmed] }));
+	}, [disabled]);
 
 	if (snapshot.phase === 'loading') return <p role="status">{copy.loading}</p>;
 	if (snapshot.phase === 'failed') return <p role="alert">{snapshot.error || copy.unavailable}</p>;
 	if (snapshot.parameters.length === 0) return null;
 
-	const update = async (parameter: NativePluginParameterDescriptor, next: number) => {
-		if (disabled || pendingIndex !== null || !normalizedValue(next)) return;
-		const current = generation.current;
-		setPendingIndex(parameter.index);
+	const drain = async (session: ParameterWriteSession) => {
 		try {
-			const applied = await runtime.writeParameter(instanceId, parameter.index, next);
-			if (generation.current !== current || !normalizedValue(applied)) return;
-			setSnapshot((value) => Object.freeze({
-				...value,
-				values: Object.freeze(value.values.map((prior, index) => (
-					index === parameter.index ? applied : prior
-				))),
-			}));
+			while (generation.current === session.generation && !disabledRef.current && session.pending.size) {
+				const [index, next] = session.pending.entries().next().value!;
+				session.pending.delete(index);
+				const applied = await runtime.writeParameter(instanceId, index, next);
+				if (generation.current !== session.generation) return;
+				if (normalizedValue(applied)) session.confirmed[index] = applied;
+				if (!session.pending.has(index)) setSnapshot((value) => Object.freeze({
+					...value,
+					values: Object.freeze(value.values.map((prior, position) => (
+						position === index ? session.confirmed[index] ?? prior : prior
+					))),
+				}));
+			}
 		} catch (error) {
-			if (generation.current === current) setSnapshot(failedSnapshot(error));
+			session.pending.clear();
+			if (generation.current === session.generation) setSnapshot(failedSnapshot(error));
+			throw error;
 		} finally {
-			if (generation.current === current) setPendingIndex(null);
+			session.operation = null;
+		}
+	};
+	const update = (parameter: NativePluginParameterDescriptor, next: number) => {
+		const session = writeSession.current;
+		if (disabled || !session || !normalizedValue(next)) return;
+		session.pending.set(parameter.index, next);
+		setSnapshot((value) => ({ ...value, values: value.values.map((prior, index) => (
+			index === parameter.index ? next : prior
+		)) }));
+		if (!session.operation) {
+			const operation = drain(session);
+			session.operation = operation;
+			trackNativePluginParameterWrites(instanceId, operation);
+			void operation.catch(() => undefined);
 		}
 	};
 
@@ -105,7 +146,7 @@ export default function NativePluginParameterControls({
 		<legend>{copy.title}</legend>
 		{snapshot.parameters.map((parameter) => {
 			const value = snapshot.values[parameter.index] ?? parameter.defaultValue;
-			const controlDisabled = disabled || pendingIndex !== null;
+			const controlDisabled = disabled;
 			const isBoolean = (parameter.flags & BOOLEAN_PARAMETER_FLAG) !== 0;
 			return <label key={parameter.id}>
 				<span>{parameter.name}</span>

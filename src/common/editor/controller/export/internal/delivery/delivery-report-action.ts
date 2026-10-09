@@ -2,6 +2,7 @@
 
 import { type DeliveryReport } from '../../../../delivery-report.ts';
 import { saveDeliveryReport } from '../../../../delivery-report-document.ts';
+import { deliveryReportOrigin } from '../../../../delivery-report-origin.ts';
 
 /**
  * Save the report the current session's last delivery produced.
@@ -17,9 +18,10 @@ export async function saveCurrentDeliveryReport(runtime: {
 }): Promise<unknown> {
 	const report = runtime?.state?.deliveryReport;
 	if (!report) return null;
+	const origin = deliveryReportOrigin(report as DeliveryReport);
 	return saveDeliveryReport(report as DeliveryReport, {
 		generatedAt: new Date().toISOString(),
 		productName: runtime.productName ?? null,
-		projectTitle: runtime.projectTitle ?? null,
+		projectTitle: origin ? origin.projectTitle : runtime.projectTitle ?? null,
 	}, runtime.fileService);
 }

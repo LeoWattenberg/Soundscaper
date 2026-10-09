@@ -139,7 +139,6 @@ export function createEbuR128Meter(options = {}) {
 				const weighted = filters[channel].process(sample);
 				weightedEnergy += weighted * weighted * weights[channel];
 				const truePeak = pushTruePeak(liveTruePeak[channel], sample);
-				livePeak = Math.max(livePeak, truePeak);
 				if (running) maximumTruePeak = Math.max(maximumTruePeak, truePeak);
 			}
 			livePeak = Math.max(livePeak, framePeak);

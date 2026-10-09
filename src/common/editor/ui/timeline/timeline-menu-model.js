@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
-import { createTrackSelectionContextMenuItems } from './track-selection-context-menu.ts';
+import { createTrackSelectionContextMenuItems, trackStructureMutationBlocked } from './track-selection-context-menu.ts';
 import {
 	createSoundscaperWorkflowApplicationMenuItems,
 	resolveTrackAutomationCopy,
@@ -75,6 +75,7 @@ export function createTimelineMenuModel({
 		: null;
 	const trackFoldersAvailable = Boolean(snapshot.capabilities?.trackFolders);
 	const menuTrackBlock = menuTrack ? mediaTrackBlockBounds(project.tracks, menuTrack.id) : null;
+	const trackStructureBlocked = mutationsBlocked || trackStructureMutationBlocked(project, menuTrack);
 	const colorMenuTrack = trackColorMenu ? project.tracks.find((track) => track.id === trackColorMenu.trackId) : null;
 	const menuClip = clipMenu ? project.clips.find((clip) => clip.id === clipMenu.clipId) : null;
 	const rulerFlyoutTrack = trackRulerFlyout
@@ -158,12 +159,12 @@ export function createTimelineMenuModel({
 			onClick: () => run(() => controller.actions.track.duplicate(menuTrack.id)),
 		}, contextLocale, unavailableReason),
 		{
-			id: 'move-track', label: copy.moveTrack, disabled: mutationsBlocked,
+			id: 'move-track', label: copy.moveTrack, disabled: trackStructureBlocked,
 			items: [
-				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveTop, copy.moveTrackTop, { disabled: mutationsBlocked || menuTrackBlock?.start === 0, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'top')) }, contextLocale, unavailableReason),
-				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveUp, copy.moveTrackUp, { disabled: mutationsBlocked || menuTrackBlock?.start === 0, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'up')) }, contextLocale, unavailableReason),
-				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveDown, copy.moveTrackDown, { disabled: mutationsBlocked || menuTrackBlock?.end === project.tracks.length - 1, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'down')) }, contextLocale, unavailableReason),
-				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveBottom, copy.moveTrackBottom, { disabled: mutationsBlocked || menuTrackBlock?.end === project.tracks.length - 1, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'bottom')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveTop, copy.moveTrackTop, { disabled: trackStructureBlocked || menuTrackBlock?.start === 0, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'top')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveUp, copy.moveTrackUp, { disabled: trackStructureBlocked || menuTrackBlock?.start === 0, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'up')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveDown, copy.moveTrackDown, { disabled: trackStructureBlocked || menuTrackBlock?.end === project.tracks.length - 1, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'down')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveBottom, copy.moveTrackBottom, { disabled: trackStructureBlocked || menuTrackBlock?.end === project.tracks.length - 1, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'bottom')) }, contextLocale, unavailableReason),
 			].filter(Boolean),
 		},
 		...trackOverflowItems.shared,
@@ -215,7 +216,7 @@ export function createTimelineMenuModel({
 		}, contextLocale, unavailableReason),
 		{ divider: true, label: '' },
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.remove, copy.deleteTrack, {
-			disabled: mutationsBlocked,
+			disabled: trackStructureBlocked,
 			onClick: () => run(() => controller.actions.track.remove(menuTrack.id)),
 		}, contextLocale, unavailableReason, snapshot.preferences?.shortcuts),
 		...trackFolderMenuItems,

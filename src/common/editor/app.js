@@ -401,7 +401,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const nativeProjectService = createNativeProjectComposition({
 		lifetime, projectGeneration, state, copy, store, fileService, taskProgress, confirmFileSizeWarning: options.confirmFileSizeWarning,
-		getProject: documentScope.get, acquireReplaceProjectWriteAuthority: createScapeReplaceWriteAuthority({ getActiveProjectId: () => documentScope.get()?.id ?? null, getActiveReadOnly: () => state.readOnly, getActiveLock: () => state.projectLock, acquireProjectLock: acquireLock }),
+		getProject: documentScope.get, projectForRuntimeConsumers: projectRuntime.projectForRuntimeConsumers, acquireReplaceProjectWriteAuthority: createScapeReplaceWriteAuthority({ getActiveProjectId: () => documentScope.get()?.id ?? null, getActiveReadOnly: () => state.readOnly, getActiveLock: () => state.projectLock, acquireProjectLock: acquireLock }),
 		switchProject: bindings.switchProject,
 		editingBlocked,
 		flushProject: bindings.flushProject,
@@ -577,7 +577,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file), undefined, { key: "importing" }), openSesx: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openSesx(file), undefined, { key: "importing" }), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions), undefined, { key: "dawprojectSaving" }),
 		pauseLoudnessMeasurement,
 		prepareProjectHandoff, assertProjectHandoffAllowed, prepareAudacityEffectFromController: effects.execution.prepareAudacityEffectFromController, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController, cancelSelectedAudacityEffect: effects.execution.cancelSelectedAudacityEffect,
-		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), startMacroScriptTask: () => lifetime.startTask('macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE }), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
+		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), startMacroScriptTask: () => lifetime.startTask('macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE }), getProject: () => documentState.project, projectForRuntimeConsumers: projectRuntime.projectForRuntimeConsumers, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
 		releaseVideoSourceVisual: bindings.revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined),
 		reorderTrack,
 		requestStoragePersistence: storageCapacityService.requestStoragePersistence,

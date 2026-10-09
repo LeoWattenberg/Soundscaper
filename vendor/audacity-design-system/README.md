@@ -383,6 +383,98 @@ application overrides and source patches against the pin and upstream master.
     ordinary configured-command workflow from the transport Play button.
     Upstream-PR candidate.
 
+53. `ContextMenu` initially focuses its first enabled direct item, matching
+    keyboard navigation membership. An unavailable leading item no longer traps
+    Home, arrows or Escape as though it were a nested submenu. Covered by
+    `tests/vendored-design-system-context-menu-focus.test.tsx` and the ordinary
+    label-track menu keyboard workflow. Upstream-PR candidate.
+
+54. `ContextMenu` and `ContextMenuItem` leave already handled and Ctrl/Meta/Alt
+    navigation available to its existing owner across root and submenu levels.
+    Plain menu navigation and submenu entry retain their existing behavior.
+    Covered by `tests/audio-editor-round6-context-menu-modified-navigation.test.tsx`
+    and the ordinary configured-command workflow from an audio track's menu.
+    Upstream-PR candidate.
+
+55. `ContextMenuItem` restores the surviving root-menu trigger before invoking
+    a keyboard action. A synchronous action or newly opened dialog can then take
+    focus without delayed restoration stealing it. Pointer activation and child
+    submenu entry retain their existing behavior. The context is private to the
+    open menu, and its creation is annotated pure. Covered by
+    `tests/audio-editor-round6-context-menu-completion.test.tsx` and the ordinary
+    track-menu keyboard completion workflow. Upstream-PR candidate.
+
+56. `ClipHeader` leaves composing Enter/Escape with the native text input while
+    its inline clip-name draft is unfinished. Ordinary keyboard save/cancel and
+    the existing focus handoff remain available after composition completes.
+    Keep the input's existing propagation isolation during composition so the
+    enclosing track wrapper cannot reinterpret Enter as clip selection.
+    Covered by `tests/audio-editor-round6-clip-name-composition.test.tsx` and the
+    public import/F2/name-confirmation/Undo/Redo workflow. Upstream-PR candidate.
+
+57. `TrackNew` opens its clip context menu only for unclaimed plain ContextMenu
+    or Shift+F10, leaving modified keys with the configured workspace command.
+    Preserve existing pointer entry, keyboard geometry and clip selection/move
+    callbacks. Covered by `tests/audio-editor-round6-clip-context-shortcut.test.tsx`
+    and its ordinary Preferences/header/menu/Undo browser workflow.
+
+58. `Knob` leaves modified or already handled navigation with its existing
+    command owner before starting a parameter gesture. The application send
+    endpoint adapter applies the same admission; its prevented Home/End event
+    is not processed again by the generic knob. Preserve ordinary arrows,
+    endpoints, Shift stepping and pointer lifetimes. Covered by
+    `tests/audio-editor-round6-mixer-knob-shortcut.test.tsx` and the native
+    mixer pan/send command and endpoint browser workflows.
+
+59. `EnvelopeInteractionLayer` admits only the primary mouse button before
+    starting clip-gain point insertion, removal or dragging. Context clicks and
+    middle-button gestures preserve the authored envelope; ordinary primary
+    gestures, Escape cancellation and publication remain unchanged. Covered by
+    `tests/audio-editor-round6-envelope-pointer-button.test.tsx` and the ordinary
+    clip-gain/context-click/exported-audio/Undo browser workflow. Upstream-PR
+    candidate.
+
+60. `LabelMarker` starts move and ear-resize gestures only from the primary
+    mouse button. Preserve secondary context entry and ordinary primary label
+    movement, point-to-region conversion and resizing. Covered by the actual
+    timeline wrapper in `tests/audio-editor-round6-label-pointer-button.test.tsx`
+    and the ordinary label/context-drag/Undo browser workflow. Unused legacy
+    point/region components do not participate in this adaptation. Upstream-PR
+    candidate.
+
+61. `TimelineRuler` starts and completes playback-loop mouse clicks only with
+    the primary button. Secondary and middle clicks preserve the authored loop
+    flag and redo history while native context entry remains available. An
+    unowned release cannot settle a primary click. Covered by
+    `tests/audio-editor-round6-ruler-loop-button.test.tsx` and the ordinary
+    loop-authoring/primary-click/Undo/context-click/Redo browser workflow.
+    The unused legacy loop-drag callback is outside this user-path correction.
+    Upstream-PR candidate.
+
+62. `NumberStepper` leaves composing, modified and already handled keys with
+    their existing owner before stepping or toggling edit mode. Plain and
+    Shift arrows retain numeric edits; completed Enter/Escape retain mode
+    changes. Covered by `tests/audio-editor-round6-number-stepper-ownership.test.tsx`
+    and the normal Generate → Tone frequency/edit/exported-audio workflow.
+    This key admission correction is independent of deviation 37's numeric
+    parser and bounds handling. Upstream-PR candidate.
+
+63. `Flyout` leaves native composing Escape with the input method before
+    dismissing an open surface or restoring its trigger focus. Ordinary Escape,
+    disabled dismissal and listener cleanup retain their existing behavior.
+    Covered by `tests/audio-editor-round6-flyout-composition.test.tsx` and the
+    normal Effects → Add effect → Search effects composition/reopen workflow.
+    Upstream-PR candidate.
+
+64. `RulerFlyout` leaves native composing Escape with its frequency field
+    before dismissing the popup, and its `FreqStepper` leaves composing Enter
+    before publishing the unfinished numeric draft. Completed scientific
+    entries, ordinary Escape, trigger focus and arrow ownership are retained.
+    Covered by `tests/audio-editor-round6-ruler-composition.test.tsx` and the
+    normal Spectrogram → frequency ruler → exact frequency draft workflow.
+    This independently registered popup listener and field wrapper do not use
+    the shared `Flyout` dismissal owner. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
@@ -414,3 +506,17 @@ are the places where the two keyboard models meet, so a future sync should re-ch
 4. Re-audit the portal selector list in `scripts/postcss-audacity-design-system.mjs` against
    new/renamed classes that render into `document.body` (dropdown/tooltip-style portals).
 5. Run the full battery: `npm run check`, `npm run test:browser`, dev + desktop smoke.
+
+65. `TimeCode` leaves Ctrl/Meta/Alt and already handled keys with their existing
+    command owner while a digit or its composite group is focused. The ordinary
+    digit edit, Shift navigation and completion behavior remains unchanged.
+    Covered by `tests/audio-editor-round6-timecode-digit-shortcut.test.tsx` and
+    the configured-command public browser regression.
+
+66. `ContextMenuItem` keeps Escape available when every submenu child is
+    unavailable, returning focus to its parent before the root menu closes.
+    Deferred keyboard entry focuses the first enabled direct child and leaves
+    focus on the parent when none is available. Existing modified-key ownership
+    and writable submenu navigation remain intact. Covered by
+    `tests/audio-editor-round6-disabled-submenu-escape.test.tsx` and the ordinary
+    locked Paste submenu workflow. Upstream-PR candidate.

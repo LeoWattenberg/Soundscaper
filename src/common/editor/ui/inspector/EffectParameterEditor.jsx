@@ -348,7 +348,13 @@ export default function EffectParameterEditor({
 				parameters={effect.params}
 				disabled={disabled}
 				sampleRate={sampleRate}
-				onChangeParameters={(params) => update({ params })}
+				onChangeParameters={(params, automationCommit = null) => {
+					const routed = automationCommit && Object.keys(params).some(name => {
+						const address = parameterAddress(name);
+						return address && (automationRouter.owns(address) || automationRouter.captureAvailable(address));
+					});
+					return routed ? automationCommit() : update({ params });
+				}}
 				effectContext={effect.context}
 				copy={copy}
 				renderParameter={renderParameter}

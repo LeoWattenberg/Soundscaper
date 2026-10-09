@@ -178,6 +178,7 @@ export default function VideoKeyframeDialog({
 				reportInvalid={() => setError({ key: 'videoKeyframesInvalid', fallback: 'Check the exact positions, values, and curve shape.' })}
 			/>
 			<fieldset disabled={disabled} onKeyDown={(event) => {
+				if (event.nativeEvent?.isComposing) return;
 				const shortcut = videoKeyframeTransferShortcut(event, disabled);
 				if (!shortcut) return;
 				event.preventDefault();

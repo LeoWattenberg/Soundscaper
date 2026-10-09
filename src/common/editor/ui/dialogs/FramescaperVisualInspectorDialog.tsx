@@ -49,6 +49,7 @@ export default function FramescaperVisualInspectorDialog({
 		setError('');
 	}, [model, setError, setStatus]);
 	const blocked = pending || editingBlocked || readOnly || model.clipId === null;
+	const sourceBlocked = blocked || !model.generatorEditable;
 	const formId = 'framescaper-visual-inspector-form';
 	const updateGenerator = (changes: Readonly<Record<string, unknown>>): void => {
 		setDraft((current) => current.generator === null ? current : {
@@ -64,8 +65,8 @@ export default function FramescaperVisualInspectorDialog({
 		let command: unknown;
 		try {
 			const generator = draft.generator;
-			const completedDraft = generator?.kind === 'title' || generator?.kind === 'text'
-				? { ...draft, generator: { ...generator, text: generator.text.normalize('NFC') } } : draft;
+			const completedDraft = generator === null ? draft
+				: { ...draft, generator: completeGeneratorDraft(generator) };
 			command = createFramescaperVisualInspectorCommand(project, model.clipId, completedDraft);
 		} catch (cause) {
 			setError(feedbackFailure(cause));
@@ -102,11 +103,11 @@ export default function FramescaperVisualInspectorDialog({
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
 				FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualInspectorSelection)}</p> : <>
 				<p data-visual-inspector-kind>{model.kind}</p>
-					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={blocked} copy={copy}
+					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={sourceBlocked} copy={copy}
 						onChange={updateGenerator} />
 				{model.presets.length > 0 && <label>
 					<span>{label(copy, 'visualPreset', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualPreset)}</span>
-					<select data-visual-inspector-preset value={draft.presetId ?? ''} disabled={blocked}
+					<select data-visual-inspector-preset value={draft.presetId ?? ''} disabled={sourceBlocked}
 						onChange={(event) => {
 							const selectedId = event.currentTarget.value;
 							const preset = model.presets.find(({ id }) => id === selectedId);
@@ -286,6 +287,25 @@ function draftFor(model: ReturnType<typeof createFramescaperVisualInspectorModel
 		maskWidth: model.maskWidth,
 		presetId: null,
 	};
+}
+
+/** Complete native text fields at Apply while preserving their unfinished drafts. */
+function completeGeneratorDraft(generator: VideoGeneratorDocumentV1): VideoGeneratorDocumentV1 {
+	switch (generator.kind) {
+		case 'title':
+		case 'text':
+			return { ...generator, text: generator.text.normalize('NFC'), color: generator.color.toLowerCase() };
+		case 'solid':
+			return { ...generator, color: generator.color.toLowerCase() };
+		case 'shape':
+			return { ...generator, fillColor: generator.fillColor?.toLowerCase() ?? null,
+				strokeColor: generator.strokeColor?.toLowerCase() ?? null };
+		case 'sound-visualizer':
+			return { ...generator, foregroundColor: generator.foregroundColor.toLowerCase(),
+				backgroundColor: generator.backgroundColor.toLowerCase() };
+		default:
+			return generator;
+	}
 }
 
 function label(copy: Readonly<Record<string, string>>, key: string, fallback: string): string {

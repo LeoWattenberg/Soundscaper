@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { encodedImageIsAnimated } from './image-animation-topology.ts';
 import type {
 	FramescaperBrowserNativeImageDecodeSessionV1,
 	OpenFramescaperBrowserNativeImageV1,
@@ -51,6 +52,9 @@ export const openFramescaperBrowserNativeImageV1: OpenFramescaperBrowserNativeIm
 	const Decoder = imageDecoderConstructor();
 	if (Decoder && await supported(Decoder, request.mimeType)) {
 		return openImageDecoder(Decoder, request.bytes, request.mimeType, request.signal);
+	}
+	if (encodedImageIsAnimated(request.bytes, request.format)) {
+		throw new Error('This animated image requires an available browser animation decoder.');
 	}
 	return openStaticBitmap(request.bytes, request.mimeType, request.signal);
 };

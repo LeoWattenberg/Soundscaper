@@ -157,7 +157,7 @@ export default function WorkspacePanelDock({
 	const beginFloatingMove = useFloatingWorkspacePanelMove({ dock, dockRef, resizeSessionRef,
 		controller, run, setActiveFloatingPanelId, onPanelDragStart, onPanelDragEnd, onPanelMove });
 	const beginResize = (event) => {
-		if (event.button !== 0) return;
+		if (event.button !== 0 || event.isPrimary === false || resizeSessionRef.current) return;
 		const dockResizeHandle = event.target.closest?.('[data-workspace-dock-resize-handle]');
 		if ((dock === 'left' || dock === 'right') && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
 			const element = dockRef.current;

@@ -172,10 +172,12 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		const stats = nyquistChannelStats([...channels]);
 		const lowHz = Number(frequencyRange?.minimumFrequency);
 		const highHz = Number(frequencyRange?.maximumFrequency);
-		const selectedTrackIndices = targets.map((candidate) => {
+		const selectedTrackIndices = [...new Set(targets.map((candidate) => {
 			const projectIndex = project.tracks.findIndex((projectTrack) => projectTrack.id === (candidate?.sourceTrackId ?? candidate?.track.id));
 			return projectIndex >= 0 ? projectIndex + 1 : null;
-		}).filter(isInteger);
+		}).filter(isInteger))];
+		const projectTrackIndex = project.tracks.findIndex(candidate => candidate.id === (target?.sourceTrackId ?? track?.id));
+		const selectedTrackIndex = selectedTrackIndices.indexOf(projectTrackIndex + 1);
 		const selectionProperties: Record<string, unknown> & {
 			START: number;
 			END: number;
@@ -209,7 +211,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			},
 			SELECTION: selectionProperties,
 			TRACK: {
-				INDEX: index + 1,
+				INDEX: selectedTrackIndex >= 0 ? selectedTrackIndex + 1 : index + 1,
 				NAME: track?.name || String(request.name || ''),
 				CLIPS: trackClips,
 				INCLIPS: trackClips,

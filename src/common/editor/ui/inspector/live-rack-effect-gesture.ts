@@ -13,6 +13,10 @@ type RackParams = Readonly<Record<string, unknown>>;
 type GestureBegin = () => unknown;
 type GestureCommit = (params: RackParams) => unknown;
 
+function supportsNativeCommit(type: string): boolean {
+	return isStandardEffect(type) || ['audacity-echo', 'audacity-graphic-eq', 'audacity-filter-curve-eq', 'audacity-compressor', 'audacity-limiter', 'audacity-reverb', 'audacity-click-removal'].includes(type);
+}
+
 export function nativeRackEffectCommit(
 	effect: RackGestureEffect | null | undefined,
 	params: RackParams,
@@ -20,7 +24,7 @@ export function nativeRackEffectCommit(
 	onCommit: GestureCommit | null | undefined,
 	onCancel?: GestureBegin | null,
 ): (() => Promise<void>) | null {
-	if (!effect || !isStandardEffect(effect.type) || !onBegin || !onCommit) return null;
+	if (!effect || !supportsNativeCommit(effect.type) || !onBegin || !onCommit) return null;
 	return async () => {
 		try {
 			await onBegin();
@@ -37,6 +41,6 @@ export function supportsLiveRackEffectGesture(
 	effectOwner: Readonly<{ effectsActive?: boolean }> | null | undefined,
 ): boolean {
 	if (!effect || effect.enabled === false || effectOwner?.effectsActive === false) return false;
-	if (isStandardEffect(effect.type)) return effect.bypassed !== true;
+	if (supportsNativeCommit(effect.type)) return effect.bypassed !== true;
 	return effect.type === 'delay' && Number(effect.params?.mix) > 0;
 }

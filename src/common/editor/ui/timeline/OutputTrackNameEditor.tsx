@@ -36,6 +36,7 @@ export function OutputTrackNameEditor({
 		className="audio-editor-output-name-editor"
 		onBlur={() => complete(true, false)}
 		onKeyDown={event => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key !== 'Enter' && event.key !== 'Escape') return;
 			event.preventDefault();
 			complete(event.key === 'Enter', true);

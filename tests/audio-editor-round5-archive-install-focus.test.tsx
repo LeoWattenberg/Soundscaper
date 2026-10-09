@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client';
 import NyquistGetEffectsDialog from '../src/common/editor/ui/dialogs/NyquistGetEffectsDialog.jsx';
 import { createNyquistArchiveStore, nyquistArchiveStore } from '../src/common/editor/nyquist/archive-store.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { deferred } from './helpers/async-test-control.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 (globalThis as unknown as { React: unknown }).React = React;
@@ -16,7 +17,7 @@ const manifest = gunzipSync(readFileSync(new URL('./fixtures/nyquist-archive/man
 const metadata = readFileSync(new URL('../evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', import.meta.url));
 const source = gunzipSync(readFileSync(new URL('./fixtures/nyquist-archive/10bandeq.ny.gz', import.meta.url)));
 
-for (const moved of [false, true]) test(`mounted archive installation ${moved ? 'preserves deliberate movement' : 'restores its enabled removal action'}`, async () => {
+for (const moved of [false, true]) test(`mounted archive installation ${moved ? 'preserves deliberate movement' : 'restores its enabled removal action'}`, { timeout: 10_000 }, async () => {
 	const dom = installReactTestDom();
 	const document = dom.container.ownerDocument;
 	const root = createRoot(dom.container as unknown as HTMLElement);
@@ -27,8 +28,20 @@ for (const moved of [false, true]) test(`mounted archive installation ${moved ? 
 		remove: nyquistArchiveStore.remove, updateCatalogMetadata: nyquistArchiveStore.updateCatalogMetadata };
 	const saved = new Map<string, string>();
 	const store = createNyquistArchiveStore({ getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, value: string) => { saved.set(key, value); } });
-	nyquistArchiveStore.list = store.list; nyquistArchiveStore.install = store.install;
-	nyquistArchiveStore.remove = store.remove; nyquistArchiveStore.updateCatalogMetadata = store.updateCatalogMetadata;
+	const catalogReady = deferred<void>();
+	const installationCommitted = deferred<void>();
+	nyquistArchiveStore.list = store.list;
+	nyquistArchiveStore.install = (record) => {
+		const result = store.install(record);
+		void Promise.resolve(result).then(() => installationCommitted.resolve(), installationCommitted.reject);
+		return result;
+	};
+	nyquistArchiveStore.remove = store.remove;
+	nyquistArchiveStore.updateCatalogMetadata = (artifacts) => {
+		const result = store.updateCatalogMetadata(artifacts);
+		void Promise.resolve(result).then(() => catalogReady.resolve(), catalogReady.reject);
+		return result;
+	};
 	let completeDownload: ((response: Response) => void) | null = null;
 	globalThis.fetch = async (input) => {
 		const url = String(input);
@@ -41,9 +54,7 @@ for (const moved of [false, true]) test(`mounted archive installation ${moved ? 
 		await act(async () => {
 			root.render(<NyquistGetEffectsDialog copy={ENGLISH_COPY} onClose={() => undefined} />);
 		});
-		for (let attempt = 0; attempt < 50 && !dom.container.querySelectorAll('button').some(button => button.textContent === 'Install Ten Band EQ'); attempt += 1) {
-			await act(async () => { await new Promise<void>(resolve => setImmediate(resolve)); });
-		}
+		await act(async () => { await catalogReady.promise; });
 		const install = dom.container.querySelectorAll('button').find(button => button.textContent === 'Install Ten Band EQ'); assert.ok(install);
 		const search = dom.container.querySelectorAll('input').find(input => input.type === 'search'); assert.ok(search);
 		install.focus();
@@ -53,9 +64,10 @@ for (const moved of [false, true]) test(`mounted archive installation ${moved ? 
 		if (moved) search.focus();
 		assert.ok(completeDownload);
 		await act(async () => { (completeDownload as (response: Response) => void)(new Response(new Uint8Array(source).buffer)); });
-		for (let attempt = 0; attempt < 50 && !dom.container.querySelectorAll('button').some(button => button.textContent.startsWith('Remove') && button.textContent.endsWith('Ten Band EQ')); attempt += 1) {
-			await act(async () => { await new Promise<void>(resolve => setImmediate(resolve)); });
-		}
+		await act(async () => {
+			await installationCommitted.promise;
+			await new Promise<void>(resolve => setImmediate(resolve));
+		});
 		assert.equal(store.list().length, 1, 'the actual authenticated installer commits the published source');
 		const remove = dom.container.querySelectorAll('button').find(button => button.textContent.startsWith('Remove') && button.textContent.endsWith('Ten Band EQ')); assert.ok(remove);
 		assert.equal(remove.hasAttribute('disabled'), false);

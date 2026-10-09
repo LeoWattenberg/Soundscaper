@@ -120,9 +120,15 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		client = null;
 		environment = null;
 		initialization = null;
-		if (!activeClient || clientDisposed) return;
-		clientDisposed = true;
-		await Promise.resolve(activeClient.dispose?.());
+		const retained = futureScapeArchive;
+		futureScapeArchive = null;
+		try { await retained?.cleanup?.(); }
+		finally {
+			if (activeClient && !clientDisposed) {
+				clientDisposed = true;
+				await Promise.resolve(activeClient.dispose?.());
+			}
+		}
 	}
 
 	async function openScape(
@@ -157,16 +163,28 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				signal.throwIfAborted();
 				assertOwnership(operation.task, operation.projectToken);
 			}
-			futureScapeArchive = imported.readOnly && file instanceof Blob
-				? { projectId: imported.project.id, archive: file, manifest: imported.manifest } : null;
-			await runtime.switchProject(imported.project, {
-				readOnly: imported.readOnly,
-				readOnlyReason: imported.readOnly ? runtime.copy.futureProjectReadOnly : null,
-				skipFlush: imported.collision === 'replace',
-				adoptSessionRevision: imported.collision === 'replace',
-				replaceSessionHistory: imported.collision === 'replace',
-				preserveScapeOpenRequest: true,
-			});
+			const retained = imported.readOnly
+				? await (await import('./internal/native-project/native-scape-retention.ts')).retainNativeScapeArchive(runtime, file, {
+					projectId: imported.project.id, manifest: imported.manifest, signal,
+					assertCurrent: () => assertOwnership(operation.task, operation.projectToken),
+				}) : null;
+			const previous = futureScapeArchive;
+			futureScapeArchive = retained;
+			try {
+				await runtime.switchProject(imported.project, {
+					readOnly: imported.readOnly,
+					readOnlyReason: imported.readOnly ? runtime.copy.futureProjectReadOnly : null,
+					skipFlush: imported.collision === 'replace',
+					adoptSessionRevision: imported.collision === 'replace',
+					replaceSessionHistory: imported.collision === 'replace',
+					preserveScapeOpenRequest: true,
+				});
+			} catch (error) {
+				futureScapeArchive = previous;
+				await retained?.cleanup?.();
+				throw error;
+			}
+			await previous?.cleanup?.();
 			if (imported.publicationCommitted !== true) {
 				signal.throwIfAborted();
 				operation.task.assertCurrent();

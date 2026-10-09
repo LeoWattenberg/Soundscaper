@@ -60,7 +60,7 @@ function controllerStub(positionFrame: unknown = 0, calls: string[] = []): Data 
 	const controller: Data = {
 		project: PROJECT,
 		getTelemetrySnapshot: () => ({ positionFrame }),
-		actions: { project: { openById } },
+		actions: { project: { openById, flush: async () => { calls.push('flush'); } } },
 	};
 	return controller;
 }
@@ -379,7 +379,7 @@ test('the publisher handed to the import writes through the injected session por
 
 	assert.equal(published, PUBLISHED);
 	assert.deepEqual(built.calls, [
-		'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
+		'flush', 'assertToken', 'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
 	]);
 	assert.deepEqual(built.commands, [{ command: { type: 'batch', commands: [] }, now: NOW }]);
 });
@@ -442,7 +442,7 @@ test('a desktop picker imports a frozen snapshot of the files its read scope yie
 
 	await still(controller);
 
-	assert.deepEqual(requests[0], { purpose: 'media', multiple: true });
+	assert.deepEqual(requests[0], { purpose: 'image', multiple: true });
 	assert.deepEqual(requests[1], { descriptors: ['descriptor-1'], request: {} });
 	assert.deepEqual(imports[0]?.files.map(({ name }) => name), ['desktop.png']);
 	assert.ok(Object.isFrozen(imports[0]?.files), 'the selection is snapshotted before it is imported');

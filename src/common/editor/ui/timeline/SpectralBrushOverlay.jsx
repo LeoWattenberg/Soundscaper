@@ -61,7 +61,7 @@ export function SpectralBrushOverlay({
 		};
 	};
 	const begin = (event) => {
-		if (disabled) return;
+		if (disabled || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		stopEvent(event);
 		const point = pointerPosition(event);
 		dragRef.current = { pointerId: event.pointerId, ...point };
@@ -85,6 +85,7 @@ export function SpectralBrushOverlay({
 		if (!cancelled) onCommit(planSpectralBrushGesture(geometry(drag.x, drag.y, point.x, point.y)));
 	};
 	const createCenteredBrush = (event) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (disabled || (event.key !== 'Enter' && event.key !== ' ')) return;
 		stopEvent(event);
 		onCommit(planSpectralBrushGesture(geometry(

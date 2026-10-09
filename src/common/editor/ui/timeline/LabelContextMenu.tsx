@@ -32,7 +32,7 @@ export function LabelContextMenu(props: LabelContextMenuProps) {
 		editBlocked: audioBlocked, available: !point,
 	}, { executeEdit: (action) => run(() => editActions[action]?.()) });
 	const menu = <div role="presentation" onClick={(event) => event.stopPropagation()}
-		onKeyDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+		onKeyDown={(event) => { if (!event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation(); }} onDoubleClick={(event) => event.stopPropagation()}>
 		<ContextMenu isOpen x={position.x} y={position.y} onClose={onClose} className="audio-editor-label-context-menu">
 			<ContextMenuItem label={copy.editLabels} shortcut="F2" disabled={blocked} onClick={onEdit} onClose={onClose} />
 			<ContextMenuItem label={copy.deleteLabel} disabled={blocked} onClick={onRemove} onClose={onClose} />

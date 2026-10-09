@@ -48,7 +48,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 	const track = clip ? findClipTrack(project, clip.id) : null;
 	const sampleRate = project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE;
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
-	const disabled = blocked || !clip;
+	const disabled = blocked || !clip || track?.locked === true;
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = usePresentationFeedback(copy);
 	const [resampleOpen, setResampleOpen] = useState(false);
@@ -105,7 +105,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			} else if ((name === 'sourceInFrame' || name === 'durationFrame') && !isVideoClip
 				&& source && controller.actions.clipSourcePreview?.trim) {
 				const value = nonNegativeFrame(rawValue, copy);
-				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value));
+				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value, { project, source }));
 			} else if (name === 'sourceInFrame') {
 				const sourceStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.trim(clip.id, { sourceStartFrame });
@@ -190,7 +190,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 					{!isVideoClip && snapshot.capabilities?.audioEffects && (
 						<div className="audio-editor-clip-properties__toggles">
 							<div data-clip-field="reversed">
-								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled}
+								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled || clip?.warpMap != null}
 									onChange={() => run(controller.actions.clip.reverse)} />
 							</div>
 							<div data-clip-field="inverted">

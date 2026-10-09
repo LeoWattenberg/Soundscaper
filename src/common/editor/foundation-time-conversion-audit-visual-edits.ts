@@ -6,6 +6,15 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
 /** Exact native visual editing boundaries, with sample aliases owned only by the live preview. */
 export const FOUNDATION_TIME_CONVERSION_VISUAL_EDIT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'restored-native-visual-sequence-rate-conformance',
+		file: 'src/framescaper/editor-sequence-visual-rate-conformance.ts',
+		behavior: 'Detached native image, still and generator clips preserve absolute wall-clock placement across inherited sequence-rate changes by resolving both old sequence boundaries as nearest project samples, conforming each to the new sequence grid, and deriving extent from their difference while retaining native source phase and windows.',
+		conversions: [
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'timeline-image-trim-sequence-boundaries',
 		file: 'src/common/editor/timeline-image-trim.ts',
 		behavior: 'Image trims resolve requested sample boundaries to nearest authored sequence frames, then convert the clamped absolute start back to a nearest sample point before resolving the requested end; image duration and animated source phase remain on their native clocks.',

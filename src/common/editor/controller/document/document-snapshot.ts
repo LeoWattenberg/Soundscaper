@@ -17,6 +17,8 @@ import type { TakeCyclePendingOpenRecovery } from '../recording/take-cycle-captu
 import type { FramescaperCaptureSessionSnapshot } from '../capture/framescaper-capture-session-types.ts';
 import type { FramescaperWebVcrUiSnapshot } from '../capture/framescaper-web-vcr-controller-types.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../track-folder-media-runtime.ts';
+import { rememberDeliveryReportOrigin } from '../../delivery-report-origin.ts';
+import { hasLockedClipboardPasteTarget } from '../../clipboard-paste-targets.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PROJECTS = new WeakMap<object, object>();
@@ -218,6 +220,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 ) {
 	const { state } = runtime;
 	const currentProject = runtime.getCurrentProject();
+	if (currentProject) rememberDeliveryReportOrigin(state.deliveryReport, currentProject.title);
 	const currentTabMetadata = currentProject
 		? runtime.getCurrentTabMetadata(currentProject.id)
 		: {};
@@ -335,6 +338,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			canUndo: Boolean(history && runtime.canUndo(history)),
 			canRedo: Boolean(history && runtime.canRedo(history)),
 			hasClipboard: Boolean(state.clipboard),
+			pasteTargetLocked: hasLockedClipboardPasteTarget(currentProject, state.clipboard, state.selectedTrackId),
 			undoEntries: Object.freeze((history?.undoStack || []).slice(-20).reverse()
 				.map(runtime.historyEntrySummary)),
 			redoEntries: Object.freeze((history?.redoStack || []).slice(-20).reverse()

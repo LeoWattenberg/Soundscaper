@@ -51,7 +51,7 @@ test('inline automation exposes keyboard insertion, explicit deletion, and one-c
 			button: 0, pointerId: 1, preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerMove?.({
-			clientX: 72, clientY: 45, preventDefault() {}, stopPropagation() {},
+			pointerId: 1, clientX: 72, clientY: 45, preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerUp?.({
 			pointerId: 1, preventDefault() {}, stopPropagation() {},
@@ -195,7 +195,7 @@ test('pointer cancellation discards its draft and a later release creates one hi
 			preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerMove?.({
-			clientX: 32, clientY: 70, preventDefault() {}, stopPropagation() {},
+			pointerId: 1, clientX: 32, clientY: 70, preventDefault() {}, stopPropagation() {},
 		}));
 		assert.equal(commands.length, 0);
 		await act(async () => reactProps(svg).onPointerCancel?.({
@@ -208,10 +208,10 @@ test('pointer cancellation discards its draft and a later release creates one hi
 			preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerMove?.({
-			clientX: 34, clientY: 65, preventDefault() {}, stopPropagation() {},
+			pointerId: 2, clientX: 34, clientY: 65, preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerMove?.({
-			clientX: 36, clientY: 60, preventDefault() {}, stopPropagation() {},
+			pointerId: 2, clientX: 36, clientY: 60, preventDefault() {}, stopPropagation() {},
 		}));
 		assert.equal(commands.length, 0);
 		await act(async () => reactProps(svg).onPointerUp?.({
@@ -256,7 +256,7 @@ test('Escape restores an automation draft and prevents its later pointer release
 			button: 0, pointerId: 1, preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerMove?.({
-			clientX: 32, clientY: 70, preventDefault() {}, stopPropagation() {},
+			pointerId: 1, clientX: 32, clientY: 70, preventDefault() {}, stopPropagation() {},
 		}));
 		assert.equal(point.getAttribute('aria-valuenow'), before, 'draft waits for its frame');
 		await act(async () => { (frame as FrameRequestCallback | null)?.(0); });
@@ -309,7 +309,7 @@ test('a stale drag release is announced without adding a history entry', async (
 			preventDefault() {}, stopPropagation() {},
 		}));
 		await act(async () => reactProps(svg).onPointerMove?.({
-			clientX: 30, clientY: 70, preventDefault() {}, stopPropagation() {},
+			pointerId: 1, clientX: 30, clientY: 70, preventDefault() {}, stopPropagation() {},
 		}));
 		currentLane = { ...TARGET.lane };
 		await act(async () => reactProps(svg).onPointerUp?.({

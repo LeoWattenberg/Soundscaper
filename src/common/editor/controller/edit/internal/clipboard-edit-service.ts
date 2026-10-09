@@ -11,7 +11,6 @@ import { findClipSilenceRegions } from '../../../clip-silence-regions.ts';
 import { hasProjectBinMediaAuthority } from '../../../project-schema-version.ts';
 import type {
 	AudioEditorClipboard,
-	AudioEditorClipboardTrack,
 	AudioEditorCommand,
 	ClipboardPasteMode,
 } from '../../../commands/protocol.ts';
@@ -19,6 +18,8 @@ import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
+import { clipboardPasteTrackType, planClipboardPasteTargets } from '../../../clipboard-paste-targets.ts';
+import { createAudioEditorSessionClipboard } from '../../../session-clipboard-codec.ts';
 import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -144,6 +145,7 @@ export interface ClipboardEditServiceDependencies {
 
 export interface ClipboardEditService {
 	setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard;
+	prepareSessionClipboard(descriptor: AudioEditorClipboard): () => AudioEditorClipboard;
 	splitAtFrame(frame: unknown, trackIds?: string | readonly string[] | null): unknown;
 	commitSplitAtFrames(frames: readonly unknown[], trackIds?: string | readonly string[] | null): unknown;
 	prepareControllerPaste(mode: ClipboardPasteMode, atFrame?: number, pasteAsNewClip?: boolean): AudioEditorCommand;
@@ -162,6 +164,7 @@ export function createClipboardEditService(
 	let editSessionClipboard: ControllerEditSessionClipboardCarrier | null = null;
 	return Object.freeze({
 		setSessionClipboard,
+		prepareSessionClipboard,
 		splitAtFrame,
 		commitSplitAtFrames,
 		prepareControllerPaste,
@@ -170,25 +173,38 @@ export function createClipboardEditService(
 	});
 
 	function setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard {
+		return prepareClipboardPublication(descriptor, false)();
+	}
+
+	/** Capture sources before deletion, publishing the clipboard after successful admission. */
+	function prepareSessionClipboard(descriptor: AudioEditorClipboard): () => AudioEditorClipboard {
+		return prepareClipboardPublication(descriptor, true);
+	}
+
+	function prepareClipboardPublication(descriptor: AudioEditorClipboard, captureSources: boolean): () => AudioEditorClipboard {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const carrier: ControllerEditSessionClipboardCarrier = dependencies.createEditSessionClipboard?.(
 			project,
 			descriptor,
 		) ?? Object.freeze({ descriptor });
-		const sessionValue = carrier.sources === undefined ? carrier.descriptor : {
+		const sessionValue = carrier.sources === undefined ? (captureSources
+			? createAudioEditorSessionClipboard(project, { descriptor: carrier.descriptor }) : carrier.descriptor) : {
 			schemaVersion: 1,
 			originProjectId: carrier.originProjectId ?? project.id,
 			descriptor: carrier.descriptor,
 			sources: carrier.sources,
 		};
-		const result = dependencies.session.setClipboard(
-			sessionValue as AudioEditorClipboard,
-			{ originProjectId: project.id },
-		);
-		dependencies.state.clipboard = result.clipboard.descriptor;
-		editSessionClipboard = carrier;
-		return dependencies.state.clipboard;
+		return () => {
+			dependencies.lifetime.assertActive();
+			const result = dependencies.session.setClipboard(
+				sessionValue as AudioEditorClipboard,
+				{ originProjectId: project.id },
+			);
+			dependencies.state.clipboard = result.clipboard.descriptor;
+			editSessionClipboard = carrier;
+			return dependencies.state.clipboard;
+		};
 	}
 
 	function splitAtFrame(
@@ -208,25 +224,25 @@ export function createClipboardEditService(
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const targetClipIds = collectSplitTargetClipIds(project, trackIds);
-		const frames = [...new Set(requestedFrames.map((frame) => dependencies.normalizeFrame(frame)))]
-			.sort((left, right) => right - left);
+		const frames = [...new Set(requestedFrames.map((frame) => dependencies.normalizeFrame(frame)))].sort((left, right) => right - left);
 		const commands: AudioEditorCommand[] = [];
 		const handledLinks = new Set<string>();
 		for (const clipId of targetClipIds) {
 			const clip = findClip(project, clipId);
-			if (!clip) continue;
-			if (clip.avLinkId && handledLinks.has(clip.avLinkId)) continue;
+			if (!clip || (clip.avLinkId && handledLinks.has(clip.avLinkId))) continue;
 			if (clip.avLinkId) handledLinks.add(clip.avLinkId);
+			const handledFrames = new Set<number>();
 			const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 			for (const frame of frames) {
 				if (frame <= clip.timelineStartFrame || frame >= clipEndFrame) continue;
-				commands.push(prepareLinkedSplit(project, clip.id, frame));
+				const split = prepareLinkedSplit(project, clip.id, frame);
+				if (handledFrames.has(split.atFrame)) continue;
+				handledFrames.add(split.atFrame);
+				commands.push(split);
 			}
 		}
 		if (!commands.length) return null;
-		const command: AudioEditorCommand = commands.length === 1
-			? commands[0]
-			: { type: 'batch', commands };
+		const command: AudioEditorCommand = commands.length === 1 ? commands[0] : { type: 'batch', commands };
 		return dependencies.commit(command);
 	}
 
@@ -246,45 +262,14 @@ export function createClipboardEditService(
 				? { type: 'source/add', source: structuredClone(source) } as AudioEditorCommand
 				: createAddSourceCommand(source));
 		let addedTrackCount = 0;
-		const usedTrackIds = new Set<string>();
 		const selected = findMediaTrack(project, dependencies.state.selectedTrackId);
-		const clipboardTracks = clipboard.tracks ?? [];
-		const laneGroups = groupClipboardLanes(clipboardTracks);
-
-		const targetMatches = (
-			target: ClipboardEditMediaTrack | null,
-			clipboardTrack: AudioEditorClipboardTrack,
-		): target is ClipboardEditMediaTrack => Boolean(
-			target
-			&& target.type === clipboardTrackType(clipboardTrack)
-			&& !usedTrackIds.has(target.id)
-		);
-		const assignTarget = (clipboardTrack: AudioEditorClipboardTrack, target: ClipboardEditMediaTrack) => {
-			trackMap[clipboardTrack.sourceTrackId] = target.id;
-			usedTrackIds.add(target.id);
-		};
-		const findTargetLanePair = (
-			candidate: ClipboardEditMediaTrack | null,
-		): readonly [ClipboardEditMediaTrack, ClipboardEditMediaTrack] | null => {
-			if (!candidate?.laneGroupId) return null;
-			const grouped = project.tracks
-				.filter(isMediaTrack)
-				.filter((track) => track.laneGroupId === candidate.laneGroupId);
-			if (
-				grouped.length !== 2
-				|| grouped[0]?.type !== 'video'
-				|| grouped[1]?.type !== 'audio'
-				|| grouped.some((track) => usedTrackIds.has(track.id))
-			) return null;
-			return [grouped[0], grouped[1]];
-		};
 		/**
 		 * A synthesized paste track joins the folder of the track the paste is
 		 * anchored to: the selected track's parent, else the surviving source
 		 * track's parent, else the sequence root.
 		 */
 		const resolveFolderPlacement = (
-			clipboardTrack: AudioEditorClipboardTrack,
+			clipboardTrack: AudioEditorClipboard['tracks'][number],
 		): Readonly<{ sequenceId: string; parentFolderId: string | null }> | null => {
 			if (!project.trackFolders?.length || !project.sequences?.length) return null;
 			for (const anchorId of [selected?.id, clipboardTrack.sourceTrackId]) {
@@ -299,10 +284,10 @@ export function createClipboardEditService(
 			return { sequenceId: fallback.id, parentFolderId: null };
 		};
 		const createTargetTrack = (
-			clipboardTrack: AudioEditorClipboardTrack,
+			clipboardTrack: AudioEditorClipboard['tracks'][number],
 			laneGroupId: string | null = null,
 		): ClipboardEditMediaTrack => {
-			const type = clipboardTrackType(clipboardTrack);
+			const type = clipboardPasteTrackType(clipboardTrack);
 			if (type === 'video' && !hasProjectBinMediaAuthority(project)) {
 				throw new RangeError('Video clipboard tracks require an AudioEditorProjectV4 project.');
 			}
@@ -322,42 +307,11 @@ export function createClipboardEditService(
 			return { id: trackId, type, name: clipboardTrack.sourceTrackName, laneGroupId, clipIds: [] };
 		};
 
-		for (const clipboardTrack of clipboardTracks) {
-			if (trackMap[clipboardTrack.sourceTrackId]) continue;
-			const grouped = clipboardTrack.sourceLaneGroupId
-				? laneGroups.get(clipboardTrack.sourceLaneGroupId)
-				: null;
-			const videoClipboardTrack = grouped?.find((track) => clipboardTrackType(track) === 'video');
-			const audioClipboardTrack = grouped?.find((track) => clipboardTrackType(track) === 'audio');
-			if (grouped?.length === 2 && videoClipboardTrack && audioClipboardTrack) {
-				const existingVideo = findMediaTrack(project, videoClipboardTrack.sourceTrackId);
-				const existingAudio = findMediaTrack(project, audioClipboardTrack.sourceTrackId);
-				let targetPair = findTargetLanePair(selected);
-				if (!targetPair && (
-					targetMatches(existingVideo, videoClipboardTrack)
-					&& targetMatches(existingAudio, audioClipboardTrack)
-					&& existingVideo.laneGroupId
-					&& existingVideo.laneGroupId === existingAudio.laneGroupId
-				)) targetPair = [existingVideo, existingAudio];
-				if (!targetPair) {
-					const laneGroupId = dependencies.createId('media-lanes');
-					targetPair = [
-						createTargetTrack(videoClipboardTrack, laneGroupId),
-						createTargetTrack(audioClipboardTrack, laneGroupId),
-					];
-				}
-				assignTarget(videoClipboardTrack, targetPair[0]);
-				assignTarget(audioClipboardTrack, targetPair[1]);
-				continue;
+		for (const group of planClipboardPasteTargets(project.tracks, selected?.id ?? null, clipboard.tracks ?? [])) {
+			const laneGroupId = group.length === 2 && !group[0]?.target ? dependencies.createId('media-lanes') : null;
+			for (const { clipboardTrack, target } of group) {
+				trackMap[clipboardTrack.sourceTrackId] = (target ?? createTargetTrack(clipboardTrack, laneGroupId)).id;
 			}
-
-			const anchorIndex = selected ? project.tracks.indexOf(selected) : -1;
-			let target = anchorIndex < 0 ? null : project.tracks.slice(anchorIndex)
-				.filter(isMediaTrack).find((track) => targetMatches(track, clipboardTrack)) ?? null;
-			if (!target) target = findMediaTrack(project, clipboardTrack.sourceTrackId);
-			if (!targetMatches(target, clipboardTrack)) target = null;
-			if (!target) target = createTargetTrack(clipboardTrack);
-			assignTarget(clipboardTrack, target);
 		}
 		commands.push(preparePaste(clipboard, project, atFrame, trackMap, mode, pasteAsNewClip));
 		const command: AudioEditorCommand = commands.length === 1 ? commands[0]! : { type: 'batch', commands };
@@ -468,7 +422,7 @@ export function createClipboardEditService(
 		for (const [startFrame, endFrame] of [...regions].reverse()) {
 			const after = prepareSplit(clip.id, endFrame);
 			const silence = prepareSplit(clip.id, startFrame);
-			commands.push(after, silence, { type: 'clip/remove', clipId: silence.rightClipId });
+			commands.push(after, silence, ...(clip.groupId ? [{ type: 'clip/ungroup' as const, clipIds: [silence.rightClipId] }] : []), { type: 'clip/remove', clipId: silence.rightClipId });
 		}
 		return commands;
 	}
@@ -540,23 +494,4 @@ function findMediaTrack(
 ): ClipboardEditMediaTrack | null {
 	const track = project.tracks.find((candidate) => candidate.id === trackId);
 	return track && isMediaTrack(track) ? track : null;
-}
-
-function clipboardTrackType(track: AudioEditorClipboardTrack): 'audio' | 'video' {
-	if (track.sourceTrackType === 'video') return 'video';
-	if (track.sourceTrackType === 'audio') return 'audio';
-	return track.clips[0]?.kind === 'video' ? 'video' : 'audio';
-}
-
-function groupClipboardLanes(
-	tracks: readonly AudioEditorClipboardTrack[],
-): ReadonlyMap<string, readonly AudioEditorClipboardTrack[]> {
-	const laneGroups = new Map<string, AudioEditorClipboardTrack[]>();
-	for (const track of tracks) {
-		if (!track.sourceLaneGroupId) continue;
-		const grouped = laneGroups.get(track.sourceLaneGroupId) ?? [];
-		grouped.push(track);
-		laneGroups.set(track.sourceLaneGroupId, grouped);
-	}
-	return laneGroups;
 }

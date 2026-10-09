@@ -33,6 +33,15 @@ interface ContextMenuItem {
 	readonly items?: readonly ContextMenuItem[];
 }
 
+/** Structural commands affect every member of the existing linked media block. */
+export function trackStructureMutationBlocked(
+	project: Pick<TrackSelectionContextProject, 'tracks'> | null,
+	track: TrackSelectionContextTrack | null,
+): boolean {
+	return track?.locked === true || Boolean(track?.laneGroupId
+		&& project?.tracks.some(candidate => candidate.laneGroupId === track.laneGroupId && candidate.locked === true));
+}
+
 /** Shared lock/channel commands for track overflow and selected-track shortcuts. */
 export function createTrackSelectionContextMenuItems(input: Readonly<{
 	project: TrackSelectionContextProject | null;
@@ -45,12 +54,16 @@ export function createTrackSelectionContextMenuItems(input: Readonly<{
 	const { project, track, copy, blocked, audioEffects, actions = {} } = input;
 	const audioTrack = track?.type === 'audio' ? track : null;
 	const channelCount = trackSourceChannelCount(project, audioTrack) as number;
-	const compatibleMonoTrack = isStandaloneMonoAudioTrack(audioTrack, channelCount) && project?.tracks.some((candidate) => (
-		candidate.id !== audioTrack?.id && isStandaloneMonoAudioTrack(candidate, trackSourceChannelCount(project, candidate) as number)
-	));
+	const sourceBlocked = blocked || audioTrack?.locked === true;
+	const structureBlocked = blocked || trackStructureMutationBlocked(project, audioTrack);
+	const primaryIndex = project?.tracks.findIndex(candidate => candidate.id === audioTrack?.id) ?? -1;
+	const partners = project?.tracks.filter(candidate => candidate.id !== audioTrack?.id
+		&& isStandaloneMonoAudioTrack(candidate, trackSourceChannelCount(project, candidate) as number)) ?? [];
+	const partner = partners.find(candidate => (project?.tracks.indexOf(candidate) ?? -1) > primaryIndex) ?? partners[0];
+	const compatibleMonoTrack = isStandaloneMonoAudioTrack(audioTrack, channelCount) && partner && !partner.locked;
 	const channelItem = (id: string, label: string, unavailable: boolean, operation?: (id: string) => unknown): ContextMenuItem => ({
-		id, label, disabled: blocked || !audioTrack || unavailable || !operation,
-		onClick: () => audioTrack ? operation?.(audioTrack.id) : undefined,
+		id, label, disabled: sourceBlocked || !audioTrack || unavailable || !operation,
+		onClick: () => !sourceBlocked && !unavailable && audioTrack ? operation?.(audioTrack.id) : undefined,
 	});
 	return {
 		shared: [{
@@ -59,12 +72,12 @@ export function createTrackSelectionContextMenuItems(input: Readonly<{
 			onClick: () => track ? actions.update?.(track.id, { locked: !track.locked }) : undefined,
 		}],
 		audio: audioEffects ? [{
-			id: 'track-channels', label: copy.trackChannels, disabled: blocked || !audioTrack,
+			id: 'track-channels', label: copy.trackChannels, disabled: sourceBlocked || !audioTrack,
 			items: [
 				channelItem('track-make-stereo', copy.makeStereoTrack, !compatibleMonoTrack, actions.makeStereo),
 				channelItem('track-swap-channels', copy.swapStereoChannels, channelCount !== 2, actions.swapChannels),
-				channelItem('track-split-stereo-to-lr', copy.splitStereoLr, channelCount !== 2, actions.splitStereoLR),
-				channelItem('track-split-stereo-to-center', copy.splitStereoCenter, channelCount !== 2, actions.splitStereoCenter),
+				channelItem('track-split-stereo-to-lr', copy.splitStereoLr, structureBlocked || channelCount !== 2, actions.splitStereoLR),
+				channelItem('track-split-stereo-to-center', copy.splitStereoCenter, structureBlocked || channelCount !== 2, actions.splitStereoCenter),
 			],
 		}] : [],
 	};

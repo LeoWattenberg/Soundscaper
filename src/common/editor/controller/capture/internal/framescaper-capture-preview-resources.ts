@@ -8,6 +8,8 @@ import type {
 	FramescaperCaptureSourceSettings,
 } from '../framescaper-capture-session-types.ts';
 
+const sourceSettingWrites = new WeakMap<object, Promise<void>>();
+
 export interface FramescaperCapturePreviewResources {
 	readonly surfaces: ReadonlyMap<string, FramescaperCapturePreviewSurface>;
 	readonly levelMonitors: ReadonlyMap<string, FramescaperCaptureLevelMonitor>;
@@ -57,7 +59,7 @@ export async function createFramescaperCapturePreviewResources<Stream, Track>(
 
 export function currentCaptureTrackRecord(
 	track: unknown,
-	method: 'getSettings' | 'getCapabilities',
+	method: 'getSettings' | 'getCapabilities' | 'getConstraints',
 	fallback: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
 	if (!track || typeof track !== 'object') return fallback;
@@ -125,8 +127,18 @@ export async function applyCaptureSourceSettings(
 		|| typeof (track as { readonly applyConstraints?: unknown }).applyConstraints !== 'function') {
 		throw new Error('This capture source does not expose configurable settings.');
 	}
-	await (track as { applyConstraints(value: Readonly<Record<string, unknown>>): PromiseLike<void> | void })
-		.applyConstraints(Object.freeze(constraints));
+	const sourceTrack = track as { applyConstraints(value: Readonly<Record<string, unknown>>): PromiseLike<void> | void };
+	const operation = (sourceSettingWrites.get(sourceTrack) ?? Promise.resolve())
+		.catch(() => undefined).then(async () => {
+			await sourceTrack.applyConstraints(Object.freeze({
+				...currentCaptureTrackRecord(sourceTrack, 'getConstraints', {}), ...constraints,
+			}));
+		});
+	sourceSettingWrites.set(sourceTrack, operation);
+	try { await operation; }
+	finally {
+		if (sourceSettingWrites.get(sourceTrack) === operation) sourceSettingWrites.delete(sourceTrack);
+	}
 }
 
 export function selectedCaptureDevices<Stream, Track>(

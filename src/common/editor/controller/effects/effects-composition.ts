@@ -268,6 +268,8 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			activeSelection: dependencies.activeSelection,
 			audacityEffectTarget: (...args) => selection.audacityEffectTarget(...args),
 			persistAudacityEffectResult,
+			audacityEffectTargets: () => selection.audacityEffectTargets(),
+			persistAudacityEffectResults: result.persistAudacityEffectResults,
 			matchAudacitySelectionChannels,
 			assertAudioOutput: assertAudacityEffectOutput,
 			projectSampleRate: dependencies.projectSampleRate,

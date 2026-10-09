@@ -68,6 +68,12 @@ export async function createFixture(context) {
 		...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => [
 			`desktop/bundled-${format}-stream.ts`, 'export const fixtureSupport = true;\n',
 		]),
+		...await Promise.all([
+			'constants.js', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
+			'main-file-capability-ipc.mjs', 'product.json', 'protocol.js', 'read-capability-admission.js',
+			'read-capability-range-stream.js', 'read-capability-request-lease.js', 'read-capability-support.js',
+			'read-selection-service.js', 'save-publication-mode.js', 'save-space.js', 'save-targets.js', 'validation.js',
+		].map(async (file) => [`desktop/${file}`, await readFile(new URL(`../../desktop/${file}`, import.meta.url), 'utf8')])),
 		['desktop/desktop-audio-codec-capability-contract.ts', 'export const capability = true;\n'],
 		['desktop/desktop-audio-codec-operation-contract.ts', 'export const operation = true;\n'],
 		['desktop/desktop-video-codec-operation-contract.ts', 'export const videoOperation = true;\n'],
@@ -157,6 +163,8 @@ export async function createFixture(context) {
 		['tests/browser/handbook/handbook.spec.js', 'export const handbook = true;\n'],
 		['tests/aup3-fixture.js', 'export const fixture = true;\n'],
 		['tests/helpers/png-fixture.mjs', await readFile(new URL('./png-fixture.mjs', import.meta.url), 'utf8')],
+		...await Promise.all(['framescaper-ordinary-animation-fixture.ts', 'framescaper-ordinary-high-precision-image-fixture.ts', 'interchange-reference.ts'].map(async (file) => [`tests/helpers/${file}`, await readFile(new URL(`./${file}`, import.meta.url), 'utf8')])),
+		['tests/helpers/framescaper-native-sidecar-fixture.ts', await readFile(new URL('./framescaper-native-sidecar-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/libsndfile-rifx-fixture.ts', await readFile(new URL('./libsndfile-rifx-fixture.ts', import.meta.url), 'utf8')],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],
 		['tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', 'ordinary BWF MetaEdit fixture\n'],

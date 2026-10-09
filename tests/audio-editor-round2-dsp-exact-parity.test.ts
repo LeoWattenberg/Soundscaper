@@ -137,6 +137,8 @@ function fixtures(): Record<string, string> {
 test('round-two DSP retains exact pre-change Float32/Float64 words across all optimized owners', () => {
 	// Spectrum signatures include the deliberate round-five Hann gain and complete-window fixes.
 	// Independent level expectations live in audio-editor-round5-spectrum-level-calibration.test.ts.
+	// Only mono Vocoder changes for round-six's complete carrier; independent equivalence
+	// expectations live in audio-editor-round6-vocoder-mono-carrier.test.ts.
 	const expected: unknown = JSON.parse(readFileSync(new URL('./fixtures/dsp-round2-parity.json', import.meta.url), 'utf8'));
 	assert.deepEqual(fixtures(), expected);
 });

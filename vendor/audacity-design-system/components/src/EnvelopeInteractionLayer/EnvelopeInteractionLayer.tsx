@@ -207,7 +207,7 @@ const EnvelopeInteractionLayerComponent: React.FC<EnvelopeInteractionLayerProps>
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!enabled || !containerRef.current) return;
+    if (e.button !== 0 || !enabled || !containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;

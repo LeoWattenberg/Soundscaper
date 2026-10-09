@@ -14,6 +14,7 @@ import { LabelContextMenu } from './LabelContextMenu.tsx';
 import { selectAudioEditorLabelEditBlock } from '../../label-edit-blocking.ts';
 import { useLabelMarkerDragCancellation } from './useLabelMarkerDragCancellation.ts';
 import { prepareTimelineLabelRemovalFocus } from './label-removal-focus.ts';
+import { isContextMenuKey } from './context-menu-keyboard.ts';
 
 export function LabelTrackRow({
 	controller,
@@ -37,7 +38,7 @@ export function LabelTrackRow({
 	onMenu,
 }) {
 	const trackHeight = visualHeight;
-	const labelBlocked = selectAudioEditorLabelEditBlock(controller.getSnapshot()).blocked;
+	const labelBlocked = labelTrackEditBlocked(controller, track.id) || track.locked === true;
 	const laneRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
 	const [selectedLabelId, setSelectedLabelId] = useState(null);
@@ -49,7 +50,7 @@ export function LabelTrackRow({
 			Math.ceil(128 / pixelsPerSecond * sampleRate), [selectedLabelId, editingLabelId])
 		: track.labels, [editingLabelId, labelIndex, pixelsPerSecond, renderViewportStartFrame, sampleRate, selectedLabelId, track.labels, viewportDurationFrames]);
 	const addLabel = (event = null) => {
-		if (labelBlocked) return;
+		if (labelBlocked || labelTrackEditBlocked(controller, track.id)) return;
 		const pointerFrame = event?.clientX != null && laneRef.current
 			? frameAtLabelClientX(event.clientX, laneRef.current, pixelsPerSecond, sampleRate, renderOriginX)
 			: null;
@@ -101,7 +102,7 @@ export function LabelTrackRow({
 					)}
 					<GhostButton
 						ariaLabel={copy.trackMenu || copy.tracksMenu}
-						tabIndex={-1}
+						tabIndex={0}
 						onClick={(event) => onMenu(event.currentTarget)}
 					/>
 				</div>
@@ -156,6 +157,7 @@ export function LabelTrackRow({
 						onEdit={() => setEditingLabelId(label.id)}
 						onFinishEdit={() => setEditingLabelId(null)}
 						onRemove={() => {
+							if (labelTrackEditBlocked(controller, track.id)) return;
 							const restoreFocus = prepareTimelineLabelRemovalFocus(laneRef.current, label.id);
 							setSelectedLabelId(null);
 							setEditingLabelId(null);
@@ -214,8 +216,9 @@ export function AudacityLabelMarker({
 		if (!pending) return;
 		pendingRef.current = null;
 		setPreview(null);
+		if (blocked || labelTrackEditBlocked(controller, trackId)) return;
 		run(() => controller.actions.labels.update(trackId, label.id, pending));
-	}, [controller, label.id, run, trackId]);
+	}, [blocked, controller, label.id, run, trackId]);
 
 	useEffect(() => {
 		document.addEventListener('mouseup', finishDrag);
@@ -227,7 +230,7 @@ export function AudacityLabelMarker({
 	}, [finishDrag]);
 
 	const previewRange = (startFrame, endFrame) => {
-		if (dragCancellation.cancelledRef.current) return;
+		if (blocked || labelTrackEditBlocked(controller, trackId) || dragCancellation.cancelledRef.current) return;
 		const changes = {
 			startFrame: Math.max(0, Math.min(startFrame, endFrame)),
 			endFrame: Math.max(0, Math.max(startFrame, endFrame)),
@@ -273,7 +276,7 @@ export function AudacityLabelMarker({
 					event.preventDefault();
 					event.stopPropagation();
 					onEdit();
-				} else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+				} else if (isContextMenuKey(event)) {
 					event.preventDefault();
 					event.stopPropagation();
 					const rect = event.currentTarget.getBoundingClientRect();
@@ -318,10 +321,13 @@ export function AudacityLabelMarker({
 				onClick={(event) => event.stopPropagation()}
 				onBlur={(event) => {
 					const title = event.currentTarget.value;
-					if (title !== label.title) run(() => controller.actions.labels.update(trackId, label.id, { title }));
+					if (!blocked && !labelTrackEditBlocked(controller, trackId) && title !== label.title) {
+						run(() => controller.actions.labels.update(trackId, label.id, { title }));
+					}
 					onFinishEdit();
 				}}
 				onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					event.stopPropagation();
 					if (event.key === 'Enter') {
 						event.currentTarget.blur();
@@ -339,6 +345,12 @@ export function AudacityLabelMarker({
 				onClose={() => setContextMenu(null)} />
 		</div>
 	);
+}
+
+function labelTrackEditBlocked(controller, trackId) {
+	const snapshot = controller.getSnapshot();
+	return selectAudioEditorLabelEditBlock(snapshot).blocked
+		|| snapshot.project?.tracks?.some(track => track.id === trackId && track.locked === true);
 }
 
 /**
