@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
+import { encodeWav } from '../../src/common/editor/wav.js';
+import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { decodePinnedVideoRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
 import {
@@ -92,6 +94,32 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 	}, { productId, files: fixtures.map(({ name, mimeType, buffer }) => ({
 		name, mimeType, size: buffer.byteLength, lastModified: 123,
 	})) });
+}
+
+for (const variant of [
+	{ name: 'Dialogue.wav', bitDepth: 24, bext: { description: 'Location dialogue', timeReference: '172800000' } },
+]) {
+	test(`desktop original overwrite retains ${variant.name} delivery facts`, async ({ page }) => {
+		const fixture = { name: variant.name, mimeType: 'audio/wav', buffer: Buffer.from(encodeWav(
+			[Float32Array.from({ length: 2400 }, (_, index) => Math.sin(index / 17) * 0.2)],
+			{ sampleRate: 48_000, bitDepth: variant.bitDepth, bext: variant.bext },
+		)) };
+		await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseFileAction(page, editor, 'Import');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await chooseFileAction(page, editor, `Overwrite ${fixture.name}`);
+		await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.completed.length)).toBe(1);
+		const bytes = Uint8Array.from(await page.evaluate(() => globalThis.__originalOverwriteFixture.completed[0].bytes));
+		const descriptor = await inspectWavBlobPcm(new Blob([bytes]));
+		expect(descriptor?.bitDepth).toBe(variant.bitDepth);
+		expect(descriptor?.sampleRate).toBe(48_000);
+		expect(descriptor?.frameCount).toBe(2400);
+		if (variant.bext) {
+			expect(descriptor?.bext?.description).toBe(variant.bext.description);
+			expect(descriptor?.bext?.timeReference).toBe(variant.bext.timeReference);
+		}
+	});
 }
 
 test.afterEach(async ({ page }) => { await releaseOriginalOverwriteDesktopRenderer(page); });

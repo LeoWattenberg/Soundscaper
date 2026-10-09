@@ -17,6 +17,7 @@ interface NamedByteSource {
 }
 
 interface PcmSettings {
+	readonly format?: string;
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly sampleFormat: string;
@@ -49,7 +50,7 @@ export async function resolveDesktopOriginalExportSettings(
 		const pcm = await pcmSettings(format, file, header);
 		if (pcm !== undefined) {
 			if (!pcm || pcm.channelCount > 2) return null;
-			return Object.freeze({ ...audioBase(format, pcm.sampleRate, pcm.channelCount),
+			return Object.freeze({ ...audioBase(pcm.format ?? format, pcm.sampleRate, pcm.channelCount),
 				sampleFormat: pcm.sampleFormat, bitDepth: pcm.bitDepth });
 		}
 		if (!matchesEncodedContainer(format, header)) return null;
@@ -102,7 +103,9 @@ async function pcmSettings(format: string, file: NamedByteSource, header: Uint8A
 		const bitDepth = descriptor.validBitsPerSample ?? descriptor.bitDepth;
 		const sampleFormat = descriptor.sampleFormat === 'float32' ? 'float32' : `int${String(bitDepth)}`;
 		if (!['int16', 'int20', 'int24', 'float32'].includes(sampleFormat)) return null;
-		return { ...descriptor, sampleFormat, bitDepth };
+		const deliveryFormat = format === 'wav' && (descriptor.bext || descriptor.cart) ? 'bwf' : format;
+		if (deliveryFormat !== 'wav' && sampleFormat === 'float32') return null;
+		return { ...descriptor, sampleFormat, bitDepth, format: deliveryFormat };
 	}
 	if (format === 'aiff') {
 		if (ascii(header, 0, 4) !== 'FORM') return null;
