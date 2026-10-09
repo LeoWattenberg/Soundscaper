@@ -53,6 +53,7 @@ for (const action of ['Cut', 'Cut and leave gap']) test(`a refused labeled ${act
 });
 
 async function drawRange(page, editor) {
+	await editor.getByRole('button', { name: 'Jump to project start', exact: true }).click();
 	const ruler = await editor.locator('[data-ruler]').boundingBox();
 	expect(ruler).not.toBeNull();
 	await page.mouse.move(ruler.x + 24, ruler.y + 26);
