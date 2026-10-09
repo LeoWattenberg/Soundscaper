@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createRecordingController } from '../../../../recording.js';
+import { probeCaptureAudioInputChannelCount } from '../../../../capture-audio-input-channel-probe.ts';
 import { createFramescaperBrowserAudioProcessorRecorder } from './framescaper-browser-audio-processor-recorder.ts';
 import { createFramescaperCapturePcmFrameMapper } from '../framescaper-capture-pcm-frame-mapper.ts';
 import { acquireFramescaperCaptureAudioContext, type FramescaperCaptureAudioContextFactory } from './framescaper-capture-audio-context.ts';
@@ -88,6 +89,7 @@ export interface FramescaperBrowserAudioRecorderOptions {
 	/** Undefined probes the runtime constructor; null explicitly disables it. */
 	readonly MediaStreamTrackProcessor?: FramescaperAudioTrackProcessorConstructor | null;
 	readonly recordingControllerFactory?: FramescaperWorkletRecordingControllerFactory;
+	readonly probeInputChannelCount?: (context: unknown, stream: unknown) => Promise<number>;
 	readonly monitoring?: boolean;
 	readonly inputGain?: number;
 	readonly chunkFrames?: number;
@@ -132,7 +134,7 @@ export async function createFramescaperBrowserAudioRecorder(
 	options: FramescaperBrowserAudioRecorderOptions,
 ): Promise<FramescaperBrowserAudioRecorder> {
 	validateOptions(options);
-	const format = actualTrackFormat(options.track, options.context);
+	const format = await actualTrackFormat(options);
 	const monitoring = Boolean(options.monitoring);
 	const inputGain = normalizeCaptureInputGain(options.inputGain ?? 1);
 	const chunkFrames = boundedInteger(
@@ -159,7 +161,7 @@ export async function createFramescaperBrowserAudioRecorder(
 	const Processor = options.MediaStreamTrackProcessor === undefined
 		? runtimeTrackProcessorConstructor()
 		: options.MediaStreamTrackProcessor;
-	if (Processor && !monitoring && format.nativeSampleRateAvailable) {
+	if (Processor && !monitoring && format.nativeSampleRateAvailable && format.nativeChannelCountAvailable) {
 		return createFramescaperBrowserAudioProcessorRecorder({
 			options, Processor, format, chunkFrames, maximumPendingChunks, inputGain, sink, failures,
 			...(options.context ? { createFallback: () => createWorkletRecorder({
@@ -179,6 +181,7 @@ interface ActualAudioFormat {
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly nativeSampleRateAvailable: boolean;
+	readonly nativeChannelCountAvailable: boolean;
 }
 
 interface FailureChannel {
@@ -367,12 +370,11 @@ function validateOptions(options: FramescaperBrowserAudioRecorderOptions): void 
 	if (typeof options.onChunk !== 'function') throw new TypeError('Capture audio requires a PCM chunk sink.');
 }
 
-function actualTrackFormat(
-	track: FramescaperAudioTrackLike,
-	context: FramescaperBrowserAudioRecorderOptions['context'],
-): ActualAudioFormat {
+async function actualTrackFormat(options: FramescaperBrowserAudioRecorderOptions): Promise<ActualAudioFormat> {
+	const { track, context } = options;
 	const settings = track.getSettings?.();
 	const nativeSampleRateAvailable = settings?.sampleRate !== undefined;
+	const nativeChannelCountAvailable = settings?.channelCount !== undefined;
 	// Some browsers omit this optional hardware setting. Their worklet output
 	// remains on a known context grid; do not claim an unknown AudioData rate.
 	const sampleRate = boundedInteger(
@@ -382,12 +384,13 @@ function actualTrackFormat(
 		'Capture audio actual sample rate',
 	);
 	const channelCount = boundedInteger(
-		settings?.channelCount,
+		nativeChannelCountAvailable ? settings?.channelCount
+			: await (options.probeInputChannelCount ?? probeCaptureAudioInputChannelCount)(context, options.stream),
 		1,
 		CAPTURE_AUDIO_CHANNEL_COUNT_MAXIMUM,
 		'Capture audio actual channel count',
 	);
-	return Object.freeze({ sampleRate, channelCount, nativeSampleRateAvailable });
+	return Object.freeze({ sampleRate, channelCount, nativeSampleRateAvailable, nativeChannelCountAvailable });
 }
 
 function validatePcmChunk(
