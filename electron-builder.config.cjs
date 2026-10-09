@@ -1,13 +1,9 @@
 // @ts-check
 const professionalNativePayloadManifest = require('./config/soundscaper-professional-native-payload-manifest.json');
-const productReleaseLines = require('./config/product-release-lines.json');
 
 const productId = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
 const framescaper = productId === 'framescaper';
 const productName = framescaper ? 'Framescaper' : 'Soundscaper';
-const soundscaperStable = !framescaper
-	&& productReleaseLines.products.soundscaper.applicationVersionChannel === 'stable'
-	&& productReleaseLines.products.soundscaper.releaseChannel === 'stable';
 // Development builds use ad-hoc seals; credentialed release jobs explicitly
 // select a Developer ID identity and require notarization.
 const signing = require('./scripts/lib/desktop-signing-config.cjs').desktopSigningConfig();
@@ -59,12 +55,7 @@ module.exports = {
 		{ from: '.desktop-build/renderer', to: 'renderer' },
 		{ from: '.desktop-build/runtime', to: 'runtime' },
 		{ from: 'LICENSE', to: 'licenses/Soundscaper-AGPL-3.0.txt' },
-		{ from: '.desktop-build/licenses/THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
-		{ from: '.desktop-build/licenses/codecs', to: 'licenses/codecs' },
-		...(soundscaperStable ? [{
-			from: '.desktop-build/licenses/professional-native',
-			to: 'licenses/professional-native',
-		}] : []),
+		{ from: '.desktop-build/licenses', to: 'licenses' },
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },
 	],
 	fileAssociations: [
