@@ -1,6 +1,6 @@
 {
 	"name": "soundscaper",
-	"version": "1.0.0-rc.Oct.9.g",
+	"version": "1.0.0-rc.Oct.9.h",
 	"description": "A local-first multitrack audio editor for the web and desktop.",
 	"private": true,
 	"type": "module",
