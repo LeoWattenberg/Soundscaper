@@ -98,7 +98,7 @@ export function TimelineAnnotationLayer({
 		? timelineAnnotationRegionWidth(editingRow.annotation.durationFrames, pixelsPerSecond, sampleRate)
 		: 2;
 	const pointerDown = (event, eventRow) => {
-		if (blocked || event.button !== 0 || event.target.closest?.('input')) return;
+		if (blocked || event.button !== 0 || event.isPrimary === false || dragRef.current || event.target.closest?.('input')) return;
 		const edge = timelineAnnotationPointerEdge(event.target.dataset?.annotationEdge);
 		let row = eventRow;
 		if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
