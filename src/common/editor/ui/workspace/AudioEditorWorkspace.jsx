@@ -270,6 +270,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		focusedRecordingTrackId(project, snapshot.selectedTrackId, showArmControls), snapshot.recordingInputs?.routes);
 	const editItems = createWorkspaceEditItems({
 		copy, editBlocked, editSelectionActive, hasClipboard: Boolean(snapshot.history?.hasClipboard), splitAvailable: editingActions.split,
+		pasteTargetLocked: Boolean(snapshot.history?.pasteTargetLocked),
 	});
 
 	const executeEdit = useCallback(
