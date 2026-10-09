@@ -603,3 +603,25 @@ EQ still has an actual silent output gap, and frozen-export/Contrast workflows
 reach their repaired causal assertions before later download/zero controls
 fail. All five remain pending until their entire retained workflows pass.
 No manual **Update AI assets** run is required.
+
+Immutable Green33 `ae7939d4e` completes all15 focused Chromium workflows in59.1
+seconds (`/tmp/soundscaper-round6-green33-chromium.log`), after both guarded
+product builds pass (`/tmp/soundscaper-round6-green33-build.log`). This verifies
+dialog057/060/061, effects040/042, editing051 and I/O032. Native primary and
+secondary-touch completion, actual continuous output PCM, exact exported clocks,
+ordinary controls and Undo/Redo remain asserted. The uncounted EDIT046 timeline
+lock continuation also completes all three ordinary audio/video/header checks.
+The previously complete same-build Green32 I/O031 ZIP download and effects041
+real quiet/silent WAV checks qualify those two roots; their stale-link and
+all-muted fixture mistakes remain excluded. There are **184 distinct verified
+fixes**: editing51, effects42, I/O31 and dialogs60. Pending candidates never
+enter this count.
+
+The complete Green32 static gate on `a1a725fc1` exits0, including all seven
+repository lint shards, strict types, architecture and ownership checks, policy
+and runtime audits, documentation checks and the guarded production build
+(`/tmp/soundscaper-round6-green32-static.log`). Green33's complete static gate
+is running for its additional shared type changes. Full100 all-engine browser
+checks on `ba2dac3c3` continue; the full150 all-engine run remains queued behind
+them. These runs are not recorded as passing before their actual completion.
+No assistance runtime asset update is required.

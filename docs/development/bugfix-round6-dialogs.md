@@ -227,3 +227,14 @@ pass18/18 (`/tmp/soundscaper-round6-native-range-touch-owner-node-green2.log`).
 Narrow strict TypeScript, targeted lint, changed lint, size and owned diff pass.
 Both whole public workflows must pass the next actual build. This completion
 adds zero roots; the only pending candidates are the original057 and060.
+
+Immutable Green33 `ae7939d4e` verifies the production native touch completion
+of057 and060, without diagnostic script instrumentation. The complete video
+range controls pass8.1/8.5seconds, and the parametric output fader controls
+pass3.4/3.0seconds; each keeps its ordinary Apply/Undo/Redo assertions. The
+retained native secondary release observer confirms it is the second finger.
+The frequency ruler's whole composing Escape/Enter and completed draft controls
+pass2.0/1.9seconds, qualifying061. All15 checks pass in59.1seconds
+(`/tmp/soundscaper-round6-green33-chromium.log`). The dialog register therefore
+contains60 distinct publicly verified roots;019 remains excluded. The native
+touch helper diagnostic was removed and contributes zero count.
