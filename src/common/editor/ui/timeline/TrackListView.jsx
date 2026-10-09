@@ -113,7 +113,7 @@ export function TrackListView({
 		run(() => trackFolderActions.rename(folderId, trimmed));
 	};
 	const onFolderKeyDown = (event, folderId) => {
-		if (editingFolderId !== null) return;
+		if (editingFolderId !== null || event.defaultPrevented || event.ctrlKey || event.metaKey) return;
 		if (event.altKey) {
 			const move = resolveTrackFolderMoveKey(event.key, folderId, plan);
 			if (move === null) return;
