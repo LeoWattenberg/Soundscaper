@@ -11,6 +11,7 @@ import { createAudacityLabelActionRuntime } from './audacity-label-action-runtim
 import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
 import { relativeNavigationClipId } from './audacity-shortcut-actions/relative-item-navigation.ts';
 import { visibleNavigationTracks } from './audacity-shortcut-actions/visible-navigation-tracks.ts';
+import { applyAudacityTrackScope } from './audacity-shortcut-actions/track-scope-selection.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -228,7 +229,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			const advanced = advanceAudacityTrackSelection({ trackIds: tracks.map(({ id }) => id), focusedTrackId: selectedTrackId(), selectedTrackIds: selection.trackIds || [], direction });
 			if (!advanced) return null;
 			controllerActions.timeline.selectTrack(advanced.focusedTrackId);
-			setSelection(selection.startFrame, selection.endFrame, { trackIds: advanced.selectedTrackIds });
+			applyAudacityTrackScope(currentProject, advanced.selectedTrackIds, controllerActions.timeline.adjustSelection);
 			return advanced.focusedTrackId;
 		} else controllerActions.timeline.selectTrack(next.id);
 		return next.id;
@@ -239,14 +240,14 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		const currentProject = project();
 		const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
 		const trackIds = audacityToggledTrackSelection({ trackIds: currentProject.tracks.map(({ id }) => id), focusedTrackId: track.id, selectedTrackIds: selection.trackIds || [] }, mode);
-		return setSelection(selection.startFrame, selection.endFrame, { trackIds });
+		return applyAudacityTrackScope(currentProject, trackIds, controllerActions.timeline.adjustSelection);
 	}
 	function selectCurrentTrackRange() {
 		const currentProject = project();
 		if (!currentProject) return null;
 		const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
 		const trackIds = audacityTrackRangeSelection({ trackIds: currentProject.tracks.map(({ id }) => id), focusedTrackId: selectedTrackId(), selectedTrackIds: selection.trackIds || [] });
-		return setSelection(selection.startFrame, selection.endFrame, { trackIds });
+		return applyAudacityTrackScope(currentProject, trackIds, controllerActions.timeline.adjustSelection);
 	}
 	function removeRealtimeEffect(effectId = null) {
 		const track = selectedTrack();
