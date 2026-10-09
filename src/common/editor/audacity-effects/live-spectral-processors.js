@@ -34,6 +34,17 @@ const CLICK_HOP_SIZE = 4_096;
 
 export class ClickRemovalLiveProcessor extends LiveProcessor {
 	constructor(sampleRate, params) { super('audacity-click-removal', sampleRate, params); this.reset(); }
+	updateParams(params = {}) {
+		const latency = this.latencyFrames;
+		const state = {
+			overlap: this.overlap, incoming: this.incoming,
+			outputQueues: this.outputQueues, separation: this.separation,
+		};
+		super.updateParams(params);
+		// Threshold edits affect subsequent windows; already repaired overlap and
+		// pending PCM keep their clock unless immediate bypass changes geometry.
+		if (this.latencyFrames === latency) Object.assign(this, state);
+	}
 	reset() {
 		this.overlap = null;
 		this.incoming = [];

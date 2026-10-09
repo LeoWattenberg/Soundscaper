@@ -1696,3 +1696,41 @@ geometry, bypass, revision, dynamics, EQ and exact prior DSP controls pass
 passes. Complete built native public verification remains pending; this entry
 adds no verified count yet. No assistance runtime assets change and no manual
 **Update AI assets** run is required.
+
+## R6-EFFECT-045 — A Click Removal threshold edit forgets already repaired audio
+
+Import a normal continuous recording, add Click Removal in its Effects panel,
+play and change the numeric Threshold from 200 to 201. The actual native
+recording drops 18,176 output frames. Its own overlapping detection-window
+processor discards partially collected input, already repaired overlap and
+pending output whenever a parameter changes. A repaired click in that overlap
+is lost as well as the clean recording's established analysis clock. This is
+the independently owned click detector and window pipeline, separate from EQ
+convolution and dynamics lookahead; all Click Removal parameter variants form
+one root.
+
+Retain its overlap, partial input, output queues and detector separation when
+the normalized latency remains unchanged. A zero threshold or zero maximum
+width still switches immediately to direct bypass, and switching back starts
+fresh window geometry. Explicit reset still discards pending audio. Extend the
+existing native rack transaction to this processor across unchanged latency;
+that generic dispatch completion is grouped with R6-EFFECT-040 and adds zero
+roots. Leave the generic processor base unchanged.
+
+The complete ordinary rack/numeric/native-playback workflow is causally RED
+on unchanged Green34 `08212b4eb`, after its healthy output control remains above
+RMS 0.296089 (`/tmp/soundscaper-r6-fx045-public-red.log`, 11.3 seconds). Three
+strict clean-recording and repaired-overlap PCM cases fail while all three
+bypass, changed-latency and explicit-reset controls pass
+(`/tmp/soundscaper-r6-fx045-node-red2.log`). The original overlap fixture's
+background was too loud to prove click repair; its causal queue failure is
+retained but the corrected quieter background additionally proves the original
+full-scale click was repaired before the edit. Two rack admission cases fail
+before repair (`/tmp/soundscaper-r6-fx045-rack-node-red.log`). All 57 new and
+existing live processors, Reverb, rack revision, geometry, bypass and gesture
+controls pass (`/tmp/soundscaper-r6-fx045-node-green.log`), and both original
+round-two and round-three exact DSP parity cases retain their expected PCM and
+profile words (`/tmp/soundscaper-r6-fx045-parity.log`). Focused strict compilation
+passes. Complete built native public verification remains pending; this entry
+adds no verified count yet. No assistance runtime assets change and no manual
+**Update AI assets** run is required.
