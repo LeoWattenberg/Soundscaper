@@ -124,3 +124,14 @@ reopen-language fixture (`/tmp/soundscaper-round6-translation-composition-final-
 That brings the individually verified count to 59; the larger public batch
 remains in progress. The unsupported recording-dialog command hypothesis is
 retired and excluded with zero count.
+
+The complete `81a707b96` public batch finishes with 255 passed and six failed
+(`/tmp/soundscaper-round6-green9-public-browser.log`, 261 checks). Three are
+the excluded recording-dialog command hypothesis. The other three reach the
+repaired translation composition, saving and ordinary dismissal assertions,
+then use the wrong reopen locale; the same build separately passes all three
+corrected complete workflows. Every other check passes, including unchanged
+retries of the prior load-related failures. Editing 001–025, effects 001–014,
+ten qualifying I/O roots (001–003 and 005–011), and twenty qualifying dialog
+roots (001–018, 020–021) give 69 distinct publicly verified fixes. Source edits
+after that immutable build remain pending and do not add to this count.
