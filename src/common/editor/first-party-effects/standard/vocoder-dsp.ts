@@ -131,15 +131,18 @@ export function createVocoderProcessor({ sampleRate, channelCount, params = {} }
 				radarPhase += radarIncrement;
 				const additionalCarrier = noise * noiseGain + pulse * radarGain;
 				let mixedCarrier = externalCarrier * trackGain + additionalCarrier;
-				let vocoded = 0;
+				// Every synthesis band must receive the same complete mono carrier.
 				for (let band = 0; band < settings.bands; band += 1) {
-					let detected = Math.abs(analysis[band].process(modulator));
-					for (const section of envelope[band]) detected = section.process(detected);
 					const real = oscillatorReal[band];
 					const imaginary = oscillatorImaginary[band];
 					oscillatorReal[band] = real * rotationReal[band] - imaginary * rotationImaginary[band];
 					oscillatorImaginary[band] = imaginary * rotationReal[band] + real * rotationImaginary[band];
 					if (channelCount === 1) mixedCarrier += imaginary * .5 * trackGain / settings.bands;
+				}
+				let vocoded = 0;
+				for (let band = 0; band < settings.bands; band += 1) {
+					let detected = Math.abs(analysis[band].process(modulator));
+					for (const section of envelope[band]) detected = section.process(detected);
 					const carried = carrier[band].process(mixedCarrier);
 					vocoded += synthesis[band].process(carried * detected);
 				}

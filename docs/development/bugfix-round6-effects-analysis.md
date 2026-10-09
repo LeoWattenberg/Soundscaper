@@ -14,7 +14,7 @@ R6-EFFECT-015–016 and the INDEX follow-through of R6-EFFECT-011 pass all three
 engines on immutable Green10 `68655eafb`
 (`/tmp/soundscaper-round6-green10-public-browser.log`), bringing this register to
 sixteen verified roots. The INDEX follow-through adds no root.
-R6-EFFECT-017–018 have causal public RED and focused GREEN and await a later build.
+R6-EFFECT-017–019 have causal public RED and focused GREEN and await a later build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -548,3 +548,37 @@ strict types, targeted type-aware lint and the size gate pass. The next full
 Node suite checkpoint will include this shared helper. Public GREEN awaits the
 next immutable product build. No assistance runtime assets change and no
 manual **Update AI assets** run is required.
+
+## R6-EFFECT-019 — Mono Vocoder filters an incomplete synthesized carrier
+
+Import an ordinary mono recording containing several voice-band tones and a
+stereo recording with the same modulator on the left and the documented full
+ten-tone synthesized carrier on the right. Apply Effect → Distortion and
+modulation → Vocoder with ten bands and Output set to Vocoded audio to each,
+using the normal track Mute controls to export their results separately.
+Equivalent carrier inputs should produce the same vocoded signal, but the
+baseline mono export has correlation 0.98671 with the explicit full-carrier
+export instead of greater than 0.999. Scale-independent correlation accounts
+for ordinary mono/stereo track pan gains and WAV quantization.
+
+The mono oscillator sum was built inside the analysis/synthesis loop. Its
+first filter saw only the first oscillator, while each subsequent filter saw
+one additional tone. Assemble the complete carrier before running any band so
+every analysis/synthesis pair receives the same signal. Explicit stereo,
+noise and radar carriers retain their existing routing and deterministic
+behavior. This is one carrier-assembly defect, unrelated to R6-EFFECT-009's
+fresh Noise-generator job seeds.
+
+The ordinary menu/apply/export workflow is causally RED at correlation
+0.9867059 (`/tmp/soundscaper-r6-effects-vocoder-mono-carrier-browser-red2.log`).
+An earlier fixture retained a clip-name locator after the effect renamed that
+clip and is excluded. Two strict actual-DSP cases independently fail at peak
+sample residuals 0.16692 and 0.29562 for ten and forty bands; block-continuity,
+stereo-routing and silent-modulator controls pass before correction
+(`/tmp/soundscaper-r6-effects-vocoder-mono-carrier-node-red.log`). All thirty-six
+new/existing modulation, actual worklet, selection-tail and effect-integration
+cases pass after repair
+(`/tmp/soundscaper-r6-effects-vocoder-mono-carrier-node-green.log`). Focused
+strict types, targeted type-aware lint and the size gate pass. Public GREEN
+awaits the next immutable product build. No assistance runtime assets change
+and no manual **Update AI assets** run is required.
