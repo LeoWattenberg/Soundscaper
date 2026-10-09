@@ -65,7 +65,7 @@ test('analysis does not render or publish a cache entry after the project revisi
 	assert.deepEqual(fixture.saved, []);
 });
 
-function createFixture(cached: unknown) {
+function createFixture(cached: unknown, frames = 4) {
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const generation = new EditorProjectGeneration();
@@ -84,14 +84,14 @@ function createFixture(cached: unknown) {
 		assertProject: (token: ReturnType<EditorProjectGeneration['capture']>) => generation.assertCurrent(token),
 		getProject: () => ({ id: 'analysis-project', revision: 1, clips: [{}] }),
 		getSelectedTrackId: () => null,
-		getRange: () => ({ startFrame: 0, endFrame: 4 }),
+		getRange: () => ({ startFrame: 0, endFrame: frames }),
 		getActiveSelection: () => null, getSpectrumWindowSize: () => 32,
 		getContrastSelections: () => ({ foreground: null, background: null }), setContrastSelections() {},
 		loadAnalysis: async () => cached,
 		saveAnalysis: async (_key: string, value: unknown) => { saved.push(value); },
 		renderAudio: async () => {
 			renders += 1;
-			return { sampleRate: 48_000, numberOfChannels: 1, length: 4, getChannelData: () => new Float32Array(4) };
+			return { sampleRate: 48_000, numberOfChannels: 1, length: frames, getChannelData: () => new Float32Array(frames) };
 		},
 		analyzeChannels: async () => ({ rmsDbfs: -12 }), createVisuals: () => null,
 		showAnalysis() {}, setProcessing() {}, setStatus() {}, publish() {},
@@ -117,7 +117,7 @@ test('computed levels are published before their cache write completes', async (
 });
 
 test('specialized reports appear before generic meters and repeated reports reuse complete cached results', async () => {
-	const f = createFixture(null);
+	const f = createFixture(null, 32);
 	let release!: (result: Record<string, unknown>) => void;
 	const meters = new Promise<Record<string, unknown>>(resolve => { release = resolve; });
 	const shown: unknown[][] = [];
@@ -143,7 +143,7 @@ test('specialized reports appear before generic meters and repeated reports reus
 
 for (const cachedLevels of [false, true]) {
 	test(`complete analysis publication releases busy state in the same batch (cached levels: ${cachedLevels})`, async () => {
-		const f = createFixture(cachedLevels ? { result: { rmsDbfs: -24 } } : null);
+		const f = createFixture(cachedLevels ? { result: { rmsDbfs: -24 } } : null, cachedLevels ? 4 : 32);
 		let batch = 0; let nextBatch = 0;
 		const observed: Array<{ kind: string; batch: number }> = [];
 		const service = createAudioAnalysisService({ ...f.dependencies,

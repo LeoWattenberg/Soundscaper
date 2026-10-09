@@ -227,6 +227,9 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				return cached.report;
 			}
 			const { channels, sampleRate } = await renderChannels(request, task, projectToken);
+			if (type === 'spectrum' && (channels[0]?.length ?? 0) < Number(reportOptions.size)) {
+				throw createLocalizedError(RangeError, copy, 'spectrumSelectionTooShort', { samples: Number(reportOptions.size) });
+			}
 			const visuals = dependencies.createVisuals(channels, sampleRate);
 			const abort = new AbortController();
 			const signal = AbortSignal.any([task.signal, abort.signal]);
