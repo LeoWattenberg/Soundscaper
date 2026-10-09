@@ -348,6 +348,8 @@
 		,
 		{ "path": "src/common/editor/gray-video-frame-sampling-v1.ts", "kind": "persisted-contract", "justification": "gray-video-frame-sampling-v1.ts is a persisted video sampling contract revision shared by motion-processing consumers." }
 		,
+		{ "path": "src/common/editor/imaging/cube-lut-resource-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped cube resource owns a bounded raw byte copy, reuses private V27 parsing and exact reference verification, joins intrinsic native cancellation and the borrowed-body consumer, and wipes its owned raw bytes without claiming frozen parser floats are wipeable." }
+		,
 		{ "path": "src/common/editor/imaging/exif-capture-time-v1.ts", "kind": "helper-contract", "justification": "Bounded EXIF capture-time interpretation for the immutable image metadata version 1 model." }
 		,
 		{ "path": "src/common/editor/imaging/exif-color-admission-v1.ts", "kind": "helper-contract", "justification": "EXIF declarations admitted by the initial photo source color profile, independently of persisted gamut descriptors." }
@@ -389,6 +391,8 @@
 		{"path": "src/common/editor/imaging/pixel-frame-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Clarity owns one bounded encoded-sRGB source snapshot and one output, applies replicated-edge alpha-weighted seven-by-seven binomial luma neighborhoods with exact signed Q8 midtone contrast, and joins cancellation and consumer settlement before wiping both owned backings."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-cube-lut-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped encoded-sRGB LUT evaluation reuses the V27 linear Rec709 grade and trilinear kernel with one bounded output, borrowed immutable source and verified resource, task yields and intrinsic transfer fences, joining consumer settlement before wiping owned byte buffers." }
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Dehaze owns one immutable encoded-sRGB snapshot and one output, estimates white-atmosphere transmission from replicated-edge alpha-aware three-by-three dark neighborhoods, joins native cancellation and consumer settlement, and wipes captured backings including second allocation refusal." }
 		,
