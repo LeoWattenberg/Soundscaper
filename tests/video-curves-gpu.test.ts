@@ -80,7 +80,7 @@ function fixture() {
 	} as unknown as WebGL2RenderingContext; return owner;
 }
 test('maintained preview dispatcher admits both curve owners and preserves disabled/neutral identity without legacy numeric fallback', () => {
-	assert.equal(EFFECT_PROGRAM_COUNT, 32);
+	assert.equal(EFFECT_PROGRAM_COUNT, 33);
 	for (const [type, code, params] of [['point-curves-v1', 24, { master: [{ x: 0, y: 1 }, { x: 1, y: 0 }] }],
 		['parametric-curves-v1', 25, { masterShadows: 100 }]] as const) {
 		const effect = { id: 'curve', type, enabled: true, params }, passes = videoEffectPasses(effect);

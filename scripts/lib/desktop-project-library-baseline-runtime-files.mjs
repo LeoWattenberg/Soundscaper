@@ -79,6 +79,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-post-crop-vignette-v1.js',
 	'src/common/editor/video-clarity-v1.js',
 	'src/common/editor/video-grain-v1.js',
+	'src/common/editor/video-texture-v1.js',
 	'src/common/editor/video-noise-reduction-v1.js',
 	'src/common/editor/video-noise-reduction-ffmpeg-v1.js',
 	'src/common/editor/video-original-alpha-ffmpeg-v1.js',

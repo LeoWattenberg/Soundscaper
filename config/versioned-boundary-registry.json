@@ -409,6 +409,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped detail sharpening snapshots bounded straight encoded-sRGB pixels, evaluates alpha-weighted replicated-edge three-by-three binomial neighborhoods with exact Q8 gain, joins cancellation and wipes both owned backings after consumer settlement or failed allocation." }
 		,
+		{"path": "src/common/editor/imaging/pixel-frame-texture-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Texture owns one immutable encoded-sRGB source snapshot and one output, evaluates separately rounded alpha-weighted three/five binomial luma means with a protected coarse-edge gate, joins processing yields and consumer settlement, and wipes both captured backings on success or refusal."}
+		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
 		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -542,6 +544,8 @@
 		,
 		{ "path": "src/common/editor/ui/video-preview-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 native detail shader evaluates straight byte alpha-weighted replicated-edge three-by-three binomial neighborhoods through texelFetch and bounded highp integers with explicit signed Q8 floor rounding." }
 		,
+		{"path": "src/common/editor/ui/video-preview-texture-v1.ts", "kind": "helper-contract", "justification": "Version 1 code32 Texture shader reads twenty-five replicated original straight-byte texels, separately rounds alpha-weighted three/five binomial luma means, and applies bounded highp integer signed Q8 medium-band contrast with exact alpha and zero-alpha hidden RGB."}
+		,
 		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-delivery-v15.ts", "kind": "persisted-contract", "justification": "unified-exact-render-delivery-v15.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -657,6 +661,10 @@
 		{ "path": "src/common/editor/video-source-color-interpretation-v27.ts", "kind": "persisted-contract", "justification": "video-source-color-interpretation-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-source-professional-characteristics-v25.ts", "kind": "persisted-contract", "justification": "video-source-professional-characteristics-v25.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{"path": "src/common/editor/video-texture-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 Texture graph authenticates its exact private compiled operation before composing separately rounded original-alpha luma neighborhoods through output-scoped split and merge labels for repeated or mixed authored stages."}
+		,
+		{"path": "src/common/editor/video-texture-v1.ts", "kind": "persisted-contract", "justification": "Version 1 Texture retains one closed fractional amount under srgb-alpha-binomial3-5-luma-texture-q8-v1. Exact JavaScript Q8 preparation, separately rounded three/five alpha-weighted luma means, replicated edges, a protected coarse-edge gate, signed nearest RGB offset and explicit clipping define deterministic authored byte evaluation without changing older processes or persisting derived planes."}
 		,
 		{ "path": "src/common/editor/video-transition-v1.ts", "kind": "persisted-contract", "justification": "video-transition-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,

@@ -28,6 +28,8 @@ belong in Git history, not in the maintained documentation set.
   defines per-version history, scoped rendering, settings selection, and durable batch receipts.
 - [Full-resolution Develop inspection](architecture/lightscaper-develop-full-resolution-zoom.md)
   defines authenticated original reads, fixed render profiles and scoped zoom presentation.
+- [Shared Texture](architecture/video-texture.md)
+  defines deterministic alpha-weighted medium-frequency luma contrast and shared render ownership.
 - [Shared deterministic Grain](architecture/video-grain.md)
 - [Shared RGB noise reduction](architecture/video-noise-reduction.md)
   defines reversible luma/chroma neighborhoods, integer process math and original-alpha transport.

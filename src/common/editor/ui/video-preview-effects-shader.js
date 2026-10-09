@@ -3,6 +3,7 @@ import { POST_CROP_VIGNETTE_GLSL_V1 } from './video-preview-post-crop-vignette-v
 import { CLARITY_GLSL_V1 } from './video-preview-clarity-v1.ts';
 import { NOISE_REDUCTION_GLSL_V1 } from './video-preview-noise-reduction-v1.ts';
 import { GRAIN_GLSL_V1 } from './video-preview-grain-v1.ts';
+import { TEXTURE_GLSL_V1 } from './video-preview-texture-v1.ts';
 import { DETAIL_SHARPEN_GLSL_V1 } from './video-preview-sharpen-v1.ts';
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_GLSL_V1 } from '../video-chroma-develop-v1.ts';
@@ -43,6 +44,7 @@ ${POST_CROP_VIGNETTE_GLSL_V1}
 ${CLARITY_GLSL_V1}
 ${NOISE_REDUCTION_GLSL_V1}
 ${GRAIN_GLSL_V1}
+${TEXTURE_GLSL_V1}
 ${DETAIL_SHARPEN_GLSL_V1}
 ${GLOBAL_DEVELOP_GLSL_V1}
 ${CHROMA_DEVELOP_GLSL_V1}
@@ -118,6 +120,7 @@ void main() {
 	if (u_effect == 29) { out_color = clarity_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 30) { out_color = noise_reduction_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 31) { out_color = grain_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
+	if (u_effect == 32) { out_color = texture_effect_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 27) { out_color = detail_sharpen_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 20) { out_color = geometry_render(content_uv) * vec4(1.0, 1.0, 1.0, u_opacity); return; }
 	vec4 color = u_effect == 0 ? sample_frame(v_uv) : sample_content(content_uv);

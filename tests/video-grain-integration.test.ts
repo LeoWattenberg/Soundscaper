@@ -22,8 +22,8 @@ const descriptor = (width:number) => ({ schemaVersion:1, width, height:1, sample
 
 test('shared Grain registration adds one closed family and private export operation after Noise without replacing legacy types', () => {
 	const effect = grain(); assert.deepEqual(normalizeVideoEffect(effect), effect);
-	assert.equal(VIDEO_EFFECT_TYPES.length,26); assert.equal(Object.keys(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1).length,14);
-	assert.equal(EFFECT_PROGRAM_COUNT,32); assert.equal(EFFECT_CODES['noise-reduction-v1'],30); assert.equal(EFFECT_CODES['grain-v1'],31);
+	assert.equal(VIDEO_EFFECT_TYPES.length,27); assert.equal(Object.keys(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1).length,15);
+	assert.equal(EFFECT_PROGRAM_COUNT,33); assert.equal(EFFECT_CODES['noise-reduction-v1'],30); assert.equal(EFFECT_CODES['grain-v1'],31);
 	assert.deepEqual(Object.keys(videoEffectDefinition('grain-v1').params),['amount','size','roughness','seed']);
 	assert.deepEqual(videoEffectPasses(effect),[{code:31,params0:[256,512,0,7],params1:[0,0,0,0],direction:[0,0]}]);
 	const operation = serializeVideoEffectsToFfmpegOperations([effect])[0]; assert.ok(operation); assertGrainFfmpegOperationV1(operation);

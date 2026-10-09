@@ -41,6 +41,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | RGB Split | `rgb-split` | 2 |
 | Sharpen | `sharpen` | 1 |
 | Spill Suppression | `spill-suppression` | 2 |
+| Texture | `texture-v1` | 1 |
 | Tone | `tone-ladder-v1` | 6 |
 | Vibrance and saturation | `chroma-v1` | 2 |
 | Vignette | `vignette` | 1 |
@@ -180,6 +181,7 @@ Defaults and limits come from the same definitions the editor validates against.
 | Sharpen | Amount | 0.5 | 0 to 2 | — |
 | Spill Suppression | Screen color | Green | Green; Blue | — |
 | Spill Suppression | Strength | 0.5 | 0 to 1 | — |
+| Texture | Amount | 0 | -100 to 100 | — |
 | Tone | Exposure (stops) | 0 | -5 to 5 | — |
 | Tone | Contrast | 0 | -100 to 100 | — |
 | Tone | Highlights | 0 | -100 to 100 | — |
