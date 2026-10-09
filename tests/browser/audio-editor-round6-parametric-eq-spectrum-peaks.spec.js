@@ -26,6 +26,8 @@ for (const variant of ['neighboring bin', 'skipped high-frequency bin']) {
 		await addRackEffect(page, initialPanel, 'track', 'Parametric EQ');
 		const inputCanvas = page.locator('.audio-editor-parametric-eq__spectrum--input');
 		await expect.poll(() => inputCanvas.evaluate(canvas => canvas.width)).toBeGreaterThan(100);
+		await expect.poll(() => inputCanvas.evaluate(canvas => canvas.width === Math.max(1,
+			Math.round(canvas.getBoundingClientRect().width * Math.min(2, window.devicePixelRatio || 1))))).toBe(true);
 		const width = await inputCanvas.evaluate(canvas => canvas.width);
 		// Select a normal high-frequency tone halfway between visible samples,
 		// and a neighboring tone actually sampled by the original graph.
@@ -45,15 +47,16 @@ for (const variant of ['neighboring bin', 'skipped high-frequency bin']) {
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => window.__round6EqSpectrum?.level ?? -120)).toBeGreaterThan(-35);
 		const plot = await inputCanvas.evaluate(canvas => {
-			const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-			let top = canvas.height; let first = 0; let last = 0;
-			for (let x = 0; x < canvas.width; x++) {
-				for (let y = 0; y < canvas.height; y++) if (pixels[(y * canvas.width + x) * 4 + 3] > 20) {
+			const { width, height } = canvas;
+			const pixels = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+			let top = height; let first = 0; let last = 0;
+			for (let x = 0; x < width; x++) {
+				for (let y = 0; y < height; y++) if (pixels[(y * width + x) * 4 + 3] > 20) {
 					if (y < top) { top = y; first = x; last = x; } else if (y === top) last = x;
 					break;
 				}
 			}
-			return { top: top / canvas.height, peakX: (first + last) / 2 };
+			return { width, height, top: top / height, peakX: (first + last) / 2 };
 		});
 		const observed = await page.evaluate(() => window.__round6EqSpectrum);
 		console.log('ordinary EQ input spectrum high tone', { frequency, fftBin, width, plot, observed });
@@ -62,7 +65,7 @@ for (const variant of ['neighboring bin', 'skipped high-frequency bin']) {
 		expect(Math.abs(observed.index - fftBin)).toBeLessThanOrEqual(1);
 		expect(observed.level).toBeGreaterThan(-35);
 		expect(plot.top).toBeLessThan(.35);
-		const expectedX = Math.log(frequency / 10) / Math.log(23_520 / 10) * (width - 1);
+		const expectedX = Math.log(frequency / 10) / Math.log(23_520 / 10) * (plot.width - 1);
 		expect(Math.abs(plot.peakX - expectedX)).toBeLessThan(4);
 	});
 }

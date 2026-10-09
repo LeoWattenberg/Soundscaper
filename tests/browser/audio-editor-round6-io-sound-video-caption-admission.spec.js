@@ -3,6 +3,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, disableNativeSavePicker, importFiles, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const video = createDeterministicSilentVideoFixture('recorded.webm');
 const caption = { name: 'dialogue.srt', mimeType: 'application/x-subrip',
@@ -21,9 +22,17 @@ for (const captions of [false, true]) test(`Soundscaper video ${captions ? 'does
 		await expect(dialog.locator('[data-export-field="captionDeliveryUnavailable"]')).toContainText('Soundscaper');
 		await expect(dialog.locator('[data-export-field="captionDeliveryUnavailable"]')).toContainText('Export labels');
 	}
+	const webGl2Available = await page.evaluate(hasWebGl2Capability);
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	const link = dialog.locator('[data-export-download]');
-	await expect(link.filter({ visible: true }).or(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]'))).toBeVisible({ timeout: 20_000 });
+	const error = page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]');
+	await expect(link.filter({ visible: true }).or(error)).toBeVisible({ timeout: 20_000 });
+	if (!webGl2Available) {
+		await expect(error).toBeVisible();
+		await expect(error).toContainText('WebGL2 is unavailable.');
+		await expect(link).toBeHidden();
+		return;
+	}
 	await expect(link).toBeVisible();
 	await expect(link).toHaveAttribute('download', /\.webm$/u);
 	const bytes = await readDownloadBytes(page, link);
