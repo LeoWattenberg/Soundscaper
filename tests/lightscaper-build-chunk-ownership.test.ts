@@ -14,6 +14,45 @@ const scalarModules = ['controller/shared/photo-library-definition-reader.ts', '
 	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
 	'controller/shared/photo-library-compare-v1.ts', 'controller/shared/photo-library-survey-v1.ts'];
 
+const currentPhotoOwners = [
+	['controller/shared/photo-library-develop-command-v2.ts', 'editor-photo-library-scalars'],
+	['controller/shared/photo-library-develop-workflow-v2.ts', 'editor-photo-library-scalars'],
+	['controller/shared/photo-library-develop-settings-intent-v2.ts', 'editor-photo-library-scalars'],
+	['controller/shared/photo-library-develop-settings-workflow-v2.ts', 'editor-photo-library-scalars'],
+	['controller/shared/photo-library-workflow-slot-v2.ts', 'editor-photo-library-scalars'],
+	['controller/shared/photo-library-develop-presentation-v2.ts', 'editor-pixel-preview-presentation'],
+	['photo-library-develop-proxy-port-v2.ts', 'editor-neutral-foundations'],
+] as const;
+
+for (const [module, owner] of currentPhotoOwners) test(`current Photo exact chunk owner: ${module}`, () => {
+	for (const separator of ['/', '\\']) {
+		const path = (directory + module).replaceAll('/', separator);
+		assert.equal(chunkGroupForModulePath(path), owner, path);
+		for (const impostor of [path + '.foreign', path.replace('-v2.ts', '-future-v2.ts'), path.replace('-v2.ts', '-v3.ts')]) {
+			assert.notEqual(chunkGroupForModulePath(impostor), owner, impostor);
+		}
+	}
+	const group = chunkGroups.find(candidate => candidate.name === owner); assert.ok(group);
+	assert.equal(group.priority, 99); assert.equal(group.minSize, 0); assert.equal(group.maxSize, 400_000);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(EAGER_CHUNK_GROUPS.has(owner), owner !== 'editor-pixel-preview-presentation');
+});
+
+test('current Photo aliases retain every original workflow, presentation and typed port owner', () => {
+	for (const [modules, owner] of [
+		[['develop-command', 'develop-workflow-v1', 'develop-settings-intent', 'develop-settings-workflow-v1', 'workflow-slot'], 'editor-photo-library-scalars'],
+		[['develop-presentation-v1'], 'editor-pixel-preview-presentation'],
+	] as const) for (const module of modules) for (const separator of ['/', '\\']) {
+		assert.equal(chunkGroupForModulePath((directory + `controller/shared/photo-library-${module}.ts`).replaceAll('/', separator)), owner);
+	}
+	for (const kind of ['proxy', 'original', 'full-resolution']) for (const separator of ['/', '\\']) {
+		assert.equal(chunkGroupForModulePath((directory + `photo-library-develop-${kind}-port-v1.ts`).replaceAll('/', separator)), 'editor-neutral-foundations');
+	}
+	for (const kind of ['original', 'full-resolution']) {
+		assert.notEqual(chunkGroupForModulePath(directory + `photo-library-develop-${kind}-port-v2.ts`), 'editor-neutral-foundations');
+	}
+});
+
 test('fixed closed effect families own one exact imaging leaf without foreign registrations', () => {
 	const path = directory + 'video-effect-closed-families-v1.ts';
 	for (const candidate of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), 'editor-imaging');

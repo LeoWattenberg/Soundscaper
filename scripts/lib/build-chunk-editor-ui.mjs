@@ -19,7 +19,7 @@ export const editorUiChunkGroups = [
 		// and the archive limit share no product domain imports. One neutral owner
 		// avoids timeline passengers and preserves startup request ceilings.
 		name: 'editor-neutral-foundations',
-		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|native-media-plan-canonical-form|photo-library-develop-(?:proxy|original|full-resolution)-port-v1|photo-library-saved-collection-port-v1|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
+		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|native-media-plan-canonical-form|photo-library-develop-(?:(?:proxy|original|full-resolution)-port-v1|proxy-port-v2)|photo-library-saved-collection-port-v1|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -30,7 +30,7 @@ export const editorUiChunkGroups = [
 		// Sharing the broad timeline controller owner makes those few imports pull
 		// video commands, storage and effect copy into an otherwise isolated shell.
 		name: 'editor-photo-library-scalars',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|develop-command|develop-workflow-v1|develop-settings-intent|develop-settings-workflow-v1|selection-v1|culling-v1|compare-v1|survey-v1|import-gesture-v1|backup-save-v1|original-recovery-v1|restore-v1|workflow-slot|query-navigation|saved-command)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|develop-command(?:-v2)?|develop-workflow-v[12]|develop-settings-intent(?:-v2)?|develop-settings-workflow-v[12]|selection-v1|culling-v1|compare-v1|survey-v1|import-gesture-v1|backup-save-v1|original-recovery-v1|restore-v1|workflow-slot(?:-v2)?|query-navigation|saved-command)\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -50,7 +50,7 @@ export const editorUiChunkGroups = [
 		// Presentation is reached only after the optional photo preview is opened.
 		// Keep its body/canvas owner apart from the scalar bootstrap controller.
 		name: 'editor-pixel-preview-presentation',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/](?:pixel-preview-presentation-v1|photo-library-develop-presentation-v1)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/](?:pixel-preview-presentation-v1|photo-library-develop-presentation-v[12])\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
