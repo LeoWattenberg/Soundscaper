@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
+import { normalizeAudioEditorClipboardDescriptor } from '../src/common/editor/commands/clipboard-codec.ts';
+import type { CurrentAudioEditorMutationCommandV2 as CurrentCommand } from '../src/common/editor/commands/clipboard-command-v2.ts';
+import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createClipboardEditService, type ClipboardEditProject } from '../src/common/editor/controller/edit/internal/clipboard-edit-service.ts';
 import { commitPasteWithLinkedSourceAliases } from '../src/common/editor/controller/edit/internal/paste-linked-source-aliases.ts';
 import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
@@ -92,7 +95,10 @@ test('a pasted linked audio source survives saving B and deleting A in the real 
 		projectId: destination.id,
 		store,
 		assertCurrent: () => undefined,
-		commit: (prepared) => { destination = applyEditorCommand(destination, prepared, { now: NOW }); },
+		commit: (prepared) => {
+			assertLegacyPasteCommandTree(prepared);
+			destination = applyEditorCommand(destination, prepared, { now: NOW });
+		},
 	});
 	await store.saveProject(destination);
 	const alias = await store.getLinkedOriginalBinding(destination.id, source.id);
@@ -195,3 +201,11 @@ test('a paste commit that throws after publication retains the linked alias', as
 	assert.ok(loaded.clips.some((item) => item.sourceId === source.id));
 	assert.ok(await store.getLinkedOriginalBinding(destination.id, source.id));
 });
+
+function assertLegacyPasteCommandTree(command: CurrentCommand): asserts command is AudioEditorCommand {
+	if (command.type === 'batch') {
+		for (const child of command.commands) assertLegacyPasteCommandTree(child);
+	} else if (command.type === 'clipboard/paste') {
+		normalizeAudioEditorClipboardDescriptor(command.clipboard);
+	}
+}
