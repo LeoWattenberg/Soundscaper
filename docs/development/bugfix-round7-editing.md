@@ -65,3 +65,7 @@ dispatch control, both picture-track directions and Undo/Redo in 4.7 seconds.
 Both complete public regressions pass. The native Title regression's track
 inventory uses the same validated-array narrowing as its existing controller
 tests; focused checks and type-aware lint pass after that typing correction.
+
+| ID | Ordinary user path | Root and correction | Focused evidence |
+| --- | --- | --- | --- |
+| R7-EDIT-011 | Framescaper: Generate → Add video still twice, place the image with the earlier source ID later with Ctrl+Right, and select the other image. In Preferences assign Next item and Previous item, then use those chords from Playhead. Normal generated Titles use the same published command. | Adjacent-item navigation sorts raw sample coordinates absent from native picture items, so it orders them by identity and can stay on the first chronological item. Project each authored clock to samples before the existing chronological/identity comparison. Retain ordinary edge clamping and selection ownership. | The actual Title-authoring controller causally RED returns the first item instead of the middle one despite native placements 0/30/60. Public e2a38ecb5 passes ordinary placement and assignment, then causally RED at unchanged earlier selection (8.9 seconds). Corrected new and existing item/selection/runtime support pass 20/20. Changed-file lint passes. The initial drag did not produce the required placement, and an initial search probe did not expose the command; both are excluded setup failures. Complete public retry pending. |
