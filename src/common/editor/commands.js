@@ -7,7 +7,7 @@ import {
 } from './project-schema-version.ts';
 import { createEditorCommandMutationTransaction } from './commands/mutation-transaction.ts';
 import { applyDefaultClipMicrofades } from './commands/default-microfades.ts';
-import { removeDeletedAdmTrackReferences } from './commands/adm-removed-track-references.ts';
+import { removeDeletedAdmStripReferences } from './commands/adm-removed-track-references.ts';
 import { updateProjectMetadata } from './commands/project-metadata-runtime.ts';
 
 export {
@@ -98,11 +98,10 @@ export function applyEditorCommand(project, command, options = {}) {
 	}
 	const commandProject = projectForCommandConsumers(project);
 	const transaction = createEditorCommandMutationTransaction(project, commandProject);
-	const beforeTrackIds = commandProject.tracks.map(track => track.id);
 	const result = /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		transaction.mutate(draft, command);
 		const adm = draft.metadata?.adm;
-		const survivingAdm = removeDeletedAdmTrackReferences(adm, beforeTrackIds, draft.tracks.map(track => track.id));
+		const survivingAdm = removeDeletedAdmStripReferences(adm, commandProject, draft);
 		if (survivingAdm !== adm) updateProjectMetadata(draft, { adm: survivingAdm });
 		if (options.microfadeNewClips === true) applyDefaultClipMicrofades(commandProject, draft);
 	}, { ...options, persistedBase: project }));

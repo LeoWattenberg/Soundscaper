@@ -92,6 +92,24 @@ native foundation remains 585 lines. Narrow strict TypeScript, targeted
 type-aware lint and retained-tree changed lint pass. This safeguards 031's final correction
 and adds no separate root; public GREEN of the final transaction is pending.
 
+Uncounted R6-EDIT-031 deleted-bus follow-through: Window → Mixer, route an
+ordinary recording through a group, then Enable ADM. The two-recording group
+control exports actual BW64. Remove the group and explicitly assign the newly
+terminal recording's Left/Right channels: delivery still fails because hidden
+bed/object references name the deleted group
+(`/tmp/soundscaper-r6-edit-adm-bus-removal-public-red.log`, one PASS/one causal RED
+on immutable `8d9d45ff4`). Extend the same final-transaction metadata lifecycle
+owner to deleted track/group/send identities. Preserve references to surviving
+strips, including nonterminal authored drafts, and require the existing explicit
+assignment of new terminals. Both actual native-history bed/object cases
+independently RED at stale group assignments
+(`/tmp/soundscaper-r6-edit-adm-bus-removal-node-red.log`); corrected cleanup,
+master width, routing, exact mixer/metadata Undo/Redo and the original deletion
+and atomic survivor support pass 32/32
+(`/tmp/soundscaper-r6-edit-adm-bus-removal-node-green.log`). Narrow strict
+TypeScript and targeted type-aware lint pass. Group this with 031's relationship
+retirement root, adding no count; final public GREEN remains pending.
+
 Uncounted checkpoint support: the full first-50 Node run discovered two missing
 exact importer classifications for 010's resolved removal adapter and 012's
 type-only channel allocator. Add their named downstream ownership evidence to
