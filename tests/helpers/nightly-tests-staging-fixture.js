@@ -170,6 +170,8 @@ export async function createFixture(context) {
 		['tests/helpers/image-geometry-native-fixture.ts', await readFile(new URL('./image-geometry-native-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-native-scale-seed.ts', await readFile(new URL('./lightscaper-native-scale-seed.ts', import.meta.url), 'utf8')],
 		['tests/helpers/global-develop-webgl-native-fixture.ts', await readFile(new URL('./global-develop-webgl-native-fixture.ts', import.meta.url), 'utf8')],
+		['tests/helpers/video-noise-reduction-reference.ts', await readFile(new URL('./video-noise-reduction-reference.ts', import.meta.url), 'utf8')],
+		['tests/helpers/video-grain-reference.ts', await readFile(new URL('./video-grain-reference.ts', import.meta.url), 'utf8')],
 		['tests/helpers/framescaper-global-export-fixture.ts', await readFile(new URL('./framescaper-global-export-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-large-library-seed-publication.ts', await readFile(new URL('./lightscaper-large-library-seed-publication.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-large-library-seed-diagnostic.ts', await readFile(new URL('./lightscaper-large-library-seed-diagnostic.ts', import.meta.url), 'utf8')],

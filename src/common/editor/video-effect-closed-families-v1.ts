@@ -6,6 +6,7 @@ import { CLARITY_EFFECT_TYPE_V1, CLARITY_VIDEO_EFFECT_DEFINITION_V1, normalizeCl
 import { NOISE_REDUCTION_EFFECT_TYPE_V1, NOISE_REDUCTION_VIDEO_EFFECT_DEFINITION_V1, normalizeNoiseReductionEffectV1, normalizeNoiseReductionParamsV1 } from './video-noise-reduction-v1.ts';
 import { serializeNoiseReductionEffectToFfmpegV1 } from './video-noise-reduction-ffmpeg-v1.ts';
 import { createClosedVideoEffect } from './video-effect-closed-creation.ts';
+import { GRAIN_EFFECT_TYPE_V1, GRAIN_VIDEO_EFFECT_DEFINITION_V1, normalizeGrainEffectV1, normalizeGrainParamsV1, serializeGrainEffectToFfmpegV1 } from './video-grain-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_VIDEO_EFFECT_DEFINITION_V1, normalizeDetailSharpenEffectV1,
 	normalizeDetailSharpenParamsV1, serializeDetailSharpenEffectToFfmpegV1 } from './video-sharpen-v1.ts';
 import { createStableId } from './stable-id.js';
@@ -45,6 +46,7 @@ export const CLOSED_VIDEO_EFFECT_DEFINITIONS_V1 = Object.freeze({
 	[POST_CROP_VIGNETTE_EFFECT_TYPE_V1]:POST_CROP_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1,
 	[CLARITY_EFFECT_TYPE_V1]:CLARITY_VIDEO_EFFECT_DEFINITION_V1,
 	[NOISE_REDUCTION_EFFECT_TYPE_V1]:NOISE_REDUCTION_VIDEO_EFFECT_DEFINITION_V1,
+	[GRAIN_EFFECT_TYPE_V1]:GRAIN_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 const FAMILIES = Object.freeze({
@@ -67,6 +69,8 @@ const FAMILIES = Object.freeze({
 		create:(value:unknown)=>createClosedVideoEffect(CLARITY_EFFECT_TYPE_V1,value,{name:'clarity creation',typeError:'Clarity creation requires its exact effect type.',normalizeParams:normalizeClarityParamsV1,normalizeEffect:normalizeClarityEffectV1})},
 	[NOISE_REDUCTION_EFFECT_TYPE_V1]:{params:normalizeNoiseReductionParamsV1,effect:normalizeNoiseReductionEffectV1,serialize:serializeNoiseReductionEffectToFfmpegV1,
 		create:(value:unknown)=>createClosedVideoEffect(NOISE_REDUCTION_EFFECT_TYPE_V1,value,{name:'noise reduction creation',typeError:'Noise reduction creation requires its exact effect type.',normalizeParams:normalizeNoiseReductionParamsV1,normalizeEffect:normalizeNoiseReductionEffectV1})},
+	[GRAIN_EFFECT_TYPE_V1]:{params:normalizeGrainParamsV1,effect:normalizeGrainEffectV1,serialize:serializeGrainEffectToFfmpegV1,
+		create:(value:unknown)=>createClosedVideoEffect(GRAIN_EFFECT_TYPE_V1,value,{name:'grain creation',typeError:'Grain creation requires its exact effect type.',normalizeParams:normalizeGrainParamsV1,normalizeEffect:normalizeGrainEffectV1})},
 } satisfies Record<string,Family>);
 
 export function isClosedVideoEffectTypeV1(value:unknown):value is keyof typeof FAMILIES { return typeof value==='string' && Object.hasOwn(FAMILIES,value); }

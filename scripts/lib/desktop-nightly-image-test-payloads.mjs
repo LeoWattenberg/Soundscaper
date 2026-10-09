@@ -10,6 +10,8 @@ export const NIGHTLY_IMAGE_TEST_HELPER_INPUTS = Object.freeze([
 	{ source: 'tests/helpers/lightscaper-catalog-query-fixture.ts', destination: 'tests/helpers/lightscaper-catalog-query-fixture.ts', kind: 'file', label: 'photo metadata storage native catalog fixture' },
 	{ source: 'tests/helpers/lightscaper-library-restore-native-fixture.ts', destination: 'tests/helpers/lightscaper-library-restore-native-fixture.ts', kind: 'file', label: 'photo library archive restore native qualification' },
 	{ source: 'tests/helpers/lightscaper-native-scale-seed.ts', destination: 'tests/helpers/lightscaper-native-scale-seed.ts', kind: 'file', label: 'bounded native photo library test population' },
+	{ source: 'tests/helpers/video-noise-reduction-reference.ts', destination: 'tests/helpers/video-noise-reduction-reference.ts', kind: 'file', label: 'independent RGB noise reduction native byte reference' },
+	{ source: 'tests/helpers/video-grain-reference.ts', destination: 'tests/helpers/video-grain-reference.ts', kind: 'file', label: 'independent deterministic Grain native byte reference' },
 	{ source: 'tests/helpers/framescaper-global-export-fixture.ts', destination: 'tests/helpers/framescaper-global-export-fixture.ts', kind: 'file', label: 'native selected finishing export pixel qualification' },
 	{ source: 'tests/helpers/global-develop-webgl-native-fixture.ts', destination: 'tests/helpers/global-develop-webgl-native-fixture.ts', kind: 'file', label: 'native global develop shader qualification' },
 	{ source: 'tests/helpers/lightscaper-large-library-seed-publication.ts', destination: 'tests/helpers/lightscaper-large-library-seed-publication.ts', kind: 'file', label: 'bounded sixteen-photo native seed publication' },

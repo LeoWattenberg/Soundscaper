@@ -87,7 +87,7 @@ function fixture() {
 	} as unknown as WebGL2RenderingContext; return owner;
 }
 test('maintained preview dispatcher admits scalar wheel26 and retains prior programs with no legacy numeric fallback', () => {
-	assert.equal(EFFECT_PROGRAM_COUNT, 31);
+	assert.equal(EFFECT_PROGRAM_COUNT, 32);
 	const effect = { id: 'wheel', type: 'color-wheels-v1', enabled: true, params: { highlightsLuminance: 100 } };
 	const passes = videoEffectPasses(effect); assert.equal(passes.length, 1); assert.equal(passes[0]?.code, 26);
 	assert.equal(copyColorWheelsPreviewLookupV1(passes[0]).byteLength, 1024);

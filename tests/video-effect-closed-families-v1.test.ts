@@ -14,17 +14,17 @@ import { appendClarityFfmpegOperationV1 } from '../src/common/editor/video-clari
 import { EFFECT_PROGRAM_COUNT } from '../src/common/editor/ui/video-preview-effects.js';
 
 const TYPES=['white-balance-v1','tone-ladder-v1','develop-geometry-v1','chroma-v1','black-white-mix-v1','hsl-mixer-v1',
-	'point-curves-v1','parametric-curves-v1','color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1','noise-reduction-v1'] as const;
-const ENVELOPES=['color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1','noise-reduction-v1'];
+	'point-curves-v1','parametric-curves-v1','color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1','noise-reduction-v1','grain-v1'] as const;
+const ENVELOPES=['color-wheels-v1','detail-sharpen-v1','post-crop-vignette-v1','clarity-v1','noise-reduction-v1','grain-v1'];
 
-test('fixed closed family ownership retains the old inventory and appends the exact noise registration',()=>{
+test('fixed closed family ownership retains the old inventory and appends exact Noise and Grain registrations',()=>{
 	assert.deepEqual(Object.keys(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1),TYPES);assert.ok(Object.isFrozen(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1));
-	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(12),TYPES);assert.equal(VIDEO_EFFECT_TYPES.length,25);assert.equal(EFFECT_PROGRAM_COUNT,31);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(12),TYPES);assert.equal(VIDEO_EFFECT_TYPES.length,26);assert.equal(EFFECT_PROGRAM_COUNT,32);
 	assert.deepEqual(VIDEO_EFFECT_V5_TYPES,['color-adjust','pixelate','vignette','gaussian-blur','sharpen','rgb-split']);
 	for(const type of TYPES){assert.equal(isClosedVideoEffectTypeV1(type),true);assert.equal(hasClosedVideoEffectEnvelopeV1(type),ENVELOPES.includes(type));
 		assert.equal(CLOSED_VIDEO_EFFECT_DEFINITIONS_V1[type],videoEffectDefinition(type));}
 	let reads=0;const hostile={toString(){reads++;return'clarity-v1';}};
-	for(const value of [hostile,'__proto__','constructor','color-adjust','noise-reduction-v2','grain-v1','clarity-v2'])assert.equal(isClosedVideoEffectTypeV1(value),false);
+	for(const value of [hostile,'__proto__','constructor','color-adjust','noise-reduction-v2','grain-v2','clarity-v2'])assert.equal(isClosedVideoEffectTypeV1(value),false);
 	assert.equal(reads,0);assert.throws(()=>normalizeClosedVideoEffectParamsV1('__proto__',{}));
 });
 

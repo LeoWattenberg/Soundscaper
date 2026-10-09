@@ -29,6 +29,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Drop Shadow | `drop-shadow` | 5 |
 | Gaussian Blur | `gaussian-blur` | 1 |
 | Glow | `glow` | 3 |
+| Grain | `grain-v1` | 4 |
 | HSL mixer | `hsl-mixer-v1` | 24 |
 | Luma Key | `luma-key` | 3 |
 | Noise reduction | `noise-reduction-v1` | 6 |
@@ -105,6 +106,10 @@ Defaults and limits come from the same definitions the editor validates against.
 | Glow | Threshold | 0.7 | 0 to 1 | — |
 | Glow | Radius | 8 | 0 to 20 | pixels |
 | Glow | Intensity | 0.5 | 0 to 1 | — |
+| Grain | Amount | 0 | 0 to 100 | — |
+| Grain | Size | 1 | 1 to 8 | — |
+| Grain | Roughness | 50 | 0 to 100 | — |
+| Grain | Seed | 0 | 0 to 65520 | — |
 | HSL mixer | Red hue | 0 | -180 to 180 | — |
 | HSL mixer | Orange hue | 0 | -180 to 180 | — |
 | HSL mixer | Yellow hue | 0 | -180 to 180 | — |

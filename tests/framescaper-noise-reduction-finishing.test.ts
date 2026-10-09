@@ -16,7 +16,7 @@ const expected = [125,125,125,255,150,150,150,255,125,125,125,255];
 
 test('shared noise normalization, preview planning and export keep one exact process without changing legacy types',()=>{
 	const effect=noise(); assert.deepEqual(normalizeVideoEffect(effect),effect);
-	assert.equal(EFFECT_CODES['noise-reduction-v1'],30); assert.equal(EFFECT_PROGRAM_COUNT,31);
+	assert.equal(EFFECT_CODES['noise-reduction-v1'],30); assert.equal(EFFECT_PROGRAM_COUNT,32);
 	assert.deepEqual(videoEffectPasses(effect),[{code:30,params0:[256,0,0,0],params1:[128,128,0,0],direction:[0,0]}]);
 	const operation=serializeVideoEffectsToFfmpegOperations([effect])[0]; assert.ok(operation);
 	assert.ok(isCompiledNoiseReductionOperationV1(operation)); assert.equal(operation.kind,'noise-reduction-v1');

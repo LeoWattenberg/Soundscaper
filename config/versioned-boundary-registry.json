@@ -396,6 +396,7 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
 		,
+		{"path": "src/common/editor/imaging/pixel-frame-grain-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Grain owns one original straight encoded-sRGB snapshot and one output, evaluates deterministic current natural-output lattice centers, joins captured native cancellation and consumer settlement, and wipes both captured backings on every retirement path."},
 		{ "path": "src/common/editor/imaging/pixel-frame-histogram-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded RGB histogram and clipping diagnostics admit encoded sRGB bytes and publish immutable counts only after complete joined evaluation." }
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-managed-sdr-grade-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped managed SDR grading reuses prepared color math with bounded borrowed chunks and wiped output."}
@@ -532,6 +533,7 @@
 		,
 		{ "path": "src/common/editor/ui/video-preview-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 reserved code 33 Dehaze shader specifies original straight-byte alpha-aware dark neighborhoods with highp integer transmission and explicit signed floor reconstruction. Alpha and hidden RGB are exact; registration and native execution qualification remain separate work." }
 		,
+		{"path": "src/common/editor/ui/video-preview-grain-v1.ts", "kind": "helper-contract", "justification": "Version 1 code31 Grain shader evaluates seeded two-octave lattice interpolation and a common RGB midtone offset with explicit bounded highp unsigned and signed integer operations. Original alpha and zero-alpha hidden RGB remain exact; native qualification is a separate gate."},
 		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
 		,
 		{ "path": "src/common/editor/ui/video-preview-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 reserved code 30 noise shader specifies original straight-byte neighborhoods with reversible integer YCoCg lifting, bounded signed accumulators and explicit signed floor rounding. Alpha and hidden RGB remain exact; production registration and native execution qualification are separate pending work." }
@@ -608,6 +610,8 @@
 		,
 		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization. Owning prepared preview identities expose detached 256-entry RGB transfer tables for exact UNORM8 GPU evaluation; generated export expressions preserve the same sampling and byte quantization." }
 		,
+		{"path": "src/common/editor/video-grain-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning Grain graph authenticates the exact private compiled operation before composing deterministic ten-register GEQ and original-alpha split/merge through output-scoped labels for ordered repeated stages."},
+		{"path": "src/common/editor/video-grain-v1.ts", "kind": "persisted-contract", "justification": "Version 1 Grain retains four closed numeric controls under srgb-natural-output-grain-q8-v1. Seeded triangular lattice noise, Q8 Size and Roughness octaves, current natural-output pixel centers, signed nearest rounding, a common RGB midtone envelope and explicit gamut clipping define deterministic ordered CPU, GLSL and GEQ evaluation without random sources, persisted tables or changes to older effects."},
 		{ "path": "src/common/editor/video-hsl-mixer-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared HSL mixer recipes retain encoded-sRGB eight-band original-hue interpolation and signed Q16 hue, saturation and lightness controls. Saturation, lightness and hue apply in that order with nearest rounding toward positive infinity; enabled zero controls and gray retain every byte. CPU, highp integer GPU and owning alpha-preserving FFmpeg evaluation use bounded integer intermediates and ordered per-operation quantization." }
 		,
 		{"path": "src/common/editor/video-image-geometry-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed Frame FFmpeg geometry derives allowlisted geq equations from the same contained inverse map and four premultiplied samples as shared pixel and preview evaluation."}
