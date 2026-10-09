@@ -123,6 +123,7 @@ export default function WebVcrPreview({
 		event: KeyboardEvent<HTMLButtonElement>,
 		handle: WebVcrCropHandle,
 	): void => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (manualCropDisabled || !snapshot.surface) return;
 		const next = adjustWebVcrCropFromKeyboard(
 			snapshot.crop, handle, event.key, event.shiftKey, snapshot.surface, snapshot.aspect,

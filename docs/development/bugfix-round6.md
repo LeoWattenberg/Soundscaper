@@ -287,3 +287,21 @@ payload closure failures; these are under investigation and this gate is not
 recorded as passing. The full50-fix all-engine browser suite is still running.
 Full100 browser verification will follow it without overlapping full browser
 suites. Work continues toward200, with source-ready candidates kept separate.
+
+The identical dialog037 public workflow passes after the complete Node run
+finishes (`/tmp/soundscaper-round6-visual-lock-green17-post-node.log`, 1/1,
+14.8 seconds). Its source, fixture, assertions and deadline are unchanged, and
+both earlier deadline failures remain recorded. This gives **117 distinct
+verified fixes**.
+
+The full100-fix canonical gate finishes with24,324 Node cases:24,286 passed,
+five failed and33 skipped (`/tmp/soundscaper-round6-checkpoint100-canonical.log`).
+The two mono Vocoder parity snapshots still expect the prior fixed bug;
+substituting only that earlier owner restores both original signatures. Exact
+corrected signatures and independent carrier continuity/routing controls pass.
+The other three failures expose omitted native fixture dependencies in the
+desktop nightly test payload. Its explicit inventory is completed, retaining
+negative omitted-painter and native-lease closure checks (32/32 focused passing).
+These narrow support corrections are committed and add zero bug count. A full
+canonical retry on the next immutable snapshot remains required. Full50 browser
+verification is still running; full100 browser verification follows it.
