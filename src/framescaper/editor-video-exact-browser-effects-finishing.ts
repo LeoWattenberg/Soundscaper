@@ -27,8 +27,9 @@ export async function applyVideoExactBrowserEffectsFinishing(
 		return isGlobalDevelopEffectTypeV1(readClosedDomainField(effect, 'type', 'Frame browser effect'))
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
+	const sourceFrame = readAdmittedFrame(frame, signal);
 	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1)) {
-		let current = cloneAdmittedGeometryFrame(frame, signal);
+		let current = clone(sourceFrame);
 		try {
 			for (const effect of admitted) {
 				throwIfAborted(signal);
@@ -46,25 +47,20 @@ export async function applyVideoExactBrowserEffectsFinishing(
 			return current;
 		} catch (error) { current.pixels.fill(0); throw error; }
 	}
-	if (admitted.length === 0) return clone(frame);
+	if (admitted.length === 0) return clone(sourceFrame);
 	if (admitted.every(value => isGlobalDevelopEffectTypeV1(Object.getOwnPropertyDescriptor(value, 'type')?.value))) {
-		return withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: frame.width, height: frame.height,
-			sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: frame.pixels }, effects: admitted, signal },
+		return withGlobalDevelopPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: sourceFrame.width, height: sourceFrame.height,
+			sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: sourceFrame.pixels }, effects: admitted, signal },
 			output => Object.freeze({ width: output.descriptor.width, height: output.descriptor.height, pixels: output.pixels.slice() }),
 			{ maximumEffects: 100_000, limits: { maximumSidePixels: 65_536, maximumPixels: 33_554_432, maximumBytes: 128 * 1024 * 1024 } });
 	}
-	const source = readClosedDomainRecord(frame, 'Frame browser source', ['width', 'height', 'pixels']);
-	const prepared = readPixelFrameV1({ descriptor: { schemaVersion: 1,
-		width: readClosedDomainField(source, 'width', 'Frame browser source'), height: readClosedDomainField(source, 'height', 'Frame browser source'),
-		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: readClosedDomainField(source, 'pixels', 'Frame browser source') },
-		{ maximumSidePixels: 65_536, maximumPixels: 33_554_432, maximumBytes: 128 * 1024 * 1024 });
-	// Own both bytes and settings before loading browser resources. Typed upload
-	// preserves hidden RGB and avoids the canvas/composition premultiplication.
-	const pixels = new Uint8Array(prepared.pixels);
+	// Own bytes and settings before loading resources; capture native source
+	// geometry once for every route, including empty and disabled recipes.
+	const pixels = new Uint8Array(sourceFrame.pixels);
 	try {
 		const backend = await import('../common/editor/ui/video-preview-straight-rgba.ts');
 		throwIfAborted(signal);
-		return await backend.renderVideoPreviewStraightRgba({ width: prepared.descriptor.width, height: prepared.descriptor.height, pixels }, admitted, signal);
+		return await backend.renderVideoPreviewStraightRgba({ width: sourceFrame.width, height: sourceFrame.height, pixels }, admitted, signal);
 	} finally { pixels.fill(0); }
 }
 
@@ -72,14 +68,14 @@ function clone(frame: UnifiedExactRenderRgbaFrameV13): UnifiedExactRenderRgbaFra
 	return Object.freeze({ width: frame.width, height: frame.height, pixels: frame.pixels.slice() });
 }
 
-function cloneAdmittedGeometryFrame(value: unknown, signal: AbortSignal): UnifiedExactRenderRgbaFrameV13 {
-	const input = readClosedDomainRecord(value, 'Frame geometry source', ['width', 'height', 'pixels']);
-	const plan = admitPixelFrameV1({ schemaVersion: 1, width: readClosedDomainField(input, 'width', 'Frame geometry source'),
-		height: readClosedDomainField(input, 'height', 'Frame geometry source'), sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, { limits: GEOMETRY_LIMITS });
-	const source = readPixelFrameV1({ descriptor: plan.descriptor, pixels: readClosedDomainField(input, 'pixels', 'Frame geometry source') }, GEOMETRY_LIMITS);
+function readAdmittedFrame(value: unknown, signal: AbortSignal): UnifiedExactRenderRgbaFrameV13 {
+	const input = readClosedDomainRecord(value, 'Frame browser source', ['width', 'height', 'pixels']);
+	const plan = admitPixelFrameV1({ schemaVersion: 1, width: readClosedDomainField(input, 'width', 'Frame browser source'),
+		height: readClosedDomainField(input, 'height', 'Frame browser source'), sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, { limits: GEOMETRY_LIMITS });
+	const source = readPixelFrameV1({ descriptor: plan.descriptor, pixels: readClosedDomainField(input, 'pixels', 'Frame browser source') }, GEOMETRY_LIMITS);
 	throwIfAborted(signal);
 	return Object.freeze({ width: plan.descriptor.width, height: plan.descriptor.height,
-		pixels: new Uint8Array(new Uint8Array(source.pixels.buffer, source.pixels.byteOffset, plan.byteLength)) });
+		pixels: new Uint8Array(source.pixels.buffer, source.pixels.byteOffset, plan.byteLength) });
 }
 
 function throwIfAborted(signal: AbortSignal): void {
