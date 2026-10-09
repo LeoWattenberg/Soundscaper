@@ -772,6 +772,8 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-cube-lut-closure-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar LUT-reference collector admits explicit Develop state versions, retains disabled resource references, rejects conflicting digest geometry and seals its identity ledger; complete photo, history, snapshot and preset traversal remains the later product owner's responsibility." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-cube-lut-reachability-v1.ts", "kind": "helper-contract", "justification": "Version 1 complete per-record LUT traversal first admits owning Photo1/2 and shared preset1/2 records, then retains all versions, history including redo, snapshots and disabled references in an atomic bounded scalar ledger. Callers retain complete catalog enumeration and independent immutable body authentication responsibilities; no raw documents or resource bodies are retained." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v1.ts", "kind": "persisted-contract", "justification": "Version 1 per-photo-version develop workspace retains bounded ordered history and immutable named snapshots, explicit process versions and a selected-state cursor independently of virtual copies and original identity." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 develop workspaces retain mixed strict process-1 and resource-bearing process-2 history and snapshots under unchanged byte and count limits. The closed dispatcher preserves V1 reads; explicit successor edits alone upgrade the workspace envelope without dropping redo, disabled LUT references or named snapshots." }
