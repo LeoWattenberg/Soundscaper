@@ -9,6 +9,21 @@ import {
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
+test('native audio preference tabs preserve modified navigation without changing the visible page', async ({ page }) => {
+	await installNativeServicesFixture(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await openNativePreferences(page, editor, 'Audio settings', 'Native audio and latency');
+	const dialog = page.getByRole('dialog', { name: 'Audio devices', exact: true });
+	const nativeAudio = dialog.getByRole('tab', { name: 'Native audio', exact: true });
+	await expect(nativeAudio).toBeFocused();
+	await nativeAudio.press('Control+Home');
+	await expect(nativeAudio).toHaveAttribute('aria-selected', 'true');
+	await expect(nativeAudio).toBeFocused();
+	await nativeAudio.press('Home');
+	await expect(dialog.getByRole('tab', { name: 'Devices', exact: true })).toBeFocused();
+	await expect(dialog.getByRole('tab', { name: 'Devices', exact: true })).toHaveAttribute('aria-selected', 'true');
+});
+
 test('selected Soundscaper exposes the default-off native tier only through menus', async ({ page }) => {
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/embed/en/');
