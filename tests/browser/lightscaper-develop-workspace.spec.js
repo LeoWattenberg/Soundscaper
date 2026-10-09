@@ -86,6 +86,9 @@ for (const locale of ['en', 'de']) {
 		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true }).locator('option')).toHaveCount(1);
 		await version.selectOption(masterVersionId); await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeEnabled();
 		await keyboard(page, dialog.getByRole('button', { name: messages.useVersion, exact: true }));
+		await expect(dialog.getByRole('button', { name: messages.cancel, exact: true })).toBeDisabled();
+		await expect(version).toHaveValue(masterVersionId);
+		await expect(dialog.getByRole('combobox', { name: messages.history, exact: true })).toHaveValue('1');
 		await expect(dialog.getByRole('button', { name: messages.useVersion, exact: true })).toBeDisabled();
 		await closeDevelop();
 		const saved = await observe(page, photoId);
