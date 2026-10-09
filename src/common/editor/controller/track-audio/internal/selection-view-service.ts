@@ -7,6 +7,7 @@ import { resolveSelectionRange } from '../../../selection-range.ts';
 import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../../timeline-zoom-limits.ts';
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 import { selectedTrackContentRange } from './selected-track-content-range.ts';
+import { createSelectionBoundaryAdjustmentService } from './selection-boundary-adjustment-service.ts';
 import type {
 	SelectionViewClipOptions,
 	SelectionViewProject,
@@ -46,6 +47,10 @@ export function createSelectionViewService<
 		updateSelection,
 		collectRelatedClipIds,
 		seek: (frame) => { engine.seek(frame); },
+	});
+	const boundaryAdjustment = createSelectionBoundaryAdjustmentService({
+		getProject, getPlayheadFrame: () => engine.getPositionFrames(),
+		projectSampleRate, projectDurationFrames, state, adjustSelection,
 	});
 	let zeroCrossingGeneration = 0;
 
@@ -142,6 +147,17 @@ export function createSelectionViewService<
 		const project = getProject();
 		if (!project) throw createLocalizedError(Error, copy, 'v2Required');
 		return applySelectionRange(project, startFrame, endFrame, details, true);
+	}
+
+	function adjustSelection(
+		startFrame: number, endFrame: number, details: SelectionViewSelectionDetails = {},
+		options: Readonly<{ snap?: boolean }> = {},
+	) {
+		const project = getProject();
+		if (!project) throw createLocalizedError(Error, copy, 'v2Required');
+		const next = applySelectionRange(project, startFrame, endFrame, details, options.snap !== false, false);
+		boundaryAdjustment.rememberAdjustedSelection(next.selection);
+		return next;
 	}
 
 	/**
@@ -479,6 +495,8 @@ export function createSelectionViewService<
 
 	return Object.freeze({
 		clipNavigation,
+		boundaryAdjustment,
+		adjustSelection,
 		selectAll,
 		selectAllTracks,
 		selectAtZeroCrossings,

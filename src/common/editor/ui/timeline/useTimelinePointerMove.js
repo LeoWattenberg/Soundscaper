@@ -16,7 +16,9 @@ import { resolveTimelineRollRippleTrimPointerPreview } from './roll-ripple-trim-
 import { resolveTimelineSlipSlidePointerPreview } from './slip-slide-pointer-routing.ts';
 import { samplePointAtPointer } from './track-row-helpers.jsx';
 import { resolveTimelineTrimPointerPreview } from './trim-pointer-routing.ts';
-import { timelineSelectionDragTrackIds } from './track-selection-scope.ts';
+import { previewTimelineSelectionDrag } from './selection-drag-preview.ts';
+import { previewTimelineSelectionBoundaryEdit } from './selection-pointer-edit.ts';
+import { useTimelineSelectionBoundaryCursor } from './useTimelineSelectionBoundaryCursor.ts';
 
 const NOOP = () => undefined;
 
@@ -24,6 +26,7 @@ export function useTimelinePointerMove({
 	controller,
 	snapshot,
 	splitToolActive,
+	automationToolEnabled = false,
 	state,
 	model,
 	hitTesting,
@@ -70,6 +73,13 @@ export function useTimelinePointerMove({
 	const splitToolHoverRef = useRef(null);
 	const splitToolGuidelineRef = useRef(null);
 	const hoverSnapIndexRef = useRef(null);
+	const { updateSelectionCursor, clearSelectionCursor } = useTimelineSelectionBoundaryCursor({
+		selection: project?.selection || { startFrame: 0, endFrame: 0 },
+		tracks: project?.tracks || [], selectedTrackId: snapshot.selectedTrackId,
+		frameAtClientX, pixelsPerSecond, sampleRate, splitToolActive, automationToolEnabled,
+		samplePencilActive: snapshot.sampleEdit?.available && snapshot.sampleEdit?.mode === 'pencil',
+		playheadFrame: () => controller.getTelemetrySnapshot?.().positionFrame ?? 0,
+	}, scrollRef, pointerSession);
 	const clearSplitToolGuideline = useCallback(() => {
 		splitToolHoverRef.current = null;
 		splitToolGuidelineRef.current = null;
@@ -78,8 +88,9 @@ export function useTimelinePointerMove({
 	const clearPointerHover = useCallback(() => {
 		if (!pointerSession.current) pointerMoveFlushRef?.current?.(true);
 		clearSplitToolGuideline();
+		clearSelectionCursor();
 		setBoundarySnapGuideFrames((current) => current.length ? [] : current);
-	}, [clearSplitToolGuideline, setBoundarySnapGuideFrames]);
+	}, [clearSelectionCursor, clearSplitToolGuideline, setBoundarySnapGuideFrames]);
 	const resolveCurrentSplitToolGuideline = useCallback(() => {
 		const hover = splitToolHoverRef.current;
 		const runtime = splitToolGuidelineRuntimeRef.current;
@@ -141,6 +152,7 @@ export function useTimelinePointerMove({
 	}, [resolveCurrentSplitToolGuideline, setSplitToolGuideline, splitToolActive]);
 
 	const applyPointerMove = useCallback((event) => {
+		updateSelectionCursor(event);
 		if (touchPointers.current.has(event.pointerId)) {
 			clearSplitToolGuideline();
 			touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -310,30 +322,17 @@ export function useTimelinePointerMove({
 			if (session.points.length >= 4_096) session.points.splice(1, 1);
 			session.points.push({ timelineFrame: point.timelineFrame, value: point.value });
 			event.preventDefault();
-		} else if (session?.kind === 'selection') {
-			const rawEndFrame = frameAtClientX(event.clientX, session.lane);
-			if (!session.snapDisabled && session.snapIndex?.project !== project) {
-				session.snapIndex = createBoundarySnapIndex(project);
-			}
-			const endSnap = session.snapDisabled ? { frame: rawEndFrame, snapped: false }
-				: resolveBoundarySnap({
-					project, index: session.snapIndex, frame: rawEndFrame,
-					currentTrackId: session.lane.dataset.trackId ?? null,
-					pixelsPerSecond, sampleRate, rightEdge: rawEndFrame >= session.startFrame,
+		} else if (session?.kind === 'selection-resize' || session?.kind === 'selection') {
+			const preview = session.kind === 'selection-resize'
+				? previewTimelineSelectionBoundaryEdit({
+					session, project, rawFrame: frameAtClientX(event.clientX, session.lane),
+					currentTrackId: session.lane.dataset.trackId ?? null, pixelsPerSecond, sampleRate,
+				}) : previewTimelineSelectionDrag({
+					session, project, rawEndFrame: frameAtClientX(event.clientX, session.lane),
+					clientY: event.clientY, scrollRoot: scrollRef.current, pixelsPerSecond, sampleRate,
 				});
-			const endFrame = endSnap.frame;
-			const trackIds = timelineSelectionDragTrackIds(session.lane, scrollRef.current, event.clientY);
-			session.lastRawEndFrame = rawEndFrame;
-			session.lastTrackIds = trackIds;
-			session.boundarySnapped = Number.isSafeInteger(session.startSnapGuideFrame) || endSnap.snapped;
-			setBoundarySnapGuideFrames([...new Set([
-				session.startSnapGuideFrame, endSnap.snapped ? endFrame : null,
-			].filter(Number.isSafeInteger))]);
-			setSelectionPreview({
-				startFrame: Math.min(session.startFrame, endFrame),
-				endFrame: Math.max(session.startFrame, endFrame),
-				trackIds,
-			});
+			setBoundarySnapGuideFrames(preview.guideFrames);
+			setSelectionPreview(preview.selection);
 		} else if (session?.kind === 'move') {
 			if (session.slipSlideMode) {
 				const currentPointerSample = frameAtClientX(event.clientX, session.lane);
@@ -514,7 +513,7 @@ export function useTimelinePointerMove({
 				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
 			}
 		}
-	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, mediaTrackIndexById, mediaTracks, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
+	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, mediaTrackIndexById, mediaTracks, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY, updateSelectionCursor]);
 
 	const onPointerMove = useTimelinePointerFrame(applyPointerMove, pointerSession, touchPointers, pointerMoveFlushRef);
 	return { onPointerMove, clearPointerHover };

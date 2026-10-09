@@ -10,6 +10,8 @@ const SELECTION_KEYS = [
 	'selectNextClip', 'skipToSelectionStart', 'skipToSelectionEnd', 'selectLeftOfPlayback',
 	'selectRightOfPlayback', 'selectTrackStartToCursor', 'selectCursorToTrackEnd',
 	'selectTrackStartToEnd', 'zeroCross',
+	'extendSelectionLeft', 'extendSelectionRight', 'contractSelectionLeft', 'contractSelectionRight',
+	'extendSelectionToProjectStart', 'extendSelectionToProjectEnd',
 ];
 const VIEW_KEYS = [
 	'setTimelineView', 'setVideoPreviewResolution', 'toggleRms', 'toggleFadeShapeHandles', 'toggleVerticalRulers',

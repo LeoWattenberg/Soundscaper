@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION = 3;
+export const AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION = 4;
 
 // New manifest metadata for these previously unavailable commands is not a
 // former installed default, even in the legacy table derived from the manifest.
 const VERSIONED_ADDITIONS = [
 	{ version: 2, actionIds: ['play-cut-preview', 'play-stop-select'] },
 	{ version: 3, actionIds: ['action://playback/play-selection'] },
+	{ version: 4, actionIds: ['sel-start', 'sel-end'] },
 ] as const;
 const NEW_DEFAULT_ACTION_IDS = new Set<string>(VERSIONED_ADDITIONS.flatMap(({ actionIds }) => [...actionIds]));
 
@@ -78,6 +79,9 @@ export function migrateAudioEditorShortcutDefaults({
 		// those omissions are user removals. Only these newly available commands
 		// receive defaults, and a customized chord still owns its binding.
 		if (shortcutDefaultsVersion < AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION) {
+			if (shortcutDefaultsVersion < 4) {
+				migrateProjectBoundaryDefaults(current, currentDefaults, normalizedKey);
+			}
 			const occupied = new Set(Object.values(current).flat().map(conflictKey));
 			const additions = VERSIONED_ADDITIONS
 				.filter(({ version }) => shortcutDefaultsVersion < version)
@@ -135,4 +139,20 @@ export function migrateAudioEditorShortcutDefaults({
 	}
 
 	return migrated;
+}
+
+function migrateProjectBoundaryDefaults(
+	shortcuts: MutableShortcutMap,
+	currentDefaults: ShortcutMap,
+	normalizedKey: (binding: string) => string,
+): void {
+	const formerTrackBindings = [
+		['select-track-start-to-cursor', ['Shift+J', 'Shift+Home']],
+		['select-cursor-to-track-end', ['Shift+K', 'Shift+End']],
+	] as const;
+	for (const [actionId, bindings] of formerTrackBindings) {
+		const installed = shortcuts[actionId];
+		if (!installed || !equivalentBindings(installed, bindings, normalizedKey)) continue;
+		defineShortcut(shortcuts, actionId, currentDefaults[actionId] ?? []);
+	}
 }

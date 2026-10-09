@@ -159,6 +159,7 @@ async function mountPointerMove(initiallyActive = true) {
 	const secondLane = timelineLane('track-b', secondRow);
 	const scrollRef = {
 		current: {
+			dataset: {},
 			querySelector: (selector: string) => selector === '.audio-editor-timeline-inner' ? inner
 				: selector === '[data-track-list]' ? trackList : null,
 			querySelectorAll: (selector: string) => selector.includes('[data-track-lane]')
