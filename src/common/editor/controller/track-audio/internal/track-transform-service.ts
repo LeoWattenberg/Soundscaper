@@ -16,6 +16,7 @@ import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
 import { splitStereoSourceChannels } from './split-stereo-source-channels.ts';
 import { assertStereoSplitRoutingRepresentable } from './stereo-split-routing-admission.ts';
+import { admChannelTransformCommands } from './adm-channel-transforms.ts';
 import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
 import { isStandaloneMonoAudioTrack } from '../../../mono-track-pair-admission.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
@@ -297,6 +298,9 @@ export function createTrackTransformService(
 					...copyDerivedTrackEffectAutomation(project, track.id, rightTrackId, rightEffectIds, dependencies.createId),
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
+				commands.push(...admChannelTransformCommands(project, [{
+					trackId: track.id, sourceChannel: 1, targetTrackId: rightTrackId, targetChannel: 0,
+				}]));
 				assertOwned(ownership);
 				const command = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
 					{ sourceTrackId: track.id, targetTrackId: track.id },
@@ -389,6 +393,9 @@ export function createTrackTransformService(
 						sourceDurationFrames: frameCount,
 						durationFrames: frameCount,
 					}),
+					...admChannelTransformCommands(project, [{
+						trackId: partner.id, sourceChannel: 0, targetTrackId: track.id, targetChannel: 1,
+					}]),
 				];
 				const command = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
 					{ sourceTrackId: track.id, targetTrackId: track.id },
