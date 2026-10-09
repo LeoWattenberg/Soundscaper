@@ -17,6 +17,7 @@ import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
+import { nativeFilterTailFrames } from './native-filter-release.ts';
 import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION } from './first-party-effects/dynamics/definition.ts';
 import { STANDARD_FILTER_EFFECT_DEFINITIONS } from './first-party-effects/standard/filters-definition.ts';
 import { STANDARD_MODULATION_EFFECT_DEFINITIONS } from './first-party-effects/standard/modulation-definition.ts';
@@ -342,11 +343,14 @@ export function updateEffect(effect, changes = {}) {
 	return createEffect(changes.type || current.type, options);
 }
 
-export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE) {
+/** @param {readonly unknown[]} automationLanes */
+export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, automationLanes = []) {
 	const normalized = effect?.id
 		? normalizeEffect(effect)
 		: createEffect(effect?.type, { ...effect, id: `tail-${effect?.type || 'effect'}` });
 	if (!normalized.enabled || normalized.bypassed === true || normalized.type === MISSING_EFFECT_TYPE) return 0;
+	const nativeTail = nativeFilterTailFrames(normalized, sampleRate, automationLanes);
+	if (nativeTail !== null) return nativeTail;
 	if (isAudacityRackEffectType(normalized.type)) {
 		return Math.ceil(audacityLiveEffectTailFrames(normalized.type, sampleRate, normalized.params));
 	}
@@ -364,9 +368,10 @@ export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE) 
 	return 0;
 }
 
-export function rackTailFrames(effects, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, maximumSeconds = 10) {
+/** @param {readonly unknown[]} automationLanes */
+export function rackTailFrames(effects, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, maximumSeconds = 10, automationLanes = []) {
 	const maximum = Math.round(maximumSeconds * sampleRate);
-	const tail = (effects || []).reduce((total, effect) => Math.min(maximum, total + effectTailFrames(effect, sampleRate)), 0);
+	const tail = (effects || []).reduce((total, effect) => Math.min(maximum, total + effectTailFrames(effect, sampleRate, automationLanes)), 0);
 	return Math.min(maximum, tail);
 }
 
@@ -382,7 +387,7 @@ export function projectEffectTailFrames(project, {
 	const maximum = Math.max(0, Math.round(maximumSeconds * sampleRate));
 	const rackTail = (owner) => owner?.effectsActive === false
 		? 0
-		: rackTailFrames(owner?.effects || [], sampleRate, maximumSeconds);
+		: rackTailFrames(owner?.effects || [], sampleRate, maximumSeconds, project?.automationLanes || []);
 	const v21Tail = projectEffectTailFramesV21(project, { trackId, includeMaster, respectMuteSolo, maximum, rackTail });
 	if (v21Tail !== null) return v21Tail;
 	const tracks = (project?.tracks || []).filter((track) => (

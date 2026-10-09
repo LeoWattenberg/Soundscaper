@@ -159,9 +159,42 @@ afterward; with the existing parameter registry and rack-width safeguards they
 pass 21/21. The tests evaluate the native coefficient equations independently
 and cover supported Q 0.1, 0.707, 1, 10 and automated 30.
 
-The public native-render/decoded-WAV witnesses are
+The public native-render/decoded-WAV witnesses in
 `audio-editor-round7-native-filter-q.spec.js` are causally RED on immutable
 `5c9787bec`: both native low/high-pass decoded WAVs measure RMS 0.383523 instead
 of the authored 0.249962. Root owns their pending corrected browser verification.
 Small PCM stays in memory and no verification fixture
 or raw coverage is written. No AI runtime asset update is required.
+
+## R7-EFFECT-007 — Native Resonant filters truncate their audible export release
+
+Import an ordinary one-second, 48 kHz, 10 Hz stereo recording. Open its track
+Effects, add Resonant low-pass filter, set Frequency to 10 Hz, and Export with
+Include tails retained. Export ends at exactly 48,000 samples even though the
+native filter retains audible energy. Resonant high-pass uses the same owner.
+The stock BiquadFilter graph has no tail declaration: the shared effect tail
+dispatcher falls through to zero. Classic Filters has a separate coefficient
+and live-processor owner repaired by R7-EFFECT-003.
+
+Derive the native low/high-pass release from the browser's actual coefficient
+contract and the common stable-pole bound. Reserve release below −80 dB,
+preserve native Nyquist identity/zero behavior, bypass, and the existing
+ten-second rack ceiling. Include authored Frequency/Q points and Bézier control
+values when determining the conservative parameter bounds. Thread those lanes
+through Export, Mix and Render, and Make stereo so existing destructive paths
+capture the same release before removing their processors. All manifestations
+count once as the native release owner.
+
+Seven initial focused regressions are causally RED at a zero declaration,
+after independent reference processing of the actually installed native node
+establishes audible release. Additional Mix and Render and Make stereo lane
+cases are RED at 153 reserved samples instead of the authored 15,128. Twelve
+new cases include independent native DSP and an authored Bézier interior Q;
+with native Q, filter/project tail, serial buses, actual controller Make stereo,
+Mix and Render, and track transform support they pass 93/93. Type-aware target
+lint passes.
+`audio-editor-round7-native-filter-tail.spec.js` is causally RED on immutable
+`5c9787bec` after the normal import/rack/export flow: the WAV contains 48,000
+samples instead of more than 48,128. Corrected public verification is pending.
+PCM stays in memory; no generated verification files are retained. Assistance
+runtime assets are unchanged.
