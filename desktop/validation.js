@@ -45,8 +45,8 @@ const FILE_PURPOSES = Object.freeze({
 		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: [...MEDIA_IMPORT_EXTENSIONS] }]),
 	}),
 	labels: Object.freeze({
-		extensions: Object.freeze(['srt', 'txt', 'vtt']),
-		filters: Object.freeze([{ name: 'Labels and captions', extensions: ['srt', 'txt', 'vtt'] }]),
+		extensions: Object.freeze(['srt', 'txt', 'vtt', 'webvtt', 'ttml', 'imsc', 'xml']),
+		filters: Object.freeze([{ name: 'Labels and captions', extensions: ['srt', 'txt', 'vtt', 'webvtt', 'ttml', 'imsc', 'xml'] }]),
 	}),
 	lut: Object.freeze({
 		extensions: Object.freeze(['cube']),
