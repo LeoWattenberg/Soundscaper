@@ -240,3 +240,23 @@ unchanged. This fixture completion introduces no application source change or
 additional bug count.
 
 | R6-IO-036 | Framescaper: Generate → Add Images, select a normal 16-bit RGB PNG written unchanged by sharp/libvips. The same route imports an ordinary 8-bit PNG and saves/reopens it. | The active native image preparation assumes every source is 8-bit sRGB, lets the canvas quantize a high-precision PNG, and writes the false 8-bit input claim into its conversion receipt. The published active profile excludes high-precision normalization until a verified route exists. Refuse the known 16-bit PNG input before native decoding, preserving normal 8-bit stills, native animation timing and original-byte retention. This precision admission applies to all native decoder routes and is independent of IO-035's static-only animation fallback. | Actual public Chromium causal RED on unchanged immutable 08212b4eb (green34): ordinary 8-bit PNG → Saved → reload passes; the ordinary 16-bit gradient instead publishes a successful still where a visible precision admission failure is required (/tmp/soundscaper-r6-io-image-precision-public-red.log, one PASS/one RED in 27.4 seconds). Its 172-byte fixture is unmodified sharp/libvips Uint16Array → rgb16 PNG output; the writer reports 16-bit ushort RGB and its normal decoder preserves samples 10000, 10073, 10146 and following values beyond the 8-bit grid. The earlier constant 16-bit probe is retained separately; the final stable fixture has real additional precision. Strict native composition independently RED at missing rejection while ordinary 8-bit still and ten-frame animation controls pass (/tmp/soundscaper-r6-io-image-precision-node-red.log). Corrected pre-decoder admission, exact original SHA-256/length, five-second still fallback, embedded animation timing, decoder cleanup and original image/native-port/routing/coordinator support pass 34/34 (/tmp/soundscaper-r6-io-image-precision-node-green.log). Narrow strict TypeScript, targeted type-aware ESLint, retained-tree changed lint, size and diff checks pass. The initial green35 observer incorrectly expected the informational toolbar to own the error. Observe the actual visible precision error alert, preserving absent publication, ordinary eight-bit save/reopen and all deadlines. That exact observer still causally fails on unchanged green34 (/tmp/soundscaper-r6-io-image-precision-alert-red.log). Both complete public Chromium workflows pass on immutable 1f33ae496 (green35), in 4.2 and 2.1 seconds (/tmp/soundscaper-round6-image-precision-public-green.log, 2/2 in 8.4 seconds); the independent unchanged retry also passes 2/2 in 8.7 seconds (/tmp/soundscaper-r6-io-image-precision-alert-green.log). Verified I/O count is thirty-five, excluding IO-004. No assistance runtime asset update is required. |
+
+
+IO-032, IO-035 and IO-036 have an uncounted desktop nightly test-payload
+completion. Their retained browser specs import three strict helper owners that
+were omitted from the explicit staging inventory: the external interchange
+reader adapter, ordinary animation writer fixtures and ordinary high-precision
+image fixture. The existing real closed-import graph independently fails at
+the missing interchange helper
+(/tmp/soundscaper-r6-io-image-nightly-closure-red.log). Add those three exact
+files to the existing payload, materialize their actual bytes in the test
+fixture, and assert both the staged outputs and closed import visits. The first
+support rerun exposed the same omissions in its minimal fixture and is retained
+as setup evidence; corrected staging, import closure, payload filtering and
+negative controls pass 17/17
+(/tmp/soundscaper-r6-io-image-nightly-closure-green2.log). Targeted type-aware
+ESLint, complete retained-tree changed lint, size and diff checks pass. The
+existing builder filter already includes these paths and remains unchanged;
+there is no runtime archive, dependency, Python reader contract or AI inventory
+change. This completion adds zero application bug count and requires no manual
+Update AI assets run.
