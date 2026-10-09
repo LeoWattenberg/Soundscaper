@@ -95,6 +95,7 @@ export function AudioTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const clipMutationsBlocked = blocked || Boolean(track.locked);
 	const renameBlockedRef = useRef(blocked || track.locked);
 	renameBlockedRef.current = blocked || track.locked;
 	const [channelHeightRatioPreview, setChannelHeightRatioPreview] = useState(null);
@@ -145,7 +146,7 @@ export function AudioTrackRow({
 		draggingClipIds,
 		copy,
 		run,
-		blocked,
+		blocked: clipMutationsBlocked,
 		automationToolEnabled,
 	});
 	const crossfadedFadeEdges = useMemo(() => crossfadedClipFadeEdges(trackClips), [trackClips]);
@@ -196,7 +197,7 @@ export function AudioTrackRow({
 		isFlatNavigation,
 		trackBaseTabIndex,
 		sampleRate,
-		blocked,
+		blocked: clipMutationsBlocked,
 		canonicalVideoTrim,
 		run,
 		onFocusTimelineRuler,
@@ -296,13 +297,13 @@ export function AudioTrackRow({
 					onKeyDownCapture={handleClipKeyDownCapture}
 				>
 					<TrackNew
-						{...clipHeaderActions({ controller, blocked, run, onOpenClipProperties, copy })}
+						{...clipHeaderActions({ controller, blocked: clipMutationsBlocked, run, onOpenClipProperties, copy })}
 						clips={projectedClips}
 						height={trackHeight}
 						trackIndex={trackIndex}
 						isSelected={selectedTrackId === track.id}
 						isMuted={track.mute}
-						envelopeMode={automationToolEnabled && !blocked}
+						envelopeMode={automationToolEnabled && !clipMutationsBlocked}
 						onEnvelopePointsChange={updateEnvelope}
 						pixelsPerSecond={pixelsPerSecond}
 						width={windowWidth}
@@ -386,7 +387,7 @@ export function AudioTrackRow({
 					/>)}
 					<CrossfadeOverlays overlays={crossfadeOverlays} clipLookup={clipLookup}
 						selectedIds={visualSelectedClipIds} top={channelBodyTop + 1} height={Math.max(0, channelBodyHeight - 2)}
-						blocked={blocked} copy={copy} controller={controller} run={run}
+						blocked={clipMutationsBlocked} copy={copy} controller={controller} run={run}
 						onTabOut={(index, backwards) => {
 							if (focusCrossfadeHandle(index + (backwards ? -1 : 1))) return;
 							if (backwards) {
@@ -394,13 +395,13 @@ export function AudioTrackRow({
 							}
 							else focusCurrentRuler();
 						}} />
-					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
+					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={clipMutationsBlocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
 						crossfadedFadeEdges={crossfadedFadeEdges}
 						selectedIds={visualSelectedClipIds}
 						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
-						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}
+						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={clipMutationsBlocked} copy={copy}
 						onTabOut={(id) => {
 							const clips = clipGroups(currentTrackRow());
 							const index = clips.findIndex(clip => clip.dataset.clipId === id);

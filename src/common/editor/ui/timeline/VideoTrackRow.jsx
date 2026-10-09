@@ -266,7 +266,7 @@ export function VideoTrackRow({
 								dragging={Boolean(draggingClipIds?.has(clip.id))}
 								invalidOverlap={overlapPresentation.invalidClipIds.has(clip.id)}
 								hidden={track.hidden}
-								blocked={blocked}
+								blocked={blocked || Boolean(track.locked)}
 								copy={copy}
 								color={clip.color === 'auto' ? track.color : clip.color}
 								clipStyle={clipStyle}
