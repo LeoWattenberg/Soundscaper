@@ -859,3 +859,38 @@ control. Explicitly choosing the ordinary 32-bit Float export preserves the
 exact-zero control, all-finite assertion, audible tone and unchanged deadline;
 the corrected fixture passes on the same product bytes. No assistance runtime
 assets change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-024 — Brown noise loses its bass emphasis at ordinary project rates
+
+Generate → Noise, choose Brown, enter sixteen seconds and generate. Export
+WAV with the normal 32-bit Float option. The delivered 20–40 Hz octave has only
+1.461 times the energy of 80–160 Hz. The fixed per-sample leak moves the Brown
+integrator's low-frequency corner upward with sample rate, flattening its
+audible bass. The same seeded ordinary jobs have octave ratios 4.398 at 8 kHz,
+1.719 at 48 kHz and 0.745 at 96 kHz. Brown noise should retain its stronger low
+frequency emphasis across supported recording clocks. The
+[Audacity Noise manual](https://manual.audacityteam.org/man/noise.html) describes
+Brown as the strongest low-frequency color; its
+[3.7.7 implementation](https://raw.githubusercontent.com/audacity/audacity/Audacity-3.7.7/libraries/lib-builtin-effects/NoiseBase.cpp)
+also adjusts its Brown leakage and input scaling with sample rate.
+
+Retain the existing 8 kHz pole's physical time constant, below the audible
+band, at every rendering rate. Scale the input step to preserve the existing
+stationary power, amplitude bounds and streamed state. Preserve the random
+draw order and the exact 8 kHz sequence. This Brown integrator is independently
+implemented from R2-ROOT-006's Pink random-row bank; White/Pink and the fresh-job
+seed correction in R6-EFFECT-009 remain unchanged.
+
+The complete normal Generate/menu/timecode/WAV workflow is causally RED at
+the actual exported octave ratio 1.461, with finite audio retained
+(`/tmp/soundscaper-r6-effects-brown-noise-spectrum-browser-red.log`). Strict
+48/96 kHz spectral cases independently fail while the 8 kHz, White and digital
+silence controls pass
+(`/tmp/soundscaper-r6-effects-brown-noise-spectrum-node-red.log`). All 27
+new/existing generator, Pink spectrum, seed, streamed transfer and pinned RNG
+cases pass after repair
+(`/tmp/soundscaper-r6-effects-brown-noise-spectrum-node-green.log`), with corrected
+8/48/96 kHz octave ratios 4.398/4.214/3.953. Focused strict compilation, targeted
+type-aware lint and size/diff checks pass. Public GREEN awaits the next immutable
+build. No assistance runtime assets change and no manual **Update AI assets**
+run is required.
