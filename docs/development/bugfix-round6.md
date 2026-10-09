@@ -967,3 +967,21 @@ case on every configured engine with the standard four local workers
 (`/tmp/soundscaper-round6-checkpoint200-green44-full-browser.log`). That final
 result remains pending at this receipt. The count stays 200; no manual
 **Update AI assets** run is required.
+
+The immutable Green27 full 150-fix all-engine browser checkpoint completes
+with **actual exit 1**: 5,967 cases, **5,726 passed, 220 skipped and 21 failed**
+in 4.8 hours (`/tmp/soundscaper-round6-checkpoint150-green27-full-browser.log`).
+All 21 observations have complete diagnoses and verification: six native
+capture channel-format admissions covered by the all-engine Green37 controls;
+two legacy recording-width failures covered by unchanged Green43 controls;
+two native video dimension observers covered by the Green37 completion;
+eight unchanged quiet workflows plus the unchanged playback-projection retry;
+the explicit three-cycle Inspector fixture budget correction; and the
+already verified Inspector reload/selection readiness completion. Every
+original full and isolated failure remains a failed result; the corrected
+individual verification does not relabel this checkpoint as passing.
+
+Final Green44 completes its npm guarded product preparation and actually
+starts the full **6,228-case** browser run with four workers. Its first
+completed Chromium About workflow passes in 3.7 seconds. All configured
+engines and cases are retained; the full final result is still pending.
