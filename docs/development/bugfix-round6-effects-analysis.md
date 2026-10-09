@@ -1040,3 +1040,40 @@ only those nine expectations. This supporting expectation update adds no root.
 Both the complete exact map and all seven independent sample/true-peak controls
 pass, 8/8 (`/tmp/soundscaper-r6-effects-ebu-sample-peak-parity-green.log`);
 targeted type-aware lint passes.
+
+## R6-EFFECT-028 — Changing live Echo Decay erases an audible recording tail
+
+Import an ordinary recording with a short audible opening and a quiet tail.
+Track Effects → Add Echo; choose Delay 1 second and Decay 0.8, then Play.
+After the first echo is audible, change Decay to 0.7 in the normal effect
+window. All following echoes disappear. The parameter surface and rack engine
+exclude Echo from their existing gesture/message adoption path, so the edit
+rebuilds its running graph. Its live processor also clears the delay ring on
+an otherwise compatible parameter update.
+
+Admit Echo's existing parameter gestures and worklet `params` message only
+when its native delay geometry is unchanged. Keep its audible ring and current
+position for Decay edits. Preserve the existing graph rebuild for changed
+delay geometry, explicit reset, disabled/bypassed racks, validation, stale
+revisions and unrelated effect routing. The missing normal live admission
+and necessary ring retention belong to this single Echo edit-continuity root;
+no generic Audacity processor class is counted as a separate unreachable bug.
+
+The complete ordinary import/track-effect/Play workflow is causally RED after
+its first audible repeating-echo control passes: native output after the
+Decay edit is zero instead of an audible repeat
+(`/tmp/soundscaper-r6-effects-echo-live-tail-browser-probe.log`). It passively
+observes actual native output without supplying editor state or processor
+messages. Five strict production cases fail independently at mono/stereo ring
+continuity, normal UI admission, atomic committed fields and the actual rack
+engine's message route, while the explicit reset/geometry-change control passes
+(`/tmp/soundscaper-r6-effects-echo-live-tail-node-red.log`). All forty-two new
+and existing live DSP, rack gestures, actual engine worklets and latency-change
+controls pass after repair
+(`/tmp/soundscaper-r6-effects-echo-live-tail-node-green2.log`). All three exact
+DSP maps remain unchanged
+(`/tmp/soundscaper-r6-effects-echo-live-tail-exact-parity.log`). Focused strict
+compilation, targeted type-aware lint and file-size/diff checks pass. Source is ready;
+post-build public GREEN remains pending and this root is not counted yet.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
