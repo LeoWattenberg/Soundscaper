@@ -16,7 +16,7 @@ const CHANNELS = Object.freeze({
 	finishWrite: 'save:finish', abortWrite: 'save:abort',
 });
 
-export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string }> = {}) {
+export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean }> = {}) {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-native-sidecar-'));
 	const path = join(directory, name);
 	await writeFile(path, text);
@@ -27,6 +27,7 @@ export async function nativeSidecarFixture(name: string, text: string | Uint8Arr
 	const saves = new AtomicSaveManager(saveOptions);
 	const savePath = options.saveName ? join(directory, options.saveName) : null;
 	const calls: unknown[] = [];
+	const saveChoices: unknown[] = [];
 	const releases: string[] = [];
 	const handlers = new Map<string, (event: unknown, value: unknown) => unknown>();
 	registerFileCapabilityIpc({
@@ -37,7 +38,10 @@ export async function nativeSidecarFixture(name: string, text: string | Uint8Arr
 				calls.push(options);
 				return { canceled: false, filePaths: [path] };
 			},
-			showSaveDialog: async () => ({ canceled: savePath === null, filePath: savePath ?? '' }),
+			showSaveDialog: async (_window: unknown, request: unknown) => {
+				saveChoices.push(request);
+				return { canceled: options.cancelSave === true || savePath === null, filePath: savePath ?? '' };
+			},
 		},
 		handle: (channel: string, listener: (event: unknown, value: unknown) => unknown) => {
 			handlers.set(channel, listener);
@@ -74,7 +78,7 @@ export async function nativeSidecarFixture(name: string, text: string | Uint8Arr
 		} : {}),
 	};
 	return {
-		bridge, calls, releases,
+		bridge, calls, saveChoices, releases,
 		savedBytes: async () => savePath ? await readFile(savePath) : null,
 		fetch: async (url: string, options?: RequestInit): Promise<Response> =>
 			await protocol(new Request(url, options)),

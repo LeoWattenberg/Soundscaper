@@ -180,10 +180,11 @@ export default function FramescaperFinishingDialog({
 				project, trackId: captionTrackId, format: captionFormat,
 			});
 			setCaptionSidecar(exported.text);
-			await saveFramescaperCaptionSidecarFile({
+			const saved = await saveFramescaperCaptionSidecarFile({
 				fileService, format: captionFormat, trackId: captionTrackId, text: exported.text,
 			});
-			captionImportSummary = lossSummary(exported.losses.length);
+			captionImportSummary = record(saved).cancelled === true
+				? { key: 'captionFileSaveCancelled' } : lossSummary(exported.losses.length);
 		}, () => captionImportSummary, true);
 	let cubeLutSummary: PresentationFeedback = '';
 	const importCubeLutFile = (file?: Blob): void => {
