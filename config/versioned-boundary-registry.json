@@ -398,6 +398,8 @@
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-managed-sdr-grade-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped managed SDR grading reuses prepared color math with bounded borrowed chunks and wiped output."}
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped RGB noise reduction owns one original encoded-sRGB snapshot and one output, evaluates alpha-weighted replicated-edge reversible-luma and chroma neighborhoods, joins native cancellation and consumer settlement, and wipes both backings on every retirement path." }
+		,
 		{"path": "src/common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped post-crop vignette snapshots one bounded straight-sRGB output, evaluates current natural coordinates through exact integer scalar math without lookup or mask arrays, joins native cancellation and consumer settlement, and wipes the captured backing on every retirement path."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
@@ -528,6 +530,8 @@
 		,
 		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
 		,
+		{ "path": "src/common/editor/ui/video-preview-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 reserved code 30 noise shader specifies original straight-byte neighborhoods with reversible integer YCoCg lifting, bounded signed accumulators and explicit signed floor rounding. Alpha and hidden RGB remain exact; production registration and native execution qualification are separate pending work." }
+		,
 		{"path": "src/common/editor/ui/video-preview-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 code28 native post-crop vignette uses current texture dimensions and bounded highp integer coordinate, radius, smoothstep and signed byte arithmetic. Original maximum RGB and literal alpha preserve the shared straight encoded-sRGB process without Float32 large-product rounding."}
 		,
 		{ "path": "src/common/editor/ui/video-preview-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 native detail shader evaluates straight byte alpha-weighted replicated-edge three-by-three binomial neighborhoods through texelFetch and bounded highp integers with explicit signed Q8 floor rounding." }
@@ -617,6 +621,10 @@
 		{ "path": "src/common/editor/video-motion-processing-v27.ts", "kind": "persisted-contract", "justification": "video-motion-processing-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-motion-webgl2-v27.ts", "kind": "persisted-contract", "justification": "video-motion-webgl2-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-noise-reduction-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 compiled RGB-noise graph authenticates its owning recipe, translates exact bounded integer lifting and bilateral neighborhoods into ten-register GEQ, and delegates original-alpha transport through output-scoped labels for repeated ordered stages." }
+		,
+		{ "path": "src/common/editor/video-noise-reduction-v1.ts", "kind": "persisted-contract", "justification": "Version 1 RGB noise reduction defines six closed controls under srgb-alpha-bilateral-ycocg-noise-q8-v1. Reversible YCoCg-R, original-alpha-weighted luma and chroma neighborhoods, contrast protection, quantized spatial smoothness, signed nearest rounding and final explicit RGB clipping preserve deterministic process identity without changing older recipes." }
 		,
 		{"path": "src/common/editor/video-original-alpha-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 internal compiled-effect graph keeps original byte alpha separate from RGB conversion before neighborhood evaluation and exact output publication. Output-scoped plane labels preserve existing sharpen transport bytes and compose repeated and mixed owning operations."}
 		,
