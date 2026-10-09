@@ -221,7 +221,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 			if (event.defaultPrevented || event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
 			if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) { event.preventDefault(); event.stopPropagation(); run(() => preview.playPause(clipId)); }
 			if (event.key === 'Escape') { gesture.current = null; setDragFrame(null); setFadePreview(null); run(() => preview.stop()); }
-			if ((event.ctrlKey || event.metaKey) && event.key === 'a') { event.preventDefault(); event.stopPropagation(); run(() => applySelection({ startFrame: 0, endFrame: range.totalFrames })); }
+			if ((event.ctrlKey || event.metaKey) && !(event.ctrlKey && event.metaKey) && !event.altKey && !event.shiftKey && event.key === 'a') { event.preventDefault(); event.stopPropagation(); run(() => applySelection({ startFrame: 0, endFrame: range.totalFrames })); }
 		}}>
 		<ClipSourceRuler copy={copy} width={width} sampleRate={project.sampleRate} startFrame={startFrame} endFrame={endFrame}
 			clipStartFrame={range.startFrame} projectStartFrame={clip.timelineStartFrame} tempoMap={project.tempoMap} signatureMap={project.signatureMap}
