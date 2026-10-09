@@ -51,6 +51,10 @@
 	pointer-events: none;
 }
 
+.audio-editor-track-automation-overlay [data-track-automation-interactive] {
+	touch-action: none;
+}
+
 .audio-editor-track-automation-overlay[data-clip-gain-precedence='true'] {
 	z-index: 1;
 	opacity: 0.58;
