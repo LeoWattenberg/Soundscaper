@@ -185,6 +185,41 @@ test('synchronous native capture and release reentry cannot publish another inte
 	}
 });
 
+test('the first pointer drag after an exact numeric edit settles that field before capturing the new wheel gesture', async () => {
+	let value = zero(), begins = 0, commits = 0, captures = 0;
+	const mounted = await mountPhotoImportUi(() => <VideoColorWheelControl label="Shadows" value={value} messages={messages} disabled={false}
+		isCurrent={() => true} onBegin={() => { begins++; }} onPreview={next => { value = next; }} onCommit={() => { commits++; }} onCancel={() => undefined} />);
+	try {
+		const number = mounted.dom.container.querySelectorAll('input').find(node => node.getAttribute('aria-label') === 'Exact value: Shadows: Hue'); assert.ok(number);
+		await act(async () => { reactProps(number).onFocus?.({}); reactProps(number).onChange?.({ currentTarget: { value: '20', valueAsNumber: 20 } }); });
+		await mounted.render();
+		const target = { getBoundingClientRect: () => bounds, setPointerCapture() { captures++; }, releasePointerCapture() {},
+			focus() { reactProps(number).onBlur?.({}); } };
+		const wheel = mounted.dom.one('[data-video-color-wheel]');
+		await act(async () => { reactProps(wheel).onPointerDown?.({ currentTarget: target, pointerId: 1, button: 0, clientX: 220, clientY: 140, preventDefault() {} }); });
+		assert.equal(captures, 1); assert.equal(begins, 2); assert.equal(commits, 1); assert.deepEqual(value, { hue: 0, saturation: 100, luminance: 0 });
+		await mounted.render(); await act(async () => { reactProps(wheel).onPointerUp?.({ currentTarget: target, pointerId: 1 }); });
+		assert.equal(commits, 2);
+	} finally { await mounted.dispose(); }
+});
+
+test('a new pointer gesture derives from settled original values after canceling an invalid numeric preview', async () => {
+	let value = zero(), cancels = 0;
+	const mounted = await mountPhotoImportUi(() => <VideoColorWheelControl label="Shadows" value={value} messages={messages} disabled={false}
+		isCurrent={() => true} onBegin={() => undefined} onPreview={next => { value = next; }} onCommit={() => undefined}
+		onCancel={() => { cancels++; value = zero(); }} />);
+	try {
+		const number = mounted.dom.container.querySelectorAll('input').find(node => node.getAttribute('aria-label') === 'Exact value: Shadows: Luminance'); assert.ok(number);
+		await act(async () => { reactProps(number).onFocus?.({}); reactProps(number).onChange?.({ currentTarget: { value: '20', valueAsNumber: 20 } }); });
+		await mounted.render(); await act(async () => { reactProps(number).onChange?.({ currentTarget: { value: '101', valueAsNumber: 101 } }); });
+		await mounted.render();
+		const target = { getBoundingClientRect: () => bounds, setPointerCapture() {}, releasePointerCapture() {}, focus() { reactProps(number).onBlur?.({}); } };
+		await act(async () => { reactProps(mounted.dom.one('[data-video-color-wheel]')).onPointerDown?.({ currentTarget: target,
+			pointerId: 1, button: 0, clientX: 220, clientY: 140, preventDefault() {} }); });
+		assert.equal(cancels, 1); assert.deepEqual(value, { hue: 0, saturation: 100, luminance: 0 });
+	} finally { await mounted.dispose(); }
+});
+
 test('closed finite-value admission detaches data and refuses getters, extras, coercion and every axis bound', () => {
 	const source = { hue: 12.25, saturation: 50, luminance: -0 }, result = normalizeVideoColorWheelValueV1(source);
 	source.hue = 90; assert.deepEqual(result, { hue: 12.25, saturation: 50, luminance: 0 }); assert.ok(Object.isFrozen(result));

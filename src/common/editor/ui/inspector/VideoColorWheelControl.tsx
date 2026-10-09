@@ -108,7 +108,12 @@ export default function VideoColorWheelControl(props: Readonly<VideoColorWheelCo
 				background: 'radial-gradient(circle closest-side, white, transparent), conic-gradient(from 90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
 				opacity: disabled ? 0.5 : 1 }}
 			onPointerDown={event => {
-				if (!current() || active.current || event.button !== 0) return;
+				if (!current() || pointer.current || event.button !== 0) return;
+				if (!polar(event)) return;
+				// Native pointerdown precedes blur: finish the exact field's gesture,
+				// then let focus end its local scratch before starting the polar drag.
+				if (active.current) commit(); if (!current()) return;
+				host(() => { event.currentTarget.focus?.(); });
 				const next = polar(event); if (!next || !begin()) return; event.preventDefault();
 				const target = event.currentTarget, id = event.pointerId;
 				pointer.current = { id, release: () => {
