@@ -79,6 +79,7 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			id: trackId,
 			name: `${track.name} ${dependencies.copySuffix}`,
 			armed: false,
+			locked: false,
 			effects,
 			clipIds: [],
 			laneGroupId: null,
@@ -124,10 +125,13 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 				} : {}),
 			}));
 		}
+		const routed = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
+			{ sourceTrackId: track.id, targetTrackId: trackId },
+		], dependencies.previewCommand, dependencies.createId);
 		dependencies.commit(
-			preserveProductionTrackRouting(project, { type: 'batch', commands }, [
-				{ sourceTrackId: track.id, targetTrackId: trackId },
-			], dependencies.previewCommand, dependencies.createId),
+			track.locked === true ? { type: 'batch', commands: [routed, {
+				type: 'track/update', trackId, changes: { locked: true },
+			}] } : routed,
 			{ selectTrackId: trackId, selectClipId: selectedClipId },
 		);
 	}
