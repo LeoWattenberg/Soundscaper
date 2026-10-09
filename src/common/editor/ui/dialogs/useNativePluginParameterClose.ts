@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useRef } from 'react';
-import { pendingNativePluginParameterWrites } from './native-plugin-parameter-write-drain.ts';
+import { pendingNativePluginParameterWrites } from '../native-plugin-parameter-write-drain.ts';
 
 export function useNativePluginParameterClose(instanceId: string | null, onClose: () => void): () => void {
 	const lifetime = useRef(0);

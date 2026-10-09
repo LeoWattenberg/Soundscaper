@@ -11,7 +11,7 @@ import {
 	writeNativePluginRuntimeParameter,
 } from './native-plugin-parameter-runtime.ts';
 import { SOUNDSCAPER_NATIVE_SERVICES_COPY } from '../../../i18n/editor-soundscaper-native-services-copy.ts';
-import { trackNativePluginParameterWrites } from './native-plugin-parameter-write-drain.ts';
+import { trackNativePluginParameterWrites } from '../native-plugin-parameter-write-drain.ts';
 
 const BOOLEAN_PARAMETER_FLAG = 1;
 

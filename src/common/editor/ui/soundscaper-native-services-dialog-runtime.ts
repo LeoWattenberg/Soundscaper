@@ -10,7 +10,7 @@
 
 import type { SoundscaperNativeServicesBridge } from './soundscaper-native-services-bridge.ts';
 import { soundscaperNativeServicesStoreFor } from './soundscaper-native-services-bridge.ts';
-import { pendingNativePluginParameterWrites } from './dialogs/native-plugin-parameter-write-drain.ts';
+import { pendingNativePluginParameterWrites } from './native-plugin-parameter-write-drain.ts';
 import {
 	EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
 	reduceSoundscaperNativeServicesDialog,
