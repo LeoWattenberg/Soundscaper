@@ -2,9 +2,10 @@
 
 import { addDeliveryReportItem, createDeliveryReport, sealDeliveryReport, type DeliveryReport } from '../../../delivery-report.ts';
 import { createInterchangeVisibility } from '../../../interchange-track-visibility.ts';
+import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
-export type InterchangeProductProjection = (project: unknown) => DataRecord;
+export type InterchangeProductProjection = (project: RuntimeClipProject) => DataRecord;
 
 /** The product owns exact active-angle source timing; exchange profiles carry its resolved edit. */
 export function projectInterchangeMulticamera(project: DataRecord, projectForRuntimeConsumers?: InterchangeProductProjection): DataRecord {
