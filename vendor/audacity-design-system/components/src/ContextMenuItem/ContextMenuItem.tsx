@@ -296,7 +296,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
         setSubmenuOpen(true);
         // Keyboard entry focuses the child even when pointer hover opened it.
         setTimeout(() => {
-          const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
+          const firstSubmenuItem = submenuRef.current?.querySelector(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])') as HTMLElement;
           // Another focus target may have been chosen before this timer runs.
           if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
             firstSubmenuItem.focus();
@@ -427,7 +427,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
         submenu.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
-      if (items.length === 0) return;
+      if (items.length === 0 && e.key !== 'Escape') return;
 
       const currentIndex = items.findIndex(item => item === document.activeElement);
 
