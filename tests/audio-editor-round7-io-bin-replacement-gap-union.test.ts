@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { applySoundscaperProjectCommand as applyEditorCommand } from '../src/soundscaper/editor-project-commands.ts';
 import { createSoundscaperProjectHistory as createEditorHistory, executeSoundscaperProjectCommand as executeEditorCommand,
 	undoSoundscaperProjectCommand as undoEditorCommand } from '../src/soundscaper/editor-project-history.ts';
@@ -16,7 +17,7 @@ for (const [secondStart, contractedFrames] of [[0, 24_000], [12_000, 36_000], [7
 			{ type: 'source/add', source: { id: 'old', storageKey: 'old', name: 'Programme.wav', sampleRate: 48_000, frameCount: 48_000, channelCount: 1 } },
 			{ type: 'project-bin/add', clip: { ...template, id: 'bin' } },
 			{ type: 'track/add', track: { id: 'track', name: 'Programme' } },
-			...[0, secondStart, 144_000].map((start, index) => ({ type: 'project-bin/place', binClipId: 'bin',
+			...[0, secondStart, 144_000].map((start, index): AudioEditorCommand => ({ type: 'project-bin/place', binClipId: 'bin',
 				timelineStartFrame: start, placements: [{ binClipId: 'bin', trackId: 'track', clipId: `clip-${String(index)}` }] })),
 		] });
 		const history = executeEditorCommand(createEditorHistory(project), { type: 'batch', commands: [
