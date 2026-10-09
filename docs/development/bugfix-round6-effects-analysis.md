@@ -14,7 +14,14 @@ R6-EFFECT-015–016 and the INDEX follow-through of R6-EFFECT-011 pass all three
 engines on immutable Green10 `68655eafb`
 (`/tmp/soundscaper-round6-green10-public-browser.log`), bringing this register to
 sixteen verified roots. The INDEX follow-through adds no root.
-R6-EFFECT-017–019 have causal public RED and focused GREEN and await a later build.
+R6-EFFECT-017–018 pass their complete normal workflows in all three engines on
+immutable Green11 `a870804cd`
+(`/tmp/soundscaper-round6-green11-public-browser.log`), bringing this register to
+eighteen verified roots. R6-EFFECT-019 passes its complete ordinary carrier
+comparison in all three engines on immutable Green12 `8d9d45ff4`
+(`/tmp/soundscaper-round6-green12-public-browser.log`), bringing this register to
+nineteen verified roots. R6-EFFECT-018's dependent tail-estimator repair is
+included in that snapshot. R6-EFFECT-020 has focused GREEN and awaits a later build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -512,8 +519,10 @@ seventeen new/existing preview, whole-selection normalization, worker-context,
 placement, cancellation and gain cases pass afterward, including exact PCM
 agreement with the applied ramp and full-extent memory admission
 (`/tmp/soundscaper-r6-effects-sliding-preview-duration-node-green.log`). Focused
-strict types, targeted type-aware lint and the file-size gate pass. Public GREEN
-awaits the next immutable product build. No assistance runtime assets change
+strict types, targeted type-aware lint and the file-size gate pass. The complete
+ordinary preview/apply/export workflow passes Chromium, Firefox and WebKit on
+immutable Green11 `a870804cd`
+(`/tmp/soundscaper-round6-green11-public-browser.log`). No assistance runtime assets change
 and no manual **Update AI assets** run is required.
 ## R6-EFFECT-018 — A valid native crossover is silently lowered before processing
 
@@ -545,8 +554,10 @@ twenty-two new/existing crossover, de-esser, Multiband compressor and real
 worklet cases pass after repair
 (`/tmp/soundscaper-r6-effects-crossover-frequency-node-green.log`). Focused
 strict types, targeted type-aware lint and the size gate pass. The next full
-Node suite checkpoint will include this shared helper. Public GREEN awaits the
-next immutable product build. No assistance runtime assets change and no
+Node suite checkpoint will include this shared helper. The complete normal
+Source-effect/apply/export workflow passes Chromium, Firefox and WebKit on
+immutable Green11 `a870804cd`
+(`/tmp/soundscaper-round6-green11-public-browser.log`). No assistance runtime assets change and no
 manual **Update AI assets** run is required.
 
 The Noise Gate release estimator also derived its crossover poles through the
@@ -561,7 +572,10 @@ same end-of-source amplitude after the cutoff correction. The estimator's
 tail, lookahead, valid-crossover and actual-worklet support cases pass after
 the dependent repair (`/tmp/soundscaper-r6-effects-crossover-tail-node-green.log`),
 with narrow strict types and targeted lint passing. This is required
-follow-through of R6-EFFECT-018 and adds no root.
+follow-through of R6-EFFECT-018 and adds no root. Immutable Green12 `8d9d45ff4`
+includes the repaired estimator and passes the complete normal native-cutoff
+workflow in Chromium, Firefox and WebKit
+(`/tmp/soundscaper-round6-green12-public-browser.log`).
 
 ## R6-EFFECT-019 — Mono Vocoder filters an incomplete synthesized carrier
 
@@ -593,6 +607,40 @@ stereo-routing and silent-modulator controls pass before correction
 new/existing modulation, actual worklet, selection-tail and effect-integration
 cases pass after repair
 (`/tmp/soundscaper-r6-effects-vocoder-mono-carrier-node-green.log`). Focused
+strict types, targeted type-aware lint and the size gate pass. The complete
+ordinary equivalent-carrier workflow passes Chromium, Firefox and WebKit on
+immutable Green12 `8d9d45ff4`
+(`/tmp/soundscaper-round6-green12-public-browser.log`). No assistance runtime assets change
+and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-020 — Bitcrusher misses an exact authored sample-hold boundary
+
+Import an ordinary one-second 48 kHz mono WAV containing a 1,200 Hz tone.
+Select its Source waveform and apply Effect → Distortion and modulation →
+Bitcrusher with Sample rate reduction set to ten, retaining Sample and hold.
+Export the WAV. Past the editor's ordinary onset ramp, the hold ending at frame
+1,010 should capture the positive sine peak. The baseline still holds the
+previous near-zero sample and captures frame 1,011 instead. Factors six and
+seven exhibit the same one-sample offset.
+
+Adding the reciprocal hold increment can leave an exact mathematical boundary
+slightly below one. Admit the boundary within its bounded floating-point
+summation error and clamp only the corresponding tiny negative phase remainder.
+Retain the capture phase across blocks and live changes, all reconstruction
+and dither behavior, the initial frame-zero capture, and the authored interval.
+Integer and fractional manifestations share this one decimation-phase owner.
+
+The complete ordinary menu/apply/export workflow is causally RED at a zero
+frame-1,010 output transition where the tone requires more than 0.2
+(`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-browser-red4.log`). Earlier
+first-boundary absolute-gain assertions did not account for the ordinary onset
+ramp and are excluded; the retained assertion's bound remains unchanged. Three
+strict interval cases fail at factors six, seven and ten while the exact binary
+eight-frame grid and fractional 2.5-frame/block-continuity controls pass before
+repair (`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-node-red.log`).
+All twenty-three new/existing Bitcrusher DSP, seeded dither, reset, interpolation, destructive
+selection and render-partition parity cases pass after correction
+(`/tmp/soundscaper-r6-effects-bitcrusher-hold-boundary-node-green.log`). Focused
 strict types, targeted type-aware lint and the size gate pass. Public GREEN
 awaits the next immutable product build. No assistance runtime assets change
 and no manual **Update AI assets** run is required.
