@@ -14,8 +14,7 @@ for (const highPrecision of [false, true]) test(`ordinary ${highPrecision ? '16-
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Add Images']);
 	await (await chooser).setFiles({ name: 'ordinary.png', mimeType: 'image/png', buffer: bytes });
 	if (highPrecision) {
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
-		await expect(editor.locator('[data-status]')).toContainText(/precision|16.bit/iu);
+		await expect(page.getByRole('alert').filter({ hasText: 'High-precision 16-bit PNG requires a verified image normalization route.' })).toBeVisible();
 		await expect(editor.getByRole('group', { name: 'Image clip: ordinary', exact: true })).toHaveCount(0);
 	} else {
 		await expect(editor.getByRole('group', { name: 'Image clip: ordinary', exact: true })).toBeVisible();
