@@ -205,7 +205,7 @@ export function TimeCode({
     setShowMenu(false);
   };
 
-  const openMenu = (viaKeyboard = false) => {
+  const openMenu = useCallback((viaKeyboard = false) => {
     if (disabled || !buttonRef.current) return;
     setIsEditing(false);
     setEditingDigitIndex(null);
@@ -218,7 +218,7 @@ export function TimeCode({
 
     setMenuOpenedViaKeyboard(viaKeyboard);
     setShowMenu(!showMenu);
-  };
+  }, [disabled, showMenu]);
 
   const handleMenuButtonClick = () => {
     openMenu(false);
@@ -230,12 +230,11 @@ export function TimeCode({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!containerRef.current?.contains(document.activeElement?.closest('.timecode-digit') ?? null)) return;
-      // Tab (with or without Shift): Exit edit mode and move to next/prev tab group
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Tab') {
         setIsEditing(false);
         setEditingDigitIndex(null);
         containerRef.current?.focus();
-        // Don't preventDefault - let the browser handle Tab naturally
         return;
       }
 
@@ -365,7 +364,7 @@ export function TimeCode({
       document.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('click', handleClick);
     };
-  }, [isEditing, editingDigitIndex, disabled, segments, handleDigitChange, onCommit]);
+  }, [isEditing, editingDigitIndex, disabled, segments, handleDigitChange, onCommit, openMenu, showFormatSelector]);
 
 
   const caretColor = variant === 'light' ? theme.foreground.text.primary : '#f4f5f9';
@@ -386,7 +385,7 @@ export function TimeCode({
 
   // Handle arrow key navigation within TimeCode
   const handleContainerKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
+    if (disabled || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
 
     // Only handle keys when the container itself is focused (not bubbling from children)
     if (e.target !== e.currentTarget) return;

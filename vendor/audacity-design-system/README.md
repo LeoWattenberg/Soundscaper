@@ -506,3 +506,9 @@ are the places where the two keyboard models meet, so a future sync should re-ch
 4. Re-audit the portal selector list in `scripts/postcss-audacity-design-system.mjs` against
    new/renamed classes that render into `document.body` (dropdown/tooltip-style portals).
 5. Run the full battery: `npm run check`, `npm run test:browser`, dev + desktop smoke.
+
+65. `TimeCode` leaves Ctrl/Meta/Alt and already handled keys with their existing
+    command owner while a digit or its composite group is focused. The ordinary
+    digit edit, Shift navigation and completion behavior remains unchanged.
+    Covered by `tests/audio-editor-round6-timecode-digit-shortcut.test.tsx` and
+    the configured-command public browser regression.
