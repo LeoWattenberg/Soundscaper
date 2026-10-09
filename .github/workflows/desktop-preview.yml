@@ -985,7 +985,6 @@ jobs:
             release/desktop/THIRD_PARTY_LICENSES.md
             release/desktop/*-professional-native-compliance.json
             release/desktop/*-professional-native-source-*
-            release/desktop/*-professional-native-notice-*
           if-no-files-found: warn
           retention-days: 14
 

@@ -93,7 +93,6 @@ export async function main(args = process.argv.slice(2)) {
 	// the reviewed strings are committed in this repository and the shipped
 	// NOTICE names the exact upstream commit and artifact they came from.
 	await writeFile(resolve(assetRoot, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
-	await writeFile(resolve(assetRoot, 'THIRD_PARTY_LICENSES.md'), await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
 	for (const applicationVersion of new Set(expectedVersions.values())) {
 		await stageDesktopBundledCodecCorrespondingSource({
 			repositoryRoot: ROOT,
@@ -111,6 +110,10 @@ export async function main(args = process.argv.slice(2)) {
 			repositoryRoot: ROOT, sourceRoot, outputRoot: assetRoot, productId,
 			runtimeManifests: manifests.filter(({ value }) => value.productId === productId),
 		});
+	}
+	if (professionalProducts.length === 0) {
+		await writeFile(resolve(assetRoot, 'THIRD_PARTY_LICENSES.md'),
+			await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
 	}
 
 	const releaseFiles = regularDesktopReleaseFileNames(await readdir(assetRoot, { withFileTypes: true }))

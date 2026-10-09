@@ -4,7 +4,7 @@
 
 import { constants } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { lstat, open, readdir, writeFile } from 'node:fs/promises';
+import { lstat, open, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import sourceRegisterDefault from '../../config/milestone-5-native-source-acquisitions.json' with { type: 'json' };
@@ -60,19 +60,9 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 		}));
 	}
 	const noticeAuthorities = unionNoticeAuthorities(runtimeManifests, dependencies);
-	const notices = [];
-	for (const authority of noticeAuthorities) {
-		const file = noticeFiles.get(authority.name);
-		if (!file || file.byteLength !== authority.byteLength || file.sha256 !== authority.sha256) {
-			throw new Error(`Stable professional-native notice ${authority.name} is not authenticated.`);
-		}
-		const name = `${productName}-professional-native-notice-${authority.name}`;
-		await writeFile(resolve(outputRoot, name), file.bytes, { flag: 'wx', mode: 0o444 });
-		notices.push(Object.freeze({
-			name, installedName: authority.name, sourceId: authority.sourceId,
-			byteLength: file.byteLength, sha256: file.sha256,
-		}));
-	}
+	const { noticeDocument, notices } = await stageThirdPartyLicenseDocument({
+		repositoryRoot, outputRoot, noticeAuthorities, noticeFiles, sourceRegister,
+	});
 	const targetBindings = runtimeManifests.map(({ name, value, bytes, target }) => Object.freeze({
 		target,
 		runtimeManifest: Object.freeze({ name, byteLength: bytes.byteLength, sha256: digest(bytes) }),
@@ -84,16 +74,73 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 		))),
 	}));
 	const compliance = deepFreeze({
-		schemaVersion: 1,
+		schemaVersion: 2,
 		status: 'authenticated',
 		kind: `${productId}-professional-native-release-compliance`,
 		sources,
+		noticeDocument,
 		notices,
 		targetBindings,
 	});
 	await writeFile(resolve(outputRoot, `${productName}-professional-native-compliance.json`),
 		Buffer.from(`${JSON.stringify(compliance, null, 2)}\n`), { flag: 'wx', mode: 0o444 });
 	return compliance;
+}
+
+async function stageThirdPartyLicenseDocument({
+	repositoryRoot, outputRoot, noticeAuthorities, noticeFiles, sourceRegister,
+}) {
+	const name = 'THIRD_PARTY_LICENSES.md';
+	const parts = [await readFile(resolve(repositoryRoot, name)), Buffer.from(
+		'\n\n## Professional-native license texts\n\n'
+		+ 'These authenticated upstream notices cover the desktop targets in this release.\n'
+		+ 'The professional-native compliance receipts record each text\'s byte offset and SHA-256 digest.\n',
+	)];
+	let byteOffset = parts.reduce((total, part) => total + part.byteLength, 0);
+	const notices = [];
+	for (const authority of noticeAuthorities) {
+		const file = noticeFiles.get(authority.name);
+		if (!file || file.byteLength !== authority.byteLength || file.sha256 !== authority.sha256) {
+			throw new Error(`Stable professional-native notice ${authority.name} is not authenticated.`);
+		}
+		const source = sourceRegister.sources.find(({ id }) => id === authority.sourceId);
+		let fenceLength = 3;
+		for (const match of file.bytes.toString('utf8').matchAll(/`+/gu)) {
+			fenceLength = Math.max(fenceLength, match[0].length + 1);
+		}
+		const fence = '`'.repeat(fenceLength);
+		const prefix = Buffer.from(`\n### ${authority.name}\n\n`
+			+ `Source: ${source.id} ${source.version}; selected license: ${source.licenseSelection}.\n\n${fence}text\n`);
+		const suffix = Buffer.from(`\n${fence}\n`);
+		notices.push({
+			installedName: authority.name, sourceId: authority.sourceId,
+			byteOffset: byteOffset + prefix.byteLength, byteLength: file.byteLength, sha256: file.sha256,
+		});
+		parts.push(prefix, file.bytes, suffix);
+		byteOffset += prefix.byteLength + file.byteLength + suffix.byteLength;
+	}
+	const bytes = Buffer.concat(parts);
+	const destination = resolve(outputRoot, name);
+	try {
+		await writeFile(destination, bytes, { flag: 'wx', mode: 0o444 });
+	} catch (error) {
+		if (error.code !== 'EEXIST') throw error;
+		// Both products in a suite share the same five-target notice inventory.
+		// Reuse only an exact document previously staged into this release.
+		const metadata = await lstat(destination);
+		if (!metadata.isFile() || metadata.isSymbolicLink()) {
+			throw new Error('The release third-party license document is not a regular file.', { cause: error });
+		}
+		const handle = await open(destination, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+		try {
+			if (!(await handle.readFile()).equals(bytes)) {
+				throw new Error('The release third-party license document disagrees with authenticated notices.', { cause: error });
+			}
+		} finally {
+			await handle.close();
+		}
+	}
+	return { noticeDocument: { name, byteLength: bytes.byteLength, sha256: digest(bytes) }, notices };
 }
 
 function validateRuntimeManifests(value, authorities, productId) {
