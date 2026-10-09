@@ -32,6 +32,7 @@ export default function PreferenceNumberInput({
 	return <input aria-label={label} disabled={disabled} type="number" min={minimum} max={maximum}
 		step="1" {...dataAttributes} value={draft} onChange={(event) => { canceled.current = false; setDraft(event.currentTarget.value); }}
 		onBlur={commit} onKeyDown={(event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape' && draft !== String(value)) {
 				event.preventDefault();
 				event.stopPropagation();
