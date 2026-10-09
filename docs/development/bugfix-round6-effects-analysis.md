@@ -10,6 +10,7 @@ repository's qualified CI audio null sink. R6-EFFECT-012 remains pending public
 GREEN on a later build and is not yet counted. R6-EFFECT-013 has focused GREEN
 and remains pending public GREEN as well, as does R6-EFFECT-014.
 R6-EFFECT-015 has causal public RED and focused GREEN and awaits the next build.
+R6-EFFECT-016 has the same pending validation status.
 The INDEX follow-through of R6-EFFECT-011 also awaits its new public PCM check;
 it adds no root.
 
@@ -437,3 +438,38 @@ restored editable admission and available Cancel
 strict types, targeted type-aware lint and the file-size gate pass. Public
 GREEN awaits the next immutable product build. No assistance runtime assets
 change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-016 — An explicitly empty macro track selection retains an edit target
+
+Import an ordinary WAV, open Tools → Macros palette → New program, and run
+`await sound.select.all();` followed by
+`await sound.select.tracks({track: 0, trackCount: 100, mode: 'remove'});`.
+The documented read API reports zero selected tracks. A subsequent
+`await sound.command('Delete');` nevertheless removes the recording. The
+unchanged native Select → Tracks → No tracks → Edit → Delete → Delete control
+preserves it.
+
+The macro selection adapter publishes empty track IDs but retains the focused
+track, which supplies a valid fallback to the existing edit dispatcher. Native
+No tracks also clears that focus. After an explicitly empty track-change
+command, reuse the existing native action, retaining the exact time and
+frequency range. Ordinary nonempty track commands and unrelated unscoped time
+commands keep their existing focus behavior. No global selection schema or
+run-local shadow state is introduced. Remove-all, zero-count and out-of-range
+track selections share this one publication owner.
+
+The actual ordinary macro and native-control comparison is causally RED at
+one deleted recording versus one preserved recording, while the native control
+passes
+(`/tmp/soundscaper-r6-effects-macro-empty-tracks-browser-control-red.log`). Three
+strict cases using the real native navigation service independently fail
+before repair, with two controls passing
+(`/tmp/soundscaper-r6-effects-macro-empty-tracks-node-red.log`). All forty-four
+new/existing macro command, actual-controller selection, spectral/time edges,
+Select All and native navigation cases pass afterward
+(`/tmp/soundscaper-r6-effects-macro-empty-tracks-node-green.log`). Focused strict
+types, targeted type-aware lint and the size gate pass. Public GREEN awaits the
+next immutable product build. The earlier EDIT-010 dispatcher correction
+remains intact; this independently implemented macro publication adapter must
+retire the focus it previously preserved. No assistance runtime assets change
+and no manual **Update AI assets** run is required.
