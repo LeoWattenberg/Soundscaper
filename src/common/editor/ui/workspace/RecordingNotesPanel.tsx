@@ -99,6 +99,7 @@ export default function RecordingNotesPanel({ value, disabled, copy, onChange }:
 					onChange(event.currentTarget.value);
 				}}
 				onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return;
 					const format = event.key.toLowerCase() === 'b' ? 'bold'
 						: event.key.toLowerCase() === 'i' ? 'italic' : null;
