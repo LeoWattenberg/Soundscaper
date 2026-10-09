@@ -21,7 +21,7 @@ eighteen verified roots. R6-EFFECT-019 passes its complete ordinary carrier
 comparison in all three engines on immutable Green12 `8d9d45ff4`
 (`/tmp/soundscaper-round6-green12-public-browser.log`), bringing this register to
 nineteen verified roots. R6-EFFECT-018's dependent tail-estimator repair is
-included in that snapshot. R6-EFFECT-020 has focused GREEN and awaits a later build.
+included in that snapshot. R6-EFFECT-020–021 have focused GREEN and await a later build.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -644,3 +644,39 @@ selection and render-partition parity cases pass after correction
 strict types, targeted type-aware lint and the size gate pass. Public GREEN
 awaits the next immutable product build. No assistance runtime assets change
 and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-021 — Native surround Loudness Normalization counts the wrong channel roles
+
+Import ordinary one-second 5.1 WAV recordings containing the same left-channel
+1 kHz programme, with and without a separate 100 Hz LFE signal. Select each
+Source waveform and choose Effect → Volume and compression → Loudness
+Normalization, retaining the default linked perceived-loudness target. Mute
+the other recording for each ordinary WAV export. Adding only LFE content
+changes the audible programme's normalized RMS from 0.0707411 to 0.0208734,
+even though LFE is excluded from canonical programme loudness and monitoring.
+A surround-only channel likewise lands near −21.54 LUFS against the authored
+−23 LUFS target.
+
+The linked normalization measurement gives every native channel unity weight.
+Reuse the analyzer's existing canonical 5.0/5.1 channel weights before adding
+filtered channel power, excluding LFE and applying the surround contribution.
+Preserve all native samples, linked channel balance, mono/stereo dual-mono and
+independent-channel behavior, unknown discrete layouts, RMS mode and the
+existing upstream filter, gate, histogram and sample-clock ordering. LFE and
+surround manifestations share this one channel-role weighting owner.
+
+The complete ordinary Source/menu/apply/WAV workflow is causally RED at an
+audible programme RMS ratio of 0.295068 instead of one
+(`/tmp/soundscaper-r6-effects-loudness-channel-weighting-browser-red2.log`). An
+earlier run timed out during export under resource pressure and is excluded.
+Four strict actual-DSP cases fail at the LFE gain change, 5.0/5.1 surround
+target and LFE-only normalization while mono/stereo controls pass
+(`/tmp/soundscaper-r6-effects-loudness-channel-weighting-node-red2.log`). The
+initial mismatching-array failure diff exhausted memory and was stopped; the
+retained scalar maximum-difference assertion checks the same exact PCM
+contract. All twenty-seven new/existing basic-effect, loudness histogram,
+dual-mono, RMS and native-rate loudness cases pass after repair
+(`/tmp/soundscaper-r6-effects-loudness-channel-weighting-node-green.log`).
+Focused strict compilation, targeted type-aware lint and size/diff checks pass.
+Public GREEN awaits the next immutable product build. No assistance runtime
+assets change and no manual **Update AI assets** run is required.
