@@ -174,7 +174,7 @@ export function createClipTimePitchRenderService(
 		let writerCommitted = false;
 		try {
 			let buffer: AudioBufferLike | undefined;
-			if (clip.linkPitchAndTempo) {
+			if (clip.linkPitchAndTempo || clip.warpMap != null) {
 				if (!dependencies.renderLinkedOutput) throw new Error('Linked clip rendering is unavailable.');
 				buffer = await dependencies.renderLinkedOutput(project, clip, source, task.signal);
 			} else {
@@ -310,15 +310,16 @@ function renderedClip(
 ): RenderClip {
 	const frameCount = buffer.length;
 	const loop = readClipLoop(clip);
-	// Scalar caches contain one period; linked offline output contains the
-	// complete audible clip, including its repeat phase and final partial pass.
-	const durationFrames = loop && !clip.linkPitchAndTempo ? clip.durationFrames : Math.max(
+	const nativePlayback = Boolean(clip.linkPitchAndTempo) || clip.warpMap != null;
+	// Scalar caches contain one period; native offline output contains the
+	// complete audible clip, including authored warp timing and repetitions.
+	const durationFrames = loop && !nativePlayback ? clip.durationFrames : Math.max(
 		1,
 		scaleSampleFrame(frameCount, buffer.sampleRate, projectSampleRate, 'point'),
 	);
 	return {
 		...clip,
-		...(loop && clip.linkPitchAndTempo ? { opaqueExtensions: withoutClipLoop(clip.opaqueExtensions) } : {}),
+		...(loop && nativePlayback ? { opaqueExtensions: withoutClipLoop(clip.opaqueExtensions) } : {}),
 		sourceId,
 		sourceStartFrame: 0,
 		sourceDurationFrames: frameCount,
@@ -327,7 +328,7 @@ function renderedClip(
 		trimEndFrames: 0,
 		pitchCents: 0,
 		speedRatio: 1,
-		...(clip.linkPitchAndTempo ? { linkPitchAndTempo: false, warpMap: null } : {}),
+		...(nativePlayback ? { linkPitchAndTempo: false, warpMap: null } : {}),
 		preserveFormants: false,
 		reversed: false,
 		fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
