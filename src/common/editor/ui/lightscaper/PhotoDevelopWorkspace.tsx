@@ -11,6 +11,7 @@ import type { usePhotoDevelopSettings } from './use-photo-develop-settings.ts';
 import { photoDevelopSettingsCopy } from '../../../i18n/lightscaper-develop-settings-copy.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { ExecutePhotoDevelopV1 } from '../../controller/shared/photo-library-develop-workflow-v1.ts';
+import type { PhotoDevelopResolutionV1 } from '../../photo-library-develop-full-resolution-port-v1.ts';
 import './photo-develop.css';
 
 export interface PhotoDevelopWorkspacePropsV1 extends Omit<PhotoDevelopPreviewPropsV1, 'develop' | 'messages'> {
@@ -27,6 +28,9 @@ export interface PhotoDevelopWorkspacePropsV1 extends Omit<PhotoDevelopPreviewPr
 export default function PhotoDevelopWorkspace(props: PhotoDevelopWorkspacePropsV1) {
 	const { owner, drain, snapshot } = usePhotoDevelop(props), messages = photoDevelopCopy(props.locale);
 	const [snapshotName, setSnapshotName] = useState(''), [copyName, setCopyName] = useState('');
+	const [resolution, setResolution] = useState(() => ({ owner, photoId: props.photoId, value: 'proxy' as PhotoDevelopResolutionV1 }));
+	const selectedResolution = resolution.owner === owner && resolution.photoId === props.photoId ? resolution : { owner, photoId: props.photoId, value: 'proxy' as const };
+	const renderedResolution = useRef(selectedResolution); renderedResolution.current = selectedResolution;
 	const live = useRef(true);
 	const owned = useRef(owner); owned.current = owner;
 	const rendered = useRef(snapshot); rendered.current = snapshot;
@@ -57,13 +61,15 @@ export default function PhotoDevelopWorkspace(props: PhotoDevelopWorkspacePropsV
 				{props.settings && catalogId && <PhotoDevelopSettingsMenu locale={props.locale} owner={props.settings.owner} snapshot={props.settings.snapshot}
 					source={{ catalogId, photoId: document.photoId, versionId: document.versionId, revision: document.revision, develop: draft }}
 					selectedIds={props.selectedIds ?? [document.photoId]} disabled={busy} dirty={snapshot.dirty}
-					isCurrent={() => mounted() && owner.snapshot().document === document} onChanged={() => owner.reload()} />}
+					isCurrent={() => mounted() && owner.snapshot().document === document} onChanged={() => owner.reload()}
+					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
+						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }} />}
 				<label>{messages.version}<select value={document.versionId} disabled={busy || snapshot.dirty} onChange={event => {
 					const id = event.currentTarget.value; run(() => owner.open(props.photoId, id));
 				}}>{document.versions.map(version => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label>
 				<button type="button" disabled={busy || snapshot.dirty || document.activeVersionId === document.versionId}
 					onClick={() => { run(() => owner.apply({ type: 'activate-version', versionId: document.versionId })); }}>{messages.useVersion}</button>
-				<div className="lightscaper-develop-layout"><PhotoDevelopPreview {...props} develop={draft} messages={messages} />
+				<div className="lightscaper-develop-layout"><PhotoDevelopPreview {...props} develop={draft} messages={messages} revision={document.revision} resolution={selectedResolution.value} />
 					<PhotoDevelopEffects effects={draft.effects} owner={owner} messages={messages} disabled={busy}
 						isCurrent={() => mounted() && owner.snapshot().document === document} /></div>
 				<div className="lightscaper-develop-history"><section aria-label={messages.history}><h3>{messages.history}</h3>

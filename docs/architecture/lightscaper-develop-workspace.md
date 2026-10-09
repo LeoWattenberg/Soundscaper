@@ -110,9 +110,12 @@ The final histogram measures the rendered bytes and follows the shared
 visible-sample/clipping contract. Only scalar histogram data may outlive that
 scope; output pixels are borrowed. Unsupported enabled operations and mask
 bindings refuse explicitly. Disabled known effects remain in authored settings
-without being evaluated. Additional global operations, mask evaluation, full
-resolution zoom/export, workspace presentation, and latency qualification
-remain outstanding; this processor does not mark the Develop milestone done.
+without being evaluated. The opted-in Settings menu also selects the
+[full-resolution renderer](lightscaper-develop-full-resolution-zoom.md), which
+uses the same ordered frame owner under a separate fixed profile. Additional
+global operations, mask evaluation, full-resolution export and latency
+qualification remain outstanding; this processor does not mark the Develop
+milestone done.
 
 The optional `develop.settings` capability provides the domain foundation for
 Copy settings, Paste settings, Sync, Auto-sync, and relative quick Develop.

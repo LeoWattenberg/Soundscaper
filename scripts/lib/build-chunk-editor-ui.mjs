@@ -19,7 +19,7 @@ export const editorUiChunkGroups = [
 		// and the archive limit share no product domain imports. One neutral owner
 		// avoids timeline passengers and preserves startup request ceilings.
 		name: 'editor-neutral-foundations',
-		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|native-media-plan-canonical-form|photo-library-develop-proxy-port-v1|photo-library-saved-collection-port-v1|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
+		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|native-media-plan-canonical-form|photo-library-develop-(?:proxy|original|full-resolution)-port-v1|photo-library-saved-collection-port-v1|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,

@@ -3,6 +3,7 @@
 import type { ImageDevelopStateV1 } from './imaging/image-develop-contract-v1.ts';
 import type { PhotoLibraryDevelopSettingsPortV1 } from './photo-library-develop-settings-port-v1.ts';
 import type { PhotoLibraryDevelopPresetsPortV1 } from './photo-library-develop-presets-port-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortV1 } from './photo-library-develop-original-port-v1.ts';
 
 /** Authored shared-effect settings only; no photo document, original locator or media body. */
 export type PhotoLibraryDevelopSettingsV1 = ImageDevelopStateV1;
@@ -49,6 +50,7 @@ export interface PhotoLibraryDevelopAcknowledgementV1 {
 	readonly notices: readonly 'cleanup-failed'[];
 }
 export interface PhotoLibraryDevelopPortV1 {
+	readonly original?: Readonly<PhotoLibraryDevelopOriginalPortV1>;
 	readonly settings?: Readonly<PhotoLibraryDevelopSettingsPortV1>;
 	readonly presets?: Readonly<PhotoLibraryDevelopPresetsPortV1>;
 	read(request: PhotoLibraryDevelopReadV1, options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryDevelopSnapshotV1>;

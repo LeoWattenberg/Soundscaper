@@ -442,7 +442,7 @@ export default function LightscaperApp({ locale, createSession: suppliedCreateSe
 		{!restore.busy && developVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoDevelopWorkspace locale={locale} photoId={developEntry.photoId} label={developEntry.label} generation={developGeneration}
 					selectedIds={photoSelection.snapshot.selectedIds} settings={developSettings}
-					execute={library.executeDevelop} readPreview={library.readPreview} loadProxy={loadDevelopProxyRuntime}
+					execute={library.executeDevelop} readPreview={library.readPreview} withOriginalFrame={library.withOriginalFrame} loadProxy={loadDevelopProxyRuntime}
 					beforePresent={developEntry.beforePresent} beforeOpen={developEntry.beforeOpen} registerDemandRetirement={developSurface.register}
 					registerRetirement={registerPreviewRetirement} onClose={() => {
 						developSurface.close(joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]));

@@ -12,6 +12,7 @@ import { usePhotoOriginalRecovery, type ExecutePhotoOriginalRecoveryV1 } from '.
 import type { ExecutePhotoStackV1 } from './use-photo-stacks.ts';
 import type { ExecutePhotoSavedFiltersV1 } from './use-photo-saved-filters.ts';
 import type { ExecutePhotoDevelopV1 } from '../../controller/shared/photo-library-develop-workflow-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
@@ -230,6 +231,15 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		const owner = await acquire(current); signal.throwIfAborted();
 		const result = await owner.readPreview(photoId, tier, { signal }); signal.throwIfAborted();
 		return result;
+	}, [createSession, loadBackupSaveRuntime]);
+	const withOriginalFrame = useCallback<PhotoLibraryDevelopOriginalPortV1['withFrame']>(async (request, consume, options = {}) => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== createSession || current.factory !== factory.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current) throw new DOMException('Photo original generation is closed.', 'AbortError');
+		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
+		signal.throwIfAborted(); const owner = await acquire(current); signal.throwIfAborted();
+		if (!owner.develop?.original) throw new Error('Full-resolution development is unavailable.');
+		return owner.develop.original.withFrame(request, consume, { signal });
 	}, [createSession, loadBackupSaveRuntime]);
 
 	const readPage = useCallback((cursor: string | null = null) => run(async (owner, signal, current) => {
@@ -500,7 +510,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	return { ...originalWorkflow, retireAndJoin, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
-		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }

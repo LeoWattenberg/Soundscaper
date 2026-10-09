@@ -76,6 +76,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 		this.developImport = createPhotoLibraryDevelopImportSessionV1({ settings: presetSettings, ready: () => this.#ready(),
 			operation: (run, signal) => this.#operation(run, signal), importFiles: (files, request) => this.#importFiles(files, request) });
 		this.develop = createPhotoLibraryDevelopSessionV1({ repository: ports.catalog, ready: () => this.#ready(),
+			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal.bind(ports.backup) } : undefined,
 			presetStorage: presetSettings ? { settings: presetSettings, catalog: ports.catalog } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, run, signal),
 			mutate: (run, signal) => this.#mutation(run, signal), withPhoto: (catalogId, key, signal, run) => this.#withPhoto(catalogId, key, signal, run) });

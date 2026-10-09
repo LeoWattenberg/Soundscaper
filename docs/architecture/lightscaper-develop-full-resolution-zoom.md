@@ -1,0 +1,35 @@
+# Full-resolution Develop inspection
+
+File > Photo > Develop starts with a fit-screen derivative. The existing
+Settings menu offers Full resolution (100%) and Fit-screen proxy. Full
+resolution displays the developed output at one CSS pixel per image pixel;
+its focusable viewport supports keyboard scrolling. Before/after and split
+retain their existing controls. A split viewport uses the developed natural
+extent and contains the source in that extent, including its existing
+letterboxing when geometry changes the aspect ratio.
+
+The selected Session's optional `develop.original` capability lends an
+authenticated, oriented original frame only during its consumer. A request
+binds the expected photo revision. The owner checks the complete immutable
+original binding and revision after body loading, before delivery and after
+the consumer settles. A stale read refuses before native decoding. The
+existing original-frame owner verifies compressed bytes, digest and EXIF
+orientation and clears every temporary backing after settlement.
+
+Full-resolution processing uses the same ordered shared-effect and natural
+geometry owner as the proxy. Its separate fixed profile admits UNORM8 sRGB
+source frames up to 8192 pixels per side, 16,777,216 pixels and 64 MiB.
+Natural outputs may reach 16,384 pixels per side, 67,108,864 pixels and
+256 MiB. Admission precedes allocation. These per-frame limits are separate
+from measured latency and total working-set budgets; derivative limits stay
+at 2048-source/4096-output sides and 16/32 MiB.
+
+Presentation retains scalar histograms and extents. Source, stage and native
+canvas backings have separate lifetimes. Changing resolution, photo,
+settings or revision joins the preceding consumer before starting another
+read; cancellation and cleanup failures keep that ownership fence. Closing
+the Session joins held original reads. Ready presentation follows the
+original reader's final revision check and backing retirement; a refused
+check clears both painted canvases. Resolution is presentation state:
+it creates no settings, history, snapshot, version, metadata or original
+write, and reopening starts with the fit-screen proxy.

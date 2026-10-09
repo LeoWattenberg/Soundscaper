@@ -10,6 +10,8 @@ export interface PhotoLibraryDevelopProxyViewV1 {
 }
 /** A scoped derivative, never an original body or catalog owner. */
 export interface PhotoLibraryDevelopProxyRuntimeV1 {
+	withFullResolution?<Result>(request: Readonly<{ frame: PixelFrameV1; develop: PhotoLibraryDevelopSettingsV1; signal: AbortSignal }>,
+		consume: (view: PhotoLibraryDevelopProxyViewV1) => Result | Promise<Result>): Promise<Result>;
 	withProxy<Result>(request: Readonly<{ frame: PixelFrameV1; develop: PhotoLibraryDevelopSettingsV1; signal: AbortSignal }>,
 		consume: (view: PhotoLibraryDevelopProxyViewV1) => Result | Promise<Result>): Promise<Result>;
 }

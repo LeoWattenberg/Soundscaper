@@ -11,8 +11,10 @@ import type { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoDevelopWorkspaceCommandV1, PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_V1 } from './photo-develop-workspace-commands-v1.ts';
 import { createPhotoLibraryDevelopSettingsSessionV1, type PhotoLibraryDevelopSettingsSessionHostV1 } from './photo-library-develop-settings-session-v1.ts';
 import { createPhotoLibraryDevelopPresetsSessionV1, type PhotoLibraryDevelopPresetStorageV1 } from './photo-library-develop-presets-session-v1.ts';
+import { createPhotoLibraryDevelopOriginalSessionV1, type PhotoLibraryDevelopOriginalSessionHostV1 } from './photo-library-develop-original-session-v1.ts';
 
 export interface PhotoLibraryDevelopSessionHostV1 extends PhotoLibraryDevelopSettingsSessionHostV1 {
+	readonly originalSource?: Pick<PhotoLibraryDevelopOriginalSessionHostV1, 'loadOriginal' | 'withFrame'>;
 	readonly presetStorage?: PhotoLibraryDevelopPresetStorageV1;
 	readonly repository: Pick<PhotoLibrarySessionPortsV1['catalog'], 'loadPhoto'>;
 	readonly ready: () => Promise<string>;
@@ -23,6 +25,8 @@ export interface PhotoLibraryDevelopSessionHostV1 extends PhotoLibraryDevelopSet
 /** Borrows the existing Session's lifetime, single writer and durable photo owner. */
 export function createPhotoLibraryDevelopSessionV1(host: PhotoLibraryDevelopSessionHostV1): Readonly<PhotoLibraryDevelopPortV1> {
 	return Object.freeze({
+		...(host.originalSource ? { original: createPhotoLibraryDevelopOriginalSessionV1({ repository: host.repository,
+			ready: host.ready, operation: host.operation, ...host.originalSource }) } : {}),
 		settings: createPhotoLibraryDevelopSettingsSessionV1(host),
 		...(host.presetStorage ? { presets: createPhotoLibraryDevelopPresetsSessionV1({ storage: host.presetStorage,
 			ready: host.ready, operation: host.operation, mutate: host.mutate }) } : {}),

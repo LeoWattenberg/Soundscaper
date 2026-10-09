@@ -3,6 +3,7 @@
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import { admitPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-admission-v1.ts';
 import { readPixelFrameV1, type PixelFrameDescriptorV1, type PixelFrameLimitsV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
+import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../../common/editor/photo-library-develop-full-resolution-port-v1.ts';
 import { DETAIL_SHARPEN_EFFECT_TYPE_V1 } from '../../common/editor/video-sharpen-v1.ts';
 import { COLOR_WHEELS_EFFECT_TYPE_V1 } from '../../common/editor/video-color-wheels-v1.ts';
 import { withDetailSharpenPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-sharpen-v1.ts';
@@ -41,6 +42,13 @@ const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byte
 export function withPhotoDevelopProxyFrameV1<Result>(value: unknown,
 	consume: (view: Readonly<PhotoDevelopFrameViewV1>) => Result | Promise<Result>): Promise<Result> {
 	return withPhotoDevelopFrame(value, consume, PHOTO_DEVELOP_PROXY_LIMITS_V1);
+}
+
+/** Full-resolution inspection borrows the authenticated, already-oriented
+ * original and runs the same ordered kernels under its own fixed limits. */
+export function withPhotoDevelopFullResolutionFrameV1<Result>(value: unknown,
+	consume: (view: Readonly<PhotoDevelopFrameViewV1>) => Result | Promise<Result>): Promise<Result> {
+	return withPhotoDevelopFrame(value, consume, PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1);
 }
 
 interface Profile { readonly source: PixelFrameLimitsV1; readonly render: PixelFrameLimitsV1 }

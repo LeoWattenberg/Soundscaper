@@ -448,7 +448,11 @@
 		,
 		{ "path": "src/common/editor/photo-library-batch-rename-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar selection, rename plan, durable partial receipts and bounded revision-fenced inverse without media or catalog documents." }
 		,
+		{ "path": "src/common/editor/photo-library-develop-full-resolution-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed full-resolution profile bounds admitted original frames and natural geometry output independently of the unchanged derivative proxy limits." }
+		,
 		{ "path": "src/common/editor/photo-library-develop-import-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import capability carries a closed scalar preset choice and bounded current-catalog menu while retaining the existing import settings and acknowledgement contract." }
+		,
+		{ "path": "src/common/editor/photo-library-develop-original-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped original pixel reading names the expected photo revision and lends authenticated oriented frames without exposing original locators or retained media bodies." }
 		,
 		{ "path": "src/common/editor/photo-library-develop-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop presentation carries current shared-effect settings, scalar version/history/snapshot summaries and explicit revision-fenced commands without catalog documents or original custody." }
 		,
@@ -784,7 +788,7 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
-		{ "path": "src/lightscaper/controller/photo-develop-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 Photo ordered-frame owner admits one private fixed proxy profile, evaluates natural geometry and supported shared effects, measures rendered histograms, joins cancellation and wipes every replaced stage independently of original custody; callers cannot select arbitrary limits." }
+		{ "path": "src/lightscaper/controller/photo-develop-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 Photo ordered-frame owner admits separate named fixed proxy and full-resolution profiles, evaluates natural geometry and supported shared effects, measures rendered histograms, joins cancellation and wipes every replaced stage independently of original custody; callers cannot select arbitrary limits." }
 		,
 		{ "path": "src/lightscaper/controller/photo-develop-proxy-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped photo proxy preserves its public signature, limits and view type while delegating ordered evaluation and bounded pixel retirement to the named fixed-profile Photo frame owner." }
 		,
@@ -811,6 +815,8 @@
 		{ "path": "src/lightscaper/controller/photo-library-develop-import-request-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import requests detach scalar preset identity and the existing import options without widening legacy closed request admission." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-import-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 current-catalog preset menus and imports borrow the existing Session readiness, operation, writer and close join while binding the selected settings reader before acquisition." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-original-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 original pixel reading borrows the selected Session lifetime, authenticates retained source bytes and orientation, and fences the requested photo revision and immutable binding before and after scoped consumption." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-develop-presets-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 preset requests detach before lazy initialization, bind the catalog and settings revision, and retain acknowledged publication beside independent lease cleanup failures while borrowing the Session writer and Close join." }
 		,
@@ -867,6 +873,8 @@
 		{ "path": "src/lightscaper/import/photo-native-image-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded native photo session port validates original-oriented geometry and fixed RGBA output with explicit cleanup ownership." }
 		,
 		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
+		,
+		{ "path": "src/lightscaper/photo-develop-render-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product composition exposes named fixed proxy and full-resolution scoped render paths using the same ordered Photo frame owner without retaining source bodies or weakening either profile." }
 		,
 		{"path": "src/lightscaper/photo-library-restore-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert restore runtime owns the fixed settings anchor and one admitted demand through cancellation, native settlement and close."}
 		,
