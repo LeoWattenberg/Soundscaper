@@ -1090,6 +1090,8 @@
 		,
 		{"path": "src/lightscaper/photo-library-restore-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert restore runtime owns the fixed settings anchor and one admitted demand through cancellation, native settlement and close."}
 		,
+		{"path": "src/lightscaper/photo-library-restore-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 inert restore runtime composes current archive admission through the unchanged scalar receipt, fixed anchor and joined native demand ownership."}
+		,
 		{"path": "src/lightscaper/photo-library-session-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 library composition resolves authenticated fixed-anchor location and permanent history before constructing selected resources with physical namespace write leases."}
 		,
 		{"path": "src/lightscaper/photo-library-session-runtime-v3.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
