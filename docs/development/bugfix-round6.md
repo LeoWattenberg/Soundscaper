@@ -1,7 +1,8 @@
 # Sixth user-path regression audit
 
-Target: 200 additional distinct bugs. This audit is in progress and has not
-reached the target. Its initial revision is `ee0d3fabd`; work is isolated on
+Target: 200 additional distinct bugs. All 200 fixes have focused regressions and
+complete public workflow verification; full-suite validation continues. The
+initial revision is `ee0d3fabd`; work is isolated on
 `fix/user-path-bugs-round6`.
 
 Only defects reached through ordinary menus, input fields, media imports and
@@ -691,3 +692,27 @@ observation; all assertions, deadlines and source stay unchanged. The complete
 all-engine full100 run and queued150 run remain pending; neither is claimed
 to pass. Green35's complete static gate is running. No manual **Update AI assets**
 run is required: the browser/UI/test changes retain the assistance runtime closure.
+
+The last retained pointer workflow completes on immutable Green36 `10ce509b8`:
+ordinary mouse and native pen moves each retain 14,400 frames, a mouse tap no
+longer replaces the active pen gesture, and exact Undo/Redo completes in
+8.7 seconds (`/tmp/soundscaper-r6-edit-pointer-fixture-public-green.log`). The
+first Green36 attempt stopped before the pen at a pending autosave entry; its
+polling observer now tolerates that absent entry without changing any movement
+or history assertion. The same observer on unchanged Green34 still completes
+both healthy controls and causally fails at zero versus 14,400 frames in
+11.1 seconds (`/tmp/soundscaper-r6-edit-pointer-fixture-causal-red.log`). This
+qualifies EDIT054. There are **200 distinct publicly verified fixes**: editing54,
+effects45, I/O35 and dialogs66. The excluded I/O004 and dialog019 remain excluded;
+variant and fixture completions contribute no extra count.
+
+Green35's complete static gate exits zero, including all repository lint shards,
+strict product/test/tooling types, architecture and size checks, runtime and
+notice audits, handbook builds, and the guarded production build
+(`/tmp/soundscaper-round6-green35-static.log`). Green36's complete typecheck and
+both product builds also exit zero. Green37 `3a748640a` builds both products
+with the zero-count I/O008 missing native channel metadata completion; its
+whole Firefox capture checks are running. Full100 and queued full150 browser
+checkpoints remain pending. The final full200 canonical and browser gates use
+the committed source and faithful observers. No manual **Update AI assets**
+run is required.
