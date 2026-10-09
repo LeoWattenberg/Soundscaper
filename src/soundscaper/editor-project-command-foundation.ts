@@ -2,8 +2,8 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import type { AutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
-import { normalizeAutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
+import { normalizeAutomationLaneV21, type AutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
+import { applyCommandTreeWithAdmCleanup } from '../common/editor/commands/adm-removed-track-references.ts';
 import {
 	createAudioProductionRuntimeHandlers,
 } from '../common/editor/commands/audio-production.ts';
@@ -74,7 +74,7 @@ export function applySoundscaperProjectFoundationCommand(
 		project,
 		projectForCommandConsumers(project as unknown as Record<string, unknown>),
 	);
-	const applied = applyCommandTree(project, command, options, transaction, true);
+	const applied = applyCommandTreeWithAdmCleanup(project, command, options, transaction, applyCommandTree);
 	if (JSON.stringify(applied) === JSON.stringify(project)) return project;
 	const draft = structuredClone(applied) as Record<string, unknown>;
 	const revision = Number(project.revision) + 1;
