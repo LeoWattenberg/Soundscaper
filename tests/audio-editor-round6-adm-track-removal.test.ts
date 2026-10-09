@@ -37,11 +37,11 @@ for (const objects of [false, true]) test(`ordinary track deletion retires its A
 	assert.deepEqual(history.present.metadata, before.metadata);
 	assert.deepEqual(history.present.tracks, before.tracks);
 	assert.deepEqual(history.present.clips, before.clips);
-	assert.deepEqual(history.present.mixerGraph, before.mixerGraph);
+	assert.deepEqual(history.present.mixer, before.mixer);
 	assert.equal(history.present.masterChannels, before.masterChannels);
 	history = redoSoundscaperProjectCommand(history);
 	assert.deepEqual(history.present.metadata, after.metadata);
-	assert.deepEqual(history.present.mixerGraph, after.mixerGraph);
+	assert.deepEqual(history.present.mixer, after.mixer);
 	assert.equal(history.present.masterChannels, after.masterChannels);
 });
 
