@@ -450,7 +450,7 @@ export interface NativeProjectServiceRuntime {
 	) => Promise<ScapeExportResult>;
 	readonly decodeExternalAudio?: ExternalAudioDecoder;
 	readonly copyFutureScapeArchive: (
-		input: Blob,
+		input: ScapeProjectInput,
 		write: (bytes: Uint8Array) => void | PromiseLike<void>,
 		options: Readonly<{ signal: AbortSignal }>,
 	) => Promise<Readonly<{ byteLength: number; schemaVersion: number }>>;
