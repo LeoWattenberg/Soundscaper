@@ -1199,9 +1199,9 @@ and rack-command cases pass after repair
 (`/tmp/soundscaper-r6-effects-linked-tone-node-green2.log`), including complete
 one-entry Undo/Redo and unchanged independently owned automation values.
 Focused strict compilation, targeted and canonical changed-file lint, and
-size/diff checks pass. Built public GREEN is pending the next immutable
-snapshot; this register retains thirty verified
-roots.
+size/diff checks pass. Both complete native Chromium workflows pass on
+immutable Green24 `97b556b6d`, including exact one-Undo and Redo restoration
+(`/tmp/soundscaper-round6-green24-chromium.log`).
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
 
@@ -1231,7 +1231,10 @@ new and existing rate-duration and time-code cases pass after repair,
 including format/blur without a parameter write
 (`/tmp/soundscaper-r6-effects-rate-sample-duration-node-green.log`). Focused
 strict compilation, targeted and canonical changed-file lint, and size/diff
-checks pass. Built public GREEN is pending the next immutable snapshot;
-this register retains thirty verified roots.
+checks pass. Both complete native Chromium workflows pass on immutable
+Green24 `97b556b6d`: the Samples field and delivered WAV both contain exactly
+32,000 frames at a 50-percent change
+(`/tmp/soundscaper-round6-green24-chromium.log`). This register now has
+thirty-two verified roots.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
