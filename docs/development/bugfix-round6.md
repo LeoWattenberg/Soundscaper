@@ -403,3 +403,26 @@ workers and the working Pulse backend
 (`/tmp/soundscaper-round6-checkpoint100-green23-full-browser.log`). No full-browser
 suites overlap. The full100 canonical non-browser retry on `4e4d8ac7b` has passed
 the static gate and is running its Node suite; its final result remains pending.
+
+The complete full100 canonical retry on immutable `4e4d8ac7b` passes
+(`/tmp/soundscaper-round6-checkpoint100-green21-canonical-retry.log`). All seven
+bounded repository lint shards, every source/product/test/tooling typecheck,
+architecture and size gates, runtime and license audits, handbook checks and
+builds pass. Its isolated native protocol test and parallel Node batch total
+24,491 cases:24,458 passed,33 skipped and zero failed. The coverage reporter
+completes normally and retains the repository's existing combined-CI floor
+policy; no floor is weakened. The sequential all-engine full100 browser run
+on `ba2dac3c3` remains in progress. Later candidates are verified individually
+and will be covered by the required150 checkpoint.
+
+The immutable `97b556b6d` passes both guarded product builds and eight of ten
+focused public Chromium checks (`/tmp/soundscaper-round6-green24-chromium.log`,
+60 seconds). The actual camera attribution/CSV/save-reopen workflow, linked
+Bass/Treble one-entry Undo/Redo, exact rate-effect Samples-versus-delivered WAV
+and nonlinear Source trim retained PCM/Undo/Redo all pass. I/O025, effects031–032
+and dialog047 therefore qualify: **143 distinct verified fixes** comprise editing41,
+effects32, I/O24 and dialogs46. The automation native12px first-finger control
+passes but secondary-release and20px pan checks still fail; editing042 remains
+uncounted while its actual pointer payload and CSS authority are investigated.
+The independently repaired workspace-resize admission also remains source-ready
+until a later built public verification.
