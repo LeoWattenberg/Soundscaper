@@ -4,14 +4,20 @@
 export function createVideoEffectPointerCancellation() {
 	let held = false;
 	let canceled = false;
+	let owner: number | null = null;
 	return {
-		begin(): void { held = true; canceled = false; },
+		begin(pointerId: number): boolean {
+			if (held) return false;
+			held = true; canceled = false; owner = pointerId;
+			return true;
+		},
 		resumeKeyboard(): void { if (!held) canceled = false; },
 		cancel(): void { if (held) canceled = true; },
 		allowsPreview(): boolean { return !canceled; },
-		finish(): boolean {
+		finish(pointerId: number): boolean {
+			if (!held || pointerId !== owner) return false;
 			const completed = !canceled;
-			held = false;
+			held = false; owner = null;
 			return completed;
 		},
 	};
