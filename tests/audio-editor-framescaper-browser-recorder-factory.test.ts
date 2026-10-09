@@ -43,13 +43,17 @@ test('browser recorder factory packetizes actual PCM and marks pause input gaps 
 		kind: 'raw-pcm', sampleRate: 48_000, channelCount: 1, chunkFrames: 4_096,
 	});
 	recorder.start(100_000);
-	processor.push(audioData(0, [0.25, -0.5]));
-	await waitFor(() => packets.length === 1, 'the first captured packet');
+	const before = audioData(0, [0.25, -0.5]);
+	processor.push(before);
+	await waitFor(() => before.closed, 'the first native block to be copied');
 	assert.equal(await recorder.pause(), true);
+	await waitFor(() => packets.length === 1, 'the first captured packet');
 	assert.equal(await recorder.resume(), true);
-	processor.push(audioData(20, [0.75]));
-	await waitFor(() => packets.length === 2, 'both captured packets');
+	const after = audioData(20, [0.75]);
+	processor.push(after);
+	await waitFor(() => after.closed, 'the resumed native block to be copied');
 	await recorder.stop();
+	assert.equal(packets.length, 2);
 	assert.equal(packets[0]?.kind, 'pcm-audio');
 	assert.equal(packets[0]?.presentationTimeUs, 100_000);
 	assert.equal(packets[1]?.droppedBefore.value, 0);
@@ -174,8 +178,8 @@ function processorHarness() {
 function audioData(frameStart: number, samples: readonly number[]) {
 	return {
 		numberOfFrames: samples.length, numberOfChannels: 1, sampleRate: 48_000,
-		timestamp: frameStart,
+		timestamp: frameStart, closed: false,
 		copyTo(destination: Float32Array) { destination.set(samples); },
-		close() {},
+		close() { this.closed = true; },
 	};
 }

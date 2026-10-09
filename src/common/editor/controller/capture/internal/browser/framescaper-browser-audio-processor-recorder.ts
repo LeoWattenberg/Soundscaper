@@ -8,6 +8,7 @@ import type {
 	FramescaperBrowserAudioRecorderOptions,
 	FramescaperCaptureAudioRecorderState,
 } from './framescaper-browser-audio-recorder.ts';
+import { createFramescaperAudioDataChunker } from './framescaper-audio-data-chunker.ts';
 
 interface ActualAudioFormat {
 	readonly sampleRate: number;
@@ -52,6 +53,14 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 	let released = false;
 	let stopPromise: Promise<void> | null = null;
 	let disposePromise: Promise<void> | null = null;
+	const chunks = createFramescaperAudioDataChunker({
+		channelCount: format.channelCount, chunkFrames, inputGain,
+		onChunk: chunk => {
+			const write = sink.push(chunk);
+			void write.catch((error: unknown) => { fail(error); });
+			if (failures.failure) throw failures.failure;
+		},
+	});
 
 	function start(startFrameValue = 0): Promise<void> | void {
 		assertStartable(currentState(), failures.failure, startPromise);
@@ -85,6 +94,7 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 		if (fallback) return fallback.pause();
 		assertUsable(state, failures.failure);
 		if (state !== 'recording') return false;
+		try { chunks.flush(); } catch (error) { throw fail(error); }
 		state = 'paused';
 		return true;
 	}
@@ -107,6 +117,9 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 			if (readLoop) {
 				try { await readLoop; } catch { /* Failure channel retains the error. */ }
 			} else releaseReader();
+			if (!failures.failure) {
+				try { chunks.flush(); } catch (error) { fail(error); }
+			}
 			try { await sink.settle(); } catch { /* Failure channel retains the error. */ }
 			if (failures.failure) throw failures.failure;
 			if (state !== 'disposed') state = 'stopped';
@@ -140,24 +153,7 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 					validateAudioData(data, format);
 					inputFrameStart = exactFrameSum(inputFrameStart, data.numberOfFrames);
 					if (!isAcceptingProcessorData()) continue;
-					for (let offset = 0; offset < data.numberOfFrames; offset += chunkFrames) {
-						const frames = Math.min(chunkFrames, data.numberOfFrames - offset);
-						const channels = Array.from({ length: format.channelCount }, (_unused, planeIndex) => {
-							const channel = new Float32Array(frames);
-							data.copyTo(channel, {
-								planeIndex, frameOffset: offset, frameCount: frames, format: 'f32-planar',
-							});
-							if (inputGain !== 1) channel.forEach((value, index) => { channel[index] = value * inputGain; });
-							return channel;
-						});
-						const write = sink.push(Object.freeze({
-							frameStart: exactFrameSum(frameStart, offset),
-							frames,
-							channels: Object.freeze(channels),
-						}));
-						void write.catch((error: unknown) => { fail(error); });
-						if (failures.failure) break;
-					}
+					chunks.append(data, frameStart);
 				} finally {
 					try { data.close(); } catch (error) { fail(error); }
 				}
@@ -176,6 +172,7 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 
 	function fail(error: unknown): Error {
 		const failure = failures.fail(error);
+		chunks.discard();
 		state = 'failed';
 		void cancelReader().catch(() => undefined);
 		return failure;
