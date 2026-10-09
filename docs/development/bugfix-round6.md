@@ -888,3 +888,23 @@ all-engine browser run is queued behind the continuing immutable Green27
 pending at this receipt. No runtime source pin, assistance engine dependency,
 archive recipe or supported target changes, so no manual **Update AI assets**
 run is required.
+
+Green43's complete canonical gate subsequently finishes with **actual exit 0**
+(`/tmp/soundscaper-round6-checkpoint200-green43-canonical.log`). All seven lint
+shards, strict product/test/tooling types, architecture and size guards,
+runtime/notice audits, documentation checks and the guarded production build
+pass. The isolated protocol batch passes 1/1; the main batch reports 24,868
+cases, 24,835 passes, 33 skips and zero failures in 1,588,891 ms. Combined:
+**24,869 cases, 24,836 passed, 33 skipped, zero failed**. Fresh Node-only
+coverage is 90.13% statements/lines, 82.32% branches and 90.73% functions;
+the CI union floors and every production chunk/startup ceiling are unchanged.
+
+The unstarted two-worker Green43 browser queue is terminated with actual exit
+143 before any browser case starts. Its replacement uses the repository's
+normal local four-worker setting, with every case, original assertion and
+deadline unchanged, and waits for both the full 150-fix browser checkpoint and
+the canonical check process to finish before starting. The final all-engine
+browser result remains pending. New deadline observations from the older
+WebKit checkpoint are retained for unchanged complete retries after the Node
+runner and coverage reporter are idle; they are not counted as new roots or
+claimed to pass before those retries complete. The verified count remains 200.
