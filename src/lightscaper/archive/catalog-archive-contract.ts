@@ -5,7 +5,8 @@ import type { ScapeManifest } from '../../common/editor/scape-archive-envelope.t
 import { PHOTO_CATALOG_PACK_ASSET_KIND, PHOTO_CATALOG_PACK_ENCODING } from '../../common/editor/scape-photo-catalog-pack.ts';
 import { serializeScapeProjectDocument } from '../../common/editor/scape-project-document.ts';
 import { readValidatedPhotoCatalogRootV1 } from '../catalog/documents.ts';
-import type { PhotoCatalogRootV1, PhotoDocumentV1 } from '../catalog/types.ts';
+import type { PhotoCatalogRootV1 } from '../catalog/types.ts';
+import type { PhotoCatalogIndexSourceV1 } from '../catalog/photo-catalog-index-source-v1.ts';
 import { array, field, id, integer, name, oneOf, record, requireSchema, unique } from '../catalog/value-validation.ts';
 import { PHOTO_CATALOG_PACK_LIMITS_V1 } from './catalog-pack.ts';
 import { PhotoCatalogArchiveIdentityLedger } from './catalog-archive-identities.ts';
@@ -86,7 +87,7 @@ export class PhotoCatalogArchiveIdentityGuard {
 
 	get count(): number { return this.#identity.photoCount; }
 
-	admit(photo: PhotoDocumentV1): void {
+	admit(photo: PhotoCatalogIndexSourceV1): void {
 		if (photo.catalogId !== this.catalog.id) throw new RangeError('Photo belongs to a different archive catalog.');
 		if (this.#identity.hasPhoto(photo.id)) throw new RangeError('Photo archive contains a duplicate photo identity.');
 		if (photo.folderId !== null && !this.#folders.has(photo.folderId)
