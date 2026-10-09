@@ -48,10 +48,10 @@ export function useParametricEqSpectrum({
 			animationFrame = requestAnimationFrame(draw);
 			if (time - previousTime < 33) return;
 			previousTime = time;
-			const hasInput = showInput && Boolean(readerRef.current?.('input', input));
-			const hasOutput = showOutput && Boolean(readerRef.current?.('output', output));
-			drawSpectrumCanvas(inputCanvasRef.current, hasInput ? input : null, sampleRate, 'input');
-			drawSpectrumCanvas(outputCanvasRef.current, hasOutput ? output : null, sampleRate, 'output');
+			const inputMetadata = showInput ? readerRef.current?.('input', input) : null;
+			const outputMetadata = showOutput ? readerRef.current?.('output', output) : null;
+			drawSpectrumCanvas(inputCanvasRef.current, inputMetadata ? input : null, sampleRate, 'input', inputMetadata);
+			drawSpectrumCanvas(outputCanvasRef.current, outputMetadata ? output : null, sampleRate, 'output', outputMetadata);
 		};
 		animationFrame = requestAnimationFrame(draw);
 		return () => cancelAnimationFrame(animationFrame);
@@ -65,6 +65,7 @@ function drawSpectrumCanvas(
 	values: Float32Array | null,
 	sampleRate: number,
 	source: SpectrumSource,
+	metadata?: unknown,
 ): void {
 	if (!canvas) return;
 	const rect = canvas.getBoundingClientRect();
@@ -79,14 +80,20 @@ function drawSpectrumCanvas(
 	if (!context) return;
 	context.clearRect(0, 0, width, height);
 	if (!values) return;
+	const nativeRate = typeof metadata === 'object' && metadata !== null && 'sampleRate' in metadata
+		&& typeof metadata.sampleRate === 'number' && Number.isFinite(metadata.sampleRate) && metadata.sampleRate > 0
+		? metadata.sampleRate : sampleRate;
+	const maximum = Math.min(MAX_FREQUENCY, sampleRate * 0.49);
+	const binAt = (pixel: number): number => MIN_FREQUENCY * (maximum / MIN_FREQUENCY)
+		** (pixel / Math.max(1, width - 1)) / (nativeRate / 2) * values.length;
 	context.beginPath();
 	context.moveTo(0, height);
 	for (let pixel = 0; pixel < width; pixel += 2) {
-		const fraction = pixel / Math.max(1, width - 1);
-		const maximum = Math.min(MAX_FREQUENCY, sampleRate * 0.49);
-		const frequency = MIN_FREQUENCY * (maximum / MIN_FREQUENCY) ** fraction;
-		const bin = Math.min(values.length - 1, Math.round(frequency / (sampleRate / 2) * values.length));
-		const db = Number.isFinite(values[bin]) ? values[bin]! : -120;
+		// Pool the FFT interval covered by each point on the analyser's native clock.
+		const first = Math.max(0, Math.floor(binAt(pixel - 1)));
+		const end = Math.min(values.length, Math.ceil(binAt(pixel + 1)) + 1);
+		let db = -120;
+		for (let bin = first; bin < end; bin++) if (Number.isFinite(values[bin])) db = Math.max(db, values[bin]!);
 		const y = height * (1 - clamp((db + 120) / 120, 0, 1));
 		context.lineTo(pixel, y);
 	}
