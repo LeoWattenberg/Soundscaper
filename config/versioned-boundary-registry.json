@@ -726,6 +726,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
+		{ "path": "src/lightscaper/controller/photo-develop-proxy-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped photo proxy consumes already-oriented derivatives through ordered shared global and natural geometry kernels, measures rendered histograms and bounds/wipes every staged pixel buffer independently of original custody." }
+		,
 		{ "path": "src/lightscaper/controller/photo-develop-workspace-commands-v1.ts", "kind": "helper-contract", "justification": "Version 1 photo develop history and immutable snapshot drafts preserve explicit per-version state and process versions while borrowing the existing command owner's durable compare-and-swap publication." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-archive-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-library restore joins authenticated archive delivery and fresh catalog/media owners before guarded atomic pointer publication and permanent-history reconciliation."}

@@ -89,3 +89,27 @@ before acknowledgment still reject. Failed saves retain the
 previous history. Focused Session tests cover these boundaries using the actual
 catalog repository and held read/save completion. The Develop menu and workspace
 presentation remain a subsequent integration step.
+
+The scoped `withPhotoDevelopProxyV1` processor evaluates an already-oriented
+preview derivative without reading an original or reapplying EXIF orientation.
+Source admission is UNORM8 encoded sRGB, at most 2048 pixels per side and
+16 MiB. Geometry may produce its natural crop/rotation extent, at most 4096
+pixels per side, 8,388,608 pixels, and 32 MiB; it uses no Frame delivery canvas
+or letterboxing. These are per-call bounds, not measured interaction budgets.
+
+The complete normalized settings and source pixels detach before the first
+await. Existing photo geometry runs first; the shared white-balance, tone,
+and geometry effects then run in authored order. Geometry uses the dimensions
+produced by the preceding stage. Each successful stage replaces and wipes its
+predecessor, rather than nesting callbacks and retaining a frame per effect.
+A staged copy is also wiped if its kernel cancels after the copy callback.
+The processor captures the backing before the consumer can shadow its view,
+and wipes it after consumer settlement, including cancellation or failure.
+
+The final histogram measures the rendered bytes and follows the shared
+visible-sample/clipping contract. Only scalar histogram data may outlive that
+scope; output pixels are borrowed. Unsupported enabled operations and mask
+bindings refuse explicitly. Disabled known effects remain in authored settings
+without being evaluated. Additional global operations, mask evaluation, full
+resolution zoom/export, workspace presentation, and latency qualification
+remain outstanding; this processor does not mark the Develop milestone done.
