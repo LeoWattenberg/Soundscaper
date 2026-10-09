@@ -25,7 +25,7 @@ import { useExportDialogOutput } from '../use-export-dialog-output.ts';
 import { createExportPresetActions } from '../export-preset-actions.js';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
-import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
+import { videoCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { LabeledDropdown } from './inspector-controls.jsx';
 import ExportChannelMappingDialog from './ExportChannelMappingDialog.tsx';
 import ExportChannelsField from './ExportChannelsField.jsx';
@@ -111,7 +111,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
-	const captionDeliveryUnavailable = framescaperCaptionDeliveryUnavailable(
+	const captionDeliveryUnavailable = videoCaptionDeliveryUnavailable(
 		productId, snapshot.project,
 	);
 	// Generic video delivery captions from label tracks. Selected Framescaper owns its
@@ -284,7 +284,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				copyright: settings.metadataCopyright,
 			});
 			const request = createExportDialogRequest(admittedSettings, {
-				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop,
+				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop, captionDeliveryUnavailable,
 				bext: admittedSettings.bext,
 				adm: admittedSettings.adm,
 				channelMapping: videoFormat
@@ -464,7 +464,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 							labelTracks={labelTracks}
 							settings={settings}
 							onChange={setVideoDeliverySetting}
-							captionDeliveryUnavailable={captionDeliveryUnavailable}
+							captionDeliveryUnavailable={captionDeliveryUnavailable} productId={productId}
 						/>
 					)}
 				</section>

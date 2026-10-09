@@ -43,7 +43,7 @@ export function createExportDialogRequest(settings, options = {}) {
 		const canvas = statedVideoCanvas(settings);
 		const quality = statedVideoQuality(settings);
 		const audioLayout = statedVideoAudioLayout(settings);
-		const captions = statedVideoCaptions(settings);
+		const captions = options.captionDeliveryUnavailable ? null : statedVideoCaptions(settings);
 		const target = statedVideoDeliveryTarget(settings);
 		const targetOptions = target ? { ...target.options } : null;
 		// A target states its format the way a plan does; the request states it the
