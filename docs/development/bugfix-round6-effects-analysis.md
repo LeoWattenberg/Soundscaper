@@ -1120,3 +1120,43 @@ Chromium on immutable Green20 `0b272a361`
 modal command suspension and the assigned command after Close.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-030 — Plot Spectrum publishes a misleading incomplete-window level
+
+Import an ordinary 10 or 20 millisecond stereo recording, Select all and
+Analyze → Analyze selection. Its measured peak is -6 dBFS. Close that report
+and choose Analyze → Plot spectrum with the normal default 2048-sample window.
+The plot reports the same 750 Hz signal at -30.2 or -13.9 dB and offers Export.
+It silently pads a partial prefix, applies the complete window and divides by
+the complete Hann sum. That is not a valid full-window calibrated report.
+[Audacity's Plot Spectrum contract](https://manual.audacityteam.org/man/plot_spectrum.html)
+requires a warning when the selected region is shorter than the chosen size.
+
+Admit the rendered recording's actual frame count against the chosen report
+window before starting report workers or publishing a result. Explain the
+minimum in English and German, retain the preceding repeatable analysis on
+refusal and release busy state. Keep partial-window FFT consumers such as
+spectral selection gestures untouched. Full-window coherent-gain correction
+R5-ROOT-010 is independent and remains exact. Trailing incomplete averaging
+blocks are excluded from this root.
+
+Both complete ordinary menu workflows are causally RED on immutable Green19:
+their native peak controls pass and the misleading plotted levels are captured
+before the absent-warning assertion
+(`/tmp/soundscaper-r6-effects-spectrum-short-selection-browser-red4.log`). The
+initial mono pan-law fixture control is excluded. Two strict actual service
+cases are independently RED through fallback and delegated report production,
+while full-window/repeat and valid short levels/clipping controls pass
+(`/tmp/soundscaper-r6-effects-spectrum-short-selection-node-red3.log`). Earlier
+unsupported track-width fixture fields are excluded setup failures. All
+twenty-eight new and existing service, report-worker, cache-publication,
+repeat, spectrum and clipping cases pass after repair
+(`/tmp/soundscaper-r6-effects-spectrum-short-selection-node-green3.log`). Two
+existing publication controls now supply a complete 32-frame window instead
+of four frames; every original cache, ordering and transaction assertion stays
+unchanged. Focused strict compilation, targeted and canonical changed-file
+lint and size/diff checks pass. The public regression retains ordinary recovery
+after choosing a smaller default 512 window; built public GREEN is pending the
+next immutable snapshot. This register still has twenty-nine verified roots.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
