@@ -1082,3 +1082,36 @@ complete normal native-output workflow passes Chromium on immutable Green19
 0.4242599 and a retained following echo at 0.23758556.
 No assistance runtime assets change and no manual **Update AI assets** run
 is required.
+
+## R6-EFFECT-029 — A suspended modal shortcut changes a native strength parameter
+
+Import an ordinary recording, assign Ctrl+Alt+End to New label track in
+Preferences, select its clip and open Effect → Pitch and tempo → Audio warp
+and transients. Focus Quantization strength, use ordinary ArrowRight to set
+51, then press that assigned shortcut. The modal correctly suspends the label
+command, but the native range jumps to 100. Groove strength has the same
+ordinary defect after Enable groove template. Both manifestations share the
+modal shell's missing native-default ownership and count as one root.
+
+Guard command-modified native range navigation at the shared modal capture
+boundary on both key phases. Keep ordinary and Shift range editing, pointer
+changes, text and number inputs, already-owned events, modal focus and resize
+ownership, and nonmodal command handling. R5-ROOT-028 repaired the independent
+workspace native-range command eligibility and explicitly preserved modal
+suspension; it did not guard the suspended native default inside a modal.
+
+Both complete ordinary menu workflows are causally RED on immutable Green19
+after their plain ArrowRight controls pass: expected 51, received 100
+(`/tmp/soundscaper-r6-effects-warp-strength-browser-red.log`). Three strict
+mounted shared-shell modifier cases fail while the ordinary editing control
+passes (`/tmp/soundscaper-r6-effects-warp-strength-shell-node-red2.log`). All
+twenty-seven new and existing Warp, focus-owner, modal resize and workspace
+range cases pass after correction
+(`/tmp/soundscaper-r6-effects-warp-strength-node-green3.log`). Focused strict
+compilation, targeted type-aware and canonical changed-file lint, and size/diff
+checks pass. Earlier correction attempts exposed test-DOM selector and
+attribute limitations and are retained as supporting setup failures, not
+additional causal evidence. Built public GREEN is pending the next immutable
+snapshot, so this register still contains twenty-eight verified roots.
+No assistance runtime assets change and no manual **Update AI assets** run
+is required.
