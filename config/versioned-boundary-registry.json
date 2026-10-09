@@ -584,6 +584,8 @@
 		,
 		{"path": "src/common/editor/ui/lightscaper/photo-library-workflow-import-v2.ts", "kind": "helper-contract", "justification": "Current closed import gesture admits scalar schema2 saved-preset choices while preserving existing preparation, settings and receipt profiles."}
 		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-entry-v2.ts", "kind": "helper-contract", "justification": "Current Develop menu entry owns a synchronous cached whole Workspace retirement join before lazy Restore backend loading, while preserving the named legacy entry owner."}
+		,
 		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-settings-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in current Photo settings and presets hook owns one fixed mixed authoring coordinator and joins predecessor retirement without widening its legacy hook."}
 		,
 		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in current Photo Develop hook owns one fixed mixed authoring coordinator and joins predecessor retirement without widening its legacy hook."}
