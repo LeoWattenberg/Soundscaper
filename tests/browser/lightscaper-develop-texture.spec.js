@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
 import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy.ts';
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
-import { importPhotoCatalogArchiveV4 } from '../../src/lightscaper/archive/catalog-archive-import-v4.ts';
+import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
@@ -97,7 +97,9 @@ function parameter(dialog, messages, key) { return named(dialog, 'spinbutton', `
 async function number(control, value) { await control.fill(value); await control.press('Enter'); await expect(control).toHaveValue(value); }
 async function chooseFamily(page, control, value) {
 	const values = await control.locator('option').evaluateAll(options => options.map(option => option.value)), target = values.indexOf(value);
-	expect(values.length).toBeLessThanOrEqual(16); expect(target).toBeGreaterThanOrEqual(0);
+	expect(values).toEqual(['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1',
+		'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1',
+		'noise-reduction-v1', 'grain-v1', 'texture-v1', 'dehaze-v1', 'cube-lut-profile-v1']); expect(target).toBeGreaterThanOrEqual(0);
 	await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Home');
 	for (let index = 0; index < target; index++) await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('Tab'); await expect(control).toHaveValue(value);
@@ -135,13 +137,16 @@ async function backupPhoto(page, app, copy) {
 	await keyboard(page, bodyClose(dialog, copy.photoBackupClose)); await expect(dialog).toHaveCount(0);
 	let photo = null;
 	// The actual File backup supplies selected-namespace bytes. This generic decoder authenticates them, not a durable restore.
-	await importPhotoCatalogArchiveV4(new Blob([bytes]), async (root, state, presets) => {
-		expect(root.photoCount).toBe(1); expect(state).toBeNull(); expect(presets).toBeNull();
+	await importPhotoCatalogArchiveV5(new Blob([bytes]), async (root, state, presets, luts) => {
+		expect(root.photoCount).toBe(1); expect(state).toBeNull(); expect(presets).toBeNull(); expect(luts).toEqual([]);
 		return { async writePhoto(document, chunks) { expect(photo).toBeNull(); const parts = []; let length = 0;
+			expect(document.schemaVersion).toBe(1);
+			for (const version of document.versions) { expect(version.develop.processVersion).toBe(1); if (version.workspace) expect(version.workspace.schemaVersion).toBe(1); }
 			for await (const chunk of chunks) { length += chunk.byteLength; expect(length).toBeLessThanOrEqual(PNG.byteLength); parts.push(Buffer.from(chunk)); }
 			photo = { document, original: Buffer.concat(parts) };
 		}, async writeStack() { throw Error('Unexpected stack.'); }, async writeSavedCollection() { throw Error('Unexpected saved collection.'); },
-		async writeDevelopPresets() { throw Error('Unexpected preset.'); }, async publish() {}, async rollback() { throw Error('Texture backup authentication rolled back.'); } };
+		async writeDevelopPresets() { throw Error('Unexpected preset.'); }, async writeLut() { throw Error('Unexpected LUT resource.'); },
+		async publish() {}, async rollback() { throw Error('Texture backup authentication rolled back.'); } };
 	});
 	expect(photo).not.toBeNull(); return photo;
 }
