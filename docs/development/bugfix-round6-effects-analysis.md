@@ -6,9 +6,10 @@ operations, adversarial inputs and unavailable internal actions are excluded.
 R6-EFFECT-001–011 pass their ordinary public workflows in Chromium, Firefox and
 WebKit on immutable Green7 `e139818a9`
 (`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`). Firefox uses the
-repository's qualified CI audio null sink. R6-EFFECT-012 remains pending public
-GREEN on a later build and is not yet counted. R6-EFFECT-013 has focused GREEN
-and remains pending public GREEN as well, as does R6-EFFECT-014.
+repository's qualified CI audio null sink. R6-EFFECT-012–014 pass their complete
+ordinary workflows in all three engines on immutable Green9 `81a707b96`
+(`/tmp/soundscaper-round6-green9-public-browser.log`), bringing this register to
+fourteen verified roots.
 R6-EFFECT-015 has causal public RED and focused GREEN and awaits the next build.
 R6-EFFECT-016 has the same pending validation status.
 The INDEX follow-through of R6-EFFECT-011 also awaits its new public PCM check;
@@ -343,9 +344,10 @@ pass (`/tmp/soundscaper-r6-effects-nyquist-generator-targets-node-red.log`). The
 effect-result and native Source metadata cases pass after repair, including
 insertion and Source-focus controls
 (`/tmp/soundscaper-r6-effects-nyquist-generator-targets-node-green2.log`). Strict
-types and targeted type-aware lint pass. Public GREEN awaits the next immutable
-product build; its assertions check both replaced tones and both originals
-restored by one Undo. R3-ROOT-017 and EDIT012 concern the independently owned
+types and targeted type-aware lint pass. Both ordinary workflows pass Chromium,
+Firefox and WebKit on immutable Green9 `81a707b96`
+(`/tmp/soundscaper-round6-green9-public-browser.log`), checking both replaced
+tones and both originals restored by one Undo. R3-ROOT-017 and EDIT012 concern the independently owned
 native-generator adapter and allocator, respectively.
 
 ## R6-EFFECT-013 — An advertised Contrast macro silently reports success
@@ -374,9 +376,10 @@ focused command, controller, macro-library and program cases pass after repair
 (`/tmp/soundscaper-r6-effects-macro-contrast-admission-node-green.log`). The
 follow-up existing-library preservation control also passes
 (`/tmp/soundscaper-r6-effects-macro-contrast-admission-preservation-green.log`).
-Strict types, targeted type-aware lint and the file-size gate pass. Public GREEN
-awaits the next immutable product build; its ordinary Contrast measurement
-controls check that the supported menu workflow remains intact.
+Strict types, targeted type-aware lint and the file-size gate pass. The complete
+ordinary program and Contrast measurement controls pass Chromium, Firefox and
+WebKit on immutable Green9 `81a707b96`
+(`/tmp/soundscaper-round6-green9-public-browser.log`).
 
 ## R6-EFFECT-014 — A macro selection command uses another Audacity command's name
 
@@ -406,8 +409,9 @@ registry/dispatch cases independently fail before repair
 (`/tmp/soundscaper-r6-effects-macro-track-start-command-node-red.log`). All 37
 new/existing command, library, controller and program cases pass after repair
 (`/tmp/soundscaper-r6-effects-macro-track-start-command-node-green.log`). Strict
-types, targeted type-aware lint and the file-size gate pass; public GREEN awaits
-the next immutable product build.
+types, targeted type-aware lint and the file-size gate pass. Both ordinary
+program variants pass Chromium, Firefox and WebKit on immutable Green9
+`81a707b96` (`/tmp/soundscaper-round6-green9-public-browser.log`).
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
