@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { indexedLaneBlocks, removedClipIds } from './track-mixer-work.ts';
+import { removeAdmTrackReferences } from './adm-removed-track-references.ts';
+import { updateProjectMetadata } from './project-metadata-runtime.ts';
 import { compareCodeUnits } from '../code-unit-order.ts';
 import { deriveFolderBusOwnershipV13 } from '../folder-bus-v13.ts';
 import { insertTrackNodeV12 } from '../track-hierarchy-mutation-v12.ts';
@@ -105,6 +107,9 @@ export function removeTracksAndDependents(project, trackIds) {
 	const clipIds = removedClipIds(removedTracks);
 	project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
 	project.tracks = project.tracks.filter((track) => !removedTrackIds.has(String(track.id)));
+	const adm = project.metadata?.adm;
+	const survivingAdm = removeAdmTrackReferences(adm, removedTrackIds);
+	if (survivingAdm !== adm) updateProjectMetadata(project, { adm: survivingAdm });
 	// A take graph is owned by one track, and the document refuses a group whose
 	// track is gone. Leaving them behind made a cycle-recorded track impossible to
 	// delete at all: the commit failed on the validator rather than on anything the
