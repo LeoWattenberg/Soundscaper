@@ -1623,3 +1623,40 @@ All 20 retained/new slider controls pass
 (`/tmp/soundscaper-r6-fx042-retained-fade-green.log`), with no added root.
 This register now has forty-two verified roots. No assistance runtime
 assets change and no manual **Update AI assets** run is required.
+
+## R6-EFFECT-043 — A live dynamics release edit discards audible lookahead and gain reduction
+
+Import an ordinary recording, open its Effects panel, add Compressor and play.
+Use its normal controls to keep a neutral curve and 200 ms lookahead, then
+change Release from 100 to 101 ms. The otherwise continuous recording drops
+14,080 actual output frames. The shared Compressor/Limiter processor resets
+both its queued audio and held gain envelope for an unchanged lookahead.
+Even with zero lookahead, a release edit forgets the existing reduction and
+plays the next quieter audio at full volume. This independently owned dynamics
+state differs from Equalizer convolution and Echo delay-ring continuity;
+group Compressor and Limiter under this one root.
+
+Preserve pending PCM, envelope history, detector state, running clock and
+pending analysis when the normalized lookahead frame count stays unchanged.
+Retain reset for a changed delay geometry and explicit reset. Extend the
+existing native rack transaction to these processors and rebuild normally
+when the declared lookahead latency changes; this dispatch completion is
+grouped with R6-EFFECT-040 and adds no separate root. Leave the generic base
+reset policy and other processors unchanged.
+
+The complete normal rack/parameter/playback workflow is causally RED on
+unchanged Green33 `ae7939d4e`, after its native output control remains above
+RMS 0.296085 (`/tmp/soundscaper-r6-fx043-public-red.log`). Six strict queued-PCM,
+exact unchanged-parameter and zero-lookahead gain-reduction cases are RED
+while changed-lookahead and explicit-reset controls pass
+(`/tmp/soundscaper-r6-fx043-node-red.log`). The original four rack admission
+cases are also RED before repair (`/tmp/soundscaper-r6-fx043-rack-node-red.log`).
+An initial copied engine fixture retained EQ parameters; its failed GREEN
+assertion is preserved and its input is corrected to the ordinary Release
+edit. All 39 new and existing dynamics, telemetry, bypass, revision,
+geometry, EQ and exact round-two/round-three DSP parity cases pass after
+repair without changing expected PCM (`/tmp/soundscaper-r6-fx043-node-green2.log`).
+Focused strict compilation and targeted lint pass. Complete built public
+verification is pending, so this entry adds no verified count yet. No
+assistance runtime assets change and no manual **Update AI assets** run is
+required.
