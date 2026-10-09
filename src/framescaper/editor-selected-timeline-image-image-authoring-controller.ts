@@ -35,7 +35,7 @@ type PublicationDependencies = Omit<
 
 export interface FramescaperSelectedImageFileServiceTimelineImage {
 	readonly isDesktop?: boolean;
-	chooseFiles?(request: Readonly<{ readonly purpose: 'media'; readonly multiple: true }>): Promise<readonly unknown[]>;
+	chooseFiles?(request: Readonly<{ readonly purpose: 'image'; readonly multiple: true }>): Promise<readonly unknown[]>;
 	withReadDescriptors?<Result>(
 		descriptors: readonly unknown[],
 		request: Readonly<Record<string, never>>,
@@ -73,7 +73,7 @@ export function bindFramescaperSelectedImageAuthoringControllerTimelineImage(
 	options: BindFramescaperSelectedImageAuthoringControllerTimelineImageOptions,
 ): void {
 	const { controller } = options;
-	const selectFiles = options.selectFiles ?? (() => selectImageFiles(options.fileService));
+	const selectFiles = options.selectFiles ?? selectImageFiles;
 	const importImages = options.importImages ?? importFramescaperTimelineImagesTimelineImage;
 	const publisher = createFramescaperTimelineImageCurrentProjectPublicationTimelineImage({
 		controller,
@@ -100,7 +100,21 @@ export function bindFramescaperSelectedImageAuthoringControllerTimelineImage(
 		createFramescaperCandidateAuthoringActionSubsetRuntime(surfaces, actions));
 
 	async function importSelected(): Promise<void> {
-		const files = await selectFiles();
+		const fileService = options.fileService;
+		if (!options.selectFiles && fileService?.isDesktop) {
+			if (typeof fileService.chooseFiles !== 'function'
+				|| typeof fileService.withReadDescriptors !== 'function') {
+				throw new Error('Desktop Add Images requires bounded media read capabilities.');
+			}
+			const descriptors = await fileService.chooseFiles({ purpose: 'image', multiple: true });
+			if (descriptors.length === 0) return;
+			await fileService.withReadDescriptors(descriptors, {}, (files) => importFiles(snapshotFiles(files)));
+			return;
+		}
+		await importFiles(await selectFiles());
+	}
+
+	async function importFiles(files: readonly FramescaperImageImportFileTimelineImage[]): Promise<void> {
 		if (files.length === 0) return;
 		const project = exactProject(controller.project);
 		const playhead = playheadSample(controller.getTelemetrySnapshot().positionFrame);
@@ -125,18 +139,7 @@ export function bindFramescaperSelectedImageAuthoringControllerTimelineImage(
 	}
 }
 
-async function selectImageFiles(
-	fileService: FramescaperSelectedImageFileServiceTimelineImage | undefined,
-): Promise<readonly FramescaperImageImportFileTimelineImage[]> {
-	if (fileService?.isDesktop) {
-		if (typeof fileService.chooseFiles !== 'function'
-			|| typeof fileService.withReadDescriptors !== 'function') {
-			throw new Error('Desktop Add Images requires bounded media read capabilities.');
-		}
-		const descriptors = await fileService.chooseFiles({ purpose: 'media', multiple: true });
-		if (descriptors.length === 0) return Object.freeze([]);
-		return fileService.withReadDescriptors(descriptors, {}, (files) => snapshotFiles(files));
-	}
+async function selectImageFiles(): Promise<readonly FramescaperImageImportFileTimelineImage[]> {
 	if (!globalThis.document?.createElement || !globalThis.document.body) {
 		throw new Error('Add Images requires a browser or desktop file picker.');
 	}
