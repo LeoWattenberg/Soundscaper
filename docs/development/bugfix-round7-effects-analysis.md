@@ -838,8 +838,10 @@ and silence controls already pass. All 30 new/existing EBU, analysis ending and
 BEXT cases pass after correction, including current-window maxima, exact
 integrated/LRA preservation, standby and continued live measurement. The
 persisted-cache regression is independently RED before namespace correction;
-corrected cache and repeated analyzer controls pass 15/15. Corrected public
-verification awaits the next guarded product capture. Target ESLint, changed
+corrected cache and repeated analyzer controls pass 15/15. Corrected complete
+public verification passes both unchanged 400/450 ms workflows on authenticated
+8fba4b346 in 2.9 seconds each, 2/2 in 7.4 seconds total; rendered loudness,
+sample clocks and downloaded maxima all pass. Target ESLint, changed
 lint, size and owned diff checks pass. All bounded verification
 logs and generated diagnostics are read and removed immediately. This uses the
 same runtime closure; no manual Update AI assets run is required.
