@@ -8,6 +8,8 @@ import {
 import { resolveSelectionRange } from '../../../selection-range.ts';
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { clipContentRange } from '../../../clip-content-range.ts';
+import { visibleNavigationTracks } from '../../../audacity-visible-navigation-tracks.ts';
+import { createDocumentTrackFolderSnapshot } from '../../document/document-track-folder-snapshot.ts';
 
 export interface ClipSelectionNavigationFrequencyRange {
 	readonly minimumFrequency: number;
@@ -255,7 +257,7 @@ function projectedAudioClips(
 	}
 
 	const selectedTrackIds = new Set(selectionIds(selection.trackIds, 'selection.trackIds'));
-	const audioTracks = projection.tracks
+	const audioTracks = visibleNavigationTracks(projection.tracks, createDocumentTrackFolderSnapshot(project))
 		.map((track, trackIndex) => ({ track, trackIndex }))
 		.filter(({ track }) => track.type === 'audio');
 	const selectedAudioTracks = audioTracks.filter(({ track }) => (
