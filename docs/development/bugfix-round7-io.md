@@ -72,6 +72,25 @@ replacement controls now pass, with the existing account-restoration and preview
 lifetime cases (13/13). Owned browser diagnostics were read and removed immediately.
 The corrected public follow-through awaits the next guarded capture.
 
+
+The finishing dialog's IO-018 lifetime fence also covers its native cube LUT
+producer (zero new count). Normal Solid authoring and Selected Visual Inspector
+Opacity 0.5 create a real target; Grading & Finishing Presets → Choose .cube LUT
+then completes a slow ordinary native read. On unchanged `b04e692b7`, the open
+healthy target passes in 13.1 seconds, but Close still publishes the LUT into that
+same target in 12.7 seconds. The released native lease encloses the complete LUT
+consumer and history commit before the reopened canonical document is inspected.
+An initial observer opened the other product's database and is excluded; the
+correct public document observer preserves the positive original presentation.
+Mounted choice, selected read and asset lookup controls independently give three
+healthy passes and three causal commits after Close. Abort the owned LUT lifetime
+on Close, unmount or project/surface change and pass that signal through the
+selected read and existing guarded LUT publisher, retaining lease cleanup and
+healthy publication. Corrected mounted lifetime, existing caption lifetime, LUT
+publication/rollback and finishing document controls pass 34/34; targeted type-aware
+lint and own diff checks pass. The corrected public follow-through awaits the next capture.
+Owned diagnostics and temporary native sidecar directories were removed immediately.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
