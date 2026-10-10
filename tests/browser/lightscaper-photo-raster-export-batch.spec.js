@@ -105,9 +105,9 @@ for (const locale of ['en', 'de']) {
 		expect(await observeJournal(page)).toBeNull(); expect(downloads).toHaveLength(3); expect(await observe(page, ids)).toEqual(before);
 		await keyboard(page, named(dialog, 'button', words.hide));
 		await menu(page, app, copy.photoViewMenu); await keyboard(page, named(app, 'button', copy.photoShowLibrary)); await expect(library).toBeVisible();
-		await menu(page, app, copy.photoPhotoMenu); await keyboard(page, named(app, 'button', copy.photoSelectAll));
+		await menu(page, app, copy.photoFileMenu); await menu(page, app, copy.photoPhotoMenu); await keyboard(page, named(app, 'button', copy.photoSelectAll));
 		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.downloadSelected));
-		dialog = named(page, 'dialog', words.title); await choose(page, dialog.getByLabel(words.format, { exact: true }), format);
+		dialog = named(page, 'dialog', words.title); await choose(page, named(dialog, 'combobox', words.format), format);
 		await keyboard(page, named(dialog, 'button', words.start)); await expect.poll(() => downloads.length).toBe(5);
 		await expect(dialog.locator('[data-photo-batch-export-receipt]')).toHaveAttribute('data-phase', 'settled');
 		expect(downloads.slice(3).map(download => download.suggestedFilename())).toEqual(names);
