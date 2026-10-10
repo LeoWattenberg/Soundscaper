@@ -417,6 +417,28 @@ regression. Both exact completed JSON/context/PNG sets were read and their owned
 diagnostic directories immediately removed. The original full-suite failures
 remain recorded; unchanged whole focused replay and decoder capability review
 are pending without source, deadline or count changes.
+The unchanged whole Firefox replay repeats both pre-import native decode failures
+in4.5 and4.4 seconds. Product decodeImportedVideoAudio explicitly continues from
+native decode refusal to container decoding and then FFmpeg; this witness is
+specifically for its native decoder's sample clock. The repeat log and exact
+completed contexts were read; their owned diagnostic output was immediately
+removed. No app
+source defect is inferred from unavailable native decoding.
+The faithful native capability preflight now skips only when this ordinary source
+is refused by its native OfflineAudioContext with DOMException EncodingError.
+Every other source error and every delivered decode error still fails. The
+ordinary app import, two committed clips, real WAV download,48 kHz clocks and
+source/delivered physical band thresholds remain unchanged on native-capable
+engines. The complete two-case matrix on authenticated a3a36854d passes4 cases
+in43.1 seconds: Chromium4.8/4.8 seconds and WebKit10.6/9.2 seconds. Firefox
+reports2 exact native-capability skips, rather than product passes. No product
+source, deadline or count changes; the original full200 failures remain recorded.
+The completed owned browser output/log are read and removed immediately, with
+all native replay readers closed. Existing strict native-clock and video decode
+fallback controls pass9/9 in1.566 seconds. Target type-aware lint, canonical
+changed-file lint and whitespace checks pass; their completed bounded logs are
+consumed and immediately removed. This test-only capability correction requires
+no manual Update AI assets run.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
