@@ -456,7 +456,7 @@ The unchanged whole Firefox project-library workflow passes9.4 seconds on
 authenticated guardedcb40131e6. Its original modal-handoff failure remains in
 the full150 receipt; reviewed completed replay output/log are immediately removed.
 
-IO045 causal baseline (source correction verified, public GREEN pending; not counted): normal two-group
+IO045 independently qualified bus-origin parser: normal two-group
 bus authoring through Mixer, Routing graph and Connection inspector produces an
 audibly quieter Group1→Group2 programme, and its actual own DAWproject archive
 correctly names the downstream channel. Reopen that unchanged archive: the
@@ -475,6 +475,10 @@ with a TypeScript parameter property, and is excluded as runner setup; the norma
 routing-context type requires the coordinated full repository lint. This independent
 parser owner skipped every bus-origin route; writer-only R3IO018 and
 validated-decoder product promotion R3IO021 remain different repaired owners.
+Both unchanged complete public workflows pass on authenticated guarded5dd339942:
+healthy direct master5.7 seconds and restored downstream group7.1 seconds
+(2/2in14.5 seconds), with the actual decoded delivered PCM comparison intact.
+All completed own output/log are consumed and immediately removed.
 
 Full150 completed Firefox Framescaper capture follow-through (zero count):
 recording-origin protection completes actual capture/Stop before confirmed
@@ -489,6 +493,22 @@ seconds; together with desktop library all3PASSin29.9 seconds. This closes the
 original D036 follow-through without any fixture/deadline/count changes. Reviewed
 completed own replay output/log are immediately removed.
 
+IO046 causal ordinary-camera baseline (not counted; baseline source unchanged): authored
+ordinary QuickTime48kHz LPCM output preserves the maintained H264 video packets,
+with unmodified MediaBunny PCM encoding. Real native48kHz decoding verifies both
+3kHz and23kHz source bands above0.19 before importing through the ordinary picker.
+On authenticated guardedcb40131e6, normal FileImport publishes two clips and
+actual WAV export retains the3kHz control (PASS3.0 seconds). The same normal
+48kHz project/output loses the23kHz recording band (amplitude0.00000158355694,
+expected>0.13, causalRED2.8 seconds; pair7.6 seconds). Read exact PNG/context show
+successful ordinary camera video/audio delivery; no native decoder, context,
+application state or device API is replaced. Source-import supplies no target
+sampleRate to native decoding and thus passes through the default44.1kHz context
+before converting again to48kHz. This independent caller clock differs from
+R5IO008 picture-relative audio timestamps and IO042 Freesound conversion. Media
+is generated in memory, actual WAV download is deleted immediately after reading,
+and all completed baseline output/log are consumed and removed immediately.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
@@ -498,6 +518,6 @@ compiler found only the optional cache cleanup invocation in its actual
 controller resource witness. Assert the real cache cleanup capability before
 calling it, preserving the owned disposal rather than widening a production
 type. The bounded compiler error log was read and removed immediately.
-Forty-three qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+Forty-four qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
