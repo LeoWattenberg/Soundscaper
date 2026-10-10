@@ -17,16 +17,18 @@
  * documents, install metadata, or service worker.
  */
 
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 
 const PRODUCT_SITES = Object.freeze({
 	soundscaper: Object.freeze({ variable: 'SOUNDSCAPER_SITE', origin: 'https://soundscaper.org' }),
 	framescaper: Object.freeze({ variable: 'FRAMESCAPER_SITE', origin: 'https://framescaper.org' }),
+	motionscaper: Object.freeze({ variable: 'MOTIONSCAPER_SITE', origin: 'https://motionscaper.org' }),
 });
 
 const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
 	soundscaper: Object.freeze({ framescaper: '/framescaper' }),
 	framescaper: Object.freeze({}),
+	motionscaper: Object.freeze({}),
 });
 
 const RETIRED_HANDBOOK_PAGES = Object.freeze({
@@ -61,6 +63,7 @@ const SEALED_CAPTURE_POLICY =
 const PRODUCT_POLICIES = Object.freeze({
 	soundscaper: Object.freeze({ standard: EDITOR_CAPTURE_POLICY, embedded: EDITOR_CAPTURE_POLICY }),
 	framescaper: Object.freeze({ standard: CAMERA_CAPTURE_POLICY, embedded: SEALED_CAPTURE_POLICY }),
+	motionscaper: Object.freeze({ standard: SEALED_CAPTURE_POLICY, embedded: SEALED_CAPTURE_POLICY }),
 });
 
 /** The cross-origin isolation every product deployment shares byte for byte. */

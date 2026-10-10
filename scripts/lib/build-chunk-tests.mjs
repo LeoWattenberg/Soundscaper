@@ -77,7 +77,7 @@ export const EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:assistance[\\\\/](?:workflow-recipes|workflow-settings-v1)|controller[\\\\/]assistance[\\\\/](?:local-assistance-task-models|internal[\\\\/]guided[\\\\/]local-assistance-guided-(?:model-selection|stage-selection))|ui[\\\\/](?:local-model-manager-(?:bridge|store)|local-model-bytes))\\.ts$`,
 );
 export const EDITOR_COPY_CHUNK_TEST =
-	/(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-standard-effects)?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
+	/(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-(?:standard-effects|audacity-effects|audacity-presets))?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
 
 /** Dependency-free message descriptors shared by project models and controllers. */
 export const EDITOR_PRESENTATION_CHUNK_TEST = /src[\\/]common[\\/]i18n[\\/](?:presentation-(?:message|progress)|translation-scope)\.ts$/;
@@ -407,5 +407,5 @@ export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|assistance[\\\\/](?:internal[\\\\/]radix-two-fft-v1|[^\\\\/]+)|(?:design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:engine[\\\\/]project-strip-control-index-v21|[^\\\\/]+|assistance[\\\\/](?:internal[\\\\/]radix-two-fft-v1|[^\\\\/]+)|(?:design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );

@@ -4,6 +4,17 @@ import { localeLanguage } from './locale.js';
 import { SITE_SIDEBAR_COPY_BY_LOCALE } from './site-sidebar-copy.js';
 
 const SITE_COPY_ENTRIES = Object.freeze([
+	['motionscaperTitle', 'Motionscaper', 'Motionscaper'],
+	['motionscaperMetaDescription', 'A local-first motion graphics and compositing editor for the web and desktop.', 'Ein lokaler Editor für Motion-Design und Compositing im Browser und auf dem Desktop.'],
+	['workspaceMotion', 'Motion Workspace', 'Motion-Arbeitsbereich'],
+	['motionscaperNewComposition', 'New Composition', 'Neue Komposition'],
+	['motionscaperUnavailable', 'Composition creation is not available in this build.', 'Das Erstellen von Kompositionen ist in dieser Version noch nicht verfügbar.'],
+	['motionscaperWorkspaceEmpty', 'Create a composition from the File menu to begin.', 'Erstelle zum Beginnen eine Komposition über das Menü Datei.'],
+	['motionscaperFileMenu', 'File', 'Datei'],
+	['motionscaperViewMenu', 'View', 'Ansicht'],
+	['motionscaperApplicationMenu', 'Application menu', 'Anwendungsmenü'],
+	['motionscaperFullscreen', 'Toggle fullscreen', 'Vollbild umschalten'],
+	['otherEditors', 'Other editors', 'Weitere Editoren'],
 	['framescaperEyebrow', 'Local video editing', 'Video lokal bearbeiten'],
 	['framescaperTitle', 'Framescaper', 'Framescaper'],
 	['framescaperIntro', 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.', 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.'],

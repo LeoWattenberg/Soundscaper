@@ -95,8 +95,9 @@ await writeFile(resolve(outputRoot, 'robots.txt'), robotsDocument(routing), 'utf
 // builds emit them, because a project crosses between soundscaper.org and
 // framescaper.org and each side needs a page of its own to read its own
 // partitioned storage first-party.
-const transferAssets = await resolveTransferPageAssets(outputRoot);
-for (const route of TRANSFER_ROUTES) {
+const transferRoutes = routing.productId === 'motionscaper' ? [] : TRANSFER_ROUTES;
+const transferAssets = transferRoutes.length ? await resolveTransferPageAssets(outputRoot) : null;
+for (const route of transferRoutes) {
 	const output = resolve(outputRoot, `.${route.path}index.html`);
 	await mkdir(dirname(output), { recursive: true });
 	await writeFile(output, renderTransferDocument({
@@ -108,7 +109,7 @@ for (const route of TRANSFER_ROUTES) {
 
 console.log(
 	`Generated ${routeCount} localized ${routing.productId} routes canonical to ${site.origin}`
-	+ `, 3 privacy routes and ${TRANSFER_ROUTES.length} transfer routes from ${transferAssets.moduleUrl}.`,
+	+ `, 3 privacy routes and ${transferRoutes.length} transfer routes${transferAssets ? ` from ${transferAssets.moduleUrl}` : ''}.`,
 );
 
 /**
@@ -218,7 +219,7 @@ function copyForLocale(locale) {
 function routeDocument(html, { descriptor, plan, route, embedded }) {
 	const productId = plan.productId;
 	const copy = copyForLocale(descriptor.locale);
-	const description = productId === 'framescaper' ? copy.framescaperMetaDescription : copy.metaDescription;
+	const description = productId === 'soundscaper' ? copy.metaDescription : copy[`${productId}MetaDescription`];
 	const alternates = ROUTE_LOCALES.map(({ locale }) => {
 		const href = new URL(documentRoute(plan, locale, embedded), site).href;
 		return `<link rel="alternate" hreflang="${escapeHtml(locale)}" href="${escapeHtml(href)}" />`;

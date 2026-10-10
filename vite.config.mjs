@@ -50,7 +50,7 @@ const buildSourceMaps = buildSourceMapsRequested(process.env);
  * quietly emitting a Soundscaper bundle and deploying it to the other origin.
  *
  * @param {string | undefined} value
- * @returns {'soundscaper' | 'framescaper'}
+ * @returns {'soundscaper' | 'framescaper' | 'motionscaper'}
  */
 function resolveBuiltProductId(value) {
 	const requested = value === undefined || value === '' ? 'soundscaper' : value;
@@ -61,7 +61,7 @@ function resolveBuiltProductId(value) {
 	}
 	// `normalizeProductId` re-admits the id against the shared product table; the
 	// cast only narrows its `string` return to the two ids just checked above.
-	return /** @type {'soundscaper' | 'framescaper'} */ (normalizeProductId(requested));
+	return /** @type {'soundscaper' | 'framescaper' | 'motionscaper'} */ (normalizeProductId(requested));
 }
 
 /** @returns {import('vite').Plugin} */

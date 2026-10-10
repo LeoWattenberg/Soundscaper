@@ -1,0 +1,9 @@
+.motionscaper-shell {
+	min-height: 100%;
+	background: var(--website-color-surface);
+	color: var(--website-color-text);
+}
+
+.motionscaper-workspace {
+	padding: 1.5rem;
+}
