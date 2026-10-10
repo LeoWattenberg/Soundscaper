@@ -141,6 +141,8 @@ export function TimelineAnnotationLayer({
 			annotation: row.annotation,
 			gesture: { ...gesture, dragIds: bounds.ids },
 			idSet: new Set(bounds.ids),
+			ranges: new Map(projected.filter(annotation => bounds.ids.includes(annotation.id))
+				.map(annotation => [annotation.id, { start: annotation.timelineStartFrame, end: annotation.timelineEndFrame }])),
 			edge,
 			startX: event.clientX,
 			minimumStartFrame: bounds.minimumStartFrame,
