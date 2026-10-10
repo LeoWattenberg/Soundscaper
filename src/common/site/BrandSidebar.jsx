@@ -7,6 +7,7 @@ import { useSiteCopy } from './use-site-copy.js';
 import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref, productWebOrigin } from '../product-web-links.js';
 import { storeDocumentTheme } from './document-theme.js';
+import { SidebarIcon } from './SidebarIcon.tsx';
 import {
 	PRIVACY_POLICY_REQUEST_EVENT,
 	privacyPolicyUrl,
@@ -99,11 +100,11 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{editorLabel}</a>
 						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}><img src={otherProductMark} alt="" width="24" height="24" />{otherEditorLabel}</a>
-						<a className="website-sidebar-link" href={parentSite}>{copy.joinUs}</a>
-						<a className="website-sidebar-link" href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer">{copy.download}</a>
-						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
-						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
-						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
+						<a className="website-sidebar-link" href={parentSite}><img src="/logo/mindscaper.svg" alt="" width="24" height="24" />{copy.joinUs}</a>
+						<a className="website-sidebar-link" href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer"><SidebarIcon icon="download" />{copy.download}</a>
+						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}><SidebarIcon icon="document" />{copy.legal}</a>
+						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer"><SidebarIcon icon="bug" />{copy.reportIssue}</a>
+						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer"><SidebarIcon icon="github" />{copy.github}</a>
 				</nav>
 				<section className="website-sidebar-settings" aria-labelledby="sidebar-settings-title">
 					<h2 id="sidebar-settings-title">{copy.settings}</h2>

@@ -145,7 +145,7 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 .website-sidebar-content { display: contents; }
 .website-sidebar-nav { display: grid; gap: 4px; margin-top: 34px; }
 .website-sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--website-color-muted); border-radius: 6px; font-weight: 800; text-decoration: none; }
-.website-sidebar-link img { flex: none; width: 24px; height: 24px; }
+.website-sidebar-link img, .website-sidebar-link svg { flex: none; width: 24px; height: 24px; }
 .website-sidebar-link:hover, .website-sidebar-link.website-is-active { color: var(--website-color-accent-dark); background: var(--website-color-surface-alt); }
 .website-sidebar-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: auto; padding-top: 20px; }
 .website-sidebar-settings h2 { margin: 0 0 2px; color: var(--website-color-muted); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }

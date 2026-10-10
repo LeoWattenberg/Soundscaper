@@ -265,6 +265,16 @@ test('the rail reserves product names for its brand and gives both editor links 
 			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
 			assert.equal(links[2]?.getAttribute('href'), parentSite);
 			assert.equal(links[2]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
+			assert.equal(links[2]?.querySelector('img')?.getAttribute('src'), '/logo/mindscaper.svg');
+			assert.equal(links[2]?.querySelector('img')?.getAttribute('alt'), '');
+			for (const link of links.slice(3)) {
+				const icon = link.querySelector('svg');
+				assert.ok(icon, `${link.textContent} has a navigation icon`);
+				assert.equal(icon.getAttribute('aria-hidden'), 'true');
+				assert.equal(icon.getAttribute('focusable'), 'false');
+				assert.equal(icon.getAttribute('width'), '24');
+				assert.equal(icon.getAttribute('height'), '24');
+			}
 		} finally {
 			await context.close();
 		}
