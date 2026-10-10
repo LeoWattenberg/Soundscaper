@@ -15,9 +15,9 @@ const modules = [
 	['src/common/editor/photo-library-develop-proxy-port-v1.ts', 'editor-neutral-foundations'],
 	['src/common/editor/native-media-plan-canonical-form.ts', 'editor-neutral-foundations'],
 	['src/common/editor/video-visual-preset-v24.ts', 'editor-imaging'],
-	['src/common/i18n/lightscaper-develop-copy.ts', 'lightscaper-editor-copy'],
+	['src/common/i18n/lightscaper-develop-copy.ts', 'lightscaper-develop-copy'],
 	['src/common/i18n/lightscaper-develop-menu-copy.ts', 'lightscaper-editor-copy'],
-	['src/common/i18n/lightscaper-develop-settings-copy.ts', 'lightscaper-editor-copy'],
+	['src/common/i18n/lightscaper-develop-settings-copy.ts', 'lightscaper-develop-copy'],
 ] as const;
 
 test('Develop has exact POSIX/Windows semantic chunk ownership without filename prefix capture', () => {
