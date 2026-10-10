@@ -36,7 +36,7 @@ for (const variant of ['secondary-down', 'foreign-up', 'foreign-cancel', 'own-co
 				await act(async () => { reactProps(slider())[handler]?.({ currentTarget: { hasPointerCapture: () => false }, ...event }); });
 			};
 			const start = (pointerId: number, isPrimary = true, preventDefault = (): void => undefined) => ({
-				pointerId, isPrimary, button: 0, preventDefault,
+				pointerId, pointerType: 'touch', isPrimary, button: 0, preventDefault,
 				currentTarget: { setPointerCapture(id: number) { captures.push(id); } },
 			});
 			await send('onPointerDown', start(1));

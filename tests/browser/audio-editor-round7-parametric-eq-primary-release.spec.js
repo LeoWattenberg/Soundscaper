@@ -59,6 +59,49 @@ for (const kind of ['band', 'output']) test(`Parametric EQ ${kind} completes at 
 	expect(errors).toEqual([]);
 });
 
+test('Parametric output retains native keyboard and outside mouse completion with physical Undo and Redo', async ({ page }) => {
+	test.setTimeout(60_000);
+	const errors = collectClientErrors(page);
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	const recording = createWavFixture({ name: 'Outside Parametric recording.wav', frequency: 500,
+		duration: 1, channelCount: 1, channelAmplitudes: [.15] });
+	await importFiles(editor, [recording]);
+	const dryPeak = peak(await exportSamples(page, editor));
+	expect(dryPeak).toBeCloseTo(.15 * Math.SQRT1_2, 3);
+	await chooseCommandAction(page, editor, 'Select', 'Select all');
+	const dialog = await openParametricEqSelectionEffect(page, editor);
+	await dialog.locator('.audio-editor-parametric-eq__toolbar').getByRole('button', { name: 'Reset', exact: true }).click();
+	const control = await controls(dialog, 'output');
+	await control.owner.focus();
+	await control.owner.press('ArrowRight');
+	await expect.poll(control.gain).toBeCloseTo(.1, 2);
+	await control.owner.press('ArrowLeft');
+	await expect.poll(control.gain).toBe(0);
+	await drag(page, control, 6);
+	await expect.poll(control.gain).toBeGreaterThan(5);
+	const accepted = await control.gain();
+	expect(accepted).toBeLessThan(7);
+	const outside = control.at(6); outside.y -= 45;
+	await page.mouse.move(outside.x, outside.y);
+	await page.mouse.down({ button: 'middle' });
+	await page.mouse.up();
+	const later = control.at(-6); later.y = outside.y;
+	await page.mouse.move(later.x, later.y, { steps: 4 });
+	await page.mouse.up({ button: 'middle' });
+	await expect.poll(control.gain).toBeCloseTo(accepted, 1);
+	await apply(dialog);
+	const wetPeak = peak(await exportSamples(page, editor));
+	expect(wetPeak / dryPeak).toBeGreaterThan(1.7);
+	expect(wetPeak / dryPeak).toBeLessThan(2.3);
+	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+	expect(peak(await exportSamples(page, editor))).toBeCloseTo(dryPeak, 3);
+	await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+	expect(peak(await exportSamples(page, editor))).toBeCloseTo(wetPeak, 3);
+	await expect(editor.getByRole('alert')).toHaveCount(0);
+	expect(errors).toEqual([]);
+});
+
 async function controls(dialog, kind) {
 	if (kind === 'output') {
 		const owner = dialog.locator('.audio-editor-parametric-eq__output input[type="range"]');

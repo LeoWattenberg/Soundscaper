@@ -1655,3 +1655,30 @@ with the separately owned Video range, preserving non-mouse capture and
 completion/cancellation/history contracts. Before implementation, the full
 actual context/PNG and bounded logs are consumed and all diagnostic copies,
 results and logs are immediately removed after workers/servers close.
+
+Parametric now lets the browser route native mouse thumb events while
+retaining explicit non-mouse capture. The shared dependency-free strict
+controller contract `effects/native-range-mouse-custody.ts` injects the
+document and pointer identity, observes only the owning mouse's terminal
+move/up/cancel, detaches before completion, and provides silent idempotent
+retirement. The component retires this lease on blur, reset and unmount;
+its existing authored-history remount also retires obsolete custody. Video
+uses the same narrow contract through its own owner, retaining its stricter
+primary-transition predicate. No new feature or extra qualifying root.
+
+Focused mounted reproduction has five causal failures before the correction
+(unwanted native mouse capture, outside up/move completion, subsequent owning
+completion after foreign terminals, and outside cancellation) with three
+healthy controls. After correction, 38/38 focused tests pass, including the
+strict controller's silent disposal/reentrant completion/identity policy and
+all retained keyboard, non-mouse capture, foreign-contact, modifier, authored
+Undo and accepted-preview controls. The older touch fixture now explicitly
+labels its pointer as touch, preserving its actual capture oracle. Targeted
+type-aware ESLint and canonical changed-file lint pass. A maintained public
+workflow adds real native keyboard and outside release plus physical WAV
+Undo/Redo evidence; the existing complete public bodies and their original
+60-second/five-second budgets remain unchanged. Corrected guarded native
+whole-flow evidence is pending the coherent product build. All bounded
+focused/lint logs are consumed and immediately removed after this receipt;
+UI-only custody does not change the assistance runtime closure or require a
+manual Update AI assets run.
