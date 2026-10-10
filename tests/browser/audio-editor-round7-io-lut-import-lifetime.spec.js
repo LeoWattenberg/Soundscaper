@@ -4,6 +4,7 @@ import { open } from 'node:fs/promises';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 import { installNativeCaptionSidecar } from './helpers/native-caption-sidecar.js';
+import { hasDurableMediaStorageCapability } from './helpers/durable-media-storage-capability.js';
 
 const LUT = ['TITLE "Identity"', 'LUT_3D_SIZE 2', '0 0 0', '1 0 0', '0 1 0', '1 1 0',
 	'0 0 1', '1 0 1', '0 1 1', '1 1 1', ''].join('\n');
@@ -17,6 +18,8 @@ for (const closed of [false, true]) test(`pending native LUT read ${closed ? 'is
 	});
 	try {
 		const editor = await bootEditor(page, '/framescaper/en/');
+		if (!closed) test.skip(!await page.evaluate(hasDurableMediaStorageCapability, 'indexeddb-only'),
+			'This native LUT fixture requires working IndexedDB Blob storage.');
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
 		const clip = editor.getByRole('group', { name: 'Video clip: Solid', exact: true });
 		await expect(clip).toHaveCount(1);

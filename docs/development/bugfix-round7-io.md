@@ -263,6 +263,24 @@ The complete original full-run failures remain in their shared receipt. All
 completed owned replay outputs and log are removed immediately; the root keeps
 the small shared full-suite log.
 
+The LUT fixture now probes the established IndexedDB Blob prerequisite only
+for its healthy storage consumer; Close still exercises its complete native
+lease and canceled canonical publication on that host. The same self-contained
+probe used by prior Freeze witnesses concretely refuses the current WebKit
+substrate. On unchanged guarded `b6a6cdaaf`, corrected WebKit actual take
+retention passes 8.1 seconds with the existing faithful ClipboardEvent path,
+and LUT Close cancellation passes 11.4 seconds; healthy LUT reports one explicit
+capability skip, not a pass (2 PASS/1 SKIP in 23.9 seconds). All original capture,
+PCM, take placement/removal/audition, cancellation and document assertions remain.
+This fixture-only follow-through changes no production source or bug count.
+Owned completed WebKit output and log are immediately removed.
+Unchanged Chromium healthy/Close consumers pass 7.2/5.3 seconds and Firefox
+healthy/Close pass 10.4/6.8 seconds (4/4 in 32.3 seconds) on the same guarded
+source capture; no successful engine is narrowed and every healthy target still
+requires its actual native lease, digest publication and canonical document.
+Targeted fixture ESLint and own diff checks pass. All completed portable replay
+outputs/log are immediately removed. This changes no assistance runtime closure.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
