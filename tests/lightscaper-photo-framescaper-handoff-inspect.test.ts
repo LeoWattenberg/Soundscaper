@@ -74,13 +74,64 @@ test('Light source inspection authenticates project digest and declared inventor
 	await assert.rejects(inspectPhotoFramescaperHandoffSourcesV1({ archive: inventory }), /inventory|manifest|undeclared|Unreferenced/iu);
 });
 
-test('Light source inspection reports ordinary Source1 as unavailable rather than granting editable authority', async () => {
-	const f = await fixture(), archive = await editProject(f.archive, project => {
+test('Light source inspection offers ordinary Source1 with actual image clip context and only stored original spelling', async () => {
+	const f = await fixture(); let clipId = '', sequenceId = '', sequenceName = '';
+	const archive = await editProject(f.archive, project => {
 		const source = (project.sources as Record<string, unknown>[])[0]!;
 		source.schemaVersion = 1; delete source.develop; delete source.developed; delete source.provenance;
+		const clip = (project.clips as Record<string, unknown>[])[0]!, sequence = (project.sequences as Record<string, unknown>[])[0]!;
+		clipId = clip.id as string; sequenceId = sequence.id as string; sequenceName = sequence.name as string;
 	});
 	const result = await inspectPhotoFramescaperHandoffSourcesV1({ archive });
-	assert.deepEqual(result.sources, []); assert.equal(result.unsupportedImageCount, 1);
+	assert.deepEqual(result.sources, [{ sourceId: f.sourceId, name: f.photo.versions[0]!.name, originalName: f.photo.original.name.normalize('NFC'),
+		processVersion: 1, width: 1, height: 1, imageClips: [{ clipId, sequenceId, sequenceName, scope: 'timeline' }] }]);
+	assert.equal(result.unsupportedImageCount, 0);
+});
+
+test('Light ordinary source inspection distinguishes actual timeline and bin choices without picking a placement', async () => {
+	const f = await fixture(); let firstClip = '', sequenceId = '', sequenceName = '';
+	const archive = await editProject(f.archive, project => {
+		const source = (project.sources as Record<string, unknown>[])[0]!, clip = (project.clips as Record<string, unknown>[])[0]!;
+		source.schemaVersion = 1; delete source.develop; delete source.developed; delete source.provenance;
+		const sequence = (project.sequences as Record<string, unknown>[])[0]!;
+		firstClip = clip.id as string; sequenceId = clip.sequenceId as string; sequenceName = sequence.name as string;
+		(project.projectBin as { clips: unknown[] }).clips.push({ ...clip, id: 'real-bin-clip', sourceStartTicks: '1000000' });
+	});
+	const choices = await inspectPhotoFramescaperHandoffSourcesV1({ archive });
+	assert.deepEqual(choices.sources[0]!.imageClips, [{ clipId: firstClip, sequenceId, sequenceName, scope: 'timeline' },
+		{ clipId: 'real-bin-clip', sequenceId, sequenceName, scope: 'bin' }]);
+	assert.ok(Object.isFrozen(choices.sources[0]!.imageClips)); assert.ok(choices.sources[0]!.imageClips!.every(Object.isFrozen));
+	assert.equal(Object.hasOwn(choices, 'selectedClipId'), false);
+});
+
+test('Light ordinary source inspection leaves source-only images unavailable and admits genuine bin-only clips', async () => {
+	const f = await fixture();
+	for (const bin of [false, true]) {
+		const archive = await editProject(f.archive, project => {
+			const source = (project.sources as Record<string, unknown>[])[0]!;
+			source.schemaVersion = 1; delete source.develop; delete source.developed; delete source.provenance;
+			if (bin) (project.projectBin as { clips: unknown[] }).clips.push(...project.clips as unknown[]);
+			project.clips = []; for (const track of project.tracks as { clipIds: string[] }[]) track.clipIds = [];
+		});
+		const result = await inspectPhotoFramescaperHandoffSourcesV1({ archive });
+		if (bin) { assert.equal(result.unsupportedImageCount, 0); assert.equal(result.sources[0]!.imageClips![0]!.scope, 'bin'); }
+		else { assert.deepEqual(result.sources, []); assert.equal(result.unsupportedImageCount, 1); }
+	}
+});
+
+test('Light ordinary source inspection counts unsupported static declarations and rejects invalid real clip ownership', async () => {
+	const f = await fixture();
+	for (const invalid of ['animation', 'format', 'sequence', 'source'] as const) {
+		const archive = await editProject(f.archive, project => {
+			const source = (project.sources as Record<string, unknown>[])[0]!;
+			source.schemaVersion = 1; delete source.develop; delete source.developed; delete source.provenance;
+			if (invalid === 'animation') (source.canonical as Record<string, unknown>).frameCount = 2;
+			else if (invalid === 'format') (source.original as Record<string, unknown>).recognizedFormat = 'tiff';
+			else (project.clips as Record<string, unknown>[])[0]![invalid === 'sequence' ? 'sequenceId' : 'sourceId'] = 'missing';
+		});
+		if (invalid === 'sequence' || invalid === 'source') await assert.rejects(inspectPhotoFramescaperHandoffSourcesV1({ archive }));
+		else { const result = await inspectPhotoFramescaperHandoffSourcesV1({ archive }); assert.deepEqual(result.sources, []); assert.equal(result.unsupportedImageCount, 1); }
+	}
 });
 
 test('Light source inspection retains two distinct choices in project order without selecting either', async () => {

@@ -7,6 +7,7 @@ import { verifyScapeAssetBytes } from '../../common/editor/scape-archive-media.t
 import { loadScapeProjectDocument } from '../../common/editor/scape-project-admission.ts';
 import { restoreNormalizedScapeAbortReason } from '../../common/editor/scape-abort.ts';
 import { framescaperImageSourceResourceReferencesV2, normalizeFramescaperImageSourceV2 } from '../../common/editor/timeline-image-model-v2.ts';
+import { normalizeFramescaperImageSourceV1 } from '../../common/editor/timeline-image-model.ts';
 import { loadFramescaperProject, cloneFramescaperProject } from '../../framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE as PROFILE } from '../../framescaper/editor-project-runtime-profile.ts';
 import { createFramescaperScapeProjectAssetExtension } from '../../framescaper/editor-scape-assets.ts';
@@ -19,6 +20,8 @@ export interface PhotoFramescaperHandoffSourceChoiceV1 {
 	readonly sourceId: string; readonly name: string; readonly originalName: string;
 	readonly processVersion: 1 | 2; readonly width: number; readonly height: number;
 	readonly versionKind?: 'master' | 'virtual-copy';
+	/** Ordinary Source1 choices retain only Frame's stored NFC original name. */
+	readonly imageClips?: readonly Readonly<{ clipId: string; sequenceId: string; sequenceName: string; scope: 'timeline' | 'bin' }>[];
 }
 export interface PhotoFramescaperHandoffInspectionV1 {
 	readonly schemaVersion: 1; readonly projectId: string; readonly projectRevision: number; readonly title: string;
@@ -33,8 +36,9 @@ function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
  * close the ZIP before returning scalar choices. No original, LUT or pixel
  * bodies are read or granted here; receive must authenticate the selection.
  * The archive and expanded envelope share the reader's fixed 256MiB bound.
- * Ordinary Source1 and currently unsupported editable images are counted,
- * never silently selected or flattened. */
+ * Eligible ordinary Source1 additionally lists genuine timeline/bin contexts;
+ * zero placements and unsupported images are counted, never silently selected
+ * or flattened. Clip presence conveys the stored filename limitation. */
 export async function inspectPhotoFramescaperHandoffSourcesV1(value: Readonly<{ archive: Blob; signal?: AbortSignal }>): Promise<Readonly<PhotoFramescaperHandoffInspectionV1>> {
 	const label = 'Photo editable archive inspection', input = record(value, label, ['archive', 'signal'], ['archive']);
 	const { signal: caller } = readPhotoDevelopSignalOptionsV2(Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal', label) } : {});
@@ -55,7 +59,24 @@ export async function inspectPhotoFramescaperHandoffSourcesV1(value: Readonly<{ 
 			const sources: Readonly<PhotoFramescaperHandoffSourceChoiceV1>[] = []; let unsupportedImageCount = 0;
 			for (const candidate of project.sources) {
 				check(signal); if (candidate.kind !== 'image') continue;
-				if (candidate.schemaVersion === 1) { unsupportedImageCount++; continue; }
+				if (candidate.schemaVersion === 1) {
+					const source = normalizeFramescaperImageSourceV1(candidate);
+					const imageClips: NonNullable<PhotoFramescaperHandoffSourceChoiceV1['imageClips']>[number][] = [];
+					for (const [scope, clips] of [['timeline', project.clips], ['bin', project.projectBin.clips]] as const) {
+						for (const clip of clips) {
+							if (clip.kind !== 'image' || clip.sourceId !== source.id) continue;
+							const sequence = project.sequences.find(value => value.id === clip.sequenceId);
+							if (!sequence) throw new ReferenceError('Ordinary image clip sequence is missing.');
+							if (typeof sequence.name !== 'string') throw new TypeError('Ordinary image clip sequence requires its stored name.');
+							imageClips.push(Object.freeze({ clipId: clip.id, sequenceId: sequence.id, sequenceName: sequence.name, scope }));
+						}
+					}
+					if (!imageClips.length || source.canonical.frameCount !== 1 || !['png', 'jpeg', 'gif', 'webp', 'bmp'].includes(source.original.recognizedFormat)
+						|| source.original.byteLength > MAXIMUM_ORIGINAL || source.assetByteLength > MAXIMUM_BODIES) { unsupportedImageCount++; continue; }
+					sources.push(Object.freeze({ sourceId: source.id, name: source.name, originalName: source.original.fileName,
+						processVersion: 1, width: source.canonical.width, height: source.canonical.height, imageClips: Object.freeze(imageClips) }));
+					continue;
+				}
 				const source = normalizeFramescaperImageSourceV2(candidate), origin = source.provenance.origin;
 				const lutBytes = framescaperImageSourceResourceReferencesV2(source).reduce((sum, reference) => sum + reference.byteLength, 0);
 				if (source.develop.masks.length || source.develop.maskBindings.length || source.original.byteLength > MAXIMUM_ORIGINAL

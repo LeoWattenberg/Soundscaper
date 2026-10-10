@@ -9,6 +9,7 @@ import { verifyScapeAssetBytes } from '../../common/editor/scape-archive-media.t
 import { restoreNormalizedScapeAbortReason } from '../../common/editor/scape-abort.ts';
 import { loadScapeProjectDocument } from '../../common/editor/scape-project-admission.ts';
 import { openFramescaperImageFramePackV1 } from '../../common/editor/timeline-image-frame-pack-v1.ts';
+import { normalizeFramescaperImageSourceV1 } from '../../common/editor/timeline-image-model.ts';
 import { framescaperImageSourceResourceReferencesV2, normalizeFramescaperImageSourceV2, type FramescaperImageSourceV2 } from '../../common/editor/timeline-image-model-v2.ts';
 import { normalizeVideoCubeLutReferenceV1, type VideoCubeLutReferenceV1 } from '../../common/editor/cube-lut-reference-contract.ts';
 import { withCubeLutResourceV1 } from '../../common/editor/imaging/cube-lut-resource-v1.ts';
@@ -21,8 +22,9 @@ import { framescaperProjectTimelineImageFoundationShapeAssistance } from '../../
 import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
 import { id } from '../catalog/value-validation.ts';
 import { PhotoLibrarySessionLifetime } from './photo-library-session-lifetime.ts';
+import { promotePhotoFramescaperImageSourceV1 } from './photo-framescaper-handoff-source-v1.ts';
 
-export interface PhotoFramescaperHandoffReadRequestV1 { readonly archive: Blob; readonly sourceId: string; readonly signal?: AbortSignal }
+export interface PhotoFramescaperHandoffReadRequestV1 { readonly archive: Blob; readonly sourceId: string; readonly imageClipId?: string; readonly signal?: AbortSignal }
 export interface PhotoFramescaperHandoffReadViewV1 {
 	readonly schemaVersion: 1; readonly projectId: string; readonly projectRevision: number;
 	readonly source: Readonly<FramescaperImageSourceV2>; readonly originalBlob: Blob;
@@ -40,16 +42,20 @@ function wipe(bytes: Uint8Array): void { if (Reflect.apply(LENGTH, bytes, []) !=
 
 /** Read one explicit editable source without any store publication or native
  * decode. This is one selected recipe/provenance, not complete Photo history.
+ * Ordinary Source1 additionally requires a genuine selected timeline/bin clip;
+ * its unchanged pack is authenticated before neutral scalar promotion. Only
+ * Frame's stored NFC filename survives ingest; MIME is a derived declaration.
  * ZIP input <=256MiB, unique selected pack+LUT bodies <=128MiB, original <=64MiB.
  * ZIP metadata and inherited LUT parser scratch have separate fixed bounds;
  * these limits do not claim aggregate native/ZIP peak storage. Mutable reads
  * are wiped after their joined consumers; the original is an immutable Blob. */
 export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonly<PhotoFramescaperHandoffReadRequestV1>,
 	consume: (view: Readonly<PhotoFramescaperHandoffReadViewV1>) => Result | Promise<Result>): Promise<Result> {
-	const label = 'Photo editable archive read', input = record(request, label, ['archive', 'sourceId', 'signal'], ['archive', 'sourceId']);
+	const label = 'Photo editable archive read', input = record(request, label, ['archive', 'sourceId', 'imageClipId', 'signal'], ['archive', 'sourceId']);
 	const { signal: caller } = readPhotoDevelopSignalOptionsV2(Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal', label) } : {});
 	if (typeof consume !== 'function') throw new TypeError('Photo editable archive read requires a scoped consumer.');
 	const sourceId = id(field(input, 'sourceId', label), 'selected editable source ID'), archiveValue = field(input, 'archive', label);
+	const imageClipId = Object.hasOwn(input, 'imageClipId') ? id(field(input, 'imageClipId', label), 'selected image clip ID') : undefined;
 	const size = Number(Reflect.apply(SIZE, archiveValue, []));
 	if (size < 1 || size > MAXIMUM_ARCHIVE) throw new RangeError('Photo editable archive exceeds its fixed input byte bound.');
 	const archive = Reflect.apply(SLICE, archiveValue, [0, size]) as Blob;
@@ -67,19 +73,29 @@ export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonl
 			const project = cloneFramescaperProject(PROFILE, admitted.project);
 			const selected = project.sources.find(value => value.id === sourceId);
 			if (!selected) throw new ReferenceError('The selected editable image source is missing.');
-			const source = normalizeFramescaperImageSourceV2(selected);
-			if (source.develop.masks.length || source.develop.maskBindings.length) throw new RangeError('Editable archive masks are not supported.');
+			const ordinary = selected.kind === 'image' && selected.schemaVersion === 1;
+			const editable = ordinary ? null : normalizeFramescaperImageSourceV2(selected);
+			const sourceFacts = editable ?? normalizeFramescaperImageSourceV1(selected);
+			if (editable && imageClipId !== undefined) throw new TypeError('Editable Source2 does not accept an ordinary image clip selection.');
+			if (editable && (editable.develop.masks.length || editable.develop.maskBindings.length)) throw new RangeError('Editable archive masks are not supported.');
+			if (ordinary && (sourceFacts.canonical.frameCount !== 1 || !['png', 'jpeg', 'gif', 'webp', 'bmp'].includes(sourceFacts.original.recognizedFormat))) {
+				throw new RangeError('Ordinary image receive requires one admitted static image frame.');
+			}
+			const clip = ordinary ? [...project.clips, ...project.projectBin.clips].find(value => value.id === imageClipId && value.kind === 'image') : null;
+			if (ordinary && (!clip || clip.sourceId !== sourceId || !project.sequences.some(sequence => sequence.id === clip.sequenceId))) {
+				throw new ReferenceError('Ordinary image receive requires an explicit matching image clip and existing sequence.');
+			}
 			const validation = validateTimelineImageCurrentArchiveAssets(framescaperProjectTimelineImageFoundationShapeAssistance(project), envelope.manifest);
-			const lutReferences = framescaperImageSourceResourceReferencesV2(source);
-			if (source.original.byteLength > MAXIMUM_ORIGINAL || source.assetByteLength + lutReferences.reduce((sum, ref) => sum + ref.byteLength, 0) > MAXIMUM_BODIES) {
+			const lutReferences = editable ? framescaperImageSourceResourceReferencesV2(editable) : Object.freeze([]);
+			if (sourceFacts.original.byteLength > MAXIMUM_ORIGINAL || sourceFacts.assetByteLength + lutReferences.reduce((sum, ref) => sum + ref.byteLength, 0) > MAXIMUM_BODIES) {
 				throw new RangeError('Photo editable archive selected bodies exceed their fixed byte capacity.');
 			}
-			const descriptor = validation.images.descriptorByArchiveId.get(`framescaper:image:${source.id}`);
+			const descriptor = validation.images.descriptorByArchiveId.get(`framescaper:image:${sourceFacts.id}`);
 			if (!descriptor) throw new Error('Photo editable archive selected pack descriptor is missing.');
 			const pack = await readBody(envelope, descriptor, signal);
 			let originalBlob: Blob, canonicalFrameSha256: string;
 			try {
-				const projection = timelineImageArchivePackProjection(framescaperProjectTimelineImageFoundationShapeAssistance({ ...project, sources: [source] }));
+				const projection = timelineImageArchivePackProjection(framescaperProjectTimelineImageFoundationShapeAssistance({ ...project, sources: [sourceFacts] }));
 				const packedSource = projection.sources[0];
 				if (packedSource?.kind !== 'image' || packedSource.schemaVersion !== 1) throw new Error('The selected editable image pack projection is missing.');
 				let copyingOriginal = false;
@@ -92,13 +108,16 @@ export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonl
 				// exposing it for wiping. This bounded copy reads our private snapshot.
 				check(signal); copyingOriginal = true;
 				const original = await reader.readOriginal();
-				try { check(signal); originalBlob = Object.freeze(new Blob([original as Uint8Array<ArrayBuffer>], { type: source.original.mimeType ?? '' })); }
+				try { check(signal); originalBlob = Object.freeze(new Blob([original as Uint8Array<ArrayBuffer>], { type: sourceFacts.original.mimeType ?? '' })); }
 				finally { wipe(original); }
 				check(signal);
 				const frame = await reader.readFrame(0);
 				try { check(signal); canonicalFrameSha256 = bytesToHex(sha256(frame)); }
 				finally { wipe(frame); }
 			} finally { wipe(pack); }
+			const source = editable ?? promotePhotoFramescaperImageSourceV1({ source: sourceFacts,
+				origin: { schemaFamily: 'framescaper', schemaVersion: 1, projectId: project.id, revision: project.revision,
+					sourceId: sourceFacts.id, sequenceId: clip!.sequenceId, clipId: clip!.id } });
 			const bodies = new Map<string, Blob>();
 			for (const reference of lutReferences) {
 				const ref = validation.foundation.references.find(value => value.role === 'lut' && value.storageKey === reference.storageKey);

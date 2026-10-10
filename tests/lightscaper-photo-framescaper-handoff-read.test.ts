@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { normalizeFramescaperImageSourceV2 } from '../src/common/editor/timeline-image-model-v2.ts';
 import { imageDevelopHandoffRecipeSha256V1 } from '../src/common/editor/image-develop-handoff-provenance-v1.ts';
 import { withPhotoFramescaperHandoffReadV1 } from '../src/lightscaper/controller/photo-framescaper-handoff-read-v1.ts';
+import { preparePhotoFramescaperHandoffOriginalV1 } from '../src/lightscaper/controller/photo-framescaper-handoff-original-v1.ts';
 import { exportPhotoFramescaperHandoffArchiveV1 } from '../src/lightscaper/controller/photo-framescaper-handoff-archive-v1.ts';
 import type { PhotoLibraryImageHandoffPortV1 } from '../src/common/editor/photo-library-image-handoff-port-v1.ts';
 import type { CubeLutSourcePortV1 } from '../src/common/editor/imaging/cube-lut-source-port-v1.ts';
@@ -71,6 +72,105 @@ async function projectEdit(archive: Blob, edit: (project: Record<string, unknown
 		manifest.project.size = bytes.length; manifest.project.sha256 = createHash('sha256').update(bytes).digest('hex');
 		manifest.project.schemaVersion = project.schemaVersion as number; files.set('manifest.json', new TextEncoder().encode(JSON.stringify(manifest))); });
 }
+
+async function ordinaryFixture(hint: string | null = null) {
+	const f = await fixture(1); let clipId = '', sequenceId = '', projectId = '', revision = 0;
+	const archive = await projectEdit(f.archive, project => {
+		const source = (project.sources as Record<string, unknown>[])[0]!, clip = (project.clips as Record<string, unknown>[])[0]!;
+		source.schemaVersion = 1; delete source.develop; delete source.developed; delete source.provenance;
+		(source.original as Record<string, unknown>).mimeType = hint;
+		clipId = clip.id as string; sequenceId = clip.sequenceId as string; projectId = project.id as string; revision = project.revision as number;
+	});
+	return { ...f, archive, clipId, sequenceId, projectId, revision };
+}
+
+test('Light ordinary Source1 reader authenticates the unchanged pack before neutral promotion with actual clip context', async () => {
+	const f = await ordinaryFixture(), before = new Uint8Array(await f.archive.arrayBuffer());
+	await withPhotoFramescaperHandoffReadV1({ archive: f.archive, sourceId: f.sourceId, imageClipId: f.clipId }, async view => {
+		assert.equal(view.source.schemaVersion, 2); assert.equal(view.source.original.mimeType, 'image/png');
+		assert.deepEqual(view.source.develop, { processVersion: 1, effects: [], masks: [], maskBindings: [],
+			geometry: { crop: null, rotationDegrees: 0, flipHorizontal: false, flipVertical: false } });
+		assert.deepEqual(view.source.provenance.origin, { schemaFamily: 'framescaper', schemaVersion: 1, projectId: f.projectId,
+			revision: f.revision, sourceId: f.sourceId, sequenceId: f.sequenceId, clipId: f.clipId });
+		assert.equal(view.source.provenance.original.exactName, 'é.png'); assert.deepEqual(view.lutReferences, []);
+		assert.deepEqual(new Uint8Array(await view.originalBlob.arrayBuffer()), PNG);
+		assert.equal(view.canonicalFrameSha256, createHash('sha256').update(Uint8Array.of(23, 71, 149, 255)).digest('hex'));
+	});
+	assert.deepEqual(new Uint8Array(await f.archive.arrayBuffer()), before);
+});
+
+test('Light ordinary reader requires explicit context and binds each real timeline/bin placement without choosing the first', async () => {
+	const f = await ordinaryFixture('application/octet-stream');
+	const archive = await projectEdit(f.archive, project => {
+		const clip = (project.clips as Record<string, unknown>[])[0]!;
+		(project.projectBin as { clips: unknown[] }).clips.push({ ...clip, id: 'actual-bin-placement', sourceStartTicks: '1000000' });
+	});
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId }, () => assert.fail('No implicit placement.')), /explicit.*clip/iu);
+	for (const clipId of [f.clipId, 'actual-bin-placement']) {
+		await withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId, imageClipId: clipId }, view => {
+			assert.deepEqual(view.source.provenance.origin, { schemaFamily: 'framescaper', schemaVersion: 1, projectId: f.projectId,
+				revision: f.revision, sourceId: f.sourceId, sequenceId: f.sequenceId, clipId });
+			assert.equal(view.originalBlob.type, 'application/octet-stream'); assert.equal(view.source.original.mimeType, 'image/png');
+			assert.deepEqual(view.source.developed, { width: 1, height: 1 });
+		});
+	}
+});
+
+test('Light ordinary reader refuses source-only, stale, wrong-source and invalid-sequence context before delivery', async () => {
+	const f = await ordinaryFixture(); let consumers = 0;
+	const sourceOnly = await projectEdit(f.archive, project => { project.clips = [];
+		for (const track of project.tracks as { clipIds: string[] }[]) track.clipIds = []; });
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive: sourceOnly, sourceId: f.sourceId, imageClipId: f.clipId }, () => { consumers++; }), /clip/iu);
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive: f.archive, sourceId: f.sourceId, imageClipId: 'stale-clip' }, () => { consumers++; }), /clip/iu);
+	for (const field of ['sourceId', 'sequenceId'] as const) {
+		const archive = await projectEdit(f.archive, project => { (project.clips as Record<string, unknown>[])[0]![field] = 'missing-owner'; });
+		await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId, imageClipId: f.clipId }, () => { consumers++; }));
+	}
+	assert.equal(consumers, 0);
+});
+
+test('Light ordinary reader refuses duplicated timeline/bin clip IDs in actual current project admission', async () => {
+	const f = await ordinaryFixture(); let consumers = 0;
+	const archive = await projectEdit(f.archive, project => {
+		(project.projectBin as { clips: unknown[] }).clips.push(structuredClone((project.clips as unknown[])[0]));
+	});
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId, imageClipId: f.clipId }, () => { consumers++; }), /duplicat/iu);
+	assert.equal(consumers, 0);
+});
+
+test('Light ordinary reader authenticates pack bytes and retains downstream signature verification before native authority', async () => {
+	const f = await ordinaryFixture(); let consumers = 0, opens = 0;
+	const corrupt = await rewriteLutArchiveFixture(f.archive, files => { const name = [...files.keys()].find(key => key.includes('/image/'))!;
+		const bytes = files.get(name)!; bytes[bytes.length - 1] = bytes[bytes.length - 1]! ^ 1; });
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive: corrupt, sourceId: f.sourceId, imageClipId: f.clipId }, () => { consumers++; }), /SHA|digest|verification/iu);
+	const mislabeled = await projectEdit(f.archive, project => {
+		((project.sources as { original: Record<string, unknown> }[])[0]!.original).recognizedFormat = 'jpeg';
+	});
+	await withPhotoFramescaperHandoffReadV1({ archive: mislabeled, sourceId: f.sourceId, imageClipId: f.clipId }, async view => {
+		assert.equal(view.source.original.mimeType, 'image/jpeg');
+		await assert.rejects(preparePhotoFramescaperHandoffOriginalV1({ source: view.source, originalBlob: view.originalBlob,
+			canonicalFrameSha256: view.canonicalFrameSha256, signal: view.signal }, { openImage: async () => { opens++; throw new Error('No decode before actual signature admission.'); } }), /signature.*format/iu);
+	});
+	assert.equal(consumers, 0); assert.equal(opens, 0);
+});
+
+test('Light ordinary reader captures clip selection before yielding and joins held consumer on opaque cancellation', async () => {
+	const f = await ordinaryFixture(), entered = deferred<void>(), release = deferred<void>(), stop = new AbortController(), reason = Symbol('ordinary-consumer');
+	const request = { archive: f.archive, sourceId: f.sourceId, imageClipId: f.clipId, signal: stop.signal };
+	const work = withPhotoFramescaperHandoffReadV1(request, async view => { assert.equal(view.source.provenance.origin.schemaFamily, 'framescaper');
+		assert.deepEqual(view.source.provenance.origin, { schemaFamily: 'framescaper', schemaVersion: 1, projectId: f.projectId,
+			revision: f.revision, sourceId: f.sourceId, sequenceId: f.sequenceId, clipId: f.clipId }); entered.resolve(); await release.promise; });
+	const refusal = assert.rejects(work, error => error === reason); request.imageClipId = 'late';
+	await entered.promise; stop.abort(reason); assert.equal(await remainsPending(work), true); release.resolve(); await refusal;
+});
+
+test('Light Source2 rejects any ordinary clip field and Source1 refuses accessor selection without invoking it', async () => {
+	const f = await fixture(1); let getters = 0, consumers = 0;
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive: f.archive, sourceId: f.sourceId, imageClipId: 'handoff-5' }, () => { consumers++; }), /Source2/iu);
+	const ordinary = await ordinaryFixture();
+	const request = Object.defineProperty({ archive: ordinary.archive, sourceId: ordinary.sourceId, imageClipId: ordinary.clipId }, 'imageClipId', { get() { getters++; return ordinary.clipId; } });
+	await assert.rejects(withPhotoFramescaperHandoffReadV1(request, () => { consumers++; })); assert.equal(getters, 0); assert.equal(consumers, 0);
+});
 for (const kind of ['future-project', 'future-source', 'legacy-source', 'nonstatic-source'] as const) test(`Light reverse reader refuses ${kind} editable authority`, async () => {
 	const f = await fixture(1); let consumers = 0;
 	const archive = await projectEdit(f.archive, project => {
