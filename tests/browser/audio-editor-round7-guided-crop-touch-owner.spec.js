@@ -49,7 +49,7 @@ test('Guided Reframe retains its first native crop contact', async ({ page, brow
 	expect(Number(held)).toBeGreaterThan(0.2);
 	await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [middle, other] });
 	await expect(horizontal).toHaveValue(held);
-	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [middle] });
+	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [other] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [end] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 	await expect(horizontal).toHaveValue(healthyEnd);
