@@ -6,13 +6,16 @@ import { bootEditor, chooseCommandAction, collectClientErrors } from './audio-ed
 for (const { product, path } of [
 	{ product: 'soundscaper', path: '/embed/en/' },
 	{ product: 'framescaper', path: '/framescaper/embed/en/' },
-]) test(`${product} Diagnostics exports the actual native browser environment`, async ({ page }) => {
+]) test(`${product} Diagnostics exports the actual native browser environment`, async ({ page, browserName }) => {
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, path);
 	const native = await page.evaluate(() => ({ platform: navigator.platform, userAgent: navigator.userAgent }));
-	expect(native.platform).toMatch(/Linux/u);
-	expect(native.userAgent).toMatch(/Windows NT 10\.0; Win64; x64/u);
-	const version = /(?:Chrome|Chromium)\/([0-9.]+)/u.exec(native.userAgent)?.[1];
+	expect(native.platform).toMatch(/Linux|Mac|Win/u);
+	const safari = browserName === 'webkit';
+	expect(native.userAgent).toMatch(safari ? /Macintosh; Intel Mac OS X/u : /Windows NT 10\.0; Win64; x64/u);
+	const versionPattern = browserName === 'firefox' ? /Firefox\/([0-9.]+)/u
+		: safari ? /Version\/([0-9.]+).*Safari\//u : /(?:Chrome|Chromium)\/([0-9.]+)/u;
+	const version = versionPattern.exec(native.userAgent)?.[1];
 	expect(version).toBeTruthy();
 	await chooseCommandAction(page, editor, 'Help', 'Diagnostics');
 	const dialog = page.getByRole('dialog', { name: 'Local Diagnostics', exact: true });
@@ -34,9 +37,10 @@ for (const { product, path } of [
 	expect(report.environment.kind).toBe('browser');
 	expect(report.environment.locale).toBe('en');
 	expect(text).not.toMatch(/"(?:title|path|message|stack|transcript|media|sources|clips|userAgent)"/u);
-	expect(report.environment.platform).toBe('win32');
+	const platform = safari ? 'darwin' : 'win32';
+	expect(report.environment.platform).toBe(platform);
 	expect(report.environment.architecture).toBe('x64');
-	expect(report.environment.browser).toEqual({ name: 'chromium', version });
-	await expect(dialog).toContainText('browser; win32; x64; en');
+	expect(report.environment.browser).toEqual({ name: browserName, version });
+	await expect(dialog).toContainText(`browser; ${platform}; x64; en`);
 	expect(errors).toEqual([]);
 });
