@@ -11,6 +11,8 @@ import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopPr
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { ReadPhotoExportMetadata } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import type { PhotoLibraryExportPresetsPortV1 } from '../../photo-library-export-presets-port-v1.ts';
+import type { PreparePhotoFramescaperHandoff } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
+import type { PhotoLibraryImageHandoffPortV1 } from '../../photo-library-image-handoff-port-v1.ts';
 
 interface ReadOwners {
 	readonly slot: RefObject<SessionSlot | null>;
@@ -123,5 +125,33 @@ export function usePhotoLibraryWorkflowReads({ slot, factory, loader, renderer, 
 			if (!isCurrent()) throw new DOMException('Photo export preset generation is closed.', 'AbortError'); return access;
 		};
 	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
-	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener };
+	const captureImageHandoff = useCallback((): PreparePhotoFramescaperHandoff => {
+		const current = slot.current;
+		const isCurrent = () => current?.live && slot.current === current && current.factory === createSession && current.factory === factory.current
+			&& current.proxyFactory === createDevelopProxyRuntime && current.proxyFactory === renderer.current && current.backupLoader === loadBackupSaveRuntime && current.backupLoader === loader.current;
+		return async (photoId, externalSignal) => {
+			if (!current || !isCurrent()) throw new DOMException('Photo handoff generation is closed.', 'AbortError');
+			const signal = AbortSignal.any([externalSignal, current.lifetime.signal]);
+			const checked = () => { check(signal); if (!isCurrent()) throw new DOMException('Photo handoff generation is closed.', 'AbortError'); };
+			checked(); const owner = await acquire(current); checked();
+			const develop = capturePhotoLibraryDevelopPortV2(owner.develop, signal), handoff = owner.imageHandoff;
+			if (!handoff || typeof handoff.withCapture !== 'function') throw new Error('Editable photo handoff is unavailable.');
+			const method = handoff.withCapture;
+			const snapshot = await develop.read({ schemaVersion: 2, photoId }, { signal }); checked();
+			if (snapshot.photoId !== photoId || snapshot.versionId !== snapshot.activeVersionId) throw new Error('The active photo selection changed.');
+			const binding = Object.freeze({ catalogId: snapshot.catalogId, photoId, versionId: snapshot.activeVersionId, expectedRevision: snapshot.revision });
+			const checkCurrent = async (caller: AbortSignal) => {
+				check(caller); checked(); const latest = await develop.read({ schemaVersion: 2, photoId }, { signal: AbortSignal.any([caller, signal]) }); checked(); check(caller);
+				if (latest.catalogId !== binding.catalogId || latest.photoId !== binding.photoId || latest.activeVersionId !== binding.versionId
+					|| latest.versionId !== binding.versionId || latest.revision !== binding.expectedRevision) throw new Error('The active saved photo changed.');
+			};
+			const capture: PhotoLibraryImageHandoffPortV1 = { async withCapture(request, consume, options = {}) {
+				checked(); const joined = options.signal ? AbortSignal.any([options.signal, signal]) : signal;
+				const result = await Reflect.apply(method, handoff, [request, consume, { signal: joined }]) as Awaited<ReturnType<typeof consume>>;
+				checked(); check(joined); return result;
+			} };
+			return Object.freeze({ binding, capture: Object.freeze(capture), checkCurrent });
+		};
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
+	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff };
 }

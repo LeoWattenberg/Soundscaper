@@ -76,7 +76,7 @@ export const editorUiChunkGroups = [
 	},
 	{
 		name: 'lightscaper-editor-copy',
-		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|develop-menu|photo-(?:png|jpeg)-export-menu|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|develop-menu|photo-(?:(?:png|jpeg)-export-menu|framescaper-handoff-menu)|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
@@ -85,6 +85,15 @@ export const editorUiChunkGroups = [
 	{
 		name: 'lightscaper-photo-batch-export-menu-copy',
 		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-batch-export-menu-copy\.ts$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Full editable-copy guidance is loaded only with the File Photo dialog.
+		name: 'lightscaper-photo-framescaper-handoff-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-framescaper-handoff-copy\.ts$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,

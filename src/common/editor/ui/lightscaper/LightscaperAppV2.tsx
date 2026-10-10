@@ -10,6 +10,7 @@ import type { LoadPhotoLibraryRestoreRuntimeV1 } from '../../photo-library-resto
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import { lightscaperMenuEvents } from './lightscaper-menu-events.ts';
 import { usePhotoRasterExportEntry } from './use-photo-raster-export-entry.ts';
+import { usePhotoFramescaperHandoffEntry } from './use-photo-framescaper-handoff-entry.tsx';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntryV2 } from './use-photo-develop-entry-v2.ts';
 import { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
@@ -235,6 +236,9 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 	const raster = usePhotoRasterExportEntry({ generation, locale, selection, closeMenu, prepareSave: library.prepareBackupSave,
 		disabled: !createSession || !loadBackupSaveRuntime || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 		selected: library.page?.rows.filter(row => photoSelection.snapshot.selectedIds.includes(row.id)) ?? [] });
+	const handoff = usePhotoFramescaperHandoffEntry({ generation, locale, selection, closeMenu, selectedCount: photoSelection.snapshot.selectedIds.length, workingLabel: copy.photoWorking,
+		disabled: !createSession || !loadBackupSaveRuntime || !libraryVisible || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
+		capture: library.captureImageHandoff, prepareSave: library.prepareBackupSave, saveRuntime: library.backupSaveRuntime, registerDestination: library.registerExportDestination });
 	const openReview = (kind: 'compare' | 'survey', event: MouseEvent<HTMLButtonElement>) => {
 		const active = reviewMenu.current;
 		if (active.generation !== compareGeneration || active.queryIdentity !== library.queryIdentity || !active.libraryVisible
@@ -358,6 +362,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
+								{handoff.menu}
 								<button type="button" data-photo-develop-menu disabled={restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing}
 									onClick={openDevelop}>{photoDevelopMenuLabel(locale)}</button>
 								<button type="button" disabled={restore.busy || !libraryVisible || !library.page?.rows.length} onClick={event => {
@@ -514,6 +519,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		{!restore.busy && raster.entry && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}><PhotoRasterExportSurface key={raster.entry.key} entry={raster.entry} locale={locale} workingLabel={copy.photoWorking}
 			execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata} captureSidecarReader={library.captureExportSidecarReader}
 			saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} captureJournal={library.captureExportJournalOpener} capturePresets={library.captureExportPresetsOpener} onClose={raster.close} onHide={raster.hide} onSettled={raster.settled} /></Suspense>}
+		{!restore.busy && handoff.surface}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
 				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}

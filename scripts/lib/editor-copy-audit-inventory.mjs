@@ -9,6 +9,8 @@ import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-
 import { photoExportPresetsCopy } from '../../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../../src/common/i18n/image-export-graphic-copy.ts';
 import { imageExportTextCopy } from '../../src/common/i18n/image-export-text-copy.ts';
+import { photoFramescaperHandoffCopy } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-copy.ts';
+import { photoFramescaperHandoffMenuLabel } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
 
 const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBUTION_ENGLISH_COPY)
 	.map(([key, value]) => [`ui.freesoundAttribution.${key}`, value]));
@@ -24,6 +26,7 @@ const photoBatchMenu = Object.fromEntries(Object.entries(photoBatchExportMenuCop
 const photoBatchExport = Object.fromEntries(Object.entries(photoBatchExportCopy('en')).map(([key, value]) => [`ui.photoBatchExport.${key}`, value]));
 
 const photoExportPresets = Object.fromEntries(Object.entries(photoExportPresetsCopy('en')).map(([key, value]) => [`ui.photoExportPresets.${key}`, value]));
+const photoFramescaperHandoff = Object.fromEntries(Object.entries(photoFramescaperHandoffCopy('en')).map(([key, value]) => [`ui.photoFramescaperHandoff.${key}`, value]));
 
 /** Build-time inventory includes copy owned by lazy surfaces without bundling it eagerly. */
 export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
@@ -36,4 +39,6 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...imageExportGraphic,
 	...imageExportText,
 	...photoExportPresets,
+	...photoFramescaperHandoff,
+	'ui.photoFramescaperHandoffMenu.download': photoFramescaperHandoffMenuLabel('en'),
 });
