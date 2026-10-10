@@ -13,6 +13,16 @@ export function useAudioTrackEnvelope({
 }) {
 	const envelopePreviewRef = useRef(new Map());
 	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
+	const currentClipLookupRef = useRef(clipLookup);
+	currentClipLookupRef.current = clipLookup;
+
+	useEffect(() => {
+		const previousSize = envelopePreviewRef.current.size;
+		for (const [key, preview] of envelopePreviewRef.current) {
+			if (!clipLookup.has(preview.clipId)) envelopePreviewRef.current.delete(key);
+		}
+		if (previousSize !== envelopePreviewRef.current.size) setEnvelopePreviewRevision(revision => revision + 1);
+	}, [clipLookup]);
 
 	useEffect(() => {
 		const pendingTasks = new Set();
@@ -36,6 +46,7 @@ export function useAudioTrackEnvelope({
 			envelopePreviewRef.current.clear();
 			setEnvelopePreviewRevision((revision) => revision + 1);
 			for (const preview of previews) {
+				if (!currentClipLookupRef.current.has(preview.clipId)) continue;
 				run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
 			}
 		});
