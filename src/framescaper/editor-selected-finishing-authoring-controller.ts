@@ -121,14 +121,15 @@ export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 						VISUAL_CAPTURE_OWNERS.get(controller as object) ?? controller,
 					),
 				});
-				const current = runtimeState(controller);
-				model.assertFramescaperSelectedVisualAuthoringRuntimeFenceFinishing({
-					project: current.project,
-					fence: request.fence,
-					selectedClipId: current.selectedClipId,
-					playheadSample: current.playheadSample,
+				await commitWithRollback(controller, prepared, () => {
+					const current = runtimeState(controller);
+					model.assertFramescaperSelectedVisualAuthoringRuntimeFenceFinishing({
+						project: current.project,
+						fence: request.fence,
+						selectedClipId: current.selectedClipId,
+						playheadSample: current.playheadSample,
+					});
 				});
-				await commitWithRollback(controller, prepared);
 			});
 		},
 	});
@@ -148,8 +149,10 @@ export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 async function commitWithRollback(
 	controller: FramescaperSelectedAuthoringController,
 	prepared: Readonly<{ readonly command: unknown; readonly rollback?: () => Promise<void> }>,
+	beforeCommit?: () => void,
 ): Promise<void> {
 	try {
+		beforeCommit?.();
 		await controller.actions.edit.commit(prepared.command);
 	} catch (error) {
 		if (!prepared.rollback) throw error;
