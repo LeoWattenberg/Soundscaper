@@ -921,6 +921,9 @@ ESLint, size and owned diff checks pass. Shared changed lint reports only the
 unrelated newly added native-original-import fixture outside its TypeScript
 project; its owner receives that exact diagnostic. The new menu keeps the
 existing effect-dialog shell ownership, covered by 28 existing closure checks.
-Corrected guarded public verification is pending. All bounded verification logs
-and generated diagnostics are read and removed immediately. This uses the same runtime
-closure; no manual Update AI assets run is required.
+On guarded capture 9548d9a3ab267fda6f9aa6bccb493d07ecac01e7, the same complete
+Chromium public cases pass: Copy/Paste in 4.5 seconds and native-writer Macro in
+3.5 seconds, 2/2 in 9.6 seconds. The complete corrected test/tooling compiler and
+repository lint pass. All bounded verification logs and generated diagnostics
+are read and removed immediately. This uses the same runtime closure; no manual
+Update AI assets run is required.
