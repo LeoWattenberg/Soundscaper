@@ -889,3 +889,38 @@ pass. Target ESLint, changed lint, size and owned
 diff checks pass. Bounded logs and generated diagnostics are read and removed
 immediately. This uses the same runtime closure; no manual Update AI assets run
 is required.
+
+## R7-EFFECT-023 — Hosted stacks promise unsupported copy and macro actions
+
+Through Effect → Audio Plugins, instantiate an ordinary installed native gain
+plug-in on a recording. Open its track Effects panel → Effect stack options →
+Copy effects → Paste effects: the panel reports “Unsupported audio effect:
+native-plugin.” Export as macro likewise reports “Unsupported macro effect:
+native-plugin.” Individual native Copy effect is already deliberately omitted,
+but the independent stack menu promises both unsupported operations. Group
+these stack admission manifestations as one root.
+
+Extract the existing stack menu into a focused typed UI owner. Disable copying
+when a stack contains a hosted instance, including a disabled instance which
+would still be copied. Admit macro export only when every enabled portable
+entry has a supported macro representation. Retain normal stack Paste,
+unavailable-effect metadata, disabled native omissions from supported macros,
+ordinary effect identity cloning and all existing native host behavior.
+
+Authenticated 4fc2a8437 reproduces both causal public failures after healthy
+ordinary stack Copy/Paste and exact native-writer UTF-8 macro controls pass.
+The final Copy failure takes 9.8 seconds, with its preceding unsupported-type
+alert observed; both unavailable actions remain aria-enabled. The initial
+ambiguous Close locator and incomplete desktop save fixture are excluded setup
+failures; the retained fixture supplies the real desktop streaming write
+contract before boot, without application-state injection. Three focused
+mounted cases are initially RED while two supported controls pass. Corrected
+mounted menus, exact disabled-native macro content, existing stack identity,
+gesture lifecycle and macro round-trip support pass 35/35. Targeted type-aware
+ESLint, size and owned diff checks pass. Shared changed lint reports only the
+unrelated newly added native-original-import fixture outside its TypeScript
+project; its owner receives that exact diagnostic. The new menu keeps the
+existing effect-dialog shell ownership, covered by 28 existing closure checks.
+Corrected guarded public verification is pending. All bounded verification logs
+and generated diagnostics are read and removed immediately. This uses the same runtime
+closure; no manual Update AI assets run is required.

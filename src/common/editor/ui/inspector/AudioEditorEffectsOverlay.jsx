@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts'; import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
-import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
-import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
 import { audioSelectionEffectDefaults, createEffect } from '../../effects.js';
 import { audioEffectControlTracks } from '../../audio-effect-control-tracks.ts';
@@ -16,6 +14,7 @@ import EffectPicker from './EffectPicker.jsx';
 import { createAudacityRealtimeEffectShortcutHandler } from './audacity-realtime-effect-shortcut.ts';
 import { nativeRackEffectCommit, supportsLiveRackEffectGesture } from './live-rack-effect-gesture.ts';
 import MasterGainControl from './MasterGainControl.tsx';
+import EffectStackMenu from './EffectStackMenu.tsx';
 import {
 	effectHasEditableSettings,
 	effectPresetChoices,
@@ -377,18 +376,14 @@ export function AudioEditorEffectsOverlay({
 							onError={(error) => setMessage(error instanceof Error ? error.message : String(error))} />
 					</div>
 				)}
-				<ContextMenu
+				<EffectStackMenu
 					isOpen={Boolean(stackMenu)}
 					x={stackMenu?.x || 0}
 					y={stackMenu?.y || 0}
 					onClose={closeStackMenu}
-					className="audio-editor-effect-stack-menu"
-				>
-					<ContextMenuItem label={copy.copyEffects} onClick={copyStack} />
-					<ContextMenuItem label={copy.pasteEffects} disabled={blocked || !snapshot.effects?.hasStackClipboard} onClick={pasteStack} />
-					<ContextMenuItem isDivider />
-					<ContextMenuItem label={copy.exportAsMacro} disabled={!menuEffects.some((candidate) => candidate.enabled && candidate.type !== 'missing')} onClick={exportStack} />
-				</ContextMenu>
+					copy={copy} effects={menuEffects} blocked={blocked} hasClipboard={Boolean(snapshot.effects?.hasStackClipboard)}
+					onCopy={copyStack} onPaste={pasteStack} onExport={exportStack}
+				/>
 			</div>}
 			{renderDialogs && effect && (
 				<AudioEditorDialogShell
