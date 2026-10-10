@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { ProcessingButton as Button } from './ProcessingButton.tsx';
@@ -45,6 +45,15 @@ function PluginFoldersPreferences({ bridge, copy: hostCopy }: {
 
 export function SoundscaperPluginFoldersPanel({ copy, state, disabled, perform }: SoundscaperNativeEffectPanelProps) {
 	const plugins = state.plugins;
+	const removalFocus = useRef<{ button: HTMLButtonElement; group: HTMLFieldSetElement } | null>(null);
+	useEffect(() => {
+		if (disabled || !removalFocus.current) return;
+		const { button, group } = removalFocus.current;
+		removalFocus.current = null;
+		if (!group.isConnected || button.ownerDocument.activeElement !== button.ownerDocument.body) return;
+		const next = button.isConnected ? button : group.querySelector<HTMLButtonElement>('[data-native-plugin-add]');
+		if (next && !next.disabled) next.focus();
+	}, [disabled, plugins]);
 	const formats = (plugins?.consent.formats ?? []).filter((format) => format.supported);
 	const canScan = plugins?.enabled === true && !plugins.quarantined && plugins.payload.status === 'available';
 	const folders = formats.flatMap((format) => format.roots.filter((root) => root.admitted)
@@ -68,11 +77,16 @@ export function SoundscaperPluginFoldersPanel({ copy, state, disabled, perform }
 					{custom.map((root) => <li key={root.rootId}>
 						<span>{root.displayPath ?? root.name}</span>
 						<Button disabled={disabled} aria-label={`${copy.removePluginPath}: ${root.displayPath ?? root.name}`}
-							onClick={() => perform({ type: 'consent', format: format.format, consent: 'remove-root', rootId: root.rootId })}>
+							onClick={(event) => {
+								const button = event.currentTarget;
+								const group = button.closest('fieldset');
+								if (group && button.ownerDocument.activeElement === button) removalFocus.current = { button, group };
+								perform({ type: 'consent', format: format.format, consent: 'remove-root', rootId: root.rootId });
+							}}>
 							{copy.removePluginPath}</Button>
 					</li>)}
 				</ul> : <p>{copy.noCustomPluginPaths}</p>}
-				<Button disabled={disabled} aria-label={`${copy.addPluginPath}: ${format.format.toUpperCase()}`}
+				<Button disabled={disabled} data-native-plugin-add aria-label={`${copy.addPluginPath}: ${format.format.toUpperCase()}`}
 					onClick={() => perform({ type: 'consent', format: format.format, consent: 'add-custom-root' })}>
 					{copy.addPluginPath}</Button>
 			</fieldset>;
