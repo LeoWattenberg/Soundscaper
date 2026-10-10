@@ -82,8 +82,10 @@ export default function WorkspacePanelGroup({
 			if (adjustFloatingPanelGeometry(event, panelId, panel, 'move')) return;
 			if (grouped) return;
 			const horizontal = dock === 'top' || dock === 'bottom';
-			const backwards = horizontal ? event.key === 'ArrowLeft' : event.key === 'ArrowUp';
-			const forwards = horizontal ? event.key === 'ArrowRight' : event.key === 'ArrowDown';
+			const rtl = horizontal && event.currentTarget.ownerDocument.defaultView
+				?.getComputedStyle(event.currentTarget).direction === 'rtl';
+			const backwards = horizontal ? event.key === (rtl ? 'ArrowRight' : 'ArrowLeft') : event.key === 'ArrowUp';
+			const forwards = horizontal ? event.key === (rtl ? 'ArrowLeft' : 'ArrowRight') : event.key === 'ArrowDown';
 			if (!backwards && !forwards) return;
 			const targetGroup = groups[groupIndex + (forwards ? 1 : -1)];
 			if (!targetGroup) return;
