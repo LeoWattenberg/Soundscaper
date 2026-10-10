@@ -550,6 +550,17 @@ The exact completed marker/context/PNG were read and its owned original
 diagnostic directory immediately removed. Preserve the full-suite timeout;
 whole unchanged healthy/switched WebKit OTIO replays are pending, without
 source, fixture, deadline or count changes.
+Both entire unchanged WebKit OTIO workflows pass on authenticated a3a36854d
+with the coordinated exclusive4–7 CPU slot, one worker and qualified Pulse:
+healthy camera22.2 seconds and switched camera28.2 seconds (2/2 in53.5 seconds).
+All original30-second case and5000 ms assertion limits remain. Actual durable
+save, downloaded native OTIO output, exact sequence duration25 fps, actual
+camera source identity/storage URL and grouped/ungrouped delivery disclosure
+all pass. The original interrupted saved-state observation remains recorded;
+these passes alone do not establish its environmental or product cause.
+Completed owned replay output/log are read and immediately removed. The
+attribution whole-case timeout remains unresolved; passive stage timing review
+will compare the original unchanged workflows with existing camera budgets.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
