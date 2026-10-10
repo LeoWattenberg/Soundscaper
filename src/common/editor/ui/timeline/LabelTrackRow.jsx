@@ -199,7 +199,7 @@ export function AudacityLabelMarker({
 	const [preview, setPreview] = useState(null);
 	const [contextMenu, setContextMenu] = useState(null);
 	const clearPreview = useCallback(() => setPreview(null), []);
-	const dragCancellation = useLabelMarkerDragCancellation(markerRef, pendingRef, clearPreview);
+	const dragCancellation = useLabelMarkerDragCancellation(markerRef, pendingRef, clearPreview, label);
 	const point = label.startFrame === label.endFrame;
 	const displayed = preview || label;
 	const displayedLeft = left + (displayed.startFrame - label.startFrame) / sampleRate * pixelsPerSecond;
