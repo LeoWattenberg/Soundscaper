@@ -1616,3 +1616,20 @@ before any source repair; no cause or extra root is claimed. After the
 worker and both preview servers close, the bounded log and exact replay
 results are consumed and immediately removed. Production and test sources
 are unchanged, and no manual Update AI assets run is required.
+
+A bounded temporary passive copy repeats the Parametric Output healthy
+failure in 5.8 seconds without changing the original native actions or
+60-second budget. Its immediate healthy value is captured before the
+post-release frame trace. The actual hit target is the enabled native range
+at its midpoint (646.328, 600.5), within a stable 687.344 by 20 pixel box.
+Trusted primary down and capture are followed by four captured primary-held
+moves at x667/689/710/732 between 5114 and 5116 ms, then primary up at 5119
+ms and capture loss/mouseup at 5136 ms. No native input or change event is
+emitted. Every event and four snapshots through 5178 ms retain the same
+range identity and both range/numeric values zero. This trace establishes
+neither a discarded accepted value nor an immediate post-release paint
+delay; the native control never produces a changed value in this short
+movement sequence. No production cause or repair is inferred. The full
+context and PNG are consumed; after actual worker/server closure the
+temporary copy, bounded log and exact diagnostic directory are immediately
+removed. No maintained source/test change or additional root is made.
