@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
-import { createDeliveryQueueRunner } from '../../common/editor/controller/export/internal/delivery/delivery-queue-runner.ts';
+import { createDeliveryQueueRunner } from '../../common/editor/delivery-queue-runner.ts';
 import type { DeliveryQueue, DeliveryQueueState } from '../../common/editor/delivery-queue.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../../common/editor/browser-file-save-service.ts';
 import type { PixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
