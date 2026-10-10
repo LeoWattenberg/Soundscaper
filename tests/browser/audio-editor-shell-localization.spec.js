@@ -39,7 +39,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('.website-brand img')).toBeVisible();
 		await expect(page.locator('.website-sidebar-nav img').first()).toHaveAttribute('src', '/logo/soundscaper.svg');
 		await expect(page.locator('.website-sidebar-nav img').nth(1)).toHaveAttribute('src', '/logo/framescaper.svg');
-		await expect(page.locator('.website-sidebar-nav img')).toHaveCount(2);
+		const joinUs = page.getByRole('link', { name: 'Join us', exact: true });
+		await expect(joinUs).toBeVisible();
+		await expect(joinUs).toHaveAttribute('href', 'https://mindscaper.org/');
+		await expect(joinUs.locator('img')).toHaveAttribute('src', '/logo/mindscaper.svg');
+		await expect(page.locator('.website-sidebar-nav img')).toHaveCount(3);
 		await expect.poll(() => page.locator('.website-sidebar-nav img').nth(1)
 			.evaluate((image) => image.complete ? image.naturalWidth : 0)).toBeGreaterThan(0);
 		await expect(page.getByRole('link', { name: 'Audio editor', exact: true })).toBeVisible();
