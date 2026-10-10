@@ -694,8 +694,11 @@ native FFT assertion, with no observed FFT value and transport still stopped.
 Independent Firefox clock diagnostics subsequently identify an inherited
 nonadvancing PulseAudio server, so these healthy-control attempts remain
 environment failures and do not demonstrate the target raster defect.
-Their diagnostics are read
-and removed immediately. Original startup failures and the post-export
+With the qualified CI null sink, both unchanged Firefox EQ cases pass on
+authenticated capture db368adda in 7.5 seconds each (17.4 seconds total).
+Their actual 48 kHz, 4,096-point FFT controls read bins 1,667 and 1,682 at
+−19.83 and −20.49 dB; the original raster assertions also pass. Their
+diagnostics are read and removed immediately. Original startup failures and the post-export
 Nyquist Close timeout likewise do not establish additional effects roots.
 Owned focused replay logs and artifacts are removed immediately. These
 browser fixtures change no runtime closure and require no Update AI assets.
@@ -725,7 +728,10 @@ pass 57/57. The ordinary menu/export witness is causally RED on authenticated
 678a672d0 in 6.4 seconds after native impulse, filter-response and dry-delivery
 controls pass: expected phase 0.46700394, actual −2.67458667, alignment cosine
 −0.999999999998 instead of more than 0.98. Corrected complete public verification
-is pending the next guarded capture. Own diagnostics and logs are read and
+passes on authenticated db368adda in 10.0 seconds (11.9 seconds total): all five
+native clock controls pass, the delivered phase 0.46700464 agrees with the
+independent filter response 0.46700394, and exporting a second parallel
+recording preserves their independently calculated complex sum. Own diagnostics and logs are read and
 removed immediately. No manual Update AI assets run is required.
 
 An optional Undo control in earlier setup correctly removed all five effects
