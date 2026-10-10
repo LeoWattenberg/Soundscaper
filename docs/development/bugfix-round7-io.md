@@ -561,6 +561,26 @@ these passes alone do not establish its environmental or product cause.
 Completed owned replay output/log are read and immediately removed. The
 attribution whole-case timeout remains unresolved; passive stage timing review
 will compare the original unchanged workflows with existing camera budgets.
+The subsequent unchanged passive pw:api run passes both complete WebKit cases
+with original30-second envelopes and5000 ms assertions: attribution26.7 seconds
+and switched OTIO18.2 seconds (2/2 in47.1 seconds). Approximate accumulated API
+elapsed deltas put attribution initial editor-ready at3.57 seconds, first/second
+actual import completion at9.85/12.68 seconds, durable saved state at20.11
+seconds, real CSV and reload start at20.85 seconds, restored editor-ready at25.41
+seconds and final restored camera-b attribution before26.7 seconds. Its reload
+activation takes about3.94 seconds after navigation returns, within the original
+five-second limit. OTIO reaches imports at6.94/9.67 seconds and saved state at
+16.93 seconds, then its real file/source/rate/disclosure checks finish by18.2
+seconds. No functional refusal occurs in this measured run; it does not prove
+the earlier whole-case exhaustion's environmental or product cause.
+Closest existing native camera peers use60 seconds for R6 multicamera project
+copy (same exact camera pair,25 fps, imports/group/save/archive/Open),90 seconds
+for R7 switched multicamera Freeze (same pair and group/switch with native
+picture/Undo) and180 seconds for the broader selected-web multicamera
+save/reopen workflow. These support reviewing an aggregate-only budget; no
+budget is changed automatically or individual assertion weakened. The bounded
+passive log and completed owned output are read and removed immediately, and
+all native readers and the coordinated CPU slot are released.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
