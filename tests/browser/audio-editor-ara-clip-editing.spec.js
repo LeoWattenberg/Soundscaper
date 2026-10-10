@@ -93,10 +93,13 @@ for (const condition of ['locked', 'four-channel']) test(`ARA menu refuses an or
 	await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 	await expect(dialog).toHaveCount(0);
 	await expect.poll(() => page.evaluate(() => globalThis.__araCalls.filter(([method]) => method === 'close').length)).toBe(1);
+	const recording = clipByName(editor, AUDIO.name);
+	const recordingTrack = recording.locator('xpath=ancestor::div[@data-track-row][1]');
 	if (condition === 'locked') {
-		await chooseTrackMenuAction(page, editor, editor.locator('[data-track-row]').first(), 'Lock track');
+		await chooseTrackMenuAction(page, editor, recordingTrack, 'Lock track');
 		const projectId = await editor.getAttribute('data-project-id');
-		await expect.poll(async () => (await storedProject(page, 'soundscaper', projectId)).tracks[0].locked).toBe(true);
+		const trackId = await recordingTrack.getAttribute('data-track-id');
+		await expect.poll(async () => (await storedProject(page, 'soundscaper', projectId)).tracks.find(track => track.id === trackId).locked).toBe(true);
 		const lockedClip = clipByName(editor, AUDIO.name);
 		await lockedClip.focus();
 		await lockedClip.press('Enter');
@@ -108,7 +111,7 @@ for (const condition of ['locked', 'four-channel']) test(`ARA menu refuses an or
 	const effect = await openNestedCommandMenu(page, editor, 'Effect', []);
 	await expect(getMenuItem(effect, MENU_LABEL)).toHaveAttribute('aria-disabled', 'true');
 	await page.keyboard.press('Escape');
-	if (condition === 'locked') await chooseTrackMenuAction(page, editor, editor.locator('[data-track-row]').first(), 'Unlock track');
+	if (condition === 'locked') await chooseTrackMenuAction(page, editor, recordingTrack, 'Unlock track');
 	const originalClip = clipByName(editor, AUDIO.name);
 	await originalClip.focus();
 	await originalClip.press('Enter');
