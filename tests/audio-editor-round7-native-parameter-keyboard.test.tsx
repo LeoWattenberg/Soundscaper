@@ -13,7 +13,7 @@ for (const [minimumValue, maximumValue] of [[0, 1], [.2, .6]]) test(`installed n
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
-	let current = .3;
+	let current: number = .3;
 	const writes: number[] = [];
 	const runtime: NativePluginParameterRuntime = {
 		capabilities: async () => ({ parameterCount: 1, hasVendorUi: false }),
@@ -32,7 +32,7 @@ for (const [minimumValue, maximumValue] of [[0, 1], [.2, .6]]) test(`installed n
 				preventDefault() {}, defaultPrevented: false, altKey: false, ctrlKey: false, metaKey: false }));
 		};
 		for (const name of ['ArrowRight', 'ArrowUp']) {
-			const before = current;
+			const before: number = current;
 			await key(name);
 			assert.ok(Math.abs(current - before - (maximumValue! - minimumValue!) / 100) < 1e-12,
 				'an ordinary arrow must deliver one percent of the declared range to the host');
