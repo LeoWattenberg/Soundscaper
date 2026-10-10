@@ -778,6 +778,19 @@ origin servers closed. Its complete log/context/PNG were consumed and all exact
 owned replay outputs removed immediately after this receipt. No additional bug
 count, replacement source change or assertion/deadline adjustment.
 
+The authorized isolated unchanged authored-frozen WebKit replacement on the same
+immutable `1541ccf681596465463d0da455b7e6193a066a78` checkout still fails in
+16.1 seconds at the original five-second choice visibility expectation. Its
+complete failure context shows the ongoing-operation bin alert and disabled
+actions; the later PNG shows the original card/timeline idle without a choice.
+No canonical error/refusal is visible, and replacement/Undo/Redo assertions were
+not reached. This isolated result remains failed and does not establish the
+cause of the delayed/missing choice. Original five-second expectations and
+30-second case limit remain unchanged. The exited process and closed default
+origins were confirmed, the entire context/PNG/log consumed, and every owned
+completed replay artifact removed immediately. No source or qualified-count
+change; any further timing diagnosis must preserve the complete native workflow.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
