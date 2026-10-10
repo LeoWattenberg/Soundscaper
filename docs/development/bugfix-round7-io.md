@@ -287,6 +287,26 @@ requires its actual native lease, digest publication and canonical document.
 Targeted fixture ESLint and own diff checks pass. All completed portable replay
 outputs/log are immediately removed. This changes no assistance runtime closure.
 
+Checkpoint150 static follow-through (zero count): the complete repository lint,
+source/product/test/tooling compilers and dependency cruiser passed, then the
+controller-domain guard refused a stale `import -> export` runtime permission.
+IO037 commit `65fd115b1` intentionally retired that last edge when DAWproject
+save stopped applying render-only folder gates. Remove only the retired
+permission; preserve every public-module declaration and remaining dependency
+ceiling. The exact current controller guard passes with 229 public modules,
+45 runtime pairs and 25 type-only pairs; its twelve existing policy regressions
+pass in 1.1 seconds. The immutable checkpoint remains unchanged.
+
+Checkpoint150 Chromium original overwrite retains Dialogue.wav delivery facts
+failed at its unchanged 30-second File menu deadline. The read PNG and context
+show the imported clip and Saved, but generic Overwrite, Import, Export, New and
+Save are all disabled in the open menu; no named original action appears. The
+exact unchanged isolated workflow on frozen `bd5ac4718`, qualified Pulse and
+one worker passes in 2.0 seconds, including actual delivered BEXT, 24-bit PCM,
+48 kHz and 2400-frame assertions. Preserve the full-run failure; no production
+root or deadline correction is established. Its reviewed original failure
+folder, isolated results and bounded replay logs were removed immediately.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
