@@ -10,6 +10,7 @@ import {
 import { handbookLocaleForPath, handbookLocaleSegment } from '../scripts/lib/handbook-locales.mjs';
 import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
+import { desktopExternalDestination } from '../src/common/editor/ui/workspace-runtime.js';
 
 test('documentation links route each product to its own manual and first-project guide', () => {
 	assert.equal(documentationBaseUrl('soundscaper'), 'https://soundscaper.org/docs');
@@ -78,5 +79,52 @@ test('a reader is taken to the handbook in the language they are reading', () =>
 			documentationUrl('framescaper', 'tutorials', segment),
 			`https://framescaper.org/docs/${segment}/first-project/`,
 		);
+	}
+});
+
+test('desktop handbook destinations preserve the selected page and published language', () => {
+	for (const productId of ['soundscaper', 'framescaper'] as const) {
+		for (const destination of ['manual', 'tutorials'] as const) {
+			assert.equal(desktopExternalDestination(documentationUrl(productId, destination)), destination);
+			for (const locale of HANDBOOK_LANGUAGES) {
+				assert.equal(
+					desktopExternalDestination(documentationUrl(productId, destination, locale)),
+					`${destination}-${locale}`,
+				);
+			}
+		}
+	}
+	for (const url of [
+		'https://soundscaper.org.example.invalid/docs/',
+		'https://example.invalid/?ref=https://soundscaper.org/docs/',
+		'https://example.invalid/https://framescaper.org/docs/',
+		'http://soundscaper.org/docs/',
+		'https://soundscaper.org/docs/unknown/',
+		'https://soundscaper.org/docs/fr/first-project/',
+		'https://framescaper.org/docs/tutorials/your-first-project/',
+		'https://soundscaper.org/docs/?redirect=https://example.invalid',
+	]) assert.equal(desktopExternalDestination(url), 'homepage');
+});
+
+test('the desktop allowlist reconstructs every handbook destination on its own product origin', () => {
+	for (const productId of ['soundscaper', 'framescaper'] as const) {
+		const destinations: Record<string, string> = {};
+		for (const destination of ['manual', 'tutorials'] as const) {
+			for (const locale of ['', ...HANDBOOK_LANGUAGES]) {
+				const key = locale ? `${destination}-${locale}` : destination;
+				destinations[key] = documentationUrl(productId, destination, locale);
+				assert.ok(key.length <= 32, 'Destination keys fit the preload limit.');
+			}
+		}
+		const actual = execFileSync(process.execPath, ['--input-type=module', '-e', `
+import { EXTERNAL_DESTINATIONS } from './desktop/constants.js';
+console.log(JSON.stringify(Object.fromEntries(Object.entries(EXTERNAL_DESTINATIONS)
+	.filter(([key]) => /^(manual|tutorials)(-|$)/u.test(key)).sort())));
+`], {
+			cwd: new URL('..', import.meta.url),
+			env: { ...process.env, SCAPE_PRODUCT: productId },
+			encoding: 'utf8',
+		});
+		assert.equal(actual.trim(), JSON.stringify(Object.fromEntries(Object.entries(destinations).sort())));
 	}
 });
