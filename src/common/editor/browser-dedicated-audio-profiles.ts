@@ -13,11 +13,10 @@
 import type {
 	BrowserDedicatedAudioFormat, DedicatedAudioEncodeRequest,
 } from './browser-dedicated-audio-codec.ts';
-import { BIT_RATES } from './media-export-values.js';
 
-const MP3_BITRATES = new Set(BIT_RATES.mp3);
-const MP2_BITRATES = new Set(BIT_RATES.mp2);
-const OPUS_BITRATES = new Set(BIT_RATES.opus.filter((bitrate) => bitrate <= 256));
+const MP3_BITRATES = new Set([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+const MP2_BITRATES = new Set([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
+const OPUS_BITRATES = new Set([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
 const MAXIMUM_MP3_VBR_QUALITY = 9;
 const MAXIMUM_MP3_PRESET = 3;
 const MAXIMUM_OPUS_VBR_MODE = 2;
