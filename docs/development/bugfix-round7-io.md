@@ -691,6 +691,17 @@ unchanged native fetch File bodies, Ready to publish and retained clip/folder
 state all pass. Target lint passes; owned output/log are read and removed
 immediately. These two witness corrections add zero product roots.
 
+Full150 final completed WebKit capture observations consumed (zero count):
+the origin-deletion case20.061 seconds and other-project deletion40.397 seconds
+both complete the actual recording workflow and leave Delete this project?
+visible after its successful project handoff. Both exact JSON errors, contexts
+and PNGs were read; the screenshots show the replacement project underneath the
+old confirmation. This matches the already repaired D036 handoff lifetime,
+whose whole unchanged current replays passed in Chromium and Firefox. Original
+full-suite failures remain recorded; two unchanged WebKit workflows are queued.
+Only these exact completed failure directories were removed immediately. No
+other completed import/export/capture diagnostic remains unconsumed by this lane.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
