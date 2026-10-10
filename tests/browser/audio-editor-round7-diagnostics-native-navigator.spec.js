@@ -11,6 +11,7 @@ for (const { product, path } of [
 	const editor = await bootEditor(page, path);
 	const native = await page.evaluate(() => ({ platform: navigator.platform, userAgent: navigator.userAgent }));
 	expect(native.platform).toMatch(/Linux/u);
+	expect(native.userAgent).toMatch(/Windows NT 10\.0; Win64; x64/u);
 	const version = /(?:Chrome|Chromium)\/([0-9.]+)/u.exec(native.userAgent)?.[1];
 	expect(version).toBeTruthy();
 	await chooseCommandAction(page, editor, 'Help', 'Diagnostics');
@@ -33,9 +34,9 @@ for (const { product, path } of [
 	expect(report.environment.kind).toBe('browser');
 	expect(report.environment.locale).toBe('en');
 	expect(text).not.toMatch(/"(?:title|path|message|stack|transcript|media|sources|clips|userAgent)"/u);
-	expect(report.environment.platform).toBe('linux');
+	expect(report.environment.platform).toBe('win32');
 	expect(report.environment.architecture).toBe('x64');
 	expect(report.environment.browser).toEqual({ name: 'chromium', version });
-	await expect(dialog).toContainText('browser; linux; x64; en');
+	await expect(dialog).toContainText('browser; win32; x64; en');
 	expect(errors).toEqual([]);
 });
