@@ -4,7 +4,7 @@
 
 import type { VideoColorOutputSpaceV1 } from './video-color-management-v27.ts';
 import { createManagedSdrLinearByteEncoderV1 } from './video-color-byte-encoding.ts';
-import type { VideoClipCompositionBlendMode } from './video-clip-composition.ts';
+import { compositeLinearPremultipliedRgbaSpanV1, type LinearRgbaBlendModeV1 } from './imaging/linear-rgba-composite-v1.ts';
 import {
 	videoPreviewRenderGeometry,
 	type VideoPreviewRenderGeometry,
@@ -17,7 +17,7 @@ export interface UnifiedExactLinearPremultipliedFrameV13 {
 	readonly pixels: Float64Array<ArrayBuffer>;
 }
 
-export type UnifiedExactLinearBlendModeV13 = VideoClipCompositionBlendMode | 'add';
+export type UnifiedExactLinearBlendModeV13 = LinearRgbaBlendModeV1;
 
 export interface UnifiedExactLinearCompositionEntryV13 {
 	readonly frame: UnifiedExactLinearPremultipliedFrameV13;
@@ -134,21 +134,7 @@ export function compositeUnifiedExactLinearFrameV13(
 	const target = premultipliedFrame(targetValue, 'linear composite target');
 	const source = premultipliedFrame(sourceValue, 'linear composite source');
 	assertSameGeometry(target, source, 'linear composite');
-	for (let offset = 0; offset < target.pixels.length; offset += 4) {
-		const targetAlpha = clamp(target.pixels[offset + 3]!);
-		const sourceAlpha = clamp(source.pixels[offset + 3]!);
-		const outputAlpha = sourceAlpha + targetAlpha * (1 - sourceAlpha);
-		for (let channel = 0; channel < 3; channel += 1) {
-			const backdrop = targetAlpha > 1e-12 ? target.pixels[offset + channel]! / targetAlpha : 0;
-			const foreground = sourceAlpha > 1e-12 ? source.pixels[offset + channel]! / sourceAlpha : 0;
-			const blended = blend(backdrop, foreground, blendMode);
-			target.pixels[offset + channel] = clamp(
-				(1 - sourceAlpha) * target.pixels[offset + channel]!
-				+ sourceAlpha * ((1 - targetAlpha) * foreground + targetAlpha * blended),
-			);
-		}
-		target.pixels[offset + 3] = outputAlpha;
-	}
+	compositeLinearPremultipliedRgbaSpanV1(target.pixels, source.pixels, blendMode);
 }
 
 /** Return straight linear eight-bit pixels for another exact finishing stage. */
@@ -255,19 +241,6 @@ function sampleChannel(
 	const bottom = pixels[bottomLeft + channel]!
 		+ (pixels[bottomRight + channel]! - pixels[bottomLeft + channel]!) * mixX;
 	return top + (bottom - top) * mixY;
-}
-
-function blend(backdrop: number, source: number, mode: UnifiedExactLinearBlendModeV13): number {
-	if (mode === 'add') return Math.min(1, backdrop + source);
-	if (mode === 'multiply') return backdrop * source;
-	if (mode === 'screen') return backdrop + source - backdrop * source;
-	if (mode === 'overlay') return backdrop <= 0.5 ? 2 * backdrop * source
-		: 1 - 2 * (1 - backdrop) * (1 - source);
-	if (mode === 'darken') return Math.min(backdrop, source);
-	if (mode === 'lighten') return Math.max(backdrop, source);
-	if (mode === 'difference') return Math.abs(backdrop - source);
-	if (mode === 'exclusion') return backdrop + source - 2 * backdrop * source;
-	return source;
 }
 
 function rgbaFrame(value: unknown, name: string): UnifiedExactRenderRgbaFrameV13 {

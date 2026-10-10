@@ -432,6 +432,8 @@
 		,
 		{ "path": "src/common/editor/imaging/iptc-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "IPTC IIM interpretation into the immutable image metadata version 1 read model." }
 		,
+		{ "path": "src/common/editor/imaging/linear-rgba-composite-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared packed premultiplied linear RGBA spans retain the existing Frame exact compositor's normal and registered blend equations without acquiring frames or allocating image buffers." }
+		,
 		{ "path": "src/common/editor/imaging/pixel-frame-admission-v1.ts", "kind": "ipc-contract", "justification": "Version-1 pixel interchange admission binds declared sample and color profiles to explicit processor support without changing the persisted descriptor." }
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-body-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped pixel body admission binds genuine Blob geometry, profile, length and output digest to one wiped bounded staging buffer."}
@@ -457,6 +459,8 @@
 		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-grain-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Grain owns one original straight encoded-sRGB snapshot and one output, evaluates deterministic current natural-output lattice centers, joins captured native cancellation and consumer settlement, and wipes both captured backings on every retirement path."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-graphic-watermark-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped output-only graphic placement reuses shared resizing and Frame linear source-over spans under a captured output, graphic and tile capacity, preserves borrowed straight-sRGB originals and joins cancellation and consumer settlement before wiping owned workspace." }
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-histogram-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded RGB histogram and clipping diagnostics admit encoded sRGB bytes and publish immutable counts only after complete joined evaluation." }
 		,
