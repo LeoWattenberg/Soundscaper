@@ -44,6 +44,12 @@ const SOURCE_EXTENSION_SUBSTITUTIONS = Object.freeze({
 	'.mjs': Object.freeze(['.mts']),
 	'.cjs': Object.freeze(['.cts']),
 });
+// readDesktopPreloadSource bundles precisely these two runtime imports from
+// their maintained TypeScript owners. Audit their staged destinations too.
+const PRELOAD_FIXTURE_ALIASES = Object.freeze({
+	'./project-library-runtime/desktop/ara-preload.js': './ara-preload.ts',
+	'./project-library-runtime/desktop/blender-preload.js': './blender-preload.ts',
+});
 // These audits change the staging inventory, while their repository sources stay
 // fixed. Reuse parsed imports and filesystem resolution, never inventory verdicts.
 const sourceImports = new Map();
@@ -65,8 +71,20 @@ test('nightly payload production modules have a closed local-import graph', () =
 	assert.ok(result.visited.has('tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts'));
 	assert.ok(result.visited.has('tests/helpers/interchange-reference.ts'));
 	assert.ok(result.visited.has('desktop/main-file-capability-ipc.mjs'));
+	assert.ok(result.visited.has('desktop/ara-preload.ts'));
+	assert.ok(result.visited.has('desktop/blender-preload.ts'));
 	assert.ok(result.queryImports.some(({ specifier }) => specifier.endsWith('?worker&url')));
 });
+
+for (const owner of ['ara', 'blender']) {
+	test(`nightly preload fixture audit rejects an omitted ${owner} runtime source`, () => {
+		const withoutOwner = NIGHTLY_TEST_PAYLOAD_INPUTS.filter(({ source }) => (
+			source !== `desktop/${owner}-preload.ts`
+		));
+		assert.throws(() => inspectLocalImportClosure(withoutOwner),
+			new RegExp(`Unstaged local import desktop/preload\\.mjs.*${owner}-preload\\.ts`, 'u'));
+	});
+}
 
 test('nightly payload audit rejects an omitted native sidecar fixture dependency', () => {
 	const withoutReadLease = NIGHTLY_TEST_PAYLOAD_INPUTS.filter(({ source }) => (
@@ -215,7 +233,7 @@ function localModuleSpecifiers(sourceFile) {
 }
 
 function resolveLocalDependency(importer, specifier) {
-	const base = resolve(importer, '..', specifier);
+	const base = resolve(importer, '..', preloadFixtureSpecifier(repositoryPath(importer), specifier));
 	if (resolvedDependencies.has(base)) return resolvedDependencies.get(base);
 	for (const candidate of resolutionCandidates(base)) {
 		if (existsSync(candidate) && lstatSync(candidate).isFile()) {
@@ -264,12 +282,16 @@ function stagedDestination(sourcePath, inputs) {
 }
 
 function assertReachableDestination({ dependencyDestination, destinationPath, importer, specifier }) {
-	const expectedBase = resolve(destinationPath, '..', withoutQueryOrFragment(specifier));
+	const expectedBase = resolve(destinationPath, '..', preloadFixtureSpecifier(importer, withoutQueryOrFragment(specifier)));
 	if (resolutionCandidates(expectedBase).includes(dependencyDestination)) return;
 	throw new Error(
 		`Nightly payload local import ${importer} -> ${specifier} is relocated to `
 		+ `${repositoryPath(dependencyDestination)}, where the staged importer cannot resolve it.`,
 	);
+}
+
+function preloadFixtureSpecifier(importer, specifier) {
+	return importer === 'desktop/preload.mjs' ? PRELOAD_FIXTURE_ALIASES[specifier] ?? specifier : specifier;
 }
 
 function withoutQueryOrFragment(specifier) {

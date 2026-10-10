@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readdir, readlink, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import externalDisplayFixtureSources from './desktop-nightly-tests-external-display-inputs.cjs';
+import nativeFixtureSources from './desktop-nightly-tests-native-fixture-inputs.cjs';
 import {
 	assertDirectory,
 	assertRegularFile,
@@ -50,7 +50,7 @@ export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 const ESBUILD_BINARY_SCOPE = '@esbuild';
 
 export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
-	...externalDisplayFixtureSources.map(source => ({ source, destination: source, kind: 'file', label: 'native external-display browser fixture support' })),
+	...nativeFixtureSources.filter(source => !source.startsWith('src/')).map(source => ({ source, destination: source, kind: 'file', label: 'native browser fixture support' })),
 	...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => ({
 		source: `desktop/bundled-${format}-stream.ts`, destination: `desktop/bundled-${format}-stream.ts`,
 		kind: 'file', label: `${format} browser import fixture support`,
@@ -169,7 +169,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/helpers/png-fixture.mjs', destination: 'tests/helpers/png-fixture.mjs', kind: 'file', label: 'timeline image browser support fixture' },
 	{ source: 'tests/helpers/framescaper-ordinary-animation-fixture.ts', destination: 'tests/helpers/framescaper-ordinary-animation-fixture.ts', kind: 'file', label: 'ordinary animated image browser support fixture' },
 	{ source: 'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts', destination: 'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts', kind: 'file', label: 'ordinary high-precision PNG browser support fixture' },
-	...['ordinary-cover-mp3-fixture.ts', 'native-original-import-fixture.ts', 'ordinary-ogg-opus-fixture.ts', 'ordinary-tail-m4a-fixture.ts', 'os-audio-codec-fixtures.ts', 'round7-speech-preview-bridge.ts', 'round7-warp-drums.ts'].map(file => ({
+	...['desktop-preload-source.mjs', 'ordinary-cover-mp3-fixture.ts', 'native-original-import-fixture.ts', 'ordinary-ogg-opus-fixture.ts', 'ordinary-tail-m4a-fixture.ts', 'os-audio-codec-fixtures.ts', 'round7-speech-preview-bridge.ts', 'round7-warp-drums.ts'].map(file => ({
 		source: `tests/helpers/${file}`, destination: `tests/helpers/${file}`, kind: 'file', label: 'ordinary browser workflow fixture support',
 	})),
 	{ source: 'tests/helpers/interchange-reference.ts', destination: 'tests/helpers/interchange-reference.ts', kind: 'file', label: 'external interchange reader browser support helper' },
