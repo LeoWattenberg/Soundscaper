@@ -27,6 +27,16 @@ and updating its sole owning import passes the guard and all five default-view
 regressions. This architecture follow-through adds no count; the canonical gate
 is rerun with the correction.
 
+The browser run first reports failures in normalization, folder creation,
+still-image import and the Guided editorial prerequisite. Replaying the first
+three unchanged against prepared `48b7bf244` passes in 3.7, 4.2 and 6.1 seconds.
+The editorial workflow reproduces its concrete D010 prerequisite dead end:
+the disabled-by-default stage selector hides an installed model's enable
+checkbox. Advance commit `2ac90c1cb` makes readiness inspect the available graph
+while execution still requires explicit enablement; its 37 focused checks pass.
+This is zero-count D010 follow-through. The complete checkpoint run continues;
+the corrected editorial public retry uses the next prepared capture.
+
 Setup failures, unsupported int32 delivery, unpublished image-boundary commands,
 and the surround-Reverb hypothesis do not count. Repeated manifestations and
 follow-through corrections share their original root count. The build's module
