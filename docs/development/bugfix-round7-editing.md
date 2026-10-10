@@ -273,3 +273,17 @@ group passes59/59; native visual selected range and Skip controls pass5/5.
 The extracted reader's exact shield inventories and fixture expectations
 follow the same named owner without weakening the audit. Complete public
 correction awaits the next guarded capture; EDIT023 is not yet counted.
+
+The full50 spectral handle replay is traced with passive DOM pointer events:
+first native contact captures its spectral handle, but the second contact
+lands on an ordinary clip body, starts the main timeline capture, clears the
+spectral band and disconnects the owning handle. R6-EDIT-054's main timeline
+foreign-pointer admission omitted a fresh secondary touch when its local
+session is empty because another independently owned handle is active. This
+is conservative zero-count follow-through of that existing ownership root.
+Refuse only a secondary touch the main owner has no first contact for. The
+strict mounted causal case and five existing primary/ownership/pinch controls
+pass6/6, also included in the59-test group. Preserve deliberate main-timeline
+two-touch pinch when it already owns the first contact. The one-use passive
+trace spec and read diagnostics are deleted immediately after the cause
+receipt. The original unchanged public spectral workflow awaits this capture.
