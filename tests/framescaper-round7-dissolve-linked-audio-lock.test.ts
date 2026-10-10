@@ -13,7 +13,7 @@ function linkedPair(locked: boolean): FramescaperProject {
 	const pair = pairProject(10, 10);
 	return {
 		...pair,
-		clips: (pair.clips as readonly Data[]).map(clip => clip.id === 'incoming-video'
+		clips: pair.clips.map(clip => clip.id === 'incoming-video'
 			? { ...clip, avLinkId: 'incoming-link' } : clip.id === 'audio-clip'
 				? { ...clip, avLinkId: 'incoming-link', timelineStartFrame: 48_000 } : clip),
 		tracks: pair.tracks.map(track => ({ ...track,
