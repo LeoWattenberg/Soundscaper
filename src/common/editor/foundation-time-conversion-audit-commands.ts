@@ -59,7 +59,7 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'video-keyframe-carrier-boundaries',
-		file: 'src/common/editor/commands/video-keyframe-carrier.ts',
+		file: 'src/common/editor/commands/video-keyframe-carrier-core.ts',
 		behavior: 'Keyframe segment boundaries convert resolved absolute sample instants to nearest sequence-frame points before exact authored-view trimming.',
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
 	},
