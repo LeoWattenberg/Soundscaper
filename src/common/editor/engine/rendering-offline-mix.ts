@@ -42,7 +42,7 @@ import type {
 import {
 	renderNativePluginRealtimePcmIfRequired,
 } from './native-plugin-realtime-render.ts';
-import { resolveRenderTailSeconds } from './rendering-range.ts';
+import { resolveRenderPreRollFrames, resolveRenderTailSeconds } from './rendering-range.ts';
 import type { EngineRenderMixOptions } from './public-api.ts';
 
 /**
@@ -76,7 +76,8 @@ export async function renderMix(this: EngineRuntimeHost, {
 		throwIfAborted(signal);
 		const fromFrame = clampFrame(startFrame, 0, this.durationFrames);
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
-		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
+		const renderFromFrame = fromFrame - resolveRenderPreRollFrames(this.project, fromFrame, preRollFrames,
+			{ trackId, includeMaster, respectMuteSolo });
 		const warmupFrames = fromFrame - renderFromFrame;
 		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster, respectMuteSolo }) * this.sampleRate);
 		const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
