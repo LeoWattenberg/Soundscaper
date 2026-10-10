@@ -611,6 +611,15 @@ These ordinary routes and all original deadlines remain unchanged. One
 independent Take transport handoff root is qualified; completed own browser
 output and bounded log are consumed and immediately removed.
 
+The exact unchanged multicamera-attribution and installed plug-in restored
+controls workflows both pass WebKit against authenticated guarded8d4cef165
+(17.3/4.8 seconds;2/2in24.1 seconds), including actual selected-camera credit,
+stored host Gain0, visible restored Gain0 and subsequent host edit. No
+assertions, deadlines or fixture/source bytes change for these replays. Their
+original full150 failures remain recorded above; this isolated zero-count
+follow-through is not an aggregate full-suite pass. Completed own replay
+output and bounded log are read and immediately removed.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
