@@ -74,6 +74,50 @@ function pointer(pointerId: number, clientX: number, clientY: number) {
 	return { pointerId, clientX, clientY, preventDefault: () => undefined };
 }
 
+function nativeMove(pointerId: number, clientX: number, button: number, buttons: number, pointerType = 'mouse'): Event {
+	return Object.assign(new Event('pointermove', { cancelable: true }), {
+		pointerId, clientX, clientY: 100, button, buttons, pointerType,
+	});
+}
+
+for (const buttons of [2, 4]) {
+	test(`a floating move saves primary completion while auxiliary buttons ${buttons} remain held`, () => {
+		const target = new EventTarget();
+		const fixture = moveFixture([]);
+		const ref: { current: FloatingWorkspacePanelMove | null } = { current: fixture.session };
+		const release = retainFloatingPanelMoveLifecycle(target as unknown as Window, ref);
+		try {
+			target.dispatchEvent(nativeMove(7, 224, -1, 1));
+			assert.equal(fixture.element.style.left, '224px', 'the accepted primary preview moves normally');
+			target.dispatchEvent(nativeMove(8, 260, 0, buttons));
+			assert.equal(ref.current, fixture.session, 'a foreign native release cannot settle the owner');
+			target.dispatchEvent(nativeMove(7, 224, 0, buttons));
+			assert.deepEqual(fixture.calls, ['start', ['persist', { x: 224, y: 100 }], 'end']);
+			assert.equal(ref.current, null);
+			target.dispatchEvent(nativeMove(7, 260, -1, buttons));
+			target.dispatchEvent(Object.assign(new Event('pointerup'), { pointerId: 7, clientX: 260, clientY: 100 }));
+			assert.equal(fixture.element.style.left, '224px');
+			assert.equal(fixture.calls.length, 3, 'later auxiliary motion and release cannot publish twice');
+		} finally { release(); }
+	});
+}
+
+test('floating pointer lifecycle retains normal mouse, touch and pen completion', () => {
+	for (const pointerType of ['mouse', 'touch', 'pen']) {
+		const target = new EventTarget();
+		const fixture = moveFixture([]);
+		const ref: { current: FloatingWorkspacePanelMove | null } = { current: fixture.session };
+		const release = retainFloatingPanelMoveLifecycle(target as unknown as Window, ref);
+		try {
+			target.dispatchEvent(nativeMove(7, 224, -1, pointerType === 'mouse' ? 1 : 0, pointerType));
+			assert.equal(ref.current, fixture.session);
+			target.dispatchEvent(Object.assign(new Event('pointerup'), { pointerId: 7, clientX: 224, clientY: 100 }));
+			assert.deepEqual(fixture.calls, ['start', ['persist', { x: 224, y: 100 }], 'end']);
+			assert.equal(ref.current, null);
+		} finally { release(); }
+	}
+});
+
 test('Escape cancels the live floating move and a later release cannot persist it', () => {
 	const target = new EventTarget();
 	const fixture = moveFixture([]);
