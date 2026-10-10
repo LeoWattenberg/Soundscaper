@@ -1058,3 +1058,23 @@ strengthened Store workflow passes Chromium in 4.9 seconds and Firefox in
 count assumption while preserving the actual saved-body and queue barrier
 oracle. Targeted lint and the owned diff check pass. No production source or helper is changed; all bounded artifacts are
 read and removed immediately.
+
+### Frozen checkpoint 100 DSP workflow replay — no additional root
+
+The full frozen Firefox run reaches its 30-second overall deadline at the
+Dialogue Chain's final export menu and the spectrum visualizer's final seek.
+Unchanged focused replays initially time out at earlier ordinary interactions;
+neither establishes a failed physical DSP oracle. A temporary passive timing
+copy of the original compressor workflow passes every original assertion in
+21.6 seconds under that same deadline: native rate/latency probes finish at
+4.164 seconds, dry export at 9.877, wet export at 14.854 and coherent parallel
+export at 20.332. The temporary source and configuration are removed immediately.
+
+The final whole unchanged original specs then pass Firefox on authenticated
+ee53e112619b862826b7466dc422b3c6760bba27 with the qualified Pulse sink:
+Dialogue Chain 16.4 seconds and spectrum projection 14.0 seconds, 2/2 in
+33.5 seconds. All physical phase, native latency, coherent parallel mix,
+equal-level raster and exact seek assertions and deadlines are retained.
+This changes no fixture, production source or bug count. Finished full-run
+diagnostics and every bounded owned replay log/result are read and removed
+immediately.
