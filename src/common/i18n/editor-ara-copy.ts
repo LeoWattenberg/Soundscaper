@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 const en = Object.freeze({
-	clipEditor: 'Edit selected clip with ARA', title: 'ARA clip editor', selectClip: 'Select an audio clip first.',
+	clipEditor: 'Edit selected clip with ARA', title: 'ARA clip editor', selectClip: 'Select an unlocked mono or stereo audio clip first.',
 	plugin: 'VST3 plug-in', choosePlugin: 'Choose a plug-in', scan: 'Enable and scan VST3 folders',
 	customFolder: 'Add VST3 folder', refresh: 'Refresh plug-ins', openClip: 'Open clip',
 	openEditor: 'Open plug-in editor', render: 'Render to new muted track', cancel: 'Cancel',
@@ -12,7 +12,7 @@ const en = Object.freeze({
 })
 
 const de: Readonly<Record<keyof typeof en, string>> = Object.freeze({
-	clipEditor: 'Ausgewählten Clip mit ARA bearbeiten', title: 'ARA-Clip-Editor', selectClip: 'Wähle zuerst einen Audioclip aus.',
+	clipEditor: 'Ausgewählten Clip mit ARA bearbeiten', title: 'ARA-Clip-Editor', selectClip: 'Wähle zuerst einen Mono- oder Stereo-Audioclip in einer entsperrten Spur aus.',
 	plugin: 'VST3-Plug-in', choosePlugin: 'Plug-in auswählen', scan: 'VST3-Ordner aktivieren und durchsuchen',
 	customFolder: 'VST3-Ordner hinzufügen', refresh: 'Plug-ins aktualisieren', openClip: 'Clip öffnen',
 	openEditor: 'Plug-in-Editor öffnen', render: 'Auf neue stummgeschaltete Spur rendern', cancel: 'Abbrechen',

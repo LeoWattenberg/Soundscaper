@@ -14,7 +14,7 @@ interface MenuItem {
 	readonly onClick?: () => unknown;
 }
 
-const project = { id: 'project', sampleRate: 48_000, sequences: [], subsequences: [], sources: [],
+const project = { id: 'project', sampleRate: 48_000, sequences: [], subsequences: [], sources: [{ id: 'source', kind: 'audio', channelCount: 2 }],
 	clips: [{ id: 'clip', kind: 'audio', sourceId: 'source', timelineStartFrame: 0, durationFrames: 48_000 }],
 	tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'] }],
 };

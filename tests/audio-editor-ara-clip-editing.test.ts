@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAraClipEditingRuntime } from '../src/common/editor/controller/effects/internal/ara-clip-editing.ts';
 import { resolveAraClipEditingRuntime } from '../src/common/editor/ara-clip-editing-runtime.ts';
+import { createAraApplicationMenuItems } from '../src/common/editor/ui/ara-application-menu.ts';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { projectForCommandConsumers } from '../src/common/editor/project-current-runtime.ts';
@@ -47,6 +48,30 @@ for (const productId of ['soundscaper', 'framescaper'] as const) {
 		assert.deepEqual(host.saved.get(published.sourceId), host.result);
 		assert.deepEqual(host.activated, [published.sourceId], 'the rendered source is playable before publication');
 		await assert.rejects(prepared.apply({ channels: host.result, sampleRate: 48_000 }), /closed|completed/u);
+	});
+}
+
+for (const productId of ['soundscaper', 'framescaper'] as const) {
+	for (const condition of ['locked', 'four-channel'] as const) void test(`${productId} ARA menu admits only the selected clip its native preparation supports (${condition})`, async () => {
+		const host = fixture(productId);
+		const healthy = await host.runtime.prepare();
+		healthy.cancel();
+		let opens = 0;
+		const item = () => createAraApplicationMenuItems({ productId, available: true,
+			project: host.project(), selectedClipId: host.selection.clipId,
+			editingBlocked: false, readOnly: false }, () => { opens += 1; })[0];
+		assert.equal(item()?.disabled, false);
+		item()?.onClick?.();
+		assert.equal(opens, 1);
+		const blocked = condition === 'locked' ? host : fixture(productId, { channelCount: 4 });
+		if (condition === 'locked') host.replaceProject({ ...host.project(),
+			tracks: host.project().tracks.map(track => ({ ...track, locked: true })) });
+		await assert.rejects(blocked.runtime.prepare(), condition === 'locked' ? /locked/u : /mono\/stereo/u);
+		const refused = createAraApplicationMenuItems({ productId, available: true,
+			project: blocked.project(), selectedClipId: blocked.selection.clipId,
+			editingBlocked: false, readOnly: false }, () => { opens += 1; })[0];
+		assert.equal(refused?.disabled, true, 'the actual canonical preparation has already refused this native clip');
+		assert.equal(refused?.onClick, undefined);
 	});
 }
 
