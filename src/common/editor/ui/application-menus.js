@@ -163,6 +163,8 @@ export default function createApplicationMenus({
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
+		project, selectedTrackIds: project?.selection?.trackIds?.length
+			? project.selection.trackIds : selectedTrack ? [selectedTrack.id] : [],
 	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const selectionAnalyzerBlocked = analyzerBlocked || Boolean(snapshot.analysisProcessing) || !resolveSelectionRange(project, {
