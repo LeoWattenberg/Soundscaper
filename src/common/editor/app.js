@@ -451,7 +451,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
 			createStream: options.createStream, MediaRecorder: options.MediaRecorder,
 			MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
-			recordingControllerFactory: captureRuntime.adaptRecordingControllerFactory(options.recordingControllerFactory), AudioWorkletNode: options.AudioWorkletNode,
+			recordingControllerFactory: captureRuntime.adaptRecordingControllerFactory(options.recordingControllerFactory, { getGain: () => engine.getPlaybackGain(), subscribe: documentChannel.subscribe }), AudioWorkletNode: options.AudioWorkletNode,
 			helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
 			desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', true).catch(bindings.handleError); }, hideWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', false).catch(bindings.handleError); },
 			createId: createStableId, now: currentTimeMs,

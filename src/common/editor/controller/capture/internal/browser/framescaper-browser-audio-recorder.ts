@@ -72,6 +72,7 @@ export interface FramescaperWorkletRecordingControllerOptions {
 	readonly channelCount: number;
 	readonly chunkFrames: number;
 	readonly monitor: boolean;
+	readonly monitorDestination?: AudioNode;
 	readonly inputGain: number;
 	readonly maxPendingChunks: number;
 	readonly onChunk: (chunk: CapturePcmChunk) => PromiseLike<void> | void;
