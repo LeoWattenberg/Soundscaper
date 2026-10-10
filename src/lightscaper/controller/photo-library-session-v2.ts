@@ -48,6 +48,7 @@ import { createPhotoLibraryDevelopSessionV2 } from './photo-library-develop-sess
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
 import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2, PhotoLibraryExportJournalPort } from '../../common/editor/photo-library-session-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../common/editor/photo-library-cube-lut-port-v1.ts';
+import type { PhotoLibraryImageHandoffPortV1, PhotoLibraryImageHandoffRequestV1, PhotoLibraryImageHandoffViewV1 } from '../../common/editor/photo-library-image-handoff-port-v1.ts';
 import type { CubeLutSourcePortV1 } from '../../common/editor/imaging/cube-lut-source-port-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../../common/editor/video-color-management-v27.ts';
 import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cube-lut-v27.ts';
@@ -71,6 +72,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly #lifetime = new PhotoLibrarySessionLifetime();
 	readonly #imports: ReturnType<typeof createPhotoLibrarySessionImport>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
+	readonly imageHandoff: Readonly<PhotoLibraryImageHandoffPortV1>;
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
 	#catalog: Promise<string> | null = null;
@@ -82,6 +84,20 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	constructor(ports: PhotoLibrarySessionPortsV2) {
 		ports = capturePhotoLibrarySessionPorts(ports);
 		this.#ports = ports;
+		this.imageHandoff = Object.freeze({ withCapture: async <Result>(value: Readonly<PhotoLibraryImageHandoffRequestV1>,
+			consume: (view: Readonly<PhotoLibraryImageHandoffViewV1>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}) => {
+			const { signal } = readPhotoDevelopSignalOptionsV2(options); let binding!: Readonly<PhotoLibraryImageHandoffRequestV1>;
+			return this.#operation(async admitted => {
+				const { withPhotoLibraryImageHandoff } = await import('./photo-library-image-handoff-session.ts');
+				check(admitted); const catalogId = await this.#ready(); check(admitted);
+				return withPhotoLibraryImageHandoff(ports, catalogId, binding, consume, admitted);
+			}, signal, () => {
+				if (typeof consume !== 'function') throw new TypeError('Image handoff requires a callable consumer.');
+				const request = record(value, 'image handoff request', ['catalogId', 'photoId', 'versionId', 'expectedRevision']);
+				binding = Object.freeze({ catalogId: id(field(request, 'catalogId'), 'handoff catalog ID'), photoId: id(field(request, 'photoId'), 'handoff photo ID'),
+					versionId: id(field(request, 'versionId'), 'handoff version ID'), expectedRevision: integer(field(request, 'expectedRevision'), 0, Number.MAX_SAFE_INTEGER, 'handoff revision') });
+			});
+		} });
 		if (ports.exportPresetSettings) this.exportPresets = Object.freeze({ open: (options = {}) => {
 			const { signal } = readPhotoDevelopSignalOptionsV2(options);
 			return this.#operation(async admitted => {

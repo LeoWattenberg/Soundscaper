@@ -572,6 +572,8 @@
 		,
 		{"path": "src/common/editor/photo-library-export-presets-port-v1.ts", "kind": "helper-contract", "justification": "Fixed body-free export preset DTO and selected Session transport; the stored scalar recipe version is independent of photo documents and delivery authority."}
 		,
+		{ "path": "src/common/editor/photo-library-image-handoff-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo handoff borrows complete saved facts, an authenticated encoded original and the selected recipe's active and disabled LUT resources under one joined Session lifetime, without decoding, persistence or publication authority." }
+		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
