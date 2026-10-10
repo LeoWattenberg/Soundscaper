@@ -250,6 +250,19 @@ assertion or fresh bug count changes are inferred from them. Exact frozen
 low-load replays of 28, 35 and 42–44 remain pending; the small shared full-run log
 remains with the root.
 
+After the full run ends, exact unchanged frozen `ee53e1126` WebKit/Pulse
+one-worker replay completes 7/8 original whole workflows in 1.7 minutes:
+AAC overwrite availability 5.3 seconds; multicamera attribution/CSV/reload
+18.9 seconds; continuous/frozen replacement 14.8/16.6 seconds; authored
+999/1000 BPM archive/Open 5.9/5.2 seconds; LUT Close cancellation 12.2 seconds.
+The healthy LUT consumer still fails in 17.4 seconds with the same canonical
+IndexedDB Blob/File preparation refusal. Its exact context/PNG is reviewed;
+this is an unresolved actual storage refusal, not a passing lifetime consumer.
+No assertion, deadline, source, frozen tracked/build byte or count is changed.
+The complete original full-run failures remain in their shared receipt. All
+completed owned replay outputs and log are removed immediately; the root keeps
+the small shared full-suite log.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
