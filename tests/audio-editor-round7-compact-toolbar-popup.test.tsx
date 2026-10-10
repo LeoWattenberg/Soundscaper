@@ -61,12 +61,14 @@ test('Escape within a drawer-owned popup leaves its opener available until the p
 	const portal = dom.container.ownerDocument.createElement('div');
 	dom.container.ownerDocument.body.appendChild(portal);
 	let closed = 0;
+	let popupOpen = true;
+	const render = () => root.render(<WorkspaceChromeDrawer id="chrome" open
+		onClose={() => { closed += 1; }} label="Menu" closeLabel="Close menu">
+		<button data-opener aria-controls="toolbar-popup" aria-expanded={String(popupOpen)}>Musical timeline</button>
+		{popupOpen && createPortal(<div id="toolbar-popup" role="dialog"><input data-popup-control /></div>, portal as unknown as Element)}
+	</WorkspaceChromeDrawer>);
 	try {
-		await act(async () => root.render(<WorkspaceChromeDrawer id="chrome" open
-			onClose={() => { closed += 1; }} label="Menu" closeLabel="Close menu">
-			<button data-opener aria-controls="toolbar-popup" aria-expanded="true">Musical timeline</button>
-			{createPortal(<div id="toolbar-popup" role="dialog"><input data-popup-control /></div>, portal as unknown as Element)}
-		</WorkspaceChromeDrawer>));
+		await act(async () => { render(); });
 		const input = portal.querySelector('[data-popup-control]');
 		assert.ok(input);
 		input.focus();
@@ -77,6 +79,11 @@ test('Escape within a drawer-owned popup leaves its opener available until the p
 		};
 		await act(async () => { escape(); });
 		assert.equal(closed, 0, 'the popup owns its native Escape before the surrounding drawer');
+		dom.one('[data-opener]').focus();
+		await act(async () => { escape(); });
+		assert.equal(closed, 0, 'an open popup owns Escape before its scheduled autofocus has moved from the opener');
+		popupOpen = false;
+		await act(async () => { render(); });
 		dom.one('[data-opener]').focus();
 		await act(async () => { escape(); });
 		assert.equal(closed, 1, 'ordinary Escape after returning to the toolbar dismisses its drawer');

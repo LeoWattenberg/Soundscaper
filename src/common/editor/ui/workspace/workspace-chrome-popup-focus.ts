@@ -2,6 +2,8 @@
 
 /** A toolbar portal keeps the drawer that owns its expanded native trigger. */
 export function workspaceChromeOwnsPopupFocus(panel: Element, target: Element): boolean {
+	const trigger = target.closest('[aria-controls]');
+	if (trigger && panel.contains(trigger) && trigger.getAttribute('aria-expanded') === 'true') return true;
 	const popup = target.closest('[role="dialog"], [role="menu"], [role="listbox"]');
 	const id = popup?.getAttribute('id');
 	if (!id) return false;
