@@ -685,6 +685,14 @@ seconds total. Its old completed diagnostic and bounded replay output are read
 and removed immediately. This fixture follow-through adds no root or source
 change.
 
+The same unchanged corrected native-profile workflow passes Firefox on
+authenticated prepared 1fb50c54d in 10.1 seconds, 1/1 in 12.4 seconds total,
+using the qualified local audio server. Its disabled-profile extent, fresh
+capture, audible release and quiet ending all pass. The completed bounded
+replay log and owned diagnostics are read and removed immediately. This
+resolves the identical checkpoint-100 Firefox stale-length failure without
+another source change or bug count.
+
 The two ordinary Framescaper finishing exports now contain the already verified
 3,385-frame release of the default 80 Hz native high-pass. All six original
 browser failures expected the old truncated length. Update only their exact
