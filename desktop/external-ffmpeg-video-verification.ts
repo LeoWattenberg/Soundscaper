@@ -20,6 +20,9 @@ import {
 } from './external-ffmpeg-executable-pair-admission.js';
 import type { ExternalFfmpegRuntimeAdmission } from './external-ffmpeg-preference-service.js';
 import {
+	desktopVideoH264EncoderCandidates, type DesktopVideoH264Encoder,
+} from './desktop-video-h264-encoder.js';
+import {
 	inspectExternalFfmpegVideoCanaryOutput,
 	type ExternalFfmpegVideoCanaryInspector,
 } from './external-ffmpeg-video-canary-inspection.js';
@@ -44,6 +47,12 @@ export interface ExternalFfmpegVideoVerificationOptions {
 	readonly killWaitMs?: number;
 	readonly signal?: AbortSignal;
 	readonly inspectOutput?: ExternalFfmpegVideoCanaryInspector;
+	readonly platform?: NodeJS.Platform;
+}
+
+export interface ExternalFfmpegVideoVerificationResult extends DesktopExternalFfmpegVideoCapabilities {
+	/** Kept inside main; not accepted through renderer IPC. */
+	readonly h264Encoder?: DesktopVideoH264Encoder;
 }
 
 const FORMATS = Object.freeze(['mp4', 'webm'] as const);
@@ -63,10 +72,10 @@ export class ExternalFfmpegVideoVerificationIdentityError extends Error {
 /** Execute one tiny A/V delivery for every token-eligible format. */
 export async function verifyExternalFfmpegVideoAdmission(
 	options: ExternalFfmpegVideoVerificationOptions,
-): Promise<DesktopExternalFfmpegVideoCapabilities> {
+): Promise<ExternalFfmpegVideoVerificationResult> {
 	validateOptions(options);
 	throwIfAborted(options.signal);
-	const tokenCapabilities = createDesktopExternalFfmpegVideoCapabilities(options.admission);
+	const tokenCapabilities = createDesktopExternalFfmpegVideoCapabilities(options.admission, options.platform);
 	const pair = executablePair(options.admission);
 	const inspectOutput = options.inspectOutput ?? inspectExternalFfmpegVideoCanaryOutput;
 	await assertIdentity(pair, options.digestExecutable);
@@ -74,22 +83,36 @@ export async function verifyExternalFfmpegVideoAdmission(
 		mp4: tokenCapabilities.formats.mp4,
 		webm: tokenCapabilities.formats.webm,
 	};
+	let h264Encoder: DesktopVideoH264Encoder | undefined;
 	for (const format of FORMATS) {
 		throwIfAborted(options.signal);
 		if (!formats[format].available) continue;
-		try { await verifyFormat(format, pair, options, inspectOutput); }
-		catch (error) {
-			if (error instanceof ExternalFfmpegVideoVerificationIdentityError) throw error;
+		const candidates = format === 'mp4'
+			? desktopVideoH264EncoderCandidates(options.admission, options.platform) : ['libx264' as const];
+		let verified = false;
+		for (const encoder of candidates) {
 			throwIfAborted(options.signal);
+			await assertIdentity(pair, options.digestExecutable);
+			try {
+				await verifyFormat(format, pair, options, inspectOutput, encoder);
+				verified = true;
+				if (format === 'mp4') h264Encoder = encoder;
+			} catch (error) {
+				if (error instanceof ExternalFfmpegVideoVerificationIdentityError) throw error;
+				throwIfAborted(options.signal);
+			}
+			await assertIdentity(pair, options.digestExecutable);
+			if (verified) break;
+		}
+		if (!verified) {
 			formats[format] = Object.freeze({
 				available: false, provider: null,
 				reason: `The configured FFmpeg failed exact ${format === 'mp4' ? 'H264/AAC MP4' : 'VP9/Opus WebM'} execution verification. Manage or rescan it in Edit > Preferences > General.`,
 			});
 		}
-		await assertIdentity(pair, options.digestExecutable);
 	}
 	throwIfAborted(options.signal);
-	return Object.freeze({ schemaVersion: 1, formats: Object.freeze(formats) });
+	return Object.freeze({ schemaVersion: 1, formats: Object.freeze(formats), ...(h264Encoder ? { h264Encoder } : {}) });
 }
 
 async function verifyFormat(
@@ -97,6 +120,7 @@ async function verifyFormat(
 	pair: ExternalFfmpegExecutablePairAdmission,
 	options: ExternalFfmpegVideoVerificationOptions,
 	inspectOutput: ExternalFfmpegVideoCanaryInspector,
+	h264Encoder: DesktopVideoH264Encoder,
 ): Promise<void> {
 	await mkdir(options.scratchRoot, { recursive: true, mode: 0o700 });
 	const scratchDirectory = await mkdtemp(join(options.scratchRoot, `video-${format}-verification-`));
@@ -108,7 +132,7 @@ async function verifyFormat(
 		throwIfAborted(options.signal);
 		const outputPath = join(scratchDirectory, `canary.${format}`);
 		const plan = canaryPlan(format);
-		const execution = createDesktopExternalFfmpegVideoWorkload(plan, { outputPath });
+		const execution = createDesktopExternalFfmpegVideoWorkload(plan, { outputPath }, h264Encoder);
 		const process = launchExternalFfmpegVideoProcess({
 			executablePath: pair.executablePath,
 			arguments: guardExternalFfmpegVideoArguments(execution.ffmpegArguments, OUTPUT_LIMIT),

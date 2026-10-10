@@ -17,14 +17,16 @@ import type {
 import {
 	ExternalFfmpegVideoVerificationIdentityError,
 	verifyExternalFfmpegVideoAdmission,
+	type ExternalFfmpegVideoVerificationResult,
 } from './external-ffmpeg-video-verification.js';
 import type { ExternalFfmpegVideoSpawn } from './external-ffmpeg-video-process.js';
+import type { DesktopVideoH264Encoder } from './desktop-video-h264-encoder.js';
 
 export type DesktopVideoCodecProductId = 'soundscaper' | 'framescaper';
 export type ExternalFfmpegVideoVerifier = (
 	admission: ExternalFfmpegRuntimeAdmission,
 	signal: AbortSignal,
-) => Promise<DesktopExternalFfmpegVideoCapabilities>;
+) => Promise<ExternalFfmpegVideoVerificationResult>;
 
 export interface ExternalFfmpegVideoVerifiedCapabilitiesOptions {
 	readonly productId: DesktopVideoCodecProductId;
@@ -34,11 +36,15 @@ export interface ExternalFfmpegVideoVerifiedCapabilitiesOptions {
 	readonly spawn?: ExternalFfmpegVideoSpawn;
 	readonly environment: Readonly<Record<string, string | undefined>>;
 	readonly verify?: ExternalFfmpegVideoVerifier;
+	readonly platform?: NodeJS.Platform;
 }
 
 export interface ExternalFfmpegVideoVerifiedCapabilities {
 	capabilities(): Promise<DesktopExternalFfmpegVideoCapabilities>;
-	admission(format: DesktopVideoCodecFormat): Promise<ExternalFfmpegRuntimeAdmission>;
+	admission(format: DesktopVideoCodecFormat): Promise<Readonly<{
+		readonly admission: ExternalFfmpegRuntimeAdmission;
+		readonly h264Encoder: DesktopVideoH264Encoder;
+	}>>;
 	dispose(): Promise<void>;
 }
 
@@ -65,10 +71,10 @@ export function createExternalFfmpegVideoVerifiedCapabilities(
 		scratchRoot: join(options.scratchRoot, 'verification'), admission,
 		digestExecutable: options.digestExecutable,
 		...(options.spawn ? { spawn: options.spawn } : {}),
-		environment: options.environment, signal,
+		environment: options.environment, signal, platform: options.platform ?? process.platform,
 	}));
-	const cached = new WeakMap<ExternalFfmpegRuntimeAdmission, Promise<DesktopExternalFfmpegVideoCapabilities>>();
-	const pending = new Set<Promise<DesktopExternalFfmpegVideoCapabilities>>();
+	const cached = new WeakMap<ExternalFfmpegRuntimeAdmission, Promise<ExternalFfmpegVideoVerificationResult>>();
+	const pending = new Set<Promise<ExternalFfmpegVideoVerificationResult>>();
 	let disposal: Promise<void> | null = null;
 	const verifyExact = (admission: ExternalFfmpegRuntimeAdmission) => {
 		assertOpen(disposal);
@@ -94,7 +100,7 @@ export function createExternalFfmpegVideoVerifiedCapabilities(
 			if (options.preferences.admission() !== admission) {
 				return createDesktopExternalFfmpegVideoCapabilities(null);
 			}
-			return capabilities;
+			return Object.freeze({ schemaVersion: capabilities.schemaVersion, formats: capabilities.formats });
 		},
 		async admission(format: DesktopVideoCodecFormat) {
 			assertOpen(disposal);
@@ -108,7 +114,9 @@ export function createExternalFfmpegVideoVerifiedCapabilities(
 				);
 			}
 			if (!capabilities.formats[format].available) throw unavailable(format, capabilities);
-			return admission;
+			return Object.freeze({
+				admission, h264Encoder: format === 'mp4' ? capabilities.h264Encoder ?? 'libx264' : 'libx264',
+			});
 		},
 		dispose() {
 			if (disposal) return disposal;

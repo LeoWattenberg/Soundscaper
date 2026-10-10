@@ -177,7 +177,98 @@ test('verification refuses a finite container when exact track inspection fails'
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-function admission(options: Readonly<{ webm?: boolean }> = {}) {
+test('verification prefers only the current OS native H264 encoder and accepts native-only FFmpeg', async () => {
+	for (const [platform, encoder] of [['darwin', 'h264_videotoolbox'], ['win32', 'h264_mf']] as const) {
+		const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-video-verification-'));
+		const launched: string[] = [];
+		try {
+			const result = await verifyExternalFfmpegVideoAdmission({
+				scratchRoot: root, admission: admission({ webm: false, encoders: [encoder, 'aac'] }),
+				platform, environment: {}, digestExecutable: exactDigest,
+				inspectOutput: acceptInspection,
+				spawn: (executable, arguments_, options) => {
+					launched.push(String(arguments_[arguments_.indexOf('-c:v') + 1]));
+					return finiteOutputSpawn(validMp4())(executable, arguments_, options);
+				},
+			});
+			assert.equal(result.formats.mp4.available, true);
+			assert.equal(result.h264Encoder, encoder);
+			assert.deepEqual(launched, [encoder]);
+			assert.deepEqual(await readdir(root), []);
+		} finally { await rm(root, { recursive: true, force: true }); }
+	}
+});
+
+test('native tokens require execution and exact stream inspection before replacing libx264', async () => {
+	for (const failure of ['container', 'tracks'] as const) {
+		const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-video-fallback-'));
+		const launched: string[] = [];
+		try {
+			const result = await verifyExternalFfmpegVideoAdmission({
+				scratchRoot: root,
+				admission: admission({ webm: false, encoders: ['h264_videotoolbox', 'libx264', 'aac'] }),
+				platform: 'darwin', environment: {}, digestExecutable: exactDigest,
+				inspectOutput: async () => {
+					if (failure === 'tracks' && launched.at(-1) === 'h264_videotoolbox') {
+						throw new Error('wrong native stream codec');
+					}
+				},
+				spawn: (executable, arguments_, options) => {
+					const encoder = String(arguments_[arguments_.indexOf('-c:v') + 1]);
+					launched.push(encoder);
+					const bytes = failure === 'container' && encoder === 'h264_videotoolbox'
+						? Uint8Array.of(1, 2, 3) : validMp4();
+					return finiteOutputSpawn(bytes)(executable, arguments_, options);
+				},
+			});
+			assert.equal(result.formats.mp4.available, true);
+			assert.equal(result.h264Encoder, 'libx264');
+			assert.deepEqual(launched, ['h264_videotoolbox', 'libx264']);
+			assert.deepEqual(await readdir(root), []);
+		} finally { await rm(root, { recursive: true, force: true }); }
+	}
+});
+
+test('native-only encoders from another OS do not become video capabilities', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-video-other-os-'));
+	let launches = 0;
+	try {
+		const result = await verifyExternalFfmpegVideoAdmission({
+			scratchRoot: root,
+			admission: admission({ webm: false, encoders: ['h264_videotoolbox', 'h264_mf', 'aac'] }),
+			platform: 'linux', environment: {}, digestExecutable: exactDigest,
+			inspectOutput: acceptInspection,
+			spawn: (executable, arguments_, options) => {
+				launches += 1;
+				return finiteOutputSpawn(validMp4())(executable, arguments_, options);
+			},
+		});
+		assert.equal(result.formats.mp4.available, false);
+		assert.equal(launches, 0);
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('identity drift after a failed native canary quarantines before the software fallback can launch', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-video-identity-'));
+	const launched: string[] = [];
+	try {
+		await assert.rejects(() => verifyExternalFfmpegVideoAdmission({
+			scratchRoot: root,
+			admission: admission({ webm: false, encoders: ['h264_videotoolbox', 'libx264', 'aac'] }),
+			platform: 'darwin', environment: {}, inspectOutput: acceptInspection,
+			digestExecutable: async (path) => launched.length > 0 && path.endsWith('ffmpeg')
+				? 'c'.repeat(64) : exactDigest(path),
+			spawn: (executable, arguments_, options) => {
+				launched.push(String(arguments_[arguments_.indexOf('-c:v') + 1]));
+				return finiteOutputSpawn(Uint8Array.of(1, 2, 3))(executable, arguments_, options);
+			},
+		}), (error: unknown) => error instanceof ExternalFfmpegVideoVerificationIdentityError);
+		assert.deepEqual(launched, ['h264_videotoolbox']);
+		assert.deepEqual(await readdir(root), []);
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
+function admission(options: Readonly<{ webm?: boolean; encoders?: readonly string[] }> = {}) {
 	return Object.freeze({
 		executablePath: '/opt/ffmpeg', version: '8.0.0', capabilityGeneration: HASH_A,
 		identity: Object.freeze({
@@ -189,8 +280,8 @@ function admission(options: Readonly<{ webm?: boolean }> = {}) {
 			}),
 		}),
 		capabilities: Object.freeze({
-			encoders: options.webm === false
-				? ['libx264', 'aac'] : ['libx264', 'aac', 'libvpx-vp9', 'libopus'],
+			encoders: options.encoders ?? (options.webm === false
+				? ['libx264', 'aac'] : ['libx264', 'aac', 'libvpx-vp9', 'libopus']),
 			decoders: ['rawvideo', 'pcm_f32le'],
 			muxers: options.webm === false ? ['mp4'] : ['mp4', 'webm'],
 			demuxers: ['rawvideo', 'wav'], filters: ['apad'],

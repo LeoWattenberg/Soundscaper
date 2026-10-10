@@ -50,7 +50,6 @@ export type {
 } from './external-ffmpeg-video-process.js';
 
 export type DesktopVideoInputRole = 'video' | 'audio';
-
 export interface ExternalFfmpegVideoOperationServiceOptions {
 	readonly productId: DesktopVideoCodecProductId;
 	readonly scratchRoot: string;
@@ -65,6 +64,7 @@ export interface ExternalFfmpegVideoOperationServiceOptions {
 	readonly terminationGraceMs?: number;
 	readonly killWaitMs?: number;
 	readonly verifyAdmission?: ExternalFfmpegVideoVerifier;
+	readonly platform?: NodeJS.Platform;
 }
 
 export interface ExternalFfmpegVideoOperationService<Owner extends object = object> {
@@ -165,7 +165,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 	const verifiedCapabilities = createExternalFfmpegVideoVerifiedCapabilities({
 		productId: options.productId, scratchRoot: options.scratchRoot, preferences: options.preferences,
 		digestExecutable: digest, ...(launch ? { spawn: launch } : {}),
-		environment: options.environment ?? process.env,
+		environment: options.environment ?? process.env, platform: options.platform ?? process.platform,
 		...(options.verifyAdmission ? { verify: options.verifyAdmission } : {}),
 	});
 	let disposed = false;
@@ -193,7 +193,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 			const plan = normalizeDesktopVideoCodecOperationPlan(planValue);
 			const reservation = beginGate.reserve(owner);
 			try {
-				const admission = await verifiedCapabilities.admission(plan.format);
+				const { admission, h264Encoder } = await verifiedCapabilities.admission(plan.format);
 				beginGate.assertCurrent(reservation, disposed);
 				const pair = executablePair(admission);
 				const operationId = operationIdValue(mint());
@@ -206,7 +206,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 					throw error;
 				}
 				const outputPath = join(scratchDirectory, `output.${plan.format}`);
-				const executionPlan = createDesktopExternalFfmpegVideoWorkload(plan, { outputPath });
+				const executionPlan = createDesktopExternalFfmpegVideoWorkload(plan, { outputPath }, h264Encoder);
 				const started = deferred<void>();
 				// A rejected start must never become an unhandled rejection when no writer was waiting.
 				void started.promise.catch(() => undefined);

@@ -14,7 +14,7 @@ export async function registerDesktopVideoCodecs(options) {
 		productId: options.productId,
 		scratchRoot: resolve(options.userDataPath, 'desktop-video-codecs'),
 		preferences: options.externalFfmpegPreferences,
-		environment: options.environment,
+		environment: options.environment, platform: options.platform ?? process.platform,
 	});
 	const ipc = modules.registerDesktopVideoCodecMainIpc({
 		channels: Object.freeze(Object.fromEntries(CHANNEL_FIELDS.map((field) => [
