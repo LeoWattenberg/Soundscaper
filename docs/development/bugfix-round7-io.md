@@ -56,6 +56,14 @@ and raw coverage are removed immediately after verification by the owning runner
 
 | R7-IO-032 | Soundscaper File → Import an ordinary six-channel WAVEEXTENSIBLE dialogue recording; clip menu → Move to Project bin; card → Play. | The transient audition constructor defaults its output graph to stereo and discards centre and surround programme channels before the existing native-device or stereo surround monitor can fold them down. Infer the implicit output width from occupied native track media, retaining the stereo floor, explicit render widths, unused-source exclusion and immutable source/project data. Bin, source-editor and take auditions share this default allocation owner and count once. | Guarded unchanged `dc8bba540` actual public baseline: stereo programme import, Move and audible native output healthy GREEN 2.7 seconds; regular six-channel WAV written by the maintained encoder with the standard 5.1 mask imports and starts the Bin transport, but its centre-only programme is silent (causal RED 7.3 seconds). Strict actual canonical Bin service independently fails at two output channels versus six, with stereo and unused-source/explicit-width controls passing. Corrected Bin routing, mono/stereo/surround/32-channel constructor scope, explicit allocations, existing warp, companion audio and transport ownership GREEN 29/29; source audition and native take render/flatten controls GREEN 12/12. Targeted type-aware lint and diff checks pass. The tiny ordinary media fixture stays in memory; owned baseline diagnostics/log were read and removed immediately. Corrected public verification is pending the next guarded shared build. |
 
+IO-031 checkpoint follow-through places the exact native capture listening helper
+with its eagerly composed recording-factory adapter in editor-controller-core.
+The existing generic static-import guard caused the helper-105 RED; its precise
+optional-capture basename exclusion restores that semantic owner without changing
+runtime behavior, priorities or budgets. Ownership and native monitor controls
+pass 32/32; targeted lint and diff checks pass. This adds no bug count and no
+generated assistance runtime bytes.
+
 Checkpoint follow-through retains the multicamera source-retention helper in the
 existing private Framescaper project-command chunk owner. The generic eager
 import ownership guard covers this edge without changing source semantics or
