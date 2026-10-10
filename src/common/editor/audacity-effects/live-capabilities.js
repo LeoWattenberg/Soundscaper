@@ -19,6 +19,7 @@ import { audacityBrowserReverbTailFrames } from './reverb-parameters.ts';
 import { audacityDynamicsLookaheadFrames } from './audacity-dynamics-lookahead.ts';
 import { classicFilterCoefficients } from './classic-filter-coefficients.js';
 import { iirReleaseBoundFrames } from '../first-party-effects/standard/filters-coefficients.ts';
+import { audacityResidualFilterTailFrames } from './audacity-filter-release.ts';
 
 export const CLICK_WINDOW_SIZE = 8_192;
 export const EQ_PARTITION_SIZE = 128;
@@ -96,6 +97,8 @@ function liveTailFrames(type, sampleRate, params) {
 	if (!isAudacityEffectLiveCapable(type)) return 0;
 	const settings = normalizeAudacityEffectParams(type, { ...audacityEffectDefaults(type), ...params });
 	validateLiveParamRanges({ type, paramRanges: liveParamRanges(type) }, settings);
+	const filterRelease = audacityResidualFilterTailFrames(type, sampleRate, settings);
+	if (filterRelease !== null) return filterRelease;
 	if (type === 'audacity-echo') {
 		if (!(settings.decay > 0)) return 0;
 		if (settings.decay >= 1) return Number.POSITIVE_INFINITY;

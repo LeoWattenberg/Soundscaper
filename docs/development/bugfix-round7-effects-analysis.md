@@ -428,3 +428,46 @@ rate/type/frequency/gain/Q/slope configurations exactly, including the same
 refusals. The size guard passes. Complete strict test compilation reports no
 errors in owned files; two concurrent I/O/navigation fixtures await their owners'
 corrections before the shared type gate can pass.
+
+## R7-EFFECT-013 — Audacity tone filters discard their remaining rack audio
+
+Import a normal one-second stereo bass recording, add Bass and Treble to the
+track Effects rack, set Bass to +30 dB and Output volume to −30 dB, then export
+with Include tails. The charged shelf cascade retains a 0.205 peak after the
+recording, but its declared release is zero. The ordinary Wahwah rack shares
+that missing residual-filter contract: Depth 0, Resonance 10, Frequency offset
+0 and Output gain −24 dB leave an audible low-frequency biquad release. Both
+variants count as one independently owned Audacity filter family; the earlier
+Classic Filters coefficient cascade and native/Parametric processors remain
+separate owners.
+
+Move the existing pure shelf coefficients unchanged into a strict contract
+leaf, retain its GPL notice, and use the actual normalized poles and output
+gain to reserve a conservative −80 dB release plus one quiet quantum. Fixed
+Wahwah controls use their actual biquad; an active LFO conservatively retains
+the existing combined ten-second rack budget because stationary poles cannot
+bound its changing recurrence. Neutral/output-only shelves, Nyquist identity
+transfers and disabled effects retain the original dry duration. Root assigns
+the exact dependency-closed leaf to the existing editor and worker contract
+groups; its emitted desktop inventory entry is maintained alongside the fix.
+
+Four actual-processor cases are causally RED at zero declared release after
+healthy audible state, while neutral and bypass controls pass. Corrected
+native-rate, physical release, varying LFO, shared shelf kernels, live controls
+and Classic support passes 47/47. The actual desktop compile/import and
+inventory checks pass 3/3 and remove their temporary runtime immediately.
+An in-memory comparison matches all 84 moved coefficient configurations
+exactly. Target type-aware lint, complete size and owned diff checks pass.
+Complete strict test compilation reports zero owned errors and one concurrent
+caption fixture awaiting its owner's target-compatible Promise correction.
+
+Both normal public workflows are causally RED on unchanged prepared capture
+60: dry and bypassed 48000-sample audible exports pass, then enabled Include
+tails still produces 48000 samples instead of more than 48128 (8.5/8.6 seconds).
+Later physical-release assertions were not reached; corrected public GREEN is
+pending the shared build. A first 96 kHz Wahwah test used a recording outside
+its rate-scaled resonant band and is excluded; the corrected fixture reaches
+the causal declaration assertion. Owned public diagnostic directories are read
+and removed immediately; the short shared log remains only until its other
+owners finish reading. PCM stays bounded in memory. No manual Update AI assets
+run is required.
