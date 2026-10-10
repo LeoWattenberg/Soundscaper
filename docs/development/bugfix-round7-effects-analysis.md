@@ -1528,3 +1528,25 @@ The original full-run simultaneous submenu overlap remains an honest
 observation, but does not reproduce in the unchanged complete mouse path.
 No fixture or production correction is made, and no bug count is added.
 The completed replay directory and log are immediately removed.
+
+## Full-200 WebKit live continuity observations — verification-only triage
+
+The actual completed CASE markers, PNGs and contexts for three original
+WebKit continuity workflows are consumed before their exact directories
+are immediately removed. Graphic EQ (`f3e65648f5eeb37a20a6-4430b3cbdb9e87c155fb`,
+10.247 seconds) passes its healthy PCM and accepts the 1000 Hz band at one
+decibel, then the unchanged all-blocks minimum assertion reads
+0.00008889195858696451 instead of greater than 0.2. Its final image shows
+ongoing playback and positive master meters. Click Removal
+(`6da8e49b00825ad4a939-5ad2f45766df48a075d5`, 12.319 seconds) fails its
+pre-edit five-second healthy PCM poll: the actual page is stopped at zero
+and reports “The streamed and buffered sources missed their shared playback
+start.” Its threshold remains 200; no threshold-edit continuity assertion
+is reached. Compressor (`12fb7fc9d7209f8bd680-37fdb0d5b2e27c438dc7`,
+12.044 seconds) passes healthy PCM and accepts release 101 ms with unchanged
+200 ms lookahead, then its unchanged all-blocks minimum is zero instead of
+greater than 0.2. Its image shows positive meters and a transient gap in the
+plot. These are original full-run failures, with no cause inferred yet.
+No assertions, deadlines, fixtures or production source are changed. The
+exact unchanged isolated WebKit workflows await the coordinated exclusive
+native lane. No additional bug count.
