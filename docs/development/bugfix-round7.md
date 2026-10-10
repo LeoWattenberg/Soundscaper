@@ -362,3 +362,12 @@ spreadsheet boolean Undo failure passes unchanged focused replay6.7 seconds
 on source-equivalent guarded04e87c277; no assertion, deadline or product change
 is made. That exact reviewed diagnostic directory and completed replay output
 are removed. The complete Node and browser runs remain in progress.
+
+The complete100 Node suite subsequently passes on frozenee53e1126 with exit0:
+25317 tests scheduled,25284 pass,33 skip,0 fail, duration877.9 seconds.
+Its private desktop test closure is automatically deleted by the runner;
+the reviewed full log is immediately removed after this result. This is the
+second required complete suite checkpoint, after the honestly failed full50
+run and its focused resolutions. The complete100 browser run is still active;
+its reviewed first Undo failure passes unchanged focused replay. Subsequent
+source fixes stay in the advance checkout and do not alter this frozen gate.
