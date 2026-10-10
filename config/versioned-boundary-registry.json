@@ -1094,6 +1094,16 @@
 		,
 		{"path": "src/lightscaper/controller/photo-develop-workspace-commands-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current workspace drafts preserve real mixed history and snapshot recipes, explicit workspace promotion and aggregate retention while borrowing ordinary command CAS publication."}
 		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable archive assembles one current SourceV2 Frame project from authenticated original and active and disabled LUT bodies under joined saved-facts fences, with fixed unique-body and ZIP limits and no sender project publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-project-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo Frame assembly preserves complete SourceV2 recipe and provenance through the current project factory and image commands, creating an unpublished single-still project without storage authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 read-only editable photo handoff authenticates one current SourceV2 recipe, retained original and all active and disabled LUT bodies within a joined bounded archive consumer, without project or catalog publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-image-handoff-decode-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo native decode binds authenticated immutable original facts to a bounded canonical original frame pack, joins deadline and Session cancellation and native cleanup, and preserves the saved editable recipe without publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-image-handoff-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable image source binds an authenticated original frame pack to the complete process 1 or 2 saved recipe, exact original name and SourceV2 provenance, checking declared natural output dimensions without catalog publication." }
+		,
 		{"path": "src/lightscaper/controller/photo-library-archive-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-library restore joins authenticated archive delivery and fresh catalog/media owners before guarded atomic pointer publication and permanent-history reconciliation."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-archive-restore-v2.ts", "kind": "helper-contract", "justification": "Version 2 named private restore authenticates PhotoArchive V5 and strict V1–4 compatibility, delivering exact originals, complete preset rows and LUT bodies into fresh namespaces before unchanged journal, lease and pointer acknowledgement fences."}
