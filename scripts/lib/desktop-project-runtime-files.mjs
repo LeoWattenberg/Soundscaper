@@ -9,6 +9,7 @@ export const DESKTOP_PROJECT_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/commands/take-comp-clipboard.js',
 	'src/common/editor/commands/video-keyframe-carrier-core.js',
 	'src/common/editor/commands/video-keyframe-carrier-v2.js',
+	'src/common/editor/cube-lut-reference-contract.js',
 	'src/common/editor/project-audio-warp-validation.js',
 	'src/common/editor/project-bext-metadata.js',
 	'src/common/editor/project-command-projection.js',
