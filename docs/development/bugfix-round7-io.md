@@ -333,6 +333,18 @@ selection controls), 5/5 in 27.1 seconds. Preserve the original full-run failure
 no source cause or deadline correction is established. The reviewed failure
 folder and completed isolated output/log are removed immediately.
 
+Checkpoint150 three desktop-library/capture observations (zero count; replay
+pending): the Soundscaper desktop project-library whole create/edit/reopen/
+duplicate/delete case and Framescaper capture's origin-delete refusal and
+other-project-delete workflows each fail solely because the confirmed
+Delete this project? modal remains visible (unchanged 5/5/30-second deadlines).
+All three exact contexts and PNGs were read; their screenshots retain the
+confirmed modal and underlying active project/capture. No new I/O source cause
+is established; the previously repaired D036 dialog handoff is a candidate
+shared owner. Preserve these original full-run failures and replay all three
+whole unchanged workflows after the next guarded capture. Reviewed original
+failure directories are removed immediately after this receipt.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
