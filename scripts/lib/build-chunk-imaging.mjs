@@ -5,6 +5,15 @@
 // owner so catalog validation does not load neighboring timeline domains.
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const imagingChunkGroups = [{
+	// Natural-size recipe evaluation is opened by Develop/export and handoff
+	// consumers, independently of the inert image contracts loaded at startup.
+	name: 'editor-image-develop-recipe',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]image-develop-frame-core\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
 	name: 'editor-jpeg-bytes',
 	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-jpeg-v1\.ts$/,
 	priority: 99,
