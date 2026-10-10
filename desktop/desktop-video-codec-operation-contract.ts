@@ -12,6 +12,10 @@ import {
 	VIDEO_DELIVERY_QUALITY_TIERS,
 	type VideoDeliveryQuality,
 } from '../src/common/editor/video-delivery-quality.js';
+import {
+	desktopVideoH264EncoderCandidates, withDesktopVideoH264Encoder,
+	type DesktopVideoH264Encoder,
+} from './desktop-video-h264-encoder.js';
 
 export type DesktopVideoCodecFormat = 'mp4' | 'webm';
 
@@ -124,6 +128,7 @@ export function normalizeDesktopVideoCodecOperationPlan(
 export function createDesktopExternalFfmpegVideoWorkload(
 	value: unknown,
 	files: DesktopExternalFfmpegVideoFiles,
+	h264Encoder: DesktopVideoH264Encoder = 'libx264',
 ): DesktopExternalFfmpegVideoExecutionPlan {
 	const plan = normalizeDesktopVideoCodecOperationPlan(value);
 	if (!files || typeof files !== 'object' || Array.isArray(files)
@@ -134,7 +139,8 @@ export function createDesktopExternalFfmpegVideoWorkload(
 	}
 	const workload = admittedWorkload(plan);
 	const outputSentinel = outputPath(plan.format);
-	const ffmpegArguments = Object.freeze(workload.ffmpegArguments.map((argument) => (
+	const encodedArguments = withDesktopVideoH264Encoder(workload.ffmpegArguments, plan, h264Encoder);
+	const ffmpegArguments = Object.freeze(encodedArguments.map((argument) => (
 		argument === VIDEO_SENTINEL ? 'pipe:3'
 			: argument === AUDIO_SENTINEL ? 'pipe:4'
 				: argument === outputSentinel ? files.outputPath : argument
@@ -150,7 +156,10 @@ export function createDesktopExternalFfmpegVideoWorkload(
 }
 
 /** Generic FFmpeg readiness is intentionally insufficient: each delivery tuple is exact. */
-export function createDesktopExternalFfmpegVideoCapabilities(value: unknown): DesktopExternalFfmpegVideoCapabilities {
+export function createDesktopExternalFfmpegVideoCapabilities(
+	value: unknown,
+	platform: NodeJS.Platform = process.platform,
+): DesktopExternalFfmpegVideoCapabilities {
 	const capabilities = recordOrNull(value)?.capabilities;
 	const encoders = tokenSet(recordOrNull(capabilities)?.encoders);
 	const decoders = tokenSet(recordOrNull(capabilities)?.decoders);
@@ -179,7 +188,7 @@ export function createDesktopExternalFfmpegVideoCapabilities(value: unknown): De
 	return Object.freeze({
 		schemaVersion: 1,
 		formats: Object.freeze({
-			mp4: capability('mp4', ['libx264', 'aac'], 'mp4'),
+			mp4: capability('mp4', [desktopVideoH264EncoderCandidates(value, platform)[0] ?? 'libx264', 'aac'], 'mp4'),
 			webm: capability('webm', ['libvpx-vp9', 'libopus'], 'webm'),
 		}),
 	});

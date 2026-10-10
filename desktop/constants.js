@@ -296,13 +296,29 @@ export const IPC = Object.freeze({
 	deliveryWorkerPort: 'soundscaper:v1:delivery:worker:port',
 });
 
+// Mirrors the published handbook languages in documentation-links.ts. The
+// packaged main-process constants stay dependency-free; documentation link
+// tests verify every destination against the renderer authority for both products.
+const HANDBOOK_LANGUAGES = Object.freeze([
+	'de', 'ar', 'cs', 'el', 'en-gb', 'es', 'fa',
+	'fi', 'fr', 'gl', 'he', 'hi', 'hy', 'id', 'it', 'ja',
+	'ko', 'nl', 'pl', 'pt-br', 'pt-pt', 'ro', 'ru', 'tr', 'uk', 'vi', 'zh-cn', 'zh-tw',
+]);
+const HANDBOOK_DESTINATIONS = Object.fromEntries(['', ...HANDBOOK_LANGUAGES].flatMap(locale => {
+	const base = `https://${PRODUCT_ID}.org/docs/${locale ? `${locale}/` : ''}`;
+	const suffix = locale ? `-${locale}` : '';
+	return [
+		[`manual${suffix}`, base],
+		[`tutorials${suffix}`, `${base}${PRODUCT_ID === 'framescaper' ? 'first-project/' : 'tutorials/your-first-project/'}`],
+	];
+}));
+
 export const EXTERNAL_DESTINATIONS = Object.freeze({
 	homepage: PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/' : 'https://soundscaper.org/',
 	'privacy-en': PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/privacy/en/' : 'https://soundscaper.org/privacy/en/',
 	'privacy-de': PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/privacy/de/' : 'https://soundscaper.org/privacy/de/',
 	help: 'https://github.com/LeoWattenberg/Soundscaper#readme',
-	manual: 'https://support.audacityteam.org/au4',
-	tutorials: 'https://support.audacityteam.org/au4',
+	...HANDBOOK_DESTINATIONS,
 	support: `mailto:team@mindscaper.org?subject=${APP_NAME}%20support`,
 	source: 'https://github.com/LeoWattenberg/Soundscaper',
 	releases: 'https://github.com/LeoWattenberg/Soundscaper/releases',

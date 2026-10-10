@@ -1,17 +1,20 @@
 # Realtime effect stacks across worker threads
 
-The desktop opt-in backend is implemented. This document describes its current
-architecture, admission boundary, and known limitations.
+The opt-in backend is implemented for browser and desktop playback. This
+document describes its current architecture, admission boundary, and known
+limitations.
 
-## Implemented desktop backend
+## Implemented backend
 
-Enable **Tools → Audio setup → Processing → Parallel effect stacks** while
-stopped. The setting defaults off and stays outside project state. The menu
-offers an automatic worker limit or 1/2/4/8 workers, and 768/1536-frame pipeline
+Enable **Edit → Preferences → Audio settings → Processing → Parallel effect
+stacks** while stopped. Both editions require cross-origin isolation,
+SharedArrayBuffer, dedicated Workers, and AudioWorklet support. The setting
+defaults off and stays outside project state. The settings offer an automatic
+worker limit or 1/2/4/8 workers, and 768/1536-frame pipeline
 buffers (16/32 ms at 48 kHz). The 1536-frame option is the default when enabled;
 the 768-frame option provides lower latency with less scheduling margin. Actual
-workers are bounded by available hardware and stack count. Web playback retains
-its existing DSP backend.
+workers are bounded by available hardware and stack count. Unsupported
+environments use the conventional DSP backend.
 
 The implementation includes fixed 256-frame blocks, eight shared banks, pinned
 stack ownership, dependency scheduling, terminal output tasks, route/PDC state,

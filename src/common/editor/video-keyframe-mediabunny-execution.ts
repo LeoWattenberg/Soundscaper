@@ -136,6 +136,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 				videoCodec: workload.format === 'mp4' ? 'h264' : 'vp9',
 				codec: webCodecs.codec,
 				bitrate: webCodecs.bitrate,
+				...(webCodecs.hardwareAcceleration ? { hardwareAcceleration: webCodecs.hardwareAcceleration } : {}),
 				encoderClass: webCodecs.encoderClass as never,
 				videoFrameClass: webCodecs.videoFrameClass as never,
 				h264Format: 'avc',

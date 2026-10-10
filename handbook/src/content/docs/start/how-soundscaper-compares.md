@@ -141,7 +141,7 @@ and [Audition markers](https://helpx.adobe.com/audition/desktop/editing-audio-fi
 | Capability | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
 | --- | --- | --- | --- | --- |
 | Built-in effect suite | + — Audacity-derived effects, bundled Nyquist plug-ins, and first-party effects such as Bitcrusher and De-esser | + — Audacity-derived effects, bundled Nyquist plug-ins, and first-party effects such as Bitcrusher and De-esser | + — 30 built-in effects in the pinned build | + — around fifty, including multiband dynamics |
-| Real-time effect rack per track | + — a wider real-time set than upstream | + — a wider real-time set than upstream; optional parallel processing for eligible built-in stacks | + | + — sixteen slots per clip, track, and master |
+| Real-time effect rack per track | + — a wider real-time set than upstream; optional parallel processing for eligible built-in stacks | + — a wider real-time set than upstream; optional parallel processing for eligible built-in stacks | + | + — sixteen slots per clip, track, and master |
 | Parametric EQ | + — a new parametric EQ with automatable bands | + — a new parametric EQ with automatable bands | ~ — Filter Curve and Graphic EQ | + — parametric, graphic, and FFT filters |
 | Effect presets | + — apply, save, import, export | + — apply, save, import, export | + — apply, save, import, export | + |
 | Macros and batch chains | + — saved macro library with templates | + — saved macro library with templates | / — the pinned build comments the Macros menu out | + — Favorites and Batch Process |
@@ -160,11 +160,18 @@ ARA in addition to VST3; Adobe's documented
 [plug-in workflow](https://helpx.adobe.com/audition/desktop/applying-effects/adding-third-party-plug-ins.html)
 describes ordinary effects hosting.
 
-Desktop's **Edit → Preferences → Audio settings → Processing** offers optional
-parallel effect stacks with worker and buffering controls. It adds pipeline
-latency and admits only supported built-in effects and mixer graphs; projects
-with timeline automation, authored warp maps, or ADM routing use conventional
-playback instead.
+In Web and Desktop, **Edit → Preferences → Audio settings → Processing** offers
+optional parallel effect stacks with worker and buffering controls. The setting
+defaults off and requires a supported, cross-origin-isolated environment. It
+adds pipeline latency and admits only supported built-in effects and mixer
+graphs; projects with timeline automation, authored warp maps, or ADM routing
+use conventional playback instead.
+
+Both editions offer **Edit → Preferences → General → Optimize for**. Web
+defaults to **Memory**; Desktop defaults to **Speed**. Speed favors faster audio
+chunk storage at the cost of more storage space. Desktop also loads editor
+tools ahead of time in Speed mode. Restart the desktop editor or reload the
+browser editor after changing this preference.
 
 ## Mixing, routing, and automation
 

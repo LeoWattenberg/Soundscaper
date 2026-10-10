@@ -42,6 +42,18 @@ test('fresh browser editor keeps Memory as its optimization default', async (con
 	assert.equal(optimizationMode(controller), 'memory');
 });
 
+test('browser restores an opted-in Speed choice and factory reset returns to Memory', async (context) => {
+	const store = createMemoryStore();
+	store.settings.set('soundscaper:audio-editor-preferences-v1', createAudioEditorPreferencesV1({
+		performance: { optimizeFor: 'speed' },
+	}));
+	const controller = await controllerFor(false, store);
+	context.after(async () => { await controller.dispose(); });
+	assert.equal(optimizationMode(controller), 'speed');
+	await controller.actions.preferences.revertFactorySettings();
+	assert.equal(optimizationMode(controller), 'memory');
+});
+
 test('desktop restores a saved Memory choice over its new default', async (context) => {
 	const store = createMemoryStore();
 	store.settings.set('soundscaper:audio-editor-preferences-v1', createAudioEditorPreferencesV1({

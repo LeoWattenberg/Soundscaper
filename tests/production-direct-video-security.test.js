@@ -92,7 +92,7 @@ const KEYED_ENCODER_EVIDENCE = Object.freeze([
 	'tests/external-ffmpeg-video-session-cleanup.test.ts',
 ]);
 
-test('exact direct MP4 and WebM publication separates browser-native and desktop providers', async () => {
+test('exact direct MP4 and WebM publication admits shared WebCodecs before verified desktop fallback', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const publication = findControl(
 		matrix,
@@ -141,11 +141,11 @@ test('exact direct MP4 and WebM publication separates browser-native and desktop
 	);
 	assertOrderedClaim(
 		publication.summary,
-		/Desktop Soundscaper family v1.*external ffmpeg\/ffprobe.*`libx264`.*`aac`.*`libvpx-vp9`.*`libopus`.*two-stream probe/isu,
+		/Desktop Soundscaper family v1.*exact WebCodecs video.*optional AAC\/Opus audio.*`prefer-hardware`.*ordinary WebCodecs.*640x360.*actual export.*external ffmpeg\/ffprobe.*`h264_videotoolbox`.*`h264_mf`.*native canary.*independently verified `libx264`.*`aac`.*`libvpx-vp9`.*`libopus`.*two-stream probe/isu,
 	);
 	assertOrderedClaim(
 		publication.summary,
-		/pathless.*main-private pipes.*main-private scratch.*bundled video.*operating-system video.*AV1 remain disabled/isu,
+		/main-owned.*exact-pair identity.*closed renderer wire.*pathless.*main-private pipes.*main-private scratch.*No bundled or separately shipped operating-system video payload.*AV1 remains disabled/isu,
 	);
 	assertOrderedClaim(
 		rollback.summary,
@@ -359,7 +359,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 	);
 	assertOrderedClaim(
 		threatDocumentation,
-		/bundled video.*operating-system video.*AV1 remain disabled.*external WebM is VP9.*codec conformance.*packaged UI.*scale.*memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
+		/No bundled or separately shipped operating-system video payload.*AV1 remains disabled.*external WebM is VP9.*codec conformance.*packaged UI.*scale.*memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
 	);
 	assertOrderedClaim(
 		qualityDocumentation,

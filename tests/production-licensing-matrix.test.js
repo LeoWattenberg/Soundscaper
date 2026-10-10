@@ -272,8 +272,19 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		residualLimit: 'whole-buffer-copies-wasm-memory-rss-and-cpu-are-not-one-aggregate-reservation',
 	});
 	assert.deepEqual(codecPolicy.externalFfmpegProvider.video.formats, {
-		mp4: 'keyed-rgba-h264-libx264-aac',
+		mp4: 'keyed-rgba-h264-main-selected-execution-verified-encoder-aac',
 		webm: 'keyed-rgba-vp9-libvpx-vp9-opus-libopus',
+	});
+	assert.deepEqual(codecPolicy.externalFfmpegProvider.video.h264EncoderSelection, {
+		authority: 'main-only-closed-enum-not-renderer-supplied',
+		macos: ['h264_videotoolbox', 'libx264'],
+		windows: ['h264_mf', 'libx264'],
+		linux: ['libx264'],
+		admission: 'advertised-token-and-exact-pair-execution-canary-required-before-selection',
+		fallback: 'failed-native-canary-may-select-independently-verified-libx264-identity-change-is-terminal',
+		identity: 'both-executable-hashes-rechecked-before-and-after-candidate-canaries-and-real-execution',
+		videoToolbox: 'allow-operating-system-software-fallback',
+		mediaFoundation: 'default-operating-system-transform-selection',
 	});
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumSessions, 2);
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumSessionsPerOwner, 1);
@@ -284,6 +295,9 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		/live-16x16-one-frame-rgba-plus-48khz-stereo-audio.*finite-container.*exact-ffprobe-two-track-codec-geometry-inspection/u);
 	assert.equal(codecPolicy.videoProvider.bundled.status, 'disabled');
 	assert.equal(codecPolicy.videoProvider.operatingSystem.status, 'disabled');
+	assert.match(codecPolicy.videoProvider.operatingSystem.windows, /no-direct.*video-provider/u);
+	assert.match(codecPolicy.videoProvider.operatingSystem.macos, /no-direct.*video-provider/u);
+	assert.match(codecPolicy.executionStatus.webmAv1, /separately-shipped-os-video.*disabled/u);
 	assert.match(codecPolicy.videoProvider.external.webm, /VP9\/Opus.*not-AV1/iu);
 	assert.match(codecPolicy.videoProvider.av1, /no-dav1d.*execution-path.*fail-closed/iu);
 	assert.deepEqual(codecPolicy.videoProvider.candidateResearch, ['dav1d', 'svt-av1', 'libaom']);
@@ -305,6 +319,8 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		'desktop/bundled-audio-codec-runtime-payload.mjs',
 		'desktop/external-ffmpeg-video-operation-service.ts',
 		'desktop/external-ffmpeg-video-verification.ts',
+		'desktop/desktop-video-h264-encoder.ts',
+		'src/common/editor/platform-video-delivery-encoder.ts',
 		'desktop/external-ffmpeg-video-canary-inspection.ts',
 		'desktop/desktop-video-codec-main-ipc.ts',
 		'src/common/editor/desktop-video-codec-runtime.ts',
@@ -313,6 +329,8 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		'tests/desktop-one-shot-message-child-supervision.test.ts',
 		'tests/desktop-private-scratch-directory.test.ts',
 		'tests/external-ffmpeg-video-verification.test.ts',
+		'tests/external-ffmpeg-video-native-encoder.test.ts',
+		'tests/audio-editor-platform-video-delivery-encoder.test.ts',
 		'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	]) assert.ok(codecPolicy.evidence.includes(path), `desktop codec evidence needs ${path}`);
 	await assertEvidence(codecPolicy.evidence);

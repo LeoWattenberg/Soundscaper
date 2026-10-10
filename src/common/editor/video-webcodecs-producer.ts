@@ -83,6 +83,7 @@ interface RgbaProducerLike {
 }
 
 export interface VideoWebCodecsProduceRequest {
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly frameSource: FrameSourceLike;
 	readonly producer: RgbaProducerLike;
 	/** `h264` or `vp9`: what the elementary stream has to be framed as. */
@@ -116,6 +117,7 @@ export interface VideoWebCodecsChunkProduceRequest
 }
 
 export interface VideoWebCodecsEncoderConfigurationRequest {
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly videoCodec: string;
 	/** Preserve the full codec string accepted during admission. */
 	readonly codec: string;
@@ -143,6 +145,7 @@ export function createVideoWebCodecsEncoderConfiguration(
 		height,
 		framerate: num / den,
 		bitrate: positiveInteger(request.bitrate, 'bitrate'),
+		...(request.hardwareAcceleration ? { hardwareAcceleration: request.hardwareAcceleration } : {}),
 		...(request.videoCodec === 'h264'
 			? { avc: Object.freeze({ format: request.h264Format ?? 'annexb' }) }
 			: {}),
@@ -229,6 +232,7 @@ export async function produceVideoWebCodecsChunks(
 			codec: request.codec,
 			canvas: { width, height, frameRate },
 			bitrate: request.bitrate,
+			...(request.hardwareAcceleration ? { hardwareAcceleration: request.hardwareAcceleration } : {}),
 			...(request.h264Format ? { h264Format: request.h264Format } : {}),
 		}));
 		const rgba = new Uint8Array(producer.byteLength);

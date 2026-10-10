@@ -22,7 +22,7 @@ const ENTRIES = Object.freeze([
 	['optimizeFor', 'Optimize for', 'Optimieren für'],
 	['optimizeForMemory', 'Memory', 'Speicher'],
 	['optimizeForSpeed', 'Speed', 'Geschwindigkeit'],
-	['optimizeForDescription', 'Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.', 'Speicher behält das bisherige Laden des Editors bei Bedarf bei. Geschwindigkeit lädt Editor-Werkzeuge vorab; KI-Werkzeuge und Verarbeitungsmodule werden weiterhin erst bei Verwendung geladen. Starte den Desktop-Editor neu, um Änderungen zu übernehmen.'],
+	['optimizeForDescription', 'Memory stores audio chunks compactly. Speed favors faster audio storage at the cost of more storage space. On desktop, Speed also loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor or reload the browser editor to apply changes.', 'Speicher speichert Audioabschnitte kompakt. Geschwindigkeit bevorzugt schnelleren Audiospeicher auf Kosten von mehr Speicherplatz. Im Desktop-Editor lädt Geschwindigkeit außerdem Editor-Werkzeuge vorab; KI-Werkzeuge und Verarbeitungsmodule werden weiterhin erst bei Verwendung geladen. Starte den Desktop-Editor neu oder lade den Browser-Editor neu, um Änderungen zu übernehmen.'],
 	['preferencesEffects', 'Effects', 'Effekte'],
 	['effectOptions', 'Effect options', 'Effektoptionen'],
 	['effectMenuOrganization', 'Effect menu organization', 'Anordnung des Effektmenüs'],

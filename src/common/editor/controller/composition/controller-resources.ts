@@ -75,7 +75,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 		onPosition: callbacks.onPosition, onMeter: callbacks.onMeter, onState: callbacks.onState,
 	});
 	if (options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
-	if (options.productId === 'soundscaper' && fileService.isDesktop) enableParallelEffectStackPlayback(engine);
+	if (options.productId === 'soundscaper') enableParallelEffectStackPlayback(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
 	const playbackPreviews = createPlaybackPreviewEngines(renderEngineFactory, () => engine.getPlaybackGain());
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({

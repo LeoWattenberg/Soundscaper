@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { normalizeBcp47Locale } from '../../i18n/locale.js';
+import { desktopDocumentationDestination } from '../documentation-links.ts';
 
 // Hosts without matchMedia (the node test document, older embedders) report
 // no match instead of throwing during render.
@@ -35,6 +36,8 @@ function externalUrlHostname(href) {
 
 export function desktopExternalDestination(url) {
 	const href = String(url);
+	const documentation = desktopDocumentationDestination(href);
+	if (documentation) return documentation;
 	if (href.startsWith('mailto:')) return 'support';
 	if (/\/privacy\/de\/$/u.test(href)) return 'privacy-de';
 	if (/\/privacy\/en\/$/u.test(href)) return 'privacy-en';

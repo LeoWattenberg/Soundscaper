@@ -102,6 +102,12 @@ test('native mux production requests AVC and preserves each chunk metadata callb
 	assert.deepEqual(received[0]?.chunk, harness.emittedChunks[0]);
 });
 
+test('production preserves the hardware preference accepted by the desktop capability probe', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	await produceVideoWebCodecsStream({ ...harness.request, hardwareAcceleration: 'prefer-hardware' });
+	assert.equal(harness.configs[0]?.hardwareAcceleration, 'prefer-hardware');
+});
+
 test('frames do not pile up in the encoder queue', async () => {
 	const harness = createHarness({ frameCount: 12, holdQueue: true });
 	await produceVideoWebCodecsStream(harness.request);

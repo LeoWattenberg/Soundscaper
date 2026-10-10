@@ -31,12 +31,11 @@ export function useParallelStackMenuRefresh(): void {
 
 export function createParallelStackMenuRuntime(input: Readonly<{
 	productId: string;
-	desktop: boolean;
 	controller?: ParallelStackMenuController;
 	recording: boolean;
 	run: (operation: () => unknown) => unknown;
 }>) {
-	if (input.productId !== 'soundscaper' || !input.desktop) return null;
+	if (input.productId !== 'soundscaper') return null;
 	const activity = () => {
 		const snapshot = input.controller?.getSnapshot?.();
 		const engine = input.controller?.engine;
@@ -50,7 +49,6 @@ export function createParallelStackMenuRuntime(input: Readonly<{
 	const current = activity();
 	return Object.freeze({
 		productId: input.productId,
-		desktop: input.desktop,
 		blocked: current.playing || current.recording,
 		isBlocked: () => { const live = activity(); return live.playing || live.recording; },
 		preferences: readParallelStackPreferences(),
