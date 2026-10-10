@@ -37,23 +37,29 @@ export function createAudioPreviewProject(
 	options: AudioPreviewProjectOptions,
 ): EngineProject {
 	const sampleRate = positiveSafeInteger(options.sampleRate, 'preview project sampleRate');
-	const masterChannels = positiveSafeInteger(
+	const fallbackChannels = positiveSafeInteger(
 		options.masterChannels ?? 2,
 		'preview project masterChannels',
 	);
 	const media = {
 		title: String(options.title ?? 'Audio preview'),
 		sampleRate,
-		masterChannels,
+		masterChannels: fallbackChannels,
 		sources: options.sources.map((source) => createAudioSource({ ...source, kind: 'audio' })),
 		clips: options.clips.map((clip) => createAudioClip({ ...clip, kind: 'audio' })),
 		tracks: options.tracks.map((track) => createAudioTrack({ ...track, type: 'audio' }, sampleRate)),
 		master: createAudioMaster(options.master),
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
 	};
-	const trackWidths = resolveTerminalChannelWidths(media as never, masterChannels).tracks;
+	const trackWidths = resolveTerminalChannelWidths(media as never, fallbackChannels).tracks;
+	// An audition has no authored downmix: retain occupied source channels until
+	// the playback graph applies its native-device or surround monitoring route.
+	const masterChannels = options.masterChannels === undefined
+		? Math.max(fallbackChannels, ...trackWidths.values())
+		: fallbackChannels;
 	return {
 		...media,
+		masterChannels,
 		automationLanes: [],
 		mixer: createDefaultMixerGraphV21(
 			media.tracks.map((track) => {
