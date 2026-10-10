@@ -506,6 +506,15 @@ JSON/context/PNG were read and its owned diagnostic directory immediately
 removed. Preserve the original full-suite failure; unchanged whole WebKit
 replay and the native metadata/play readiness review are pending without
 source, fixture, deadline or count changes.
+The whole unchanged WebKit frame12 workflow passes on authenticated a3a36854d
+in11.3 seconds (one case,13.5 seconds total), with the qualified Pulse sink,
+one worker and coordinated exclusive4–7 CPU slot. Ordinary import, authored
+frame12 trim, Move to Project bin, native Play and first-playing source-time
+at least0.39 seconds all pass within the original5000 ms predicate. Source,
+fixture, assertions and deadlines remain unchanged; no product cause or added
+count is established. Completed owned replay output/log are read and immediately
+removed, with all native readers and the CPU slot released to the dialogs lane.
+The original full200 failure remains recorded.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
