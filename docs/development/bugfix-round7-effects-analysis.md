@@ -587,8 +587,9 @@ The actual renderer is causally RED in four normal canvas/frequency cases,
 after the low reference and every independent FFT amplitude control pass.
 Corrected rendering, packed-window, selected-preview and materializer controls
 pass 21/21. Target type-aware lint, changed lint, size and owned diff checks
-pass. Complete strict test compilation remains active with an explicit 8 GiB
-heap after the first default-heap run exhausted 4 GiB before diagnostics.
+pass. Complete strict test compilation is GREEN with an explicit 8 GiB heap;
+the first default-heap run exhausted 4 GiB before diagnostics and is excluded
+as an environment failure. No compiler diagnostics or local dump files remain.
 
 The normal menu workflow is causally RED on unchanged guarded prepared capture
 73b99f5b8 in 18.4 seconds. It verifies equal recorded RMS, a healthy low-tone
