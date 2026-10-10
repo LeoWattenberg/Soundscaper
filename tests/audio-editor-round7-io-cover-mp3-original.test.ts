@@ -34,6 +34,7 @@ for (const illustrated of [false, true]) test(`ordinary MP3 original overwrite r
 		...settings, range: { startFrame: 0, endFrame: 48_000 },
 	});
 	assert.equal(plan.format, 'mp3');
+	assert.ok('bitRate' in plan.encoding);
 	assert.equal(plan.encoding.bitRate, 128);
 	assert.ok(reads.every(([start, end]) => end - start <= 1024 ** 2));
 	if (illustrated) assert.ok(reads.some(([start]) => start > 1024 ** 2));

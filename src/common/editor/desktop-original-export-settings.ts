@@ -47,7 +47,7 @@ export async function resolveDesktopOriginalExportSettings(
 	let format = EXTENSIONS[extension];
 	if (!source || !format) return null;
 	try {
-		let header = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
+		let header: Uint8Array = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
 		if (format === 'mp3' || format === 'mp2') {
 			const frameHeader = await readOriginalMpegFrameHeader(file, header);
 			if (!frameHeader) return null;
