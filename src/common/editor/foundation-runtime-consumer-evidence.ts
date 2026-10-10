@@ -30,6 +30,20 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'dawproject-imported-delivery', surface: 'interchange',
+		file: 'src/common/editor/controller/import/internal/dawproject/dawproject-service.ts',
+		entryPoint: 'openDawproject', inputIdentifier: 'created', projectedIdentifier: null,
+		boundary: 'loadProject',
+		evidence: 'DAWproject import delegates its newly created exchange document to the selected product loader when no native import adapter is needed; this service consumes source descriptors and identities without reading clip timing, while the authored loaded document owns activation.',
+	},
+	{
+		id: 'dawproject-selected-delivery', surface: 'interchange',
+		file: 'src/common/editor/controller/import/internal/dawproject/dawproject-service.ts',
+		entryPoint: 'saveDawproject', inputIdentifier: 'selected', projectedIdentifier: 'delivered',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'DAWproject export projects the selected active multicamera document before passing its resolved geometry to the interchange writer; the original authored snapshot separately owns source bodies and delivery custody.',
+	},
+	{
 		id: 'export-dialog-delivered-chapter-admission', surface: 'audio-export',
 		file: 'src/common/editor/ui/export-dialog-embedded-chapters.ts',
 		entryPoint: 'exportDialogHasDeliveredChapterLabels', inputIdentifier: 'projectValue', projectedIdentifier: 'project',

@@ -134,6 +134,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/timeline-annotation-riff-interchange.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/project-attribution-report.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/export/interchange-export-action.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/import/internal/dawproject/dawproject-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', surfaces: ['composition'] },
