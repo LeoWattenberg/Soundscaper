@@ -508,7 +508,7 @@ before converting again to48kHz. This independent caller clock differs from
 R5IO008 picture-relative audio timestamps and IO042 Freesound conversion. Media
 is generated in memory, actual WAV download is deleted immediately after reading,
 and all completed baseline output/log are consumed and removed immediately.
-IO046 correction (public GREEN pending, not counted): pin the video's native
+IO046 correction: pin the video's native
 decode to the current project's sample rate through the already supported
 engine option. The private import port now faithfully names that optional
 option. Existing unpinned callers and browsers unable to decode offline retain
@@ -518,6 +518,27 @@ while a matching device and unavailable-offline fallback both pass. Corrected
 native decode/import/timing/publication controls pass48/48in1.2 seconds.
 Target type-aware lint, canonical lint:changed and diff checks pass. Bounded completed focused logs are
 read and removed immediately; no media fixtures are retained.
+Both unchanged complete native source/import/actual exported WAV band controls
+pass on authenticated guardedfee8bdbd4a656b99d63fe5a7a0856e6df190ec0b:
+3kHz healthy3.6 seconds and23kHz preserved3.0 seconds (2/2in9.2 seconds).
+Actual original and delivered48kHz clocks and programme amplitude assertions
+remain unchanged. This qualifies one independent video-import clock root;
+completed own diagnostics/output/log are consumed and immediately removed.
+
+IO047 ordinary shortcut baseline (not counted; source unchanged): public
+Preferences→Keyboard shortcuts→Play at speed→AssignCtrl+Alt+P exposes the
+maintained local command directly. Authenticated guarded5dd339942 ordinary
+1.25× toolbar start retires an actual audible Bin recording and supports replay
+(healthyPASS3.7 seconds). The configured normal shortcut starts actual audible
+timeline PCM while the independently advancing Bin output remains audible at
+peak0.247486174 instead of<0.001 (causalRED8.4 seconds; pair13.8 seconds).
+Actual main Pause-at-speed and positive independent main PCM pass before that
+failure; PNG/context show both active transports. The fixed menu has no direct
+Play-at-speed item, so its internal workspace action alone is excluded as a
+user path. The configured shortcut is authored entirely through the ordinary
+Preferences UI; native audio nodes/context/device APIs are unchanged apart
+from a passive forwarding analyser. Every completed own diagnostic and bounded
+log is read and removed immediately. No production correction/count yet.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
@@ -528,6 +549,6 @@ compiler found only the optional cache cleanup invocation in its actual
 controller resource witness. Assert the real cache cleanup capability before
 calling it, preserving the owned disposal rather than widening a production
 type. The bounded compiler error log was read and removed immediately.
-Forty-four qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+Forty-five qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
