@@ -10,6 +10,7 @@ import ProjectBinNameEditor from './ProjectBinNameEditor.tsx';
 import { formatProjectBinSource } from './project-bin-model.ts';
 import { useProjectBinWaveformPath, useProjectBinTransformBadges, useProjectBinMediaTiming, useProjectBinDuration, useProjectBinInstanceCount } from './useProjectBinPresentation.ts';
 import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
+import { createProjectBinRetimePlayback } from '../../controller/import/project-bin-video-playback.ts';
 
 export default function ProjectBinCard({
 	clip,
@@ -30,6 +31,7 @@ export default function ProjectBinCard({
 	onDragEnd,
 }) {
 	const videoRef = useRef(null);
+	const retimePlaybackRef = useRef(null);
 	let visual = null;
 	try {
 		visual = controller.actions.projectBin.getVisualData(clip.id);
@@ -63,6 +65,32 @@ export default function ProjectBinCard({
 	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;
 	const videoHasAudio = itemClips.some((itemClip) => itemClip.kind === 'audio');
 	const videoEmbeddedAudio = videoHasAudio && !preview?.audioSourceId;
+	const retimeIdentity = videoPreview?.retimeIdentity;
+	const retimeDuration = videoPreview?.durationFrames;
+	const retimeSampleRate = project?.sampleRate;
+	const retimeMappingRef = useRef(null);
+	retimeMappingRef.current = videoPreview?.sourceTimeAtFrame ?? null;
+	const previewCompletionRef = useRef(null);
+	previewCompletionRef.current = () => run(() => controller.actions.projectBin.stopPreview());
+	const retimeUnavailable = Boolean(videoClip?.retimeMap && !videoPreview?.sourceTimeAtFrame);
+
+	useEffect(() => {
+		const media = videoRef.current;
+		if (!media || !previewActive || !retimeIdentity) return;
+		const playback = createProjectBinRetimePlayback({
+			media, sampleRate: retimeSampleRate, durationFrames: retimeDuration,
+			sourceTimeAtFrame: frame => retimeMappingRef.current(frame),
+			now: () => performance.now(),
+			requestFrame: callback => requestAnimationFrame(callback),
+			cancelFrame: id => cancelAnimationFrame(id),
+			onComplete: () => previewCompletionRef.current(),
+		});
+		retimePlaybackRef.current = playback;
+		return () => {
+			playback.dispose();
+			if (retimePlaybackRef.current === playback) retimePlaybackRef.current = null;
+		};
+	}, [controller, previewActive, retimeIdentity, retimeSampleRate, retimeDuration, visual?.mediaUrl]);
 
 	useEffect(() => {
 		if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, playbackGain));
@@ -74,7 +102,12 @@ export default function ProjectBinCard({
 		// WebKit initializes mute state from the attribute when media connects or loads.
 		media.defaultMuted = !videoEmbeddedAudio;
 		media.muted = !videoEmbeddedAudio;
-		if (!previewActive) {
+		if (retimePlaybackRef.current) {
+			if (previewPlaying) retimePlaybackRef.current.play();
+			else retimePlaybackRef.current.pause();
+			return;
+		}
+		if (!previewActive || retimeUnavailable) {
 			media.pause();
 			return;
 		}
@@ -84,7 +117,7 @@ export default function ProjectBinCard({
 		media.playbackRate = videoPlaybackRate;
 		if (previewPlaying) void media.play().catch(() => controller.actions.projectBin.stopPreview());
 		else media.pause();
-	}, [controller, previewActive, previewPlaying, preview?.state, videoEndSeconds, videoStartSeconds, videoPlaybackRate, videoEmbeddedAudio, visual?.mediaUrl]);
+	}, [controller, previewActive, previewPlaying, preview?.state, retimeIdentity, retimeUnavailable, videoEndSeconds, videoStartSeconds, videoPlaybackRate, videoEmbeddedAudio, visual?.mediaUrl]);
 	const keepVideoAudioBinding = (event) => {
 		// Native decoder initialization can report stale mute state after the first render.
 		if (!videoEmbeddedAudio && !event.currentTarget.muted) event.currentTarget.muted = true;
@@ -152,13 +185,13 @@ export default function ProjectBinCard({
 							onLoadedMetadata={keepVideoAudioBinding}
 							onVolumeChange={keepVideoAudioBinding}
 							onTimeUpdate={(event) => {
-								if (videoEndSeconds && event.currentTarget.currentTime >= videoEndSeconds) {
+								if (!retimeIdentity && videoEndSeconds && event.currentTarget.currentTime >= videoEndSeconds) {
 									event.currentTarget.pause();
 									event.currentTarget.currentTime = videoStartSeconds;
 									run(() => controller.actions.projectBin.stopPreview());
 								}
 							}}
-							onEnded={() => run(() => controller.actions.projectBin.stopPreview())}
+							onEnded={() => { if (!retimeIdentity) run(() => controller.actions.projectBin.stopPreview()); }}
 						/>
 					) : posterUrl
 						? <img src={posterUrl} alt="" draggable="false" />
@@ -264,7 +297,7 @@ export default function ProjectBinCard({
 					{!visualClip && <button
 						type="button"
 						className="kw-audio-editor__project-bin-icon-button"
-						disabled={unavailable}
+						disabled={unavailable || retimeUnavailable}
 						aria-label={`${previewPlaying ? copy.pause : copy.play}: ${name}`}
 						aria-pressed={previewPlaying}
 						onClick={() => run(() => controller.actions.projectBin.playPause(clip.id))}

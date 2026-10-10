@@ -168,6 +168,7 @@
 		"import/imported-audio-content-identity.ts",
 		"import/project-bin-linked-video-relink-service.ts",
 		"import/project-bin-types.ts",
+		"import/project-bin-video-playback.ts",
 		"import/raw-pcm-import.ts",
 		"preferences/mouse-shortcut-gesture.ts",
 		"preferences/preference-action-group.ts",
