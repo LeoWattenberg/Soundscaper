@@ -49,6 +49,7 @@ import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../ca
 import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2, PhotoLibraryExportJournalPort } from '../../common/editor/photo-library-session-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../common/editor/photo-library-cube-lut-port-v1.ts';
 import type { PhotoLibraryImageHandoffPortV1, PhotoLibraryImageHandoffRequestV1, PhotoLibraryImageHandoffViewV1 } from '../../common/editor/photo-library-image-handoff-port-v1.ts';
+import type { PhotoLibraryCollectionHandoffPortV1, PhotoLibraryCollectionHandoffRequestV1, PhotoLibraryCollectionHandoffViewV1 } from '../../common/editor/photo-library-collection-handoff-port-v1.ts';
 import type { CubeLutSourcePortV1 } from '../../common/editor/imaging/cube-lut-source-port-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../../common/editor/video-color-management-v27.ts';
 import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cube-lut-v27.ts';
@@ -75,6 +76,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
 	readonly imageReceive: ReturnType<typeof createPhotoLibraryImageReceiveSessionV1>;
 	readonly imageHandoff: Readonly<PhotoLibraryImageHandoffPortV1>;
+	readonly collectionHandoff: Readonly<PhotoLibraryCollectionHandoffPortV1>;
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
 	#catalog: Promise<string> | null = null;
@@ -100,6 +102,23 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 				const request = record(value, 'image handoff request', ['catalogId', 'photoId', 'versionId', 'expectedRevision']);
 				binding = Object.freeze({ catalogId: id(field(request, 'catalogId'), 'handoff catalog ID'), photoId: id(field(request, 'photoId'), 'handoff photo ID'),
 					versionId: id(field(request, 'versionId'), 'handoff version ID'), expectedRevision: integer(field(request, 'expectedRevision'), 0, Number.MAX_SAFE_INTEGER, 'handoff revision') });
+			});
+		} });
+		this.collectionHandoff = Object.freeze({ withCapture: async <Result>(value: Readonly<PhotoLibraryCollectionHandoffRequestV1>,
+			consume: (view: Readonly<PhotoLibraryCollectionHandoffViewV1>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}) => {
+			const { signal } = readPhotoDevelopSignalOptionsV2(options); let binding!: Readonly<PhotoLibraryCollectionHandoffRequestV1>;
+			return this.#operation(async admitted => {
+				const { withPhotoLibraryCollectionHandoffV1 } = await import('./photo-library-collection-handoff-session.ts');
+				check(admitted); const catalogId = await this.#ready(); check(admitted);
+				return withPhotoLibraryCollectionHandoffV1(ports, catalogId, binding, consume, admitted);
+			}, signal, () => {
+				if (typeof consume !== 'function') throw new TypeError('Collection handoff requires a callable consumer.');
+				const request = record(value, 'collection handoff request', ['catalogId', 'collectionId', 'scope', 'expectedCatalogRevision', 'expectedDefinitionRevision'], ['catalogId', 'collectionId', 'scope', 'expectedCatalogRevision']);
+				const scope = oneOf(field(request, 'scope'), ['catalog', 'saved-query'] as const, 'collection scope');
+				if (scope === 'catalog' && Object.hasOwn(request, 'expectedDefinitionRevision')) throw new TypeError('Root collection uses its catalog revision.');
+				binding = Object.freeze({ catalogId: id(field(request, 'catalogId'), 'collection catalog ID'), collectionId: id(field(request, 'collectionId'), 'collection ID'), scope,
+					expectedCatalogRevision: integer(field(request, 'expectedCatalogRevision'), 0, Number.MAX_SAFE_INTEGER, 'collection catalog revision'),
+					...(scope === 'saved-query' ? { expectedDefinitionRevision: integer(field(request, 'expectedDefinitionRevision'), 0, Number.MAX_SAFE_INTEGER, 'collection definition revision') } : {}) });
 			});
 		} });
 		if (ports.exportPresetSettings) this.exportPresets = Object.freeze({ open: (options = {}) => {

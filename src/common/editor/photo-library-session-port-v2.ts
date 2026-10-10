@@ -7,6 +7,7 @@ import type { PhotoLibraryCubeLutPortV1 } from './photo-library-cube-lut-port-v1
 import type { PhotoLibraryExportPresetsPortV1 } from './photo-library-export-presets-port-v1.ts';
 import type { PhotoLibraryImageReceivePortV1 } from './photo-library-image-receive-port-v1.ts';
 import type { PhotoLibraryImageHandoffPortV1 } from './photo-library-image-handoff-port-v1.ts';
+import type { PhotoLibraryCollectionHandoffPortV1 } from './photo-library-collection-handoff-port-v1.ts';
 
 /** A body-free, complete selected-version export projection; product schemas remain private. */
 export interface PhotoLibraryExportSidecarRequest {
@@ -37,6 +38,7 @@ export interface PhotoLibrarySessionPortV2 extends Omit<PhotoLibrarySessionPortV
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
 	readonly imageReceive?: Readonly<PhotoLibraryImageReceivePortV1>;
 	readonly imageHandoff?: Readonly<PhotoLibraryImageHandoffPortV1>;
+	readonly collectionHandoff?: Readonly<PhotoLibraryCollectionHandoffPortV1>;
 	readonly readExportSidecar?: ReadPhotoExportSidecar;
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: Readonly<PhotoLibraryExportPresetsPortV1>;
