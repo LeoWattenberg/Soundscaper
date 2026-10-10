@@ -700,6 +700,43 @@ Nyquist Close timeout likewise do not establish additional effects roots.
 Owned focused replay logs and artifacts are removed immediately. These
 browser fixtures change no runtime closure and require no Update AI assets.
 
+## R7-EFFECT-019 — Dialogue Chain omits native compressor delay
+
+Import an ordinary 250 Hz mono recording in Framescaper, select its audio
+track and choose Window → Dialogue Chain → Apply dialogue chain. The downloaded
+WAV reverses the recording's phase, disrupting alignment with parallel material.
+The recipe's native compressor owns a fixed six-millisecond pre-delay, while
+the shared rack compensation declares zero for that processor. Its adjacent
+limiter preview is already compensated. This native Web Audio owner is distinct
+from earlier Audacity lookahead dispatch and live-control defects.
+
+Declare the native pre-delay using the exact 3/500-second timebase, truncating
+to its physical whole sample and preserving the native 1,024-frame ring bound.
+Register that exact enclosing-start conversion. Independent actual impulse
+controls in Chromium, Firefox and WebKit agree: 48 frames at 8 kHz, 264 at
+44.1 kHz, 288 at 48 kHz, 576 at 96 kHz and 1,023 at 192 kHz. Their bounded
+recordings remain in memory. The fixed pre-delay is described by the
+[Web Audio specification](https://www.w3.org/TR/webaudio-1.0/#DynamicsCompressorNode).
+
+The normal recipe's focused compensation cases fail three times before the
+fix, while its bypass control passes. Corrected clock, bypass and existing
+native graph, meters, sidechain, limiter, live-analysis and time-policy cases
+pass 57/57. The ordinary menu/export witness is causally RED on authenticated
+678a672d0 in 6.4 seconds after native impulse, filter-response and dry-delivery
+controls pass: expected phase 0.46700394, actual −2.67458667, alignment cosine
+−0.999999999998 instead of more than 0.98. Corrected complete public verification
+is pending the next guarded capture. Own diagnostics and logs are read and
+removed immediately. No manual Update AI assets run is required.
+
+An optional Undo control in earlier setup correctly removed all five effects
+from persistent state, but its delivered magnitude changed from 0.00706899 to
+0.000410541. Those attempts never reached the phase assertion and are excluded
+from this causal proof; the separate export/cache observation remains under
+audit. An initial blank Firefox probe filled its AudioBuffer after assigning
+it to the source and produced silence; filling before assignment on the
+qualified audio server restores the independent physical control. Neither
+verification issue contributes another bug count.
+
 ### Full-suite verification follow-through — no additional roots
 
 The post-fixture full Node gate identified six stale round-four averaged

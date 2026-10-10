@@ -58,6 +58,7 @@ import { createStandardEffectNode, disposeStandardEffectNode } from './standard-
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import { effectSupportsExplicitSidechain } from '../effect-explicit-sidechain-capability.ts';
+import { secondsToSampleFrame } from '../timeline-time.ts';
 import {
 	createNativePluginEffectNode,
 	isNativePluginEffect,
@@ -108,6 +109,9 @@ export function effectLatencyFrames(effect: EngineEffect, sampleRate: number): n
 		const fallback = nonNegativeInteger(effect.params?.latencyFrames, 0);
 		return nativePluginRuntimeLatencyFrames(effect.params?.instanceId, fallback);
 	}
+	// Native Web Audio compressors retain 6 ms in a 1,024-frame delay ring.
+	if (effect.type === 'compressor') return Math.min(1023,
+		secondsToSampleFrame({ num: 3, den: 500 }, sampleRate, 'enclosingStart'));
 	if (effect.type === 'limiter') {
 		return Math.max(0, Math.ceil(finite(effect.params?.lookahead, 0) * sampleRate));
 	}

@@ -46,6 +46,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'native-compressor-pre-delay',
+		file: 'src/common/editor/engine/effect-rack.ts',
+		behavior: 'Native compressor delay compensation uses the enclosing start sample of its fixed six-millisecond delay, matching the physical native processor truncation before its bounded delay-ring ceiling.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['enclosingStart'] }],
+	},
+	{
 		id: 'band-dynamics-filter-release-end',
 		file: 'src/common/editor/effects.js',
 		behavior: 'Band dynamics reserve their physical crossover release through the enclosing final output sample so export and live scheduling retain the complete filter decay.',
