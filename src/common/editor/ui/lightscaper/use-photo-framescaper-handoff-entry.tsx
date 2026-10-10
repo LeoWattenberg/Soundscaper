@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { lazy, Suspense, useRef, useState, type MouseEvent } from 'react';
-import { photoFramescaperHandoffMenuLabel } from '../../../i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
+import { photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel } from '../../../i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
 import type { PreparePhotoFramescaperHandoff } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
 import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
+import type { CapturedPhotoImageReceive } from './photo-library-workflow-image-receive.ts';
 
 const Dialog = lazy(() => import('./PhotoFramescaperHandoffDialog.tsx'));
+const ReceiveDialog = lazy(() => import('./PhotoFramescaperReceiveDialog.tsx'));
 interface Options {
 	readonly generation: object; readonly locale: string; readonly workingLabel: string; readonly disabled: boolean;
 	readonly selection: Readonly<{ id: string; fileName: string }> | null; readonly selectedCount: number;
@@ -13,6 +15,7 @@ interface Options {
 	readonly capture: () => PreparePhotoFramescaperHandoff; readonly prepareSave: () => Promise<void>;
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly registerDestination: (cancelAndJoin: () => Promise<void>) => () => void;
+	readonly receive: Readonly<{ disabled: boolean; capture: () => Readonly<CapturedPhotoImageReceive>; onImported: () => void }>;
 }
 interface Entry { readonly generation: object; readonly key: string; readonly photoId: string; readonly fileName: string; readonly prepare: PreparePhotoFramescaperHandoff; }
 
@@ -20,9 +23,11 @@ interface Entry { readonly generation: object; readonly key: string; readonly ph
 export function usePhotoFramescaperHandoffEntry(options: Options) {
 	const latest = useRef(options); latest.current = options;
 	const [stored, setStored] = useState<Entry | null>(null);
+	const [storedReceive, setStoredReceive] = useState<Readonly<{ generation: object; key: string; capture: Readonly<CapturedPhotoImageReceive> }> | null>(null);
+	const receiveEntry = storedReceive?.generation === options.generation ? storedReceive : null;
 	const isSelected = (entry: Entry) => latest.current.generation === entry.generation && latest.current.selectedCount === 1 && latest.current.selection?.id === entry.photoId;
 	const entry = stored && isSelected(stored) ? stored : null;
-	const disabled = options.disabled || !options.selection || options.selectedCount !== 1 || entry !== null;
+	const disabled = options.disabled || !options.selection || options.selectedCount !== 1 || entry !== null || receiveEntry !== null;
 	const open = (event: MouseEvent<HTMLButtonElement>) => {
 		const current = latest.current;
 		if (current.generation !== options.generation || current.disabled || !current.selection || current.selectedCount !== 1 || entry || !current.closeMenu(event)) return;
@@ -30,8 +35,18 @@ export function usePhotoFramescaperHandoffEntry(options: Options) {
 		setStored(Object.freeze({ generation: current.generation, key: crypto.randomUUID(), photoId: current.selection.id, fileName: current.selection.fileName, prepare }));
 		void current.prepareSave();
 	};
+	const openReceive = (event: MouseEvent<HTMLButtonElement>) => {
+		const current = latest.current;
+		if (current.generation !== options.generation || current.receive.disabled || receiveEntry || entry || !current.closeMenu(event)) return;
+		setStoredReceive(Object.freeze({ generation: current.generation, key: crypto.randomUUID(), capture: current.receive.capture() }));
+	};
 	return {
 		menu: <button type="button" data-photo-framescaper-handoff-menu disabled={disabled} onClick={open}>{photoFramescaperHandoffMenuLabel(options.locale)}</button>,
+		receiveMenu: <button type="button" data-photo-framescaper-receive-menu disabled={options.receive.disabled || entry !== null || receiveEntry !== null} onClick={openReceive}>{photoFramescaperReceiveMenuLabel(options.locale)}</button>,
+		receiveSurface: receiveEntry ? <Suspense fallback={<p role="status">{options.workingLabel}</p>}><ReceiveDialog key={receiveEntry.key} locale={options.locale} capture={receiveEntry.capture}
+			isCurrent={() => latest.current.generation === receiveEntry.generation} registerDestination={options.registerDestination}
+			onImported={() => { if (latest.current.generation === receiveEntry.generation) latest.current.receive.onImported(); }}
+			onClose={() => { if (latest.current.generation === receiveEntry.generation) setStoredReceive(null); }} /></Suspense> : null,
 		surface: entry ? <Suspense fallback={<p role="status">{options.workingLabel}</p>}><Dialog key={entry.key} photoId={entry.photoId} fileName={entry.fileName} locale={options.locale}
 			prepare={entry.prepare} isSelected={() => isSelected(entry)} saveRuntime={options.saveRuntime} registerDestination={options.registerDestination}
 			onClose={() => { if (latest.current.generation === entry.generation) setStored(null); }} /></Suspense> : null,

@@ -11,6 +11,7 @@ import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-librar
 import { lightscaperMenuEvents } from './lightscaper-menu-events.ts';
 import { usePhotoRasterExportEntry } from './use-photo-raster-export-entry.ts';
 import { usePhotoFramescaperHandoffEntry } from './use-photo-framescaper-handoff-entry.tsx';
+import { useCapturedMethod } from './use-lightscaper-captured-method.ts';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntryV2 } from './use-photo-develop-entry-v2.ts';
 import { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
@@ -63,13 +64,6 @@ const PhotoDevelopWorkspace = lazy(() => import('./PhotoDevelopWorkspaceV2.tsx')
 const unavailableQueryRuntime: LoadPhotoMetadataQueryRuntimeV2 = async () => { throw new Error('Photo query controls are unavailable.'); };
 const unavailableSavedFilterRuntime: LoadPhotoSavedFilterRuntimeV1 = async () => { throw new Error('Saved photo filters are unavailable.'); };
 const unavailableDevelopProxyRuntime: CreatePhotoLibraryDevelopProxyRuntimeV2 = async () => { throw new Error('Photo develop proxy is unavailable.'); };
-function useCapturedMethod<T extends (...args: never[]) => unknown>(method: T, receiver: unknown): T;
-function useCapturedMethod<T extends (...args: never[]) => unknown>(method: T | undefined, receiver: unknown): T | undefined;
-function useCapturedMethod<T extends (...args: never[]) => unknown>(method: T | undefined, receiver: unknown): T | undefined {
-	const capture = () => ({ method, invoke: method ? ((...args: Parameters<T>) => Reflect.apply(method, receiver, args)) as T : undefined });
-	const pinned = useRef(capture()); if (pinned.current.method !== method) pinned.current = capture();
-	return pinned.current.invoke;
-}
 export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 	const { locale, createSession: suppliedCreateSession, loadBackupSaveRuntime: suppliedBackup, loadMetadataQueryRuntime: suppliedQuery = unavailableQueryRuntime,
 		loadSavedFilterRuntime: suppliedSaved = unavailableSavedFilterRuntime, loadRestoreRuntime: suppliedRestore, loadDevelopProxyRuntime: suppliedRenderer = unavailableDevelopProxyRuntime } = props;
@@ -238,7 +232,9 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		selected: library.page?.rows.filter(row => photoSelection.snapshot.selectedIds.includes(row.id)) ?? [] });
 	const handoff = usePhotoFramescaperHandoffEntry({ generation, locale, selection, closeMenu, selectedCount: photoSelection.snapshot.selectedIds.length, workingLabel: copy.photoWorking,
 		disabled: !createSession || !loadBackupSaveRuntime || !libraryVisible || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
-		capture: library.captureImageHandoff, prepareSave: library.prepareBackupSave, saveRuntime: library.backupSaveRuntime, registerDestination: library.registerExportDestination });
+		capture: library.captureImageHandoff, prepareSave: library.prepareBackupSave, saveRuntime: library.backupSaveRuntime, registerDestination: library.registerExportDestination,
+		receive: { capture: library.captureImageReceive, disabled: !createSession || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
+			onImported: () => { if (isCurrent()) setLibraryVisible(true); } } });
 	const openReview = (kind: 'compare' | 'survey', event: MouseEvent<HTMLButtonElement>) => {
 		const active = reviewMenu.current;
 		if (active.generation !== compareGeneration || active.queryIdentity !== library.queryIdentity || !active.libraryVisible
@@ -348,6 +344,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 					<summary className="application-header__menu-item">{copy.photoFileMenu}</summary>
 					<div className="lightscaper-menu-items">
 						<button type="button" disabled={restore.busy || library.busy} onClick={event => { if (!closeMenu(event)) return; setImportVisible(true); }}>{copy.photoImportPhotos}</button>
+						{handoff.receiveMenu}
 						<button type="button" disabled={restore.busy || library.busy} onClick={event => { if (!closeMenu(event)) return; setOrganizerVisible(true); }}>{copy.photoOrganizerTitle}</button>
 						{raster.menus.map(item => <button key={item.key} type="button" {...{ [`data-photo-${item.key}-export-menu`]: true }} disabled={item.disabled} onClick={item.onClick}>{item.label}</button>)}
 						<button type="button" data-photo-backup-menu disabled={restore.busy} onClick={event => {
@@ -520,6 +517,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 			execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata} captureSidecarReader={library.captureExportSidecarReader}
 			saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} captureJournal={library.captureExportJournalOpener} capturePresets={library.captureExportPresetsOpener} onClose={raster.close} onHide={raster.hide} onSettled={raster.settled} /></Suspense>}
 		{!restore.busy && handoff.surface}
+		{!restore.busy && handoff.receiveSurface}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
 				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}

@@ -3,3 +3,7 @@
 export function photoFramescaperHandoffMenuLabel(locale: string): string {
 	return locale.toLowerCase().split('-')[0] === 'de' ? 'Bearbeitbare Framescaper-Kopie herunterladen…' : 'Download editable Framescaper copy…';
 }
+
+export function photoFramescaperReceiveMenuLabel(locale: string): string {
+	return locale.toLowerCase().split('-')[0] === 'de' ? 'Bearbeitbares Framescaper-Foto importieren…' : 'Import editable Framescaper photo…';
+}

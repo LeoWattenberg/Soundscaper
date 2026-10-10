@@ -24,3 +24,18 @@ for (const locale of ['en', 'de']) test(`${locale}: editable Framescaper copy is
 		assert.equal(mounted.dom.find('[data-photo-framescaper-handoff-dialog]'), null);
 	} finally { await mounted.dispose(); }
 });
+
+for (const locale of ['en', 'de']) test(`${locale}: receive editable photo is a separate opt-in File action`, async () => {
+	const label = locale === 'de' ? 'Bearbeitbares Framescaper-Foto importieren…' : 'Import editable Framescaper photo…';
+	const mounted = await mountPhotoImportUi(() => {
+		Object.defineProperty(window, 'dispatchEvent', { configurable: true, value: () => true });
+		return <LightscaperAppV2 locale={locale} />;
+	});
+	try {
+		const menu = mounted.dom.container.querySelectorAll('button').find(button => button.textContent === label);
+		assert.ok(menu, 'Receiving a saved editable archive must be reachable through File.');
+		assert.equal(menu.closest('details')?.querySelector('summary')?.textContent, locale === 'de' ? 'Datei' : 'File');
+		assert.equal(reactProps(menu).disabled, true, 'No selected Session factory grants receive authority.');
+		assert.equal(mounted.dom.find('[data-photo-framescaper-receive-dialog]'), null);
+	} finally { await mounted.dispose(); }
+});

@@ -15,3 +15,21 @@ const DE = Object.freeze({ title: 'Bearbeitbare Framescaper-Kopie',
 	saved: 'Kopie gespeichert: {name}', downloadStarted: 'Download gestartet: {name}', cancelled: 'Download abgebrochen.',
 	failed: 'Die Kopie konnte nicht vorbereitet oder gespeichert werden. Das ausgewählte Foto hat sich möglicherweise geändert. Diesen Dialog schließen und das Foto erneut auswählen.' });
 export function photoFramescaperHandoffCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? DE : EN; }
+
+const RECEIVE_EN = Object.freeze({ title: 'Import editable Framescaper photo',
+	description: 'Choose a saved .fscape file, then choose one photo with saved editable development settings. Its original and recipe become a new photo in this library.',
+	file: 'Editable Framescaper file', source: 'Photo to import', choose: 'Choose a photo…', originalDimensions: 'Original dimensions',
+	unavailable: '{count} images are unavailable for editable import.', empty: 'This file has no supported editable photos.',
+	importPhoto: 'Import photo', close: 'Close', reload: 'Reload library', working: 'Reading or importing the selected photo…',
+	imported: 'Photo imported.', recovery: 'Photo imported. Reload the library to finish the import.',
+	refreshFailed: 'Photo imported. The library view could not be refreshed. Reload the library.',
+	failed: 'The editable photo could not be read or imported. Choose another file or photo and try again.', reloadFailed: 'The library could not be reloaded. Try Reload library again.' });
+const RECEIVE_DE = Object.freeze({ title: 'Bearbeitbares Framescaper-Foto importieren',
+	description: 'Eine gespeicherte .fscape-Datei und anschließend ein Foto mit bearbeitbaren Entwicklungseinstellungen auswählen. Original und Einstellungen werden als neues Foto in diese Bibliothek übernommen.',
+	file: 'Bearbeitbare Framescaper-Datei', source: 'Zu importierendes Foto', choose: 'Ein Foto auswählen…', originalDimensions: 'Originalabmessungen',
+	unavailable: '{count} Bilder können nicht bearbeitbar importiert werden.', empty: 'Diese Datei enthält keine unterstützten bearbeitbaren Fotos.',
+	importPhoto: 'Foto importieren', close: 'Schließen', reload: 'Bibliothek neu laden', working: 'Das ausgewählte Foto wird gelesen oder importiert…',
+	imported: 'Foto importiert.', recovery: 'Foto importiert. Die Bibliothek neu laden, um den Import abzuschließen.',
+	refreshFailed: 'Foto importiert. Die Bibliotheksansicht konnte nicht aktualisiert werden. Die Bibliothek neu laden.',
+	failed: 'Das bearbeitbare Foto konnte nicht gelesen oder importiert werden. Eine andere Datei oder ein anderes Foto auswählen und erneut versuchen.', reloadFailed: 'Die Bibliothek konnte nicht neu geladen werden. Erneut auf Bibliothek neu laden klicken.' });
+export function photoFramescaperReceiveCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? RECEIVE_DE : RECEIVE_EN; }
