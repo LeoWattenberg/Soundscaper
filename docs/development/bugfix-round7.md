@@ -264,3 +264,24 @@ workflows also pass unchanged in1.1 minutes, including persistence after
 reload. Their original startup/tempo observer failures do not reproduce;
 no production behavior, assertions, deadlines or input helpers are changed.
 Completed replay logs and output directories are removed immediately.
+
+## Qualified total:90 fixes
+
+Both guarded product builds authenticate prepared678a672d0 and pass their
+unchanged chunk/asset guards (largest487,689 bytes). All10 corrected ordinary
+Chromium workflows pass in23.4 seconds: EDIT021 sorting2 cases, DIALOG027
+preset-save refusal/retry, DIALOG028 independently locked dissolve audio,
+EFFECT018 Noise Reduction release, IO025 EDL overlap2 cases and IO026 native
+EDL retime2 cases. EDIT020's unchanged Title Skip follow-through also passes
+and adds no count. The six newly qualified roots bring the total to90:
+editing20, dialogs27, effects18 and IO25.
+
+Complete source and test/tooling strict compilation pass. The test compiler's
+three new fixture typing errors are corrected by preserving actual typed
+native clips/tracks and narrowing the clip-ID array; production/API types
+remain intact. Build evidence rejects an earlier revision mismatch caused by
+parallel documentation/test commits; rebuild and preparation run against the
+fixed commit without weakening verification. Current full50 failure triage
+continues, with the next complete gates due at100. Reviewed build, compiler
+and browser logs/results are removed after their receipts. No manual
+**Update AI assets** run is required.
