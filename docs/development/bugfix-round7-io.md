@@ -525,7 +525,7 @@ Actual original and delivered48kHz clocks and programme amplitude assertions
 remain unchanged. This qualifies one independent video-import clock root;
 completed own diagnostics/output/log are consumed and immediately removed.
 
-IO047 ordinary shortcut baseline (not counted; source unchanged): public
+IO047 ordinary shortcut baseline (not counted; before correction): public
 Preferences→Keyboard shortcuts→Play at speed→AssignCtrl+Alt+P exposes the
 maintained local command directly. Authenticated guarded5dd339942 ordinary
 1.25× toolbar start retires an actual audible Bin recording and supports replay
@@ -538,7 +538,18 @@ Play-at-speed item, so its internal workspace action alone is excluded as a
 user path. The configured shortcut is authored entirely through the ordinary
 Preferences UI; native audio nodes/context/device APIs are unchanged apart
 from a passive forwarding analyser. Every completed own diagnostic and bounded
-log is read and removed immediately. No production correction/count yet.
+log is read and removed immediately.
+
+IO047 correction (public qualification pending): the direct Play-at-speed
+transport now awaits the same owned Bin retirement as ordinary Play, and checks
+its request generation after that asynchronous handoff. Stop during retirement
+cannot start the old timeline request. The actual transport service has two
+causal focused failures before correction: Bin retirement is omitted, and Stop
+still permits one timeline start. The corrected witnesses and existing
+transport, Bin ownership, Bin service and document controls pass39/39 in1.644
+seconds. Target type-aware lint and canonical lint:changed pass. These small
+verification logs are consumed and immediately removed; the two complete native
+public workflows remain queued for a guarded product capture. No new count yet.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
