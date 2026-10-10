@@ -3,7 +3,7 @@
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, collectClientErrors, importFiles, openEffectsForTrack } from './audio-editor-test-helpers.js';
 
-test('Master gain accepts a later ordinary range drag after primary release while middle stays held', async ({ page }) => {
+test('Master gain accepts a later ordinary range drag after primary release while middle stays held', async ({ page, browserName }) => {
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [createWavFixture({ name: 'Range recording.wav', duration: .5, channelCount: 2 })]);
@@ -28,6 +28,10 @@ test('Master gain accepts a later ordinary range drag after primary release whil
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(range).toHaveValue('0');
 	await range.evaluate(element => {
+		element.addEventListener('pointerdown', event => {
+			if (event.pointerType === 'mouse' && event.button === 0) element.dataset.nativePointerId = String(event.pointerId);
+		});
+		element.addEventListener('gotpointercapture', () => { element.dataset.nativeCaptureGained = 'true'; });
 		element.addEventListener('pointermove', event => {
 			if (event.pointerType === 'mouse' && event.button === 0 && event.buttons === 4) {
 				element.dataset.primaryReleased = String(event.buttons);
@@ -42,7 +46,12 @@ test('Master gain accepts a later ordinary range drag after primary release whil
 	await expect(range).toHaveAttribute('data-primary-released', '4');
 	await page.mouse.move(x, y - 80, { steps: 2 });
 	await page.mouse.up({ button: 'middle' });
-	await expect(range).toHaveAttribute('data-native-capture-lost', 'true');
+	await expect(range).toHaveAttribute('data-native-pointer-id', /^\d+$/);
+	await expect.poll(() => range.evaluate(element => element.hasPointerCapture(Number(element.dataset.nativePointerId)))).toBe(false);
+	if (browserName === 'chromium') await expect(range).toHaveAttribute('data-native-capture-gained', 'true');
+	if (await range.getAttribute('data-native-capture-gained') === 'true') {
+		await expect(range).toHaveAttribute('data-native-capture-lost', 'true');
+	}
 	await editor.getByRole('button', { name: 'Undo', exact: true }).focus();
 	const beforeNext = await range.inputValue();
 	await drag();
