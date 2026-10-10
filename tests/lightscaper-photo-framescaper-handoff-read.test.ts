@@ -48,6 +48,7 @@ for (const [processVersion, enabled] of [[1, false], [2, false], [2, true]] as c
 		assert.equal(view.source.original.fileName, 'é.png'); assert.deepEqual(view.source.developed, { width: 1, height: 1 });
 		assert.ok(view.originalBlob instanceof Blob); assert.equal(view.originalBlob.type, 'image/png');
 		assert.deepEqual(new Uint8Array(await view.originalBlob.arrayBuffer()), PNG);
+		assert.equal(view.canonicalFrameSha256, createHash('sha256').update(Uint8Array.of(23, 71, 149, 255)).digest('hex'));
 		assert.deepEqual(view.lutReferences, processVersion === 2 ? [LUT_REFERENCE] : []);
 		if (processVersion === 2) assert.equal(await view.withLutBytes(LUT_REFERENCE, bytes => { assert.deepEqual(bytes, LUT_BODY); return 71; }, { signal: view.signal }), 71);
 		return 'authenticated selected recipe';
@@ -243,5 +244,19 @@ test('Light reverse reader preserves opaque native cancellation during original 
 	try {
 		await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive: f.archive, sourceId: f.sourceId, signal: stop.signal }, () => assert.fail('cancelled archive consumer')), error => error === reason);
 		assert.ok(original); assert.ok(original.every(value => value === 0)); assert.equal(reflections, 0);
+	} finally { globalThis.Uint8Array = Native; }
+});
+
+test('Light reverse reader joins and wipes canonical frame storage before preserving cancellation', async () => {
+	const f = await fixture(1), Native = globalThis.Uint8Array, stop = new AbortController(), reason = Symbol('canonical-frame-cancel');
+	let backing: Uint8Array | undefined, before: number[] | undefined, consumers = 0;
+	globalThis.Uint8Array = new Proxy(Native, { construct(target, args: unknown[], newTarget) {
+		const bytes = Reflect.construct(target, args, newTarget) as Uint8Array;
+		if (args[0] === 5) { backing = bytes; queueMicrotask(() => { before = Array.from(bytes); stop.abort(reason); }); }
+		return bytes;
+	} });
+	try {
+		await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive: f.archive, sourceId: f.sourceId, signal: stop.signal }, () => { consumers++; }), error => error === reason);
+		assert.deepEqual(before, [23, 71, 149, 255, 0]); assert.ok(backing); assert.ok(backing.every(value => value === 0)); assert.equal(consumers, 0);
 	} finally { globalThis.Uint8Array = Native; }
 });

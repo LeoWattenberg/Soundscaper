@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import { withScapeProjectInput } from '../../common/editor/scape-project-input.ts';
 import { readScapeArchiveEnvelope, type ScapeAssetDescriptor, type ScapeArchiveEnvelope } from '../../common/editor/scape-archive-envelope.ts';
@@ -24,6 +26,8 @@ export interface PhotoFramescaperHandoffReadRequestV1 { readonly archive: Blob; 
 export interface PhotoFramescaperHandoffReadViewV1 {
 	readonly schemaVersion: 1; readonly projectId: string; readonly projectRevision: number;
 	readonly source: Readonly<FramescaperImageSourceV2>; readonly originalBlob: Blob;
+	/** Authenticated original canonical RGBA, before the editable recipe. */
+	readonly canonicalFrameSha256: string;
 	readonly lutReferences: readonly Readonly<VideoCubeLutReferenceV1>[]; readonly signal: AbortSignal;
 	readonly withLutBytes: CubeLutSourcePortV1['withBytes'];
 }
@@ -73,7 +77,7 @@ export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonl
 			const descriptor = validation.images.descriptorByArchiveId.get(`framescaper:image:${source.id}`);
 			if (!descriptor) throw new Error('Photo editable archive selected pack descriptor is missing.');
 			const pack = await readBody(envelope, descriptor, signal);
-			let originalBlob: Blob;
+			let originalBlob: Blob, canonicalFrameSha256: string;
 			try {
 				const projection = timelineImageArchivePackProjection(framescaperProjectTimelineImageFoundationShapeAssistance({ ...project, sources: [source] }));
 				const packedSource = projection.sources[0];
@@ -90,6 +94,10 @@ export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonl
 				const original = await reader.readOriginal();
 				try { check(signal); originalBlob = Object.freeze(new Blob([original as Uint8Array<ArrayBuffer>], { type: source.original.mimeType ?? '' })); }
 				finally { wipe(original); }
+				check(signal);
+				const frame = await reader.readFrame(0);
+				try { check(signal); canonicalFrameSha256 = bytesToHex(sha256(frame)); }
+				finally { wipe(frame); }
 			} finally { wipe(pack); }
 			const bodies = new Map<string, Blob>();
 			for (const reference of lutReferences) {
@@ -102,7 +110,7 @@ export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonl
 				} finally { wipe(bytes); }
 			}
 			const facts: Omit<PhotoFramescaperHandoffReadViewV1, 'withLutBytes'> = {
-				schemaVersion: 1, projectId: project.id, projectRevision: project.revision, source, originalBlob, lutReferences, signal,
+				schemaVersion: 1, projectId: project.id, projectRevision: project.revision, source, originalBlob, canonicalFrameSha256, lutReferences, signal,
 			};
 			return { facts, bodies };
 		}); } catch (error) { check(signal); throw restoreNormalizedScapeAbortReason(error); }
