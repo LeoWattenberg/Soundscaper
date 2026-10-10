@@ -405,6 +405,19 @@ full-run timeout is preserved. Completed owned output/log are read and removed
 immediately, and all replay readers close; the frozen full-suite source and
 assets remain immutable.
 
+
+Full200 completed Firefox camera-clock observations (zero count): both ordinary
+48 kHz PCM camera cases fail before application import. The 3000 Hz case takes
+2.425 seconds and the 23000 Hz case takes3.914 seconds; both exact JSON stacks
+point to the test's direct OfflineAudioContext.decodeAudioData source witness
+with “unknown content type.” Their contexts and PNGs show a ready empty editor,
+without an imported clip. The application importer and delivered-band assertions
+are not reached, so these failures do not establish a native-clock product
+regression. Both exact completed JSON/context/PNG sets were read and their owned
+diagnostic directories immediately removed. The original full-suite failures
+remain recorded; unchanged whole focused replay and decoder capability review
+are pending without source, deadline or count changes.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
