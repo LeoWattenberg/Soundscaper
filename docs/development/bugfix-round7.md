@@ -294,3 +294,24 @@ are read, classified and deleted, including four WebKit export failures that
 stop before editor readiness. The shared90 public log is read by all owners
 and removed; startup tightening finds no smaller ceiling and changed lint
 passes. Completed verification output is retired immediately.
+
+The final unchanged checkpoint50 root replays against guardeddb368adda pass
+all10 applicable Title-rate, realistic live-set and actual video composition
+cases in1.8 minutes; four cases skip their original unsupported engine paths.
+Both exact Firefox video failures and the Firefox live-set recording failure
+pass with the qualified native CI audio sink. WebKit's exact Title-rate case
+also passes without assertion or deadline changes. Chromium spectral-handle
+touch remains reproducible after the final native touch release and is being
+traced separately; no count is assigned to that existing regression. Its
+context and all completed replay diagnostics are read and removed.
+
+Qualified total94: editing21, dialogs29, effects19 and IO25. Guardeddb368adda
+builds both products without changing their guards, with largest chunk487,689
+bytes; startup tightening finds no smaller ceiling. Corrected Title range
+workflows pass6.4/5.9 seconds, Guided first-contact complete gesture6.2, stale
+Freeze media cleanup7.9, and native dialogue compressor physical-clock/phase/
+parallel-audio workflow10.0. Four owners are fully qualified; all symptoms
+of one owner remain one count. Complete source and test/tooling compilers
+pass. The helper-triggered full Node run and complete repository lint continue;
+its extraction register drift is corrected separately with19 focused passes.
+Manual **Update AI assets** is not required.
