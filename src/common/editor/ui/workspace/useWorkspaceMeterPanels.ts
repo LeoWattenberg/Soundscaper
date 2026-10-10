@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { MeterSettings } from '../meter-settings.ts';
 
@@ -32,6 +32,7 @@ export function useWorkspaceMeterPanels(input: Readonly<{
 	const currentControllerRef = useRef(controller);
 	currentControllerRef.current = controller;
 	const pendingRef = useRef(new Map<string, symbol>());
+	const [settlementRevision, setSettlementRevision] = useState(0);
 	const standaloneRef = useRef<Record<string, MeterSettings['position']>>({
 		'playback-meter': playbackMeterSettings.position === 'panel' ? 'flyout' : playbackMeterSettings.position,
 		'recording-meter': recordingMeterSettings.position === 'panel' ? 'flyout' : recordingMeterSettings.position,
@@ -63,19 +64,24 @@ export function useWorkspaceMeterPanels(input: Readonly<{
 				pendingRef.current.set(panelId, request);
 				const result = run(() => controller.actions.preferences.setPanelVisibility(panelId, position === 'panel'), { clearError: false });
 				void Promise.resolve(result).then(() => {
-					if (pendingRef.current.get(panelId) === request) pendingRef.current.delete(panelId);
+					if (!finishRequest()) return;
+					setSettlementRevision(revision => revision + 1);
 				}, () => {
-					if (pendingRef.current.get(panelId) !== request) return;
-					pendingRef.current.delete(panelId);
-					if (!mountedRef.current || currentControllerRef.current !== controller) return;
+					if (!finishRequest()) return;
 					// A rejected workspace write must also reconcile the independent
 					// local meter setting, rather than turning rollback into a retry.
 					setSettings((settings) => settings.position === position ? {
 						...settings, position: visible ? 'panel' : standaloneRef.current[panelId],
 					} : settings);
+					setSettlementRevision(revision => revision + 1);
 				});
+				function finishRequest(): boolean {
+					if (pendingRef.current.get(panelId) !== request) return false;
+					pendingRef.current.delete(panelId);
+					return mountedRef.current && currentControllerRef.current === controller;
+				}
 			}
 		}
 	}, [controller, playbackMeterSettings.position, playbackVisible, ready, recordingMeterSettings.position,
-		recordingVisible, run, setPlaybackMeterSettings, setRecordingMeterSettings]);
+		recordingVisible, run, settlementRevision, setPlaybackMeterSettings, setRecordingMeterSettings]);
 }
