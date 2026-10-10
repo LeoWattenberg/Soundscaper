@@ -30,7 +30,7 @@ export async function createRecordingController({
 	channelCount = 1,
 	chunkFrames = 4096,
 	monitor = false,
-	monitorDestination = null,
+	monitorDestination = /** @type {AudioNode | null} */ (null),
 	fixedStopFrame = false,
 	inputGain = RECORDING_INPUT_GAIN_DEFAULT,
 	onChunk,

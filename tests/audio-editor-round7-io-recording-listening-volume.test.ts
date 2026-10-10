@@ -16,13 +16,16 @@ for (const routed of [false, true]) test(`${routed ? 'routed' : 'default'} recor
 	const engine = { ...createRecordingEngine(), getPlaybackDestination: () => destination };
 	const stream = createMockStream([createMockTrack('audio', { channelCount: 1 })]);
 	const created: RecordingControllerFactoryOptions[] = [];
-	const controller = createAudioEditorController(null, { engine, store, ffmpeg: createFfmpegStub(),
-		recordingCapturePool: createCapturePool({ hardware: { default: stream } }),
+	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
+	const controller = createAudioEditorController(null, { store,
+		engine: engine as unknown as Options['engine'], ffmpeg: createFfmpegStub() as unknown as Options['ffmpeg'],
+		recordingCapturePool: createCapturePool({ hardware: { default: stream } }) as unknown as Options['recordingCapturePool'],
 		recordingControllerFactory: createRecordingControllerFactory(created),
 	});
 	try {
 		await controller.ready;
-		const trackId: string = controller.getSnapshot().project.tracks[0].id;
+		const trackId = controller.getSnapshot().project?.tracks?.[0]?.id;
+		assert.ok(typeof trackId === 'string');
 		if (routed) await controller.actions.recording.setTrackInput(trackId, {
 			kind: 'device', deviceId: 'default', channelStart: 0, channelCount: 1,
 		});
@@ -35,8 +38,11 @@ for (const routed of [false, true]) test(`${routed ? 'routed' : 'default'} recor
 		const samples = new Float32Array(8_192).fill(0.25);
 		await request.onChunk({ frameStart: 0, frames: samples.length, channels: [samples] });
 		await controller.actions.recording.stop();
-		const sourceId: string = controller.getSnapshot().project.sources[0].id;
-		const stored: { channels: Float32Array[] } = await store.readSourceChunk(sourceId, 0);
+		const sources = controller.getSnapshot().project?.sources;
+		assert.ok(Array.isArray(sources));
+		const source = sources[0] as Readonly<{ id?: unknown }> | undefined;
+		assert.ok(typeof source?.id === 'string');
+		const stored = await store.readSourceChunk(source.id, 0);
 		assert.equal(stored.channels[0]![0], 0.25, 'listening mute leaves the captured PCM untouched');
 	} finally { await controller.dispose(); }
 });
@@ -50,7 +56,7 @@ for (const listening of [false, true]) test(`recording worklet connects to ${lis
 		createMediaStreamSource: () => ({ connect() {}, disconnect() {} }),
 	};
 	const request = { context, stream: { getTracks: () => [] }, monitor: true,
-		...(listening ? { monitorDestination: monitor } : {}),
+		...(listening ? { monitorDestination: monitor as unknown as AudioNode } : {}),
 		nodeFactory: () => ({ port: { onmessage: null, onmessageerror: null,
 			postMessage() {}, start() {} }, onprocessorerror: null,
 			connect(destination: unknown) { connected.push(destination); }, disconnect() {},
