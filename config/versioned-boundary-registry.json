@@ -412,6 +412,8 @@
 		,
 		{ "path": "src/common/editor/imaging/image-develop-state-v2.ts", "kind": "helper-contract", "justification": "Explicit process-2 develop admission adds only the owning nullable cube LUT profile beside unchanged numeric and curve families. The closed V1-or-V2 dispatcher requires consumer opt-in; geometry, mask identities, ordering and fixed limits remain shared, and recipe references do not authorize body custody or rendering." }
 		,
+		{ "path": "src/common/editor/imaging/image-export-size-v1.ts", "kind": "helper-contract", "justification": "Version 1 allocation-free export sizing plans fit, long-edge, conservative megapixels and percentage dimensions under one captured frame capacity, preserving declared depth and color without codec admission or cropping." }
+		,
 		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
 		,
 		{"path": "src/common/editor/imaging/image-geometry-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared image geometry is a closed immutable successor recipe with crop, rotation, flips and a convex source quad; existing PhotoGeometryV1 and timeline mask crops remain unchanged."}
