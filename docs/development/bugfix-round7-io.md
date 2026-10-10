@@ -734,6 +734,29 @@ archives or supported target inventories change; manual Update AI assets is
 not required. All original full-run failures remain recorded and the qualified
 total remains200.
 
+Fresh canonical coverage storage verification (zero count): the temporary
+`/tmp/r7follow-v8-map-watch.mjs` helper (9,229 bytes, SHA-256
+`81de0a96110b1318c5bac065842af72e5119ed83feb9c862d4536f9d92cc00c2`)
+removes a source-map-cache entry only when an existing lexicographically earlier
+profile in the same directory retains the exactly identical JSON payload. Every
+result, function, count and other metadata survives. Different map variants and
+late-arriving earlier owners remain; already processed owners are not rewritten.
+Age, open-writer, before/after device/inode/size/time checks and immediate owner
+revalidation protect young, partial and replaced profiles before sibling atomic
+replacement. Eight bounded controls passed in 0.85 seconds, including live and
+partial files, same/different maps, arrival order, disappeared owners, in-place
+and inode replacement, and stop-flag final drain. Actual Node V8 profiles produced
+identical repository compaction and identical c8 summary/detailed coverage maps
+before and after normalization: one duplicate entry removed, 40,220 to 39,773
+bytes (447 bytes saved), with all measured TypeScript line/branch coverage
+unchanged. The guarded stop/drain control saved 141 bytes and finished with the
+expected counters and atomic status. All verification fixture directories were
+removed in the proof's finally block; its script/log were removed after this
+receipt. Only the helper remains until the coordinated canonical writer and
+report have closed, after which the root will create its stop flag, explicitly
+wait for the final guarded drain, and remove the helper/status/log. No maintained
+source, runtime closure, dependency, coverage floor or qualified count changes.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
