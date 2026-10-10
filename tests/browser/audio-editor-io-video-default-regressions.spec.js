@@ -110,10 +110,34 @@ async function readExportedPixelEvidence(page, dialog) {
 				video.onerror = () => reject(new Error('The exported video could not be decoded.'));
 				video.src = url;
 			});
-			await new Promise((resolve) => {
-				video.onseeked = resolve;
+			let callbackId = null;
+			let timer = null;
+			try {
+				const presented = new Promise((resolve, reject) => {
+					timer = setTimeout(() => reject(new Error(
+						'Timed out waiting for the exported video frame to be presented.',
+					)), 5_000);
+					callbackId = video.requestVideoFrameCallback(resolve);
+				});
+				const seeked = new Promise((resolve, reject) => {
+					video.addEventListener('seeked', resolve, { once: true });
+					video.addEventListener('error', () => reject(new Error(
+						'The exported video seek failed.',
+					)), { once: true });
+				});
 				video.currentTime = 0.1;
-			});
+				await Promise.all([presented, seeked]);
+				callbackId = null;
+			} finally {
+				if (timer !== null) clearTimeout(timer);
+				if (callbackId !== null) video.cancelVideoFrameCallback(callbackId);
+			}
+			if (video.videoWidth !== 54 || video.videoHeight !== 96) {
+				throw new Error(`Unexpected exported video dimensions: ${video.videoWidth}×${video.videoHeight}.`);
+			}
+			if (video.readyState < video.HAVE_CURRENT_DATA) {
+				throw new Error('The exported video has no current decoded frame.');
+			}
 			const canvas = document.createElement('canvas');
 			canvas.width = video.videoWidth;
 			canvas.height = video.videoHeight;
