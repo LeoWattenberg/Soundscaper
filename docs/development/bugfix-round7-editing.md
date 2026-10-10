@@ -287,3 +287,11 @@ pass6/6, also included in the59-test group. Preserve deliberate main-timeline
 two-touch pinch when it already owns the first contact. The one-use passive
 trace spec and read diagnostics are deleted immediately after the cause
 receipt. The original unchanged public spectral workflow awaits this capture.
+
+Authenticated04e87c277 completes both unchanged public cases,2/2 in6.9
+seconds: native Title keeps ordinary audio Next clip navigation, and the
+original spectral handle first-contact workflow survives the secondary touch
+and final release. EDIT023 is fully qualified; the spectral repair adds no
+count. All reproducible full50 browser failures now have focused resolution;
+this does not relabel that failed complete run as a pass. Both public logs and
+output directories are read and removed immediately after the receipt.
