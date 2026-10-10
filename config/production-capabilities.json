@@ -776,7 +776,13 @@
 						"src/lightscaper/controller/photo-library-session.ts",
 						"tests/lightscaper-photo-library-import-capacity.test.ts",
 						"tests/browser/lightscaper-photo-library.spec.js",
-						"tests/browser/lightscaper-photo-metadata.spec.js"
+						"tests/browser/lightscaper-photo-metadata.spec.js",
+						"src/lightscaper/photo-library-session-runtime-v3.ts",
+						"src/common/editor/ui/lightscaper/LightscaperAppV2.tsx",
+						"tests/lightscaper-current-app.test.tsx",
+						"tests/lightscaper-product-registration.test.ts",
+						"tests/browser/lightscaper-current-library-loop.spec.js",
+						"tests/browser/lightscaper-current-cube-lut.spec.js"
 					]
 				},
 				"web-enhanced": {
@@ -815,7 +821,7 @@
 				"videoExport": false,
 				"photoLibrarySurface": true,
 				"photoCatalog": true,
-				"photoDevelop": false,
+				"photoDevelop": true,
 				"photoExport": false,
 				"photoRaw": false,
 				"assistanceAssets": false,

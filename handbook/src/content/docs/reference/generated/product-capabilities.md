@@ -46,7 +46,7 @@ Families describe product entry points, not every file extension a decoder might
 | Nested sequences | Not enabled | Enabled | Not enabled |
 | OpenFX effects | Not enabled | Enabled | Not enabled |
 | Photo catalog | Not enabled | Not enabled | Enabled |
-| Photo develop | Not enabled | Not enabled | Not enabled |
+| Photo develop | Not enabled | Not enabled | Enabled |
 | Photo export | Not enabled | Not enabled | Not enabled |
 | Photo library shell | Not enabled | Not enabled | Enabled |
 | Project bin | Enabled | Enabled | Not enabled |
@@ -83,7 +83,7 @@ Families describe product entry points, not every file extension a decoder might
 | Video timing assets | Enabled | Enabled | Not enabled |
 | Video transitions | Not enabled | Enabled | Not enabled |
 
-Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, color labels, and descriptive metadata edits through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.
+Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, color labels, and descriptive metadata edits through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop is available through File > Photo > Develop for the selected photo. Its non-destructive adjustments preserve original bytes. Photo export and raw decoding remain planned.
 
 ## Product-specific application features
 

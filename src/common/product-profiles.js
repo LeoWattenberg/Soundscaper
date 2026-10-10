@@ -151,5 +151,6 @@ export const LIGHTSCAPER_PROFILE = {
 			.map((key) => [key, false])),
 		photoLibrarySurface: true,
 		photoCatalog: true,
+		photoDevelop: true,
 	},
 };

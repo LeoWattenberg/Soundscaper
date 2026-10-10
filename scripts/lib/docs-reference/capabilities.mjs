@@ -137,8 +137,19 @@ export function renderCapabilityReference({ products }) {
 		&& product.capabilities?.photoCatalog !== true)) {
 		sections.push('', 'The photo library shell provides an empty library. Photo catalog import and browsing, develop adjustments, export, and raw decoding remain planned and are not enabled by this shell.');
 	}
-	if (products.some((product) => product.capabilities?.photoCatalog === true)) {
-		sections.push('', 'Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, color labels, and descriptive metadata edits through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.');
+	const photoCatalogs = products.filter((product) => product.capabilities?.photoCatalog === true);
+	if (photoCatalogs.length > 0) {
+		let narrative = 'Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, color labels, and descriptive metadata edits through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes.';
+		if (photoCatalogs.some((product) => product.capabilities?.photoDevelop === true)) {
+			narrative += ' Develop is available through File > Photo > Develop for the selected photo. Its non-destructive adjustments preserve original bytes.';
+		}
+		const planned = [['photoDevelop', 'develop'], ['photoExport', 'photo export'], ['photoRaw', 'raw decoding']]
+			.filter(([key]) => photoCatalogs.every((product) => product.capabilities?.[key] !== true))
+			.map(([, label]) => label);
+		const list = planned.length > 1
+			? `${planned.slice(0, -1).join(', ')}${planned.length > 2 ? ',' : ''} and ${planned.at(-1)}` : planned[0];
+		if (list) narrative += ` ${list[0].toUpperCase()}${list.slice(1)} ${planned.length === 1 ? 'remains' : 'remain'} planned.`;
+		sections.push('', narrative);
 	}
 	if (applicationFeatureRows.length > 0) {
 		sections.push(
