@@ -52,9 +52,10 @@ for (const mute of [false, true]) test(`Web VCR page-audio preview ${mute ? 'fol
 		await volume.fill('0');
 		await expect(volume).toHaveAttribute('aria-valuetext', '−∞ dB');
 		await expect.poll(peak).toBeLessThan(.001);
-		await volume.fill('.25');
-		await expect.poll(peak).toBeGreaterThan(.05);
-		await expect.poll(peak).toBeLessThan(.3);
+		await volume.fill('0.8');
+		await expect(volume).toHaveAttribute('aria-valuetext', '−12 dB');
+		await expect.poll(peak).toBeGreaterThan(.24);
+		await expect.poll(peak).toBeLessThan(.26);
 	}
 	await volume.fill('1');
 	await expect.poll(peak).toBeGreaterThan(.1);
