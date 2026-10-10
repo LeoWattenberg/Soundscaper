@@ -22,7 +22,7 @@ interface TimestampCommandInput {
 /** Build point labels in the same transaction as the compacted recording. */
 export function createSoundActivationTimestampCommands(input: TimestampCommandInput) {
 	if (!input.timestamps.length) return [];
-	const existingTrack = input.project.tracks.find((track) => track.type === 'label');
+	const existingTrack = input.project.tracks.find((track) => track.type === 'label' && track.locked !== true);
 	const labelTrackId = existingTrack?.id ?? input.createId('label-track');
 	const commands: Array<ReturnType<typeof createAddLabelTrackCommand> | ReturnType<typeof createAddLabelCommand>> = [];
 	if (!existingTrack) commands.push(createAddLabelTrackCommand({
