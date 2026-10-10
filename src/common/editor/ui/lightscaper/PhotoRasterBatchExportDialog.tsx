@@ -39,6 +39,7 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 	const [target, setTarget] = useState<Target | null>(null), [receipt, setReceipt] = useState<Readonly<PhotoRasterExportBatchReceipt> | null>(null);
 	const [format, setFormat] = useState<'png' | 'jpeg'>('png'), [failed, setFailed] = useState(false), [invalid, setInvalid] = useState(false);
 	const [reviewed, setReviewed] = useState<readonly string[]>([]);
+	const [discardReview, setDiscardReview] = useState(false), [discarding, setDiscarding] = useState(false), [discardFailed, setDiscardFailed] = useState(false);
 	const [settings, setSettings] = useState({ ...DEFAULT_RASTER_EXPORT_SETTINGS, filenameTemplate: '{index:2}-{name}' });
 	const copy = photoBatchExportCopy(props.locale), settingsCopy = format === 'png' ? photoPngExportCopy(props.locale) : photoJpegExportCopy(props.locale);
 	const retire = useCallback((current: Lifetime): Promise<void> => {
@@ -69,7 +70,7 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 		})().catch(() => { if (current.live && !current.closed) { setFailed(true); latest.current.onSettled(); } });
 		return () => { current.live = false; current.unsubscribe?.(); unregister(); };
 	}, [execute, selection, registerDestination, retire, captureSidecarReader, captureJournal]);
-	const ready = target?.lifetime === scope.current && props.saveRuntime !== null && !failed && !props.preparationFailed && !scope.current?.closed;
+	const ready = target?.lifetime === scope.current && props.saveRuntime !== null && !failed && !props.preparationFailed && !scope.current?.closed && !discarding;
 	const started = receipt !== null, busy = started && receipt.phase !== 'settled';
 	const journal = target?.owner.journal, recovery = target?.owner.recovery ?? [];
 	const jobs = recovery.filter(row => row.disposition === 'eligible' || (row.disposition === 'needs-review' && row.currentMatches && reviewed.includes(row.member.jobId))).map(row => row.member.jobId);
@@ -77,7 +78,7 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 	const canStart = journal ? jobs.length > 0 : !!target?.owner.prepared;
 	const start = (replaceCompleted = false) => {
 		const current = latest.current, lifetime = scope.current, runtime = current.saveRuntime;
-		if (!lifetime?.live || lifetime.closed || lifetime.queue || !target || target.lifetime !== lifetime || !runtime || !ready) return;
+		if (!lifetime?.live || lifetime.closed || lifetime.queue || lifetime.active || !target || target.lifetime !== lifetime || !runtime || !ready) return;
 		let plan: ReturnType<typeof capturePhotoRasterExportBatchV1>;
 		const recovering = !!journal && !replaceCompleted;
 		if (recovering && !jobs.length || replaceCompleted && !replaceable) return;
@@ -110,6 +111,18 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 		const current = scope.current;
 		if (current?.live && !current.closed && current.queue) void current.queue.cancelMember(jobId).catch(() => { if (current.live) setFailed(true); });
 	};
+	const discard = () => {
+		const lifetime = scope.current;
+		if (!ready || started || !discardReview || !journal || !target || target.lifetime !== lifetime || !lifetime?.live || lifetime.closed || lifetime.active) return;
+		const review = { batchId: journal.batchId, revision: journal.revision, reviewed: true };
+		setDiscarding(true); setDiscardFailed(false);
+		lifetime.active = target.owner.discardUnfinished(review).then(() => {
+			if (!lifetime.live || lifetime.closed) return;
+			setTarget({ owner: target.owner, lifetime }); setDiscardReview(false); setReviewed([]); latest.current.onSettled();
+		}, () => { if (lifetime.live && !lifetime.closed) setDiscardFailed(true); }).finally(() => {
+			lifetime.active = null; if (lifetime.live && !lifetime.closed) setDiscarding(false);
+		});
+	};
 	if (!props.visible) return null;
 	const labels = { queued: copy.queued, running: copy.running, completed: copy.saved, failed: copy.memberFailed, cancelled: copy.cancelled };
 	return <AudioEditorDialogShell title={copy.title} onClose={props.onHide} initialFocus="[data-photo-batch-export-start]"
@@ -129,13 +142,20 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 				onApply={preset => { setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setFormat(preset.format); setInvalid(false); }} />
 			{invalid && <p role="alert">{settingsCopy.invalidSettings}</p>}
 			{(failed || props.preparationFailed) && <p role="alert">{copy.failed}</p>}
-			{!ready && !failed && !started && <p role="status">{copy.preparing}</p>}
+			{!ready && !failed && !started && !discarding && <p role="status">{copy.preparing}</p>}
+			{discarding && <p role="status">{copy.discarding}</p>}
+			{discardFailed && <p role="alert">{copy.discardFailed}</p>}
 			{ready && !journal && !target?.owner.prepared && <p role="status">{copy.empty}</p>}
 			{journal && !receipt && <ol data-photo-export-journal>{recovery.map(row => <li key={row.member.jobId} data-photo-journal-job={row.member.jobId} data-journal-state={row.disposition}>
 				<span>{row.member.fileName}</span><span>{row.disposition === 'already-committed' ? copy.downloaded.replace('{name}', row.member.fileName) : row.disposition === 'needs-review' ? copy.needsReview : row.disposition === 'stale' ? copy.stale : copy.queued}</span>
 				{row.disposition === 'needs-review' && row.currentMatches && <label>{copy.review.replace('{name}', row.member.fileName)}<input type="checkbox" checked={reviewed.includes(row.member.jobId)}
 					onChange={event => { setReviewed(value => event.target.checked ? [...value, row.member.jobId] : value.filter(id => id !== row.member.jobId)); }} /></label>}
 			</li>)}</ol>}
+			{journal && !started && journal.members.some(member => member.state !== 'committed') && <fieldset disabled={!ready}>
+				<p>{copy.discardWarning}</p><label>{copy.discardReview}<input type="checkbox" data-photo-batch-export-discard-review checked={discardReview}
+					onChange={event => { setDiscardReview(event.target.checked); }} /></label>
+				<button type="button" data-photo-batch-export-discard disabled={!discardReview || !ready} onClick={discard}>{copy.discard}</button>
+			</fieldset>}
 			{receipt && <div data-photo-batch-export-receipt data-phase={receipt.phase} role="status">
 				<p>{receipt.phase === 'settled' ? copy.settled : receipt.paused ? copy.paused : copy.running}</p>
 				<ol>{receipt.members.map(member => <li key={member.jobId} data-photo-batch-job={member.jobId} data-state={member.state}>

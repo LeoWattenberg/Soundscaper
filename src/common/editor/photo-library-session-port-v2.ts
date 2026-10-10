@@ -17,6 +17,7 @@ export interface PhotoLibraryExportJournalSettings {
 	get(key: string): Promise<unknown>;
 	putIfAbsent(key: string, value: unknown): Promise<boolean>;
 	replaceIfCurrent(key: string, expected: unknown, value: unknown): Promise<boolean>;
+	deleteIfCurrent?(key: string, expected: unknown): Promise<boolean>;
 }
 export interface PhotoLibraryExportJournalAccess {
 	readonly catalogId: string;

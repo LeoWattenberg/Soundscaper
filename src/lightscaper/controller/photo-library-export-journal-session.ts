@@ -26,6 +26,7 @@ const check = (signal: AbortSignal) => { Reflect.apply(CHECK, signal, []); };
 export function openPhotoLibraryExportJournalSession(host: Host, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<Readonly<PhotoLibraryExportJournalAccess>> {
 	const { signal } = readPhotoDevelopSignalOptionsV2(options), store = host.settings;
 	const get = store.get, insert = store.putIfAbsent, replace = store.replaceIfCurrent, run = host.operation, initialize = host.ready;
+	const remove = store.deleteIfCurrent;
 	const catalog = host.catalog, loadPhoto = catalog.loadPhoto, loadOriginal = host.loadOriginal, verifyResources = host.verifyResources;
 	if ([get, insert, replace, run, initialize].some(method => typeof method !== 'function')) throw new TypeError('Photo export journal Session requires selected CAS capabilities.');
 	const ready = () => Reflect.apply(initialize, host, []) as Promise<string>;
@@ -63,6 +64,11 @@ export function openPhotoLibraryExportJournalSession(host: Host, options: Readon
 						versionId: id(field(input, 'versionId'), 'resource version ID'), expectedRevision: integer(field(input, 'expectedRevision'), 0, Number.MAX_SAFE_INTEGER, 'resource revision') });
 				});
 			}, settings: Object.freeze<PhotoLibraryExportJournalSettings>({
+			...(remove === undefined ? {} : { deleteIfCurrent(candidate: string, expected: unknown) {
+				let before: ReturnType<typeof admitValue>;
+				return operation(async current => { await checked(current); const ack = await Reflect.apply(remove, store, [key, before]) as boolean; check(current); return ack; }, signal,
+					() => { admitKey(candidate); before = admitValue(expected); });
+			} }),
 			get(candidate) { return operation(async current => {
 				await checked(current); const value = await Reflect.apply(get, store, [key]) as unknown; check(current);
 				if (value !== undefined) admitValue(value); return value;

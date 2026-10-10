@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { normalizePhotoRasterExportJournalV1, normalizePhotoRasterExportDownloadAckV1, photoRasterExportJournalKeyV1,
 	type PhotoRasterExportJournalV1, type PhotoRasterExportDownloadAckV1 } from './photo-raster-export-journal-v1.ts';
+import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../common/editor/closed-domain-value.ts';
 
 export interface PhotoRasterExportJournalSettingsV1 {
 	get(key: string): Promise<unknown>;
 	putIfAbsent(key: string, value: unknown): Promise<boolean>;
 	replaceIfCurrent(key: string, expected: unknown, value: unknown): Promise<boolean>;
+	deleteIfCurrent?(key: string, expected: unknown): Promise<boolean>;
 }
 export class PhotoRasterExportJournalErrorV1 extends Error {
 	readonly failure: Readonly<{ cause: unknown; journal: Readonly<PhotoRasterExportJournalV1> | null; cleanup?: Readonly<{ cause: unknown }> }>;
@@ -31,7 +33,8 @@ export class PhotoRasterExportJournalOwnerV1 {
 			return ((...args: unknown[]) => Reflect.apply(fn, settings, args) as unknown) as Method;
 		};
 		this.#settings = Object.freeze({ get: pin<PhotoRasterExportJournalSettingsV1['get']>('get'), putIfAbsent: pin<PhotoRasterExportJournalSettingsV1['putIfAbsent']>('putIfAbsent'),
-			replaceIfCurrent: pin<PhotoRasterExportJournalSettingsV1['replaceIfCurrent']>('replaceIfCurrent') });
+			replaceIfCurrent: pin<PhotoRasterExportJournalSettingsV1['replaceIfCurrent']>('replaceIfCurrent'),
+			...(Object.hasOwn(settings, 'deleteIfCurrent') ? { deleteIfCurrent: pin<NonNullable<PhotoRasterExportJournalSettingsV1['deleteIfCurrent']>>('deleteIfCurrent') } : {}) });
 	}
 	get current(): Readonly<PhotoRasterExportJournalV1> | null { return this.#current; }
 	load(): Promise<Readonly<PhotoRasterExportJournalV1> | null> {
@@ -70,6 +73,27 @@ export class PhotoRasterExportJournalOwnerV1 {
 		return this.#transition(jobId, member => {
 			if (member.state !== 'started') throw new TypeError('Photo download ACK requires a durable started intent.');
 			return { ...member, state: 'committed', delivery: ack };
+		});
+	}
+	/** Forget scalar recovery history after explicit review. This never acquires
+	 * a destination or removes any file that may already have been downloaded. */
+	discardUnfinished(value: unknown): Promise<void> {
+		const input = record(value, 'Photo export queue review', ['batchId', 'revision', 'reviewed']);
+		const batchId = field(input, 'batchId', 'queue review'), revision = field(input, 'revision', 'queue review');
+		if (field(input, 'reviewed', 'queue review') !== true || typeof batchId !== 'string' || typeof revision !== 'number'
+			|| !Number.isSafeInteger(revision) || revision < 1) throw new TypeError('Photo export queue requires explicit current review.');
+		return this.#join(async () => {
+			const current = this.#current, remove = this.#settings.deleteIfCurrent;
+			if (!current || current.batchId !== batchId || current.revision !== revision || current.members.every(member => member.state === 'committed')) throw new TypeError('Only the reviewed current unfinished queue can be forgotten.');
+			if (!remove) throw new Error('Photo export queue deletion is unavailable.');
+			let cause: unknown = new Error('Photo export queue changed before deletion.');
+			try { if (await remove(this.#key, this.#raw) === true) { this.#raw = undefined; this.#current = null; return; } }
+			catch (error) { cause = error; }
+			let raw: unknown;
+			try { raw = await this.#settings.get(this.#key); }
+			catch (error) { throw new PhotoRasterExportJournalErrorV1(cause, current, { cause: error }); }
+			if (raw !== undefined) throw new PhotoRasterExportJournalErrorV1(cause, current);
+			this.#raw = undefined; this.#current = null;
 		});
 	}
 	closeAndJoin(): Promise<void> { this.#closed = true; return this.#tail; }

@@ -45,6 +45,7 @@ export class PhotoRasterPersistedBatch {
 		this.#options = options; this.#journal = owner; this.prepared = prepared; this.#bindings = bindings; this.recovery = recovery; this.#verify = verify;
 	}
 	get journal() { return this.#journal.current; }
+	discardUnfinished(review: unknown): Promise<void> { this.#options.signal.throwIfAborted(); return this.#journal.discardUnfinished(review); }
 	static async prepare(options: Options): Promise<PhotoRasterPersistedBatch> {
 		options = captureOptions(options);
 		const { signal, openJournal, readSidecar, execute, selection } = options;

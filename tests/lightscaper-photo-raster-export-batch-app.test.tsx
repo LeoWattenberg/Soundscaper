@@ -63,13 +63,14 @@ for (const locale of ['en', 'de']) test(`${locale}: the real current application
 });
 
 function fixture() {
-	const events: string[] = [], blobs: Blob[] = [], held = deferred<void>(); let hold = false, retired: (() => Promise<void>) | null = null;
+	const events: string[] = [], blobs: Blob[] = [], held = deferred<void>(), deleteEntered = deferred<void>(); let hold = false, holdDelete = false, retired: (() => Promise<void>) | null = null;
 	const base = photoArchiveFixture(), photos = new Map(selection.map(member => [member.photoId, normalizePhotoDocumentV2({ ...base.photo, schemaVersion: 2, id: member.photoId,
 		catalogId: 'catalog', revision: 3, activeVersionId: 'master', metadata: { ...base.photo.metadata, fileName: member.fileName },
 		versions: [{ ...base.photo.versions[0]!, id: 'master', develop: defaultImageDevelopStateV2() }] })]));
 	const port = { memory: getMemoryDatabase(`batch-app-${crypto.randomUUID()}`), database: async () => null }, repository = new KeyValueRepository(port, 'settings');
 	const lifetime = new PhotoLibrarySessionLifetime(), resources = createPhotoMediaCubeLutResourcesV1(port, action => action(), () => lifetime.assertAccepting());
-	const host = { ready: async () => 'catalog', settings: { get: repository.get.bind(repository), putIfAbsent: repository.putIfAbsent.bind(repository), replaceIfCurrent: repository.replaceIfCurrent.bind(repository) },
+	const host = { ready: async () => 'catalog', settings: { get: repository.get.bind(repository), putIfAbsent: repository.putIfAbsent.bind(repository), replaceIfCurrent: repository.replaceIfCurrent.bind(repository),
+		async deleteIfCurrent(key: string, expected: unknown) { events.push('delete-queue'); if (holdDelete) { deleteEntered.resolve(); await held.promise; } return repository.deleteIfCurrent(key, expected); } },
 		catalog: { loadPhoto: async (_catalog: string, id: string) => photos.get(id) ?? null }, loadOriginal: async () => base.original,
 		verifyResources: resources.resources.verifyPhoto, operation: lifetime.operation.bind(lifetime) };
 	const service = createBrowserFileSaveService({ document: { createElement: () => ({ href: '', download: '', hidden: false, click() { events.push(`click:${this.download}`); } }) },
@@ -90,7 +91,7 @@ function fixture() {
 		saveRuntime: runtime,
 		registerDestination(join) { retired = join; return () => { void join().catch(() => undefined); }; },
 	};
-	return { props, runtime, events, blobs, held, photos, hold: () => { hold = true; }, retire: () => retired!(), close: () => lifetime.close(() => resources.close()) };
+	return { props, runtime, events, blobs, held, deleteEntered, photos, repository, hold: () => { hold = true; }, holdDeletion: () => { holdDelete = true; }, retire: () => retired!(), close: () => lifetime.close(() => resources.close()) };
 }
 
 async function retainRecipe(f: ReturnType<typeof fixture>, output: Readonly<PhotoRasterExportOutput> | undefined, completed = false) {
@@ -264,4 +265,58 @@ test('reopened fully committed history allows only an explicit different replace
 		const access = await f.props.captureJournal()(), current = normalizePhotoRasterExportJournalV1(await access.settings.get(`photo-library:raster-export-journal:v1:${access.catalogId}`));
 		assert.equal(current.batchId, 'explicit-replacement'); assert.equal(current.revision, 10); assert.equal(current.members.every(member => member.state === 'committed'), true);
 	} finally { await m.dispose(); await settle(); await f.close(); }
+});
+
+async function openUnfinishedQueue(f: ReturnType<typeof fixture>, locale = 'en') {
+	let m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...f.props} locale={locale} />);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'initial ready');
+	await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick?.({}); });
+	await waitFor(async () => { await flush(); return f.events.includes('settled'); }, 'initial downloads'); await m.dispose(); await settle();
+	await retainRecipe(f, undefined);
+	m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...f.props} locale={locale} selection={[]} batchId="forget-review" />);
+	await waitFor(async () => { await flush(); return m.dom.find('[data-photo-export-journal]') !== null; }, 'unfinished history');
+	return m;
+}
+
+for (const locale of ['en', 'de']) test(`${locale}: menu dialog forgets only explicitly reviewed unfinished history and leaves its downloads and photos intact`, async () => {
+	const f = fixture(), m = await openUnfinishedQueue(f, locale), copy = photoBatchExportCopy(locale), before = JSON.stringify([...f.photos]);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		const button = m.dom.one('[data-photo-batch-export-discard]'); assert.equal(button.textContent, copy.discard); assert.equal(reactProps(button).disabled, true);
+		const retained = reactProps(button).onClick!; await flush(() => { retained({}); }); assert.equal(f.events.includes('delete-queue'), false);
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-discard-review]')).onChange?.({ target: { checked: true } }); });
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-discard]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return m.dom.container.textContent.includes(copy.empty); }, 'forgotten empty queue');
+		assert.equal(await f.repository.get('photo-library:raster-export-journal:v1:catalog'), undefined);
+		assert.equal(f.events.filter(event => event === 'delete-queue').length, 1); assert.equal(f.blobs.length, 2); assert.equal(JSON.stringify([...f.photos]), before);
+		assert.equal(m.dom.find('[data-photo-batch-export-discard]'), null);
+	} finally { await m.dispose(); await settle(); await f.close(); }
+});
+
+test('a competing queue survives reviewed deletion refusal and the dialog reports recovery without starting downloads', async () => {
+	const f = fixture(), m = await openUnfinishedQueue(f);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		const key = 'photo-library:raster-export-journal:v1:catalog', raw = await f.repository.get(key), before = normalizePhotoRasterExportJournalV1(raw);
+		const next = normalizePhotoRasterExportJournalV1({ ...before, revision: before.revision + 1 }); assert.equal(await f.repository.replaceIfCurrent(key, raw, next), true);
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-discard-review]')).onChange?.({ target: { checked: true } }); });
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-discard]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return m.dom.container.textContent.includes(photoBatchExportCopy('en').discardFailed); }, 'deletion refusal');
+		assert.deepEqual(await f.repository.get(key), next); assert.equal(f.blobs.length, 2); assert.ok(m.dom.find('[data-photo-export-journal]'));
+	} finally { await m.dispose(); await settle(); await f.close(); }
+});
+
+test('held deletion disables retained Start and Forget handlers and joins retirement through native publication', async () => {
+	const f = fixture(), m = await openUnfinishedQueue(f);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-discard-review]')).onChange?.({ target: { checked: true } }); });
+		const forget = reactProps(m.dom.one('[data-photo-batch-export-discard]')).onClick!, start = reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick!;
+		f.holdDeletion(); await flush(() => { forget({}); }); await f.deleteEntered.promise;
+		assert.equal(reactProps(m.dom.one('[data-photo-batch-export-start]')).disabled, true);
+		await flush(() => { forget({}); start({}); }); assert.equal(f.events.filter(event => event === 'delete-queue').length, 1); assert.equal(f.blobs.length, 2);
+		const joined = f.retire(); assert.equal(await remainsPending(joined), true); f.held.resolve(); await joined; await flush();
+		assert.equal(await f.repository.get('photo-library:raster-export-journal:v1:catalog'), undefined); assert.equal(f.blobs.length, 2);
+	} finally { f.held.resolve(); await m.dispose(); await settle(); await f.close(); }
 });

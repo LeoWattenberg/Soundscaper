@@ -95,6 +95,23 @@ for (const locale of ['en', 'de']) {
 		expect(downloads[2].suggestedFilename()).toBe(names[1]); await expect(dialog.locator('[data-photo-batch-job]')).toHaveCount(1);
 		expect((await observeJournal(page)).members.map(member => member.state)).toEqual(['committed', 'committed']);
 		expect(await observe(page, ids)).toEqual(before); expect(errors).toEqual([]);
+		await observeJournal(page, format === 'png' ? 'pending' : 'started');
+		await page.reload(); await expect(app).toBeVisible(); await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.queue));
+		dialog = named(page, 'dialog', words.title);
+		const forget = named(dialog, 'button', words.discard), reviewForget = named(dialog, 'checkbox', words.discardReview);
+		await expect(forget).toBeDisabled(); await expect(dialog).toContainText(words.discardWarning);
+		await reviewForget.focus(); await expect(reviewForget).toBeFocused(); await page.keyboard.press('Space'); await expect(reviewForget).toBeChecked();
+		await keyboard(page, forget); await expect(dialog.getByRole('status')).toHaveText(words.empty);
+		expect(await observeJournal(page)).toBeNull(); expect(downloads).toHaveLength(3); expect(await observe(page, ids)).toEqual(before);
+		await keyboard(page, named(dialog, 'button', words.hide));
+		await menu(page, app, copy.photoPhotoMenu); await keyboard(page, named(app, 'button', copy.photoSelectAll));
+		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.downloadSelected));
+		dialog = named(page, 'dialog', words.title); await choose(page, dialog.getByLabel(words.format, { exact: true }), format);
+		await keyboard(page, named(dialog, 'button', words.start)); await expect.poll(() => downloads.length).toBe(5);
+		await expect(dialog.locator('[data-photo-batch-export-receipt]')).toHaveAttribute('data-phase', 'settled');
+		expect(downloads.slice(3).map(download => download.suggestedFilename())).toEqual(names);
+		expect((await observeJournal(page)).members.map(member => member.state)).toEqual(['committed', 'committed']);
+		expect(await observe(page, ids)).toEqual(before); expect(errors).toEqual([]);
 	});
 }
 function assertPng(bytes) {
@@ -126,6 +143,7 @@ async function observeJournal(page, state = null) {
 			const session = await createPhotoLibrarySessionV3({ name: 'Observed existing photo library' });
 			try {
 				const access = await session.exportJournal.open(), key = photoRasterExportJournalKeyV1(access.catalogId), raw = await access.settings.get(key);
+				if (raw === undefined) { if (state !== null) throw new Error('No retained fixture journal'); await globalThis.__assertNativeOpfsWorkerExecution(); return null; }
 				const journal = normalizePhotoRasterExportJournalV1(raw); let result = journal;
 				if (state !== null) {
 					if (state !== 'pending' && state !== 'started') throw new Error('Unsupported fixture interruption');
