@@ -5,6 +5,7 @@ import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
 import { ParametricEqOutputRange } from './ParametricEqOutputRange.tsx';
 import { useParametricEqSpectrum } from './useParametricEqSpectrum.ts';
 import { useParametricEqBandDeletionFocus } from './useParametricEqBandDeletionFocus.ts';
+import { useParametricEqAuthoredState } from './useParametricEqAuthoredState.ts';
 import { useNonPassiveWheel } from './useNonPassiveWheel.js';
 import {
 	ParametricEqWasmRuntime,
@@ -65,13 +66,8 @@ export function ParametricEqEditor({
 	});
 	auditionCallbackRef.current = onAudition;
 	cancelCallbackRef.current = onCancel;
-	useEffect(() => {
-		if (dragRef.current || outputGestureRef.current) return;
-		setDraft(normalized);
-		setSelectedId((current) => normalized.bands.some((band) => band.id === current)
-			? current
-			: normalized.bands[0]?.id || null);
-	}, [normalized]);
+	const authoredEpoch = useParametricEqAuthoredState(normalized, { dragRef, outputGestureRef,
+		previewFrameRef, pendingPreviewRef, graphRef, setDraft, setSelectedId, onCancel, parameterAutomation });
 	useEffect(() => () => {
 		if (previewFrameRef.current) cancelAnimationFrame(previewFrameRef.current);
 		const gesture = dragRef.current || outputGestureRef.current;
@@ -464,7 +460,7 @@ export function ParametricEqEditor({
 
 			<label className="audio-editor-parametric-eq__output">
 					<span>{copy.eqOutputGain || 'Output gain'} (dB)</span>
-					<ParametricEqOutputRange disabled={disabled} minimum={MIN_GAIN} maximum={MAX_GAIN} value={draft.outputGain}
+					<ParametricEqOutputRange key={authoredEpoch} disabled={disabled} minimum={MIN_GAIN} maximum={MAX_GAIN} value={draft.outputGain}
 						onBegin={beginOutputGain} onValueChange={(value) => {
 						const standalone = !outputGestureRef.current;
 						if (standalone && parameterAutomation?.performAtomic(
