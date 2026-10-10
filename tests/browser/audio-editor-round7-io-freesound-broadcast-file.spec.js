@@ -10,6 +10,7 @@ const recording = Buffer.from((await readFile(new URL('../fixtures/bwfmetaedit-i
 test.describe('ordinary Freesound broadcast file upload', () => {
 	registerAudioEditorHooks();
 	for (const extension of ['wav', 'bwf']) test(`the Choose audio files picker uploads an ordinary .${extension} production recording`, async ({ page }) => {
+		await observeFreesoundUploadBytes(page);
 		const uploads = [];
 		await page.route('**/api/freesound/**', async route => {
 			const request = route.request();
@@ -36,9 +37,13 @@ test.describe('ordinary Freesound broadcast file upload', () => {
 		expect(uploads).toHaveLength(1);
 		expect(uploads[0].name).toBe('production-take.wav');
 		expect(uploads[0].type).toBe('audio/wav');
-		expect(uploads[0].bytes.subarray(0, 4).toString()).toBe('RIFF');
-		expect(uploads[0].bytes.byteLength).toBeGreaterThan(48_000 * 2);
-		const descriptor = await inspectWavBlobPcm(new Blob([uploads[0].bytes]));
+		const observed = await page.evaluate(() => globalThis.__ordinaryFreesoundUploadBodies);
+		expect(observed).toHaveLength(1);
+		const bytes = Buffer.from(observed[0], 'base64');
+		if (uploads[0].bytes !== null) expect(bytes).toEqual(uploads[0].bytes);
+		expect(bytes.subarray(0, 4).toString()).toBe('RIFF');
+		expect(bytes.byteLength).toBeGreaterThan(48_000 * 2);
+		const descriptor = await inspectWavBlobPcm(new Blob([bytes]));
 		expect(descriptor).not.toBeNull();
 		expect(descriptor?.channelCount).toBe(1);
 		// Native conversion may round the one-second resampling extent by one sample.
@@ -48,3 +53,23 @@ test.describe('ordinary Freesound broadcast file upload', () => {
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
 	});
 });
+
+async function observeFreesoundUploadBytes(page) {
+	// WebKit omits binary File bodies from its driver request record. Read the
+	// immutable native Blob, then forward the same fetch arguments unchanged.
+	await page.addInitScript(() => {
+		globalThis.__ordinaryFreesoundUploadBodies = [];
+		const nativeFetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			if (new URL(String(input), location.href).pathname === '/api/freesound/uploads' && init?.body instanceof Blob) {
+				const bytes = new Uint8Array(await init.body.arrayBuffer());
+				let binary = '';
+				for (let offset = 0; offset < bytes.length; offset += 8192) {
+					binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+				}
+				globalThis.__ordinaryFreesoundUploadBodies.push(btoa(binary));
+			}
+			return Reflect.apply(nativeFetch, globalThis, [input, init]);
+		};
+	});
+}

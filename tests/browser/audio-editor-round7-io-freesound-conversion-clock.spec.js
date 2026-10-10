@@ -8,6 +8,7 @@ import { bootEditor, chooseCommandAction, registerAudioEditorHooks } from './aud
 test.describe('Freesound native recording conversion clock', () => {
 	registerAudioEditorHooks();
 	for (const sampleRate of [44_100, 96_000]) test(`the ordinary ${sampleRate} Hz broadcast recording retains its source clock and PCM through upload`, async ({ page }) => {
+		await observeFreesoundUploadBytes(page);
 		const frames = sampleRate / 4;
 		const samples = Float32Array.from({ length: frames }, (_, frame) =>
 			.2 * Math.sin(2 * Math.PI * 3_000 * frame / sampleRate)
@@ -46,7 +47,11 @@ test.describe('Freesound native recording conversion clock', () => {
 		expect(uploads).toHaveLength(1);
 		expect(uploads[0].name).toBe('field-recording.wav');
 		expect(uploads[0].type).toBe('audio/wav');
-		const blob = new Blob([uploads[0].bytes]);
+		const observed = await page.evaluate(() => globalThis.__ordinaryFreesoundUploadBodies);
+		expect(observed).toHaveLength(1);
+		const bytes = Buffer.from(observed[0], 'base64');
+		if (uploads[0].bytes !== null) expect(bytes).toEqual(uploads[0].bytes);
+		const blob = new Blob([bytes]);
 		const delivered = await inspectWavBlobPcm(blob);
 		const pcm = [];
 		await streamWavBlobPcm(blob, { onChunk: channels => { pcm.push(...channels[0]); } });
@@ -59,6 +64,26 @@ test.describe('Freesound native recording conversion clock', () => {
 		if (sampleRate === 96_000) expect(upperBandAmplitude).toBeGreaterThan(.145);
 	});
 });
+
+async function observeFreesoundUploadBytes(page) {
+	// WebKit omits binary File bodies from its driver request record. Read the
+	// immutable native Blob, then forward the same fetch arguments unchanged.
+	await page.addInitScript(() => {
+		globalThis.__ordinaryFreesoundUploadBodies = [];
+		const nativeFetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			if (new URL(String(input), location.href).pathname === '/api/freesound/uploads' && init?.body instanceof Blob) {
+				const bytes = new Uint8Array(await init.body.arrayBuffer());
+				let binary = '';
+				for (let offset = 0; offset < bytes.length; offset += 8192) {
+					binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+				}
+				globalThis.__ordinaryFreesoundUploadBodies.push(btoa(binary));
+			}
+			return Reflect.apply(nativeFetch, globalThis, [input, init]);
+		};
+	});
+}
 
 function toneAmplitude(samples, frequency, sampleRate) {
 	let sine = 0; let cosine = 0;
