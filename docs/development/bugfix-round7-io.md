@@ -650,6 +650,20 @@ this receipt. Preserve all original failures/timeouts. Whole unchanged bin and
 upload replays await the coordinated native slot; no source, assertion, deadline
 or qualifying-count change is inferred from these observations.
 
+Whole unchanged exclusive4–7 WebKit replay of these seven workflows completes
+with one pass and six failures in1.5 minutes. Inactive-camera retention passes
+27.2 seconds, including final editable Switch/save controls. Continuous/Freeze
+replacement repeats the initial5000 ms choice visibility failure after14.2/
+19.6 seconds; both later PNGs show the actual shorter-file dialog. The .wav/.bwf
+upload observers repeat null.subarray after4.8/4.6 seconds, and44.1/96 kHz repeat
+the Blob(null) RIFF error after4.4/4.4 seconds. Their actual ready-upload UI and
+normal headers pass before the driver-body failure. Production transport reads
+confirm that the client forwards its named File unchanged as native fetch body;
+no conversion rejection is established. All six completed replay contexts/PNGs
+and the full log were consumed and their owned outputs/log immediately removed
+after this receipt. Original full-run and unchanged-replay failures remain
+recorded; source/count and every assertion/deadline remain unchanged so far.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
