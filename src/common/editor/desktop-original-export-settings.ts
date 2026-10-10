@@ -3,7 +3,7 @@
 import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
 import { inspectAiffBlobPcm } from './aiff-pcm-chunk-reader.ts';
 import { inspectWavBlobPcm } from './wav-import.js';
-import { originalMpegExportSettings } from './desktop-original-mpeg-settings.ts';
+import { originalMpegExportSettings, readOriginalMpegFrameHeader } from './desktop-original-mpeg-settings.ts';
 import { readDesktopOriginalM4aMovie } from './desktop-original-m4a-movie.ts';
 import { BIT_RATES } from './media-export-values.js';
 import { sampleFrameToSeconds } from './timeline-time.ts';
@@ -47,7 +47,12 @@ export async function resolveDesktopOriginalExportSettings(
 	let format = EXTENSIONS[extension];
 	if (!source || !format) return null;
 	try {
-		const header = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
+		let header = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
+		if (format === 'mp3' || format === 'mp2') {
+			const frameHeader = await readOriginalMpegFrameHeader(file, header);
+			if (!frameHeader) return null;
+			header = frameHeader;
+		}
 		if (format === 'ogg-vorbis' && matchesEncodedContainer('opus', header)) format = 'opus';
 		const pcm = await pcmSettings(format, file, header);
 		if (pcm !== undefined) {
