@@ -40,10 +40,10 @@ for (const change of ['none', 'rename', 'delete', 'delete-and-undo'] as const) {
 			setLoopPreview: noop, setSelectionPreview: noop, setBoundarySnapGuideFrames: noop };
 		const controller = { actions: { sampleEdit: { pencil: (options: unknown) => { calls.push(options); } } } };
 		const root = createRoot(dom.container as unknown as Element);
-		let finish: ((event: Readonly<{ pointerId: number; clientX: number; clientY: number }>) => void) | null = null;
+		const finishRef: { current: ((event: Readonly<{ pointerId: number; clientX: number; clientY: number }>) => void) | null } = { current: null };
 		function Harness() {
 			const project = resolveRuntimeProjectProjection(history.present);
-			finish = useTimelinePointerFinish({ controller, snapshot: { capabilities: {} },
+			finishRef.current = useTimelinePointerFinish({ controller, snapshot: { capabilities: {} }, onRevealProjectBin: noop,
 				mutationsBlocked: false, splitToolActive: false, state,
 				model: { project, projectIndex: {}, pixelsPerSecond: 48_000, sampleRate: 48_000, transportState: 'stopped' },
 				hitTesting: { frameAtClientX: (x: number) => x, isOverOutputDock: () => false,
@@ -64,8 +64,8 @@ for (const change of ['none', 'rename', 'delete', 'delete-and-undo'] as const) {
 					await act(async () => { root.render(<Harness />); });
 				}
 			}
-			assert.ok(finish);
-			finish({ pointerId: 1, clientX: 32, clientY: 20 });
+			assert.ok(finishRef.current);
+			finishRef.current({ pointerId: 1, clientX: 32, clientY: 20 });
 			assert.deepEqual(calls, change.startsWith('delete') ? [] : [{ clipId: 'clip', channel: 0,
 				points: [{ frame: 32, value: .5 }] }]);
 			assert.equal(session.current, null);
