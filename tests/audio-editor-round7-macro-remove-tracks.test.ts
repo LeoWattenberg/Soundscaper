@@ -24,7 +24,9 @@ for (const selected of [['remove-a'], ['remove-a', 'remove-b']]) {
 		assert.deepEqual(after.project.tracks.map(track => track.id),
 			before.project.tracks.filter(track => !selected.includes(track.id)).map(track => track.id));
 		assert.equal(after.history.undoEntries.length, before.history.undoEntries.length + 1);
-		assert.equal(after.history.undoEntries[0]?.type, 'macro/run');
+		const entry = after.history.undoEntries[0];
+		assert.ok(entry && typeof entry === 'object' && 'type' in entry);
+		assert.equal(entry.type, 'macro/run');
 		controller.actions.edit.undo();
 		assert.deepEqual(controller.getSnapshot().project!.tracks, before.project.tracks);
 		controller.actions.edit.redo();
@@ -38,7 +40,9 @@ test('RemoveTracks uses the current focused native track when no explicit track 
 	controller.actions.timeline.clearSelection();
 	assert.equal(controller.getSnapshot().selectedTrackId, 'remove-b');
 	await controller.actions.macros.run({ effects: [createMacroCommandStep('RemoveTracks')] });
-	assert.deepEqual(controller.getSnapshot().project!.tracks.map(track => track.id), ['keep', 'remove-a']);
+	const after = controller.getSnapshot();
+	assert.ok(validateSoundscaperProject(after.project));
+	assert.deepEqual(after.project.tracks.map(track => track.id), ['keep', 'remove-a']);
 });
 
 test('RemoveTracks after ordinary No tracks does not remove a previous focus', async context => {
