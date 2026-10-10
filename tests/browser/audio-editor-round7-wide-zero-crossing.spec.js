@@ -37,5 +37,7 @@ test('At zero crossings listens to the occupied channels of an ordinary surround
 	const reference = await align(mono.name);
 	expect(reference[0]).not.toBe(10_007);
 	expect(reference[1]).not.toBe(30_007);
-	expect(await align(surround.name)).toEqual(reference);
+	await align(surround.name);
+	await expect.poll(async () => await Promise.all(['start', 'end'].map(async edge => Number((await editor
+		.getByRole('group', { name: `Selection ${edge}`, exact: true }).locator('.timecode-digit').allTextContents()).join(''))))).toEqual(reference);
 });

@@ -106,3 +106,16 @@ count while retaining exact restored parameter state. EDIT018 remains
 unqualified: its corrected browser still returns10007–30007 instead of
 9990–29970 in7.1 seconds despite the widened native allocation. Investigation
 continues through the actual graph output; no second count is added.
+
+EDIT018's passive native render diagnostic confirms the private capture
+actually returns six channels: the first two silent, the remaining four at
+0.3499755859375 peak. The prior browser assertion read the mono operation's
+retained success message before the surround result was published. Awaiting
+the original exact selection assertion preserves a genuine causal RED on
+frozen48b7bf244 (10007–30007 versus9990–29970 after the unchanged five-second
+poll,22.6seconds total), then passes on prepared73b99f5b8 in16.9seconds.
+Its temporary copied baseline spec deletes itself immediately on completion;
+the passive diagnostic code is removed. This is one fully qualified root.
+EDIT019's next Firefox retry fails before any parameter editing at initial
+host persistence0 versus1; it is another excluded setup failure. Its native
+fine values and existing state-barrier public workflow remain positive.

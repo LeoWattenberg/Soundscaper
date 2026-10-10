@@ -156,3 +156,12 @@ TypeScript pass; the largest chunk remains487,635 bytes and the startup graph
 has no smaller byte ceiling to claim. The full post-fixture Node run and the
 frozen fix50 browser run continue. Reviewed public diagnostics are removed
 immediately after recording this result.
+
+## Qualified total:77 fixes
+
+EDIT018 now completes its unchanged exact multichannel alignment after
+waiting for the current operation's result. The same final observer remains
+causally RED on the frozen pre-fix site and GREEN on the corrected site.
+Temporary baseline code and rendered-audio diagnostic output are removed
+immediately. EDIT019 still awaits its complete Firefox retry; a subsequent
+initial native host setup timeout adds no count.
