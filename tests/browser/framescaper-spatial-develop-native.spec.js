@@ -57,7 +57,10 @@ for (const [locale, route] of Object.entries(ROUTES)) for (const fixture of CASE
 		const projectId = await editor.getAttribute('data-project-id'); expect(projectId).toBeTruthy();
 		const original = await readProject(page, projectId), video = original.clips.find(clip => clip.kind === 'video');
 		expect(video).toBeTruthy();
-		await key(editor.locator(`[data-clip-id="${video.id}"]`).first());
+		const clip = editor.locator(`[data-track-lane] [data-clip-id="${video.id}"][data-clip-kind="video"][role="group"]`);
+		await expect(clip).toHaveCount(1);
+		await key(clip);
+		await expect(clip.locator('.clip-display')).toHaveClass(/\bclip-display--selected\b/u);
 		await chooseNestedCommandAction(page, editor, route.edit, [copy.clipBoundaries, copy.clipPropertiesCommand]);
 		const rack = editor.locator('[data-workspace-panel="clip-properties"] [data-video-effect-rack]');
 		await expect(rack).toBeVisible();

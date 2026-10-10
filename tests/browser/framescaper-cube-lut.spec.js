@@ -144,7 +144,10 @@ async function chooseEffectByKeyboard(page, button, label) {
 	await expect(listbox).toBeHidden(); await expect(button).toContainText(label);
 }
 async function selectClip(editor, id) {
-	await key(editor.locator(`[data-clip-id="${id}"]`).first(), 'Enter');
+	const clip = editor.locator(`[data-track-lane] [data-clip-id="${id}"][data-clip-kind="video"][role="group"]`);
+	await expect(clip).toHaveCount(1);
+	await key(clip, 'Enter');
+	await expect(clip.locator('.clip-display')).toHaveClass(/\bclip-display--selected\b/u);
 }
 async function openRack(page, editor, route) {
 	await chooseNestedCommandAction(page, editor, route.edit, [route.copy.clipBoundaries, route.copy.clipPropertiesCommand]);
