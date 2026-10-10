@@ -1098,6 +1098,10 @@
 		,
 		{"path": "src/lightscaper/controller/photo-develop-workspace-commands-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current workspace drafts preserve real mixed history and snapshot recipes, explicit workspace promotion and aggregate retention while borrowing ordinary command CAS publication."}
 		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-collection-handoff-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-collection editable archive serially decodes authenticated selected originals, preserves separate current SourceV2 recipes and placements, and joins original and unique active and disabled LUT deliveries under independent repeated-pack body, entry and ZIP bounds without sender publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-collection-handoff-project-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure collection Frame assembly preserves the ordered current SourceV2 recipes and provenance in distinct contiguous still placements with exact integer duration conversion, globally distinct project identities and current owner validation without resource, storage or archive authority." }
+		,
 		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable archive assembles one current SourceV2 Frame project from authenticated original and active and disabled LUT bodies under joined saved-facts fences, with fixed unique-body and ZIP limits and no sender project publication." }
 		,
 		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-inspect-v1.ts", "kind": "helper-contract", "justification": "Version 1 editable image choice inspection authenticates current project facts and declared asset closure under bounded joined ZIP ownership, returning scalar SourceV2 choices without original, pixel, LUT or publication authority." }
