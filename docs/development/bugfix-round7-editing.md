@@ -151,13 +151,6 @@ before any corrected build. Corrected complete public proof is pending.
 Reviewed causal diagnostics and logs are removed immediately. No manual
 **Update AI assets** run is required.
 
-Guarded exact678a672d0 completes EDIT021's original audio control in2.1 seconds
-and native PNG sort/Undo/Redo workflow in5.4 seconds. EDIT020's unchanged
-selected Title Skip likewise passes in4.5 seconds. Complete source and
-test/tooling strict compilation pass after narrowing the test track's actual
-clip-ID array. EDIT021 is fully qualified; both sorting criteria remain one
-command-dispatch root. Reviewed verification logs and output are deleted.
-
 Guarded capture24cbd04c0 passes EDIT020's unchanged complete public Title
 workflow in6.7 seconds. The complete strict compiler identifies two narrow
 new typing errors: the unresolved clip interface is broader than selection
@@ -193,3 +186,10 @@ Targeted lint and size/diff checks pass; corrected public verification is
 pending. Reviewed causal logs,
 screenshots and diagnostic contexts are deleted immediately. No manual
 **Update AI assets** run is required.
+
+Guarded exact678a672d0 completes EDIT021's original audio control in2.1 seconds
+and native PNG sort/Undo/Redo workflow in5.4 seconds. EDIT020's unchanged
+selected Title Skip likewise passes in4.5 seconds. Complete source and
+test/tooling strict compilation pass after narrowing the test track's actual
+clip-ID array. EDIT021 is fully qualified; both sorting criteria remain one
+command-dispatch root. Reviewed verification logs and output are deleted.
