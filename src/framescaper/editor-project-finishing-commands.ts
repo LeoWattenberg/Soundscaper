@@ -134,7 +134,7 @@ function applyNormalized(
 	if (isMixerSurfaceCommandV21(command)) {
 		const draft = structuredClone(project) as unknown as Record<string, unknown>;
 		const audio = reconcileFramescaperAudioFinishingFinishing(draft, {
-			mixer: applyMixerSurfaceCommandV21(project, command),
+			mixer: applyMixerSurfaceCommandV21(mixerSurfaceProject(project), command),
 			automationLanes: project.automationLanes,
 		});
 		draft.mixer = audio.mixer;
@@ -150,6 +150,19 @@ function applyNormalized(
 		command as FramescaperOwnedFinishingCommandFinishing,
 	);
 	return finalizeDraft(profile, project, draft, options);
+}
+
+function mixerSurfaceProject(project: FramescaperProjectFinishing) {
+	const masterChannels = project.masterChannels;
+	if (typeof masterChannels !== 'number') throw new TypeError('Framescaper masterChannels must be a number.');
+	const tracks = readClosedDomainArray(project.tracks, 'Framescaper tracks', 0, MAXIMUM_COMMANDS)
+		.map((track) => {
+			if (!track || typeof track !== 'object' || Array.isArray(track)) {
+				throw new TypeError('Framescaper track must be a record.');
+			}
+			return readClosedDomainRecord(track, 'Framescaper track', Object.keys(track));
+		});
+	return { ...project, masterChannels, tracks };
 }
 
 function isBatch(command: FramescaperProjectCommandFinishing): command is FramescaperProjectCommandBatchFinishing {
