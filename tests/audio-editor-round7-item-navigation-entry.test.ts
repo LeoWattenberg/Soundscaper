@@ -7,6 +7,8 @@ import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/ed
 import { createAudacityActionRuntime } from '../src/common/editor/audacity-action-runtime.js';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../src/common/editor/ui/framescaper-candidate-authoring-actions.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.js';
+import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 
 test('Next item enters the first ordinary item after Select none', async context => {
 	const environment = await createFramescaperEditorProjectEnvironment({ storeOptions: {
@@ -35,4 +37,26 @@ test('Next item enters the first ordinary item after Select none', async context
 	assert.deepEqual(controller.project?.selection.clipIds, []);
 	assert.equal(await runtime.actions.navigation.nextItem(), ids[0], 'enter the list before advancing within it');
 	assert.equal(controller.getSnapshot().selectedClipId, ids[0]);
+});
+
+test('Item below enters the first ordinary track after No tracks', async context => {
+	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
+	const controller = createAudioEditorController(null, { headless: true, locale: 'en', copy: COPY,
+		store: createProjectStore({ indexedDB: null, preferOpfs: false, databaseName: 'round7-item-entry' }),
+		engine: createMemoryEngine() as unknown as Options['engine'],
+		ffmpeg: createMemoryFfmpeg() as unknown as Options['ffmpeg'] });
+	context.after(async () => { await controller.dispose(); });
+	await controller.ready;
+	const first = controller.project?.tracks[0]?.id;
+	const second = controller.actions.track.add({ name: 'Second' });
+	assert.ok(first && second);
+	const runtime = createAudacityActionRuntime(controller);
+	context.after(() => runtime.dispose());
+	controller.actions.timeline.selectTrack(first);
+	assert.equal(runtime.actions.navigation.itemBelow(), second, 'a selected anchor advances normally');
+	controller.actions.timeline.selectNoTracks();
+	assert.equal(controller.getSnapshot().selectedTrackId, null);
+	assert.equal(runtime.actions.navigation.itemBelow(), first, 'enter the list before advancing within it');
+	controller.actions.timeline.selectNoTracks();
+	assert.equal(runtime.actions.navigation.lastTrack(), second, 'explicit Last track still reaches the end');
 });
