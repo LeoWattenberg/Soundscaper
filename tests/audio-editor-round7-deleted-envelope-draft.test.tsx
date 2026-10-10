@@ -21,12 +21,12 @@ for (const change of ['none', 'rename', 'delete', 'delete-and-undo'] as const) {
 		globals.IS_REACT_ACT_ENVIRONMENT = true;
 		const document = dom.container.ownerDocument as unknown as Document;
 		const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
-		document.addEventListener = (type, listener) => {
+		document.addEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
 			if (!listener) return;
 			const entries = listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
 			entries.add(listener); listeners.set(type, entries);
 		};
-		document.removeEventListener = (type, listener) => { if (listener) listeners.get(type)?.delete(listener); };
+		document.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => { if (listener) listeners.get(type)?.delete(listener); };
 		const initial = createSoundscaperProject({ id: 'envelope-retirement', sampleRate: 48_000,
 			sources: [createAudioSource({ id: 'source', storageKey: 'source', frameCount: 100,
 				sampleRate: 48_000, channelCount: 1 })],
@@ -66,7 +66,12 @@ for (const change of ['none', 'rename', 'delete', 'delete-and-undo'] as const) {
 			assert.equal(updates.length, change.startsWith('delete') ? 0 : 1);
 			if (change === 'delete') assert.equal(history.present.clips.length, 0);
 			else if (change === 'delete-and-undo') assert.deepEqual(history.present.clips[0]!.envelope, initial.clips[0]!.envelope);
-			else assert.ok(history.present.clips[0]!.envelope?.some(point => point.value < .3));
+			else {
+				const envelope: unknown = history.present.clips[0]!.envelope;
+				assert.ok(Array.isArray(envelope));
+				assert.ok(envelope.some((point: unknown) => point !== null && typeof point === 'object'
+					&& 'value' in point && typeof point.value === 'number' && point.value < .3));
+			}
 		} finally {
 			await act(async () => { root.unmount(); context.mock.timers.runAll(); });
 			assert.equal(listeners.get('mouseup')?.size ?? 0, 0);
