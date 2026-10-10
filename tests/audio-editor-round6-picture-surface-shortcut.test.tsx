@@ -26,7 +26,7 @@ for (const ownership of ['ctrlKey', 'metaKey', 'altKey', 'defaultPrevented', 'pl
 			selection: { trackIds: ['picture'], startFrame: 0, endFrame: 0, clipIds: [] }, clips: [], sources: [] };
 		const controller = { getSnapshot: () => ({ project, selectedTrackId: 'picture' }), actions: {
 			track: { update: noop }, timeline: { selectTrack: noop, selectClip: noop,
-				setSelection: (start: number, end: number, details: Readonly<{ trackIds: readonly string[] }>) => selections.push({ start, end, ...details }),
+				adjustSelection: (start: number, end: number, details: Readonly<{ trackIds: readonly string[] }>, options: Readonly<{ snap: false }>) => selections.push({ start, end, ...details, snap: options.snap }),
 			},
 		} };
 		try {
@@ -53,7 +53,7 @@ for (const ownership of ['ctrlKey', 'metaKey', 'altKey', 'defaultPrevented', 'pl
 			assert.deepEqual(navigation, ownership === 'plain' ? ['track:2', 'track:0', 'panel:1', 'panel:0'] : []);
 			if (ownership === 'plain') {
 				await act(async () => { reactProps(surface).onKeyDown?.({ key: 'ArrowDown', shiftKey: true, preventDefault() {} }); });
-				assert.deepEqual(selections, [{ start: 0, end: 0, trackIds: ['picture', 'last'] }]);
+				assert.deepEqual(selections, [{ start: 0, end: 0, trackIds: ['picture', 'last'], snap: false }]);
 			} else assert.deepEqual(selections, []);
 		} finally {
 			await act(async () => root.unmount());
