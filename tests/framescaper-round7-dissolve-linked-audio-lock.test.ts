@@ -16,7 +16,7 @@ function linkedPair(locked: boolean): FramescaperProject {
 		clips: (pair.clips as readonly Data[]).map(clip => clip.id === 'incoming-video'
 			? { ...clip, avLinkId: 'incoming-link' } : clip.id === 'audio-clip'
 				? { ...clip, avLinkId: 'incoming-link', timelineStartFrame: 48_000 } : clip),
-		tracks: (pair.tracks as readonly Data[]).map(track => ({ ...track,
+		tracks: pair.tracks.map(track => ({ ...track,
 			laneGroupId: 'camera-lanes', ...(track.type === 'audio' ? { locked } : {}),
 		})),
 	} as FramescaperProject;
@@ -53,7 +53,7 @@ test('locking only the incoming camera audio refuses its move and removes the do
 
 test('an unrelated locked audio recording leaves the healthy picture dissolve available', () => {
 	const project = pairProject(10, 10);
-	const unrelated = { ...project, tracks: (project.tracks as readonly Data[])
+	const unrelated = { ...project, tracks: project.tracks
 		.map(track => ({ ...track, ...(track.type === 'audio' ? { locked: true } : {}) })) } as FramescaperProject;
 	assert.equal(view(unrelated).transitionPairs.length, 1);
 });
