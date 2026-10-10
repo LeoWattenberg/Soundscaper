@@ -64,8 +64,12 @@ for (const [locale, route] of Object.entries(ROUTES)) {
 		expect(authored.project.sources).toEqual(original.project.sources);
 		expect(authored.bodies.find(item => item.key === originalBody.key)).toEqual(originalBody);
 		expect(authored.bodies.find(item => item.key === REFERENCE.storageKey).bytes).toEqual([...CUBE]);
+		expect(authored.project.videoColorContexts).toEqual([expect.objectContaining({
+			sequenceId: originalVideo.sequenceId, workingSpace: 'linear-rec709-d65', outputSpace: 'rec709',
+		})]);
 		await expectExactFrame(editor);
-		await expect.poll(() => centerPixel(editor), { timeout: 30_000 }).toEqual([137, 0, 0, 255]);
+		// Independent Rec.709 encoding of linear quarter-red rounds to 125; sRGB would round to 137.
+		await expect.poll(() => centerPixel(editor), { timeout: 30_000 }).toEqual([125, 0, 0, 255]);
 
 		const toggle = rack.getByRole('checkbox', { name: copy.videoEffectCubeLutProfile, exact: true });
 		await key(toggle, 'Space');
@@ -75,10 +79,11 @@ for (const [locale, route] of Object.entries(ROUTES)) {
 		const disabled = authored.project.clips.find(clip => clip.id === originalVideo.id).videoEffects[0];
 		expect(disabled).toEqual({ ...cube, enabled: false });
 		await chooseCommandAction(page, editor, route.edit, copy.copy);
-		await chooseCommandAction(page, editor, route.file, copy.newProject);
+		await chooseCommandAction(page, editor, route.file, locale === 'en' ? 'New' : copy.newProject);
 		await expect.poll(() => editor.getAttribute('data-project-id')).not.toBe(originId);
 		const destinationId = await editor.getAttribute('data-project-id');
 		await chooseNestedCommandAction(page, editor, route.edit, [copy.paste, copy.paste]);
+		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
 		await save(page, editor, route);
 		const pasted = await snapshot(page, destinationId);
 		const pastedVideo = pasted.project.clips.find(clip => clip.kind === 'video');
@@ -108,6 +113,9 @@ for (const [locale, route] of Object.entries(ROUTES)) {
 		const reopened = await snapshot(page, destinationId);
 		expect(reopened.project).toEqual(pasted.project);
 		expect(reopened.bodies).toEqual(pasted.bodies);
+		expect(reopened.project.videoColorContexts).toEqual([expect.objectContaining({
+			sequenceId: pastedVideo.sequenceId, workingSpace: 'linear-rec709-d65', outputSpace: 'rec709',
+		})]);
 		await selectClip(editor, pastedVideo.id);
 		rack = await openRack(page, editor, route);
 		const reopenedToggle = rack.getByRole('checkbox', { name: copy.videoEffectCubeLutProfile, exact: true });
@@ -115,7 +123,7 @@ for (const [locale, route] of Object.entries(ROUTES)) {
 		await key(reopenedToggle, 'Space');
 		await expect(reopenedToggle).toBeChecked();
 		await expectExactFrame(editor);
-		await expect.poll(() => centerPixel(editor), { timeout: 30_000 }).toEqual([137, 0, 0, 255]);
+		await expect.poll(() => centerPixel(editor), { timeout: 30_000 }).toEqual([125, 0, 0, 255]);
 		await save(page, editor, route);
 		const enabled = await snapshot(page, destinationId);
 		expect(enabled.project.sources).toEqual(pasted.project.sources);
