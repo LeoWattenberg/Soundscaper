@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 
 const PRODUCT_ID_SET = new Set(PRODUCT_IDS);
 
@@ -16,6 +16,12 @@ export const PRODUCT_IDENTITIES = deepFreeze({
 		name: 'Framescaper',
 		basePath: '/framescaper',
 		defaultWorkspace: 'video-editor',
+	},
+	motionscaper: {
+		id: 'motionscaper',
+		name: 'Motionscaper',
+		basePath: '/motionscaper',
+		defaultWorkspace: 'motion',
 	},
 });
 
@@ -36,8 +42,21 @@ export function productLocalePath(product, locale, options = {}) {
 	return `${identity.basePath}${embedSegment}/${localeSegment}/`;
 }
 
-export function otherProductId(product) {
-	return normalizeProductId(product) === 'framescaper' ? 'soundscaper' : 'framescaper';
+export function otherProductIds(product) {
+	const selected = normalizeProductId(product);
+	return Object.freeze(PRODUCT_IDS.filter((id) => id !== selected));
+}
+
+/** Legacy two-product handoff; new callers choose an explicit destination. */
+export function otherProductId(product, destination) {
+	const selected = normalizeProductId(product);
+	if (destination !== undefined) {
+		const target = normalizeProductId(destination);
+		if (target === selected) throw new RangeError('The destination must name another product.');
+		return target;
+	}
+	if (selected === 'motionscaper') throw new RangeError('Motionscaper needs an explicit destination product.');
+	return selected === 'framescaper' ? 'soundscaper' : 'framescaper';
 }
 
 function deepFreeze(value) {

@@ -1,16 +1,18 @@
 import { normalizeProductId } from './product-identities.js';
-import { FRAMESCAPER_PROFILE, SOUNDSCAPER_PROFILE } from './product-profiles.js';
+import { FRAMESCAPER_PROFILE, MOTIONSCAPER_PROFILE, SOUNDSCAPER_PROFILE } from './product-profiles.js';
 
 export {
 	PRODUCT_IDS,
 	normalizeProductId,
 	otherProductId,
+	otherProductIds,
 	productLocalePath,
 } from './product-identities.js';
 
 export const PRODUCT_PROFILES = deepFreeze({
 	soundscaper: SOUNDSCAPER_PROFILE,
 	framescaper: FRAMESCAPER_PROFILE,
+	motionscaper: MOTIONSCAPER_PROFILE,
 });
 
 export function productProfile(value = 'soundscaper') {
