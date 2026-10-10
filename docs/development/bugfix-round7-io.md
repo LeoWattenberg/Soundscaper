@@ -791,6 +791,25 @@ origins were confirmed, the entire context/PNG/log consumed, and every owned
 completed replay artifact removed immediately. No source or qualified-count
 change; any further timing diagnosis must preserve the complete native workflow.
 
+Authorized passive replacement diagnosis on immutable `1541ccf681596465463d0da455b7e6193a066a78`
+retains both complete native bodies, their five-second expectations and 30-second
+case limit. Continuous passes; frozen still fails at choice visibility in 16.6
+seconds. Both trusted Replace clicks hit the enabled target while public block
+reasons, task and alert are absent. Actual replacement file changes then start
+the import task 35–36 milliseconds later, disproving initial-import admission
+refusal for these observations. Continuous file selection at 7,495 milliseconds
+is followed by visible choice/import completion at 11,973 (4.478 seconds);
+frozen selection at 10,684 reaches the same native completion and mounted/visible
+choice at 15,304 (4.620 seconds). The frozen failed-body hook at 15,994 still sees
+the visible choice, confirmed by the actual PNG. There is no canonical refusal.
+These passive mount times below five seconds do not prove a greater decode
+budget is required, and the failed driver expectation remains an unresolved
+readiness/polling observation. No maintained deadline, source or count changes.
+The isolated temporary spec/config were outside maintained and frozen trees;
+two setup-only config failures were consumed and removed before the actual
+cases. All actual trace/log/context/PNG were consumed, servers closed and every
+owned temporary file/result removed immediately after this receipt.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
