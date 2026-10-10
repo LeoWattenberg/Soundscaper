@@ -440,6 +440,18 @@ changed-file lint and whitespace checks pass; their completed bounded logs are
 consumed and immediately removed. This test-only capability correction requires
 no manual Update AI assets run.
 
+
+Full200 FX035 Firefox export-witness observation (verification only, zero count):
+the one-bar warp workflow times out at its unchanged30000 ms deadline
+(35.874 seconds). The exact marker stack points to exportedDrum's page.evaluate
+for the second real downloaded WAV, after the normal musical warp controls and
+first healthy delivered PCM check have completed. The actual PNG/context show
+Export audio with a completed WAV download link and the authored five-second
+recording placed at four seconds. No failed marker, frame, peak or peak-position
+assertion establishes a DSP regression. The completed JSON/context/PNG were
+read and the exact owned diagnostic directory immediately removed. The original
+full-suite timeout remains recorded; unchanged whole Firefox replay is pending.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
