@@ -206,7 +206,8 @@ test('clocked playback reserves normal source startup time with no clips after m
 	release();
 	const scheduled = await starting;
 	assert.equal(scheduled, 1.08);
-	assert.equal(engine.getPlaybackAudibleStartTime(), scheduled);
+	// The empty graph still contains the native 6 ms compressor pre-delay.
+	assert.equal(engine.getPlaybackAudibleStartTime(), scheduled + .006);
 	unsubscribe();
 	engine.stop();
 	await engine.dispose();

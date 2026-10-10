@@ -85,6 +85,9 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	assert.equal(realtime.bufferSources.length, 1);
 	assert.deepEqual(realtime.bufferSources[0].started, [0, 0, 1]);
 	realtime.currentTime = 0.5;
+	assert.equal(engine.getPositionFrames(), 24_000 - 288);
+	// Transport reports the samples actually heard after native compressor delay.
+	realtime.currentTime += .006;
 	assert.equal(engine.getPositionFrames(), 24000);
 	engine.pause();
 	assert.equal(engine.getState().positionFrame, 24000);

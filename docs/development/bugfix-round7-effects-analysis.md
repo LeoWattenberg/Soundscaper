@@ -737,8 +737,15 @@ removed immediately. No manual Update AI assets run is required.
 An optional Undo control in earlier setup correctly removed all five effects
 from persistent state, but its delivered magnitude changed from 0.00706899 to
 0.000410541. Those attempts never reached the phase assertion and are excluded
-from this causal proof; the separate export/cache observation remains under
-audit. An initial blank Firefox probe filled its AudioBuffer after assigning
+from this causal proof. A passive follow-up proves that the broad header-center
+click itself changes Volume from 1 to 0.0580764417521 before the Chain opens,
+accounting for exactly that attenuation. Undo of the fader edit restores 1.
+Selecting the blank header corner preserves gain; twice-dry export magnitudes
+0.00706899000 and 0.00706898992 then agree with Chain Undo 0.00706898950, with
+identical persisted tracks, clips, mixer and unchanged raw PCM. Loudness remains
+None throughout. The complete ordinary control passes on db368adda in 11.4
+seconds; its temporary probe, spec, log and diagnostics are immediately removed.
+The permanent phase witness now selects that blank corner. An initial blank Firefox probe filled its AudioBuffer after assigning
 it to the source and produced silence; filling before assignment on the
 qualified audio server restores the independent physical control. Neither
 verification issue contributes another bug count.
@@ -761,3 +768,16 @@ classification; the corrected audit, chunk ownership, physical release,
 Spectrum calibration and frozen parity controls pass 57/57. Target lint,
 changed lint, size and owned diff checks pass. These repairs add zero bugs;
 bounded verification logs are removed immediately after recording the result.
+
+
+The next full Node run finds four timing expectations predating FX019's
+independently measured native compressor delay. Keep the 80 ms source-start
+reservation and add its 6 ms audible delay for an empty metered graph. At 2x
+speed, preserve source offsets and count the 288 context-frame pre-delay as
+576 project frames; after Seek the newly scheduled graph has its own pre-delay.
+At unity speed retain the original heard-position and Pause assertions after
+advancing that exact delay. The limiter-before-master-compressor parameter
+fixture retains upstream 480-frame bindings and declares the resulting
+768-frame master output. These four fixture corrections and all their source,
+transport, scheduling, offline PCM and five-clock controls pass 43/43. They add
+zero roots and change no production bytes. The bounded log is read and removed.

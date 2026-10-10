@@ -51,7 +51,7 @@ test('the menu-authored Dialogue Chain preserves ordinary recording phase', asyn
 	expect(dry.magnitude).toBeGreaterThan(.006);
 	expect(Math.abs(dry.phase)).toBeLessThan(.005);
 	const track = editor.locator('[data-track-row]:not([data-video-track]):not([data-label-track])').last();
-	await track.locator('[data-track-header]').click();
+	await track.locator('[data-track-header]').click({ position: { x: 4, y: 4 } });
 	await editor.getByRole('menubar', { name: 'Application menu', exact: true })
 		.getByRole('menuitem', { name: 'Window', exact: true }).click();
 	await page.getByRole('menu', { name: 'Window', exact: true })
