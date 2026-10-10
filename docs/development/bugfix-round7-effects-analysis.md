@@ -970,6 +970,40 @@ without an alert. This root is fully qualified. All owned bounded logs and gener
 removed immediately. This uses the same assistance runtime closure; no manual
 Update AI assets run is required.
 
+## R7-EFFECT-025 — Blender refuses ordinarily delayed audio stems
+
+Import a one-second stereo recording in Soundscaper desktop and choose File →
+Export other → Export track list for Blender. The healthy dry publication
+completes with a 48,000-frame WAV. Add Feedback delay to the recording's rack,
+set Time to one second, Feedback to zero and Mix to one, then repeat the same
+export. The application reports that the rendered stem does not match its
+published audio duration or format and aborts the publication.
+
+The Blender publication owner advertises the base timeline plus its release,
+but requests that extended timeline range with `includeTail: false`. The real
+renderer clamps source ranges to the timeline and independently appends only
+requested release samples, so its WAV is shorter than the advertised duration.
+Pass the base range and exact release duration separately, keeping the strict
+WAV geometry refusal and atomic publication. Estimate each release from the
+actual detached stem projection; retaining muted or unsoloed stem audio while
+publishing mute separately completes FX004's existing mute-tail contract and
+adds no second root. Authored muted buses remain silent, and no detached source
+snapshots are retained for the entire stem batch.
+
+The real desktop menu workflow on authenticated
+32eb4cebf5615659c4e65630a61fb14464cff4c1 passes dry publication before causally
+failing at the exact rendered-duration alert in 15.3 seconds. Two earlier
+attempts without that healthy publication are excluded. The strict production
+renderer regression has one dry pass and three failures before correction:
+the independent unmuted range refusal and the existing muted/unsoloed release
+omission. Corrected dry, audible delayed, muted, unsoloed and authored muted-bus
+cases, existing publication identity/WAV/capacity/abort controls, live-sync
+authority, FX004 audibility, time-conversion and chunk ownership pass 62/62 in
+16.469 seconds. Targeted type-aware lint, canonical changed lint and owned diff checks pass. Corrected
+whole public verification is pending; this root is not yet qualified. Bounded
+owned logs and generated diagnostics are read and removed immediately. The
+assistance runtime closure is unchanged; no manual Update AI assets is required.
+
 ### Repair reference matrix — no additional root
 
 The helper-120 full Node run reproduces a stale menu-reference expectation:
