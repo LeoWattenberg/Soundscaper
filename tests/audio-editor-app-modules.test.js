@@ -68,11 +68,15 @@ test('desktop read callers retain capabilities for their scoped consumers', asyn
 	const workspace = await readFile(new URL('workspace/AudioEditorWorkspace.jsx', UI_ROOT), 'utf8');
 	const projectBin = await readFile(new URL('workspace/ProjectBinPanel.jsx', UI_ROOT), 'utf8');
 	const desktopBridge = await readFile(new URL('workspace/useDesktopEditorBridge.js', UI_ROOT), 'utf8');
+	const fileChoice = await readFile(new URL('workspace/desktop-workspace-file-choice.ts', UI_ROOT), 'utf8');
 	assert.match(workspace, /withDesktopProjectReadDescriptor\(/u);
-	assert.match(workspace, /fileService\.withReadDescriptors\(/u);
-	assert.match(projectBin, /fileService\.withReadDescriptors\(/u);
+	for (const source of [workspace, projectBin]) {
+		assert.match(source, /import \{ openDesktopWorkspaceFiles \} from '\.\/desktop-workspace-file-choice\.ts'/u);
+		assert.match(source, /openDesktopWorkspaceFiles\(\{/u);
+	}
+	assert.match(fileChoice, /runtime\.fileService\.withReadDescriptors\(descriptors, \{\}, async files =>/u);
 	assert.match(desktopBridge, /openDesktopProjectDescriptor\(descriptor\)/u);
-	for (const source of [workspace, projectBin, desktopBridge]) {
+	for (const source of [workspace, projectBin, desktopBridge, fileChoice]) {
 		assert.doesNotMatch(source, /fileService\.openReadDescriptor\(/u);
 	}
 });

@@ -308,6 +308,19 @@ one worker passes in 2.0 seconds, including actual delivered BEXT, 24-bit PCM,
 root or deadline correction is established. Its reviewed original failure
 folder, isolated results and bounded replay logs were removed immediately.
 
+Checkpoint150 Node scoped-reader follow-through (zero count):
+`audio-editor-app-modules.test.js` still required `fileService.withReadDescriptors`
+inside both JSX callers after IO039 moved their complete chooser/read lifetime
+into `desktop-workspace-file-choice.ts`. The frozen full-run assertion is RED;
+the helper preserves the actual scoped descriptor owner. Update the static
+witness to require both callers’ exact helper import and invocation plus the
+helper’s `withReadDescriptors` consumer; retain the project-specific reader and
+forbid unscoped `openReadDescriptor` in all four owners. Existing app-module,
+strict pending-project lifetime and actual file-service capability regressions
+pass 29/29 in 0.3 seconds, with targeted ESLint and diff checks passing. The
+immutable checkpoint remains unchanged; bounded focused logs are removed
+immediately. No source semantics, capability ceiling or count changes.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
