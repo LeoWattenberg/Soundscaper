@@ -10,10 +10,11 @@ import type { DawprojectAudioEvent, DawprojectAutomationEvent } from './dawproje
  * routing, and channel automation, accumulated into one build the assembler
  * turns into a document.
  *
- * A DAWproject `Track` is one of several things here. One with children is a
- * folder, and a top-level folder with a channel owns a group bus that shares
- * its id — the folder-bus identity rule of this project. A childless track's
- * channel role decides the rest: master, submix, effect, or an audio track.
+ * A DAWproject `Track` is one of several things here. One declaring tracks or
+ * holding children is a folder, including an empty folder. A top-level folder
+ * with a channel owns a group bus that shares its id — the folder-bus identity
+ * rule of this project. A leaf channel's role decides the rest: master,
+ * submix, effect, or an audio track.
  * Membership matters for routing: a folder bus takes only its own tracks, so a
  * track routed into a group it is not inside routes to the master and the
  * report says so, rather than the route silently vanishing on document load.
@@ -88,7 +89,7 @@ export function walkTrack(track: DawprojectTrack, parentFolderId: string | null,
 	const channel = track.channel;
 	const role = channel?.role ?? 'regular';
 	build.devices += channel?.devices ?? 0;
-	if (track.children.length > 0) {
+	if (track.contentTypes.includes('tracks') || track.children.length > 0) {
 		const id = build.createStableId('folder');
 		build.folders.push({ id, name: track.name || 'Folder' });
 		build.trackNodes.push({ kind: 'folder', id, parentFolderId });
