@@ -7,8 +7,8 @@ export async function runSpectralRange(page, editor, entry) {
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Spectral editing', 'Spectral box select']);
 	const dialog = page.getByRole('dialog', { name: 'Spectral selection', exact: true });
 	await expect(dialog).toBeVisible();
-	for (const [label, value] of [['Minimum frequency (Hz)', entry.minimum], ['Maximum frequency (Hz)', entry.maximum]]) {
-		await commitInput(dialog.getByRole('textbox', { name: new RegExp(`^${label.replace(/[()]/gu, '\\$&')}`, 'u') }), String(value));
+	for (const [name, value] of [[/^Minimum frequency \(Hz\)/u, entry.minimum], [/^Maximum frequency \(Hz\)/u, entry.maximum]]) {
+		await commitInput(dialog.getByRole('textbox', { name }), String(value));
 	}
 	if (entry.operation === 'amplify') await commitInput(dialog.getByRole('textbox', { name: /^Gain \(dB\)/u }), String(entry.gain));
 	const button = { select: 'Select range', delete: 'Spectral Delete', amplify: 'Spectral Amplify' }[entry.operation];

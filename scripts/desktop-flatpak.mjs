@@ -49,9 +49,9 @@ export async function buildDesktopFlatpak(options, { runCommand = run } = {}) {
 	const applicationId = `org.${product}.desktop`;
 	const architecture = ARCHITECTURES[arch];
 	const version = resolveProductApplicationVersion(product, await readProductReleaseLines(repositoryRoot));
-	const pattern = new RegExp(`^${productName}-${escapeRegex(version)}-linux-${arch}\\.deb$`, 'u');
+	const packageName = `${productName}-${version}-linux-${arch}.deb`;
 	const matches = (await readdir(packagesRoot, { withFileTypes: true }))
-		.filter((entry) => pattern.test(entry.name));
+		.filter((entry) => entry.name === packageName);
 	if (matches.length !== 1 || !matches[0].isFile() || matches[0].isSymbolicLink()) {
 		throw new Error(`Flatpak requires exactly one regular matching ${product} ${arch} Debian package.`);
 	}
@@ -225,10 +225,6 @@ async function requireRegularDirectory(path, label) {
 function contained(root, path) {
 	const segment = relative(root, path);
 	return segment === '' || (!segment.startsWith('..') && !isAbsolute(segment));
-}
-
-function escapeRegex(value) {
-	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function validateOptions(options) {
