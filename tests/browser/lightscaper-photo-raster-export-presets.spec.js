@@ -66,7 +66,7 @@ for (const locale of ['en', 'de']) {
 		await expect(raster(dialog, locale, 'outputSize')).toHaveValue('original'); expect(downloads).toHaveLength(2); expect(f.errors).toEqual([]);
 		await assertNativeOpfsWorkerExecution(page);
 	});
-	observedTest(`${locale}: batch presets persist JPEG output, refuse sidecars without losing draft and protect completed recovery`, async ({ page, browserName }) => {
+	observedTest(`${locale}: batch presets restore paired preferences, persist JPEG output and protect completed recovery`, async ({ page, browserName }) => {
 		observedTest.skip(browserName === 'webkit', 'The roadmap defers native WebKit Blob/OPFS catalog workflows.'); observedTest.setTimeout(90_000);
 		const f = await imported(page, locale, ['First.png', 'Second.png']), downloads = []; page.on('download', download => { downloads.push(download); });
 		let dialog = await openSingle(page, f, 'png'); await presetFields(page, dialog, locale); await toggle(page, raster(dialog, locale, 'sidecar'), true);
@@ -77,8 +77,9 @@ for (const locale of ['en', 'de']) {
 		await menu(page, f.app, f.copy.photoFileMenu); await keyboard(page, named(f.app, 'button', photoBatchExportMenuCopy(locale).downloadSelected));
 		dialog = named(page, 'dialog', photoBatchExportCopy(locale).title); await expect(named(dialog, 'button', photoBatchExportCopy(locale).start)).toBeEnabled(); await presetFields(page, dialog, locale);
 		await raster(dialog, locale, 'filenameTemplate').fill('Draft-{name}'); await choose(page, named(dialog, 'combobox', f.words.choose), sidecarId);
-		await keyboard(page, named(dialog, 'button', f.words.apply)); await expect(dialog.locator('[data-photo-export-preset-message]')).toHaveText(f.words.batchSidecar);
-		await expect(raster(dialog, locale, 'filenameTemplate')).toHaveValue('Draft-{name}'); await expect(named(dialog, 'combobox', photoBatchExportCopy(locale).format)).toHaveValue('png');
+		await keyboard(page, named(dialog, 'button', f.words.apply)); await expect(raster(dialog, locale, 'sidecar')).toBeChecked();
+		await expect(raster(dialog, locale, 'filenameTemplate')).toHaveValue('{name}'); await expect(named(dialog, 'combobox', photoBatchExportCopy(locale).format)).toHaveValue('png'); expect(downloads).toHaveLength(0);
+		await toggle(page, raster(dialog, locale, 'sidecar'), false);
 		await choose(page, named(dialog, 'combobox', f.words.choose), ''); await choose(page, named(dialog, 'combobox', photoBatchExportCopy(locale).format), 'jpeg'); await output(page, dialog, locale);
 		await dialog.getByLabel(f.words.name, { exact: true }).fill('Batch JPEG'); await keyboard(page, named(dialog, 'button', f.words.save));
 		await expect(dialog.locator('[data-photo-export-preset-message]')).toHaveText(f.words.saved); const batchId = await named(dialog, 'combobox', f.words.choose).inputValue();
@@ -107,7 +108,8 @@ for (const locale of ['en', 'de']) {
 		await menu(page, f.app, f.copy.photoFileMenu); await menu(page, f.app, f.copy.photoPhotoMenu); await keyboard(page, named(f.app, 'button', f.copy.photoClearSelection));
 		await menu(page, f.app, f.copy.photoFileMenu); await keyboard(page, named(f.app, 'button', photoBatchExportMenuCopy(locale).queue));
 		dialog = named(page, 'dialog', photoBatchExportCopy(locale).title); await expect(dialog.locator('[data-journal-state="already-committed"]')).toHaveCount(2);
-		await presetFields(page, dialog, locale); await expect(dialog.locator('[data-photo-export-preset-fields]')).toBeDisabled();
+		await presetFields(page, dialog, locale); await expect(dialog.locator('[data-photo-export-preset-fields]')).toHaveAttribute('disabled', '');
+		for (const [role, name] of [['combobox', f.words.choose], ['textbox', f.words.name], ['button', f.words.save], ['button', f.words.apply], ['button', f.words.remove], ['button', f.words.reload]]) await expect(named(dialog, role, name)).toBeDisabled();
 		await assertOutput(dialog, locale); expect(downloads).toHaveLength(2); expect(f.errors).toEqual([]); await assertNativeOpfsWorkerExecution(page);
 	});
 }
