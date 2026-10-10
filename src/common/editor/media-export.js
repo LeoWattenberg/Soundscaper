@@ -1,3 +1,5 @@
+import { normalizeMediaMetadata } from './media-metadata.ts';
+export { normalizeMediaMetadata } from './media-metadata.ts';
 import { normalizeBextMetadata } from './broadcast-wave.ts';
 import { embeddedChapterEncodingFields } from './export-embedded-chapter-encoding.ts';
 import { BIT_RATES, allowedNumber, integerInRange, numberInRange } from './media-export-values.js';
@@ -11,8 +13,6 @@ export {
 } from './media-export-codec-rate.js';
 
 const MAX_EXPORT_CHANNELS = 32;
-const MAX_METADATA_FIELDS = 32;
-const MAX_METADATA_VALUE_LENGTH = 4_096;
 const MAX_CUSTOM_ARGUMENTS = 64;
 const MAX_CUSTOM_ARGUMENT_LENGTH = 256;
 /**
@@ -381,24 +381,6 @@ export function applyMediaChannelMapping(inputChannels, mapping = 'preserve') {
 	});
 }
 
-export function normalizeMediaMetadata(value = {}) {
-	if (value == null) return Object.freeze({});
-	if (typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Export metadata must be an object.');
-	const entries = Object.entries(value).filter(([, item]) => item != null && String(item) !== '');
-	if (entries.length > MAX_METADATA_FIELDS) throw new RangeError(`Export metadata supports at most ${MAX_METADATA_FIELDS} fields.`);
-	const result = {};
-	for (const [rawKey, rawValue] of entries) {
-		const key = String(rawKey).trim();
-		if (!/^[A-Za-z0-9_.-]{1,64}$/.test(key)) throw new RangeError(`Invalid metadata field name: ${rawKey}.`);
-		const text = String(rawValue);
-		if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) throw new RangeError(`Metadata field ${key} contains control characters.`);
-		if (text.length > MAX_METADATA_VALUE_LENGTH) throw new RangeError(`Metadata field ${key} is too long.`);
-		Object.defineProperty(result, key, {
-			value: text, enumerable: true, writable: true, configurable: true,
-		});
-	}
-	return Object.freeze(result);
-}
 
 export function mediaMetadataToFfmpegArgs(metadata = {}) {
 	const normalized = normalizeMediaMetadata(metadata);

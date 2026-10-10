@@ -22,5 +22,8 @@ test('modified metadata-tab arrows remain available to a configured command', as
 	await expect(editor.locator('[data-label-track]')).toHaveCount(1);
 	await expect(general).toHaveAttribute('aria-selected', 'true');
 	await general.press('ArrowRight');
+	const id3 = metadata.getByRole('tab', { name: 'ID3', exact: true });
+	await expect(id3).toHaveAttribute('aria-selected', 'true');
+	await id3.press('ArrowRight');
 	await expect(metadata.getByRole('tab', { name: 'BEXT', exact: true })).toHaveAttribute('aria-selected', 'true');
 });

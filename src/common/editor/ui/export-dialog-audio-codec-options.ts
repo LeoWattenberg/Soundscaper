@@ -51,7 +51,6 @@ const BROWSER_DEDICATED_FORMATS = new Set([
 ]);
 const BROWSER_CODEC_FORMATS = new Set([...BROWSER_DEDICATED_FORMATS, 'aac-m4a']);
 const BROWSER_STEREO_FORMATS = new Set(['mp3', 'ogg-vorbis', 'opus', 'mp2']);
-const EMPTY_METADATA: Readonly<Record<string, unknown>> = Object.freeze({});
 const COMMON_SAMPLE_RATES = Object.freeze([
 	8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000,
 ]);
@@ -333,9 +332,9 @@ export function normalizeExportDialogAudioSettings(
 	return Object.keys(patch).length > 0 ? Object.freeze({ ...settings, ...patch }) : settings;
 }
 
-/** Dedicated browser payloads currently do not write tags; AAC may retain them. */
+/** All offered audio containers have a metadata writer. */
 export function exportDialogMetadataAvailable(format: unknown, desktop: boolean): boolean {
-	return desktop || !BROWSER_DEDICATED_FORMATS.has(String(format));
+	return desktop || String(format) !== 'custom-ffmpeg';
 }
 
 export function exportDialogMetadata(
@@ -343,7 +342,7 @@ export function exportDialogMetadata(
 	desktop: boolean,
 	metadata: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
-	return exportDialogMetadataAvailable(format, desktop) ? metadata : EMPTY_METADATA;
+	return exportDialogMetadataAvailable(format, desktop) ? metadata : Object.freeze({});
 }
 
 function exactSampleRates(format: unknown, desktop: boolean): readonly number[] {

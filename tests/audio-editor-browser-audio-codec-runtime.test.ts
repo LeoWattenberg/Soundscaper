@@ -260,20 +260,20 @@ test('browser audio preflight proves the exact AAC tuple before render-sized wor
 	assert.deepEqual(configurations, [{
 		codec: 'mp4a.40.2', sampleRate: 48_000, numberOfChannels: 2, bitrate: 192_000, aac: { format: 'aac' },
 	}]);
-	await assert.rejects(() => runtime.preflightEncodeFile('aac-m4a', {
+	await runtime.preflightEncodeFile('aac-m4a', {
 		frameCount: 48_000, sampleRate: 48_000, bitRate: 192,
-		metadata: { copyright: 'unsupported atom' },
-	}), /metadata fields: copyright/iu);
+		metadata: { copyright: '2026 Owner' },
+	});
 });
 
-test('browser audio preflight refuses dedicated metadata and complete-file bounds', async () => {
+test('browser audio preflight accepts metadata and refuses invalid complete-file bounds', async () => {
 	const runtime = createBrowserAudioCodecRuntime({
 		codecClient: clientFixture([], Uint8Array.of(1)), webCodecsAac: false,
 	});
-	await assert.rejects(() => runtime.preflightEncodeFile('mp3', {
+	await runtime.preflightEncodeFile('mp3', {
 		frameCount: 48_000, sampleRate: 48_000, inputChannelCount: 2,
-		bitRate: 192, metadata: { title: 'Not silently discarded' },
-	}), /does not write metadata tags/iu);
+		bitRate: 192, metadata: { title: 'Written during packaging' },
+	});
 	await assert.rejects(() => runtime.preflightEncodeFile('mp3', {
 		frameCount: 8_388_609, sampleRate: 48_000, inputChannelCount: 1,
 		bitRate: 192,

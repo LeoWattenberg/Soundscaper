@@ -11,7 +11,7 @@ import {
 	Output,
 } from 'mediabunny';
 import { raceAbortablePromise } from './abort-race.ts';
-import { browserAacMetadataTags } from './browser-aac-metadata.ts';
+import { browserAacMetadataFormat, browserAacMetadataTags } from './browser-aac-metadata.ts';
 import {
 	BROWSER_AAC_WEB_CODECS_CODEC,
 	browserWebCodecsAudioConfiguration,
@@ -56,7 +56,7 @@ export async function encodeBrowserAacM4a(
 	}
 	throwIfAborted(request.signal);
 	const target = new BufferTarget();
-	const output = new Output({ format: new Mp4OutputFormat(), target });
+	const output = new Output({ format: new Mp4OutputFormat({ metadataFormat: browserAacMetadataFormat(request.metadata) }), target });
 	const source = new AudioSampleSource({
 		codec: 'aac',
 		fullCodecString: BROWSER_AAC_WEB_CODECS_CODEC,

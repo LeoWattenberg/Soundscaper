@@ -2,6 +2,7 @@
 
 import { decodeAiffMetadataText } from './aiff-metadata-text.ts';
 import { correctImportedRiffMetadata } from './riff-imported-metadata.ts';
+import { readImportedMetadataTags } from './imported-metadata-reader.ts';
 
 const MAXIMUM_METADATA_STRING_LENGTH = 65_536;
 const MAXIMUM_METADATA_ARRAY_LENGTH = 512;
@@ -80,7 +81,7 @@ export async function inspectImportedMediaMetadata(
 	try {
 		const aiff = options.readTags ? null : await inspectAiffMetadata(file, options.signal);
 		options.signal?.throwIfAborted();
-		const tags = await correctImportedRiffMetadata(file, aiff?.tags ?? await (options.readTags ?? readMediabunnyMetadataTags)(file, options.signal), options.signal);
+		const tags = await correctImportedRiffMetadata(file, aiff?.tags ?? await (options.readTags ?? readImportedMetadataTags)(file, options.signal), options.signal);
 		options.signal?.throwIfAborted();
 		const inspected = await canonicalizeImportedMediaMetadata(tags, aiff?.namespaces, aiff?.warnings);
 		options.signal?.throwIfAborted();
@@ -145,21 +146,6 @@ export async function canonicalizeImportedMediaMetadata(
 		attachments: Object.freeze(context.attachments),
 		warnings: Object.freeze(context.warnings),
 	});
-}
-
-async function readMediabunnyMetadataTags(file: Blob, signal?: AbortSignal): Promise<unknown> {
-	signal?.throwIfAborted();
-	const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
-	signal?.throwIfAborted();
-	const input = new Input({
-		source: new BlobSource(file, { maxCacheSize: 4 * 1024 * 1024, useStreamReader: false }),
-		formats: ALL_FORMATS,
-	});
-	try {
-		return await input.getMetadataTags();
-	} finally {
-		input.dispose();
-	}
 }
 
 async function canonicalizeRawTags(
@@ -345,7 +331,7 @@ async function inspectAiffMetadata(file: Blob, signal?: AbortSignal): Promise<Ai
 					const rawKey = Object.hasOwn(raw, id) ? `${id}[${String(chunkCount)}]` : id;
 					raw[rawKey] = bytes;
 					try {
-						const parsed = dataRecord(await readMediabunnyMetadataTags(aiffId3Wave(bytes), signal));
+						const parsed = dataRecord(await readImportedMetadataTags(aiffId3Wave(bytes), signal));
 						if (parsed) {
 							const id3Index = embeddedId3.length;
 							embeddedId3.push(parsed);

@@ -28,7 +28,9 @@ void test('export defaults work before activation and preserve explicit metadata
 	assert.equal(fixture(null).normalizeExportSettings().sampleRate, 48000);
 	const tags = { title: 'Stored title' };
 	const queries = fixture({ metadata: { tags } });
-	assert.equal(queries.normalizeExportSettings().metadata, tags);
+	assert.deepEqual(queries.normalizeExportSettings().metadata, tags);
+	assert.deepEqual(fixture({ metadata: { title: 'Project title', artist: 'Artist', tags: { genre: 'Ambient', composer: 'Renée' } } })
+		.normalizeExportSettings().metadata, { title: 'Project title', artist: 'Artist', genre: 'Ambient', composer: 'Renée' });
 	const explicit = { title: 'Export title' };
 	assert.equal(queries.normalizeExportSettings({ metadata: explicit }).metadata, explicit);
 	assert.deepEqual(fixture({ metadata: 17 }).normalizeExportSettings().metadata, {});

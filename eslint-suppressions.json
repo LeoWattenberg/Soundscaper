@@ -548,7 +548,7 @@
   },
   "src/common/editor/media-export.js": {
     "no-control-regex": {
-      "count": 2
+      "count": 1
     }
   },
   "src/common/editor/native-media-atomic-publication.ts": {

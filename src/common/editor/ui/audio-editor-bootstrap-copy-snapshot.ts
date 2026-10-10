@@ -7,9 +7,11 @@ export function snapshotBootstrapCopyFields(
 	record: Readonly<Record<string, unknown>>,
 	label: string,
 	requirement: CopyDataPropertyRequirement,
+	registeredFields?: ReadonlySet<string>,
 ): Readonly<Record<string, unknown>> {
 	const keys = Reflect.ownKeys(record);
-	if (keys.length > 4_096 || keys.some((key) => typeof key !== 'string')) {
+	const registered = registeredFields && keys.every(key => typeof key === 'string' && registeredFields.has(key));
+	if (keys.length > 4_096 && !registered || keys.some((key) => typeof key !== 'string')) {
 		throw new RangeError(`${label} has an invalid field inventory.`);
 	}
 	const output: Record<string, unknown> = Object.create(null);

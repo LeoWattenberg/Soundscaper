@@ -215,6 +215,27 @@ adds the returned timestamps as a new label track only after the complete
 analysis succeeds, so cancelling or changing the project cannot leave partial
 labels behind.
 
+## Project metadata {#project-metadata}
+
+Choose **Edit → Metadata editor → ID3** to enter descriptive tags before
+exporting. The tab includes genre, album artist, composer, credits, dates,
+sorting, lyrics, rights, links, ratings, ownership, and artwork. Title, artist,
+album, track number, and comments share their values with **General**. Changes
+are saved with the project and support **Undo** and **Redo**.
+
+Enter credits as one `role=name` pair per line. Language fields use three-letter
+ISO 639-2 codes, such as `eng` or `deu`. Timed lyrics use `[mm:ss.xxx] text` on
+each line. Artwork accepts PNG and JPEG images, up to 4 MiB per picture and
+8 MiB in total. Give each picture a different description. The file icon type
+requires a 32 × 32 PNG. **Custom fields** adds named text fields; use a name
+beginning with `url.` for a custom link.
+
+The export dialog inherits these values. Its **Metadata** editor changes the
+current delivery without changing the project. Browser exports write ID3v2.4
+for MP3 and MP2, Vorbis comments and pictures for FLAC, Ogg Vorbis and Opus,
+and APEv2 tags for WavPack. WAV and AIFF include ID3 metadata; AAC/M4A uses MP4
+metadata. MP3 chapter labels and descriptive metadata share one tag.
+
 ## Export
 
 Choose **File → Export audio** for a mixed delivery or **Export selected audio**
@@ -236,8 +257,9 @@ characters are replaced, and the numbers keep repeated clip names distinct.
 Track effects are included; master effects, mute, and solo do not affect this
 export. Unfreeze frozen tracks first to export their editable clips individually.
 
-Compressed formats use the FFmpeg runtime. Exact formats and conditional
-availability are listed in the [generated format reference](/reference/).
+The browser uses dedicated audio codecs; desktop export can also use FFmpeg.
+Exact formats and conditional availability are listed in the
+[generated format reference](/reference/).
 
 ### Embed chapter labels {#embedded-chapters}
 

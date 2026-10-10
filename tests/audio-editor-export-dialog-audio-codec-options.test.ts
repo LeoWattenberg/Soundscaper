@@ -130,11 +130,11 @@ test('clip codec queries clear stale mix rendering controls on browser and deskt
 	}
 });
 
-test('dedicated browser formats make unsupported metadata explicit and omit its tags', () => {
+test('browser audio formats retain metadata for their container writers', () => {
 	const metadata = Object.freeze({ title: 'No hidden tags' });
 	for (const format of ['flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2']) {
-		assert.equal(exportDialogMetadataAvailable(format, false), false, format);
-		assert.deepEqual(exportDialogMetadata(format, false, metadata), {}, format);
+		assert.equal(exportDialogMetadataAvailable(format, false), true, format);
+		assert.strictEqual(exportDialogMetadata(format, false, metadata), metadata, format);
 		assert.equal(exportDialogMetadataAvailable(format, true), true, `${format}:desktop`);
 		assert.strictEqual(exportDialogMetadata(format, true, metadata), metadata, `${format}:desktop`);
 	}

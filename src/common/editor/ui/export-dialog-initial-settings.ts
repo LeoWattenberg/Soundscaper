@@ -2,6 +2,7 @@
 
 import { createProjectAdmEditorValue } from './adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from './bext-metadata-editor-model.ts';
+import { projectAudioMetadata } from '../id3-descriptive-fields.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -12,7 +13,9 @@ export function exportDialogProjectIdentity(projectValue: unknown): string | nul
 
 export function createExportDialogInitialSettings(projectValue: unknown) {
 	const project = dataRecord(projectValue);
-	const metadata = dataRecord(project.metadata);
+	const projectMetadata = dataRecord(project.metadata);
+	const tags = projectAudioMetadata(projectMetadata);
+	const metadata: DataRecord = { ...projectMetadata, ...tags, genre: tags.genre, copyright: tags.copyright };
 	const adm = dataRecord(metadata.adm);
 	const inheritedTitle = adm.mode === 'passthrough' && adm.pristineRevision === project.revision
 		&& metadata.title === project.title;
@@ -43,7 +46,9 @@ export function createExportDialogInitialSettings(projectValue: unknown) {
 		metadataGenre: String(metadata.genre || ''),
 		metadataComments: String(metadata.comments || ''),
 		metadataCopyright: String(metadata.copyright || ''),
-		metadataCustom: JSON.stringify(metadata.tags || {}, null, 2) ?? '{}',
+		metadataCustom: JSON.stringify(Object.fromEntries(Object.entries(projectAudioMetadata(projectMetadata))
+			.filter(([key]) => !['title', 'artist', 'album', 'trackNumber', 'year', 'genre', 'comments', 'copyright', 'id3Artwork'].includes(key))), null, 2),
+		metadataArtwork: String(tags.id3Artwork || ''),
 		bext: createBextMetadataEditorValue(project),
 		adm: createProjectAdmEditorValue(project),
 		customExtension: '',

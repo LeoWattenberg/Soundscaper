@@ -38,7 +38,6 @@ export function assertStreamedBrowserCodecInput(format: BrowserDedicatedAudioFor
 		throw new RangeError('The streamed audio export exceeds the one-hour duration limit.');
 	}
 	if (format !== 'aac-m4a') {
-		if (Object.keys(media.metadata).length) throw new Error('The dedicated browser encoder does not write metadata tags.');
 		validateProfile(format, { frameCount: Math.min(frames, LARGE_AUDIO_PCM_CHUNK_FRAMES), ...media }, codecSettings(format, media));
 	}
 }
