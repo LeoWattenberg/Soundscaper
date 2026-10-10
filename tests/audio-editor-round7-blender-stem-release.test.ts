@@ -57,7 +57,7 @@ for (const [name, mute, soloElsewhere, delayed, busMuted] of [['dry', false, fal
 		await publishBlenderTracks({ getProject: () => project,
 			renderSnapshot: async (snapshot, range) => {
 				rendered = snapshot;
-				engine.loadProject(snapshot);
+				engine.loadProject({ ...snapshot, clips: snapshot.clips.map(clip => ({ ...clip })) });
 				return await engine.renderMix(range);
 			},
 		}, { bridge, sessionId: 'session', projectId: project.id, revision: project.revision });

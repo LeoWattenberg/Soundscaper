@@ -1138,3 +1138,11 @@ skin colors, font, border radius, prompt, advanced controls, Close and absence
 of client errors under the original deadlines. No source, fixture or count
 changes. The exact finished full-run diagnostic and owned replay artifacts
 are read and immediately removed.
+
+The shared strict compiler also identifies the Blender render callback's
+minimal interface erasing the data-record index signature at the engine
+boundary. The fixture now infers data records from shallow copies of the
+actual detached project and its actual clip records, retaining all runtime
+fields and sample coordinates without a cast or production API change. The
+complete dry/delay/mute/solo/bus publication controls pass 10/10 in 1.019
+seconds; this adds no root and produces no verification files.
