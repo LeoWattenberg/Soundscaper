@@ -13,6 +13,7 @@ const expectedHelpers = [
 	['src/common/editor/engine/parallel-stack-effect-plan.ts', 'editor-parallel-stacks'],
 	['src/common/editor/engine/parallel-stack-planning-index.ts', 'editor-parallel-stacks'],
 	['src/common/editor/engine/scheduled-parameter-frame-projector.ts', 'editor-engine'],
+	['src/common/editor/recording-listening-output.ts', 'editor-engine'],
 	['src/common/editor/ui/clip-spreadsheet/SpreadsheetRow.tsx', 'editor-optional-surfaces'],
 	['src/common/editor/ui/clip-spreadsheet/row-presentation.ts', 'editor-optional-surfaces'],
 	['src/common/editor/ui/dialogs/take-comp-boundaries.ts', null],
@@ -27,7 +28,7 @@ const expectedHelpers = [
 ] as const;
 
 test('round-four preparation helpers retain the semantic owners their production callers load', () => {
-	assert.equal(expectedHelpers.length, 18);
+	assert.equal(expectedHelpers.length, 19);
 	for (const [path, owner] of expectedHelpers) {
 		assert.equal(chunkGroupForModulePath(path), owner, path);
 		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), owner, path);

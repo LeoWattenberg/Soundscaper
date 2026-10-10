@@ -315,3 +315,25 @@ of one owner remain one count. Complete source and test/tooling compilers
 pass. The helper-triggered full Node run and complete repository lint continue;
 its extraction register drift is corrected separately with19 focused passes.
 Manual **Update AI assets** is not required.
+
+The helper-triggered complete Node suite finishes25294 cases in13.6 minutes:
+25252 pass,9 fail and33 skip (exit1). Five failures are exact shield inventory
+or ownership fixtures still naming the extracted track-local reader; four
+are old scheduling expectations that assumed the native compressor had zero
+latency. Correct the inventories and precise measured6ms scheduling oracles
+with focused tests. No additional product bugs are counted from these
+follow-throughs. The full repository lint finishes all8 bounded-memory shards
+with exit0; changed-file lint follows the latest small edits. Completed full
+Node and lint logs are read and deleted after these receipts.
+
+All nine helper-suite failures now have exact focused resolution: shield and
+navigation ownership59/59 with native range/Skip5/5, and measured compressor
+schedule controls43/43. Complete source and test/tooling compilers pass after
+the recording output fixture typing correction. The eager recording listening
+factory initially belonged to editor-domain instead of its recording engine
+owner; its ownership regression causally fails and the narrow editor-engine
+membership passes56 existing ownership/eager/lazy checks. This is zero-count
+build follow-through. Claim the17 recovered freeze fixture lines through the
+size tightening command; no ceiling is raised. Six committed public-causal
+fixes await corrected guarded workflows before the100 checkpoint. The final
+spectral contact replay remains an existing zero-count root.

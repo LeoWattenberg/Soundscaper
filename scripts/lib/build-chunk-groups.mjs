@@ -426,7 +426,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-engine',
-		test: new RegExp(`${editorPath}(?:engine(?:\\.js|[\\\\/])|recording(?:\\.js|[\\\\/])|playback-meter\\.js)`),
+		test: new RegExp(`${editorPath}(?:engine(?:\\.js|[\\\\/])|recording(?:\\.js|[\\\\/]|-listening-output\\.ts)|playback-meter\\.js)`),
 		priority: 90,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
