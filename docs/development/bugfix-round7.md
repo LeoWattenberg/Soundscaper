@@ -67,6 +67,15 @@ while execution still requires explicit enablement; its 37 focused checks pass.
 This is zero-count D010 follow-through. The complete checkpoint run continues;
 the corrected editorial public retry uses the next prepared capture.
 
+Later Firefox failures in the AUP3 File Open and copy/paste loop workflows both
+occur before import or editing: the editor remains in its initial Loading
+project state, with no project identity and `data-editor-ready=false`. A focused
+unchanged replay against prepared `48b7bf244`, using one Firefox worker on an
+independent loopback port, passes the ordinary AUP3 menu import in 4.6 seconds
+and copy/paste loop repetitions in 2.7 seconds. The setup failure does not
+reproduce, and no production behavior, assertion or deadline is changed. Its
+45-byte replay result is removed immediately after this receipt.
+
 Setup failures, unsupported int32 delivery, unpublished image-boundary commands,
 and the surround-Reverb hypothesis do not count. Repeated manifestations and
 follow-through corrections share their original root count. The build's module
