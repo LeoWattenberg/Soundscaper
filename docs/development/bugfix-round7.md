@@ -796,3 +796,49 @@ equivalence controls, including exact repository compaction and c8 raw-versus-
 normalized detailed report equality, recorded in the IO register; it preserves
 different maps and every profile result/count while removing only duplicates
 whose exact map remains in a lexicographically earlier existing profile.
+
+All necessary final compiled follow-through now closes on production-identical
+1541ccf681. The separate complete uploads pass 12/12 across all three engines,
+including WebKit's exact positive 11025-frame 44100-Hz BWF recovery. Parametric
+closes with 11 PASS and four unchanged native-CDP platform SKIPs, including
+WebKit's Output drag, keyboard, outside release, physical PCM and Undo/Redo.
+Video closes 11/11 PASS with all three engines' original primary release,
+outside completion, keyboard, Escape and retained native touch controls. Their
+full readers/servers close explicitly and all bounded outputs are immediately
+consumed and removed; receipts are 4117e86d7, f124fb827 and a74f808ba.
+
+The initial final IO batch remains honestly 17 PASS/1 FAIL; the unchanged
+isolated frozen WebKit replacement and subsequent passive original-limit
+control also retain their failed expectations. The passive admission trace
+establishes enabled, trusted Replace hits with no blocked scope or task, then
+importing after native file selection. The correct continuous/frozen choices
+mount and become visible 4.478/4.620 seconds after selection; no initial-import
+refusal is inferred. The faithful test-only readiness phase polls for importing
+to clear and the choice to mount within five seconds before retaining the
+original five-second visibility assertion and complete 30-second shape/history
+workflow. All six complete three-engine workflows pass in 1.8 minutes, with
+WebKit continuous/frozen 19.9/23.7 seconds. c55e9feb7 commits only this witness
+and its receipt; no production edit, root, skip or deadline increase is added.
+
+Fresh canonical 1541ccf681 passes all eight full lint shards, source/desktop,
+six strict JavaScript boundaries, four products and test/tooling compilers;
+architecture passes 4802 modules/18405 dependencies, 16 domains/230 public
+modules/45 runtime pairs/25 type-only pairs and 11438 maintained files with
+239 unchanged ratchets. All audits, notices, docs and the production build pass.
+Both completed startup-report tightening commands have no further ceiling to
+claim. Its full Node run is still active; the unchanged desktop parallel-stack
+preflight reports Running status 3, one deadline fault and zero measured
+progress/peak, so that original failed status is preserved. The complete
+unchanged protocol/session/verified Electron control set separately passes
+21/21 in 30.977 seconds, including Running 1/fault 0, both real workers advancing
+by more than ten and physical peak .3046875. a7dfbcb70 records exact controls,
+explicit closure and immediate cleanup without asserting a scheduling cause.
+
+A read-only audit of all 89 commits from the last qualifying a3a36854d source
+through 1541ccf681 finds exactly four changed production paths: the shared
+native mouse helper, ParametricEqOutputRange, VideoEffectRack and Freesound
+upload preparation. All are reached by the existing public controls. Dependency
+metadata, runtime closure, asset pins and target inventories remain unchanged;
+the public helper registration is the only policy addition. Subsequent delivery
+commits are receipts and the faithful browser witness. The count stays 200 and
+manual Update AI assets remains unnecessary.
