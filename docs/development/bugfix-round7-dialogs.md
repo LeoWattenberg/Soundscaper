@@ -189,3 +189,5 @@ superseded by explicit picker-count receipts. The shared logs remain under the
 parent cleanup owner; no large fixtures, media artifacts or coverage were written.
 D022 briefly holds a real native settings transaction for at most ten seconds,
 releases it in `finally`, and preserves real durable-save and reload assertions.
+
+Checkpoint100 WebKit failure 29 stops at the initial pinned-playhead centering control before manual following: the exact context and screenshot show the canonical shared playback-start refusal and neutral Play. Its complete unchanged isolated workflow against frozen `ee53e1126`, with qualified Pulse and one worker, passes in 6.9 seconds (1/1, 9.0 seconds total), including centering, manual displacement, suspended following and Stop. This adds no source change, fixture correction or count, and preserves the failed-full receipt. Its original exact diagnostic folder, 45-byte replay output and bounded log are read and immediately removed; no assertion, viewport or deadline changes.
