@@ -14,7 +14,7 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
 import { createVideoFreezeFallbackV1 } from '../common/editor/video-freeze-v24.ts';
-import { resolveFramescaperSelectedFreezeSourceOrdinalFinishing } from './editor-selected-finishing-freeze-ordinal.ts';
+import { resolveFramescaperSelectedFreezePictureFinishing } from './editor-selected-finishing-freeze-ordinal.ts';
 import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import {
@@ -313,7 +313,6 @@ async function prepareFreeze(
 	const clip = selectedVideoClip(project, request);
 	const playhead = nonNegativeInteger(request.playheadSample, 'freeze playhead sample');
 	if (playhead !== fencePlayhead(request)) throw new Error('The freeze playhead is stale. Reopen the dialog.');
-	const source = selectedSource(project, clip, 'video');
 	const sequence = requireById(records(project.sequences, 'project sequences'),
 		stableId(clip.sequenceId, 'selected sequence ID'), 'selected sequence');
 	const rate = rational(sequence.rate, 'selected sequence rate');
@@ -327,15 +326,16 @@ async function prepareFreeze(
 	const end = start + positiveInteger(clip.sequenceFrameCount, 'selected video duration');
 	if (sequenceFrame < start || sequenceFrame >= end) throw new RangeError('The playhead is outside the selected video.');
 	if (!capture) throw new Error('Exact freeze capture is unavailable for the selected preview.');
-	const sourceOrdinal = resolveFramescaperSelectedFreezeSourceOrdinalFinishing(runtimeProject,
-		stableId(clip.id, 'selected video clip ID'), stableId(source.id, 'selected video source ID'), playhead);
+	const picture = resolveFramescaperSelectedFreezePictureFinishing(runtimeProject,
+		stableId(clip.id, 'selected video clip ID'), playhead);
+	const source = requireById(records(project.sources, 'project sources'), picture.sourceId, 'selected freeze source');
 	const body = await capture.capture({
 		projectId: stableId(project.id, 'project ID'),
 		projectRevision: nonNegativeInteger(project.revision, 'project revision'),
 		timelineSample: playhead,
 		clipId: stableId(clip.id, 'selected video clip ID'),
 		sourceId: stableId(source.id, 'selected video source ID'),
-		sourceOrdinal,
+		sourceOrdinal: picture.sourceOrdinal,
 	});
 	if (!(body.blob instanceof Blob) || body.blob.type !== 'image/png') {
 		throw new TypeError('Exact freeze capture must return a PNG Blob.');
@@ -367,7 +367,7 @@ async function prepareFreeze(
 		authoredStateSha256: digest({ schemaVersion: 1, kind: 'video-freeze',
 			renderedSourceId: sourceId }),
 		inputIdentitiesSha256: digest({ sourceId: source.id,
-			contentSha256: source.contentSha256, sourceOrdinal }),
+			contentSha256: source.contentSha256, sourceOrdinal: picture.sourceOrdinal }),
 		renderPlanFingerprintSha256: digest({ schemaVersion: 13, sequenceId: clip.sequenceId,
 			sequenceFrame, playhead }),
 		nativeEffectFingerprintSha256: digest({ nativeEffects: false }),
