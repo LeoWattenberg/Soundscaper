@@ -111,7 +111,7 @@ test('levels analysis uses the authored 7.1 channel semantics', async () => {
 	});
 
 	await service.run('master');
-	assert.match(cacheKey, /^audio-editor-analysis-v3:/u);
+	assert.match(cacheKey, /^audio-editor-analysis-v4:/u);
 	assert.deepEqual(channelWeights, resolveAdmEbuChannelWeights(adm, 8));
 });
 

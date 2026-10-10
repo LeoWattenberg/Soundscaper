@@ -195,7 +195,7 @@ export function createEbuR128Meter(options = {}) {
 		}
 	}
 
-	function snapshot({ finishTruePeak = false } = {}) {
+	function snapshot({ finishTruePeak = false, finishLoudness = false } = {}) {
 		const truePeakAmplitude = liveSquareSamples
 			? maximumChannelPeak(livePeak, liveTruePeak)
 			: lastLiveTruePeak;
@@ -203,6 +203,13 @@ export function createEbuR128Meter(options = {}) {
 		const rms = liveSquareSamples ? Math.sqrt(liveSquares / liveSquareSamples) : lastLiveRms;
 		const programmeTruePeak = finishTruePeak && running
 			? completedTruePeakMaximum(liveTruePeak, maximumTruePeak) : maximumTruePeak;
+		// A finite report includes the final complete sliding windows, even when
+		// its last frame falls between the 10 Hz live updates. Gating stays on its
+		// established block grid, and this read must not change live continuation.
+		const endingMomentary = finishLoudness && running && programmeFrames >= momentaryFrames
+			? ebuEnergyToLufs(programmeWindow.momentaryEnergy()) : null;
+		const endingShortTerm = finishLoudness && running && programmeFrames >= shortTermFrames
+			? ebuEnergyToLufs(programmeWindow.shortTermEnergy()) : null;
 		return Object.freeze({
 			peak,
 			rms,
@@ -216,8 +223,10 @@ export function createEbuR128Meter(options = {}) {
 					? ebuEnergyToLufs(liveWindow.shortTermEnergy())
 					: null,
 				integratedLufs: integratedBlocks.integratedLufs(),
-				maximumMomentaryLufs,
-				maximumShortTermLufs,
+				maximumMomentaryLufs: endingMomentary === null ? maximumMomentaryLufs
+					: Math.max(maximumMomentaryLufs ?? Number.NEGATIVE_INFINITY, endingMomentary),
+				maximumShortTermLufs: endingShortTerm === null ? maximumShortTermLufs
+					: Math.max(maximumShortTermLufs ?? Number.NEGATIVE_INFINITY, endingShortTerm),
 				loudnessRangeLu: lraBlocks.loudnessRangeLu(),
 				loudnessRangeStable: programmeFrames >= sampleRate * 60,
 				truePeakDbtp: ebuAmplitudeToDb(truePeakAmplitude),

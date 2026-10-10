@@ -810,3 +810,36 @@ removed. Target ESLint, changed lint, size and owned diff checks pass.
 All bounded failure logs and generated diagnostics are read and removed
 immediately. This UI correction uses the same runtime closure; no manual
 Update AI assets run is required.
+
+## R7-EFFECT-021 — Finite loudness reports omit their final measured maximum
+
+Import a normal 450 ms tone, Select all, Effect → Fading → Fade In, then
+Analyze → Analyze selection → Export. The actual rendered momentary loudness
+in the downloaded JSON is -13.3621953594 LUFS, while its advertised maximum is
+only -14.8628056506 LUFS. A matching 400 ms workflow passes. The finite EBU
+report reads the final complete sliding window but only retains maxima from
+the preceding 10 Hz live update; a final short-term window has the same defect.
+Group momentary and short-term extrema as this one publication owner, separate
+from FX008's reconstructed true-peak FIR ending.
+
+Include the current complete programme windows in an explicitly finite
+loudness snapshot. Preserve live update history, paused measurements, sample
+clock, true-peak completion and the established integrated/LRA gating grids.
+[EBU Tech 3341 (2023)](https://tech.ebu.ch/docs/tech/tech3341.pdf), sections
+2.1–2.3, specifies maximum M/S and their sliding
+windows separately from incomplete integrated gating blocks. Advance the levels
+cache namespace so existing persisted reports are recomputed.
+
+The ordinary guarded 04e87c277 public baseline passes its healthy 400 ms control
+in 3.3 seconds and fails causally at the downloaded 450 ms maximum in 3.2
+seconds, after the rendered momentary and 21600-frame controls pass. Three
+initial finite-analysis/BEXT focused cases are RED; chunking, complete-block
+and silence controls already pass. All 30 new/existing EBU, analysis ending and
+BEXT cases pass after correction, including current-window maxima, exact
+integrated/LRA preservation, standby and continued live measurement. The
+persisted-cache regression is independently RED before namespace correction;
+corrected cache and repeated analyzer controls pass 15/15. Corrected public
+verification awaits the next guarded product capture. Target ESLint, changed
+lint, size and owned diff checks pass. All bounded verification
+logs and generated diagnostics are read and removed immediately. This uses the
+same runtime closure; no manual Update AI assets run is required.

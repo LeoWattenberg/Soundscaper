@@ -36,6 +36,20 @@ test('updated true-peak finalization does not reuse an older persisted level rep
 	assert.equal(fixture.saved.length, 1);
 });
 
+test('updated finite loudness maxima do not reuse an older persisted level report', async () => {
+	const previous = { momentaryLufs: -13.3621953594, maxMomentaryLufs: -14.8628056506 };
+	const corrected = { momentaryLufs: previous.momentaryLufs, maxMomentaryLufs: previous.momentaryLufs };
+	const fixture = createFixture(null);
+	const service = createAudioAnalysisService({ ...fixture.dependencies,
+		loadAnalysis: async key => key.startsWith('audio-editor-analysis-v3:')
+			? { result: previous, visuals: null, report: null } : null,
+		analyzeChannels: async () => corrected,
+	});
+	assert.deepEqual(await service.run(), corrected);
+	assert.equal(fixture.renders(), 1);
+	assert.equal(fixture.saved.length, 1);
+});
+
 test('track analysis renders the track captured for its cache key while selection changes', async () => {
 	let selectedTrackId = 'track-a';
 	let releaseLookup!: () => void;
