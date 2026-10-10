@@ -42,7 +42,7 @@ for (const outcome of ['removed', 'refused', 'other-focus'] as const) test(`cust
 		pending = false;
 		await act(async () => render());
 		assert.equal(remove.isConnected, outcome === 'refused', 'the authoritative inventory owns the original action');
-		assert.ok(document.activeElement === (outcome === 'removed' ? add : outcome === 'refused' ? remove : other),
+		assert.ok((document.activeElement as unknown) === (outcome === 'removed' ? add : outcome === 'refused' ? remove : other),
 			'focus continues on the surviving action, or the independently chosen preference');
 	} finally {
 		await act(async () => root.unmount());
