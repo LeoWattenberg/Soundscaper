@@ -69,7 +69,7 @@ interface DragSession {
 	readonly startX: number;
 	readonly startY: number;
 	readonly startOffset: Readonly<{ x: number; y: number }>;
-	readonly headerBounds: DOMRect;
+	readonly header: Element;
 }
 
 /**
@@ -107,7 +107,9 @@ export default function AudioEditorDialogShell({
 	const dragRef = useRef<DragSession | null>(null);
 	const dragCleanupRef = useRef<(() => void) | null>(null);
 	const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+	const appliedDragOffset = useRef(dragOffset);
 	onCloseRef.current = onClose;
+	useLayoutEffect(() => { appliedDragOffset.current = dragOffset; }, [dragOffset]);
 
 	const stopDragging = useCallback(() => {
 		dragRef.current = null;
@@ -128,7 +130,7 @@ export default function AudioEditorDialogShell({
 			startX: event.clientX,
 			startY: event.clientY,
 			startOffset: dragOffset,
-			headerBounds: event.currentTarget.getBoundingClientRect(),
+			header: event.currentTarget,
 		};
 		const handleMouseMove = (moveEvent: MouseEvent) => {
 			const drag = dragRef.current;
@@ -136,7 +138,7 @@ export default function AudioEditorDialogShell({
 			setDragOffset(constrainDialogDragOffset({
 				x: drag.startOffset.x + moveEvent.clientX - drag.startX,
 				y: drag.startOffset.y + moveEvent.clientY - drag.startY,
-			}, drag.startOffset, drag.headerBounds, {
+			}, appliedDragOffset.current, drag.header.getBoundingClientRect(), {
 				width: window.innerWidth, height: window.innerHeight,
 			}));
 		};
@@ -152,6 +154,25 @@ export default function AudioEditorDialogShell({
 	};
 
 	useEffect(() => () => stopDragging(), [stopDragging]);
+	useLayoutEffect(() => {
+		if (!isOpen || !draggable) return undefined;
+		const panel = panelRef.current, header = panel?.querySelector('.dialog-header');
+		if (!panel || !header) return undefined;
+		let retained = true;
+		// Centered content can grow after a lazy body settles, even after mouseup.
+		const reconcile = () => {
+			if (!retained) return;
+			const applied = appliedDragOffset.current;
+			const next = constrainDialogDragOffset(applied, applied, header.getBoundingClientRect(), {
+				width: window.innerWidth, height: window.innerHeight,
+			});
+			if (next.x !== applied.x || next.y !== applied.y) setDragOffset(next);
+		};
+		const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(reconcile) : null;
+		observer?.observe(panel); observer?.observe(header);
+		window.addEventListener('resize', reconcile);
+		return () => { retained = false; observer?.disconnect(); window.removeEventListener('resize', reconcile); };
+	}, [draggable, isOpen]);
 	useEffect(() => {
 		if (!isOpen) {
 			stopDragging();
