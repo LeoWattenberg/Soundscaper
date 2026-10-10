@@ -19,8 +19,9 @@ const SITE_WORKFLOWS = new Map([
 		buildJob: 'build',
 		gate: 'needs: build',
 		browserShardCount: 4,
+		firefoxShardCount: 6,
 	}],
-	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 4 }],
+	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 4, firefoxShardCount: 6 }],
 ]);
 
 test('Playwright allows CI to pass when a retry succeeds', async () => {
@@ -246,7 +247,7 @@ test('Firefox CI audio helpers configure a null sink/source and reject a stalled
 	assert.match(clockProbe, /did not advance/u);
 });
 
-function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShardCount }) {
+function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShardCount, firefoxShardCount }) {
 	const browserJob = extractJob(workflow, 'browser');
 	const firefoxJob = extractJob(workflow, 'firefox');
 
@@ -280,9 +281,9 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
 	assert.match(firefoxJob, /name: verified-site-build/u);
-	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox', browserShardCount);
+	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox', firefoxShardCount);
 	assert.ok(
-		firefoxJob.includes(`--shard=\${{ matrix.shard }}/${browserShardCount} --workers=1`),
+		firefoxJob.includes(`--shard=\${{ matrix.shard }}/${firefoxShardCount} --workers=1`),
 		`${label} must keep Firefox media workflows on one worker per shard`,
 	);
 	assert.ok(

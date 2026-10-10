@@ -649,13 +649,13 @@ jobs:
           retention-days: 7
 
   firefox:
-    name: Browser / firefox ${{ matrix.shard }}/4
+    name: Browser / firefox ${{ matrix.shard }}/6
     needs: build
     strategy:
       fail-fast: false
-      # Sharded the same four ways as the containerized engines above.
+      # Six single-worker shards keep the expanded suite within its hour budget.
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-24.04
     # Run 37733071611 passed all 395 shard-2 tests in 44 minutes, then the
     # 45-minute job limit cancelled the job after setup overhead.
@@ -737,9 +737,9 @@ jobs:
 
       - name: Run Firefox workflows against the existing build
         # A second Firefox content process can starve the live AudioContext even
-        # after the PulseAudio clock probe passes. The four shard runners still
+        # after the PulseAudio clock probe passes. The six shard runners still
         # keep the suite parallel without competing for one runner's audio clock.
-        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/4 --workers=1
+        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/6 --workers=1
 
       - name: Upload Firefox diagnostics
         if: always()
