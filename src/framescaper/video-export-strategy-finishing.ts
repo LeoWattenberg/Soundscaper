@@ -7,7 +7,6 @@ import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import {
 	createVideoExactPictureExportFrameSource,
-	type VideoKeyframeExportFrame,
 } from '../common/editor/video-keyframe-export-frame-source.ts';
 import {
 	encodeVideoKeyframeVideo,
@@ -36,6 +35,7 @@ import {
 	assertVideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
 import { runFramescaperFinishingEncode } from './video-export-encode-cleanup.ts';
+import { createFramescaperVisualRgbaProducer } from './video-export-visual-rgba-producer.ts';
 import { assertFramescaperProjectFinishingProfile } from './editor-domain-runtime-profile.ts';
 import {
 	type FramescaperProjectFinishing,
@@ -331,13 +331,9 @@ async function createVisualExecution(
 	const renderer: VideoKeyframeOfflineRgbaRenderer = Object.freeze({
 		width: visualPlan.canvas.width, height: visualPlan.canvas.height,
 		byteLength: visualPlan.canvas.width * visualPlan.canvas.height * 4,
-		async produce(frame: VideoKeyframeExportFrame, target: Uint8Array,
-			options: Readonly<{ readonly signal: AbortSignal }>) {
-			await exact.compositor({
-				frame, layers: [], width: visualPlan.canvas.width, height: visualPlan.canvas.height,
-				rgba: target as Uint8Array<ArrayBuffer>, signal: options.signal,
-			});
-		},
+		produce: createFramescaperVisualRgbaProducer(
+			visualPlan.canvas.width, visualPlan.canvas.height, exact.compositor, request.rgbaPostprocessor,
+		),
 		async dispose() { await exact.dispose(); },
 	});
 	const encoderOptions: Readonly<Record<string, number>> = request.maximumOutputBytes === undefined
