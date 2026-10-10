@@ -602,3 +602,14 @@ in 8.2 seconds, including the healthy reference and actual high-tone projection.
 Owned
 failure context and bounded logs are read and removed immediately; recording
 PCM stays in memory. No manual Update AI assets run is required.
+
+### Excluded visualizer pitch candidate — no bug or production change
+
+The window reader does not consume independent clip pitch, but the published
+Framescaper Clip properties intentionally omits Pitch and tempo when its audio
+effects capability is unavailable. An ordinary Soundscaper project opens as
+an opaque read-only foreign document and has no Framescaper visual preview.
+The attempted menu witness passes the original visualizer frequency control
+and then cannot author pitch; it is an excluded setup failure. Remove that
+verification spec and its diagnostics immediately. No internal model state or
+altered project archive supplies qualification.
