@@ -49,7 +49,7 @@ test('failed native recorder allocation releases the listening node and publicat
 	const listening = listeningFixture(0.5);
 	const factory = adaptFramescaperRecordingControllerFactory(async () => { throw new Error('Capture input disappeared.'); }, listening);
 	assert.ok(factory);
-	await assert.rejects(factory(request(context)), /Capture input disappeared/u);
+	await assert.rejects(Promise.resolve(factory(request(context))), /Capture input disappeared/u);
 	assert.equal(context.disconnects(), 1);
 	assert.equal(listening.listeners.size, 0);
 });
