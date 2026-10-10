@@ -13,10 +13,11 @@
 import type {
 	BrowserDedicatedAudioFormat, DedicatedAudioEncodeRequest,
 } from './browser-dedicated-audio-codec.ts';
+import { BIT_RATES } from './media-export-values.js';
 
-const MP3_BITRATES = new Set([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
-const MP2_BITRATES = new Set([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
-const OPUS_BITRATES = new Set([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
+const MP3_BITRATES = new Set(BIT_RATES.mp3);
+const MP2_BITRATES = new Set(BIT_RATES.mp2);
+const OPUS_BITRATES = new Set(BIT_RATES.opus.filter((bitrate) => bitrate <= 256));
 const MAXIMUM_MP3_VBR_QUALITY = 9;
 const MAXIMUM_MP3_PRESET = 3;
 const MAXIMUM_OPUS_VBR_MODE = 2;
@@ -24,6 +25,19 @@ const MP3_RATE_MODE_CONSTANT = 0;
 const MP3_RATE_MODE_AVERAGE = 1;
 const MP3_RATE_MODE_VARIABLE = 2;
 const MP3_RATE_MODE_PRESET = 3;
+
+/** Project the payload's admitted rates, including MP2's channel-dependent limits. */
+export function browserDedicatedAudioEncodeBitRates(
+	format: unknown,
+	channelCount?: unknown,
+): readonly number[] {
+	if (format === 'mp3') return Object.freeze([...MP3_BITRATES]);
+	if (format === 'opus') return Object.freeze([...OPUS_BITRATES]);
+	if (format !== 'mp2') return Object.freeze([]);
+	return Object.freeze([...MP2_BITRATES].filter((bitrate) => (
+		Number(channelCount) === 1 ? bitrate <= 192 : bitrate >= 64 && bitrate !== 80
+	)));
+}
 
 export function validateProfile(
 	format: BrowserDedicatedAudioFormat,
@@ -54,7 +68,7 @@ export function validateProfile(
 	else {
 		const bitrate = exactIntegerSetting(settings, 'bitrateKbps', 32, 384);
 		admittedBitrate(bitrate, MP2_BITRATES, format);
-		if (geometry.channelCount === 1 ? bitrate > 192 : bitrate < 64 || bitrate === 80) {
+		if (!browserDedicatedAudioEncodeBitRates('mp2', geometry.channelCount).includes(bitrate)) {
 			throw new RangeError('The dedicated MP2 bitrate is outside its admitted channel tuple.');
 		}
 	}

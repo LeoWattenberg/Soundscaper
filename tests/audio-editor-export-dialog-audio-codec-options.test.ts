@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { validateProfile } from '../src/common/editor/browser-dedicated-audio-profiles.ts';
+import { normalizeMediaExportSettings } from '../src/common/editor/media-export.js';
 import {
 	constrainExportDialogSampleRate,
 	exportDialogBitRateOptions,
@@ -64,10 +66,10 @@ test('format changes and suggestions respect the selected surface bound', () => 
 
 test('browser codec options and stale settings stay inside dedicated profiles', () => {
 	assert.deepEqual(exportDialogBitRateOptions('mp2', false, 48_000, 1).map(({ value }) => value), [
-		'128', '160', '192',
+		'32', '48', '56', '64', '80', '96', '112', '128', '160', '192',
 	]);
 	assert.deepEqual(exportDialogBitRateOptions('mp2', false, 48_000, 2).map(({ value }) => value), [
-		'128', '160', '192', '224', '256', '320', '384',
+		'64', '96', '112', '128', '160', '192', '224', '256', '320', '384',
 	]);
 	assert.deepEqual(normalizeExportDialogAudioSettings({
 		format: 'opus', sampleRate: '44100', bitRate: '320', channelMapping: 'preserve',
@@ -95,6 +97,29 @@ test('browser codec options and stale settings stay inside dedicated profiles', 
 	});
 	const desktopSettings = { format: 'opus', sampleRate: '44100', bitRate: '320', channelMapping: 'preserve' };
 	assert.strictEqual(normalizeExportDialogAudioSettings(desktopSettings, true, 6), desktopSettings);
+});
+
+test('browser export preserves every admitted low Opus and MP2 bitrate through request normalization', () => {
+	assert.deepEqual(exportDialogBitRateOptions('opus', false).map(({ value }) => value), [
+		'16', '24', '32', '48', '64', '80', '96', '112', '128', '160', '192', '256',
+	]);
+	for (const [format, channelCount] of [['opus', 1], ['opus', 2], ['mp2', 1], ['mp2', 2]] as const) {
+		for (const { value } of exportDialogBitRateOptions(format, false, 48_000, channelCount)) {
+			const dialog = normalizeExportDialogAudioSettings({
+				format, sampleRate: '48000', bitRate: value,
+				channelMapping: channelCount === 1 ? 'mono' : 'stereo',
+			}, false, channelCount);
+			assert.equal(dialog.bitRate, value, `${format}:${channelCount}:${value}`);
+			const settings = normalizeMediaExportSettings(format, {
+				...dialog, inputChannelCount: channelCount,
+			});
+			assert.equal(settings.bitRate, Number(value));
+			validateProfile(format, { frameCount: 1024, channelCount, sampleRate: 48_000 }, {
+				bitrateKbps: settings.bitRate,
+				...(format === 'opus' ? { vbrMode: 1 } : {}),
+			});
+		}
+	}
 });
 
 test('browser codec channel projection recognizes custom mappings without admitting surround', () => {

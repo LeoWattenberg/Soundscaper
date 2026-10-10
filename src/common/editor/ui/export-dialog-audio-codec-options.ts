@@ -11,6 +11,7 @@ import {
 	desktopExportWavPackCompressionLevels,
 } from './desktop-export-codec-model.ts';
 import { getMediaExportFormat } from '../media-export.js';
+import { browserDedicatedAudioEncodeBitRates } from '../browser-dedicated-audio-profiles.ts';
 
 interface DialogOption {
 	readonly value: string;
@@ -41,9 +42,9 @@ const MP3_VARIABLE_RANGES = Object.freeze([
 ]);
 
 const BROWSER_BIT_RATES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-	mp3: Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
-	opus: Object.freeze([64, 96, 128, 160, 192, 256]),
-	mp2: Object.freeze([128, 160, 192, 224, 256, 320, 384]),
+	mp3: browserDedicatedAudioEncodeBitRates('mp3'),
+	opus: browserDedicatedAudioEncodeBitRates('opus'),
+	mp2: browserDedicatedAudioEncodeBitRates('mp2'),
 	'aac-m4a': Object.freeze([96, 128, 160, 192, 256, 320]),
 });
 const BROWSER_DEDICATED_FORMATS = new Set([
@@ -79,8 +80,8 @@ export function exportDialogBitRateOptions(
 	let rates = desktop
 		? desktopExportBitRates(format, sampleRate, channelCount)
 		: BROWSER_BIT_RATES[String(format)] ?? [];
-	if (!desktop && String(format) === 'mp2' && Number(channelCount) === 1) {
-		rates = rates.filter((rate) => rate <= 192);
+	if (!desktop && String(format) === 'mp2') {
+		rates = browserDedicatedAudioEncodeBitRates('mp2', channelCount);
 	}
 	if (String(format) === 'mp3') {
 		const minimum = mp3MinimumBitrate(sampleRate, channelCount);
