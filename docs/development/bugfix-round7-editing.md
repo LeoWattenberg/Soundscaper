@@ -524,3 +524,7 @@ Actual mounted point/Bézier controls reproduce4/4 causal failures at0commands i
 A fresh ordinary playhead healthy mouse scrub/Home and held-middle primary-release counterpart completes unchanged on authenticated44d16c00d,1/1PASS in3.7seconds. The proposed continuing-scrub root is excluded: no causal defect, production edit or count. The provisional public file and its reviewed completed log/results are immediately removed.
 
 Canonical changed-file lint completes PASS for the maintained automation correction inventory. Its reviewed completed output is immediately removed. Whole corrected proof remains pending the next guarded build.
+
+A provisional maximum-frequency primary-release observation passes but its healthy outward movement may reach Nyquist, so it does not establish causal continuation or absence of a defect. It is excluded, with no source edit or count. A separate time-edge counterpart now avoids frequency clamping. The reviewed completed provisional output/results are immediately removed.
+
+The separate ordinary spectral time-edge healthy preview/Escape restore and held-middle primary release also complete unchanged on authenticated44d16c00d,1/1PASS in3.7seconds. No causal defect is established, so this candidate is excluded with no source edit/count. Its provisional public file and reviewed completed output/results are immediately removed.
