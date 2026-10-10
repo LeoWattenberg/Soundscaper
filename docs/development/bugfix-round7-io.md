@@ -371,6 +371,30 @@ Importing67%; the other four retained a project-handoff modal. D036 is already
 corrected in this guard. No source, fixture, deadline or count changes are added
 by these replays. Completed owned output and bounded log are removed immediately.
 
+IO043 shared HTML speech-player follow-through (zero count, correction pending):
+authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
+Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
+actual main AudioContext to its genuinely enumerated native device, generates
+authenticated playable speech and advances the actual native audio player, then
+causally fails in 2.7 seconds with an empty player sinkId instead of that chosen
+device. Both actual device APIs remain native. Exact PNG/context were read;
+completed owning output and bounded log are immediately removed. TTS and Guided
+review share the same HTML preview component; this is conservative IO043 device
+routing closure and adds no new count.
+
+Full150 Firefox follow-through observations (zero count, unchanged replay pending):
+two native microphone-monitor cases fail before their listening-mute assertions
+at the five-second graph observer, which reports [1, 1] instead of [1]. Positive
+native capture frames and >0.05 recorded PCM already pass; the exact contexts
+and PNGs show active Recording setup with Stop and import. Frozen full-run
+markers preserve 11.813/11.740-second failures. The scheduled keyboard seek=false
+case passes ordinary Schedule, fixed armed zero and Cancel, then post-cancel End
+still observes zero instead of >30000 at its unchanged five-second deadline
+(10.074 seconds). Its read PNG/context show the original imported clip and a
+Scheduled status. No new production root is established by these observations;
+all three exact completed original diagnostic directories were immediately
+removed after this receipt. Whole unchanged guarded replays remain queued.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
