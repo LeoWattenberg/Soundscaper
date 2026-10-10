@@ -619,6 +619,37 @@ full-run failures remain recorded. No source, fixture, deadline or count changes
 Completed owned replay output/log are read and removed immediately; all native
 readers and the coordinated CPU slot close for the queued dialogs follow-through.
 
+Full200 completed WebKit bin replacement and camera retention observations
+(verification only, zero count): continuous and authored-Freeze replacement
+cases fail after16.078/21.292 seconds at the replacement-dialog5000 ms visibility
+assertion. Both actual contexts include the Project bin operation-busy alert,
+while both later PNGs show the ordinary shorter-file choice dialog. Replacement
+source/curve/Undo/Redo assertions have not run. The inactive-camera case reaches
+successful group creation, bin removal and an empty bin, then its original
+30000 ms case expires after30.426 seconds inside the final Switch camera menu
+helper. The actual open Tracks/Multicamera submenu has no missing-source refusal;
+final camera-switch/save assertions have not completed. These observations alone
+do not prove replacement curve loss or retained-source failure.
+
+Full200 completed WebKit Freesound request-body observations (verification only,
+zero count): both ordinary .wav/.bwf picker cases reach Connected and Ready to
+publish with the expected upload filename/content-type, then fail after4.416/
+4.550 seconds because Playwright's request.postDataBuffer() returns null and the
+test calls subarray. Both44.1/96 kHz picker cases also reach Ready to publish,
+then fail after4.563/4.674 seconds because their Blob built from that driver body
+cannot contain a RIFF header. Actual contexts/PNGs show the normal ready upload,
+without a product rejection. The source-clock/delivered-PCM/band checks have not
+completed. The existing folder-upload witness already observes the actual fetch
+Blob while forwarding the unchanged native request, because WebKit omits binary
+File bodies from its driver request record. This transport observer is being
+checked before attributing these failures to production conversion.
+
+All seven exact completed full-run marker JSON records, full contexts and PNGs
+were consumed and their owned diagnostic directories immediately removed after
+this receipt. Preserve all original failures/timeouts. Whole unchanged bin and
+upload replays await the coordinated native slot; no source, assertion, deadline
+or qualifying-count change is inferred from these observations.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
