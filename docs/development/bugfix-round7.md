@@ -631,3 +631,13 @@ Final200 original Chromium phase closes all2366scheduled cases:2346PASS,18SKIP,1
 Final corrected canonical **npm run check PASS, exit0** on immutablee41f06325: every full static phase passes, then25876Node cases complete with25843PASS,33SKIP,0FAIL/0cancelled in1522.476seconds. The repaired native-pointer Volume fixture passes in13.376ms. Fresh Node-only coverage reporting and its structure gate pass: lines/statements90.34percent(691743/765641), branches82.54percent(175935/213127), functions91.02percent(37821/41551). Combined CI floors remain unchanged; no partial browser/Node floor ratchet is attempted. The original684b0canonical exit1/fixture failure remains recorded.
 
 The fresh coverage writer explicitly stops and its wrapper closes exit0:8840profiles normalized,14067419645→1449514425counter-profile bytes,8198unique maps, no malformed profiles. Actual process-cwd inspection finds no remaining reader of the completed follow-through checkout. Its13361-file/1954753881-byte coverage tree,31998-file/1317225532-byte private dependencies,126413573-byte handbook dependencies,633-file/27807735-byte dist and376-file/7803810-byte reference fixtures are consumed and immediately reclaimed with that detached verification worktree. Completed2921512-byte canonical log, stopped watcher log/status/flag and shared helper source are removed as both coverage jobs have closed. Original browser source/assets and the delivery advance branch remain intact; the complete7098-case three-engine browser aggregate is still pending. No manual **Update AI assets** run is required.
+
+After all canonical and direct native readers close, a read-only resource sample
+finds the four full-browser workers CPU-bound: their four allocated cores are
+96.8–98.7 percent busy, with 390.3 percent aggregate CPU and substantial runnable
+thread delay, while memory and storage have no pressure. The owned Playwright
+root and its 40-process descendant tree receive the otherwise free cores 8–23;
+829 existing threads are updated, with zero errors. Unrelated processes are
+untouched. The same immutable source, four workers, original assertions,
+deadlines, retries and 7,098-case schedule remain in force. This environment-only
+verification adjustment adds no bug count and makes no claim about CI timing.
