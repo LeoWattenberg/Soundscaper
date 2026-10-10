@@ -141,8 +141,11 @@ previews; global search and sort use bounded indexed candidate pages. Menu-owned
 develop and single-photo PNG/JPEG export workflows have landed; their milestones
 remain in progress. File-menu archive handoff exports a saved editable photo and
 receives it into the selected library with authenticated original and LUT bodies.
-Ordinary Frame still selection and collection-to-sequence delivery remain in
-progress. Raw and desktop capabilities remain disabled.
+The import dialog also selects an ordinary Frame still's timeline or Project Bin
+placement explicitly. Manual collections, smart collections, and saved filters
+download as editable Frame sequences in native query order. The remaining L5
+export and cross-product qualification gates are open. Raw and desktop
+capabilities remain disabled.
 
 | Area | Current capability |
 | --- | --- |
@@ -385,7 +388,9 @@ photo work moves between products without loss.
 - **Shared — In progress:** handoff both ways: a developed photo opens in
   Framescaper as a still with its stack intact and renders pixel-identically;
   a Framescaper still opens in Lightscaper's develop; and a collection hands
-  to Framescaper as a sequence.
+  to Framescaper as a sequence. Menu-owned selected collection and saved-filter
+  sequences retain active saved recipes, original and LUT resources, and native
+  query order. Full cross-product and export-matrix qualification remains open.
 - **Shared — Optional:** ordering and per-photo duration presets for the
   handed-off sequence.
 

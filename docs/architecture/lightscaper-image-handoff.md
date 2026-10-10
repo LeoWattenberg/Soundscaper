@@ -11,8 +11,46 @@ Develop process and ordered recipe, its natural output dimensions, and origin
 provenance. The archive retains the original and canonical image pack together
 with every referenced LUT, including disabled effects. Canonical pixels describe
 the original before Develop; the saved recipe remains separate and editable.
-This transfers one saved version, rather than a whole photo's history or its
-catalog collections. Collection-to-sequence delivery remains separate work.
+The single-photo transfer carries one saved version. Full photo history and
+catalog definitions stay in the sender's library.
+
+## Collection sequences
+
+File → Photo → Download collection as Framescaper sequence… opens a chooser for
+manual collections, smart collections, or saved filters. Scope and collection
+must both be selected explicitly. Catalog collections use the native query's
+photo-ID order; saved filters retain their saved sort and direction, including
+the native ID tie-break. Stack collapsing does not omit matching photos.
+
+Each matching photo becomes a distinct editable source and timeline clip, even
+when photos share an original. The source retains its active saved version's
+process1 or process2 recipe, original, provenance, natural output dimensions,
+and referenced LUTs, including disabled effects. The canonical pixels remain
+the original before Develop. Clips are contiguous in a 30-fps sequence using
+the canonical still duration. Ordering and duration presets remain optional
+future work. The sender's originals, versions, history, and collections remain
+unchanged; the archive carries the selected versions, not full photo histories
+or catalog definitions.
+
+Empty collections, unsupported masks, missing or changed originals or LUTs,
+changed catalog or definition facts, and exceeded capacities refuse the whole
+archive. No partial sequence is delivered. Photos plus unique LUTs are limited
+to 4,094 entries, with complete captured facts limited to 2 MiB. Capture limits
+unique encoded originals plus LUT bodies to 128 MiB; archive assembly separately
+limits generated image packs plus unique LUTs to 128 MiB and final ZIP output
+to 256 MiB. Each original remains limited to 64 MiB. These are admission and
+per-owner bounds, not an aggregate native-codec or ZIP memory estimate.
+
+The destination picker starts from the download gesture. Close and library
+retirement join catalog reads, preparation, archive work, and destination
+settlement. Saved and Download started describe the destination acknowledgment;
+opening the archive in Framescaper is a separate operation.
+
+Focused Chromium and Firefox tests cover English and German menu entry,
+manual and smart collections, saved-filter ordering, editable import, and
+rendering through native Framescaper owners within the Lightscaper test origin.
+This does not qualify separate-origin Framescaper application UI, WebKit,
+large-library delivery, or the remaining L5 export and handoff matrix.
 
 ## Archive inspection and authenticated receive
 
@@ -72,5 +110,6 @@ cannot recover an earlier spelling. Its nullable MIME hint is preserved while
 authenticating the unchanged pack, then the promoted source declares the
 recognized image format. Actual signature and native pixel verification remain
 mandatory. Editable Source2 images keep their original provenance and reject an
-ordinary clip-selection field. Session and dialog integration of explicit
-ordinary-still placement selection is still in progress.
+ordinary clip-selection field. The import dialog exposes explicit timeline or
+Project Bin placement selection for ordinary stills; no placement is selected
+by default.
