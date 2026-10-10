@@ -195,6 +195,9 @@ test.describe('clip spreadsheet', () => {
 		expect(await copiedText(page)).toBe('true');
 		await pasteText(page, 'false');
 		await expect(reversed).not.toBeChecked();
+		// Paste publishes its cells before settling and restoring keyboard focus.
+		await expect(grid).toHaveAttribute('aria-busy', 'false');
+		await expect(cell(grid, 0, 'reversed')).toBeFocused();
 		await page.keyboard.press('ControlOrMeta+z');
 		await expect(reversed).toBeChecked();
 		await cell(grid, 0, 'reversed').click({ position: { x: 5, y: 5 } });
