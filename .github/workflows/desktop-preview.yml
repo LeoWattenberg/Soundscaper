@@ -261,16 +261,24 @@ jobs:
         run: npm run coverage:check
 
   browser:
-    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/4
+    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }}
     needs: quality
     strategy:
       fail-fast: false
-      # Match Quality's four partitions. Three put WebKit close to the
-      # 45-minute job deadline and left Firefox unable to finish the suite.
-      # Every engine still runs every test once across its partition matrix.
+      # One WebKit worker avoids competing real-time audio clocks. Eight shards
+      # keep that full suite inside the hour budget; Chromium keeps four.
       matrix:
         project: [chromium, webkit]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        exclude:
+          - project: chromium
+            shard: 5
+          - project: chromium
+            shard: 6
+          - project: chromium
+            shard: 7
+          - project: chromium
+            shard: 8
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -331,7 +339,7 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps
 
       - name: Run browser workflows against the existing build
-        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/4
+        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }} --workers=${{ matrix.project == 'webkit' && 1 || 2 }}
         env:
           # Chromium is the only engine whose V8 coverage Playwright can read, so
           # it is the only one that records; the floors in config/coverage-gates.json

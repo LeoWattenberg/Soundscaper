@@ -510,16 +510,24 @@ jobs:
         run: npm run coverage:check
 
   browser:
-    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/4
+    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }}
     needs: build
     strategy:
       fail-fast: false
-      # Trial a fourth partition for each engine now that the shared Node suite
-      # also runs in two jobs. Each Playwright project still runs every test
-      # exactly once; Chromium uploads one distinct coverage artifact per shard.
+      # One WebKit worker avoids competing real-time audio clocks. Eight shards
+      # keep that full suite inside the hour budget; Chromium keeps four.
       matrix:
         project: [chromium, webkit]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        exclude:
+          - project: chromium
+            shard: 5
+          - project: chromium
+            shard: 6
+          - project: chromium
+            shard: 7
+          - project: chromium
+            shard: 8
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -597,7 +605,7 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps
 
       - name: Run browser workflows against the existing build
-        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/4
+        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }} --workers=${{ matrix.project == 'webkit' && 1 || 2 }}
         env:
           # Chromium is the only engine whose V8 coverage Playwright can read, so
           # it is the only one that records. Every other project runs exactly as
