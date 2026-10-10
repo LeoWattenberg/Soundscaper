@@ -473,3 +473,30 @@ the causal declaration assertion. Owned public diagnostic directories are read
 and removed immediately; the short shared log remains only until its other
 owners finish reading. PCM stays bounded in memory. No manual Update AI assets
 run is required.
+
+## R7-EFFECT-014 — Mono ADM playback loses its live Spectrum lease
+
+Import an ordinary mono recording, open Analyze → Analysis and Spectrum, then
+play it. Stop, open Edit → Metadata editor → ADM, enable ADM, choose the Mono
+bed and play again. Scalar peak meters continue to show the recording, but
+Spectrum stops receiving FFT data. The master splitter now has one output;
+the live-analysis lease unconditionally connects its stereo side tap to output
+one. Native Web Audio throws an IndexSizeError and the entire lease is released.
+
+Admit only the existing splitter outputs to the stereo side taps. The mono
+spectrum bank remains one channel; unavailable stereo correlation and scope
+remain null/empty, and stereo/surround behavior retains its existing contract.
+The faithful native-output regression is causally RED for mono before the fix,
+while the stereo, six-channel and 32-channel controls pass. Corrected lease,
+channel-power and Spectrogram regressions pass 11/11, including reuse and full
+side-tap disposal.
+
+The strengthened ordinary Chromium witness is causally RED on unchanged
+prepared capture 68 in 9.1 seconds: healthy original Spectrum performs 14 native
+4096-point FFT reads, the Mono scalar meter remains audible, and the new
+Spectrum read count stays at 14. Corrected public GREEN awaits the shared
+build. A preboot failure is excluded; an earlier canvas-only check retained its
+old drawing and was insufficient evidence. The corrected witness passively
+observes actual native FFT reads as well as playback and canvas data. Owned
+diagnostic directories are inspected and removed immediately. No manual
+Update AI assets run is required.
