@@ -13,6 +13,8 @@ import { readResidentPhotoLibraryCurrent, seedCurrentAppPhoto, currentAppLocks }
 import { mediaRestoreFixture } from './helpers/lightscaper-media-restore-fixture.ts';
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { lutArchiveFixture, LUT_BODY } from './helpers/lightscaper-lut-archive-fixture.ts';
+import { deferred, settle, waitFor } from './helpers/async-test-control.ts';
+import { readCurrentCatalogCompanionsV1 } from './helpers/lightscaper-current-catalog-companions-fixture.ts';
 
 const priorRange = Object.getOwnPropertyDescriptor(globalThis, 'IDBKeyRange');
 Object.defineProperty(globalThis, 'IDBKeyRange', { configurable: true, value: InstrumentedKeyRange });
@@ -103,4 +105,73 @@ test('current observer follows actual private Restore2 IDB allocation and authen
 		assert.deepEqual(new Uint8Array(await retained.arrayBuffer()), staleBytes);
 		assert.equal(fs.rootReads(), 0); assert.deepEqual(fs.reads, []); assert.equal(fs.directories.size, 0);
 	} finally { await Promise.all([restore.close(), anchor.close()]); fs.restore(); }
+});
+
+test('current observer joins a held execution observation before closing its borrowed catalog and media owners', async context => {
+	const native = mediaRestoreFixture(), seeded = await seedCurrentAppPhoto(native.factory, currentAppLocks());
+	const release = deferred<void>(), mediaCloses: PhotoMediaStoreV1[] = [], catalogCloses: PhotoCatalogRepositoryV2[] = [];
+	const closeMedia = PhotoMediaStoreV1.prototype.close, closeCatalog = PhotoCatalogRepositoryV2.prototype.close;
+	context.mock.method(PhotoMediaStoreV1.prototype, 'close', function (this: PhotoMediaStoreV1) {
+		mediaCloses.push(this); return Reflect.apply(closeMedia, this, []);
+	});
+	context.mock.method(PhotoCatalogRepositoryV2.prototype, 'close', function (this: PhotoCatalogRepositoryV2) {
+		catalogCloses.push(this); return Reflect.apply(closeCatalog, this, []);
+	});
+	let entered = false, finished = false;
+	const observing = readResidentPhotoLibraryCurrent([seeded.photo.id], native.factory, async () => {
+		entered = true; await release.promise;
+	});
+	void observing.then(() => { finished = true; }, () => { finished = true; });
+	try {
+		await waitFor(() => entered, 'borrowed execution observation'); await settle();
+		assert.equal(finished, false); assert.deepEqual(mediaCloses, []); assert.deepEqual(catalogCloses, []);
+		release.resolve(); const observed = await observing;
+		assert.deepEqual(observed.photos, [{ photo: seeded.photo, bytes: [1, 2, 3] }]);
+		assert.equal(mediaCloses.length, 2); assert.equal(new Set(mediaCloses).size, 1); assert.equal(catalogCloses.length, 1);
+	} finally { release.resolve(); await observing; }
+});
+
+test('current observer rejects the exact execution failure after joining its borrowed owner cleanup', async context => {
+	const native = mediaRestoreFixture(), seeded = await seedCurrentAppPhoto(native.factory, currentAppLocks());
+	const release = deferred<void>(), failure = Object.freeze({ nativeWorkerFailure: 'closed execution context' });
+	const closeMedia = PhotoMediaStoreV1.prototype.close, closeCatalog = PhotoCatalogRepositoryV2.prototype.close;
+	let mediaCloses = 0, catalogCloses = 0, finished = false;
+	context.mock.method(PhotoMediaStoreV1.prototype, 'close', function (this: PhotoMediaStoreV1) {
+		mediaCloses++; return Reflect.apply(closeMedia, this, []);
+	});
+	context.mock.method(PhotoCatalogRepositoryV2.prototype, 'close', async function (this: PhotoCatalogRepositoryV2) {
+		catalogCloses++; await release.promise; return Reflect.apply(closeCatalog, this, []);
+	});
+	const observing = readResidentPhotoLibraryCurrent([seeded.photo.id], native.factory, async () => { throw failure; });
+	void observing.then(() => { finished = true; }, () => { finished = true; });
+	try {
+		await waitFor(() => catalogCloses === 1, 'borrowed catalog cleanup'); await settle();
+		assert.equal(finished, false); assert.equal(mediaCloses, 2);
+		release.resolve(); await assert.rejects(observing, error => Object.is(error, failure));
+	} finally { release.resolve(); await observing.catch(() => undefined); }
+});
+
+test('current catalog companions join execution observations before both nested and outer borrowed owners close', async context => {
+	const native = mediaRestoreFixture(), seeded = await seedCurrentAppPhoto(native.factory, currentAppLocks());
+	const nested = deferred<void>(), outer = deferred<void>(), mediaCloses: PhotoMediaStoreV1[] = [], catalogCloses: PhotoCatalogRepositoryV2[] = [];
+	const closeMedia = PhotoMediaStoreV1.prototype.close, closeCatalog = PhotoCatalogRepositoryV2.prototype.close;
+	context.mock.method(PhotoMediaStoreV1.prototype, 'close', function (this: PhotoMediaStoreV1) {
+		mediaCloses.push(this); return Reflect.apply(closeMedia, this, []);
+	});
+	context.mock.method(PhotoCatalogRepositoryV2.prototype, 'close', function (this: PhotoCatalogRepositoryV2) {
+		catalogCloses.push(this); return Reflect.apply(closeCatalog, this, []);
+	});
+	let observations = 0;
+	const observing = readCurrentCatalogCompanionsV1([seeded.photo.id], native.factory, async () => {
+		observations++; await (observations === 1 ? nested.promise : outer.promise);
+	});
+	try {
+		await waitFor(() => observations === 1, 'nested execution observation');
+		assert.deepEqual(mediaCloses, []); assert.deepEqual(catalogCloses, []);
+		nested.resolve(); await waitFor(() => observations === 2, 'outer execution observation');
+		assert.equal(mediaCloses.length, 2); assert.equal(catalogCloses.length, 1);
+		outer.resolve(); const observed = await observing;
+		assert.deepEqual(observed.photos.map(({ photo, bytes }) => ({ photo, bytes })), [{ photo: seeded.photo, bytes: [1, 2, 3] }]);
+		assert.equal(observations, 2); assert.equal(mediaCloses.length, 4); assert.equal(new Set(mediaCloses).size, 2); assert.equal(catalogCloses.length, 2);
+	} finally { nested.resolve(); outer.resolve(); await observing; }
 });

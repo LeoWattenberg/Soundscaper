@@ -193,11 +193,13 @@ async function setup(page, locale) {
 	for (const item of before.photos) { assertNumericPhoto(item.photo); expect(item.bytes).toEqual([...PNG]); }
 	return { app, copy, ids, before, requests, errors };
 }
-async function observe(page, ids) { const result = await page.evaluate(async ({ ids, root }) => (await import(new URL(root, location.href).href)).observe(ids), { ids, root: ROOT });
+async function observe(page, ids) { const result = await page.evaluate(async ({ ids, root }) => (await import(new URL(root, location.href).href))
+	.observe(ids, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), { ids, root: ROOT });
 	await assertNativeOpfsWorkerExecution(page); return result; }
 async function observeSaved(page, catalogId, collectionId, photoId) {
 	return page.evaluate(async input => {
-		const observed = await (await import(new URL(input.root, location.href).href)).companions(input.ids);
+		const observed = await (await import(new URL(input.root, location.href).href))
+			.companions(input.ids, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution());
 		if (observed.root.id !== input.catalogId || observed.saved.length !== 1 || observed.stacks.length !== 1) throw Error('Expected one selected saved recipe and stack.');
 		const definition = observed.saved.find(item => item.id === input.collectionId), stack = observed.stacks.find(item => item.photoIds.includes(input.photoId));
 		if (!definition || !observed.savedState || !stack || stack.photoIds.length !== 2) throw Error('Expected complete menu-authored saved state and two-photo stack.');

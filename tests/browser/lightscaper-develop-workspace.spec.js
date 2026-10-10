@@ -182,7 +182,7 @@ async function observe(page, photoId) {
 	await page.route('**/__develop_original_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text }));
 	const observed = await page.evaluate(async id => {
 		const module = await import(new URL('/__develop_original_observer.js', location.href).href);
-		return (await module.readResidentPhotoLibraryCurrent([id])).photos[0];
+		return (await module.readResidentPhotoLibraryCurrent([id], indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution())).photos[0];
 	}, photoId);
 	await assertNativeOpfsWorkerExecution(page); return observed;
 }

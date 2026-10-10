@@ -135,7 +135,8 @@ async function observe(page, photoId) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents:
 		`export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser' });
 	await page.route('**/__current_photo_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
-	const observed = await page.evaluate(async id => (await import(new URL('/__current_photo_observer.js', location.href).href)).readResidentPhotoLibraryCurrent([id]), photoId);
+	const observed = await page.evaluate(async id => (await import(new URL('/__current_photo_observer.js', location.href).href))
+		.readResidentPhotoLibraryCurrent([id], indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), photoId);
 	await assertNativeOpfsWorkerExecution(page); return observed;
 }
 async function setup(page, locale) {

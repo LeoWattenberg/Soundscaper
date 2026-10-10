@@ -133,7 +133,8 @@ async function setup(page, locale) {
 	return { app, copy, errors, requests };
 }
 async function observe(page, ids) {
-	const result = await page.evaluate(async ({ ids, path }) => (await import(new URL(path, location.href).href)).observe(ids), { ids, path: OBSERVER });
+	const result = await page.evaluate(async ({ ids, path }) => (await import(new URL(path, location.href).href))
+		.observe(ids, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), { ids, path: OBSERVER });
 	await assertNativeOpfsWorkerExecution(page);
 	expect(result.namespace).toBeNull(); for (const item of result.photos) assertNumericPhoto(item.photo); return result;
 }

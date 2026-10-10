@@ -45,6 +45,7 @@ export function installNativeOpfsWorkerCompanion(page: Page): Promise<void> {
 }
 
 async function install(page: Page): Promise<void> {
+	await page.exposeFunction('__assertNativeOpfsWorkerExecution', () => assertNativeOpfsWorkerExecution(page));
 	const worker = await build({ entryPoints: [fileURLToPath(new URL('../../../src/common/editor/storage/opfs-sync-worker.ts', import.meta.url))],
 		bundle: true, write: false, format: 'esm', platform: 'browser' });
 	const body = worker.outputFiles[0]?.text;

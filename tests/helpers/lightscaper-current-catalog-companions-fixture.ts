@@ -13,7 +13,8 @@ import { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixtu
 
 /** Read only a complete tiny current library: full documents/bodies plus actual
  * selected stack, saved-state, custody and preview owners. Legacy witnesses stay fixed. */
-export async function readCurrentCatalogCompanionsV1(value: readonly string[], indexedDB: IDBFactory = globalThis.indexedDB) {
+export async function readCurrentCatalogCompanionsV1(value: readonly string[], indexedDB: IDBFactory = globalThis.indexedDB,
+	beforeClose?: () => Promise<void>) {
 	const ids = readClosedDomainArray(value, 'current companion photo IDs', 1, 4).map(value => {
 		if (typeof value !== 'string' || !value || value.length > 256) throw TypeError('Current companion IDs must be bounded strings.');
 		return value;
@@ -24,7 +25,7 @@ export async function readCurrentCatalogCompanionsV1(value: readonly string[], i
 	try {
 		const ports = { settings: anchor.settingsRepository, async initializeDefault() { throw Error('Current companion observation cannot initialize a selected library.'); } };
 		const selection = await readPhotoLibrarySessionLocationV2(ports), location = selection.location;
-		const observed = await readResidentPhotoLibraryCurrent(ids, indexedDB), root = observed.root;
+		const observed = await readResidentPhotoLibraryCurrent(ids, indexedDB, beforeClose), root = observed.root;
 		if (!root || root.id !== location.catalogId || root.photoCount !== ids.length || observed.namespace !== location.namespaceToken) {
 			throw Error('Current companions require the complete selected one-to-four-photo library.');
 		}
@@ -87,6 +88,6 @@ export async function readCurrentCatalogCompanionsV1(value: readonly string[], i
 			|| JSON.stringify(await catalog.loadCatalog(root.id)) !== JSON.stringify(root)) throw Error('Current companion selected namespace or root changed.');
 		const output = { root, namespace: location.namespaceToken, photos, stackState, stacks, savedState: context.state, saved, previews };
 		if (new TextEncoder().encode(JSON.stringify(output)).byteLength > 80 * 1024) throw RangeError('Current companion observation exceeds80KiB.');
-		return output;
+		await beforeClose?.(); return output;
 	} finally { database?.close(); await Promise.all([catalog?.close(), media?.close(), anchor.close()]); }
 }

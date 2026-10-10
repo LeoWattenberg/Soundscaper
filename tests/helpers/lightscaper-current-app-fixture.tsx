@@ -39,7 +39,8 @@ export async function seedCurrentAppPhoto(indexedDB: IDBFactory, locks: LockMana
 }
 
 /** Authenticate the actual selected namespace, including a private same-ID restored library. */
-export async function readResidentPhotoLibraryCurrent(photoIds: readonly string[], indexedDB: IDBFactory = globalThis.indexedDB) {
+export async function readResidentPhotoLibraryCurrent(photoIds: readonly string[], indexedDB: IDBFactory = globalThis.indexedDB,
+	beforeClose?: () => Promise<void>) {
 	if (photoIds.length > 64) throw new RangeError('Current UI observation exceeds one page.');
 	const anchor = new PhotoMediaStoreV1({ indexedDB });
 	let media: PhotoMediaStoreV1 | null = null, catalog: PhotoCatalogRepositoryV2 | null = null;
@@ -58,6 +59,7 @@ export async function readResidentPhotoLibraryCurrent(photoIds: readonly string[
 			const body = await media.mediaRepository.loadAsset(photo.original.storageKey); if (!(body instanceof Blob)) throw new TypeError('Original body missing.');
 			photos.push({ photo, bytes: [...new Uint8Array(await body.arrayBuffer())] });
 		}
+		await beforeClose?.();
 		return { root, namespace: selection.location.namespaceToken, photos };
 	} finally { await Promise.all([catalog?.close(), media?.close(), anchor.close()]); }
 }
