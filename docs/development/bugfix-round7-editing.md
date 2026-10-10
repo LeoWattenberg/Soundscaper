@@ -193,3 +193,41 @@ selected Title Skip likewise passes in4.5 seconds. Complete source and
 test/tooling strict compilation pass after narrowing the test track's actual
 clip-ID array. EDIT021 is fully qualified; both sorting criteria remain one
 command-dispatch root. Reviewed verification logs and output are deleted.
+
+## R7-EDIT-022 — Shared range reader drops native selected content
+
+Framescaper: Generate → Video Generators → Add Title/Text. Select its header,
+Select → Region → Track start to end, then Contract selection from right.
+That healthy range is contracted. Select none, Home, select the same header
+and invoke the same contraction. No time overlay is produced because the
+shared range reader requires sample fields absent from native Title leaves.
+The unchanged actual public control passes before causal failure at the
+missing overlay in9.9 seconds on guarded678a672d0. The actual public-controller
+Title fixture independently fails at0..0 instead of48000..287600; the All
+tracks consumer likewise fails0..0 instead of48000..288000. All native-kind
+consumers of this shared producer count once. EDIT020 repaired its independent
+Skip consumer; R3-EDIT-006 repaired audio track-scope publication and
+R4-EDIT-008 repaired the separate track-content producer. The initial public
+All tracks spelling names no menu item and is excluded before its action.
+Corrected menu spelling is replayed before source changes. A drawn region
+has all-track scope; a selected clip retains its actual owner scope, so the
+strict contraction oracle compares identical bounds and independently checks
+the proper owner instead of requiring the healthy control's different scope.
+Causal and setup diagnostics are read and deleted immediately. Correction
+and completed public verification remain pending.
+
+The corrected public All tracks menu spelling likewise passes the healthy
+drawn-range control and causally loses all overlays in9.5 seconds. Reuse
+the exact existing native/musical clip-content reader, extracted into its
+common owning module, to provide selected clip geometry before shared editing
+range resolution. Explicit drawn ranges stay authoritative, relationship
+expansion and track ownership stay with existing authority, and raw media
+records are not changed. Corrected focused verification is next.
+
+Corrected actual native Title commands and existing range, boundary, linked
+identity, navigation and track-scope support pass52/52 focused tests. Full
+source strict compilation and targeted type-aware lint pass. The extracted
+reader preserves its existing sequence-boundary and musical-clock logic;
+selected persisted media/history stay byte-for-byte unchanged. Corrected
+complete public proof remains pending and no count is assigned yet. No manual
+**Update AI assets** run is required.

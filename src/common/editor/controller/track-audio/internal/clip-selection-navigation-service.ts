@@ -7,7 +7,7 @@ import {
 } from '../../../runtime-clip-projection.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
-import { clipContentRange } from './selected-track-content-range.ts';
+import { clipContentRange } from '../../../clip-content-range.ts';
 
 export interface ClipSelectionNavigationFrequencyRange {
 	readonly minimumFrequency: number;
