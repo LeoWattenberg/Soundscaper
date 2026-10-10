@@ -59,6 +59,7 @@ export default function WorkspacePreferencesDialog({
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [shortcutSort, setShortcutSort] = useState(DEFAULT_SHORTCUT_SORT_MODE);
 	const [workspaceName, setWorkspaceName] = useState('');
+	const workspaceNameRevision = useRef(0);
 	const preferences = snapshot.preferences;
 	const commands = useShortcutCommands(menus, {
 		locale,
@@ -187,14 +188,20 @@ export default function WorkspacePreferencesDialog({
 								/></div>
 								<label className="kw-audio-editor-preferences__workspace-name">
 									<span>{copy.workspaceName}</span>
-									<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => setWorkspaceName(event.currentTarget.value)} />
+									<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => {
+										workspaceNameRevision.current += 1;
+										setWorkspaceName(event.currentTarget.value);
+									}} />
 								</label>
 								<div className="kw-audio-editor__custom-workspace-actions">
 									<Button variant="secondary" disabled={!workspaceName.trim()} onClick={() => {
+										const submittedRevision = workspaceNameRevision.current;
 										void runAwaitedAudioEditorOperation(
 											run,
 											() => controller.actions.preferences.createWorkspace(workspaceName.trim()),
-										).then(() => { setWorkspaceName(''); }).catch(() => undefined);
+										).then(() => {
+											setWorkspaceName(current => workspaceNameRevision.current === submittedRevision ? '' : current);
+										}).catch(() => undefined);
 									}}>{copy.workspaceCreate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={(event) => { captureWorkspaceDeletion(event.currentTarget, activeCustom.id); run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id)); }}>{copy.workspaceDelete}</Button>
