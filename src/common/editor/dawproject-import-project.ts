@@ -191,7 +191,12 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 		title,
 		sampleRate,
 		project,
-		routingContext: Object.freeze({ sendTaps: Object.freeze(build.sendTaps.map(tap => Object.freeze(tap))) }),
+		routingContext: Object.freeze({
+			sendTaps: Object.freeze(build.sendTaps.map(tap => Object.freeze(tap))),
+			stripChannelCounts: Object.freeze([...build.groups, ...build.sends].map(strip => Object.freeze({
+				id: strip.id, channelCount: strip.channelCount ?? 2,
+			}))),
+		}),
 		media: Object.freeze(media),
 		report: Object.freeze({ ...sealed, direction: 'import' as const }),
 	});

@@ -208,7 +208,7 @@ function buildFolderTrack(node: DawprojectStructureNode, context: DawprojectExpo
 	}, [
 		bus ? buildChannel(context, `mixer-node:${bus.id}`, {
 			role: 'submix', gain: bus.gain, pan: bus.pan, mute: bus.mute, solo: bus.solo,
-			audioChannels: masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(bus.id)),
+			audioChannels: bus.channelCount ?? masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(bus.id)),
 			effects: bus.effects, scope: { kind: 'folder', id: node.id },
 		}) : null,
 		...children,
@@ -288,7 +288,7 @@ function buildMixerNodeTracks(context: DawprojectExportContext): XmlElement[] {
 			}, [
 				buildChannel(context, `mixer-node:${strip.id}`, {
 					role, gain: strip.gain, pan: strip.pan, mute: strip.mute, solo: strip.solo,
-					audioChannels: masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(strip.id)),
+					audioChannels: strip.channelCount ?? masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(strip.id)),
 					effects: strip.effects, scope: { kind: 'mixer-node', id: strip.id },
 				}),
 			]));

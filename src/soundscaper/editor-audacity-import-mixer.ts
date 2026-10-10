@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { normalizeMixerGraphV21, type MixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
+import { defaultMixerChannelMapV21, normalizeMixerGraphV21, type MixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
 import type { DawprojectImportRoutingContext } from '../common/editor/dawproject-import-structure.ts';
 import type { AudioEditorProjectV17 } from '../common/editor/project-v17.ts';
 import { applySoundscaperMixerSurfaceCommand } from './editor-project-mixer-surface.ts';
@@ -19,6 +19,16 @@ export function importSoundscaperAudacityMixer(decoded: AudioEditorProjectV17, p
 			mixer = applySoundscaperMixerSurfaceCommand({ ...project, mixer }, existing
 				? { type: 'mixer/bus-update', busType: kind, busId: bus.id, changes }
 				: { type: 'mixer/bus-add', busType: kind, bus: { id: bus.id, ...changes } });
+			const channelCount = context?.stripChannelCounts?.find(strip => strip.id === bus.id)?.channelCount;
+			if (channelCount !== undefined) {
+				const collection = kind === 'group' ? 'groups' : 'sends';
+				mixer = normalizeMixerGraphV21({ ...mixer,
+					[collection]: mixer[collection].map(strip => strip.id === bus.id ? { ...strip, channelCount } : strip),
+					edges: mixer.edges.map(edge => edge.source.kind === 'mixer-node' && edge.source.id === bus.id
+						&& edge.destination.kind === 'master'
+						? { ...edge, channelMap: defaultMixerChannelMapV21(channelCount, project.masterChannels) } : edge),
+				});
+			}
 		}
 	}
 	for (const [trackId, route] of Object.entries(decoded.mixer.routes)) {

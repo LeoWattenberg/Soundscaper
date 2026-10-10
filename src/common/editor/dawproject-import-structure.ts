@@ -42,6 +42,7 @@ export interface TrackBuild {
 export interface StripBuild {
 	readonly id: string;
 	readonly name: string;
+	readonly channelCount?: number;
 	gain: number;
 	readonly pan: number;
 	readonly mute: boolean;
@@ -59,6 +60,7 @@ export interface ParameterTarget {
 /** Per-import graph semantics that the shared numeric-send document cannot carry. */
 export interface DawprojectImportRoutingContext {
 	readonly sendTaps: readonly Readonly<{ trackId: string; sendId: string; position: 'pre-fader' | 'post-fader' }>[];
+	readonly stripChannelCounts?: readonly Readonly<{ id: string; channelCount: number }>[];
 }
 
 export interface Build {
@@ -183,6 +185,7 @@ function createAudioTrack(name: string, channel: DawprojectChannel | null, build
 function strip(id: string, name: string, channel: DawprojectChannel): StripBuild {
 	return {
 		id, name, gain: clamp(gainOf(channel.volume), 0, 4), pan: panOf(channel.pan),
+		channelCount: channel.audioChannels ?? 2,
 		mute: channel.mute?.value === true, solo: channel.solo, envelope: [],
 	};
 }
