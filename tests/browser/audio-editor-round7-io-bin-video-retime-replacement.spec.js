@@ -34,6 +34,9 @@ for (const frozen of [false, true]) test(`ordinary shorter bin replacement prese
 	await page.getByRole('menuitem', { name: 'Replace', exact: true }).click();
 	await (await picking).setFiles(videoRetimePreviewMedia.file);
 	const choice = page.locator('[data-project-bin-replacement-dialog]');
+	// Import preparation and dialog visibility are distinct public phases.
+	await expect.poll(async () => (await editor.getAttribute('data-edit-block-reason')) !== 'importing'
+		&& (await choice.count()) === 1, { timeout: 5000, intervals: [50, 100, 200] }).toBe(true);
 	await expect(choice).toBeVisible();
 	await choice.getByRole('button', { name: 'Keep timeline spacing', exact: true }).click();
 	await expect(card).not.toHaveAttribute('data-source-id', oldSourceId);

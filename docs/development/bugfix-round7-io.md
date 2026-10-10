@@ -810,6 +810,23 @@ two setup-only config failures were consumed and removed before the actual
 cases. All actual trace/log/context/PNG were consumed, servers closed and every
 owned temporary file/result removed immediately after this receipt.
 
+Approved test-only replacement readiness correction: wait at most five seconds,
+using bounded 50/100/200-millisecond polling, for the normal public importing
+flag to clear and exactly one replacement choice to mount; then retain the
+original five-second visibility assertion and every source/retime/Freeze,
+spacing and Undo/Redo control. Requiring both public preparation completion and
+the mounted choice avoids an initial idle-state race. The entire body retains
+its original 30-second deadline. Before changing the maintained spec, the exact
+corrected complete bodies in a temporary outside-tree fixture passed all six
+cases on immutable `1541ccf681596465463d0da455b7e6193a066a78`: Chromium
+continuous/frozen 11.8/13.7 seconds, Firefox 16.1/18.0, WebKit 19.9/23.7,
+six PASS in 1.8 minutes. Targeted type-aware lint passes. Only the maintained
+browser spec and this receipt change; no production or qualified-count change.
+The original full-run, first compiled 17/18 and isolated failed observations
+remain recorded above. Both native origin servers and the worker closed; all
+temporary config/spec/result/log/lint files were consumed and removed immediately
+after this receipt.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
