@@ -396,8 +396,14 @@ duration assertion. The actual context contains the authored Title and selected
 25 fps metadata; its PNG shows Clip properties with its panel menu open.
 The exact completed JSON/context/PNG were read and the owned diagnostic
 directory immediately removed. No duration-conformance defect, observer cause
-or new count is inferred. Whole unchanged title and image rate/Undo/Redo
-replays are pending; the frozen full-suite source and assets remain immutable.
+or new count is inferred. Both whole unchanged Firefox workflows pass on
+authenticated a3a36854d with the qualified Pulse sink and one worker: title26.7
+seconds and image12.6 seconds (2/2 in42.2 seconds), including exact five-second
+wall-clock duration at30 and25 fps and full Undo/Redo. Source, fixture, all
+assertions and the30000 ms case deadlines remain unchanged. The original
+full-run timeout is preserved. Completed owned output/log are read and removed
+immediately, and all replay readers close; the frozen full-suite source and
+assets remain immutable.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
