@@ -372,6 +372,17 @@ Importing67%; the other four retained a project-handoff modal. D036 is already
 corrected in this guard. No source, fixture, deadline or count changes are added
 by these replays. Completed owned output and bounded log are removed immediately.
 
+Full200 completed Firefox AAC observation (zero count): the ordinary
+tail-metadata original-overwrite case fails in9.148 seconds at its first clip
+count, zero versus one within5000 ms. The actual snapshot still publishes
+data-edit-block-reason=importing; its PNG shows Importing4% and no committed clip,
+before the overwrite menu assertion is reached. Its exact completed JSON,
+context and PNG were read and the owned diagnostic directory immediately
+removed. The original full-suite failure remains recorded. This is the same
+unsettled import setup observation seen in full150, whose unchanged complete
+replay passed; no product cause, deadline change or new count is inferred.
+An unchanged complete current Firefox replay is pending.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
