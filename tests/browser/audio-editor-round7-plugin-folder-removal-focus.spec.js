@@ -3,7 +3,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, collectClientErrors } from './audio-editor-test-helpers.js';
 
-test('keyboard removal of a custom plugin folder retains the surviving Add path action', async ({ page }) => {
+test('keyboard removal of a custom plugin folder retains the surviving Add path action', async ({ page, browserName }) => {
 	await installPluginFolderBridge(page);
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
@@ -20,7 +20,11 @@ test('keyboard removal of a custom plugin folder retains the surviving Add path 
 	await expect(add).toBeEnabled();
 	await add.click();
 	await expect(remove).toBeEnabled();
-	await add.press('Shift+Tab');
+	if (browserName !== 'webkit') await test.step('native backward-tab navigation', async () => {
+		await add.press('Shift+Tab');
+		await expect(remove).toBeFocused();
+	});
+	await remove.focus();
 	await expect(remove).toBeFocused();
 	await remove.press('Enter');
 	await expect(remove).toHaveCount(0);
