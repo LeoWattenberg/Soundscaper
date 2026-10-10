@@ -970,6 +970,18 @@ without an alert. This root is fully qualified. All owned bounded logs and gener
 removed immediately. This uses the same assistance runtime closure; no manual
 Update AI assets run is required.
 
+### Repair reference matrix — no additional root
+
+The helper-120 full Node run reproduces a stale menu-reference expectation:
+its three reference cases produce two passes and one failure because none
+of the rich menu fixtures contains a supported Repair target. Add a separate
+128-sample time selection for each product while retaining all existing broad,
+spectral, frozen and visual fixtures. This preserves the supplemental live-leaf
+and handbook/parity checks without changing the effect contract or metadata.
+The corrected reference and Repair admission controls pass 11/11 in 5.974
+seconds. Targeted type-aware lint and the owned diff check pass. No production
+source changes, additional bug count or manual Update AI assets run is required.
+
 ### Existing native host finishing observers — no additional root
 
 Frozen checkpoint 100's Firefox drag-through-host-reply case captures host
