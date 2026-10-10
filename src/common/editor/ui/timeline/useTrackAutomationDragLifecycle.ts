@@ -36,8 +36,15 @@ export function useTrackAutomationDragLifecycle<
 		const cancelOnEscape = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') finishDrag(event, true);
 		};
+		const finishOnPrimaryRelease = (event: PointerEvent) => {
+			if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) finishDrag(event);
+		};
 		document.addEventListener('keydown', cancelOnEscape);
-		return () => document.removeEventListener('keydown', cancelOnEscape);
+		document.addEventListener('pointermove', finishOnPrimaryRelease, true);
+		return () => {
+			document.removeEventListener('keydown', cancelOnEscape);
+			document.removeEventListener('pointermove', finishOnPrimaryRelease, true);
+		};
 	}, [finishDrag, svgRef]);
 	return finishDrag;
 }
