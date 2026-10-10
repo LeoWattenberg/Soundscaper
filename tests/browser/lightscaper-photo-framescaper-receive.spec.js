@@ -13,13 +13,18 @@ import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop
 import { imageDevelopHandoffRecipeSha256V1 } from '../../src/common/editor/image-develop-handoff-provenance-v1.ts';
 import { normalizeFramescaperImageSourceV2 } from '../../src/common/editor/timeline-image-model-v2.ts';
 import { pngChunk } from '../helpers/image-metadata-fixtures.ts';
-import { expect, test, installNativeImageHandoffRuntime, observeNativeImageHandoffLibrary as observe } from './helpers/lightscaper-image-handoff-native-fixture.js';
+import { expect, test, installNativeImageHandoffRuntime, observeNativeImageHandoffLibrary as observe,
+	createOrdinaryFramescaperStillArchive, observeOrdinaryFramescaperStillProject as observeFrame } from './helpers/lightscaper-image-handoff-native-fixture.js';
 
 const NAME = 'Returned original.png', WHITE = Array(4).fill([255, 255, 255, 255]).flat();
 const PNG = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
 	pngChunk('IHDR', Buffer.from([0, 0, 0, 2, 0, 0, 0, 2, 8, 6, 0, 0, 0])), pngChunk('sRGB', Buffer.from([0])),
 	pngChunk('IDAT', deflateSync(Buffer.from([0, ...WHITE.slice(0, 8), 0, ...WHITE.slice(8)]))), pngChunk('IEND', Buffer.alloc(0))]);
 const RED = Buffer.from(`LUT_3D_SIZE 2\n${'0.25 0 0\n'.repeat(8)}`), DISABLED = Buffer.from(`LUT_3D_SIZE 2\n${'0 0 0.5\n'.repeat(8)}`);
+const CORNERS = [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255];
+const ORDINARY_PNG = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+	pngChunk('IHDR', Buffer.from([0, 0, 0, 2, 0, 0, 0, 2, 8, 6, 0, 0, 0])), pngChunk('sRGB', Buffer.from([0])),
+	pngChunk('IDAT', deflateSync(Buffer.from([0, ...CORNERS.slice(0, 8), 0, ...CORNERS.slice(8)]))), pngChunk('IEND', Buffer.alloc(0))]);
 
 for (const locale of ['en', 'de']) {
 	test(`${locale}: editable-photo receive stays cold in File without a selected photo`, async ({ page }) => {
@@ -30,6 +35,49 @@ for (const locale of ['en', 'de']) {
 		await expect(named(app, 'button', photoFramescaperReceiveMenuLabel(locale))).toBeEnabled();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 		expect(requested.filter(url => /(?:PhotoFramescaperReceiveDialog|photo-framescaper-handoff|lightscaper-photo-framescaper-handoff-copy)/u.test(url))).toEqual([]);
+	});
+	test(`${locale}: ordinary Frame importer archive requires real bin selection and receives neutral original pixels after reopen`, async ({ page, browserName }) => {
+		test.skip(browserName === 'webkit', 'Native WebKit Blob/OPFS receive remains deferred.'); test.setTimeout(90_000);
+		const errors = []; page.on('pageerror', error => { errors.push(error.message); });
+		await installNativeImageHandoffRuntime(page);
+		const { app, copy } = await open(page, locale), words = photoFramescaperReceiveCopy(locale), develop = photoDevelopCopy(locale);
+		const library = app.locator('[data-photo-library]'), cards = library.locator('[data-photo-id]'); await expect(cards).toHaveCount(0);
+		// These are the real Frame controller/import/storage/archive owners in
+		// this fresh Light origin, not a separate-origin Frame application test.
+		const sender = await createOrdinaryFramescaperStillArchive(page, { name: 'Cafe\u0301.png', mimeType: locale === 'en' ? 'image/jpeg' : 'not-a-mime', buffer: ORDINARY_PNG });
+		expect(sender.originalName).toBe('Café.png'); expect(sender.storedMimeHint).toBe(locale === 'en' ? 'image/jpeg' : null);
+		expect(sender.originalSha256).toBe(sha(ORDINARY_PNG)); expect(sender.timelineClipId).not.toBe(sender.binClipId);
+		const archiveDigest = sha(sender.archive), archived = JSON.parse(new TextDecoder().decode(unzipSync(sender.archive)['project.json']));
+		expect(archived.id).toBe(sender.projectId); expect(archived.revision).toBe(sender.projectRevision);
+		const source = archived.sources.find(value => value.id === sender.sourceId); expect(source.schemaVersion).toBe(1);
+		expect(source.original.fileName).toBe('Café.png'); expect(source.original.mimeType).toBe(sender.storedMimeHint); expect(source.original.recognizedFormat).toBe('png');
+		expect(source.original.sha256).toBe(sha(ORDINARY_PNG)); expect(source.canonical.frameCount).toBe(1);
+		expect(archived.clips.find(value => value.id === sender.timelineClipId)).toMatchObject({ kind: 'image', sourceId: sender.sourceId, sequenceId: sender.sequenceId });
+		expect(archived.projectBin.clips.find(value => value.id === sender.binClipId)).toMatchObject({ kind: 'image', sourceId: sender.sourceId, sequenceId: sender.sequenceId });
+		const frameBefore = await observeFrame(page, sender.projectId);
+		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', photoFramescaperReceiveMenuLabel(locale)));
+		const dialog = named(page, 'dialog', words.title), chooser = named(dialog, 'combobox', words.source);
+		await dialog.getByLabel(words.file, { exact: true }).setInputFiles({ name: 'Actual Frame still.fscape', mimeType: 'application/zip', buffer: sender.archive });
+		await expect(chooser.locator('option')).toHaveCount(2); await expect(chooser).toHaveValue(''); await choose(page, chooser, sender.sourceId);
+		const clip = named(dialog, 'combobox', words.imageClip); await expect(clip.locator('option')).toHaveCount(3); await expect(clip).toHaveValue('');
+		await expect(clip).toContainText(`${sender.sequenceName} — ${words.timeline}`); await expect(clip).toContainText(`${sender.sequenceName} — ${words.projectBin}`);
+		await expect(dialog).toContainText(words.ordinaryStill); await expect(named(dialog, 'button', words.importPhoto)).toBeDisabled();
+		await choose(page, clip, sender.binClipId); await keyboard(page, named(dialog, 'button', words.importPhoto));
+		await expect(dialog.locator('[data-photo-framescaper-receive-receipt]')).toHaveText(words.imported); await expect(cards).toHaveCount(1);
+		await keyboard(page, named(dialog.locator('.lightscaper-catalog-backup-actions'), 'button', words.close)); await expect(dialog).toHaveCount(0);
+		const photoId = await cards.getAttribute('data-photo-id'), received = await observe(page, [photoId]), photo = received.photos[0].photo;
+		expect(received.photos[0].bytes).toEqual([...ORDINARY_PNG]); expect(photo.original.name).toBe('Café.png'); expect(photo.original.mimeType).toBe('image/png');
+		expect(photo.original.contentSha256).toBe(sha(ORDINARY_PNG)); expect(photo.original.width).toBe(2); expect(photo.original.height).toBe(2); expect(photo.revision).toBe(0);
+		expect(photo.id).not.toBe(sender.sourceId); expect(photo.id).not.toBe(sender.binClipId); expect(photo.versions).toHaveLength(1);
+		expect(photo.versions[0]).toMatchObject({ kind: 'master', id: photo.activeVersionId });
+		expect(photo.versions[0].develop).toEqual({ processVersion: 1, effects: [], masks: [], maskBindings: [], geometry: { crop: null, rotationDegrees: 0, flipHorizontal: false, flipVertical: false } });
+		await keyboard(page, cards); await menu(page, app, copy.photoFileMenu); await menu(page, app, copy.photoPhotoMenu); await keyboard(page, named(app, 'button', photoDevelopMenuLabel(locale)));
+		const workspace = named(page, 'dialog', `${develop.title}: Café.png`); await expect(named(workspace, 'region', develop.preview)).toHaveAttribute('data-state', 'ready');
+		await expect.poll(() => pixels(named(workspace, 'img', develop.after), 2, 2)).toEqual(CORNERS);
+		await keyboard(page, named(workspace.locator('.lightscaper-develop-actions'), 'button', develop.close)); await expect(workspace).toHaveCount(0);
+		expect(sha(sender.archive)).toBe(archiveDigest); expect(await observeFrame(page, sender.projectId)).toEqual(frameBefore);
+		await page.reload(); await expect(app).toBeVisible(); expect(await observe(page, [photoId])).toEqual(received);
+		expect(await observeFrame(page, sender.projectId)).toEqual(frameBefore); expect(errors).toEqual([]);
 	});
 	test(`${locale}: keyboard editable archive return preserves selected saved recipe, original and disabled LUT custody after Session reopen`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Native WebKit Blob/OPFS receive remains deferred.'); test.setTimeout(90_000);

@@ -2,11 +2,13 @@
 
 import { test as base } from '@playwright/test';
 import { build } from 'esbuild';
-import { dirname, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { absoluteSourceMapSources } from '../../../scripts/lib/build-source-map-relocation.mjs';
 import { collectsBrowserCoverage, createBrowserCoverageCollector } from '../../../scripts/lib/browser-coverage-profile.mjs';
 import { ordinaryBrowserProductSitePlan } from '../../../scripts/lib/browser-product-site-plan.mjs';
+import { createPffftNodeModuleBrowserShim } from '../../../scripts/vite-pffft-browser-shim.mjs';
 import { assertNativeOpfsWorkerExecution, watchNativeOpfsWorkerExecution } from './native-opfs-worker-companion.ts';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -14,7 +16,7 @@ const scriptsByContext = new WeakMap(), collectors = new WeakMap(), installed = 
 const bundles = new Map(), writtenSourceMaps = new Set();
 
 // Keep the ordinary collector enabled, including navigation and native worker
-// checkpoints. Only these two test-runtime programs use its supplied map seam.
+// checkpoints. These test-runtime programs use its supplied map seam.
 // Their maps support local coverage compaction; they are not production build
 // artifacts and must not be submitted as portable production E2E evidence.
 export const test = base.extend({
@@ -63,6 +65,58 @@ export async function observeNativeImageHandoffLibrary(page, ids) {
 	await assertNativeOpfsWorkerExecution(page); return result;
 }
 
+/** Run the real Frame controller and still importer in this fresh browser
+ * context. Playwright supplies the actual browser File picker; the helper
+ * closes its controller and storage before any archive bytes leave the page.
+ * This covers the Frame owners, not its separate-origin application UI. */
+export async function createOrdinaryFramescaperStillArchive(page, file) {
+	const script = await mappedBundle('ordinary-frame-still.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-ordinary-framescaper-archive-fixture.js'));
+	register(page, '/__ordinary_frame_still_archive.js', script);
+	await page.route('**/__ordinary_frame_still_archive.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	await page.evaluate(() => import(new URL('/__ordinary_frame_still_archive.js', location.href).href));
+	let choose;
+	const waiting = new Promise(resolve => { choose = resolve; });
+	const listener = picker => choose(picker); page.once('filechooser', listener);
+	const work = page.evaluate(async () => {
+		const fixture = await import(new URL('/__ordinary_frame_still_archive.js', location.href).href);
+		const { archive, ...facts } = await fixture.createOrdinaryFramescaperStillArchiveFixtureV1();
+		return { ...facts, archive: Array.from(new Uint8Array(await archive.arrayBuffer())) };
+	});
+	const joined = work.then(value => ({ value }), failure => ({ failed: true, failure }));
+	let picker, failed = false, primary, cleanup;
+	try {
+		picker = await Promise.race([waiting, work.then(() => { throw new Error('The real still importer did not open its file picker.'); })]);
+		await picker.setFiles(file);
+	} catch (error) { failed = true; primary = error; }
+	finally { page.off('filechooser', listener); }
+	if (failed && picker) {
+		// A failed driver must dismiss its actual picker and join the import;
+		// controller disposal alone does not settle an outstanding selection.
+		try { await picker.setFiles([]); } catch (error) { cleanup = { failure: error }; }
+	}
+	const result = await joined;
+	if (failed) {
+		const failures = [primary];
+		if (cleanup && !failures.includes(cleanup.failure)) failures.push(cleanup.failure);
+		if (result.failed && !failures.includes(result.failure)) failures.push(result.failure);
+		if (failures.length > 1) throw new AggregateError(failures, 'Still archive fixture and cleanup failed.', { cause: primary });
+		throw primary;
+	}
+	if (result.failed) throw result.failure;
+	await assertNativeOpfsWorkerExecution(page);
+	return { ...result.value, archive: Buffer.from(result.value.archive) };
+}
+
+export async function observeOrdinaryFramescaperStillProject(page, projectId) {
+	const result = await page.evaluate(async id => (await import(new URL('/__ordinary_frame_still_archive.js', location.href).href))
+		.readOrdinaryFramescaperStillProjectFixtureV1(id), projectId);
+	await assertNativeOpfsWorkerExecution(page); return result;
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');
@@ -73,15 +127,42 @@ function register(page, pathname, script) {
 
 function mappedBundle(name, entry) {
 	const prior = bundles.get(name); if (prior) return prior;
-	const ready = compile(name, entry); bundles.set(name, ready); return ready;
+	const ready = compileNativeImageHandoffScript(name, entry); bundles.set(name, ready); return ready;
 }
 
-async function compile(name, entry) {
+export async function compileNativeImageHandoffScript(name, entry) {
 	const outfile = resolve(repositoryRoot, '.wrangler/lightscaper-native-test-runtime', name);
+	const browserShim = createPffftNodeModuleBrowserShim();
+	const prelude = resolve(repositoryRoot, 'src/common/editor/macro-script/sandbox-prelude.js');
+	const preludeImporter = resolve(repositoryRoot, 'src/common/editor/macro-script/browser-sandbox.ts');
+	const assetPrefix = '/__ordinary_frame_still_assets/';
+	const preludeUrl = Object.freeze({ kind: 'macro-prelude-url' });
 	const result = await build({ entryPoints: [entry], outfile, bundle: true, write: false,
-		format: 'esm', platform: 'browser', sourcemap: 'external', loader: { '.woff2': 'dataurl' } });
+		format: 'esm', platform: 'browser', sourcemap: 'external', loader: { '.woff': 'dataurl', '.woff2': 'dataurl' },
+		assetNames: '[name]-[hash]', publicPath: assetPrefix,
+		plugins: [{ name: 'native-fixture-pffft-node-import', setup(bundle) {
+			// Reuse the maintained exact-vendor boundary. Retain its unreachable
+			// Node-only import without manufacturing a mapped runtime module.
+			bundle.onResolve({ filter: /^module$/ }, args => browserShim.resolveId(args.path, args.importer)
+				? { path: args.path, external: true } : undefined);
+		} }, { name: 'native-fixture-macro-prelude-url', setup(bundle) {
+			// Vite's ?url edge exports an asset URL. Emit the real prelude bytes
+			// separately; evaluating the controller must not execute the prelude.
+			bundle.onResolve({ filter: /^\.\/sandbox-prelude\.js\?url$/ }, args => args.importer === preludeImporter
+				? { path: prelude, pluginData: preludeUrl } : undefined);
+			bundle.onLoad({ filter: /\/sandbox-prelude\.js$/ }, async args => args.path === prelude && args.pluginData === preludeUrl
+				? { contents: await readFile(prelude), loader: 'file' } : undefined);
+		} }] });
 	const source = result.outputFiles.find(file => file.path === outfile)?.text;
 	const mapText = result.outputFiles.find(file => file.path === `${outfile}.map`)?.text;
-	if (result.outputFiles.length !== 2 || typeof source !== 'string' || typeof mapText !== 'string') throw new Error('Expected an actual mapped native test program.');
-	return { path: outfile, source, sourceMap: absoluteSourceMapSources(JSON.parse(mapText), dirname(outfile), repositoryRoot) };
+	if (typeof source !== 'string' || typeof mapText !== 'string') throw new Error('Expected an actual mapped native test program.');
+	const assets = [];
+	for (const file of result.outputFiles.filter(file => file.path !== outfile && file.path !== `${outfile}.map`)) {
+		if (!/^sandbox-prelude-[A-Z0-9]+\.js$/u.test(basename(file.path)) || assets.length
+			|| !Buffer.from(file.contents).equals(await readFile(prelude))) throw new Error('Expected only the unchanged real macro prelude asset.');
+		// Untransformed JS offsets already address its real source file. The
+		// generated URL export receives no invented prelude source mapping.
+		assets.push({ pathname: `${assetPrefix}${basename(file.path)}`, path: prelude, source: file.text });
+	}
+	return { path: outfile, source, assets, sourceMap: absoluteSourceMapSources(JSON.parse(mapText), dirname(outfile), repositoryRoot) };
 }
