@@ -48,8 +48,10 @@ for (const routed of [false, true]) for (const timed of [false, true]) test(`${r
 		controller.actions.transport.seek(24_000);
 		assert.equal(engine.getPositionFrames(), 24_000, 'release restores ordinary seeks');
 		if (!timed) {
-			const source = controller.getSnapshot().project?.sources?.[0];
-			assert.ok(source && typeof source.id === 'string');
+			const sources = controller.getSnapshot().project?.sources;
+			assert.ok(Array.isArray(sources));
+			const source: unknown = sources[0];
+			assert.ok(source && typeof source === 'object' && 'id' in source && typeof source.id === 'string');
 			const stored = await store.readSourceChunk(source.id, 0);
 			assert.equal(stored.channels[0]![0], 0.25);
 		}
