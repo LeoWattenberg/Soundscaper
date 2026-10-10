@@ -73,7 +73,8 @@ export const AUDACITY_MACRO_MENU_COMMANDS: readonly AudacityMacroMenuCommand[] =
 	{ command: 'NewMonoTrack', path: 'track.addMono' },
 	{ command: 'NewStereoTrack', path: 'track.addStereo' },
 	{ command: 'NewLabelTrack', path: 'track.addLabel' },
-	{ command: 'RemoveTracks', path: 'track.remove' },
+	// The macro adapter supplies the plural selection-removal command.
+	{ command: 'RemoveTracks', path: 'edit.commit' },
 	{ command: 'MixAndRender', path: 'track.mixAndRender' },
 	{ command: 'SortByName', path: 'track.sortByName' },
 	{ command: 'SortByTime', path: 'track.sortByTime' },
