@@ -285,3 +285,12 @@ fixed commit without weakening verification. Current full50 failure triage
 continues, with the next complete gates due at100. Reviewed build, compiler
 and browser logs/results are removed after their receipts. No manual
 **Update AI assets** run is required.
+
+Checkpoint50 follow-through: unchanged WebKit compound-meter punch workflow
+passes in11.0 seconds against guarded678a672d0. The original marginal tone
+threshold failure does not reproduce; no source, assertion or deadline is
+changed and no count is added. All remaining original diagnostic contexts
+are read, classified and deleted, including four WebKit export failures that
+stop before editor readiness. The shared90 public log is read by all owners
+and removed; startup tightening finds no smaller ceiling and changed lint
+passes. Completed verification output is retired immediately.
