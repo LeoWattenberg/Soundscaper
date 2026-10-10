@@ -1428,3 +1428,16 @@ The complete unchanged native Chromium Truncate Silence workflow passes on coher
 The running full-200 reporter removes attached passing artifacts but ordinary manually saved screenshots remain un-attached. Read-only Playwright discovery on frozen `684b0ca893` lists all7,098 cases without executing tests or starting servers. Use the installed worker's exact output formula and core sanitization/trimming helpers: file-relative name without the test extension, reporter titlePath after root/project/file,60-character trim, and exact project ID. All560 observed completed markers match discovery ID/file/title/project. Five concrete leftover passing folders, including both clip-fade recordings, both loop workflows and Macro Manager, match their actual output names exactly. Three shared basenames are the two literal SRT comparison captions in each engine; every alias must complete safely before its directory is eligible. This run has zero retries and repeats.
 
 A temporary external helper tails the active log in bounded64KB UTF-8 chunks, removes only real direct child case directories after every mapped alias completed expected PASS/SKIP without errors and both marker/file clocks are quiet for2s, and preserves failures, incomplete aliases, unknown folders, symlinks and all live `.playwright-artifacts-*` directories. Its private proof passes12 controls covering active/failure history, skipped cases, shared aliases, young files, malformed/mismatched markers, ownership escape and framework custody; proof fixtures/scripts are immediately removed. Actual initial cleanup removes10 completed folders/353,564 logical bytes with zero errors while preserving all four live worker artifact folders. Helper/map/status remain only while the full run needs them, then stop and remove them before final result cleanup. No frozen/source/package changes, test restart or additional bug count; effects verified count38. No manual Update AI assets run is required.
+
+## Full-200 Firefox Mono ADM observation — zero-count triage
+
+The immutable 684b0ca893 full browser run reports the Mono live-analysis
+workflow failed in 6.186 seconds at the immediate splitter-width assertion:
+actual widths `[2, 2, 2, 2]` did not contain one. The CASE marker is
+`f9db700692dd6ca72d78-b76407ebb015369fe93c`. Its PNG and error context were
+read: playback peak is −9.0 dBFS, RMS is −12.3 dBFS, and Spectrum visibly
+contains the tone. The later fresh FFT-read and raster assertions were not
+reached. This observation alone does not prove a signal failure; the native
+channel graph and completion timing remain under investigation. The exact
+completed failure directory was removed immediately after this receipt.
+No bug count or production source changes are made.
