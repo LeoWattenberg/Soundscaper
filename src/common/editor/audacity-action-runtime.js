@@ -7,6 +7,7 @@ import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
 import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
+import { clipContentRange } from './clip-content-range.ts';
 import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
 import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
 import { visibleNavigationTracks } from './audacity-visible-navigation-tracks.ts';
@@ -295,8 +296,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			exportClip: (clipId = snapshot().selectedClipId) => {
 				const clip = project()?.clips.find((candidate) => candidate.id === clipId);
 				if (!clip) return null;
+				const range = clipContentRange(project(), clip);
+				if (!range) return null;
 				controllerActions.timeline.selectClip(clip.id);
-				setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames, { clipIds: [clip.id] });
+				setSelection(range.startFrame, range.endFrame, { clipIds: [clip.id] });
 				return openSurface('export', { range: 'selection', clipId: clip.id });
 			},
 		},

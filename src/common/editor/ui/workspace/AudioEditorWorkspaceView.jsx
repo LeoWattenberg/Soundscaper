@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
 import { productProfile } from '../../../products.js';
+import { clipContentRange } from '../../clip-content-range.ts';
 import { WORKSPACE_IMPORT_FILE_ACCEPT, WORKSPACE_OPEN_FILE_ACCEPT } from './workspace-file-routing.js';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
@@ -372,8 +373,10 @@ export default function AudioEditorWorkspaceView({ model }) {
 						onExportClip={(clipId) => {
 							const clip = project?.clips.find((candidate) => candidate.id === clipId);
 							if (!clip) return;
+							const range = clipContentRange(project, clip);
+							if (!range) return;
 							run(() => controller.actions.timeline.selectClip(clip.id));
-							run(() => controller.actions.timeline.setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames));
+							run(() => controller.actions.timeline.setSelection(range.startFrame, range.endFrame));
 							openSurface('export');
 						}}
 						onUploadClipToFreesound={productId === 'soundscaper' ? uploadClipToFreesound : undefined}

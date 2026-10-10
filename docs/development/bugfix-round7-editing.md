@@ -329,3 +329,26 @@ chunk limit and existing startup maxima. The annotation controller's recovered
 11 lines are claimed by the maintainability register. Reviewed build,
 compiler and public logs and output are removed immediately. No manual
 **Update AI assets** run is required.
+
+## R7-EDIT-025 — Clip export reads absent native visual sample fields
+
+Framescaper: import an ordinary WAV, right-click its header → Export clip,
+choose Current selection and export. The healthy actual WAV delivers38400
+samples without an error. Generate → Video Generators → Add Title/Text,
+right-click its header and invoke the same Export clip. It opens delivery
+with a visible “Selection frames must be finite numbers” error; its separate
+clip-export consumer reads sample aliases absent from the saved native Title.
+Both original and strengthened healthy-PCM public workflows causally RED on
+guarded8fba4b346. The manifest's independently published clip-export adapter
+also causally refuses both actual controller-authored Titles at0 and48000,
+after the existing Track start to end range control passes.
+
+Both entry paths resolve this exact clip's content boundaries through the
+existing authored native/musical reader before selecting it. Preserve ordinary
+sample clips, selected clip identity, project media and history, and keep the
+existing delivery dialog and explicit Output choice. This entry-point family
+counts once and has no quota until complete public correction. Corrected
+actual controller, native range/Skip, manifest and all unchanged shield audit
+checks pass24/24; type-aware targeted lint, size and diff checks pass. Reviewed
+causal diagnostics, logs and focused verification output are removed
+immediately. No manual **Update AI assets** run is required.
