@@ -6,6 +6,9 @@ import { chooseCommandAction, chooseNestedCommandAction, collectClientErrors } f
 import { closeDissolve, openDissolve, ordinaryCameraPair, readClipSamples, setClipSamples } from './helpers/round7-dissolve-user-path.js';
 
 test('the normal dissolve picker preserves a Solid between camera clips', async ({ page }) => {
+	// Match the linked-audio camera case: native import, healthy Apply/Remove,
+	// visible Properties edits and the history round trip share this case budget.
+	test.setTimeout(90_000);
 	const errors = collectClientErrors(page);
 	const { editor, outgoing, incoming } = await ordinaryCameraPair(page);
 	const outgoingSamples = await readClipSamples(page, editor, outgoing, 'durationFrame');
