@@ -55,7 +55,9 @@ for (const locale of ['en', 'de']) {
 		expect(before.photos[0].photo.original.contentSha256).toBe(createHash('sha256').update(PNG).digest('hex'));
 		const baseline = await decode((await exportText(false, false)).bytes, format);
 		expect([baseline.width, baseline.height]).toEqual([64, 64]);
-		for (const channel of baseline.rgb) expect(channel).toBeLessThanOrEqual(format === 'png' ? 0 : 8);
+		let baselineMaximum = 0;
+		for (const channel of baseline.rgb) baselineMaximum = Math.max(baselineMaximum, channel);
+		expect(baselineMaximum).toBeLessThanOrEqual(format === 'png' ? 0 : 8);
 		const first = await exportText(true);
 		expect(first.name).toBe(`Readable original.${format === 'png' ? 'png' : 'jpg'}`);
 		assertReadableH(await decode(first.bytes, format), format === 'png' ? 0 : 8);
@@ -107,14 +109,14 @@ function assertReadableH(frame, tolerance) {
 	expect([frame.width, frame.height]).toEqual([64, 64]);
 	const pixel = (x, y) => [...frame.rgb.subarray((y * 64 + x) * 3, (y * 64 + x) * 3 + 3)];
 	const inkRows = [], spans = [], inkLevels = [];
-	let maximum = 0;
+	let maximum = 0, maximumGrayDifference = 0, maximumMargin = 0;
 	for (let y = 0; y < 64; y++) {
 		const runs = []; let start = -1;
 		for (let x = 0; x < 64; x++) {
 			const rgb = pixel(x, y); maximum = Math.max(maximum, ...rgb);
-			expect(Math.max(...rgb) - Math.min(...rgb)).toBeLessThanOrEqual(tolerance);
+			maximumGrayDifference = Math.max(maximumGrayDifference, Math.max(...rgb) - Math.min(...rgb));
 			// margin 4px, available 56px × width 50% = 28px at bottom right.
-			if (x < 30 || x >= 62 || y >= 62) for (const channel of rgb) expect(channel).toBeLessThanOrEqual(tolerance);
+			if (x < 30 || x >= 62 || y >= 62) maximumMargin = Math.max(maximumMargin, ...rgb);
 			const ink = rgb[0] > 150;
 			if (ink) inkLevels.push(rgb[0]);
 			if (ink && start === -1) start = x;
@@ -123,6 +125,9 @@ function assertReadableH(frame, tolerance) {
 		if (start !== -1) runs.push([start, 64]);
 		if (runs.length) { inkRows.push(y); spans.push(runs); }
 	}
+	// Aggregate the same every-pixel predicates without a matcher step per channel.
+	expect(maximumGrayDifference).toBeLessThanOrEqual(tolerance);
+	expect(maximumMargin).toBeLessThanOrEqual(tolerance);
 	// Native JPEG quantization overshoots at sharp edges. Its stroke plateau
 	// carries the composited color; PNG keeps the exact peak-value oracle.
 	inkLevels.sort((left, right) => left - right); expect(inkLevels.length).toBeGreaterThan(0);
@@ -164,7 +169,12 @@ async function decode(bytes, format) {
 			rgba[y * 256 + x] = (rows[y * 257 + x + 1] + prediction) & 255;
 		}
 	}
-	for (let i = 0; i < 64 * 64; i++) { expect(rgba[i * 4 + 3]).toBe(255); rgb.set(rgba.subarray(i * 4, i * 4 + 3), i * 3); }
+	let maximumAlphaError = 0;
+	for (let i = 0; i < 64 * 64; i++) {
+		maximumAlphaError = Math.max(maximumAlphaError, Math.abs(rgba[i * 4 + 3] - 255));
+		rgb.set(rgba.subarray(i * 4, i * 4 + 3), i * 3);
+	}
+	expect(maximumAlphaError).toBe(0);
 	return { width: 64, height: 64, rgb };
 }
 function paeth(a, b, c) { const p = a + b - c, da = Math.abs(p - a), db = Math.abs(p - b), dc = Math.abs(p - c); return da <= db && da <= dc ? a : db <= dc ? b : c; }
