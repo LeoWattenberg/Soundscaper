@@ -530,6 +530,26 @@ The completed JSON/context/PNG were read and the exact owned diagnostic
 directory immediately removed. Preserve the original full200 timeout;
 unchanged whole WebKit replay is pending, without source, fixture, deadline or
 count changes.
+The complete unchanged attribution WebKit replay also expires at the original
+30-second whole-case deadline (30.2 seconds), but proceeds further: saving,
+actual switched camera-b attribution and actual CSV source assertions all pass,
+then reload is interrupted with Loading editor files at0% and no editor node.
+The repeat JSON-equivalent focused log/context/PNG were read and immediately
+removed with the owned replay output. This remains an unresolved full-workflow
+timeout, not a passing replay or proof of an attribution/storage cause. No
+source, fixture, individual assertion or deadline changes are made.
+
+Full200 completed WebKit switched-camera OTIO observation (verification only,
+zero count): the original global30000 ms deadline expires at the saved-state
+assertion (31.811 seconds), receiving saving rather than saved after ordinary
+camera import, Create group and Switch success controls. The5000 ms expectation
+is interrupted by that global deadline, before the native OTIO download and its
+source ID, source URL and delivery-disclosure assertions are reached. Actual
+context says Saving project; its PNG retains the authored camera-a output clip.
+The exact completed marker/context/PNG were read and its owned original
+diagnostic directory immediately removed. Preserve the full-suite timeout;
+whole unchanged healthy/switched WebKit OTIO replays are pending, without
+source, fixture, deadline or count changes.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
