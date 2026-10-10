@@ -418,6 +418,8 @@
 		,
 		{ "path": "src/common/editor/imaging/image-exif-container-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped PNG eXIf or JPEG APP1 composition selects normalized fresh TIFF facts under current dimensions, validates bounded codec containers without decoding, preserves compressed pixels and native profiles, and joins consumers before wiping independent output." }
 		,
+		{ "path": "src/common/editor/imaging/image-export-graphic-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected graphic custody admits an immutable static SDR source and joins native read, decode, close and scoped canonical pixels under a captured encoded-plus-two-plane capacity without creating catalog or frame-pack authority." }
+		,
 		{ "path": "src/common/editor/imaging/image-export-size-v1.ts", "kind": "helper-contract", "justification": "Version 1 allocation-free export sizing plans fit, long-edge, conservative megapixels and percentage dimensions under one captured frame capacity, preserving declared depth and color without codec admission or cropping." }
 		,
 		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
@@ -479,6 +481,10 @@
 		{ "path": "src/common/editor/imaging/pixel-frame-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped detail sharpening snapshots bounded straight encoded-sRGB pixels, evaluates alpha-weighted replicated-edge three-by-three binomial neighborhoods with exact Q8 gain, joins cancellation and wipes both owned backings after consumer settlement or failed allocation." }
 		,
 		{"path": "src/common/editor/imaging/pixel-frame-texture-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Texture owns one immutable encoded-sRGB source snapshot and one output, evaluates separately rounded alpha-weighted three/five binomial luma means with a protected coarse-edge gate, joins processing yields and consumer settlement, and wipes both captured backings on success or refusal."}
+		,
+		{ "path": "src/common/editor/imaging/static-image-native-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared static native port preserves original-oriented geometry and canonical RGBA extraction with explicit receiver-bound cleanup and opaque admission-plus-close failure retention." }
+		,
+		{ "path": "src/common/editor/imaging/static-image-source-admission-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared static image header admission preserves bounded Photo signature, topology, precision and SDR profile validation before a native decoder can open." }
 		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
