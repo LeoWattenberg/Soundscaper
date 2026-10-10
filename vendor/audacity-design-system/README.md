@@ -520,3 +520,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     and writable submenu navigation remain intact. Covered by
     `tests/audio-editor-round6-disabled-submenu-escape.test.tsx` and the ordinary
     locked Paste submenu workflow. Upstream-PR candidate.
+
+67. `EnvelopeInteractionLayer` completes a held primary point or segment drag
+    only on primary mouse release. Auxiliary release leaves the draft active
+    until the owning button releases. Covered by the mounted strict
+    `tests/audio-editor-round7-envelope-drag-release.test.tsx` and the ordinary
+    Clip gain drag, middle-button release, Undo and Redo browser workflow.
+    The application publication listener follows the same release ownership.
+    Upstream-PR candidate.

@@ -40,16 +40,19 @@ export function useAudioTrackEnvelope({
 				setEnvelopePreviewRevision((revision) => revision + 1);
 			});
 		};
-		const finishEnvelopeEdit = () => afterEvent(() => {
-			const previews = [...envelopePreviewRef.current.values()];
-			if (!previews.length) return;
-			envelopePreviewRef.current.clear();
-			setEnvelopePreviewRevision((revision) => revision + 1);
-			for (const preview of previews) {
-				if (!currentClipLookupRef.current.has(preview.clipId)) continue;
-				run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
-			}
-		});
+		const finishEnvelopeEdit = (event) => {
+			if (event.button !== 0) return;
+			afterEvent(() => {
+				const previews = [...envelopePreviewRef.current.values()];
+				if (!previews.length) return;
+				envelopePreviewRef.current.clear();
+				setEnvelopePreviewRevision((revision) => revision + 1);
+				for (const preview of previews) {
+					if (!currentClipLookupRef.current.has(preview.clipId)) continue;
+					run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
+				}
+			});
+		};
 		document.addEventListener('mouseup', finishEnvelopeEdit);
 		document.addEventListener('keydown', discardEnvelopeEdit);
 		return () => {

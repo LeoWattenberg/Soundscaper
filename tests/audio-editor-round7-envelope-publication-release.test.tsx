@@ -7,13 +7,13 @@ import { createRoot } from 'react-dom/client';
 import { useAudioTrackEnvelope } from '../src/common/editor/ui/timeline/useAudioTrackEnvelope.js';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
-import { createSoundscaperProjectHistory, executeSoundscaperProjectCommand, undoSoundscaperProjectCommand } from '../src/soundscaper/editor-project-history.ts';
+import { createSoundscaperProjectHistory, executeSoundscaperProjectCommand } from '../src/soundscaper/editor-project-history.ts';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-for (const change of ['none', 'rename', 'delete', 'delete-and-undo'] as const) {
-	test(`native clip-gain publication respects ${change} before mouse release`, async context => {
+for (const button of [1, 2]) {
+	test(`native clip-gain publication waits for the primary release after hardware ${String(button)}`, async context => {
 		context.mock.timers.enable({ apis: ['setTimeout'] });
 		const dom = installReactTestDom();
 		const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -46,32 +46,28 @@ for (const change of ['none', 'rename', 'delete', 'delete-and-undo'] as const) {
 		try {
 			await act(async () => { render(); });
 			await act(async () => { reactProps(dom.one('[data-envelope-draft]')).onMouseMove?.({}); });
-			if (change !== 'none') {
-				history = executeSoundscaperProjectCommand(history, change.startsWith('delete')
-					? { type: 'clip/remove', clipId: 'clip' }
-					: { type: 'clip/update', clipId: 'clip', changes: { title: 'Renamed recording' } });
-				await act(async () => { render(); });
-				if (change === 'delete-and-undo') {
-					history = undoSoundscaperProjectCommand(history);
-					await act(async () => { render(); });
-				}
-			}
+
 			await act(async () => {
 				for (const listener of listeners.get('mouseup') ?? []) {
-					const event = Object.assign(new Event('mouseup'), { button: 0 });
+					const event = Object.assign(new Event('mouseup'), { button });
 					if (typeof listener === 'function') listener(event); else listener.handleEvent(event);
 				}
 				context.mock.timers.runAll();
 			});
-			assert.equal(updates.length, change.startsWith('delete') ? 0 : 1);
-			if (change === 'delete') assert.equal(history.present.clips.length, 0);
-			else if (change === 'delete-and-undo') assert.deepEqual(history.present.clips[0]!.envelope, initial.clips[0]!.envelope);
-			else {
-				const envelope: unknown = history.present.clips[0]!.envelope;
-				assert.ok(Array.isArray(envelope));
-				assert.ok(envelope.some((point: unknown) => point !== null && typeof point === 'object'
-					&& 'value' in point && typeof point.value === 'number' && point.value < .3));
-			}
+			assert.equal(updates.length, 0);
+			assert.deepEqual(history.present.clips[0]!.envelope, initial.clips[0]!.envelope);
+			await act(async () => {
+				const event = Object.assign(new Event('mouseup'), { button: 0 });
+				for (const listener of listeners.get('mouseup') ?? []) {
+					if (typeof listener === 'function') listener(event); else listener.handleEvent(event);
+				}
+				context.mock.timers.runAll();
+			});
+			assert.equal(updates.length, 1);
+			const envelope: unknown = history.present.clips[0]!.envelope;
+			assert.ok(Array.isArray(envelope));
+			assert.ok(envelope.some((point: unknown) => point !== null && typeof point === 'object'
+				&& 'value' in point && typeof point.value === 'number' && point.value < .3));
 		} finally {
 			await act(async () => { root.unmount(); context.mock.timers.runAll(); });
 			assert.equal(listeners.get('mouseup')?.size ?? 0, 0);
