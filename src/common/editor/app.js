@@ -44,8 +44,8 @@ import { productProfile } from '../products.js';
 import { assertPlayAtSpeedStaffPadMemorySafe } from './engine.js';
 import {
 	RECORDING_INPUT_GAIN_DEFAULT,
-	createRecordingController,
 } from './recording.js';
+import { createListeningRecordingControllerFactory } from './recording-listening-output.ts';
 import { RECORDING_DEFAULT_DEVICE_ID, recordingRoutingSettingKey } from './recording-routing.js';
 import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { acquireProjectLock } from './project-lock.js';
@@ -236,7 +236,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const recordingCapturePool = createRecordingCapturePoolBinding({
 		pool: options.recordingCapturePool, mediaDevices, onChange: bindings.handleRecordingPoolChange,
 	});
-	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
+	const recordingControllerFactory = createListeningRecordingControllerFactory(engine, options.recordingControllerFactory);
 	const acquireLock = createFencedProjectLockAcquisition(options.acquireProjectLock || acquireProjectLock, store);
 	const microphoneMeterService = createMicrophoneMeterService({
 		state: recordingAccess,

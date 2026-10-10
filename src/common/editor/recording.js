@@ -30,6 +30,7 @@ export async function createRecordingController({
 	channelCount = 1,
 	chunkFrames = 4096,
 	monitor = false,
+	monitorDestination = null,
 	fixedStopFrame = false,
 	inputGain = RECORDING_INPUT_GAIN_DEFAULT,
 	onChunk,
@@ -74,7 +75,7 @@ export async function createRecordingController({
 	});
 	const node = createNode(context, processorName, nodeOptions);
 	source.connect(node);
-	node.connect(context.destination);
+	node.connect(monitorDestination ?? context.destination);
 
 	let state = 'ready';
 	let disposed = false;
