@@ -471,6 +471,20 @@ immediately removed; all native readers close. The original full200 timeout
 remains recorded. Only this browser spec's transport and the I/O verification
 receipt change; no manual Update AI assets run is required.
 
+
+Full200 completed WebKit MP3 observation (verification follow-through, zero
+count): the ordinary stereo import/play/reload case fails in10.709 seconds
+because Pause is absent within the original5000 ms assertion. The imported
+recording and its positive stereo PCM checks complete first. The actual PNG and
+context publish the canonical refusal: “The streamed and buffered sources missed
+their shared playback start.” This is the same start-admission observation
+previously recorded for full100 FLAC, Ogg and Play-at-Speed; those unchanged
+focused workflows passed without source correction. The completed MP3
+JSON/context/PNG were read and the exact owned diagnostic directory immediately
+removed. Preserve the original full200 failure. No codec, deadline or product
+cause is inferred; unchanged whole WebKit replay awaits the coordinated native
+slot, retaining all import/stereo/play/save/reload checks.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
