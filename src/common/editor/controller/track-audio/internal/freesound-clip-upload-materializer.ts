@@ -4,6 +4,10 @@ import { encodeWav as encodeProjectWav } from '../../../wav.js';
 import { createDefaultMixerGraphV21 } from '../../../mixer-graph-v21.ts';
 import { createAudioTrack } from '../../../project-media-factory.ts';
 import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../../../track-folder-media-runtime.ts';
+import {
 	hasProductionMixerProjectAuthority,
 	isProductionMixerProjectSchema,
 } from '../../../project-schema-version.ts';
@@ -165,7 +169,10 @@ export function createIsolatedFreesoundClipRenderProject<Project extends Freesou
 			channelCount: boundedChannelCount(source.channelCount ?? 2),
 		}, project.sampleRate);
 	const productionMixer = isProductionMixerProject(project);
-	const clone = structuredClone(project) as unknown as MutableProject;
+	// Derive hierarchy state before the private renderer drops neighbouring
+	// tracks; inherit its trust after neutralizing the clip's listening path.
+	const folderProjection = projectTrackFolderMediaStateV12(project);
+	const clone = structuredClone(folderProjection) as unknown as MutableProject;
 	if (!clone.tracks.some(({ id }) => id === owner.id)) {
 		clone.tracks.push(structuredClone(owner) as Record<string, unknown> & { id: string });
 	}
@@ -205,7 +212,7 @@ export function createIsolatedFreesoundClipRenderProject<Project extends Freesou
 			])),
 		};
 	}
-	return clone as unknown as Project;
+	return inheritTrackFolderMediaStateProjectionV12(folderProjection, clone) as unknown as Project;
 }
 
 interface MutableProject extends Record<string, unknown> {
