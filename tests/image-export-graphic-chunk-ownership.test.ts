@@ -37,8 +37,11 @@ test('graphic decode and transform have exact optional ownership without co-owni
 			assert.notEqual(chunkGroupForModulePath(impostor.replaceAll('/', separator)), 'editor-export-graphic');
 		}
 	}
-	for (const leaf of ['linear-rgba-composite-v1.ts', 'static-image-native-port-v1.ts', 'static-image-source-admission-v1.ts']) {
+	for (const leaf of ['linear-rgba-composite-v1.ts']) {
 		assert.equal(chunkGroupForModulePath(`src/common/editor/imaging/${leaf}`), 'editor-imaging');
+	}
+	for (const leaf of ['static-image-native-port-v1.ts', 'static-image-source-admission-v1.ts']) {
+		assert.equal(chunkGroupForModulePath(`src/common/editor/imaging/${leaf}`), 'editor-image-file-admission');
 	}
 	const owner = chunkGroups.find(group => group.name === 'editor-export-graphic'); assert.ok(owner);
 	assert.ok(typeof owner.name === 'string');

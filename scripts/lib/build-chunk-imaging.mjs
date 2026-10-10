@@ -5,6 +5,24 @@
 // owner so catalog validation does not load neighboring timeline domains.
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const imagingChunkGroups = [{
+	// File/container parsing is shared by import and selected graphic delivery,
+	// independently of the scalar metadata facts validated by catalog startup.
+	name: 'editor-image-file-admission',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:static-image-(?:source-admission|native-port)-v1|image-metadata-reader-v1|exif-(?:metadata-reader|entry-traversal|color-admission)-v1|iptc-metadata-reader-v1)\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
+	// Delivery sizing is opened by raster export or graphic placement. Existing
+	// geometry and nearest sampling kernels retain their independent owner.
+	name: 'editor-image-export-resize',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-export-size-v1|pixel-frame-export-resize-v1)\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
 	// Natural-size recipe evaluation is opened by Develop/export and handoff
 	// consumers, independently of the inert image contracts loaded at startup.
 	name: 'editor-image-develop-recipe',
@@ -15,7 +33,8 @@ export const imagingChunkGroups = [{
 	includeDependenciesRecursively: false,
 }, {
 	// File decoding and watermark allocation belong only to an opted-in delivery.
-	// Shared static admission, native import and linear blend readers stay below.
+	// Static file readers and delivery resize have their own optional owners;
+	// the shared linear blend remains with the kernels below.
 	name: 'editor-export-graphic',
 	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-export-graphic-source-v1|pixel-frame-graphic-watermark-v1)\.ts$/,
 	priority: 99,

@@ -3,7 +3,7 @@
 import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord, type ClosedDomainRecord } from '../closed-domain-value.ts';
 import { readExifCaptureTimeV1 } from './exif-capture-time-v1.ts';
 import { MetadataReadError } from './image-metadata-binary.ts';
-import { validateIptcDateTextV1, validateIptcTimeTextV1 } from './iptc-metadata-reader-v1.ts';
+import { validateIptcDateTextV1, validateIptcTimeTextV1 } from './iptc-capture-fields.ts';
 import { IMAGE_METADATA_LIMITS_V1 as LIMITS, type ImageCaptureTimeV1, type ImageExifCaptureTimeRawV1,
 	type ImageExifMetadataV1, type ImageIptcMetadataV1, type ImageMetadataIssueV1, type ImageMetadataV1 } from './image-metadata-model-v1.ts';
 
