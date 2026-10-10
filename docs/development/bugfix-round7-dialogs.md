@@ -4,6 +4,20 @@ Only independent defects reached by ordinary user controls qualify. Mounted
 regressions invoke the production controls and ordinary device/service responses.
 No runtime assets or model catalogs change; **Update AI assets** is unnecessary.
 
+The complete original 50-fix browser run remains failed (87 failed, 244 skipped,
+6 not run, 6077 passed). Dialog triage preserves its exact failures: Workspace
+onboarding reports recording meter count 1 instead of 0 in all three engines,
+the already corrected D016 latest-intent follow-through; Milestone 7 editorial
+fields time out at the missing Generate text suggestions checkbox in Chromium
+and WebKit, the already corrected D010 exact-model readiness follow-through.
+Both Firefox Framescaper dialog-coverage cases stop during import at `info`
+instead of `success` before any dialog control is reached; I/O owns their
+unchanged focused replay. The WebKit preset-dialog drag stops at x310 instead of
+x510, then its whole unchanged original-build workflow passes in isolation
+(8.8 seconds, 1/1). That replay adds no fix or count and does not relabel the full
+run as passing. Reviewed exact bounded screenshot/context directories and the
+isolated replay output are removed after recording these receipts.
+
 | ID | Ordinary trigger and root cause | Correction and focused evidence |
 | --- | --- | --- |
 | R7-DIALOG-001 | Edit → Preferences → Audio settings → Recording offset source: select an available USB microphone before saving any offset, then unplug it. The disappearing source option leaves the state targeting that missing microphone while the native select presents Default input; editing the offset changes the wrong source. | Resolve the selection against the live source inventory before rendering and committing; retain sources with saved offsets. `audio-editor-round7-preference-recovery.test.tsx` causally failed at the global offset being `0` instead of `10`, then passed the fallback display and global-only update. |
