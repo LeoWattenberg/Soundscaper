@@ -99,7 +99,8 @@ test('absent and ineligible browser encoders are explicit unavailable errors', a
 	expect(result.ineligible.message).toMatch(/keyed frame delivery/u);
 });
 
-test('desktop delivery uses real WebCodecs without an external FFmpeg provider', async ({ page }) => {
+test('desktop delivery uses real WebCodecs without an external FFmpeg provider', async ({ browserName, page }) => {
+	test.skip(browserName !== 'chromium', 'Electron runs its native codec composition in Chromium.');
 	await installRoutes(page);
 	await page.goto(`${ROOT}/index.html`);
 	const result = await page.evaluate(async ([root, rate, canvas]) => {

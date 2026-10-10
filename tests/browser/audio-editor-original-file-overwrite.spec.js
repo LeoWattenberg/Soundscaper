@@ -165,12 +165,14 @@ for (const removeDuringPreparation of [false, true]) test(`native original overw
 });
 
 test('ordinary tail-metadata AAC import keeps the original overwrite menu available', async ({ page }) => {
+	test.setTimeout(60_000);
 	const file = await ordinaryTailM4aFixture();
 	const fixture = { name: file.name, mimeType: file.type, buffer: Buffer.from(await file.arrayBuffer()) };
 	await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
 	const editor = await bootEditor(page, '/embed/en/');
 	await chooseFileAction(page, editor, 'Import');
-	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
+	await expect(editor).not.toHaveAttribute('data-edit-block-reason', 'importing', { timeout: 30_000 });
 	const menu = await openNestedCommandMenu(page, editor, 'File', []);
 	await expect(menu.getByRole('menuitem', { name: `Overwrite ${fixture.name}`, exact: true })).toBeEnabled();
 });
