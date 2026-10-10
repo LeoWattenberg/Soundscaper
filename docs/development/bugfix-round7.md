@@ -706,3 +706,24 @@ engines. The exact five-file delivery handbook/.astro cache (23,566 bytes), empt
 native-build directory and frozen filter/graphic screenshots (79,401 bytes) are
 immediately reclaimed. Active browser source, dependencies, prepared products
 and framework artifact directories remain available to their actual readers.
+
+The frozen final WebKit clip-duration case exhausts its overall 30-second budget
+at 34.692 seconds while clicking Export audio's Close in the second export
+(spec line 49). The healthy 336000-frame positive-audio control has passed;
+local-bar 288000, Undo 432000 and Redo 288000 assertions are not reached. The
+actual context and PNG show the completed ordinary WAV download, 24-bit PCM at
+48000 Hz, retained two-second clip and saved project, without an alert. Its
+139953-byte diagnostics are consumed and immediately removed. Existing
+test-only d088d911c retains the same fresh WAV bytes, decoder, four physical
+frame/peak assertions and original deadline through base64 transport; its
+complete three-engine 3/3 PASS remains the follow-through. No source cause or
+additional root is inferred, and the original timed-out status stays recorded.
+
+Both frozen WebKit Diagnostics cases fail before the Help menu because their
+old oracle requires a Windows Chrome user agent but native WebKit reports
+Macintosh Safari 26.5. Their actual PNGs, contexts and markers are consumed and
+the exact 205519-byte diagnostics are immediately removed. Existing test-only
+7b7f51169 verifies each configured engine's actual identity while retaining the
+full Help, Generate, fresh JSON delivery, version/platform, privacy and size
+controls; its complete six-case three-engine PASS is the follow-through. No
+new source change, root or inferred production failure is added.
