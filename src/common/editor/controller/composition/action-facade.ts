@@ -198,7 +198,12 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			playAtSpeed: yieldProgramPlayhead((rate: number = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,
 			stop: yieldProgramPlayhead(() => handleTransport('stop')),
-			seek: yieldProgramPlayhead((frame: number) => engine.seek(normalizePlaybackFrame(frame))),
+			seek: yieldProgramPlayhead((frame: number) => {
+				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
+					return engine.getPositionFrames();
+				}
+				return engine.seek(normalizePlaybackFrame(frame));
+			}),
 			scrub: yieldProgramPlayhead((frame: number) => {
 				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
 					return engine.getPositionFrames();
