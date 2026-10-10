@@ -1162,6 +1162,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-png-export-v1.ts", "kind": "helper-contract", "justification": "Version 1 single-photo PNG delivery owns a gesture-prepared destination, joins current full-resolution render and original settlement, revalidates exact photo version/revision and generation before commit, and wipes independent output after joined delivery or cancellation." }
 		,
+		{ "path": "src/lightscaper/controller/photo-raster-export-batch-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded in-session photo raster batch snapshots ordered photo/version/revision identities and output settings, binds stable filename indices, and refuses repeated identities or normalized filename collisions before destination authority acquisition; it grants no resource authority or persisted recovery." }
+		,
 		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
 		,
 		{ "path": "src/lightscaper/import/import-intent-v1.ts", "kind": "persisted-contract", "justification": "Scalar durable photo import intent and root reconciliation for version 1 catalogs." }
