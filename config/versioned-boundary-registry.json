@@ -1106,6 +1106,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 read-only editable photo handoff authenticates one current SourceV2 recipe, retained original and all active and disabled LUT bodies within a joined bounded archive consumer, without project or catalog publication." }
 		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure ordinary Frame image projection preserves Source1 pack facts beside a neutral shared recipe and source-bound Frame clip provenance, retaining only the stored NFC filename and deriving a canonical MIME declaration without archive, original-byte, native-pixel or publication authority." }
+		,
 		{ "path": "src/lightscaper/controller/photo-image-handoff-decode-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo native decode binds authenticated immutable original facts to a bounded canonical original frame pack, joins deadline and Session cancellation and native cleanup, and preserves the saved editable recipe without publication." }
 		,
 		{ "path": "src/lightscaper/controller/photo-image-handoff-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable image source binds an authenticated original frame pack to the complete process 1 or 2 saved recipe, exact original name and SourceV2 provenance, checking declared natural output dimensions without catalog publication." }
