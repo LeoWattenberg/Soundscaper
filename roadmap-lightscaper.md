@@ -137,8 +137,9 @@ platform tier states the contract the item must meet when it lands.
 Lightscaper owns a registered product composition, a durable per-photo catalog,
 managed-original storage, and menu-owned import, paged browse, metadata and
 culling workflows. Opt-in thumbnails and a selected-photo loupe use disposable
-previews; global search and sort use bounded indexed candidate pages. Develop,
-export, raw, and desktop capabilities remain disabled.
+previews; global search and sort use bounded indexed candidate pages. Menu-owned
+develop and single-photo PNG/JPEG export workflows have landed; their milestones
+remain in progress. Raw and desktop capabilities remain disabled.
 
 | Area | Current capability |
 | --- | --- |
@@ -172,7 +173,7 @@ Architectural constraints that still drive the sequence:
 | L2. Catalog and develop contracts | **Done** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
 | L3. Photo library | **In progress** | Import, browse, cull, and organize at real-library scale. |
 | L4. Develop: global adjustments | **In progress** | Deliver the parametric develop loop on shared effects. |
-| L5. Export and handoff | **Planned** | Close the import → develop → export loop and the cross-product paths. |
+| L5. Export and handoff | **In progress** | Close the import → develop → export loop and the cross-product paths. |
 | L6. Local adjustments and repair | **Planned** | Add masked adjustments and parametric healing. |
 | L7. Raw and deep color | **Planned** | Activate deep processing, raw decode, and wide-gamut output. |
 | L8. Desktop tier | **Planned** | Package the desktop product and add-in-place libraries. |
@@ -364,7 +365,7 @@ sync — entirely on shared effects.
 **Goal:** close the loop: finished photos leave in repeatable recipes, and
 photo work moves between products without loss.
 
-- **Web Core — Planned:** single and batch export: JPEG and PNG everywhere and
+- **Web Core — In progress:** single and batch export: JPEG and PNG everywhere and
   TIFF where an encoder is proven; sizing by fit, long edge, megapixels, or
   percentage; resample quality; output sharpening; text and graphic
   watermarks; filename templates; metadata include/strip scopes; and export
