@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readFileSync } from 'node:fs';
-import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
+import { expect, test, createWavFixture, toneB } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 import { persistedProject } from './helpers/complex-editing-workflows.js';
 
@@ -9,7 +9,7 @@ const recording = Buffer.from(readFileSync(new URL('../fixtures/chromium-audio-o
 
 test('Clip spreadsheet loads an ordinary audio-only WebM source through its referenced-file picker', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
-	await importFiles(editor, [toneA]);
+	await importFiles(editor, [createWavFixture({ name: 'short-template.wav', frequency: 330, duration: 0.1 })]);
 	await chooseNestedCommandAction(page, editor, 'Window', ['Clip spreadsheet']);
 	const grid = editor.locator('[data-workspace-panel="clip-spreadsheet"]').getByRole('grid');
 	const sourceCell = grid.getByRole('gridcell').and(grid.locator('[data-row="0"][data-column="source"]'));

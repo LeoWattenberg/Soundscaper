@@ -3,10 +3,25 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
+import { BlobSource, EncodedPacketSink, Input, WEBM } from 'mediabunny';
+
+async function sourcePictureTime(file, ordinal) {
+	const input = new Input({ source: new BlobSource(new Blob([file.buffer])), formats: [WEBM] });
+	try {
+		const track = await input.getPrimaryVideoTrack();
+		let index = 0;
+		for await (const packet of new EncodedPacketSink(track).packets()) {
+			if (index++ === ordinal) return packet.timestamp;
+		}
+		throw new Error('The ordinary video fixture has no requested source picture.');
+	} finally { input.dispose(); }
+}
 
 for (const freeze of [false, true]) test(`ordinary Project bin video preview preserves ${freeze ? 'an authored freeze' : 'continuous playback'}`, async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
-	await importFiles(editor, [createDeterministicSilentVideoFixture('bin-retime.webm')]);
+	const fixture = createDeterministicSilentVideoFixture('bin-retime.webm');
+	const frozenTime = freeze ? await sourcePictureTime(fixture, 2) : null;
+	await importFiles(editor, [fixture]);
 	const clip = editor.getByRole('group', { name: /^Video clip:/u }).first();
 	await clip.focus(); await clip.press('Enter');
 	if (freeze) {
@@ -27,10 +42,10 @@ for (const freeze of [false, true]) test(`ordinary Project bin video preview pre
 	await expect.poll(() => media.evaluate(video => video.readyState)).toBeGreaterThanOrEqual(2);
 	if (freeze) {
 		expect(await media.evaluate(video => video.paused)).toBe(true);
-		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeCloseTo(2 / 30, 5);
+		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeCloseTo(frozenTime, 5);
 		await card.getByRole('button', { name: /^Pause:/u }).click();
 		await expect(card.getByRole('button', { name: /^Play:/u })).toBeVisible();
-		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeCloseTo(2 / 30, 5);
+		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeCloseTo(frozenTime, 5);
 		await card.getByRole('button', { name: /^Play:/u }).click();
 		await expect(card.getByRole('button', { name: /^Pause:/u })).toBeVisible();
 		await expect(card.getByRole('button', { name: /^Play:/u })).toBeVisible({ timeout: 5_000 });
@@ -38,7 +53,7 @@ for (const freeze of [false, true]) test(`ordinary Project bin video preview pre
 		await card.getByRole('button', { name: /^Play:/u }).click();
 		await expect(card.getByRole('button', { name: /^Pause:/u })).toBeVisible();
 		expect(await media.evaluate(video => video.paused)).toBe(true);
-		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeCloseTo(2 / 30, 5);
+		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeCloseTo(frozenTime, 5);
 	} else {
 		await expect.poll(() => media.evaluate(video => video.currentTime)).toBeGreaterThan(0.03);
 		expect(await media.evaluate(video => video.paused)).toBe(false);
