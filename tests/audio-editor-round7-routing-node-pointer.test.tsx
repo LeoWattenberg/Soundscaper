@@ -8,7 +8,7 @@ import type { MixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import SoundscaperRoutingGraphView from '../src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx';
 import { SOUNDSCAPER_ROUTING_GRAPH_COPY } from '../src/common/editor/ui/workspace/soundscaper-routing-graph-copy.ts';
 import { layoutSoundscaperRoutingGraph } from '../src/common/editor/ui/workspace/soundscaper-routing-graph-layout.ts';
-import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
+import { installReactTestDom } from './helpers/react-test-dom.ts';
 
 const assignment = (id: string, source: MixerGraphV21['edges'][number]['source'], destination: MixerGraphV21['edges'][number]['destination']) => ({
 	id, kind: 'assignment' as const, source, destination, position: 'post-fader' as const,
@@ -55,7 +55,9 @@ test('rendered routing connection handles leave normal intermediate bus cards re
 		const layout = layoutSoundscaperRoutingGraph(project, value);
 		for (const edge of value.edges) {
 			const handle = dom.one(`[data-routing-edge="${edge.id}"]`);
-			const style = reactProps(handle).style as { readonly left: string; readonly top: string };
+			const style = handle.style as unknown as Readonly<{ left: unknown; top: unknown }>;
+			assert.ok(typeof style.left === 'string' && typeof style.top === 'string',
+				'the mounted handle publishes numeric CSS coordinates');
 			const left = Number.parseFloat(style.left);
 			const top = Number.parseFloat(style.top);
 			for (const node of layout.nodes) assert.equal(
