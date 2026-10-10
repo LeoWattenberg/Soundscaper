@@ -1463,7 +1463,7 @@ its result directory and log are removed immediately.
 
 The corrected complete Mono workflow passes all three native engines on
 unchanged prepared 684 bytes: Chromium 5.8 seconds, Firefox 9.2 seconds and
-WebKit 7.5 seconds (3/3). Targeted ESLint and whitespace checks pass. The
+WebKit 9.3 seconds (3/3). Targeted ESLint and whitespace checks pass. The
 completed replay output/log are removed after recording the result.
 
 ## Full-200 Firefox Truncate Silence observation — zero-count triage
@@ -1478,3 +1478,23 @@ not reached. The witness transports the entire WAV as an array of JavaScript
 numbers before native decoding; no application failure is established by
 this timeout alone. The exact completed failure directory is removed after
 this receipt; unchanged isolated replay is next. No new bug count.
+
+The exact unchanged isolated Firefox Silence witness also exceeds 30 seconds
+at the same second page.evaluate decode boundary (one worker, immutable
+prepared 684 bytes and qualified Pulse). Its PNG/context are consumed and
+its completed output/log are removed immediately. The fixture changes only
+the protocol representation: Node Buffer encodes the downloaded WAV as
+base64 and browser atob reconstructs the identical Uint8Array before native
+decodeAudioData. Both fresh downloads, both native decodes, exact frame
+equality, healthy/causal RMS assertions and the original 30-second deadline
+remain. No production source changes or additional bug count.
+
+Corrected Silence whole native workflows pass all three engines on unchanged
+prepared 684 bytes: Chromium 9.6 seconds, Firefox 16.3 seconds and WebKit
+15.2 seconds, 3/3 in 46.1 seconds whole. Every engine physically decodes
+both fresh WAVs to 359997 frames; healthy and musical-window RMS are
+approximately 0.200004, and exact frame equality passes. In-memory transport
+roundtrip deep-equality also passes for the actual 576044-byte authored WAV;
+no files are generated for that control. Canonical lint:changed and whitespace
+checks pass. Completed three-engine outputs and its log are removed
+immediately. No manual Update AI assets run is required.
