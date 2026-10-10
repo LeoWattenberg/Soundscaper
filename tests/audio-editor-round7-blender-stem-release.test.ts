@@ -28,7 +28,9 @@ function fixture(mute: boolean, soloElsewhere = false, delayed = true, busMuted 
 			mixer: { ...mixer, edges: mixer.edges.map(edge => edge.source.kind === 'track'
 				? { ...edge, destination: { kind: 'mixer-node', id: 'bus' } } : edge) } });
 	}
-	return project;
+	return { ...project, tracks: project.tracks.filter((track): track is Extract<
+		(typeof project.tracks)[number], { readonly type: 'audio' }
+	> => track.type === 'audio') };
 }
 
 for (const [name, mute, soloElsewhere, delayed, busMuted] of [['dry', false, false, false, false],
