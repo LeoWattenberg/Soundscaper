@@ -682,3 +682,11 @@ updating all 662 existing threads with zero errors, while isolated native
 follow-through uses otherwise free cores 4–7 sequentially. Test source,
 assertions, deadlines, retries and the four-worker aggregate are unchanged.
 This scheduling evidence does not establish a cause for earlier timeouts.
+
+An independent cleanup inspection checks 36 related live processes and finds no
+cwd, argument or open-file reference to the completed handbook metadata or two
+manual EQ screenshots. Their producing cases have completed PASS in all three
+engines. The exact five-file delivery handbook/.astro cache (23,566 bytes), empty
+native-build directory and frozen filter/graphic screenshots (79,401 bytes) are
+immediately reclaimed. Active browser source, dependencies, prepared products
+and framework artifact directories remain available to their actual readers.
