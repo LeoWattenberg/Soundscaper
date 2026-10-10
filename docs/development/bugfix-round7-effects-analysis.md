@@ -672,7 +672,18 @@ Owned logs
 and diagnostics are read and removed immediately; PCM remains in memory.
 No manual Update AI assets run is required.
 
-### Checkpoint-50 effects replay — no additional roots
+### Existing effects replay — no additional roots
+
+The checkpoint-100 older native 24 kHz noise-profile workflow completes its
+disabled incompatible-profile control and fresh 48 kHz profile capture, then
+expects the previously truncated 38,400-frame enabled export. The corrected
+physical FFT release makes that file 40,447 frames. Keep the initial 38,400-frame
+disabled-profile assertion, update only the final expected extent, and require
+an audible first 128 release frames plus a quiet final 128 frames. The complete
+workflow passes Chromium on authenticated 8fba4b346 in 8.1 seconds, 1/1 in 9.8
+seconds total. Its old completed diagnostic and bounded replay output are read
+and removed immediately. This fixture follow-through adds no root or source
+change.
 
 The two ordinary Framescaper finishing exports now contain the already verified
 3,385-frame release of the default 80 Hz native high-pass. All six original
