@@ -232,6 +232,24 @@ exact completed original diagnostic directory was removed immediately after
 this receipt; unchanged low-load frozen replay remains pending until the full
 suite finishes. The shared full-run log remains with the root.
 
+The final frozen checkpoint100 WebKit I/O failures 41–44 are read before their
+unchanged isolated replays. Case 41 stops before editor boot at the unsupported
+`clipboard-write` permission; the existing advance ClipboardEvent fixture
+correction already covers that setup owner. Case 42 reaches the shorter-file
+replacement choice after its five-second visibility assertion expires: its
+failure screenshot contains the actual choice, while the earlier context lacks
+it; no curve-loss assertion is reached. Case 43 preserves the authored 999 BPM
+in Musical timeline but sees every File mutation disabled before DAWproject
+export; its screenshot contains an empty-looking timeline and the generic
+unavailable-state explanation, so no completed archive regression is proved.
+Case 44 reaches the healthy LUT consumer and receives the canonical IndexedDB
+error `Error preparing Blob/File data to be stored in object store`; the Close
+control passed in the full run. These full-suite failures remain failures.
+Reviewed exact contexts/PNGs are removed immediately; no source, deadline,
+assertion or fresh bug count changes are inferred from them. Exact frozen
+low-load replays of 28, 35 and 42–44 remain pending; the small shared full-run log
+remains with the root.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
