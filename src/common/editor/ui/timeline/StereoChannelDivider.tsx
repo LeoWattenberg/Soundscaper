@@ -136,6 +136,9 @@ export function StereoChannelDivider({
 				}}
 				onPointerMove={(event) => {
 					if (pointerIdRef.current !== event.pointerId) return;
+					if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) {
+						finishPointer(event); return;
+					}
 					previewPointer(event);
 					stopPointerEvent(event);
 				}}
