@@ -10,8 +10,11 @@ has a normal user entry, causal pre-fix evidence, focused controls and a complet
 corrected native workflow. The corrected full `npm run check` passes, including
 all static gates and 25,843 passing Node cases with 33 skips and no failures.
 Full suites were run at the 50, 100, 150 and 200 checkpoints. The final 7,098-case
-browser run is still active; original failed aggregates retain their statuses
-alongside separate complete follow-through receipts. Completed verification
+browser run completed with 6765 passes, 283 skips, 29 failures and 21 timeouts;
+original failed aggregates retain their statuses alongside separate complete
+follow-through receipts. Final native diagnoses identified additional necessary
+follow-through within the existing owners; their corrected full canonical gate
+is still required after implementation. Completed verification
 artifacts are reclaimed after their readers close. No manual **Update AI assets**
 run is required. The chronological checkpoint receipts below preserve earlier
 failures and pending states; the four area registers hold each root's evidence.
