@@ -200,3 +200,9 @@ resolve these with 20/20 and 57/57 focused checks; the other 160 frozen DSP
 signatures remain unchanged. This records a failing full run followed by
 focused resolution, not a full-suite pass. The reviewed full-run log is
 deleted immediately. Startup-graph tightening finds no smaller byte ceiling.
+
+The existing native state-barrier workflow passes on Chromium in 5.9 seconds
+after removing the excluded keyboard implementation. Its Firefox-only mocked
+desktop host stops at the initial persistence handshake (zero versus one),
+before editing; this setup failure adds no count and provides no shipped
+desktop defect. The completed log and diagnostics are deleted after review.
