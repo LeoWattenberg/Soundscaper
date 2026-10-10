@@ -89,7 +89,7 @@ observedTest('en: a refused companion remains reviewed unfinished history and re
 });
 async function batch(page, f, reopen) {
 	const words = photoBatchExportCopy(f.locale), labels = photoBatchExportMenuCopy(f.locale);
-	if (!reopen) { await menu(page, f.app, f.copy.photoPhotoMenu); await keyboard(page, named(f.app, 'button', f.copy.photoSelectAll)); }
+	if (!reopen) { await menu(page, f.app, f.copy.photoFileMenu); await menu(page, f.app, f.copy.photoPhotoMenu); await keyboard(page, named(f.app, 'button', f.copy.photoSelectAll)); }
 	await menu(page, f.app, f.copy.photoFileMenu); await keyboard(page, named(f.app, 'button', reopen ? labels.queue : labels.downloadSelected));
 	const dialog = named(page, 'dialog', words.title); await expect(dialog).toBeVisible();
 	await expect(dialog.getByRole('status').filter({ hasText: words.preparing })).toHaveCount(0); return dialog;
