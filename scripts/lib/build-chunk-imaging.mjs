@@ -8,7 +8,7 @@ export const imagingChunkGroups = [{
 	// Natural-size recipe evaluation is opened by Develop/export and handoff
 	// consumers, independently of the inert image contracts loaded at startup.
 	name: 'editor-image-develop-recipe',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]image-develop-frame-core\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]image-develop-frame-(?:core|v2)\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,

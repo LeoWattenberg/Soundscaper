@@ -376,6 +376,8 @@
 		,
 		{ "path": "src/common/editor/gray-video-frame-sampling-v1.ts", "kind": "persisted-contract", "justification": "gray-video-frame-sampling-v1.ts is a persisted video sampling contract revision shared by motion-processing consumers." }
 		,
+		{"path": "src/common/editor/image-develop-handoff-provenance-v1.ts", "kind": "persisted-contract", "justification": "Named image handoff provenance preserves exact original spelling and SHA-256/length, binds one explicit Photo or Frame origin and a normalized typed develop recipe digest, and carries no body or storage authority."}
+		,
 		{ "path": "src/common/editor/image-export-filename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded photo-export filename templates bind original stems and stable one-based batch indices to PNG or JPEG suffixes, reuse the shared save-name sanitizer, and refuse unknown tokens or oversized expansion without truncation." }
 		,
 		{ "path": "src/common/editor/imaging/cube-lut-resource-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped cube resource owns a bounded raw byte copy, reuses private V27 parsing and exact reference verification, joins intrinsic native cancellation and the borrowed-body consumer, and wipes its owned raw bytes without claiming frozen parser floats are wipeable." }
@@ -397,6 +399,8 @@
 		{ "path": "src/common/editor/imaging/image-develop-effects-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert develop effect capture shares the existing bounded closed envelope and delegates nested parameters to owning families. Normalized process-1 values remain numeric or owning curve arrays after future shared resource-family registration." }
 		,
 		{ "path": "src/common/editor/imaging/image-develop-envelope-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared geometry and mask admission preserves original validation order and bytes using real normalized effect identities. This component does not admit effects, process versions or complete develop states." }
+		,
+		{"path": "src/common/editor/imaging/image-develop-frame-v2.ts", "kind": "helper-contract", "justification": "Product-neutral process1/2 natural-size recipe evaluator preserves the Photo resource preflight, original source receiver, fixed host profiles and joined scoped pixel retirement without widening the legacy process owner."}
 		,
 		{ "path": "src/common/editor/imaging/image-develop-preset-v1.ts", "kind": "persisted-contract", "justification": "Version 1 full and partial preset bodies bind canonical selected settings to the existing shared digest-bound visual preset identity without photo or external media authority." }
 		,
@@ -615,6 +619,8 @@
 		{ "path": "src/common/editor/timeline-image-frame-pack-v1-layout.ts", "kind": "persisted-contract", "justification": "timeline-image-frame-pack-v1-layout.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/timeline-image-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{"path": "src/common/editor/timeline-image-model-v2.ts", "kind": "persisted-contract", "justification": "Named static image source successor retains authenticated V1 pack facts and adds bound editable process1/2 recipe, declared natural dimensions and provenance while preserving disabled LUT resource references and leaving V1 schemas unchanged."}
 		,
 		{ "path": "src/common/editor/timeline-image-native-decode-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-native-decode-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -855,6 +861,8 @@
 		{ "path": "src/framescaper/selected-finishing-exact-frame-execution-v16.ts", "kind": "helper-contract", "justification": "Current generation 16 selected frame execution admits complete version 2 pictures and captures active native surfaces before scoped current-stage resource acquisition." }
 		,
 		{ "path": "src/framescaper/selected-native-media-openfx-resource-v16.ts", "kind": "helper-contract", "justification": "The generation 16 native resource bridge privately pairs the complete resource-capable plan with a numeric native V14 projection; the host ABI receives no resource rendering authority." }
+		,
+		{"path": "src/framescaper/timeline-image-develop-frame-v2.ts", "kind": "helper-contract", "justification": "Scoped editable still evaluator authenticates the existing original/frame pack and every retained LUT, renders the bound common recipe before contain, checks declared natural output dimensions and joins currentness/cancellation before wiping owned frames."}
 		,
 		{ "path": "src/framescaper/video-export-exact-execution-v16.ts", "kind": "helper-contract", "justification": "Generation 16 exact export execution binds selected current visual and frame execution with authenticated resource-layer restoration while borrowing the existing export execution core." }
 		,
