@@ -1633,3 +1633,25 @@ movement sequence. No production cause or repair is inferred. The full
 context and PNG are consumed; after actual worker/server closure the
 temporary copy, bounded log and exact diagnostic directory are immediately
 removed. No maintained source/test change or additional root is made.
+
+The next bounded native A/B distinguishes explicit capture from scheduling.
+Without explicit DOM capture, the standalone native WebKit range emits
+trusted input values 1.5, 3, 4.6 and 6.1 followed by change 6.1 for both a
+compressed drag and a drag held through four painted frames. With explicit
+capture, both variants acquire and lose capture but emit no input/change
+and retain zero. Native ArrowRight remains healthy in all four controls
+(6.1 to 6.2, or zero to 0.1). The actual unchanged Parametric control held
+through painted frames still fails at zero in 5.7 seconds, with capture and
+no input/change. Correct enabled-input hits, stable identities and trusted
+events exclude a missed target or delayed value reset. The first standalone
+diagnostic attachment was cleared by setContent and is excluded from event
+evidence; attaching the passive listener afterward produces the complete
+four controls above. No source changes occur during either A/B.
+
+This establishes a reachable zero-count native mouse regression: explicit
+DOM capture prevents WebKit's native thumb from generating accepted input.
+Root authorizes a narrow Parametric mouse custody correction, coordinated
+with the separately owned Video range, preserving non-mouse capture and
+completion/cancellation/history contracts. Before implementation, the full
+actual context/PNG and bounded logs are consumed and all diagnostic copies,
+results and logs are immediately removed after workers/servers close.
