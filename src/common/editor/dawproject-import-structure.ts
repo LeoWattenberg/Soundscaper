@@ -78,6 +78,7 @@ export interface Build {
 	/** Parent folder per built track and per folder, for bus membership. */
 	readonly parentFolderIds: Map<string, string | null>;
 	master: StripBuild;
+	masterChannels: number;
 	omittedTracks: number;
 	omittedNodes: number;
 	devices: number;
@@ -114,6 +115,7 @@ export function walkTrack(track: DawprojectTrack, parentFolderId: string | null,
 	}
 	if (role === 'master') {
 		build.master = strip('master', 'Master', channel!);
+		build.masterChannels = channel!.audioChannels ?? 2;
 		registerParameters(channel!, { kind: 'master', id: null }, build);
 		return;
 	}

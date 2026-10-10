@@ -86,6 +86,7 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 		draft, sampleRate, createStableId: options.createStableId,
 		tracks: [], trackByDawId: new Map(), trackNodes: [], folders: [], groups: [], sends: [],
 		stripByChannelId: new Map(), parameters: new Map(), routes: new Map(), sendTaps: [], parentFolderIds: new Map(),
+		masterChannels: 2,
 		master: { id: 'master', name: 'Master', gain: 1, pan: 0, mute: false, solo: false, envelope: [] },
 		omittedTracks: 0, omittedNodes: 0, devices: 0,
 	};
@@ -159,7 +160,7 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 		id: build.createStableId('project'),
 		title,
 		sampleRate,
-		masterChannels: 2,
+		masterChannels: build.masterChannels,
 		metadata: {
 			title,
 			artist: document.metadata.artist ?? '',
