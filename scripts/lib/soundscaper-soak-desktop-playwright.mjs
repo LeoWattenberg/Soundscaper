@@ -59,6 +59,8 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 	]) {
 		if (typeof candidate !== 'function') throw new TypeError(`Desktop soak ${label} is required.`);
 	}
+	const launchDesktopRuntime = dependencies.launchRuntime ?? launchDesktopRuntimeImplementation;
+	const relaunchRuntime = dependencies.relaunchRuntime ?? relaunchDesktopRuntime;
 	const executablePath = await resolveDesktopExecutable(options.desktopExecutable);
 	const profile = await mkdtemp(join(tmpdir(), 'soundscaper-soak-debug-'));
 	let runtime = null;
@@ -75,6 +77,7 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 		return await dependencies.createPageSession({
 			...options, page: runtime.page, context: runtime.context, target: 'desktop',
 			assertRuntime: () => {
+				if (!runtime) throw bootstrapError('The packaged app has no active soak runtime.');
 				if (runtime.child.exitCode !== null || runtime.child.signalCode !== null) {
 					const error = new Error(`The packaged app exited during the soak.\n${runtime.output()}`);
 					error.code = 'SOAK_RUNTIME_CRASH';
@@ -84,7 +87,8 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 			restartRuntime: async ({ abrupt = false } = {}) => {
 				const previous = runtime;
 				await retireSoundscaperDesktopSoakRuntime(previous, { abrupt });
-				runtime = await relaunchDesktopRuntime({
+				runtime = null;
+				runtime = await relaunchRuntime({
 					executablePath, profile, outputDirectory: options.outputDirectory, launch,
 					allowPendingRecovery: abrupt, ...dependencies,
 				});
@@ -93,9 +97,9 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 			closeRuntime: async ({ failed }) => {
 				let operationError;
 				try {
-					if (runtime.coverageCollector) {
+					if (runtime?.coverageCollector) {
 						await retireSoundscaperDesktopSoakRuntime(runtime);
-					} else {
+					} else if (runtime) {
 						await runtime.browser.close().catch(() => undefined);
 						await terminateSoundscaperDesktopSoakChild(runtime.child);
 					}
@@ -167,7 +171,7 @@ export async function retireSoundscaperDesktopSoakRuntime(runtime, {
 	throwCombined(coverageError, shutdownError, 'Packaged soak coverage and shutdown both failed.');
 }
 
-async function launchDesktopRuntime({
+async function launchDesktopRuntimeImplementation({
 	executablePath,
 	profile,
 	outputDirectory,
@@ -255,7 +259,7 @@ async function relaunchDesktopRuntime(options) {
 	const deadline = Date.now() + 45_000;
 	let lastError;
 	do {
-		try { return await launchDesktopRuntime(options); }
+		try { return await launchDesktopRuntimeImplementation(options); }
 		catch (error) {
 			lastError = error;
 			if (!/writer lease|lease is busy/iu.test(error instanceof Error ? error.message : String(error))) throw error;
@@ -318,8 +322,10 @@ async function waitForDevToolsEndpoint(port, child, output) {
 	throw bootstrapError(`The packaged app did not expose CDP.\n${output()}`);
 }
 
-async function waitForDesktopPage(context, output = () => '', child = null) {
-	const deadline = Date.now() + 30_000;
+export async function waitForDesktopPage(context, output = () => '', child = null) {
+	// A killed writer can leave a 30-second lease. Main waits for its expiry
+	// before creating a window, so leave room for that wait and startup work.
+	const deadline = Date.now() + 60_000;
 	while (Date.now() < deadline) {
 		if (child && (child.exitCode !== null || child.signalCode !== null)) {
 			throw bootstrapError(`The packaged app exited before its editor page opened.\n${output()}`);
