@@ -166,17 +166,6 @@ export default function NativePluginParameterControls({
 					value={value}
 					disabled={controlDisabled}
 					onChange={(event) => { void update(parameter, Number(event.currentTarget.value)); }}
-					onKeyDown={(event) => {
-						if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || disabled) return;
-						const direction = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1
-							: event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
-						if (!direction) return;
-						// Native step="any" arrow increments differ between browser engines.
-						// Keep continuous pointer values and a fine, range-relative keyboard step.
-						event.preventDefault();
-						const next = value + direction * (parameter.maximumValue - parameter.minimumValue) / 100;
-						void update(parameter, Math.max(parameter.minimumValue, Math.min(parameter.maximumValue, next)));
-					}}
 					onDoubleClick={(event) => {
 						event.preventDefault();
 						event.stopPropagation();

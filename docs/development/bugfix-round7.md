@@ -165,3 +165,11 @@ causally RED on the frozen pre-fix site and GREEN on the corrected site.
 Temporary baseline code and rendered-audio diagnostic output are removed
 immediately. EDIT019 still awaits its complete Firefox retry; a subsequent
 initial native host setup timeout adds no count.
+
+Platform tracing excludes provisional EDIT019 completely: the failure exists
+only in Firefox with a mocked desktop preload, whereas shipped native plug-ins
+use Electron Chromium and their ordinary arrow control already passes. Remove
+the unqualified production change and its new tests; preserve the state-barrier
+fixture's real pending-write and saved-state checks while allowing browser
+native keyboard differences. The qualified total stays77, with next candidates
+DIALOG025, EFFECT016 and IO023 awaiting their corrected public workflows.

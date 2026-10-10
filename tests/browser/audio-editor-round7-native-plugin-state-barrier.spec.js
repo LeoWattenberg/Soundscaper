@@ -8,10 +8,10 @@ test('Store state captures the completed native slider position while host write
 	const range = dialog.locator('[data-native-plugin-parameter="gain"]');
 	await range.focus();
 	await page.keyboard.press('ArrowRight');
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(.26);
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBeGreaterThan(.25);
 	await dialog.locator('[data-native-plugin-persist-state]').click();
 	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.persisted)).toBe(2);
-	await expect(range).toHaveValue('0.26');
+	await expect(range).toHaveValue(String(await page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])));
 	await page.evaluate(() => globalThis.__nativePluginParameterHost.setDelay(400));
 	const bounds = await range.boundingBox();
 	expect(bounds).not.toBeNull();
