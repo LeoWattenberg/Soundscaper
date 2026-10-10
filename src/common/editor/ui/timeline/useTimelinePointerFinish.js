@@ -365,6 +365,12 @@ export function useTimelinePointerFinish({
 			finishTouch(event);
 			finishPointerSession(event);
 		};
+		const finishPrimaryMouse = (event) => {
+			// With another button held, primary release is a pointermove.
+			if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) {
+				finishOutsideTimeline(event);
+			}
+		};
 		const cancelOutsideTimeline = (event) => {
 			const session = pointerSession.current;
 			if (!session) return;
@@ -381,10 +387,12 @@ export function useTimelinePointerFinish({
 			}
 		};
 		globalThis.addEventListener('pointerup', finishOutsideTimeline, true);
+		globalThis.addEventListener('pointermove', finishPrimaryMouse, true);
 		globalThis.addEventListener('pointercancel', cancelOutsideTimeline, true);
 		globalThis.addEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		return () => {
 			globalThis.removeEventListener('pointerup', finishOutsideTimeline, true);
+			globalThis.removeEventListener('pointermove', finishPrimaryMouse, true);
 			globalThis.removeEventListener('pointercancel', cancelOutsideTimeline, true);
 			globalThis.removeEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		};
