@@ -6,7 +6,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import TimedRecordingDialogFields from './TimedRecordingDialogFields.tsx';
-import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
 import { formatDate } from '../workspace-runtime.js';
 import {
 	applyTrackRateDialog,
@@ -37,16 +37,20 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 	editBlockedRef.current = editBlocked;
 	const cancelTimedRecordingOnClose = useRef(false);
 	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
+	const operationState = useOwnedDialogOperation({
+		owner: JSON.stringify([type, snapshot.project?.id ?? null]), blocked: editBlocked, run,
+	});
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
 	const closeDialog = () => {
+		operationState.reset();
 		if (cancelTimedRecordingOnClose.current) run(() => controller.actions.recording.cancelScheduled());
 		onClose();
 	};
 	const runThenClose = (operation, shouldClose = () => true) => {
 		if (editBlockedRef.current) return;
-		void runAwaitedAudioEditorOperation(run, operation)
-			.then((result) => { if (shouldClose(result)) onClose(); })
-			.catch(() => undefined);
+		operationState.perform(type, operation, {
+			onSuccess: (result) => { if (shouldClose(result)) onClose(); },
+		});
 	};
 	const title = {
 		projects: copy.projectsTitle,
