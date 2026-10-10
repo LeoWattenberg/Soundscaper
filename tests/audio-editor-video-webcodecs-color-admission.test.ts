@@ -105,7 +105,8 @@ test('legacy stream uses the declared profile without rewriting its FFmpeg comma
 			videoFrameClass: class { constructor(_bytes: Uint8Array, init: Record<string, unknown>) { inits.push(init); } close() {} },
 		} } as never);
 	assert.equal(result.frameCount, 1);
-	assert.deepEqual(inits[0]?.colorSpace, { primaries: 'bt709', transfer: 'bt709', matrix: 'rgb', fullRange: true });
+	assert.equal(inits[0]?.format, 'I420');
+	assert.deepEqual(inits[0]?.colorSpace, { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false });
 	assert.deepEqual(actualArguments, workload(request.frameSource).ffmpegArguments);
 });
 

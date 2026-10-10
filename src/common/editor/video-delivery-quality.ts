@@ -93,6 +93,9 @@ const WEBCODECS_BITS_PER_PIXEL: Readonly<Record<string, Readonly<Record<VideoDel
 		vp9: Object.freeze({ draft: 0.04, balanced: 0.07, high: 0.12 }),
 	});
 
+// Tiny H.264 pictures still need enough bits for usable intra-frame delivery.
+const H264_MINIMUM_BITRATE = Object.freeze({ draft: 32_000, balanced: 64_000, high: 128_000 });
+
 /** The encoder bitrate one tier means for a given picture and rate. */
 export function resolveVideoDeliveryWebCodecsBitrate(
 	videoCodec: string,
@@ -115,7 +118,8 @@ export function resolveVideoDeliveryWebCodecsBitrate(
 		}
 	}
 	const perSecond = canvas.frameRate.num / canvas.frameRate.den;
-	return Math.max(1, Math.round(canvas.width * canvas.height * perSecond * tiers[quality]));
+	const minimum = videoCodec === 'h264' ? H264_MINIMUM_BITRATE[quality] : 1;
+	return Math.max(minimum, Math.round(canvas.width * canvas.height * perSecond * tiers[quality]));
 }
 
 /** Admit a stated quality, defaulting to the tier every prior delivery used. */

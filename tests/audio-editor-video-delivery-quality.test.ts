@@ -6,7 +6,7 @@ import test from 'node:test';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { buildVideoFfmpegArgs } from '../src/common/editor/video-ffmpeg.js';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
-import { resolveVideoDeliveryFfmpegQuality } from '../src/common/editor/video-delivery-quality.ts';
+import { resolveVideoDeliveryFfmpegQuality, resolveVideoDeliveryWebCodecsBitrate } from '../src/common/editor/video-delivery-quality.ts';
 import { assertNativeMediaGraphPlan } from '../src/common/editor/native-media-graph-plan-admission.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createVideoKeyframeExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.ts';
@@ -193,3 +193,11 @@ function project() {
 		tracks: [{ id: 'track-1', type: 'video', clipIds: ['clip-1'] }],
 	};
 }
+
+test('tiny H264 canvases retain ordered delivery floors without changing ordinary rates or VP9', () => {
+	const tiny = { width: 64, height: 64, frameRate: { num: 1, den: 1 } };
+	assert.deepEqual(['draft', 'balanced', 'high'].map(tier => resolveVideoDeliveryWebCodecsBitrate('h264', tier, tiny)), [32_000, 64_000, 128_000]);
+	assert.deepEqual(['draft', 'balanced', 'high'].map(tier => resolveVideoDeliveryWebCodecsBitrate('vp9', tier, tiny)), [164, 287, 492]);
+	const ordinary = { width: 1280, height: 720, frameRate: { num: 30, den: 1 } };
+	assert.deepEqual(['draft', 'balanced', 'high'].map(tier => resolveVideoDeliveryWebCodecsBitrate('h264', tier, ordinary)), [1_658_880, 2_764_800, 4_976_640]);
+});

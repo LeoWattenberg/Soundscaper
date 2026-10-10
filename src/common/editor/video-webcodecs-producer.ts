@@ -21,6 +21,7 @@
 
 import { raceAbortablePromise } from './abort-race.ts';
 import { createVideoElementaryStreamWriter } from './video-elementary-stream.ts';
+import { admitVideoWebCodecsI420Frame, convertVideoWebCodecsRgbaToI420, wipeVideoWebCodecsOwnedFrame } from './video-webcodecs-i420-frame.ts';
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
@@ -217,10 +218,13 @@ export async function produceVideoWebCodecsChunks(
 	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(request);
 	const colorSpace = rgbaColorSpace === undefined ? undefined : Object.freeze({
 		primaries: 'bt709', transfer: rgbaColorSpace === 'srgb' ? 'iec61966-2-1' : 'bt709',
-		matrix: 'rgb', fullRange: true,
+		matrix: 'bt709', fullRange: false,
 	});
 	const { frameSource, producer, videoFrameClass } = request;
 	const { width, height, frameRate } = frameSource.canvas;
+	const rgbaByteLength = producer.byteLength;
+	const i420Layout = rgbaColorSpace === undefined ? undefined : admitVideoWebCodecsI420Frame(width,height,rgbaByteLength);
+	let rgba: Uint8Array | undefined, i420: Uint8Array | undefined;
 	const pending: {
 		chunk: VideoWebCodecsEncodedChunk;
 		metadata?: EncodedVideoChunkMetadata;
@@ -257,13 +261,16 @@ export async function produceVideoWebCodecsChunks(
 			bitrate: request.bitrate,
 			...(request.h264Format ? { h264Format: request.h264Format } : {}),
 		}));
-		const rgba = new Uint8Array(producer.byteLength);
+		rgba = new Uint8Array(rgbaByteLength);
+		if (i420Layout) i420 = new Uint8Array(i420Layout.byteLength);
 		for (let index = 0; index < frameSource.frameCount; index += 1) {
 			assertReady(request, failure);
 			await producer.produce(frameSource.frame(index), rgba, signalOptions(request.signal));
 			assertReady(request, failure);
-			const videoFrame = new videoFrameClass(rgba, {
-				format: 'RGBA',
+			if (i420) await convertVideoWebCodecsRgbaToI420(rgba,i420,width,height,request.signal);
+			assertReady(request, failure);
+			const videoFrame = new videoFrameClass(i420 ?? rgba, {
+				format: i420 ? 'I420' : 'RGBA',
 				codedWidth: width,
 				codedHeight: height,
 				timestamp: frameTimestamp(index, frameRate),
@@ -289,6 +296,8 @@ export async function produceVideoWebCodecsChunks(
 	} finally {
 		request.signal?.removeEventListener('abort', onAbort);
 		closeEncoder();
+		wipeVideoWebCodecsOwnedFrame(i420);
+		wipeVideoWebCodecsOwnedFrame(rgba);
 	}
 }
 
