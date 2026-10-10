@@ -39,6 +39,7 @@ import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
 import { resolveEditingActionAvailability } from '../commands/editing-selection-authority.ts';
 import { resolveSelectionRange } from '../selection-range.ts';
 import { createOriginalFileOverwriteMenuItems } from './original-file-overwrite-menu.ts';
+import { repairSelectionAvailable } from './repair-menu-admission.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -176,6 +177,7 @@ export default function createApplicationMenus({
 		disabled: editBlocked || !effectTargeting.effectAudioTrack,
 		selectionActive: effectTargeting.explicitEffectSelectionActive,
 		allAudioTarget: effectTargeting.effectPreferenceTargetsAll,
+		repairAvailable: repairSelectionAvailable(project, snapshot.selectedClipId ?? selectedClip?.id ?? null, snapshot.effects?.sourceSelectionFrames),
 	}, actions.openSelectionEffect);
 	const nyquistItems = createNyquistPluginMenuItems({
 		editBlocked, blocked, selectedAudioTrack: effectTargeting.effectAudioTrack, frequencySelectionActive,

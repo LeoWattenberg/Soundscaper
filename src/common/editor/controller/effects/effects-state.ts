@@ -46,6 +46,7 @@ export function createControllerEffectsState<EffectPresets>({
 }: ControllerEffectsStateOptions<EffectPresets>): ControllerEffectsState<EffectPresets> {
 	return {
 		effectClipboard: null,
+		readSourceSelectionFrames: null,
 		audacityEffectType: initialEffectType,
 		audacityEffectParams: {},
 		audacityEffectTouchedParams: new Map<string, Set<string>>(),

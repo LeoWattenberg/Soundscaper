@@ -385,6 +385,21 @@ test('document snapshots materialize cloneable effects-owned results', () => {
 	});
 });
 
+test('effect snapshots publish current source frame counts without initializing an absent reader', () => {
+	const runtime = documentRuntimeFixture({ id: 'source-project' });
+	assert.equal(createEditorDocumentSnapshot(runtime).effects.sourceSelectionFrames, null);
+	let frames = 128;
+	const state = stateFixture({ readSourceSelectionFrames: () => frames });
+	const first = createEditorDocumentSnapshot({ ...runtime, state });
+	frames = 129;
+	assert.equal(first.effects.sourceSelectionFrames, 128);
+	assert.equal(createEditorDocumentSnapshot({ ...runtime, state }).effects.sourceSelectionFrames, 129);
+	assert.doesNotThrow(() => createEditorDocumentSnapshot({ ...runtime,
+		getCurrentProject: () => null,
+		state: stateFixture({ readSourceSelectionFrames: () => { throw new Error('No active source project'); } }),
+	}));
+});
+
 function documentRuntimeFixture(project: SnapshotProject) {
 	return {
 		state: stateFixture(), product: null, productId: 'soundscaper', capabilities: {}, locale: 'en',

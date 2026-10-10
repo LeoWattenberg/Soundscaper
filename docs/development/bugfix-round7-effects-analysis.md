@@ -514,6 +514,7 @@ old drawing and was insufficient evidence. The corrected witness passively
 observes actual native FFT reads as well as playback and canvas data. Owned
 diagnostic directories are inspected and removed immediately. No manual
 Update AI assets run is required.
+
 ## R7-EFFECT-015 — Parametric EQ spectra erase opposite microphone polarity
 
 Import an ordinary stereo recording whose right microphone has opposite
@@ -934,4 +935,35 @@ Chromium public cases pass: Copy/Paste in 4.5 seconds and native-writer Macro in
 3.5 seconds, 2/2 in 9.6 seconds. The complete corrected test/tooling compiler and
 repository lint pass. All bounded verification logs and generated diagnostics
 are read and removed immediately. This uses the same runtime closure; no manual
+Update AI assets run is required.
+
+## R7-EFFECT-024 — Repair advertises ranges beyond its supported processor limit
+
+Import an ordinary recording containing a click, mark a 64-sample damaged
+range, and use Effect → Noise removal and repair → Repair. This succeeds. Undo,
+extend the selection to 129 samples, and choose the still-enabled Repair:
+the application displays “Unknown error” with the processor's existing
+128-sample refusal. The menu admits arbitrary positive ranges despite the
+effect's deliberately short-selection contract.
+
+Share Repair's existing 128-sample limit through its definition and apply it
+to the actual targets used by the menu. Preserve time-range precedence,
+independently selected short clips separated by a long gap, non-audio omissions,
+clip-authored spectral targets, source-editor sample coordinates, and all
+other effects. Publish a current source frame count through a reader registered
+only after effects composition loads, so ordinary startup does not initialize
+the lazy effects owner or retain a stale copy of source selection geometry.
+
+The complete unchanged ordinary workflow is causal RED on authenticated
+56c2efd1ae48301f16c580ad99a62ec7d78fe5a6 in 12.7 seconds: the 64-sample success,
+Undo, 129-sample selection and exact rendered refusal all pass before Repair
+remains aria-enabled. The initial digit-entry setup failure and incorrect
+status observer are excluded; the corrected observer uses the actual alert.
+Five focused menu cases are initially RED while three supported controls pass.
+The corrected menu, source targeting, owned state, detached snapshot, existing
+Repair DSP and chunk ownership support pass 57/57 in 2.177 seconds. Targeted
+type-aware lint, changed lint, size and owned diff checks pass. Corrected public verification
+is pending the next guarded build; this root is source-ready rather than fully
+qualified. All owned bounded logs and generated diagnostics are read and
+removed immediately. This uses the same assistance runtime closure; no manual
 Update AI assets run is required.
