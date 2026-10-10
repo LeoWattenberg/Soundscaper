@@ -962,9 +962,11 @@ status observer are excluded; the corrected observer uses the actual alert.
 Five focused menu cases are initially RED while three supported controls pass.
 The corrected menu, source targeting, owned state, detached snapshot, existing
 Repair DSP and chunk ownership support pass 57/57 in 2.177 seconds. Targeted
-type-aware lint, changed lint, size and owned diff checks pass. Corrected public verification
-is pending the next guarded build; this root is source-ready rather than fully
-qualified. All owned bounded logs and generated diagnostics are read and
+type-aware lint, changed lint, size and owned diff checks pass. On authenticated
+32eb4cebf5615659c4e65630a61fb14464cff4c1, the unchanged complete Chromium workflow
+passes in 13.7 seconds (1/1 in 19.3 seconds), including supported 64-sample
+Apply/Undo, disabled 129-sample Repair, and successful exact 128-sample Repair
+without an alert. This root is fully qualified. All owned bounded logs and generated diagnostics are read and
 removed immediately. This uses the same assistance runtime closure; no manual
 Update AI assets run is required.
 
