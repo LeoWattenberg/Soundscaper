@@ -1498,3 +1498,19 @@ roundtrip deep-equality also passes for the actual 576044-byte authored WAV;
 no files are generated for that control. Canonical lint:changed and whitespace
 checks pass. Completed three-engine outputs and its log are removed
 immediately. No manual Update AI assets run is required.
+
+## Full-200 WebKit grouped timecode menus — verification-only triage
+
+The immutable full-run CASE `de7c6be71ab2b3ef073a-43d8cb9880ceb9e8104a`
+times out at 30.314 seconds under its original 30-second deadline. The local
+chooseTimeCodeFormat helper tries to click PAL frames after hovering Video
+frames; 40 native actionability retries report the CDDA frames submenu
+intercepts the PAL item. The actual PNG/context are consumed: Video frames
+and CD frames submenus are both open at the bottom/right viewport edge; the
+CD submenu visibly covers the lower Video options. Earlier CD, film and
+NTSC values have passed, with duration displayed in 12 digits. Full-run
+Chromium and Firefox versions pass (5.0/11.202 seconds). This receipt is
+verification-only; no new source root or bug count is inferred. The exact
+completed diagnostic directory is removed immediately after recording the
+evidence. An unchanged isolated WebKit replay waits for the coordinated
+exclusive native cores.
