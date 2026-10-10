@@ -144,7 +144,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			const prefix = track.effects.slice(0, effectIndex);
 			if (hasProductionMixerProjectAuthority(snapshot)) {
 				snapshot = createTrackNoiseProfileRenderProject(
-					project, requireTrackId(trackId), prefix,
+					{ ...project, masterChannels: Math.max(project.masterChannels, channelCount) }, requireTrackId(trackId), prefix,
 				) as unknown as MutableEffectAudioProject;
 			} else {
 				track.effects = prefix;

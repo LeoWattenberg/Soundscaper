@@ -8,14 +8,18 @@ import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/edi
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import type { EngineProject } from '../src/common/editor/engine/types.ts';
+import { applyAudioSelectionEffectAsync } from '../src/common/editor/selection-effects.js';
+import { captureAudacityNoiseProfile } from '../src/common/editor/audacity-effects/spectral.js';
+import { initializePffft } from '../src/common/editor/pffft.js';
+import { serializeAudacityNoiseProfile } from '../src/common/editor/controller/source/source-audio.ts';
 import { audacitySelectionChannelCount, matchAudacitySelectionChannels } from '../src/common/editor/audacity-selection.js';
 import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.js';
 import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 
-for (const width of [1, 2, 4, 6, 32]) for (const kind of ['clip', 'range'] as const) {
-	test(`timeline ${kind} Invert saves every native channel of a ${String(width)}-channel recording`, async context => {
+for (const width of [1, 2, 4, 6, 32]) for (const kind of ['clip', 'range', 'macro', 'profile'] as const) {
+	test(`timeline ${kind} processing retains every native channel of a ${String(width)}-channel recording`, async context => {
 		type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
-		const frameCount = 512;
+		const frameCount = kind === 'profile' ? 4096 : 512;
 		const input = Array.from({ length: width }, (_, channel) => Float32Array.from(
 			{ length: frameCount }, (_, frame) => .1 + channel / 100 + frame / 10_000));
 		const source = createAudioSource({ id: 'recording', name: 'Recording', channelCount: width,
@@ -40,13 +44,15 @@ for (const width of [1, 2, 4, 6, 32]) for (const kind of ['clip', 'range'] as co
 			engine: createMemoryEngine() as unknown as Options['engine'],
 			ffmpeg: createMemoryFfmpeg() as unknown as Options['ffmpeg'],
 			engineFactory: () => createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null,
-				softwareRenderer: ({ project: value, captureStartFrame, endFrame, sampleRate }) => {
+				softwareRenderer: async ({ project: value, captureStartFrame, endFrame, sampleRate }) => {
 					const capture = value as EngineProject;
 					captures.push(capture);
 					assert.equal(capture.tracks?.length, 1);
 					assert.equal(capture.tracks[0]?.gain, 1, 'the dry capture excludes listening gain');
-					return { sampleRate: Number(sampleRate), channels: Array.from({ length: Number(capture.masterChannels) },
-						(_, channel) => (input[channel] ?? input[0]!).slice(Number(captureStartFrame) - 100, Number(endFrame) - 100)) };
+					const channels = Array.from({ length: Number(capture.masterChannels) },
+						(_, channel) => (input[channel] ?? input[0]!).slice(Number(captureStartFrame) - 100, Number(endFrame) - 100));
+					return { sampleRate: Number(sampleRate), channels: capture.tracks[0]?.effects?.some(effect => effect.type === 'audacity-invert')
+						? await applyAudioSelectionEffectAsync('audacity-invert', channels, Number(sampleRate)) : channels };
 				},
 			}),
 		});
@@ -54,9 +60,35 @@ for (const width of [1, 2, 4, 6, 32]) for (const kind of ['clip', 'range'] as co
 		await controller.ready;
 		controller.actions.timeline.selectClip(clip.id);
 		if (kind === 'range') controller.actions.timeline.setSelection(100, 100 + frameCount, { trackIds: ['audio'] });
+		if (kind === 'profile') {
+			const effectId = controller.actions.effects.add({ scope: 'track', trackId: 'audio', type: 'audacity-noise-reduction' });
+			assert.ok(typeof effectId === 'string');
+			const beforeProfile = controller.getSnapshot().project;
+			assert.ok(validateSoundscaperProject(beforeProfile));
+			await controller.actions.effects.captureRackNoiseProfile('track', 'audio', effectId);
+			const profiled = controller.getSnapshot().project;
+			assert.ok(validateSoundscaperProject(profiled));
+			const track = profiled.tracks.find(candidate => candidate.id === 'audio');
+			assert.ok(track?.type === 'audio');
+			const effect = track.effects.find(candidate => candidate.id === effectId);
+			assert.ok(effect?.enabled);
+			await initializePffft();
+			assert.deepEqual(effect.context?.noiseProfile, serializeAudacityNoiseProfile(captureAudacityNoiseProfile(input, 48_000)));
+			assert.equal(captures.length, 1);
+			assert.equal(captures[0]!.masterChannels, Math.max(2, width));
+			assert.equal(profiled.masterChannels, 2);
+			assert.deepEqual(profiled.clips, beforeProfile.clips);
+			assert.deepEqual((await store.readSourceChunk(source.id, 0)).channels, input);
+			controller.actions.edit.undo();
+			assert.deepEqual(controller.getSnapshot().project!.tracks, beforeProfile.tracks);
+			controller.actions.edit.redo();
+			assert.deepEqual(controller.getSnapshot().project!.tracks, profiled.tracks);
+			return;
+		}
 		const before = structuredClone(controller.getSnapshot().project);
 		assert.ok(validateSoundscaperProject(before));
-		await controller.actions.effects.applySelection({ type: 'audacity-invert' });
+		if (kind === 'macro') await controller.actions.macros.run({ name: 'Invert', effects: [{ type: 'audacity-invert' }] });
+		else await controller.actions.effects.applySelection({ type: 'audacity-invert' });
 		const after = controller.getSnapshot().project;
 		assert.ok(validateSoundscaperProject(after));
 		const processedTrack = after.tracks.find(track => track.id === 'audio');
