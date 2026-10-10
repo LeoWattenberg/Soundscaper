@@ -1682,3 +1682,21 @@ whole-flow evidence is pending the coherent product build. All bounded
 focused/lint logs are consumed and immediately removed after this receipt;
 UI-only custody does not change the assistance runtime closure or require a
 manual Update AI assets run.
+
+The complete corrected Parametric file and retained native touch controls
+pass on the coherent frozen 1541ccf681 products, default 4322/4323 origins,
+qualified Pulse and one exclusive native worker: 11 passed and four unchanged
+non-Chromium CDP platform skips, 1.9 minutes whole, exit zero. Band/Output/
+keyboard-outside-history bodies pass in Chromium (9.2/8.8/8.2 seconds),
+Firefox (14.1/13.8/12.0 seconds) and WebKit (12.3/11.8/10.8 seconds).
+Chromium's native output touch alone and interrupted by a second finger
+also pass (3.6/3.4 seconds). This includes each original healthy mouse drag,
+middle-held primary completion, fresh decoded dry/wet PCM and exact
+Undo/Redo checks, plus native keyboard and outside completion. Original
+60-second whole/five-second checks remain; retained touch uses its unchanged
+budget. The formerly causal WebKit ordinary Output drag now reaches its
+complete physical/history assertions. No probe, force, native value setter
+or changed gesture timing is used in this corrected proof. After workers
+and both servers close, the complete bounded log is consumed and the exact
+generated result directory and log are immediately removed. Counts stay
+200; no assistance runtime asset update is required.
