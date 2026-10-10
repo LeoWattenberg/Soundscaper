@@ -35,10 +35,10 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 	}, [rawClip]);
 	const [preview, setPreview] = useState<VideoFadeEnvelope | null>(null);
 	const gesture = useRef<Gesture | null>(null);
-	const opacityAuthority = useMemo(() => JSON.stringify([rawClip?.id, rawClip?.sequenceFrameCount, clip.durationFrames,
-		rawClip?.videoComposition.opacity, rawClip?.videoKeyframes.timeDomain,
-		rawClip?.videoKeyframes.curves.filter(({ target }) => target.kind === 'composition' && target.parameterId === 'opacity'),
-	]), [rawClip, clip.durationFrames]);
+	const opacityAuthority = useMemo(() => !rawClip || !envelope ? '' : JSON.stringify([rawClip.id, rawClip.sequenceFrameCount, clip.durationFrames,
+		rawClip.videoComposition.opacity, rawClip.videoKeyframes.timeDomain,
+		rawClip.videoKeyframes.curves.filter(({ target }) => target.kind === 'composition' && target.parameterId === 'opacity'),
+	]), [rawClip, envelope, clip.durationFrames]);
 	useLayoutEffect(() => {
 		const session = gesture.current;
 		if (!session || session.authority === opacityAuthority) return;
