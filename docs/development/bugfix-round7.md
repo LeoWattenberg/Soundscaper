@@ -641,3 +641,18 @@ root and its 40-process descendant tree receive the otherwise free cores 8–23;
 untouched. The same immutable source, four workers, original assertions,
 deadlines, retries and 7,098-case schedule remain in force. This environment-only
 verification adjustment adds no bug count and makes no claim about CI timing.
+
+The original full200 Firefox clip-duration case times out at 38.172 seconds
+against its unchanged 30-second deadline, while transferring/decoding the third
+download in page.evaluate at line 71. Its healthy 336000-frame and local-bar
+288000-frame positive-audio controls have passed; the Undo 432000-frame assertion
+and final Redo are not reached. The actual 128645-byte PNG and 27950-byte context
+show the ordinary completed WAV download in Export audio, 24-bit PCM at 48000 Hz,
+with no reported application error. Both diagnostics are consumed and their exact
+156595-byte directory is immediately removed. This frozen numeric-array witness
+is already superseded by test-only d088d911c: identical downloaded bytes use
+base64 transport and the same native decoder, four fresh physical frame/peak
+checks, Undo/Redo and original deadline. Its complete corrected three-engine
+3/3 PASS receipt remains the follow-through; no production cause is inferred
+from this timeout and neither the original failed status nor the 200-root count
+is rewritten.
