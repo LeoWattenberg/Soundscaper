@@ -5,6 +5,15 @@
 // owner so catalog validation does not load neighboring timeline domains.
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const imagingChunkGroups = [{
+	// Pinned font loading and real native glyph masks stay opt-in. Scalar text
+	// admission remains independent of browser resources and existing kernels.
+	name: 'editor-export-text',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]image-export-text-(?:font|frame)-v1\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
 	// File/container parsing is shared by import and selected graphic delivery,
 	// independently of the scalar metadata facts validated by catalog startup.
 	name: 'editor-image-file-admission',

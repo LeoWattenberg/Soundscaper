@@ -380,6 +380,8 @@
 		,
 		{ "path": "src/common/editor/image-export-filename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded photo-export filename templates bind original stems and stable one-based batch indices to PNG or JPEG suffixes, reuse the shared save-name sanitizer, and refuse unknown tokens or oversized expansion without truncation." }
 		,
+		{"path": "src/common/editor/image-export-text-v1.ts", "kind": "helper-contract", "justification": "Version 1 output-only text admission captures one safe NFC Latin line, pinned font identity, color and delivery-relative placement without retaining browser resources or allowing fallback glyphs."}
+		,
 		{ "path": "src/common/editor/imaging/cube-lut-resource-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped cube resource owns a bounded raw byte copy, reuses private V27 parsing and exact reference verification, joins intrinsic native cancellation and the borrowed-body consumer, and wipes its owned raw bytes without claiming frozen parser floats are wipeable." }
 		,
 		{ "path": "src/common/editor/imaging/cube-lut-source-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 runtime-only cube LUT source borrows bounded bytes through a joined consumer, carries no recipe body or cache, and requires the renderer to authenticate the full digest and private V27 parser independently of storage custody." }
@@ -425,6 +427,10 @@
 		{ "path": "src/common/editor/imaging/image-export-graphic-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected graphic custody admits an immutable static SDR source and joins native read, decode, close and scoped canonical pixels under a captured encoded-plus-two-plane capacity without creating catalog or frame-pack authority." }
 		,
 		{ "path": "src/common/editor/imaging/image-export-size-v1.ts", "kind": "helper-contract", "justification": "Version 1 allocation-free export sizing plans fit, long-edge, conservative megapixels and percentage dimensions under one captured frame capacity, preserving declared depth and color without codec admission or cropping." }
+		,
+		{"path": "src/common/editor/imaging/image-export-text-font-v1.ts", "kind": "helper-contract", "justification": "Version 1 text font custody verifies the exact installed Inter Latin asset, joins bounded streamed transport and private native FontFace loading, preserves cleanup failures and removes only the owned face."}
+		,
+		{"path": "src/common/editor/imaging/image-export-text-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped output text materialization uses real pinned native glyph drawing, bounds independent straight-alpha sRGB mask planes, closes native font and canvas owners before the joined consumer and wipes owned output after settlement."}
 		,
 		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
 		,

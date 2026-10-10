@@ -30,7 +30,7 @@ export function captureImageExportGraphicRequest(value: unknown): Readonly<Image
 		marginFraction: unit('marginFraction', 0, 0.49), opacity: unit('opacity', 0, 1) });
 }
 
-export function imageExportGraphicPlacement(request: Readonly<ImageExportGraphicRequest>, width: number, height: number): Readonly<GraphicWatermarkPlacementV1> {
+export function imageExportGraphicPlacement(request: Readonly<Pick<ImageExportGraphicRequest, 'anchor' | 'widthFraction' | 'marginFraction' | 'opacity'>>, width: number, height: number): Readonly<GraphicWatermarkPlacementV1> {
 	if (![width, height].every(side => Number.isSafeInteger(side) && side > 0)) throw new RangeError('Graphic delivery dimensions are invalid.');
 	return Object.freeze({ anchor: request.anchor, widthFraction: request.widthFraction,
 		marginPixels: Math.min(Math.floor((Math.min(width, height) - 1) / 2), Math.floor(Math.min(width, height) * request.marginFraction)), opacity: request.opacity });
