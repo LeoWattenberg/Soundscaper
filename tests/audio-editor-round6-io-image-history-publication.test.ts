@@ -13,13 +13,13 @@ import type { FramescaperTimelineImagePublicationRequestTimelineImage } from '..
 import { createFramescaperBaselineImageFixture } from './helpers/framescaper-baseline-image-fixture.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
-function harness(mode: 'dirty' | 'saved' | 'save-fails' | 'history-changes') {
+function harness(mode: 'dirty' | 'saved' | 'save-fails' | 'history-changes', publicationTime = '2026-09-05T11:02:00.000Z') {
 	const base = createFramescaperProjectTimelineImage(PROFILE, framescaperV20Options());
 	let history = createFramescaperProjectHistoryTimelineImage(PROFILE, base);
-	history = execute(PROFILE, history, { type: 'sequence/update', sequenceId: 'main-sequence', changes: { rate: { num: 25, den: 1 } } });
-	history = undo(PROFILE, history);
+	history = execute(PROFILE, history, { type: 'sequence/update', sequenceId: 'main-sequence', changes: { rate: { num: 25, den: 1 } } }, { now: '2026-09-05T11:00:00.000Z' });
+	history = undo(PROFILE, history, { now: '2026-09-05T11:01:00.000Z' });
 	const expected = history.present;
-	const memory = getMemoryDatabase(`image-history-${mode}`);
+	const memory = getMemoryDatabase(`image-history-${mode}-${publicationTime}`);
 	const save = () => {
 		memory.projects.set(expected.id, structuredClone(expected));
 		const key = `${expected.id}:${String(expected.revision).padStart(12, '0')}`;
@@ -45,7 +45,7 @@ function harness(mode: 'dirty' | 'saved' | 'save-fails' | 'history-changes') {
 		},
 		openById: () => { controller.project = history.present; },
 	} } };
-	const publication = createPublication({ controller,
+	const publication = createPublication({ controller, now: () => publicationTime,
 		session: { captureProjectHistory: () => ({ token, history }),
 			assertProjectHistoryToken: (_id, captured) => { if (captured !== token) throw new Error('History changed.'); },
 			updateProjectHistory: (_id, next) => { history = next; }, markProjectSaved: () => undefined,
@@ -77,3 +77,14 @@ for (const mode of ['save-fails', 'history-changes'] as const) test(`image publi
 	assert.equal(state.publications(), 0);
 	assert.equal(state.controller.project.clips.filter(({ id }) => id === 'imported-clip').length, 0);
 });
+
+for (const publicationTime of ['2026-09-05T11:01:00.000Z', '2026-09-05T11:00:59.999Z']) {
+	test(`image publication advances the Undo timestamp when the clock reads ${publicationTime}`, async () => {
+		const state = harness('dirty', publicationTime);
+		const result = await state.publication.publish(state.request);
+		assert.equal(result.updatedAt, '2026-09-05T11:01:00.001Z');
+		assert.equal(result.clips.filter(({ id }) => id === 'imported-clip').length, 1);
+		assert.deepEqual(state.memory.projects.get(result.id), result);
+		assert.deepEqual(state.controller.project, result);
+	});
+}

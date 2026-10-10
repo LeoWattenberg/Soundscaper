@@ -87,10 +87,14 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		if (!sameProject(dependencies.controller.project, expected)) {
 			throw stale('The active Framescaper project changed while its image import base was saved.');
 		}
+		const observed = now();
+		const observedTime = observed instanceof Date ? observed.getTime() : Date.parse(observed);
+		// A saved Undo revision may share the current millisecond or precede a clock adjustment.
+		const publicationTime = new Date(Math.max(observedTime, Date.parse(String(expected.updatedAt)) + 1));
 		const nextHistory = dependencies.executeCommand(
 			capture.history,
 			request.command,
-			{ now: now() },
+			{ now: publicationTime },
 		);
 		dependencies.session.assertProjectHistoryToken(expected.id, capture.token);
 		if (!sameProject(dependencies.controller.project, expected)) {
