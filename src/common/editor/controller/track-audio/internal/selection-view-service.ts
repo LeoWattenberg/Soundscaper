@@ -47,13 +47,18 @@ export function createSelectionViewService<
 		getProject,
 		updateSelection,
 		collectRelatedClipIds,
-		seek: (frame) => { engine.seek(frame); },
+		seek: seekSelectionPlayhead,
 	});
 	const boundaryAdjustment = createSelectionBoundaryAdjustmentService({
 		getProject, getPlayheadFrame: () => engine.getPositionFrames(),
 		projectSampleRate, projectDurationFrames, state, adjustSelection,
 	});
 	let zeroCrossingGeneration = 0;
+
+	function seekSelectionPlayhead(frame: number): void {
+		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return;
+		engine.seek(frame);
+	}
 
 	function selectTrack(trackId: string | null) {
 		const project = getProject();
@@ -190,7 +195,7 @@ export function createSelectionViewService<
 	function carryPlayheadToSelectionStart(startFrame: number, endFrame: number) {
 		if (endFrame <= startFrame) return;
 		if (engine.getState().state === 'playing') return;
-		engine.seek(startFrame);
+		seekSelectionPlayhead(startFrame);
 	}
 
 	function applySelectionRange(
