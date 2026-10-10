@@ -390,6 +390,8 @@
 		,
 		{ "path": "src/common/editor/imaging/exif-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "EXIF container interpretation into the immutable image metadata version 1 read model." }
 		,
+		{ "path": "src/common/editor/imaging/exif-metadata-writer-v1.ts", "kind": "helper-contract", "justification": "Bounded classic TIFF metadata writing selects normalized capture or descriptive facts, preserves recorded partial times, and binds upright sRGB dimensions without copying original opaque tags or container bytes." }
+		,
 		{ "path": "src/common/editor/imaging/image-develop-contract-v1.ts", "kind": "persisted-contract", "justification": "Product-neutral process-1 develop state and scalar limits preserve the existing Photo geometry, ordered shared effects and coherent mask bindings." }
 		,
 		{ "path": "src/common/editor/imaging/image-develop-effects-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert develop effect capture shares the existing bounded closed envelope and delegates nested parameters to owning families. Normalized process-1 values remain numeric or owning curve arrays after future shared resource-family registration." }
