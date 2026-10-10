@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { numberEntry, pngChunk, textEntry, tiffFixture } from '../helpers/image-metadata-fixtures.ts';
-import { decodePinnedVideoRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
+import { decodePinnedJpegRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
 import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy.ts';
@@ -151,7 +151,7 @@ async function assertJpeg(bytes) {
 	expect(bytes.includes(Buffer.from(SENTINEL))).toBe(false);
 	// Maintained decoder owns/cleans input and output MEMFS files in finally;
 	// the Node-side codec never replaces the browser's actual encoder.
-	const decoded = await decodePinnedVideoRgbFrame(bytes);
+	const decoded = await decodePinnedJpegRgbFrame(bytes);
 	expect([decoded.width, decoded.height, decoded.rgb.length]).toEqual([1, 2, 6]);
 	for (const y of [0, 1]) {
 		const rgb = readRgbPixel(decoded, { x: 0, y });
