@@ -727,3 +727,24 @@ the exact 205519-byte diagnostics are immediately removed. Existing test-only
 full Help, Generate, fresh JSON delivery, version/platform, privacy and size
 controls; its complete six-case three-engine PASS is the follow-through. No
 new source change, root or inferred production failure is added.
+
+The original full final browser run closes honestly with exit 1 after all 7098
+scheduled cases in 3.8 hours: 6765 PASS, 283 SKIP, 29 FAIL and 21 timed out.
+Chromium completes 2346/18/1/1, Firefox 2238/115/8/5 and WebKit 2181/150/20/15
+(PASS/SKIP/FAIL/timed out). All 50 unexpected original markers, contexts and
+PNGs have been individually consumed and recorded; their exact diagnostics
+are removed immediately after each receipt. Separate complete unchanged or
+faithful witness follow-through does not rewrite this failed aggregate.
+The remaining admitted empty 44.1-kHz upload and initial native Parametric/
+Brightness drag observations are still under their concrete passive diagnosis.
+
+The full runner explicitly closes with exit 1. The cleanup helper's final
+guarded-drain status is stopped; its process no longer exists and a final wait
+reports an unknown completed session. Its final receipt records all 7098
+completed, zero malformed markers/errors, zero preserved live/framework/failure
+directories, and 272 removed directories/23031260 reclaimed bytes; the completion
+reporter records 12 directories/22266 bytes. The consumed original 4524677-byte
+aggregate log, remaining bounded result metadata and stopped helper/map/status/log
+are now reclaimed immediately. Immutable prepared source/assets remain until
+the last direct native reader closes; the delivery branch and permanent
+regression witnesses remain intact.
