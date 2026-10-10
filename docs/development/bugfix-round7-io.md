@@ -493,6 +493,20 @@ fixture, assertion, deadline or count changes are needed; the original full200
 shared-start refusal remains recorded. Completed owned replay output/log are
 read and removed immediately, and its native readers and CPU slot close.
 
+
+Full200 completed WebKit retained-video-span observation (verification only,
+zero count): the ordinary frame12 Trim left→Move to Project bin→Play workflow
+fails in15.948 seconds because its first-playing-time poll returns0 rather than
+at least0.39 seconds within the original5000 ms assertion. This value reads a
+playing-event observation attribute through Number; an absent attribute also
+becomes0, so the failure does not itself prove native currentTime was reset.
+The actual context/PNG show the imported trimmed WEBM bin card,0.5-second
+retained span and black preview with Play still available. Exact completed
+JSON/context/PNG were read and its owned diagnostic directory immediately
+removed. Preserve the original full-suite failure; unchanged whole WebKit
+replay and the native metadata/play readiness review are pending without
+source, fixture, deadline or count changes.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
