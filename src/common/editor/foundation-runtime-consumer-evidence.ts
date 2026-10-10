@@ -30,6 +30,13 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'export-dialog-delivered-chapter-admission', surface: 'audio-export',
+		file: 'src/common/editor/ui/export-dialog-embedded-chapters.ts',
+		entryPoint: 'exportDialogHasDeliveredChapterLabels', inputIdentifier: 'projectValue', projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Chapter availability resolves the authored project before checking the selected delivery span, project duration and label occurrences; it uses the same output-frame rounding and exclusive range as the chapter writer.',
+	},
+	{
 		id: 'contextual-item-musical-geometry', surface: 'navigation',
 		file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts',
 		entryPoint: 'projectedItemClipGeometry', inputIdentifier: 'project', projectedIdentifier: null,

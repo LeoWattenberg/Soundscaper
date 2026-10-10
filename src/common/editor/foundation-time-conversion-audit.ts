@@ -46,6 +46,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'export-dialog-delivered-chapter-span',
+		file: 'src/common/editor/ui/export-dialog-embedded-chapters.ts',
+		behavior: 'Embedded-chapter availability resolves the delivered range length to its nearest output sample once, preserving the chapter writer\'s exclusive endpoint and minimum output frame.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'mastering-sequence-cart-delivery-points',
 		file: 'src/common/editor/mastering-sequence-cart.ts',
 		behavior: 'Mastering CART timers resolve each surviving source-relative occurrence as the nearest delivered sample, add its assembled output origin, and clamp source-end timers to that region\'s independently rounded delivered end.',
