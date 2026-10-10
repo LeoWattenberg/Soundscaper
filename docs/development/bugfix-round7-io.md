@@ -484,6 +484,14 @@ JSON/context/PNG were read and the exact owned diagnostic directory immediately
 removed. Preserve the original full200 failure. No codec, deadline or product
 cause is inferred; unchanged whole WebKit replay awaits the coordinated native
 slot, retaining all import/stereo/play/save/reload checks.
+The complete unchanged WebKit MP3 workflow passes on authenticated a3a36854d
+in6.9 seconds (one case,8.9 seconds total), with the qualified Pulse sink,
+one worker and the coordinated exclusive4–7 CPU slot. Exact stereo positive/
+negative PCM checks, Play→Pause within5000 ms, Stop, durable save, reload,
+restored clip/identical source peaks and empty client errors all pass. No source,
+fixture, assertion, deadline or count changes are needed; the original full200
+shared-start refusal remains recorded. Completed owned replay output/log are
+read and removed immediately, and its native readers and CPU slot close.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
