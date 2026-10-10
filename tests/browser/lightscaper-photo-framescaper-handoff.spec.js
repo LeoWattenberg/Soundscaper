@@ -68,11 +68,11 @@ for (const locale of ['en', 'de']) {
 		const image = project.sources[0]; expect(image.schemaVersion).toBe(2); expect(image.develop).toEqual(version.develop);
 		expect(image.provenance.original).toEqual({ exactName: NAME, sha256: sha(PNG), byteLength: PNG.length });
 		for (const asset of manifest.assets) { expect(entries[asset.entry].length).toBe(asset.size); expect(sha(entries[asset.entry])).toBe(asset.sha256); }
-		const packed = manifest.assets.find(asset => asset.sourceId === image.id); expect(packed).toBeDefined();
+		const packed = manifest.assets.find(asset => asset.sourceId === `framescaper:image:${image.id}`); expect(packed).toBeDefined();
 		const body = entries[packed.entry], { develop: _recipe, developed: _geometry, provenance: _origin, ...base } = image;
 		const reader = await openFramescaperImageFramePackV1({ source: { ...base, schemaVersion: 1 }, read: (offset, length) => body.slice(offset, offset + length) });
 		expect([...await reader.readOriginal()]).toEqual([...PNG]); expect([...await reader.readFrame(0)]).toEqual(PIXELS);
-		const lut = manifest.assets.find(asset => asset.sourceId === version.develop.effects[0].params.lut.storageKey); expect(lut).toBeDefined(); expect([...entries[lut.entry]]).toEqual([...CUBE]);
+		const lut = manifest.assets.find(asset => asset.sourceId === `framescaper:lut:${version.develop.effects[0].params.lut.sha256}`); expect(lut).toBeDefined(); expect([...entries[lut.entry]]).toEqual([...CUBE]);
 		await keyboard(page, named(dialog, 'button', words.close).last()); await expect(dialog).toHaveCount(0);
 		expect(await observe(page, [id])).toEqual(before); await page.reload(); await expect(app).toBeVisible(); expect(await observe(page, [id])).toEqual(before); expect(errors).toEqual([]);
 	});
