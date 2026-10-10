@@ -389,6 +389,16 @@ does not establish a product defect or add a count; the original full-run
 failure remains recorded. Completed owned output/log are read and immediately
 removed, and all replay readers close.
 
+Full200 completed Firefox sequence-visual observation (zero count): the ordinary
+title rate workflow times out at its unchanged30000 ms case deadline
+(31.711 seconds). Its marker provides only the case timeout, without a failed
+duration assertion. The actual context contains the authored Title and selected
+25 fps metadata; its PNG shows Clip properties with its panel menu open.
+The exact completed JSON/context/PNG were read and the owned diagnostic
+directory immediately removed. No duration-conformance defect, observer cause
+or new count is inferred. Whole unchanged title and image rate/Undo/Redo
+replays are pending; the frozen full-suite source and assets remain immutable.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
