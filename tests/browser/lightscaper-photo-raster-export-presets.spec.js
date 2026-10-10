@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { deflateSync, inflateSync } from 'node:zlib';
+import { build } from 'esbuild';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
 import { photoExportPresetsCopy } from '../../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
@@ -123,7 +125,17 @@ async function imported(page, locale, names) {
 	await keyboard(page, named(importer, 'button', f.copy.photoImportAction)); await expect(importer).toHaveCount(0);
 	const cards = f.app.locator('[data-photo-library] [data-photo-id]'); await expect(cards).toHaveCount(names.length);
 	await expect(f.app.locator('[data-photo-library]')).toHaveAttribute('aria-busy', 'false'); await keyboard(page, photoCard(f.app, await cards.first().locator('strong').textContent()));
-	const ids = await cards.evaluateAll(values => values.map(value => value.getAttribute('data-photo-id'))); return { ...f, ids, errors };
+	const ids = await cards.evaluateAll(values => values.map(value => value.getAttribute('data-photo-id')));
+	const originals = await observe(page, ids); expect(originals.photos.map(value => value.bytes)).toEqual(names.map(() => [...PNG]));
+	return { ...f, ids, errors };
+}
+async function observe(page, ids) {
+	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents: `export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` },
+		bundle: true, write: false, format: 'esm', platform: 'browser', loader: { '.woff2': 'dataurl' } });
+	await page.route('**/__preset_export_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
+	const result = await page.evaluate(async photoIds => (await import(new URL('/__preset_export_observer.js', location.href).href))
+		.readResidentPhotoLibraryCurrent(photoIds, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), ids);
+	await assertNativeOpfsWorkerExecution(page); return result;
 }
 async function selectLibrary(page, f, all = false) {
 	await expect(f.app).toBeVisible(); await menu(page, f.app, f.copy.photoViewMenu); await keyboard(page, named(f.app, 'button', f.copy.photoShowLibrary));

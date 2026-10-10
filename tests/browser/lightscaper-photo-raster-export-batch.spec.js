@@ -131,7 +131,7 @@ async function open(page, locale) {
 	return { app, copy: bundledLightscaperEditorCopyForLocale(locale) };
 }
 async function observe(page, ids) {
-	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents: `export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser' });
+	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents: `export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser', loader: { '.woff2': 'dataurl' } });
 	await page.route('**/__batch_export_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
 	const result = await page.evaluate(async photoIds => (await import(new URL('/__batch_export_observer.js', location.href).href)).readResidentPhotoLibraryCurrent(photoIds, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), ids);
 	await assertNativeOpfsWorkerExecution(page); return result;
@@ -155,7 +155,7 @@ async function observeJournal(page, state = null) {
 				await globalThis.__assertNativeOpfsWorkerExecution();
 				return result;
 			} finally { await session.close(); }
-		}` }, bundle: true, write: false, format: 'esm', platform: 'browser' });
+		}` }, bundle: true, write: false, format: 'esm', platform: 'browser', loader: { '.woff2': 'dataurl' } });
 	await page.route('**/__batch_journal_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
 	const result = await page.evaluate(async state => (await import(new URL('/__batch_journal_observer.js', location.href).href)).observeJournal(state), state);
 	await assertNativeOpfsWorkerExecution(page); return result;
