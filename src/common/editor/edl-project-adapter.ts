@@ -13,6 +13,7 @@ import { interchangeSourceInPoint } from './interchange-source-in-point.ts';
 import {
 	interchangeAnnotationOmission,
 	interchangeCaptionTrackOmission,
+	interchangeClipTimeEffect,
 } from './interchange-omission-inventory.ts';
 import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
@@ -167,6 +168,17 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 		activeCuts.push({ clipId: String(clip.id), recordOut });
 		const source = sourceById.get(String(clip.sourceId));
 		const sourceIn = interchangeSourceInPoint(clip, source, sequence.rate, sampleRate);
+		const timeEffect = interchangeClipTimeEffect(clip);
+		// The formatter already reports legacy scalar speeds. Native curves have
+		// unity scalars, so their authority must be inventoried at this boundary.
+		if (timeEffect && timeEffect.kind !== 'speed') {
+			clipOmissions.push({
+				code: 'edl.speed-change-omitted',
+				scope: Object.freeze({ kind: 'clip', id: String(clip.id) }),
+				data: Object.freeze({ kind: timeEffect.kind, ...timeEffect.data }),
+				message: 'The profile emits no motion records or time effects, so the clip plays at unity speed.',
+			});
+		}
 		events.push(Object.freeze({
 			reel: String(reelNames[String(clip.sourceId)] ?? source?.name ?? clip.sourceId ?? ''),
 			reelIdentity: reelNames[String(clip.sourceId)] === undefined ? String(clip.sourceId)
