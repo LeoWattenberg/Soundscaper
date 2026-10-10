@@ -41,58 +41,11 @@ belong in Git history, not in the maintained documentation set.
 - [Quality diagnostics](development/quality-diagnostics.md) defines correctness
   thresholds, performance observations, and how budgets change.
 - [Editor performance](development/performance.md) records scaling behavior,
-  measured costs, reproduction methods, and correctness guardrails.
+  profiling methods, regression checks, and correctness guardrails.
 - [Smaller performance candidates](development/performance-candidates.md)
   records areas needing representative profiles before implementation.
-- [Editing responsiveness opportunities](development/editing-performance-opportunities.md)
-  records 100 proposals, Electron Speed observations and reproducible work probes.
-- [Editor responsiveness and render work](development/responsiveness-round2.md)
-  indexes 100 new production costs with source, checks and measurement methods.
-- [100 more responsiveness improvements](development/responsiveness-round3.md)
-  records the next 100 costs, frozen-baseline checks and Electron Speed measurements.
-- [100 additional responsiveness reductions](development/responsiveness-round4.md)
-  records another 100 costs, paired Electron Speed results and validation limits.
-- User workflow regression audits record reproducible defects and their checks
-  for [editing](development/bugfix-editing.md),
-  [dialogs](development/bugfix-dialogs.md),
-  [import and export](development/bugfix-io.md), and
-  [generators, macros, mixer and labels](development/bugfix-generators-macros.md).
-- Further regression audits cover [editing](development/bugfix-round2-editing.md),
-  [dialogs](development/bugfix-round2-dialogs.md),
-  [effects and analysis](development/bugfix-round2-effects-analysis.md), and
-  [import and export](development/bugfix-round2-io.md).
-- The [second audit index](development/bugfix-round2.md) records the additional
-  100 defects, counting criteria, and combined validation.
-- The third regression audit covers [editing](development/bugfix-round3-editing.md),
-  [dialogs](development/bugfix-round3-dialogs.md),
-  [effects and analysis](development/bugfix-round3-effects-analysis.md), and
-  [import and export](development/bugfix-round3-io.md).
-- The [third audit index](development/bugfix-round3.md) records 101 additional
-  distinct user-reproducible fixes and their final verification.
-- The fourth regression audit covers [editing](development/bugfix-round4-editing.md),
-  [dialogs](development/bugfix-round4-dialogs.md),
-  [effects and analysis](development/bugfix-round4-effects-analysis.md), and
-  [import and export](development/bugfix-round4-io.md).
-- The [fourth audit index](development/bugfix-round4.md) records 100 additional
-  distinct user-reproducible fixes, counting criteria and closing verification.
-- The fifth regression audit covers [editing](development/bugfix-round5-editing.md),
-  [dialogs](development/bugfix-round5-dialogs.md),
-  [effects and analysis](development/bugfix-round5-effects-analysis.md), and
-  [import and export](development/bugfix-round5-io.md).
-- The [fifth audit index](development/bugfix-round5.md) tracks the ongoing audit
-  and its reproduction registers.
-- The sixth regression audit covers [editing](development/bugfix-round6-editing.md),
-  [dialogs](development/bugfix-round6-dialogs.md),
-  [effects and analysis](development/bugfix-round6-effects-analysis.md), and
-  [import and export](development/bugfix-round6-io.md).
-- The [sixth audit index](development/bugfix-round6.md) records its target,
-  counting criteria and verification status.
-- The seventh regression audit covers [editing](development/bugfix-round7-editing.md),
-  [dialogs](development/bugfix-round7-dialogs.md),
-  [effects and analysis](development/bugfix-round7-effects-analysis.md), and
-  [import and export](development/bugfix-round7-io.md).
-- The [seventh audit index](development/bugfix-round7.md) records ordinary
-  user-path qualification and verification checkpoints.
+- [Editing performance boundaries](development/editing-performance-opportunities.md)
+  records remaining optimization opportunities and the contracts they must preserve.
 
 ## Operate and release
 
@@ -159,7 +112,12 @@ belong in Git history, not in the maintained documentation set.
 Keep current behavior and stable design constraints here. Put status and future
 ordering in a roadmap, user workflows in the handbook, executable truth in
 source and machine-readable registers, and one-off implementation narration in
-the commit or pull request that performed the work. When a policy paragraph is
+the commit or pull request that performed the work. Completed bug-fix audits and
+performance-batch inventories, measurements, and validation logs belong in Git
+history; keep reusable profiling tools and regression tests with their owners.
+Preserve release, provenance, and compliance evidence in its established registers.
+Before removing a record, move any open work or durable design constraint into
+the relevant guide or roadmap. When a policy paragraph is
 bounded by `policy-narrative` comments, edit its owning register and run the
 documented synchronization command; never edit the generated paragraph by
 hand.
