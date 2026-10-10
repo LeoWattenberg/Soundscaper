@@ -5,6 +5,7 @@ import { encodeWav } from '../../src/common/editor/wav.js';
 import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
 import { ordinaryTailM4aFixture } from '../helpers/ordinary-tail-m4a-fixture.ts';
 import { ordinaryOggOpusFixture } from '../helpers/ordinary-ogg-opus-fixture.ts';
+import { nativeOriginalImportFixture } from '../helpers/native-original-import-fixture.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { decodePinnedVideoRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
 import {
@@ -99,21 +100,68 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 	})) });
 }
 
-test('deleting the imported clip during original destination preparation releases the unused target', async ({ page }) => {
-	await installOriginalOverwriteBridge(page, 'soundscaper', [toneA], true);
-	const editor = await bootEditor(page, '/embed/en/');
-	await chooseFileAction(page, editor, 'Import');
-	await expect(editor).toHaveAttribute('data-clip-count', '1');
-	await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
-	await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.preparedOriginals.length)).toBe(1);
-	const clip = clipByName(editor, toneA.name);
-	await clip.focus();
-	await clip.press('Enter');
-	await clip.press('Delete');
-	await expect(editor).toHaveAttribute('data-clip-count', '0');
-	await page.evaluate(() => globalThis.__originalOverwriteFixture.releasePreparation());
-	await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.releasedTargets)).toEqual(['4'.repeat(48)]);
-	expect(await page.evaluate(() => globalThis.__originalOverwriteFixture.completed)).toEqual([]);
+async function installNativeOriginalBridge(page, native) {
+	await page.exposeBinding('__nativeFileIpc', async (_source, channel, request) => await native.invoke(channel,
+		channel === 'soundscaper:v1:save:chunk' ? { ...request, bytes: Uint8Array.from(request.bytes) } : request,
+	));
+	await page.exposeBinding('__nativeFileFetch', async (_source, url, init) => {
+		const response = await native.fetch(url, init);
+		return { status: response.status, headers: [...response.headers.entries()], base64: Buffer.from(await response.arrayBuffer()).toString('base64') };
+	});
+	await page.addInitScript({ content: `(() => {
+		const required = new Set(['getEnvironment', 'chooseFiles', 'releaseRead', 'releaseOriginalFile', 'prepareOriginalOverwrite', 'releaseSaveTarget', 'beginWrite', 'writeChunk', 'patchFinalPrefix', 'finishWrite', 'abortWrite']);
+		const require = () => ({ contextBridge: { exposeInMainWorld: (name, value) => {
+			Object.defineProperty(globalThis, name, { value: Object.freeze({ v1: Object.freeze(Object.fromEntries(Object.entries(value.v1).filter(([key]) => required.has(key)))) }) });
+		} }, ipcRenderer: {
+			invoke: async (channel, value) => {
+				const request = channel === 'soundscaper:v1:save:chunk' ? { ...value, bytes: [...value.bytes] } : value;
+				const result = await globalThis.__nativeFileIpc(channel, request);
+				if (channel === 'soundscaper:v1:original-file:prepare-overwrite') globalThis.__nativePrepareReturns += 1;
+				return result;
+			}, send: () => {}, on: () => {}, removeListener: () => {},
+		} });
+		globalThis.__nativePrepareReturns = 0;
+		const originalFetch = globalThis.fetch.bind(globalThis);
+		globalThis.fetch = async (input, init) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (!url.startsWith('soundscaper-app:')) return originalFetch(input, init);
+			const result = await globalThis.__nativeFileFetch(url, { method: init?.method ?? 'GET', headers: [...new Headers(init?.headers).entries()] });
+			return new Response(Uint8Array.from(atob(result.base64), character => character.charCodeAt(0)), { status: result.status, headers: result.headers });
+		};
+		${native.preloadSource}
+	})();` });
+}
+
+for (const removeDuringPreparation of [false, true]) test(`native original overwrite preserves save capacity after deletion during preparation=${String(removeDuringPreparation)}`, async ({ page }) => {
+	const native = await nativeOriginalImportFixture(new File([Uint8Array.from(toneA.buffer)], toneA.name, { type: toneA.mimeType }),
+		{ maximumTargets: 1, holdPreparationAt: removeDuringPreparation ? 2 : undefined });
+	try {
+		const errors = collectClientErrors(page);
+		await installNativeOriginalBridge(page, native);
+		const editor = await bootEditor(page, '/embed/en/').catch((cause) => { throw new Error(`Native preload bootstrap: ${JSON.stringify(errors)}; ${JSON.stringify(native.operations)}`, { cause }); });
+		await chooseFileAction(page, editor, 'Import');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+		await expect.poll(() => native.completed.length).toBe(1);
+		if (removeDuringPreparation) {
+			await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+			await expect.poll(() => native.prepared.length).toBe(2);
+			const clip = clipByName(editor, toneA.name);
+			await clip.focus(); await clip.press('Enter'); await clip.press('Delete');
+			await expect(editor).toHaveAttribute('data-clip-count', '0');
+			native.completePreparation();
+			await expect.poll(() => page.evaluate(() => globalThis.__nativePrepareReturns)).toBe(2);
+			expect(native.completed).toHaveLength(1);
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+		}
+		await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+		await expect.poll(() => native.completed.length).toBe(2);
+		const output = await inspectWavBlobPcm(new Blob([Uint8Array.from(await native.savedBytes())]));
+		expect(output.sampleRate).toBe(48_000);
+		expect(output.frameCount).toBeGreaterThan(1_000);
+		if (removeDuringPreparation) expect(native.releases).toContain(true);
+	} finally { await native.close(); }
 });
 
 test('ordinary tail-metadata AAC import keeps the original overwrite menu available', async ({ page }) => {
