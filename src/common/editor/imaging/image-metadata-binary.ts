@@ -52,9 +52,9 @@ export class MetadataBudget {
 	}
 }
 
-/** PNG's CRC covers chunk type and data; image decompression is outside this reader. */
-export function metadataCrc32(bytes: Uint8Array): number {
-	let crc = 0xffffffff;
+/** PNG's CRC covers chunk type and data; previous is a completed CRC for streaming continuation. */
+export function metadataCrc32(bytes: Uint8Array, previous = 0): number {
+	let crc = previous ^ 0xffffffff;
 	for (const byte of bytes) {
 		crc ^= byte;
 		for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);

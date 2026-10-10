@@ -416,6 +416,8 @@
 		,
 		{ "path": "src/common/editor/imaging/image-develop-state-v2.ts", "kind": "helper-contract", "justification": "Explicit process-2 develop admission adds only the owning nullable cube LUT profile beside unchanged numeric and curve families. The closed V1-or-V2 dispatcher requires consumer opt-in; geometry, mask identities, ordering and fixed limits remain shared, and recipe references do not authorize body custody or rendering." }
 		,
+		{ "path": "src/common/editor/imaging/image-exif-container-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped PNG eXIf or JPEG APP1 composition selects normalized fresh TIFF facts under current dimensions, validates bounded codec containers without decoding, preserves compressed pixels and native profiles, and joins consumers before wiping independent output." }
+		,
 		{ "path": "src/common/editor/imaging/image-export-size-v1.ts", "kind": "helper-contract", "justification": "Version 1 allocation-free export sizing plans fit, long-edge, conservative megapixels and percentage dimensions under one captured frame capacity, preserving declared depth and color without codec admission or cropping." }
 		,
 		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
