@@ -21,7 +21,7 @@ for (const seekWhileArmed of [false, true]) test(`scheduled recording preserves 
 		.getByRole('button', { name: 'Timed recording', exact: true }).click();
 	const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 	const start = new Date(Date.now() + 30_000);
-	const local = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
+	const local = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString().slice(0, 19).replace(/:00$/u, '');
 	await dialog.locator('input[type="datetime-local"]').first().fill(local);
 	await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
 	const scheduled = editor.getByRole('region', { name: /Recording is scheduled for/u });
@@ -45,7 +45,7 @@ for (const seekWhileArmed of [false, true]) test(`scheduled recording preserves 
 	await playhead.press('End');
 	await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(30_000);
 	await playhead.press('Home');
-	await recordPass(page, editor);
+	await recordPass(page, editor, { newTrack: true });
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 	const project = await persistedProject(page, await editor.getAttribute('data-project-id'));
 	expect(project.sources.at(-1).frameCount).toBeGreaterThan(4_096);
@@ -69,7 +69,7 @@ for (const navigation of ['unchanged', 'region', 'skip']) test(`scheduled record
 		.getByRole('button', { name: 'Timed recording', exact: true }).click();
 	const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 	const start = new Date(Date.now() + 30_000);
-	const local = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
+	const local = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString().slice(0, 19).replace(/:00$/u, '');
 	await dialog.locator('input[type="datetime-local"]').first().fill(local);
 	await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
 	const scheduled = editor.getByRole('region', { name: /Recording is scheduled for/u });
