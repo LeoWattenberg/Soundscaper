@@ -6,8 +6,10 @@ and subject rather than by the order in which the software was implemented.
 
 For product scope, status, and sequencing, use the
 [Soundscaper and Framescaper roadmap](../roadmap.md) or the
-[Lightscaper roadmap](../roadmap-lightscaper.md). For end-user instructions,
-use the [handbook](../handbook/src/content/docs/index.md). Completed work
+[Lightscaper roadmap](../roadmap-lightscaper.md). The planned motion-graphics
+program has its own [Motionscaper implementation order](development/motionscaper-implementation-order.md).
+For end-user instructions, use the [handbook](../handbook/src/content/docs/index.md).
+Completed work
 packets, dated implementation inventories, and superseded qualification plans
 belong in Git history, not in the maintained documentation set.
 
