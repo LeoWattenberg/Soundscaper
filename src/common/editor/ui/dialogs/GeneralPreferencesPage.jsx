@@ -47,6 +47,7 @@ export default function GeneralPreferencesPage({
 		? startup.projectId
 		: projects[0]?.id || '';
 	const repairedStartupRef = useRef('');
+	const localeRequestRef = useRef(0);
 	const updatePreferences = controller.actions.preferences.update;
 	const updateStartup = (changes) => run(() => updatePreferences({
 		startup: { ...startup, ...changes },
@@ -64,10 +65,12 @@ export default function GeneralPreferencesPage({
 		} }));
 	}, [run, startup, startupProjectId, updatePreferences]);
 	const selectLocale = (value) => {
+		const request = ++localeRequestRef.current;
 		if (value === locale) return;
 		if (fileService.isDesktop) {
 			run(async () => {
 				await controller.actions.project.flush();
+				if (request !== localeRequestRef.current) return;
 				await fileService.setLocale(value);
 			});
 			return;
@@ -76,6 +79,7 @@ export default function GeneralPreferencesPage({
 		// language menu switches it: save first, then navigate.
 		run(async () => {
 			await controller.actions.project.flush();
+			if (request !== localeRequestRef.current) return;
 			const destination = productHref(productId, value, {
 				embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
 			});
