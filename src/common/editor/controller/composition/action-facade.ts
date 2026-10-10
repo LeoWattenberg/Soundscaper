@@ -240,7 +240,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setPreferredInput: setPreferredInputDevice,
 			setPreferredInputChannelCount,
 			configureDisplayInput,
-			setOutput: setAudioOutputDevice,
+			setOutput: async (...args: Parameters<typeof setAudioOutputDevice>) => {
+				const deviceId = await setAudioOutputDevice(...args);
+				await scope.playbackPreviews?.setOutput(deviceId);
+				return deviceId;
+			},
 			setPlaybackGain: (gain: number) => {
 				const value = engine.setPlaybackGain(Number(gain));
 				scope.playbackPreviews?.setGain(value);
