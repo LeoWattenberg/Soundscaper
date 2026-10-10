@@ -107,8 +107,9 @@ export function FreesoundPanelContainer({
 		confirmFileSizeWarning,
 		authenticated: () => account.getSnapshot().auth.status === 'connected',
 		authenticatedRequest: async (path, init) => {
+			const requestAccount = account.getSnapshot().auth;
 			const response = await transport.request(path, init);
-			if (response.status === 401) account.expireAuthentication();
+			if (response.status === 401 && account.getSnapshot().auth === requestAccount) account.expireAuthentication();
 			return response;
 		},
 	});
