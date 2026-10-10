@@ -1008,6 +1008,14 @@ separately. This independent Blender range root is fully qualified. Bounded
 owned logs and generated diagnostics are read and removed immediately. The
 assistance runtime closure is unchanged; no manual Update AI assets is required.
 
+The next complete compiler identifies an incomplete strict fixture boundary:
+its broad persisted clip union allows optional sample coordinates. Resolve the
+fixture through the actual canonical runtime projection before publication,
+retain its proven audio track selection and remove the engine-load assertion
+cast. No production API or behavior changes. Physical range/release, original
+publication and generic chunk-ownership controls pass 38/38 in 1.164 seconds;
+targeted type-aware lint and the owned diff check pass. This adds zero roots.
+
 ### Repair reference matrix — no additional root
 
 The helper-120 full Node run reproduces a stale menu-reference expectation:

@@ -8,6 +8,7 @@ import { createAudioTrack, createAudioClip, createAudioSource } from '../src/com
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
+import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import type { BlenderBridge, BlenderBeginRequest } from '../src/common/editor/blender-contract.ts';
 
 const RATE = 48_000;
@@ -28,9 +29,9 @@ function fixture(mute: boolean, soloElsewhere = false, delayed = true, busMuted 
 			mixer: { ...mixer, edges: mixer.edges.map(edge => edge.source.kind === 'track'
 				? { ...edge, destination: { kind: 'mixer-node', id: 'bus' } } : edge) } });
 	}
-	return { ...project, tracks: project.tracks.filter((track): track is Extract<
+	return resolveRuntimeProjectProjection({ ...project, tracks: project.tracks.filter((track): track is Extract<
 		(typeof project.tracks)[number], { readonly type: 'audio' }
-	> => track.type === 'audio') };
+	> => track.type === 'audio') });
 }
 
 for (const [name, mute, soloElsewhere, delayed, busMuted] of [['dry', false, false, false, false],
@@ -56,7 +57,7 @@ for (const [name, mute, soloElsewhere, delayed, busMuted] of [['dry', false, fal
 		await publishBlenderTracks({ getProject: () => project,
 			renderSnapshot: async (snapshot, range) => {
 				rendered = snapshot;
-				engine.loadProject(snapshot as typeof project);
+				engine.loadProject(snapshot);
 				return await engine.renderMix(range);
 			},
 		}, { bridge, sessionId: 'session', projectId: project.id, revision: project.revision });
