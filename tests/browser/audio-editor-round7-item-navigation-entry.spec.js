@@ -42,7 +42,7 @@ test('Next item enters the first picture after ordinary Select none', async ({ p
 	await expect(second.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 });
 
-test('Item below enters the first recording track after ordinary No tracks', async ({ page }) => {
+test('Item below enters the first ordinary track after No tracks', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA, toneB]);
 	const first = clipByName(editor, toneA.name);
@@ -61,7 +61,11 @@ test('Item below enters the first recording track after ordinary No tracks', asy
 	const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
 	await playhead.press('Alt+W');
 	await expect(lane(second)).toHaveAttribute('data-selected', 'true');
+	await chooseCommandAction(page, editor, 'Select', 'Select none');
 	await chooseNestedCommandAction(page, editor, 'Select', ['Tracks', 'No tracks']);
+	await expect(lane(first)).toHaveAttribute('data-selected', 'false');
+	await expect(lane(second)).toHaveAttribute('data-selected', 'false');
+	await playhead.press('Alt+W');
 	await expect(lane(first)).toHaveAttribute('data-selected', 'false');
 	await expect(lane(second)).toHaveAttribute('data-selected', 'false');
 	await playhead.press('Alt+W');

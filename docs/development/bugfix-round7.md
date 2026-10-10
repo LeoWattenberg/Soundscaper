@@ -25,7 +25,37 @@ typechecking passed; the controller guard then identified D012's private helper
 outside its internal directory. Moving the unchanged helper into that directory
 and updating its sole owning import passes the guard and all five default-view
 regressions. This architecture follow-through adds no count; the canonical gate
-is rerun with the correction.
+is rerun with the correction. The corrected canonical static gate subsequently
+passes in full. Its Node phase then catches four legitimately emitted helper
+files missing from the desktop test inventory. Adding those exact inventory
+rows passes the actual desktop compilation/import test and two existing
+inventory checks (3/3), without changing assistance runtime assets. The complete
+Node suite is restarted with `npm test` at `4d0462305`; the unchanged full browser
+suite remains running against its prepared checkpoint site.
+
+## Next qualified batch: 60 fixes
+
+The independent advance worktree has ten further distinct qualified roots:
+
+| Area | Added IDs | Added count |
+| --- | --- | --- |
+| Editing and navigation | R7-EDIT-014 | 1 |
+| Dialogs and controls | R7-DIALOG-017–019 | 3 |
+| Effects and analysis | R7-EFFECT-010–012 | 3 |
+| Import, export and media | R7-IO-015–017 | 3 |
+| Total added | | 10 |
+
+Both guarded product builds, full source/test typechecking and focused
+regressions pass. The prepared source at `8ce3e9f98` completes all ten ordinary
+browser witnesses in Chromium, including the original Guided editorial
+workflow's readiness follow-through. The editorial change remains within
+D010 and adds no count. Missing-anchor track entry likewise completes EDIT014
+without a separate count. WebM replacement uses a normal clip shorter than the
+replacement recording; frozen-video audition checks the encoded source's
+actual third-packet timestamp, rather than its sequence clock. Those completed
+observer corrections preserve their original admission/freeze causal REDs.
+Details and exact controls are recorded in the area registers. The qualified
+total is 60; unqualified new candidates do not count toward it.
 
 The browser run first reports failures in normalization, folder creation,
 still-image import and the Guided editorial prerequisite. Replaying the first
