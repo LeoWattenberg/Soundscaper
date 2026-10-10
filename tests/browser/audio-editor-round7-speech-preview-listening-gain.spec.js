@@ -5,7 +5,7 @@ import { bootEditor, chooseCommandAction, collectClientErrors } from './audio-ed
 import { installMilestone7LocalAssistanceFixture } from './helpers/milestone-7-local-assistance.js';
 import { createRound7SpeechPreviewBridge } from '../helpers/round7-speech-preview-bridge.ts';
 
-test('ordinary generated speech previews retain Playback volume including mute', async ({ page }) => {
+test('ordinary generated speech previews retain Playback volume including mute', async ({ page, browserName }) => {
 	await installMilestone7LocalAssistanceFixture(page);
 	await page.addInitScript(createRound7SpeechPreviewBridge, true);
 	const errors = collectClientErrors(page);
@@ -21,7 +21,7 @@ test('ordinary generated speech previews retain Playback volume including mute',
 	let audio = speech.locator('audio');
 	await expect.poll(() => audio.evaluate(element => element.readyState)).toBeGreaterThanOrEqual(2);
 	expect(await audio.evaluate(element => element.volume)).toBe(1);
-	await audio.click({ position: { x: 16, y: 16 } });
+	await audio.click({ position: { x: browserName === 'webkit' ? 56 : 16, y: 16 } });
 	await expect.poll(() => audio.evaluate(element => element.currentTime)).toBeGreaterThan(0.05);
 	await speech.getByRole('button', { name: 'Close', exact: true }).last().click();
 	await expect(speech).toHaveCount(0);
@@ -35,7 +35,7 @@ test('ordinary generated speech previews retain Playback volume including mute',
 	audio = speech.locator('audio');
 	await expect.poll(() => audio.evaluate(element => element.readyState)).toBeGreaterThanOrEqual(2);
 	expect(await audio.evaluate(element => element.volume)).toBe(0);
-	await audio.click({ position: { x: 16, y: 16 } });
+	await audio.click({ position: { x: browserName === 'webkit' ? 56 : 16, y: 16 } });
 	await expect.poll(() => audio.evaluate(element => element.currentTime)).toBeGreaterThan(0.05);
 	await speech.getByRole('button', { name: 'Close', exact: true }).last().click();
 	expect(errors).toEqual([]);
