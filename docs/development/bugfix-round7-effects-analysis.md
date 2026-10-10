@@ -967,3 +967,33 @@ is pending the next guarded build; this root is source-ready rather than fully
 qualified. All owned bounded logs and generated diagnostics are read and
 removed immediately. This uses the same assistance runtime closure; no manual
 Update AI assets run is required.
+
+### Existing native host finishing observers — no additional root
+
+Frozen checkpoint 100's Firefox drag-through-host-reply case captures host
+value 1 from its preceding healthy keyboard write because the finishing poll
+only asks for a value above 0.75. The accepted drag is still queued; the visible
+control subsequently reaches 0.841397849462366 and fails the stale expected 1.
+The unchanged frozen replay on ee53e112619b862826b7466dc422b3c6760bba27 repeats
+that observer failure in 10.5 seconds. Capture the actual visible value accepted
+at pointer release and wait for exact host equality, retaining healthy keyboard,
+final position, Close, Escape and visible-state controls. This changes no
+production behavior or bug count.
+
+The full run's Store state case fails its absolute persisted-count expectation
+(3 rather than 12), while displaying the completed drag. Its whole unchanged
+frozen replay passes in 6.1 seconds on the same authenticated source, using the
+qualified Pulse sink. The Store state fixture and its actual Restore oracle
+remain unchanged. Both finished full-run diagnostic directories and the bounded
+frozen replay artifacts are read and removed immediately.
+
+On unchanged prepared 56c2efd1a, the strengthened Firefox drag observer passes
+all three completion paths: host reply 15.6 seconds, Close 15.3 seconds and
+Escape 14.7 seconds, with exact final host value 0.841397849462366. Its targeted
+lint passes. The accompanying unchanged Store state case fails before its drag
+at another absolute count (2 rather than 9, 16.2 seconds); retain that failure
+honestly. The renderer bridge independently registers native state quiescence
+with the same persistence path, so the raw counter includes automatic captures
+as well as button presses. No Store state oracle or product source is changed
+in this follow-through. Current replay logs and diagnostics are read and removed
+immediately.

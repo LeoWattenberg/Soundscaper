@@ -19,10 +19,12 @@ for (const completion of ['host reply', 'Close', 'Escape']) test(`installed nati
 	await page.mouse.down();
 	await page.mouse.move(box.x + box.width * .8, box.y + box.height / 2, { steps: 6 });
 	await page.mouse.up();
+	const acceptedFinalValue = Number(await range.inputValue());
+	expect(acceptedFinalValue).toBeGreaterThan(.75);
 	if (completion === 'Close') await dialog.locator('.audio-editor-dialog-footer').getByRole('button', { name: 'Close', exact: true }).click();
 	else if (completion === 'Escape') await page.keyboard.press('Escape');
 	if (completion !== 'host reply') await expect(dialog).toBeHidden();
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBeGreaterThan(.75);
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(acceptedFinalValue);
 	const applied = await page.evaluate(() => ({ value: globalThis.__nativePluginParameterHost.values[0],
 		writes: [...globalThis.__nativePluginParameterHost.writes] }));
 	console.log('Native installed gain slider final position', { completion, ...applied });
