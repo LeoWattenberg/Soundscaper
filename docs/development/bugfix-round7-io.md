@@ -668,6 +668,29 @@ being changed to ordinary awaited finally ownership. The two native ZIP cases
 truthfully skip when writable-stream capabilities are absent. Completed own
 attempt artifacts and log are immediately removed.
 
+The next provisional native loopback-receiver attempt is also excluded:
+Both WebKit uploads reach Upload failed with Load failed after the
+service-origin rewrite, whereas the unchanged service fixture had reached
+Ready to publish. Both actual PNG/context are read. The fixture will passively
+copy the actual File body at the native fetch boundary and forward the unchanged
+request, retaining exact RIFF/size and all original media/control assertions.
+Own completed diagnostics and bounded log are immediately removed.
+
+Faithful WebKit whole follow-through on authenticated8d4cef165 passes the
+actual File/native-fetch upload witnesses (ungrouped3.1/folder3.8 seconds),
+both scheduled/cancel keyboard cases7.3/6.9 seconds, and all three programme
+selection/navigation cases6.8/7.1/7.3 seconds. Every original media/control
+assertion and deadline remains. Six cases truthfully skip absent native
+capabilities (ZIP writable streams2, Recording setup capture2, Web VCR2).
+The complete13-case run is7PASS/6SKIP in54.9 seconds; the original full150
+failures remain preserved. Completed own output and bounded log are read and
+removed immediately. Chromium/Firefox actual ZIP write/close and upload byte controls subsequently
+pass8/8 in27.8 seconds on the same guard: Chromium3.0/3.0/2.1/2.4 seconds
+and Firefox4.5/3.7/2.9/3.4 seconds. Actual cancellation cleanup, complete
+unchanged native fetch File bodies, Ready to publish and retained clip/folder
+state all pass. Target lint passes; owned output/log are read and removed
+immediately. These two witness corrections add zero product roots.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private

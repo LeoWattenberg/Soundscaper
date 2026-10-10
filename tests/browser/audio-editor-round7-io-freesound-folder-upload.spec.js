@@ -5,7 +5,21 @@ import { bootEditor, chooseCommandAction, clipByName, importFiles } from './audi
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 for (const folder of [false, true]) test(`Freesound renders a normal ${folder ? 'folder-owned' : 'ungrouped'} clip before upload`, async ({ page }) => {
-	const uploaded = [];
+	// WebKit omits binary File bodies from its passive driver request record.
+	// Observe the actual fetch File and forward the same native request unchanged.
+	await page.addInitScript(() => {
+		globalThis.__ordinaryFreesoundUploadBodies = [];
+		const fetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			if (new URL(String(input), location.href).pathname === '/api/freesound/uploads' && init?.body instanceof Blob) {
+				const bytes = new Uint8Array(await init.body.arrayBuffer());
+				globalThis.__ordinaryFreesoundUploadBodies.push({
+					signature: new TextDecoder().decode(bytes.subarray(0, 4)), byteLength: bytes.byteLength,
+				});
+			}
+			return Reflect.apply(fetch, globalThis, [input, init]);
+		};
+	});
 	await page.route('**/api/freesound/**', async route => {
 		const request = route.request();
 		const pathname = new URL(request.url()).pathname;
@@ -14,7 +28,6 @@ for (const folder of [false, true]) test(`Freesound renders a normal ${folder ? 
 		} else if (pathname === '/api/freesound/uploads/pending') {
 			await route.fulfill({ json: { data: { pendingDescription: [], pendingProcessing: [], pendingModeration: [] } } });
 		} else if (pathname === '/api/freesound/uploads') {
-			uploaded.push(request.postDataBuffer());
 			await route.fulfill({ status: 201, json: { data: { uploadFilename: 'remote-voice.wav' } } });
 		} else {
 			await route.fulfill({ status: 404, json: {} });
@@ -39,8 +52,9 @@ for (const folder of [false, true]) test(`Freesound renders a normal ${folder ? 
 	const uploads = panel.locator('[data-freesound-uploads="true"]');
 	await expect(uploads).toHaveJSProperty('open', true);
 	await expect(uploads.getByRole('button', { name: /^Ready to publish\s*:/u })).toHaveCount(1);
+	const uploaded = await page.evaluate(() => globalThis.__ordinaryFreesoundUploadBodies);
 	expect(uploaded).toHaveLength(1);
-	expect(uploaded[0].subarray(0, 4).toString()).toBe('RIFF');
+	expect(uploaded[0].signature).toBe('RIFF');
 	expect(uploaded[0].byteLength).toBeGreaterThan(38_400 * 3);
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
 	if (folder) await expect(editor.getByRole('treeitem', { name: 'Folder Folder 1, level 1', exact: true })).toBeVisible();

@@ -6,6 +6,10 @@ import { bootEditor, chooseDropdown, disableNativeSavePicker, importFiles, openE
 for (const stage of ['write', 'close']) test(`Cancel export during native archive ${stage} removes its temporary clip ZIP`, async ({ page }) => {
 	await disableNativeSavePicker(page);
 	await page.addInitScript(() => {
+		globalThis.__ordinaryZipStorageAvailable = typeof globalThis.FileSystemFileHandle?.prototype.createWritable === 'function'
+			&& typeof globalThis.FileSystemWritableFileStream?.prototype.write === 'function'
+			&& typeof globalThis.FileSystemWritableFileStream?.prototype.close === 'function';
+		if (!globalThis.__ordinaryZipStorageAvailable) return;
 		const streams = new WeakSet();
 		const createWritable = FileSystemFileHandle.prototype.createWritable;
 		FileSystemFileHandle.prototype.createWritable = async function (...arguments_) {
@@ -30,6 +34,8 @@ for (const stage of ['write', 'close']) test(`Cancel export during native archiv
 		}
 	});
 	const editor = await bootEditor(page, '/embed/en/');
+	test.skip(!await page.evaluate(() => globalThis.__ordinaryZipStorageAvailable),
+		'This browser does not provide native origin-storage writable streams.');
 	await importFiles(editor, [monoTone]);
 	const dialog = await openExportDialog(page, editor);
 	await chooseDropdown(page, dialog.locator('[data-export-field="output"]'), 'Individual clips (split by clips)');
