@@ -4,6 +4,18 @@ Target: 200 additional distinct bugs reached through existing user paths.
 The final implementation worktree is `/home/splowatt/git/Soundscaper-user-path-bugs-200-advance`, branch
 `fix/user-path-bugs-200-oct9-next`, based on `47b61f6e7`. Earlier frozen checkpoint worktrees were reclaimed after verification.
 
+Current delivery: all 200 qualifying roots are fixed and atomically committed
+(54 editing, 60 dialogs, 38 effects and 48 import/export). Every counted root
+has a normal user entry, causal pre-fix evidence, focused controls and a complete
+corrected native workflow. The corrected full `npm run check` passes, including
+all static gates and 25,843 passing Node cases with 33 skips and no failures.
+Full suites were run at the 50, 100, 150 and 200 checkpoints. The final 7,098-case
+browser run is still active; original failed aggregates retain their statuses
+alongside separate complete follow-through receipts. Completed verification
+artifacts are reclaimed after their readers close. No manual **Update AI assets**
+run is required. The chronological checkpoint receipts below preserve earlier
+failures and pending states; the four area registers hold each root's evidence.
+
 ## First checkpoint: 50 fixes
 
 | Area | Qualified IDs | Count | Causal and focused evidence |
@@ -668,8 +680,12 @@ The original final Firefox phase completes all 2366 scheduled cases:
 2238 PASS, 115 SKIP, eight FAIL and five timed out. Its thirteen unexpected
 observations are consumed individually; their isolated unchanged or faithful
 fixture follow-through receipts retain the original failed statuses. The
-dissolve adjacency workflow's measured setup optimization is still pending;
-all other current observations have completed follow-through. WebKit begins on
+dissolve adjacency follow-through subsequently completes in all three engines
+at da9458c73: its measured whole camera workflow uses the existing related
+90-second overall budget, with every original action, physical assertion and
+five-second functional expectation retained. The discarded setup optimization
+is reverted completely. This witness maintenance adds no product root and does
+not change the active frozen run's original 30-second deadline. WebKit begins on
 the same immutable684 source and the complete 7098-case aggregate remains
 pending. Playwright releases closed Firefox framework artifacts, reducing
 results from 52 MiB to 2.9 MiB; the external exact completed-directory cleaner
