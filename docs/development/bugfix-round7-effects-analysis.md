@@ -1514,3 +1514,17 @@ verification-only; no new source root or bug count is inferred. The exact
 completed diagnostic directory is removed immediately after recording the
 evidence. An unchanged isolated WebKit replay waits for the coordinated
 exclusive native cores.
+
+The exact unchanged grouped-formats WebKit workflow passes its isolated
+one-worker replay in 7.5 seconds (9.7 seconds whole) on immutable prepared
+684 bytes, qualified Pulse and exclusive native cores. The original mouse
+hover/click helper succeeds through CD, film, NTSC, PAL and drop-frame
+formats, preserving every grouped format, actual digit/value and subsequent
+editing assertion under the original 30-second deadline. This is the same
+painted pointer route, including Playwright native pointer actionability;
+no forced DOM activation or keyboard replacement is introduced. The source
+already closes sibling submenus on sibling hover and ordinary pointer exit.
+The original full-run simultaneous submenu overlap remains an honest
+observation, but does not reproduce in the unchanged complete mouse path.
+No fixture or production correction is made, and no bug count is added.
+The completed replay directory and log are immediately removed.
