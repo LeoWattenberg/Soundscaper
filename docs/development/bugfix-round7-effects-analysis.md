@@ -658,3 +658,33 @@ The evidence therefore does not establish a visualizer defect distinct from
 the browser's own sample-rate conversion approximation. Exclude the candidate,
 remove its verification spec, logs and diagnostics immediately, and retain
 the existing production reader without any source change or extra count.
+
+## R7-EFFECT-018 — Noise Reduction truncates its spectral release
+
+Import an ordinary one-second 48 kHz mono 1 kHz recording, Select all, open
+its track rack and add Noise Reduction. Capture the normal noise profile,
+set Reduction to 24 dB and Frequency smoothing to three bands, then export
+with Include tails. The downloaded file stops at 48,000 frames even though
+the actual spectral processor emits an audible release after the source fade.
+
+Nonuniform frequency gains spread that ending across the overlap/add window.
+The rack declares no release, so its buffered latency cannot reserve those
+post-source samples. Declare the bounded 2,047-frame window release whenever
+reduction is positive. Zero reduction and disabled effects retain their
+original duration; destructive selection processing keeps its existing extent.
+Reduce and residue modes share this one spectral owner, independently of the
+earlier recursive filter and Phaser feedback release roots.
+
+Strict real-processor regressions fail twice solely at the zero-frame tail
+declaration after verifying audible source audio, release above 0.01, and an
+exactly silent ending beyond one window. The zero-reduction and bypass control
+passes. All 49 new and adjacent live, filter and feedback cases pass after
+correction. Targeted type-aware lint and owned diff checks pass.
+
+The ordinary menu/profile/export witness is causally RED on guarded capture
+24cbd04c0 in 7.2 seconds: actual 48,000 versus more than 48,128 frames after
+healthy dry and zero-reduction exports. The initial healthy amplitude assertion
+omitted the ordinary mono pan law and is excluded as a fixture error. Corrected
+complete public verification is pending the next guarded capture. Owned logs
+and diagnostics are read and removed immediately; PCM remains in memory.
+No manual Update AI assets run is required.

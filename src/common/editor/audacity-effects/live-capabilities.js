@@ -105,6 +105,9 @@ function liveTailFrames(type, sampleRate, params) {
 		return Math.floor(sampleRate * settings.delaySeconds) * Math.ceil(Math.log(0.001) / Math.log(settings.decay));
 	}
 	if (type === 'audacity-distortion' && settings.dcBlock) return Math.max(1, Math.floor(sampleRate / 20));
+	// A nonuniform spectral gain spreads a faded ending across its overlap/add
+	// window. Buffering latency does not include that post-source release.
+	if (type === 'audacity-noise-reduction') return settings.reductionDb > 0 ? NOISE_WINDOW_SIZE - 1 : 0;
 	if (type === 'audacity-classic-filters') {
 		return iirReleaseBoundFrames(classicFilterCoefficients(settings, sampleRate / 2)
 			.map(({ b0, b1, b2, a1, a2 }) => [b0, b1, b2, a1, a2]));
