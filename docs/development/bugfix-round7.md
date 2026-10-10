@@ -13,9 +13,11 @@ Full suites were run at the 50, 100, 150 and 200 checkpoints. The final 7,098-ca
 browser run completed with 6765 passes, 283 skips, 29 failures and 21 timeouts;
 original failed aggregates retain their statuses alongside separate complete
 follow-through receipts. Final native diagnoses identified additional necessary
-follow-through within the existing owners; those repairs are committed and their
-fresh full canonical gate and compiled affected workflows are running against
-immutable `1541ccf681`. Completed verification
+follow-through within the existing owners; those repairs are committed and all
+complete affected compiled workflows now pass. The fresh canonical static gate
+and full primary Node batch pass, while its separate desktop preflight fails
+and the unchanged complete isolated controls pass. A final full canonical gate
+is being repeated after closing all native follow-ups. Completed verification
 artifacts are reclaimed after their readers close. No manual **Update AI assets**
 run is required. The chronological checkpoint receipts below preserve earlier
 failures and pending states; the four area registers hold each root's evidence.
@@ -853,3 +855,24 @@ the following `&&` coverage report is not reached. The separately unchanged
 follow-through readers are closed. Only after this writer closes is the unique
 watcher stop flag created for its guarded final drain, followed by immediate
 raw-profile reclamation and a fresh full gate using the final witness correction.
+
+That watcher's guarded final drain explicitly closes with exit 0: 8856 profiles,
+zero live/partial/unstable profiles, 4130 atomic rewrites, 653190 duplicate maps
+removed and 7743597148 bytes reclaimed while preserving every result/count.
+An actual cwd/file-descriptor check finds no remaining coverage reader; all
+8856 files/6336815273 bytes of completed raw coverage are immediately removed,
+along with the consumed original 9229-byte helper, stopped status/log/flag.
+After all primary/browser readers close, the completed canonical 27813187-byte
+build, 70486660-byte prepared products, 474351285-byte handbook build,
+23566-byte handbook metadata and 2927054-byte consumed full log are also
+reclaimed immediately. Only reusable private dependencies and pinned reference
+fixtures remain for the next full run, without an additional copy.
+
+The separate next-run watcher is verified before use against the repository's
+exact exported coverage URL filter. It also removes only unreportable map-cache
+entries, preserving reportable built-chunk/portable/differing variants and all
+profile results/functions/counts. Genuine external-to-owned remapping plus
+raw/normalized/compact-raw/compact-normalized c8 detailed/summary equality and
+the exact compactor all pass; e656fac27 preserves its CLI/hash/age/live controls.
+Its proof fixtures/scripts/logs are removed immediately. No maintained source,
+dependency or coverage floor changes are made by either temporary helper.
