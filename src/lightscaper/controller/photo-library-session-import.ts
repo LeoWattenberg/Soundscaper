@@ -5,16 +5,14 @@ import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.
 import type { PhotoLibraryImportItemV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import type { PhotoLibraryImportRequestOptionsV1 } from '../../common/editor/photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryDevelopImportRequestV2 } from '../../common/editor/photo-library-develop-import-port-v2.ts';
-import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS } from '../catalog/types.ts';
-import { id, name } from '../catalog/value-validation.ts';
 import { importManagedPhotosV2 } from '../import/managed-import-v2.ts';
 import type { PhotoManagedImportPortsV2 } from '../import/managed-import-ports-v2.ts';
 import type { PhotoManagedImportReceiptV1 } from '../import/managed-import-ports-v1.ts';
 import { preparePhotoImportGestureV1 } from '../import/photo-import-preparation-v1.ts';
 import { applyPhotoImportSettingsV1, planPhotoImportSettingsV1 } from '../import/photo-import-settings-v1.ts';
 import { borrowPhotoImportDevelopPresetV2 } from '../import/photo-import-develop-preset-v2.ts';
+import { resolvePhotoImportKeywordsV1 } from './photo-library-import-keywords-v1.ts';
 import type { PhotoLibrarySessionPortsV2 } from './photo-library-session-ports-v2.ts';
 
 interface Host {
@@ -77,7 +75,7 @@ export function createPhotoLibrarySessionImport(host: Host) {
 					try {
 						const settingsPhoto = request.settings === undefined ? outcome.photo : applyPhotoImportSettingsV1(outcome.photo, plan, outcome.index);
 						const preparedPhoto = applyDevelop ? applyDevelop(settingsPhoto) : settingsPhoto;
-						const resolved = await keywords(catalogId, { ...outcome, photo: preparedPhoto }, createId, signal);
+						const resolved = await resolvePhotoImportKeywordsV1(ports.catalog, catalogId, { ...outcome, photo: preparedPhoto }, createId, signal);
 						const photo = normalizePhotoDocumentV1OrV2({ ...preparedPhoto, keywordIds: resolved.ids });
 						admitted.push({ index: outcome.index, fileName: outcome.fileName,
 							hasMetadataNotices: outcome.notices.length > 0 || (outcome.photo.extractedMetadata?.issues.length ?? 0) > 0 || resolved.notice });
@@ -92,32 +90,7 @@ export function createPhotoLibrarySessionImport(host: Host) {
 		}, request.signal);
 	}
 ;
-	async function keywords(catalogId: string, outcome: Readonly<{ photo: ReturnType<typeof normalizePhotoDocumentV1OrV2>; keywordNames: readonly string[] }>, createId: () => string, signal: AbortSignal) {
-		const root = await ports.catalog.loadCatalog(catalogId);
-		if (!root) throw new ReferenceError('Photo catalog is missing.');
-		const keywords = [...root.keywords], ids = [...outcome.photo.keywordIds];
-		const encoder = new TextEncoder();
-		// Reserve both keyword-definition and photo-publication revision growth.
-		let rootBytes = encoder.encode(JSON.stringify({ ...root, revision: root.revision + 2, photoCount: root.photoCount + 1 })).byteLength;
-		let notice = false;
-		for (const candidate of outcome.keywordNames) {
-			let label: string;
-			try { label = name(candidate, 'imported keyword'); }
-			catch { notice = true; continue; }
-			const existing = keywords.find(node => node.name === label && node.parentId === null);
-			if (existing && ids.includes(existing.id)) continue;
-			if (ids.length >= LIGHTSCAPER_CATALOG_LIMITS.maximumMemberships) { notice = true; continue; }
-			if (existing) { if (!ids.includes(existing.id)) ids.push(existing.id); continue; }
-			if (keywords.length >= LIGHTSCAPER_CATALOG_LIMITS.maximumKeywords) { notice = true; continue; }
-			const keyword = Object.freeze({ id: id(createId(), 'keyword ID'), name: label, parentId: null });
-			const additionalBytes = encoder.encode(JSON.stringify(keyword)).byteLength + (keywords.length ? 1 : 0);
-			if (rootBytes + additionalBytes > LIGHTSCAPER_CATALOG_LIMITS.maximumDocumentBytes) { notice = true; continue; }
-			rootBytes += additionalBytes;
-			keywords.push(keyword); ids.push(keyword.id);
-		}
-		if (keywords.length !== root.keywords.length) await ports.catalog.saveCatalog(normalizePhotoCatalogRootV1({ ...root, keywords }), root.revision, { signal });
-		return { ids, notice };
-	}
+
 
 }
 

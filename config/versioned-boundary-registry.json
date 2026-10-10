@@ -574,6 +574,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-image-handoff-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo handoff borrows complete saved facts, an authenticated encoded original and the selected recipe's active and disabled LUT resources under one joined Session lifetime, without decoding, persistence or publication authority." }
 		,
+		{ "path": "src/common/editor/photo-library-image-receive-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected Session receive publishes one authenticated editable image with fresh local identities and durable Imported acknowledgement, retaining exact opaque recovery failures without granting archive scalars body or destination authority." }
+		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
@@ -1169,6 +1171,8 @@
 		{"path": "src/lightscaper/controller/photo-library-metadata-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 full-document admission before the unchanged bounded descriptive metadata presentation; named V1 readers remain strict."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-import-keywords-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected import keyword planning preserves legacy notice-and-skip behavior and provides strict complete keyword admission before receive catalog writes under the existing caller-owned lease." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-original-inspection-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in pre-recovery inspection enumerates bounded published-photo and retained-original bindings under the existing Session writer, preserving strict startup recovery and rejecting custody conflicts without mutating photo documents." }
 		,

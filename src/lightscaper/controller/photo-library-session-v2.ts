@@ -54,6 +54,7 @@ import { normalizeVideoColorGradeV1 } from '../../common/editor/video-color-mana
 import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cube-lut-v27.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
 import { PhotoLibrarySessionLifetime } from './photo-library-session-lifetime.ts';
+import { createPhotoLibraryImageReceiveSessionV1 } from './photo-library-image-receive-session.ts';
 import { createPhotoLibrarySessionImport } from './photo-library-session-import.ts';
 import { backupPhotoLibrarySession } from './photo-library-session-backup.ts';
 import { capturePhotoLibrarySessionPorts } from './photo-library-session-bindings.ts';
@@ -72,6 +73,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly #lifetime = new PhotoLibrarySessionLifetime();
 	readonly #imports: ReturnType<typeof createPhotoLibrarySessionImport>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
+	readonly imageReceive: ReturnType<typeof createPhotoLibraryImageReceiveSessionV1>;
 	readonly imageHandoff: Readonly<PhotoLibraryImageHandoffPortV1>;
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
@@ -84,6 +86,8 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	constructor(ports: PhotoLibrarySessionPortsV2) {
 		ports = capturePhotoLibrarySessionPorts(ports);
 		this.#ports = ports;
+		this.imageReceive = createPhotoLibraryImageReceiveSessionV1({ ports, managed: this.#managedPorts(),
+			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 		this.imageHandoff = Object.freeze({ withCapture: async <Result>(value: Readonly<PhotoLibraryImageHandoffRequestV1>,
 			consume: (view: Readonly<PhotoLibraryImageHandoffViewV1>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}) => {
 			const { signal } = readPhotoDevelopSignalOptionsV2(options); let binding!: Readonly<PhotoLibraryImageHandoffRequestV1>;
