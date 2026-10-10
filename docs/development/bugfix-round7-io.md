@@ -827,6 +827,31 @@ remain recorded above. Both native origin servers and the worker closed; all
 temporary config/spec/result/log/lint files were consumed and removed immediately
 after this receipt.
 
+Next-run coverage storage verification (zero count): separate temporary helper
+`/tmp/r7follow-v8-map-watch-filtered.mjs` is 9,766 bytes, SHA-256
+`d98719cf5ffad06b043b6c8e5bb9a2b05f2c049bf4e4cd7da7462b0409edeac8`.
+Its fourth CLI argument is the explicit frozen repository root; it imports that
+root's existing `coverageUrlFilter` export. Beyond identical earlier-owner
+deduplication, it removes only cache entries rejected by that exact predicate:
+admit checkout-root or `file:///__soundscaper_e2e__/` URLs, excluding any
+`/node_modules/` path. It preserves every profile result, function, count,
+metadata and every reportable map variant, including built chunks and portable
+browser entries. Nine predicate controls and actual Node V8 controls pass,
+including an external generated script whose map targets owned source, actual
+dependency maps, and distinct retained built-chunk/portable variants. Raw,
+normalized, compact-raw and compact-normalized c8 summaries and detailed maps
+are equal, with positive measured TypeScript coverage; exact repository
+compaction is also equal. The actual profile control saves 1,003 bytes. Young,
+open-writer and in-place replacement guards pass. The real CLI importing the
+immutable `1541ccf681596465463d0da455b7e6193a066a78` policy finishes its
+guarded stop/drain, removes four unreportable entries and saves 1,418 bytes,
+preserving all counters/metadata. Newly rewritten owners remain age-protected,
+so duplicate maps can safely remain until a later scan. All proof fixtures are
+removed in finally; proof script/log removed after this receipt. The original
+live helper/PID is untouched and retains its verified original digest. Only
+the separate next-run helper remains until the coordinated run closes; no
+maintained helper, dependency, runtime asset, floor, source or count change.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
