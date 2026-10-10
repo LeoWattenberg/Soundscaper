@@ -31,12 +31,15 @@ test('closing compact track headers returns focus after the header controls are 
 		const menu = dom.one('[data-track-menu]');
 		const toggle = dom.one('[data-track-header-toggle]');
 		menu.focus();
-		const key = (defaultPrevented: boolean) => ({
-			key: 'Escape', defaultPrevented, target: menu, currentTarget: timeline,
+		const key = (defaultPrevented: boolean, isComposing = false) => ({
+			key: 'Escape', defaultPrevented, nativeEvent: { isComposing }, target: menu, currentTarget: timeline,
 			preventDefault() {},
 		});
 		await act(async () => reactProps(timeline).onKeyDown(key(true)));
 		assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+		assert.equal(document.activeElement, menu);
+		await act(async () => reactProps(timeline).onKeyDown(key(false, true)));
+		assert.equal(toggle.getAttribute('aria-expanded'), 'true', 'native composition retains the header and its focused control');
 		assert.equal(document.activeElement, menu);
 		await act(async () => reactProps(timeline).onKeyDown(key(false)));
 		assert.equal(toggle.getAttribute('aria-expanded'), 'false');
