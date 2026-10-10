@@ -173,3 +173,10 @@ the unqualified production change and its new tests; preserve the state-barrier
 fixture's real pending-write and saved-state checks while allowing browser
 native keyboard differences. The qualified total stays77, with next candidates
 DIALOG025, EFFECT016 and IO023 awaiting their corrected public workflows.
+
+The final excluded Firefox native-host diagnostic stopped during the initial
+host handshake with zero persisted states, before any keyboard action. Its
+log, screenshots and temporary results are deleted immediately after review.
+The private retime replacement helper retains its owning semantic chunk;
+52 ownership checks and the helper-register lint pass. Full tests TypeScript
+passes after collecting all three next candidates.

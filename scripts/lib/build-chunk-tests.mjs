@@ -345,6 +345,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-project-retime-fresh-video-command',
 	'editor-project-retime-retime-command',
 	'editor-project-retime-retime-state',
+	'editor-project-retime-retime-replacement',
 	'editor-project-sequence-commands',
 	'editor-project-sequence-sequence',
 	'editor-project-timeline-image-commands',
