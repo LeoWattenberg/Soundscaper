@@ -181,9 +181,12 @@ held PCM and reset source continuity only after its drain; cancellation retires
 pending boundaries. Actual worklet focused RED loses audible and held quiet tails
 and rejects a resumed source gap. The corrected eight strict cases plus existing
 Stop, lifecycle, routing, gate, input and timed-pause controls pass 78/78; targeted
-five-file type-aware lint and own diff checks pass. Corrected public verification
-awaits the next guarded product build. Owned public diagnostics and completed
-focused logs were removed immediately; no archive or raw coverage was generated.
+five-file type-aware lint and own diff checks pass. Corrected guarded `32eb4cebf`
+public verifies ordinary Pause (5.9 seconds), activated Pause (5.6 seconds), and the
+existing activated Stop final-chunk control (7.5 seconds): all three complete
+actual captured-PCM/save assertions pass in 22.9 seconds. Owned public diagnostics
+and completed focused logs were removed immediately; no archive or raw coverage
+was generated.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
