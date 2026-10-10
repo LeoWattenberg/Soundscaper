@@ -295,20 +295,20 @@ test('grading refuses an HDR interpretation instead of tone mapping it', () => {
 	);
 });
 
-test('an aborted grade throws its own reason, and a signal with no reason raises an AbortError', () => {
-	const controller = new AbortController();
-	const reason = new DOMException('the finishing frame was superseded', 'AbortError');
-	controller.abort(reason);
-	const reasonless = { aborted: true, reason: undefined } as unknown as AbortSignal;
-
-	assert.throws(() => gradeEncodedFrame(plate(128), interpretation(), [], new Map(), controller.signal),
-		(error: unknown) => error === reason);
-	assert.throws(() => gradeLinearFrame(plate(128), [], new Map(), controller.signal),
-		(error: unknown) => error === reason);
-	assert.throws(() => gradeLinearFrame(plate(128), [], new Map(), reasonless), (error: unknown) => (
-		error instanceof DOMException && error.name === 'AbortError'
-		&& /exact execution was aborted/u.test(error.message)
-	));
+test('grades preserve native default and custom abort reasons and refuse forged signals', () => {
+	const defaultController = new AbortController(); defaultController.abort();
+	const forged = { aborted: true, reason: undefined } as unknown as AbortSignal;
+	for (const runGrade of [
+		(signal: AbortSignal) => gradeEncodedFrame(plate(128), interpretation(), [], new Map(), signal),
+		(signal: AbortSignal) => gradeLinearFrame(plate(128), [], new Map(), signal),
+	]) {
+		for (const reason of [new DOMException('the finishing frame was superseded', 'AbortError'), Symbol('opaque cancellation')]) {
+			const controller = new AbortController(); controller.abort(reason);
+			assert.throws(() => runGrade(controller.signal), (error: unknown) => error === reason);
+		}
+		assert.throws(() => runGrade(defaultController.signal), (error: unknown) => error === defaultController.signal.reason && error instanceof DOMException && error.name === 'AbortError');
+		assert.throws(() => runGrade(forged), TypeError);
+	}
 });
 
 test('a linear grade applies gain to already-decoded pixels without decoding them again', () => {
