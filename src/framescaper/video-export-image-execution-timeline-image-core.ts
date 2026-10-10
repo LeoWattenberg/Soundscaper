@@ -9,8 +9,10 @@ import {
 import { FRAMESCAPER_IMAGE_FRAME_PACK_MAXIMUM_CHUNK_BYTES } from '../common/editor/timeline-image-frame-pack-v1.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
 import type { UnifiedExactRenderPlanV16 } from '../common/editor/unified-exact-render-plan-v16.ts';
+import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
+import type { BoundVideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 type ImagePlan = UnifiedExactRenderPlanV13 | UnifiedExactRenderPlanV16;
-const CHECK = AbortSignal.prototype.throwIfAborted;
+const CHECK = AbortSignal.prototype.throwIfAborted, TIMING_FOR_EACH = Map.prototype.forEach;
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { defaultVideoSourceColorInterpretationV1 } from '../common/editor/video-color-management-v27.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
@@ -178,14 +180,19 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 
 /** Pin the current generation before any admission await. The named V13
  * owner retains its historical options and public signal behavior. */
-export function captureCurrentImageExecutionOptionsV16(value: Parameters<typeof createTimelineImageExecutionCore>[0]) {
+export function captureCurrentImageExecutionOptionsV16(value: Parameters<typeof createTimelineImageExecutionCore>[0] & Readonly<{ timingSidecars?: UnifiedExactRenderTimingSidecars }>) {
 	const signal = value.signal;
 	Reflect.apply(CHECK, signal, []);
 	try {
 		const current = value.assertCurrent;
 		if (typeof current !== 'function') throw new TypeError('Current image execution requires its currentness callback.');
+		const suppliedTiming = value.timingSidecars;
+		const timingSidecars = suppliedTiming === undefined ? undefined : new Map<string, BoundVideoSourceTimingView>();
+		if (timingSidecars) Reflect.apply(TIMING_FOR_EACH, suppliedTiming, [
+			(token: BoundVideoSourceTimingView, sourceId: string) => { timingSidecars.set(sourceId, token); },
+		]);
 		const captured = Object.freeze({ signal, profile: value.profile, project: value.project,
-			foundationPlan: value.foundationPlan, store: value.store, confirmFileSizeWarning: value.confirmFileSizeWarning,
+			foundationPlan: value.foundationPlan, timingSidecars, store: value.store, confirmFileSizeWarning: value.confirmFileSizeWarning,
 			assertCurrent() { Reflect.apply(current, value, []); },
 		});
 		Reflect.apply(CHECK, signal, []);

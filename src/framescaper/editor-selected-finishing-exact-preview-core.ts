@@ -110,7 +110,7 @@ async function createPreview(options: SelectedExactPreviewOptions<Plan> & Readon
 		acquiredExact = exact;
 		if (resource && createSupplemental) supplemental = await Reflect.apply(createSupplemental, options, [{
 			canonicalProject: options.project, foundationPlan: options.plan as UnifiedExactRenderPlanV16,
-			signal: options.signal, assertCurrent,
+			timingSidecars: options.boundTimingViews, signal: options.signal, assertCurrent,
 		}]) as FramescaperVideoExportSupplementalPictureExecutionFinishing | null;
 		const project = options.project as unknown as Data;
 		const clips = new Map(records(project.clips, 'Selected finishing preview clips')

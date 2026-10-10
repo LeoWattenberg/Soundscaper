@@ -49,8 +49,8 @@ export async function createTimelineImageResourcePreviewV16(options: Framescaper
 		...(options.signal ? { signal: options.signal } : {}),
 		...(createOpenFxExecutionV16 ? { createOpenFxExecutionV16 } : {}),
 		assertCurrentV16() { assertCurrent(currentSignal); },
-		createSupplementalPictureExecutionV16({ foundationPlan, signal, assertCurrent: inherited }) {
-			return createFramescaperVideoExportImageExecutionTimelineImageV16({ project, profile, foundationPlan, store,
+		createSupplementalPictureExecutionV16({ foundationPlan, timingSidecars, signal, assertCurrent: inherited }) {
+			return createFramescaperVideoExportImageExecutionTimelineImageV16({ project, profile, foundationPlan, timingSidecars, store,
 				signal, assertCurrent() { inherited(); assertCurrent(signal); },
 			});
 		},

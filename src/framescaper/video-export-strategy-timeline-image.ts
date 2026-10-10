@@ -60,7 +60,7 @@ export function createFramescaperVideoExportStrategyTimelineImage(
 		if (!authority) throw new Error('Selected current TimelineImage export lost its exact project authority.');
 		if (!authority.hasTimelineImages) return null;
 		return createFramescaperVideoExportImageExecutionTimelineImageV16({ profile,
-			project: authority.canonicalSnapshot, foundationPlan: options.foundationPlan, store: assetStore,
+			project: authority.canonicalSnapshot, foundationPlan: options.foundationPlan, timingSidecars: options.timingSidecars, store: assetStore,
 			signal: options.signal, assertCurrent() { assertSource(authority, options.assertCurrent); },
 			...(options.confirmFileSizeWarning ? { confirmFileSizeWarning: options.confirmFileSizeWarning } : {}),
 		});

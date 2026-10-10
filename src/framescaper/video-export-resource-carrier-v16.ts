@@ -2,6 +2,7 @@
 import { normalizeVideoEffectsV2 } from '../common/editor/video-effects-v2.ts';
 import { normalizeVideoEffects } from '../common/editor/video-effects.js';
 import { assertUnifiedExactRenderPlanV16, type UnifiedExactRenderPlanV16 } from '../common/editor/unified-exact-render-plan-v16.ts';
+import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import { assertManagedVideoColorRenderAdmissionV1 } from '../common/editor/video-color-management-v27.ts';
 import { cloneFramescaperProjectFinishing, validateFramescaperProjectFinishing, type FramescaperProjectFinishing } from './editor-project-finishing.ts';
@@ -69,8 +70,8 @@ export function currentFramescaperEncodeRequestV16(authority: ExportAuthorityFin
 
 /** Numeric keyframes come from the unchanged strict decoder carrier. Resource
  * envelopes come solely from the authenticated complete picture plan. */
-export function restoreFramescaperResourceCarrierLayersV16(layers: readonly unknown[], plan: UnifiedExactRenderPlanV16): readonly unknown[] {
-	assertUnifiedExactRenderPlanV16(plan);
+export function restoreFramescaperResourceCarrierLayersV16(layers: readonly unknown[], plan: UnifiedExactRenderPlanV16, timingSidecars?: UnifiedExactRenderTimingSidecars): readonly unknown[] {
+	assertUnifiedExactRenderPlanV16(plan, timingSidecars);
 	const clips = new Map(plan.nodes.flatMap(node => node.kind === 'clip' ? [[node.clipId, node] as const] : []));
 	return layers.map(value => {
 		const layer = value as Data;

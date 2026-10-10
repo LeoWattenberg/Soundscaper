@@ -6,6 +6,7 @@ import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-e
 import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/video-keyframe-offline-rgba-contract.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
 import type { UnifiedExactRenderPlanV16 } from '../common/editor/unified-exact-render-plan-v16.ts';
+import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
 import type { SelectedExactFrameExecutionOptions, FramescaperSelectedExactFrameExecutionFinishing } from './selected-finishing-exact-frame-contract.ts';
 import { outputAtSequencePosition } from '../common/editor/unified-exact-render-output-timing.ts';
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
@@ -70,7 +71,7 @@ export interface ExactExecutionRequestCore<Plan extends PlanCore> {
 interface ExecutionOwners<Plan extends PlanCore> {
 	readonly createVisual: (request: Parameters<typeof import('./video-export-visual-execution-finishing.ts').createFramescaperVideoExportVisualExecutionFinishing>[0]) => Promise<FramescaperVideoExportVisualExecutionCore<Plan>>;
 	readonly createExact: (request: SelectedExactFrameExecutionOptions<Plan>) => Promise<FramescaperSelectedExactFrameExecutionFinishing>;
-	readonly restoreLayers?: (layers: readonly unknown[], plan: Plan) => readonly unknown[];
+	readonly restoreLayers?: (layers: readonly unknown[], plan: Plan, timingSidecars?: UnifiedExactRenderTimingSidecars) => readonly unknown[];
 }
 /** Fixed named wrappers supply the only admission and effect-restoration owners. */
 export async function createFramescaperVideoExportExactExecutionCore<Plan extends PlanCore>(options: ExactExecutionRequestCore<Plan>,
@@ -113,6 +114,7 @@ export async function createFramescaperVideoExportExactExecutionCore<Plan extend
 		supplementalCandidate = await options.createSupplementalPictureExecution?.({
 			canonicalProject: options.request.canonicalProject,
 			foundationPlan: visual.exactPlan,
+			...(visual.exactPlan.version === 16 ? { timingSidecars: visual.timingSidecars } : {}),
 			signal: options.request.signal,
 			assertCurrent: options.request.assertCurrent, confirmFileSizeWarning: options.request.confirmFileSizeWarning,
 		}) ?? null;
@@ -146,11 +148,14 @@ export async function createFramescaperVideoExportExactExecutionCore<Plan extend
 		if (!Array.isArray(supplementalPictures)) {
 			throw new TypeError('Selected finishing supplemental picture execution must return an array.');
 		}
+		const restoredLayers = owners.restoreLayers ? visual.exactPlan.version === 16
+			? owners.restoreLayers(layers, visual.exactPlan, visual.timingSidecars)
+			: owners.restoreLayers(layers, visual.exactPlan) : layers;
 		const result = await exact.render({
 			sequencePosition, timelineSample: frame.timelineSample,
 			outputOrdinal: outputAtSequencePosition(sequencePosition, visual.exactPlan,
 				options.outputFrameRate ?? visual.exactPlan.output.frameRate),
-			layers: owners.restoreLayers?.(layers, visual.exactPlan) ?? layers, supplementalPictures,
+			layers: restoredLayers, supplementalPictures,
 			width, height, target: rgba, signal,
 		});
 		visual.accountFrame(frame, result.consumedNodeIds);
