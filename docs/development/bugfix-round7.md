@@ -1,8 +1,8 @@
 # Round seven ordinary user-path bug audit
 
 Target: 200 additional distinct bugs reached through existing user paths.
-The worktree is `/home/splowatt/git/Soundscaper-user-path-bugs-200`, branch
-`fix/user-path-bugs-200-oct9`, based on `47b61f6e7`.
+The final implementation worktree is `/home/splowatt/git/Soundscaper-user-path-bugs-200-advance`, branch
+`fix/user-path-bugs-200-oct9-next`, based on `47b61f6e7`. Earlier frozen checkpoint worktrees were reclaimed after verification.
 
 ## First checkpoint: 50 fixes
 
@@ -593,3 +593,17 @@ Coherent2b94fdc97 prepares both guarded products successfully for the three pend
 Qualified total196: editing53, dialogs59, effects37 and IO47. Regular interval labels retains native4/6second markers after a onebar entry and oneUndo, with healthy explicit2second control. Both ChangeTempo and ChangeSpeed/Pitch retain the physically decoded288000frame local-bar programme, positive RMS and Undo-restored3second currentlength. Completed native witnesses run on coherent2b94fdc97 and all reviewed outputs/results are immediately removed. The initial Timed recording candidate stillfailed acrossallthreeengines because its parent supplied nonexistent snapshot.playheadFrame; its corrected actualtelemetry wiring passes24focused controls and complete refreshedtest/tooling compilation, but remains unqualified untilfreshcompiledproof. The original full150 failedaggregate remains honest; all69failed/timedout observations nowhave actualdiagnostic receipts and their faithful complete follow-through witnesses. No manual Update AI assets run is required.
 
 Final four-candidate source capturea3a36854d passes both production guards:456/493chunks, largest487712bytes;633/667FFmpeg-auditedfiles; unchanged six-request initial ceilings252142/252873rawbytes; full product graphs6768724/7724991bytes within stable limits. Every source owner is atomically committed with focused/TDD/type-aware and canonical changed-lint proof. Timed recording actualtelemetry, generic TruncateSilence elapsed parameters, Parametric EQ retainedauthoring and Master fader primarycompletion remain individually unqualified until their complete normal compiled witnesses pass. Reviewed completed guard output is immediately removed. No manual Update AI assets run is required.
+
+## Fourth checkpoint: 200 qualified fixes
+
+| Area | Qualified IDs | Count |
+| --- | --- | --- |
+| Editing and navigation | R7-EDIT-001–018, 020–026, 028–056 | 54 |
+| Dialogs and controls | R7-DIALOG-001–006, 008–061 | 60 |
+| Effects and analysis | R7-EFFECT-001–038 | 38 |
+| Import, export and media | R7-IO-001–003, 005–049 | 48 |
+| Total | | 200 |
+
+Every listed root has its ordinary menu/control entry, a causal pre-fix witness, focused regression/healthy controls and a completed corrected compiled native workflow. EDIT019/027, D007 and IO004 remain excluded; setup mistakes, unreachable internal paths, fixture maintenance and candidate-induced regressions add no roots. Variants sharing the same consumer/authority are grouped once. Final four owners complete on coherent a3a36854d: actual scheduled onebar range2000ms in allthreeengines (3/3,14.9s); generic TruncateSilence matches the healthy359997-frame WAV and .200004 RMS (12.8s); Parametric rack actualUndo clears held5.83dB to0 while retaining Redo and subsequent normal gestures (3.5s); native Master primarycompletion keeps the imported recording through immediateUndo before middle release (2.1s). All completed bounded output/results are consumed and immediately removed, and all owners are atomically committed.
+
+The source now freezes for the required complete fourth checkpoint: canonical npm run check, including full repository lint, all compiler/architecture/audit/documentation/build gates and complete Node coverage suite, plus the entire Chromium/Firefox/WebKit browser suite. These full200 gates remain pending and earlier failed aggregates retain their original statuses. The private dependency copy preserves npm symlinks and matching reference/programme fixtures. Passed browser attachments are reclaimed at completion; failed evidence remains only until it is consumed and recorded. No manual **Update AI assets** run is required; the assistance runtime closure, recipes, dependencies, pins and target inventory are unchanged.
