@@ -34,6 +34,7 @@ import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { MeterPanelControlsProvider } from './MeterPanelControls.jsx';
 import { createWorkspacePanelDockRuntime } from './workspace-model-boundaries.ts';
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
+const SoundscaperPluginScanToast = lazyEditorModule(() => import('./SoundscaperPluginScanToast.tsx'));
 
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
 export default function AudioEditorWorkspaceView({ model }) {
@@ -306,6 +307,9 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dismissLabel={copy.close}
 					onDismiss={clearError}
 				/>}
+				{productId === 'soundscaper' && fileService?.isDesktop && <Suspense fallback={null}>
+					<SoundscaperPluginScanToast copy={copy} openSurface={openSurface} />
+				</Suspense>}
 				{statusError && <EditorErrorToast key={statusError} id="workspace-status-error"
 					title={copy.unknownError} description={statusError} dismissLabel={copy.close} />}
 				{snapshot.monitor?.enabled && <EditorWarningToast id="input-monitoring" title={copy.recordLevel} description={copy.monitorWarning} dismissLabel={copy.close} />}

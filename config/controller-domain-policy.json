@@ -142,6 +142,7 @@
 		"effects/graphic-eq-gesture.ts",
 		"effects/macro-script-library-service.ts",
 		"effects/macro-transaction-metadata.ts",
+		"effects/native-plugin-scan-controller.ts",
 		"effects/native-range-mouse-custody.ts",
 		"export/archive-safe-integer-addition.ts",
 		"export/blender-live-session.ts",

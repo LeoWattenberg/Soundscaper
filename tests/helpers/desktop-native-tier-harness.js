@@ -85,6 +85,7 @@ const NATIVE_CHANNELS = Object.freeze([
 	IPC.nativePluginAvailability,
 	IPC.nativePluginConsent,
 	IPC.nativePluginScan,
+	IPC.nativePluginScanProgress,
 	IPC.nativePluginInventory,
 	IPC.nativePluginClearQuarantine,
 	IPC.nativePluginSetInstallationAllowed,

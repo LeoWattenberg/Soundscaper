@@ -243,6 +243,12 @@
 	white-space: normal;
 }
 
+.kw-audio-editor__toast-actions a {
+	color: var(--text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
 .kw-audio-editor__toast :is(.toast__title, .toast__description) {
 	overflow-wrap: anywhere;
 }

@@ -8,6 +8,7 @@ export interface EditorToastAction {
 	readonly label: string;
 	readonly onClick: () => void;
 	readonly disabled?: boolean;
+	readonly href?: string;
 }
 
 export interface EditorToastProps {
@@ -20,11 +21,12 @@ export interface EditorToastProps {
 	readonly dismissLabel?: string;
 	readonly onDismiss?: () => void;
 	readonly persistent?: boolean;
+	readonly progress?: number;
 }
 
 /** Controlled notifications stay within the editor that owns their state. */
 export default function EditorToast({
-	id, title, description, timer, type = 'info', actions = [], dismissLabel, onDismiss, persistent = false,
+	id, title, description, timer, type = 'info', actions = [], dismissLabel, onDismiss, persistent = false, progress,
 }: EditorToastProps) {
 	const dismissAutomatically = useEffectEvent(() => onDismiss?.());
 	const dismissible = Boolean(onDismiss);
@@ -35,14 +37,16 @@ export default function EditorToast({
 	}, [id, persistent, dismissible]);
 
 	return <section className="kw-audio-editor__toast" aria-label={title} data-editor-toast={id}>
-		<Toast id={id} type={type} title={title} description={description} showCloseButton={false} />
+		<Toast id={id} type={type} title={title} description={description} showCloseButton={false}
+			progress={progress} showProgress={progress !== undefined} timeRemaining={progress !== undefined ? description : undefined} />
 		{timer && <div className="kw-audio-editor__toast-detail" role="timer" aria-live="off">{timer}</div>}
 		{!persistent && onDismiss && <Button className="kw-audio-editor__toast-close" onClick={(event) => {
 			event?.currentTarget.closest('[data-audio-editor]')?.querySelector<HTMLElement>('[data-chrome-drawer-toggle], [role="menuitem"]')?.focus({ preventScroll: true });
 			onDismiss();
 		}}><span aria-hidden="true">×</span><span className="kw-audio-editor-sr-only">{dismissLabel}</span></Button>}
 		<div className="kw-audio-editor__toast-actions">
-			{actions.map((action) => <Button
+			{actions.map((action) => action.href ? <a key={action.label} href={action.href}
+				onClick={(event) => { event.preventDefault(); action.onClick(); }}>{action.label}</a> : <Button
 				key={action.label}
 				disabled={action.disabled}
 				onClick={action.onClick}

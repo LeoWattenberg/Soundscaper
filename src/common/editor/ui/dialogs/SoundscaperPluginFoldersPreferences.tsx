@@ -16,6 +16,7 @@ import {
 	type SoundscaperNativeServicesDialogAction,
 } from '../soundscaper-native-services-dialog-model.ts';
 import type { SoundscaperNativeEffectPanelProps } from './SoundscaperNativeEffectPanels.tsx';
+import { soundscaperPluginScanRuntimeFor } from '../soundscaper-plugin-scan-runtime.ts';
 
 export default function SoundscaperPluginFoldersPreferences({ productId, copy }: {
 	readonly productId: string;
@@ -34,16 +35,22 @@ function PluginFoldersPreferences({ bridge, copy: hostCopy }: {
 	const store = soundscaperNativeServicesStoreFor(bridge);
 	const tier = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 	const state = useSyncExternalStore(runtime.subscribe, runtime.getState, runtime.getState);
+	const scanner = soundscaperPluginScanRuntimeFor(bridge);
+	const scan = useSyncExternalStore(scanner.subscribe, scanner.getSnapshot, scanner.getSnapshot);
 	useEffect(() => { void runtime.perform({ type: 'refresh' }); }, [runtime, tier?.pluginEnabled]);
 	const perform = (action: SoundscaperNativeServicesDialogAction): void => { void runtime.perform(action); };
 	return <PreferencePanel title={copy.pluginFolders}>
 		{state.error && <p role="alert">{state.error}</p>}
 		<SoundscaperPluginFoldersPanel copy={copy} state={state}
-			disabled={state.pending !== null} perform={perform} />
+			disabled={state.pending !== null || scan.status === 'running'} perform={perform}
+			scanning={scan.status === 'running'} scanFolders={() => { void scanner.scan().then(() => runtime.perform({ type: 'refresh' })); }} />
 	</PreferencePanel>;
 }
 
-export function SoundscaperPluginFoldersPanel({ copy, state, disabled, perform }: SoundscaperNativeEffectPanelProps) {
+export function SoundscaperPluginFoldersPanel({ copy, state, disabled, perform, scanning: backgroundScanning = false, scanFolders }: SoundscaperNativeEffectPanelProps & {
+	readonly scanning?: boolean;
+	readonly scanFolders?: () => void;
+}) {
 	const plugins = state.plugins;
 	const removalFocus = useRef<{ button: HTMLButtonElement; group: HTMLFieldSetElement } | null>(null);
 	useEffect(() => {
@@ -58,7 +65,7 @@ export function SoundscaperPluginFoldersPanel({ copy, state, disabled, perform }
 	const canScan = plugins?.enabled === true && !plugins.quarantined && plugins.payload.status === 'available';
 	const folders = formats.flatMap((format) => format.roots.filter((root) => root.admitted)
 		.map((root) => ({ format: format.format, rootId: root.rootId })));
-	const scanning = Object.values(state.scans).some((scan) => scan.running);
+	const scanning = backgroundScanning || Object.values(state.scans).some((scan) => scan.running);
 	return <div className="kw-plugin-folder-preferences">
 		<p>{copy.pluginFoldersHelp}</p>
 		{plugins !== null && !plugins.enabled && <p>{copy.pluginScanningOff}</p>}
@@ -93,6 +100,7 @@ export function SoundscaperPluginFoldersPanel({ copy, state, disabled, perform }
 		})}
 		{formats.length > 0 && <Button disabled={disabled || scanning || !canScan || folders.length === 0}
 			data-native-plugin-scan="true" onClick={() => {
+				if (scanFolders) { scanFolders(); return; }
 				for (const folder of folders) perform({ type: 'scan', ...folder });
 			}}>{scanning ? copy.scanRunning : copy.scanPluginFolders}</Button>}
 		{folders.map((folder) => {

@@ -16,7 +16,7 @@ const CHANNELS = Object.freeze({ captureExternalMedia: 'soundscaper:v1:external-
 	nativeAudioSessionOpen: 'soundscaper:v1:native-audio:session:open', nativeAudioSessionBind: 'soundscaper:v1:native-audio:session:bind', nativeAudioSessionStatus: 'soundscaper:v1:native-audio:session:status', nativeAudioSessionCalibrate: 'soundscaper:v1:native-audio:session:calibrate', nativeAudioSessionReport: 'soundscaper:v1:native-audio:session:report', nativeAudioSessionLoss: 'soundscaper:v1:native-audio:session:loss', nativeAudioSessionClose: 'soundscaper:v1:native-audio:session:close', nativeAudioRealtimePort: 'soundscaper:native-realtime-port',
 	nativePluginAvailability: 'soundscaper:v1:helper:native-plugin-availability',
 	nativePluginConsent: 'soundscaper:v1:helper:native-plugin-consent',
-	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',
+	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan', nativePluginScanProgress: 'soundscaper:v1:helper:native-plugin-scan-progress',
 	nativePluginInventory: 'soundscaper:v1:helper:native-plugin-inventory',
 	nativePluginClearQuarantine: 'soundscaper:v1:helper:native-plugin-clear-quarantine',
 	nativePluginSetInstallationAllowed: 'soundscaper:v1:native-plugin:installation:allowed', nativePluginSelectInstallation: 'soundscaper:v1:native-plugin:installation:select', nativePluginInstantiate: 'soundscaper:v1:native-plugin:instantiate', nativePluginRunOffline: 'soundscaper:v1:native-plugin:run-offline', nativePluginSetBypassed: 'soundscaper:v1:native-plugin:set-bypassed', nativePluginPersistState: 'soundscaper:v1:native-plugin:state:persist', nativePluginRestoreState: 'soundscaper:v1:native-plugin:state:restore', nativePluginOpenVendorUi: 'soundscaper:v1:native-plugin:vendor-ui:open', nativePluginCloseVendorUi: 'soundscaper:v1:native-plugin:vendor-ui:close', nativePluginCloseInstance: 'soundscaper:v1:native-plugin:instance:close', nativePluginRpcPort: 'soundscaper:native-plugin-rpc-port', nativeVampInventory: 'soundscaper:v1:native-vamp:inventory', nativeVampSessionStart: 'soundscaper:v1:native-vamp:session:start', nativeVampSessionConfigure: 'soundscaper:v1:native-vamp:session:configure', nativeVampSessionPush: 'soundscaper:v1:native-vamp:session:push', nativeVampSessionFinish: 'soundscaper:v1:native-vamp:session:finish', nativeVampSessionCancel: 'soundscaper:v1:native-vamp:session:cancel',
@@ -127,7 +127,7 @@ const api = Object.freeze({
 	nativeAudioHelperAvailability: () => ipcRenderer.invoke(CHANNELS.nativeAudioAvailability).then(nativeAudioAvailability),
 	setNativeAudioHelperEnabled: (enabled) => ipcRenderer.invoke(CHANNELS.nativeAudioSetEnabled, enabled === true).then(nativeAudioEnabled),
 	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, { backend: text(request?.backend, 32) }).then(nativeAudioInventory),
-	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus), ara: createAraPreloadBridge((channel, value) => ipcRenderer.invoke(channel, value)),
+	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus), nativePluginScanProgress: () => ipcRenderer.invoke(CHANNELS.nativePluginScanProgress).then(nativePluginStatus), ara: createAraPreloadBridge((channel, value) => ipcRenderer.invoke(channel, value)),
 	setNativePluginConsent: (request) => ipcRenderer.invoke(CHANNELS.nativePluginConsent, {
 		format: text(request?.format, 32),
 		action: text(request?.action ?? 'grant', 32),

@@ -60,6 +60,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'nativeAudioHelperAvailability',
 	'nativeAudioSessionStatus',
 	'nativePluginAvailability',
+	'nativePluginScanProgress',
 	'nativeServices',
 	'onAssistanceInstallProgress',
 	'onCloseRequested',

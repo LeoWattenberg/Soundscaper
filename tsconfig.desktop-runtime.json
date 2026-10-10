@@ -172,6 +172,8 @@
 		"desktop/native-addon-payload.ts",
 		"desktop/plugin-scan-results.ts",
 		"desktop/plugin-scan-service.ts",
+		"desktop/plugin-scan-progress.ts",
+		"desktop/plugin-discovery-defaults.ts",
 		"desktop/plugin-registry.ts",
 		"desktop/plugin-host-isolation.ts",
 		"desktop/plugin-host-service.ts",

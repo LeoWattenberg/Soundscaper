@@ -6,6 +6,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { readFileSync, statSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 
 import { dialog } from 'electron/main';
 
@@ -22,6 +23,8 @@ import {
 	pluginObservationFromScanEntry,
 } from './project-library-runtime/desktop/plugin-registry.js';
 import { DesktopPluginScanService } from './project-library-runtime/desktop/plugin-scan-service.js';
+import { createPluginScanProgressSupervisor } from './project-library-runtime/desktop/plugin-scan-progress.js';
+import { createDefaultPluginDiscoveryConsent } from './project-library-runtime/desktop/plugin-discovery-defaults.js';
 import { createDesktopNativeAddonHelperSupervisor } from './native-helper-registration.mjs';
 import { productionSoundscaperPluginFormatActivated } from './soundscaper-native-activation-policy.mjs';
 import { createPluginRegistryAllowanceStore } from './plugin-registry-allowance-store.mjs';
@@ -184,7 +187,8 @@ export function registerDesktopPluginDiscovery({
 		serviceName: 'soundscaper-native-plugin-scanner',
 		payloadKind: 'professional',
 	});
-	const supervisor = injectedSupervisor ?? helper.supervisor;
+	const progress = createPluginScanProgressSupervisor(injectedSupervisor ?? helper.supervisor);
+	const supervisor = progress.supervisor;
 	const describePayload = injectedDescribePayload ?? helper.describePayload;
 	const durable = createDurableFileSystem();
 	const consentPath = join(userDataPath, CONSENT_FILE);
@@ -200,7 +204,8 @@ export function registerDesktopPluginDiscovery({
 			? dialog.showOpenDialog(window, { title: pickerTitle(format), properties: ['openDirectory'] })
 			: dialog.showOpenDialog({ title: pickerTitle(format), properties: ['openDirectory'] }));
 		return result.canceled || result.filePaths.length !== 1 ? null : result.filePaths[0];
-	});
+	}, { enabled: settings.snapshot().nativePluginDiscoveryEnabled === true,
+		isFormatActivated: isPluginHostFormatActivated });
 	let consentWrites = Promise.resolve();
 	const persistConsent = () => {
 		const contents = JSON.stringify(consent.exportState());
@@ -275,6 +280,9 @@ export function registerDesktopPluginDiscovery({
 		...(await service.availability()),
 		consent: activatedConsentProjection(consent.describe(), formatIsActive),
 		quarantine: quarantine.snapshot(),
+	}));
+	handle(channels.nativePluginScanProgress, () => Object.freeze({
+		enabled: settings.snapshot().nativePluginDiscoveryEnabled === true, scanProgress: progress.getSnapshot(),
 	}));
 	handle(channels.nativePluginConsent, async (event, value) => {
 		void ownerFor(event);
@@ -362,14 +370,15 @@ export function registerDesktopPluginDiscovery({
 		]),
 		ready: async () => {
 			await quarantine.load();
+			await persistConsent();
 			return Object.freeze([]);
 		},
 		setEnabled: async (enabled) => {
 			const result = await settings.setNativePluginDiscoveryEnabled(enabled === true);
 			if (!result) {
-				await ara.disable();
 				service.cancelAll();
 				const vampDisabled = vamp.disable();
+				await ara.disable();
 				await hosting?.closeAll();
 				hosting?.service.closeAll();
 				await vampDisabled;
@@ -442,11 +451,13 @@ async function applyConsentAction(consent, { action, format, rootId }) {
  * cannot be trusted starts the format table empty rather than refusing to
  * start, exactly as the durable quarantine does.
  */
-function createConsent(filePath, pickDirectory) {
+function createConsent(filePath, pickDirectory, defaults) {
 	const state = readConsentState(filePath);
+	const options = { pickDirectory, homeDirectory: homedir() };
+	if (state === undefined) return createDefaultPluginDiscoveryConsent(options, defaults);
 	if (state === null) return new DesktopPluginConsent({ pickDirectory });
 	try {
-		return new DesktopPluginConsent({ pickDirectory, state });
+		return new DesktopPluginConsent({ ...options, state });
 	} catch (error) {
 		console.error('The persisted plug-in consent was not admitted; starting with none:', error);
 		return new DesktopPluginConsent({ pickDirectory });
@@ -457,6 +468,7 @@ function readConsentState(filePath) {
 	try {
 		return JSON.parse(readFileSync(filePath, 'utf8'));
 	} catch (error) {
+		if (error?.code === 'ENOENT') return undefined;
 		if (error?.code !== 'ENOENT') {
 			console.error('The persisted plug-in consent could not be read; starting with none:', error);
 		}

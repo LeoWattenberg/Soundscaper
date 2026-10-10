@@ -101,7 +101,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/native-addon-payload.js',
 	'desktop/native-tier-controls.js',
 	'desktop/plugin-scan-results.js',
-	'desktop/plugin-scan-service.js',
+	'desktop/plugin-scan-service.js', 'desktop/plugin-scan-progress.js', 'desktop/plugin-discovery-defaults.js',
 	'desktop/plugin-registry.js',
 	'desktop/plugin-quarantine.js',
 	'desktop/plugin-consent.js',
