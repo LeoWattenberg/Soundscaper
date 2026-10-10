@@ -362,9 +362,9 @@ function parseSrtCueMarkup(value: string): {
 		if (tag === 'u') underline = true;
 		content = content.slice(3, -(tag.length + 3));
 	}
-	// Anything tag-shaped — an angle bracket opening a letter tag — stays
-	// outside the passive subset; a bare angle bracket is literal text.
-	if (/<\/?[a-z]/iu.test(content)) {
+	// Complete tag-shaped markup stays outside the passive subset. An
+	// incomplete angle-bracket comparison is ordinary literal caption text.
+	if (/<\/?[a-z][^<>]*>/iu.test(content)) {
 		throw interchangeError('Caption cue markup is outside the passive maintained subset.', 'ACTIVE_CONTENT');
 	}
 	return { text: content, bold, italic, underline, speaker: null };
