@@ -371,3 +371,18 @@ second required complete suite checkpoint, after the honestly failed full50
 run and its focused resolutions. The complete100 browser run is still active;
 its reviewed first Undo failure passes unchanged focused replay. Subsequent
 source fixes stay in the advance checkout and do not alter this frozen gate.
+
+Qualified total105: editing23, dialogs31, effects21 and IO30. Authenticated
+8fba4b346 passes the five new owners' complete public workflows: selected
+recording region4.3 seconds; video numeric primary/context draft8.9 seconds;
+ordinary Freesound recording/folder upload and native Framescaper source-rate
+monitor capture4/4 in31.3 seconds; finite400/450ms loudness reports2/2 in7.4
+seconds. Genuine PCM and published RIFF/report bytes remain part of their
+oracles. Both guarded product builds and startup tightening pass, with no
+ceiling change; complete test/tooling strict compilation passes. The full
+repository lint also passes all8 bounded shards after the annotation size
+claim. Completed build, compiler, lint and public output is reviewed and
+removed immediately. A separate immutable8fba4b346 helper checkpoint runs
+another full Node suite for the new annotation/capture helper owners while
+the frozen100 browser gate continues. Manual **Update AI assets** is not
+required. Later public-causal candidates have no count until complete GREEN.
