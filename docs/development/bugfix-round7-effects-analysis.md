@@ -507,8 +507,9 @@ side-tap disposal.
 The strengthened ordinary Chromium witness is causally RED on unchanged
 prepared capture 68 in 9.1 seconds: healthy original Spectrum performs 14 native
 4096-point FFT reads, the Mono scalar meter remains audible, and the new
-Spectrum read count stays at 14. Corrected public GREEN awaits the shared
-build. A preboot failure is excluded; an earlier canvas-only check retained its
+Spectrum read count stays at 14. Guarded prepared capture 73b99f5b8 passes the
+complete corrected public workflow in 5.2 seconds. A preboot failure is excluded;
+an earlier canvas-only check retained its
 old drawing and was insufficient evidence. The corrected witness passively
 observes actual native FFT reads as well as playback and canvas data. Owned
 diagnostic directories are inspected and removed immediately. No manual
@@ -534,14 +535,34 @@ The actual rack graph and reader are causally RED in three ordinary stereo/
 surround configurations after healthy mono/matching controls. Corrected
 channel-power, silent-channel, full-width, rack-worklet, preview and spectrum
 projection controls pass 30/30. Target type-aware lint, changed lint, size and
-diff checks pass. Complete strict test compilation reports no owned errors;
-one concurrent recording timestamp fixture awaits its owner's narrowing fix.
+diff checks pass. Complete strict source/test compilation is GREEN after the
+concurrent recording timestamp fixture's owner corrected its narrowing.
 The independent ordinary Chromium baseline on
 unchanged prepared capture 68 passes matching microphone polarity in 5.2
 seconds; opposite polarity is causally RED in 9.0 seconds after a healthy
 actual master peak, with the Input spectrum empty (alpha position 1 instead of
 less than 0.35). Output has the same independently observed graph construction
-and shares this one root. Corrected public GREEN awaits the shared build.
+and shares this one root. Guarded prepared capture 73b99f5b8 passes both complete
+matching and opposite-polarity public workflows in 8.9/8.3 seconds.
 The bounded failure trace is read and its short log removed immediately; the
 owned diagnostic folder had already been replaced by the next shared run.
 No manual Update AI assets run is required.
+
+### Full-suite verification follow-through — no additional roots
+
+The post-fixture full Node gate identified six stale round-four averaged
+Spectrum signatures. These are exactly the 32-, 256- and 2048-point full
+selection and half-sample-offset averages whose final remainder window FX010
+now includes. Refresh only those six signatures; all 160 other signatures,
+including PCM, routing, snapshots and painted geometry, remain byte-identical.
+The independent final-tone worker and calibrated amplitude assertions remain
+in the focused gate.
+
+The same gate also rejected FX011's raw seconds-to-sample release arithmetic.
+Use the shared secondsToSampleFrame helper with the enclosingEnd policy and
+register that exact physical crossover boundary in the existing conversion
+audit. A focused intermediate audit confirms that the new consumer requires
+classification; the corrected audit, chunk ownership, physical release,
+Spectrum calibration and frozen parity controls pass 57/57. Target lint,
+changed lint, size and owned diff checks pass. These repairs add zero bugs;
+bounded verification logs are removed immediately after recording the result.

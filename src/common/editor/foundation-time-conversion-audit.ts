@@ -46,6 +46,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'band-dynamics-filter-release-end',
+		file: 'src/common/editor/effects.js',
+		behavior: 'Band dynamics reserve their physical crossover release through the enclosing final output sample so export and live scheduling retain the complete filter decay.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd'] }],
+	},
+	{
 		id: 'export-dialog-delivered-chapter-span',
 		file: 'src/common/editor/ui/export-dialog-embedded-chapters.ts',
 		behavior: 'Embedded-chapter availability resolves the delivered range length to its nearest output sample once, preserving the chapter writer\'s exclusive endpoint and minimum output frame.',
