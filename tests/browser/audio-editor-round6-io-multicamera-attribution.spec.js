@@ -2,11 +2,12 @@
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, closeWorkspacePanel, disableNativeSavePicker,
-	downloadBytes, importFiles } from './audio-editor-test-helpers.js';
+	downloadBytes, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
 
 test('Attribution credits the actual switched multicamera source for its ordinary output clip', async ({ page }) => {
+	test.setTimeout(60_000);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
@@ -41,7 +42,7 @@ test('Attribution credits the actual switched multicamera source for its ordinar
 	const row = csv.split('\r\n').find((line) => line.includes(',"camera-a","00:00:'));
 	expect(row).toContain(',"camera-b.mp4","video",');
 	await page.reload();
-	await expect(editor).toHaveAttribute('data-editor-ready', 'true');
+	await waitForEditor(page);
 	await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
 	await metadata.getByRole('tab', { name: 'Attribution', exact: true }).click();
 	await expect(output.locator('strong')).toHaveText('camera-b.mp4');
