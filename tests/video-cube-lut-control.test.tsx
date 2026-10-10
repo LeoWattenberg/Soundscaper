@@ -64,3 +64,21 @@ test('native file admission is latched before borrowed currentness can synchrono
 		await act(async () => { retained!(event); }); assert.equal(checks, 1); assert.equal(imports, 1);
 	} finally { await mounted.dispose(); }
 });
+
+test('failed LUT import re-arms the same file before the callback and permits a retry after settlement', async () => {
+	const input = { files: [file], value: 'C:\\fakepath\\look.cube' }, attempts: File[] = [];
+	const mounted = await mountPhotoImportUi(() => <VideoCubeLutControl reference={reference} copy={VIDEO_EFFECT_COPY_BY_LOCALE.en} disabled={false}
+		isCurrent={() => true} onImport={selected => {
+			assert.equal(input.value, '', 'the import callback must see an already re-armed picker'); attempts.push(selected);
+			if (attempts.length === 1) return Promise.reject(new Error('Invalid LUT body.'));
+		}} onClear={() => undefined} />);
+	try {
+		await mounted.event('input', 'onChange', { currentTarget: input });
+		assert.equal(mounted.dom.one('[role="alert"]').textContent, 'The LUT could not be applied.');
+		input.value = 'C:\\fakepath\\look.cube'; await mounted.event('input', 'onChange', { currentTarget: input });
+		assert.deepEqual(attempts, [file, file]); assert.equal(input.value, '');
+		assert.equal(mounted.dom.find('[role="alert"]'), null);
+		input.files = []; input.value = 'C:\\fakepath\\look.cube'; await mounted.event('input', 'onChange', { currentTarget: input });
+		assert.equal(input.value, ''); assert.deepEqual(attempts, [file, file]);
+	} finally { await mounted.dispose(); }
+});

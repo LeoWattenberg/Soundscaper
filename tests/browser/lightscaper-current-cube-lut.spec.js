@@ -14,6 +14,9 @@ import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-si
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
+// The authored observer workflow serves test-only code; cold menu cases keep ordinary coverage.
+const syntheticRouteTest = test.extend({ browserCoverage: false });
+
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
 const CUBE = Buffer.from(`LUT_3D_SIZE 2\n${Array.from({ length: 8 }, () => '0.25 0 0\n').join('')}`);
 const SHA = createHash('sha256').update(CUBE).digest('hex');
@@ -29,7 +32,7 @@ for (const locale of ['en', 'de']) {
 		await expect(app.getByLabel(messages.shared.videoEffectCubeLutImport, { exact: true })).toHaveCount(0);
 	});
 
-	test(`${locale}: keyboard LUT authoring preserves literal pixels, mixed history and full/partial presets through native V5 backup, same-ID restore and reload`, async ({ page, browserName }) => {
+	syntheticRouteTest(`${locale}: keyboard LUT authoring preserves literal pixels, mixed history and full/partial presets through native V5 backup, same-ID restore and reload`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Full WebKit catalog Blob/OPFS custody qualification remains deferred.');
 		test.setTimeout(120_000);
 		const { app, copy, messages, settings, restoreCopy, errors } = await setup(page, locale);

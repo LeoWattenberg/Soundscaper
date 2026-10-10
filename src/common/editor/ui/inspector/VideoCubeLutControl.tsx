@@ -3,6 +3,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { VideoCubeLutReferenceV1 } from '../../video-color-cube-lut-v27.ts';
+import { takeSelectedFile } from '../file-input-selection.ts';
 
 export interface VideoCubeLutControlProps {
 	readonly reference: VideoCubeLutReferenceV1 | null;
@@ -45,7 +46,7 @@ export default function VideoCubeLutControl(props: VideoCubeLutControlProps) {
 	}
 	function choose(event: ChangeEvent<HTMLInputElement>): void {
 		run(() => {
-			const input = event.currentTarget, file = input.files?.[0]; input.value = '';
+			const file = takeSelectedFile(event.currentTarget);
 			if (file) return Reflect.apply(binding.onImport, binding, [file]) as PromiseLike<void> | void;
 		});
 	}

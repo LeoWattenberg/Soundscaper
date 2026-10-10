@@ -14,6 +14,9 @@ import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-si
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
 
+// Every case serves test-only observation/corruption/eviction code, outside portable coverage.
+test.use({ browserCoverage: false });
+
 // Actual UI commands publish all records. The bounded fixture observes the selected
 // namespace, corrupts one body for recovery, and invokes the real preview trim owner.
 const OBSERVER = '/__current_library_loop.js';

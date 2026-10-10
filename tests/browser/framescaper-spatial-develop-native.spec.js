@@ -13,6 +13,9 @@ import { GRAIN_PNG_BASE64, GRAIN_SOURCE, GRAIN_PARAMS, GRAIN_PIXELS } from './he
 import { TEXTURE_PNG_BASE64, TEXTURE_SOURCE, TEXTURE_PARAMS, TEXTURE_PIXELS } from './helpers/lightscaper-texture-reference.ts';
 import { DEHAZE_PNG_BASE64, DEHAZE_SOURCE, DEHAZE_PARAMS, DEHAZE_PIXELS } from './helpers/lightscaper-dehaze-reference.ts';
 
+// Every case serves a test-only shader/export witness; it is excluded from portable coverage.
+test.use({ browserCoverage: false });
+
 const MODULE = '/__framescaper_authored_spatial_native.js';
 const ENTRY = new URL('../helpers/framescaper-global-export-fixture.ts', import.meta.url);
 const ROUTES = { en: { file: 'File', edit: 'Edit', copy: EDITOR_ENGLISH_COPY },
