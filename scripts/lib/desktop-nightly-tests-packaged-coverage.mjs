@@ -14,7 +14,7 @@ export const PACKAGED_COVERAGE_ARTIFACT_PATHS = Object.freeze({
 	packagedCoverageTestResults: 'e2e-coverage/packaged-runtime/test-results',
 });
 
-const PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
+const PRODUCTS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 
 export function createDesktopNightlyTestsPackagedCoveragePlan({
 	executablePath,

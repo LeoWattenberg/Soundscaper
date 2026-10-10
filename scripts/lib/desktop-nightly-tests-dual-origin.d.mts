@@ -21,13 +21,13 @@ export interface DesktopNightlyTestsDualOriginOptions {
 	readonly environment?: DesktopNightlyTestsEnvironment;
 	readonly activeProductOrigins?: Readonly<{
 		readonly soundscaper: string;
-		readonly framescaper: string;
+		readonly framescaper: string; readonly motionscaper: string;
 	}>;
 }
 
 export function createDesktopNightlyTestsDualOriginPlan(
 	options: DesktopNightlyTestsDualOriginOptions & {
-		readonly origins: Readonly<{ readonly soundscaper: string; readonly framescaper: string }>;
+		readonly origins: Readonly<{ readonly soundscaper: string; readonly framescaper: string; readonly motionscaper: string }>;
 	},
 ): DesktopNightlyTestsPlaywrightPlan;
 

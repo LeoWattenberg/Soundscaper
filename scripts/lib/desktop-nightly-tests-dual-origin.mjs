@@ -14,7 +14,7 @@ export const DUAL_ORIGIN_ARTIFACT_PATHS = Object.freeze({
 	dualOriginTestResults: 'e2e-coverage/dual-origin/test-results',
 });
 
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 
 export function createDesktopNightlyTestsDualOriginPlan({
 	executablePath,
@@ -139,13 +139,13 @@ async function rejectInvalidServer(server, message) {
 
 function validateOrigins(origins) {
 	if (!origins || typeof origins !== 'object' || Array.isArray(origins)) {
-		throw new TypeError('Dual-origin coverage requires both product origins.');
+		throw new TypeError('Dual-origin coverage requires all product origins.');
 	}
 	const admitted = Object.fromEntries(PRODUCT_IDS.map((productId) => [
 		productId,
 		loopbackOrigin(origins[productId], `${productId} product origin`),
 	]));
-	if (admitted.soundscaper === admitted.framescaper) {
+	if (new Set(Object.values(admitted)).size !== PRODUCT_IDS.length) {
 		throw new Error('Dual-origin coverage requires distinct product origins.');
 	}
 	return Object.freeze(admitted);

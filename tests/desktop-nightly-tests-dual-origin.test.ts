@@ -17,6 +17,7 @@ import { nightlyProductSitesFixture } from './helpers/nightly-tests-product-site
 
 const SOUNDSCAPER_ORIGIN = 'http://127.0.0.1:4332';
 const FRAMESCAPER_ORIGIN = 'http://127.0.0.1:4333';
+const MOTIONSCAPER_ORIGIN = 'http://127.0.0.1:4334';
 
 test('dual-origin coverage plan shares the browser profile directory and isolates reports', () => {
 	const payloadRoot = '/opt/Soundscaper Tests/resources/nightly-tests';
@@ -26,7 +27,7 @@ test('dual-origin coverage plan shares the browser profile directory and isolate
 		payloadRoot,
 		runRoot,
 		esbuildBinaryPath: '/opt/Soundscaper Tests/resources/nightly-tests/node_modules/@esbuild/linux-x64/bin/esbuild',
-		origins: { soundscaper: SOUNDSCAPER_ORIGIN, framescaper: FRAMESCAPER_ORIGIN },
+		origins: { soundscaper: SOUNDSCAPER_ORIGIN, motionscaper: MOTIONSCAPER_ORIGIN, framescaper: FRAMESCAPER_ORIGIN },
 		environment: { PATH: '/usr/bin' },
 	});
 
@@ -37,7 +38,7 @@ test('dual-origin coverage plan shares the browser profile directory and isolate
 		'/tmp/Soundscaper-playwright-run/coverage/v8-browser');
 	assert.deepEqual(JSON.parse(plan.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ?? ''), {
 		soundscaper: SOUNDSCAPER_ORIGIN,
-		framescaper: FRAMESCAPER_ORIGIN,
+		motionscaper: MOTIONSCAPER_ORIGIN, framescaper: FRAMESCAPER_ORIGIN,
 	});
 	assert.deepEqual(JSON.parse(plan.env.SCAPE_BROWSER_COVERAGE_SITES ?? ''), [
 		{
@@ -50,6 +51,7 @@ test('dual-origin coverage plan shares the browser profile directory and isolate
 			origin: FRAMESCAPER_ORIGIN,
 			outputDirectory: join(payloadRoot, 'sites/framescaper'),
 		},
+		{ productId: 'motionscaper', origin: MOTIONSCAPER_ORIGIN, outputDirectory: join(payloadRoot, 'sites/motionscaper') },
 	]);
 });
 
@@ -61,6 +63,7 @@ test('dual-origin coverage serves the authenticated reciprocal builds and closes
 	for (const [productId, origin] of [
 		['soundscaper', SOUNDSCAPER_ORIGIN],
 		['framescaper', FRAMESCAPER_ORIGIN],
+		['motionscaper', MOTIONSCAPER_ORIGIN],
 	] as const) {
 		const manifest = join(payloadRoot, 'sites', productId, '.browser-product-build.json');
 		await mkdir(dirname(manifest), { recursive: true });
@@ -91,6 +94,7 @@ test('dual-origin coverage serves the authenticated reciprocal builds and closes
 	assert.deepEqual(starts, [
 		{ root: join(payloadRoot, 'sites/soundscaper'), host: '127.0.0.1', port: 4332 },
 		{ root: join(payloadRoot, 'sites/framescaper'), host: '127.0.0.1', port: 4333 },
+		{ root: join(payloadRoot, 'sites/motionscaper'), host: '127.0.0.1', port: 4334 },
 	]);
 	assert.ok(planSeen);
 	assert.deepEqual(closes.sort(), starts.map(({ root }) => root).sort());
@@ -105,6 +109,7 @@ test('dual-origin coverage reuses an already bound authenticated product pair', 
 	for (const [productId, origin] of [
 		['soundscaper', SOUNDSCAPER_ORIGIN],
 		['framescaper', FRAMESCAPER_ORIGIN],
+		['motionscaper', MOTIONSCAPER_ORIGIN],
 	] as const) {
 		const manifest = join(payloadRoot, 'sites', productId, '.browser-product-build.json');
 		await mkdir(dirname(manifest), { recursive: true });
@@ -117,7 +122,7 @@ test('dual-origin coverage reuses an already bound authenticated product pair', 
 		runRoot: join(temporaryRoot, 'run'), environment: {},
 		activeProductOrigins: {
 			soundscaper: SOUNDSCAPER_ORIGIN,
-			framescaper: FRAMESCAPER_ORIGIN,
+			motionscaper: MOTIONSCAPER_ORIGIN, framescaper: FRAMESCAPER_ORIGIN,
 		},
 	}, {
 		startPagesSiteServer: async () => {
@@ -142,6 +147,7 @@ test('dual-origin coverage refuses an active origin that disagrees with build ev
 	for (const [productId, origin] of [
 		['soundscaper', SOUNDSCAPER_ORIGIN],
 		['framescaper', FRAMESCAPER_ORIGIN],
+		['motionscaper', MOTIONSCAPER_ORIGIN],
 	] as const) {
 		const manifest = join(payloadRoot, 'sites', productId, '.browser-product-build.json');
 		await mkdir(dirname(manifest), { recursive: true });
@@ -152,7 +158,7 @@ test('dual-origin coverage refuses an active origin that disagrees with build ev
 		runRoot: join(temporaryRoot, 'run'), environment: {},
 		activeProductOrigins: {
 			soundscaper: 'http://127.0.0.1:49998',
-			framescaper: FRAMESCAPER_ORIGIN,
+			motionscaper: MOTIONSCAPER_ORIGIN, framescaper: FRAMESCAPER_ORIGIN,
 		},
 	}, {
 		runPlaywright: async () => ({ code: 0, signal: null }),
@@ -193,6 +199,7 @@ test('dual-origin coverage preserves a primary failure when server shutdown also
 	for (const [productId, origin] of [
 		['soundscaper', SOUNDSCAPER_ORIGIN],
 		['framescaper', FRAMESCAPER_ORIGIN],
+		['motionscaper', MOTIONSCAPER_ORIGIN],
 	] as const) {
 		const manifest = join(payloadRoot, 'sites', productId, '.browser-product-build.json');
 		await mkdir(dirname(manifest), { recursive: true });
@@ -239,7 +246,7 @@ test('the nightly runtime schedules dual-origin coverage before diagnostics', as
 		runDualOriginPhase: async (options, dependencies) => {
 			assert.deepEqual(options.activeProductOrigins, {
 				soundscaper: 'http://127.0.0.1:47777',
-				framescaper: 'http://127.0.0.1:47778',
+				framescaper: 'http://127.0.0.1:47778', motionscaper: 'http://127.0.0.1:47779',
 			});
 			return runDualOriginPhaseFixture(options, dependencies);
 		},

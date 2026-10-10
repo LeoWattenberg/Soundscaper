@@ -82,6 +82,9 @@ test('coverage evidence preservation makes browser and Electron builds portable'
 		['sites/framescaper-source-maps/assets/app.js.map', '{"sources":[]}\n'],
 		['products/soundscaper/e2e-coverage/manifest.json', '{"productId":"soundscaper"}\n'],
 		['products/framescaper/e2e-coverage/manifest.json', '{"productId":"framescaper"}\n'],
+		['sites/motionscaper/assets/app.js', 'motionscaper browser\n'],
+		['sites/motionscaper-source-maps/assets/app.js.map', '{"sources":[]}\n'],
+		['products/motionscaper/e2e-coverage/manifest.json', '{"productId":"motionscaper"}\n'],
 	] as const) {
 		const target = join(payloadRoot, path);
 		await mkdir(dirname(target), { recursive: true });
@@ -121,6 +124,9 @@ test('packaged coverage phase preserves evidence before running Playwright', asy
 		'sites/framescaper-source-maps/app.js.map',
 		'products/soundscaper/e2e-coverage/manifest.json',
 		'products/framescaper/e2e-coverage/manifest.json',
+		'sites/motionscaper/app.js',
+		'sites/motionscaper-source-maps/app.js.map',
+		'products/motionscaper/e2e-coverage/manifest.json',
 	]) {
 		const target = join(payloadRoot, path);
 		await mkdir(dirname(target), { recursive: true });

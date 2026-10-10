@@ -15,6 +15,7 @@ export function nightlyProductSitesFixture(
 		const origins = Object.freeze({
 			soundscaper: `http://127.0.0.1:${String(firstPort)}`,
 			framescaper: `http://127.0.0.1:${String(firstPort + 1)}`,
+			motionscaper: `http://127.0.0.1:${String(firstPort + 2)}`,
 		});
 		const browserEnvironment: DesktopNightlyTestsEnvironment = Object.freeze({
 			...environment,

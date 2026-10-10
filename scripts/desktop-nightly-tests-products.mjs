@@ -39,7 +39,7 @@ export async function packageDesktopNightlyTestProducts({
 	}
 	await rm(outputRoot, { recursive: true, force: true });
 	await mkdir(outputRoot, { recursive: true });
-	for (const productId of ['soundscaper', 'framescaper']) {
+	for (const productId of ['soundscaper', 'framescaper', 'motionscaper']) {
 		const productOutput = resolve(outputRoot, productId);
 		const commandEnvironment = {
 			...environment,
@@ -58,7 +58,7 @@ export async function packageDesktopNightlyTestProducts({
 			{ cwd: repositoryRoot, environment: commandEnvironment });
 		// Handoff import already checks public HEAD, Range and the full downloaded
 		// archive body, then verifies its tar closure before each product is staged.
-		if (publishAssistanceRuntimes || (verifyAssistanceRuntimes && !handoffRoot)) {
+		if (productId !== 'motionscaper' && (publishAssistanceRuntimes || (verifyAssistanceRuntimes && !handoffRoot))) {
 			await run(process.execPath, [
 				resolve(repositoryRoot, 'scripts/publish-assistance-runtime-assets.mjs'),
 				publishAssistanceRuntimes ? '--publish' : '--verify',
@@ -89,7 +89,7 @@ export async function packageDesktopNightlyTestProducts({
 }
 
 async function resolveProductExecutable({ productOutput, productId, platform, arch }) {
-	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+	const productName = { soundscaper: 'Soundscaper', framescaper: 'Framescaper', motionscaper: 'Motionscaper' }[productId];
 	const hostPlatform = Object.freeze({ win: 'win32', mac: 'darwin', linux: 'linux' })[platform];
 	const candidates = packagedExecutableCandidates({
 		arch,

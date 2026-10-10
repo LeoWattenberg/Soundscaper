@@ -385,6 +385,7 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 	assert.deepEqual(calls.map(({ productId }) => productId), [
 		'soundscaper', 'soundscaper', 'soundscaper',
 		'framescaper', 'framescaper', 'framescaper',
+		'motionscaper', 'motionscaper',
 	]);
 	assert.ok(calls.every(({ sourceMaps }) => sourceMaps === '1'));
 	assert.ok(calls.every(({ r2AccessKey }) => r2AccessKey === undefined));
@@ -396,12 +397,12 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 			SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: join(root, 'published-handoff'),
 			R2_MODELS_ACCESS_KEY_ID: 'must-not-reach-import' }, run });
 	assert.deepEqual(calls.map(({ productId }) => productId), [
-		'soundscaper', 'soundscaper', 'framescaper', 'framescaper',
+		'soundscaper', 'soundscaper', 'framescaper', 'framescaper', 'motionscaper', 'motionscaper',
 	]);
 	assert.ok(calls.every(({ r2AccessKey }) => r2AccessKey === undefined));
 	assert.equal(calls.some(({ args }) => args.some((value) =>
 		value.endsWith('publish-assistance-runtime-assets.mjs'))), false);
-	for (const productId of ['soundscaper', 'framescaper']) {
+	for (const productId of ['soundscaper', 'framescaper', 'motionscaper']) {
 		assert.equal(
 			JSON.parse(await readFile(join(outputRoot, productId, 'stage-manifest.json'), 'utf8')).productId,
 			productId,
