@@ -55,7 +55,7 @@ replacement recording; frozen-video audition checks the encoded source's
 actual third-packet timestamp, rather than its sequence clock. Those completed
 observer corrections preserve their original admission/freeze causal REDs.
 Details and exact controls are recorded in the area registers. The qualified
-total is 60; unqualified new candidates do not count toward it.
+total at that capture is 60; unqualified new candidates do not count toward it.
 
 The browser run first reports failures in normalization, folder creation,
 still-image import and the Guided editorial prerequisite. Replaying the first
@@ -97,3 +97,22 @@ history and ownership assertions. These corrections add no bug counts. The
 complete browser run continues against the frozen prepared checkpoint while
 later changes proceed in the advance worktree. Completed documentation build
 output and reviewed diagnostics are removed immediately after their receipts.
+
+## Qualified total: 68 fixes
+
+Prepared source `ee9b3f13c` completes the next eight distinct roots in Chromium:
+EDIT015–016 (atomic first Quantize and touching-label silence detachment),
+DIALOG020–022 (one-frame dissolve, real picture adjacency and workspace name
+publication), EFFECT013 (Audacity filter release), and IO018–019 (caption read
+lifetime and native FCPXML source format). Their healthy controls and complete
+public Undo/Redo or delivery witnesses pass; the combined batch passes 15/15
+in 50.6 seconds. It also completes D016's original Audacity-onboarding meter
+path after its zero-count latest-intent follow-through.
+
+Both guarded product builds and complete source/test TypeScript checks pass.
+The largest emitted chunk is 487,635 bytes, below the unchanged 500,000-byte
+ceiling. The startup graph tightening command reports no room to tighten;
+no graph maxima or semantic ownership guards were increased. Detailed causal
+RED, focused GREEN and excluded setup receipts remain in the four area registers.
+The complete checkpoint-50 browser run remains active; the next complete gates
+are due at 100 qualified fixes.
