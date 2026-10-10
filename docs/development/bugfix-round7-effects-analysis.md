@@ -566,3 +566,36 @@ classification; the corrected audit, chunk ownership, physical release,
 Spectrum calibration and frozen parity controls pass 57/57. Target lint,
 changed lint, size and owned diff checks pass. These repairs add zero bugs;
 bounded verification logs are removed immediately after recording the result.
+
+## R7-EFFECT-016 — Sound Visualizer understates ordinary high recorded tones
+
+Import an ordinary two-second mono recording whose 468.75 Hz and 14062.5 Hz
+sections have equal amplitude. In Framescaper, Generate → Video Generators →
+Add Sound Visualizer, then Effect → Video Finishing → Selected Visual Inspector.
+Choose Spectrum, select that audio source and Apply. Seek into each section.
+At the default 1280-pixel canvas, the high-frequency peak appears 6 dB below
+the low reference. The actual calibrated FFT contains its complete peak, but
+the generated raster takes one rounded bin per logarithmic pixel and skips
+the central high-frequency bin. At an ordinary 720-pixel canvas another tone
+almost disappears. This generated native raster has an independent projection
+owner from the earlier Plot Spectrum and Parametric EQ graph repairs.
+
+Preserve the strongest averaged bin power across each pixel's complete
+half-pixel logarithmic frequency interval. Keep the FFT, time averaging,
+source clock, colors, marker and waveform rendering contracts.
+The actual renderer is causally RED in four normal canvas/frequency cases,
+after the low reference and every independent FFT amplitude control pass.
+Corrected rendering, packed-window, selected-preview and materializer controls
+pass 21/21. Target type-aware lint, changed lint, size and owned diff checks
+pass. Complete strict test compilation remains active with an explicit 8 GiB
+heap after the first default-heap run exhausted 4 GiB before diagnostics.
+
+The normal menu workflow is causally RED on unchanged guarded prepared capture
+73b99f5b8 in 18.4 seconds. It verifies equal recorded RMS, a healthy low-tone
+peak and complete new native raster delivery at the high-tone seek, with the
+preview ready and no pending/error state. Its passively observed actual
+putImageData peak is at row 0.0722222222 instead of less than 0.03. Native calls
+and argument types remain intact; no editor state or internal action is
+installed. Corrected public GREEN awaits the next guarded shared build. Owned
+failure context and bounded logs are read and removed immediately; recording
+PCM stays in memory. No manual Update AI assets run is required.
