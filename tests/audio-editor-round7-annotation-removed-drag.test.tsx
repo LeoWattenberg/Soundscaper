@@ -38,7 +38,7 @@ for (const kind of ['marker', 'region', 'start', 'end'] as const) for (const rem
 				selectedAnnotationId={id ?? null} copy={ENGLISH_COPY} locale="en" pixelsPerSecond={100} sampleRate={100}
 				scrollX={0} viewportWidth={600} blocked={false} run={(operation: () => unknown) => operation()} createAnnotation={() => null} />));
 		};
-		const pointer = (row: Element, clientX: number, pointerId = 1) => ({ button: 0, pointerId, isPrimary: true,
+		const pointer = (row: ReturnType<typeof dom.one>, clientX: number, pointerId = 1) => ({ button: 0, pointerId, isPrimary: true,
 			clientX, pointerType: 'mouse', buttons: 1, currentTarget: row,
 			target: kind === 'start' || kind === 'end' ? row.querySelector(`[data-annotation-edge="${kind}"]`) : row,
 			preventDefault() {}, stopPropagation() {} });
