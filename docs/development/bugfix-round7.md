@@ -220,3 +220,13 @@ after its frozen b04 causal failure and61 focused physical/support passes.
 The fully qualified total is82: editing18, dialogs25, effects17 and IO22.
 Completed build, compiler and public diagnostics are removed after review.
 Manual **Update AI assets** is not required.
+
+Guarded capture24cbd04c0 completes the three next ordinary Chromium workflows:
+IO024 stereo/mono own DAWproject round trips pass in7.7/8.0 seconds, and
+EDIT020's selected Title Skip workflow passes in6.7 seconds. Its two new typing
+errors are narrowed in970aa5f53; focused behavior remains33/33, existing
+ownership audits pass45/45, changed lint passes and complete strict test/tooling
+compilation passes. The qualified total is84: editing19, dialogs25, effects17
+and IO23. New preset-refusal and EDL overlap-report candidates remain outside
+this tally until their corrected complete public workflows pass. Reviewed
+verification logs and diagnostics are deleted immediately.
