@@ -140,7 +140,7 @@ test('generation retirement during the real cross-format exporter join prevents 
 	} finally { armed = false; release.resolve(); PhotoRasterExport.prototype.cancelAndJoin = original; await m.dispose(); await f.close(); }
 });
 
-test('batch Apply refuses a sidecar preset and keeps the draft, while a supported recipe remains editable', async () => {
+test('batch Apply captures the sidecar preference without reading bodies or acquiring destinations', async () => {
 	const f = await fixture(), port = await f.session.exportPresets!.open();
 	await port.write({ schemaVersion: 1, command: { type: 'save', expectedRevision: 0, preset: { ...RECIPE, sidecarEnabled: true } } });
 	await port.write({ schemaVersion: 1, command: { type: 'save', expectedRevision: 1, preset: { ...RECIPE, id: 'supported', format: 'jpeg' } } });
@@ -150,12 +150,38 @@ test('batch Apply refuses a sidecar preset and keeps the draft, while a supporte
 		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'actual batch ready');
 		await m.event('[data-photo-raster-export-filename-template]', 'onChange', { target: { value: 'Draft-{name}' } });
 		await choose(m); await m.event('[data-photo-export-preset-apply]', 'onClick');
-		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-export-preset-message]')?.textContent.includes('sidecar') === true; }, 'explicit unsupported batch sidecar refusal');
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-sidecar]') !== null && Object.is(reactProps(m.dom.one('[data-photo-batch-export-sidecar]')).checked, true); }, 'applied companion preference');
 		assert.equal(reactProps(m.dom.one('[data-photo-batch-export-format]')).value, 'png');
-		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-filename-template]')).value, 'Draft-{name}');
+		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-filename-template]')).value, RECIPE.filenameTemplate);
+		await m.event('[data-photo-export-preset-name]', 'onChange', { currentTarget: { value: 'Paired batch' } }); await m.event('[data-photo-export-preset-save]', 'onClick');
+		await waitFor(async () => { await flush(); return (await port.list({ schemaVersion: 1 })).presets.some(preset => preset.name === 'Paired batch'); }, 'real selected CAS retains companion preference');
+		const paired = (await port.list({ schemaVersion: 1 })).presets.find(preset => preset.name === 'Paired batch')!;
+		assert.equal((await port.read({ schemaVersion: 1, presetId: paired.id, expectedRevision: (await port.list({ schemaVersion: 1 })).revision })).preset.sidecarEnabled, true);
 		await choose(m, 'supported'); await m.event('[data-photo-export-preset-apply]', 'onClick'); await flush(); recipeDisplayed(m);
 		assert.equal(reactProps(m.dom.one('[data-photo-batch-export-format]')).value, 'jpeg');
+		assert.equal(reactProps(m.dom.one('[data-photo-batch-export-sidecar]')).checked, false);
 		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-percentage]')).disabled, false); assert.equal(f.bodies(), 0); assert.equal(f.native(), 0);
+	} finally { await m.dispose(); await f.close(); }
+});
+
+test('reopened image ACK with pending JSON restores its companion and permits discard/recovery without completed replacement', async () => {
+	const f = await fixture(), photo = f.photos[0]!, version = photo.versions[0]!;
+	const plan = capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId: 'paired-retained', format: 'png', filenameTemplate: 'Retained-{name}', sidecarEnabled: true,
+		members: [{ photoId: photo.id, versionId: version.id, expectedRevision: photo.revision, sourceFileName: 'Current.png' }] });
+	const sidecar = await f.session.readExportSidecar({ catalogId: photo.catalogId, photoId: photo.id, versionId: version.id, expectedRevision: photo.revision });
+	const before = createPhotoRasterExportJournalV1(plan, { catalogId: photo.catalogId, filenameTemplate: 'Retained-{name}', bindings: [{ originalSha256: photo.original.contentSha256,
+		recipeSha256: canonicalJsonSha256(version.develop), lutSha256: [], sidecarSha256: canonicalJsonSha256(JSON.parse(sidecar)) }] });
+	const journal = { ...before, members: before.members.map(member => ({ ...member, state: 'committed', delivery: { status: 'download-started', method: 'download', fileName: member.fileName, size: 8 } })) };
+	assert.equal(await f.settings.putIfAbsent(photoRasterExportJournalKeyV1(photo.catalogId), journal), true);
+	const props = { ...f.props, batchId: 'new-explicit', selection: [{ photoId: photo.id, fileName: 'Current.png' }], visible: true };
+	const m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...props} />);
+	try {
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-export-journal]') !== null && m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'current JSON-only recovery ready');
+		assert.equal(reactProps(m.dom.one('[data-photo-batch-export-sidecar]')).checked, true);
+		assert.equal(m.dom.find('[data-photo-batch-export-replace]'), null);
+		assert.notEqual(m.dom.find('[data-photo-batch-sidecar-pending]'), null); assert.notEqual(m.dom.find('[data-photo-batch-export-discard]'), null);
+		assert.equal(reactProps(m.dom.one('[data-photo-export-preset-fields]')).disabled, true);
+		assert.equal(f.bodies(), 0); assert.equal(f.native(), 0); assert.deepEqual(await f.settings.get(photoRasterExportJournalKeyV1(photo.catalogId)), journal);
 	} finally { await m.dispose(); await f.close(); }
 });
 

@@ -5,7 +5,7 @@ import type { ExecutePhotoDevelopV2 } from '../../common/editor/controller/share
 import { parsePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
 import { createPhotoCubeLutClosureV1 } from '../catalog/photo-cube-lut-closure-v1.ts';
 import { PhotoRasterExportJournalOwnerV1 } from '../storage/photo-raster-export-journal-owner-v1.ts';
-import { createPhotoRasterExportJournalV1, type PhotoRasterExportBindingV1 } from '../storage/photo-raster-export-journal-v1.ts';
+import { createPhotoRasterExportJournalV1, isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportBindingV1 } from '../storage/photo-raster-export-journal-v1.ts';
 import { capturePhotoRasterBatchSelection, preparePhotoRasterBatchSelection, type PhotoRasterBatchSelection, type PreparedPhotoRasterBatchSelection } from './photo-raster-export-batch-selection.ts';
 import type { PhotoRasterExportBatchDestinations } from './photo-raster-export-batch-queue.ts';
 import type { PhotoRasterExportBatchV1 } from './photo-raster-export-batch-v1.ts';
@@ -15,14 +15,16 @@ import { reconcilePhotoRasterExportBatchRecoveryV1, type PhotoRasterExportRecove
 import { readClosedDomainRecord as record, readClosedDomainField as field, readClosedDomainArray as array } from '../../common/editor/closed-domain-value.ts';
 
 /** Scalar provenance from a complete admitted saved Photo, not a body lease. */
-export async function readPhotoRasterExportBinding(request: Readonly<PhotoLibraryExportSidecarRequest>, read: ReadPhotoExportSidecar, signal: AbortSignal): Promise<Readonly<PhotoRasterExportBindingV1>> {
+export async function readPhotoRasterExportBinding(request: Readonly<PhotoLibraryExportSidecarRequest>, read: ReadPhotoExportSidecar, signal: AbortSignal, sidecarEnabled = false): Promise<Readonly<PhotoRasterExportBindingV1>> {
 	const captured = Object.freeze({ catalogId: request.catalogId, photoId: request.photoId, versionId: request.versionId, expectedRevision: request.expectedRevision });
-	signal.throwIfAborted(); const sidecar = parsePhotoExportSidecarV1(await read(captured, { signal })); signal.throwIfAborted();
+	signal.throwIfAborted(); const text = await read(captured, { signal }), sidecar = parsePhotoExportSidecarV1(text); signal.throwIfAborted();
+	// Fingerprints cover normalized complete facts. The optional delivery owner
+	// separately requires canonical text; legacy raster-only reads keep admission.
 	if (sidecar.binding.catalogId !== captured.catalogId || sidecar.binding.photoId !== captured.photoId || sidecar.binding.revision !== captured.expectedRevision
 		|| sidecar.version.id !== captured.versionId || sidecar.binding.activeVersionId !== captured.versionId) throw new Error('Photo export journal saved binding changed.');
 	const closure = createPhotoCubeLutClosureV1(); closure.addDevelop(sidecar.version.develop);
 	return Object.freeze({ originalSha256: sidecar.original.contentSha256, recipeSha256: canonicalJsonSha256(sidecar.version.develop),
-		lutSha256: Object.freeze(closure.finish().map(reference => reference.sha256)) });
+		lutSha256: Object.freeze(closure.finish().map(reference => reference.sha256)), ...(sidecarEnabled ? { sidecarSha256: canonicalJsonSha256(sidecar) } : {}) });
 }
 interface Options {
 	readonly selection: readonly Readonly<PhotoRasterBatchSelection>[];
@@ -58,13 +60,13 @@ export class PhotoRasterPersistedBatch {
 			const journal = await owner.load(); signal.throwIfAborted();
 			const prepared = selection.length ? await preparePhotoRasterBatchSelection(selection, execute, signal) : null;
 			if (prepared && prepared.catalogId !== access.catalogId) throw new Error('Photo export journal catalog changed.');
-			const reads = prepared ? await Promise.allSettled(prepared.members.map(member => readPhotoRasterExportBinding({ catalogId: access.catalogId, ...member }, readSidecar, signal))) : [];
+			const reads = prepared ? await Promise.allSettled(prepared.members.map(member => readPhotoRasterExportBinding({ catalogId: access.catalogId, ...member }, readSidecar, signal, true))) : [];
 			const bindings: Readonly<PhotoRasterExportBindingV1>[] = [];
 			// Every captured read joins before any opaque refusal leaves preparation.
 			for (const read of reads) { if (read.status === 'rejected') throw read.reason; bindings.push(read.value); }
 			const current: { photoId: string; versionId: string; expectedRevision: number; binding: Readonly<PhotoRasterExportBindingV1> }[] = [];
 			if (journal) for (const member of journal.members) {
-				try { const binding = await readPhotoRasterExportBinding({ catalogId: access.catalogId, ...member }, readSidecar, signal); current.push({ photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision, binding }); }
+				try { const binding = await readPhotoRasterExportBinding({ catalogId: access.catalogId, ...member }, readSidecar, signal, Boolean(journal.sidecarEnabled)); current.push({ photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision, binding }); }
 				catch { signal.throwIfAborted(); /* Missing/stale facts never authorize work. */ }
 			}
 			signal.throwIfAborted();
@@ -78,9 +80,9 @@ export class PhotoRasterPersistedBatch {
 		if (!this.prepared || plan.members.some((member, index) => {
 			const original = this.prepared!.members[index]; return !original || member.photoId !== original.photoId || member.versionId !== original.versionId || member.expectedRevision !== original.expectedRevision || member.sourceFileName !== original.sourceFileName;
 		}) || plan.members.length !== this.prepared.members.length) throw new TypeError('Photo export plan differs from its captured selection.');
-		if (this.journal && (!replaceCompleted || this.journal.members.some(member => member.state !== 'committed'))) throw new TypeError('Existing export history requires explicit completed replacement.');
+		if (this.journal && (!replaceCompleted || this.journal.members.some(member => !isPhotoRasterExportMemberCompleteV1(member)))) throw new TypeError('Existing export history requires explicit completed replacement.');
 		if (this.journal?.batchId === plan.batchId) throw new TypeError('Completed replacement requires a different batch identity.');
-		const value = createPhotoRasterExportJournalV1(plan, { catalogId: this.#journal.catalogId, filenameTemplate, bindings: this.#bindings });
+		const value = createPhotoRasterExportJournalV1(plan, { catalogId: this.#journal.catalogId, filenameTemplate, bindings: plan.sidecarEnabled ? this.#bindings : this.#bindings.map(({ originalSha256, recipeSha256, lutSha256 }) => ({ originalSha256, recipeSha256, lutSha256 })) });
 		const native = createPhotoRasterBatchDownloadDestinations(plan, runtime);
 		return (async () => {
 			try {
@@ -102,19 +104,20 @@ export class PhotoRasterPersistedBatch {
 		return this.#destinations(plan, createPhotoRasterBatchDownloadDestinations(plan, runtime), reviewedRetryJobIds);
 	}
 	async #destinations(plan: Readonly<PhotoRasterExportBatchV1>, native: Readonly<PhotoRasterExportBatchDestinations>, reviewed: readonly string[]): Promise<Readonly<PhotoRasterExportBatchDestinations>> {
+		const verify = async (member: PhotoRasterExportBatchV1['members'][number], request: Parameters<PhotoRasterExportBatchDestinations['saveFile']>[1]) => {
+			const signal = request.signal ? AbortSignal.any([this.#options.signal, request.signal]) : this.#options.signal, journal = this.#journal.current!;
+			// After durable intent, both complete saved facts and real original/LUT
+			// bodies are re-admitted immediately before either native delivery.
+			const binding = await readPhotoRasterExportBinding({ catalogId: journal.catalogId, ...member }, this.#options.readSidecar, signal, Boolean(journal.sidecarEnabled));
+			if (JSON.stringify(binding) !== JSON.stringify(journal.members.find(row => row.jobId === member.jobId)!.binding)) throw new Error('Photo export journal original, recipe, metadata or LUT changed before delivery.');
+			await this.#verify({ catalogId: journal.catalogId, photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision }, { signal }); signal.throwIfAborted();
+		};
 		const verified = Object.freeze<PhotoRasterExportBatchDestinations>({ prepareSave: native.prepareSave, retireAndJoin: native.retireAndJoin,
-			saveFile: async (member, request) => {
-				const signal = this.#options.signal, journal = this.#journal.current!;
-				// Runs AFTER the adapter's held durable-intent CAS and immediately
-				// before native initiation. Same-generation edits cannot slip through.
-				const binding = await readPhotoRasterExportBinding({ catalogId: journal.catalogId, ...member }, this.#options.readSidecar, signal);
-				if (JSON.stringify(binding) !== JSON.stringify(journal.members.find(row => row.jobId === member.jobId)!.binding)) throw new Error('Photo export journal original, recipe or LUT changed before delivery.');
-				await this.#verify({ catalogId: journal.catalogId, photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision }, { signal });
-				signal.throwIfAborted(); return native.saveFile(member, request);
-			},
+			saveFile: async (member, request) => { await verify(member, request); return native.saveFile(member, request); },
+			...(native.saveSidecar ? { saveSidecar: async (member: PhotoRasterExportBatchV1['members'][number], request: Parameters<PhotoRasterExportBatchDestinations['saveFile']>[1]) => { await verify(member, request); return native.saveSidecar!(member, request); } } : {}),
 		});
 		const joined = await createPhotoRasterJournalDestinationsV1(plan, this.#journal, () => verified, { reviewedRetryJobIds: reviewed });
-		return Object.freeze({ prepareSave: joined.prepareSave, saveFile: joined.saveFile, retireAndJoin: joined.retireAndJoin });
+		return Object.freeze({ prepareSave: joined.prepareSave, saveFile: joined.saveFile, ...(joined.saveSidecar ? { saveSidecar: joined.saveSidecar } : {}), retireAndJoin: joined.retireAndJoin });
 	}
 	closeAndJoin(): Promise<void> { return this.#journal.closeAndJoin(); }
 }

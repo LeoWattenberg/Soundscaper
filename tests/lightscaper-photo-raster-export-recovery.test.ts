@@ -8,14 +8,16 @@ import { createPhotoRasterBatchDownloadDestinations } from '../src/lightscaper/c
 import { createPhotoRasterJournalDestinationsV1, PhotoRasterJournalDestinationErrorV1 } from '../src/lightscaper/controller/photo-raster-export-journal-destinations-v1.ts';
 import { reconcilePhotoRasterExportBatchRecoveryV1 } from '../src/lightscaper/controller/photo-raster-export-batch-recovery-v1.ts';
 import { createPhotoRasterExportJournalV1, type PhotoRasterExportBindingV1 } from '../src/lightscaper/storage/photo-raster-export-journal-v1.ts';
-import { PhotoRasterExportJournalOwnerV1, type PhotoRasterExportJournalSettingsV1 } from '../src/lightscaper/storage/photo-raster-export-journal-owner-v1.ts';
+import { PhotoRasterExportJournalOwnerV1, PhotoRasterExportJournalErrorV1, type PhotoRasterExportJournalSettingsV1 } from '../src/lightscaper/storage/photo-raster-export-journal-owner-v1.ts';
 import type { PhotoRasterExportBatchDestinations } from '../src/lightscaper/controller/photo-raster-export-batch-queue.ts';
+import type { BrowserFileSaveRequest } from '../src/common/editor/browser-file-save-service.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
 
-function fixture() {
+function fixture(sidecarEnabled = false) {
 	const filenameTemplate = '{index:2}-{name}', plan = capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId: 'batch', format: 'jpeg', filenameTemplate,
+		...(sidecarEnabled ? { sidecarEnabled: true } : {}),
 		members: [{ photoId: 'one', versionId: 'master', expectedRevision: 2, sourceFileName: 'One.jpg' }, { photoId: 'two', versionId: 'master', expectedRevision: 3, sourceFileName: 'Two.jpg' }] });
-	const binding: Readonly<PhotoRasterExportBindingV1> = { originalSha256: 'a'.repeat(64), recipeSha256: 'b'.repeat(64), lutSha256: ['c'.repeat(64)] };
+	const binding: Readonly<PhotoRasterExportBindingV1> = { originalSha256: 'a'.repeat(64), recipeSha256: 'b'.repeat(64), lutSha256: ['c'.repeat(64)], ...(sidecarEnabled ? { sidecarSha256: 'd'.repeat(64) } : {}) };
 	const value = createPhotoRasterExportJournalV1(plan, { catalogId: 'catalog', filenameTemplate, bindings: [binding, binding] });
 	const settings: PhotoRasterExportJournalSettingsV1 & { value: unknown } = {
 		value: undefined, async get() { return this.value; }, async putIfAbsent(_key, value) { if (this.value !== undefined) return false; this.value = structuredClone(value); return true; },
@@ -24,6 +26,7 @@ function fixture() {
 	return { plan, value, settings, owner: new PhotoRasterExportJournalOwnerV1(settings, 'catalog'),
 		current: { catalogId: 'catalog', members: value.members.map(member => ({ photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision, binding: member.binding })) } };
 }
+function jsonRequest(): BrowserFileSaveRequest { return { blob: new Blob(['{}'], { type: 'application/json' }), mimeType: 'application/json' }; }
 function ports(plan: ReturnType<typeof fixture>['plan'], onSave: () => void = () => {}): { -readonly [Key in keyof PhotoRasterExportBatchDestinations]: PhotoRasterExportBatchDestinations[Key] } {
 	return { prepareSave: member => ({ mode: 'blob', fileName: member.fileName, target: { browserDownload: true, name: member.fileName } }),
 		saveFile: member => { assert.ok(plan.members.includes(member)); onSave(); return { method: 'download', fileName: member.fileName, size: 1 }; }, retireAndJoin: async () => {} };
@@ -150,4 +153,65 @@ test('synchronous initial authority pins native method receivers before its firs
 	const acquiring = createPhotoRasterJournalDestinationsV1(f.plan, f.owner, () => native);
 	native.saveFile = () => assert.fail('Authority changed after initial gesture');
 	const owner = await acquiring; await owner.saveFile(f.plan.members[0]!, {}); await owner.retireAndJoin(); assert.equal(calls, 1);
+});
+
+test('paired recovery requires both ACKs and keeps uncertain JSON visible even when its saved facts become stale', async () => {
+	const f = fixture(true); await f.owner.create(f.value); await f.owner.started('batch:1');
+	await f.owner.committed('batch:1', { status: 'download-started', method: 'download', fileName: '01-One.jpg', size: 9 });
+	assert.equal(reconcilePhotoRasterExportBatchRecoveryV1(f.owner.current, f.current)[0]!.disposition, 'eligible');
+	const changed = { ...f.current, members: [{ ...f.current.members[0]!, binding: { ...f.current.members[0]!.binding, sidecarSha256: 'e'.repeat(64) } }] };
+	assert.equal(reconcilePhotoRasterExportBatchRecoveryV1(f.owner.current, changed)[0]!.disposition, 'stale');
+	await f.owner.sidecarStarted('batch:1');
+	const stale = reconcilePhotoRasterExportBatchRecoveryV1(f.owner.current, changed)[0]!;
+	assert.equal(stale.disposition, 'needs-review'); assert.equal(stale.currentMatches, false);
+	await f.owner.sidecarCommitted('batch:1', { status: 'download-started', method: 'download', fileName: '01-One.jpg.lightscaper.json', size: 2, mediaType: 'application/json' });
+	assert.equal(reconcilePhotoRasterExportBatchRecoveryV1(f.owner.current, changed)[0]!.disposition, 'already-committed'); await f.owner.closeAndJoin();
+});
+
+test('actual JSON ACK survives opaque CAS/readback failure and held native retirement alongside its original image ACK', async () => {
+	const f = fixture(true); await f.owner.create(f.value); const replace = f.settings.replaceIfCurrent, get = f.settings.get;
+	const publication = Symbol('JSON CAS'), readback = Symbol('JSON readback'), entered = deferred<void>(), held = deferred<void>(); let calls = 0, failedRead = false;
+	f.settings.get = async function (...args) { if (failedRead) throw readback; return get.apply(this, args); };
+	f.settings.replaceIfCurrent = async function (...args) {
+		if (++calls === 4) { failedRead = true; throw publication; } return replace.apply(this, args);
+	};
+	const journal = new PhotoRasterExportJournalOwnerV1(f.settings, 'catalog'); await journal.load();
+	const native = ports(f.plan); native.saveSidecar = member => ({ method: 'download', fileName: member.fileName + '.lightscaper.json', size: 2 });
+	native.retireAndJoin = async () => { entered.resolve(); await held.promise; };
+	const owner = await createPhotoRasterJournalDestinationsV1(f.plan, journal, () => native);
+	try {
+		await owner.saveFile(f.plan.members[0]!, {}); await owner.saveSidecar!(f.plan.members[0]!, jsonRequest());
+		const receipt = owner.getReceipt(); assert.equal(receipt.deliveries[0]!.ack.fileName, '01-One.jpg');
+		assert.equal(receipt.sidecarDeliveries![0]!.ack.fileName, '01-One.jpg.lightscaper.json');
+		const cause = receipt.publicationFailures[0]!.cause; assert.ok(cause instanceof PhotoRasterExportJournalErrorV1); assert.equal(cause.failure.cause, publication); assert.equal(cause.failure.cleanup?.cause, readback);
+		const close = owner.retireAndJoin(); await entered.promise; assert.equal(await remainsPending(close), true); held.resolve(); await close;
+		failedRead = false; const reopened = new PhotoRasterExportJournalOwnerV1(f.settings, 'catalog'); await reopened.load();
+		assert.equal(reopened.current!.members[0]!.state, 'committed'); assert.equal(reopened.current!.members[0]!.sidecar!.state, 'started');
+		assert.equal(reconcilePhotoRasterExportBatchRecoveryV1(reopened.current, f.current)[0]!.disposition, 'needs-review'); await reopened.closeAndJoin();
+	} finally { held.resolve(); f.settings.get = get; await journal.closeAndJoin(); await f.owner.closeAndJoin(); }
+});
+
+test('paired initial authority pins JSON receiver and refuses truthy companion flags before acquisition', async () => {
+	const f = fixture(true); await f.owner.create(f.value); let calls = 0;
+	assert.throws(() => createPhotoRasterJournalDestinationsV1({ ...f.plan, sidecarEnabled: 'yes' } as never, f.owner, () => { calls++; return ports(f.plan); })); assert.equal(calls, 0);
+	const native = ports(f.plan); native.saveSidecar = function (member) { assert.equal(this, native); calls++; return { method: 'download', fileName: member.fileName + '.lightscaper.json', size: 2 }; };
+	const acquiring = createPhotoRasterJournalDestinationsV1(f.plan, f.owner, () => native);
+	native.saveSidecar = () => assert.fail('JSON authority changed after gesture');
+	const owner = await acquiring; await owner.saveFile(f.plan.members[0]!, {}); await owner.saveSidecar!(f.plan.members[0]!, jsonRequest()); await owner.retireAndJoin(); assert.equal(calls, 1);
+});
+
+for (const promised of [false, true]) test(`${promised ? 'held' : 'synchronous'} authority cannot change the admitted paired choice before JSON capability capture`, async () => {
+	const f = fixture(true); await f.owner.create(f.value); const plan = { ...f.plan }, held = deferred<PhotoRasterExportBatchDestinations>();
+	const native = ports(plan); let json = 0; native.saveSidecar = member => { json++; return { method: 'download', fileName: member.fileName + '.lightscaper.json', size: 2 }; };
+	const acquiring = createPhotoRasterJournalDestinationsV1(plan, f.owner, () => {
+		if (promised) return held.promise;
+		Object.defineProperty(plan, 'sidecarEnabled', { value: false }); return native;
+	});
+	if (promised) { Object.defineProperty(plan, 'sidecarEnabled', { value: false }); held.resolve(native); }
+	const owner = await acquiring;
+	try {
+		assert.equal(typeof owner.saveSidecar, 'function'); await owner.saveFile(plan.members[0]!, {}); await owner.saveSidecar!(plan.members[0]!, jsonRequest());
+		assert.equal(json, 1); assert.equal(owner.getReceipt().sidecarDeliveries![0]!.ack.fileName, '01-One.jpg.lightscaper.json');
+		assert.equal(f.owner.current!.members[0]!.sidecar!.state, 'committed');
+	} finally { await owner.retireAndJoin(); }
 });

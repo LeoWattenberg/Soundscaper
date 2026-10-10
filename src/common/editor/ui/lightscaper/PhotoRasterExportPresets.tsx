@@ -61,7 +61,6 @@ export default function PhotoRasterExportPresets(props: Props) {
 			if (!port || !value) return;
 			if (action === 'apply') {
 				const result = await watch(current, port.read({ schemaVersion: 1, presetId: chosen, expectedRevision: value.revision }, { signal })); signal.throwIfAborted();
-				if (input.batch && result.preset.sidecarEnabled) { if (current.live) setMessage(copy.batchSidecar); return; }
 				if (current.live) await input.onApply(result.preset, signal); return;
 			}
 			let command;

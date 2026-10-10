@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record, readClosedDomainArray as array } from '../../common/editor/closed-domain-value.ts';
-import { normalizePhotoRasterExportJournalV1 } from '../storage/photo-raster-export-journal-v1.ts';
+import { normalizePhotoRasterExportJournalV1, isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportJournalMemberV1 } from '../storage/photo-raster-export-journal-v1.ts';
 import { createDeliveryQueueRunner } from '../../common/editor/delivery-queue-runner.ts';
 import type { DeliveryQueue, DeliveryQueueState } from '../../common/editor/delivery-queue.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../../common/editor/browser-file-save-service.ts';
 import type { PixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
+import { PhotoRasterBatchSidecarRecovery, type PhotoRasterBatchSidecarRecoveryReceipt } from './photo-raster-export-batch-sidecar.ts';
 import { PhotoRasterExport, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from './photo-raster-export.ts';
 import { capturePhotoRasterExportBatchV1, type PhotoRasterExportBatchV1, type PhotoRasterExportBatchMemberV1 } from './photo-raster-export-batch-v1.ts';
 
@@ -16,6 +17,7 @@ export interface PhotoRasterExportBatchDestinations {
 	readonly prepareSave: (member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
 	readonly saveFile: (member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) => BrowserSavedFile | PromiseLike<BrowserSavedFile>;
 	readonly retireAndJoin: () => Promise<void>;
+	readonly saveSidecar?: PhotoRasterExportBatchDestinations['saveFile'];
 }
 export interface PhotoRasterExportBatchRuntime {
 	readonly fileTypeDescription: string;
@@ -26,13 +28,14 @@ export interface PhotoRasterExportBatchRuntime {
 	readonly loadRenderer: PhotoRasterExportRequest['loadRenderer'];
 	readonly encode: (format: 'png' | 'jpeg', frame: Readonly<PixelFrameV1>, options: Parameters<PhotoRasterExportRequest['encode']>[1]) => ReturnType<PhotoRasterExportRequest['encode']>;
 	readonly readMetadata?: PhotoRasterExportRequest['readMetadata'];
+	readonly readSidecar?: NonNullable<PhotoRasterExportRequest['sidecar']>['read'];
 }
 export interface PhotoRasterExportBatchReceipt {
 	readonly batchId: string | null;
 	readonly phase: 'idle' | 'preparing' | 'running' | 'settled';
 	readonly paused: boolean;
 	readonly members: readonly Readonly<PhotoRasterExportBatchMemberV1 & {
-		state: DeliveryQueueState; delivery: PhotoRasterExportReceipt | null;
+		state: DeliveryQueueState; delivery: PhotoRasterExportReceipt | Readonly<PhotoRasterBatchSidecarRecoveryReceipt> | null;
 	}>[];
 }
 export interface PhotoRasterExportBatchFailure {
@@ -56,7 +59,7 @@ class MemberCancelled extends Error {
 	constructor() { super('Photo raster batch member cancelled.'); this.name = 'PhotoRasterBatchMemberCancelled'; CANCELLED.add(this); }
 }
 interface MemberCompletion { readonly joined: Promise<void>; readonly resolve: () => void; }
-interface ActiveMember { readonly jobId: string; readonly owner: PhotoRasterExport; readonly cancelReason: symbol; cancelled: boolean; }
+interface ActiveMember { readonly jobId: string; readonly owner: Pick<PhotoRasterExport, 'cancelAndJoin'>; readonly cancelReason: symbol; cancelled: boolean; }
 
 /** Thin scalar adapter: the existing runner alone schedules jobs and the
  * existing single-photo owner alone renders/encodes/publishes each member. */
@@ -64,10 +67,11 @@ export class PhotoRasterExportBatchQueue {
 	readonly #runtime: Readonly<PhotoRasterExportBatchRuntime>;
 	readonly #stop = new AbortController();
 	readonly #runner: ReturnType<typeof createDeliveryQueueRunner>;
-	readonly #completed = new Map<string, PhotoRasterExportReceipt>();
+	readonly #completed = new Map<string, PhotoRasterExportReceipt | Readonly<PhotoRasterBatchSidecarRecoveryReceipt>>();
 	readonly #failures = new Map<string, Readonly<{ cause: unknown }>>();
 	readonly #members = new Map<string, MemberCompletion>();
 	readonly #observers = new Set<(receipt: Readonly<PhotoRasterExportBatchReceipt>) => void>();
+	readonly #recover = new Map<string, Readonly<{ catalogId: string; member: Readonly<PhotoRasterExportJournalMemberV1> }>>();
 	#plan: Readonly<PhotoRasterExportBatchV1> | null = null;
 	#destinations: Readonly<PhotoRasterExportBatchDestinations> | null = null;
 	#phase: PhotoRasterExportBatchReceipt['phase'] = 'idle';
@@ -114,10 +118,11 @@ export class PhotoRasterExportBatchQueue {
 	startRecovery(value: unknown, jobIds: readonly string[]): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
 		return this.#start(() => {
 			const journal = normalizePhotoRasterExportJournalV1(value), ids = array(jobIds, 'Photo export recovery jobs', 1, journal.members.length);
-			if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !journal.members.some(member => member.jobId === id && member.state !== 'committed'))) throw new TypeError('Photo export recovery jobs are outside unfinished journal work.');
+			if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !journal.members.some(member => member.jobId === id && !isPhotoRasterExportMemberCompleteV1(member)))) throw new TypeError('Photo export recovery jobs are outside unfinished journal work.');
+			for (const member of journal.members) if (ids.includes(member.jobId) && member.state === 'committed') this.#recover.set(member.jobId, Object.freeze({ catalogId: journal.catalogId, member }));
 			const members = journal.members.filter(member => ids.includes(member.jobId)).map(({ jobId, index, photoId, versionId, expectedRevision, sourceFileName, fileName }) =>
 				Object.freeze({ jobId, index, photoId, versionId, expectedRevision, sourceFileName, fileName }));
-			return Object.freeze({ schemaVersion: 1, batchId: journal.batchId, format: journal.format, members: Object.freeze(members), ...(journal.output ? { output: journal.output } : {}) });
+			return Object.freeze({ schemaVersion: 1, batchId: journal.batchId, format: journal.format, members: Object.freeze(members), ...(journal.output ? { output: journal.output } : {}), ...(journal.sidecarEnabled ? { sidecarEnabled: true } : {}) });
 		});
 	}
 	#start(capture: () => Readonly<PhotoRasterExportBatchV1>): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
@@ -126,6 +131,7 @@ export class PhotoRasterExportBatchQueue {
 		try {
 			const plan = capture();
 			if (plan.output?.metadataScope === 'capture' && !this.#runtime.readMetadata) throw new TypeError('Capture export requires its selected metadata reader.');
+			if (plan.sidecarEnabled && !this.#runtime.readSidecar) throw new TypeError('Paired batch requires its selected saved-photo reader.');
 			this.#plan = plan; this.#phase = 'preparing'; this.#runner.pause();
 			for (const member of this.#plan.members) {
 				let resolve!: () => void;
@@ -172,6 +178,7 @@ export class PhotoRasterExportBatchQueue {
 			// Own the safe cleanup before any other admission can reject this authority.
 			retire = captureRetirement(authority);
 			this.#destinations = captureDestinations(authority, retire);
+			if (this.#plan!.sidecarEnabled && !this.#destinations.saveSidecar) throw new TypeError('Paired batch requires its captured JSON destination.');
 			// Enqueueing while paused creates a settling admission drain. Join it
 			// before resuming, including immediately fulfilled authority promises.
 			await this.#runner.settled();
@@ -195,16 +202,20 @@ export class PhotoRasterExportBatchQueue {
 	}
 	async #runMember(jobId: string, signal: AbortSignal): Promise<void> {
 		const plan = this.#plan!, member = plan.members.find(item => item.jobId === jobId)!, destinations = this.#destinations!;
-		const active: ActiveMember = { jobId, owner: new PhotoRasterExport(plan.format), cancelReason: Symbol('Photo raster member cancellation'), cancelled: false }; this.#active = active;
+		const recovery = this.#recover.get(jobId), single = new PhotoRasterExport(plan.format);
+		const extra = recovery ? new PhotoRasterBatchSidecarRecovery({ execute: this.#runtime.execute, read: this.#runtime.readSidecar!, save: request => destinations.saveSidecar!(member, request) }) : null;
+		const active: ActiveMember = { jobId, owner: extra ?? single, cancelReason: Symbol('Photo raster member cancellation'), cancelled: false }; this.#active = active;
 		try {
-			const runtime = this.#runtime, result = await active.owner.start({ photoId: member.photoId, versionId: member.versionId,
+			const runtime = this.#runtime, result = extra && recovery ? await extra.start(recovery.catalogId, recovery.member, signal) : await single.start({ photoId: member.photoId, versionId: member.versionId,
 				expectedRevision: member.expectedRevision, fileName: member.fileName, fileTypeDescription: runtime.fileTypeDescription, signal,
+				...(plan.sidecarEnabled ? { sidecar: { read: runtime.readSidecar! } } : {}),
 				...(plan.output ? { output: plan.output } : {}), ...(runtime.readMetadata ? { readMetadata: runtime.readMetadata } : {}),
-				prepareSave: request => destinations.prepareSave(member, request), saveFile: request => destinations.saveFile(member, request),
+				prepareSave: request => destinations.prepareSave(member, request), saveFile: request => request.mimeType === 'application/json' && plan.sidecarEnabled ? destinations.saveSidecar!(member, request) : destinations.saveFile(member, request),
 				execute: runtime.execute, withOriginalFrame: runtime.withOriginalFrame, loadRenderer: runtime.loadRenderer,
 				encode: (frame, options) => runtime.encode(plan.format, frame, options) });
 			if (result.status === 'cancelled') throw new MemberCancelled();
 			this.#completed.set(jobId, result);
+			if (plan.sidecarEnabled && result.sidecar?.status !== 'download-started') throw result.sidecar ? result.sidecar.cause : new Error('Photo batch companion was not acknowledged.');
 		} catch (cause) {
 			// Owner cancellation reasons remain opaque. Successful ACKs returned above win.
 			if ((active.cancelled && Object.is(cause, active.cancelReason))
@@ -217,12 +228,13 @@ export class PhotoRasterExportBatchQueue {
 
 function captureRuntime(value: unknown): Readonly<PhotoRasterExportBatchRuntime> {
 	const methods = ['prepareDestinations', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
-	const input = record(value, 'Photo raster batch runtime', ['fileTypeDescription', ...methods, 'readMetadata'], ['fileTypeDescription', ...methods]);
+	const input = record(value, 'Photo raster batch runtime', ['fileTypeDescription', ...methods, 'readMetadata', 'readSidecar'], ['fileTypeDescription', ...methods]);
 	const description = field(input, 'fileTypeDescription', 'Photo raster batch runtime');
 	if (typeof description !== 'string' || !description || description.length > 256) throw new TypeError('Photo raster batch type description exceeds its scalar bound.');
 	return Object.freeze({ fileTypeDescription: description, prepareDestinations: method<PhotoRasterExportBatchRuntime['prepareDestinations']>(input, value, 'prepareDestinations'),
 		execute: method<PhotoRasterExportBatchRuntime['execute']>(input, value, 'execute'), withOriginalFrame: method<PhotoRasterExportBatchRuntime['withOriginalFrame']>(input, value, 'withOriginalFrame'),
 		loadRenderer: method<PhotoRasterExportBatchRuntime['loadRenderer']>(input, value, 'loadRenderer'), encode: method<PhotoRasterExportBatchRuntime['encode']>(input, value, 'encode'),
+		...(Object.hasOwn(input, 'readSidecar') ? { readSidecar: method<NonNullable<PhotoRasterExportBatchRuntime['readSidecar']>>(input, value, 'readSidecar') } : {}),
 		...(Object.hasOwn(input, 'readMetadata') ? { readMetadata: method<NonNullable<PhotoRasterExportBatchRuntime['readMetadata']>>(input, value, 'readMetadata') } : {}) });
 }
 function captureRetirement(value: unknown): PhotoRasterExportBatchDestinations['retireAndJoin'] {
@@ -234,9 +246,10 @@ function captureRetirement(value: unknown): PhotoRasterExportBatchDestinations['
 	return () => Reflect.apply(fn, value, []) as Promise<void>;
 }
 function captureDestinations(value: unknown, retireAndJoin: PhotoRasterExportBatchDestinations['retireAndJoin']): Readonly<PhotoRasterExportBatchDestinations> {
-	const input = record(value, 'Photo raster batch destinations', ['prepareSave', 'saveFile', 'retireAndJoin']);
+	const input = record(value, 'Photo raster batch destinations', ['prepareSave', 'saveFile', 'retireAndJoin', 'saveSidecar'], ['prepareSave', 'saveFile', 'retireAndJoin']);
 	return Object.freeze({ prepareSave: method<PhotoRasterExportBatchDestinations['prepareSave']>(input, value, 'prepareSave'),
-		saveFile: method<PhotoRasterExportBatchDestinations['saveFile']>(input, value, 'saveFile'), retireAndJoin });
+		saveFile: method<PhotoRasterExportBatchDestinations['saveFile']>(input, value, 'saveFile'),
+		...(Object.hasOwn(input, 'saveSidecar') ? { saveSidecar: method<NonNullable<PhotoRasterExportBatchDestinations['saveSidecar']>>(input, value, 'saveSidecar') } : {}), retireAndJoin });
 }
 function method<Method>(input: Readonly<Record<string, unknown>>, receiver: unknown, key: string): Method {
 	const fn = field(input, key, 'Photo raster batch capability');

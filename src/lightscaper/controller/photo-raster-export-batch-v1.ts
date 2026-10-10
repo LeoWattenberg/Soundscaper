@@ -20,18 +20,21 @@ export interface PhotoRasterExportBatchV1 {
 	readonly format: 'png' | 'jpeg';
 	readonly members: readonly Readonly<PhotoRasterExportBatchMemberV1>[];
 	readonly output?: Readonly<PhotoRasterExportOutput>;
+	readonly sidecarEnabled?: true;
 }
 
 /** Bounded, detached in-session work description. It grants no destination,
  * original or LUT authority and declares no persisted recovery protocol. */
 export function capturePhotoRasterExportBatchV1(value: unknown): Readonly<PhotoRasterExportBatchV1> {
 	const name = 'Photo raster batch', input = record(value, name,
-		['schemaVersion', 'batchId', 'format', 'filenameTemplate', 'members', 'output'],
+		['schemaVersion', 'batchId', 'format', 'filenameTemplate', 'members', 'output', 'sidecarEnabled'],
 		['schemaVersion', 'batchId', 'format', 'filenameTemplate', 'members']);
 	if (field(input, 'schemaVersion', name) !== 1) throw new RangeError('Unsupported photo raster batch version.');
 	const batchId = text(field(input, 'batchId', name), 64), format = field(input, 'format', name);
 	if (format !== 'png' && format !== 'jpeg') throw new RangeError('Unsupported photo raster batch format.');
 	const template = text(field(input, 'filenameTemplate', name), 256);
+	const sidecar = Object.hasOwn(input, 'sidecarEnabled') ? field(input, 'sidecarEnabled', name) : false;
+	if (typeof sidecar !== 'boolean') throw new TypeError('Photo raster batch sidecar selection must be explicit.');
 	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
 	const identities = new Set<string>(), names = new Set<string>();
 	const members = array(field(input, 'members', name), name, 1, PHOTO_RASTER_EXPORT_BATCH_MAXIMUM_MEMBERS_V1).map((value, offset) => {
@@ -49,7 +52,7 @@ export function capturePhotoRasterExportBatchV1(value: unknown): Readonly<PhotoR
 		names.add(key);
 		return Object.freeze({ jobId: `${batchId}:${index}`, index, photoId, versionId, expectedRevision: revision, sourceFileName, fileName });
 	});
-	return Object.freeze({ schemaVersion: 1, batchId, format, members: Object.freeze(members), ...(output ? { output } : {}) });
+	return Object.freeze({ schemaVersion: 1, batchId, format, members: Object.freeze(members), ...(output ? { output } : {}), ...(sidecar ? { sidecarEnabled: true } : {}) });
 }
 
 function text(value: unknown, maximum: number): string {

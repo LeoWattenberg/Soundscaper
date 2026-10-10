@@ -8,11 +8,11 @@ import { deferred, remainsPending } from './helpers/async-test-control.ts';
 import { KeyValueRepository } from '../src/common/editor/storage/key-value-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 
-function fixture() {
-	const filenameTemplate = '{index:2}-{name}', plan = capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId: 'batch', format: 'png', filenameTemplate,
+function fixture(sidecarEnabled = false) {
+	const filenameTemplate = '{index:2}-{name}', plan = capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId: 'batch', format: 'png', filenameTemplate, ...(sidecarEnabled ? { sidecarEnabled: true } : {}),
 		members: [{ photoId: 'one', versionId: 'master', expectedRevision: 2, sourceFileName: 'One.png' }, { photoId: 'two', versionId: 'master', expectedRevision: 3, sourceFileName: 'Two.png' }] });
 	return createPhotoRasterExportJournalV1(plan, { catalogId: 'catalog', filenameTemplate,
-		bindings: plan.members.map(() => ({ originalSha256: 'a'.repeat(64), recipeSha256: 'b'.repeat(64), lutSha256: ['c'.repeat(64)] })) });
+		bindings: plan.members.map(() => ({ originalSha256: 'a'.repeat(64), recipeSha256: 'b'.repeat(64), lutSha256: ['c'.repeat(64)], ...(sidecarEnabled ? { sidecarSha256: 'd'.repeat(64) } : {}) })) });
 }
 function store(): PhotoRasterExportJournalSettingsV1 & { value: unknown } {
 	return { value: undefined, async get() { return this.value; }, async putIfAbsent(_key, next) { if (this.value !== undefined) return false; this.value = structuredClone(next); return true; },
@@ -126,4 +126,29 @@ test('two explicit replacement writers cannot erase the winning new pending queu
 	const next = (batchId: string) => ({ ...fixture(), batchId, members: fixture().members.map(member => ({ ...member, jobId: `${batchId}:${member.index}` })) });
 	await first.replaceCompleted(next('winner')); await assert.rejects(second.replaceCompleted(next('loser')), PhotoRasterExportJournalErrorV1);
 	assert.equal(normalizePhotoRasterExportJournalV1(settings.value).batchId, 'winner'); await first.closeAndJoin(); await second.closeAndJoin();
+});
+
+test('paired journal records a separately bounded JSON companion and keeps legacy bytes unchanged', () => {
+	const old = fixture(), paired = fixture(true);
+	assert.equal(Object.hasOwn(old, 'sidecarEnabled'), false); assert.equal(Object.hasOwn(old.members[0]!, 'sidecar'), false);
+	assert.equal(paired.sidecarEnabled, true); assert.deepEqual(paired.members[0]!.sidecar, { state: 'pending', delivery: null });
+	assert.deepEqual(normalizePhotoRasterExportJournalV1(JSON.parse(JSON.stringify(paired))), paired);
+	assert.throws(() => normalizePhotoRasterExportJournalV1({ ...paired, members: paired.members.map(member => ({ ...member, binding: { originalSha256: member.binding.originalSha256, recipeSha256: member.binding.recipeSha256, lutSha256: member.binding.lutSha256 } })) }));
+});
+test('raster ACK alone cannot complete or replace paired work and its unfinished history remains discardable', async () => {
+	const settings = { ...store(), async deleteIfCurrent(_key: string, expected: unknown) { if (JSON.stringify(this.value) !== JSON.stringify(expected)) return false; this.value = undefined; return true; } };
+	const owner = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await owner.create(fixture(true));
+	for (const member of owner.current!.members) { await owner.started(member.jobId); await owner.committed(member.jobId, { status: 'download-started', method: 'download', fileName: member.fileName, size: 4 }); }
+	const fresh = { ...fixture(true), batchId: 'next', members: fixture(true).members.map(member => ({ ...member, jobId: `next:${member.index}` })) };
+	await assert.rejects(owner.replaceCompleted(fresh));
+	await owner.discardUnfinished({ batchId: 'batch', revision: owner.current!.revision, reviewed: true }); assert.equal(settings.value, undefined); await owner.closeAndJoin();
+});
+test('companion intent and ACK are separate durable transitions with exact full image suffix', async () => {
+	const settings = store(), owner = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await owner.create(fixture(true));
+	await assert.rejects(owner.sidecarStarted('batch:1')); await owner.started('batch:1');
+	await owner.committed('batch:1', { status: 'download-started', method: 'download', fileName: '01-One.png', size: 4 }); await owner.sidecarStarted('batch:1');
+	assert.equal(owner.current!.members[0]!.sidecar!.state, 'started'); await assert.rejects(owner.sidecarStarted('batch:1'));
+	for (const ack of [{ status: 'download-started', method: 'download', mediaType: 'application/json' as const, fileName: '01-One.lightscaper.json', size: 4 }, { status: 'download-started', method: 'download', mediaType: 'application/json' as const, fileName: '01-One.png.lightscaper.json', size: 2_097_153 }] as const) assert.throws(() => owner.sidecarCommitted('batch:1', ack));
+	await owner.sidecarCommitted('batch:1', { status: 'download-started', method: 'download', mediaType: 'application/json' as const, fileName: '01-One.png.lightscaper.json', size: 4 });
+	assert.deepEqual(owner.current!.members[0]!.sidecar, { state: 'committed', delivery: { status: 'download-started', method: 'download', mediaType: 'application/json' as const, fileName: '01-One.png.lightscaper.json', size: 4 } }); await owner.closeAndJoin();
 });

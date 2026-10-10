@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
-import { normalizePhotoRasterExportBindingV1, normalizePhotoRasterExportJournalV1, type PhotoRasterExportJournalMemberV1 } from '../storage/photo-raster-export-journal-v1.ts';
+import { isPhotoRasterExportMemberCompleteV1, normalizePhotoRasterExportBindingV1, normalizePhotoRasterExportJournalV1, type PhotoRasterExportJournalMemberV1 } from '../storage/photo-raster-export-journal-v1.ts';
 
 export interface PhotoRasterExportRecoveryEntryV1 {
 	readonly member: Readonly<PhotoRasterExportJournalMemberV1>;
@@ -26,7 +26,7 @@ export function reconcilePhotoRasterExportBatchRecoveryV1(journalValue: unknown,
 	return Object.freeze(journal.members.map(member => {
 		const current = members.get(JSON.stringify([member.photoId, member.versionId]));
 		const matches = catalogId === journal.catalogId && current?.expectedRevision === member.expectedRevision && JSON.stringify(current.binding) === JSON.stringify(member.binding);
-		const disposition = member.state === 'committed' ? 'already-committed' : member.state === 'started' ? 'needs-review' : !matches ? 'stale' : 'eligible';
+		const disposition = isPhotoRasterExportMemberCompleteV1(member) ? 'already-committed' : member.state === 'started' || member.sidecar?.state === 'started' ? 'needs-review' : !matches ? 'stale' : 'eligible';
 		return Object.freeze({ member, disposition, currentMatches: matches });
 	}));
 }

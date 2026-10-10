@@ -4,11 +4,12 @@ import type { BrowserFileSaveRequest, BrowserSavedFile } from '../../common/edit
 import { capturePhotoRasterExportOutput } from './photo-raster-export.ts';
 import type { PhotoRasterExportBatchMemberV1, PhotoRasterExportBatchV1 } from './photo-raster-export-batch-v1.ts';
 import type { PhotoRasterExportBatchDestinations } from './photo-raster-export-batch-queue.ts';
-import { normalizePhotoRasterExportDownloadAckV1, type PhotoRasterExportDownloadAckV1 } from '../storage/photo-raster-export-journal-v1.ts';
+import { PHOTO_RASTER_EXPORT_SIDECAR_MAXIMUM_BYTES_V1, normalizePhotoRasterExportDownloadAckV1, normalizePhotoRasterExportSidecarAckV1, isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportSidecarAckV1, type PhotoRasterExportDownloadAckV1 } from '../storage/photo-raster-export-journal-v1.ts';
 import type { PhotoRasterExportJournalOwnerV1 } from '../storage/photo-raster-export-journal-owner-v1.ts';
 
 export interface PhotoRasterJournalDestinationReceiptV1 {
 	readonly deliveries: readonly Readonly<{ jobId: string; ack: Readonly<PhotoRasterExportDownloadAckV1> }>[];
+	readonly sidecarDeliveries?: readonly Readonly<{ jobId: string; ack: Readonly<PhotoRasterExportSidecarAckV1> }>[];
 	readonly publicationFailures: readonly Readonly<{ jobId: string; cause: unknown }>[];
 }
 export interface PhotoRasterJournalDestinationsV1 extends PhotoRasterExportBatchDestinations {
@@ -28,13 +29,14 @@ const THROW_IF_ABORTED = AbortSignal.prototype.throwIfAborted;
 export function createPhotoRasterJournalDestinationsV1(plan: Readonly<PhotoRasterExportBatchV1>, journal: PhotoRasterExportJournalOwnerV1,
 	acquire: () => PhotoRasterExportBatchDestinations | PromiseLike<PhotoRasterExportBatchDestinations>, options: Readonly<{ reviewedRetryJobIds?: readonly string[] }> = {},
 ): Promise<Readonly<PhotoRasterJournalDestinationsV1>> {
-	const captured = captureMembers(plan, journal), input = record(options, 'Photo export retry options', ['reviewedRetryJobIds'], []);
+	const captured = captureMembers(plan, journal), sidecarEnabled = journal.current!.sidecarEnabled === true;
+	const input = record(options, 'Photo export retry options', ['reviewedRetryJobIds'], []);
 	const reviewed = new Set(array(Object.hasOwn(input, 'reviewedRetryJobIds') ? field(input, 'reviewedRetryJobIds', 'retry') : [], 'Reviewed photo export jobs', 0, captured.size).map(value => {
 		if (typeof value !== 'string' || ![...captured.values()].includes(value)) throw new TypeError('Photo export retry review must name a captured member.'); return value;
 	}));
 	for (const jobId of captured.values()) {
 		const member = journal.current!.members.find(member => member.jobId === jobId)!;
-		if (member.state === 'committed' || (member.state === 'started' && !reviewed.has(jobId))) throw new TypeError('Photo export recovery requires explicit review and fresh authorization.');
+		if (isPhotoRasterExportMemberCompleteV1(member) || ((member.state === 'started' || member.sidecar?.state === 'started') && !reviewed.has(jobId))) throw new TypeError('Photo export recovery requires explicit review and fresh authorization.');
 	}
 	let authority: PhotoRasterExportBatchDestinations | PromiseLike<PhotoRasterExportBatchDestinations>;
 	try { authority = acquire(); }
@@ -42,16 +44,18 @@ export function createPhotoRasterJournalDestinationsV1(plan: Readonly<PhotoRaste
 	// Direct authority is pinned before yielding. A promised authority is pinned
 	// immediately on its native fulfillment, without reading capability getters.
 	if (authority && typeof authority === 'object' && Object.getOwnPropertyDescriptor(authority, 'retireAndJoin')) {
-		return captureAuthority(authority as PhotoRasterExportBatchDestinations, captured, journal, reviewed);
+		return captureAuthority(authority as PhotoRasterExportBatchDestinations, captured, journal, reviewed, sidecarEnabled);
 	}
-	return Promise.resolve(authority).then(runtime => captureAuthority(runtime, captured, journal, reviewed), cause => {
+	return Promise.resolve(authority).then(runtime => captureAuthority(runtime, captured, journal, reviewed, sidecarEnabled), cause => {
 		throw new PhotoRasterJournalDestinationErrorV1(cause, Object.freeze({ deliveries: Object.freeze([]), publicationFailures: Object.freeze([]) }));
 	});
 }
 async function captureAuthority(runtime: PhotoRasterExportBatchDestinations, members: ReadonlyMap<Readonly<PhotoRasterExportBatchMemberV1>, string>,
-	journal: PhotoRasterExportJournalOwnerV1, reviewed: ReadonlySet<string>): Promise<Readonly<PhotoRasterJournalDestinationsV1>> {
+	journal: PhotoRasterExportJournalOwnerV1, reviewed: ReadonlySet<string>, sidecarEnabled: boolean): Promise<Readonly<PhotoRasterJournalDestinationsV1>> {
+	const sidecarDeliveries = new Map<string, Readonly<PhotoRasterExportSidecarAckV1>>();
 	const deliveries = new Map<string, Readonly<PhotoRasterExportDownloadAckV1>>(), publications = new Map<string, unknown>();
 	const receipt = (): Readonly<PhotoRasterJournalDestinationReceiptV1> => Object.freeze({ deliveries: Object.freeze([...deliveries].map(([jobId, ack]) => Object.freeze({ jobId, ack }))),
+		...(sidecarEnabled ? { sidecarDeliveries: Object.freeze([...sidecarDeliveries].map(([jobId, ack]) => Object.freeze({ jobId, ack }))) } : {}),
 		publicationFailures: Object.freeze([...publications].map(([jobId, cause]) => Object.freeze({ jobId, cause }))) });
 	const pin = <Method>(name: string): Method => {
 		if (!runtime || typeof runtime !== 'object') throw new TypeError('Photo export destinations require native ports.');
@@ -62,8 +66,8 @@ async function captureAuthority(runtime: PhotoRasterExportBatchDestinations, mem
 	// A safely admitted own cleanup is retained before other capability admission.
 	let retire: PhotoRasterExportBatchDestinations['retireAndJoin'];
 	try { retire = pin('retireAndJoin'); } catch (cause) { throw new PhotoRasterJournalDestinationErrorV1(cause, receipt()); }
-	let prepare: PhotoRasterExportBatchDestinations['prepareSave'], save: PhotoRasterExportBatchDestinations['saveFile'];
-	try { prepare = pin('prepareSave'); save = pin('saveFile'); }
+	let prepare: PhotoRasterExportBatchDestinations['prepareSave'], save: PhotoRasterExportBatchDestinations['saveFile'], saveSidecar: PhotoRasterExportBatchDestinations['saveSidecar'];
+	try { prepare = pin('prepareSave'); save = pin('saveFile'); if (sidecarEnabled) saveSidecar = pin('saveSidecar'); }
 	catch (error) {
 		try { await retire(); } catch (cleanup) { throw new PhotoRasterJournalDestinationErrorV1(error, receipt(), { cause: cleanup }); }
 		throw new PhotoRasterJournalDestinationErrorV1(error, receipt());
@@ -78,6 +82,36 @@ async function captureAuthority(runtime: PhotoRasterExportBatchDestinations, mem
 		const work = invoke(); pending.add(work);
 		void work.then(() => { pending.delete(work); }, error => { pending.delete(work); failed.push(error); }); return work;
 	};
+	const deliver = (member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest, sidecar: boolean): Promise<BrowserSavedFile> => {
+		const jobId = memberId(member), attempt = jobId + (sidecar ? ':sidecar' : '');
+		if (attempted.has(attempt)) throw new TypeError('Photo export delivery already attempted.'); attempted.add(attempt);
+		const captured = { ...request }, fileName = member.fileName + (sidecar ? '.lightscaper.json' : '');
+		if (sidecar && (captured.mimeType !== 'application/json' || !(captured.blob instanceof Blob) || captured.blob.type !== 'application/json'
+			|| captured.blob.size < 1 || captured.blob.size > PHOTO_RASTER_EXPORT_SIDECAR_MAXIMUM_BYTES_V1)) throw new TypeError('Photo companion requires bounded JSON bytes.');
+		return join(async () => {
+			if (sidecar) await journal.sidecarStarted(jobId, reviewed.has(jobId)); else await journal.started(jobId, reviewed.has(jobId));
+			if (closed) throw new DOMException('Photo export destinations retired before delivery.', 'AbortError');
+			if (captured.signal) Reflect.apply(THROW_IF_ABORTED, captured.signal, []);
+			const saved = await (sidecar ? saveSidecar! : save)(member, captured);
+			if (Object.hasOwn(saved, 'cancelled')) {
+				const cancelled = record(saved, 'Photo export cancelled download', ['cancelled', 'fileName', 'size']);
+				if (field(cancelled, 'cancelled', 'cancelled') !== true) throw new TypeError('Photo export cancellation must be explicit.');
+				const scalar = normalizePhotoRasterExportDownloadAckV1({ status: 'download-started', method: 'download', fileName: field(cancelled, 'fileName', 'cancelled'), size: field(cancelled, 'size', 'cancelled') }, fileName);
+				return Object.freeze<BrowserSavedFile>({ cancelled: true, fileName: scalar.fileName, size: scalar.size });
+			}
+			const input = record(saved, 'Photo export native download', ['method', 'fileName', 'size']);
+			const raw = { status: 'download-started', method: field(input, 'method', 'download'), fileName: field(input, 'fileName', 'download'), size: field(input, 'size', 'download') };
+			if (sidecar) {
+				const ack = normalizePhotoRasterExportSidecarAckV1({ ...raw, mediaType: 'application/json' }, member.fileName);
+				if (ack.size !== captured.blob!.size) throw new TypeError('Photo JSON download size differs from its captured body.');
+				sidecarDeliveries.set(jobId, ack); try { await journal.sidecarCommitted(jobId, ack); } catch (cause) { publications.set(attempt, cause); }
+			} else {
+				const ack = normalizePhotoRasterExportDownloadAckV1(raw, member.fileName);
+				deliveries.set(jobId, ack); try { await journal.committed(jobId, ack); } catch (cause) { publications.set(attempt, cause); }
+			}
+			return Object.freeze<BrowserSavedFile>({ method: 'download', fileName, size: field(input, 'size', 'download') as number });
+		});
+	};
 	const result: Readonly<PhotoRasterJournalDestinationsV1> = Object.freeze({
 		getReceipt: receipt,
 		prepareSave(member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) {
@@ -91,28 +125,8 @@ async function captureAuthority(runtime: PhotoRasterExportBatchDestinations, mem
 				return prepared;
 			});
 		},
-		saveFile(member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) {
-			const jobId = memberId(member); if (attempted.has(jobId)) throw new TypeError('Photo export member already attempted.'); attempted.add(jobId);
-			const captured = { ...request };
-			return join(async () => {
-				await journal.started(jobId, reviewed.has(jobId));
-				if (closed) throw new DOMException('Photo export destinations retired before delivery.', 'AbortError');
-				if (captured.signal) Reflect.apply(THROW_IF_ABORTED, captured.signal, []);
-				const saved = await save(member, captured);
-				if (Object.hasOwn(saved, 'cancelled')) {
-					const cancelled = record(saved, 'Photo export cancelled download', ['cancelled', 'fileName', 'size']);
-					if (field(cancelled, 'cancelled', 'cancelled') !== true) throw new TypeError('Photo export cancellation must be explicit.');
-					const scalar = normalizePhotoRasterExportDownloadAckV1({ status: 'download-started', method: 'download', fileName: field(cancelled, 'fileName', 'cancelled'), size: field(cancelled, 'size', 'cancelled') }, member.fileName);
-					return Object.freeze<BrowserSavedFile>({ cancelled: true, fileName: scalar.fileName, size: scalar.size });
-				}
-				const input = record(saved, 'Photo export native download', ['method', 'fileName', 'size']);
-				const ack = normalizePhotoRasterExportDownloadAckV1({ status: 'download-started', method: field(input, 'method', 'download'),
-					fileName: field(input, 'fileName', 'download'), size: field(input, 'size', 'download') }, member.fileName);
-				deliveries.set(jobId, ack);
-				try { await journal.committed(jobId, ack); } catch (cause) { publications.set(jobId, cause); }
-				return Object.freeze<BrowserSavedFile>({ method: 'download', fileName: ack.fileName, size: ack.size });
-			});
-		},
+		saveFile(member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) { return deliver(member, request, false); },
+		...(sidecarEnabled ? { saveSidecar(member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) { return deliver(member, request, true); } } : {}),
 		retireAndJoin() {
 			if (retirement) return retirement; closed = true;
 			retirement = (async () => {
@@ -126,9 +140,11 @@ async function captureAuthority(runtime: PhotoRasterExportBatchDestinations, mem
 }
 function captureMembers(planValue: Readonly<PhotoRasterExportBatchV1>, owner: PhotoRasterExportJournalOwnerV1): ReadonlyMap<Readonly<PhotoRasterExportBatchMemberV1>, string> {
 	const journal = owner.current; if (!journal) throw new TypeError('Photo export destinations require a durable journal.');
-	const plan = record(planValue, 'Photo export destination plan', ['schemaVersion', 'batchId', 'format', 'members', 'output'], ['schemaVersion', 'batchId', 'format', 'members']);
+	const plan = record(planValue, 'Photo export destination plan', ['schemaVersion', 'batchId', 'format', 'members', 'output', 'sidecarEnabled'], ['schemaVersion', 'batchId', 'format', 'members']);
 	if (field(plan, 'schemaVersion', 'plan') !== 1 || field(plan, 'batchId', 'plan') !== journal.batchId || field(plan, 'format', 'plan') !== journal.format) throw new TypeError('Photo export destinations differ from their journal.');
 	const output = Object.hasOwn(plan, 'output') ? capturePhotoRasterExportOutput(field(plan, 'output', 'plan')) : undefined;
+	const sidecarEnabled = Object.hasOwn(plan, 'sidecarEnabled') ? field(plan, 'sidecarEnabled', 'plan') : false;
+	if (typeof sidecarEnabled !== 'boolean' || sidecarEnabled !== Boolean(journal.sidecarEnabled)) throw new TypeError('Photo companion selection differs from its journal.');
 	if (JSON.stringify(output) !== JSON.stringify(journal.output)) throw new TypeError('Photo export settings differ from their journal.');
 	const seen = new Set<string>();
 	return new Map(array(field(plan, 'members', 'plan'), 'Photo export destination members', 1, journal.members.length).map(value => {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { BrowserFileSaveRequest, BrowserSaveTarget, BrowserSavedFile, PreparedBrowserSave } from '../../common/editor/browser-file-save-service.ts';
+import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../../common/editor/browser-file-save-service.ts';
 import type { PhotoRasterExportBatchV1, PhotoRasterExportBatchMemberV1 } from './photo-raster-export-batch-v1.ts';
 import type { PhotoRasterExportBatchDestinations } from './photo-raster-export-batch-queue.ts';
 
@@ -15,14 +15,19 @@ export function createPhotoRasterBatchDownloadDestinations(plan: Readonly<PhotoR
 	};
 	const prepare = pin<(request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>>('prepareSave');
 	const save = pin<(request: BrowserFileSaveRequest) => BrowserSavedFile | PromiseLike<BrowserSavedFile>>('saveFile');
-	const targets = new Map<Readonly<PhotoRasterExportBatchMemberV1>, Readonly<BrowserSaveTarget>>(
-		plan.members.map(member => [member, Object.freeze({ browserDownload: true, name: member.fileName })]));
+	const sidecarEnabled = plan.sidecarEnabled === true;
+	const targets = new Map(plan.members.map(member => [member, Object.freeze({
+		image: Object.freeze({ browserDownload: true, name: member.fileName }),
+		sidecar: sidecarEnabled ? Object.freeze({ browserDownload: true, name: member.fileName + '.lightscaper.json' }) : null,
+	})]));
 	const pending = new Set<Promise<unknown>>(); let closed = false, retirement: Promise<void> | null = null;
-	const requestFor = (member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest): BrowserFileSaveRequest => {
+	const requestFor = (member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest, sidecar = false): BrowserFileSaveRequest => {
 		if (closed) throw new DOMException('Photo download destinations retired.', 'AbortError');
-		const target = targets.get(member);
-		if (!target) throw new TypeError('Photo download member is outside the captured plan.');
-		return { ...request, target, suggestedName: member.fileName, fileName: member.fileName, useFileSystemAccess: false };
+		const memberTargets = targets.get(member);
+		if (!memberTargets) throw new TypeError('Photo download member is outside the captured plan.');
+		const target = sidecar ? memberTargets.sidecar : memberTargets.image;
+		if (!target) throw new TypeError('Photo companion download was not requested.');
+		return { ...request, target, suggestedName: target.name, fileName: target.name, useFileSystemAccess: false };
 	};
 	const join = <Result>(invoke: () => Result | PromiseLike<Result>): Promise<Result> => {
 		const work = Promise.resolve(invoke()); pending.add(work);
@@ -31,6 +36,7 @@ export function createPhotoRasterBatchDownloadDestinations(plan: Readonly<PhotoR
 	return Object.freeze<PhotoRasterExportBatchDestinations>({
 		prepareSave(member, request) { const captured = requestFor(member, request); return join(() => prepare(captured)); },
 		saveFile(member, request) { const captured = requestFor(member, request); return join(() => save(captured)); },
+		...(sidecarEnabled ? { saveSidecar(member: Readonly<PhotoRasterExportBatchMemberV1>, request: BrowserFileSaveRequest) { const captured = requestFor(member, request, true); return join(() => save(captured)); } } : {}),
 		retireAndJoin() {
 			if (retirement) return retirement;
 			closed = true;

@@ -23,7 +23,7 @@ import { deferred, remainsPending } from './helpers/async-test-control.ts';
 
 // The maintained memory repositories exercise actual CAS/resource admission;
 // their three-byte original is an admitted unit-storage oracle, not UI ingest.
-async function fixture(count = 1) {
+async function fixture(count = 1, sidecarEnabled = false) {
 	const base = lutArchiveFixture().record, photos = new Map<string, ReturnType<typeof normalizePhotoDocumentV2>>(), originals = new Map<string, Blob>();
 	for (let index = 1; index <= count; index++) {
 		const photo = normalizePhotoDocumentV2({ ...base.photo, id: `photo-${index}`, original: { ...base.photo.original, storageKey: `original-${index}` } });
@@ -58,15 +58,16 @@ async function fixture(count = 1) {
 		return 'completed';
 	};
 	const selection = [...photos.values()].map(photo => ({ photoId: photo.id, fileName: photo.metadata.fileName }));
+	const readSidecar = async (request: Parameters<typeof createPhotoExportSidecarV1>[1]) => { if (holdLastRead) { entered.resolve(); await held.promise; } return serializePhotoExportSidecarV1(createPhotoExportSidecarV1(photos.get(request.photoId), request)); };
 	const prepare = (selected = selection) => PhotoRasterPersistedBatch.prepare({ selection: selected, execute, signal: stop.signal,
-		readSidecar: async request => { if (holdLastRead) { entered.resolve(); await held.promise; } return serializePhotoExportSidecarV1(createPhotoExportSidecarV1(photos.get(request.photoId), request)); },
+		readSidecar,
 		openJournal: options => openPhotoLibraryExportJournalSession(host, options) });
-	const plan = (owner: PhotoRasterPersistedBatch, batchId = 'batch') => capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId, format: 'png', filenameTemplate: '{index:2}-{name}', members: owner.prepared!.members });
+	const plan = (owner: PhotoRasterPersistedBatch, batchId = 'batch') => capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId, format: 'png', filenameTemplate: '{index:2}-{name}', ...(sidecarEnabled ? { sidecarEnabled: true } : {}), members: owner.prepared!.members });
 	const runtime = {
 		prepareSave(request: BrowserFileSaveRequest): PreparedBrowserSave { assert.equal(this, runtime); assert.ok(typeof request.fileName === 'string'); events.push('prepare'); return { mode: 'blob', target: request.target!, fileName: request.fileName }; },
 		saveFile(request: BrowserFileSaveRequest): BrowserSavedFile { assert.equal(this, runtime); assert.ok(typeof request.fileName === 'string'); events.push(`native:${request.fileName}`); return { method: 'download', fileName: request.fileName, size: request.blob!.size }; },
 	};
-	return { photos, originals, memory, repository, host, resources, events, held, entered, stop, execute, prepare, plan, runtime,
+	return { photos, originals, memory, repository, host, resources, events, held, entered, stop, execute, readSidecar, prepare, plan, runtime,
 		holdIntent: () => { holdIntent = true; }, holdCreate: () => { holdCreate = true; }, holdLastRead: () => { holdLastRead = true; }, failPublication: () => { publicationFailure = true; },
 		close: () => lifetime.close(() => resources.close()) };
 }
@@ -209,4 +210,71 @@ test('composition captures own callback receivers before opening and refuses acc
 		const accessor = Object.defineProperty({ ...options }, 'selection', { enumerable: true, get() { reads++; return options.selection; } });
 		await assert.rejects(PhotoRasterPersistedBatch.prepare(accessor)); assert.equal(reads, 0);
 	} finally { await f.close(); }
+});
+
+function queueFor(f: Awaited<ReturnType<typeof fixture>>, owner: PhotoRasterPersistedBatch, recovery = false, reviewed: readonly string[] = []) {
+	return new PhotoRasterExportBatchQueue({ fileTypeDescription: 'PNG', execute: f.execute, readSidecar: f.readSidecar,
+		prepareDestinations: plan => recovery ? owner.prepareRecoveryDestinations(plan, f.runtime, reviewed) : owner.prepareFreshDestinations(plan, f.runtime, '{index:2}-{name}'),
+		withOriginalFrame: async (request, consume) => {
+			assert.equal(recovery, false, 'JSON-only recovery must never borrow image pixels'); f.events.push('render-original');
+			return consume({ photoId: request.photoId, revision: request.expectedRevision, frame: { descriptor: { schemaVersion: 1, width: 1, height: 1,
+				sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: Uint8Array.of(11, 73, 149, 255) } });
+		}, loadRenderer: async () => { assert.equal(recovery, false); return createPhotoDevelopRenderRuntimeV2(); },
+		encode: async (_format, frame, options) => { assert.equal(recovery, false); f.events.push('encode'); return encodePixelFramePngV1(frame, options); } });
+}
+test('paired batch delivers independently acknowledged image and exact canonical JSON for each selected photo', async () => {
+	const f = await fixture(2, true), owner = await f.prepare(), bodies: { name: string; type: string; text: Promise<string> }[] = [], native = f.runtime.saveFile;
+	f.runtime.saveFile = request => { assert.ok(request.blob); assert.equal(typeof request.fileName, 'string'); bodies.push({ name: request.fileName as string, type: request.blob.type, text: request.blob.text() }); return native.call(f.runtime, request); };
+	try {
+		const receipt = await queueFor(f, owner).start({ schemaVersion: 1, batchId: 'batch', format: 'png', filenameTemplate: '{index:2}-{name}', members: owner.prepared!.members, sidecarEnabled: true });
+		assert.deepEqual(receipt.members.map(member => [member.state, member.delivery?.status, member.delivery?.status !== 'cancelled' && member.delivery?.sidecar?.status]), [['completed', 'download-started', 'download-started'], ['completed', 'download-started', 'download-started']]);
+		assert.deepEqual(bodies.map(body => body.type), ['image/png', 'application/json', 'image/png', 'application/json']);
+		assert.deepEqual(bodies.map(body => body.name), ['01-Photo 1.png', '01-Photo 1.png.lightscaper.json', '02-Photo 1.png', '02-Photo 1.png.lightscaper.json']);
+		assert.deepEqual(await Promise.all(bodies.filter(body => body.type === 'application/json').map(body => body.text)), await Promise.all(owner.prepared!.members.map(member => f.readSidecar({ catalogId: owner.prepared!.catalogId, photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision }))));
+		assert.deepEqual(owner.journal!.members.map(member => [member.state, member.sidecar!.state]), [['committed', 'committed'], ['committed', 'committed']]);
+	} finally { await owner.closeAndJoin(); await f.close(); }
+});
+
+test('legacy nonpaired preparation admits the existing reader JSON representation and retains the exact original journal shape', async () => {
+	const f = await fixture();
+	try {
+		const owner = await PhotoRasterPersistedBatch.prepare({ selection: [{ photoId: 'photo-1', fileName: 'Photo 1.png' }], execute: f.execute, signal: f.stop.signal,
+			openJournal: options => openPhotoLibraryExportJournalSession(f.host, options), readSidecar: async request => ` ${await f.readSidecar(request)}\n` });
+		const plan = f.plan(owner), destinations = await owner.prepareFreshDestinations(plan, f.runtime, '{index:2}-{name}');
+		assert.deepEqual(Object.keys(owner.journal!), ['schemaVersion', 'kind', 'catalogId', 'revision', 'batchId', 'format', 'filenameTemplate', 'members']);
+		assert.equal(Object.hasOwn(owner.journal!.members[0]!, 'sidecar'), false); assert.equal(Object.hasOwn(owner.journal!.members[0]!.binding, 'sidecarSha256'), false);
+		await destinations.retireAndJoin(); await owner.closeAndJoin();
+	} finally { await f.close(); }
+});
+test('failed JSON preserves raster ACK and reopened reviewed retry delivers JSON only without another image', async () => {
+	const f = await fixture(1, true), owner = await f.prepare(), primary = Symbol('JSON native refusal'), save = f.runtime.saveFile;
+	f.runtime.saveFile = request => { if (request.mimeType === 'application/json') throw primary; return save.call(f.runtime, request); };
+	try {
+		const queue = queueFor(f, owner), work = queue.start({ schemaVersion: 1, batchId: 'batch', format: 'png', filenameTemplate: '{index:2}-{name}', members: owner.prepared!.members, sidecarEnabled: true });
+		await assert.rejects(work); const receipt = queue.getSnapshot().members[0]!.delivery!;
+		assert.notEqual(receipt.status, 'cancelled'); if (receipt.status !== 'cancelled') { assert.equal(receipt.sidecar!.status, 'failed'); assert.equal(receipt.sidecar!.cause, primary); }
+		assert.equal(owner.journal!.members[0]!.state, 'committed'); assert.equal(owner.journal!.members[0]!.sidecar!.state, 'started');
+		f.runtime.saveFile = save;
+		const reopened = await f.prepare([]); assert.equal(reopened.recovery[0]!.disposition, 'needs-review');
+		const retry = queueFor(f, reopened, true, ['batch:1']); await retry.startRecovery(reopened.journal, ['batch:1']);
+		assert.deepEqual(f.events.filter(event => event.startsWith('native:')), ['native:01-Photo 1.png', 'native:01-Photo 1.png.lightscaper.json']);
+		assert.equal(f.events.filter(event => event === 'encode').length, 1); assert.equal(reopened.journal!.members[0]!.sidecar!.state, 'committed'); await reopened.closeAndJoin();
+	} finally { await owner.closeAndJoin(); await f.close(); }
+});
+for (const change of ['metadata', 'disabled-lut'] as const) test(`JSON after acknowledged image refuses changed ${change} without retracting the image ACK`, async () => {
+	const f = await fixture(1, true), owner = await f.prepare(), save = f.runtime.saveFile;
+	f.runtime.saveFile = request => {
+		const result = save.call(f.runtime, request);
+		if (request.mimeType === 'image/png') {
+			const photo = f.photos.get('photo-1')!;
+			if (change === 'metadata') f.photos.set(photo.id, normalizePhotoDocumentV2({ ...photo, metadata: { ...photo.metadata, title: 'Late authored metadata' } }));
+			else { const row = f.memory.analysis.get(LUT_REFERENCE.storageKey) as { value: { bytes: Uint8Array } }; row.value.bytes[0] = 0; }
+		}
+		return result;
+	};
+	try {
+		const queue = queueFor(f, owner); await assert.rejects(queue.start({ schemaVersion: 1, batchId: 'batch', format: 'png', filenameTemplate: '{index:2}-{name}', members: owner.prepared!.members, sidecarEnabled: true }));
+		assert.equal(queue.getSnapshot().members[0]!.delivery?.status, 'download-started'); assert.equal(owner.journal!.members[0]!.state, 'committed');
+		assert.deepEqual(f.events.filter(event => event.startsWith('native:')), ['native:01-Photo 1.png']);
+	} finally { await owner.closeAndJoin(); await f.close(); }
 });

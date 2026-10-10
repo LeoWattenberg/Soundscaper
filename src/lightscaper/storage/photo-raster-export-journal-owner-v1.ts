@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { normalizePhotoRasterExportJournalV1, normalizePhotoRasterExportDownloadAckV1, photoRasterExportJournalKeyV1,
-	type PhotoRasterExportJournalV1, type PhotoRasterExportDownloadAckV1 } from './photo-raster-export-journal-v1.ts';
+import { normalizePhotoRasterExportJournalV1, normalizePhotoRasterExportDownloadAckV1, normalizePhotoRasterExportSidecarAckV1, isPhotoRasterExportMemberCompleteV1, photoRasterExportJournalKeyV1,
+	type PhotoRasterExportJournalV1, type PhotoRasterExportDownloadAckV1, type PhotoRasterExportSidecarAckV1 } from './photo-raster-export-journal-v1.ts';
 import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../common/editor/closed-domain-value.ts';
 
 export interface PhotoRasterExportJournalSettingsV1 {
@@ -61,7 +61,7 @@ export class PhotoRasterExportJournalOwnerV1 {
 		if (fresh.revision !== 1 || fresh.members.some(member => member.state !== 'pending')) throw new TypeError('A replacement export journal must be fresh pending work.');
 		return this.#join(async () => {
 			const current = this.#current;
-			if (!current || current.members.some(member => member.state !== 'committed') || current.batchId === fresh.batchId) throw new TypeError('Only a fully committed different queue can be replaced explicitly.');
+			if (!current || current.members.some(member => !isPhotoRasterExportMemberCompleteV1(member)) || current.batchId === fresh.batchId) throw new TypeError('Only a fully committed different queue can be replaced explicitly.');
 			const journal = this.#admit({ ...fresh, revision: current.revision + 1 });
 			await this.#write(journal, () => this.#settings.replaceIfCurrent(this.#key, this.#raw, journal)); return journal;
 		});
@@ -75,6 +75,22 @@ export class PhotoRasterExportJournalOwnerV1 {
 			return { ...member, state: 'committed', delivery: ack };
 		});
 	}
+	sidecarStarted(jobId: string, reviewedRetry = false): Promise<Readonly<PhotoRasterExportJournalV1>> {
+		if (typeof reviewedRetry !== 'boolean') throw new TypeError('Photo companion retry review must be explicit.');
+		return this.#transition(jobId, member => {
+			if (member.state !== 'committed' || !member.sidecar || member.sidecar.state === 'committed' || (member.sidecar.state === 'started' && !reviewedRetry)) throw new TypeError('Photo companion requires acknowledged raster and explicit uncertainty review.');
+			return { ...member, sidecar: { state: 'started', delivery: null } };
+		});
+	}
+	sidecarCommitted(jobId: string, value: Readonly<PhotoRasterExportSidecarAckV1>): Promise<Readonly<PhotoRasterExportJournalV1>> {
+		const member = this.#current?.members.find(member => member.jobId === jobId);
+		if (!member) throw new TypeError('Photo companion has no captured member.');
+		const ack = normalizePhotoRasterExportSidecarAckV1(value, member.fileName);
+		return this.#transition(jobId, member => {
+			if (member.state !== 'committed' || member.sidecar?.state !== 'started') throw new TypeError('Photo JSON ACK requires durable companion intent.');
+			return { ...member, sidecar: { state: 'committed', delivery: ack } };
+		});
+	}
 	/** Forget scalar recovery history after explicit review. This never acquires
 	 * a destination or removes any file that may already have been downloaded. */
 	discardUnfinished(value: unknown): Promise<void> {
@@ -84,7 +100,7 @@ export class PhotoRasterExportJournalOwnerV1 {
 			|| !Number.isSafeInteger(revision) || revision < 1) throw new TypeError('Photo export queue requires explicit current review.');
 		return this.#join(async () => {
 			const current = this.#current, remove = this.#settings.deleteIfCurrent;
-			if (!current || current.batchId !== batchId || current.revision !== revision || current.members.every(member => member.state === 'committed')) throw new TypeError('Only the reviewed current unfinished queue can be forgotten.');
+			if (!current || current.batchId !== batchId || current.revision !== revision || current.members.every(isPhotoRasterExportMemberCompleteV1)) throw new TypeError('Only the reviewed current unfinished queue can be forgotten.');
 			if (!remove) throw new Error('Photo export queue deletion is unavailable.');
 			let cause: unknown = new Error('Photo export queue changed before deletion.');
 			try { if (await remove(this.#key, this.#raw) === true) { this.#raw = undefined; this.#current = null; return; } }

@@ -39,3 +39,30 @@ test('foreign member copies and accessor save capabilities refuse without invoki
 	assert.throws(() => createPhotoRasterBatchDownloadDestinations(value, Object.defineProperty({ saveFile: service.saveFile }, 'prepareSave', { enumerable: true, get() { reads++; return service.prepareSave; } })));
 	assert.equal(reads, 0);
 });
+
+test('paired targets pin JSON delivery in the same initial gesture and join its held native call', async () => {
+	const value = capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId: 'pair', format: 'jpeg', filenameTemplate: '{name}', sidecarEnabled: true,
+		members: [{ photoId: 'one', versionId: 'master', expectedRevision: 2, sourceFileName: 'First.png' }] });
+	const held = deferred<void>(), entered = deferred<void>(), names: string[] = [];
+	const runtime = { prepareSave: () => assert.fail('JSON-only retry must not prepare raster'),
+		async saveFile(request: { fileName?: unknown; useFileSystemAccess?: unknown; target?: unknown }) {
+			assert.equal(this, runtime); assert.equal(request.useFileSystemAccess, false); names.push(String(request.fileName)); entered.resolve(); await held.promise;
+			return { method: 'download' as const, fileName: String(request.fileName), size: 2 };
+		} };
+	const owner = createPhotoRasterBatchDownloadDestinations(value, runtime); runtime.saveFile = async () => assert.fail('Late JSON method substitution');
+	const work = Promise.resolve(owner.saveSidecar!(value.members[0]!, { fileName: 'wrong', mimeType: 'application/json', blob: new Blob(['{}'], { type: 'application/json' }) }));
+	await entered.promise; const joined = owner.retireAndJoin(); assert.equal(await remainsPending(joined), true); held.resolve();
+	await work; await joined; assert.deepEqual(names, ['First.jpg.lightscaper.json']);
+});
+
+test('both image and JSON target names are detached in the gesture before caller plan mutation', async () => {
+	const base = capturePhotoRasterExportBatchV1({ schemaVersion: 1, batchId: 'pair', format: 'png', filenameTemplate: '{name}', sidecarEnabled: true,
+		members: [{ photoId: 'one', versionId: 'master', expectedRevision: 2, sourceFileName: 'First.png' }] });
+	const member = { ...base.members[0]! }, value = { ...base, members: [member] }, names: string[] = [];
+	const runtime = { prepareSave: () => assert.fail('JSON recovery has no picker'), saveFile: async (request: { fileName?: unknown }) => {
+		assert.equal(typeof request.fileName, 'string'); names.push(request.fileName as string); return { method: 'download' as const, fileName: request.fileName as string, size: 2 };
+	} };
+	const owner = createPhotoRasterBatchDownloadDestinations(value, runtime); member.fileName = 'Late override.png';
+	await owner.saveFile(member, {}); await owner.saveSidecar!(member, { blob: new Blob(['{}'], { type: 'application/json' }), mimeType: 'application/json' });
+	await owner.retireAndJoin(); assert.deepEqual(names, ['First.png', 'First.png.lightscaper.json']);
+});
