@@ -9,6 +9,7 @@ import '../audio-editor-design-system/28-mix-render.css';
 import type { MixRenderOptions } from '../../controller/track-audio/mix-render-options.ts';
 import {
 	mixRenderOutputChannelChoices,
+	nonemptyAudioTargets,
 	predictMixRenderOutputChannelCount,
 } from '../../controller/track-audio/mix-render-output-layout.ts';
 import { selectAudioTracksForMix } from '../../controller/track-audio/mix-render-model.ts';
@@ -35,6 +36,7 @@ interface MixRenderDialogCopy {
 	readonly replaceOriginals: string;
 	readonly replaceOriginalsDescription: string;
 	readonly mixRenderNoOperation: string;
+	readonly mixRenderLockedOriginals: string;
 	readonly cancel: string;
 	readonly helpMenu: string;
 }
@@ -93,9 +95,11 @@ export default function MixRenderDialog({
 	})), [copy, outputChannelCounts]);
 
 	const emptyOperation = !mixDown && !renderEffects;
+	const lockedReplacement = replaceOriginals && Boolean(project
+		&& nonemptyAudioTargets(project, targetTracks).some(track => track.locked === true));
 	const operation = useOwnedDialogOperation({
 		owner: projectId,
-		blocked: selectAudioEditorEditBlock(snapshot).blocked || emptyOperation || predictedOutputChannelCount === null,
+		blocked: selectAudioEditorEditBlock(snapshot).blocked || emptyOperation || lockedReplacement || predictedOutputChannelCount === null,
 		run,
 		onOwnerChange: () => {
 			setMixDown(true);
@@ -108,6 +112,7 @@ export default function MixRenderDialog({
 
 	const pending = operation.pending !== null;
 	const submitDisabled = operation.disabled;
+	const feedback = error || (lockedReplacement ? copy.mixRenderLockedOriginals : '');
 	const submit = (): void => {
 		const options = {
 			mixDown,
@@ -190,8 +195,8 @@ export default function MixRenderDialog({
 			{emptyOperation && <p className="audio-editor-mix-render__message" role="status">
 				{copy.mixRenderNoOperation}
 			</p>}
-			{error && <p className="audio-editor-mix-render__message audio-editor-mix-render__error" role="alert">
-				{error}
+			{feedback && <p className="audio-editor-mix-render__message audio-editor-mix-render__error" role="alert">
+				{feedback}
 			</p>}
 		</form>
 	</AudioEditorDialogShell>;
