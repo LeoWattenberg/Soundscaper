@@ -23,7 +23,6 @@ import {
 } from '../scripts/lib/build-chunk-groups.mjs';
 import { sourceModules } from './helpers/eager-chunk-group-crossings.ts';
 import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
-
 /**
  * The chunks that must stay behind a dynamic import.
  *
