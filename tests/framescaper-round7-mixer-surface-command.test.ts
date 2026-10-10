@@ -9,10 +9,18 @@ import { framescaperProjectForRuntimeConsumers } from '../src/framescaper/editor
 import { createFramescaperProjectHistory, executeFramescaperProjectCommand,
 	undoFramescaperProjectCommand, redoFramescaperProjectCommand } from '../src/framescaper/editor-project-history.ts';
 import { applySoundscaperMixerSurfaceCommand } from '../src/soundscaper/editor-project-mixer-surface.ts';
+import { isMixerGraphV21Surface } from '../src/common/editor/mixer-graph-surface-v21.ts';
+
+function mixerGraph(project: Readonly<{ mixer: unknown }>) {
+	const mixer: unknown = project.mixer;
+	assert.ok(isMixerGraphV21Surface(mixer), 'The actual selected native factory/history must retain a V21 graph.');
+	return mixer;
+}
 
 function fixture() {
-	return createFramescaperProject(PROFILE, { id: 'native-mixer', masterChannels: 2,
+	const project = createFramescaperProject(PROFILE, { id: 'native-mixer', masterChannels: 2,
 		tracks: [{ id: 'dialogue', name: 'Dialogue', type: 'audio', clipIds: [] }] });
+	return { ...project, mixer: mixerGraph(project) };
 }
 function seeded() {
 	const project = fixture();
@@ -20,7 +28,7 @@ function seeded() {
 		{ type: 'mixer/bus-add', busType: 'group', bus: { id: 'dialogue-group', name: 'Dialogue group' } }) };
 	const mixer = applySoundscaperMixerSurfaceCommand(grouped,
 		{ type: 'mixer/bus-add', busType: 'send', bus: { id: 'room-send', name: 'Room send' } });
-	return apply(PROFILE, project, { type: 'mixer-graph/set', expected: project.mixer, mixer });
+	return apply(PROFILE, project, { type: 'mixer-graph/set', expected: mixerGraph(project), mixer });
 }
 
 for (const busType of ['group', 'send'] as const) {
@@ -31,40 +39,40 @@ for (const busType of ['group', 'send'] as const) {
 		let history = createFramescaperProjectHistory(PROFILE, project);
 		history = executeFramescaperProjectCommand(PROFILE, history, { type: 'mixer/bus-add', busType,
 			bus: { id: busId, name: 'New bus' } });
-		assert.equal(history.present.mixer[collection].length, 1);
-		assert.equal(history.present.mixer[collection][0]!.id, busId);
-		assert.equal(history.present.mixer[collection][0]!.channelCount, 2);
+		assert.equal(mixerGraph(history.present)[collection].length, 1);
+		assert.equal(mixerGraph(history.present)[collection][0]!.id, busId);
+		assert.equal(mixerGraph(history.present)[collection][0]!.channelCount, 2);
 		assert.equal(history.undoStack.length, 1);
-		assert.deepEqual(history.present.mixer.edges.find(({ source }) => source.kind === 'mixer-node'), {
+		assert.deepEqual(mixerGraph(history.present).edges.find(({ source }) => source.kind === 'mixer-node'), {
 			id: `assignment:mixer-node:${busId}:master`, kind: 'assignment',
 			source: { kind: 'mixer-node', id: busId }, destination: { kind: 'master' },
 			position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1],
 		});
-		const accepted = history.present.mixer;
+		const accepted = mixerGraph(history.present);
 		const runtime = framescaperProjectForRuntimeConsumers(PROFILE, history.present);
-		assert.deepEqual(runtime.mixer, accepted);
-		assert.notEqual(runtime.mixer, accepted);
+		assert.deepEqual(mixerGraph(runtime), accepted);
+		assert.notEqual(mixerGraph(runtime), accepted);
 		history = undoFramescaperProjectCommand(PROFILE, history);
-		assert.deepEqual(history.present.mixer, project.mixer);
+		assert.deepEqual(mixerGraph(history.present), mixerGraph(project));
 		history = redoFramescaperProjectCommand(PROFILE, history);
-		assert.deepEqual(history.present.mixer, accepted);
+		assert.deepEqual(mixerGraph(history.present), accepted);
 		assert.deepEqual(project, before);
 	});
 	test(`normal native ${busType} gain and mute update mutate the canonical strip`, () => {
 		const project = seeded(), before = structuredClone(project);
 		const result = apply(PROFILE, project, { type: 'mixer/bus-update', busType, busId,
 			changes: { gain: .25, mute: true, name: 'Edited bus' } });
-		assert.equal(result.mixer[collection][0]!.gain, .25);
-		assert.equal(result.mixer[collection][0]!.mute, true);
-		assert.equal(result.mixer[collection][0]!.name, 'Edited bus');
-		assert.deepEqual(result.mixer.edges, project.mixer.edges);
+		assert.equal(mixerGraph(result)[collection][0]!.gain, .25);
+		assert.equal(mixerGraph(result)[collection][0]!.mute, true);
+		assert.equal(mixerGraph(result)[collection][0]!.name, 'Edited bus');
+		assert.deepEqual(mixerGraph(result).edges, mixerGraph(project).edges);
 		assert.deepEqual(project, before);
 	});
 	test(`normal native ${busType} removal retires its canonical strip and edges`, () => {
 		const project = seeded(), before = structuredClone(project);
 		const result = apply(PROFILE, project, { type: 'mixer/bus-remove', busType, busId });
-		assert.equal(result.mixer[collection].length, 0);
-		assert.ok(result.mixer.edges.every(edge => edge.source.kind !== 'mixer-node' || edge.source.id !== busId));
+		assert.equal(mixerGraph(result)[collection].length, 0);
+		assert.ok(mixerGraph(result).edges.every(edge => edge.source.kind !== 'mixer-node' || edge.source.id !== busId));
 		assert.deepEqual(project, before);
 	});
 }
@@ -73,7 +81,7 @@ test('normal native Output and send controls retain exact destinations, levels a
 	const project = seeded(), before = structuredClone(project);
 	const result = apply(PROFILE, project, { type: 'mixer/route-update', trackId: 'dialogue',
 		changes: { groupId: 'dialogue-group', sends: { 'room-send': .5 } } });
-	assert.deepEqual(result.mixer.edges.filter(edge => edge.source.kind === 'track'), [
+	assert.deepEqual(mixerGraph(result).edges.filter(edge => edge.source.kind === 'track'), [
 		{ id: 'assignment:track:dialogue:mixer-node:dialogue-group', kind: 'assignment',
 			source: { kind: 'track', id: 'dialogue' }, destination: { kind: 'mixer-node', id: 'dialogue-group' },
 			position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1] },
@@ -95,27 +103,27 @@ test('native mixed and nested batches retain graph edits in order with one Undo/
 			{ type: 'mixer/route-update', trackId: 'dialogue', changes: { groupId: 'dialogue-group', sends: { 'room-send': .5 } } },
 		] },
 	] });
-	assert.equal(history.present.mixer.groups.length, 1);
-	assert.equal(history.present.mixer.sends.length, 1);
-	assert.equal(history.present.mixer.edges.length, 5);
+	assert.equal(mixerGraph(history.present).groups.length, 1);
+	assert.equal(mixerGraph(history.present).sends.length, 1);
+	assert.equal(mixerGraph(history.present).edges.length, 5);
 	assert.equal(history.present.master.gain, .75);
 	assert.equal(history.undoStack.length, 1);
 	const accepted = history.present;
 	history = undoFramescaperProjectCommand(PROFILE, history);
-	assert.deepEqual(history.present.mixer, project.mixer);
+	assert.deepEqual(mixerGraph(history.present), mixerGraph(project));
 	assert.deepEqual(history.present.master, project.master);
 	history = redoFramescaperProjectCommand(PROFILE, history);
-	assert.deepEqual(history.present.mixer, accepted.mixer);
+	assert.deepEqual(mixerGraph(history.present), mixerGraph(accepted));
 	assert.deepEqual(history.present.master, accepted.master);
 });
 
 test('existing native graph authoring and ordinary track toggles remain healthy', () => {
 	const project = seeded();
-	assert.equal(project.mixer.groups.length, 1);
-	assert.equal(project.mixer.sends.length, 1);
+	assert.equal(mixerGraph(project).groups.length, 1);
+	assert.equal(mixerGraph(project).sends.length, 1);
 	const muted = apply(PROFILE, project, { type: 'track/update', trackId: 'dialogue', changes: { mute: true } });
 	assert.equal(muted.tracks.find(({ id }) => id === 'dialogue')!.mute, true);
-	assert.deepEqual(muted.mixer, project.mixer);
+	assert.deepEqual(mixerGraph(muted), mixerGraph(project));
 });
 
 test('removing a routed native group preserves sends and retires only the removed bus automation', () => {
@@ -134,19 +142,24 @@ test('removing a routed native group preserves sends and retires only the remove
 	let history = createFramescaperProjectHistory(PROFILE, project);
 	history = executeFramescaperProjectCommand(PROFILE, history,
 		{ type: 'mixer/bus-remove', busType: 'group', busId: 'dialogue-group' });
-	assert.equal(history.present.mixer.groups.length, 0);
-	assert.deepEqual(history.present.mixer.sends, project.mixer.sends);
-	assert.deepEqual(history.present.mixer.edges.find(({ id }) => id === 'send:track:dialogue:mixer-node:room-send'),
-		project.mixer.edges.find(({ id }) => id === 'send:track:dialogue:mixer-node:room-send'));
-	assert.deepEqual(history.present.automationLanes.map(({ id }) => id), ['track-gain']);
-	assert.deepEqual(history.present.mixer.edges.find(({ id }) => id === 'assignment:track:dialogue:master')?.destination,
+	assert.equal(mixerGraph(history.present).groups.length, 0);
+	assert.deepEqual(mixerGraph(history.present).sends, mixerGraph(project).sends);
+	assert.deepEqual(mixerGraph(history.present).edges.find(({ id }) => id === 'send:track:dialogue:mixer-node:room-send'),
+		mixerGraph(project).edges.find(({ id }) => id === 'send:track:dialogue:mixer-node:room-send'));
+	const lanes: unknown = history.present.automationLanes;
+	assert.ok(Array.isArray(lanes));
+	assert.deepEqual(lanes.map((lane: unknown) => {
+		assert.ok(lane && typeof lane === 'object' && 'id' in lane && typeof lane.id === 'string');
+		return lane.id;
+	}), ['track-gain']);
+	assert.deepEqual(mixerGraph(history.present).edges.find(({ id }) => id === 'assignment:track:dialogue:master')?.destination,
 		{ kind: 'master' });
 	const accepted = history.present;
 	history = undoFramescaperProjectCommand(PROFILE, history);
-	assert.deepEqual(history.present.mixer, project.mixer);
+	assert.deepEqual(mixerGraph(history.present), mixerGraph(project));
 	assert.deepEqual(history.present.automationLanes, project.automationLanes);
 	history = redoFramescaperProjectCommand(PROFILE, history);
-	assert.deepEqual(history.present.mixer, accepted.mixer);
+	assert.deepEqual(mixerGraph(history.present), mixerGraph(accepted));
 	assert.deepEqual(history.present.automationLanes, accepted.automationLanes);
 });
 
@@ -163,12 +176,12 @@ for (const busType of ['group', 'send'] as const) {
 		assert.equal(allocated, 0);
 		let history = createFramescaperProjectHistory(PROFILE, project);
 		history = executeFramescaperProjectCommand(PROFILE, history, prepared);
-		assert.equal(history.present.mixer[collection][0]!.mute, true);
+		assert.equal(mixerGraph(history.present)[collection][0]!.mute, true);
 		assert.equal(history.undoStack.length, 1);
 		history = undoFramescaperProjectCommand(PROFILE, history);
-		assert.equal(history.present.mixer[collection][0]!.mute, false);
+		assert.equal(mixerGraph(history.present)[collection][0]!.mute, false);
 		history = redoFramescaperProjectCommand(PROFILE, history);
-		assert.equal(history.present.mixer[collection][0]!.mute, true);
+		assert.equal(mixerGraph(history.present)[collection][0]!.mute, true);
 		assert.deepEqual(project, before);
 	});
 	test(`the actual native transition preparation retains normal ${busType} removal`, () => {
@@ -178,7 +191,7 @@ for (const busType of ['group', 'send'] as const) {
 			() => { throw new Error('No visual overlap is authored by bus removal.'); });
 		assert.deepEqual(prepared, command);
 		const result = apply(PROFILE, project, prepared);
-		assert.equal(result.mixer[collection].length, 0);
+		assert.equal(mixerGraph(result)[collection].length, 0);
 	});
 }
 
@@ -194,15 +207,15 @@ test('actual native transition preparation respects a mixed compact mixer batch 
 		() => { throw new Error('No visual overlap is authored by compact mixer edits.'); });
 	let history = createFramescaperProjectHistory(PROFILE, project);
 	history = executeFramescaperProjectCommand(PROFILE, history, prepared);
-	assert.equal(history.present.mixer.groups[0]!.mute, true);
+	assert.equal(mixerGraph(history.present).groups[0]!.mute, true);
 	assert.equal(history.present.master.gain, .75);
 	assert.equal(history.undoStack.length, 1);
-	assert.deepEqual(history.present.mixer.edges.find(({ source }) => source.kind === 'track')?.destination,
+	assert.deepEqual(mixerGraph(history.present).edges.find(({ source }) => source.kind === 'track')?.destination,
 		{ kind: 'mixer-node', id: 'dialogue-group' });
 	history = undoFramescaperProjectCommand(PROFILE, history);
-	assert.deepEqual(history.present.mixer, project.mixer);
+	assert.deepEqual(mixerGraph(history.present), mixerGraph(project));
 	history = redoFramescaperProjectCommand(PROFILE, history);
-	assert.equal(history.present.mixer.groups[0]!.mute, true);
+	assert.equal(mixerGraph(history.present).groups[0]!.mute, true);
 });
 
 test('actual native transition preparation retains the ordinary output/send route', () => {
@@ -213,7 +226,7 @@ test('actual native transition preparation retains the ordinary output/send rout
 		() => { throw new Error('No visual overlap is authored by output/send routing.'); });
 	assert.deepEqual(prepared, command);
 	const result = apply(PROFILE, project, prepared);
-	assert.deepEqual(result.mixer.edges.find(({ source }) => source.kind === 'track')?.destination,
+	assert.deepEqual(mixerGraph(result).edges.find(({ source }) => source.kind === 'track')?.destination,
 		{ kind: 'mixer-node', id: 'dialogue-group' });
-	assert.equal(result.mixer.edges.find(({ kind }) => kind === 'send')?.level, .5);
+	assert.equal(mixerGraph(result).edges.find(({ kind }) => kind === 'send')?.level, .5);
 });
