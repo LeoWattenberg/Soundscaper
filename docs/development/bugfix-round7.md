@@ -180,3 +180,13 @@ log, screenshots and temporary results are deleted immediately after review.
 The private retime replacement helper retains its owning semantic chunk;
 52 ownership checks and the helper-register lint pass. Full tests TypeScript
 passes after collecting all three next candidates.
+
+## Qualified total: 80 fixes
+
+Prepared `b04e692b7` passes all four corrected Chromium workflows in
+24.2 seconds: DIALOG025 (4.4 seconds), EFFECT016 (8.2 seconds), IO023's
+continuous replacement control (11.5 seconds) and frozen replacement
+(13.9 seconds). Each new root retains its ordinary-menu baseline causal
+failure and focused tests in its area register. Both guarded builds pass;
+the largest JavaScript chunk remains 487,635 bytes. The source excludes
+provisional EDIT019. Manual **Update AI assets** is not required.
