@@ -10,6 +10,7 @@ import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-deve
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { ReadPhotoExportMetadata } from '../../../../lightscaper/controller/photo-raster-export.ts';
+import type { PhotoLibraryExportPresetsPortV1 } from '../../photo-library-export-presets-port-v1.ts';
 
 interface ReadOwners {
 	readonly slot: RefObject<SessionSlot | null>;
@@ -109,5 +110,18 @@ export function usePhotoLibraryWorkflowReads({ slot, factory, loader, renderer, 
 			if (!isCurrent()) throw new DOMException('Photo export journal generation is closed.', 'AbortError'); return access;
 		};
 	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
-	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener };
+	const captureExportPresetsOpener = useCallback((): PhotoLibraryExportPresetsPortV1['open'] => {
+		const current = slot.current;
+		const isCurrent = () => current?.live && slot.current === current && current.factory === createSession && current.factory === factory.current
+			&& current.proxyFactory === createDevelopProxyRuntime && current.proxyFactory === renderer.current && current.backupLoader === loadBackupSaveRuntime && current.backupLoader === loader.current;
+		return async (options = {}) => {
+			if (!current || !isCurrent()) throw new DOMException('Photo export preset generation is closed.', 'AbortError');
+			const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
+			check(signal); const owner = await acquire(current); check(signal);
+			if (!isCurrent() || !owner.exportPresets) throw new Error('Photo export presets are unavailable.');
+			const access = await owner.exportPresets.open({ signal }); check(signal);
+			if (!isCurrent()) throw new DOMException('Photo export preset generation is closed.', 'AbortError'); return access;
+		};
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
+	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener };
 }

@@ -7,7 +7,7 @@ import type { PhotoLibrarySessionPortsV2 } from './photo-library-session-ports-v
 /** Fixed current composition pins receiver authority before initialization or recovery can yield. */
 export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV2): Readonly<PhotoLibrarySessionPortsV2> {
 	const catalog = ports.catalog, media = ports.media, journal = ports.journal, stacks = ports.stacks, smart = ports.smartCollections;
-	const settings = ports.settings, presetSettings = ports.developPresetSettings, inspection = ports.originalInspection,
+	const settings = ports.settings, presetSettings = ports.developPresetSettings, exportPresets = ports.exportPresetSettings, inspection = ports.originalInspection,
 		restoration = ports.originalRestoration, backup = ports.backup;
 	const initialize = ports.initialize, closeResources = ports.closeResources, exclusive = ports.exclusive,
 		verifyResources = ports.verifyResources, cubeLutResources = ports.cubeLutResources, createPreviewScheduler = ports.createPreviewScheduler,
@@ -25,6 +25,7 @@ export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV
 		...(settings === undefined ? {} : { settings: captureSettings(settings) }),
 		...(presetSettings === undefined ? {} : { developPresetSettings: captureSettings(presetSettings) }),
 		...(ports.exportJournalSettings === undefined ? {} : { exportJournalSettings: captureSettings(ports.exportJournalSettings) }),
+		...(exportPresets === undefined ? {} : { exportPresetSettings: captureSettings(exportPresets) }),
 		...(stacks === undefined ? {} : { stacks: Object.freeze({ readSnapshot: pin(stacks.readSnapshot, stacks),
 			readStackState: pin(stacks.readStackState, stacks), loadStack: pin(stacks.loadStack, stacks),
 			readStackMembershipPage: pin(stacks.readStackMembershipPage, stacks), readStackMemberPage: pin(stacks.readStackMemberPage, stacks),

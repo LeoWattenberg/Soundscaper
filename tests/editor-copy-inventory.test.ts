@@ -17,7 +17,16 @@ import { freesoundAttributionCopy } from '../src/common/i18n/freesound-attributi
 import { acceptableTranslation, currentTranslations } from '../src/common/i18n/translation-catalog.js';
 import { resolveCatalog } from '../src/common/i18n/runtime.js';
 import { EDITOR_COPY_AUDIT_INVENTORY } from '../scripts/lib/editor-copy-audit-inventory.mjs';
+import { photoExportPresetsCopy } from '../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../src/common/i18n/image-export-graphic-copy.ts';
+
+test('optional photo export presets are audited without entering eager runtime copy', () => {
+	for (const [key, value] of Object.entries(photoExportPresetsCopy('en'))) {
+		assert.equal(EDITOR_COPY_AUDIT_INVENTORY[`ui.photoExportPresets.${key}`], value);
+		assert.equal(EDITOR_ENGLISH_COPY[`ui.photoExportPresets.${key}`], undefined);
+	}
+	assert.equal(photoExportPresetsCopy('de').apply, 'Vorgabe anwenden');
+});
 
 test('optional graphic copy is audited without entering the eager runtime copy inventory', () => {
 	for (const [key, value] of Object.entries(imageExportGraphicCopy('en'))) {

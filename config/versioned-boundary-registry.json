@@ -564,6 +564,8 @@
 		,
 		{"path": "src/common/editor/photo-library-develop-settings-port-v2.ts", "kind": "helper-contract", "justification": "Current schema2 settings requests and bounded serial batch receipts retain mixed strict settings packets and every acknowledged photo result without resource bodies."}
 		,
+		{"path": "src/common/editor/photo-library-export-presets-port-v1.ts", "kind": "helper-contract", "justification": "Fixed body-free export preset DTO and selected Session transport; the stored scalar recipe version is independent of photo documents and delivery authority."}
+		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
@@ -1184,6 +1186,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-raster-export-journal-destinations-v1.ts", "kind": "helper-contract", "justification": "Version 1 initial-gesture download adapter requires durable intent before native delivery, preserves actual download-started acknowledgement through journal or retirement failure, and joins captured native capabilities without serializing them or automatically retrying uncertain members."}
 		,
+		{"path": "src/lightscaper/controller/photo-raster-export-preset-v1.ts", "kind": "helper-contract", "justification": "Closed reusable export preset admission for the persisted scalar recipe, without resource bodies or native capabilities."}
+		,
 		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
 		,
 		{ "path": "src/lightscaper/import/import-intent-v1.ts", "kind": "persisted-contract", "justification": "Scalar durable photo import intent and root reconciliation for version 1 catalogs." }
@@ -1305,6 +1309,8 @@
 		{"path": "src/lightscaper/storage/photo-raster-export-journal-owner-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar CAS owner captures selected settings receivers, reconciles lost acknowledgement only by exact readback, protects foreign history and joins admitted writes on retirement without deleting uncertain delivery intent."}
 		,
 		{"path": "src/lightscaper/storage/photo-raster-export-journal-v1.ts", "kind": "persisted-contract", "justification": "Version 1 bounded catalog-scoped scalar export journal retains ordered photo/version/revision and filename indices, original/recipe/LUT digests and pending/started/committed download-initiation states; it stores no bodies, native destination authority or physical Saved claim."}
+		,
+		{"path": "src/lightscaper/storage/photo-raster-export-presets-v1.ts", "kind": "persisted-contract", "justification": "Fixed selected-catalog scalar export preset row and conditional publication revision; separate from import settings and delivery journals."}
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]

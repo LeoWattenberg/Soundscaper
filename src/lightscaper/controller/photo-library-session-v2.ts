@@ -72,6 +72,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly #imports: ReturnType<typeof createPhotoLibrarySessionImport>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
+	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
 	#catalog: Promise<string> | null = null;
 	#photo: PhotoCommandOwnerV2 | null = null;
 	#previews: Promise<PhotoLibraryPreviewSchedulerPortV2> | null = null;
@@ -81,6 +82,14 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	constructor(ports: PhotoLibrarySessionPortsV2) {
 		ports = capturePhotoLibrarySessionPorts(ports);
 		this.#ports = ports;
+		if (ports.exportPresetSettings) this.exportPresets = Object.freeze({ open: (options = {}) => {
+			const { signal } = readPhotoDevelopSignalOptionsV2(options);
+			return this.#operation(async admitted => {
+				const { openPhotoLibraryExportPresetsSession } = await import('./photo-library-export-presets-session.ts'); check(admitted);
+				return openPhotoLibraryExportPresetsSession({ settings: ports.exportPresetSettings!, ready: () => this.#ready(),
+					operation: (run, caller, admit) => this.#operation(run, caller, admit), mutate: (run, caller) => this.#mutation(run, caller) }, { signal: admitted });
+			}, signal);
+		} });
 		if (ports.exportJournalSettings) this.exportJournal = Object.freeze({ open: (options = {}) => {
 			const { signal } = readPhotoDevelopSignalOptionsV2(options);
 			return this.#operation(async admitted => {

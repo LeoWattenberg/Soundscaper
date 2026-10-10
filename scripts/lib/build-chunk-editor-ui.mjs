@@ -82,6 +82,15 @@ export const editorUiChunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
+		// Reusable export settings copy stays behind the existing menu-opened dialog.
+		name: 'lightscaper-photo-export-presets-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-export-presets-copy\.ts$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'lightscaper-photo-batch-export-copy',
 		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-batch-export-copy\.ts$/,
 		priority: 98,

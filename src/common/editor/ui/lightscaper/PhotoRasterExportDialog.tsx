@@ -3,7 +3,9 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PhotoRasterExport, isPhotoRasterExportMetadataRefusal, capturePhotoRasterExportOutput, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import { formatImageExportFilenameV1 } from '../../image-export-filename-v1.ts';
-import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportPresets from './PhotoRasterExportPresets.tsx';
+import type { PhotoLibraryExportPresetsPortV1, PhotoRasterExportPresetV1 } from '../../photo-library-export-presets-port-v1.ts';
 import type { ReadPhotoExportSidecar } from '../../photo-library-session-port-v2.ts';
 import type { ExecutePhotoDevelopCurrent } from './photo-library-workflow-develop.ts';
 import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
@@ -29,6 +31,9 @@ export interface PhotoRasterExportDialogProps {
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly preparationFailed: boolean;
 	readonly registerDestination: (cancelAndJoin: () => Promise<void>) => () => void;
+	readonly capturePresets?: () => PhotoLibraryExportPresetsPortV1['open'];
+	readonly initialPreset?: PhotoRasterExportPresetV1;
+	readonly onApplyPreset?: (preset: PhotoRasterExportPresetV1) => void;
 	readonly onClose: () => void;
 }
 export interface PhotoRasterExportCopy {
@@ -57,8 +62,8 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 	const scope = useRef<Scope | null>(null), retiring = useRef<Promise<void> | null>(null);
 	const [target, setTarget] = useState<Target | null>(null), [receipt, setReceipt] = useState<PhotoRasterExportReceipt | null>(null);
 	const [failed, setFailed] = useState(false), [saving, setSaving] = useState(false), [closing, setClosing] = useState(false);
-	const [settings, setSettings] = useState(DEFAULT_RASTER_EXPORT_SETTINGS), [invalidSettings, setInvalidSettings] = useState(false);
-	const [metadataFailed, setMetadataFailed] = useState(false), [sidecarEnabled, setSidecarEnabled] = useState(false);
+	const [settings, setSettings] = useState(() => props.initialPreset ? restoreRasterExportSettings(props.initialPreset.output, props.initialPreset.filenameTemplate) : DEFAULT_RASTER_EXPORT_SETTINGS), [invalidSettings, setInvalidSettings] = useState(false);
+	const [metadataFailed, setMetadataFailed] = useState(false), [sidecarEnabled, setSidecarEnabled] = useState(props.initialPreset?.sidecarEnabled ?? false);
 	const saveButton = useRef<HTMLButtonElement>(null), focused = useRef(false);
 	const controller = owner.current, copy = props.copy;
 	const graphic = useGraphicWatermarkSelection(useMemo(() => ({ execute: props.execute, photoId: props.photoId, registerDestination: props.registerDestination }),
@@ -129,6 +134,17 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		lifetime.active = joined;
 	};
 	const partialSidecar = receipt?.status !== 'cancelled' && receipt?.sidecar && receipt.sidecar.status !== 'download-started';
+	const applyPreset = async (preset: PhotoRasterExportPresetV1, signal: AbortSignal) => {
+		const current = scope.current, input = latest.current;
+		if (!current?.live || current.closed || current.active || !ready || closing || partialSidecar) throw new Error('Export settings are currently protected.');
+		if (input.onApplyPreset) {
+			setClosing(true); await retire(current); signal.throwIfAborted();
+			if (current.live) input.onApplyPreset(preset); return;
+		}
+		if (preset.format !== input.format) throw new Error('This export surface cannot change format.');
+		setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setSidecarEnabled(preset.sidecarEnabled); setReceipt(null);
+		graphic.onChange({ ...graphic.value, enabled: false, body: null });
+	};
 	const retrySidecar = () => {
 		const lifetime = scope.current;
 		if (!lifetime?.live || lifetime.closed || lifetime.active || !partialSidecar) return;
@@ -154,6 +170,10 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 				onChange={event => { setSidecarEnabled(event.target.checked); setInvalidSettings(false); }} />{copy.sidecar}</label>
 			<p data-photo-raster-export-sidecar-help>{copy.sidecarHelp}</p>
 			<GraphicWatermarkFields {...graphic} locale={props.locale} disabled={!ready || saving || closing} />
+			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} disabled={!ready || saving || closing || !!partialSidecar}
+				captureCurrent={(id, name) => ({ schemaVersion: 1, id, name, format: props.format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
+					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
+						...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) })} onApply={applyPreset} />
 			{invalidSettings && <p role="alert">{copy.invalidSettings}</p>}
 			{metadataFailed && <p role="alert" data-photo-raster-export-metadata-error>{copy.metadataFailed}</p>}
 			{!ready && !failed && !props.preparationFailed && !saving && !closing && <p role="status">{copy.preparing}</p>}
