@@ -454,6 +454,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped RGB noise reduction owns one original encoded-sRGB snapshot and one output, evaluates alpha-weighted replicated-edge reversible-luma and chroma neighborhoods, joins native cancellation and consumer settlement, and wipes both backings on every retirement path." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-png-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic PNG encoding borrows the existing transient RGBA frame, explicitly admits UNORM8 sRGB without conversion, bounds chunk and final-output storage, preserves straight alpha and hidden RGB, and joins native cancellation while wiping owned scratch." }
+		,
 		{"path": "src/common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped post-crop vignette snapshots one bounded straight-sRGB output, evaluates current natural coordinates through exact integer scalar math without lookup or mask arrays, joins native cancellation and consumer settlement, and wipes the captured backing on every retirement path."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
