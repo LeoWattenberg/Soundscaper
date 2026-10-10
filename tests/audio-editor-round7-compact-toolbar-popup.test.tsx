@@ -64,7 +64,7 @@ test('Escape within a drawer-owned popup leaves its opener available until the p
 	let popupOpen = true;
 	const render = () => root.render(<WorkspaceChromeDrawer id="chrome" open
 		onClose={() => { closed += 1; }} label="Menu" closeLabel="Close menu">
-		<button data-opener aria-controls="toolbar-popup" aria-expanded={String(popupOpen)}>Musical timeline</button>
+		<button data-opener aria-controls="toolbar-popup" aria-expanded={popupOpen}>Musical timeline</button>
 		{popupOpen && createPortal(<div id="toolbar-popup" role="dialog"><input data-popup-control /></div>, portal as unknown as Element)}
 	</WorkspaceChromeDrawer>);
 	try {
