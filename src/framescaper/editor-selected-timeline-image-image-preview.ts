@@ -5,7 +5,7 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { createTimelineImageResourcePreviewV16, requiresTimelineImageResourcePreviewV16 } from './editor-selected-timeline-image-resource-preview-v16.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import { createDefaultInheritedSession, createDefaultInheritedThumbnail } from './timeline-image-native-preview-companions.ts';
-import { composeTimelineImagePreviewSession } from './editor-selected-timeline-image-image-preview-session.ts';
+import { composeTimelineImagePreviewSession, rejectAfterInheritedPreviewRetirement } from './editor-selected-timeline-image-image-preview-session.ts';
 import type {
 	ProductVideoVisualPreviewCreateRequest,
 	ProductVideoVisualPreviewFrame,
@@ -150,8 +150,8 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 		throw inheritedResult.reason;
 	}
 	if (imageResult.status === 'rejected') {
-		disposeInheritedSession(inheritedResult.value);
-		throw imageResult.reason;
+		return rejectAfterInheritedPreviewRetirement(imageResult.reason, inheritedResult.value,
+			() => { disposeInheritedSession(inheritedResult.value); });
 	}
 	const inherited = inheritedResult.value;
 	const loaded = imageResult.value;
@@ -175,8 +175,8 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 	} catch (error) {
 		disposeClipDrawables(clips);
 		disposeLoadedSources(loaded);
-		disposeInheritedSession(inherited);
-		throw error;
+		return rejectAfterInheritedPreviewRetirement(error, inherited,
+			() => { disposeInheritedSession(inherited); });
 	}
 	if (inherited === null && clips.length === 0) return null;
 	return composeTimelineImagePreviewSession({

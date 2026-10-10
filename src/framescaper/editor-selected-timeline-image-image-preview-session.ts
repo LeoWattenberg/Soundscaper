@@ -6,6 +6,26 @@ import type {
 } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { createSelectedPreviewRetirement } from './selected-preview-retirement.ts';
 
+/** A failed creation still owns every current session its inherited factory returned. */
+export async function rejectAfterInheritedPreviewRetirement(
+	primary: unknown,
+	inherited: ProductVideoVisualPreviewSession | null,
+	disposeLegacy: () => void,
+): Promise<never> {
+	const close = inherited?.close;
+	if (!close) {
+		disposeLegacy();
+		throw primary;
+	}
+	let cleanupFailure: Readonly<{ reason: unknown }> | undefined;
+	try { await close.call(inherited); }
+	catch (cleanup) { cleanupFailure = { reason: cleanup }; }
+	if (cleanupFailure && !Object.is(cleanupFailure.reason, primary)) {
+		throw new AggregateError([primary, cleanupFailure.reason], 'Inherited timelineImage preview creation cleanup failed.', { cause: primary });
+	}
+	throw primary;
+}
+
 interface TimelineImagePreviewComposition {
 	readonly inherited: ProductVideoVisualPreviewSession | null;
 	readonly hasImages: boolean;

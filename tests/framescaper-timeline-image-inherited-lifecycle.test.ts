@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 
 import { chunkGroupForModulePath, EDITOR_OPTIONAL_SURFACE_CHUNK_TEST } from '../scripts/lib/build-chunk-groups.mjs';
 import { createExactPreviewRenderCoordinator } from '../src/common/editor/controller/clip-video/exact-preview-render-coordinator.ts';
@@ -31,7 +32,7 @@ function gate() {
 }
 
 function inheritedFixture(cleanupFailure?: Readonly<{ reason: unknown }>, fulfillAfterAbort = false) {
-	const entered = gate(), frameGate = gate(), cleanupGate = gate(), idle = gate();
+	const entered = gate(), frameGate = gate(), cleanupGate = gate(), idle = gate(), closeEntered = gate();
 	const retirement = new AbortController();
 	const events: string[] = [];
 	let factorySignal: AbortSignal | undefined;
@@ -62,6 +63,7 @@ function inheritedFixture(cleanupFailure?: Readonly<{ reason: unknown }>, fulfil
 		close() {
 			assert.equal(this, inherited);
 			if (closePromise) return closePromise;
+			closeEntered.release();
 			events.push('close');
 			retirement.abort(new DOMException('Inherited retirement.', 'AbortError'));
 			closePromise = (async () => {
@@ -79,7 +81,7 @@ function inheritedFixture(cleanupFailure?: Readonly<{ reason: unknown }>, fulfil
 		},
 	};
 	return {
-		inherited, entered, frameGate, cleanupGate, events,
+		inherited, entered, frameGate, cleanupGate, closeEntered, events,
 		get factorySignal() { return factorySignal; },
 		get requestSignal() { return requestSignal; },
 		get combined() { return combined; },
@@ -109,6 +111,98 @@ function observe<T>(promise: Promise<T>) {
 		(error: unknown) => { settled = true; return { ok: false as const, error }; },
 	);
 	return { joined, get settled() { return settled; } };
+}
+
+for (const cut of ['caller-abort', 'image-load-failure'] as const) {
+	test(`creation joins a late fulfilled inherited current session after ${cut}`, async (context) => {
+		const fixture = inheritedFixture(), stop = new AbortController();
+		const factoryEntered = gate(), factoryGate = gate();
+		const reason = Object.freeze({ failure: cut });
+		const image = imageFixture('creation-cleanup-image'), store = assetStore([image]);
+		if (cut === 'image-load-failure') {
+			context.mock.method(store, 'loadMediaAsset', () => Promise.reject(reason));
+		}
+		const options = request(stop.signal);
+		const creating = observe(createSession({
+			...options,
+			...(cut === 'image-load-failure' ? { project: committedProject(image), store } : {}),
+			async createInheritedSession() {
+				factoryEntered.release();
+				await factoryGate.promise;
+				return fixture.inherited;
+			},
+		}));
+		try {
+			await factoryEntered.promise;
+			if (cut === 'caller-abort') stop.abort(reason);
+			factoryGate.release();
+			await fixture.closeEntered.promise;
+			await nextTurn();
+			assert.equal(creating.settled, false, 'creation must join the independently held inherited close');
+			assert.equal(fixture.events.filter((event) => event === 'close').length, 1);
+			fixture.cleanupGate.release();
+			const result = await creating.joined;
+			assert.ok(!result.ok && Object.is(result.error, reason), 'joined cleanup must preserve the primary failure');
+			assert.equal(fixture.events.at(-1), 'cleanup');
+		} finally {
+			factoryGate.release();
+			await fixture.cleanup();
+			await creating.joined;
+		}
+	});
+}
+
+for (const failure of ['same-opaque', 'distinct-opaque', 'undefined-primary'] as const) {
+	test(`failed creation joins and preserves ${failure} cleanup evidence`, async (context) => {
+		let traps = 0;
+		const opaqueTrap = (): never => { traps += 1; throw new Error('Opaque creation failures must not be reflected.'); };
+		const opaque = () => new Proxy(Object.freeze({}), {
+			get: opaqueTrap, getPrototypeOf: opaqueTrap, getOwnPropertyDescriptor: opaqueTrap, ownKeys: opaqueTrap,
+		});
+		const primary = failure === 'undefined-primary' ? undefined : opaque();
+		const cleanup = failure === 'same-opaque' ? primary : opaque();
+		const fixture = inheritedFixture({ reason: cleanup });
+		const image = imageFixture('failed-creation-image'), store = assetStore([image]);
+		context.mock.method(store, 'loadMediaAsset', () => Promise.reject(primary));
+		const creating = observe(createSession({ ...request(), project: committedProject(image), store,
+			createInheritedSession: fixture.factory }));
+		try {
+			await fixture.closeEntered.promise;
+			await nextTurn();
+			assert.equal(creating.settled, false);
+			fixture.cleanupGate.release();
+			const result = await creating.joined;
+			assert.equal(result.ok, false);
+			if (!result.ok && failure === 'same-opaque') assert.ok(Object.is(result.error, primary));
+			else if (!result.ok) {
+				assert.ok(result.error instanceof AggregateError);
+				assert.equal(result.error.errors.length, 2);
+				assert.ok(Object.is(result.error.errors[0], primary));
+				assert.ok(Object.is(result.error.errors[1], cleanup));
+				assert.ok(Object.hasOwn(result.error, 'cause'));
+				assert.ok(Object.is(result.error.cause, primary));
+			}
+			assert.equal(traps, 0);
+		} finally { await fixture.cleanup(); await creating.joined; }
+	});
+}
+
+for (const throwingDispose of [false, true]) {
+	test(`failed creation retains legacy dispose-only compatibility with throwing=${throwingDispose}`, async (context) => {
+		const primary = Object.freeze({ primary: 'legacy image failure' });
+		const image = imageFixture('legacy-failed-image'), store = assetStore([image]);
+		context.mock.method(store, 'loadMediaAsset', () => Promise.reject(primary));
+		let disposals = 0;
+		const legacy: ProductVideoVisualPreviewSession = {
+			resolve: () => previewFrame(), resolveTransitionWeight: () => null,
+			dispose() { assert.equal(this, legacy); disposals += 1; if (throwingDispose) throw new Error('Legacy disposal.'); },
+		};
+		const result = await observe(createSession({ ...request(), project: committedProject(image), store,
+			createInheritedSession: () => Promise.resolve(legacy) })).joined;
+		assert.ok(!result.ok && Object.is(result.error, primary));
+		assert.equal(disposals, 1);
+		assert.deepEqual(Object.keys(legacy).sort(), ['dispose', 'resolve', 'resolveTransitionWeight']);
+	});
 }
 
 test('the extracted composition shares the exact optional preview owner without claiming sibling names', () => {
