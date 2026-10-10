@@ -3,6 +3,9 @@
 import { expect, test, createWavFixture } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, importFiles } from './audio-editor-test-helpers.js';
 
+// Precise V8 coverage can miss the live audio clock's shared playback start.
+test.use({ browserCoverage: false });
+
 async function playingMixer(page, amplitudes) {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [createWavFixture({ name: 'channel-meter.wav', frequency: 440,
