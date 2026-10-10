@@ -559,3 +559,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     regression `tests/audio-editor-round7-selection-musical-duration.test.tsx`
     and the native Music workspace, tempo-event and selection-digit workflow.
     Upstream-PR candidate.
+
+72. `TimeCode` steps backward from a bar's first beat into the preceding
+    actual meter's last beat, retaining the sub-beat sample phase and the
+    project-zero bound. Literal one-based beat entry, decimal digit wrapping
+    and forward stepping remain unchanged. Covered by the actual native
+    document-key listener regression
+    `tests/audio-editor-round7-musical-beat-step.test.tsx` and the ordinary
+    Music workspace Playhead beat-step workflow. Upstream-PR candidate.

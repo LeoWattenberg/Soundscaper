@@ -10,6 +10,7 @@ import { timeCodeFrameFormat, timeCodeFrameCount, timeCodeLabelledFrameCount, ti
 import { useTheme } from '../ThemeProvider';
 import { timeCodeWholeUnits } from './time-code-precision';
 import { TimeCodeMusicalContext, type TimeCodeMusicalMap } from './time-code-musical-context';
+import { timeCodePreviousMusicalBeat } from './time-code-musical-step';
 import './TimeCode.css';
 import './TimeCodeDigit.css';
 import './TimeCodeUnit.css';
@@ -147,10 +148,9 @@ export function TimeCode({
     setEditingDigitIndex(digitGlobalIndex);
   };
 
-  const handleDigitChange = useCallback((digitGlobalIndex: number, newDigitValue: string, autoAdvance = true) => {
+  const handleDigitChange = useCallback((digitGlobalIndex: number, newDigitValue: string, autoAdvance = true, stepBack = false) => {
     if (!onChange) return;
 
-    // Find which segment and digit position this corresponds to
     let targetSegmentIndex = -1;
     let targetDigitPosition = -1;
 
@@ -172,7 +172,6 @@ export function TimeCode({
 
     if (targetSegmentIndex === -1) return;
 
-    // Create new segments with the updated digit
     const newSegments = [...segments];
     const targetSegment = newSegments[targetSegmentIndex];
     const newValue =
@@ -182,12 +181,13 @@ export function TimeCode({
 
     newSegments[targetSegmentIndex] = { ...targetSegment, value: newValue };
 
-    // Convert segments back to seconds
-    const newSeconds = value + segmentsToSeconds(newSegments, format, sampleRate, frameRate, musicalMap)
-      - segmentsToSeconds(segments, format, sampleRate, frameRate, musicalMap);
+    const newSeconds = stepBack && format === 'beats:bars' && targetSegmentIndex === 1
+      && Number(targetSegment.value) === 1 && targetDigitPosition === targetSegment.value.length - 1
+      ? timeCodePreviousMusicalBeat(value, musicalMap)
+      : value + segmentsToSeconds(newSegments, format, sampleRate, frameRate, musicalMap)
+        - segmentsToSeconds(segments, format, sampleRate, frameRate, musicalMap);
     onChange(newSeconds);
 
-    // Move to next digit (only if autoAdvance is true)
     if (autoAdvance) {
       const nextDigitIndex = findNextEditableDigit(digitGlobalIndex, segments);
       if (nextDigitIndex !== null) {
@@ -284,7 +284,7 @@ export function TimeCode({
           }
 
           // Don't auto-advance when using up/down arrows
-          handleDigitChange(editingDigitIndex, newDigitValue.toString(), false);
+          handleDigitChange(editingDigitIndex, newDigitValue.toString(), false, e.key === 'ArrowDown');
         }
       }
       // Arrow Right: Move to next digit, wrap to first
