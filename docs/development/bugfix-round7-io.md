@@ -360,6 +360,16 @@ D036 project-handoff family, without establishing a fresh I/O root. Preserve
 the full-run failure; its exact reviewed completed diagnostic directory is
 removed immediately, and the whole unchanged workflow awaits guarded replay.
 
+All five unchanged whole Firefox follow-through workflows pass on authenticated
+`0f0d9ba2f` with the qualified Pulse sink and one worker: tail-metadata AAC
+6.9 seconds, duplicate/delete/source-media retention 13.4 seconds, project
+interchange menus 3.4 seconds, inactive tab/audio reopen 6.7 seconds and
+immediate recording-notes project switch/reload 7.0 seconds (5/5 in 39.8 seconds).
+The original full150 failures remain: AAC stopped at imported clip count with
+Importing67%; the other four retained a project-handoff modal. D036 is already
+corrected in this guard. No source, fixture, deadline or count changes are added
+by these replays. Completed owned output and bounded log are removed immediately.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
