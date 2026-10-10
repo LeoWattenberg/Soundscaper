@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAudacityActionRuntime } from '../src/common/editor/audacity-action-runtime.js';
+import { createExportPlan } from '../src/common/editor/export.js';
+import { createExportRenderProject } from '../src/common/editor/controller/export/export-render-project.ts';
 import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../src/common/editor/ui/framescaper-candidate-authoring-actions.ts';
@@ -36,6 +38,10 @@ for (const startFrame of [0, 4_800, 48_000]) test(`native Title clip export uses
 	runtime.actions.io.exportClip(String(clip.id));
 	assert.equal(controller.project!.selection.startFrame, healthy.startFrame);
 	assert.equal(controller.project!.selection.endFrame, healthy.endFrame);
+	const playback = environment.playback.projectForPlayback(controller.project!);
+	const plan = createExportPlan(createExportRenderProject(playback.project), { range: 'selection', includeTail: false });
+	assert.equal(plan.range.startFrame, startFrame);
+	assert.equal(plan.range.durationFrames, 240_000);
 	assert.deepEqual(controller.project!.clips, media);
 	assert.deepEqual(controller.getSnapshot().history, history);
 });
