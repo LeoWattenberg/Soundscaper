@@ -1088,10 +1088,14 @@ reference first has three failures and two healthy passes: four- and
 32-channel cancellation, and six-channel amplitude dilution. Corrected
 channel-power, retained waveform and existing PCM/cache/warp/fade/raster and
 chunk-ownership controls pass 70/70 in 6.343 seconds. Targeted type-aware lint,
-canonical changed lint and the owned diff check pass. Corrected complete
-public verification is pending a shared guarded capture. Owned causal logs
-and diagnostics are read and removed immediately. The assistance runtime
-closure is unchanged; no manual Update AI assets run is required.
+canonical changed lint and the owned diff check pass. On authenticated
+bf42180222a87f589dd41ce62b6fb8b8dba90bd7, both complete unchanged Chromium
+workflows pass: matching polarity in 10.1 seconds and opposite polarity in
+9.9 seconds, 2/2 in 22.4 seconds. Both retain the actual exported PCM controls
+and require a newly painted correct native spectrum. Owned causal and
+corrected logs and diagnostics are read and removed immediately. The
+assistance runtime closure is unchanged; no manual Update AI assets run is
+required.
 
 After confirming that explicit Store state alone enables Restore and advances
 the dialog generation, its zero-count finishing witness now waits for that
