@@ -685,3 +685,5 @@ Ordinary Window → History and Markers, each panel menu → Dock bottom, then E
 EDIT050 corrected spatial reorder, claimed/modifier/edge, LTR/vertical, native panel header, drop/layout and preference controls complete48/48PASS in1.08seconds. Targeted type-aware lint PASS; both consumed completed focused/target-lint logs are immediately removed. Canonical changed-file lint and unchanged complete compiled native English/Arabic forward/inverse/focus checks remain pending. No additional count yet.
 
 EDIT050 canonical changed-file lint completes PASS for the maintained modified source/tests; consumed bounded output is immediately removed. Source/focused/lint requirements are complete, with whole compiled native verification pending.
+
+EDIT050 unchanged complete native English and Arabic forward/inverse reorder, actual rendered geometry, focus and no-alert controls pass4/4 in14.9seconds across Chromium and Firefox on coherentfee8bdbd4. The independent horizontal spatial reorder owner now qualifies once; editing48. All reviewed completed public output/results are immediately removed. No manual Update AI assets run is required.
