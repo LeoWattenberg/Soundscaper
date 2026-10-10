@@ -117,6 +117,22 @@ export async function observeOrdinaryFramescaperStillProject(page, projectId) {
 	await assertNativeOpfsWorkerExecution(page); return result;
 }
 
+/** Import the actual menu-produced collection with Frame's current owners
+ * and render every retained recipe, closing all readers/storage before the
+ * scalar observations leave the browser. */
+export async function inspectCollectionFramescaperArchive(page, archive) {
+	const script = await mappedBundle('collection-frame-archive.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-collection-frame-archive-fixture.ts'));
+	register(page, '/__collection_frame_archive.js', script);
+	await page.route('**/__collection_frame_archive.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	const result = await page.evaluate(async bytes => (await import(new URL('/__collection_frame_archive.js', location.href).href))
+		.inspectCollectionFramescaperArchiveFixture(bytes), Array.from(archive));
+	await assertNativeOpfsWorkerExecution(page); return result;
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');

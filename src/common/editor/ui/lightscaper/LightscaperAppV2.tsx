@@ -233,6 +233,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 	const handoff = usePhotoFramescaperHandoffEntry({ generation, locale, selection, closeMenu, selectedCount: photoSelection.snapshot.selectedIds.length, workingLabel: copy.photoWorking,
 		disabled: !createSession || !loadBackupSaveRuntime || !libraryVisible || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 		capture: library.captureImageHandoff, prepareSave: library.prepareBackupSave, saveRuntime: library.backupSaveRuntime, registerDestination: library.registerExportDestination,
+		collection: { capture: library.captureCollectionHandoff, disabled: !createSession || !loadBackupSaveRuntime || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing },
 		receive: { capture: library.captureImageReceive, disabled: !createSession || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 			onImported: () => { if (isCurrent()) setLibraryVisible(true); } } });
 	const openReview = (kind: 'compare' | 'survey', event: MouseEvent<HTMLButtonElement>) => {
@@ -359,7 +360,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
-								{handoff.menu}
+								{handoff.menu}{handoff.collectionMenu}
 								<button type="button" data-photo-develop-menu disabled={restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing}
 									onClick={openDevelop}>{photoDevelopMenuLabel(locale)}</button>
 								<button type="button" disabled={restore.busy || !libraryVisible || !library.page?.rows.length} onClick={event => {
@@ -516,8 +517,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		{!restore.busy && raster.entry && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}><PhotoRasterExportSurface key={raster.entry.key} entry={raster.entry} locale={locale} workingLabel={copy.photoWorking}
 			execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata} captureSidecarReader={library.captureExportSidecarReader}
 			saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} captureJournal={library.captureExportJournalOpener} capturePresets={library.captureExportPresetsOpener} onClose={raster.close} onHide={raster.hide} onSettled={raster.settled} /></Suspense>}
-		{!restore.busy && handoff.surface}
-		{!restore.busy && handoff.receiveSurface}
+		{!restore.busy && <>{handoff.surface}{handoff.receiveSurface}{handoff.collectionSurface}</>}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
 				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}

@@ -2,7 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PhotoFramescaperHandoffDownload, type PhotoFramescaperHandoffDownloadRequest, type PhotoFramescaperHandoffTarget } from '../src/lightscaper/controller/photo-framescaper-handoff-download.ts';
+import { PhotoFramescaperHandoffDownload, type PhotoFramescaperHandoffDownloadRequest, type PhotoFramescaperHandoffTarget,
+	type PhotoFramescaperCollectionHandoffDownloadRequest, type PhotoFramescaperCollectionHandoffTarget } from '../src/lightscaper/controller/photo-framescaper-handoff-download.ts';
 import { createFileSystemPreparedSave } from '../src/common/editor/file-save-stream.ts';
 import type { PreparedBrowserSave } from '../src/common/editor/browser-file-save-service.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
@@ -111,4 +112,110 @@ test('direct acquired stream methods and cleanup are pinned before start returns
 		if (refuse) { await assert.rejects(work, error => error === primary); assert.deepEqual(events, ['abort']); }
 		else { assert.deepEqual(await work, { status: 'saved', fileName: 'Original.fscape', byteLength: 3, projectId: 'project' }); assert.deepEqual(events, ['write', 'commit']); }
 	}
+});
+
+function collectionRequest(): Mutable<PhotoFramescaperCollectionHandoffDownloadRequest> & { target: Mutable<PhotoFramescaperCollectionHandoffTarget> } {
+	return { fileName: 'Selected collection', fileTypeDescription: 'Editable sequence',
+		target: { binding: { catalogId: 'catalog', collectionId: 'collection', scope: 'catalog', expectedCatalogRevision: 3 },
+			capture: { withCapture: async () => assert.fail('Delivery must not borrow original resources.') }, checkCurrent: async () => undefined },
+		buildArchive: async () => ({ blob, fileName: 'Selected collection.fscape', projectId: 'project', sequenceId: 'sequence', photoCount: 2 }),
+		prepareSave: () => ({ mode: 'blob', fileName: 'Selected collection.fscape', target: { browserDownload: true } }),
+		saveFile: value => { assert.equal(value.blob, blob); return { method: 'download', fileName: 'Selected collection.fscape', size: 3 }; } };
+}
+test('Light collection delivery starts picker in the gesture and returns only actual download sequence ACK', async () => {
+	const input = collectionRequest(), events: string[] = [], controller = new PhotoFramescaperHandoffDownload();
+	input.prepareSave = value => { events.push('picker'); assert.equal(value.purpose, 'project-copy'); assert.equal(value.suggestedName, 'Selected collection.fscape');
+		return { mode: 'blob', fileName: 'Chosen.fscape', target: { browserDownload: true } }; };
+	input.target.checkCurrent = async () => { events.push('current'); };
+	input.buildArchive = async value => { events.push('archive'); assert.deepEqual(value.binding, input.target.binding); assert.equal(Object.hasOwn(value.binding, 'photoId'), false);
+		return { blob, fileName: 'Selected collection.fscape', projectId: 'project', sequenceId: 'sequence', photoCount: 2 }; };
+	input.saveFile = value => { assert.equal(value.suggestedName, 'Chosen.fscape'); assert.equal(value.blob, blob); return { method: 'download', fileName: 'Chosen.fscape', size: 3 }; };
+	const work = controller.startCollection(input); assert.deepEqual(events, ['picker']);
+	assert.deepEqual(await work, { status: 'download-started', fileName: 'Chosen.fscape', byteLength: 3, projectId: 'project', sequenceId: 'sequence', photoCount: 2 });
+	assert.deepEqual(events, ['picker', 'current', 'archive', 'current']); await controller.cancelAndJoin();
+});
+test('Light collection delivery pins saved-query binding and every capability receiver before picker yield', async () => {
+	const input = collectionRequest(), picker = deferred<PreparedBrowserSave>(), binding = { catalogId: 'catalog', collectionId: 'query', scope: 'saved-query' as const,
+		expectedCatalogRevision: 3, expectedDefinitionRevision: 5 }, target = input.target;
+	input.target.binding = binding; const capture = { withCapture: async function <Result>(this: unknown) { assert.equal(this, capture); return undefined as Result; } };
+	input.target.capture = capture;
+	input.prepareSave = function (this: unknown) { assert.equal(this, input); return picker.promise; };
+	input.target.checkCurrent = async function (this: unknown) { assert.equal(this, target); };
+	input.buildArchive = async function (this: unknown, value) { assert.equal(this, input); assert.deepEqual(value.binding, { catalogId: 'catalog', collectionId: 'query', scope: 'saved-query', expectedCatalogRevision: 3, expectedDefinitionRevision: 5 });
+		await value.capture.withCapture(value.binding, () => undefined, { signal: value.signal });
+		return { blob, fileName: 'Selected collection.fscape', projectId: 'project', sequenceId: 'sequence', photoCount: 2 }; };
+	input.saveFile = function (this: unknown) { assert.equal(this, input); return { method: 'download', fileName: 'Selected collection.fscape', size: 3 }; };
+	const work = new PhotoFramescaperHandoffDownload().startCollection(input), replaced = () => { throw Symbol('replaced'); };
+	Object.assign(binding, { collectionId: 'foreign', expectedDefinitionRevision: 10 });
+	Object.assign(input, { prepareSave: replaced, buildArchive: replaced, saveFile: replaced }); Object.assign(target, { checkCurrent: replaced }); Object.assign(capture, { withCapture: replaced });
+	picker.resolve({ mode: 'blob', fileName: 'Selected collection.fscape', target: { browserDownload: true } }); assert.equal((await work).status, 'download-started');
+});
+test('Light collection delivery admits closed scope-specific binding and native signal before picker', async () => {
+	let getters = 0, pickers = 0;
+	for (const mode of ['getter', 'nested', 'capture', 'scope', 'catalog-definition', 'missing-definition', 'definition', 'id', 'signal'] as const) {
+		const input = collectionRequest(); input.prepareSave = () => { pickers++; throw Symbol('must not prepare'); };
+		if (mode === 'getter') Object.defineProperty(input, 'buildArchive', { enumerable: true, get() { getters++; return input.buildArchive; } });
+		if (mode === 'nested') Object.defineProperty(input.target.binding, 'collectionId', { enumerable: true, get() { getters++; return 'collection'; } });
+		if (mode === 'capture') Object.defineProperty(input.target.capture, 'withCapture', { enumerable: true, get() { getters++; return () => undefined; } });
+		if (mode === 'scope') Object.assign(input.target.binding, { scope: 'future' });
+		if (mode === 'catalog-definition') Object.assign(input.target.binding, { expectedDefinitionRevision: 0 });
+		if (mode === 'missing-definition') Object.assign(input.target.binding, { scope: 'saved-query' });
+		if (mode === 'definition') Object.assign(input.target.binding, { scope: 'saved-query', expectedDefinitionRevision: -1 });
+		if (mode === 'id') Object.assign(input.target.binding, { collectionId: 'bad/id' });
+		if (mode === 'signal') input.signal = Object.defineProperty(new AbortController().signal, 'reason', { get() { getters++; return undefined; } });
+		await assert.rejects(new PhotoFramescaperHandoffDownload().startCollection(input));
+	}
+	assert.equal(getters, 0); assert.equal(pickers, 0);
+});
+test('Light collection picker dismissal and the shared single/collection busy latch retain no archive authority', async () => {
+	const input = collectionRequest(); let archives = 0;
+	input.prepareSave = () => ({ mode: 'cancelled', cancelled: true, fileName: 'Selected collection.fscape' }); input.buildArchive = async () => { archives++; throw Symbol('must stay cold'); };
+	assert.deepEqual(await new PhotoFramescaperHandoffDownload().startCollection(input), { status: 'cancelled' }); assert.equal(archives, 0);
+	for (const collectionFirst of [false, true]) {
+		const controller = new PhotoFramescaperHandoffDownload(), picker = deferred<PreparedBrowserSave>(), single = request(), collection = collectionRequest();
+		single.prepareSave = collection.prepareSave = () => picker.promise;
+		const work = collectionFirst ? controller.startCollection(collection) : controller.start(single);
+		await assert.rejects(collectionFirst ? controller.start(single) : controller.startCollection(collection), /pending/u);
+		picker.resolve({ mode: 'cancelled', cancelled: true, fileName: 'No copy.fscape' }); assert.deepEqual(await work, { status: 'cancelled' });
+	}
+});
+test('Light collection retirement uses native cancellation after signal properties change during held picker', async () => {
+	const input = collectionRequest(), stop = new AbortController(), picker = deferred<PreparedBrowserSave>(), controller = new PhotoFramescaperHandoffDownload(), primary = new Proxy({}, {}); let getters = 0;
+	input.signal = stop.signal; input.prepareSave = () => picker.promise;
+	const work = controller.startCollection(input), refused = assert.rejects(work, error => error === primary);
+	Object.defineProperty(stop.signal, 'reason', { get() { getters++; return Symbol('foreign getter'); } }); stop.abort(primary);
+	const closing = controller.cancelAndJoin(); assert.equal(await remainsPending(closing), true);
+	picker.resolve({ mode: 'cancelled', cancelled: true, fileName: 'Selected collection.fscape' }); await refused; await closing; assert.equal(getters, 0);
+});
+test('Light collection archive retirement and final collection drift refuse native delivery after joining', async () => {
+	for (const cancelled of [false, true]) {
+		const input = collectionRequest(), entered = deferred<void>(), release = deferred<void>(), controller = new PhotoFramescaperHandoffDownload(); let changed = false, deliveries = 0;
+		input.buildArchive = async () => { entered.resolve(); await release.promise; return { blob, fileName: 'Selected collection.fscape', projectId: 'project', sequenceId: 'sequence', photoCount: 2 }; };
+		input.target.checkCurrent = async () => { if (changed) throw new Error('Collection changed'); };
+		input.saveFile = () => { deliveries++; throw Symbol('must not deliver'); };
+		const reason = Symbol('retired'), work = controller.startCollection(input), refused = assert.rejects(work, cancelled ? error => error === reason : /Collection changed/u);
+		await entered.promise; changed = true; const closing = cancelled ? controller.cancelAndJoin(reason) : Promise.resolve();
+		assert.equal(await remainsPending(work), true); if (cancelled) assert.equal(await remainsPending(closing), true);
+		release.resolve(); await refused; await closing; assert.equal(deliveries, 0);
+	}
+});
+test('Light collection native saved ACK survives late cancellation and joins direct close', async () => {
+	const input = collectionRequest(), entered = deferred<void>(), release = deferred<void>(), controller = new PhotoFramescaperHandoffDownload(), writes: Uint8Array[] = []; let aborts = 0;
+	input.prepareSave = value => createFileSystemPreparedSave({ fileName: 'Selected.fscape', signal: value.signal, target: { name: 'Selected.fscape',
+		createWritable: async () => ({ write(bytes) { assert.ok(bytes instanceof Uint8Array); writes.push(bytes); }, async close() { entered.resolve(); await release.promise; }, abort() { aborts++; } }) } });
+	const work = controller.startCollection(input); await entered.promise; const closing = controller.cancelAndJoin(Symbol('late cancellation'));
+	assert.equal(await remainsPending(closing), true); release.resolve();
+	assert.deepEqual(await work, { status: 'saved', fileName: 'Selected.fscape', byteLength: 3, projectId: 'project', sequenceId: 'sequence', photoCount: 2 });
+	await closing; assert.equal(aborts, 0); assert.deepEqual([...writes[0]!], [1, 2, 3]);
+});
+test('Light collection archive identities and count are admitted before destination writes', async () => {
+	let writes = 0, getters = 0;
+	for (const bad of [{ sequenceId: 'bad/id' }, { photoCount: 0 }, { photoCount: 4_095 }, { photoCount: 1.5 }, { schemaVersion: 2 }] as const) {
+		const input = collectionRequest(); input.buildArchive = async () => ({ blob, fileName: 'Selected.fscape', projectId: 'project', sequenceId: 'sequence', photoCount: 2, ...bad });
+		input.saveFile = () => { writes++; throw Symbol('must not write'); }; await assert.rejects(new PhotoFramescaperHandoffDownload().startCollection(input));
+	}
+	const input = collectionRequest(); input.buildArchive = async () => Object.defineProperty({ blob, fileName: 'Selected.fscape', projectId: 'project', sequenceId: 'sequence', photoCount: 2 },
+		'photoCount', { enumerable: true, get() { getters++; return 2; } });
+	input.saveFile = () => { writes++; throw Symbol('must not write'); }; await assert.rejects(new PhotoFramescaperHandoffDownload().startCollection(input));
+	assert.equal(writes, 0); assert.equal(getters, 0);
 });

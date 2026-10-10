@@ -37,3 +37,27 @@ const RECEIVE_DE = Object.freeze({ title: 'Bearbeitbares Framescaper-Foto import
 	refreshFailed: 'Foto importiert. Die Bibliotheksansicht konnte nicht aktualisiert werden. Die Bibliothek neu laden.',
 	failed: 'Das bearbeitbare Foto konnte nicht gelesen oder importiert werden. Eine andere Datei oder ein anderes Foto auswählen und erneut versuchen.', reloadFailed: 'Die Bibliothek konnte nicht neu geladen werden. Erneut auf Bibliothek neu laden klicken.' });
 export function photoFramescaperReceiveCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? RECEIVE_DE : RECEIVE_EN; }
+
+const COLLECTION_EN = Object.freeze({ title: 'Framescaper collection sequence',
+	description: 'Keep every photo’s active saved recipe, original image and LUT resources in one editable sequence. Photos in this library stay unchanged.',
+	next: 'Download the .fscape file, then open it in Framescaper or import it into its library.',
+	scope: 'Collection source', chooseScope: 'Choose a collection source…', catalog: 'Catalog collections', savedQuery: 'Saved filters',
+	manual: 'Manual', smart: 'Smart', savedCollection: 'Saved filter', chooseCollection: 'Choose a saved filter…', emptySaved: 'No saved filters on this page.',
+	download: 'Download sequence', close: 'Close', fileType: 'Editable Framescaper sequence', preparing: 'Reading or preparing the selected collection…',
+	working: 'Preparing and saving the sequence…', saved: 'Sequence saved: {name}', downloadStarted: 'Download started: {name}', cancelled: 'Download cancelled.',
+	failed: 'The sequence could not be prepared or saved. Close this dialog and choose the collection again.',
+	photoDefinitionRoot: 'Root', photoDefinitionUp: 'Up', photoDefinitionNext: 'Next page', photoDefinitionReload: 'Reload collections',
+	photoDefinitionChoose: 'Choose', photoDefinitionOpen: 'Open', photoDefinitionClear: 'Clear selection', photoDefinitionSelected: 'Selected collection',
+	photoDefinitionEmpty: 'No collections on this page.', photoDefinitionFailed: 'Collections could not be read. Try Reload collections again.', photoWorking: 'Reading collections…' });
+const COLLECTION_DE = Object.freeze({ title: 'Framescaper-Sammlungssequenz',
+	description: 'Die aktive gespeicherte Entwicklung, das Originalbild und die LUT-Ressourcen jedes Fotos bleiben in einer bearbeitbaren Sequenz erhalten. Die Fotos in dieser Bibliothek bleiben unverändert.',
+	next: 'Die .fscape-Datei herunterladen und anschließend in Framescaper öffnen oder in dessen Bibliothek importieren.',
+	scope: 'Sammlungsquelle', chooseScope: 'Eine Sammlungsquelle auswählen…', catalog: 'Katalogsammlungen', savedQuery: 'Gespeicherte Filter',
+	manual: 'Manuell', smart: 'Intelligent', savedCollection: 'Gespeicherter Filter', chooseCollection: 'Einen gespeicherten Filter auswählen…', emptySaved: 'Keine gespeicherten Filter auf dieser Seite.',
+	download: 'Sequenz herunterladen', close: 'Schließen', fileType: 'Bearbeitbare Framescaper-Sequenz', preparing: 'Die ausgewählte Sammlung wird gelesen oder vorbereitet…',
+	working: 'Die Sequenz wird vorbereitet und gespeichert…', saved: 'Sequenz gespeichert: {name}', downloadStarted: 'Download gestartet: {name}', cancelled: 'Download abgebrochen.',
+	failed: 'Die Sequenz konnte nicht vorbereitet oder gespeichert werden. Diesen Dialog schließen und die Sammlung erneut auswählen.',
+	photoDefinitionRoot: 'Wurzel', photoDefinitionUp: 'Nach oben', photoDefinitionNext: 'Nächste Seite', photoDefinitionReload: 'Sammlungen neu laden',
+	photoDefinitionChoose: 'Auswählen', photoDefinitionOpen: 'Öffnen', photoDefinitionClear: 'Auswahl aufheben', photoDefinitionSelected: 'Ausgewählte Sammlung',
+	photoDefinitionEmpty: 'Keine Sammlungen auf dieser Seite.', photoDefinitionFailed: 'Die Sammlungen konnten nicht gelesen werden. Erneut auf Sammlungen neu laden klicken.', photoWorking: 'Sammlungen werden gelesen…' });
+export function photoFramescaperCollectionHandoffCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? COLLECTION_DE : COLLECTION_EN; }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PhotoExportDestinations } from '../../../../lightscaper/controller/photo-export-destinations.ts';
 import { usePhotoLibraryWorkflowReads } from './photo-library-workflow-reads.ts';
 import { usePhotoLibraryWorkflowImageReceive } from './photo-library-workflow-image-receive.ts';
+import { usePhotoLibraryWorkflowCollectionHandoff } from './photo-library-workflow-collection-handoff.ts';
 import { message, errorCode } from './photo-library-workflow-diagnostics.ts';
 import { acquirePhotoLibraryWorkflowSlotV2 as acquire, retirePhotoLibraryWorkflowSlotV2,
 	type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
@@ -150,6 +151,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 		}
 	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, controller, originalRecovery]);
 	const captureImageReceive = usePhotoLibraryWorkflowImageReceive({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime, perform, publishPage });
+	const { captureCollectionHandoff } = usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime });
 	const executeOriginalRecovery = useCallback<ExecutePhotoOriginalRecoveryV1>(async action => perform({ start: async (signal, current) => {
 		await action({ signal, acquire: () => acquire(current),
 			isCurrent: () => current.live && slot.current === current && current.factory === factory.current && current.backupLoader === loader.current && current.proxyFactory === renderer.current,
@@ -505,7 +507,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 	return { ...originalWorkflow, retireAndJoin, registerExportDestination, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
-		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff, captureImageReceive, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff, captureImageReceive, captureCollectionHandoff, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }

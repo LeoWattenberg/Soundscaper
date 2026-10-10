@@ -9,8 +9,8 @@ import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-
 import { photoExportPresetsCopy } from '../../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../../src/common/i18n/image-export-graphic-copy.ts';
 import { imageExportTextCopy } from '../../src/common/i18n/image-export-text-copy.ts';
-import { photoFramescaperHandoffCopy, photoFramescaperReceiveCopy } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-copy.ts';
-import { photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
+import { photoFramescaperHandoffCopy, photoFramescaperReceiveCopy, photoFramescaperCollectionHandoffCopy } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-copy.ts';
+import { photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel, photoFramescaperCollectionHandoffMenuLabel } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
 
 const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBUTION_ENGLISH_COPY)
 	.map(([key, value]) => [`ui.freesoundAttribution.${key}`, value]));
@@ -28,6 +28,7 @@ const photoBatchExport = Object.fromEntries(Object.entries(photoBatchExportCopy(
 const photoExportPresets = Object.fromEntries(Object.entries(photoExportPresetsCopy('en')).map(([key, value]) => [`ui.photoExportPresets.${key}`, value]));
 const photoFramescaperHandoff = Object.fromEntries(Object.entries(photoFramescaperHandoffCopy('en')).map(([key, value]) => [`ui.photoFramescaperHandoff.${key}`, value]));
 const photoFramescaperReceive = Object.fromEntries(Object.entries(photoFramescaperReceiveCopy('en')).map(([key, value]) => [`ui.photoFramescaperReceive.${key}`, value]));
+const photoFramescaperCollectionHandoff = Object.fromEntries(Object.entries(photoFramescaperCollectionHandoffCopy('en')).map(([key, value]) => [`ui.photoFramescaperCollectionHandoff.${key}`, value]));
 
 /** Build-time inventory includes copy owned by lazy surfaces without bundling it eagerly. */
 export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
@@ -42,6 +43,8 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...photoExportPresets,
 	...photoFramescaperHandoff,
 	...photoFramescaperReceive,
+	...photoFramescaperCollectionHandoff,
 	'ui.photoFramescaperHandoffMenu.download': photoFramescaperHandoffMenuLabel('en'),
 	'ui.photoFramescaperHandoffMenu.receive': photoFramescaperReceiveMenuLabel('en'),
+	'ui.photoFramescaperHandoffMenu.collection': photoFramescaperCollectionHandoffMenuLabel('en'),
 });
