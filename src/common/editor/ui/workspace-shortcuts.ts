@@ -124,7 +124,7 @@ function workspaceShortcutTargetDisposition(
 		|| event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
 		return isNativeEditableShortcut(event) ? 'blocked' : 'modified-control';
 	}
-	const control = event.target.closest('button, a, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
+	const control = event.target.closest('button, a, summary, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
 	if (!control) return 'allowed';
 	if (event.ctrlKey || event.metaKey || event.altKey) return 'modified-control';
 	if (control.closest('[role="menu"], [role="menubar"], [role="menuitem"]')) return 'blocked';
