@@ -66,7 +66,8 @@ function restoreCommand(value: unknown, descriptor: AudioEditorClipboardV7, orig
 			}) }));
 		command.clipboard = normalizeAudioEditorClipboardDescriptorV7({ ...projected, schemaVersion: 7, tracks });
 		const ids = originalPaste.videoEffectIds as Readonly<Record<string, readonly string[]>>;
-		command.videoEffectIds = Object.fromEntries(projected.tracks.flatMap(track => track.clips.map(clip => [clip.key, ids[clip.key as string]])));
+		command.videoEffectIds = Object.fromEntries(projected.tracks.flatMap(track => track.clips.flatMap(clip =>
+			Object.hasOwn(ids, clip.key as string) ? [[clip.key, ids[clip.key as string]]] : [])));
 	}
 	return command as FramescaperProjectCommand;
 }
