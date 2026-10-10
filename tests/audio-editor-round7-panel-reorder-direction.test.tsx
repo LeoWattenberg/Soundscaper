@@ -47,7 +47,9 @@ async function mountedGroup(
 	}
 }
 
-function keyEvent(currentTarget: ReactTestElement, key: string, modifiers: Record<string, boolean> = {}) {
+function keyEvent(currentTarget: ReactTestElement, key: string, modifiers: Readonly<{
+	ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; defaultPrevented?: boolean;
+}> = {}) {
 	let prevented = false;
 	return { key, currentTarget, ctrlKey: false, metaKey: false, altKey: false,
 		get defaultPrevented() { return prevented; }, preventDefault() { prevented = true; }, ...modifiers };

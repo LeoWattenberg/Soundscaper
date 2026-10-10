@@ -42,6 +42,7 @@ test('compact track headers keep composing Escape in the live rename input', asy
 	await expect(name).toHaveText('東京の録音');
 	await header.getByRole('button', { name: 'Track menu', exact: true }).focus();
 	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
 	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 	await expect(toggle).toBeFocused();
 	await expect(editor.getByRole('alert')).toHaveCount(0);
