@@ -45,7 +45,8 @@ import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository
 import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../../common/editor/photo-library-query-port-v2.ts';
 import { createPhotoLibraryDevelopSessionV2 } from './photo-library-develop-session-v2.ts';
 
-import type { PhotoLibrarySessionPortV2 } from '../../common/editor/photo-library-session-port-v2.ts';
+import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
+import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2 } from '../../common/editor/photo-library-session-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../common/editor/photo-library-cube-lut-port-v1.ts';
 import type { CubeLutSourcePortV1 } from '../../common/editor/imaging/cube-lut-source-port-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../../common/editor/video-color-management-v27.ts';
@@ -317,6 +318,21 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 			return Object.freeze({ id: photo.id, fileName: photo.metadata.fileName, rating: photo.rating,
 				flag: photo.flag, colorLabel: photo.colorLabel, width: photo.original.width, height: photo.original.height });
 		}, options.signal);
+	}
+
+	readExportSidecar(value: Readonly<PhotoLibraryExportSidecarRequest>, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<string> {
+		const { signal } = readPhotoDevelopSignalOptionsV2(options); let binding!: Readonly<PhotoLibraryExportSidecarRequest>;
+		return this.#operation(async admitted => {
+			const catalogId = await this.#ready(); check(admitted);
+			if (catalogId !== binding.catalogId) throw new Error('Photo sidecar selected catalog changed.');
+			const photo = await this.#ports.catalog.loadPhoto(catalogId, binding.photoId); check(admitted);
+			if (!photo) throw new ReferenceError('The photo is missing.');
+			const text = serializePhotoExportSidecarV1(createPhotoExportSidecarV1(photo, binding)); check(admitted); return text;
+		}, signal, () => {
+			const request = record(value, 'photo sidecar request', ['catalogId', 'photoId', 'versionId', 'expectedRevision']);
+			binding = Object.freeze({ catalogId: id(field(request, 'catalogId'), 'sidecar catalog ID'), photoId: id(field(request, 'photoId'), 'sidecar photo ID'),
+				versionId: id(field(request, 'versionId'), 'sidecar version ID'), expectedRevision: integer(field(request, 'expectedRevision'), 0, Number.MAX_SAFE_INTEGER, 'sidecar revision') });
+		});
 	}
 
 	async readMetadata(photoId: string, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryMetadataSnapshotV1> {

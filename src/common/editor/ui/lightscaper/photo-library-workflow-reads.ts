@@ -4,7 +4,7 @@ import { useCallback, type RefObject } from 'react';
 import { acquirePhotoLibraryWorkflowSlotV2 as acquire, loadPhotoLibraryDevelopProxyV2,
 	type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import { capturePhotoLibraryDevelopOriginalPortV1, capturePhotoLibraryDevelopPortV2 } from './photo-library-workflow-develop.ts';
-import type { CreatePhotoLibrarySessionV3 } from '../../photo-library-session-port-v2.ts';
+import type { CreatePhotoLibrarySessionV3, ReadPhotoExportSidecar } from '../../photo-library-session-port-v2.ts';
 import type { PhotoLibraryPreviewTierV1 } from '../../photo-library-session-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
@@ -76,5 +76,25 @@ export function usePhotoLibraryWorkflowReads({ slot, factory, loader, renderer, 
 			|| snapshot.revision !== expectedRevision || selected.revision !== expectedRevision) throw new Error('Photo metadata revision or identity changed.');
 		return Object.freeze({ catalogId: selected.catalogId, snapshot });
 	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
-	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata };
+	const captureExportSidecarReader = useCallback((): ReadPhotoExportSidecar => {
+		// Capture the exact generation in the Save gesture, including future sidecar-only retries.
+		const current = slot.current; let capturedRead: ReadPhotoExportSidecar | null = null;
+		const isCurrent = () => current?.live && slot.current === current && current.factory === createSession && current.factory === factory.current
+			&& current.proxyFactory === createDevelopProxyRuntime && current.proxyFactory === renderer.current
+			&& current.backupLoader === loadBackupSaveRuntime && current.backupLoader === loader.current;
+		return async (request, options) => {
+			check(options.signal);
+			if (!current || !isCurrent()) throw new DOMException('Photo sidecar generation is closed.', 'AbortError');
+			const signal = AbortSignal.any([options.signal, current.lifetime.signal]);
+			const checked = () => { check(signal); if (!isCurrent()) throw new DOMException('Photo sidecar generation is closed.', 'AbortError'); };
+			checked(); const owner = await acquire(current); checked();
+			if (!capturedRead) {
+				const read = owner.readExportSidecar;
+				if (typeof read !== 'function') throw new TypeError('Photo sidecar reader is unavailable.');
+				capturedRead = Reflect.apply(Function.prototype.bind, read, [owner]) as ReadPhotoExportSidecar;
+			}
+			const result = await capturedRead(request, { signal }); checked(); return result;
+		};
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
+	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader };
 }

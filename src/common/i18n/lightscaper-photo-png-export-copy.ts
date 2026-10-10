@@ -12,6 +12,8 @@ const EN = Object.freeze({ title: 'Export PNG', description: 'Save the selected 
 	metadata: 'Metadata', stripMetadata: 'Strip (default)', captureMetadata: 'Include capture EXIF',
 	metadataHelp: 'Capture includes admitted camera, lens, exposure and capture-time EXIF facts. Output dimensions and orientation are rebuilt. GPS, MakerNotes, XMP and authored text are excluded; unsupported ASCII or numeric fields refuse export.',
 	metadataFailed: 'Capture metadata could not be included. Choose Strip to export without it.',
+	sidecar: 'Download a Lightscaper develop + metadata sidecar', sidecarHelp: 'Optional JSON records the saved version and metadata. It contains no original or LUT bodies and no output-only settings. The image and JSON are separate downloads; this is not an Adobe sidecar.',
+	sidecarSaved: 'Sidecar download started: {name}. Check your browser’s downloads.', sidecarPartial: 'The image is already saved or its download has started. The sidecar was not downloaded. Retry only the sidecar or close this dialog.', sidecarRetry: 'Retry sidecar download',
 	outputSharpen: 'Sharpen output after resizing', sharpenAmount: 'Sharpening amount (%)', sharpenThreshold: 'Sharpening threshold (0–255)' });
 const DE = Object.freeze({ title: 'PNG exportieren', description: 'Die aktuelle Version des ausgewählten Fotos als PNG speichern. Metadaten werden standardmäßig entfernt.',
 	save: 'PNG speichern', close: 'Schließen', preparing: 'Export wird vorbereitet…', working: 'Wird exportiert…',
@@ -25,5 +27,7 @@ const DE = Object.freeze({ title: 'PNG exportieren', description: 'Die aktuelle 
 	metadata: 'Metadaten', stripMetadata: 'Entfernen (Standard)', captureMetadata: 'Aufnahme-EXIF übernehmen',
 	metadataHelp: 'Aufnahme übernimmt zugelassene EXIF-Angaben zu Kamera, Objektiv, Belichtung und Aufnahmezeit. Ausgabegröße und Ausrichtung werden neu geschrieben. GPS, MakerNotes, XMP und eigener Text bleiben ausgeschlossen; nicht unterstützte ASCII- oder Zahlenfelder verhindern den Export.',
 	metadataFailed: 'Aufnahme-Metadaten konnten nicht übernommen werden. Wählen Sie Entfernen, um ohne sie zu exportieren.',
+	sidecar: 'Lightscaper-Sidecar mit Entwicklung und Metadaten herunterladen', sidecarHelp: 'Optionales JSON enthält die gespeicherte Version und Metadaten, keine Original- oder LUT-Dateien und keine reinen Ausgabe-Einstellungen. Bild und JSON werden getrennt heruntergeladen; dies ist kein Adobe-Sidecar.',
+	sidecarSaved: 'Sidecar-Download gestartet: {name}. Prüfen Sie die Downloads Ihres Browsers.', sidecarPartial: 'Das Bild wurde bereits gespeichert oder sein Download gestartet. Das Sidecar wurde nicht heruntergeladen. Laden Sie nur das Sidecar erneut herunter oder schließen Sie den Dialog.', sidecarRetry: 'Sidecar-Download wiederholen',
 	outputSharpen: 'Ausgabe nach dem Skalieren schärfen', sharpenAmount: 'Stärke der Schärfung (%)', sharpenThreshold: 'Schwellenwert der Schärfung (0–255)' });
 export function photoPngExportCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? DE : EN; }

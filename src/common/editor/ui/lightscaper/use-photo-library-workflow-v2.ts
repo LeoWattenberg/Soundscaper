@@ -233,7 +233,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 		return receipt;
 	}, [perform, controller, createSession, loadBackupSaveRuntime]);
 
-	const { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata } = usePhotoLibraryWorkflowReads({
+	const { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader } = usePhotoLibraryWorkflowReads({
 		slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime });
 	const importCubeLut = useCallback<PhotoLibraryCubeLutPortV1['importFile']>(async (file, options = {}) => {
 		const result: { receipt?: Awaited<ReturnType<PhotoLibraryCubeLutPortV1['importFile']>>; failure?: Readonly<{ value: unknown }> } = {};
@@ -503,7 +503,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 	return { ...originalWorkflow, retireAndJoin, registerExportDestination, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
-		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, captureExportSidecarReader, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }

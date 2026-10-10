@@ -512,7 +512,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 				onPlan={library.planBatchRename} onApply={library.renamePhotos} onClose={closeBatchRename} />
 		</Suspense>}
 		{!restore.busy && raster.entry && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}><PhotoRasterExportSurface key={raster.entry.key} entry={raster.entry} locale={locale} workingLabel={copy.photoWorking}
-			execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata}
+			execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata} captureSidecarReader={library.captureExportSidecarReader}
 			saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination}
 			onClose={raster.close} onHide={raster.hide} onSettled={raster.settled} /></Suspense>}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>

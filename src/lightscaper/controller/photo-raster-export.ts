@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { PhotoRasterExportSidecar, type PhotoRasterSidecarReceipt } from './photo-raster-export-sidecar.ts';
+import type { ReadPhotoExportSidecar } from '../../common/editor/photo-library-session-port-v2.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../../common/editor/browser-file-save-service.ts';
 import { sanitizeSuggestedSaveName } from '../../common/editor/browser-file-save-service.ts';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
@@ -37,6 +39,7 @@ export interface PhotoRasterExportRequest {
 	readonly signal?: AbortSignal;
 	readonly output?: PhotoRasterExportOutput;
 	readonly readMetadata?: ReadPhotoExportMetadata;
+	readonly sidecar?: Readonly<{ read: ReadPhotoExportSidecar }>;
 	readonly graphicWatermark?: Readonly<ImageExportGraphicRequest>;
 	readonly withGraphicFrame?: typeof withImageExportGraphicFrameV1;
 	readonly prepareSave: (request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
@@ -88,6 +91,7 @@ export type PhotoRasterExportReceipt = Readonly<{ status: 'cancelled' }> | Reado
 	status: 'saved' | 'download-started'; photoId: string; versionId: string; revision: number;
 	width: number; height: number; byteLength: number; fileName: string;
 	method: 'desktop' | 'file-system-access' | 'download';
+	sidecar?: PhotoRasterSidecarReceipt;
 }>;
 
 const METADATA_REFUSALS = new WeakSet<object>();
@@ -118,17 +122,18 @@ export class PhotoRasterExport {
 		this.#format = format;
 	}
 	#active: ActiveExport | null = null;
+	#retry: { request: PhotoRasterExportRequest; sidecar: PhotoRasterExportSidecar; receipt: Exclude<PhotoRasterExportReceipt, { status: 'cancelled' }> } | null = null;
 	isPending(): boolean { return this.#active !== null; }
 
 	/** Non-async so the native picker runs in the original Save gesture. */
 	start(value: PhotoRasterExportRequest): Promise<PhotoRasterExportReceipt> {
 		if (this.#active) return Promise.reject(new Error('A photo raster export is already pending.'));
-		let request: PhotoRasterExportRequest;
-		try { request = admitRequest(value, this.extension); } catch (error) { return Promise.reject(error); }
+		let request: PhotoRasterExportRequest, sidecar: PhotoRasterExportSidecar | null;
+		try { request = admitRequest(value, this.extension); sidecar = request.sidecar ? new PhotoRasterExportSidecar(request.sidecar, request.saveFile) : null; } catch (error) { return Promise.reject(error); }
 		let settled!: () => void;
 		const active: ActiveExport = { stop: new AbortController(), committing: false,
 			joined: new Promise<void>(resolve => { settled = resolve; }) };
-		this.#active = active;
+		this.#active = active; this.#retry = null;
 		const onAbort = () => { if (!active.committing && request.signal) active.stop.abort(Reflect.apply(REASON, request.signal, [])); };
 		if (request.signal) Reflect.apply(ADD, request.signal, ['abort', onAbort, { once: true }]);
 		let preparation: PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
@@ -136,11 +141,35 @@ export class PhotoRasterExport {
 			types: [{ description: request.fileTypeDescription, accept: { [this.mimeType]: [this.extension] } }],
 			useFileSystemAccess: true, signal: active.stop.signal }); }
 		catch (error) { preparation = Promise.reject(error); }
-		return this.#run(request, active, preparation).finally(() => {
+		return this.#run(request, active, preparation, sidecar).finally(() => {
 			if (request.signal) Reflect.apply(REMOVE, request.signal, ['abort', onAbort]);
 			if (this.#active === active) this.#active = null;
 			settled();
 		});
+	}
+
+	/** Retry only the explicit JSON download, within the original captured generation and facts. */
+	retrySidecar(): Promise<PhotoRasterExportReceipt> {
+		const retry = this.#retry;
+		if (this.#active || !retry) return Promise.reject(new Error('No completed raster with a retryable sidecar is available.'));
+		let settled!: () => void;
+		const active: ActiveExport = { stop: new AbortController(), committing: false, joined: new Promise<void>(resolve => { settled = resolve; }) };
+		this.#active = active;
+		return (async () => {
+			let result: PhotoRasterSidecarReceipt | null = null;
+			try {
+				await retry.request.execute(async context => {
+					const signal = AbortSignal.any([active.stop.signal, context.signal, ...(retry.request.signal ? [retry.request.signal] : [])]);
+					const scope = capturePhotoDevelopExecutionContextV2(context, signal);
+					const current = () => { check(signal); if (!scope.isCurrent()) throw new Error('Photo sidecar export generation is stale.'); };
+					try { current(); await retry.sidecar.verify(signal); current(); result = await retry.sidecar.deliver(retry.receipt.fileName, signal); }
+					catch (error) { result = retry.sidecar.failure(retry.receipt.fileName, signal, error); }
+				}, active.stop.signal);
+			} catch (error) { result ??= retry.sidecar.failure(retry.receipt.fileName, active.stop.signal, error); }
+			result ??= retry.sidecar.failure(retry.receipt.fileName, active.stop.signal, new Error('Photo sidecar retry did not enter its selected generation.'));
+			const receipt = Object.freeze({ ...retry.receipt, sidecar: result });
+			this.#retry = result.status === 'download-started' ? null : { ...retry, receipt }; return receipt;
+		})().finally(() => { if (this.#active === active) this.#active = null; settled(); });
 	}
 
 	/** Retirement joins picker/read/render/encode/write and destination cleanup, including failed cleanup. */
@@ -152,7 +181,7 @@ export class PhotoRasterExport {
 	}
 
 	async #run(request: PhotoRasterExportRequest, active: ActiveExport,
-		preparation: PreparedBrowserSave | PromiseLike<PreparedBrowserSave>): Promise<PhotoRasterExportReceipt> {
+		preparation: PreparedBrowserSave | PromiseLike<PreparedBrowserSave>, sidecar: PhotoRasterExportSidecar | null): Promise<PhotoRasterExportReceipt> {
 		let direct: PreparedDirectSave | null = null, bytes: Uint8Array<ArrayBuffer> | null = null;
 		const outcome: { completed: PhotoRasterExportReceipt | null; failure: { value: unknown } | null } = { completed: null, failure: null };
 		try {
@@ -176,6 +205,7 @@ export class PhotoRasterExport {
 						current(); return readSnapshot(snapshot, request);
 					};
 					const initial = await read(), develop = detachPhotoLibraryDevelopSettingsV2(initial.develop);
+					if (sidecar) await sidecar.capture({ catalogId: initial.catalogId, photoId: request.photoId, versionId: request.versionId, expectedRevision: request.expectedRevision }, develop, signal); current();
 					let exif: Readonly<ImageExifMetadataV1> | null = null;
 					if (request.output?.metadataScope === 'capture') {
 						try {
@@ -242,6 +272,7 @@ export class PhotoRasterExport {
 						}
 						const final = await read();
 						if (final.catalogId !== initial.catalogId) throw new Error('Photo raster export catalog changed.');
+						if (sidecar) await sidecar.verify(signal);
 						current(); active.committing = true;
 						const saved = prepared.mode === 'stream' ? await prepared.commit()
 							: await request.saveFile({ purpose: 'media', suggestedName: prepared.fileName, mimeType: this.mimeType,
@@ -251,6 +282,13 @@ export class PhotoRasterExport {
 						outcome.completed = Object.freeze({ status: delivery.method === 'download' ? 'download-started' : 'saved',
 							photoId: request.photoId, versionId: request.versionId, revision: request.expectedRevision,
 							width, height, byteLength, ...delivery });
+						if (sidecar) {
+							active.committing = false;
+							const receipt = outcome.completed;
+							const extra = await sidecar.deliver(receipt.fileName, signal);
+							outcome.completed = Object.freeze({ ...receipt, sidecar: extra });
+							if (extra.status !== 'download-started') this.#retry = { request, sidecar, receipt: outcome.completed };
+						}
 					};
 					if (request.output?.metadataScope === 'capture') {
 						let entered = false;
@@ -317,6 +355,7 @@ function readSnapshot(value: PhotoLibraryDevelopSnapshotV2, request: PhotoRaster
 		|| field(input, 'versionId', 'Photo raster snapshot') !== request.versionId || field(input, 'revision', 'Photo raster snapshot') !== request.expectedRevision) {
 		throw new Error('Photo raster export snapshot revision, schema or identity changed.');
 	}
+	if (request.sidecar && field(input, 'activeVersionId', 'Photo raster snapshot') !== request.versionId) throw new Error('Photo sidecar active saved version changed.');
 	return { catalogId: text(field(input, 'catalogId', 'Photo raster snapshot'), 128), develop: field(input, 'develop', 'Photo raster snapshot') };
 }
 
@@ -367,10 +406,12 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterExportRequest {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
-	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'graphicWatermark', 'withGraphicFrame'], required);
+	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'sidecar', 'graphicWatermark', 'withGraphicFrame'], required);
 	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
 	const graphicWatermark = Object.hasOwn(input, 'graphicWatermark') ? captureImageExportGraphicRequest(field(input, 'graphicWatermark', name)) : undefined;
 	const withGraphicFrame = Object.hasOwn(input, 'withGraphicFrame') ? pin<typeof withImageExportGraphicFrameV1>(field(input, 'withGraphicFrame', name), value) : undefined;
+	const sidecar = Object.hasOwn(input, 'sidecar') ? record(field(input, 'sidecar', name), 'Photo sidecar export', ['read']) : undefined;
+	const capturedSidecar = sidecar ? Object.freeze({ read: pin<ReadPhotoExportSidecar>(field(sidecar, 'read', 'Photo sidecar export'), sidecar) }) : undefined;
 	const metadataRead = Object.hasOwn(input, 'readMetadata') ? pin<ReadPhotoExportMetadata>(field(input, 'readMetadata', name), value) : undefined;
 	if (output?.metadataScope === 'capture' && !metadataRead) throw new TypeError('Capture export requires its selected metadata reader.');
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', name) : undefined;
@@ -387,7 +428,7 @@ function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterEx
 	return Object.freeze({ photoId: stableId(field(input, 'photoId', name)), versionId: stableId(field(input, 'versionId', name)),
 		expectedRevision: revision, fileName, fileTypeDescription: text(field(input, 'fileTypeDescription', name), 256), signal: signal as AbortSignal | undefined,
 		prepareSave: method('prepareSave'), saveFile: method('saveFile'), execute: method('execute'), withOriginalFrame: method('withOriginalFrame'),
-		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, graphicWatermark, withGraphicFrame });
+		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, sidecar: capturedSidecar, graphicWatermark, withGraphicFrame });
 }
 function pin<Method>(value: unknown, receiver: unknown): Method {
 	if (typeof value !== 'function') throw new TypeError('Photo raster export requires its captured methods.');
