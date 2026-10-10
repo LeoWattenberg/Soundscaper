@@ -444,6 +444,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Dehaze owns one immutable encoded-sRGB snapshot and one output, estimates white-atmosphere transmission from replicated-edge alpha-aware three-by-three dark neighborhoods, joins native cancellation and consumer settlement, and wipes captured backings including second allocation refusal." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-export-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped output-only photo resizing reuses nearest and premultiplied bilinear sampling under one captured frame capacity, preserves exact unchanged-size bytes, and joins consumer settlement before wiping the owned output." }
+		,
 		{"path": "src/common/editor/imaging/pixel-frame-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped image geometry evaluates encoded sRGB through bounded premultiplied bilinear samples, joins cancellation and wipes owned output after the consumer settles."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
