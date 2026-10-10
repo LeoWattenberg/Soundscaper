@@ -781,3 +781,29 @@ fixture retains upstream 480-frame bindings and declares the resulting
 768-frame master output. These four fixture corrections and all their source,
 transport, scheduling, offline PCM and five-clock controls pass 43/43. They add
 zero roots and change no production bytes. The bounded log is read and removed.
+
+## R7-EFFECT-020 — Another finger cancels accepted EQ authoring
+
+Import normal audio, Select all, then Effect → EQ and filters → Graphic EQ
+or Filter Curve EQ. Drag a fader or curve point with one finger, briefly touch
+the graph with another finger and lift that second finger. Both editors ignore
+its down/move events but accept its bubbling lost-capture and cancellation
+without checking the active pointer identity. The first finger's accepted edit
+resets to its snapshot and cannot complete. Group these two editor manifestations
+as one cancellation root; previous Parametric EQ admission fixes belong to its
+separate graph owner.
+
+Fence both cancellation handlers by the pointer already owning the edit.
+Retain first-finger completion, its own cancellation, Escape, final-coordinate
+commit and deferred draft publication. Four strict mounted regressions fail
+before correction while four own-cancel controls pass; after correction those
+and existing drafts, keyboard, deletion focus, axis and inversion controls pass
+19/19. Ordinary native multi-touch witnesses are causally RED on the prepared
+db368adda products in 7.2 seconds each: healthy single-finger 6 dB edits pass,
+then releasing the ignored second finger resets the accepted Graphic 10 dB and
+Curve 9 dB previews to zero. The protocol identifies the finger actually lifted
+with touchEnd[secondary]. Corrected public verification awaits the coordinated
+build. Target ESLint, changed lint, size and owned diff checks pass.
+All bounded failure logs and generated diagnostics are read and removed
+immediately. This UI correction uses the same runtime closure; no manual
+Update AI assets run is required.
