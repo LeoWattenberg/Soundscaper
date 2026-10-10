@@ -166,7 +166,7 @@ function buildTransport(context: DawprojectExportContext): XmlElement {
 	const numerator = finite(firstSignature?.numerator ?? legacySignature.numerator, 4);
 	const denominator = finite(firstSignature?.denominator ?? legacySignature.denominator, 4);
 	return xmlElement('Transport', {}, [
-		xmlElement('Tempo', { max: 999, min: 1, unit: 'bpm', value: bpm, id: context.ids.id('tempo'), name: 'Tempo' }),
+		xmlElement('Tempo', { max: 1_000, min: 1, unit: 'bpm', value: bpm, id: context.ids.id('tempo'), name: 'Tempo' }),
 		xmlElement('TimeSignature', {
 			denominator, numerator, id: context.ids.id('time-signature'), name: 'Time Signature',
 		}),

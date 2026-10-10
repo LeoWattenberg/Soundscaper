@@ -53,7 +53,7 @@ export function buildTempoMap(document: DawprojectDocument, draft: Draft): HoldT
 	const events: { id: string; beat: Rational; bpm: Rational }[] = [];
 	let clamped = 0;
 	const push = (beat: number, bpm: number, index: number): void => {
-		const bounded = clamp(bpm, 1, 999);
+		const bounded = clamp(bpm, 1, 1_000);
 		if (bounded !== bpm) clamped += 1;
 		events.push({ id: `tempo-${String(index)}`, beat: rationalFromDouble(beat), bpm: rationalFromDouble(bounded) });
 	};
@@ -65,7 +65,7 @@ export function buildTempoMap(document: DawprojectDocument, draft: Draft): HoldT
 	if (clamped > 0) {
 		addDeliveryReportItem(draft, {
 			code: 'dawproject.tempo-range-converted', disposition: 'converted', severity: 'warning',
-			data: { events: clamped }, message: 'Tempo values outside 1–999 BPM are clamped to that range.',
+			data: { events: clamped }, message: 'Tempo values outside 1–1000 BPM are clamped to that range.',
 		});
 	}
 	if (ramps > 0) {
