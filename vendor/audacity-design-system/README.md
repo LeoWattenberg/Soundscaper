@@ -575,3 +575,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     `tests/audio-editor-round7-track-volume-touch-owner.test.tsx` and ordinary
     track Volume mouse, single-finger, two-finger and one-Undo controls.
     Upstream-PR candidate.
+
+74. `Slider` publishes its accepted mouse edit when primary releases while
+    another button remains held. It recognizes the owning native pointermove
+    transition once, preserving foreign-pointer rejection, touch completion
+    and browser cancellation. Covered by the actual mounted
+    `tests/audio-editor-round7-track-volume-primary-release.test.tsx` and the
+    ordinary Volume completion, keyboard Undo and retained-import workflow.
+    Upstream-PR candidate.

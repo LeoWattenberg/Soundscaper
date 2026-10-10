@@ -146,6 +146,12 @@ export const Slider: React.FC<SliderProps> = ({
           pointerIdRef.current = event.pointerId;
           beginGesture();
         }}
+        onPointerMove={(event) => {
+          if (event.pointerId !== pointerIdRef.current || event.pointerType !== 'mouse'
+            || event.button !== 0 || (event.buttons & 1) !== 0) return;
+          pointerIdRef.current = null;
+          endGesture();
+        }}
         onPointerUp={(event) => {
           if (event.pointerId !== pointerIdRef.current) return;
           pointerIdRef.current = null;
