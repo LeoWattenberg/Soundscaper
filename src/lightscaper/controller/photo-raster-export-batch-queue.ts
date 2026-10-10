@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
+import { readClosedDomainField as field, readClosedDomainRecord as record, readClosedDomainArray as array } from '../../common/editor/closed-domain-value.ts';
+import { normalizePhotoRasterExportJournalV1 } from '../storage/photo-raster-export-journal-v1.ts';
 import { createDeliveryQueueRunner } from '../../common/editor/delivery-queue-runner.ts';
 import type { DeliveryQueue, DeliveryQueueState } from '../../common/editor/delivery-queue.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../../common/editor/browser-file-save-service.ts';
@@ -106,10 +107,24 @@ export class PhotoRasterExportBatchQueue {
 	}
 	/** Single use: neither Maps nor atomic-restart labels constitute persisted resume. */
 	start(value: unknown): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
+		return this.#start(() => capturePhotoRasterExportBatchV1(value));
+	}
+	/** A fixed journal is admitted whole before selecting work. Stable original
+	 * ordinals and names survive omissions; committed members never enqueue. */
+	startRecovery(value: unknown, jobIds: readonly string[]): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
+		return this.#start(() => {
+			const journal = normalizePhotoRasterExportJournalV1(value), ids = array(jobIds, 'Photo export recovery jobs', 1, journal.members.length);
+			if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !journal.members.some(member => member.jobId === id && member.state !== 'committed'))) throw new TypeError('Photo export recovery jobs are outside unfinished journal work.');
+			const members = journal.members.filter(member => ids.includes(member.jobId)).map(({ jobId, index, photoId, versionId, expectedRevision, sourceFileName, fileName }) =>
+				Object.freeze({ jobId, index, photoId, versionId, expectedRevision, sourceFileName, fileName }));
+			return Object.freeze({ schemaVersion: 1, batchId: journal.batchId, format: journal.format, members: Object.freeze(members), ...(journal.output ? { output: journal.output } : {}) });
+		});
+	}
+	#start(capture: () => Readonly<PhotoRasterExportBatchV1>): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
 		if (this.#phase !== 'idle') return Promise.reject(new PhotoRasterExportBatchError(new Error('Photo raster batch already started.'), this.getSnapshot()));
 		let preparation: PhotoRasterExportBatchDestinations | PromiseLike<PhotoRasterExportBatchDestinations>;
 		try {
-			const plan = capturePhotoRasterExportBatchV1(value);
+			const plan = capture();
 			if (plan.output?.metadataScope === 'capture' && !this.#runtime.readMetadata) throw new TypeError('Capture export requires its selected metadata reader.');
 			this.#plan = plan; this.#phase = 'preparing'; this.#runner.pause();
 			for (const member of this.#plan.members) {

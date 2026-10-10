@@ -46,7 +46,7 @@ import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../.
 import { createPhotoLibraryDevelopSessionV2 } from './photo-library-develop-session-v2.ts';
 
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
-import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2 } from '../../common/editor/photo-library-session-port-v2.ts';
+import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2, PhotoLibraryExportJournalPort } from '../../common/editor/photo-library-session-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../common/editor/photo-library-cube-lut-port-v1.ts';
 import type { CubeLutSourcePortV1 } from '../../common/editor/imaging/cube-lut-source-port-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../../common/editor/video-color-management-v27.ts';
@@ -71,6 +71,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly #lifetime = new PhotoLibrarySessionLifetime();
 	readonly #imports: ReturnType<typeof createPhotoLibrarySessionImport>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
+	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	#catalog: Promise<string> | null = null;
 	#photo: PhotoCommandOwnerV2 | null = null;
 	#previews: Promise<PhotoLibraryPreviewSchedulerPortV2> | null = null;
@@ -80,6 +81,15 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	constructor(ports: PhotoLibrarySessionPortsV2) {
 		ports = capturePhotoLibrarySessionPorts(ports);
 		this.#ports = ports;
+		if (ports.exportJournalSettings) this.exportJournal = Object.freeze({ open: (options = {}) => {
+			const { signal } = readPhotoDevelopSignalOptionsV2(options);
+			return this.#operation(async admitted => {
+				const { openPhotoLibraryExportJournalSession } = await import('./photo-library-export-journal-session.ts'); check(admitted);
+				return openPhotoLibraryExportJournalSession({ settings: ports.exportJournalSettings!, ready: () => this.#ready(),
+					catalog: ports.catalog, loadOriginal: ports.backup?.loadOriginal, verifyResources: ports.verifyResources,
+					operation: (run, caller, admit) => this.#operation(run, caller, admit) }, { signal });
+			}, signal);
+		} });
 		const presetSettings = ports.developPresetSettings ?? ports.settings; this.#developPresetSettings = presetSettings;
 		this.developImport = createPhotoLibraryDevelopImportSessionV2({ settings: presetSettings, ready: () => this.#ready(),
 			operation: (run, signal) => this.#operation(run, signal), importFiles: (files, request) => this.#importFiles(files, request) });

@@ -3,12 +3,14 @@
 import { lazy, Suspense } from 'react';
 import type { PhotoRasterExportEntry } from './use-photo-raster-export-entry.ts';
 import type { PhotoRasterExportDialogProps } from './PhotoRasterExportDialog.tsx';
+import type { PhotoLibraryExportJournalPort } from '../../photo-library-session-port-v2.ts';
 const PhotoPngExportDialog = lazy(() => import('./PhotoPngExportDialog.tsx'));
 const PhotoJpegExportDialog = lazy(() => import('./PhotoJpegExportDialog.tsx'));
 const PhotoRasterBatchExportDialog = lazy(() => import('./PhotoRasterBatchExportDialog.tsx'));
 type Ports = Omit<PhotoRasterExportDialogProps, 'format' | 'encode' | 'copy' | 'photoId' | 'fileName' | 'onClose'>;
 export default function PhotoRasterExportSurface(props: Ports & {
 	readonly entry: PhotoRasterExportEntry;
+	readonly captureJournal: () => PhotoLibraryExportJournalPort['open'];
 	readonly workingLabel: string;
 	readonly onClose: () => void; readonly onHide: () => void; readonly onSettled: () => void;
 }) {

@@ -30,9 +30,13 @@ test('actual photo shell stays cold for queue, optional batch labels and both en
 		if (group && path.includes('/i18n/')) for (const copy of copies) if (chunkGroupForModulePath(copy) === group) pending.push(copy);
 		for (const importPath of staticRelativeDependencies(moduleSource(path))) { const dependency = resolveRelativeModule(path, importPath); assert.ok(dependency); pending.push(dependency); }
 	}
-	for (const path of ['src/lightscaper/controller/photo-raster-export-batch-queue.ts', 'src/common/i18n/lightscaper-photo-batch-export-copy.ts',
+	for (const path of ['src/lightscaper/controller/photo-raster-export-batch-queue.ts', 'src/lightscaper/controller/photo-raster-export-persisted-batch.ts',
+		'src/lightscaper/controller/photo-library-export-journal-session.ts', 'src/common/i18n/lightscaper-photo-batch-export-copy.ts',
 		'src/common/editor/imaging/pixel-frame-png-v1.ts', 'src/common/editor/imaging/pixel-frame-jpeg-v1.ts']) assert.equal(reached.has(path), false, path);
 	assert.equal(reached.has('src/common/i18n/lightscaper-photo-batch-export-menu-copy.ts'), true);
 	assert.ok(dynamicRelativeImports(moduleSource(resolve(ROOT, APP))).includes('./PhotoRasterExportSurface.tsx'));
 	assert.ok(dynamicRelativeImports(moduleSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/PhotoRasterExportSurface.tsx'))).includes('./PhotoRasterBatchExportDialog.tsx'));
+});
+test('actual current Session opens its journal facade lazily rather than lending an eager render owner', () => {
+	assert.ok(dynamicRelativeImports(moduleSource(resolve(ROOT, 'src/lightscaper/controller/photo-library-session-v2.ts'))).includes('./photo-library-export-journal-session.ts'));
 });

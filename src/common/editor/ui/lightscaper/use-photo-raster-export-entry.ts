@@ -45,8 +45,12 @@ export function usePhotoRasterExportEntry(options: {
 			disabled: options.disabled || occupied || !options.selection, onClick: (event: MouseEvent<HTMLButtonElement>) => { admit(event, format); } })),
 		{ key: 'batch', label: copy.downloadSelected, disabled: options.disabled || occupied || options.selected.length === 0,
 			onClick: (event: MouseEvent<HTMLButtonElement>) => { admit(event, 'batch'); } },
-		{ key: 'queue', label: copy.queue, disabled: entry?.mode !== 'batch', onClick: (event: MouseEvent<HTMLButtonElement>) => {
-			if (entry?.mode === 'batch' && latest.current.closeMenu(event)) update(value => Object.freeze({ ...value, visible: true }));
+		{ key: 'queue', label: copy.queue, disabled: entry?.mode === 'single' || options.disabled && entry?.mode !== 'batch', onClick: (event: MouseEvent<HTMLButtonElement>) => {
+			const current = latest.current;
+			if (entry?.mode === 'single' || (current.disabled && entry?.mode !== 'batch') || !current.closeMenu(event)) return;
+			if (entry?.mode === 'batch' && !entry.settled) update(value => Object.freeze({ ...value, visible: true }));
+			else { setStored(Object.freeze({ key: crypto.randomUUID(), generation: current.generation, visible: true, settled: false, mode: 'batch',
+				selection: Object.freeze(current.selected.map(row => Object.freeze({ photoId: row.id, fileName: row.fileName }))) })); void current.prepareSave(); }
 		} },
 	];
 	return { entry, menus, close: () => { update(() => null); }, hide: () => { update(value => Object.freeze({ ...value, visible: false })); },

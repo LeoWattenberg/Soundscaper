@@ -52,6 +52,17 @@ export class PhotoRasterExportJournalOwnerV1 {
 			return { ...member, state: 'started', delivery: null };
 		});
 	}
+	/** Explicit user replacement of a fully acknowledged queue; uncertain history stays protected. */
+	replaceCompleted(value: unknown): Promise<Readonly<PhotoRasterExportJournalV1>> {
+		const fresh = this.#admit(value);
+		if (fresh.revision !== 1 || fresh.members.some(member => member.state !== 'pending')) throw new TypeError('A replacement export journal must be fresh pending work.');
+		return this.#join(async () => {
+			const current = this.#current;
+			if (!current || current.members.some(member => member.state !== 'committed') || current.batchId === fresh.batchId) throw new TypeError('Only a fully committed different queue can be replaced explicitly.');
+			const journal = this.#admit({ ...fresh, revision: current.revision + 1 });
+			await this.#write(journal, () => this.#settings.replaceIfCurrent(this.#key, this.#raw, journal)); return journal;
+		});
+	}
 	committed(jobId: string, ackValue: Readonly<PhotoRasterExportDownloadAckV1>): Promise<Readonly<PhotoRasterExportJournalV1>> {
 		const member = this.#current?.members.find(member => member.jobId === jobId);
 		if (!member) throw new TypeError('Photo export journal has no captured member.');

@@ -75,7 +75,7 @@ export async function createPhotoLibrarySessionV3(options: PhotoLibrarySessionRu
 			return new PhotoLibrarySessionV2({ catalog: selectedCatalog, stacks: selectedCatalog, smartCollections: selectedCatalog,
 				media: { writeAsset: selectedMedia.mediaRepository.writeAsset, custody: selectedMedia.mediaRepository.catalogOriginals },
 				journal: selectedMedia.settingsRepository, settings: anchor.settingsRepository,
-				developPresetSettings: selectedMedia.settingsRepository, exclusive,
+				developPresetSettings: selectedMedia.settingsRepository, exportJournalSettings: selectedMedia.settingsRepository, exclusive,
 			cubeLutResources: selectedMediaResources, verifyResources: async (photo, signal) => { await (await selectedMediaResources()).verifyPhoto(photo, signal); },
 				initialize: async admitted => { assertNotAborted(admitted); const root = await selectedCatalog.loadCatalog(catalogId);
 					assertNotAborted(admitted); if (!root) throw new ReferenceError('Selected photo library catalog is missing.'); return root; },

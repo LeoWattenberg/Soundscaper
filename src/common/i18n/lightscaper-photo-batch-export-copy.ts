@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-const EN = Object.freeze({ title: 'Download selected photos', description: 'Download this captured selection in page order. Keep this tab open; this queue cannot resume after a reload.',
+const EN = Object.freeze({ title: 'Download selected photos', description: 'This queue is retained in this library. Reopen Export queue after a reload and authorize remaining downloads. A started download may already exist; review it before retrying.',
+	empty: 'No export queue is retained. Select photos to create one.', continue: 'Authorize remaining downloads', needsReview: 'Download may have started. Check your browser before retrying.',
+	stale: 'The saved photo, version or resources changed. This member cannot be resumed.', review: 'I checked my downloads and want to retry {name}', replaceCompleted: 'Replace completed queue and start new downloads',
 	start: 'Start downloads', hide: 'Hide queue', pause: 'Pause queue', resume: 'Resume queue', cancel: 'Cancel queue', cancelMember: 'Cancel photo',
 	format: 'Format', png: 'PNG', jpeg: 'JPEG', preparing: 'Preparing selected versions…', failed: 'Some photos could not be downloaded. Completed downloads remain available in your browser.',
 	idle: 'Ready', queued: 'Queued', running: 'Exporting…', saved: 'Delivered', downloaded: 'Download started: {name}. Check your browser’s downloads.',
 	cancelled: 'Cancelled', memberFailed: 'Failed', settled: 'Queue finished', paused: 'Queue paused' });
-const DE = Object.freeze({ title: 'Ausgewählte Fotos herunterladen', description: 'Diese Auswahl in Seitenreihenfolge herunterladen. Lassen Sie diesen Tab geöffnet; nach dem Neuladen kann die Warteschlange nicht fortgesetzt werden.',
+const DE = Object.freeze({ title: 'Ausgewählte Fotos herunterladen', description: 'Diese Warteschlange bleibt in dieser Bibliothek erhalten. Nach dem Neuladen „Exportwarteschlange“ öffnen und verbleibende Downloads neu bestätigen. Ein gestarteter Download kann bereits vorliegen; vor einem erneuten Versuch prüfen.',
+	empty: 'Keine Exportwarteschlange gespeichert. Fotos auswählen, um eine zu erstellen.', continue: 'Verbleibende Downloads bestätigen', needsReview: 'Der Download könnte gestartet sein. Vor einem erneuten Versuch die Browser-Downloads prüfen.',
+	stale: 'Gespeichertes Foto, Version oder Ressourcen haben sich geändert. Dieses Foto kann nicht fortgesetzt werden.', review: 'Ich habe meine Downloads geprüft und möchte {name} erneut herunterladen', replaceCompleted: 'Abgeschlossene Warteschlange ersetzen und neue Downloads starten',
 	start: 'Downloads starten', hide: 'Warteschlange ausblenden', pause: 'Warteschlange pausieren', resume: 'Warteschlange fortsetzen', cancel: 'Warteschlange abbrechen', cancelMember: 'Foto abbrechen',
 	format: 'Format', png: 'PNG', jpeg: 'JPEG', preparing: 'Ausgewählte Versionen werden vorbereitet…', failed: 'Einige Fotos konnten nicht heruntergeladen werden. Abgeschlossene Downloads bleiben in Ihrem Browser verfügbar.',
 	idle: 'Bereit', queued: 'Geplant', running: 'Wird exportiert…', saved: 'Übergeben', downloaded: 'Download gestartet: {name}. Prüfen Sie die Downloads Ihres Browsers.',

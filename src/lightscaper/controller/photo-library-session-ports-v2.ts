@@ -6,6 +6,7 @@ import type { PhotoManagedImportPortsV2 } from '../import/managed-import-ports-v
 import type { PhotoMediaCubeLutResourcesV1 } from '../storage/photo-media-cube-lut-resources-v1.ts';
 import type { PhotoPreviewSchedulerV2 } from '../preview/photo-preview-scheduler-v2.ts';
 import type { PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
+import type { PhotoLibraryExportJournalSettings } from '../../common/editor/photo-library-session-port-v2.ts';
 
 export type PhotoLibraryPreviewSchedulerPortV2 = Pick<PhotoPreviewSchedulerV2, 'request' | 'close'>;
 export interface PhotoLibrarySessionPortsV2 extends Omit<PhotoLibrarySessionPortsV1, 'catalog' | 'importPhotos' | 'createPreviewScheduler'> {
@@ -15,4 +16,5 @@ export interface PhotoLibrarySessionPortsV2 extends Omit<PhotoLibrarySessionPort
 	readonly importPhotos?: typeof importManagedPhotosV2;
 	readonly cubeLutResources?: () => Promise<Readonly<PhotoMediaCubeLutResourcesV1>>;
 	readonly verifyResources?: PhotoManagedImportPortsV2['verifyResources'];
+	readonly exportJournalSettings?: Readonly<PhotoLibraryExportJournalSettings>;
 }

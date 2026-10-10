@@ -4,7 +4,7 @@ import { useCallback, type RefObject } from 'react';
 import { acquirePhotoLibraryWorkflowSlotV2 as acquire, loadPhotoLibraryDevelopProxyV2,
 	type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import { capturePhotoLibraryDevelopOriginalPortV1, capturePhotoLibraryDevelopPortV2 } from './photo-library-workflow-develop.ts';
-import type { CreatePhotoLibrarySessionV3, ReadPhotoExportSidecar } from '../../photo-library-session-port-v2.ts';
+import type { CreatePhotoLibrarySessionV3, ReadPhotoExportSidecar, PhotoLibraryExportJournalPort } from '../../photo-library-session-port-v2.ts';
 import type { PhotoLibraryPreviewTierV1 } from '../../photo-library-session-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
@@ -96,5 +96,18 @@ export function usePhotoLibraryWorkflowReads({ slot, factory, loader, renderer, 
 			const result = await capturedRead(request, { signal }); checked(); return result;
 		};
 	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
-	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader };
+	const captureExportJournalOpener = useCallback((): PhotoLibraryExportJournalPort['open'] => {
+		const current = slot.current;
+		const isCurrent = () => current?.live && slot.current === current && current.factory === createSession && current.factory === factory.current
+			&& current.proxyFactory === createDevelopProxyRuntime && current.proxyFactory === renderer.current && current.backupLoader === loadBackupSaveRuntime && current.backupLoader === loader.current;
+		return async (options = {}) => {
+			if (!current || !isCurrent()) throw new DOMException('Photo export journal generation is closed.', 'AbortError');
+			const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
+			check(signal); const owner = await acquire(current); check(signal);
+			if (!isCurrent() || !owner.exportJournal) throw new Error('Photo export journal is unavailable.');
+			const access = await owner.exportJournal.open({ signal }); check(signal);
+			if (!isCurrent()) throw new DOMException('Photo export journal generation is closed.', 'AbortError'); return access;
+		};
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
+	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener };
 }

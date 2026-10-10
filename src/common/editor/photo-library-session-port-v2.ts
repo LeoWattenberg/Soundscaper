@@ -11,11 +11,27 @@ export interface PhotoLibraryExportSidecarRequest {
 }
 export type ReadPhotoExportSidecar = (request: Readonly<PhotoLibraryExportSidecarRequest>, options: Readonly<{ signal: AbortSignal }>) => Promise<string>;
 
+/** Body-free CAS transport, limited by the selected Session to its scalar export journal. */
+export interface PhotoLibraryExportJournalSettings {
+	get(key: string): Promise<unknown>;
+	putIfAbsent(key: string, value: unknown): Promise<boolean>;
+	replaceIfCurrent(key: string, expected: unknown, value: unknown): Promise<boolean>;
+}
+export interface PhotoLibraryExportJournalAccess {
+	readonly catalogId: string;
+	readonly settings: Readonly<PhotoLibraryExportJournalSettings>;
+	readonly verifyResources: (request: Readonly<PhotoLibraryExportSidecarRequest>, options?: Readonly<{ signal?: AbortSignal }>) => Promise<void>;
+}
+export interface PhotoLibraryExportJournalPort {
+	open(options?: Readonly<{ signal?: AbortSignal }>): Promise<Readonly<PhotoLibraryExportJournalAccess>>;
+}
+
 /** Fixed current Develop envelopes; scalar library and organization ports stay unchanged. */
 export interface PhotoLibrarySessionPortV2 extends Omit<PhotoLibrarySessionPortV1, 'develop' | 'developImport'> {
 	readonly develop: Readonly<PhotoLibraryDevelopPortV2>;
 	readonly developImport: Readonly<PhotoLibraryDevelopImportPortV2>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
 	readonly readExportSidecar?: ReadPhotoExportSidecar;
+	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 }
 export type CreatePhotoLibrarySessionV3 = () => Promise<PhotoLibrarySessionPortV2>;

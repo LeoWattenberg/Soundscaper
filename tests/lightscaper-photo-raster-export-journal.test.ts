@@ -96,3 +96,34 @@ test('truthy non-boolean transport reply cannot invent a durable CAS acknowledge
 	const owner = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await assert.rejects(owner.create(fixture()));
 	assert.equal(owner.current, null); assert.equal(settings.value, undefined); await owner.closeAndJoin();
 });
+test('explicit completed replacement refuses unfinished history and advances the exact CAS revision', async () => {
+	const settings = store(), owner = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await owner.create(fixture());
+	const fresh = { ...fixture(), batchId: 'replacement', members: fixture().members.map(member => ({ ...member, jobId: `replacement:${member.index}` })) };
+	await assert.rejects(owner.replaceCompleted(fresh));
+	for (const member of fixture().members) { await owner.started(member.jobId); await owner.committed(member.jobId, { status: 'download-started', method: 'download', fileName: member.fileName, size: 4 }); }
+	const previous = owner.current!; await owner.replaceCompleted(fresh);
+	assert.equal(owner.current!.batchId, 'replacement'); assert.equal(owner.current!.revision, previous.revision + 1);
+	assert.deepEqual(owner.current!.members.map(member => member.state), ['pending', 'pending']); await owner.closeAndJoin();
+});
+
+test('completed replacement protects started rows and reconciles only exact lost CAS ACK', async () => {
+	const settings = store(), owner = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await owner.create(fixture()); await owner.started('batch:1');
+	const fresh = { ...fixture(), batchId: 'next', members: fixture().members.map(member => ({ ...member, jobId: `next:${member.index}` })) };
+	await assert.rejects(owner.replaceCompleted(fresh));
+	await owner.committed('batch:1', { status: 'download-started', method: 'download', fileName: '01-One.png', size: 4 });
+	await owner.started('batch:2'); await owner.committed('batch:2', { status: 'download-started', method: 'download', fileName: '02-Two.png', size: 4 });
+	const replace = settings.replaceIfCurrent, lost = Symbol('lost replacement ACK');
+	// New owner pins the forwarding transport; the original owner retains its prior methods.
+	settings.replaceIfCurrent = async function (...args) { await replace.apply(this, args); throw lost; };
+	const reopened = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await reopened.load(); await reopened.replaceCompleted(fresh);
+	assert.equal(reopened.current!.revision, 6); assert.equal(reopened.current!.batchId, 'next'); await owner.closeAndJoin(); await reopened.closeAndJoin();
+});
+
+test('two explicit replacement writers cannot erase the winning new pending queue', async () => {
+	const settings = store(), first = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await first.create(fixture());
+	for (const member of fixture().members) { await first.started(member.jobId); await first.committed(member.jobId, { status: 'download-started', method: 'download', fileName: member.fileName, size: 4 }); }
+	const second = new PhotoRasterExportJournalOwnerV1(settings, 'catalog'); await second.load();
+	const next = (batchId: string) => ({ ...fixture(), batchId, members: fixture().members.map(member => ({ ...member, jobId: `${batchId}:${member.index}` })) });
+	await first.replaceCompleted(next('winner')); await assert.rejects(second.replaceCompleted(next('loser')), PhotoRasterExportJournalErrorV1);
+	assert.equal(normalizePhotoRasterExportJournalV1(settings.value).batchId, 'winner'); await first.closeAndJoin(); await second.closeAndJoin();
+});

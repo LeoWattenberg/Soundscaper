@@ -14,7 +14,17 @@ import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { mountPhotoImportUi } from './helpers/photo-import-options-react-fixture.tsx';
 import { reactProps } from './helpers/react-test-dom.ts';
 import { deferred, remainsPending, settle, waitFor } from './helpers/async-test-control.ts';
+import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+import { normalizePhotoDocumentV2 } from '../src/lightscaper/catalog/photo-document-v2.ts';
+import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../src/lightscaper/catalog/photo-export-sidecar-v1.ts';
+import { openPhotoLibraryExportJournalSession } from '../src/lightscaper/controller/photo-library-export-journal-session.ts';
+import { PhotoLibrarySessionLifetime } from '../src/lightscaper/controller/photo-library-session-lifetime.ts';
+import { KeyValueRepository } from '../src/common/editor/storage/key-value-repository.ts';
+import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
+import { createPhotoMediaCubeLutResourcesV1 } from '../src/lightscaper/storage/photo-media-cube-lut-resources-v1.ts';
+import { normalizePhotoRasterExportJournalV1 } from '../src/lightscaper/storage/photo-raster-export-journal-v1.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile } from '../src/common/editor/browser-file-save-service.ts';
+import { photoBatchExportCopy } from '../src/common/i18n/lightscaper-photo-batch-export-copy.ts';
 
 const previousRange = Object.getOwnPropertyDescriptor(globalThis, 'IDBKeyRange');
 Object.defineProperty(globalThis, 'IDBKeyRange', { configurable: true, value: InstrumentedKeyRange });
@@ -33,7 +43,10 @@ for (const locale of ['en', 'de']) test(`${locale}: the real current application
 	try {
 		const entry = m.dom.one('[data-photo-batch-export-menu]'), queue = m.dom.one('[data-photo-queue-export-menu]');
 		assert.equal(entry.closest('details')?.querySelector('summary')?.textContent, locale === 'de' ? 'Datei' : 'File');
-		assert.equal(reactProps(entry).disabled, true); assert.equal(reactProps(queue).disabled, true); assert.equal(loaders, 0); assert.equal(m.dom.find('[data-photo-batch-export-dialog]'), null);
+		assert.equal(reactProps(entry).disabled, true); assert.equal(reactProps(queue).disabled, false); assert.equal(loaders, 0); assert.equal(m.dom.find('[data-photo-batch-export-dialog]'), null);
+		await click('[data-photo-queue-export-menu]');
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-dialog]')?.textContent.includes(photoBatchExportCopy(locale).empty) === true; }, 'empty durable queue', { delayMs: 10 });
+		await click('[data-photo-batch-export-hide]');
 		const show = m.dom.container.querySelectorAll('button').find(button => button.textContent === (locale === 'de' ? 'Fotobibliothek anzeigen' : 'Show photo library'))!;
 		await flush(() => { reactProps(show).onClick?.({ currentTarget: show }); });
 		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-id]') !== null; }, 'current selected page');
@@ -49,6 +62,14 @@ for (const locale of ['en', 'de']) test(`${locale}: the real current application
 
 function fixture() {
 	const events: string[] = [], blobs: Blob[] = [], held = deferred<void>(); let hold = false, retired: (() => Promise<void>) | null = null;
+	const base = photoArchiveFixture(), photos = new Map(selection.map(member => [member.photoId, normalizePhotoDocumentV2({ ...base.photo, schemaVersion: 2, id: member.photoId,
+		catalogId: 'catalog', revision: 3, activeVersionId: 'master', metadata: { ...base.photo.metadata, fileName: member.fileName },
+		versions: [{ ...base.photo.versions[0]!, id: 'master', develop: defaultImageDevelopStateV2() }] })]));
+	const port = { memory: getMemoryDatabase(`batch-app-${crypto.randomUUID()}`), database: async () => null }, repository = new KeyValueRepository(port, 'settings');
+	const lifetime = new PhotoLibrarySessionLifetime(), resources = createPhotoMediaCubeLutResourcesV1(port, action => action(), () => lifetime.assertAccepting());
+	const host = { ready: async () => 'catalog', settings: { get: repository.get.bind(repository), putIfAbsent: repository.putIfAbsent.bind(repository), replaceIfCurrent: repository.replaceIfCurrent.bind(repository) },
+		catalog: { loadPhoto: async (_catalog: string, id: string) => photos.get(id) ?? null }, loadOriginal: async () => base.original,
+		verifyResources: resources.resources.verifyPhoto, operation: lifetime.operation.bind(lifetime) };
 	const service = createBrowserFileSaveService({ document: { createElement: () => ({ href: '', download: '', hidden: false, click() { events.push(`click:${this.download}`); } }) },
 		urlApi: { createObjectURL(blob) { blobs.push(blob); return 'blob:export'; }, revokeObjectURL() {} }, setTimeout: callback => { callback(); return 1; } });
 	const runtime = { maximumStreamingBytes: 536870912, prepareSave(request: BrowserFileSaveRequest) { assert.equal(request.target?.browserDownload, true); assert.equal(request.useFileSystemAccess, false); events.push(`prepare:${String(request.fileName)}`); return service.prepareSave(request); },
@@ -62,10 +83,12 @@ function fixture() {
 		withOriginalFrame: async (request, consume) => { events.push(`original:${request.photoId}`); return consume({ photoId: request.photoId, revision: 3,
 			frame: { descriptor: { schemaVersion: 1, width: 2, height: 2, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: new Uint8Array([64, 128, 192, 255, 64, 128, 192, 255, 64, 128, 192, 255, 64, 128, 192, 255]) } }); },
 		loadRenderer: async () => createPhotoDevelopRenderRuntimeV2(),
+		captureJournal: () => options => openPhotoLibraryExportJournalSession(host, options),
+		captureSidecarReader: () => async request => serializePhotoExportSidecarV1(createPhotoExportSidecarV1(photos.get(request.photoId), request)),
 		saveRuntime: runtime,
 		registerDestination(join) { retired = join; return () => { void join().catch(() => undefined); }; },
 	};
-	return { props, runtime, events, blobs, held, hold: () => { hold = true; }, retire: () => retired!() };
+	return { props, runtime, events, blobs, held, photos, hold: () => { hold = true; }, retire: () => retired!(), close: () => lifetime.close(() => resources.close()) };
 }
 for (const format of ['png', 'jpeg'] as const) test(`${format}: real renderer/encoder owner downloads frozen page-order indices and presents Download started`, async t => {
 	const f = fixture(); let props = f.props;
@@ -103,7 +126,7 @@ for (const format of ['png', 'jpeg'] as const) test(`${format}: real renderer/en
 		const bytes = [...new Uint8Array(await f.blobs[0]!.arrayBuffer())]; assert.deepEqual(bytes.slice(0, format === 'png' ? 8 : 2), format === 'png' ? [137, 80, 78, 71, 13, 10, 26, 10] : [255, 216]);
 		props = { ...props, visible: false }; await m.render(); assert.equal(m.dom.find('[data-photo-batch-export-dialog]'), null);
 		props = { ...props, visible: true }; await m.render(); assert.equal(m.dom.one('[data-photo-batch-export-receipt]').getAttribute('data-phase'), 'settled'); assert.equal(f.blobs.length, 2);
-	} finally { await m.dispose(); await settle(); }
+	} finally { await m.dispose(); await settle(); await f.close(); }
 });
 
 test('hidden queue remains active; catalog retirement joins a held irreversible download without starting its neighbor', async () => {
@@ -120,5 +143,53 @@ test('hidden queue remains active; catalog retirement joins a held irreversible 
 		props = { ...props, visible: true }; await m.render();
 		assert.match(m.dom.one('[data-photo-batch-export-receipt]').textContent, /Download started/u);
 		assert.equal(m.dom.one('[data-photo-batch-export-receipt]').querySelectorAll('[data-state="cancelled"]').length, 1);
-	} finally { f.held.resolve(); await m.dispose(); await settle(); }
+	} finally { f.held.resolve(); await m.dispose(); await settle(); await f.close(); }
+});
+
+for (const state of ['pending', 'started'] as const) test(`${state}: reopened native journal rows stay readonly or require review, then keep the original second filename`, async () => {
+	const f = fixture(); let props = f.props, m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...props} />);
+	let flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'ready');
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return f.events.includes('settled'); }, 'initial committed queue'); await m.dispose(); await settle();
+		// Actual settings CAS conditions an interrupted scalar record. It does
+		// not claim to recreate a physical browser crash or download completion.
+		const access = await f.props.captureJournal()(), key = `photo-library:raster-export-journal:v1:${access.catalogId}`, raw = await access.settings.get(key);
+		const before = normalizePhotoRasterExportJournalV1(raw), next = normalizePhotoRasterExportJournalV1({ ...before, revision: before.revision + 1,
+			members: before.members.map((member, index) => index ? { ...member, state, delivery: null } : member) });
+		assert.equal(await access.settings.replaceIfCurrent(key, raw, next), true);
+		props = { ...props, selection: [], batchId: 'reopened' }; m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...props} />);
+		flush = async (action = () => undefined) => { await act(async () => { action(); await settle(); }); };
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-export-journal]') !== null; }, 'reopened journal');
+		assert.equal(f.blobs.length, 2); assert.equal(m.dom.container.querySelectorAll('[data-journal-state="already-committed"]').length, 1);
+		assert.equal(m.dom.container.querySelectorAll('[data-photo-journal-job]').length, 2); assert.equal(m.dom.find('[data-photo-batch-export-replace]'), null);
+		if (state === 'started') {
+			assert.equal(reactProps(m.dom.one('[data-photo-batch-export-start]')).disabled, true);
+			const review = m.dom.one('[data-journal-state="needs-review"]').querySelector('input'); assert.ok(review);
+			await flush(() => { reactProps(review).onChange?.({ target: { checked: true } }); });
+		}
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'explicit continuation');
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-receipt]')?.getAttribute('data-phase') === 'settled'; }, 'one resumed member');
+		assert.deepEqual(f.events.filter(event => event.startsWith('click:')), ['click:01-Second.png', 'click:02-First.png', 'click:02-First.png']);
+		assert.equal(m.dom.container.querySelectorAll('[data-photo-batch-job]').length, 1);
+	} finally { await m.dispose(); await settle(); await f.close(); }
+});
+
+test('reopened fully committed history allows only an explicit different replacement queue', async () => {
+	const f = fixture(); let props = f.props, m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...props} />);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'ready');
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return f.events.includes('settled'); }, 'committed'); await m.dispose(); await settle();
+		props = { ...props, batchId: 'explicit-replacement' }; m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...props} />);
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-replace]')?.disabled === false; }, 'replace completed');
+		assert.equal(f.blobs.length, 2); assert.equal(reactProps(m.dom.one('[data-photo-batch-export-start]')).disabled, true);
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-replace]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return f.blobs.length === 4 && m.dom.find('[data-photo-batch-export-receipt]')?.getAttribute('data-phase') === 'settled'; }, 'explicit replacement committed');
+		const access = await f.props.captureJournal()(), current = normalizePhotoRasterExportJournalV1(await access.settings.get(`photo-library:raster-export-journal:v1:${access.catalogId}`));
+		assert.equal(current.batchId, 'explicit-replacement'); assert.equal(current.revision, 10); assert.equal(current.members.every(member => member.state === 'committed'), true);
+	} finally { await m.dispose(); await settle(); await f.close(); }
 });

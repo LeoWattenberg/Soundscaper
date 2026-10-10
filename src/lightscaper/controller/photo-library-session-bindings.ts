@@ -24,6 +24,7 @@ export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV
 		initialize: pin(initialize, ports), closeResources: pin(closeResources, ports),
 		...(settings === undefined ? {} : { settings: captureSettings(settings) }),
 		...(presetSettings === undefined ? {} : { developPresetSettings: captureSettings(presetSettings) }),
+		...(ports.exportJournalSettings === undefined ? {} : { exportJournalSettings: captureSettings(ports.exportJournalSettings) }),
 		...(stacks === undefined ? {} : { stacks: Object.freeze({ readSnapshot: pin(stacks.readSnapshot, stacks),
 			readStackState: pin(stacks.readStackState, stacks), loadStack: pin(stacks.loadStack, stacks),
 			readStackMembershipPage: pin(stacks.readStackMembershipPage, stacks), readStackMemberPage: pin(stacks.readStackMemberPage, stacks),

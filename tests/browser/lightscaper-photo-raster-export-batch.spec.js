@@ -18,7 +18,7 @@ for (const locale of ['en', 'de']) {
 	test(`${locale}: selected photo downloads and queue remain opt-in cold File entries`, async ({ page }) => {
 		const requested = []; page.on('request', request => { if (request.resourceType() === 'script') requested.push(request.url()); });
 		const { app, copy } = await open(page, locale); await menu(page, app, copy.photoFileMenu);
-		await expect(app.locator('[data-photo-batch-export-menu]')).toBeDisabled(); await expect(app.locator('[data-photo-queue-export-menu]')).toBeDisabled();
+		await expect(app.locator('[data-photo-batch-export-menu]')).toBeDisabled(); await expect(app.locator('[data-photo-queue-export-menu]')).toBeEnabled();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 		expect(requested.filter(url => /(?:PhotoRasterBatchExportDialog|photo-raster-export-batch-queue|lightscaper-photo-batch-export-copy|editor-png-bytes)/u.test(url))).toEqual([]);
 	});
@@ -73,7 +73,25 @@ for (const locale of ['en', 'de']) {
 		}
 		expect(await observe(page, ids)).toEqual(before); expect(errors).toEqual([]);
 		await page.reload(); await expect(app).toBeVisible(); expect(await observe(page, ids)).toEqual(before);
-		await menu(page, app, copy.photoFileMenu); await expect(app.locator('[data-photo-queue-export-menu]')).toBeDisabled();
+		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.queue));
+		dialog = named(page, 'dialog', words.title); await expect(dialog.locator('[data-journal-state="already-committed"]')).toHaveCount(2);
+		await expect(dialog.locator('[data-photo-batch-export-start]')).toBeDisabled(); expect(downloads).toHaveLength(2);
+		const committed = await observeJournal(page); expect(committed.members.map(member => member.delivery.status)).toEqual(['download-started', 'download-started']);
+		// A real native CAS conditions the interrupted scalar state. This tests
+		// reopen/review, not a fabricated physical crash or durable download ACK.
+		await observeJournal(page, format === 'png' ? 'pending' : 'started');
+		await page.reload(); await expect(app).toBeVisible(); await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.queue));
+		dialog = named(page, 'dialog', words.title); await expect(dialog.locator('[data-journal-state="already-committed"]')).toHaveCount(1); expect(downloads).toHaveLength(2);
+		if (format === 'jpeg') {
+			await expect(dialog.locator('[data-journal-state="needs-review"]')).toHaveCount(1); await expect(dialog.locator('[data-photo-batch-export-start]')).toBeDisabled();
+			const review = dialog.getByRole('checkbox', { name: words.review.replace('{name}', names[1]), exact: true });
+			await review.focus(); await expect(review).toBeFocused(); await page.keyboard.press('Space'); await expect(review).toBeChecked();
+		}
+		await expect(dialog.locator('[data-photo-batch-export-start]')).toBeEnabled(); await keyboard(page, dialog.locator('[data-photo-batch-export-start]'));
+		await expect.poll(() => downloads.length).toBe(3); await expect(dialog.locator('[data-photo-batch-export-receipt]')).toHaveAttribute('data-phase', 'settled');
+		expect(downloads[2].suggestedFilename()).toBe(names[1]); await expect(dialog.locator('[data-photo-batch-job]')).toHaveCount(1);
+		expect((await observeJournal(page)).members.map(member => member.state)).toEqual(['committed', 'committed']);
+		expect(await observe(page, ids)).toEqual(before); expect(errors).toEqual([]);
 	});
 }
 function assertPng(bytes) {
@@ -95,6 +113,29 @@ async function observe(page, ids) {
 	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents: `export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser' });
 	await page.route('**/__batch_export_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
 	const result = await page.evaluate(async photoIds => (await import(new URL('/__batch_export_observer.js', location.href).href)).readResidentPhotoLibraryCurrent(photoIds, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), ids);
+	await assertNativeOpfsWorkerExecution(page); return result;
+}
+async function observeJournal(page, state = null) {
+	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../../', import.meta.url)), contents: `
+		import { createPhotoLibrarySessionV3 } from './src/lightscaper/photo-library-session-runtime-v3.ts';
+		import { normalizePhotoRasterExportJournalV1, photoRasterExportJournalKeyV1 } from './src/lightscaper/storage/photo-raster-export-journal-v1.ts';
+		export async function observeJournal(state) {
+			const session = await createPhotoLibrarySessionV3({ name: 'Observed existing photo library' });
+			try {
+				const access = await session.exportJournal.open(), key = photoRasterExportJournalKeyV1(access.catalogId), raw = await access.settings.get(key);
+				const journal = normalizePhotoRasterExportJournalV1(raw); let result = journal;
+				if (state !== null) {
+					if (state !== 'pending' && state !== 'started') throw new Error('Unsupported fixture interruption');
+					const next = normalizePhotoRasterExportJournalV1({ ...journal, revision: journal.revision + 1, members: journal.members.map((member,index) => index ? { ...member,state,delivery:null } : member) });
+					if (await access.settings.replaceIfCurrent(key,raw,next) !== true) throw new Error('Native fixture journal CAS changed');
+					result = next;
+				}
+				await globalThis.__assertNativeOpfsWorkerExecution();
+				return result;
+			} finally { await session.close(); }
+		}` }, bundle: true, write: false, format: 'esm', platform: 'browser' });
+	await page.route('**/__batch_journal_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
+	const result = await page.evaluate(async state => (await import(new URL('/__batch_journal_observer.js', location.href).href)).observeJournal(state), state);
 	await assertNativeOpfsWorkerExecution(page); return result;
 }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
