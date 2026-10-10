@@ -63,6 +63,8 @@ export function createDesktopDirectWavStagingObserver(paths, {
 		if (typeof implementation !== 'function') throw new TypeError(`Desktop direct-WAV ${label} is required`);
 	}
 	const pattern = new RegExp(`^\\.${escapeRegex(basename(paths.cancelled))}\\.([a-f\\d]{32})\\.soundscaper-part$`, 'u');
+	const anonymousPattern = /^\.([a-f\d]{32})\.soundscaper-part$/u;
+	const selectedWrite = { id: null };
 	const expected = validateExpectedGeometry(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output);
 	let maximumStagedBytes = 0;
 	let maximumInspectedPrefixBytes = 0;
@@ -84,7 +86,8 @@ export function createDesktopDirectWavStagingObserver(paths, {
 		while (!stopRequested && !failure) {
 			try {
 				mergeSample(await boundedOperation(
-					() => inspectStagingSample(paths.root, pattern, expected, prefixBytes, { readdirImpl, lstatImpl, openImpl }),
+					() => inspectStagingSample(paths, pattern, anonymousPattern, selectedWrite,
+						expected, prefixBytes, { readdirImpl, lstatImpl, openImpl }),
 					timeoutMs,
 					'Direct-WAV staging sampling',
 					setTimeoutImpl,
@@ -183,7 +186,7 @@ export function absoluteDesktopDirectWavPath(value, label) {
 	return path;
 }
 
-async function inspectStagingSample(root, pattern, expected, maximumPrefixBytes, implementations) {
+async function inspectStagingSample(paths, pattern, anonymousPattern, selectedWrite, expected, maximumPrefixBytes, implementations) {
 	const observation = {
 		observed: false,
 		riffHeaderValidated: false,
@@ -191,11 +194,16 @@ async function inspectStagingSample(root, pattern, expected, maximumPrefixBytes,
 		maximumStagedBytes: 0,
 		maximumInspectedPrefixBytes: 0,
 	};
-	for (const entry of await directoryEntriesWith(root, implementations.readdirImpl)) {
-		const match = pattern.exec(entry.name);
-		if (!match) continue;
+	const entries = await directoryEntriesWith(paths.root, implementations.readdirImpl);
+	// The harness saves five outputs sequentially. The first anonymous write
+	// after completed.wav commits is the cancelled WAV; keep that identity so
+	// later AIFF, BWF, and BW64 writes cannot contribute cancellation evidence.
+	const firstCompleted = entries.some((entry) => entry.name === basename(paths.completed) && entry.isFile());
+	for (const entry of entries) {
+		const match = pattern.exec(entry.name) || (firstCompleted && anonymousPattern.exec(entry.name));
+		if (!match || (selectedWrite.id !== null && selectedWrite.id !== match[1])) continue;
 		if (!WRITE_ID_PATTERN.test(match[1])) throw new Error('Direct-WAV staging write identity is invalid');
-		const path = resolve(root, entry.name);
+		const path = resolve(paths.root, entry.name);
 		let metadata;
 		try {
 			metadata = await implementations.lstatImpl(path);
@@ -206,6 +214,7 @@ async function inspectStagingSample(root, pattern, expected, maximumPrefixBytes,
 		if (!metadata.isFile() || metadata.isSymbolicLink()) {
 			throw new Error('Direct-WAV cancellation staging target is not a regular file');
 		}
+		selectedWrite.id ??= match[1];
 		observation.observed = true;
 		observation.maximumStagedBytes = Math.max(observation.maximumStagedBytes, metadata.size);
 		const inspected = await readStagingPrefix(path, metadata, maximumPrefixBytes, implementations.openImpl);
