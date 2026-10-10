@@ -636,6 +636,17 @@ These are preserved full-run observations without inferred source causes or
 new counts. All seven actual PNG/context and completed JSON markers are read;
 their exact directories are immediately removed.
 
+Exact unchanged WebKit replay on authenticated8d4cef165 completes9 workflows:
+multicamera retained angle15.1 seconds, continuous/frozen replacement13.1/15.7
+seconds, and DAWproject999/1000 BPM4.9/4.6 seconds all pass. Archive write/close
+3.6/3.9 seconds still stop at undefined native observer before Export, and
+Freesound ungrouped/folder3.1/3.6 seconds still stop at null passive request
+body after actual Ready to publish. The latter four completed replay PNG/context
+were read and show the same native idle/Ready controls, without a source root.
+All own replay output and bounded log are immediately removed. Original full150
+failures remain recorded; capability/physical-request witness follow-through is
+zero count and must retain every actual media/control assertion.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
