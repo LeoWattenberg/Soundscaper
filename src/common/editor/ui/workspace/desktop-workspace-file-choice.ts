@@ -10,7 +10,7 @@ interface WorkspaceFileChoiceRuntime {
 			consume: (files: readonly File[]) => Promise<number>,
 		): PromiseLike<number>;
 	}>;
-	openProjectDescriptor(descriptor: unknown): PromiseLike<unknown> | unknown;
+	openProjectDescriptor?(descriptor: unknown): PromiseLike<unknown> | unknown;
 	importFiles(files: readonly File[], options: Readonly<Record<string, unknown>>): PromiseLike<unknown> | unknown;
 }
 
@@ -24,7 +24,9 @@ export async function openDesktopWorkspaceFiles(
 	const projectId = runtime.getProjectId();
 	const descriptors = await runtime.fileService.chooseFiles({ purpose, multiple });
 	if (purpose === 'project') {
-		for (const descriptor of descriptors) await runtime.openProjectDescriptor(descriptor);
+		const openProject = runtime.openProjectDescriptor;
+		if (!openProject) throw new Error('Project file choices require a project opener.');
+		for (const descriptor of descriptors) await openProject(descriptor);
 		return descriptors.length;
 	}
 	return runtime.fileService.withReadDescriptors(descriptors, {}, async files => {

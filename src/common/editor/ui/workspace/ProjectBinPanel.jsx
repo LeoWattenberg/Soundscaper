@@ -24,6 +24,7 @@ import { useProjectBinItems, useProjectBinSources } from './useProjectBinPresent
 import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
+import { openDesktopWorkspaceFiles } from './desktop-workspace-file-choice.ts';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
 export default function ProjectBinPanel({ controller, snapshot, copy: providedCopy, locale, fileService, run, blocked, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined) }) {
@@ -135,10 +136,11 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 			inputRef.current?.click();
 			return;
 		}
-		const descriptors = await fileService.chooseFiles({ purpose: 'media', multiple: true });
-		await fileService.withReadDescriptors(descriptors, {}, async (files) => {
-			if (files.length) await importFiles(files);
-		});
+		await openDesktopWorkspaceFiles({
+			getProjectId: () => controller.getSnapshot().project?.id ?? null,
+			fileService,
+			importFiles,
+		}, 'media', true);
 	});
 	const chooseLinkedAudio = () => run(async () => {
 		if (mutationBlocked) return;

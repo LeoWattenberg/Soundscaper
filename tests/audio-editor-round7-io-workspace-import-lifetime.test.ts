@@ -25,7 +25,6 @@ for (const changeAt of ['unchanged', 'choice', 'read'] as const) test(`desktop m
 				finally { releases += 1; }
 			},
 		},
-		openProjectDescriptor: () => assert.fail('Media import cannot open a project.'),
 		importFiles: files => { imported.push(...files.map(file => ({ projectId, file }))); },
 	}, 'media', true, { destination: 'timeline' });
 	if (changeAt === 'choice') projectId = 'replacement';
