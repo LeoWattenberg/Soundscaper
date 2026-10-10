@@ -5,6 +5,8 @@ import test from 'node:test';
 
 import { validateProfile } from '../src/common/editor/browser-dedicated-audio-profiles.ts';
 import { normalizeMediaExportSettings } from '../src/common/editor/media-export.js';
+import { createExportDialogInitialSettings } from '../src/common/editor/ui/export-dialog-initial-settings.ts';
+import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 import {
 	constrainExportDialogSampleRate,
 	exportDialogBitRateOptions,
@@ -119,6 +121,28 @@ test('browser export preserves every admitted low Opus and MP2 bitrate through r
 				...(format === 'opus' ? { vbrMode: 1 } : {}),
 			});
 		}
+	}
+});
+
+test('WavPack dialog choices and legacy presets describe the float32 output on both surfaces', () => {
+	for (const desktop of [false, true]) {
+		assert.deepEqual(exportDialogSampleFormats('wavpack', desktop), ['float32']);
+		assert.equal(exportDialogDefaultSampleFormat('wavpack', desktop, 'int24'), 'float32');
+		for (const sampleFormat of ['int16', 'int24', 'int32', 'float32']) {
+			const settings = normalizeExportDialogAudioSettings({
+				...createExportDialogInitialSettings({ sampleRate: 48_000 }),
+				format: 'wavpack', sampleFormat, dither: 'triangular-highpass',
+			}, desktop);
+			assert.equal(settings.sampleFormat, 'float32');
+			assert.equal(settings.dither, 'none');
+			const request = createExportDialogRequest(settings, { desktop });
+			assert.equal(request.sampleFormat, 'float32');
+			assert.equal(request.bitDepth, 32);
+			assert.equal(request.floatingPoint, true);
+			assert.equal(request.dither, 'none');
+		}
+		const current = { format: 'wavpack', sampleFormat: 'float32', dither: 'none', sampleRate: '48000', compressionLevel: '2' };
+		assert.strictEqual(normalizeExportDialogAudioSettings(current, desktop), current);
 	}
 });
 

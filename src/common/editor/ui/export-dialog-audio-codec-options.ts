@@ -204,7 +204,7 @@ export function exportDialogSampleRateSuggestions(
 export function exportDialogSampleFormats(format: unknown, desktop: boolean): readonly string[] {
 	if (desktop && String(format) === 'flac') return desktopExportFlacSampleFormats();
 	if (!desktop && String(format) === 'flac') return Object.freeze(['int24']);
-	if (!desktop && String(format) === 'wavpack') return Object.freeze(['float32']);
+	if (String(format) === 'wavpack') return Object.freeze(['float32']);
 	const descriptor = getMediaExportFormat(String(format)) as Readonly<{ sampleFormats?: readonly string[] }>;
 	return Object.freeze([...(descriptor.sampleFormats ?? [])]);
 }
@@ -274,8 +274,13 @@ export function normalizeExportDialogAudioSettings(
 	if (['clips', 'chapters', 'stems'].includes(String(settings.mode)) && (settings.binaural === true || settings.loudnessNormalization)) {
 		settings = Object.freeze({ ...settings, binaural: false, loudnessNormalization: '' });
 	}
-	if (desktop) return settings;
 	const format = String(settings.format ?? '');
+	// Both current WavPack providers deliver float32. Retire old integer preset
+	// choices before they can quantize or dither the PCM for a float container.
+	if (format === 'wavpack' && (settings.sampleFormat !== 'float32' || settings.dither !== 'none')) {
+		settings = Object.freeze({ ...settings, sampleFormat: 'float32', dither: 'none' });
+	}
+	if (desktop) return settings;
 	if (!BROWSER_CODEC_FORMATS.has(format)) return settings;
 	const patch: Record<string, unknown> = {};
 	setChanged(patch, settings, 'sampleRate', constrainExportDialogSampleRate(settings.sampleRate, format, false));
