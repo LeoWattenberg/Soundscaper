@@ -28,6 +28,7 @@ import {
 	EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST,
 	EDITOR_COPY_CHUNK_TEST,
 	EDITOR_DOMAIN_CHUNK_TEST,
+	EDITOR_DESKTOP_VIDEO_CODEC_RUNTIME_CHUNK_TEST,
 	EDITOR_EFFECT_CONTRACT_CHUNK_TEST,
 	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
@@ -105,9 +106,8 @@ export const chunkGroups = [
 	},
 	{
 		// Main-process video encoding is requested only by an export operation.
-		// Keep its renderer adapter with that dynamic entry instead of the editor.
 		name: 'editor-desktop-video-codec-runtime',
-		test: /src[\\/]common[\\/]editor[\\/]desktop-video-codec-runtime\.ts$/,
+		test: EDITOR_DESKTOP_VIDEO_CODEC_RUNTIME_CHUNK_TEST,
 		priority: 101,
 		minSize: 0,
 		maxSize: 400_000,

@@ -37,6 +37,7 @@ const DELIVERY_PASSENGERS: readonly (readonly [string, string | null])[] = [
 	['src/common/editor/delivery-conversion-inventory.ts', 'editor-optional-export'],
 	['src/common/editor/video-burn-in-font.ts', 'editor-optional-export'],
 	['src/common/editor/video-delivery-encoder-tier.ts', 'editor-optional-export'],
+	['src/common/editor/platform-video-delivery-encoder.ts', 'editor-optional-export'],
 	['src/common/editor/loudness-measurement-report.ts', 'editor-optional-execution'],
 	['src/common/editor/browser-dedicated-audio-profiles.ts', 'editor-optional-execution'],
 	['src/common/editor/browser-native-streamed-aac-import.ts', 'editor-optional-execution'],

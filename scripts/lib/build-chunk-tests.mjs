@@ -39,8 +39,10 @@ const editorOptionalExportControllerModule = String.raw`(?:export[\\/](?:${contr
  * same export owner rather than either product's startup graph.
  * Delivery preset/licensing tables and WebCodecs capability probes also have
  * only deferred delivery consumers and share that export boundary.
+ * The platform encoder probe is dynamically opened by desktop capability UI
+ * and otherwise read only by the same deferred video export service.
  */
-const editorOptionalExportFlatModule = String.raw`(?:ape-file-metadata|audio-container-metadata|audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|flac-file-metadata|ogg-comment-metadata|loudness-normalization-render|platform-delivery-(?:licensing|presets)|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
+const editorOptionalExportFlatModule = String.raw`(?:ape-file-metadata|audio-container-metadata|audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|flac-file-metadata|ogg-comment-metadata|loudness-normalization-render|platform-delivery-(?:licensing|presets)|platform-video-delivery-encoder|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis[\\/](?:analysis-service|internal[\\/]vamp-analysis-action)|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/](?:dawproject[\\/]dawproject|sesx[\\/]sesx)-service|recording[\\/]internal[\\/]recording-checkpoint-writer|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
@@ -190,10 +192,11 @@ export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
  */
 export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader|LazyEffectParameterEditor)\.jsx|(?:MasterGainControl|EffectStackMenu)\.tsx|audacity-realtime-effect-shortcut\.ts))$/;
 export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|Footer|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|ProgressBar|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|Toast|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
-// The renderer/main video contract is a shared codec leaf. Reachability places
-// it in the Framescaper bootstrap and makes the desktop codec runtime import
-// that bootstrap back, so it needs the same non-recursive owner as codec leaves.
-export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-(?:video-codec-operation|audio-codec-(?:capability|operation))-contract\.ts$)/;
+// Co-locate the renderer/main video contract and encoder leaf with the deferred
+// adapter. A shared eager codec owner creates an emitted initialization cycle
+// through the desktop codec composition that dynamically imports the adapter.
+export const EDITOR_DESKTOP_VIDEO_CODEC_RUNTIME_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/]desktop-video-codec-runtime\.ts|desktop[\\/]desktop-video-(?:codec-operation-contract|h264-encoder)\.ts)$/;
+export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-audio-codec-(?:capability|operation)-contract\.ts$)/;
 export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:selection-effect-chain-contract\.ts|audacity-effects[\\/](?:(?:classic-filter-coefficients|contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|(?:audacity-dynamics-lookahead|audacity-filter-release|live-update-geometry|pcm-channel-validation|reverb-parameters)\.ts)|first-party-effects[\\/](?:(?:bitcrusher|parametric-eq)[\\/]definition\.js|parametric-eq[\\/]coefficients\.ts|dynamics[\\/]definition\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)|nyquist[\\/](?:(?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|audio-budget\.ts)|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
