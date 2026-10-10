@@ -206,3 +206,17 @@ after removing the excluded keyboard implementation. Its Firefox-only mocked
 desktop host stops at the initial persistence handshake (zero versus one),
 before editing; this setup failure adds no count and provides no shipped
 desktop defect. The completed log and diagnostics are deleted after review.
+
+Guarded wave82 completes all seven new public Chromium cases: D026's normal
+multicamera Freeze/Undo/Redo passes in16.0 seconds; the two existing Freesound
+restoration controls pass in2.6/2.7 seconds, its original-download account
+follow-through in2.3/2.8 seconds, and LUT open/Close lifetime controls in11.9/7.8
+seconds. The latter six cases add no root count. Both product builds and the
+complete strict test/tooling compiler pass. Wave82 contains committed
+`a21e21974` plus the then-uncommitted Phaser release helper subsequently
+committed byte-identically in `0365ba818`; it is not an exact HEAD capture.
+Phaser's unchanged complete public release workflow passes in10.8 seconds,
+after its frozen b04 causal failure and61 focused physical/support passes.
+The fully qualified total is82: editing18, dialogs25, effects17 and IO22.
+Completed build, compiler and public diagnostics are removed after review.
+Manual **Update AI assets** is not required.
