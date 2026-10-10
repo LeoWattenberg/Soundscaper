@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import EditorDialog from '../src/common/editor/ui/dialogs/EditorDialog.jsx';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import TimedRecordingDialogFields from '../src/common/editor/ui/dialogs/TimedRecordingDialogFields.tsx';
 import { createTimedRecordingDialogValue, timedRecordingDialogRange } from '../src/common/editor/ui/dialogs/timed-recording-dialog-model.ts';
 import EditorMusicalTimeCodeProvider from '../src/common/editor/ui/EditorMusicalTimeCodeProvider.tsx';
@@ -11,8 +13,8 @@ import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { RECORDING_COPY_BY_LOCALE } from '../src/common/i18n/recording-copy.js';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
 
-for (const originSeconds of [0, 4, 2]) {
-	test(`Timed recording measures an elapsed bar at programme insertion ${originSeconds}s`, async () => {
+for (const owner of ['fields', 'dialog']) for (const originSeconds of [0, 4, 2]) {
+	test(`Timed recording ${owner} measures an elapsed bar at programme insertion ${originSeconds}s`, async () => {
 		const dom = installReactTestDom();
 		const previousReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
 		const previousObserver = Object.getOwnPropertyDescriptor(globalThis, 'MutationObserver');
@@ -31,15 +33,21 @@ for (const originSeconds of [0, 4, 2]) {
 				{ beat: { num: 4, den: 1 }, bpm: { num: 120, den: 1 } },
 			] }, signatureMap: { events: [{ bar: 0, numerator: 4, denominator: 4 }] },
 		});
-		const snapshot = { project };
-		const controller = { getSnapshot: () => snapshot, subscribe: () => () => undefined };
+		const snapshot = { project, readOnly: false };
+		const controller = { getSnapshot: () => snapshot, subscribe: () => () => undefined,
+			getTelemetrySnapshot: () => ({ positionFrame: originSeconds * 48_000 }) };
 		let value = createTimedRecordingDialogValue(new Date(2030, 5, 1, 12).getTime());
-		const initialStart = value.startTimeMs;
+		const initialStart = value.startTimeMs; assert.equal(typeof initialStart, 'number'); assert.ok(initialStart);
 		const render = () => root.render(<EditorMusicalTimeCodeProvider controller={controller}>
-			<TimedRecordingDialogFields value={value} controller={controller} originFrame={originSeconds * 48_000}
+			{owner === 'fields' ? <TimedRecordingDialogFields value={value} controller={controller} originFrame={originSeconds * 48_000}
 				onValueChange={(next) => { value = next; render(); }} onSubmit={() => undefined}
 				copy={RECORDING_COPY_BY_LOCALE.en} locale="en" />
+				: <EditorDialog type="timed-recording" value={value} controller={controller} snapshot={snapshot}
+					onValueChange={(next: typeof value) => { value = next; render(); }} trackId={undefined}
+					copy={{ ...ENGLISH_COPY, ...RECORDING_COPY_BY_LOCALE.en }} locale="en"
+					run={(action: () => unknown) => action()} onClose={() => undefined} />}
 		</EditorMusicalTimeCodeProvider>);
+
 		try {
 			await act(async () => { render(); });
 			const field = dom.one('.timecode');
