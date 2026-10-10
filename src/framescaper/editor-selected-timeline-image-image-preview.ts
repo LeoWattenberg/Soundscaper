@@ -5,6 +5,7 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { createTimelineImageResourcePreviewV16, requiresTimelineImageResourcePreviewV16 } from './editor-selected-timeline-image-resource-preview-v16.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import { createDefaultInheritedSession, createDefaultInheritedThumbnail } from './timeline-image-native-preview-companions.ts';
+import { composeTimelineImagePreviewSession } from './editor-selected-timeline-image-image-preview-session.ts';
 import type {
 	ProductVideoVisualPreviewCreateRequest,
 	ProductVideoVisualPreviewFrame,
@@ -129,7 +130,7 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 	const inheritedFactory = options.createInheritedSession ?? ((request) => (
 		createDefaultInheritedSession(request, options.store, options.openFxExecute)
 	));
-	const inheritedPromise = Promise.resolve().then(() => inheritedFactory({ project, ...canvas }));
+	const inheritedPromise = Promise.resolve().then(() => inheritedFactory({ project, ...canvas, signal: options.signal }));
 	const imagePromise = loadTimelineSources(
 		options.store, [...plannedSources.values()], options.signal,
 	);
@@ -137,6 +138,8 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 		inheritedPromise, imagePromise,
 	]);
 	if (inheritedResult.status === 'rejected' && imageResult.status === 'rejected') {
+		if (options.signal?.aborted && Object.is(inheritedResult.reason, options.signal.reason)
+			&& Object.is(inheritedResult.reason, imageResult.reason)) throw inheritedResult.reason;
 		throw new AggregateError(
 			[inheritedResult.reason, imageResult.reason],
 			'The timelineImage inherited and image preview routes both failed.',
@@ -176,43 +179,16 @@ export async function createFramescaperSelectedVisualPreviewSessionTimelineImage
 		throw error;
 	}
 	if (inherited === null && clips.length === 0) return null;
-	let disposed = false;
-	const imageFrame = (timelineSampleValue: number): ProductVideoVisualPreviewFrame => {
-		if (disposed) throw new Error('The selected timelineImage image preview session is disposed.');
-		return resolveImageFrame(project, clips, timelinePosition(timelineSampleValue), canvas);
-	};
-	const resolve = (timelineSample: number): ProductVideoVisualPreviewFrame => (
-		mergePreviewFrames(inherited?.resolve(timelinePosition(timelineSample)) ?? emptyFrame(), imageFrame(timelineSample))
-	);
-	// Ordinary non-resource image previews retain the existing layered compositor.
-	const renderExact = clips.length === 0 ? inherited?.renderExact : undefined;
-	return Object.freeze({
-		resolve,
-		resolveTransitionWeight(clipId: string, timelineSample: number): number | null {
-			if (disposed) throw new Error('The selected timelineImage image preview session is disposed.');
-			return inherited?.resolveTransitionWeight(
-				stableId(clipId, 'timelineImage transition clip ID'), timelinePosition(timelineSample),
-			) ?? null;
-		},
-		...(renderExact ? { async renderExact(request: Readonly<{
-			readonly timelineSample: number;
-			readonly mediaLayers: readonly unknown[];
-		}>) {
-			const sample = timelinePosition(request.timelineSample);
-			const images = imageFrame(sample);
-			const result = await renderExact.call(inherited, {
-				timelineSample: sample,
-				mediaLayers: request.mediaLayers,
-			});
-			return Object.freeze({ ...result, frame: mergePreviewFrames(result.frame, images) });
-		} } : {}),
-		dispose(): void {
-			if (disposed) return;
-			disposed = true;
+	return composeTimelineImagePreviewSession({
+		inherited, hasImages: clips.length !== 0,
+		imageFrame: (sample) => resolveImageFrame(project, clips, sample, canvas),
+		emptyFrame, mergeFrames: mergePreviewFrames, timelinePosition,
+		clipId: (id) => stableId(id, 'timelineImage transition clip ID'),
+		disposeImages() {
 			disposeClipDrawables(clips);
 			disposeLoadedSources(loaded);
-			disposeInheritedSession(inherited);
 		},
+		disposeInherited: () => { disposeInheritedSession(inherited); },
 	});
 }
 
