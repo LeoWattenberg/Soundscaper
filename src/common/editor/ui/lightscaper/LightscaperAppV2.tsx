@@ -9,6 +9,7 @@ import type { CreatePhotoLibrarySessionV3 } from '../../photo-library-session-po
 import type { LoadPhotoLibraryRestoreRuntimeV1 } from '../../photo-library-restore-port-v1.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import { lightscaperMenuEvents } from './lightscaper-menu-events.ts';
+import { photoJpegExportMenuLabel } from '../../../i18n/lightscaper-photo-jpeg-export-menu-copy.ts';
 import { photoPngExportMenuLabel } from '../../../i18n/lightscaper-photo-png-export-menu-copy.ts';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntryV2 } from './use-photo-develop-entry-v2.ts';
@@ -56,6 +57,7 @@ const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
 const PhotoStackDialog = lazy(() => import('./PhotoStackDialog.tsx'));
 const PhotoSavedFiltersSurface = lazy(() => import('./PhotoSavedFiltersSurface.tsx'));
+const PhotoJpegExportDialog = lazy(() => import('./PhotoJpegExportDialog.tsx'));
 const PhotoPngExportDialog = lazy(() => import('./PhotoPngExportDialog.tsx'));
 const PhotoDevelopWorkspace = lazy(() => import('./PhotoDevelopWorkspaceV2.tsx'));
 
@@ -106,7 +108,8 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 	const [originalRecoveryVisible, setOriginalRecoveryVisible] = useState(false);
 	const [previewActivated, setPreviewActivated] = useState(false);
 	const library = usePhotoLibraryWorkflowV2(createSession, loadBackupSaveRuntime, loadDevelopProxyRuntime);
-	const [pngEntry, setPngEntry] = useState<Readonly<{ generation: typeof generation; photoId: string; fileName: string; key: string }> | null>(null);
+	const [rasterEntry, setRasterEntry] = useState<Readonly<{ generation: typeof generation; photoId: string; fileName: string; key: string; format: 'png' | 'jpeg' }> | null>(null);
+	const RasterDialog = rasterEntry?.format === 'jpeg' ? PhotoJpegExportDialog : PhotoPngExportDialog;
 	const previewRetirement = useRef<(() => Promise<void>) | null>(null), previewDrain = useRef<Promise<void> | null>(null);
 	const registerPreviewRetirement = useCallback((retire: () => Promise<void>) => {
 		previewRetirement.current = retire;
@@ -343,9 +346,9 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 					<div className="lightscaper-menu-items">
 						<button type="button" disabled={restore.busy || library.busy} onClick={event => { if (!closeMenu(event)) return; setImportVisible(true); }}>{copy.photoImportPhotos}</button>
 						<button type="button" disabled={restore.busy || library.busy} onClick={event => { if (!closeMenu(event)) return; setOrganizerVisible(true); }}>{copy.photoOrganizerTitle}</button>
-						<button type="button" data-photo-png-export-menu disabled={!createSession || !loadBackupSaveRuntime || restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing || pngEntry?.generation === generation} onClick={event => {
-							if (!selection || !loadBackupSaveRuntime || !closeMenu(event)) return; setPngEntry({ generation, photoId: selection.id, fileName: selection.fileName, key: crypto.randomUUID() }); void library.prepareBackupSave();
-						}}>{photoPngExportMenuLabel(locale)}</button>
+						{(['png', 'jpeg'] as const).map(format => <button key={format} type="button" {...{ [`data-photo-${format}-export-menu`]: true }} disabled={!createSession || !loadBackupSaveRuntime || restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing || rasterEntry?.generation === generation} onClick={event => {
+							if (!selection || !loadBackupSaveRuntime || !closeMenu(event)) return; setRasterEntry({ generation, photoId: selection.id, fileName: selection.fileName, key: crypto.randomUUID(), format }); void library.prepareBackupSave();
+						}}>{format === 'png' ? photoPngExportMenuLabel(locale) : photoJpegExportMenuLabel(locale)}</button>)}
 						<button type="button" data-photo-backup-menu disabled={restore.busy} onClick={event => {
 							if (!closeMenu(event)) return; setBackupVisible(true); void library.prepareBackupSave();
 						}}>{copy.photoBackupTitle}</button>
@@ -511,10 +514,10 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 			<PhotoBatchRenameDialog snapshot={library.batchRenameSnapshot} busy={library.busy} error={library.error} copy={copy}
 				onPlan={library.planBatchRename} onApply={library.renamePhotos} onClose={closeBatchRename} />
 		</Suspense>}
-		{!restore.busy && pngEntry?.generation === generation && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
-			<PhotoPngExportDialog key={pngEntry.key} locale={locale} photoId={pngEntry.photoId} fileName={pngEntry.fileName}
+		{!restore.busy && rasterEntry?.generation === generation && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<RasterDialog key={rasterEntry.key} locale={locale} photoId={rasterEntry.photoId} fileName={rasterEntry.fileName}
 				execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime}
-				saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} onClose={() => { if (isCurrent()) setPngEntry(null); }} />
+				saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} onClose={() => { if (isCurrent()) setRasterEntry(null); }} />
 		</Suspense>}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}

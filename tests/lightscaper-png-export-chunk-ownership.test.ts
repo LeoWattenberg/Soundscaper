@@ -10,6 +10,7 @@ import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk
 import { EAGER_CHUNK_GROUPS, resolveRelativeModule, sourceModules, staticRelativeDependencies } from './helpers/eager-chunk-group-crossings.ts';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
+const JPEG = 'src/common/editor/imaging/pixel-frame-jpeg-v1.ts';
 const PNG = 'src/common/editor/imaging/pixel-frame-png-v1.ts';
 const EXPORT_COPY = 'src/common/i18n/lightscaper-photo-png-export-copy.ts';
 const MENU_COPY = 'src/common/i18n/lightscaper-photo-png-export-menu-copy.ts';
@@ -65,9 +66,27 @@ for (const entry of ['src/lightscaper/ui/LightscaperBootstrap.tsx',
 	test(`real photo entry ${entry} does not load PNG bytes through shared image co-owners`, () => {
 		const reached = runtimeClosure(entry);
 		assert.ok(reached.has('src/common/editor/imaging/pixel-frame-contract-v1.ts'), `${entry} omitted the actual frame contract`);
+		assert.ok(!reached.has(JPEG), `${entry} loads optional JPEG encoding through an image owner`);
 		assert.ok(!reached.has(PNG), `${entry} loads optional PNG encoding through an image owner`);
 	});
 }
+
+test('JPEG codec and full copy remain exact optional owners while only its menu label is eager', () => {
+	for (const separator of ['/', '\\']) {
+		for (const [path, name] of [[JPEG, 'editor-jpeg-bytes'], ['src/common/i18n/lightscaper-photo-jpeg-export-copy.ts', 'lightscaper-photo-jpeg-export-copy']] as const) {
+			assert.equal(chunkGroupForModulePath(path.replaceAll('/', separator)), name);
+			assert.notEqual(chunkGroupForModulePath((path + '.foreign').replaceAll('/', separator)), name);
+			const owner = chunkGroups.find(group => group.name === name); assert.ok(owner);
+			assert.equal(owner.includeDependenciesRecursively, false); assert.equal(owner.maxSize, 400_000); assert.ok(!EAGER_CHUNK_GROUPS.has(name));
+		}
+		assert.equal(chunkGroupForModulePath('src/common/i18n/lightscaper-photo-jpeg-export-menu-copy.ts'.replaceAll('/', separator)), 'lightscaper-editor-copy');
+		assert.notEqual(chunkGroupForModulePath(JPEG.replace('-v1.', '-v2.').replaceAll('/', separator)), 'editor-jpeg-bytes');
+	}
+	const app = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/LightscaperAppV2.tsx'));
+	assert.match(app, /lazy\(\(\) => import\("\.\/PhotoJpegExportDialog\.tsx"\)\)/u);
+	assert.ok(!staticRelativeDependencies(app).includes('./PhotoJpegExportDialog.tsx'));
+	assert.ok(runtimeClosure('src/common/editor/ui/lightscaper/PhotoJpegExportDialog.tsx').has(JPEG));
+});
 
 function runtimeSource(path: string): string {
 	let source = RUNTIME_SOURCE.get(path);

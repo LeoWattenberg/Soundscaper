@@ -5,6 +5,13 @@
 // owner so catalog validation does not load neighboring timeline domains.
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const imagingChunkGroups = [{
+	name: 'editor-jpeg-bytes',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-jpeg-v1\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
 	// PNG bytes are needed only after export is opened. Existing image readers
 	// keep their shared codec placement without acquiring this encoder body.
 	name: 'editor-png-bytes',
