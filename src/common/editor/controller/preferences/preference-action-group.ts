@@ -2,6 +2,7 @@
 
 import type { createEditorPreferenceActionDelegates } from './internal/preferences-service.ts';
 import type { createPreferencesComposition } from './preferences-composition.ts';
+import { createDefaultTrackViewPreferenceAction } from './internal/default-track-view-preference-action.ts';
 
 type RuntimeAction = (...args: unknown[]) => unknown;
 type PreferenceActions = ReturnType<typeof createEditorPreferenceActionDelegates>;
@@ -34,6 +35,7 @@ export interface PreferenceActionScope {
 	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: unknown;
 	readonly updatePreferences: (changes: unknown) => unknown;
 	readonly setTimelineView: (view: unknown) => unknown;
+	readonly state: Readonly<{ timelineView: string }>;
 }
 
 /** The recording facade owns the two entries that also revert recording state. */
@@ -58,11 +60,9 @@ export function createPreferenceActionGroup(
 		// The default view is the timeline's view: tracks without a display of
 		// their own follow it, so the session adopts the new default at once
 		// rather than at the next launch.
-		setDefaultView: (defaultView: unknown) => {
-			const updated = updatePreferences({ appearance: { defaultView } });
-			setTimelineView(defaultView);
-			return updated;
-		},
+		setDefaultView: createDefaultTrackViewPreferenceAction({
+			updatePreferences, setTimelineView, getTimelineView: () => scope.state.timelineView,
+		}),
 		toggleToolbar: preferenceActions.toggleToolbarPreference,
 		moveToolbar: preferenceActions.moveToolbarPreference,
 		setToolbarButton: preferenceActions.setToolbarButtonPreference,

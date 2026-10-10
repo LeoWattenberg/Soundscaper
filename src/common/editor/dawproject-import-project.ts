@@ -85,7 +85,8 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 	const build: Build = {
 		draft, sampleRate, createStableId: options.createStableId,
 		tracks: [], trackByDawId: new Map(), trackNodes: [], folders: [], groups: [], sends: [],
-		stripByChannelId: new Map(), parameters: new Map(), routes: new Map(), sendTaps: [], parentFolderIds: new Map(),
+		stripByChannelId: new Map(), busByChannelId: new Map(), nodeRoutes: [], parameters: new Map(), routes: new Map(), sendTaps: [], parentFolderIds: new Map(),
+		masterChannels: 2,
 		master: { id: 'master', name: 'Master', gain: 1, pan: 0, mute: false, solo: false, envelope: [] },
 		omittedTracks: 0, omittedNodes: 0, devices: 0,
 	};
@@ -159,7 +160,7 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 		id: build.createStableId('project'),
 		title,
 		sampleRate,
-		masterChannels: 2,
+		masterChannels: build.masterChannels,
 		metadata: {
 			title,
 			artist: document.metadata.artist ?? '',
@@ -190,7 +191,15 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 		title,
 		sampleRate,
 		project,
-		routingContext: Object.freeze({ sendTaps: Object.freeze(build.sendTaps.map(tap => Object.freeze(tap))) }),
+		routingContext: Object.freeze({
+			sendTaps: Object.freeze(build.sendTaps.map(tap => Object.freeze(tap))),
+			nodeRoutes: Object.freeze(build.nodeRoutes.map(route => Object.freeze({ ...route,
+				sends: Object.freeze(route.sends.map(send => Object.freeze(send))),
+			}))),
+			stripChannelCounts: Object.freeze([...build.groups, ...build.sends].map(strip => Object.freeze({
+				id: strip.id, channelCount: strip.channelCount ?? 2,
+			}))),
+		}),
 		media: Object.freeze(media),
 		report: Object.freeze({ ...sealed, direction: 'import' as const }),
 	});

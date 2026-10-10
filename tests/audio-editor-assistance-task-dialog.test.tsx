@@ -43,8 +43,9 @@ test('model-free cuts are ready without downloads; accurate cuts require the exa
 	if (settings.workflowId !== 'mark-cuts') throw new Error('Wrong settings');
 	const accurate = { ...settings, mode: 'accurate' as const };
 	assert.equal(assistanceTaskModelsReady(accurate, [], []), false);
-	assert.equal(assistanceTaskModelsReady(accurate, [{ modelId: 'transnetv2', version: '1.0.0',
-		task: 'shot-detection', artifactSha256s: ['a'.repeat(64)] }], []), true);
+	const detector = { modelId: 'transnetv2', version: '1.0.0',
+		task: 'shot-detection', artifactSha256s: ['a'.repeat(64)] };
+	assert.equal(assistanceTaskModelsReady(accurate, [detector], []), true);
 });
 
 test('task footer follows processing and review state without allowing an empty apply', async () => {

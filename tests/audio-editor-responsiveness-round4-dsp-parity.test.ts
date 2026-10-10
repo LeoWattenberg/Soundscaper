@@ -7,6 +7,7 @@ import { collectRound4DspFixtures } from './helpers/responsiveness-round4-dsp-fi
 
 test('round-four DSP preserves frozen baseline PCM, snapshots and painted geometry', async () => {
 	// Spectrum signatures include the deliberate round-five Hann gain and complete-window fixes.
+	// Averaged spectra also include round-seven's final selection-remainder window.
 	// Independent level expectations live in audio-editor-round5-spectrum-level-calibration.test.ts.
 	// EBU signatures include round-six's sample/true-peak separation; all other
 	// EBU fields remain exact, as checked in audio-editor-round6-ebu-sample-peak.test.ts.

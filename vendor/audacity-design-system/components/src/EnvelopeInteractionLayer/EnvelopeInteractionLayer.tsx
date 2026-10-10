@@ -429,8 +429,8 @@ const EnvelopeInteractionLayerComponent: React.FC<EnvelopeInteractionLayerProps>
       }
     };
 
-    const handleMouseUp = () => {
-      if (!dragStateRef.current) return;
+    const handleMouseUp = (event: MouseEvent) => {
+      if (event.button !== 0 || !dragStateRef.current) return;
 
       const dragState = dragStateRef.current;
 

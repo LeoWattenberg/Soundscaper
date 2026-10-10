@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:9436781e39762cbce1e047b4f27075fac9a33fcc123239a10e8be24ec4213fe7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","تعداد کانال‌های خروجی میکس"],
 		"mixMenu": ["machine","Mix","میکس"],
 		"mixRender": ["machine","Mix and render","میکس و رندر"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","نمی‌توان ترک‌های قفل‌شده را جایگزین کرد. برای ایجاد ترک‌های جدید، گزینهٔ «جایگزینی نسخه‌های اصلی» را غیرفعال کنید."],
 		"mixRenderNew": ["machine","Mix and render to new track","میکس و رندر در آهنگ جدید"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","برای ادامه، «میکس‌داون» یا «رندر جلوه‌ها» را انتخاب کنید."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","دست‌کم یک آهنگ صوتی حاوی صدا انتخاب کنید."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","باز کردن پروژه‌ها"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","باز کردن فایل پروژهٔ Scape ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","بهینه‌سازی برای"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","گزینهٔ حافظه بارگذاری کنونی و هنگام نیاز ویرایشگر را حفظ می‌کند. گزینهٔ سرعت ابزارهای ویرایشگر را از پیش بارگذاری می‌کند؛ ابزارهای هوش مصنوعی و موتورهای پردازش همچنان هنگام استفاده بارگذاری می‌شوند. برای اعمال تغییرات، ویرایشگر دسکتاپ را دوباره راه‌اندازی کنید."],
 		"optimizeForMemory": ["machine","Memory","حافظه"],
 		"optimizeForSpeed": ["machine","Speed","سرعت"],
 		"options": ["machine","Options","گزینه‌ها"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","تعامل پوشش"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","سطح تعامل خارج از صفحه 64 در 64 آماده است."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","پلاگین درخواست و تکمیل بازنویسی خارج از صفحه را کرد."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","توالی اقدامات تعامل به پایان رسیده است."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","هدف تعامل"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","حمل و نقل تعامل OpenFX خارج از صفحه در دسترس نیست."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","ارسال اقدامات تعامل نرمال‌سازی شده"],

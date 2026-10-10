@@ -195,12 +195,21 @@ export function createEbuR128Meter(options = {}) {
 		}
 	}
 
-	function snapshot() {
+	function snapshot({ finishTruePeak = false, finishLoudness = false } = {}) {
 		const truePeakAmplitude = liveSquareSamples
 			? maximumChannelPeak(livePeak, liveTruePeak)
 			: lastLiveTruePeak;
 		const peak = liveSquareSamples ? livePeak : lastLivePeak;
 		const rms = liveSquareSamples ? Math.sqrt(liveSquares / liveSquareSamples) : lastLiveRms;
+		const programmeTruePeak = finishTruePeak && running
+			? completedTruePeakMaximum(liveTruePeak, maximumTruePeak) : maximumTruePeak;
+		// A finite report includes the final complete sliding windows, even when
+		// its last frame falls between the 10 Hz live updates. Gating stays on its
+		// established block grid, and this read must not change live continuation.
+		const endingMomentary = finishLoudness && running && programmeFrames >= momentaryFrames
+			? ebuEnergyToLufs(programmeWindow.momentaryEnergy()) : null;
+		const endingShortTerm = finishLoudness && running && programmeFrames >= shortTermFrames
+			? ebuEnergyToLufs(programmeWindow.shortTermEnergy()) : null;
 		return Object.freeze({
 			peak,
 			rms,
@@ -214,12 +223,14 @@ export function createEbuR128Meter(options = {}) {
 					? ebuEnergyToLufs(liveWindow.shortTermEnergy())
 					: null,
 				integratedLufs: integratedBlocks.integratedLufs(),
-				maximumMomentaryLufs,
-				maximumShortTermLufs,
+				maximumMomentaryLufs: endingMomentary === null ? maximumMomentaryLufs
+					: Math.max(maximumMomentaryLufs ?? Number.NEGATIVE_INFINITY, endingMomentary),
+				maximumShortTermLufs: endingShortTerm === null ? maximumShortTermLufs
+					: Math.max(maximumShortTermLufs ?? Number.NEGATIVE_INFINITY, endingShortTerm),
 				loudnessRangeLu: lraBlocks.loudnessRangeLu(),
 				loudnessRangeStable: programmeFrames >= sampleRate * 60,
 				truePeakDbtp: ebuAmplitudeToDb(truePeakAmplitude),
-				maximumTruePeakDbtp: programmeFrames ? ebuAmplitudeToDb(maximumTruePeak) : null,
+				maximumTruePeakDbtp: programmeFrames ? ebuAmplitudeToDb(programmeTruePeak) : null,
 				measuredSeconds: programmeFrames / sampleRate,
 				state: running ? 'running' : 'standby',
 			}),
@@ -462,6 +473,19 @@ function pushTruePeak(state, sample) {
 function maximumChannelPeak(peak, states) {
 	for (const state of states) peak = Math.max(peak, state.peak);
 	return peak;
+}
+
+/** Resolve the finite programme's pending FIR output without advancing its
+ * measurement windows or changing histories used by realtime continuation.
+ */
+function completedTruePeakMaximum(states, maximum) {
+	for (const state of states) {
+		const pending = { ...state, history: state.history.slice() };
+		for (let frame = 0; frame < TRUE_PEAK_FIR.length; frame += 1) {
+			maximum = Math.max(maximum, pushTruePeak(pending, 0));
+		}
+	}
+	return maximum;
 }
 
 function validateChannels(channels, channelCount) {

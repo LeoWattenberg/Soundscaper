@@ -239,6 +239,10 @@ function richApplicationMenuMatrix(product: ProductId): readonly (readonly MenuI
 		const editable = richSoundscaperProject();
 		return [
 			applicationMenusForState(product, {
+				project: { ...editable, selection: { startFrame: 0, endFrame: 128, trackIds: ['voice-track'], clipIds: [] } },
+				selectedTrackId: 'voice-track', selectedClipId: 'voice-clip',
+			}),
+			applicationMenusForState(product, {
 				project: editable, selectedTrackId: 'voice-track', selectedClipId: 'voice-clip', freezeStatus: 'none',
 			}),
 			applicationMenusForState(product, {
@@ -255,6 +259,10 @@ function richApplicationMenuMatrix(product: ProductId): readonly (readonly MenuI
 	}
 	const ungrouped = richFramescaperProject(false, 'video');
 	return [
+		applicationMenusForState(product, {
+			project: { ...richFramescaperProject(false, 'audio'), selection: { startFrame: 0, endFrame: 128, trackIds: ['audio-track'], clipIds: [] } },
+			selectedTrackId: 'audio-track', selectedClipId: 'audio-clip',
+		}),
 		applicationMenusForState(product, {
 			project: ungrouped, selectedTrackId: 'video-track', selectedClipId: 'video-clip',
 		}),

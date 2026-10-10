@@ -26,7 +26,7 @@ export interface BlenderPublishRequest {
 interface RenderRange {
 	readonly startFrame: number;
 	readonly endFrame: number;
-	readonly includeTail: false;
+	readonly includeTail: number;
 	readonly includeMaster: false;
 	readonly respectMuteSolo: true;
 }
@@ -57,8 +57,9 @@ export async function publishBlenderTracks(runtime: BlenderPublicationRuntime, r
 	const solo = project.tracks.some((track) => track.type === 'audio' && track.solo);
 	const endFrame = project.clips.reduce((end, clip) => Math.max(end, clip.timelineStartFrame + clip.durationFrames), 0);
 	const prepared = tracks.map((track) => {
-		const tail = runtime.tailFrames?.(project, track.id) ?? effectTailFrames(project, { trackId: track.id, includeMaster: false });
-		return { frames: endFrame + tail, track };
+		const snapshot = (runtime.stemProject ?? stemProject)(project, track.id);
+		const tail = runtime.tailFrames?.(snapshot, track.id) ?? effectTailFrames(snapshot, { trackId: track.id, includeMaster: false });
+		return { frames: endFrame + tail, tail, track };
 	});
 	const { bridge, sessionId } = request;
 	const { publicationId } = await bridge.begin({ sessionId, projectId: project.id,
@@ -68,10 +69,10 @@ export async function publishBlenderTracks(runtime: BlenderPublicationRuntime, r
 		})) });
 	try {
 		assertCurrent();
-		for (const { frames, track } of prepared) {
+		for (const { frames, tail, track } of prepared) {
 			const snapshot = (runtime.stemProject ?? stemProject)(project, track.id);
-			const audio = await runtime.renderSnapshot(snapshot, { startFrame: 0, endFrame: frames,
-				includeTail: false, includeMaster: false, respectMuteSolo: true }, request.signal);
+			const audio = await runtime.renderSnapshot(snapshot, { startFrame: 0, endFrame,
+				includeTail: tail / project.sampleRate, includeMaster: false, respectMuteSolo: true }, request.signal);
 			assertCurrent();
 			const channels = audioBufferChannels(audio);
 			const length = channels[0]?.length ?? 0;

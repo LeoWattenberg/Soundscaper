@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:8c010c71502de61ada7fc1436fc704b6e7387cb66bd1147bb7a6d3b71d32d716","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["machine","Mix down to","Şuna karıştır"],
 		"mixMenu": ["machine","Mix","Karıştır"],
 		"mixRender": ["machine","Mix and render","Karıştır ve işle"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","Kilitli parçalar değiştirilemez. Yeni parçalar oluşturmak için “Orijinalleri değiştir” seçeneğinin işaretini kaldırın."],
 		"mixRenderNew": ["machine","Mix and render to new track","Karıştır ve yeni ize işle"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","Devam etmek için Tek ize karıştır veya Etkileri işle seçeneğini işaretleyin."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","İçinde ses bulunan en az bir ses izi seçin."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","Projeleri aç"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape proje dosyasını aç ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","Şunun için optimize et"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Bellek, düzenleyicinin mevcut ihtiyaç üzerine yükleme davranışını korur. Hız, düzenleyici araçlarını önceden yükler; yapay zekâ araçları ve işleme motorları yine kullanıldıklarında yüklenir. Değişiklikleri uygulamak için masaüstü düzenleyicisini yeniden başlatın."],
 		"optimizeForMemory": ["machine","Memory","Bellek"],
 		"optimizeForSpeed": ["machine","Speed","Hız"],
 		"options": ["machine","Options","Seçenekler"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","Etkileşimli Kaplama"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","64x64 ofsetli Etkileşim yüzeyi hazır."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","Eklenti ofsetli bir yeniden çizimi talep etti ve tamamladı."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","Etkileşim eylem dizisi tükendi."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","Etkileşim hedefi"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","Ofsetli OpenFX Etkileşim taşıma kullanılamıyor."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","Normalleştirilmiş Etkileşim eylemleri gönderiliyor"],

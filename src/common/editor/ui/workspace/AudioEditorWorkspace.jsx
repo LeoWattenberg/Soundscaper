@@ -14,6 +14,7 @@ import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { resolveWorkspaceRuntimeProjection } from './workspace-runtime-projection.ts';
 import { workspaceStatusPresentation } from './workspace-status-presentation.ts';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
+import { openDesktopWorkspaceFiles } from './desktop-workspace-file-choice.ts';
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
 import { focusOpenedWorkspacePanel } from './workspace-panel-opening-focus.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
@@ -231,17 +232,10 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	useLaunchedFileImports({
 		controller, importFiles: importRoutedFiles, onError, desktop: fileService.isDesktop,
 	});
-	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
-		const descriptors = await fileService.chooseFiles({ purpose, multiple });
-		if (purpose === 'project') {
-			for (const descriptor of descriptors) await openDesktopProjectDescriptor(descriptor);
-			return descriptors.length;
-		}
-		return fileService.withReadDescriptors(descriptors, {}, async (files) => {
-			if (files.length) await importRoutedFiles(files, importOptions);
-			return files.length;
-		});
-	}, [fileService, importRoutedFiles, openDesktopProjectDescriptor]);
+	const openDesktopFiles = useCallback((purpose, multiple = false, importOptions = {}) => openDesktopWorkspaceFiles({
+		getProjectId: () => controller.getSnapshot().project?.id ?? null,
+		fileService, importFiles: importRoutedFiles, openProjectDescriptor: openDesktopProjectDescriptor,
+	}, purpose, multiple, importOptions), [controller, fileService, importRoutedFiles, openDesktopProjectDescriptor]);
 	const { clipPropertiesFocusRequest, openClipPropertiesSurface } = useWorkspaceClipPropertiesPanel({
 		controller, run, setActiveSurface, selectedClipId: snapshot.selectedClipId ?? null,
 		projectId: project?.id ?? null, panelVisible: Boolean(preferences?.workspace?.panels?.['clip-properties']?.visible),

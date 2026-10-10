@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { resolveRuntimeClipProjection } from '../../../runtime-clip-projection.ts';
-import { sequenceFrameBoundarySample } from '../../../sequence-frame-navigation.ts';
-import type { RationalRate } from '../../../timeline-time.ts';
-import type { SelectionViewClip, SelectionViewProject } from './selection-view-service-types.d.ts';
+import { clipContentRange } from '../../../clip-content-range.ts';
+import type { SelectionViewProject } from './selection-view-service-types.d.ts';
 
 export interface SelectedTrackContentRange {
 	readonly startFrame: number;
@@ -40,28 +38,6 @@ export function selectedTrackContentRange(
 	};
 }
 
-function clipContentRange(project: SelectionViewProject, clip: SelectionViewClip): SelectedTrackContentRange | null {
-	if (isFrame(clip.sequenceStartFrame) && isFrame(clip.sequenceFrameCount)) {
-		const sequenceId = clip.sequenceId ?? project.primarySequenceId;
-		const sequence = project.sequences?.find(candidate => candidate.id === sequenceId);
-		const rate = sequence?.rate as RationalRate | undefined;
-		if (!rate) throw new RangeError('Selected visual content requires its sequence rate.');
-		return {
-			startFrame: sequenceFrameBoundarySample(clip.sequenceStartFrame, rate, project.sampleRate),
-			endFrame: sequenceFrameBoundarySample(clip.sequenceStartFrame + clip.sequenceFrameCount, rate, project.sampleRate),
-		};
-	}
-	if (clip.anchor === 'musical') {
-		return projectedClipContentRange(project, clip);
-	}
-	return isFrame(clip.timelineStartFrame) && isFrame(clip.durationFrames)
-		? { startFrame: clip.timelineStartFrame, endFrame: clip.timelineStartFrame + clip.durationFrames } : null;
-}
-
-function projectedClipContentRange(project: SelectionViewProject, clip: SelectionViewClip): SelectedTrackContentRange {
-	const resolved = resolveRuntimeClipProjection(project, clip);
-	return { startFrame: resolved.timelineStartFrame, endFrame: resolved.timelineEndFrame };
-}
 
 function isFrame(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value);

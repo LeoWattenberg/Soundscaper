@@ -70,6 +70,17 @@ void test('the owning pointer completes its movement and deliberate two-touch pi
 	} finally { await fixture.cleanup(); }
 });
 
+void test('an unowned secondary touch cannot begin a timeline edit during a separate handle gesture', async () => {
+	const fixture = await mountTimeline();
+	try {
+		const event = { ...fixture.event(12, 'touch', 110), isPrimary: false };
+		fixture.start(event);
+		assert.equal(fixture.session.current, null);
+		assert.equal(fixture.touches.current.size, 0);
+		assert.deepEqual(fixture.captures, []);
+	} finally { await fixture.cleanup(); }
+});
+
 async function mountTimeline() {
 	const dom = installReactTestDom();
 	const globals = new Map<string, PropertyDescriptor | undefined>();

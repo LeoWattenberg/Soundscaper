@@ -1,7 +1,7 @@
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -40,19 +40,32 @@ export default function TakeCycleRecoveryDialog({
 }: TakeCycleRecoveryDialogProps) {
 	const [pendingAction, setPendingAction] = useState<'recover' | 'discard' | null>(null);
 	const [error, setError] = usePresentationFeedback(copy);
+	const lifetime = useRef({ active: false });
+	useEffect(() => {
+		const owner = { active: true };
+		lifetime.current = owner;
+		setPendingAction(null);
+		setError('');
+		return () => { owner.active = false; };
+	}, [pending.projectId, pending.publicationGeneration, pending.recoveryToken, setError]);
 	if (productId !== 'soundscaper') return null;
 	const perform = (decision: 'recover' | 'discard'): void => {
+		const owner = lifetime.current;
 		setPendingAction(decision);
 		setError('');
 		void runAwaitedAudioEditorOperation(
 			run,
 			() => controller.actions.recording.cycle[decision](pending),
 		)
-			.then(onClose)
-			.catch((operationError: unknown) => {
-				setError(feedbackFailure(operationError));
+			.then(() => {
+				if (owner.active) onClose();
 			})
-			.finally(() => setPendingAction(null));
+			.catch((operationError: unknown) => {
+				if (owner.active) setError(feedbackFailure(operationError));
+			})
+			.finally(() => {
+				if (owner.active) setPendingAction(null);
+			});
 	};
 	const descriptionId = 'take-cycle-recovery-description';
 	const summary = copy.takeCycleRecoverySummary

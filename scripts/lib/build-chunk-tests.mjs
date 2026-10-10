@@ -51,7 +51,7 @@ export const editorOptionalControllerModule = String.raw`(?:analysis[\\/](?:anal
  * UI snapshot builds the idle snapshot the deferred facade shows, and the
  * session manifest is storage the eager repositories read.
  */
-const editorOptionalCaptureControllerBasename = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|document-ports\.ts$|project-admission\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
+const editorOptionalCaptureControllerBasename = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|document-ports\.ts$|listening-output\.ts$|project-admission\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
 export const editorOptionalCaptureControllerModule = String.raw`capture[\\/](?:${controllerInternalPath})?${editorOptionalCaptureControllerBasename}`;
 export const editorOptionalCaptureFlatModule = String.raw`(?:framescaper-capture-domain|web-vcr-domain|web-vcr-geometry)`;
 export const editorOptionalAssistanceModule = String.raw`assistance[\\/](?:${controllerInternalPath})?local-assistance-[^\\/]+`;
@@ -188,13 +188,13 @@ export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
  * the facade imports this chunk: on the facade-first order the rack renders
  * against an uninitialised module.
  */
-export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader|LazyEffectParameterEditor)\.jsx|MasterGainControl\.tsx|audacity-realtime-effect-shortcut\.ts))$/;
+export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader|LazyEffectParameterEditor)\.jsx|(?:MasterGainControl|EffectStackMenu)\.tsx|audacity-realtime-effect-shortcut\.ts))$/;
 export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|Footer|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|ProgressBar|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|Toast|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 // The renderer/main video contract is a shared codec leaf. Reachability places
 // it in the Framescaper bootstrap and makes the desktop codec runtime import
 // that bootstrap back, so it needs the same non-recursive owner as codec leaves.
 export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-(?:video-codec-operation|audio-codec-(?:capability|operation))-contract\.ts$)/;
-export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:selection-effect-chain-contract\.ts|audacity-effects[\\/](?:(?:contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|(?:audacity-dynamics-lookahead|pcm-channel-validation|reverb-parameters)\.ts)|first-party-effects[\\/](?:(?:bitcrusher|parametric-eq)[\\/]definition\.js|dynamics[\\/]definition\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)|nyquist[\\/](?:(?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|audio-budget\.ts)|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
+export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:selection-effect-chain-contract\.ts|audacity-effects[\\/](?:(?:classic-filter-coefficients|contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|(?:audacity-dynamics-lookahead|audacity-filter-release|live-update-geometry|pcm-channel-validation|reverb-parameters)\.ts)|first-party-effects[\\/](?:(?:bitcrusher|parametric-eq)[\\/]definition\.js|parametric-eq[\\/]coefficients\.ts|dynamics[\\/]definition\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)|nyquist[\\/](?:(?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|audio-budget\.ts)|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
  *
@@ -322,6 +322,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-adjustment-effect-membership',
 	'editor-audio-finishing-reconciliation-finishing',
 	'editor-clip-placement-command',
+	'editor-multicamera-source-retention-sequence',
 	'editor-project-assistance-commands',
 	'editor-project-assistance-transition-allocation',
 	'editor-project-composition-commands',
@@ -344,6 +345,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-project-retime-fresh-video-command',
 	'editor-project-retime-retime-command',
 	'editor-project-retime-retime-state',
+	'editor-project-retime-retime-replacement',
 	'editor-project-sequence-commands',
 	'editor-project-sequence-sequence',
 	'editor-project-timeline-image-commands',

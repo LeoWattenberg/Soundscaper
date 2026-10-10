@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:b5fc4fe4dc42f8571751fb65268989e9891aec4e155cead4a46ff65cfbb58e62","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","عدد قنوات المزيج"],
 		"mixMenu": ["machine","Mix","مزج"],
 		"mixRender": ["machine","Mix and render","مزج وتصيير"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","لا يمكن استبدال المسارات المقفلة. ألغِ تحديد «استبدال الأصليات» لإنشاء مسارات جديدة."],
 		"mixRenderNew": ["machine","Mix and render to new track","مزج وتصيير إلى مسار جديد"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","حدد مزج الأسفل أو تصيير التأثيرات للاستمرار."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","حدد مسار صوتي واحد على الأقل يحتوي على صوت."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","فتح المشاريع"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","فتح ملف مشروع Scape ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","التحسين من أجل"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","يحافظ خيار الذاكرة على تحميل المحرر عند الحاجة كما هو حاليًا. يحمّل خيار السرعة أدوات المحرر مسبقًا؛ وتظل أدوات الذكاء الاصطناعي ومحركات المعالجة تُحمّل عند استخدامها. أعد تشغيل محرر سطح المكتب لتطبيق التغييرات."],
 		"optimizeForMemory": ["machine","Memory","الذاكرة"],
 		"optimizeForSpeed": ["machine","Speed","السرعة"],
 		"options": ["machine","Options","الخيارات"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","تفاعل التغطية"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","سطح تفاعل OpenFX خارج الشاشة 64 × 64 جاهز."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","طلب المكون الإضافي وإكمال إعادة رسم خارج الشاشة."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","تم استنفاد تسلسل التفاعل."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","هدف التفاعل"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","نقل OpenFX تفاعل خارج الشاشة غير متاح."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","إرسال إجراءات تفاعل طبيعية"],

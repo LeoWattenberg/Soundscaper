@@ -18,6 +18,9 @@ import {
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
+// The default 80 Hz native high-pass reserves its verified physical release.
+const DIALOGUE_CHAIN_RELEASE_FRAMES = 3385;
+
 test.describe('Framescaper v1 audio finishing', () => {
 	test('authors, restores, executes, and delivers the shared V21 audio workflows from menus', async ({ page }) => {
 		test.setTimeout(180_000);
@@ -109,13 +112,15 @@ test.describe('Framescaper v1 audio finishing', () => {
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 30_000 });
 		await expect(download).toHaveAttribute('download', /\.wav$/u);
-		expect(readWavDelivery(await readDownloadBytes(page, download))).toEqual({
+		const delivered = await readDownloadBytes(page, download);
+		expect(readWavDelivery(delivered)).toEqual({
 			format: 1,
 			channels: 2,
 			sampleRate: 48_000,
 			bitDepth: 24,
-			frames: 104_000,
+			frames: 104_000 + DIALOGUE_CHAIN_RELEASE_FRAMES,
 		});
+		expect(peak(decodePcmWav(delivered).channels[0].subarray(-128))).toBeLessThan(.000_1);
 		expect(clientErrors).toEqual([]);
 	});
 
@@ -309,7 +314,8 @@ async function exportFinishingDelivery(page, editor) {
 	const highMagnitude = toneMagnitude(late, 1_000, decoded.sampleRate);
 	return {
 		channelCount: decoded.channels.length,
-		duration: left.length / decoded.sampleRate,
+		frames: left.length,
+		tailEndingPeak: peak(left.subarray(-128)),
 		earlyPeak: peak(early),
 		lateRms: rms(late),
 		rightPeak: peak(right),
@@ -320,7 +326,8 @@ async function exportFinishingDelivery(page, editor) {
 
 function assertFinishingDelivery(result) {
 	expect(result.channelCount).toBe(2);
-	expect(result.duration).toBeCloseTo(4, 3);
+	expect(result.frames).toBe(4 * 48_000 + DIALOGUE_CHAIN_RELEASE_FRAMES);
+	expect(result.tailEndingPeak).toBeLessThan(0.000_1);
 	expect(result.earlyPeak).toBeLessThan(0.000_1);
 	expect(result.lateRms).toBeGreaterThan(0.02);
 	expect(result.rightPeak).toBeLessThan(0.000_1);

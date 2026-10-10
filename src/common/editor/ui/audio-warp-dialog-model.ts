@@ -15,6 +15,7 @@ export interface AudioWarpDialogModel {
 	readonly clipId: string | null;
 	readonly clipName: string;
 	readonly sourceName: string;
+	readonly gridSampleOrigin: number | undefined;
 	readonly hasWarpMap: boolean;
 	readonly warpPoints: readonly Readonly<{ index: number; outer: string; source: string }>[];
 	readonly operationsBlocked: boolean;
@@ -40,6 +41,8 @@ export function createAudioWarpDialogModel(input: AudioWarpDialogModelInput): Re
 		clipId: clip && source && track ? String(clip.id) : null,
 		clipName: clip ? String(clip.title ?? clip.name ?? clip.id) : '',
 		sourceName: source ? String(source.name ?? source.id) : '',
+		gridSampleOrigin: clip?.anchor !== 'musical' && typeof clip?.timelineStartFrame === 'number'
+			? clip.timelineStartFrame : undefined,
 		hasWarpMap: warpMap !== null,
 		warpPoints: Object.freeze(dataRecords(warpMap?.points).map((point, index) => Object.freeze({
 			index,
@@ -53,7 +56,7 @@ export function createAudioWarpDialogModel(input: AudioWarpDialogModelInput): Re
 
 function emptyModel(): Readonly<AudioWarpDialogModel> {
 	return Object.freeze({
-		clipId: null, clipName: '', sourceName: '', hasWarpMap: false,
+		clipId: null, clipName: '', sourceName: '', gridSampleOrigin: undefined, hasWarpMap: false,
 		warpPoints: Object.freeze([]), operationsBlocked: true, blockReason: 'no-audio-clip',
 	});
 }

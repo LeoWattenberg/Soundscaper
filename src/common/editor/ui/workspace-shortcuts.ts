@@ -21,7 +21,10 @@ interface KeyboardEventLike {
 	ctrlKey: boolean;
 	defaultPrevented: boolean;
 	key: string;
+	isComposing?: boolean;
+	keyCode?: number;
 	metaKey: boolean;
+	nativeEvent?: Readonly<{ isComposing?: boolean; keyCode?: number }>;
 	repeat?: boolean;
 	shiftKey: boolean;
 	target: EventTarget | null;
@@ -76,6 +79,8 @@ export function handleWorkspaceKeyboard(
 	registry: ShortcutRegistry = {},
 ): void {
 	if (event.defaultPrevented) return;
+	if (event.isComposing || event.nativeEvent?.isComposing
+		|| event.keyCode === 229 || event.nativeEvent?.keyCode === 229) return;
 	if (isWorkspaceModalShortcutTarget(event.target)) return;
 	const targetDisposition = workspaceShortcutTargetDisposition(event);
 	if (targetDisposition === 'blocked') return;
@@ -119,7 +124,7 @@ function workspaceShortcutTargetDisposition(
 		|| event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
 		return isNativeEditableShortcut(event) ? 'blocked' : 'modified-control';
 	}
-	const control = event.target.closest('button, a, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
+	const control = event.target.closest('button, a, summary, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
 	if (!control) return 'allowed';
 	if (event.ctrlKey || event.metaKey || event.altKey) return 'modified-control';
 	if (control.closest('[role="menu"], [role="menubar"], [role="menuitem"]')) return 'blocked';

@@ -12,6 +12,8 @@
 import { audacityMacroMenuCommand } from '../../../../audacity-macro-menu-commands.ts';
 import type { MacroCommandStep } from '../../../../macro-command-steps.ts';
 import { resolveSelectionRange } from '../../../../selection-range.ts';
+import { prepareSelectedTrackRemoval } from '../../../../selected-track-removal.ts';
+import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 
 export interface MacroCommandTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -32,6 +34,7 @@ export interface MacroCommandProject extends Readonly<Record<string, unknown>> {
 
 export interface MacroCommandServiceRuntime {
 	readonly getProject: () => MacroCommandProject;
+	readonly getSelectedTrackId?: () => string | null;
 	readonly projectSampleRate: () => number;
 	/**
 	 * The last frame the project's own content reaches, which `ProjectEnd`
@@ -142,6 +145,10 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		}
 		if (typeof target !== 'function') {
 			throw new RangeError(`The macro command ${command} has no editor action (${path}).`);
+		}
+		if (command === 'RemoveTracks') {
+			const removal = prepareSelectedTrackRemoval(runtime.getProject(), runtime.getSelectedTrackId?.());
+			return removal ? (target as (value: AudioEditorCommand) => unknown)(removal) : null;
 		}
 		return (target as () => unknown)();
 	}

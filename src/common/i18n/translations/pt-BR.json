@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-BR",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:bb8500baad21f0582c7b4a95059d932c8d6579b261b7bc641edf9a269f46dc1c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","Mixar para"],
 		"mixMenu": ["machine","Mix","Mixagem"],
 		"mixRender": ["human","Mix and render","Mixar e renderizar"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","Não é possível substituir faixas bloqueadas. Desmarque “Substituir originais” para criar novas faixas."],
 		"mixRenderNew": ["human","Mix and render to new track","Mixar e renderizar em nova faixa"],
 		"mixRenderNoOperation": ["human","Select Mix down or Render effects to continue.","Selecione Mixar ou Renderizar efeitos para continuar."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","Selecione pelo menos uma faixa de áudio que contenha áudio."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","Abrir projetos"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Abrir arquivo de projeto Scape ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","Otimizar para"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Memória mantém o carregamento atual do editor sob demanda. Velocidade carrega as ferramentas do editor antecipadamente; as ferramentas de IA e os mecanismos de processamento continuam sendo carregados quando usados. Reinicie o editor para desktop para aplicar as alterações."],
 		"optimizeForMemory": ["machine","Memory","Memória"],
 		"optimizeForSpeed": ["machine","Speed","Velocidade"],
 		"options": ["machine","Options","Opções"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","Sobrepor Interagir"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","A superfície Interagir fora da tela de 64 por 64 está pronta."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","O plugin solicitou e concluiu um redesenho fora da tela."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","A sequência de ações Interagir está exausta."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","Alvo Interagir"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","O transporte OpenFX Interagir fora da tela está indisponível."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","Enviando ações Interagir normalizadas"],

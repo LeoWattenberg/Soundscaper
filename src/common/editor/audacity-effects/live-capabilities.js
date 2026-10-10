@@ -17,6 +17,9 @@ import { audacitySelectionOnlyReason, isAudacityEffectLiveCapable } from './live
 import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 import { audacityBrowserReverbTailFrames } from './reverb-parameters.ts';
 import { audacityDynamicsLookaheadFrames } from './audacity-dynamics-lookahead.ts';
+import { classicFilterCoefficients } from './classic-filter-coefficients.js';
+import { iirReleaseBoundFrames } from '../first-party-effects/standard/filters-coefficients.ts';
+import { audacityResidualFilterTailFrames } from './audacity-filter-release.ts';
 
 export const CLICK_WINDOW_SIZE = 8_192;
 export const EQ_PARTITION_SIZE = 128;
@@ -94,12 +97,21 @@ function liveTailFrames(type, sampleRate, params) {
 	if (!isAudacityEffectLiveCapable(type)) return 0;
 	const settings = normalizeAudacityEffectParams(type, { ...audacityEffectDefaults(type), ...params });
 	validateLiveParamRanges({ type, paramRanges: liveParamRanges(type) }, settings);
+	const filterRelease = audacityResidualFilterTailFrames(type, sampleRate, settings);
+	if (filterRelease !== null) return filterRelease;
 	if (type === 'audacity-echo') {
 		if (!(settings.decay > 0)) return 0;
 		if (settings.decay >= 1) return Number.POSITIVE_INFINITY;
 		return Math.floor(sampleRate * settings.delaySeconds) * Math.ceil(Math.log(0.001) / Math.log(settings.decay));
 	}
 	if (type === 'audacity-distortion' && settings.dcBlock) return Math.max(1, Math.floor(sampleRate / 20));
+	// A nonuniform spectral gain spreads a faded ending across its overlap/add
+	// window. Buffering latency does not include that post-source release.
+	if (type === 'audacity-noise-reduction') return settings.reductionDb > 0 ? NOISE_WINDOW_SIZE - 1 : 0;
+	if (type === 'audacity-classic-filters') {
+		return iirReleaseBoundFrames(classicFilterCoefficients(settings, sampleRate / 2)
+			.map(({ b0, b1, b2, a1, a2 }) => [b0, b1, b2, a1, a2]));
+	}
 	if (type === 'audacity-reverb') return audacityBrowserReverbTailFrames(sampleRate, settings);
 	if (type === 'audacity-filter-curve-eq' || type === 'audacity-graphic-eq') return (settings.filterLength - 1) / 2;
 	return 0;

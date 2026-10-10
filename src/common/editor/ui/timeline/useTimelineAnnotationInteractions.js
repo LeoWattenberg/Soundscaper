@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useRef, useState } from 'react';
+import { resolveSelectionRange } from '../../selection-range.ts';
 
 import { usePresentationFeedback } from '../presentation-feedback.ts';
 import { consumeTimelineAnnotationRenameKey } from './timeline-annotation-rename-keyboard.ts';
@@ -41,6 +42,7 @@ export function useTimelineAnnotationInteractions({
 		secondsUnit: copy.annotationSecondsUnit,
 	});
 	const actions = controller.actions.timelineAnnotations;
+	const regionSelection = resolveSelectionRange(project) ?? project.selection;
 	const itemRefs = useRef(new Map());
 	const renameCompletionRef = useRef(null);
 	const [editingId, setEditingId] = useState(null);
@@ -195,7 +197,7 @@ export function useTimelineAnnotationInteractions({
 			if (!blocked) batchSelected(!event.shiftKey);
 			return;
 		}
-		const createKind = timelineAnnotationCreateKind(event, project.selection);
+		const createKind = timelineAnnotationCreateKind(event, regionSelection);
 		if (createKind) {
 			event.preventDefault();
 			event.stopPropagation();

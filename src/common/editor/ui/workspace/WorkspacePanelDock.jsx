@@ -99,7 +99,7 @@ export default function WorkspacePanelDock({
 		};
 		const finishResize = (event) => {
 			const session = resizeSessionRef.current;
-			if (event?.type === 'pointerup' && session?.pointerId !== event.pointerId) return;
+			if (event?.type.startsWith('pointer') && session?.pointerId !== event.pointerId) return;
 			resizeSessionRef.current = null;
 			if (!session?.element?.isConnected) return;
 			const bounds = session.element.getBoundingClientRect();

@@ -13,6 +13,7 @@ import { interchangeSourceInPoint } from './interchange-source-in-point.ts';
 import {
 	interchangeAnnotationOmission,
 	interchangeCaptionTrackOmission,
+	interchangeClipTimeEffect,
 } from './interchange-omission-inventory.ts';
 import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
@@ -115,7 +116,8 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 
 	const reelNames = request?.reelNames ?? {};
 	const events: EdlEvent[] = [];
-	const subFrame: EdlOmission[] = [];
+	const clipOmissions: EdlOmission[] = [];
+	let activeCuts: { readonly clipId: string; readonly recordOut: number }[] = [];
 	const clips = clipIdsOf(selected)
 		.map((clipId) => {
 			const clip = clipById.get(clipId);
@@ -141,7 +143,7 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 			// Shorter than one sequence frame, so there is no cut to write. The
 			// list must say the clip is missing rather than quietly having one
 			// fewer event than the sequence has clips.
-			subFrame.push({
+			clipOmissions.push({
 				code: 'edl.sub-frame-clip-omitted',
 				scope: Object.freeze({ kind: 'clip', id: String(clip.id) }),
 				data: Object.freeze({ durationFrames: duration }),
@@ -149,8 +151,34 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 			});
 			continue;
 		}
+		activeCuts = activeCuts.filter((cut) => cut.recordOut > recordIn);
+		if (activeCuts.length > 0) {
+			clipOmissions.push({
+				code: 'edl.overlapping-cuts-unsupported',
+				scope: Object.freeze({ kind: 'clip', id: String(clip.id) }),
+				data: Object.freeze({
+					overlappingClipIds: Object.freeze(activeCuts.map((cut) => cut.clipId)),
+					recordInFrames: recordIn + sequence.startFrameCount,
+					recordOutFrames: Math.min(recordOut, Math.max(...activeCuts.map((cut) => cut.recordOut)))
+						+ sequence.startFrameCount,
+				}),
+				message: 'Overlapping record cuts cannot conform their video transition in this cut-only EDL; conform the overlap manually.',
+			});
+		}
+		activeCuts.push({ clipId: String(clip.id), recordOut });
 		const source = sourceById.get(String(clip.sourceId));
 		const sourceIn = interchangeSourceInPoint(clip, source, sequence.rate, sampleRate);
+		const timeEffect = interchangeClipTimeEffect(clip);
+		// The formatter already reports legacy scalar speeds. Native curves have
+		// unity scalars, so their authority must be inventoried at this boundary.
+		if (timeEffect && timeEffect.kind !== 'speed') {
+			clipOmissions.push({
+				code: 'edl.speed-change-omitted',
+				scope: Object.freeze({ kind: 'clip', id: String(clip.id) }),
+				data: Object.freeze({ kind: timeEffect.kind, ...timeEffect.data }),
+				message: 'The profile emits no motion records or time effects, so the clip plays at unity speed.',
+			});
+		}
 		events.push(Object.freeze({
 			reel: String(reelNames[String(clip.sourceId)] ?? source?.name ?? clip.sourceId ?? ''),
 			reelIdentity: reelNames[String(clip.sourceId)] === undefined ? String(clip.sourceId)
@@ -174,7 +202,7 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 		events,
 		// Everything the one-track profile left behind is named, not silently lost.
 		omissions: [
-			...subFrame,
+			...clipOmissions,
 			...describeOmissions(tracks, selected, isVisible),
 			...describeAnnotationOmission(project),
 			...describeCaptionTrackOmission(project, sequence.id),

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../ThemeProvider';
+import { retainNativeRangeTouchOwner } from './native-range-touch-owner';
 import './Slider.css';
 
 export interface SliderProps {
@@ -61,9 +62,14 @@ export const Slider: React.FC<SliderProps> = ({
 }) => {
   const { theme } = useTheme();
   const gestureActiveRef = React.useRef(false);
+  const pointerIdRef = React.useRef<number | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const gestureValueRef = React.useRef(value);
   const gestureCancelRef = React.useRef(onGestureCancel);
   gestureCancelRef.current = onGestureCancel;
+  React.useEffect(() => {
+    if (inputRef.current) return retainNativeRangeTouchOwner(inputRef.current);
+  }, []);
 
   // Clamp value to valid range
   const clampedValue = Math.max(min, Math.min(max, value));
@@ -126,14 +132,36 @@ export const Slider: React.FC<SliderProps> = ({
   return (
     <div className={`slider ${disabled ? 'slider--disabled' : ''} ${className}`} style={style}>
       <input
+        ref={inputRef}
         type="range"
         min={min}
         max={max}
         value={clampedValue}
         onChange={handleChange}
-        onPointerDown={beginGesture}
-        onPointerUp={endGesture}
-        onPointerCancel={cancelGesture}
+        onPointerDown={(event) => {
+          if (disabled || event.button !== 0 || event.isPrimary === false || pointerIdRef.current !== null) {
+            event.preventDefault();
+            return;
+          }
+          pointerIdRef.current = event.pointerId;
+          beginGesture();
+        }}
+        onPointerMove={(event) => {
+          if (event.pointerId !== pointerIdRef.current || event.pointerType !== 'mouse'
+            || event.button !== 0 || (event.buttons & 1) !== 0) return;
+          pointerIdRef.current = null;
+          endGesture();
+        }}
+        onPointerUp={(event) => {
+          if (event.pointerId !== pointerIdRef.current) return;
+          pointerIdRef.current = null;
+          endGesture();
+        }}
+        onPointerCancel={(event) => {
+          if (event.pointerId !== pointerIdRef.current) return;
+          pointerIdRef.current = null;
+          cancelGesture();
+        }}
         onKeyDown={(event) => {
           if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) {
             beginGesture();
@@ -142,7 +170,7 @@ export const Slider: React.FC<SliderProps> = ({
         onKeyUp={(event) => {
           if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) endGesture();
         }}
-        onBlur={endGesture}
+        onBlur={() => { pointerIdRef.current = null; endGesture(); }}
         onDoubleClick={(event) => {
           if (disabled || !onChange || defaultValue === undefined || !Number.isFinite(defaultValue)) return;
           event.preventDefault();

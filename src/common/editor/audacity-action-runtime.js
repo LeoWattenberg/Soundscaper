@@ -7,8 +7,11 @@ import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
 import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
+import { clipContentRange } from './clip-content-range.ts';
 import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
 import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
+import { visibleNavigationTracks } from './audacity-visible-navigation-tracks.ts';
+import { applyAudacityTrackScope } from './audacity-track-scope-selection.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -210,27 +213,25 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	function updateSelectedTrack(changes) { const track = selectedTrack(); return track ? controllerActions.track.update(track.id, changes) : null; }
 
 	function selectRelativeClip(direction) {
-		const clips = [...(project()?.clips || [])].sort((left, right) => (
-			left.timelineStartFrame - right.timelineStartFrame || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
-		));
-		if (!clips.length) return null;
-		const index = Math.max(0, clips.findIndex((clip) => clip.id === snapshot().selectedClipId));
-		const next = clips[Math.max(0, Math.min(clips.length - 1, index + direction))];
-		controllerActions.timeline.selectClip(next.id);
-		return next.id;
+		return import('./audacity-shortcut-actions/relative-item-navigation.ts').then(({ relativeNavigationClipId }) => {
+			const id = relativeNavigationClipId(project(), snapshot().selectedClipId, direction, snapshot().trackFolders);
+			if (!id) return null;
+			controllerActions.timeline.selectClip(id);
+			return id;
+		});
 	}
 	function selectRelativeTrack(direction, mode = 'replace') {
 		const currentProject = project();
-		const tracks = currentProject?.tracks || [];
+		const tracks = visibleNavigationTracks(currentProject?.tracks || [], snapshot().trackFolders);
 		if (!tracks.length) return null;
-		const current = Math.max(0, tracks.findIndex((track) => track.id === selectedTrackId()));
+		const current = Math.max(direction > 0 ? -1 : 0, tracks.findIndex((track) => track.id === selectedTrackId()));
 		const next = tracks[Math.max(0, Math.min(tracks.length - 1, current + direction))];
 		if (mode === 'extend') {
 			const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
 			const advanced = advanceAudacityTrackSelection({ trackIds: tracks.map(({ id }) => id), focusedTrackId: selectedTrackId(), selectedTrackIds: selection.trackIds || [], direction });
 			if (!advanced) return null;
 			controllerActions.timeline.selectTrack(advanced.focusedTrackId);
-			setSelection(selection.startFrame, selection.endFrame, { trackIds: advanced.selectedTrackIds });
+			applyAudacityTrackScope(currentProject, advanced.selectedTrackIds, controllerActions.timeline.adjustSelection);
 			return advanced.focusedTrackId;
 		} else controllerActions.timeline.selectTrack(next.id);
 		return next.id;
@@ -241,14 +242,14 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		const currentProject = project();
 		const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
 		const trackIds = audacityToggledTrackSelection({ trackIds: currentProject.tracks.map(({ id }) => id), focusedTrackId: track.id, selectedTrackIds: selection.trackIds || [] }, mode);
-		return setSelection(selection.startFrame, selection.endFrame, { trackIds });
+		return applyAudacityTrackScope(currentProject, trackIds, controllerActions.timeline.adjustSelection);
 	}
 	function selectCurrentTrackRange() {
 		const currentProject = project();
 		if (!currentProject) return null;
 		const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
 		const trackIds = audacityTrackRangeSelection({ trackIds: currentProject.tracks.map(({ id }) => id), focusedTrackId: selectedTrackId(), selectedTrackIds: selection.trackIds || [] });
-		return setSelection(selection.startFrame, selection.endFrame, { trackIds });
+		return applyAudacityTrackScope(currentProject, trackIds, controllerActions.timeline.adjustSelection);
 	}
 	function removeRealtimeEffect(effectId = null) {
 		const track = selectedTrack();
@@ -295,8 +296,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			exportClip: (clipId = snapshot().selectedClipId) => {
 				const clip = project()?.clips.find((candidate) => candidate.id === clipId);
 				if (!clip) return null;
+				const range = clipContentRange(project(), clip);
+				if (!range) return null;
 				controllerActions.timeline.selectClip(clip.id);
-				setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames, { clipIds: [clip.id] });
+				controllerActions.timeline.setExactSelection(range.startFrame, range.endFrame, { clipIds: [clip.id] });
 				return openSurface('export', { range: 'selection', clipId: clip.id });
 			},
 		},

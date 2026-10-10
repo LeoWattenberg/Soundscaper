@@ -176,6 +176,9 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	};
 	const move = (event: PointerEvent<HTMLDivElement>) => {
 		const current = gesture.current; if (!current || current.pointerId !== event.pointerId) return;
+		if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) {
+			finish(event); return;
+		}
 		const frame = frameAt(event.clientX); setDragFrame(frame);
 		if (current.kind === 'selection') setSelection({ startFrame: Math.min(current.startFrame, frame), endFrame: Math.max(current.startFrame, frame) });
 		if (current.kind.startsWith('fade-') || current.kind.startsWith('shape-')) setFadePreview(fadeChanges(current, event));

@@ -68,7 +68,8 @@ export function prepareSplitRangeIntoNewTrackCommand(
 	const routingCopies: { sourceTrackId: string; targetTrackId: string }[] = [];
 	let selectTrackId = '';
 	let selectClipId = '';
-	for (const [trackId, entries] of perTrack) {
+	// Insert later siblings first so each captured position still names its source.
+	for (const [trackId, entries] of [...perTrack].reverse()) {
 		const sourceTrack = project.tracks.find((track: RuntimeValue) => track.id === trackId);
 		if (!sourceTrack) continue;
 		const newTrackId = runtime.createStableId('track');
@@ -92,8 +93,8 @@ export function prepareSplitRangeIntoNewTrackCommand(
 				timelineStartFrame: entry.timelineStartFrame,
 			});
 		}
-		selectTrackId ||= newTrackId;
-		selectClipId ||= entries[0]?.clipId ?? '';
+		selectTrackId = newTrackId;
+		selectClipId = entries[0]?.clipId ?? '';
 	}
 	if (!moves.length) return null;
 	const command: Extract<AudioEditorCommand, { type: 'batch' }> = { type: 'batch', commands: [...commands, ...moves] };

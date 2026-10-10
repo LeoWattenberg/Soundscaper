@@ -14,7 +14,7 @@ const H264_ENCODERS: readonly DesktopVideoH264Encoder[] = Object.freeze([
 /** Token eligibility is only the input to execution verification. */
 export function desktopVideoH264EncoderCandidates(
 	value: unknown,
-	platform: NodeJS.Platform = process.platform,
+	platform: string = (globalThis as { readonly process?: { readonly platform: string } }).process?.platform ?? '',
 ): readonly DesktopVideoH264Encoder[] {
 	const capabilities = record(value)?.capabilities;
 	const encoders = record(capabilities)?.encoders;

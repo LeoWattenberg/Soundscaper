@@ -168,7 +168,6 @@ export default function FramescaperVideoProxyDialog({
 					|| typeof fileService.openReadDescriptor === 'function')) return;
 			perform('attach', async (signal) => {
 				const descriptors = await fileService.chooseFiles!({ purpose: 'video', multiple: false });
-				throwIfAborted(signal);
 				const descriptor = descriptors[0];
 				if (descriptor === undefined) throw new DOMException('Proxy selection cancelled.', 'AbortError');
 				await withFramescaperVideoProxyFile(fileService, descriptor, signal, async (candidate) => {

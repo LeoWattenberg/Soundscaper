@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
+import { encodeWav } from '../../src/common/editor/wav.js';
+import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
+import { ordinaryTailM4aFixture } from '../helpers/ordinary-tail-m4a-fixture.ts';
+import { ordinaryOggOpusFixture } from '../helpers/ordinary-ogg-opus-fixture.ts';
+import { nativeOriginalImportFixture } from '../helpers/native-original-import-fixture.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { decodePinnedVideoRgbFrame, readRgbPixel } from './helpers/pinned-video-frame-decoder.mjs';
 import {
@@ -21,15 +26,15 @@ import {
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
-async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA, toneB]) {
+async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA, toneB], holdPreparation = false) {
 	for (const fixture of fixtures) {
 		await page.route(`**/__e2e-overwrite/${fixture.name}`, (route) => route.fulfill({
 			body: fixture.buffer, contentType: fixture.mimeType,
 			headers: { 'Content-Length': String(fixture.buffer.byteLength) },
 		}));
 	}
-	await page.addInitScript(({ productId, files }) => {
-		const state = { imports: 0, preparedOriginals: [], savePickers: 0, completed: [], releasedOriginals: [], statuses: [] };
+	await page.addInitScript(({ productId, files, holdPreparation }) => {
+		const state = { imports: 0, preparedOriginals: [], savePickers: 0, completed: [], releasedOriginals: [], releasedTargets: [], statuses: [] };
 		addEventListener('DOMContentLoaded', () => {
 			new MutationObserver(() => {
 				for (const element of document.querySelectorAll('[data-editor-toast], [data-status]')) {
@@ -54,11 +59,12 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 				state.preparedOriginals.push(id);
 				const targetId = String(state.preparedOriginals.length + 3).repeat(48);
 				targets.set(targetId, files[0].name);
+				if (holdPreparation) await new Promise((resolve) => { state.releasePreparation = resolve; });
 				return { id: targetId, name: files[0].name };
 			},
 			releaseOriginalFile: async (id) => { state.releasedOriginals.push(id); return true; },
 			chooseSaveTarget: async () => { state.savePickers += 1; return null; },
-			releaseSaveTarget: async (id) => targets.delete(id),
+			releaseSaveTarget: async (id) => { state.releasedTargets.push(id); return targets.delete(id); },
 			beginWrite: async ({ targetId, size, maximumSize }) => {
 				if (!targets.has(targetId)) throw new Error('The overwrite save target is unavailable.');
 				const name = targets.get(targetId);
@@ -89,9 +95,123 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 		});
 		Object.defineProperty(globalThis, '__originalOverwriteFixture', { value: state });
 		Object.defineProperty(globalThis, `${productId}Desktop`, { enumerable: true, value: Object.freeze({ v1: bridge }) });
-	}, { productId, files: fixtures.map(({ name, mimeType, buffer }) => ({
+	}, { productId, holdPreparation, files: fixtures.map(({ name, mimeType, buffer }) => ({
 		name, mimeType, size: buffer.byteLength, lastModified: 123,
 	})) });
+}
+
+async function installNativeOriginalBridge(page, native) {
+	await page.exposeBinding('__nativeFileIpc', async (_source, channel, request) => await native.invoke(channel,
+		channel === 'soundscaper:v1:save:chunk' ? { ...request, bytes: Uint8Array.from(request.bytes) } : request,
+	));
+	await page.exposeBinding('__nativeFileFetch', async (_source, url, init) => {
+		const response = await native.fetch(url, init);
+		return { status: response.status, headers: [...response.headers.entries()], base64: Buffer.from(await response.arrayBuffer()).toString('base64') };
+	});
+	await page.addInitScript({ content: `(() => {
+		const required = new Set(['getEnvironment', 'chooseFiles', 'releaseRead', 'releaseOriginalFile', 'prepareOriginalOverwrite', 'releaseSaveTarget', 'beginWrite', 'writeChunk', 'patchFinalPrefix', 'finishWrite', 'abortWrite']);
+		const require = () => ({ contextBridge: { exposeInMainWorld: (name, value) => {
+			Object.defineProperty(globalThis, name, { value: Object.freeze({ v1: Object.freeze(Object.fromEntries(Object.entries(value.v1).filter(([key]) => required.has(key)))) }) });
+		} }, ipcRenderer: {
+			invoke: async (channel, value) => {
+				const request = channel === 'soundscaper:v1:save:chunk' ? { ...value, bytes: [...value.bytes] } : value;
+				const result = await globalThis.__nativeFileIpc(channel, request);
+				if (channel === 'soundscaper:v1:original-file:prepare-overwrite') globalThis.__nativePrepareReturns += 1;
+				return result;
+			}, send: () => {}, on: () => {}, removeListener: () => {},
+		} });
+		globalThis.__nativePrepareReturns = 0;
+		const originalFetch = globalThis.fetch.bind(globalThis);
+		globalThis.fetch = async (input, init) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (!url.startsWith('soundscaper-app:')) return originalFetch(input, init);
+			const result = await globalThis.__nativeFileFetch(url, { method: init?.method ?? 'GET', headers: [...new Headers(init?.headers).entries()] });
+			return new Response(Uint8Array.from(atob(result.base64), character => character.charCodeAt(0)), { status: result.status, headers: result.headers });
+		};
+		${native.preloadSource}
+	})();` });
+}
+
+for (const removeDuringPreparation of [false, true]) test(`native original overwrite preserves save capacity after deletion during preparation=${String(removeDuringPreparation)}`, async ({ page }) => {
+	const native = await nativeOriginalImportFixture(new File([Uint8Array.from(toneA.buffer)], toneA.name, { type: toneA.mimeType }),
+		{ maximumTargets: 1, holdPreparationAt: removeDuringPreparation ? 2 : undefined });
+	try {
+		const errors = collectClientErrors(page);
+		await installNativeOriginalBridge(page, native);
+		const editor = await bootEditor(page, '/embed/en/').catch((cause) => { throw new Error(`Native preload bootstrap: ${JSON.stringify(errors)}; ${JSON.stringify(native.operations)}`, { cause }); });
+		await chooseFileAction(page, editor, 'Import');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+		await expect.poll(() => native.completed.length).toBe(1);
+		if (removeDuringPreparation) {
+			await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+			await expect.poll(() => native.prepared.length).toBe(2);
+			const clip = clipByName(editor, toneA.name);
+			await clip.focus(); await clip.press('Enter'); await clip.press('Delete');
+			await expect(editor).toHaveAttribute('data-clip-count', '0');
+			native.completePreparation();
+			await expect.poll(() => page.evaluate(() => globalThis.__nativePrepareReturns)).toBe(2);
+			expect(native.completed).toHaveLength(1);
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+		}
+		await chooseFileAction(page, editor, `Overwrite ${toneA.name}`);
+		await expect.poll(() => native.completed.length).toBe(2);
+		const output = await inspectWavBlobPcm(new Blob([Uint8Array.from(await native.savedBytes())]));
+		expect(output.sampleRate).toBe(48_000);
+		expect(output.frameCount).toBeGreaterThan(1_000);
+		if (removeDuringPreparation) expect(native.releases).toContain(true);
+	} finally { await native.close(); }
+});
+
+test('ordinary tail-metadata AAC import keeps the original overwrite menu available', async ({ page }) => {
+	const file = await ordinaryTailM4aFixture();
+	const fixture = { name: file.name, mimeType: file.type, buffer: Buffer.from(await file.arrayBuffer()) };
+	await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseFileAction(page, editor, 'Import');
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	const menu = await openNestedCommandMenu(page, editor, 'File', []);
+	await expect(menu.getByRole('menuitem', { name: `Overwrite ${fixture.name}`, exact: true })).toBeEnabled();
+});
+
+for (const extension of ['opus', 'ogg']) {
+	test(`ordinary Ogg Opus import retains its supported overwrite action as .${extension}`, async ({ page }) => {
+		const file = await ordinaryOggOpusFixture(extension);
+		const fixture = { name: file.name, mimeType: file.type, buffer: Buffer.from(await file.arrayBuffer()) };
+		await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseFileAction(page, editor, 'Import');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		const menu = await openNestedCommandMenu(page, editor, 'File', []);
+		await expect(menu.getByRole('menuitem', { name: `Overwrite ${fixture.name}`, exact: true })).toBeEnabled();
+	});
+}
+
+for (const variant of [
+	{ name: 'Dialogue.wav', bitDepth: 24, bext: { description: 'Location dialogue', timeReference: '172800000' } },
+]) {
+	test(`desktop original overwrite retains ${variant.name} delivery facts`, async ({ page }) => {
+		const fixture = { name: variant.name, mimeType: 'audio/wav', buffer: Buffer.from(encodeWav(
+			[Float32Array.from({ length: 2400 }, (_, index) => Math.sin(index / 17) * 0.2)],
+			{ sampleRate: 48_000, bitDepth: variant.bitDepth, bext: variant.bext },
+		)) };
+		await installOriginalOverwriteBridge(page, 'soundscaper', [fixture]);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseFileAction(page, editor, 'Import');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await chooseFileAction(page, editor, `Overwrite ${fixture.name}`);
+		await expect.poll(() => page.evaluate(() => globalThis.__originalOverwriteFixture.completed.length)).toBe(1);
+		const bytes = Uint8Array.from(await page.evaluate(() => globalThis.__originalOverwriteFixture.completed[0].bytes));
+		const descriptor = await inspectWavBlobPcm(new Blob([bytes]));
+		expect(descriptor?.bitDepth).toBe(variant.bitDepth);
+		expect(descriptor?.sampleRate).toBe(48_000);
+		expect(descriptor?.frameCount).toBe(2400);
+		if (variant.bext) {
+			expect(descriptor?.bext?.description).toBe(variant.bext.description);
+			expect(descriptor?.bext?.timeReference).toBe(variant.bext.timeReference);
+		}
+	});
 }
 
 test.afterEach(async ({ page }) => { await releaseOriginalOverwriteDesktopRenderer(page); });

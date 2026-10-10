@@ -8,6 +8,8 @@ import {
 import {
 	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 } from '../common/editor/project-validation-budget.ts';
+import { applyMixerSurfaceCommandV21, isMixerSurfaceCommandV21 } from '../common/editor/mixer-graph-surface-v21.ts';
+import { reconcileFramescaperAudioFinishingFinishing } from './editor-audio-finishing-reconciliation-finishing.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsFinishing,
 } from './editor-project-feature-requirements-finishing.ts';
@@ -129,6 +131,16 @@ function applyNormalized(
 	options: FramescaperProjectCommandOptionsFinishing,
 ): FramescaperProjectFinishing {
 	if (isBatch(command)) return applyBatch(profile, project, command, options);
+	if (isMixerSurfaceCommandV21(command)) {
+		const draft = structuredClone(project) as unknown as Record<string, unknown>;
+		const audio = reconcileFramescaperAudioFinishingFinishing(draft, {
+			mixer: applyMixerSurfaceCommandV21(mixerSurfaceProject(project), command),
+			automationLanes: project.automationLanes,
+		});
+		draft.mixer = audio.mixer;
+		draft.automationLanes = audio.automationLanes;
+		return finalizeDraft(profile, project, draft, options);
+	}
 	if (!isFramescaperOwnedFinishingCommandTypeFinishing(command.type)) {
 		return applyInheritedFramescaperProjectCommandFinishing(profile, project, command, options);
 	}
@@ -138,6 +150,19 @@ function applyNormalized(
 		command as FramescaperOwnedFinishingCommandFinishing,
 	);
 	return finalizeDraft(profile, project, draft, options);
+}
+
+function mixerSurfaceProject(project: FramescaperProjectFinishing) {
+	const masterChannels = project.masterChannels;
+	if (typeof masterChannels !== 'number') throw new TypeError('Framescaper masterChannels must be a number.');
+	const tracks = readClosedDomainArray(project.tracks, 'Framescaper tracks', 0, MAXIMUM_COMMANDS)
+		.map((track) => {
+			if (!track || typeof track !== 'object' || Array.isArray(track)) {
+				throw new TypeError('Framescaper track must be a record.');
+			}
+			return readClosedDomainRecord(track, 'Framescaper track', Object.keys(track));
+		});
+	return { ...project, masterChannels, tracks };
 }
 
 function isBatch(command: FramescaperProjectCommandFinishing): command is FramescaperProjectCommandBatchFinishing {
@@ -174,6 +199,12 @@ function applyBatch(
 		ownedSegment = [];
 	};
 	for (const child of command.commands) {
+		if (!isBatch(child) && isMixerSurfaceCommandV21(child)) {
+			flushInheritedSegment();
+			flushOwnedSegment();
+			current = applyNormalized(profile, current, child, options);
+			continue;
+		}
 		if (!isBatch(child) && !isFramescaperOwnedFinishingCommandTypeFinishing(child.type)) {
 			flushOwnedSegment();
 			inheritedSegment.push(child as FramescaperInheritedProjectCommandFinishing);

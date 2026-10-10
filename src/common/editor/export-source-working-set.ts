@@ -40,7 +40,7 @@ export function estimateExportSourceWorkingSetBytes(
 	const chunkSources = new Map<unknown, EngineChunkSource>();
 	let residentBytes = 0;
 	for (const source of (project.sources ?? []) as readonly ExportSourceGeometry[]) {
-		if (source.kind === 'video') continue;
+		if (source.kind === 'video' || source.kind === 'image' || source.kind === 'still' || source.kind === 'generator') continue;
 		const frames = nonNegativeInteger(source.frameCount, 'Source frame count');
 		const channels = positiveInteger(source.channelCount, 'Source channel count');
 		const rate = positiveInteger(source.sampleRate ?? sampleRate, 'Source sample rate');

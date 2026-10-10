@@ -199,7 +199,7 @@ export function AudacityLabelMarker({
 	const [preview, setPreview] = useState(null);
 	const [contextMenu, setContextMenu] = useState(null);
 	const clearPreview = useCallback(() => setPreview(null), []);
-	const dragCancellation = useLabelMarkerDragCancellation(markerRef, pendingRef, clearPreview);
+	const dragCancellation = useLabelMarkerDragCancellation(markerRef, pendingRef, clearPreview, label);
 	const point = label.startFrame === label.endFrame;
 	const displayed = preview || label;
 	const displayedLeft = left + (displayed.startFrame - label.startFrame) / sampleRate * pixelsPerSecond;
@@ -211,7 +211,8 @@ export function AudacityLabelMarker({
 		inputRef.current?.select();
 	}, [editing]);
 
-	const finishDrag = useCallback(() => {
+	const finishDrag = useCallback((event) => {
+		if (event.button !== 0) return;
 		const pending = pendingRef.current;
 		if (!pending) return;
 		pendingRef.current = null;
@@ -240,7 +241,7 @@ export function AudacityLabelMarker({
 	};
 	const select = () => {
 		onSelect();
-		baselineRef.current = preview || label;
+		if (!dragCancellation.activeRef.current) baselineRef.current = preview || label;
 		run(() => controller.actions.timeline.selectTrack(trackId));
 		run(() => controller.actions.timeline.setExactSelection(label.startFrame, label.endFrame));
 	};
@@ -266,12 +267,14 @@ export function AudacityLabelMarker({
 				if (!blocked) { onSelect(); onEdit(); }
 			}}
 			onContextMenu={(event) => {
+				if (event.target.closest('input, textarea, [contenteditable="true"]')) return;
 				event.preventDefault();
 				event.stopPropagation();
 				select();
 				setContextMenu({ x: event.clientX, y: event.clientY, target: event.currentTarget });
 			}}
 			onKeyDown={(event) => {
+				if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				if ((event.key === 'Enter' || event.key === 'F2') && !editing && !blocked) {
 					event.preventDefault();
 					event.stopPropagation();

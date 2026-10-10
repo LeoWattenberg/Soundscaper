@@ -238,6 +238,11 @@ export const Knob: React.FC<KnobProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
+    if (e.pointerType === 'mouse' && e.button === 0 && (e.buttons & 1) === 0) {
+      settleDrag('commit', e.pointerId);
+      return;
+    }
+
     // Horizontal movement right and vertical movement up both increase the value.
     const deltaX = e.clientX - dragStartXRef.current;
     const deltaY = dragStartYRef.current - e.clientY;

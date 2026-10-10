@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:9fb3ab358125f76b092107c5aa5297f7222a75cca30870036963f8381f70a354","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["machine","Mix down to","缩混为"],
 		"mixMenu": ["machine","Mix","混音"],
 		"mixRender": ["machine","Mix and render","混音并渲染"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","无法替换已锁定的轨道。取消勾选“替换原始文件”以创建新轨道。"],
 		"mixRenderNew": ["machine","Mix and render to new track","混音并渲染到新音轨"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","请选择“缩混”或“渲染效果器”以继续。"],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","请至少选择一条包含音频的音轨。"],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","打开项目"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","打开 Scape 项目文件（{projectExtension}）"],
 		"optimizeFor": ["machine","Optimize for","优化目标"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","内存保留编辑器当前的按需加载方式。速度会提前加载编辑器工具；AI 工具和处理引擎仍在使用时才加载。重启桌面编辑器以应用更改。"],
 		"optimizeForMemory": ["machine","Memory","内存"],
 		"optimizeForSpeed": ["machine","Speed","速度"],
 		"options": ["machine","Options","选项"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","覆盖交互"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","64x64 离线交互表面已就绪。"],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","插件请求并完成了离线重绘。"],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","交互操作序列已用完。"],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","交互目标"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","离线 OpenFX 交互传输不可用。"],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","正在发送标准化交互操作"],

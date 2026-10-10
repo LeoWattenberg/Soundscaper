@@ -33,5 +33,8 @@ test('a native 24 kHz noise profile requires fresh capture before enabling a 48 
 	await rack.getByRole('button', { name: 'Get noise profile', exact: true }).click();
 	await expect(rack.getByRole('button', { name: 'Replace noise profile', exact: true })).toBeVisible({ timeout: 20_000 });
 	await closeDialog(rack);
-	expect((await exportSamples(page, editor)).length).toBe(38_400);
+	const enabled = await exportSamples(page, editor);
+	expect(enabled.length).toBe(38_400 + 2_047);
+	expect(Math.max(...enabled.slice(38_400, 38_528).map(Math.abs))).toBeGreaterThan(.0001);
+	expect(Math.max(...enabled.slice(-128).map(Math.abs))).toBeLessThan(.0001);
 });

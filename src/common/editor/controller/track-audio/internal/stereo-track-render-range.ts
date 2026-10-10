@@ -8,6 +8,7 @@ export function stereoTrackRenderRange(
 	tracks: readonly ControllerTrack[],
 	clips: readonly ControllerClip[],
 	sampleRate: number,
+	automationLanes: readonly unknown[] = [],
 ): Readonly<{ startFrame: number; endFrame: number }> {
 	const startFrame = clips.length ? Math.min(...clips.map(clip => clip.timelineStartFrame)) : 0;
 	const byId = new Map(clips.map(clip => [clip.id, clip]));
@@ -15,7 +16,7 @@ export function stereoTrackRenderRange(
 		const owned = (track.clipIds ?? []).flatMap(id => { const clip = byId.get(id); return clip ? [clip] : []; });
 		if (!owned.length) return 0;
 		const end = Math.max(...owned.map(clip => clip.timelineStartFrame + clip.durationFrames));
-		const tail = track.effectsActive === false ? 0 : rackTailFrames(track.effects ?? [], sampleRate, 10);
+		const tail = track.effectsActive === false ? 0 : rackTailFrames(track.effects ?? [], sampleRate, 10, automationLanes);
 		return end + tail;
 	});
 	return Object.freeze({ startFrame, endFrame: Math.max(0, ...ends) });

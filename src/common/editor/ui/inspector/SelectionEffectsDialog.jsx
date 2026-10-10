@@ -1,5 +1,5 @@
 import { usePresentationFeedback, feedbackFailure } from '../presentation-feedback.ts';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { audacityEffectTypes } from '../../audacity-effects/manifest.js';
@@ -11,6 +11,7 @@ import {
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import { resolveSelectionRange } from '../../selection-range.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { createMusicalDurationTimeCodeMap } from '../time-code-musical-map.ts';
 import { audacityEffectDialogWidth, isAudacityNyquistPort } from '../audacity-port-layouts.ts';
 import { useAudacityEffectOptions } from './audacity-effect-options.ts';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
@@ -23,8 +24,14 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const project = snapshot.project;
 	const selectedTrack = project ? findTrack(project, snapshot.selectedTrackId) : null;
 	const effectRange = resolveSelectionRange(project, { selectedClipId: snapshot.selectedClipId ?? null });
-	const selectionDuration = controller.actions.effects.readSourceSelectionDuration?.()
+	const sourceSelectionDuration = controller.actions.effects.readSourceSelectionDuration?.() ?? null;
+	const selectionDuration = sourceSelectionDuration
 		?? (effectRange ? (effectRange.endFrame - effectRange.startFrame) / (project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE) : 0);
+	const selectionDurationOrigin = sourceSelectionDuration === null ? effectRange?.startFrame : undefined;
+	const selectionDurationMap = useMemo(() => selectionDurationOrigin !== undefined
+		&& project?.tempoMap?.events.length && project?.signatureMap?.events.length
+		? createMusicalDurationTimeCodeMap(project, selectionDurationOrigin) : undefined,
+	[project, selectionDurationOrigin]);
 	const blocked = !snapshot.ready || !project || selectAudioEditorEditBlock(snapshot).blocked;
 	const initialType = snapshot.effects?.selectionType || audacityEffectTypes()[0];
 	const [selectionType, setSelectionType] = useState(initialType);
@@ -94,6 +101,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 				if (!ownsOperation()) return;
 				onSuccess?.(result);
 				if (activeOperation.current === operation) activeOperation.current = null;
+				return result;
 			})
 			.catch((cause) => {
 				if (!ownsOperation()) return;
@@ -230,7 +238,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					onSave={() => savePreset(selectedPresetId)}
 					onSaveAs={(name) => {
 						setPresetName(name);
-						savePreset(null, name);
+						return savePreset(null, name).then((saved) => Boolean(saved));
 					}}
 					onReset={() => applyPreset()}
 					onDelete={deletePreset}
@@ -295,7 +303,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						type: selectionType,
 						params: selectionEffectParams,
 						context: { noiseProfile: Boolean(snapshot.effects?.noiseProfileReady),
-							selectionDuration },
+							selectionDuration, selectionDurationMap },
 					}}
 					copy={copy}
 					disabled={blocked}

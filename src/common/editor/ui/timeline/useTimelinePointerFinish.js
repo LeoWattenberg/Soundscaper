@@ -78,7 +78,8 @@ export function useTimelinePointerFinish({
 		setBoundarySnapGuideFrames([]);
 		setTimelineSelectionPointerCursor(scrollRef?.current, null);
 		if (session?.kind === 'track-resize') {
-			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
+			if (!cancelled && !pinchSession.current && project?.tracks.some(track => track.id === session.trackId)
+				&& session.height !== session.originalHeight) {
 				run(() => controller.actions.timeline.resizeTrackHeight(
 					session.trackId,
 					session.height,
@@ -213,7 +214,7 @@ export function useTimelinePointerFinish({
 		}
 		if (session.kind === 'move' && isOverOutputDock(event.clientX, event.clientY)) return;
 		if (session.kind === 'sample-pencil') {
-			if (session.points.length) run(() => controller.actions.sampleEdit.pencil({
+			if (session.points.length && project.clips.some(clip => clip.id === session.clipId)) run(() => controller.actions.sampleEdit.pencil({
 				clipId: session.clipId,
 				channel: session.channel,
 				points: session.points,
@@ -364,6 +365,12 @@ export function useTimelinePointerFinish({
 			finishTouch(event);
 			finishPointerSession(event);
 		};
+		const finishPrimaryMouse = (event) => {
+			// With another button held, primary release is a pointermove.
+			if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) {
+				finishOutsideTimeline(event);
+			}
+		};
 		const cancelOutsideTimeline = (event) => {
 			const session = pointerSession.current;
 			if (!session) return;
@@ -380,10 +387,12 @@ export function useTimelinePointerFinish({
 			}
 		};
 		globalThis.addEventListener('pointerup', finishOutsideTimeline, true);
+		globalThis.addEventListener('pointermove', finishPrimaryMouse, true);
 		globalThis.addEventListener('pointercancel', cancelOutsideTimeline, true);
 		globalThis.addEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		return () => {
 			globalThis.removeEventListener('pointerup', finishOutsideTimeline, true);
+			globalThis.removeEventListener('pointermove', finishPrimaryMouse, true);
 			globalThis.removeEventListener('pointercancel', cancelOutsideTimeline, true);
 			globalThis.removeEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		};
@@ -419,6 +428,14 @@ export function useTimelinePointerFinish({
 		globalThis.addEventListener('keydown', cancelWithEscape, true);
 		return () => globalThis.removeEventListener('keydown', cancelWithEscape, true);
 	}, [cancelPointerSession, pointerSession, setBoundarySnapGuideFrames, setClipDragPreview, setSelectionPreview]);
+
+	useEffect(() => {
+		const session = pointerSession.current;
+		if ((session?.kind === 'sample-pencil' && !project?.clips.some(clip => clip.id === session.clipId))
+			|| (session?.kind === 'track-resize' && !project?.tracks.some(track => track.id === session.trackId))) {
+			cancelPointerSession();
+		}
+	}, [cancelPointerSession, pointerSession, project]);
 
 	return { finishPointerSession, finishTouch, cancelPointerSession };
 }

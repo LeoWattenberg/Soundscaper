@@ -32,8 +32,11 @@ function focusWhenMounted(ownerDocument, selector, previous = null) {
 }
 
 export function closeWorkspacePanelAndRestoreFocus(ownerDocument, panelId, onTogglePanel) {
+	const closedPanel = panelId === 'clock' || workspacePanelRestoresCaptureFocus(panelId) ? null
+		: ownerDocument.querySelector(`[data-workspace-panel="${panelId}"]`);
+	const focusedPanel = closedPanel?.contains?.(ownerDocument.activeElement) === true;
 	const members = panelId === 'clock' || workspacePanelRestoresCaptureFocus(panelId) ? []
-		: ownerDocument.querySelector(`[data-workspace-panel="${panelId}"]`)
+		: closedPanel
 			?.getAttribute('data-workspace-panel-members')?.split(/\s+/u).filter(Boolean) ?? [];
 	const remaining = members.filter((id) => id !== panelId);
 	const siblingId = remaining[members.indexOf(panelId) % remaining.length];
@@ -46,7 +49,10 @@ export function closeWorkspacePanelAndRestoreFocus(ownerDocument, panelId, onTog
 		focusWorkspacePanelMenuButton(ownerDocument, siblingId);
 		return;
 	}
-	if (!workspacePanelRestoresCaptureFocus(panelId)) return;
+	if (!workspacePanelRestoresCaptureFocus(panelId)) {
+		if (focusedPanel) focusWorkspaceToolbarTimeCode(ownerDocument);
+		return;
+	}
 	focusWhenMounted(ownerDocument, '[data-transport="framescaper-record"] button');
 }
 

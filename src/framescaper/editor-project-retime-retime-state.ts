@@ -9,6 +9,7 @@ import {
 } from '../common/editor/video-retime-v16.ts';
 import type { FramescaperProjectRetime } from './editor-project-retime-validation.ts';
 import { visitFramescaperRetimeClipCollections } from './editor-project-retime-clip-collections.ts';
+import { conformFramescaperVideoRetimeReplacementSnapshots } from './editor-project-retime-retime-replacement.ts';
 
 export type FramescaperVideoRetimeClipScopeRetime = 'timeline' | 'project-bin';
 
@@ -216,7 +217,7 @@ export function restoreFramescaperVideoRetimeMapsAfterCommandRetime(
 	snapshots: readonly FramescaperVideoRetimeSnapshotRetime[],
 ): void {
 	restoreFramescaperVideoRetimeMapsRetime(commanded, conformFramescaperVideoRetimeSnapshotsForReprobeRetime(
-		before, commanded, command, snapshots,
+		before, commanded, command, conformFramescaperVideoRetimeReplacementSnapshots(before, commanded, command, snapshots),
 	));
 }
 

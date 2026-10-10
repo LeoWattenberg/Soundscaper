@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "it",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:755763471350758dc8c8e17eb9779b64f76c6ad8dd909a644229a899d6903afb","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","Numero di canali in uscita"],
 		"mixMenu": ["machine","Mix","Mix"],
 		"mixRender": ["machine","Mix and render","Missaggio e rendering"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","Le tracce bloccate non possono essere sostituite. Deseleziona «Sostituisci gli originali» per creare nuove tracce."],
 		"mixRenderNew": ["machine","Mix and render to new track","Missaggio e rendering su nuova traccia"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","Seleziona Mixdown o Rendering degli effetti per continuare."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","Seleziona almeno una traccia audio che contenga audio."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","Apri progetti"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Apri file di progetto Scape ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","Ottimizza per"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Memoria mantiene l’attuale caricamento dell’editor su richiesta. Velocità carica in anticipo gli strumenti dell’editor; gli strumenti di IA e i motori di elaborazione continuano a caricarsi quando vengono usati. Riavvia l’editor desktop per applicare le modifiche."],
 		"optimizeForMemory": ["machine","Memory","Memoria"],
 		"optimizeForSpeed": ["machine","Speed","Velocità"],
 		"options": ["machine","Options","Opzioni"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","Sovrapposizione Interagisci"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","La superficie Interagisci fuori schermo 64 per 64 è pronta."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","Il plug-in ha richiesto e completato un ridisegno fuori schermo."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","La sequenza di azioni Interagisci è esaurita."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","Obiettivo Interagisci"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","Il trasporto OpenFX Interagisci fuori schermo non è disponibile."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","Invio azioni Interagisci normalizzate"],

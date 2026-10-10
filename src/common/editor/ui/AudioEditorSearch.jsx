@@ -157,7 +157,7 @@ export default function AudioEditorSearch({
 
 	useEffect(() => {
 		const openFromShortcut = (event) => {
-			if (isWorkspaceModalShortcutTarget(event.target)) return;
+			if (event.isComposing || event.keyCode === 229 || isWorkspaceModalShortcutTarget(event.target)) return;
 			const commandFind = matchesAudioEditorShortcutBinding(event, 'Ctrl+K');
 			if (!commandFind) return;
 			event.preventDefault();

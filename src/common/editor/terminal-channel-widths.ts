@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { StripRef } from './parameter-address.ts';
+
 interface TerminalWidthSource {
 	readonly id?: unknown;
 	readonly channelCount?: unknown;
@@ -44,6 +46,37 @@ export interface TerminalChannelWidths {
 }
 
 const MAX_WEB_AUDIO_CHANNELS = 32;
+
+interface PanProject extends TerminalWidthProject {
+	readonly masterChannels?: number;
+	readonly metadata?: Readonly<{ adm?: Readonly<{ mode?: unknown }> }>;
+	readonly mixer?: TerminalWidthProject['mixer'] & Readonly<{
+		schemaVersion?: unknown;
+		edges?: readonly unknown[];
+		cues?: readonly TerminalWidthBus[];
+	}>;
+}
+
+/** Preserve channel identity where the engine deliberately suspends stereo pan. */
+export function stereoStripPanAvailable(channelCount: number, admMode: unknown): boolean {
+	return channelCount <= 2 && admMode !== 'authored' && admMode !== 'passthrough';
+}
+
+/** The controls and automation selector must offer only an audible strip pan. */
+export function projectStripPanAvailable(projectValue: unknown, strip: StripRef): boolean {
+	const project = projectValue as PanProject | null | undefined;
+	const mode = project?.metadata?.adm?.mode;
+	if (!stereoStripPanAvailable(2, mode)) return false;
+	const mixer = project?.mixer;
+	if (mixer?.schemaVersion !== 1 || !Array.isArray(mixer.edges)) return true;
+	const fallback = supportedChannelCount(project?.masterChannels) || 2;
+	const widths = resolveTerminalChannelWidths(project, fallback);
+	const width = strip.kind === 'master' ? fallback : strip.kind === 'track'
+		? widths.tracks.get(strip.id) ?? 2
+		: widths.groups.get(strip.id) ?? widths.sends.get(strip.id)
+			?? (supportedChannelCount(mixer.cues?.find(cue => cue.id === strip.id)?.channelCount) || fallback);
+	return stereoStripPanAvailable(width, mode);
+}
 
 /** Resolve the channel width that actually reaches every terminal mixer strip. */
 export function resolveTerminalChannelWidths(

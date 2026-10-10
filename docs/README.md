@@ -87,6 +87,12 @@ belong in Git history, not in the maintained documentation set.
   [import and export](development/bugfix-round6-io.md).
 - The [sixth audit index](development/bugfix-round6.md) records its target,
   counting criteria and verification status.
+- The seventh regression audit covers [editing](development/bugfix-round7-editing.md),
+  [dialogs](development/bugfix-round7-dialogs.md),
+  [effects and analysis](development/bugfix-round7-effects-analysis.md), and
+  [import and export](development/bugfix-round7-io.md).
+- The [seventh audit index](development/bugfix-round7.md) records ordinary
+  user-path qualification and verification checkpoints.
 
 ## Operate and release
 

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
+import { resolveSelectionRange } from '../../selection-range.ts';
 
 export function TimelineAnnotationLaneActions({
 	controller, project, annotations, copy, blocked, run, createAnnotation, focusCreated,
@@ -8,6 +9,7 @@ export function TimelineAnnotationLaneActions({
 	const [status, setStatus] = usePresentationFeedback(copy);
 	const statusId = React.useId();
 	const actions = controller.actions.timelineAnnotations;
+	const regionSelection = resolveSelectionRange(project) ?? project.selection;
 	const requestedIds = Array.isArray(project.selection?.annotationIds)
 		? project.selection.annotationIds
 		: [];
@@ -35,7 +37,7 @@ export function TimelineAnnotationLaneActions({
 			<button type="button" aria-label={copy.addTimelineMarker}
 				disabled={blocked} onClick={() => createAnnotation('marker', focusCreated)}>+M</button>
 			<button type="button" aria-label={copy.addTimelineRegion}
-				disabled={blocked || !(project.selection?.endFrame > project.selection?.startFrame)}
+				disabled={blocked || !(regionSelection?.endFrame > regionSelection?.startFrame)}
 				onClick={() => createAnnotation('region', focusCreated)}>+R</button>
 			<button type="button" aria-label={copy.batchTimelineAnnotations}
 				disabled={blocked || selectedIds.length < 2} onClick={() => batch(true)}>B</button>

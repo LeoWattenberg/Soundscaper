@@ -77,7 +77,8 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	if (options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
 	if (options.productId === 'soundscaper') enableParallelEffectStackPlayback(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
-	const playbackPreviews = createPlaybackPreviewEngines(renderEngineFactory, () => engine.getPlaybackGain());
+	const playbackPreviews = createPlaybackPreviewEngines(renderEngineFactory, () => engine.getPlaybackGain(),
+		() => engine.getOutputDeviceState?.().preferredDeviceId ?? '');
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({
 		store, client: options.staffPadRenderClient,
 		loadSourceChannels: async (source: Readonly<{ id: string; frameCount: number; channelCount: number; storageKey?: string }>, context = {}) => {

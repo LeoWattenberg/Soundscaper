@@ -203,10 +203,12 @@ function cueFileName(value: string, line: number): string {
 
 function cueText(value: string, line: number, directive: string): string {
 	const trimmed = value.trim();
-	const text = trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2
+	const quoted = trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2;
+	const text = quoted
 		? trimmed.slice(1, -1)
 		: trimmed;
-	if (!text || (trimmed.startsWith('"') !== trimmed.endsWith('"'))) {
+	const emptyMetadata = quoted && (directive === 'TITLE' || directive === 'PERFORMER');
+	if ((!text && !emptyMetadata) || (trimmed.startsWith('"') !== trimmed.endsWith('"'))) {
 		throw cueError(`A CUE ${directive} directive is malformed.`, `INVALID_${directive}`, { line });
 	}
 	return text;

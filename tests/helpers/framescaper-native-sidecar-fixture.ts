@@ -16,12 +16,12 @@ const CHANNELS = Object.freeze({
 	finishWrite: 'save:finish', abortWrite: 'save:abort',
 });
 
-export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean; saveSuggestedName?: boolean; openSavedFile?: boolean }> = {}) {
+export async function nativeSidecarFixture(name: string, text: string | Uint8Array, options: Readonly<{ saveName?: string; cancelSave?: boolean; saveSuggestedName?: boolean; openSavedFile?: boolean; openSelectedFile?: typeof open }> = {}) {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-native-sidecar-'));
 	const path = join(directory, name);
 	await writeFile(path, text);
 	const owner = {};
-	const reads = new ReadCapabilityStore();
+	const reads = new ReadCapabilityStore({ openImpl: options.openSelectedFile ?? open });
 	const targets = new SaveTargetStore();
 	const saveOptions = { targets, openImpl: open };
 	const saves = new AtomicSaveManager(saveOptions);

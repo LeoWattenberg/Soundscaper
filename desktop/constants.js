@@ -111,6 +111,7 @@ export const IPC = Object.freeze({
 	reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile',
 	releaseLinkedOriginal: 'soundscaper:v1:linked-original:release',
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
+	releaseSaveTarget: 'soundscaper:v1:save:release-target',
 	beginWrite: 'soundscaper:v1:save:begin',
 	writeChunk: 'soundscaper:v1:save:chunk',
 	patchFinalPrefix: 'soundscaper:v1:save:prefix',

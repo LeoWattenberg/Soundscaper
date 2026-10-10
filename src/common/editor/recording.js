@@ -30,6 +30,7 @@ export async function createRecordingController({
 	channelCount = 1,
 	chunkFrames = 4096,
 	monitor = false,
+	monitorDestination = /** @type {AudioNode | null} */ (null),
 	fixedStopFrame = false,
 	inputGain = RECORDING_INPUT_GAIN_DEFAULT,
 	onChunk,
@@ -74,7 +75,7 @@ export async function createRecordingController({
 	});
 	const node = createNode(context, processorName, nodeOptions);
 	source.connect(node);
-	node.connect(context.destination);
+	node.connect(monitorDestination ?? context.destination);
 
 	let state = 'ready';
 	let disposed = false;
@@ -82,6 +83,7 @@ export async function createRecordingController({
 	let acceptingChunks = true;
 	let pendingChunks = 0;
 	let writeQueue = Promise.resolve();
+	const pauseCompletions = /** @type {Array<(() => void) | undefined>} */ ([]);
 	let writeError = null;
 	let stopRequest = null;
 	let startRequest = null;
@@ -109,6 +111,7 @@ export async function createRecordingController({
 		startConfirmed,
 		rescheduleConfirmed,
 		pause,
+		pauseAfterFlush: pause,
 		resume,
 		stop,
 		setMonitoring(enabled) {
@@ -148,6 +151,7 @@ export async function createRecordingController({
 				failure = error;
 			} finally {
 				disposed = true;
+				pauseCompletions.length = 0;
 				settleStartRequest(new Error('The recording controller has been disposed.'));
 				settleRescheduleRequest(new Error('The recording controller has been disposed.'));
 				acceptingChunks = false;
@@ -289,9 +293,11 @@ export async function createRecordingController({
 		else request.resolve(result);
 	}
 
-	function pause() {
+	/** @param {(() => void) | undefined} [onFlushed] */
+	function pause(onFlushed) {
 		assertMutable();
 		if (state !== 'recording') return false;
+		pauseCompletions.push(onFlushed);
 		try {
 			node.port.postMessage({ type: 'pause' });
 		} catch (error) {
@@ -383,7 +389,7 @@ export async function createRecordingController({
 			} catch (error) {
 				failRecording(error);
 			}
-		} else if (message.type === 'started' && startRequest?.requestId === message.requestId) {
+		} else if (message.type === 'started' && startRequest && startRequest.requestId === message.requestId) {
 			if (message.startFrame !== startRequest.startFrame) {
 				failRecording(new Error('The recording worklet acknowledged a different start frame.'));
 				return;
@@ -437,6 +443,8 @@ export async function createRecordingController({
 				else settleStop(null, { frame: message.frame });
 			});
 		} else if (message.type === 'paused' && !disposing) {
+			const onFlushed = pauseCompletions.shift();
+			writeQueue = writeQueue.then(() => onFlushed?.()).catch(failRecording);
 			state = 'paused';
 			notifyState();
 		} else if (message.type === 'resumed' && !disposing) {
@@ -453,6 +461,7 @@ export async function createRecordingController({
 		if (disposed) return;
 		const failure = error instanceof Error ? error : new Error(String(error));
 		const firstFailure = writeError == null;
+		pauseCompletions.length = 0;
 		if (firstFailure) writeError = failure;
 		settleStartRequest(failure);
 		settleRescheduleRequest(failure);

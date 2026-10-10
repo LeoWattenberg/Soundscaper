@@ -49,7 +49,7 @@ for (const control of ['label-box', 'left-ear', 'right-ear']) for (const button 
 				reactProps(surface).onMouseDown?.(event);
 			});
 			await act(async () => dispatch(listeners.get('mousemove'), { clientX: 80 } as MouseEvent));
-			await act(async () => dispatch(listeners.get('mouseup'), new Event('mouseup')));
+			await act(async () => dispatch(listeners.get('mouseup'), Object.assign(new Event('mouseup'), { button: 0 })));
 			assert.equal(updates.length, button === 0 ? 1 : 0);
 			assert.deepEqual(claims, button === 0 ? ['prevent', 'stop'] : []);
 			if (button === 0 && control === 'label-box')

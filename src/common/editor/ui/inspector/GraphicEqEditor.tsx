@@ -125,9 +125,11 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 		<div className="audio-editor-graphic-eq__viewport">
 			<div className="audio-editor-graphic-eq__board" tabIndex={-1}
 				onPointerDownCapture={begin} onPointerMoveCapture={(event) => {
-					if (pointer.current === event.pointerId && !disabled) preview(gesture.current.move(atEvent(event)), true);
-				}} onPointerUpCapture={finish} onPointerCancel={cancel}
-				onLostPointerCapture={() => { if (pointer.current !== null) cancel(); }}
+					if (pointer.current !== event.pointerId || disabled) return;
+					if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finish(event); return; }
+					preview(gesture.current.move(atEvent(event)), true);
+				}} onPointerUpCapture={finish} onPointerCancel={(event) => { if (pointer.current === event.pointerId) cancel(); }}
+				onLostPointerCapture={(event) => { if (pointer.current === event.pointerId) cancel(); }}
 				onDoubleClick={(event) => {
 					if (disabled || event.button !== 0) return;
 					const index = elements.current.findIndex((element) => {

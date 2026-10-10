@@ -347,7 +347,7 @@ const definitions = {
 			outputGainDb: number(-6, -30, 30, { unit: 'dB', step: 0.1 }),
 		},
 	},
-	'audacity-repair': { category: 'repair', requiresContext: true, params: {} },
+	'audacity-repair': { category: 'repair', requiresContext: true, maximumInputFrames: 128, params: {} },
 	'audacity-remove-dc-offset': { category: 'repair', params: {} },
 	'audacity-reverb': {
 		category: 'delay',

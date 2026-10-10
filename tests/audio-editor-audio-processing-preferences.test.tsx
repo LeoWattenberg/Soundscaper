@@ -12,7 +12,7 @@ import { appendParallelStackProcessingMenu, type ParallelStackMenuItem } from '.
 
 function render(blocked: boolean, section = 'audio', liveBlocked = blocked): string {
 	const items = appendParallelStackProcessingMenu([], {
-		productId: 'soundscaper', desktop: true, blocked, isBlocked: () => liveBlocked,
+		productId: 'soundscaper', blocked, isBlocked: () => liveBlocked,
 		preferences: { enabled: true, workerLimit: 2, pipelineFrames: 1536 },
 		status: { state: 'unsupported', reason: 'Unsupported rack', sampleRate: 48000 },
 	}, () => undefined);

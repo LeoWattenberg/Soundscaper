@@ -162,7 +162,7 @@ test('invalid effect result layouts fail before persistence', async (suite) => {
 		{ name: 'empty result list', results: [], message: 'Invalid audio.' },
 		{ name: 'missing target', results: [{ channels: [new Float32Array(1)] }], message: 'Invalid audio.' },
 		{ name: 'missing channels', results: [{ target: target('track-1') }], message: 'Invalid audio.' },
-		{ name: 'more than stereo', results: [{ target: target('track-1', { channelCount: 3 }), channels: [new Float32Array(1), new Float32Array(1), new Float32Array(1)] }], message: 'Invalid audio.' },
+		{ name: 'more than the native channel bound', results: [{ target: target('track-1', { channelCount: 33 }), channels: Array.from({ length: 33 }, () => new Float32Array(1)) }], message: 'Invalid audio.' },
 		{ name: 'non-Float32 channel', results: [{ target: target('track-1'), channels: [[1]] }], message: 'Channel lengths changed.' },
 		{ name: 'unequal channels', results: [{ target: target('track-1', { channelCount: 2 }), channels: [new Float32Array(2), new Float32Array(3)] }], message: 'Channel lengths changed.' },
 		{ name: 'changed layout', results: [{ target: target('track-1', { channelCount: 2 }), channels: [new Float32Array(2)] }], message: 'Channel layout changed.' },

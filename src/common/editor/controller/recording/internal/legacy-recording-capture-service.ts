@@ -64,10 +64,10 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const sampleRate = runtime.projectSampleRate(project);
 			let stream = runtime.capturePool.getHardware?.(runtime.defaultDeviceId) || null;
 			if (options.reusePreparedInputsOnly
-				&& (!stream || runtime.streamAudioChannelCount(stream) < 2)) {
+				&& (!stream || !runtime.recordingStreamIsLive(stream, 'device'))) {
 				throw createLocalizedError(Error, { ['recordingPreparedInputClosed']: runtime.messages.preparedInputClosed }, 'recordingPreparedInputClosed');
 			}
-			stream = await runtime.capturePool.acquireHardware(runtime.defaultDeviceId, {
+			if (!options.reusePreparedInputsOnly || !stream) stream = await runtime.capturePool.acquireHardware(runtime.defaultDeviceId, {
 				channelCount: 2,
 				sampleRate,
 			});

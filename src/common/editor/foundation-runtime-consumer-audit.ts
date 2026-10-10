@@ -30,6 +30,10 @@ export interface FoundationRuntimeProjectionImporterExclusion {
 
 /** Projection adapters admitted by the WP-0.2 shield audit. */
 export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntimeProjectionBoundary[] = deepFreeze([
+	{ boundary: 'resolveTimelineAnnotationRegionRange', file: 'src/common/editor/controller/document/internal/annotations/timeline-annotation-region-range.ts', root: false, delegate: 'resolveSelectionRange', guardsBrand: false },
+	{ boundary: 'resolveSelectionRange', file: 'src/common/editor/selection-range.ts', root: false, delegate: 'clipContentRange', guardsBrand: false },
+	{ boundary: 'clipContentRange', file: 'src/common/editor/clip-content-range.ts', root: false, delegate: 'projectedClipContentRange', guardsBrand: false },
+	{ boundary: 'projectedClipContentRange', file: 'src/common/editor/clip-content-range.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
 	{ boundary: 'resolveRuntimeClipProjection', file: 'src/common/editor/runtime-clip-projection.ts', root: true, delegate: null, guardsBrand: false },
 	{ boundary: 'resolveProjectBinAudioPreviewClip', file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
 	{ boundary: 'projectBinReplacementShortensClip', file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
@@ -122,6 +126,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/ui/workspace/project-bin-warp-ranges.ts', surfaces: ['waveform'] },
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
+	{ file: 'src/common/editor/ui/export-dialog-embedded-chapters.ts', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/export-clip-boundaries.ts', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/export-clips.ts', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/aup4-export.js', surfaces: ['interchange'] },
@@ -129,6 +134,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/timeline-annotation-riff-interchange.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/project-attribution-report.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/export/interchange-export-action.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/import/internal/dawproject/dawproject-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', surfaces: ['composition'] },
@@ -144,7 +150,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
-	{ file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', surfaces: ['navigation'] },
+	{ file: 'src/common/editor/clip-content-range.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
@@ -165,8 +171,8 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 		reason: 'Contextual item movement converts exact authored visual sequence boundaries through the owning sequence clock, delegates musical geometry to its registered projection helper, and preserves sample-authoritative legacy clips without using native visual audio aliases.',
 	},
 	{
-		file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', entryPoint: 'clipContentRange',
-		reason: 'Track selection converts authored visual sequence boundaries through the exact owning sequence clock, delegates musical sample geometry to its registered projection helper, and reads legacy sample-authoritative clips directly; image and generator leaves have no audio source coordinates to project.',
+		file: 'src/common/editor/clip-content-range.ts', entryPoint: 'clipContentRange',
+		reason: 'Track and clip selection convert authored visual sequence boundaries through the exact owning sequence clock, delegates musical sample geometry to its registered projection helper, and reads legacy sample-authoritative clips directly; image and generator leaves have no audio source coordinates to project.',
 	},
 	{
 		file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', entryPoint: 'projectFrames',
@@ -175,6 +181,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 	{
 		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'projectBinVisualDurationFrames',
 		reason: 'Image, still, and generator cards read their authored sequence-frame count and explicitly convert that extent at the primary sequence clock; these leaves have no legacy audio or video runtime timing aliases to project.',
+	},
+	{
+		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'retimePreview',
+		reason: 'Private retimed preview helper runs after the registered bin preview projection boundary and intentionally binds persisted sequence/source frame ordinals to the authenticated source timing view; the authored retime curve is evaluated before drawable source timestamps are presented.',
 	},
 	{
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'rowsForProject',

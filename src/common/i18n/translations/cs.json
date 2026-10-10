@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:a3350156aca4d483716fd874d30bafe544dc4257b18b09e81bfa880a88b7e0c1","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["machine","Mix down to","Sloučit na"],
 		"mixMenu": ["machine","Mix","Mix"],
 		"mixRender": ["machine","Mix and render","Sloučit a vykreslit"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","Zamčené stopy nelze nahradit. Chcete-li vytvořit nové stopy, zrušte zaškrtnutí možnosti „Nahradit originály“."],
 		"mixRenderNew": ["machine","Mix and render to new track","Sloučit a vykreslit do nové stopy"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","Pro pokračování vyberte Sloučit stopy nebo Vykreslit efekty."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","Vyberte alespoň jednu zvukovou stopu obsahující zvuk."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","Otevřít projekty"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Otevřít soubor projektu Scape ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","Optimalizovat pro"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Paměť zachovává současné načítání editoru podle potřeby. Rychlost načítá nástroje editoru předem; nástroje AI a procesní moduly se dál načítají až při použití. Změny se projeví po restartování desktopového editoru."],
 		"optimizeForMemory": ["machine","Memory","Paměť"],
 		"optimizeForSpeed": ["machine","Speed","Rychlost"],
 		"options": ["machine","Options","Možnosti"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","Překryv Interakce"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","Povrch Interakce mimo obrazovku 64x64 je připraven."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","Plug-in požadoval a dokončil překreslení mimo obrazovku."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","Sekvence akcí Interakce je vyčerpána."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","Cíl Interakce"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","Mimoobrazovkový transport OpenFX Interakce není k dispozici."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","Odesílání normalizovaných akcí Interakce"],

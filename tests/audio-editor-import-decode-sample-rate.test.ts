@@ -87,8 +87,7 @@ test('a native decode skips the offline hop when it would change nothing', async
 	assert.deepEqual(OfflineContextStub.constructedRates, [], 'the realtime context already runs at the source rate');
 	assert.equal(realtime.decoded.length, 1);
 
-	// The video import path conforms its audio to the project rate itself and
-	// passes no source rate, so it must keep decoding as it always did.
+	// An explicitly unpinned caller retains its existing device-rate behavior.
 	await engine.decodeAudioData(encodedBytes());
 	assert.deepEqual(OfflineContextStub.constructedRates, []);
 	assert.equal(realtime.decoded.length, 2);

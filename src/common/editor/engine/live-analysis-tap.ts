@@ -51,7 +51,7 @@ export function ensureLiveAnalysisTap(
 				connect(splitter, analyser, channel, 0);
 			}
 			spectrum = spectrumChannels[0] ?? null;
-			for (let channel = 0; channel < 2; channel += 1) {
+			for (let channel = 0; channel < Math.min(2, width); channel += 1) {
 				const analyser = addNode(nodes, context.createAnalyser());
 				analyser.fftSize = STEREO_FFT_SIZE;
 				connect(splitter, analyser, channel, 0);

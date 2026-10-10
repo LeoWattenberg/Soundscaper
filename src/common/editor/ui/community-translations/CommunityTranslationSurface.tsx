@@ -106,7 +106,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 			searchRef.current?.focus({ preventScroll: true });
 		};
 		const cancel = (event: KeyboardEvent): void => {
-			if (event.key !== 'Escape') return;
+			if (event.isComposing || event.keyCode === 229 || event.key !== 'Escape') return;
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			setPicking(false);
@@ -155,7 +155,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 	return <section ref={panelRef} role="dialog" aria-label={copy.title} tabIndex={-1}
 		data-community-translation-surface data-side={side} dir={getLocaleDescriptor(locale)?.direction ?? 'ltr'}
 		className="community-translations" style={themeVariables as CSSProperties} onKeyDown={(event) => {
-			if (event.nativeEvent.isComposing) return;
+			if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
 			if (event.key === 'Tab') event.stopPropagation();
 			if (event.key === 'Escape' && !picking) { event.preventDefault(); event.stopPropagation(); onClose(); }
 		}}>

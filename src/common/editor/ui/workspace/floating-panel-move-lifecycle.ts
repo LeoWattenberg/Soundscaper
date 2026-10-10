@@ -7,9 +7,12 @@ export function retainFloatingPanelMoveLifecycle(
 	target: Pick<Window, 'addEventListener' | 'removeEventListener'>,
 	session: { current: FloatingWorkspacePanelMove | null },
 ): () => void {
-	const move = (event: PointerEvent): void => { session.current?.move(event); };
 	const finish = (event: PointerEvent): void => {
 		if (session.current?.finish(event)) session.current = null;
+	};
+	const move = (event: PointerEvent): void => {
+		if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) finish(event);
+		else session.current?.move(event);
 	};
 	const cancel = (event: PointerEvent): void => {
 		if (session.current?.cancel(event)) session.current = null;

@@ -3,7 +3,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readdir, readlink, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-
+import nativeFixtureSources from './desktop-nightly-tests-native-fixture-inputs.cjs';
+import { NIGHTLY_BROWSER_CODEC_INPUTS } from './desktop-nightly-tests-browser-codec-inputs.mjs';
 import {
 	assertDirectory,
 	assertRegularFile,
@@ -50,6 +51,7 @@ export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 const ESBUILD_BINARY_SCOPE = '@esbuild';
 
 export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
+	...nativeFixtureSources.filter(source => !source.startsWith('src/')).map(source => ({ source, destination: source, kind: 'file', label: 'native browser fixture support' })),
 	...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => ({
 		source: `desktop/bundled-${format}-stream.ts`, destination: `desktop/bundled-${format}-stream.ts`,
 		kind: 'file', label: `${format} browser import fixture support`,
@@ -63,9 +65,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 		source: `desktop/${file}`, destination: `desktop/${file}`,
 		kind: 'file', label: 'native file-capability browser fixture support',
 	})),
-	{ source: 'desktop/desktop-audio-codec-capability-contract.ts', destination: 'desktop/desktop-audio-codec-capability-contract.ts', kind: 'file', label: 'browser codec capability source map input' },
-	{ source: 'desktop/desktop-audio-codec-operation-contract.ts', destination: 'desktop/desktop-audio-codec-operation-contract.ts', kind: 'file', label: 'browser codec operation source map input' },
-	{ source: 'desktop/desktop-video-codec-operation-contract.ts', destination: 'desktop/desktop-video-codec-operation-contract.ts', kind: 'file', label: 'browser video codec operation fixture support' },
+	...NIGHTLY_BROWSER_CODEC_INPUTS,
 	{ source: 'desktop/coverage-checkpoint-exit.mjs', destination: 'desktop/coverage-checkpoint-exit.mjs', kind: 'file', label: 'Electron V8 coverage exit checkpoint' },
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-assistance-host.mjs', destination: 'desktop/nightly-tests-assistance-host.mjs', kind: 'file', label: 'nightly-only real assistance Electron host' },
@@ -168,16 +168,19 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/helpers/png-fixture.mjs', destination: 'tests/helpers/png-fixture.mjs', kind: 'file', label: 'timeline image browser support fixture' },
 	{ source: 'tests/helpers/framescaper-ordinary-animation-fixture.ts', destination: 'tests/helpers/framescaper-ordinary-animation-fixture.ts', kind: 'file', label: 'ordinary animated image browser support fixture' },
 	{ source: 'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts', destination: 'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts', kind: 'file', label: 'ordinary high-precision PNG browser support fixture' },
+	...['desktop-preload-source.mjs', 'ordinary-cover-mp3-fixture.ts', 'native-original-import-fixture.ts', 'ordinary-ogg-opus-fixture.ts', 'ordinary-tail-m4a-fixture.ts', 'os-audio-codec-fixtures.ts', 'round7-speech-preview-bridge.ts', 'round7-warp-drums.ts'].map(file => ({
+		source: `tests/helpers/${file}`, destination: `tests/helpers/${file}`, kind: 'file', label: 'ordinary browser workflow fixture support',
+	})),
 	{ source: 'tests/helpers/interchange-reference.ts', destination: 'tests/helpers/interchange-reference.ts', kind: 'file', label: 'external interchange reader browser support helper' },
 	{ source: 'tests/helpers/framescaper-native-sidecar-fixture.ts', destination: 'tests/helpers/framescaper-native-sidecar-fixture.ts', kind: 'file', label: 'native sidecar chooser/read/save browser support fixture' },
 	{ source: 'tests/helpers/libsndfile-rifx-fixture.ts', destination: 'tests/helpers/libsndfile-rifx-fixture.ts', kind: 'file', label: 'normal RIFX browser import fixture' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
-	{ source: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', destination: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', kind: 'file', label: 'ordinary BWF MetaEdit browser import fixture' },
-	{ source: 'tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', destination: 'tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', kind: 'file', label: 'ordinary recorder iXML browser delivery fixture' },
+	...['tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', 'tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', 'tests/fixtures/ffmpeg-libmp3lame-one-second.mp3.base64', 'desktop/original-file-overwrite.ts'].map(source => ({
+		source, destination: source, kind: 'file', label: 'ordinary native original media browser workflow support',
+	})),
 	{ source: 'tests/fixtures/nyquist-archive', destination: 'tests/fixtures/nyquist-archive', kind: 'directory', label: 'Nyquist browser archive and notices' },
 	{ source: 'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', destination: 'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', kind: 'file', label: 'Nyquist browser catalog metadata' },
 ]);
-
 const REQUIRED_NOTICE_FILES = Object.freeze({
 	'@axe-core/playwright': Object.freeze(['LICENSE']),
 	'@echogarden/pffft-wasm': Object.freeze(['COPYING']),
@@ -192,7 +195,6 @@ const REQUIRED_NOTICE_FILES = Object.freeze({
 const NOTICE_NAME = /^(?:copying|licen[cs]e|notice|thirdpartynotice[a-z]*)(?:[._-].*)?$/iu;
 const PACKAGE_NAME = /^(?:@[a-z\d](?:[a-z\d._-]*[a-z\d])?\/[a-z\d](?:[a-z\d._-]*[a-z\d])?|[a-z\d](?:[a-z\d._-]*[a-z\d])?)$/u;
 const SOURCE_REVISION = /^[a-f\d]{40}$/u;
-
 export async function stageDesktopNightlyTests({
 	repositoryRoot,
 	outputRoot,

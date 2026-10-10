@@ -7,6 +7,7 @@ import { canonicalParameterAddressKey, normalizeParameterAddress, type Parameter
 import { createParameterGestureAdapter, type ParameterGestureSession } from '../../effects/effect-gesture-safety.ts';
 import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
+import { projectStripPanAvailable } from '../../../terminal-channel-widths.ts';
 
 type StripAddress = Extract<ParameterAddress, { readonly kind: 'strip' }>;
 type Runtime = Pick<EditorActionRuntime, 'getProject' | 'copy'> & Readonly<{
@@ -42,6 +43,7 @@ export function createMixerParameterActions(runtime: Runtime) {
 		if (!persisted) return null;
 		const project = projectForRuntimeConsumers(persisted) as unknown as StripProject;
 		const strip = address.strip;
+		if (address.parameterId === 'pan' && !projectStripPanAvailable(project, strip)) return null;
 		if (strip.kind === 'master') return { address, scope: 'master' as const, id: null, channel: project.master };
 		if (strip.kind === 'track') {
 			const track = project.tracks.find((candidate) => candidate.id === strip.id && candidate.type === 'audio');

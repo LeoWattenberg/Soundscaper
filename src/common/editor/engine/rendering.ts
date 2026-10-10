@@ -54,7 +54,7 @@ import {
 	admitNativePluginRealtimeRender,
 	prepareNativePluginOfflineRuntimes,
 } from './native-plugin-realtime-render.ts';
-import { realtimeRenderUnderrunError, resolveRenderTailSeconds } from './rendering-range.ts';
+import { realtimeRenderUnderrunError, resolveRenderPreRollFrames, resolveRenderTailSeconds } from './rendering-range.ts';
 import { renderMix } from './rendering-offline-mix.ts';
 import { canStreamStatelessOffline, renderStatelessOfflineToSink } from './stateless-offline-stream.ts';
 import { admitsBoundedOfflineBackend } from './bounded-offline-backend-admission.ts';
@@ -87,7 +87,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		if (typeof onChunk !== 'function') throw new TypeError('Realtime rendering requires an onChunk callback.');
 		if (signal?.aborted) throw createAbortError();
 		if (preferBoundedOffline && admitsBoundedOfflineBackend() && sampleRate === this.sampleRate && canStreamStatelessOffline(this.project)
-			&& resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster }) === 0) {
+			&& resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster, respectMuteSolo }) === 0) {
 			return renderStatelessOfflineToSink(this, { startFrame, endFrame, includeTail, trackId, includeMaster, includeTrackPan,
 				respectMuteSolo, sampleRate, outputFrames: requestedOutputFrames, chunkFrames, onChunk, onProgress, signal });
 		}
@@ -101,9 +101,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		}
 		const fromFrame = clampFrame(startFrame, 0, this.durationFrames);
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
-		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
+		const renderFromFrame = fromFrame - resolveRenderPreRollFrames(this.project, fromFrame, preRollFrames,
+			{ trackId, includeMaster, respectMuteSolo });
 		const warmupProjectFrames = fromFrame - renderFromFrame;
-		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
+		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster, respectMuteSolo }) * this.sampleRate);
 		const outputChannelCount = clamp(positiveInteger(this.project.masterChannels, 2), 1, 32);
 		const sinkAdmission = planRealtimePcmSinkQueueAdmission({
 			channelCount: outputChannelCount,

@@ -13,7 +13,7 @@ interface StreamingStemArchiveExport {
 	readonly conformance: readonly DeliveryConformanceFinding[];
 	readonly blob: Blob;
 	readonly fileName: string;
-	readonly cleanup: RuntimeValue;
+	readonly cleanup: () => Promise<void>;
 }
 
 /**
@@ -59,6 +59,7 @@ export async function streamStemArchiveExport({
 }): Promise<StreamingStemArchiveExport> {
 	if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
 	const archive = await createStreamingStemArchive(plan.archive, copy, { signal: abortSignal, confirmFileSizeWarning });
+	let finishedCleanup: StreamingStemArchiveExport['cleanup'] | null = null;
 	try {
 		const findings: DeliveryConformanceFinding[] = [];
 		const chapters = plan.mode === 'chapters';
@@ -85,7 +86,9 @@ export async function streamStemArchiveExport({
 			}
 			reportProgress((index + 1) / plan.outputs.length);
 		}
-		const result = await archive.finish();
+		const result = await archive.finish() as Pick<StreamingStemArchiveExport, 'blob' | 'cleanup'>;
+		// Admission can still be cancelled before the caller owns the finished file.
+		finishedCleanup = result.cleanup;
 		return {
 			conformance: Object.freeze(findings),
 			blob: await admitAudioExportBlob(result.blob, 'Audio stem archive', admitOutputBytes, { signal: abortSignal, confirmFileSizeWarning }),
@@ -93,7 +96,8 @@ export async function streamStemArchiveExport({
 			cleanup: result.cleanup,
 		};
 	} catch (error) {
-		await archive.abort();
+		if (finishedCleanup) await finishedCleanup();
+		else await archive.abort();
 		throw error;
 	}
 }

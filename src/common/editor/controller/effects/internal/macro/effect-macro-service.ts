@@ -368,6 +368,9 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		const snapshotTrack = snapshot.tracks.find((track) => track.id === target.track.id);
 		if (!snapshotTrack) throw createLocalizedError(Error, runtime.copy, 'audioTrackNotFound');
 		if (isSoundscaperProductionProject(snapshot)) {
+			if (typeof snapshot.masterChannels === 'number' && target.channelCount > snapshot.masterChannels) {
+				snapshot.masterChannels = target.channelCount;
+			}
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId: target.track.id,
 				effects,

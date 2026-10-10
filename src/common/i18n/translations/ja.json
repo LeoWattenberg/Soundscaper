@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:3d4259438d1aab13893593d14623da22ca3d68f38f78d07eec7a1c9f275ff1d9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","出力チャンネル数"],
 		"mixMenu": ["machine","Mix","ミックス"],
 		"mixRender": ["machine","Mix and render","ミックスしてレンダリング"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","ロックされたトラックは置き換えられません。新しいトラックを作成するには「オリジナルを置き換える」のチェックを外してください。"],
 		"mixRenderNew": ["machine","Mix and render to new track","ミックスして新しいトラックにレンダリング"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","「ミックスダウン」または「エフェクトのレンダリング」を選択して続行してください。"],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","オーディオを含む少なくとも 1 つのオーディオ トラックを選択してください。"],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","プロジェクトを開く"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scapeプロジェクトファイルを開く ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","最適化の対象"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","メモリは、必要なときにエディターを読み込む現在の動作を維持します。速度はエディターのツールを事前に読み込みますが、AIツールと処理エンジンは引き続き使用時に読み込まれます。変更を適用するにはデスクトップエディターを再起動してください。"],
 		"optimizeForMemory": ["machine","Memory","メモリ"],
 		"optimizeForSpeed": ["machine","Speed","速度"],
 		"options": ["machine","Options","オプション"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","オーバーレイ インタラクト"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","64 x 64 オフスクリーン インタラクト サーフェスが準備されました。"],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","プラグインがオフスクリーンの再描画を要求し、完了しました。"],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","インタラクト アクション シーケンスが使い果たされました。"],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","インタラクト ターゲット"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","オフスクリーンの OpenFX インタラクト トランスポートは利用できません。"],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","正規化されたインタラクト アクションを送信中"],

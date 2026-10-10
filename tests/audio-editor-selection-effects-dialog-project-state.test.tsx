@@ -139,6 +139,38 @@ test('selection effect preset import sends the open effect and Audacity file nam
 	}
 });
 
+test('selection effect preset persistence reports refusal while retaining the name for retry', async () => {
+	const fixture = await mountedSelectionEffectsFixture();
+	try {
+		await fixture.render(effectProject('preset-refusal'), { gainDb: 3 });
+		await fixture.openPresetPrompt();
+		await fixture.typePresetName('Healthy room');
+		await fixture.startPresetSaveAs();
+		await settle(fixture.saveCalls[0]!.completion, {
+			id: 'healthy', effectType: 'audacity-amplify', name: 'Healthy room', params: {},
+		});
+		assert.equal(fixture.presetPrompt(), null);
+		await fixture.openPresetPrompt();
+		await fixture.typePresetName('Keep my room');
+		await fixture.startPresetSaveAs();
+		await act(async () => {
+			fixture.saveCalls[1]!.completion.reject(new Error('The device storage is full.'));
+			await Promise.resolve();
+		});
+		assert.equal(fixture.alert()?.textContent, 'The device storage is full.');
+		assert.equal(fixture.presetNameInput().value, 'Keep my room');
+		await fixture.startPresetSaveAs();
+		assert.equal(fixture.saveCalls[2]!.request.name, 'Keep my room');
+		await settle(fixture.saveCalls[2]!.completion, {
+			id: 'retry', effectType: 'audacity-amplify', name: 'Keep my room', params: {},
+		});
+		assert.equal(fixture.presetPrompt(), null);
+		assert.equal(fixture.alert(), null);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('reviewed Utility Gain uses the canonical selection-effect label and parameter range', async () => {
 	const fixture = await mountedSelectionEffectsFixture();
 	try {
@@ -480,4 +512,5 @@ async function settle<Value>(completion: Deferred<Value>, value: Value): Promise
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;
 	readonly resolve: (value: Value) => void;
+	readonly reject: (cause: unknown) => void;
 }

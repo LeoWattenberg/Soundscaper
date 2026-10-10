@@ -265,12 +265,11 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 			}>;
 			const { target: targetValue, channels: channelValue } = candidate;
 			const target = targetValue as EffectTarget;
-			const maximumChannelCount = target?.sourceId ? 32 : 2;
 			const rawChannels = Array.isArray(channelValue) ? channelValue as unknown[] : null;
 			const firstChannelLength = rawChannels?.[0] == null
 				? undefined
 				: (rawChannels[0] as Readonly<{ length?: unknown }>).length;
-			if (!targetValue || !rawChannels?.length || rawChannels.length > maximumChannelCount || firstChannelLength == null) {
+			if (!targetValue || !rawChannels?.length || rawChannels.length > 32 || firstChannelLength == null) {
 				throw createLocalizedError(Error, copy, 'effectInvalidAudio');
 			}
 			if (!rawChannels.every((channel): channel is Float32Array => (

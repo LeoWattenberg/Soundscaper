@@ -19,7 +19,7 @@ for (const destination of ['next-row', 'new-label', 'other-control'] as const) {
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 		const removed: string[] = [];
 		const controller = { actions: { labels: { remove(_trackId: string, id: string) { removed.push(id); },
-			update() {}, add() {} }, timeline: { setSelection() {} } }, getTelemetrySnapshot: () => ({ positionFrame: 0 }) };
+			update() {}, add() {} }, timeline: { setExactSelection() {} } }, getTelemetrySnapshot: () => ({ positionFrame: 0 }) };
 		const labels = [{ id: 'first', title: 'First', startFrame: 0, endFrame: 0 },
 			{ id: 'second', title: 'Second', startFrame: 48000, endFrame: 48000 }];
 		const render = async (ids: readonly string[]): Promise<void> => {

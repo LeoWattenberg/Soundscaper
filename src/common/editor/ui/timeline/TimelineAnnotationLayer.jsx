@@ -45,7 +45,6 @@ export function TimelineAnnotationLayer({
 	const lastPointerTargetRef = useRef(null);
 	const [preview, setPreview] = useState(null);
 	const clearPreview = useCallback(() => { pointerFlushRef.current?.(true); setPreview(null); }, []);
-	useTimelineAnnotationDragCancellation(layerRef, dragRef, clearPreview);
 	const statusId = React.useId();
 	const {
 		actions,
@@ -77,6 +76,7 @@ export function TimelineAnnotationLayer({
 		deferKeyboardFocus: true,
 		revealKeyboardFocus: true,
 	});
+	useTimelineAnnotationDragCancellation(layerRef, dragRef, clearPreview, projected);
 	const rowById = React.useMemo(() => new Map(model.rows.map((row) => [row.id, row])), [model.rows]);
 	const ordinalById = React.useMemo(() => new Map(projected.map((annotation, index) => [annotation.id, index])), [projected]);
 	const viewportIndex = React.useMemo(() => projected.length > 128 ? createTimelineAnnotationViewportIndex(projected) : null, [projected]);
@@ -141,6 +141,8 @@ export function TimelineAnnotationLayer({
 			annotation: row.annotation,
 			gesture: { ...gesture, dragIds: bounds.ids },
 			idSet: new Set(bounds.ids),
+			ranges: new Map(projected.filter(annotation => bounds.ids.includes(annotation.id))
+				.map(annotation => [annotation.id, { start: annotation.timelineStartFrame, end: annotation.timelineEndFrame }])),
 			edge,
 			startX: event.clientX,
 			minimumStartFrame: bounds.minimumStartFrame,
@@ -164,7 +166,9 @@ export function TimelineAnnotationLayer({
 	};
 	const queuePointerMove = useTimelinePointerFrame(applyPointerMove, dragRef, null, pointerFlushRef);
 	const pointerMove = (event) => {
-		if (dragRef.current?.pointerId === event.pointerId) queuePointerMove(event);
+		if (dragRef.current?.pointerId !== event.pointerId) return;
+		if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) pointerUp(event);
+		else queuePointerMove(event);
 	};
 	const pointerUp = (event, cancelled = false) => {
 		if (dragRef.current && dragRef.current.pointerId !== event.pointerId) return;

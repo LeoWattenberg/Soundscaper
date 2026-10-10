@@ -44,6 +44,8 @@ test('the switcher lists the product presets plus custom layouts and applies the
 		assert.equal(trigger.getAttribute('aria-expanded'), 'true');
 		const menu = fixture.body.querySelector('[role="menu"]');
 		assert.ok(menu, 'the menu opens');
+		assert.ok(trigger.getAttribute('aria-controls'), 'the native opener owns its actual portalled menu');
+		assert.equal(trigger.getAttribute('aria-controls'), menu.getAttribute('id'));
 		assert.equal(menu.parentNode, fixture.body, 'the menu is portaled to the body, outside the transformed action bar column');
 		assert.ok(menu.getAttribute('class')?.includes('kw-audio-editor__workspace-switcher-menu'));
 		assert.deepEqual(menuLabels(menu), ['Soundscaper', 'Audacity', 'Music', 'Classic', 'My layout']);

@@ -37,10 +37,10 @@ for (const shape of [false, true]) {
 		await act(async () => root.render(<Probe />));
 		const selector = shape ? '[data-clip-fade-shape-handle="in"]' : '[data-clip-fade-handle="in"]';
 		const control = dom.one(selector);
-		for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) {
+		for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) for (const key of ['b', 'Tab']) {
 			let stopped = 0;
 			let prevented = 0;
-			await act(async () => reactProps(control).onKeyDown({ key: 'b', currentTarget: control,
+			await act(async () => reactProps(control).onKeyDown({ key, currentTarget: control,
 				ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, [modifier]: true,
 				stopPropagation() { stopped += 1; }, preventDefault() { prevented += 1; } }));
 			assert.equal(stopped, 0, `${modifier} shortcuts belong to the editor`);

@@ -30,14 +30,15 @@ test('Blender publication preserves track identity, timing, mute and solo while 
 		tailFrames: () => 48,
 		renderSnapshot: async (_project, range) => {
 			ranges.push(range);
-			return { length: range.endFrame, numberOfChannels: 1, sampleRate: 48_000,
-				getChannelData: () => new Float32Array(range.endFrame).fill(0.25) };
+			const frames = range.endFrame + Math.round(range.includeTail * 48_000);
+			return { length: frames, numberOfChannels: 1, sampleRate: 48_000,
+				getChannelData: () => new Float32Array(frames).fill(0.25) };
 		},
 	}, { bridge: f.bridge, sessionId: 'session', projectId: 'project-a', revision: 2 });
 	assert.deepEqual(f.begins[0]?.tracks.map(({ id, startSeconds, durationSeconds, mute }) => ({ id, startSeconds, durationSeconds, mute })),
 		[{ id: 'a', startSeconds: 0, durationSeconds: 1.001, mute: false },
 			{ id: 'b', startSeconds: 0, durationSeconds: 1.001, mute: true }]);
-	assert.deepEqual(ranges, Array.from({ length: 2 }, () => ({ startFrame: 0, endFrame: 48_048, includeTail: false, includeMaster: false, respectMuteSolo: true })));
+	assert.deepEqual(ranges, Array.from({ length: 2 }, () => ({ startFrame: 0, endFrame: 48_000, includeTail: .001, includeMaster: false, respectMuteSolo: true })));
 	assert.equal(f.events.at(-1), 'commit');
 	for (const trackId of ['a', 'b']) {
 		const chunks = f.writes.filter((write) => write.trackId === trackId);

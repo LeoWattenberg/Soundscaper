@@ -50,6 +50,14 @@ export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, 
 		canceledPointerRef.current = pointerActiveRef.current;
 		void onGestureCancel?.();
 	};
+	const finishPointer = () => {
+		pointerIdRef.current = null;
+		pointerActiveRef.current = false;
+		endGesture();
+		if (canceledPointerRef.current) requestAnimationFrame(() => {
+			if (!pointerActiveRef.current) canceledPointerRef.current = false;
+		});
+	};
 	useEffect(() => () => {
 		if (!gestureActiveRef.current) return;
 		gestureActiveRef.current = false;
@@ -101,12 +109,17 @@ export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, 
 				}}
 				onPointerUp={(event) => {
 					if (!pointerActiveRef.current || event.pointerId !== pointerIdRef.current) return;
+					finishPointer();
+				}}
+				onPointerMove={(event) => {
+					if (pointerActiveRef.current && event.pointerId === pointerIdRef.current
+						&& event.pointerType === 'mouse' && (event.buttons & 1) === 0) finishPointer();
+				}}
+				onLostPointerCapture={(event) => {
+					if (!pointerActiveRef.current || event.pointerId !== pointerIdRef.current) return;
+					cancelGesture();
 					pointerIdRef.current = null;
 					pointerActiveRef.current = false;
-					endGesture();
-					if (canceledPointerRef.current) requestAnimationFrame(() => {
-						if (!pointerActiveRef.current) canceledPointerRef.current = false;
-					});
 				}}
 				onPointerCancel={(event) => {
 					if (!pointerActiveRef.current || event.pointerId !== pointerIdRef.current) return;

@@ -21,6 +21,7 @@ export const MIX_RENDER_COPY_BY_LOCALE = Object.freeze({
 		replaceOriginals: 'Originale ersetzen',
 		replaceOriginalsDescription: 'Ersetzt die ausgewählten Spuren. Deaktiviere diese Option, um neue Spuren zu erstellen.',
 		mixRenderNoOperation: 'Aktiviere „Abmischen“ oder „Effekte rendern“, um fortzufahren.',
+		mixRenderLockedOriginals: 'Gesperrte Spuren können nicht ersetzt werden. Deaktiviere „Originale ersetzen“, um neue Spuren zu erstellen.',
 	}),
 	en: Object.freeze({
 		mixdownTo: 'Mix-down to',
@@ -41,5 +42,6 @@ export const MIX_RENDER_COPY_BY_LOCALE = Object.freeze({
 		replaceOriginals: 'Replace originals',
 		replaceOriginalsDescription: 'Replace the selected tracks. Clear this option to create new tracks.',
 		mixRenderNoOperation: 'Select Mix down or Render effects to continue.',
+		mixRenderLockedOriginals: 'Locked tracks cannot be replaced. Clear Replace originals to create new tracks.',
 	}),
 });

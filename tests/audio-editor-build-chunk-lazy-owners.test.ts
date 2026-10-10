@@ -23,7 +23,6 @@ import {
 } from '../scripts/lib/build-chunk-groups.mjs';
 import { sourceModules } from './helpers/eager-chunk-group-crossings.ts';
 import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
-
 /**
  * The chunks that must stay behind a dynamic import.
  *
@@ -101,6 +100,7 @@ test('Framescaper capture and Web VCR stay behind their deferred product runtime
 		'src/common/editor/controller/capture/framescaper-capture-document-ports.ts',
 		'src/common/editor/controller/capture/internal/framescaper-capture-project-admission.ts',
 		'src/common/editor/controller/capture/framescaper-web-vcr-ui-snapshot.ts',
+		'src/common/editor/controller/capture/internal/browser/framescaper-capture-listening-output.ts',
 	]);
 	for (const path of implementation) {
 		if (eager.has(path)) {

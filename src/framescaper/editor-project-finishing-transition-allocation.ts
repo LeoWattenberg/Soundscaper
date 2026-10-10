@@ -21,6 +21,7 @@ import {
 	type FramescaperProjectCommandFinishing,
 } from './editor-project-finishing-commands.ts';
 import { isFramescaperOwnedFinishingCommandTypeFinishing } from './editor-project-finishing-finishing-command.ts';
+import { isMixerSurfaceCommandV21 } from '../common/editor/mixer-graph-surface-v21.ts';
 import { framescaperProjectRetimeFoundationFinishing } from './editor-project-finishing-runtime.ts';
 import {
 	validateFramescaperProjectFinishing,
@@ -126,6 +127,7 @@ function prepareRetimeCommandTree(
 function isRetimeCommandTree(command: FramescaperProjectCommandFinishing): boolean {
 	if (isBatch(command)) return command.commands.every(isRetimeCommandTree);
 	return command.type !== 'video-transition/set'
+		&& !isMixerSurfaceCommandV21(command)
 		&& !isFramescaperOwnedVisualCommandTypeVisual(command.type)
 		&& !isFramescaperOwnedFinishingCommandTypeFinishing(command.type);
 }

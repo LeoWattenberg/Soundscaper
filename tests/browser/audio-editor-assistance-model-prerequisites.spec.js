@@ -122,6 +122,39 @@ test.describe('AI effect model prerequisites', () => {
 		await expect(assistance.getByText('Required models are installed.', { exact: true })).toBeVisible();
 		expect(errors).toEqual([]);
 	});
+
+	test('partial transcript models keep the missing required recognizer in preflight', async ({ page }) => {
+		const { editor, errors } = await bootFixture(page, { installed: ['silero-vad-v6'] });
+		await openAssistanceTask(page, editor, 'Transcribe & Captions');
+		const prerequisite = page.locator('[data-assistance-model-prerequisites]');
+		await expect(prerequisite).toBeVisible();
+		await expect(prerequisite).toContainText('Parakeet TDT 0.6B v3');
+		await expect(prerequisite).not.toContainText('Silero Voice Activity Detection');
+		expect(await fixtureSnapshot(page)).toMatchObject({ modelCalls: 0, installCalls: [] });
+		await prerequisite.getByRole('button', { name: 'Download all', exact: true }).click();
+		await expect(prerequisite).toBeHidden();
+		const assistance = page.getByRole('dialog', { name: 'Transcribe & Captions', exact: true });
+		await expect(assistance.getByRole('button', { name: 'Run locally', exact: true })).toBeEnabled();
+		expect(await fixtureSnapshot(page)).toMatchObject({ installCalls: ['parakeet-tdt-0.6b-v3'] });
+		expect(errors).toEqual([]);
+	});
+
+	test('an installed alternative recognizer remains selectable before prerequisite downloads', async ({ page }) => {
+		const { editor, errors } = await bootFixture(page, {
+			installed: ['silero-vad-v6', 'whisper-large-v3-turbo-ggml'],
+		});
+		await openAssistanceTask(page, editor, 'Transcribe & Captions');
+		const prerequisite = page.locator('[data-assistance-model-prerequisites]');
+		await expect(prerequisite).toBeVisible();
+		await prerequisite.getByRole('combobox', { name: 'Speech recognizer', exact: true }).selectOption('whisper');
+		await expect(prerequisite).toBeHidden();
+		const assistance = page.getByRole('dialog', { name: 'Transcribe & Captions', exact: true });
+		await expect(assistance.getByRole('group', { name: 'Speech recognizer', exact: true }).getByRole('button'))
+			.toContainText('Whisper');
+		await expect(assistance.getByRole('button', { name: 'Run locally', exact: true })).toBeEnabled();
+		expect(await fixtureSnapshot(page)).toMatchObject({ installCalls: [], createJobCalls: 0 });
+		expect(errors).toEqual([]);
+	});
 });
 
 async function bootFixture(page, options = {}) {
@@ -158,6 +191,9 @@ async function installFixture(page, options) {
 			['alternative-enhancer', '1.0.0', 'speech-enhancement', 65_536],
 			['unsupported-enhancer', '1.0.0', 'speech-enhancement', 131_072],
 		];
+		if (installed.includes('whisper-large-v3-turbo-ggml')) definitions.push([
+			'whisper-large-v3-turbo-ggml', '1.0.0', 'speech-recognition', 262_144,
+		]);
 		const state = {
 			listCalls: 0, modelCalls: 0, createJobCalls: 0, installCalls: [],
 			releaseList: () => undefined,

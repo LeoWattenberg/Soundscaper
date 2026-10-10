@@ -28,6 +28,7 @@ type EffectLibraryState =
 	& Pick<EffectControlsState, 'audacityEffectType' | 'effectPresets'>;
 interface EditorActionState extends ExportActionState {
 	selectedTrackId: string | null;
+	readonly timelineView: string;
 	readonly preferences?: Readonly<{
 		readonly waveformVisualization?: Readonly<{
 			readonly lowMidCrossoverHz?: number;
@@ -57,7 +58,7 @@ export interface EditorActionResources {
 		auditionParametricEq(bandId: string | number | null): unknown;
 	}>;
 	readonly engine: EnginePublicApi;
-	readonly playbackPreviews?: Readonly<{ setGain(gain: number): void }>;
+	readonly playbackPreviews?: Readonly<{ setGain(gain: number): void; setOutput(deviceId: string): Promise<void> }>;
 	readonly ffmpeg: ReturnType<typeof createEditorCodecRuntime> & Partial<TrimMediaFfmpegHost>;
 	readonly fileService: ReturnType<typeof createAudioEditorFileService>;
 	readonly product: Readonly<{ id: string; name: string }>;

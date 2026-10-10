@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:5babdc085b19caa3a0eb6b7784f01e1511a13c1f4c0eff7371bff3f94dff39c7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","आउटपुट चैनलों की संख्या"],
 		"mixMenu": ["machine","Mix","मिश्रण"],
 		"mixRender": ["machine","Mix and render","मिश्रण करें और रेंडर करें"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","लॉक किए गए ट्रैक बदले नहीं जा सकते। नए ट्रैक बनाने के लिए “मूल फ़ाइलें बदलें” का चयन हटाएँ।"],
 		"mixRenderNew": ["machine","Mix and render to new track","मिश्रण करें और नए ट्रैक पर रेंडर करें"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","जारी रखने के लिए मिक्स डाउन या प्रभाव रेंडर करें चुनें।"],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","ऑडियो युक्त कम से कम एक ऑडियो ट्रैक चुनें।"],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","परियोजनाएं खोलें"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape परियोजना फ़ाइल खोलें ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","इसके लिए अनुकूलित करें"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","मेमोरी संपादक को ज़रूरत पड़ने पर लोड करने का मौजूदा तरीका बनाए रखती है। गति संपादक के टूल पहले से लोड करती है; AI टूल और प्रोसेसिंग इंजन अब भी उपयोग होने पर ही लोड होते हैं। बदलाव लागू करने के लिए डेस्कटॉप संपादक फिर शुरू करें।"],
 		"optimizeForMemory": ["machine","Memory","मेमोरी"],
 		"optimizeForSpeed": ["machine","Speed","गति"],
 		"options": ["machine","Options","विकल्प"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","ओवरले इंटरैक्ट"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","64 बाय 64 ऑफस्क्रीन इंटरैक्ट सरफेस तैयार है।"],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","प्लगइन ने ऑफस्क्रीन रीड्रॉ का अनुरोध किया और पूरा किया।"],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","इंटरैक्ट एक्शन सीक्वेंस समाप्त हो गया है।"],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","इंटरैक्ट लक्ष्य"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","ऑफस्क्रीन ओपनएफएक्स इंटरैक्ट ट्रांसपोर्ट उपलब्ध नहीं है।"],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","सामान्यीकृत इंटरैक्ट एक्शन भेज रहा है"],

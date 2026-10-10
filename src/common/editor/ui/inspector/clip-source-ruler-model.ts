@@ -51,7 +51,15 @@ export function createClipSourceRulerTicks(options: ClipSourceRulerTickOptions):
 			ticks.set(frame, Object.freeze({ frame, label: String(section.bar + index + 1) }));
 		}
 	}
-	return Object.freeze([...ticks.values()].sort((left, right) => left.frame - right.frame));
+	// A tempo change can cluster nominally well-spaced bar numbers in samples.
+	// Admit labels by their actual viewport distance, keeping the native frames.
+	const minimumFrames = (options.endFrame - options.startFrame) * 64 / Math.max(1, options.width);
+	const readable: ClipSourceRulerTick[] = [];
+	for (const tick of [...ticks.values()].sort((left, right) => left.frame - right.frame)) {
+		const previous = readable.at(-1);
+		if (!previous || tick.frame - previous.frame >= minimumFrames) readable.push(tick);
+	}
+	return Object.freeze(readable);
 }
 
 /** A signature event may end a partial local bar; its real project instant is retained. */

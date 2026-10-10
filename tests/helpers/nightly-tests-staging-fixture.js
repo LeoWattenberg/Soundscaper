@@ -6,6 +6,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import nativeFixtureSources from '../../scripts/lib/desktop-nightly-tests-native-fixture-inputs.cjs';
 
 const BURN_IN_FONT_FILES = [
 	'inter-cyrillic-ext-600-normal.woff',
@@ -35,6 +36,9 @@ export async function createFixture(context) {
 		version: '1.0.0-rc.1',
 	})}\n`);
 	for (const [path, body] of [
+		...await Promise.all(nativeFixtureSources.map(async (source) => [
+			source, await readFile(new URL(`../../${source}`, import.meta.url), 'utf8'),
+		])),
 		['LICENSE', 'AGPL fixture\n'],
 		['THIRD_PARTY_LICENSES.md', '# Fixture notices\n'],
 		['LICENSES/GPL-3.0.txt', 'GPL fixture\n'],
@@ -69,10 +73,10 @@ export async function createFixture(context) {
 			`desktop/bundled-${format}-stream.ts`, 'export const fixtureSupport = true;\n',
 		]),
 		...await Promise.all([
-			'constants.js', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
+			'constants.js', 'desktop-video-h264-encoder.ts', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
 			'main-file-capability-ipc.mjs', 'product.json', 'protocol.js', 'read-capability-admission.js',
 			'read-capability-range-stream.js', 'read-capability-request-lease.js', 'read-capability-support.js',
-			'read-selection-service.js', 'save-publication-mode.js', 'save-space.js', 'save-targets.js', 'validation.js',
+			'read-selection-service.js', 'save-publication-mode.js', 'save-space.js', 'save-targets.js', 'validation.js', 'original-file-overwrite.ts',
 		].map(async (file) => [`desktop/${file}`, await readFile(new URL(`../../desktop/${file}`, import.meta.url), 'utf8')])),
 		['desktop/desktop-audio-codec-capability-contract.ts', 'export const capability = true;\n'],
 		['desktop/desktop-audio-codec-operation-contract.ts', 'export const operation = true;\n'],
@@ -163,12 +167,13 @@ export async function createFixture(context) {
 		['tests/browser/handbook/handbook.spec.js', 'export const handbook = true;\n'],
 		['tests/aup3-fixture.js', 'export const fixture = true;\n'],
 		['tests/helpers/png-fixture.mjs', await readFile(new URL('./png-fixture.mjs', import.meta.url), 'utf8')],
-		...await Promise.all(['framescaper-ordinary-animation-fixture.ts', 'framescaper-ordinary-high-precision-image-fixture.ts', 'interchange-reference.ts'].map(async (file) => [`tests/helpers/${file}`, await readFile(new URL(`./${file}`, import.meta.url), 'utf8')])),
+		...await Promise.all(['desktop-preload-source.mjs', 'framescaper-ordinary-animation-fixture.ts', 'framescaper-ordinary-high-precision-image-fixture.ts', 'interchange-reference.ts', 'ordinary-cover-mp3-fixture.ts', 'native-original-import-fixture.ts', 'ordinary-ogg-opus-fixture.ts', 'ordinary-tail-m4a-fixture.ts', 'os-audio-codec-fixtures.ts', 'round7-speech-preview-bridge.ts', 'round7-warp-drums.ts'].map(async (file) => [`tests/helpers/${file}`, await readFile(new URL(`./${file}`, import.meta.url), 'utf8')])),
 		['tests/helpers/framescaper-native-sidecar-fixture.ts', await readFile(new URL('./framescaper-native-sidecar-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/libsndfile-rifx-fixture.ts', await readFile(new URL('./libsndfile-rifx-fixture.ts', import.meta.url), 'utf8')],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],
 		['tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', 'ordinary BWF MetaEdit fixture\n'],
 		['tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', await readFile(new URL('../fixtures/bwfmetaedit-ixml-clock.wav.base64', import.meta.url), 'utf8')],
+		['tests/fixtures/ffmpeg-libmp3lame-one-second.mp3.base64', await readFile(new URL('../fixtures/ffmpeg-libmp3lame-one-second.mp3.base64', import.meta.url), 'utf8')],
 		['src/common/editor/example.ts', 'export const source = true;\n'],
 	]) await writeFixtureFile(repositoryRoot, path, body);
 

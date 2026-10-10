@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:6461b0481802da68194fc9d3ef4421b9276ddc1eb1f40eeedbcb5ad4b5a363bc","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["human","Mix down to","출력 채널 수"],
 		"mixMenu": ["machine","Mix","믹스"],
 		"mixRender": ["machine","Mix and render","믹스 및 렌더링"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","잠긴 트랙은 대체할 수 없습니다. 새 트랙을 만들려면 ‘원본 대체’의 선택을 해제하세요."],
 		"mixRenderNew": ["machine","Mix and render to new track","믹스 및 새 트랙으로 렌더링"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","계속하려면 '믹스 다운' 또는 '이펙트 렌더링'을 선택하세요."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","오디오를 포함하는 적어도 하나의 오디오 트랙을 선택하세요."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","프로젝트 열기"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape 프로젝트 파일 열기 ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","최적화 기준"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","메모리는 현재처럼 필요할 때 편집기 도구를 불러옵니다. 속도는 편집기 도구를 미리 불러오지만 AI 도구와 처리 엔진은 계속 사용할 때 불러옵니다. 변경 사항을 적용하려면 데스크톱 편집기를 다시 시작하세요."],
 		"optimizeForMemory": ["machine","Memory","메모리"],
 		"optimizeForSpeed": ["machine","Speed","속도"],
 		"options": ["machine","Options","옵션"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","오버레이 상호 작용"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","64 x 64 오프스크린 상호 작용 표면이 준비되었습니다."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","플러그인이 오프스크린 재그림을 요청하고 완료했습니다."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","상호 작용 동작 시퀀스가 소진되었습니다."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","상호 작용 대상"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","오프스크린 OpenFX 상호 작용 전송이 사용 불가합니다."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","정규화된 상호 작용 동작 전송 중"],

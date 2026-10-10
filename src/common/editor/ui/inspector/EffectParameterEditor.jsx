@@ -1,7 +1,8 @@
 import './AudacityDynamicsEffectLayout.css';
 import './AudacityPortEffectLayout.css';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
-import { useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
+import { TimeCodeMusicalContext } from '../../../../../vendor/audacity-design-system/components/src/TimeCode/time-code-musical-context.ts';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
@@ -294,6 +295,7 @@ export default function EffectParameterEditor({
 				descriptor={definition.params[name]}
 				value={effect.params?.[name]}
 				effectParams={effect.params}
+				durationTimeCodeMap={effect.context?.selectionDurationMap}
 				copy={copy}
 				disabled={disabled || (effect.type === 'audacity-normalize'
 					&& ['peakDb', 'stereoIndependent'].includes(name) && !effect.params?.applyGain)
@@ -380,8 +382,9 @@ function nativeParameterChoices(type, name) {
 }
 
 function AudacityParameter({ name, effectType, descriptor, value, effectParams, copy, disabled,
-	sampleRate, onCommit, gestureFor }) {
+	sampleRate, durationTimeCodeMap, onCommit, gestureFor }) {
 	const label = audacityEffectParameterLabel(effectType, name, copy);
+	const projectTimeCodeMap = useContext(TimeCodeMusicalContext);
 	const options = useMemo(() => descriptor.kind === 'enum' ? descriptor.options.map((option) => ({
 		value: String(option.value), label: audacityEffectOptionLabel(effectType, name, option.value, copy),
 	})) : [], [copy, descriptor, effectType, name]);
@@ -428,6 +431,7 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 	}
 	const range = audioEffectParamRange(effectType, name) || audioEffectParamRangeFromDescriptor(descriptor);
 	return (
+		<TimeCodeMusicalContext.Provider value={durationTimeCodeMap ?? projectTimeCodeMap}>
 		<ParameterNumber
 			label={`${label}${descriptor.unit ? ` (${descriptor.unit})` : ''}`}
 			displayLabel={effectType === 'audacity-limiter' && name === 'makeupTargetDb' ? canonicalCopyValue('effectActivityOutput', copy) : label}
@@ -446,5 +450,6 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			onCommit={(next) => onCommit(next, { controlValue: next })}
 			{...gestureFor(name)}
 		/>
+		</TimeCodeMusicalContext.Provider>
 	);
 }

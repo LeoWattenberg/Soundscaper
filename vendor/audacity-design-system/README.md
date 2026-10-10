@@ -520,3 +520,83 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     and writable submenu navigation remain intact. Covered by
     `tests/audio-editor-round6-disabled-submenu-escape.test.tsx` and the ordinary
     locked Paste submenu workflow. Upstream-PR candidate.
+
+67. `EnvelopeInteractionLayer` completes a held primary point or segment drag
+    only on primary mouse release. Auxiliary release leaves the draft active
+    until the owning button releases. Covered by the mounted strict
+    `tests/audio-editor-round7-envelope-drag-release.test.tsx` and the ordinary
+    Clip gain drag, middle-button release, Undo and Redo browser workflow.
+    The application publication listener follows the same release ownership.
+    Upstream-PR candidate.
+
+68. `EffectsPanel` admits only primary presses for its track/master divider
+    and completes its resize only when that same mouse button releases.
+    Auxiliary release retains the accepted resize. Covered by the mounted
+    strict `tests/audio-editor-round7-rack-divider-release.test.tsx` and the
+    ordinary rack divider primary/middle-release continuation workflow.
+    Upstream-PR candidate.
+
+69. `LabelMarker` retains a primary move or edge resize through auxiliary
+    mouse release. The application label draft and Escape ownership remain
+    active until primary release, so final movement publishes once. Covered by
+    the mounted actual native-history regression
+    `tests/audio-editor-round7-label-drag-release.test.tsx` and the ordinary
+    label move, auxiliary release, continuation and Undo/Redo workflow.
+    Upstream-PR candidate.
+
+70. `Knob` commits its accepted mouse value when primary releases while an
+    auxiliary button remains held. Browsers report this as a pointer-move
+    transition before native capture loss; subsequent capture loss cannot
+    cancel the completed input. Unexpected capture loss still cancels active
+    input. Covered by the mounted native-contact regressions in
+    `tests/vendored-design-system-knob-gesture.test.tsx` and the ordinary stereo
+    Mixer Pan, primary release, Undo and Redo workflow. Upstream-PR candidate.
+
+71. `SelectionToolbar` accepts a host interval musical map for its read-only
+    Duration, while Start and End retain their absolute project map. The
+    application roots this interval at the actual selection start, preserving
+    later tempo changes. Covered by the actual mounted selection toolbar
+    regression `tests/audio-editor-round7-selection-musical-duration.test.tsx`
+    and the native Music workspace, tempo-event and selection-digit workflow.
+    Upstream-PR candidate.
+
+72. `TimeCode` steps backward from a bar's first beat into the preceding
+    actual meter's last beat, retaining the sub-beat sample phase and the
+    project-zero bound. Literal one-based beat entry, decimal digit wrapping
+    and forward stepping remain unchanged. Covered by the actual native
+    document-key listener regression
+    `tests/audio-editor-round7-musical-beat-step.test.tsx` and the ordinary
+    Music workspace Playhead beat-step workflow. Upstream-PR candidate.
+
+73. `Slider` retains one admitted primary pointer through another finger's
+    release or cancellation. The shared native touch lease preserves the
+    browser's range drag; the application fractional sliders retain the same
+    lease through their existing hook. Covered by the actual mounted
+    `tests/audio-editor-round7-track-volume-touch-owner.test.tsx` and ordinary
+    track Volume mouse, single-finger, two-finger and one-Undo controls.
+    Upstream-PR candidate.
+
+74. `Slider` publishes its accepted mouse edit when primary releases while
+    another button remains held. It recognizes the owning native pointermove
+    transition once, preserving foreign-pointer rejection, touch completion
+    and browser cancellation. Covered by the actual mounted
+    `tests/audio-editor-round7-track-volume-primary-release.test.tsx` and the
+    ordinary Volume completion, keyboard Undo and retained-import workflow.
+    Upstream-PR candidate.
+
+75. `MixerFader` retains its admitted primary pointer through foreign motion,
+    completion and cancellation. Secondary starts cannot replace native
+    capture; owning completion, cancellation, later gestures and keyboard
+    controls remain unchanged. Covered by the actual mounted
+    `tests/audio-editor-round7-mixer-fader-pointer-owner.test.tsx` and ordinary
+    Window → Mixer Volume mouse, one-finger, two-finger and Undo/Redo controls.
+    Upstream-PR candidate.
+
+76. `MixerFader` completes its admitted mouse gesture when primary releases
+    while another button remains held. Its native pointermove transition uses
+    the final coordinates and retires capture before the existing completion
+    callbacks, preserving foreign pointer rejection, touch/pen completion and
+    intentional cancellation. Covered by the mounted regression
+    `tests/audio-editor-round7-io-mixer-fader-primary-release.test.tsx` and the
+    ordinary Window → Mixer Master Volume, primary release and keyboard
+    Undo/Redo workflow that retains the imported recording. Upstream-PR candidate.

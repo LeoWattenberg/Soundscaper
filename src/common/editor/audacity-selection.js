@@ -2,9 +2,8 @@
  * Resolve the channel layout for a destructive Audacity-style track range.
  *
  * Tracks do not own a channel layout in the editor model, so a range spanning
- * clips is mono only when every overlapping source is mono. One stereo source
- * promotes the whole range to stereo, preserving stereo material while mono
- * clips and gaps can be represented in that layout without downmixing.
+ * clips retains the widest overlapping source, preserving its native channels
+ * while narrower clips and gaps can be represented without downmixing.
  */
 export function audacitySelectionChannelCount(project, trackId, startFrame, endFrame) {
 	if (!project || !Number.isSafeInteger(startFrame) || !Number.isSafeInteger(endFrame) || endFrame <= startFrame) return 0;
@@ -17,15 +16,18 @@ export function audacitySelectionChannelCount(project, trackId, startFrame, endF
 		const clip = clips.get(clipId);
 		if (!clip || clip.timelineStartFrame >= endFrame || clip.timelineStartFrame + clip.durationFrames <= startFrame) continue;
 		const sourceChannelCount = sources.get(clip.sourceId)?.channelCount;
-		if (sourceChannelCount === 2) return 2;
-		if (sourceChannelCount === 1) channelCount = 1;
+		if (Number.isInteger(sourceChannelCount) && sourceChannelCount >= 1 && sourceChannelCount <= 32) {
+			channelCount = Math.max(channelCount, sourceChannelCount);
+		}
 	}
 	return channelCount;
 }
 
-/** Match the fixed stereo Web Audio render to the selection's source layout. */
+/** Copy a private render into the selection's bounded native source layout. */
 export function matchAudacitySelectionChannels(renderedChannels, channelCount) {
-	if (channelCount !== 1 && channelCount !== 2) throw new RangeError('An Audacity selection must contain one or two channels.');
+	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 32) {
+		throw new RangeError('An Audacity selection must contain between one and 32 channels.');
+	}
 	if (!Array.isArray(renderedChannels) || !renderedChannels.length || !(renderedChannels[0] instanceof Float32Array)) {
 		throw new TypeError('The Audacity selection render did not produce PCM channels.');
 	}
@@ -33,8 +35,10 @@ export function matchAudacitySelectionChannels(renderedChannels, channelCount) {
 	if (renderedChannels.some((channel) => !(channel instanceof Float32Array) || channel.length !== frameCount)) {
 		throw new RangeError('The Audacity selection render produced mismatched channels.');
 	}
+	if (channelCount > 2 && renderedChannels.length < channelCount) {
+		throw new RangeError('The Audacity selection render omitted native channels.');
+	}
 	if (channelCount === 1) return [renderedChannels[0].slice()];
-	const left = renderedChannels[0].slice();
-	const right = (renderedChannels[1] || renderedChannels[0]).slice();
-	return [left, right];
+	return Array.from({ length: channelCount }, (_, channel) =>
+		(renderedChannels[channel] || renderedChannels[0]).slice());
 }

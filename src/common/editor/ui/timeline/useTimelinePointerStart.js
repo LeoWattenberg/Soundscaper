@@ -114,6 +114,7 @@ export function useTimelinePointerStart({
 		}
 		if (pointerSession.current
 			&& !(event.pointerType === 'touch' && touchPointers.current.size === 1)) return;
+		if (event.pointerType === 'touch' && event.isPrimary === false && touchPointers.current.size === 0) return;
 		const crossfadeHandle = event.target.closest?.('[data-crossfade-handle]');
 		if (crossfadeHandle) {
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;

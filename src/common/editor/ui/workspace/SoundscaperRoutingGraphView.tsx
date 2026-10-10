@@ -18,6 +18,7 @@ import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import { indexRoutingNodes, indexRoutingEdges, indexRoutingPorts, indexRoutingConnections, indexRoutingEndpointLabels, routingNavigationTarget } from './routing-graph-presentation.ts';
 import { useRoutingHoverFrame } from './useRoutingHoverFrame.ts';
 import { routingGraphOwnsKeyboardEvent } from './routing-keyboard-event-ownership.ts';
+import { routingEdgeHandleStyle } from './routing-edge-handle-position.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts'; import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { ParameterAddress } from '../../parameter-address.ts';
 import SoundscaperRoutingGraphInspector, {
@@ -277,7 +278,7 @@ export default function SoundscaperRoutingGraphView({
 							key={`handle:${edge.key}`}
 							type="button"
 							className={`kw-routing-graph__edge-handle kw-routing-graph__edge-handle--${edge.kind}${edge.enabled ? '' : ' is-disabled'}`}
-							style={edgeHandleStyle(source, destination, edge.parallelOffset)}
+							style={routingEdgeHandleStyle(source, destination, layout.nodes, edge.parallelOffset)}
 							data-routing-edge={edge.id}
 							aria-pressed={selection?.kind === 'edge' && selection.id === edge.id}
 							aria-label={edgeAriaLabel(copy, model, endpointLabels)}

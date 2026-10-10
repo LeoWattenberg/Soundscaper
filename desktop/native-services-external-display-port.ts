@@ -59,6 +59,7 @@ export function createFramescaperNativeExternalDisplayPort(
 			return displays;
 		},
 		activeDisplayId: () => controller.snapshot().displayId,
+		sessionIdentity: () => controller.sessionIdentity(),
 		open: (display: FramescaperExternalDisplay) => controller.open(
 			display,
 			display.hdrCapable && display.colorManaged ? 'hdr' : 'sdr',

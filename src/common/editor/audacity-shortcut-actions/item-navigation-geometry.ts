@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
+import { keyboardClipMoveFrame } from '../keyboard-clip-move.ts';
 import { sequenceFrameAtSample, sequenceFrameBoundarySample, snapSampleToSequenceFrame } from '../sequence-frame-navigation.ts';
 import type { RationalRate } from '../timeline-time.ts';
 import type { ControllerClip, ControllerProject } from '../controller/track-audio/track-domain-types.ts';
@@ -25,6 +26,10 @@ function projectedItemClipGeometry(project: ControllerProject, clip: ControllerC
 /** Quantize the step once so opposite keys remain inverse on native frame grids. */
 export function itemNavigationMoveFrame(project: ControllerProject, clip: ControllerClip, deltaFrames: number): number {
 	const geometry = itemNavigationClipGeometry(project, clip);
+	const snap = project.snap;
+	if (deltaFrames && snap && typeof snap === 'object' && 'enabled' in snap && snap.enabled === true) {
+		return keyboardClipMoveFrame(project, geometry.timelineStartFrame, deltaFrames);
+	}
 	if (typeof clip.sequenceStartFrame === 'number') {
 		const sequences = project.sequences as readonly Readonly<{ id: string; rate: RationalRate }>[];
 		const sequence = sequences.find(candidate => candidate.id === (clip.sequenceId ?? project.primarySequenceId));

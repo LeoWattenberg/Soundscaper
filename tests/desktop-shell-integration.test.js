@@ -91,7 +91,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	const ipcRenderer = {
 		invoke: (channel, value) => {
 			calls.push({ method: 'invoke', channel, value });
-			return Promise.resolve(null);
+			return Promise.resolve(channel === 'soundscaper:v1:save:release-target' ? true : null);
 		},
 		send: (channel, value) => calls.push({ method: 'send', channel, value }),
 		on: () => {},
@@ -127,7 +127,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 			'configureNativeVampAnalyzer', 'deleteDesktopVideoCodecOperation', 'describeNativeAudioBackend', 'editText', 'executeDesktopVideoCodecOperation', 'finishNativeVampAnalyzer', 'finishWrite',
 		'getDesktopAudioCodecCapabilities', 'getDesktopVideoExportCapabilities', 'getEnvironment', 'getExternalFfmpegStatus', 'installAssistanceModel', 'installExternalFfmpeg', 'installPreseededAssistanceModel', 'instantiateNativePlugin', 'listAssistanceModelNotices', 'listAssistanceModels', 'listNativePlugins', 'listNativeVampAnalyzers', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'localAssistance', 'nativeAudioHelperAvailability', 'nativeAudioSessionStatus', 'nativePluginAvailability', 'nativeServices', 'onAssistanceInstallProgress', 'onCloseRequested',
 		'onMenuCommand', 'onOpenProject', 'onWindowStateChanged', 'openExternal', 'openNativeAudioSession', 'openNativePluginVendorUi', 'patchFinalPrefix', 'persistNativePluginState', 'probeHelperAvailability', 'pushNativeVampAnalyzerPcm', 'readDesktopVideoCodecOutput', 'readNativeTierControls',
-		'reconcileAssistanceModels', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'releaseSesxSession', 'relocateAssistanceModels', 'removeAssistanceModel', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'resolveSesxMedia', 'respondToClose', 'restoreNativePluginState', 'runNativePluginOffline', 'scanNativePlugins', 'selectNativePluginInstallation',
+		'reconcileAssistanceModels', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'releaseSaveTarget', 'releaseSesxSession', 'relocateAssistanceModels', 'removeAssistanceModel', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'resolveSesxMedia', 'respondToClose', 'restoreNativePluginState', 'runNativePluginOffline', 'scanNativePlugins', 'selectNativePluginInstallation',
 		'collectAssistanceModelGarbage', 'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'setNativePluginInstallationAllowed', 'signalReady', 'startNativeVampAnalyzer', 'statDesktopVideoCodecOutput', 'writeChunk', 'writeDesktopVideoCodecInput',
 		].sort();
 	const mcpFields = ['readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest'];
@@ -167,4 +167,8 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	await bridge.v1.openFreesoundAuthorization(authorizeUrl);
 	assert.deepEqual(calls[6], { method: 'invoke', channel: 'soundscaper:v1:freesound:authorize', value: authorizeUrl });
 	assert.throws(() => bridge.v1.openFreesoundAuthorization('https://evil.example/'), /authorization URL/u);
+	assert.equal(await bridge.v1.releaseSaveTarget('b'.repeat(48)), true);
+	assert.deepEqual(calls[7], { method: 'invoke', channel: 'soundscaper:v1:save:release-target', value: 'b'.repeat(48) });
+	assert.throws(() => bridge.v1.releaseSaveTarget('invalid'), /Invalid opaque identifier/u);
+	assert.equal(calls.length, 8, 'invalid targets remain inside the preload');
 });

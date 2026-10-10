@@ -8,6 +8,7 @@ import {
 } from './delivery-report.ts';
 import { dawprojectImportedAudioMimeType } from './dawproject-import-project.ts';
 import type { SesxClip, SesxDocument, SesxTrack } from './sesx-import.ts';
+import { convertSesxOverlapOrder, type SesxImportedClip, type SesxOverlapEntry } from './sesx-overlap-conversion.ts';
 
 export type SesxImportReport = Omit<DeliveryReport, 'direction'> & Readonly<{ direction: 'import' }>;
 
@@ -68,6 +69,7 @@ export function buildSesxProject(document: SesxDocument, options: SesxImportOpti
 		};
 		tracks.push(builtTrack);
 		trackNodes.push({ kind: 'track', id: trackId, parentFolderId: null });
+		const overlapEntries: SesxOverlapEntry[] = [];
 		for (const clip of track.clips) {
 			if (clip.offline) {
 				addDeliveryReportItem(draft, {
@@ -95,21 +97,31 @@ export function buildSesxProject(document: SesxDocument, options: SesxImportOpti
 				sourceByFileId.set(clip.fileId, source);
 				media.push({ fileId: clip.fileId, sourceId: id });
 			}
-			imported.sourceId = source.id;
-			clips.push(imported);
-			(builtTrack.clipIds as string[]).push(String(imported.id));
+			imported.sourceId = String(source.id);
+			overlapEntries.push({ clip: imported, authored: clip, position: overlapEntries.length });
 		}
+		const converted = convertSesxOverlapOrder(overlapEntries, options.createStableId);
+		clips.push(...converted.clips);
+		builtTrack.clipIds = converted.clips.map(({ id }) => id);
+		if (converted.convertedClipIds.length) addDeliveryReportItem(draft, {
+			code: 'sesx.overlap-order-converted', disposition: 'converted', severity: 'info',
+			scope: { kind: 'track', id: trackId }, data: { clipIds: converted.convertedClipIds },
+			message: 'Audition overlap order is preserved by importing only each clip’s audible source spans.',
+		});
 	}
+	const audibleSources = new Set(clips.map((clip) => String(clip.sourceId)));
+	const retainedSources = sources.filter((source) => audibleSources.has(String(source.id)));
+	const retainedMedia = media.filter(({ sourceId }) => audibleSources.has(sourceId));
 	reportOmissions(document, draft);
 	addDeliveryReportItem(draft, {
 		code: 'sesx.project-imported', disposition: 'preserved', severity: 'info',
-		data: { tracks: tracks.length, clips: clips.length, sources: sources.length, sampleRate, applicationVersion: document.applicationVersion },
+		data: { tracks: tracks.length, clips: clips.length, sources: retainedSources.length, sampleRate, applicationVersion: document.applicationVersion },
 		message: 'Audition audio tracks and playable clips were imported into a local project.',
 	});
 	const project: DataRecord = {
 		id: options.createStableId('project'), title, sampleRate, masterChannels: document.channelCount,
 		metadata: { title },
-		sources, clips, tracks,
+		sources: retainedSources, clips, tracks,
 		sequences: [{ id: 'main-sequence', trackNodes }],
 		master: {
 			gain: boundedGain(document.master.gain, 4, draft, { kind: 'master' }),
@@ -119,7 +131,7 @@ export function buildSesxProject(document: SesxDocument, options: SesxImportOpti
 	const sealed = sealDeliveryReport(draft);
 	return Object.freeze({
 		title, sampleRate, project,
-		media: Object.freeze(media),
+		media: Object.freeze(retainedMedia),
 		report: Object.freeze({ ...sealed, direction: 'import' as const }),
 	});
 }
@@ -177,7 +189,7 @@ function buildClip(
 	info: SesxDecodedMediaInfo,
 	draft: Draft,
 	createStableId: (prefix: string) => string,
-): DataRecord | null {
+): SesxImportedClip | null {
 	const id = createStableId('clip');
 	const requested = clip.endFrame - clip.startFrame;
 	const sourceSpan = clip.sourceOutFrame - clip.sourceInFrame;

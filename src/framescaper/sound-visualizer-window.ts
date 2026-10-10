@@ -240,7 +240,7 @@ export function createFramescaperSoundVisualizerWindowReader(options: Readonly<{
 		}
 		const audioSource = nearest.source;
 		const sourceChannels = audioSource.channelCount;
-		const downmix = sourceChannels > MAXIMUM_VISUAL_CHANNELS;
+		const downmix = generator.mode === 'waveform' && sourceChannels > MAXIMUM_VISUAL_CHANNELS;
 		const visualChannels = downmix ? 1 : sourceChannels;
 		const channels = Array.from({ length: visualChannels * (peakMode ? 2 : 1) },
 			() => new Float32Array(visualFrames));
@@ -332,7 +332,9 @@ export function createFramescaperSoundVisualizerWindowReader(options: Readonly<{
 						const a = chunkSample(audioSource, lowerChunk, channel, lower);
 						const b = chunkSample(audioSource, upperChunk, channel, upper);
 						const value = (a + (b - a) * fraction) * gain;
-						if (channel === 0) {
+						if (generator.mode === 'spectrum') {
+							channels[channel]![index] = value;
+						} else if (channel === 0) {
 							minimum0 = Math.min(minimum0, value);
 							maximum0 = Math.max(maximum0, value);
 						} else {
@@ -342,6 +344,7 @@ export function createFramescaperSoundVisualizerWindowReader(options: Readonly<{
 					}
 				}
 			}
+			if (generator.mode === 'spectrum') continue;
 			channels[0]![index] = Number.isFinite(minimum0) ? minimum0 : 0;
 			if (peakMode) {
 				channels[1]![index] = Number.isFinite(maximum0) ? maximum0 : 0;

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isStandardEffect } from '../../first-party-effects/standard/definition.ts';
+import { isAdditionalContinuousAudacityEffect } from '../../audacity-effects/live-update-geometry.ts';
 
 interface RackGestureEffect {
 	readonly type: string;
@@ -14,7 +15,7 @@ type GestureBegin = () => unknown;
 type GestureCommit = (params: RackParams) => unknown;
 
 function supportsNativeCommit(type: string): boolean {
-	return isStandardEffect(type) || ['audacity-echo', 'audacity-graphic-eq', 'audacity-filter-curve-eq', 'audacity-compressor', 'audacity-limiter', 'audacity-reverb', 'audacity-click-removal'].includes(type);
+	return isStandardEffect(type) || isAdditionalContinuousAudacityEffect(type) || ['audacity-echo', 'audacity-graphic-eq', 'audacity-filter-curve-eq', 'audacity-compressor', 'audacity-limiter', 'audacity-reverb', 'audacity-click-removal'].includes(type);
 }
 
 export function nativeRackEffectCommit(

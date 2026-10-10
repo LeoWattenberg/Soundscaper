@@ -68,6 +68,7 @@ interface AssetResource {
 	readonly src: string;
 	readonly hasVideo: boolean;
 	readonly hasAudio: boolean;
+	readonly formatId: string | null;
 }
 
 export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportResult {
@@ -83,6 +84,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 		throw new RangeError('An FCPXML export requires a positive project sample rate.');
 	}
 	const dropFrame = Boolean(request?.dropFrame);
+	const startFrames = nonNegativeInteger(request?.startFrameCount ?? 0, 'startFrameCount');
 	const title = String(request?.title ?? project.title ?? 'Timeline');
 	const draft = createDeliveryReport({
 		format: 'fcpxml', container: `FCPXML ${FCPXML_VERSION}`, codec: null,
@@ -95,6 +97,17 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 	// Resources are keyed by source identity, so the same media referenced twice
 	// is one asset and a relink reaches every use of it.
 	const assets = new Map<string, AssetResource>();
+	const sourceFormats = new Map<string, Readonly<{ id: string; attributes: string }>>();
+	const formatIdFor = (source: Readonly<Record<string, unknown>>): string | null => {
+		if (source.kind !== 'video') return null;
+		const attributes = sourceFormatAttributes(source);
+		if (attributes === null) return 'r1';
+		const existing = sourceFormats.get(attributes);
+		if (existing) return existing.id;
+		const id = `f${sourceFormats.size + 1}`;
+		sourceFormats.set(attributes, { id, attributes });
+		return id;
+	};
 	const assetIdFor = (sourceId: string): string | null => {
 		const source = sourceById.get(sourceId);
 		if (!source) return null;
@@ -108,6 +121,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 			src: String(source.storageKey ?? source.id ?? sourceId),
 			hasVideo: source.kind === 'video',
 			hasAudio: source.kind === 'audio' || source.hasAudio === true,
+			formatId: formatIdFor(source),
 		});
 		return id;
 	};
@@ -169,7 +183,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 			));
 		for (const clip of ordered) {
 			const emitted = buildClip(clip, {
-				rate, sampleRate, type, assetIdFor, sourceById, draft, laneFor,
+				rate, sampleRate, type, assetIdFor, sourceById, draft, laneFor, startFrames,
 			});
 			if (!emitted) continue;
 			spine.push(emitted.xml);
@@ -177,10 +191,10 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 		}
 	}
 
-	const startFrames = nonNegativeInteger(request?.startFrameCount ?? 0, 'startFrameCount');
 	const resources = [
 		`\t\t<format id="r1" name="${escapeXml(formatName(rate))}"`
 			+ ` frameDuration="${frameDurationAttribute(rate)}"/>`,
+		...[...sourceFormats.values()].map(({ id, attributes }) => `\t\t<format id="${id}"${attributes}/>`),
 		// `asset` is declared `(media-rep+, metadata?)` and carries no `src` of its
 		// own — the location lives on `media-rep`. Emitting src on the asset
 		// produces a document Final Cut rejects outright, which a lenient reader
@@ -188,7 +202,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 		...[...assets.values()].flatMap((asset) => [
 			`\t\t<asset id="${asset.id}" name="${escapeXml(asset.name)}"`
 			+ ` hasVideo="${asset.hasVideo ? 1 : 0}" hasAudio="${asset.hasAudio ? 1 : 0}"`
-			+ `${asset.hasVideo ? ' format="r1"' : ''}>`,
+			+ `${asset.formatId ? ` format="${asset.formatId}"` : ''}>`,
 			`\t\t\t<media-rep kind="original-media" src="${escapeXml(asset.src)}"/>`,
 			'\t\t</asset>',
 		]),
@@ -253,6 +267,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	sourceById: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 	draft: Draft;
 	laneFor: (startFrames: number, endFrames: number) => number;
+	startFrames: number;
 }): { xml: string; endFrames: number } | null {
 	const timelineStart = nonNegativeInteger(clip.timelineStartFrame ?? 0, 'clip.timelineStartFrame');
 	const duration = positiveInteger(clip.durationFrames, 'clip.durationFrames');
@@ -311,7 +326,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 		// defaults to every source component, which would restore embedded audio.
 		+ ` srcEnable="${context.type}"`
 		+ (lane === 0 ? '' : ` lane="${lane}"`)
-		+ ` offset="${frameTime(offsetFrames, context.rate)}"`
+		+ ` offset="${frameTime(offsetFrames + context.startFrames, context.rate)}"`
 		+ ` start="${frameTime(startFrames, context.rate)}"`
 		+ ` duration="${frameTime(endFrames - offsetFrames, context.rate)}"`
 		+ ` ${role}/>`;
@@ -346,6 +361,28 @@ function formatName(rate: SequenceRationalRate): string {
 	// Named from the exact rational, so a format resource cannot claim a rate
 	// the timeline is not actually at.
 	return `SoundscaperFormat${rate.num}_${rate.den}`;
+}
+
+/** Original media keeps its own frame clock and coded geometry after relink. */
+function sourceFormatAttributes(source: Readonly<Record<string, unknown>>): string | null {
+	const rate = source.frameRate as Readonly<Record<string, unknown>> | undefined;
+	const num = Number(rate?.num);
+	const den = Number(rate?.den);
+	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num <= 0 || den <= 0) return null;
+	const characteristics = source.characteristics as Readonly<Record<string, unknown>> | undefined;
+	let attributes = ` frameDuration="${frameDurationAttribute({ num, den })}"`;
+	for (const [name, value] of [
+		['width', characteristics?.codedWidth ?? source.width],
+		['height', characteristics?.codedHeight ?? source.height],
+	] as const) {
+		if (Number.isSafeInteger(value) && Number(value) > 0) attributes += ` ${name}="${Number(value)}"`;
+	}
+	const aspect = characteristics?.pixelAspectRatio as Readonly<Record<string, unknown>> | undefined;
+	if (Number.isSafeInteger(aspect?.num) && Number.isSafeInteger(aspect?.den)
+		&& Number(aspect?.num) > 0 && Number(aspect?.den) > 0) {
+		attributes += ` paspH="${Number(aspect?.num)}" paspV="${Number(aspect?.den)}"`;
+	}
+	return attributes;
 }
 
 /**

@@ -161,6 +161,7 @@ export interface EditorDocumentSnapshotState {
 	readonly exportProgress: number;
 	readonly exportOutput: unknown;
 	readonly effectClipboard: unknown;
+	readonly readSourceSelectionFrames?: (() => number | null) | null;
 	readonly audacityEffectType: string;
 	readonly audacityControlTrackId: string | null;
 	readonly audacityNoiseProfile: unknown;
@@ -279,7 +280,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		projectActivationPending: state.projectActivationPending,
 		importing: state.importing,
 		recordingStarting: state.recordingStarting,
-		recordingScheduling: state.timedRecordingPreparing,
+		recordingScheduling: state.timedRecordingPreparing || state.timedRecordingCancelling,
 		scheduledRecording: state.timedRecording
 			? Object.freeze({
 				startTimeMs: state.timedRecording.startTimeMs,
@@ -384,6 +385,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		lastAnalysisRequest: state.lastAnalysisRequest ?? null,
 		export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 		effects: Object.freeze({
+			sourceSelectionFrames: currentProject ? state.readSourceSelectionFrames?.() ?? null : null,
 			rackTypes: Object.freeze(runtime.getRackEffectTypes()),
 			videoTypes: Object.freeze(runtime.getVideoEffectTypes()),
 			hasStackClipboard: state.effectClipboard !== null,

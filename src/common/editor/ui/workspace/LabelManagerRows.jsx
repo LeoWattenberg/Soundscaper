@@ -70,7 +70,7 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 					minimum={label.startFrame} disabled={disabled}
 					onCommit={(value) => updateRange('end', value)} /></label>
 			</div>
-			<Button variant="secondary" onClick={() => run(() => controller.actions.timeline.setSelection(label.startFrame, label.endFrame))}>{copy.select || copy.selection}</Button>
+			<Button variant="secondary" onClick={() => run(() => controller.actions.timeline.setExactSelection(label.startFrame, label.endFrame))}>{copy.select || copy.selection}</Button>
 		</li>
 	);
 }

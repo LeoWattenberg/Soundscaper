@@ -43,6 +43,24 @@ test('read-only projects retain Scape copy export while busy projects block it',
 	})).disabled, true);
 });
 
+test('global Remove tracks follows explicit selection and linked lane locks', () => {
+	const base = menuInput({ productId: 'soundscaper', type: 'audio', locked: false,
+		editBlocked: false, actions: actionPorts({}) });
+	const removeDisabled = (tracks: readonly object[], trackIds: readonly string[] = []): unknown => {
+		const menus = createApplicationMenus({ ...base, project: { ...base.project,
+			tracks, selection: { trackIds } } }) as readonly MenuItem[];
+		return findMenuItem(menus, 'remove-track').disabled;
+	};
+	const unlocked = { ...base.project.tracks[0]!, laneGroupId: 'pair' };
+	assert.equal(removeDisabled([unlocked]), false);
+	assert.equal(removeDisabled([{ ...unlocked, locked: true }]), true);
+	assert.equal(removeDisabled([unlocked, { ...unlocked, id: 'other', locked: true,
+		laneGroupId: null }]), false);
+	assert.equal(removeDisabled([unlocked, { ...unlocked, id: 'other', locked: true,
+		laneGroupId: null }], ['audio-track', 'other']), true);
+	assert.equal(removeDisabled([unlocked, { ...unlocked, id: 'partner', locked: true }]), true);
+});
+
 test('shared track-lock copy is localized for both shipped locales', () => {
 	assert.deepEqual({
 		lockTrack: SEQUENCE_TIMING_COPY_BY_LOCALE.en.lockTrack,
@@ -208,17 +226,19 @@ function menuInput({
 	actions: object;
 }>) {
 	const track = { id: `${type}-track`, type, locked, clipIds: [], hidden: false };
+	const project = {
+		id: 'project', sampleRate: 48_000, sources: [], clips: [], tracks: [track],
+		selection: null, loop: { enabled: false }, snap: { enabled: false, division: 'samples' },
+	};
 	return {
 		productId,
 		aboutLabel: 'About',
 		capabilities: {},
 		locale: 'en',
 		copy: copyValues(),
-		project: {
-			id: 'project', sampleRate: 48_000, sources: [], clips: [], tracks: [track],
-			selection: null, loop: { enabled: false }, snap: { enabled: false, division: 'samples' },
-		},
+		project,
 		snapshot: {
+			project,
 			selectedTrackId,
 			preferences: {
 				workspace: {
@@ -248,7 +268,14 @@ function menuInput({
 }
 
 function actionPorts(overrides: Readonly<Record<string, unknown>>): object {
-	return new Proxy({ ...overrides }, {
+	return new Proxy({
+		parallelStackProcessing: {
+			blocked: false,
+			preferences: { enabled: false, workerLimit: 'auto', pipelineFrames: 1536 },
+			status: { state: 'off', sampleRate: 48_000 }, change: () => undefined,
+		},
+		...overrides,
+	}, {
 		get(target, property, receiver) {
 			return Reflect.has(target, property)
 				? Reflect.get(target, property, receiver)

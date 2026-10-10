@@ -123,6 +123,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			return store.loadSourceAudioBuffer(source.storageKey || source.id, context);
 		},
 	});
+	state.readSourceSelectionFrames = () => sourceEditor.target()?.durationFrames ?? null;
 
 	const worker = dependencies.composition.selectionEffectWorkers
 		? createBoundedSelectionEffectWorkerService({

@@ -157,8 +157,8 @@ export const LabelMarker: React.FC<LabelMarkerProps> = ({
       }
     };
 
-    const handleMouseUp = () => {
-      setDragState(null);
+    const handleMouseUp = (event: MouseEvent) => {
+      if (event.button === 0) setDragState(null);
     };
 
     document.addEventListener('mousemove', handleMouseMove);

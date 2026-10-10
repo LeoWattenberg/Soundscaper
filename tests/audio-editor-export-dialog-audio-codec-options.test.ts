@@ -115,9 +115,11 @@ test('browser export preserves every admitted low Opus and MP2 bitrate through r
 			const settings = normalizeMediaExportSettings(format, {
 				...dialog, inputChannelCount: channelCount,
 			});
-			assert.equal(settings.bitRate, Number(value));
+			const bitRate: unknown = Reflect.get(settings, 'bitRate');
+			assert.ok(typeof bitRate === 'number');
+			assert.equal(bitRate, Number(value));
 			validateProfile(format, { frameCount: 1024, channelCount, sampleRate: 48_000 }, {
-				bitrateKbps: settings.bitRate,
+				bitrateKbps: bitRate,
 				...(format === 'opus' ? { vbrMode: 1 } : {}),
 			});
 		}

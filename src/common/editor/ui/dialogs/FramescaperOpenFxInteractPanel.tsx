@@ -20,6 +20,7 @@ import {
 import type { OfxInteractEventV1 } from '../../native-ofx-host-contract.ts';
 import type { FramescaperNativeServicesBridge } from '../framescaper-native-services-bridge.ts';
 import type { FramescaperNativeServicesCopy } from '../framescaper-native-services-copy.ts';
+import { canAppendOpenFxInteractEvent } from './openfx-interact-replay-admission.ts';
 
 type OfxInteractModifier = 'alt' | 'control' | 'meta' | 'shift';
 type UnsequencedOfxInteractEvent =
@@ -44,6 +45,7 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const sequenceRef = useRef(0);
 	const historyRef = useRef<readonly OfxInteractEventV1[]>(Object.freeze([]));
+	const replayFullRef = useRef(false);
 	const generationRef = useRef(0);
 	const mountedRef = useRef(true);
 	const serialRef = useRef<Promise<void>>(Promise.resolve());
@@ -87,7 +89,7 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 		const selectedId = instance.effect.instanceId;
 		const selectedTarget = target;
 		const generation = generationRef.current;
-		setStatus({ key: 'ofxInteractWorking' });
+		if (!replayFullRef.current) setStatus({ key: 'ofxInteractWorking' });
 		serialRef.current = serialRef.current.catch(() => undefined).then(async () => {
 			try {
 				const authority = authoritiesRef.current.get(selectedId);
@@ -109,7 +111,8 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 				}
 				if (!mountedRef.current || generation !== generationRef.current) return;
 				if (result.surfaceDisposition === 'drawn') paint(canvasRef.current, result.rgba);
-				setStatus({ key: result.redrawRequested ? 'ofxInteractRedrawn' : 'ofxInteractReady' });
+				setStatus({ key: replayFullRef.current ? 'ofxInteractSequenceExhausted'
+					: result.redrawRequested ? 'ofxInteractRedrawn' : 'ofxInteractReady' });
 			} catch (error) {
 				if (mountedRef.current && generation === generationRef.current) setStatus(feedbackFailure(error));
 			}
@@ -121,20 +124,24 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 		generationRef.current += 1;
 		sequenceRef.current = 0;
 		historyRef.current = Object.freeze([]);
+		replayFullRef.current = false;
 		submit(Object.freeze([]));
 	}, [instance, submit, targetValue]);
 
 	const event = useCallback((value: UnsequencedOfxInteractEvent): void => {
-		if (!Number.isSafeInteger(sequenceRef.current) || sequenceRef.current < 0
-			|| historyRef.current.length >= OFX_INTERACT_MAXIMUM_EVENTS_V1) {
+		if (!Number.isSafeInteger(sequenceRef.current) || sequenceRef.current < 0) {
 			setStatus({ key: 'ofxInteractSequenceExhausted' }); return;
 		}
 		const sequenced = Object.freeze({ ...value, sequence: sequenceRef.current }) as OfxInteractEventV1;
+		if (!canAppendOpenFxInteractEvent(historyRef.current, sequenced)) {
+			replayFullRef.current = true;
+			setStatus({ key: 'ofxInteractSequenceExhausted' }); return;
+		}
 		historyRef.current = appendOpenFxInteractReplay(historyRef.current, sequenced);
 		sequenceRef.current += 1;
 		const terminal = sequenced.kind === 'focus' && !sequenced.focused;
 		submit(historyRef.current, terminal);
-		if (terminal) historyRef.current = Object.freeze([]);
+		if (terminal) { historyRef.current = Object.freeze([]); replayFullRef.current = false; }
 	}, [setStatus, submit]);
 	const pointer = useCallback((
 		phase: 'motion' | 'down' | 'up', value: React.PointerEvent<HTMLCanvasElement>,

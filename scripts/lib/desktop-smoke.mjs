@@ -87,6 +87,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'releaseLinkedVideoOriginal',
 	'releaseOriginalFile',
 	'releaseRead',
+	'releaseSaveTarget',
 	'releaseSesxSession',
 	'relocateAssistanceModels',
 	'removeAssistanceModel',

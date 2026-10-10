@@ -275,6 +275,33 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 		'focus:true', 'pointer:down', 'pointer:motion', 'pointer:up',
 		'keyboard:down', 'keyboard:up', 'focus:false',
 	]);
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1]), {
+		timeout: 120_000,
+	}).toMatchObject({ events: [], effect: { parameters: replay.effect.parameters.map((parameter) => (
+		parameter.name === 'enabled' ? { ...parameter, value: false } : parameter
+	)) } });
+
+	// A continuous real pointer gesture must leave room for release and save.
+	const longGestureOffset = await page.evaluate(() => globalThis.__framescaperNativeCalls.length);
+	await canvas.focus();
+	const bounds = await canvas.boundingBox();
+	expect(bounds).not.toBeNull();
+	await page.mouse.move(bounds.x + 24, bounds.y + 64);
+	await page.mouse.down();
+	await page.mouse.move(bounds.x + 224, bounds.y + 128, { steps: 300 });
+	await page.mouse.up();
+	await dialog.locator('[data-framescaper-openfx-interact-target="true"]').focus();
+	await expect.poll(() => page.evaluate((offset) => globalThis.__framescaperNativeCalls.slice(offset)
+		.filter(([kind, request]) => kind === 'runOpenFxInteract' && request.events.length > 0)
+		.at(-1)?.[1].events.slice(-2)
+		.map((event) => event.kind === 'focus' ? `focus:${event.focused}` : `${event.kind}:${event.phase}`), longGestureOffset), {
+		timeout: 120_000,
+	}).toEqual(['pointer:up', 'focus:false']);
+	const longReplay = await page.evaluate((offset) => globalThis.__framescaperNativeCalls.slice(offset)
+		.filter(([kind, request]) => kind === 'runOpenFxInteract' && request.events.length > 0)
+		.at(-1)[1], longGestureOffset);
+	expect(longReplay.events).toHaveLength(256);
 
 	const retainedPixel = await canvas.evaluate((element) => Array.from(
 		element.getContext('2d').getImageData(0, 0, 1, 1).data,
@@ -290,7 +317,7 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 	const committed = await page.evaluate(() => globalThis.__framescaperNativeCalls
 		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)[1]);
 	expect(committed.project.revision).toBeGreaterThan(replay.project.revision);
-	expect(committed.effect.parameters.find(({ name }) => name === 'enabled').value).toBe(false);
+	expect(committed.effect.parameters.find(({ name }) => name === 'enabled').value).toBe(true);
 	const afterRetained = await canvas.evaluate((element) => Array.from(
 		element.getContext('2d').getImageData(0, 0, 1, 1).data,
 	));
@@ -437,7 +464,7 @@ async function installNativeServicesFixture(page, { watchedVideo = null } = {}) 
 					redrawRequested: !retained && copied.events.length > 0,
 					surfaceDisposition: retained ? 'retained' : 'drawn',
 					parameterMutations: terminal && enabled ? [{
-						parameter: { ...enabled, value: false },
+						parameter: { ...enabled, value: !enabled.value },
 					}] : [],
 					rgba: new Uint8Array(64 * 64 * 4).fill(retained ? 0 : 0x33),
 				};

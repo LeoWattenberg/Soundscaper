@@ -44,8 +44,8 @@ import { productProfile } from '../products.js';
 import { assertPlayAtSpeedStaffPadMemorySafe } from './engine.js';
 import {
 	RECORDING_INPUT_GAIN_DEFAULT,
-	createRecordingController,
 } from './recording.js';
+import { createListeningRecordingControllerFactory } from './recording-listening-output.ts';
 import { RECORDING_DEFAULT_DEVICE_ID, recordingRoutingSettingKey } from './recording-routing.js';
 import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { acquireProjectLock } from './project-lock.js';
@@ -236,7 +236,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const recordingCapturePool = createRecordingCapturePoolBinding({
 		pool: options.recordingCapturePool, mediaDevices, onChange: bindings.handleRecordingPoolChange,
 	});
-	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
+	const recordingControllerFactory = createListeningRecordingControllerFactory(engine, options.recordingControllerFactory);
 	const acquireLock = createFencedProjectLockAcquisition(options.acquireProjectLock || acquireProjectLock, store);
 	const microphoneMeterService = createMicrophoneMeterService({
 		state: recordingAccess,
@@ -448,10 +448,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setProject: documentScope.set, setHistory: value => { state.history = value; },
 				synchronizeProject: async value => { await bindings.applyProjectToPlaybackEngine(value); bindings.publishProjectState(); } }),
 			prepareCaptureStart: async () => { await bindings.flushProject(); },
-			getAudioContext: () => engine.getAudioContext({ resume: false }),
+			getAudioContext: () => engine.getAudioContext({ resume: false }), getMonitorDestination: () => engine.getPlaybackDestination(),
 			createStream: options.createStream, MediaRecorder: options.MediaRecorder,
 			MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
-			recordingControllerFactory: captureRuntime.adaptRecordingControllerFactory(options.recordingControllerFactory), AudioWorkletNode: options.AudioWorkletNode,
+			recordingControllerFactory: captureRuntime.adaptRecordingControllerFactory(options.recordingControllerFactory, { getGain: () => engine.getPlaybackGain(), subscribe: documentChannel.subscribe }), AudioWorkletNode: options.AudioWorkletNode,
 			helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
 			desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', true).catch(bindings.handleError); }, hideWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', false).catch(bindings.handleError); },
 			createId: createStableId, now: currentTimeMs,
@@ -510,7 +510,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			ffmpeg, fileService, playbackProjects: playbackProjectService, productName: product.name, prepareProjectForExport: options.prepareProjectForExport,
 			normalizeExportSettings, getPerformanceOptimizationMode: () => state.preferences.performance.optimizeFor, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
 		},
-		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => playbackPreviews.create(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
+		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => playbackPreviews.create(previewOptions), stopProjectBinPreview: bindings.projectBin.stopPreview, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		getProject: () => documentState.project, getCommandProject, getSpectrogramDefaults: () => state.preferences.spectrogram, editingBlocked, labelEditingBlocked: () => selectAudioEditorControllerLabelEditBlock(state).blocked || Boolean(framescaperCapture?.originSnapshot(documentState.project?.id ?? null).editBlocked), commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
 		projectSampleRate, projectDurationFrames, editorTimelineDurationFrames, normalizeTimelineFrame, persistSetting, productSettingKey, activeSelection,
 		activateStoredSource: bindings.activateStoredSource, cacheSourceBuffer: bindings.cacheSourceBuffer, retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider, renderDryTrackRange: bindings.renderDryTrackRange,

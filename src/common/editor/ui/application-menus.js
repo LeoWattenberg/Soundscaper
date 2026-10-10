@@ -39,6 +39,8 @@ import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
 import { resolveEditingActionAvailability } from '../commands/editing-selection-authority.ts';
 import { resolveSelectionRange } from '../selection-range.ts';
 import { createOriginalFileOverwriteMenuItems } from './original-file-overwrite-menu.ts';
+import { repairSelectionAvailable } from './repair-menu-admission.ts';
+import { selectedTrackRemovalAvailable } from '../selected-track-removal.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -162,6 +164,8 @@ export default function createApplicationMenus({
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
+		project, selectedTrackIds: project?.selection?.trackIds?.length
+			? project.selection.trackIds : selectedTrack ? [selectedTrack.id] : [],
 	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const selectionAnalyzerBlocked = analyzerBlocked || Boolean(snapshot.analysisProcessing) || !resolveSelectionRange(project, {
@@ -176,6 +180,7 @@ export default function createApplicationMenus({
 		disabled: editBlocked || !effectTargeting.effectAudioTrack,
 		selectionActive: effectTargeting.explicitEffectSelectionActive,
 		allAudioTarget: effectTargeting.effectPreferenceTargetsAll,
+		repairAvailable: repairSelectionAvailable(project, snapshot.selectedClipId ?? selectedClip?.id ?? null, snapshot.effects?.sourceSelectionFrames),
 	}, actions.openSelectionEffect);
 	const nyquistItems = createNyquistPluginMenuItems({
 		editBlocked, blocked, selectedAudioTrack: effectTargeting.effectAudioTrack, frequencySelectionActive,
@@ -386,7 +391,7 @@ export default function createApplicationMenus({
 				// them from here left them unreachable from any menu at all.
 				...productItems.tracks,
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
-				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
+				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrackRemovalAvailable(project, snapshot.selectedTrackId), onClick: actions.removeTrack },
 				...structuralMenus.muteItems,
 				divider(),
 				{ id: 'mix-render', label: copy.mixRenderTitle, preserveLabel: true,

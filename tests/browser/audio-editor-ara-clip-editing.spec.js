@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, getMenuItem, importFiles, openNestedCommandMenu } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, getMenuItem, importFiles, openNestedCommandMenu } from './audio-editor-test-helpers.js';
 import { editorDatabaseName } from './helpers/editor-databases.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 const MENU_LABEL = 'Edit selected clip with ARA';
 const DIALOG_TITLE = 'ARA clip editor';
@@ -77,6 +78,56 @@ for (const productId of ['soundscaper', 'framescaper']) {
 		await expect(getMenuItem(effect, MENU_LABEL)).toHaveCount(0);
 	});
 }
+
+for (const condition of ['locked', 'four-channel']) test(`ARA menu refuses an ordinary ${condition} recording before its existing preparation refuses it`, async ({ page }) => {
+	const errors = collectClientErrors(page);
+	await installAraFixture(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [AUDIO]);
+	await clipByName(editor, AUDIO.name).locator('.clip-header').click();
+	await chooseCommandAction(page, editor, 'Effect', MENU_LABEL);
+	const dialog = page.getByRole('dialog', { name: DIALOG_TITLE, exact: true });
+	await dialog.getByRole('combobox', { name: 'VST3 plug-in', exact: true }).selectOption('iaaaaaaaaaaaaaaa');
+	await dialog.getByRole('button', { name: 'Open clip', exact: true }).click();
+	await expect(dialog.getByRole('button', { name: 'Render to new muted track', exact: true })).toBeEnabled({ timeout: 15_000 });
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await expect(dialog).toHaveCount(0);
+	await expect.poll(() => page.evaluate(() => globalThis.__araCalls.filter(([method]) => method === 'close').length)).toBe(1);
+	const recording = clipByName(editor, AUDIO.name);
+	const recordingTrack = recording.locator('xpath=ancestor::div[@data-track-row][1]');
+	if (condition === 'locked') {
+		await chooseTrackMenuAction(page, editor, recordingTrack, 'Lock track');
+		const projectId = await editor.getAttribute('data-project-id');
+		await expect(recording.getByRole('slider', { name: 'Looped clip length', exact: true })).toBeDisabled();
+		await expect.poll(async () => (await storedProject(page, 'soundscaper', projectId)).tracks.some(track => track.locked)).toBe(true);
+		const lockedClip = clipByName(editor, AUDIO.name);
+		await lockedClip.focus();
+		await lockedClip.press('Enter');
+	} else {
+		const wide = createWavFixture({ name: 'ara-four-channel.wav', frequency: 440, duration: 0.25, channelCount: 4, sampleRate: 48_000 });
+		await importFiles(editor, [wide]);
+		await clipByName(editor, wide.name).locator('.clip-header').click();
+	}
+	const effect = await openNestedCommandMenu(page, editor, 'Effect', []);
+	await expect(getMenuItem(effect, MENU_LABEL)).toHaveAttribute('aria-disabled', 'true');
+	await page.keyboard.press('Escape');
+	if (condition === 'locked') await chooseTrackMenuAction(page, editor, recordingTrack, 'Unlock track');
+	const originalClip = clipByName(editor, AUDIO.name);
+	await originalClip.focus();
+	await originalClip.press('Enter');
+	const trackCount = await editor.locator('[data-track-row]').count();
+	await chooseCommandAction(page, editor, 'Effect', MENU_LABEL);
+	await dialog.getByRole('combobox', { name: 'VST3 plug-in', exact: true }).selectOption('iaaaaaaaaaaaaaaa');
+	await dialog.getByRole('button', { name: 'Open clip', exact: true }).click();
+	await expect(dialog.getByRole('button', { name: 'Render to new muted track', exact: true })).toBeEnabled({ timeout: 15_000 });
+	await dialog.getByRole('button', { name: 'Render to new muted track', exact: true }).click();
+	await expect(dialog).toHaveCount(0);
+	await expect(editor.locator('[data-track-row]')).toHaveCount(trackCount + 1);
+	await expect(editor.locator('[data-track-row]').last().getByRole('button', { name: 'Mute', exact: true })).toHaveAttribute('aria-pressed', 'true');
+	await chooseCommandAction(page, editor, 'Edit', 'Undo');
+	await expect(editor.locator('[data-track-row]')).toHaveCount(trackCount);
+	expect(errors).toEqual([]);
+});
 
 async function installAraFixture(page) {
 	await page.addInitScript(() => {

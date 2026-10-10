@@ -82,7 +82,12 @@ export default function FramescaperFinishingDialog({
 	const [profiledNoiseReduction, setProfiledNoiseReduction] = useState(false);
 	const [noiseProfileText, setNoiseProfileText] = useState('');
 	const captionFileRef = useRef<HTMLInputElement | null>(null);
+	const captionLifetimeRef = useRef(true);
+	const captionOwnerRef = useRef({ projectId: record(project).id, surface });
+	const finishingProjectId = record(project).id;
+	captionOwnerRef.current = { projectId: finishingProjectId, surface };
 	const cubeLutFileRef = useRef<HTMLInputElement | null>(null);
+	const cubeLutAbortRef = useRef<AbortController | null>(null);
 	const motionRuntime = framescaperMotionAnalysisActionsFor(controller);
 	const motionTargets = motionRuntime?.targets() ?? [];
 	const [motionStackId, setMotionStackId] = useState(() => motionTargets[0]?.stackId ?? '');
@@ -114,6 +119,11 @@ export default function FramescaperFinishingDialog({
 		setMotionEndFrame(motionTarget?.endFrame ?? 0);
 	}, [motionTarget?.stackId, motionTarget?.sourceId, motionTarget?.startFrame, motionTarget?.endFrame]);
 	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
+	useEffect(() => () => { cubeLutAbortRef.current?.abort(); }, [finishingProjectId, surface]);
+	useEffect(() => {
+		captionLifetimeRef.current = true;
+		return () => { captionLifetimeRef.current = false; };
+	}, []);
 
 	const blocked = pending || editingBlocked || readOnly;
 	const exportBlocked = pending || (editingBlocked && !readOnly);
@@ -152,10 +162,13 @@ export default function FramescaperFinishingDialog({
 			captionFileRef.current?.click();
 			return;
 		}
+		const owner = captionOwnerRef.current;
 		perform(async () => {
 			const opened = await openFramescaperCaptionSidecarFile({
 				...(file ? { file } : {}), fileService,
 			});
+			if (!captionLifetimeRef.current || captionOwnerRef.current.projectId !== owner.projectId
+				|| captionOwnerRef.current.surface !== owner.surface) return;
 			if (opened === null) {
 				captionImportSummary = { key: 'captionFileSelectionCancelled' };
 				return;
@@ -196,20 +209,26 @@ export default function FramescaperFinishingDialog({
 			if (!cubeLutRuntime || !cubeLutTarget) throw new Error('Select one cube LUT target first.');
 			const runtime = cubeLutRuntime;
 			const target = cubeLutTarget;
-			const importBody = (body: Blob) => runtime.importCubeLut({ target, file: body });
-			let reference;
-			if (!file) {
-				if (typeof fileService.chooseFiles !== 'function') {
-					throw new Error('Desktop cube LUT file selection is unavailable.');
+			const abort = new AbortController();
+			cubeLutAbortRef.current = abort;
+			const importBody = (body: Blob) => runtime.importCubeLut({ target, file: body, signal: abort.signal });
+			try {
+				let reference;
+				if (!file) {
+					if (typeof fileService.chooseFiles !== 'function') {
+						throw new Error('Desktop cube LUT file selection is unavailable.');
+					}
+					const descriptors = await fileService.chooseFiles({ purpose: 'lut', multiple: false });
+					if (descriptors[0] === undefined) {
+						cubeLutSummary = { key: 'cubeLutSelectionCancelled' };
+						return;
+					}
+					reference = await withFramescaperSidecarFile(fileService, descriptors[0], abort.signal, importBody);
+				} else reference = await importBody(file);
+				cubeLutSummary = `${cubeLutTarget.label}: ${reference.sha256.slice(0, 12)}`;
+			} finally {
+				if (cubeLutAbortRef.current === abort) cubeLutAbortRef.current = null;
 				}
-				const descriptors = await fileService.chooseFiles({ purpose: 'lut', multiple: false });
-				if (descriptors[0] === undefined) {
-					cubeLutSummary = { key: 'cubeLutSelectionCancelled' };
-					return;
-				}
-				reference = await withFramescaperSidecarFile(fileService, descriptors[0], undefined, importBody);
-			} else reference = await importBody(file);
-			cubeLutSummary = `${cubeLutTarget.label}: ${reference.sha256.slice(0, 12)}`;
 		}, () => cubeLutSummary);
 	};
 	const analyzeMotion = (): void => {
@@ -277,7 +296,7 @@ export default function FramescaperFinishingDialog({
 
 	return <AudioEditorDialogShell
 		title={model.title}
-		onClose={onClose}
+		onClose={() => { captionLifetimeRef.current = false; cubeLutAbortRef.current?.abort(); onClose(); }}
 		width={820}
 		initialFocus={surface === 'dialogue-chain' ? '[data-dialogue-chain-apply] button' : '[data-framescaper-finishing-document]'}
 		dataAttributes={{ 'data-framescaper-finishing-dialog': surface }}

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandle';
 
 import { createSetVideoKeyframesCommand } from '../../commands/factories.ts';
@@ -22,7 +22,10 @@ interface Props {
 	readonly run: (operation: () => unknown) => unknown;
 	readonly onTabOut?: () => unknown;
 }
-interface Gesture { readonly edge: 'in' | 'out'; readonly startX: number; readonly initial: number; readonly pointerId: number }
+interface Gesture {
+	readonly edge: 'in' | 'out'; readonly startX: number; readonly initial: number; readonly pointerId: number;
+	readonly authority: string; readonly target: HTMLButtonElement;
+}
 
 /** Uses the audio quick-fade glyphs while committing video opacity keyframes. */
 export function VideoClipFadeHandles({ controller, project, clip, selected, visibleStartFrame, visibleEndFrame, pixelsPerSecond, sampleRate, blocked, copy, run, onTabOut }: Props) {
@@ -32,6 +35,16 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 	}, [rawClip]);
 	const [preview, setPreview] = useState<VideoFadeEnvelope | null>(null);
 	const gesture = useRef<Gesture | null>(null);
+	const opacityAuthority = useMemo(() => !rawClip || !envelope ? '' : JSON.stringify([rawClip.id, rawClip.sequenceFrameCount, clip.durationFrames,
+		rawClip.videoComposition.opacity, rawClip.videoKeyframes.timeDomain,
+		rawClip.videoKeyframes.curves.filter(({ target }) => target.kind === 'composition' && target.parameterId === 'opacity'),
+	]), [rawClip, envelope, clip.durationFrames]);
+	useLayoutEffect(() => {
+		const session = gesture.current;
+		if (!session || session.authority === opacityAuthority) return;
+		gesture.current = null; setPreview(null);
+		if (session.target.hasPointerCapture?.(session.pointerId)) session.target.releasePointerCapture(session.pointerId);
+	}, [opacityAuthority]);
 	if (!rawClip || !envelope || clip.kind !== 'video') return null;
 	const current = preview ?? envelope;
 	const scale = clip.durationFrames / rawClip.sequenceFrameCount;
@@ -45,6 +58,11 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 		const delta = (clientX - session.startX) / pixelsPerSecond * sampleRate / scale;
 		return Math.max(0, Math.min(rawClip.sequenceFrameCount - (session.edge === 'in' ? envelope.fadeOutFrames : envelope.fadeInFrames),
 			Math.round(session.initial + (session.edge === 'in' ? delta : -delta))));
+	};
+	const finishGesture = (session: Gesture, clientX: number): void => {
+		gesture.current = null; setPreview(null);
+		const duration = durationAt(session, clientX);
+		if (!blocked && duration !== session.initial) update(session.edge, duration);
 	};
 	return <div className="audio-editor-clip-fade audio-editor-video-clip-fade">
 		{(current.fadeInFrames > 0 || current.fadeOutFrames > 0) && <svg className="audio-editor-clip-fade__curve" viewBox={`0 0 ${width} 100`} preserveAspectRatio="none" aria-hidden="true">
@@ -70,21 +88,26 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 				onPointerDown={event => {
 					if (event.button !== 0 || blocked || gesture.current) return;
 					event.preventDefault(); event.stopPropagation();
-					gesture.current = { edge, initial: value, startX: event.clientX, pointerId: event.pointerId };
+					gesture.current = { edge, initial: value, startX: event.clientX, pointerId: event.pointerId,
+						authority: opacityAuthority, target: event.currentTarget };
 					event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus();
 				}}
 				onPointerMove={event => {
 					const session = gesture.current;
 					if (!session || session.pointerId !== event.pointerId) return;
 					event.stopPropagation();
+					if (event.pointerType === 'mouse' && !(event.buttons & 1)) {
+						finishGesture(session, event.clientX);
+						return;
+					}
 					setPreview({ ...envelope, [edge === 'in' ? 'fadeInFrames' : 'fadeOutFrames']: durationAt(session, event.clientX) });
 				}}
 				onPointerUp={event => {
 					const session = gesture.current;
 					if (!session || session.pointerId !== event.pointerId) return;
-					event.stopPropagation(); gesture.current = null; setPreview(null);
-					const duration = durationAt(session, event.clientX);
-					if (!blocked && duration !== session.initial) update(edge, duration);
+					if (event.pointerType === 'mouse' && event.button !== 0) return;
+					event.stopPropagation();
+					finishGesture(session, event.clientX);
 				}}
 				onPointerCancel={event => {
 					if (gesture.current?.pointerId !== event.pointerId) return;

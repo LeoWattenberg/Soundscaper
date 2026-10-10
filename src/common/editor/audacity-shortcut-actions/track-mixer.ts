@@ -2,6 +2,7 @@
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { ControllerProject } from '../controller/track-audio/track-domain-types.ts';
+import { projectStripPanAvailable } from '../terminal-channel-widths.ts';
 
 interface AudacityTrackMixerSnapshot {
 	readonly project?: ControllerProject | null;
@@ -34,6 +35,7 @@ export function applyAudacityTrackMixerAction(
 	}
 	if (track.type !== 'audio') return null;
 	const gain = action >= 4;
+	if (!gain && !projectStripPanAvailable(project, { kind: 'track', id: track.id })) return null;
 	const minimum = gain ? -60 : -1;
 	const maximum = gain ? 12 : 1;
 	const linear = Number(track.gain ?? 1);

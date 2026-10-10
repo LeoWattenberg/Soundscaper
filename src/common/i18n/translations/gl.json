@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "gl",
 	"provenance": {
-		"machine": {"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:1a7ff5e5feeb7da7794bd3bcb4a337e1316212c053944b5ceba07dc146aee114","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1759,6 +1759,7 @@
 		"mixDownTo": ["machine","Mix down to","Mesturar a"],
 		"mixMenu": ["machine","Mix","Mesturar"],
 		"mixRender": ["machine","Mix and render","Mesturar e renderizar"],
+		"mixRenderLockedOriginals": ["machine","Locked tracks cannot be replaced. Clear Replace originals to create new tracks.","As pistas bloqueadas non se poden substituír. Desmarca «Substituír orixinais» para crear pistas novas."],
 		"mixRenderNew": ["machine","Mix and render to new track","Mesturar e renderizar nunha nova pista"],
 		"mixRenderNoOperation": ["machine","Select Mix down or Render effects to continue.","Selecciona Mesturar ou Renderizar efectos para continuar."],
 		"mixRenderRequiresAudio": ["machine","Select at least one audio track containing audio.","Selecciona polo menos unha pista de son que conteña son."],
@@ -1891,7 +1892,6 @@
 		"openProject": ["machine","Open projects","Abrir proxectos"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Abrir ficheiro de proxecto Scape ({projectExtension})"],
 		"optimizeFor": ["machine","Optimize for","Optimizar para"],
-		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Memoria mantén a carga actual do editor baixo demanda. Velocidade carga as ferramentas do editor por adiantado; as ferramentas de IA e os motores de procesamento seguen cargándose cando se usan. Reinicia o editor de escritorio para aplicar os cambios."],
 		"optimizeForMemory": ["machine","Memory","Memoria"],
 		"optimizeForSpeed": ["machine","Speed","Velocidade"],
 		"options": ["machine","Options","Opcións"],
@@ -2964,7 +2964,6 @@
 		"ui.framescaperNative.ofxInteractOverlay": ["machine","Overlay Interact","Superpón Interact"],
 		"ui.framescaperNative.ofxInteractReady": ["machine","The 64 by 64 offscreen Interact surface is ready.","A superficie Interact fóra de pantalla de 64 por 64 está lista."],
 		"ui.framescaperNative.ofxInteractRedrawn": ["machine","The plug-in requested and completed an offscreen redraw.","O complemento solicitou e completou un redibuxado fóra de pantalla."],
-		"ui.framescaperNative.ofxInteractSequenceExhausted": ["machine","The Interact action sequence is exhausted.","A secuencia de accións de Interact está esgotada."],
 		"ui.framescaperNative.ofxInteractTarget": ["machine","Interact target","Obxectivo de Interact"],
 		"ui.framescaperNative.ofxInteractUnavailable": ["machine","The offscreen OpenFX Interact transport is unavailable.","O transporte OpenFX Interact fóra de pantalla non está dispoñible."],
 		"ui.framescaperNative.ofxInteractWorking": ["machine","Sending normalized Interact actions","Enviando accións de Interact normalizadas"],

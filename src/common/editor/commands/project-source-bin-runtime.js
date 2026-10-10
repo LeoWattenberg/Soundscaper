@@ -20,8 +20,10 @@ import {
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { clipLoopTransformFields } from '../audio-clip-loop.ts';
 import { projectBinReplacementWarp } from '../project-bin-replacement-warp.ts';
+import { createProjectBinContractionEvaluator } from '../project-bin-replacement-contractions.ts';
 import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
+import { collectTakeGroupSourceIds } from '../take-group-source-references.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -297,8 +299,9 @@ function removeProjectBinSourceFromProject(project, clipId) {
 	);
 	if (timelineIds.length) removeClips(project, timelineIds);
 	projectBin.clips = projectBin.clips.filter((candidate) => !sourceIds.has(candidate.sourceId));
+	const takeSourceIds = collectTakeGroupSourceIds(project);
 	for (const sourceId of sourceIds) {
-		const inUse = [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
+		const inUse = takeSourceIds.has(sourceId) || [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
 		if (!inUse) project.sources = project.sources.filter((source) => source.id !== sourceId);
 	}
 }
@@ -405,11 +408,10 @@ function replaceProjectBinMedia(project, command) {
 			if (!Array.isArray(track.clipIds)) continue;
 			const contractions = removedDurationsByTrack.get(track.id) || [];
 			if (!contractions.length) continue;
+			const contractionAt = createProjectBinContractionEvaluator(contractions);
 			for (const clipId of track.clipIds) {
 				const clip = requireClip(project, clipId);
-				const shift = contractions.reduce((sum, entry) => (
-					clip.timelineStartFrame >= entry.endFrame ? sum + entry.frames : sum
-				), 0);
+				const shift = contractionAt(clip.timelineStartFrame);
 				if (shift > 0) replaceClip(project, normalizeClipForProject(project, {
 					...clip,
 					timelineStartFrame: Math.max(0, clip.timelineStartFrame - shift),
@@ -420,8 +422,9 @@ function replaceProjectBinMedia(project, command) {
 		}
 	}
 
+	const takeSourceIds = collectTakeGroupSourceIds(project);
 	for (const { oldSource } of replacementBySourceId.values()) {
-		const inUse = [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
+		const inUse = takeSourceIds.has(oldSource.id) || [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
 		if (!inUse) project.sources = project.sources.filter((source) => source.id !== oldSource.id);
 	}
 }

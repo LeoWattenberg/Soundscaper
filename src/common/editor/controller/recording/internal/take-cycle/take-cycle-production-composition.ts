@@ -132,6 +132,8 @@ export function createTakeCycleProductionComposition(
 			get state() { return state; },
 			pause: () => false,
 			resume: () => false,
+			setInputGain(value: number) { if (state === 'recording') routed.setInputGain(value); },
+			setMonitoring(enabled: boolean) { if (state === 'recording') routed.setMonitoring(enabled); },
 			stop() {
 				if (stopPromise) return stopPromise;
 				state = 'stopping';

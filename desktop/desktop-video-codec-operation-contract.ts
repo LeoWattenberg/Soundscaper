@@ -158,7 +158,7 @@ export function createDesktopExternalFfmpegVideoWorkload(
 /** Generic FFmpeg readiness is intentionally insufficient: each delivery tuple is exact. */
 export function createDesktopExternalFfmpegVideoCapabilities(
 	value: unknown,
-	platform: NodeJS.Platform = process.platform,
+	platform: string = (globalThis as { readonly process?: { readonly platform: string } }).process?.platform ?? '',
 ): DesktopExternalFfmpegVideoCapabilities {
 	const capabilities = recordOrNull(value)?.capabilities;
 	const encoders = tokenSet(recordOrNull(capabilities)?.encoders);

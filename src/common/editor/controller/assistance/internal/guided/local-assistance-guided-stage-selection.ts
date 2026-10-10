@@ -5,12 +5,14 @@
 import type { AssistanceWorkflowStageSpec } from '../../../../assistance/workflow.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../../../../assistance/workflow-settings-v1.ts';
 import type { LocalAssistanceModel } from '../../../../assistance/local-assistance-bridge.ts';
-import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
+import { localAssistanceGuidedModelMatches } from './local-assistance-guided-model-selection.ts';
+
+type Model = Pick<LocalAssistanceModel, 'modelId' | 'version' | 'task'>;
 
 export function selectLocalAssistanceGuidedStages(
 	graph: readonly AssistanceWorkflowStageSpec[],
 	settings: AssistanceWorkflowSettingsV1,
-	models: readonly LocalAssistanceModel[],
+	models: readonly Model[],
 	inventory: readonly Readonly<{ mediaKind: string }>[],
 ): readonly AssistanceWorkflowStageSpec[] | null {
 	if (settings.workflowId === 'generate-editorial-text' && !settings.enabled) return null;
@@ -40,8 +42,8 @@ export function selectLocalAssistanceGuidedStages(
 
 function hasExactModel(
 	slotId: string,
-	models: readonly LocalAssistanceModel[],
+	models: readonly Model[],
 	settings: AssistanceWorkflowSettingsV1,
 ): boolean {
-	return localAssistanceGuidedModelCandidates(slotId, models, settings).length > 0;
+	return models.some(model => localAssistanceGuidedModelMatches(slotId, model, settings));
 }

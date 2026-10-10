@@ -127,7 +127,7 @@ export default function FreesoundUploadArea({
 				>
 					<p>{copy.uploadDropPrompt}</p>
 					<input ref={inputRef} className="kw-audio-editor-sr-only" type="file" multiple
-						accept="audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv"
+						accept="audio/*,video/mp4,video/webm,.aac,.aif,.aifc,.aiff,.bw64,.bwf,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv"
 						disabled={disabled} onChange={fileChange} />
 					<Button size="small" disabled={disabled} onClick={() => inputRef.current?.click()}>
 						{copy.chooseAudioFiles}

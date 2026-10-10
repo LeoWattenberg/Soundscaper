@@ -8,11 +8,14 @@ import '../audio-editor-design-system/25-spectral-brush.css';
 import { audioEditorClipBodyGeometry, normalizeSpectrogramScale } from './geometry.ts';
 import { planSpectralBrushGesture } from './spectral-brush-model.ts';
 import { useSpectralBrushCancellation } from './useSpectralBrushCancellation.ts';
+import { spectralChannelAtY, spectralChannelBands } from './spectral-channel-geometry.ts';
 
 export function SpectralBrushOverlay({
 	track,
 	displayMode,
 	trackHeight,
+	channelCount = 1,
+	channelHeightRatio = 0.5,
 	windowWidth,
 	overscanStartFrame,
 	pixelsPerSecond,
@@ -34,13 +37,15 @@ export function SpectralBrushOverlay({
 		minimumFrequency + 1,
 		Math.min(sampleRate / 2, Number(track.spectrogram?.maximumFrequency) || sampleRate / 2),
 	);
-	const geometry = (startX, startY, endX, endY) => ({
+	const geometry = (startX, startY, endX, endY) => {
+		const channel = spectralChannelAtY(startY, laneHeight, channelCount, channelHeightRatio);
+		return {
 		startX,
-		startY,
+		startY: startY - channel.top,
 		endX,
-		endY,
+		endY: endY - channel.top,
 		laneWidth: windowWidth,
-		laneHeight,
+		laneHeight: channel.height,
 		contentOffsetX: CLIP_CONTENT_OFFSET,
 		overscanStartFrame,
 		pixelsPerSecond,
@@ -48,7 +53,8 @@ export function SpectralBrushOverlay({
 		minimumFrequency,
 		maximumFrequency,
 		scale: normalizeSpectrogramScale(track.spectrogram?.scale),
-	});
+		};
+	};
 	const stopEvent = (event) => {
 		event.preventDefault();
 		event.stopPropagation();
@@ -71,6 +77,7 @@ export function SpectralBrushOverlay({
 	const move = (event) => {
 		const drag = dragRef.current;
 		if (!drag || drag.pointerId !== event.pointerId) return;
+		if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) { finish(event); return; }
 		stopEvent(event);
 		const point = pointerPosition(event);
 		setPreview({ startX: drag.x, startY: drag.y, endX: point.x, endY: point.y });
@@ -88,11 +95,12 @@ export function SpectralBrushOverlay({
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (disabled || (event.key !== 'Enter' && event.key !== ' ')) return;
 		stopEvent(event);
+		const channel = spectralChannelBands(laneHeight, channelCount, channelHeightRatio)[0];
 		onCommit(planSpectralBrushGesture(geometry(
 			windowWidth / 2,
-			laneHeight / 2,
+			channel.height / 2,
 			windowWidth / 2,
-			laneHeight / 2,
+			channel.height / 2,
 		)));
 	};
 	const previewStyle = preview ? {

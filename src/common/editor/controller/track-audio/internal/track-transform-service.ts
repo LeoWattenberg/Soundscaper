@@ -332,7 +332,8 @@ export function createTrackTransformService(
 		const clips = [...(track.clipIds ?? []), ...(partner.clipIds ?? [])]
 			.map((clipId) => findControllerClip(project, clipId))
 			.filter((clip): clip is ControllerClip => Boolean(clip));
-		const { startFrame, endFrame } = stereoTrackRenderRange([track, partner], clips, dependencies.projectSampleRate());
+		const { startFrame, endFrame } = stereoTrackRenderRange([track, partner], clips, dependencies.projectSampleRate(),
+			Array.isArray(project.automationLanes) ? project.automationLanes : []);
 		if (endFrame <= startFrame) return dependencies.commit({ type: 'batch', commands: [
 			{ type: 'track/update', trackId: track.id, changes: { pan: 0 } },
 			{ type: 'track/remove', trackId: partner.id },

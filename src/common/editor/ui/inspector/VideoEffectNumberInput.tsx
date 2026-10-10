@@ -18,6 +18,7 @@ export default function VideoEffectNumberInput({ value, minimum, maximum, step, 
 	const [draft, setDraft] = useState(() => String(value));
 	const active = useRef(false);
 	const original = useRef(value);
+	const pointerOwner = useRef<number | null>(null);
 	useEffect(() => { if (!active.current) setDraft(String(value)); }, [value]);
 	const begin = () => {
 		if (disabled || active.current) return;
@@ -40,13 +41,27 @@ export default function VideoEffectNumberInput({ value, minimum, maximum, step, 
 		// Preview may normalize integer or bounded parameters before commit.
 		setDraft(String(value));
 	};
+	const finishPointer = (pointerId: number): boolean => {
+		if (pointerOwner.current !== pointerId) return false;
+		pointerOwner.current = null;
+		return true;
+	};
 	return <input type="number" value={draft} min={minimum} max={maximum} step={step}
-		aria-label={label} disabled={disabled} onFocus={begin} onPointerDown={(event) => { event.currentTarget.setPointerCapture?.(event.pointerId); begin(); }}
+		aria-label={label} disabled={disabled} onFocus={begin} onPointerDown={(event) => {
+			if (disabled || event.button !== 0) return;
+			if (event.isPrimary === false || pointerOwner.current !== null) { event.preventDefault(); return; }
+			pointerOwner.current = event.pointerId;
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			begin();
+		}}
 		onChange={(event) => {
 			begin();
 			setDraft(event.currentTarget.value);
 			if (Number.isFinite(event.currentTarget.valueAsNumber)) onPreview(event.currentTarget.valueAsNumber);
-		}} onPointerUp={commit} onPointerCancel={cancel} onBlur={commit} onKeyDown={(event) => {
+		}} onPointerUp={(event) => { if (finishPointer(event.pointerId)) commit(); }}
+		onPointerCancel={(event) => { if (finishPointer(event.pointerId)) cancel(); }}
+		onLostPointerCapture={(event) => { if (finishPointer(event.pointerId)) cancel(); }}
+		onBlur={commit} onKeyDown={(event) => {
 			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); }
 			else if (event.key === 'Enter') { event.preventDefault(); commit(); }

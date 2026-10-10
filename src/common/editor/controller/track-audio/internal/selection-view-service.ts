@@ -8,6 +8,7 @@ import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../../timeline-zoom-limit
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 import { selectedTrackContentRange } from './selected-track-content-range.ts';
 import { createSelectionBoundaryAdjustmentService } from './selection-boundary-adjustment-service.ts';
+import { zeroCrossingRenderProject } from './zero-crossing-render-project.ts';
 import type {
 	SelectionViewClipOptions,
 	SelectionViewProject,
@@ -46,13 +47,18 @@ export function createSelectionViewService<
 		getProject,
 		updateSelection,
 		collectRelatedClipIds,
-		seek: (frame) => { engine.seek(frame); },
+		seek: seekSelectionPlayhead,
 	});
 	const boundaryAdjustment = createSelectionBoundaryAdjustmentService({
 		getProject, getPlayheadFrame: () => engine.getPositionFrames(),
 		projectSampleRate, projectDurationFrames, state, adjustSelection,
 	});
 	let zeroCrossingGeneration = 0;
+
+	function seekSelectionPlayhead(frame: number): void {
+		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return;
+		engine.seek(frame);
+	}
 
 	function selectTrack(trackId: string | null) {
 		const project = getProject();
@@ -189,7 +195,7 @@ export function createSelectionViewService<
 	function carryPlayheadToSelectionStart(startFrame: number, endFrame: number) {
 		if (endFrame <= startFrame) return;
 		if (engine.getState().state === 'playing') return;
-		engine.seek(startFrame);
+		seekSelectionPlayhead(startFrame);
 	}
 
 	function applySelectionRange(
@@ -417,13 +423,16 @@ export function createSelectionViewService<
 		state.analysisProcessing = true;
 		publishDocumentSnapshot();
 		try {
-			const rendered = await Promise.all(audioTrackIds.map((trackId) => renderSnapshot(cloneProject(projectAtStart), {
+			const rendered = await Promise.all(audioTrackIds.map((trackId) => {
+				const capture = zeroCrossingRenderProject(cloneProject(projectAtStart), trackId);
+				return renderSnapshot(capture.project, {
 				startFrame: renderStart,
 				endFrame: renderEnd,
 				includeTail: false,
 				outputFrames: renderEnd - renderStart,
-				trackId, includeMaster: false, includeTrackPan: false, respectMuteSolo: false,
-			})));
+				trackId: capture.trackId, includeMaster: false, includeTrackPan: false, respectMuteSolo: false,
+				});
+			}));
 			if (getProject() !== projectAtStart) return null;
 			const channels = rendered.flatMap(audioBufferChannels);
 			const snapEdge = (frame: number) => frame < renderStart || frame >= renderEnd

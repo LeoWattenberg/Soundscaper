@@ -3,7 +3,7 @@
 import { effectParameterInventory } from '../effect-parameter-descriptors.ts';
 import type { StripRef } from '../parameter-address.ts';
 import type { EngineEffect } from './types.ts';
-import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
+import type { ScheduledParameterRegistry, ScheduledParameterLinearRampTransform } from './scheduled-parameter-registry.ts';
 
 export type EffectParameterScope = 'track' | 'group' | 'send' | 'master';
 
@@ -16,6 +16,8 @@ export const WORKLET_PARAMETER_QUEUE_CONSUMER_REVISION_INPUT = Object.freeze({
 
 export interface EffectParameterBindingOptions {
 	readonly parameterRegistry?: ScheduledParameterRegistry;
+	readonly transformValue?: (value: number) => number;
+	readonly transformLinearRamp?: ScheduledParameterLinearRampTransform;
 	readonly scope?: string;
 	readonly targetId?: unknown;
 	// Named exactly as the rack derives it, so a target cannot silently register
@@ -42,6 +44,8 @@ export function registerEffectAudioParam(
 	if (!descriptor) return;
 	options.parameterRegistry?.registerAudioParam(descriptor, param, {
 		latencyFrames: latencyFrames(options.parameterLatencyFrames),
+		...(options.transformValue ? { transformValue: options.transformValue } : {}),
+		...(options.transformLinearRamp ? { transformLinearRamp: options.transformLinearRamp } : {}),
 	});
 }
 

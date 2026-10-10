@@ -33,6 +33,7 @@ export interface DawprojectStructureNode {
 export interface DawprojectMixerStrip {
 	readonly id: string;
 	readonly name: string;
+	readonly channelCount: number | null;
 	readonly gain: number;
 	readonly pan: number;
 	readonly mute: boolean;
@@ -223,6 +224,8 @@ function strip(value: DataRecord): DawprojectMixerStrip {
 	return Object.freeze({
 		id: String(value.id),
 		name: String(value.name ?? value.id),
+		channelCount: Number.isSafeInteger(value.channelCount) && Number(value.channelCount) > 0
+			? Number(value.channelCount) : null,
 		gain: finite(value.gain, 1),
 		pan: finite(value.pan, 0),
 		mute: value.mute === true,

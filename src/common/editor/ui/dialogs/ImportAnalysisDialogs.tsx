@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -10,6 +10,7 @@ import type { RegularIntervalAnnotationOptions } from '../../controller/document
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { regularIntervalDialogDefaults, type RegularIntervalDialogProject } from '../regular-interval-dialog-defaults.ts';
@@ -121,6 +122,10 @@ export function RegularIntervalAnnotationDialog({ controller, snapshot, copy, ru
 	blockedRef.current = blocked;
 	const project = controller.project;
 	const projectIdentity = project?.id ?? null;
+	const intervalClock = useMemo(() => {
+		const intervalSnapshot = { project };
+		return { getSnapshot: () => intervalSnapshot, subscribe: () => () => undefined };
+	}, [project]);
 	const defaults = regularIntervalDialogDefaults(project);
 	const stateProjectIdentity = useRef(projectIdentity);
 	const [kind, setKind] = useState<'marker' | 'region'>(defaults.kind);
@@ -175,8 +180,10 @@ export function RegularIntervalAnnotationDialog({ controller, snapshot, copy, ru
 				minimum={0} maximum={Math.max(0, endFrame - 1)} onChange={setStartFrame} />
 			<TimeField name="endFrame" label={copy.regularIntervalEndFrame} value={endFrame} sampleRate={project?.sampleRate}
 				minimum={startFrame + 1} maximum={Number.MAX_SAFE_INTEGER} onChange={setEndFrame} />
-			<TimeField name="intervalFrames" label={copy.regularIntervalFrames} value={intervalFrames} sampleRate={project?.sampleRate}
-				minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setIntervalFrames} />
+			<EditorMusicalTimeCodeProvider controller={intervalClock} originFrame={startFrame}>
+				<TimeField name="intervalFrames" label={copy.regularIntervalFrames} value={intervalFrames} sampleRate={project?.sampleRate}
+					minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setIntervalFrames} />
+			</EditorMusicalTimeCodeProvider>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalNamePrefix}</span><input value={namePrefix} onChange={(event) => setNamePrefix(event.currentTarget.value)} /></label>
 		</form>
 	</AudioEditorDialogShell>;

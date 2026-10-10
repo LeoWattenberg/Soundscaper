@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@soundscaper/design-system/Button';
 import { Flyout } from '@soundscaper/design-system/Flyout';
@@ -29,6 +29,7 @@ export function AudacityToolbarFlyoutButton({
 	overlayPortal = false,
 	children,
 }) {
+	const popupId = useId();
 	const triggerRef = useRef(null);
 	const [position, setPosition] = useState(null);
 	const setTrigger = useCallback((element) => {
@@ -56,6 +57,7 @@ export function AudacityToolbarFlyoutButton({
 
 	const flyout = (
 		<Flyout
+			id={popupId}
 			isOpen={Boolean(position)}
 			onClose={close}
 			x={position?.x || 0}
@@ -84,6 +86,7 @@ export function AudacityToolbarFlyoutButton({
 					className="tool-button tool-button--default tool-button--idle kw-audio-editor__audacity-level-button"
 					aria-label={ariaLabel}
 					aria-expanded={Boolean(position)}
+					aria-controls={popupId}
 					onClick={toggle}
 				>
 					<span className="musescore-icon tool-button__icon" aria-hidden="true">{icon}</span>

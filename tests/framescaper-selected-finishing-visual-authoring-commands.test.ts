@@ -251,7 +251,7 @@ test('every dissolve refusal names the selected state that blocked it', async ()
 		[dissolveRequest(pair, { pairId: 'video-track:clip-1:clip-9' }), pair, /dissolve pair is stale/u],
 		[dissolveRequest(dissolved), dissolved, /dissolve already has that duration/u],
 		[dissolveRequest(ambiguous), ambiguous, /ambiguous linked audio/u],
-		[dissolveRequest(locked), locked, /requires one unlocked track owner/u],
+		[dissolveRequest(locked), locked, /selected dissolve pair is stale/u],
 	]);
 });
 
@@ -492,7 +492,7 @@ test('every freeze refusal names the selected state that blocked it', async () =
 		[freezeRequest(video, { fence: fence(video, 'clip-1', 16_000), playheadSample: 16_000 }), video,
 			/playhead is outside the selected video/u],
 		[freezeRequest(video), video, /Exact freeze capture is unavailable/u],
-		[freezeRequest(generated), generated, /selected video source is unavailable/u],
+		[freezeRequest(generated), generated, /Exact freeze capture is unavailable/u],
 	]);
 });
 

@@ -7,6 +7,7 @@ import { TrackFadeHandleGlyph } from '@soundscaper/design-system/Track/TrackFade
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import { readClipLoop } from '../../audio-clip-loop.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import ClipPropertyKnob from './ClipPropertyKnob.tsx';
@@ -176,6 +177,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							source={source} sampleRate={source?.sampleRate || sampleRate} disabled={disabled}
 							onCommit={(value) => commitField('sourceInFrame', value)} />
 						<ClipTimeCodeField name="durationFrame" label={copy.clipDuration} value={clip?.durationFrames ?? 1}
+							controller={controller} musicalOriginFrame={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} minimum={1} disabled={disabled}
 							onCommit={(value) => commitField('durationFrame', value)} />
 						{!isVideoClip && source && (
@@ -204,12 +206,14 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				{!isVideoClip && <ClipPropertiesDrawer name="fading" label={copy.fading}>
 					<div className="audio-editor-clip-properties__stack">
 						<ClipTimeCodeField name="fadeInFrame" label={copy.fadeIn} value={clip?.fadeInFrames ?? 0}
+						controller={controller} musicalOriginFrame={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeInFrame', value)} />
 						<ClipFadeShapeField name="fadeInShape" label={copy.fadeInShape} value={clip?.fadeInShape}
 							fadeFrames={clip?.fadeInFrames ?? 0} legacyLabel={copy.legacyLinearFadeShape}
 							disabled={disabled} onCommit={commitField} />
 						<ClipTimeCodeField name="fadeOutFrame" label={copy.fadeOut} value={clip?.fadeOutFrames ?? 0}
+						controller={controller} musicalOriginFrame={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeOutFrame', value)} />
 						<ClipFadeShapeField name="fadeOutShape" label={copy.fadeOutShape} value={clip?.fadeOutShape}
@@ -303,10 +307,13 @@ function ClipSourceFactRow({ name, label, value, action = null }) {
 }
 
 function ClipTimeCodeField({ name, label, value, sampleRate, minimum = 0,
-	maximum = Number.POSITIVE_INFINITY, disabled, onCommit }) {
-	return <label className="audio-editor-field" data-clip-field={name}><span>{label}</span>
-		<AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
+	maximum = Number.POSITIVE_INFINITY, disabled, onCommit, controller, musicalOriginFrame }) {
+	const input = <AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
 			format="hh:mm:ss+milliseconds" minimum={minimum} maximum={maximum}
-			disabled={disabled} onCommit={onCommit} />
+			disabled={disabled} onCommit={onCommit} />;
+	return <label className="audio-editor-field" data-clip-field={name}><span>{label}</span>
+		{musicalOriginFrame === undefined ? input : <EditorMusicalTimeCodeProvider controller={controller} originFrame={musicalOriginFrame}>
+			{input}
+		</EditorMusicalTimeCodeProvider>}
 	</label>;
 }

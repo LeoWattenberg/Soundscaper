@@ -5,11 +5,13 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { useEffect, useRef, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { AudioEditorListeningPreview } from '../audio-editor-listening-preview.tsx';
 import type {
 	TextToSpeechPort, TextToSpeechRequest, TextToSpeechReviewed, TextToSpeechVoice,
 } from '../text-to-speech-port.ts';
 import type { LocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import LocalModelManagerDialog from './LocalModelManagerDialog.tsx';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 import './ProcessingDialogs.css';
 import './TextToSpeechDialog.css';
 
@@ -235,8 +237,8 @@ export function TextToSpeechDialogView({
 				</select>
 			</label>
 			<label>{text(copy, 'speed', 'Speed')}
-				<input type="number" min="0.5" max="2" step="0.05" value={state.speed}
-					disabled={locked} onChange={(event) => onSpeedChange(Number(event.currentTarget.value))} />
+				<PreferenceNumberInput label={text(copy, 'speed', 'Speed')} minimum={0.5} maximum={2}
+					step={0.05} value={state.speed} disabled={locked} onCommit={onSpeedChange} />
 			</label>
 		</div>
 		{state.error && <p role="alert">{state.error}</p>}
@@ -248,7 +250,7 @@ export function TextToSpeechDialogView({
 				? text(copy, 'replaceReview', 'Listen before replacing the selected clip’s audio.')
 				: text(copy, 'review',
 					'Listen before adding this audio on a new track at the playhead.')}</p>
-			{previewUrl && <audio controls preload="metadata" src={previewUrl} />}
+			{previewUrl && <AudioEditorListeningPreview controls preload="metadata" src={previewUrl} />}
 		</section>}
 		{state.phase === 'accepting' && <p role="status" aria-live="polite">{
 			state.placement === 'regenerate-selected'

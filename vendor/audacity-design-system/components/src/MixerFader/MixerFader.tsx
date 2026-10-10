@@ -86,6 +86,7 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
   const { theme } = useTheme();
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const pointerIdRef = useRef<number | null>(null);
   const gestureCancelRef = useRef(onGestureCancel);
   gestureCancelRef.current = onGestureCancel;
   const [internalValue, setInternalValue] = useState(valueProp);
@@ -120,24 +121,30 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
   }, [min, max, clampedValue]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (disabled || e.button !== 0 || draggingRef.current) return;
+    if (disabled || e.button !== 0 || e.isPrimary === false || draggingRef.current) {
+      e.preventDefault();
+      return;
+    }
     e.preventDefault();
     draggingRef.current = true;
+    pointerIdRef.current = e.pointerId;
     onGestureStart?.(clampedValue);
     trackRef.current?.setPointerCapture(e.pointerId);
     const newValue = valueFromY(e.clientY);
     setValue(newValue);
   }, [clampedValue, disabled, onGestureStart, setValue, valueFromY]);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
-    const newValue = valueFromY(e.clientY);
-    setValue(newValue);
-  }, [setValue, valueFromY]);
-
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
+    if (!draggingRef.current || e.pointerId !== pointerIdRef.current) return;
     draggingRef.current = false;
+    pointerIdRef.current = null;
+    try {
+      if (trackRef.current?.hasPointerCapture(e.pointerId)) {
+        trackRef.current.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Native completion may already have retired capture.
+    }
     const newValue = valueFromY(e.clientY);
     if (!isControlled) {
       setInternalValue(newValue);
@@ -146,9 +153,20 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
     onChangeEnd?.(newValue);
   }, [isControlled, onChangeEnd, onGestureEnd, valueFromY]);
 
-  const handlePointerCancel = useCallback(() => {
-    if (!draggingRef.current) return;
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current || e.pointerId !== pointerIdRef.current) return;
+    if (e.pointerType === 'mouse' && e.button === 0 && (e.buttons & 1) === 0) {
+      handlePointerUp(e);
+      return;
+    }
+    const newValue = valueFromY(e.clientY);
+    setValue(newValue);
+  }, [handlePointerUp, setValue, valueFromY]);
+
+  const handlePointerCancel = useCallback((event?: React.PointerEvent) => {
+    if (!draggingRef.current || (event && event.pointerId !== pointerIdRef.current)) return;
     draggingRef.current = false;
+    pointerIdRef.current = null;
     onGestureCancel?.();
   }, [onGestureCancel]);
 

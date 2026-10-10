@@ -26,6 +26,7 @@ import {
 } from '../../../../timeline-annotation.ts';
 import { sampleFrameToBeat } from '../../../../timeline-tempo-inverse.ts';
 import { subtractRationals } from '../../../../timeline-time.ts';
+import { resolveTimelineAnnotationRegionRange, timelineFrame } from './timeline-annotation-region-range.ts';
 import type { EditorControllerLifetime } from '../../../shared/lifecycle.ts';
 import {
 	resolveTimelineAnnotationConversionCoordinates,
@@ -163,12 +164,7 @@ export function createTimelineAnnotationService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = requireCurrentProject(dependencies.getProject());
-		const range = options.range ?? project.selection;
-		const first = timelineFrame(range.startFrame, 'Annotation region start');
-		const second = timelineFrame(range.endFrame, 'Annotation region end');
-		const startFrame = Math.min(first, second);
-		const endFrame = Math.max(first, second);
-		if (endFrame <= startFrame) throw new RangeError('A timeline annotation region requires a positive selection.');
+		const { startFrame, endFrame } = resolveTimelineAnnotationRegionRange(project, options.range);
 		const id = options.id ?? dependencies.createId('annotation');
 		const anchor = options.anchor ?? 'sample';
 		const annotation = createTimelineAnnotationV11({
@@ -557,13 +553,6 @@ function temporalContext(project: TimelineAnnotationControllerProject) {
 
 function beatAtFrame(project: TimelineAnnotationControllerProject, frame: number) {
 	return sampleFrameToBeat(frame, project.tempoMap, project.sampleRate);
-}
-
-function timelineFrame(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return Number(value);
 }
 
 function signedTimelineFrame(value: unknown, name: string): number {

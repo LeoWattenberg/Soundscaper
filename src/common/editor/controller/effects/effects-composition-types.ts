@@ -57,6 +57,7 @@ export type EffectsCompositionState =
 		preferences?: Readonly<{ performance?: Readonly<{ optimizeFor?: string }> }>;
 		audacityEffectProcessing: boolean;
 		audacityPreviewGeneration: number;
+		readSourceSelectionFrames?: (() => number | null) | null;
 	};
 
 export type EffectsCompositionCopy =

@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { projectBinItems, projectBinWaveformPath, projectBinTransformBadges, formatProjectBinDuration } from './project-bin-model.ts';
 import { projectBinVideoPreviewModel, projectBinVisualDurationFrames } from './project-bin-video-preview-model.ts';
+import { videoTimingRegistryToken } from '../../video-source-time.ts';
 
 type BinClip = NonNullable<Parameters<typeof projectBinItems>[0]>[number] & { readonly sourceId?: string };
 type BinSource = Parameters<typeof projectBinTransformBadges>[1] & { readonly id: string };
@@ -30,7 +31,8 @@ export function useProjectBinTransformBadges(clips: readonly BinClip[], sources:
 }
 
 export function useProjectBinMediaTiming(project: Parameters<typeof projectBinVideoPreviewModel>[0], videoClip: Parameters<typeof projectBinVideoPreviewModel>[1], videoSource: Parameters<typeof projectBinVideoPreviewModel>[2], visualClip: Parameters<typeof projectBinVisualDurationFrames>[1]) {
-	const videoPreview = useMemo(() => projectBinVideoPreviewModel(project, videoClip, videoSource), [project, videoClip, videoSource]);
+	const timingToken = videoTimingRegistryToken();
+	const videoPreview = useMemo(() => projectBinVideoPreviewModel(project, videoClip, videoSource), [project, videoClip, videoSource, timingToken]);
 	const visualDuration = useMemo(() => projectBinVisualDurationFrames(project, visualClip), [project, visualClip]);
 	return { videoPreview, visualDuration };
 }

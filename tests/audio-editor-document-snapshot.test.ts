@@ -312,6 +312,27 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 	assert.equal(snapshot.locale, 'de');
 });
 
+test('cancelling a prepared timed recorder keeps ordinary controls busy until disposal completes', () => {
+	const state = { ...stateFixture({ recorder: { state: 'ready' }, timedRecordingCancelling: true }) };
+	const runtime = { ...documentRuntimeFixture({ id: 'project' }), state };
+	const cancelling = createEditorDocumentSnapshot(runtime);
+	assert.equal(cancelling.recording, false, 'a cancelled prepared take is never advertised as recording');
+	assert.equal(cancelling.scheduledRecording, null);
+	assert.equal(cancelling.recordingScheduling, true, 'Record and ordinary navigation must wait for recorder disposal');
+	state.recorder = null;
+	state.timedRecordingCancelling = false;
+	assert.equal(createEditorDocumentSnapshot(runtime).recordingScheduling, false);
+});
+
+test('normal recording and scheduling retain their published admission states', () => {
+	const runtime = documentRuntimeFixture({ id: 'project' });
+	assert.equal(createEditorDocumentSnapshot(runtime).recordingScheduling, false);
+	assert.equal(createEditorDocumentSnapshot({ ...runtime, state: stateFixture({ timedRecordingPreparing: true }) }).recordingScheduling, true);
+	const recording = createEditorDocumentSnapshot({ ...runtime, state: stateFixture({ recorder: { state: 'recording' } }) });
+	assert.equal(recording.recordingScheduling, false);
+	assert.equal(recording.recording, true);
+});
+
 test('document snapshots expose one sorted immutable runtime annotation view', () => {
 	const project = createCurrentAudioEditorProject({
 		id: 'annotation-project',
@@ -383,6 +404,21 @@ test('document snapshots materialize cloneable effects-owned results', () => {
 			result: { type: 'labels', labels: [{ startTime: 0, endTime: 1, text: 'Verse' }], output: '' },
 		},
 	});
+});
+
+test('effect snapshots publish current source frame counts without initializing an absent reader', () => {
+	const runtime = documentRuntimeFixture({ id: 'source-project' });
+	assert.equal(createEditorDocumentSnapshot(runtime).effects.sourceSelectionFrames, null);
+	let frames = 128;
+	const state = stateFixture({ readSourceSelectionFrames: () => frames });
+	const first = createEditorDocumentSnapshot({ ...runtime, state });
+	frames = 129;
+	assert.equal(first.effects.sourceSelectionFrames, 128);
+	assert.equal(createEditorDocumentSnapshot({ ...runtime, state }).effects.sourceSelectionFrames, 129);
+	assert.doesNotThrow(() => createEditorDocumentSnapshot({ ...runtime,
+		getCurrentProject: () => null,
+		state: stateFixture({ readSourceSelectionFrames: () => { throw new Error('No active source project'); } }),
+	}));
 });
 
 function documentRuntimeFixture(project: SnapshotProject) {

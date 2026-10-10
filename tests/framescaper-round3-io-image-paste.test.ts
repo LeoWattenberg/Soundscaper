@@ -27,7 +27,8 @@ for (const sourceStartTicks of ['0', '1000000']) test(`public range Copy/Paste r
 	const authored = applyFramescaperProjectCommand(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, base, { type: 'batch', commands: [{
 		type: 'image-source/set', sourceId: fixture.source.id, expectedSource: null, source: fixture.source,
 	}, { type: 'image-clip/set', clipId: fixture.clip.id, expectedClip: null, expectedPlacement: null,
-		clip: authoredClip, placement: { scope: 'timeline', trackId: owner.id } }] });
+		clip: authoredClip, placement: { scope: 'timeline', trackId: owner.id } }] },
+	{ now: new Date(Date.parse(String(base.updatedAt)) + 1).toISOString() });
 	assert.ok(await environment.timelineImages.publishIfCurrent({ expected: base, project: authored, bytes: fixture.bytes }));
 	const controller = createFramescaperAudioEditorController(environment);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
