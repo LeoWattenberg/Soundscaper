@@ -13,6 +13,7 @@ import AudacityEffectHeader from './AudacityEffectHeader.jsx';
 import EffectAboutDialog from './EffectAboutDialog.tsx';
 import EffectPresetMenuPortal from './EffectPresetMenuPortal.tsx';
 import { usePresetDeletionFocus } from './usePresetDeletionFocus.ts';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 
 /**
  * The preset bar Audacity 4 puts above every effect's controls.
@@ -59,6 +60,9 @@ export default function EffectPresetBar({
 	const consumeSaveDismissal = useMenuTriggerDismissal(saveTriggerRef, Boolean(saveMenu));
 	const consumeOptionsDismissal = useMenuTriggerDismissal(optionsTriggerRef, Boolean(optionsMenu));
 	const [saveAsName, setSaveAsName] = useState(null);
+	const [nameSaving, setNameSaving] = useState(false);
+	const nameSaveRef = useRef(null);
+	const captureNameFocus = useOperationFocusRecovery(nameSaving, resetKey);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const hasAbout = aboutEffect != null;
 	const about = useEffectAboutPresentation(aboutOpen, aboutEffect, copy);
@@ -76,8 +80,11 @@ export default function EffectPresetBar({
 		setSaveMenu(null);
 		setOptionsMenu(null);
 		setSaveAsName(null);
+		nameSaveRef.current = null;
+		setNameSaving(false);
 		setAboutOpen(false);
 	}, [resetKey]);
+	useEffect(() => () => { nameSaveRef.current = null; }, []);
 	const selectedIndex = presets.findIndex((preset) => preset.id === selectedId);
 	const selected = presets[selectedIndex] || null;
 	const canOverwrite = Boolean(selected?.custom) && !disabled;
@@ -100,9 +107,20 @@ export default function EffectPresetBar({
 	};
 	const saveAs = () => {
 		const name = saveAsName?.trim();
-		if (!name || disabled) return;
-		setSaveAsName(null);
-		onSaveAs(name);
+		if (!name || disabled || nameSaveRef.current !== null) return;
+		const operation = {};
+		nameSaveRef.current = operation;
+		captureNameFocus();
+		setNameSaving(true);
+		void Promise.resolve().then(() => nameSaveRef.current === operation ? onSaveAs(name) : false).then((saved) => {
+			if (nameSaveRef.current === operation && saved !== false) setSaveAsName(null);
+		}).catch(() => {
+			// The owning surface reports the refusal; keep this name available for retry.
+		}).finally(() => {
+			if (nameSaveRef.current !== operation) return;
+			nameSaveRef.current = null;
+			setNameSaving(false);
+		});
 	};
 
 	return (
@@ -199,7 +217,7 @@ export default function EffectPresetBar({
 				<AudioEditorDialogShell
 					isOpen
 					title={copy.saveEffectPresetAs}
-					onClose={() => setSaveAsName(null)}
+					onClose={nameSaving ? undefined : () => setSaveAsName(null)}
 					width={380}
 					className="audio-editor-preset-name-dialog"
 					dataAttributes={{ 'data-preset-name-dialog': '' }}
@@ -207,11 +225,11 @@ export default function EffectPresetBar({
 						<DialogFooter
 							className="audio-editor-dialog-footer"
 							rightContent={<>
-								<Button variant="secondary" onClick={() => setSaveAsName(null)}>{copy.cancel}</Button>
+								<Button variant="secondary" disabled={nameSaving} onClick={() => setSaveAsName(null)}>{copy.cancel}</Button>
 								<Button
 									variant="primary"
 									type="submit" form={saveFormId}
-									disabled={disabled || !saveAsName.trim()}
+									disabled={disabled || nameSaving || !saveAsName.trim()}
 								>{copy.saveEffectPreset}</Button>
 							</>}
 						/>
@@ -220,7 +238,7 @@ export default function EffectPresetBar({
 					<form id={saveFormId} onSubmit={(event) => { event.preventDefault(); saveAs(); }}>
 						<label className="audio-editor-field">
 							<span>{copy.effectPresetName}</span>
-							<TextInput value={saveAsName} onChange={setSaveAsName} width="100%" data-preset-name />
+							<TextInput disabled={nameSaving} value={saveAsName} onChange={setSaveAsName} width="100%" data-preset-name />
 						</label>
 					</form>
 				</AudioEditorDialogShell>

@@ -147,7 +147,6 @@ export function AudioEditorEffectsOverlay({
 			setMessage(feedbackFailure(cause));
 		});
 	};
-
 	const openPicker = (scope, replaceId = null, trigger = null) => {
 		if (blocked || (scope !== 'master' && !channel)) return;
 		const anchor = trigger?.currentTarget || trigger;
@@ -284,6 +283,7 @@ export function AudioEditorEffectsOverlay({
 			params: effect.params,
 		});
 		if (ownsOperation() && saved) setRackPresetId(saved.id);
+		return Boolean(saved) && ownsOperation();
 	});
 	const exportRackPreset = () => run(async () => {
 		const encoded = controller.actions.effects.presets.export(rackPresetId);
@@ -420,7 +420,7 @@ export function AudioEditorEffectsOverlay({
 								unsaved={rackPresetEdited}
 								onSelect={selectRackPreset}
 								onSave={() => saveRackPreset()}
-								onSaveAs={(name) => saveRackPreset(name)}
+								onSaveAs={(name) => saveRackPreset(name).then((saved) => saved === true)}
 								onReset={() => {
 									if (selectedRackPreset) writeRackParams(selectedRackPreset.preset.params);
 								}}

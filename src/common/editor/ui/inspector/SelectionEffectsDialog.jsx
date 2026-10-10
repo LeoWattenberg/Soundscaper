@@ -94,6 +94,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 				if (!ownsOperation()) return;
 				onSuccess?.(result);
 				if (activeOperation.current === operation) activeOperation.current = null;
+				return result;
 			})
 			.catch((cause) => {
 				if (!ownsOperation()) return;
@@ -230,7 +231,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					onSave={() => savePreset(selectedPresetId)}
 					onSaveAs={(name) => {
 						setPresetName(name);
-						savePreset(null, name);
+						return savePreset(null, name).then((saved) => Boolean(saved));
 					}}
 					onReset={() => applyPreset()}
 					onDelete={deletePreset}
