@@ -882,7 +882,10 @@ mounted/action cases are initially RED while four stereo controls pass. The
 corrected new and existing strip gestures, Pan shortcuts, automation, native
 graph, mono routing and vendor controls pass 49/49, including ADM and declared
 wide bus/master capability controls. Corrected complete public verification
-awaits the next guarded capture. Target ESLint, changed lint, size and owned
+passes both unchanged workflows on authenticated dc8bba540: header 8.7 seconds
+and Mixer 8.4 seconds, 2/2 in 19.0 seconds total. Healthy stereo Pan, actual
+four-channel PCM preservation, disabled controls and unchanged Pan values all
+pass. Target ESLint, changed lint, size and owned
 diff checks pass. Bounded logs and generated diagnostics are read and removed
 immediately. This uses the same runtime closure; no manual Update AI assets run
 is required.
