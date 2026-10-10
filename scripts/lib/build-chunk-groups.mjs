@@ -450,7 +450,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-controller-core',
-		test: new RegExp(`${editorPath}(?!controller[\\\\/](?:${editorOptionalControllerModule}|${editorOptionalAssistanceModule}|${editorOptionalCaptureControllerModule})\\.ts$)(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|facade\\.ts|index\\.js)`),
+		test: new RegExp(`${editorPath}(?!controller[\\\\/](?:${editorOptionalControllerModule}|${editorOptionalAssistanceModule}|${editorOptionalCaptureControllerModule})\\.ts$)(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|delivery-queue-runner\\.ts$|facade\\.ts|index\\.js)`),
 		priority: 75,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
