@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PhotoExportDestinations } from '../../../../lightscaper/controller/photo-export-destinations.ts';
+import { message, errorCode } from './photo-library-workflow-diagnostics.ts';
 import { acquirePhotoLibraryWorkflowSlotV2 as acquire, retirePhotoLibraryWorkflowSlotV2, loadPhotoLibraryDevelopProxyV2,
 	type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import { joinPhotoLibraryRetirementV1, type PhotoLibraryBackupSaveRuntimeV1, type LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
@@ -56,6 +58,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 	const recoveryOwner = useRef<PhotoLibraryOriginalRecoveryV1 | null>(null);
 	recoveryOwner.current ??= new PhotoLibraryOriginalRecoveryV1();
 	const originalRecovery = recoveryOwner.current;
+	const exportDestinations = useRef(new WeakMap<SessionSlot, PhotoExportDestinations>());
 	const recoveryGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime, createDevelopProxyRuntime }), [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
 	const slot = useRef<SessionSlot | null>(null);
 	const retiring = useRef<Promise<void> | null>(null);
@@ -80,9 +83,18 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 	const retireAndJoin = useCallback((presentation: Promise<void> | null = null): Promise<void> => {
 		const current = slot.current;
 		if (!current) return retiring.current ?? Promise.resolve();
-		const closing = retirePhotoLibraryWorkflowSlotV2(current, () => joinPhotoLibraryRetirementV1([controller.cancelAndJoin(), originalRecovery.cancelAndJoin(), presentation]));
+		const closing = retirePhotoLibraryWorkflowSlotV2(current, () => joinPhotoLibraryRetirementV1([controller.cancelAndJoin(), originalRecovery.cancelAndJoin(), exportDestinations.current.get(current)?.retireAndJoin() ?? null, presentation]));
 		retiring.current = closing; return closing;
 	}, [controller, originalRecovery]);
+	const registerExportDestination = useCallback((cancelAndJoin: () => Promise<void>): (() => void) => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== createSession || current.factory !== factory.current
+			|| current.proxyFactory !== createDevelopProxyRuntime || current.proxyFactory !== renderer.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current) throw new DOMException('Photo export generation is closed.', 'AbortError');
+		const destinations = exportDestinations.current.get(current);
+		if (!destinations) throw new DOMException('Photo export generation is closed.', 'AbortError');
+		return destinations.register(cancelAndJoin);
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
 	const publishPage = useCallback((current: SessionSlot, next: PhotoLibraryPageV1 | null) => {
 		if (!current.live) return null;
 		current.page = next; setPage(next); return next;
@@ -90,7 +102,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 	useEffect(() => {
 		const current: SessionSlot = { live: true, factory: createSession, proxyFactory: createDevelopProxyRuntime, proxyPending: null, closeOwner: null, backupLoader: loadBackupSaveRuntime, lifetime: new AbortController(),
 			beforeDrain: retiring.current, pending: null, active: null, query: null, savedCollectionId: null, stackCollapsed: false, page: null, batchRenamePlanner: null, backupRuntime: null, backupLoading: null, retirement: null };
-		slot.current = current;
+		exportDestinations.current.set(current, new PhotoExportDestinations()); slot.current = current;
 		queueMicrotask(() => {
 			if (!current.live) return;
 			setQuery(null); setSavedCollectionId(null); setQueryIdentity(null); setStackCollapsedState(false); setNeedsQueryIndex(false); setQueryIndexProgress(null);
@@ -99,7 +111,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 			setBackupRuntime(null); setBackupReceipt(null);
 		});
 		return () => {
-			const closing = retirePhotoLibraryWorkflowSlotV2(current, () => joinPhotoLibraryRetirementV1([controller.cancelAndJoin(), originalRecovery.cancelAndJoin()]));
+			const closing = retirePhotoLibraryWorkflowSlotV2(current, () => joinPhotoLibraryRetirementV1([controller.cancelAndJoin(), originalRecovery.cancelAndJoin(), exportDestinations.current.get(current)?.retireAndJoin() ?? null]));
 			if (slot.current === current) slot.current = null;
 			retiring.current = closing;
 			void closing.catch(() => undefined);
@@ -518,23 +530,10 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 		updateRow(next.row, current);
 		await refreshQuery(owner, signal, current);
 	});
-	return { ...originalWorkflow, retireAndJoin, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+	return { ...originalWorkflow, retireAndJoin, registerExportDestination, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
-}
-
-function message(failure: unknown): string {
-	try {
-		const descriptor = failure && typeof failure === 'object' ? Object.getOwnPropertyDescriptor(failure, 'message') : undefined;
-		if (descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string') return descriptor.value.slice(0, 2_048);
-	} catch { /* A diagnostic must never revoke an operation's outcome. */ }
-	return 'The photo library action failed.';
-}
-
-function errorCode(value: unknown): unknown {
-	try { return value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'code')?.value as unknown : undefined; }
-	catch { return undefined; }
 }

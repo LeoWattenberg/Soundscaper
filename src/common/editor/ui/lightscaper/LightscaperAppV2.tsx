@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 
 import { otherProductIds, productIdentity } from '../../../product-identities.js';
 import { productHref } from '../../../product-web-links.js';
@@ -8,6 +8,8 @@ import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-edito
 import type { CreatePhotoLibrarySessionV3 } from '../../photo-library-session-port-v2.ts';
 import type { LoadPhotoLibraryRestoreRuntimeV1 } from '../../photo-library-restore-port-v1.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
+import { lightscaperMenuEvents } from './lightscaper-menu-events.ts';
+import { photoPngExportMenuLabel } from '../../../i18n/lightscaper-photo-png-export-menu-copy.ts';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntryV2 } from './use-photo-develop-entry-v2.ts';
 import { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
@@ -54,6 +56,7 @@ const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
 const PhotoStackDialog = lazy(() => import('./PhotoStackDialog.tsx'));
 const PhotoSavedFiltersSurface = lazy(() => import('./PhotoSavedFiltersSurface.tsx'));
+const PhotoPngExportDialog = lazy(() => import('./PhotoPngExportDialog.tsx'));
 const PhotoDevelopWorkspace = lazy(() => import('./PhotoDevelopWorkspaceV2.tsx'));
 
 const unavailableQueryRuntime: LoadPhotoMetadataQueryRuntimeV2 = async () => { throw new Error('Photo query controls are unavailable.'); };
@@ -103,6 +106,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 	const [originalRecoveryVisible, setOriginalRecoveryVisible] = useState(false);
 	const [previewActivated, setPreviewActivated] = useState(false);
 	const library = usePhotoLibraryWorkflowV2(createSession, loadBackupSaveRuntime, loadDevelopProxyRuntime);
+	const [pngEntry, setPngEntry] = useState<Readonly<{ generation: typeof generation; photoId: string; fileName: string; key: string }> | null>(null);
 	const previewRetirement = useRef<(() => Promise<void>) | null>(null), previewDrain = useRef<Promise<void> | null>(null);
 	const registerPreviewRetirement = useCallback((retire: () => Promise<void>) => {
 		previewRetirement.current = retire;
@@ -228,15 +232,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		if (!libraryVisible) void library.readPage();
 		setLibraryVisible((visible) => !visible);
 	};
-	const closeMenu = (event: MouseEvent<HTMLButtonElement>) => {
-		if (!isCurrent()) return false;
-		const menu = event.currentTarget.closest<HTMLDetailsElement>('details[name="lightscaper-application-menu"]');
-		if (menu) {
-			menu.open = false;
-			for (const submenu of menu.querySelectorAll<HTMLDetailsElement>('details[open]')) submenu.open = false;
-		}
-		menu?.querySelector('summary')?.focus(); return true;
-	};
+	const { closeMenu, onKeyDown: menuKeyDown, onBlur: menuBlur } = lightscaperMenuEvents(isCurrent);
 	const openReview = (kind: 'compare' | 'survey', event: MouseEvent<HTMLButtonElement>) => {
 		const active = reviewMenu.current;
 		if (active.generation !== compareGeneration || active.queryIdentity !== library.queryIdentity || !active.libraryVisible
@@ -293,18 +289,6 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		if (factory.current !== generation) return;
 		library.cancelBackup(); setBackupVisible(false);
 	};
-	const menuKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
-		if (!isCurrent() || event.key !== 'Escape' || !event.currentTarget.open) return;
-		event.preventDefault(); event.stopPropagation();
-		event.currentTarget.open = false;
-		event.currentTarget.querySelector('summary')?.focus();
-	};
-	const menuBlur = (event: FocusEvent<HTMLDetailsElement>) => {
-		if (!isCurrent()) return;
-		if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) {
-			event.currentTarget.open = false;
-		}
-	};
 
 	const renderLibrary = (preview?: PhotoPreviewPresentationViewV1) => <>
 		{library.importReceipt?.outcome === 'acknowledged' && library.importReceipt.completion !== 'finished' && <p role="status" data-photo-import-completion={library.importReceipt.completion}>
@@ -359,6 +343,9 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 					<div className="lightscaper-menu-items">
 						<button type="button" disabled={restore.busy || library.busy} onClick={event => { if (!closeMenu(event)) return; setImportVisible(true); }}>{copy.photoImportPhotos}</button>
 						<button type="button" disabled={restore.busy || library.busy} onClick={event => { if (!closeMenu(event)) return; setOrganizerVisible(true); }}>{copy.photoOrganizerTitle}</button>
+						<button type="button" data-photo-png-export-menu disabled={!createSession || !loadBackupSaveRuntime || restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing || pngEntry?.generation === generation} onClick={event => {
+							if (!selection || !loadBackupSaveRuntime || !closeMenu(event)) return; setPngEntry({ generation, photoId: selection.id, fileName: selection.fileName, key: crypto.randomUUID() }); void library.prepareBackupSave();
+						}}>{photoPngExportMenuLabel(locale)}</button>
 						<button type="button" data-photo-backup-menu disabled={restore.busy} onClick={event => {
 							if (!closeMenu(event)) return; setBackupVisible(true); void library.prepareBackupSave();
 						}}>{copy.photoBackupTitle}</button>
@@ -523,6 +510,11 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		{!restore.busy && batchRenameVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoBatchRenameDialog snapshot={library.batchRenameSnapshot} busy={library.busy} error={library.error} copy={copy}
 				onPlan={library.planBatchRename} onApply={library.renamePhotos} onClose={closeBatchRename} />
+		</Suspense>}
+		{!restore.busy && pngEntry?.generation === generation && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoPngExportDialog key={pngEntry.key} locale={locale} photoId={pngEntry.photoId} fileName={pngEntry.fileName}
+				execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime}
+				saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} onClose={() => { if (isCurrent()) setPngEntry(null); }} />
 		</Suspense>}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
