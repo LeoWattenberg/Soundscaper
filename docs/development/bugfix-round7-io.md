@@ -603,6 +603,14 @@ root. Both actual PNG/context and completed full150 JSON observations are read
 and immediately removed from their exact failed directories. The shared full
 failure log remains owned by root.
 
+IO048 complete corrected native workflows pass on authenticated guarded
+8d4cef165: timeline7.0 seconds and Bin7.0 seconds (2/2in15.7 seconds). Actual
+Take PCM starts only after the previous output is silent; Close stops it, Bin
+replay produces positive native PCM, and its Pause restores complete silence.
+These ordinary routes and all original deadlines remain unchanged. One
+independent Take transport handoff root is qualified; completed own browser
+output and bounded log are consumed and immediately removed.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
@@ -612,6 +620,6 @@ compiler found only the optional cache cleanup invocation in its actual
 controller resource witness. Assert the real cache cleanup capability before
 calling it, preserving the owned disposal rather than widening a production
 type. The bounded compiler error log was read and removed immediately.
-Forty-six qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+Forty-seven qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
