@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { TakeCyclePendingOpenRecovery } from '../src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts';
 import TakeCycleRecoveryDialog from '../src/common/editor/ui/dialogs/TakeCycleRecoveryDialog.tsx';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
@@ -23,7 +24,7 @@ for (const decision of ['recover', 'discard'] as const) test(`a completed ${deci
 		takeCycleRecoveryDescription: 'Recover this recording', takeCycleRecoveryCloseHint: 'Close keeps the recording',
 		takeCycleRecover: 'Recover takes', takeCycleDiscard: 'Discard takes', takeCycleRecovering: 'Recovering',
 		takeCycleDiscarding: 'Discarding', takeCycleRecoveryWorking: 'Working' };
-	const render = () => root.render(<TakeCycleRecoveryDialog productId="soundscaper" pending={pending}
+	const render = (authority: TakeCyclePendingOpenRecovery = pending) => root.render(<TakeCycleRecoveryDialog productId="soundscaper" pending={authority}
 		controller={{ actions: { recording: { cycle: { recover: finish, discard: finish } } } }}
 		copy={copy} run={operation => operation()} onClose={() => { closed++; }} />);
 	const submit = () => {
@@ -38,6 +39,14 @@ for (const decision of ['recover', 'discard'] as const) test(`a completed ${deci
 		delayed = true;
 		await act(async () => submit());
 		assert.equal(closed, 1, 'the held decision is still pending');
+		const retiredCompletion = complete;
+		await act(async () => render({ ...pending, recoveryToken: 'retry-token' }));
+		await act(async () => submit());
+		await act(async () => retiredCompletion());
+		assert.equal(closed, 1, 'an earlier decision must not close a refreshed recovery authority');
+		const working = Array.from(dom.container.querySelectorAll('button')).find(element => element.textContent === (decision === 'recover' ? 'Recovering' : 'Discarding'));
+		assert.ok(working);
+		assert.equal(reactProps(working).disabled, true, 'earlier completion must not clear a newer pending decision');
 		await act(async () => root.render(<div role="dialog">Preferences</div>));
 		await act(async () => complete());
 		assert.equal(closed, 1, 'the retired decision must not dismiss a newer surface');

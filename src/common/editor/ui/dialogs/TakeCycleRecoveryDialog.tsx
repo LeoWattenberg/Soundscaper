@@ -44,8 +44,10 @@ export default function TakeCycleRecoveryDialog({
 	useEffect(() => {
 		const owner = { active: true };
 		lifetime.current = owner;
+		setPendingAction(null);
+		setError('');
 		return () => { owner.active = false; };
-	}, [pending.projectId, pending.publicationGeneration, pending.recoveryToken]);
+	}, [pending.projectId, pending.publicationGeneration, pending.recoveryToken, setError]);
 	if (productId !== 'soundscaper') return null;
 	const perform = (decision: 'recover' | 'discard'): void => {
 		const owner = lifetime.current;
