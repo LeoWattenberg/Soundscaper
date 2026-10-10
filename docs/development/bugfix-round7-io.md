@@ -713,7 +713,7 @@ compiler found only the optional cache cleanup invocation in its actual
 controller resource witness. Assert the real cache cleanup capability before
 calling it, preserving the owned disposal rather than widening a production
 type. The bounded compiler error log was read and removed immediately.
-IO049 independently implemented MixerFader completion (qualification pending):
+IO049 independently implemented MixerFader completion (qualified):
 Soundscaper imports an ordinary WAV and opens Window → Mixer. A healthy Master
 Volume drag, Undo, Redo and retained recording pass. Repeat the drag, hold middle
 and release primary; the passive actual native pointermove confirms button0 and
@@ -726,8 +726,7 @@ fail2/7 while foreign, touch, pen, auxiliary-release and intentional owning
 cancellation controls pass5/7. This terminal completion owner is separate from
 D058's rejection of foreign pointer termination, the generic Knob and Slider
 completion owners and the application parameter transaction binding. All fader
-consumers/button variants remain one root; corrected complete public proof is
-pending and the qualified count stays47.
+consumers/button variants remain one root.
 The correction recognizes only that owning mouse primary-release transition and
 completes the existing final-coordinate callbacks once after retiring its capture.
 Later auxiliary motion/release cannot recommit; foreign admission, touch/pen and
@@ -737,7 +736,13 @@ transaction/automation controls pass in0.592 seconds. Narrow strict compilation,
 target type-aware lint, canonical changed-file lint and owned whitespace checks
 pass. The source remains268 lines. Completed focused logs and the temporary
 compiler configuration are consumed and immediately removed. The unchanged
-complete native public case remains pending; this does not yet add a count.
-Forty-seven qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+complete native workflow passes Chromium on authenticated coherent a3a36854d
+in2.1 seconds (one case,3.6 seconds total). Healthy Master Volume completion,
+Undo/Redo, actual primary-release button0/buttons4, keyboard Undo before middle
+release, later auxiliary motion/release, Redo and retained imported recording
+all pass. Completed owned output/log are read and immediately removed. This
+qualifies one independently implemented MixerFader terminal owner, bringing the
+I/O count to48.
+Forty-eight qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
