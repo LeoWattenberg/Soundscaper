@@ -82,6 +82,9 @@ export default function FramescaperFinishingDialog({
 	const [profiledNoiseReduction, setProfiledNoiseReduction] = useState(false);
 	const [noiseProfileText, setNoiseProfileText] = useState('');
 	const captionFileRef = useRef<HTMLInputElement | null>(null);
+	const captionLifetimeRef = useRef(true);
+	const captionOwnerRef = useRef({ projectId: record(project).id, surface });
+	captionOwnerRef.current = { projectId: record(project).id, surface };
 	const cubeLutFileRef = useRef<HTMLInputElement | null>(null);
 	const motionRuntime = framescaperMotionAnalysisActionsFor(controller);
 	const motionTargets = motionRuntime?.targets() ?? [];
@@ -114,6 +117,10 @@ export default function FramescaperFinishingDialog({
 		setMotionEndFrame(motionTarget?.endFrame ?? 0);
 	}, [motionTarget?.stackId, motionTarget?.sourceId, motionTarget?.startFrame, motionTarget?.endFrame]);
 	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
+	useEffect(() => {
+		captionLifetimeRef.current = true;
+		return () => { captionLifetimeRef.current = false; };
+	}, []);
 
 	const blocked = pending || editingBlocked || readOnly;
 	const exportBlocked = pending || (editingBlocked && !readOnly);
@@ -152,10 +159,13 @@ export default function FramescaperFinishingDialog({
 			captionFileRef.current?.click();
 			return;
 		}
+		const owner = captionOwnerRef.current;
 		perform(async () => {
 			const opened = await openFramescaperCaptionSidecarFile({
 				...(file ? { file } : {}), fileService,
 			});
+			if (!captionLifetimeRef.current || captionOwnerRef.current.projectId !== owner.projectId
+				|| captionOwnerRef.current.surface !== owner.surface) return;
 			if (opened === null) {
 				captionImportSummary = { key: 'captionFileSelectionCancelled' };
 				return;
@@ -277,7 +287,7 @@ export default function FramescaperFinishingDialog({
 
 	return <AudioEditorDialogShell
 		title={model.title}
-		onClose={onClose}
+		onClose={() => { captionLifetimeRef.current = false; onClose(); }}
 		width={820}
 		initialFocus={surface === 'dialogue-chain' ? '[data-dialogue-chain-apply] button' : '[data-framescaper-finishing-document]'}
 		dataAttributes={{ 'data-framescaper-finishing-dialog': surface }}
