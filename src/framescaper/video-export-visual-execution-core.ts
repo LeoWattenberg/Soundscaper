@@ -35,6 +35,7 @@ export interface FramescaperVideoExportPictureDispositionCore<Version extends 13
 
 export interface FramescaperVideoExportVisualExecutionCore<Plan extends UnifiedExactRenderPlanV13 | UnifiedExactRenderPlanV16> {
 	readonly exactPlan: Plan;
+	readonly outputColorSpace: 'srgb' | 'rec709';
 	readonly timingSidecars: ReturnType<typeof bindFramescaperUnifiedRenderTimingSidecarsFinishing>;
 	accountFrame(frame: VideoKeyframeExportFrame, consumedNodeIds: readonly string[]): void;
 	disposition(): FramescaperVideoExportPictureDispositionCore<Plan['version']>;
@@ -108,7 +109,8 @@ export async function createFramescaperVideoExportVisualExecutionCore<Plan exten
 		disposed = true;
 	}
 
-	return Object.freeze({ exactPlan, timingSidecars, accountFrame, disposition, dispose });
+	return Object.freeze({ exactPlan, outputColorSpace: finishing.colorContext.outputSpace,
+		timingSidecars, accountFrame, disposition, dispose });
 }
 
 function renderAuthority(request: CreateRequest) {

@@ -32,6 +32,24 @@ const ENCODER_TICK_MS = 4;
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
+export type VideoWebCodecsRgbaColorSpace = 'srgb' | 'rec709';
+
+/** Capture only the two declared SDR transfers; omission preserves legacy native defaults. */
+export function captureVideoWebCodecsRgbaColorSpace(request: object): VideoWebCodecsRgbaColorSpace | undefined {
+	const descriptor = Object.getOwnPropertyDescriptor(request, 'rgbaColorSpace');
+	if (!descriptor) {
+		if ('rgbaColorSpace' in request) throw new TypeError('WebCodecs rgbaColorSpace must be own data.');
+		return undefined;
+	}
+	if (!Object.hasOwn(descriptor, 'value') || descriptor.enumerable !== true) {
+		throw new TypeError('WebCodecs rgbaColorSpace must be enumerable own data.');
+	}
+	if (descriptor.value !== 'srgb' && descriptor.value !== 'rec709') {
+		throw new RangeError('WebCodecs rgbaColorSpace must be srgb or rec709.');
+	}
+	return descriptor.value as VideoWebCodecsRgbaColorSpace;
+}
+
 export interface VideoWebCodecsEncodedChunk {
 	readonly byteLength: number;
 	readonly type: 'key' | 'delta';
@@ -90,6 +108,7 @@ export interface VideoWebCodecsProduceRequest {
 	/** The full codec string the capability probe accepted. */
 	readonly codec: string;
 	readonly bitrate: number;
+	readonly rgbaColorSpace?: VideoWebCodecsRgbaColorSpace;
 	readonly encoderClass: EncoderConstructor;
 	readonly videoFrameClass: VideoFrameConstructor;
 	/** Receives elementary-stream bytes in order; never called after a failure. */
@@ -160,6 +179,8 @@ export function createVideoWebCodecsEncoderConfiguration(
 export async function produceVideoWebCodecsStream(
 	request: VideoWebCodecsProduceRequest,
 ): Promise<VideoWebCodecsProduceResult> {
+	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(request);
+	const forwardingRequest = Object.freeze({ ...request, ...(rgbaColorSpace === undefined ? {} : { rgbaColorSpace }) });
 	const { frameSource } = request;
 	const { width, height, frameRate } = frameSource.canvas;
 	const writer = createVideoElementaryStreamWriter({
@@ -175,7 +196,7 @@ export async function produceVideoWebCodecsStream(
 	if (header.byteLength > 0) await request.write(header);
 	let chunkIndex = 0;
 	const encoded = await produceVideoWebCodecsChunks({
-		...request,
+		...forwardingRequest,
 		h264Format: 'annexb',
 		async writeChunk(chunk) {
 			const payload = new Uint8Array(chunk.byteLength);
@@ -193,6 +214,11 @@ export async function produceVideoWebCodecsStream(
 export async function produceVideoWebCodecsChunks(
 	request: VideoWebCodecsChunkProduceRequest,
 ): Promise<VideoWebCodecsProduceResult> {
+	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(request);
+	const colorSpace = rgbaColorSpace === undefined ? undefined : Object.freeze({
+		primaries: 'bt709', transfer: rgbaColorSpace === 'srgb' ? 'iec61966-2-1' : 'bt709',
+		matrix: 'rgb', fullRange: true,
+	});
 	const { frameSource, producer, videoFrameClass } = request;
 	const { width, height, frameRate } = frameSource.canvas;
 	const pending: {
@@ -242,6 +268,7 @@ export async function produceVideoWebCodecsChunks(
 				codedHeight: height,
 				timestamp: frameTimestamp(index, frameRate),
 				duration: frameTimestamp(index + 1, frameRate) - frameTimestamp(index, frameRate),
+				...(colorSpace === undefined ? {} : { colorSpace }),
 			});
 			try {
 				encoder.encode(videoFrame, { keyFrame: index === 0 });

@@ -6,21 +6,12 @@ import type { FramescaperVideoExportPictureDispositionV16 } from './video-export
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import {
-	createVideoExactPictureExportFrameSource,
-} from '../common/editor/video-keyframe-export-frame-source.ts';
-import {
 	encodeVideoKeyframeVideo,
 	encodeVideoKeyframeVideoToSink,
 	type VideoKeyframeVideoEncoderRequest,
 	type VideoKeyframeVideoEncoderResult,
 	type VideoKeyframeVideoSinkEncoderResult,
 } from '../common/editor/video-keyframe-video-encoder.ts';
-import {
-	createVideoKeyframeOfflineEncoderRequest,
-	preflightVideoKeyframeOfflineEncoder,
-	type VideoKeyframeOfflineEncoderOptions,
-} from '../common/editor/ui/video-keyframe-offline-video-export-encoder.ts';
-import type { VideoKeyframeOfflineRgbaRenderer } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -35,7 +26,7 @@ import {
 	assertVideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
 import { runFramescaperFinishingEncode } from './video-export-encode-cleanup.ts';
-import { createFramescaperVisualRgbaProducer } from './video-export-visual-rgba-producer.ts';
+import { createFramescaperPictureEncoderRequest, framescaperOutputWebCodecsDecision, captureFramescaperEncodeWebCodecsRequest } from './video-export-picture-encoder-finishing.ts';
 import { assertFramescaperProjectFinishingProfile } from './editor-domain-runtime-profile.ts';
 import {
 	type FramescaperProjectFinishing,
@@ -188,6 +179,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 		async encode(
 			request: ProductVideoExportStrategyEncodeRequest,
 		): Promise<ProductVideoExportEncodedOutput> {
+			request = captureFramescaperEncodeWebCodecsRequest(request);
 			const authority = ownedPlanAuthority(profile, request, exports, plans);
 			if (isFramescaperVideoVisualPlanFinishing(request.plan)) {
 				return encodeVisualPicture(
@@ -202,6 +194,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 			request: ProductVideoExportStrategyEncodeRequest,
 			sink: FfmpegOutputSink<Output>,
 		): Promise<ProductVideoExportSinkOutput<Output>> {
+			request = captureFramescaperEncodeWebCodecsRequest(request);
 			const authority = ownedPlanAuthority(profile, request, exports, plans);
 			if (isFramescaperVideoVisualPlanFinishing(request.plan)) {
 				return encodeVisualPictureToSink(
@@ -265,6 +258,7 @@ async function encodeKeyedPicture(
 		const result = await delegate.encode({
 			...request, canonicalProject: authority.retimeProject,
 			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
+			...(request.webCodecs ? { webCodecs: framescaperOutputWebCodecsDecision(request.webCodecs, execution.outputColorSpace) } : {}),
 		});
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
@@ -287,6 +281,7 @@ async function encodeKeyedPictureToSink<Output>(
 		const result = await delegate.encodeToSink({
 			...request, canonicalProject: authority.retimeProject,
 			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
+			...(request.webCodecs ? { webCodecs: framescaperOutputWebCodecsDecision(request.webCodecs, execution.outputColorSpace) } : {}),
 		}, sink);
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
@@ -318,38 +313,11 @@ async function createVisualExecution(
 		request, ...(assetStore === undefined ? {} : { store: assetStore }),
 		...exactDependencies,
 	});
-	const frameSource = createVideoExactPictureExportFrameSource({
-		sampleRate: request.plan.sampleRate,
-		startFrame: request.plan.range.startFrame,
-		endFrame: request.plan.range.endFrame,
-		canvas: {
-			width: request.plan.canvas.width, height: request.plan.canvas.height,
-			frameRate: request.plan.canvas.frameRate, fit: request.plan.canvas.fit,
-			backgroundColor: request.plan.canvas.backgroundColor,
-		},
-	});
-	const renderer: VideoKeyframeOfflineRgbaRenderer = Object.freeze({
-		width: visualPlan.canvas.width, height: visualPlan.canvas.height,
-		byteLength: visualPlan.canvas.width * visualPlan.canvas.height * 4,
-		produce: createFramescaperVisualRgbaProducer(
-			visualPlan.canvas.width, visualPlan.canvas.height, exact.compositor, request.rgbaPostprocessor,
-		),
-		async dispose() { await exact.dispose(); },
-	});
-	const encoderOptions: Readonly<Record<string, number>> = request.maximumOutputBytes === undefined
-		? Object.freeze({}) : Object.freeze({ maximumOutputBytes: request.maximumOutputBytes as number });
-	const options: VideoKeyframeOfflineEncoderOptions = Object.freeze({
-		format: request.plan.format,
-		quality: request.plan.quality,
-		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
-		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
-		encoderOptions,
-		signal: request.signal, assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
-	});
-	await preflightVideoKeyframeOfflineEncoder(options, frameSource);
-	return Object.freeze({ exact, encoderRequest: createVideoKeyframeOfflineEncoderRequest(
-		options, frameSource, renderer,
-	) });
+	try {
+		return Object.freeze({ exact, encoderRequest: await createFramescaperPictureEncoderRequest(request, visualPlan, exact) });
+	} catch (error) {
+		return runFramescaperFinishingEncode<never>(() => { throw error; }, () => exact.dispose());
+	}
 }
 
 async function encodeVisualPicture(

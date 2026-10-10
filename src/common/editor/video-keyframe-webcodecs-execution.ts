@@ -31,15 +31,41 @@ import {
 	type VideoKeyframeExecutionProductionContext,
 } from './video-keyframe-execution-engine.ts';
 import { createExactVideoKeyframeRgbaProducer } from './video-keyframe-rgba-producer-guard.ts';
-import { produceVideoWebCodecsStream } from './video-webcodecs-producer.ts';
+import { produceVideoWebCodecsStream, captureVideoWebCodecsRgbaColorSpace, type VideoWebCodecsRgbaColorSpace } from './video-webcodecs-producer.ts';
+import { readClosedDomainRecord, readClosedDomainField } from './closed-domain-value.ts';
 
 /** What the capability probe decided, carried down to the encoder that runs. */
 export interface VideoKeyframeWebCodecsEncode {
 	/** The full codec string `VideoEncoder.isConfigSupported` accepted. */
 	readonly codec: string;
 	readonly bitrate: number;
+	readonly rgbaColorSpace?: VideoWebCodecsRgbaColorSpace;
 	readonly encoderClass: unknown;
 	readonly videoFrameClass: unknown;
+}
+
+/** The private decision snapshot is taken before audio, leases, muxers or native construction. */
+export function admitVideoKeyframeWebCodecsEncode(input: unknown): VideoKeyframeWebCodecsEncode {
+	const name = 'video keyframe WebCodecs decision';
+	const fields = ['codec', 'bitrate', 'encoderClass', 'videoFrameClass'];
+	const value = readClosedDomainRecord(input, name, [...fields, 'rgbaColorSpace'], fields);
+	const codec = readClosedDomainField(value, 'codec', name);
+	if (typeof codec !== 'string' || codec.length === 0 || codec.length > 128) {
+		throw new TypeError(`${name}.codec must be a codec string.`);
+	}
+	const bitrate = readClosedDomainField(value, 'bitrate', name);
+	if (typeof bitrate !== 'number' || !Number.isSafeInteger(bitrate) || bitrate <= 0) {
+		throw new RangeError(`${name}.bitrate must be a positive integer.`);
+	}
+	const encoderClass = readClosedDomainField(value, 'encoderClass', name);
+	const videoFrameClass = readClosedDomainField(value, 'videoFrameClass', name);
+	for (const [key, constructor] of [['encoderClass', encoderClass], ['videoFrameClass', videoFrameClass]]) {
+		if (typeof constructor !== 'function') throw new TypeError(`${name}.${String(key)} must be a constructor.`);
+	}
+	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(value);
+	return Object.freeze({ codec, bitrate, encoderClass, videoFrameClass,
+		...(rgbaColorSpace === undefined ? {} : { rgbaColorSpace }),
+	});
 }
 
 export interface VideoKeyframeWebCodecsExecutionRequest {
@@ -59,6 +85,7 @@ export interface VideoKeyframeWebCodecsExecutionRequest {
 export async function executeVideoKeyframeWebCodecsEncoder(
 	request: VideoKeyframeWebCodecsExecutionRequest,
 ): Promise<VideoKeyframeEncoderResult> {
+	request = { ...request, webCodecs: admitVideoKeyframeWebCodecsEncode(request.webCodecs) };
 	const { workload, webCodecs } = request;
 	if (workload.videoEncoder !== 'webcodecs') {
 		throw new Error('A WebCodecs keyed encode requires a WebCodecs-admitted workload.');
@@ -116,6 +143,7 @@ async function writeEncodedStream(
 		videoCodec: workload.elementaryFormat === 'ivf' ? 'vp9' : 'h264',
 		codec: webCodecs.codec,
 		bitrate: webCodecs.bitrate,
+		...(webCodecs.rgbaColorSpace === undefined ? {} : { rgbaColorSpace: webCodecs.rgbaColorSpace }),
 		encoderClass: webCodecs.encoderClass as never,
 		videoFrameClass: webCodecs.videoFrameClass as never,
 		// Split against the ring exactly as the RGBA tier splits a frame. An

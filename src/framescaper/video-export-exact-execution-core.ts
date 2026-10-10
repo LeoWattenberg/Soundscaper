@@ -52,6 +52,7 @@ export type CreateSupplementalExecutionCore<Plan extends PlanCore> = (
 
 export interface FramescaperVideoExportExactExecutionCore<Version extends 13 | 16> {
 	readonly compositor: VideoKeyframeOfflineRgbaCompositor;
+	readonly outputColorSpace: 'srgb' | 'rec709';
 	disposition(): FramescaperVideoExportPictureDispositionCore<Version>;
 	dispose(): Promise<void>;
 }
@@ -181,7 +182,7 @@ export async function createFramescaperVideoExportExactExecutionCore<Plan extend
 		try { visual.dispose(); } catch (error) { failures.push(error); }
 		if (failures.length > 0) throw new AggregateError(failures, 'finishing exact export cleanup failed.');
 	}
-	return Object.freeze({ compositor, disposition, dispose });
+	return Object.freeze({ compositor, outputColorSpace: visual.outputColorSpace, disposition, dispose });
 }
 
 function assertSupplementalExecution(

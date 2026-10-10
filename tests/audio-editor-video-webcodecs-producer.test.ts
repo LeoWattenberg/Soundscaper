@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { deferred } from './helpers/async-test-control.ts';
 
 import {
 	frameTimestamp,
@@ -200,6 +201,8 @@ function createHarness(options: {
 		configs,
 		keyFrameFlags,
 		frameDurations: [] as number[],
+		frameInits: [] as Record<string, unknown>[],
+		encoderConstructions: 0,
 		closed: false,
 		maximumObservedQueue: 0,
 		emittedChunks: [] as unknown[],
@@ -219,6 +222,7 @@ function createHarness(options: {
 		state = 'configured';
 
 		constructor(callbacks: { output: typeof output; error: typeof onError }) {
+			harness.encoderConstructions += 1;
 			output = callbacks.output;
 			onError = callbacks.error;
 		}
@@ -269,6 +273,7 @@ function createHarness(options: {
 
 	class FakeVideoFrame {
 		constructor(_data: Uint8Array, init: Record<string, unknown>) {
+			harness.frameInits.push(init);
 			harness.frameDurations.push(Number(init.duration));
 		}
 		close() {}
@@ -296,3 +301,87 @@ function createHarness(options: {
 	} as unknown as VideoWebCodecsProduceRequest;
 	return harness;
 }
+
+for (const [rgbaColorSpace, transfer] of [['srgb', 'iec61966-2-1'], ['rec709', 'bt709']] as const) {
+	test(`raw RGBA VideoFrames carry declared ${rgbaColorSpace} rather than native defaults`, async () => {
+		const harness = createHarness({ frameCount: 1 });
+		await produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace } as VideoWebCodecsProduceRequest);
+		assert.deepEqual(harness.frameInits[0]?.colorSpace, {
+			primaries: 'bt709', transfer, matrix: 'rgb', fullRange: true,
+		});
+	});
+}
+
+test('legacy unlabelled RGBA retains the exact native default init shape', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	await produceVideoWebCodecsStream(harness.request);
+	assert.deepEqual(harness.frameInits[0], {
+		format: 'RGBA', codedWidth: 4, codedHeight: 2, timestamp: 0, duration: 33_367,
+	});
+});
+
+test('the declared profile is captured before a held renderer can replace it', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	const request = { ...harness.request, rgbaColorSpace: 'rec709' };
+	request.producer = { ...request.producer, async produce() {
+		request.rgbaColorSpace = 'srgb';
+		await Promise.resolve();
+	} };
+	await produceVideoWebCodecsStream(request as VideoWebCodecsProduceRequest);
+	assert.equal((harness.frameInits[0]?.colorSpace as Record<string, unknown>).transfer, 'bt709');
+});
+
+test('a held nonempty VP9 header cannot add a profile to an omitted legacy request', async () => {
+	const harness = createHarness({ frameCount: 1, videoCodec: 'vp9' });
+	const entered = deferred<void>();
+	const release = deferred<void>();
+	let writes = 0;
+	const request = { ...harness.request, async write(bytes: Uint8Array) {
+		if (writes++ === 0) { assert.equal(bytes.byteLength, 32); entered.resolve(); await release.promise; }
+		await harness.request.write(bytes);
+	} };
+	const pending = produceVideoWebCodecsStream(request);
+	await entered.promise;
+	Object.defineProperty(request, 'rgbaColorSpace', { enumerable: true, value: 'srgb' });
+	release.resolve();
+	await pending;
+	assert.equal(Object.hasOwn(harness.frameInits[0]!, 'colorSpace'), false);
+});
+
+test('a held nonempty VP9 header cannot invoke a post-capture profile getter', async () => {
+	const harness = createHarness({ frameCount: 1, videoCodec: 'vp9' });
+	const entered = deferred<void>();
+	const release = deferred<void>();
+	let writes = 0; let reads = 0;
+	const request = { ...harness.request, rgbaColorSpace: 'rec709' as const, async write(bytes: Uint8Array) {
+		if (writes++ === 0) { assert.equal(bytes.byteLength, 32); entered.resolve(); await release.promise; }
+		await harness.request.write(bytes);
+	} };
+	const pending = produceVideoWebCodecsStream(request);
+	await entered.promise;
+	Object.defineProperty(request, 'rgbaColorSpace', { enumerable: true, get() { reads++; return 'srgb'; } });
+	release.resolve();
+	await pending;
+	assert.equal(reads, 0);
+	assert.equal((harness.frameInits[0]?.colorSpace as Record<string, unknown>).transfer, 'bt709');
+});
+
+test('unsupported and accessor profiles refuse before native construction without executing getters', async () => {
+	let reads = 0;
+	for (const profile of ['linear-rec709-d65', 'display-p3', null, undefined]) {
+		const harness = createHarness({ frameCount: 1 });
+		await assert.rejects(produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace: profile } as never));
+		assert.equal(harness.encoderConstructions, 0);
+	}
+	const harness = createHarness({ frameCount: 1 });
+	const request = Object.defineProperty({ ...harness.request }, 'rgbaColorSpace', {
+		enumerable: true, get() { reads += 1; return 'srgb'; },
+	});
+	await assert.rejects(produceVideoWebCodecsStream(request));
+	assert.equal(reads, 0);
+	assert.equal(harness.encoderConstructions, 0);
+	const inherited = Object.setPrototypeOf({ ...harness.request }, { get rgbaColorSpace() { reads++; return 'srgb'; } });
+	await assert.rejects(produceVideoWebCodecsStream(inherited));
+	assert.equal(reads, 0);
+	assert.equal(harness.encoderConstructions, 0);
+});

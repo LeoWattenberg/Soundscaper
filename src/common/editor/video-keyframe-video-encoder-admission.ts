@@ -16,6 +16,7 @@ import type {
 	VideoKeyframeRgbaFrameProducer,
 } from './video-keyframe-encoder-stream.ts';
 import { normalizeVideoDeliveryQuality } from './video-delivery-quality.ts';
+import { admitVideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
 import {
 	assertVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrame,
@@ -98,9 +99,9 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 	const signal = optionalSignal(record, 'signal');
 	const assertCurrent = optionalFunction(record, 'assertCurrent');
 	const confirmFileSizeWarning = optionalFunction(record, 'confirmFileSizeWarning');
-	const webCodecs = Object.hasOwn(record, 'webCodecs')
-		? data(record, 'webCodecs', 'video keyframe video encoder request')
-		: undefined;
+	const statedWebCodecs = Object.hasOwn(record, 'webCodecs')
+		? data(record, 'webCodecs', 'video keyframe video encoder request') : undefined;
+	const webCodecs = statedWebCodecs === undefined ? undefined : admitVideoKeyframeWebCodecsEncode(statedWebCodecs);
 	const result: Record<string, unknown> = {
 		desktopExternalFfmpeg,
 		frameSource,
