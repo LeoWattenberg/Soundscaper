@@ -464,8 +464,10 @@ caption fixture awaiting its owner's target-compatible Promise correction.
 Both normal public workflows are causally RED on unchanged prepared capture
 60: dry and bypassed 48000-sample audible exports pass, then enabled Include
 tails still produces 48000 samples instead of more than 48128 (8.5/8.6 seconds).
-Later physical-release assertions were not reached; corrected public GREEN is
-pending the shared build. A first 96 kHz Wahwah test used a recording outside
+Later physical-release assertions were not reached. Guarded prepared capture
+68 passes both complete Chromium workflows, including the physical release,
+quiet ending and restored bypass duration (7.7/8.5 seconds); all 15 shared
+public cases pass, and complete source/test strict compilation is GREEN. A first 96 kHz Wahwah test used a recording outside
 its rate-scaled resonant band and is excluded; the corrected fixture reaches
 the causal declaration assertion. Owned public diagnostic directories are read
 and removed immediately; the short shared log remains only until its other
