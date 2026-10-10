@@ -26,6 +26,19 @@
 				"version": "1.0.0",
 				"tagPrefix": "framescaper-v"
 			}
+		},
+		"motionscaper": {
+			"productId": "motionscaper",
+			"applicationVersionChannel": "candidate",
+			"releaseChannel": "candidate",
+			"candidate": {
+				"version": "0.1.0-alpha.1",
+				"tagPrefix": "motionscaper-v"
+			},
+			"stable": {
+				"version": "1.0.0",
+				"tagPrefix": "motionscaper-v"
+			}
 		}
 	}
 }
