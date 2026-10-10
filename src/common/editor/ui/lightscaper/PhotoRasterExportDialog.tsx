@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { PhotoRasterExport, capturePhotoRasterExportOutput, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
+import { PhotoRasterExport, isPhotoRasterExportMetadataRefusal, capturePhotoRasterExportOutput, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import { formatImageExportFilenameV1 } from '../../image-export-filename-v1.ts';
 import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing } from './PhotoRasterExportSettings.tsx';
 import type { ExecutePhotoDevelopCurrent } from './photo-library-workflow-develop.ts';
@@ -20,6 +20,7 @@ export interface PhotoRasterExportDialogProps {
 	readonly fileName: string;
 	readonly execute: ExecutePhotoDevelopCurrent;
 	readonly withOriginalFrame: PhotoLibraryDevelopOriginalPortV1['withFrame'];
+	readonly readMetadata?: PhotoRasterExportRequest['readMetadata'];
 	readonly loadRenderer: LoadPhotoLibraryDevelopProxyRuntimeV2;
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly preparationFailed: boolean;
@@ -35,6 +36,7 @@ export interface PhotoRasterExportCopy {
 	readonly pixels: string; readonly megapixels: string; readonly percentage: string; readonly allowUpscale: string;
 	readonly resample: string; readonly nearest: string; readonly bilinear: string; readonly filenameTemplate: string;
 	readonly filenameHelp: string; readonly invalidSettings: string;
+	readonly metadata: string; readonly stripMetadata: string; readonly captureMetadata: string; readonly metadataHelp: string; readonly metadataFailed: string;
 	readonly outputSharpen: string; readonly sharpenAmount: string; readonly sharpenThreshold: string;
 }
 interface Target { readonly versionId: string; readonly revision: number; readonly scope: Scope; }
@@ -51,6 +53,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 	const [target, setTarget] = useState<Target | null>(null), [receipt, setReceipt] = useState<PhotoRasterExportReceipt | null>(null);
 	const [failed, setFailed] = useState(false), [saving, setSaving] = useState(false), [closing, setClosing] = useState(false);
 	const [settings, setSettings] = useState(DEFAULT_RASTER_EXPORT_SETTINGS), [invalidSettings, setInvalidSettings] = useState(false);
+	const [metadataFailed, setMetadataFailed] = useState(false);
 	const saveButton = useRef<HTMLButtonElement>(null), focused = useRef(false);
 	const controller = owner.current, copy = props.copy;
 	const retire = useCallback((current: Scope) => {
@@ -96,17 +99,20 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>;
 		try {
 			fileName = formatImageExportFilenameV1({ template: settings.filenameTemplate, sourceFileName: current.fileName, format: current.format, index: 1 });
-			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality,
+			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
 				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
 		} catch { setInvalidSettings(true); return; }
-		setInvalidSettings(false);
+		setInvalidSettings(false); setMetadataFailed(false);
 		setSaving(true); setReceipt(null);
 		// start() is deliberately called before any await or Promise continuation.
 		const work = controller.start({ photoId: current.photoId, versionId: target.versionId, expectedRevision: target.revision,
 			fileName, output, fileTypeDescription: copy.fileType,
 			execute: current.execute, withOriginalFrame: current.withOriginalFrame, loadRenderer: current.loadRenderer,
+			...(current.readMetadata ? { readMetadata: current.readMetadata } : {}),
 			prepareSave: request => runtime.prepareSave(request), saveFile: request => runtime.saveFile(request), encode: current.encode });
-		const joined = work.then(result => { if (lifetime.live) setReceipt(result); }, () => { if (lifetime.live) setFailed(true); })
+		const joined = work.then(result => { if (lifetime.live) setReceipt(result); }, (error: unknown) => { if (lifetime.live) {
+			if (isPhotoRasterExportMetadataRefusal(error)) setMetadataFailed(true); else setFailed(true);
+		} })
 			.finally(() => { if (lifetime.active === joined) lifetime.active = null; if (lifetime.live) setSaving(false); });
 		lifetime.active = joined;
 	};
@@ -122,8 +128,9 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		<div {...{ [`data-photo-${props.format}-export-dialog`]: true }} className="lightscaper-catalog-backup">
 			<p>{copy.description}</p>
 			<PhotoRasterExportSettings value={settings} copy={copy} disabled={!ready || saving || closing}
-				onChange={value => { setSettings(value); setInvalidSettings(false); }} />
+				onChange={value => { setSettings(value); setInvalidSettings(false); setMetadataFailed(false); }} />
 			{invalidSettings && <p role="alert">{copy.invalidSettings}</p>}
+			{metadataFailed && <p role="alert" data-photo-raster-export-metadata-error>{copy.metadataFailed}</p>}
 			{!ready && !failed && !props.preparationFailed && !saving && !closing && <p role="status">{copy.preparing}</p>}
 			{(saving || closing) && <p role="status">{copy.working}</p>}
 			{(failed || props.preparationFailed) && <p role="alert">{copy.failed}</p>}

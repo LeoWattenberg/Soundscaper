@@ -18,6 +18,14 @@ import type { PhotoLibraryDevelopOriginalPortV1 } from '../../common/editor/phot
 import type { PhotoLibraryDevelopSnapshotV2 } from '../../common/editor/photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopProxyRuntimeV2 } from '../../common/editor/photo-library-develop-proxy-port-v2.ts';
 
+import { normalizeImageMetadataV1 } from '../../common/editor/imaging/image-metadata-normalizer-v1.ts';
+import { withImageExifContainerV1 } from '../../common/editor/imaging/image-exif-container-v1.ts';
+import type { ImageExifMetadataV1 } from '../../common/editor/imaging/image-metadata-model-v1.ts';
+import type { PhotoLibraryMetadataSnapshotV1 } from '../../common/editor/photo-library-session-port-v1.ts';
+
+export type ReadPhotoExportMetadata = (photoId: string, expectedRevision: number, options: Readonly<{ signal: AbortSignal }>) =>
+	Promise<Readonly<{ catalogId: string; snapshot: PhotoLibraryMetadataSnapshotV1 }>>;
+
 export interface PhotoRasterExportRequest {
 	readonly photoId: string;
 	readonly versionId: string;
@@ -26,6 +34,7 @@ export interface PhotoRasterExportRequest {
 	readonly fileTypeDescription: string;
 	readonly signal?: AbortSignal;
 	readonly output?: PhotoRasterExportOutput;
+	readonly readMetadata?: ReadPhotoExportMetadata;
 	readonly prepareSave: (request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
 	readonly saveFile: (request: BrowserFileSaveRequest) => BrowserSavedFile | PromiseLike<BrowserSavedFile>;
 	readonly execute: ExecutePhotoDevelopV2;
@@ -40,11 +49,14 @@ export interface PhotoRasterExportOutput {
 	readonly sizing: ImageExportSizingV1;
 	readonly quality: 'nearest' | 'bilinear';
 	readonly sharpen?: Readonly<{ amount: number; threshold: number }>;
+	readonly metadataScope?: 'strip' | 'capture';
 }
 
 /** Capture output settings in the Save gesture. Actual frame capacity is checked after Develop. */
 export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRasterExportOutput> {
-	const input = record(value, 'Photo raster output', ['sizing', 'quality', 'sharpen'], ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
+	const input = record(value, 'Photo raster output', ['sizing', 'quality', 'sharpen', 'metadataScope'], ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
+	const metadataScope = Object.hasOwn(input, 'metadataScope') ? field(input, 'metadataScope', 'Photo raster output') : 'strip';
+	if (metadataScope !== 'strip' && metadataScope !== 'capture') throw new RangeError('Unsupported photo export metadata scope.');
 	const sharpen = Object.hasOwn(input, 'sharpen') ? normalizeDetailSharpenParamsV1(field(input, 'sharpen', 'Photo raster output')) : undefined;
 	if (quality !== 'nearest' && quality !== 'bilinear') throw new RangeError('Unsupported photo export resampling.');
 	const candidate = record(field(input, 'sizing', 'Photo raster output'), 'Photo raster sizing', ['kind', 'width', 'height', 'pixels', 'megapixels', 'percentage', 'allowUpscale'], ['kind']);
@@ -65,7 +77,7 @@ export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRa
 		}
 		captured[key] = item as number | boolean;
 	}
-	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality, ...(sharpen ? { sharpen } : {}) });
+	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality, metadataScope, ...(sharpen ? { sharpen } : {}) });
 }
 
 export type PhotoRasterExportReceipt = Readonly<{ status: 'cancelled' }> | Readonly<{
@@ -73,6 +85,16 @@ export type PhotoRasterExportReceipt = Readonly<{ status: 'cancelled' }> | Reado
 	width: number; height: number; byteLength: number; fileName: string;
 	method: 'desktop' | 'file-system-access' | 'download';
 }>;
+
+const METADATA_REFUSALS = new WeakSet<object>();
+export function isPhotoRasterExportMetadataRefusal(value: unknown): boolean {
+	return typeof value === 'object' && value !== null && METADATA_REFUSALS.has(value);
+}
+
+/** An opted-in metadata read/admission refused before destination publication. */
+export class PhotoRasterExportMetadataRefusal extends Error {
+	constructor(cause: unknown) { super('Capture metadata could not be included. Choose Strip to export without it.', { cause }); METADATA_REFUSALS.add(this); }
+}
 
 const MAXIMUM_OUTPUT_BYTES = 268_435_456;
 const CHECK = AbortSignal.prototype.throwIfAborted;
@@ -150,6 +172,13 @@ export class PhotoRasterExport {
 						current(); return readSnapshot(snapshot, request);
 					};
 					const initial = await read(), develop = detachPhotoLibraryDevelopSettingsV2(initial.develop);
+					let exif: Readonly<ImageExifMetadataV1> | null = null;
+					if (request.output?.metadataScope === 'capture') {
+						try {
+							const metadata = await request.readMetadata!(request.photoId, request.expectedRevision, { signal }); current();
+							exif = readCaptureMetadata(metadata, request, initial.catalogId);
+						} catch (error) { current(); throw new PhotoRasterExportMetadataRefusal(error); }
+					}
 					const runtime = await request.loadRenderer(); current();
 					const render = pin<PhotoLibraryDevelopProxyRuntimeV2['withFullResolution']>(runtime.withFullResolution, runtime);
 					let width = 0, height = 0;
@@ -183,26 +212,51 @@ export class PhotoRasterExport {
 					// Both renderer and original owner have completed their late checks and cleanup.
 					current();
 					if (!bytes) throw new Error('Photo raster renderer did not complete its frame consumer.');
-					const output: Uint8Array<ArrayBuffer> = bytes, byteLength = output.byteLength;
-					if (prepared.mode === 'stream') {
-						const writable = await prepared.createWritable(byteLength, 'exact'); current();
-						const writer = writable.getWriter();
-						try { await writer.write(output); current(); await writer.close(); }
-						finally { writer.releaseLock(); }
-						if (prepared.bytesWritten() !== byteLength) throw new Error('Photo raster staged byte length differs from its encoded output.');
+					const publish = async (output: Uint8Array<ArrayBuffer>) => {
+						current(); const byteLength = output.byteLength;
+						if (prepared.mode === 'stream') {
+							const writable = await prepared.createWritable(byteLength, 'exact'); current();
+							const writer = writable.getWriter();
+							try { await writer.write(output); current(); await writer.close(); }
+							finally { writer.releaseLock(); }
+							if (prepared.bytesWritten() !== byteLength) throw new Error('Photo raster staged byte length differs from its encoded output.');
+						}
+						const final = await read();
+						if (final.catalogId !== initial.catalogId) throw new Error('Photo raster export catalog changed.');
+						current(); active.committing = true;
+						const saved = prepared.mode === 'stream' ? await prepared.commit()
+							: await request.saveFile({ purpose: 'media', suggestedName: prepared.fileName, mimeType: this.mimeType,
+								target: prepared.target, blob: new Blob([output], { type: this.mimeType }), useFileSystemAccess: false, signal: active.stop.signal });
+						const delivery = readSaved(saved, byteLength, prepared.mode === 'stream');
+						direct = null;
+						outcome.completed = Object.freeze({ status: delivery.method === 'download' ? 'download-started' : 'saved',
+							photoId: request.photoId, versionId: request.versionId, revision: request.expectedRevision,
+							width, height, byteLength, ...delivery });
+					};
+					if (request.output?.metadataScope === 'capture') {
+						let entered = false;
+						try {
+							await withImageExifContainerV1({ format: this.#format, bytes, exif, width, height, scope: 'capture' }, async output => {
+								entered = true;
+								try { await publish(output); } catch (error) {
+									// Keep composed bytes alive through the exact destination's abort/drain.
+									if (direct) { const retiring = direct; direct = null; await abortDestination(retiring, error); }
+									throw error;
+								}
+							}, { signal, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+						} catch (error) { if (!entered) { current(); throw new PhotoRasterExportMetadataRefusal(error); } throw error; }
+					} else await publish(bytes);
+				} catch (error) {
+					outcome.failure = { value: error };
+					if (isPhotoRasterExportMetadataRefusal(error)) {
+						if (direct) {
+							const retiring = direct; direct = null;
+							try { await abortDestination(retiring, error); } catch (cleanup) { outcome.failure = { value: cleanup }; throw cleanup; }
+						}
+						return; // Recoverable metadata refusal must not poison the workflow's presentation error.
 					}
-					const final = await read();
-					if (final.catalogId !== initial.catalogId) throw new Error('Photo raster export catalog changed.');
-					current(); active.committing = true;
-					const saved = prepared.mode === 'stream' ? await prepared.commit()
-						: await request.saveFile({ purpose: 'media', suggestedName: prepared.fileName, mimeType: this.mimeType,
-							target: prepared.target, blob: new Blob([output], { type: this.mimeType }), useFileSystemAccess: false, signal: active.stop.signal });
-					const delivery = readSaved(saved, byteLength, prepared.mode === 'stream');
-					direct = null;
-					outcome.completed = Object.freeze({ status: delivery.method === 'download' ? 'download-started' : 'saved',
-						photoId: request.photoId, versionId: request.versionId, revision: request.expectedRevision,
-						width, height, byteLength, ...delivery });
-				} catch (error) { outcome.failure = { value: error }; throw error; }
+					throw error;
+				}
 				finally { if (contextAbort) Reflect.apply(REMOVE, context.signal, ['abort', contextAbort]); }
 			}, active.stop.signal);
 			if (outcome.completed) return outcome.completed;
@@ -217,6 +271,17 @@ export class PhotoRasterExport {
 			throw error;
 		} finally { if (bytes) Reflect.apply(WIPE, bytes, [0]); }
 	}
+}
+
+function readCaptureMetadata(value: unknown, request: PhotoRasterExportRequest, catalogId: string): Readonly<ImageExifMetadataV1> | null {
+	const envelope = record(value, 'Photo export metadata', ['catalogId', 'snapshot']);
+	if (field(envelope, 'catalogId', 'Photo export metadata') !== catalogId) throw new Error('Photo export metadata catalog changed.');
+	const snapshot = record(field(envelope, 'snapshot', 'Photo export metadata'), 'Photo export metadata snapshot',
+		['photoId', 'revision', 'metadata', 'extracted', 'originalFileName', 'originalSha256']);
+	if (field(snapshot, 'photoId', 'Photo export metadata snapshot') !== request.photoId
+		|| field(snapshot, 'revision', 'Photo export metadata snapshot') !== request.expectedRevision) throw new Error('Photo export metadata revision or identity changed.');
+	const extracted = field(snapshot, 'extracted', 'Photo export metadata snapshot');
+	return extracted === null ? null : normalizeImageMetadataV1(extracted).exif;
 }
 
 async function abortDestination(direct: PreparedDirectSave, primary: unknown): Promise<void> {
@@ -283,8 +348,10 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterExportRequest {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
-	const input = record(value, name, [...required, 'signal', 'output'], required);
+	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata'], required);
 	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
+	const metadataRead = Object.hasOwn(input, 'readMetadata') ? pin<ReadPhotoExportMetadata>(field(input, 'readMetadata', name), value) : undefined;
+	if (output?.metadataScope === 'capture' && !metadataRead) throw new TypeError('Capture export requires its selected metadata reader.');
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', name) : undefined;
 	if (signal !== undefined) {
 		if (!(signal instanceof AbortSignal)) throw new TypeError('Photo raster export requires native cancellation.');
@@ -299,7 +366,7 @@ function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterEx
 	return Object.freeze({ photoId: stableId(field(input, 'photoId', name)), versionId: stableId(field(input, 'versionId', name)),
 		expectedRevision: revision, fileName, fileTypeDescription: text(field(input, 'fileTypeDescription', name), 256), signal: signal as AbortSignal | undefined,
 		prepareSave: method('prepareSave'), saveFile: method('saveFile'), execute: method('execute'), withOriginalFrame: method('withOriginalFrame'),
-		loadRenderer: method('loadRenderer'), encode: method('encode'), output });
+		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead });
 }
 function pin<Method>(value: unknown, receiver: unknown): Method {
 	if (typeof value !== 'function') throw new TypeError('Photo raster export requires its captured methods.');

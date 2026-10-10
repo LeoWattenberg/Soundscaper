@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PhotoExportDestinations } from '../../../../lightscaper/controller/photo-export-destinations.ts';
+import { usePhotoLibraryWorkflowReads } from './photo-library-workflow-reads.ts';
 import { message, errorCode } from './photo-library-workflow-diagnostics.ts';
-import { acquirePhotoLibraryWorkflowSlotV2 as acquire, retirePhotoLibraryWorkflowSlotV2, loadPhotoLibraryDevelopProxyV2,
+import { acquirePhotoLibraryWorkflowSlotV2 as acquire, retirePhotoLibraryWorkflowSlotV2,
 	type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import { joinPhotoLibraryRetirementV1, type PhotoLibraryBackupSaveRuntimeV1, type LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { PhotoLibraryBackupSaveV1, type PhotoLibraryBackupSaveRequestV1,
@@ -14,10 +15,9 @@ import { DEFAULT_PHOTO_LIBRARY_QUERY_V2 as DEFAULT_QUERY, isMetadataQuery, readN
 import { usePhotoOriginalRecovery, type ExecutePhotoOriginalRecoveryV1 } from './use-photo-original-recovery.ts';
 import type { ExecutePhotoStackV1 } from './use-photo-stacks.ts';
 import type { ExecutePhotoSavedFiltersV1 } from './use-photo-saved-filters.ts';
-import { capturePhotoLibraryDevelopPortV2, capturePhotoLibraryDevelopOriginalPortV1, type ExecutePhotoDevelopCurrent } from './photo-library-workflow-develop.ts';
-import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
+import { capturePhotoLibraryDevelopPortV2, type ExecutePhotoDevelopCurrent } from './photo-library-workflow-develop.ts';
+import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-port-v1.ts';
-import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
@@ -27,7 +27,7 @@ import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../.
 import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1 } from '../../photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1,
 	PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../photo-library-organization-port-v1.ts';
-import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1 } from '../../photo-library-session-port-v1.ts';
+import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPageV1, PhotoLibraryRowV1 } from '../../photo-library-session-port-v1.ts';
 
 export { DEFAULT_PHOTO_LIBRARY_QUERY_V1, DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from '../../controller/shared/photo-library-query-navigation.ts';
 
@@ -233,38 +233,8 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 		return receipt;
 	}, [perform, controller, createSession, loadBackupSaveRuntime]);
 
-	const readPreview = useCallback(async (photoId: string, tier: PhotoLibraryPreviewTierV1,
-		options: Readonly<{ signal?: AbortSignal }> = {}) => {
-		const current = slot.current;
-		if (!current?.live || current.proxyFactory !== createDevelopProxyRuntime || current.proxyFactory !== renderer.current || current.factory !== createSession || current.factory !== factory.current
-			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current || current.proxyFactory !== renderer.current) {
-			throw new DOMException('Photo preview generation is closed.', 'AbortError');
-		}
-		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
-		check(signal);
-		const owner = await acquire(current); check(signal);
-		const result = await owner.readPreview(photoId, tier, { signal }); check(signal);
-		return result;
-	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
-	const withOriginalFrame = useCallback<PhotoLibraryDevelopOriginalPortV1['withFrame']>(async (request, consume, options = {}) => {
-		const current = slot.current;
-		if (!current?.live || current.proxyFactory !== createDevelopProxyRuntime || current.proxyFactory !== renderer.current || current.factory !== createSession || current.factory !== factory.current
-			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current || current.proxyFactory !== renderer.current) throw new DOMException('Photo original generation is closed.', 'AbortError');
-		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
-		check(signal); const owner = await acquire(current); check(signal);
-		const original = owner.develop.original;
-		if (!original) throw new Error('Full-resolution development is unavailable.');
-		const captured = capturePhotoLibraryDevelopOriginalPortV1(original); check(signal);
-		return captured.withFrame(request, consume, { signal });
-	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
-
-
-	const loadDevelopProxyRuntime = useCallback<LoadPhotoLibraryDevelopProxyRuntimeV2>(() => {
-		const current = slot.current;
-		if (!current?.live || current.factory !== createSession || current.proxyFactory !== createDevelopProxyRuntime
-			|| current.factory !== factory.current || current.proxyFactory !== renderer.current) return Promise.reject(new DOMException('Photo renderer generation is closed.', 'AbortError'));
-		return loadPhotoLibraryDevelopProxyV2(current);
-	}, [createSession, createDevelopProxyRuntime]);
+	const { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata } = usePhotoLibraryWorkflowReads({
+		slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime });
 	const importCubeLut = useCallback<PhotoLibraryCubeLutPortV1['importFile']>(async (file, options = {}) => {
 		const result: { receipt?: Awaited<ReturnType<PhotoLibraryCubeLutPortV1['importFile']>>; failure?: Readonly<{ value: unknown }> } = {};
 		const caller = options.signal; if (caller) check(caller);
@@ -533,7 +503,7 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 	return { ...originalWorkflow, retireAndJoin, registerExportDestination, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
-		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }

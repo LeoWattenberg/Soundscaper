@@ -1,0 +1,80 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { useCallback, type RefObject } from 'react';
+import { acquirePhotoLibraryWorkflowSlotV2 as acquire, loadPhotoLibraryDevelopProxyV2,
+	type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
+import { capturePhotoLibraryDevelopOriginalPortV1, capturePhotoLibraryDevelopPortV2 } from './photo-library-workflow-develop.ts';
+import type { CreatePhotoLibrarySessionV3 } from '../../photo-library-session-port-v2.ts';
+import type { PhotoLibraryPreviewTierV1 } from '../../photo-library-session-port-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
+import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
+import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
+import type { ReadPhotoExportMetadata } from '../../../../lightscaper/controller/photo-raster-export.ts';
+
+interface ReadOwners {
+	readonly slot: RefObject<SessionSlot | null>;
+	readonly factory: RefObject<CreatePhotoLibrarySessionV3 | undefined>;
+	readonly loader: RefObject<LoadPhotoLibraryBackupSaveRuntimeV1 | undefined>;
+	readonly renderer: RefObject<CreatePhotoLibraryDevelopProxyRuntimeV2 | undefined>;
+	readonly createSession: CreatePhotoLibrarySessionV3 | undefined;
+	readonly loadBackupSaveRuntime: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
+	readonly createDevelopProxyRuntime: CreatePhotoLibraryDevelopProxyRuntimeV2 | undefined;
+}
+const nativeCheck = AbortSignal.prototype.throwIfAborted;
+const check = (signal: AbortSignal) => { Reflect.apply(nativeCheck, signal, []); };
+
+/** Nonmutating reads borrow the existing selected generation, without a second action queue. */
+export function usePhotoLibraryWorkflowReads({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime }: ReadOwners) {
+	const readPreview = useCallback(async (photoId: string, tier: PhotoLibraryPreviewTierV1,
+		options: Readonly<{ signal?: AbortSignal }> = {}) => {
+		const current = slot.current;
+		if (!current?.live || current.proxyFactory !== createDevelopProxyRuntime || current.proxyFactory !== renderer.current || current.factory !== createSession || current.factory !== factory.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current || current.proxyFactory !== renderer.current) {
+			throw new DOMException('Photo preview generation is closed.', 'AbortError');
+		}
+		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
+		check(signal);
+		const owner = await acquire(current); check(signal);
+		const result = await owner.readPreview(photoId, tier, { signal }); check(signal);
+		return result;
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
+	const withOriginalFrame = useCallback<PhotoLibraryDevelopOriginalPortV1['withFrame']>(async (request, consume, options = {}) => {
+		const current = slot.current;
+		if (!current?.live || current.proxyFactory !== createDevelopProxyRuntime || current.proxyFactory !== renderer.current || current.factory !== createSession || current.factory !== factory.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current || current.proxyFactory !== renderer.current) throw new DOMException('Photo original generation is closed.', 'AbortError');
+		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
+		check(signal); const owner = await acquire(current); check(signal);
+		const original = owner.develop.original;
+		if (!original) throw new Error('Full-resolution development is unavailable.');
+		const captured = capturePhotoLibraryDevelopOriginalPortV1(original); check(signal);
+		return captured.withFrame(request, consume, { signal });
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
+
+
+	const loadDevelopProxyRuntime = useCallback<LoadPhotoLibraryDevelopProxyRuntimeV2>(() => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== createSession || current.proxyFactory !== createDevelopProxyRuntime
+			|| current.factory !== factory.current || current.proxyFactory !== renderer.current) return Promise.reject(new DOMException('Photo renderer generation is closed.', 'AbortError'));
+		return loadPhotoLibraryDevelopProxyV2(current);
+	}, [createSession, createDevelopProxyRuntime]);
+	const readExportMetadata = useCallback<ReadPhotoExportMetadata>(async (photoId, expectedRevision, options) => {
+		// A retired export must never acquire a new same-factory generation.
+		check(options.signal);
+		const current = slot.current;
+		const isCurrent = () => current?.live && slot.current === current && current.factory === createSession && current.factory === factory.current
+			&& current.proxyFactory === createDevelopProxyRuntime && current.proxyFactory === renderer.current
+			&& current.backupLoader === loadBackupSaveRuntime && current.backupLoader === loader.current;
+		if (!current || !isCurrent()) throw new DOMException('Photo metadata generation is closed.', 'AbortError');
+		const signal = AbortSignal.any([options.signal, current.lifetime.signal]);
+		const checked = () => { check(signal); if (!isCurrent()) throw new DOMException('Photo metadata generation is closed.', 'AbortError'); };
+		checked(); const owner = await acquire(current); checked();
+		const metadataRead = owner.readMetadata, develop = capturePhotoLibraryDevelopPortV2(owner.develop, signal);
+		if (typeof metadataRead !== 'function') throw new TypeError('Photo metadata reader is unavailable.');
+		const snapshot = await Reflect.apply(metadataRead, owner, [photoId, { signal }]) as Awaited<ReturnType<typeof metadataRead>>; checked();
+		const selected = await develop.read({ schemaVersion: 2, photoId }, { signal }); checked();
+		if (snapshot.photoId !== photoId || selected.photoId !== photoId || selected.schemaVersion !== 2
+			|| snapshot.revision !== expectedRevision || selected.revision !== expectedRevision) throw new Error('Photo metadata revision or identity changed.');
+		return Object.freeze({ catalogId: selected.catalogId, snapshot });
+	}, [createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
+	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata };
+}

@@ -516,7 +516,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		</Suspense>}
 		{!restore.busy && rasterEntry?.generation === generation && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<RasterDialog key={rasterEntry.key} locale={locale} photoId={rasterEntry.photoId} fileName={rasterEntry.fileName}
-				execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime}
+				execute={library.executeDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata}
 				saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} onClose={() => { if (isCurrent()) setRasterEntry(null); }} />
 		</Suspense>}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
