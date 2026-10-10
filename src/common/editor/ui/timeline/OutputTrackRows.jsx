@@ -223,26 +223,29 @@ export function OutputTrackRow({
 
 	useEffect(() => {
 		if (!stripEnvelopeAvailable || !envelopeEditActive) return undefined;
-		const finishEnvelopeEdit = () => globalThis.setTimeout(() => {
-			const points = previewRef.current;
-			setEnvelopeEditActive(false);
-			if (!points) return;
-			previewRef.current = null;
-			setPreviewPoints(null);
-			run(() => update({
-				envelope: mergeDesignEnvelopePoints(
-					bus.envelope,
-					points,
-					sampleRate,
-					canonicalDurationFrames,
-					{
-						startFrame: envelopeStartFrame,
-						endFrame: envelopeEndFrame,
-						maximumValue: 16,
-					},
-				),
-			}));
-		}, 0);
+		const finishEnvelopeEdit = (event) => {
+			if (event.button !== 0) return;
+			globalThis.setTimeout(() => {
+				const points = previewRef.current;
+				setEnvelopeEditActive(false);
+				if (!points) return;
+				previewRef.current = null;
+				setPreviewPoints(null);
+				run(() => update({
+					envelope: mergeDesignEnvelopePoints(
+						bus.envelope,
+						points,
+						sampleRate,
+						canonicalDurationFrames,
+						{
+							startFrame: envelopeStartFrame,
+							endFrame: envelopeEndFrame,
+							maximumValue: 16,
+						},
+					),
+				}));
+			}, 0);
+		};
 		document.addEventListener('mouseup', finishEnvelopeEdit);
 		return () => document.removeEventListener('mouseup', finishEnvelopeEdit);
 	}, [bus.envelope, canonicalDurationFrames, envelopeEditActive, envelopeEndFrame, envelopeStartFrame, run, sampleRate, stripEnvelopeAvailable, update]);
