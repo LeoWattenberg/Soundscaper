@@ -76,7 +76,7 @@ export function createExternalFfmpegVideoVerifiedCapabilities(
 	const cached = new WeakMap<ExternalFfmpegRuntimeAdmission, Promise<ExternalFfmpegVideoVerificationResult>>();
 	const pending = new Set<Promise<ExternalFfmpegVideoVerificationResult>>();
 	let disposal: Promise<void> | null = null;
-	const verifyExact = (admission: ExternalFfmpegRuntimeAdmission) => {
+	const verifyExact = (admission: ExternalFfmpegRuntimeAdmission): Promise<ExternalFfmpegVideoVerificationResult> => {
 		assertOpen(disposal);
 		const prior = cached.get(admission);
 		if (prior) return prior;
