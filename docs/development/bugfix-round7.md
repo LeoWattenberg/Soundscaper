@@ -7,14 +7,15 @@ The final implementation worktree is `/home/splowatt/git/Soundscaper-user-path-b
 Current delivery: all 200 qualifying roots are fixed and atomically committed
 (54 editing, 60 dialogs, 38 effects and 48 import/export). Every counted root
 has a normal user entry, causal pre-fix evidence, focused controls and a complete
-corrected native workflow. The corrected full `npm run check` passes, including
+corrected native workflow. The earlier corrected full `npm run check` passed, including
 all static gates and 25,843 passing Node cases with 33 skips and no failures.
 Full suites were run at the 50, 100, 150 and 200 checkpoints. The final 7,098-case
 browser run completed with 6765 passes, 283 skips, 29 failures and 21 timeouts;
 original failed aggregates retain their statuses alongside separate complete
 follow-through receipts. Final native diagnoses identified additional necessary
-follow-through within the existing owners; their corrected full canonical gate
-is still required after implementation. Completed verification
+follow-through within the existing owners; those repairs are committed and their
+fresh full canonical gate and compiled affected workflows are running against
+immutable `1541ccf681`. Completed verification
 artifacts are reclaimed after their readers close. No manual **Update AI assets**
 run is required. The chronological checkpoint receipts below preserve earlier
 failures and pending states; the four area registers hold each root's evidence.
@@ -773,3 +774,25 @@ canonical checkout. Removing only the completed owned frozen worktree explicitly
 closes with exit 0 and reclaims its 27807735-byte build, 70504724-byte prepared
 browser product tree and 23566-byte handbook metadata. Fresh source and guarded
 products will verify the repaired source; old compiled products are not reused.
+
+The final committed 1541ccf681 source builds and authenticates both products in
+full, with the existing maximum chunk still 487712 bytes: Soundscaper checks 456
+chunks/633 files and Framescaper 493 chunks/667 files. Their measured product
+graphs are 81 requests/6769756 raw bytes and 95 requests/7726006 raw bytes;
+both initial graphs and every existing ceiling pass unchanged. The newly compiled
+633-file/667-file products and Framescaper's 290 hidden maps are copied once to
+the immutable final canonical checkout and independently authenticated there
+against the exact source revision, origin and every file digest. All affected
+native whole workflows use those frozen products on default 4322/4323 origins,
+one worker on exclusive CPUs 4–7. The fresh full `npm run check` uses CPUs 8–15.
+
+After the build runner explicitly closes with exit 0 and its receipt is consumed,
+another actual cwd/file-descriptor audit finds no reader of the delivery build
+trees. The now redundant 633-file/27813187-byte delivery build,
+1592-file/70486660-byte preparation tree and consumed 146913-byte build log are
+immediately reclaimed. Only the immutable product copy needed by live final
+readers is retained. The temporary coverage watcher has eight meaningful
+equivalence controls, including exact repository compaction and c8 raw-versus-
+normalized detailed report equality, recorded in the IO register; it preserves
+different maps and every profile result/count while removing only duplicates
+whose exact map remains in a lexicographically earlier existing profile.
