@@ -615,9 +615,54 @@ jobs:
     with:
       source-cache-artifact: desktop-professional-native-source-cache
 
+  milestone-5-native-audit-source:
+    name: Verify the selected native package-audit sources
+    needs: [quality, professional-native-source]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - name: Seed the audit cache with the verified professional sources
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: desktop-professional-native-source-cache
+          path: ${{ runner.temp }}/soundscaper-milestone-5-audit-source-cache
+      - name: Provision and authenticate the selected engineering source scope
+        env:
+          SOUNDSCAPER_NATIVE_AUDIT_PRODUCTS: ${{ needs.quality.outputs.release-products }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { join } from 'node:path';
+          import { milestone5EngineeringScope } from './scripts/lib/milestone-5-product-scope.mjs';
+          import { auditMilestone5NativeSourceAcquisitionsForProducts }
+            from './scripts/lib/milestone-5-native-source-acquisitions.mjs';
+          const products = JSON.parse(process.env.SOUNDSCAPER_NATIVE_AUDIT_PRODUCTS);
+          const scope = milestone5EngineeringScope(products);
+          const root = join(process.env.RUNNER_TEMP, 'soundscaper-milestone-5-audit-source-cache');
+          const selectors = scope.sourceIds.flatMap((id) => ['--source', id]);
+          const provisioner = 'scripts/provision-milestone-5-native-sources.mjs';
+          execFileSync(process.execPath, [provisioner, '--root', root, ...selectors], { stdio: 'inherit' });
+          execFileSync(process.execPath, [provisioner, '--check', '--root', root, ...selectors], { stdio: 'inherit' });
+          auditMilestone5NativeSourceAcquisitionsForProducts(process.cwd(), products, root);
+          NODE
+      - name: Upload the authenticated native audit source cache
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-milestone-5-native-audit-source-cache
+          path: ${{ runner.temp }}/soundscaper-milestone-5-audit-source-cache
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
   package:
     name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build]
+    needs: [quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source]
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -838,6 +883,13 @@ jobs:
           --product "${{ matrix.product }}"
           --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
 
+      - name: Download the retained Framescaper audit source cache
+        if: matrix.product == 'framescaper'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: desktop-milestone-5-native-audit-source-cache
+          path: ${{ runner.temp }}/soundscaper-milestone-5-audit-source-cache
+
       - name: Audit the Milestone 5 package
         run: >-
           node scripts/audit-milestone-5-package.mjs --output
@@ -847,6 +899,7 @@ jobs:
           --package-root "release/milestone-5-package"
         env:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ matrix.product == 'framescaper' && format('{0}/soundscaper-milestone-5-audit-source-cache', runner.temp) || format('{0}/soundscaper-professional-native-source-cache', runner.temp) }}
 
       - name: Upload the Milestone 5 package audit
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -877,7 +930,7 @@ jobs:
   milestone-5-package-audit-summary:
     name: Re-audit the Milestone 5 packages
     if: always() && needs.package.result == 'success'
-    needs: [quality, package]
+    needs: [quality, package, milestone-5-native-audit-source]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -925,6 +978,13 @@ jobs:
           --result-directory="$RUNNER_TEMP/soundscaper-professional-native-build-results"
           --root="$GITHUB_WORKSPACE"
 
+      - name: Download the retained Framescaper audit source cache
+        if: contains(fromJSON(needs.quality.outputs.release-products), 'framescaper')
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: desktop-milestone-5-native-audit-source-cache
+          path: ${{ runner.temp }}/soundscaper-milestone-5-audit-source-cache
+
       - name: Install cross-format package inspectors
         timeout-minutes: 10
         run: bash scripts/ci-apt-install.sh p7zip-full squashfs-tools
@@ -943,6 +1003,7 @@ jobs:
           ${{ needs.quality.outputs.package-audit-arguments }}
         env:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ contains(fromJSON(needs.quality.outputs.release-products), 'framescaper') && format('{0}/soundscaper-milestone-5-audit-source-cache', runner.temp) || format('{0}/soundscaper-professional-native-source-cache', runner.temp) }}
 
       - name: Upload the Milestone 5 package-audit summary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
