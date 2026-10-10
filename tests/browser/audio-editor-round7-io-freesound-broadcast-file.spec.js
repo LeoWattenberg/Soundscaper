@@ -39,8 +39,10 @@ test.describe('ordinary Freesound broadcast file upload', () => {
 		expect(uploads[0].bytes.subarray(0, 4).toString()).toBe('RIFF');
 		expect(uploads[0].bytes.byteLength).toBeGreaterThan(48_000 * 2);
 		const descriptor = await inspectWavBlobPcm(new Blob([uploads[0].bytes]));
+		expect(descriptor).not.toBeNull();
 		expect(descriptor?.channelCount).toBe(1);
-		expect(descriptor?.frameCount / descriptor?.sampleRate).toBeCloseTo(1, 5);
+		// Native conversion may round the one-second resampling extent by one sample.
+		expect(Math.abs(descriptor.frameCount - descriptor.sampleRate)).toBeLessThanOrEqual(1);
 		await expect(area.locator('input[type="file"]')).toHaveAttribute('accept', /\.bwf/u);
 		await expect(area.getByRole('alert')).toHaveCount(0);
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
