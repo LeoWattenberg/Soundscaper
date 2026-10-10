@@ -194,10 +194,22 @@ fields. Name the faithful actual options object before passing it to the existin
 factory; no source API changes. All eight actual PCM/acknowledgment controls and
 targeted fixture lint pass again. Their bounded logs were removed immediately.
 
+The frozen checkpoint100 WebKit FLAC and Ogg Vorbis import-format failures
+both complete ordinary import, stereo PCM and peak assertions, then visibly
+refuse Play with `The streamed and buffered sources missed their shared playback
+start.` The original failure remains part of the full-suite receipt. Unchanged
+isolated replay on the exact frozen `ee53e112619b862826b7466dc422b3c6760bba27`
+checkout and prepared products, using its existing qualified Pulse sink and one
+worker, completes both original import/Play/Stop/save/reload flows: FLAC 17.4
+seconds and Ogg Vorbis 15.4 seconds, 2/2 in 39.4 seconds. No source, observer,
+assertion, deadline or frozen byte changes were made, and no fresh bug is counted.
+Both exact reviewed full-run diagnostic directories and the completed owned
+replay log/results were removed immediately; the shared full-suite log remains.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
 application action or adversarial media.
-Thirty-four qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+Thirty-five qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
