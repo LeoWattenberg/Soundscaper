@@ -161,3 +161,28 @@ in the fixture. Focused behavior remains33/33, ownership/navigation audits
 pass45/45, targeted and changed lint pass, and the complete test/tooling strict
 compiler then passes. The original byte-for-byte document, selection and
 history assertions remain. EDIT020 is fully qualified;019 stays excluded.
+
+## R7-EDIT-021 — Picture track sorting invokes disabled folder commands
+
+Framescaper: Generate → Add Video Still for ordinary Zulu.png and Alpha.png,
+select each header and rename its Images track to Zulu and Alpha, then Tracks
+→ Sort tracks → Sort by name. Both renamed tracks remain in their original
+order. The same menu sorts ordinary audio tracks and Undo/Redo restores them.
+The unchanged public picture workflow fails after the sort in10.9 seconds;
+the audio control passes in3.2 seconds. Actual generated Titles, separated by
+the existing Move to new track action, reach the independent controller
+failure: Framescaper does not support trackFolders. The planner generates
+track-node/move even though this product deliberately disables folders.
+
+Use the existing track/reorder command for this authenticated product, with
+global track positions belonging to each sequence. Keep the current hierarchy
+commands for Soundscaper folders, linked lanes, stable ties and lock admission.
+Sort by name and time share this command owner and count as one root. The
+initial two-Title fixture placed both on one track; that setup failure is
+excluded, as are earlier public setup failures before valid renamed tracks.
+Actual generated Title sorting by name and time, Undo/Redo, unchanged media,
+folder/lane hierarchy and capability support passes31/31 focused tests.
+Targeted lint and size/diff checks pass; corrected public verification is
+pending. Reviewed causal logs,
+screenshots and diagnostic contexts are deleted immediately. No manual
+**Update AI assets** run is required.
