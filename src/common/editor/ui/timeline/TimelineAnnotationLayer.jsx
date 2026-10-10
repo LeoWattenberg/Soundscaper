@@ -164,7 +164,9 @@ export function TimelineAnnotationLayer({
 	};
 	const queuePointerMove = useTimelinePointerFrame(applyPointerMove, dragRef, null, pointerFlushRef);
 	const pointerMove = (event) => {
-		if (dragRef.current?.pointerId === event.pointerId) queuePointerMove(event);
+		if (dragRef.current?.pointerId !== event.pointerId) return;
+		if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) pointerUp(event);
+		else queuePointerMove(event);
 	};
 	const pointerUp = (event, cancelled = false) => {
 		if (dragRef.current && dragRef.current.pointerId !== event.pointerId) return;
