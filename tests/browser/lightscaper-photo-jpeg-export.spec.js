@@ -42,7 +42,20 @@ for (const locale of ['en', 'de']) {
 	observedTest(`${locale}: keyboard JPEG export preserves full-resolution LUT and crop pixels, strips source metadata, and leaves originals and develop history unchanged`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'The roadmap defers native WebKit Blob/OPFS catalog workflows.');
 		test.setTimeout(90_000);
-		await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
+		await page.addInitScript(() => {
+			Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined });
+			const create = URL.createObjectURL, blobType = Object.getOwnPropertyDescriptor(Blob.prototype, 'type').get;
+			const records = []; Object.defineProperty(globalThis, '__jpegObjectUrlTypes', { value: records });
+			// Observe native delivery metadata without fetching CSP-blocked blob URLs or retaining media.
+			Object.defineProperty(URL, 'createObjectURL', { configurable: true, writable: true, value: function (...args) {
+				const url = Reflect.apply(create, this, args);
+				if (args[0] instanceof Blob) {
+					if (records.length === 64) records.shift();
+					records.push({ url, type: Reflect.apply(blobType, args[0], []) });
+				}
+				return url;
+			} });
+		});
 		const errors = [];
 		page.on('pageerror', error => { errors.push(error.message); });
 		const { app, copy } = await open(page, locale), messages = photoDevelopCopy(locale);
@@ -95,8 +108,8 @@ for (const locale of ['en', 'de']) {
 			const save = dialog.locator('[data-photo-jpeg-export-save]');
 			await expect(save).toBeEnabled(); await expect(save).toBeFocused();
 			const pending = page.waitForEvent('download'); await keyboard(page, save); const download = await pending;
-			const mime = await page.evaluate(async url => (await fetch(url)).headers.get('content-type'), download.url());
-			expect(mime).toBe('image/jpeg');
+			const mime = await page.evaluate(url => globalThis.__jpegObjectUrlTypes.filter(record => record.url === url).map(record => record.type), download.url());
+			expect(mime).toEqual(['image/jpeg']);
 			const bytes = await readFile(await download.path());
 			await expect(dialog.locator('[data-photo-jpeg-export-receipt]')).toBeVisible();
 			await expect(dialog.locator('[data-photo-jpeg-export-receipt]')).toHaveAttribute('data-photo-jpeg-export-status', 'download-started');
