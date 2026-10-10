@@ -30,6 +30,8 @@ belong in Git history, not in the maintained documentation set.
   defines authenticated original reads, fixed render profiles and scoped zoom presentation.
 - [Photo export sidecars](architecture/lightscaper-photo-export-sidecar.md)
   defines the versioned saved-recipe and metadata JSON projection beside rendered images.
+- [Editable photo and still handoff](architecture/lightscaper-image-handoff.md)
+  defines authenticated archive selection, native original verification and selected-library publication.
 - [Shared Texture](architecture/video-texture.md)
   defines deterministic alpha-weighted medium-frequency luma contrast and shared render ownership.
 - [Shared deterministic Grain](architecture/video-grain.md)

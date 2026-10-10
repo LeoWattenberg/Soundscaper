@@ -139,7 +139,10 @@ managed-original storage, and menu-owned import, paged browse, metadata and
 culling workflows. Opt-in thumbnails and a selected-photo loupe use disposable
 previews; global search and sort use bounded indexed candidate pages. Menu-owned
 develop and single-photo PNG/JPEG export workflows have landed; their milestones
-remain in progress. Raw and desktop capabilities remain disabled.
+remain in progress. File-menu archive handoff exports a saved editable photo and
+receives it into the selected library with authenticated original and LUT bodies.
+Ordinary Frame still selection and collection-to-sequence delivery remain in
+progress. Raw and desktop capabilities remain disabled.
 
 | Area | Current capability |
 | --- | --- |
@@ -376,7 +379,7 @@ photo work moves between products without loss.
   Adobe-compatibility claim.
 - **Shared — Deferred:** output profiles beyond sRGB and Display P3 (custom
   ICC) until the platform color-management story proves them.
-- **Shared — Planned:** handoff both ways: a developed photo opens in
+- **Shared — In progress:** handoff both ways: a developed photo opens in
   Framescaper as a still with its stack intact and renders pixel-identically;
   a Framescaper still opens in Lightscaper's develop; and a collection hands
   to Framescaper as a sequence.
