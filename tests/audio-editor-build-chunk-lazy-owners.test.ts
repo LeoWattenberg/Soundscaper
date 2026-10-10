@@ -101,6 +101,7 @@ test('Framescaper capture and Web VCR stay behind their deferred product runtime
 		'src/common/editor/controller/capture/framescaper-capture-document-ports.ts',
 		'src/common/editor/controller/capture/internal/framescaper-capture-project-admission.ts',
 		'src/common/editor/controller/capture/framescaper-web-vcr-ui-snapshot.ts',
+		'src/common/editor/controller/capture/internal/browser/framescaper-capture-listening-output.ts',
 	]);
 	for (const path of implementation) {
 		if (eager.has(path)) {

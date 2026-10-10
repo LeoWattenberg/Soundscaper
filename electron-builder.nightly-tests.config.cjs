@@ -77,6 +77,7 @@ module.exports = {
 				'desktop/file-capabilities.js',
 				'desktop/freesound-integration.js',
 				'desktop/main-file-capability-ipc.mjs',
+				'desktop/original-file-overwrite.ts',
 				'desktop/product.json',
 				'desktop/protocol.js',
 				'desktop/read-capability-admission.js',
