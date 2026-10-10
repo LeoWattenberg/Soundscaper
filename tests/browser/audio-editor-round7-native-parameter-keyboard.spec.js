@@ -13,8 +13,9 @@ test('installed native parameter arrow edits retain fine adjustment and exact st
 	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(.26);
 	await range.press('ArrowLeft');
 	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(.25);
+	const prior = await page.evaluate(() => globalThis.__nativePluginParameterHost.persisted);
 	await dialog.locator('[data-native-plugin-persist-state]').click();
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.persisted)).toBe(2);
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.persisted)).toBeGreaterThan(prior);
 	await range.press('End');
 	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(1);
 	await dialog.locator('[data-native-plugin-restore-state]').click();

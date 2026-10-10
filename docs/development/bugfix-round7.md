@@ -141,3 +141,18 @@ readiness failure and three initial host-state persistence timeouts. These
 results remain unresolved checkpoint failures and add no count. The reviewed
 replay diagnostics are removed immediately; subsequent investigation retains
 the original production behavior and meaningful positive controls.
+
+## Qualified total:76 fixes
+
+Prepared73b99f5b8 completes13 of14 corrected Chromium workflows in1.1 minutes.
+Eight further distinct roots have complete public GREEN: EDIT017, DIALOG023–024,
+EFFECT014–015 and IO020–022. Their healthy controls and exact causal failures
+remain in the area registers. EDIT018 still fails its original native range
+assertion and does not count. EDIT019 completes Chromium and its exact fine
+Firefox keyboard values, but its complete Firefox state-history retry remains
+pending after correcting an observer's absolute persistence count; it likewise
+awaits that complete receipt. Both guarded builds and full tests/tooling
+TypeScript pass; the largest chunk remains487,635 bytes and the startup graph
+has no smaller byte ceiling to claim. The full post-fixture Node run and the
+frozen fix50 browser run continue. Reviewed public diagnostics are removed
+immediately after recording this result.
