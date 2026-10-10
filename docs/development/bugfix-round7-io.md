@@ -582,6 +582,31 @@ budget is changed automatically or individual assertion weakened. The bounded
 passive log and completed owned output are read and removed immediately, and
 all native readers and the coordinated CPU slot are released.
 
+
+Full200 completed WebKit native pixel-aspect observation (verification only,
+zero count): the ordinary NTSC camera test passes the independent actual native
+camera decoder/dimension/aspect checks, submits the normal bin file input and
+fails in17.152 seconds because More file actions: ntsc-camera is absent within
+5000 ms. Its source-properties coded/display/pixel-aspect assertions have not
+run. The context still shows import admission busy, whereas the later PNG shows
+Done and a bin preview beginning below the panel viewport. This observation does
+not establish a decoded ratio or source-properties error. Exact completed
+marker/context/PNG were read and the owned diagnostic directory immediately
+removed. Preserve the original full200 failure; unchanged whole WebKit replay
+awaits the coordinated native slot without deadline/source/count changes.
+
+Full200 completed WebKit Mute all picture observation (verification only, zero
+count): ordinary bin import/placement, initial visible picture, Mute all, Undo
+and Redo visibility controls all pass, then the unchanged30000 ms whole-case
+deadline expires during Enter on enabled Unmute all tracks (30.691 seconds).
+The final restored-visibility assertion is not reached; the actual context/PNG
+show the open Tracks menu and muted picture. Exact completed marker/context/PNG
+were read and the owned diagnostic directory immediately removed. Preserve the
+original full200 timeout; unchanged whole WebKit replay awaits the coordinated
+native slot, retaining every visibility/history assertion and its original
+30-second case/five-second assertion limits. No product cause or added count is
+inferred from the original timeout alone.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
