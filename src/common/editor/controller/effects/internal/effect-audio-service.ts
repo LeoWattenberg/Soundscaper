@@ -83,8 +83,14 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			mediaProject,
 			{ ...mediaProject },
 		) as unknown as MutableEffectAudioProject;
+		// A destructive capture belongs to the source layout, before the authored
+		// programme downmix. Widen only this detached render, retaining its routing.
+		if (channelCount > snapshot.masterChannels) snapshot.masterChannels = channelCount;
 		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
 		if (hasProductionMixerProjectAuthority(snapshot)) {
+			const mixer = snapshot.mixer as unknown as MixerGraphV21;
+			snapshot.mixer = { ...mixer, outputs: mixer.outputs.map(output => output.role === 'main'
+				? { ...output, channelCount: snapshot.masterChannels } : output) };
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId, effects: [], clipIds: requestedClipIds,
 				preserveTrackProcessing: processing === 'authored',

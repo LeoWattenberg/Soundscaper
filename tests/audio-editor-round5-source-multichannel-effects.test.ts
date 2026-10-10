@@ -57,8 +57,8 @@ for (const channelCount of [1, 2, 6, 32]) {
 	});
 }
 
-test('source processing keeps the bounded native layout and timeline stereo admission', async () => {
-	for (const [channelCount, sourceId] of [[33, 'recording'], [3, undefined]] as const) {
+test('source and timeline processing keep the bounded native layout', async () => {
+	for (const [channelCount, sourceId] of [[33, 'recording'], [33, undefined]] as const) {
 		const harness = createHarness();
 		const selected = { ...target('audio', { channelCount }), ...(sourceId ? { sourceId } : {}) };
 		await assert.rejects(harness.service.persistAudacityEffectResults([{

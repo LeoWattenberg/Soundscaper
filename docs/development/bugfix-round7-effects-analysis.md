@@ -1146,3 +1146,45 @@ actual detached project and its actual clip records, retaining all runtime
 fields and sample coordinates without a cast or production API change. The
 complete dry/delay/mute/solo/bus publication controls pass 10/10 in 1.019
 seconds; this adds no root and produces no verification files.
+
+## R7-EFFECT-027 — Timeline effects reject a normal surround recording
+
+Soundscaper: import an ordinary four-channel WAV, export the original, select
+its timeline header and choose Effect → Special → Invert. The audible
+48,000-frame original exports successfully, but the offered effect reports
+“An Audacity selection must contain one or two channels.” The complete stereo
+control passes, including inverted export and Undo/Redo. This timeline
+capture/result owner is independent of R5-ROOT-012's Source waveform result
+admission: native timeline width resolution, private render output and timeline
+result saving each still impose a stereo boundary.
+
+Resolve the widest overlapping native source within the existing 1–32 channel
+format. Give only the detached pre-master capture enough output channels and
+retain every native channel when copying and saving its result. Preserve the
+authored programme layout, strip settings and existing mono/stereo semantics;
+refuse a render missing native channels and results beyond the format bound.
+All timeline effects, clip/range targeting and native-width variants share
+this one root.
+
+The complete public baseline on authenticated
+bf42180222a87f589dd41ce62b6fb8b8dba90bd7 passes stereo in 9.1 seconds and fails
+causally for four channels in 8.9 seconds after the actual original audio
+control. The actual-controller reference first fails seven cases while four
+mono/stereo clip/range controls pass. Corrected four-, six- and 32-channel
+cases retain distinct per-channel saved PCM, private engine routing, dry gain,
+authored programme/strip settings and complete Undo/Redo. These cases plus
+existing selection/audio/result persistence, source effects, spectral effects,
+worker/chain and chunk ownership controls pass 130/130 in 4.565 seconds.
+Targeted type-aware lint, canonical changed lint and the owned diff check pass. Earlier range fixture
+attempts incorrectly looked for the replaced clip's old ID and are excluded;
+the retained fixture follows the actual track's new clip identity.
+The shared strict compiler requires the fixture to narrow its broad snapshot
+at the native boundary: validate the actual product project and require its
+audio track and audio clip before accessing their owned fields. The corrected
+fixture retains every PCM/history assertion and passes 11/11 in 1.852 seconds
+with targeted lint; this changes no production API.
+
+Corrected public verification is pending the next guarded product capture;
+027 is not counted as fully qualified yet. Owned baseline logs and diagnostics
+are read and removed immediately. The assistance runtime closure is unchanged;
+no manual Update AI assets run is required.
