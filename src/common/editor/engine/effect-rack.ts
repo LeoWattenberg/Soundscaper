@@ -38,6 +38,9 @@ import {
 } from './effect-parameter-bindings.ts';
 import { connectBiquad, connectDelay, connectReverb } from './effect-rack-node-builders.ts';
 import { effectMessageHandler } from './effect-message-dispatch.ts';
+import { createEffectSpectrumBank, type EffectAnalyserEntry, type SpectrumAnalyserNode } from './effect-spectrum.ts';
+export { PARAMETRIC_EQ_SPECTRUM_FFT_SIZE, readParametricEqSpectrumEntry } from './effect-spectrum.ts';
+export type { EffectAnalyserEntry, EffectSpectrumMetadata, SpectrumAnalyserNode } from './effect-spectrum.ts';
 export { effectGraphKey } from './effect-rack-node-registry.ts';
 import {
 	audioWorkletNodeConstructor,
@@ -62,26 +65,7 @@ import {
 	nativePluginRuntimeLatencyFrames,
 } from '../native-plugin-realtime-node.js';
 
-export const PARAMETRIC_EQ_SPECTRUM_FFT_SIZE = 4_096;
 const PARAMETRIC_EQ_WORKLET_NAME = 'kw-parametric-eq';
-
-export interface EffectSpectrumMetadata {
-	readonly sampleRate: number;
-	readonly fftSize: number;
-	readonly frequencyBinCount: number;
-	readonly minDecibels: number;
-	readonly maxDecibels: number;
-}
-
-export interface SpectrumAnalyserNode extends AnalyserNode {
-	getFloatFrequencyData(target: Float32Array): void;
-}
-
-export interface EffectAnalyserEntry {
-	readonly input: SpectrumAnalyserNode;
-	readonly output: SpectrumAnalyserNode;
-	readonly metadata: EffectSpectrumMetadata;
-}
 
 export interface EffectRackOptions {
 	readonly sidechainInputs?: ReadonlyMap<string, AudioNode>;
@@ -305,9 +289,8 @@ export function applyEffect(
 		if (!(options.parametricEqWasmModule instanceof WebAssembly.Module)) {
 			throw new Error('The parametric EQ WASM module was not compiled.');
 		}
-		const inputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
-		const processorInput = inputAnalyser || input;
-		if (inputAnalyser) connect(input, inputAnalyser);
+		const inputAnalysers = options.effectAnalysis
+			? createEffectSpectrumBank(context, input, nodes, options.parametricEqChannelCount) : [];
 		const processor = addNode(nodes, new WorkletNode(context, PARAMETRIC_EQ_WORKLET_NAME, {
 			numberOfInputs: 1,
 			numberOfOutputs: 1,
@@ -321,11 +304,11 @@ export function applyEffect(
 				channelCount: clamp(positiveInteger(options.parametricEqChannelCount, 2), 1, 32),
 			},
 		}));
-		connect(processorInput, processor);
-		const outputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
-		if (outputAnalyser) connect(processor, outputAnalyser);
-		registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
-		return outputAnalyser || processor;
+		connect(input, processor);
+		const outputAnalysers = options.effectAnalysis
+			? createEffectSpectrumBank(context, processor, nodes, options.parametricEqChannelCount) : [];
+		registerEffectGraphNodes(context, effect, processor, inputAnalysers, outputAnalysers, options);
+		return processor;
 	}
 	if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
 		return connectBiquad(context, input, effect, { ...params, type }, nodes, options);
@@ -371,8 +354,8 @@ function registerEffectGraphNodes(
 	context: BaseAudioContext,
 	effect: EngineEffect,
 	processor: AudioWorkletNode,
-	inputAnalyser: SpectrumAnalyserNode | null,
-	outputAnalyser: SpectrumAnalyserNode | null,
+	inputChannels: readonly SpectrumAnalyserNode[],
+	outputChannels: readonly SpectrumAnalyserNode[],
 	options: EffectRackOptions,
 ): void {
 	if (typeof options.onParametricEqError === 'function') {
@@ -386,10 +369,14 @@ function registerEffectGraphNodes(
 		));
 	}
 	const key = registerEffectNode(effect, processor, options);
+	const inputAnalyser = inputChannels[0];
+	const outputAnalyser = outputChannels[0];
 	if (!key || !options.effectAnalysers || !inputAnalyser || !outputAnalyser) return;
 	options.effectAnalysers.set(key, {
 		input: inputAnalyser,
 		output: outputAnalyser,
+		inputChannels,
+		outputChannels,
 		metadata: Object.freeze({
 			sampleRate: positiveInteger(context.sampleRate, DEFAULT_SAMPLE_RATE),
 			fftSize: inputAnalyser.fftSize,
@@ -409,40 +396,6 @@ export function createAnalyser(
 	analyser.fftSize = 256;
 	analyser.smoothingTimeConstant = 0.4;
 	return analyser;
-}
-
-function createSpectrumAnalyser(
-	context: BaseAudioContext,
-	nodes: AudioNodeCollection,
-): SpectrumAnalyserNode | null {
-	if (typeof context.createAnalyser !== 'function') return null;
-	const analyser = addNode(nodes, context.createAnalyser());
-	analyser.fftSize = PARAMETRIC_EQ_SPECTRUM_FFT_SIZE;
-	analyser.smoothingTimeConstant = 0.75;
-	analyser.minDecibels = -120;
-	analyser.maxDecibels = 0;
-	return analyser as SpectrumAnalyserNode;
-}
-
-export function readParametricEqSpectrumEntry(
-	entry: EffectAnalyserEntry | null | undefined,
-	which: unknown,
-	target: Float32Array,
-): EffectSpectrumMetadata | null {
-	if (!(target instanceof Float32Array)) throw new TypeError('A Float32Array spectrum target is required.');
-	if (which !== 'input' && which !== 'output') {
-		throw new RangeError('Parametric EQ spectrum source must be input or output.');
-	}
-	const analyser = entry?.[which];
-	if (!entry || typeof analyser?.getFloatFrequencyData !== 'function') {
-		target.fill(Number.NEGATIVE_INFINITY);
-		return null;
-	}
-	if (target.length !== entry.metadata.frequencyBinCount) {
-		throw new RangeError(`Parametric EQ spectrum buffers must contain ${entry.metadata.frequencyBinCount} bins.`);
-	}
-	analyser.getFloatFrequencyData(target);
-	return entry.metadata;
 }
 
 export function postEffectMessage(

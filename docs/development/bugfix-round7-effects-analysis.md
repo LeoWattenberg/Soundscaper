@@ -500,3 +500,35 @@ old drawing and was insufficient evidence. The corrected witness passively
 observes actual native FFT reads as well as playback and canvas data. Owned
 diagnostic directories are inspected and removed immediately. No manual
 Update AI assets run is required.
+## R7-EFFECT-015 — Parametric EQ spectra erase opposite microphone polarity
+
+Import an ordinary stereo recording whose right microphone has opposite
+polarity, open the track Effects rack, add Parametric EQ and play. Actual
+programme peak meters remain audible, but both the Input and Output spectrum
+overlays disappear. Each rack analyser receives the complete multichannel
+programme and its native mono FFT downmix cancels the two signals. A quiet
+second channel also reports amplitude attenuation instead of average energy.
+
+Build per-channel Input and Output side taps from the rack's declared width,
+then average FFT-bin power before converting back to decibels. Programme audio
+connects directly to its existing worklet, with its channels preserved. Keep
+the single-channel and legacy analyser-entry reader contracts, metadata and
+buffer refusal behavior. Extract the focused spectrum owner into the existing
+engine directory; that semantic chunk already admits it and it introduces no
+desktop/assistance runtime dependency.
+
+The actual rack graph and reader are causally RED in three ordinary stereo/
+surround configurations after healthy mono/matching controls. Corrected
+channel-power, silent-channel, full-width, rack-worklet, preview and spectrum
+projection controls pass 30/30. Target type-aware lint, changed lint, size and
+diff checks pass. Complete strict test compilation reports no owned errors;
+one concurrent recording timestamp fixture awaits its owner's narrowing fix.
+The independent ordinary Chromium baseline on
+unchanged prepared capture 68 passes matching microphone polarity in 5.2
+seconds; opposite polarity is causally RED in 9.0 seconds after a healthy
+actual master peak, with the Input spectrum empty (alpha position 1 instead of
+less than 0.35). Output has the same independently observed graph construction
+and shares this one root. Corrected public GREEN awaits the shared build.
+The bounded failure trace is read and its short log removed immediately; the
+owned diagnostic folder had already been replaced by the next shared run.
+No manual Update AI assets run is required.
