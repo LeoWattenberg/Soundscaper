@@ -41,7 +41,7 @@ for (const interrupted of [false, true]) test(`Amplify's native peak slider comp
 		const second = { x: middle.x + 2, y: middle.y + 2, id: 2 };
 		await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [middle, second] });
 		await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [second] });
-		expect(releases).toEqual(['amplify-touch-release false']);
+		await expect.poll(() => releases).toEqual(['amplify-touch-release false']);
 	}
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [final] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
