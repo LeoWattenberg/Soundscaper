@@ -77,6 +77,7 @@ export function SpectralBrushOverlay({
 	const move = (event) => {
 		const drag = dragRef.current;
 		if (!drag || drag.pointerId !== event.pointerId) return;
+		if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) { finish(event); return; }
 		stopEvent(event);
 		const point = pointerPosition(event);
 		setPreview({ startX: drag.x, startY: drag.y, endX: point.x, endY: point.y });
