@@ -8,6 +8,9 @@ import type { ExecutePhotoDevelopV2 } from '../../common/editor/controller/share
 import type { PreparedDirectSave, DirectSavedFile } from '../../common/editor/file-save-stream.ts';
 import type { PixelFrameLimitsV1, PixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { readPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
+import { PIXEL_FRAME_HARD_LIMITS_V1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
+import type { ImageExportSizingV1 } from '../../common/editor/imaging/image-export-size-v1.ts';
+import { withExportResizedPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-export-resize-v1.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 as LIMITS } from '../../common/editor/photo-library-develop-full-resolution-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../common/editor/photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryDevelopSnapshotV2 } from '../../common/editor/photo-library-develop-port-v2.ts';
@@ -20,6 +23,7 @@ export interface PhotoRasterExportRequest {
 	readonly fileName: string;
 	readonly fileTypeDescription: string;
 	readonly signal?: AbortSignal;
+	readonly output?: PhotoRasterExportOutput;
 	readonly prepareSave: (request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
 	readonly saveFile: (request: BrowserFileSaveRequest) => BrowserSavedFile | PromiseLike<BrowserSavedFile>;
 	readonly execute: ExecutePhotoDevelopV2;
@@ -28,6 +32,36 @@ export interface PhotoRasterExportRequest {
 	readonly encode: (frame: Readonly<PixelFrameV1>, options: Readonly<{
 		signal: AbortSignal; limits: PixelFrameLimitsV1; maximumOutputBytes: number;
 	}>) => Promise<Uint8Array<ArrayBuffer>>;
+}
+
+export interface PhotoRasterExportOutput {
+	readonly sizing: ImageExportSizingV1;
+	readonly quality: 'nearest' | 'bilinear';
+}
+
+/** Capture output settings in the Save gesture. Actual frame capacity is checked after Develop. */
+export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRasterExportOutput> {
+	const input = record(value, 'Photo raster output', ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
+	if (quality !== 'nearest' && quality !== 'bilinear') throw new RangeError('Unsupported photo export resampling.');
+	const candidate = record(field(input, 'sizing', 'Photo raster output'), 'Photo raster sizing', ['kind', 'width', 'height', 'pixels', 'megapixels', 'percentage', 'allowUpscale'], ['kind']);
+	const kind = field(candidate, 'kind', 'Photo raster sizing');
+	const keys = kind === 'original' ? ['kind'] : kind === 'fit' ? ['kind', 'width', 'height', 'allowUpscale']
+		: kind === 'long-edge' ? ['kind', 'pixels', 'allowUpscale'] : kind === 'megapixels' ? ['kind', 'megapixels', 'allowUpscale']
+			: kind === 'percentage' ? ['kind', 'percentage'] : null;
+	if (!keys) throw new RangeError('Unsupported photo export sizing.');
+	const sizing = record(candidate, 'Photo raster sizing', keys), captured: Record<string, string | number | boolean> = { kind: kind as string };
+	for (const key of keys.slice(1)) {
+		const item = field(sizing, key, 'Photo raster sizing');
+		if (key === 'allowUpscale') { if (typeof item !== 'boolean') throw new TypeError('Photo export upscaling requires a boolean.'); }
+		else {
+			const side = key === 'width' || key === 'height' || key === 'pixels';
+			const minimum = key === 'megapixels' ? 0.000_001 : side ? 1 : Number.MIN_VALUE;
+			const maximum = key === 'megapixels' ? PIXEL_FRAME_HARD_LIMITS_V1.maximumPixels / 1_000_000 : side ? PIXEL_FRAME_HARD_LIMITS_V1.maximumSidePixels : 10_000;
+			if (typeof item !== 'number' || !Number.isFinite(item) || item < minimum || item > maximum || (side && !Number.isSafeInteger(item))) throw new RangeError('Photo export sizing exceeds its numeric bounds.');
+		}
+		captured[key] = item as number | boolean;
+	}
+	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality });
 }
 
 export type PhotoRasterExportReceipt = Readonly<{ status: 'cancelled' }> | Readonly<{
@@ -124,8 +158,13 @@ export class PhotoRasterExport {
 						await render({ frame: source, develop, signal }, async output => {
 							current(); const view = record(output, 'Photo raster render', ['frame', 'histogram'], ['frame']);
 							const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
-							const encoded = await request.encode(frame, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
-							bytes = readEncoded(encoded, source, frame); width = frame.descriptor.width; height = frame.descriptor.height;
+							const encode = async (delivery: Readonly<PixelFrameV1>) => {
+								const encoded = await request.encode(delivery, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+								bytes = readEncoded(encoded, source, frame, delivery); width = delivery.descriptor.width; height = delivery.descriptor.height; current();
+							};
+							if (request.output && request.output.sizing.kind !== 'original') {
+								await withExportResizedPixelFrameV1({ frame, ...request.output, signal }, encode, { limits: LIMITS.render });
+							} else await encode(frame);
 							current();
 						});
 						current();
@@ -186,12 +225,12 @@ function readSnapshot(value: PhotoLibraryDevelopSnapshotV2, request: PhotoRaster
 	return { catalogId: text(field(input, 'catalogId', 'Photo raster snapshot'), 128), develop: field(input, 'develop', 'Photo raster snapshot') };
 }
 
-function readEncoded(value: unknown, source: PixelFrameV1, output: PixelFrameV1): Uint8Array<ArrayBuffer> {
+function readEncoded(value: unknown, ...frames: Readonly<PixelFrameV1>[]): Uint8Array<ArrayBuffer> {
 	if (!(value instanceof Uint8Array) || Object.getPrototypeOf(value) !== Uint8Array.prototype
 		|| ['buffer', 'byteLength', 'length', 'byteOffset'].some(key => Object.hasOwn(value, key))) throw new TypeError('Photo raster encoder requires independent intrinsic bytes.');
 	const buffer = value.buffer;
 	if (!(buffer instanceof ArrayBuffer) || Reflect.apply(RESIZABLE, buffer, []) || value.byteOffset !== 0 || value.byteLength !== buffer.byteLength
-		|| buffer === source.pixels.buffer || buffer === output.pixels.buffer) throw new TypeError('Photo raster bytes must own a fixed independent buffer.');
+		|| frames.some(frame => buffer === frame.pixels.buffer)) throw new TypeError('Photo raster bytes must own a fixed independent buffer.');
 	if (value.byteLength < 1 || value.byteLength > MAXIMUM_OUTPUT_BYTES) {
 		Reflect.apply(WIPE, value, [0]); throw new RangeError('Photo raster output exceeds its admitted byte bound.');
 	}
@@ -233,7 +272,8 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterExportRequest {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
-	const input = record(value, name, [...required, 'signal'], required);
+	const input = record(value, name, [...required, 'signal', 'output'], required);
+	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', name) : undefined;
 	if (signal !== undefined) {
 		if (!(signal instanceof AbortSignal)) throw new TypeError('Photo raster export requires native cancellation.');
@@ -248,7 +288,7 @@ function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterEx
 	return Object.freeze({ photoId: stableId(field(input, 'photoId', name)), versionId: stableId(field(input, 'versionId', name)),
 		expectedRevision: revision, fileName, fileTypeDescription: text(field(input, 'fileTypeDescription', name), 256), signal: signal as AbortSignal | undefined,
 		prepareSave: method('prepareSave'), saveFile: method('saveFile'), execute: method('execute'), withOriginalFrame: method('withOriginalFrame'),
-		loadRenderer: method('loadRenderer'), encode: method('encode') });
+		loadRenderer: method('loadRenderer'), encode: method('encode'), output });
 }
 function pin<Method>(value: unknown, receiver: unknown): Method {
 	if (typeof value !== 'function') throw new TypeError('Photo raster export requires its captured methods.');
