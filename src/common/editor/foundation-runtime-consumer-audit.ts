@@ -30,6 +30,9 @@ export interface FoundationRuntimeProjectionImporterExclusion {
 
 /** Projection adapters admitted by the WP-0.2 shield audit. */
 export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntimeProjectionBoundary[] = deepFreeze([
+	{ boundary: 'resolveSelectionRange', file: 'src/common/editor/selection-range.ts', root: false, delegate: 'clipContentRange', guardsBrand: false },
+	{ boundary: 'clipContentRange', file: 'src/common/editor/clip-content-range.ts', root: false, delegate: 'projectedClipContentRange', guardsBrand: false },
+	{ boundary: 'projectedClipContentRange', file: 'src/common/editor/clip-content-range.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
 	{ boundary: 'resolveRuntimeClipProjection', file: 'src/common/editor/runtime-clip-projection.ts', root: true, delegate: null, guardsBrand: false },
 	{ boundary: 'resolveProjectBinAudioPreviewClip', file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
 	{ boundary: 'projectBinReplacementShortensClip', file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
@@ -207,10 +210,6 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
-	{
-		file: 'src/common/editor/selection-range.ts',
-		reason: 'The shared range resolver imports only persisted clip types and delegates selected geometry to the independently shielded clip-content reader; it preserves identity authority and reads returned sample boundaries without projecting media itself.',
-	},
 	{
 		file: 'src/common/editor/interchange-multicamera-delivery.ts',
 		reason: 'The shared exchange adapter imports only the owning runtime project type for its injected product projection port; it delegates the selected active-angle projection and reports group identities without reading clip timing coordinates.',

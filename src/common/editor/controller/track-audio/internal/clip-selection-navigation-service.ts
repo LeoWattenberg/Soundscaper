@@ -96,7 +96,7 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		const selection = project?.selection;
 		if (!project || !selection) return null;
-		const range = resolveSelectionRange(resolveRuntimeProjectProjection(project)) ?? selection;
+		const range = resolveSelectionRange(project) ?? selection;
 		const startFrame = selectionFrame(range.startFrame, 'selection.startFrame');
 		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const pivot = next ? endFrame : startFrame;
@@ -113,7 +113,7 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		const selection = project?.selection;
 		if (!project || !selection) return null;
-		const range = resolveSelectionRange(resolveRuntimeProjectProjection(project)) ?? selection;
+		const range = resolveSelectionRange(project) ?? selection;
 		const startFrame = selectionFrame(range.startFrame, 'selection.startFrame');
 		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const candidate = adjacentClip(project, selection, startFrame, endFrame, next);
@@ -239,7 +239,10 @@ function projectedAudioClips(
 	project: ClipSelectionNavigationProject,
 	selection: ClipSelectionNavigationSelection,
 ): ProjectedAudioClipCandidate[] {
-	const projection = resolveRuntimeProjectProjection(project);
+	const navigationProject = { ...project,
+		clips: project.clips.filter(clip => clip.kind === 'audio'), projectBin: { clips: [] },
+	};
+	const projection = resolveRuntimeProjectProjection(navigationProject);
 	const clipById = new Map<string, Readonly<{
 		readonly clip: Readonly<Record<string, unknown>>;
 		readonly documentIndex: number;
@@ -329,13 +332,17 @@ function exactClipSelectionCommand(
 ): ClipSelectionNavigationSelectionCommand {
 	const clipIds = [...new Set([clip.clipId, ...relatedIds])];
 	const selectedIds = new Set(clipIds);
-	const projection = resolveRuntimeProjectProjection(project);
-	const selectedClips = projection.clips.filter(candidate => selectedIds.has(candidate.id));
-	const trackIds = projection.tracks
+	const selectedClips = project.clips.filter(candidate => selectedIds.has(candidate.id));
+	const ranges = selectedClips.map(candidate => {
+		const range = clipContentRange(project, candidate);
+		if (!range) throw new RangeError('Selected clips require resolved timeline geometry.');
+		return range;
+	});
+	const trackIds = project.tracks
 		.filter(track => track.clipIds?.some(id => selectedIds.has(id)))
 		.map(track => track.id);
-	const startFrame = Math.min(...selectedClips.map(candidate => selectionFrame(candidate.timelineStartFrame, 'clip.timelineStartFrame')));
-	const endFrame = Math.max(...selectedClips.map(candidate => selectionFrame(candidate.timelineEndFrame, 'clip.timelineEndFrame')));
+	const startFrame = Math.min(...ranges.map(range => selectionFrame(range.startFrame, 'clip.timelineStartFrame')));
+	const endFrame = Math.max(...ranges.map(range => selectionFrame(range.endFrame, 'clip.timelineEndFrame')));
 	return Object.freeze({
 		type: 'selection/set',
 		startFrame,

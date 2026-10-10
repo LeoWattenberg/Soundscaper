@@ -246,3 +246,30 @@ The exact moved shield registrations and actual range/Skip support pass19/19
 focused tests. The register follows the existing reader's ownership and
 retains its precise native-clock exclusion. Completed compiler, public and
 focused audit logs are deleted after their receipts.
+
+## R7-EDIT-023 — Audio clip navigation projects unrelated native visuals
+
+Framescaper: import an ordinary WAV, split it with Split tool, select the left
+header and Select → Audio clips → Next clip. Healthy navigation selects the
+right clip. Generate → Video Generators → Add Title/Text, select the same
+left audio header and invoke Next clip again. It retains the left clip. The
+unchanged actual public menu control passes before causal failure at the
+right clip's data-selected=false in10.1 seconds on guardeddb368adda. Its
+independent audio candidate/adjacent-selection owner attempts whole-project
+media projection, which includes raw native generator leaves unrelated to
+audio navigation. Earlier incorrect tool casing and missing data-clip-kind
+selector fail before healthy navigation and are excluded.
+
+All four strict adjacent/boundary commands independently reproduce the
+unrelated native Title's clip.timelineStartFrame refusal while each same
+audio-only control passes. Resolve the effective selected range through the
+shared exact geometry reader, restrict the audio candidate projection to its
+audio leaves and omit unrelated bin leaves, then resolve only the selected
+related peers' exact content boundaries. Native A/V relationship expansion,
+owner tracks, musical clocks and stable document order remain authoritative.
+Move the exact shield evidence to these named boundaries without changing its
+rules. The corrected navigation, selected content, shield audit and ownership
+group passes59/59; native visual selected range and Skip controls pass5/5.
+The extracted reader's exact shield inventories and fixture expectations
+follow the same named owner without weakening the audit. Complete public
+correction awaits the next guarded capture; EDIT023 is not yet counted.
