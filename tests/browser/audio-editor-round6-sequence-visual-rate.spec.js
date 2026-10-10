@@ -5,6 +5,9 @@ import { createPngFixture } from '../helpers/png-fixture.mjs';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel, openClipProperties } from './audio-editor-test-helpers.js';
 
 for (const kind of ['title', 'image']) test(`sequence rate preserves an ordinary ${kind}'s wall-clock duration`, async ({ page }) => {
+	// Initial rate-change/Undo plus four native properties/history round trips.
+	// Match the existing Framescaper workflow budget; assertion deadlines stay unchanged.
+	if (kind === 'title') test.setTimeout(90_000);
 	const editor = await bootEditor(page, '/framescaper/en/');
 	await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
 	const metadata = editor.locator('[data-workspace-panel="metadata"]');
