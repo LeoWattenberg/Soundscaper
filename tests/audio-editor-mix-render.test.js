@@ -13,6 +13,29 @@ import {
 	writeSource,
 } from './helpers/audio-editor-mix-render-harness.js';
 
+// Render fixtures keep the native high-pass history charged after their input
+// ends, instead of returning a buffer that truncates the requested release.
+function highpassRender(channels, range, sampleRate, frequency) {
+	const angle = 2 * Math.PI * frequency / sampleRate;
+	const cosine = Math.cos(angle);
+	const alpha = Math.sin(angle) / (2 * 0.707);
+	const a0 = 1 + alpha;
+	const b0 = (1 + cosine) / (2 * a0), b1 = -(1 + cosine) / a0;
+	const a1 = -2 * cosine / a0, a2 = (1 - alpha) / a0;
+	const frames = range.endFrame - range.startFrame + Math.round(Number(range.includeTail) * sampleRate);
+	return channels.map((input) => {
+		const output = new Float32Array(frames);
+		let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+		for (let frame = 0; frame < frames; frame++) {
+			const sample = input[frame] || 0;
+			const filtered = b0 * sample + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+			x2 = x1; x1 = sample; y2 = y1; y1 = filtered;
+			output[frame] = filtered;
+		}
+		return output;
+	});
+}
+
 test('Mix-down to renders whole selected tracks, replaces them atomically, and round-trips undo', async () => {
 	const store = createTestStore('multi');
 	await writeSource(store, 'mix-source-a', [new Float32Array(8).fill(0.1)]);
@@ -57,6 +80,7 @@ test('Mix-down to renders whole selected tracks, replaces them atomically, and r
 	let failRender = false;
 	const left = Float32Array.from({ length: 16 }, (_, index) => index / 100);
 	const right = Float32Array.from({ length: 16 }, (_, index) => -index / 100);
+	let renderedChannels;
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		store,
@@ -65,7 +89,8 @@ test('Mix-down to renders whole selected tracks, replaces them atomically, and r
 		renderSnapshot: async (snapshot, range) => {
 			renderCalls.push({ snapshot: structuredClone(snapshot), range: structuredClone(range) });
 			if (failRender) throw new Error('Mix render failed.');
-			return audioBuffer([left, right], snapshot.sampleRate);
+			renderedChannels = highpassRender([left, right], range, snapshot.sampleRate, 100);
+			return audioBuffer(renderedChannels, snapshot.sampleRate);
 		},
 	});
 
@@ -80,10 +105,12 @@ test('Mix-down to renders whole selected tracks, replaces them atomically, and r
 		const result = await controller.actions.track.mixAndRender();
 
 		assert.equal(renderCalls.length, 1);
+		const tailSeconds = renderCalls[0].range.includeTail;
+		assert.ok(tailSeconds > 128 / project.sampleRate && tailSeconds < 1);
 		assert.deepEqual(renderCalls[0].range, {
 			startFrame: 4,
 			endFrame: 20,
-			includeTail: false,
+			includeTail: tailSeconds,
 			includeMaster: false,
 			includeTrackPan: true,
 			respectMuteSolo: false,
@@ -103,6 +130,8 @@ test('Mix-down to renders whole selected tracks, replaces them atomically, and r
 		const mixedSource = snapshot.project.sources.find((candidate) => candidate.id === result.sourceId);
 		assert.equal(mixedTrack.name, 'Mix');
 		assert.equal(mixedSource.channelCount, 2);
+		assert.equal(mixedSource.frameCount, 16 + Math.round(tailSeconds * project.sampleRate));
+		assert.equal(snapshot.project.clips.find((candidate) => candidate.id === result.clipId).durationFrames, mixedSource.frameCount);
 		assert.equal(mixedTrack.displayMode, 'spectrogram');
 		assert.deepEqual({ gain: mixedTrack.gain, pan: mixedTrack.pan, mute: mixedTrack.mute, solo: mixedTrack.solo }, {
 			gain: 1, pan: 0, mute: false, solo: false,
@@ -115,8 +144,10 @@ test('Mix-down to renders whole selected tracks, replaces them atomically, and r
 			clipIds: [], annotationIds: [],
 			frequencyRange: null,
 		});
-		assert.equal(await storedSample(store, result.sourceId, 0, 5), left[5]);
-		assert.equal(await storedSample(store, result.sourceId, 1, 5), right[5]);
+		assert.equal(await storedSample(store, result.sourceId, 0, 5), renderedChannels[0][5]);
+		assert.equal(await storedSample(store, result.sourceId, 1, 5), renderedChannels[1][5]);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, 16)) > 0.01);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, mixedSource.frameCount - 1)) < 0.0001);
 		assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
 		assert.deepEqual(snapshot.history.undoEntries[0], {
 			type: 'batch',
@@ -172,6 +203,7 @@ test('single-track Mix and Render keeps identity but bakes routing, controls, an
 	let renderCall;
 	const outputLeft = new Float32Array(12).fill(0.625);
 	const outputRight = new Float32Array(12).fill(0.375);
+	let renderedChannels;
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		store,
@@ -179,7 +211,8 @@ test('single-track Mix and Render keeps identity but bakes routing, controls, an
 		ffmpeg: { dispose() {} },
 		renderSnapshot: async (snapshot, range) => {
 			renderCall = { snapshot: structuredClone(snapshot), range: structuredClone(range) };
-			return audioBuffer([outputLeft, outputRight], snapshot.sampleRate);
+			renderedChannels = highpassRender([outputLeft, outputRight], range, snapshot.sampleRate, 120);
+			return audioBuffer(renderedChannels, snapshot.sampleRate);
 		},
 	});
 
@@ -198,6 +231,13 @@ test('single-track Mix and Render keeps identity but bakes routing, controls, an
 		const track = snapshot.project.tracks.find((candidate) => candidate.id === 'single-track');
 		const mixedSource = snapshot.project.sources.find((candidate) => candidate.id === result.sourceId);
 		assert.equal(mixedSource.channelCount, 2);
+		assert.ok(renderCall.range.includeTail > 128 / project.sampleRate && renderCall.range.includeTail < 1);
+		assert.equal(mixedSource.frameCount, 12 + Math.round(renderCall.range.includeTail * project.sampleRate));
+		assert.equal(snapshot.project.clips.find((candidate) => candidate.id === result.clipId).durationFrames, mixedSource.frameCount);
+		assert.equal(await storedSample(store, result.sourceId, 0, 5), renderedChannels[0][5]);
+		assert.equal(await storedSample(store, result.sourceId, 1, 5), renderedChannels[1][5]);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, 12)) > 0.1);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, mixedSource.frameCount - 1)) < 0.0001);
 		assert.deepEqual({
 			name: track.name,
 			displayMode: track.displayMode,
