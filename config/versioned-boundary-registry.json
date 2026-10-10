@@ -1178,7 +1178,11 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-png-export-v1.ts", "kind": "helper-contract", "justification": "Version 1 single-photo PNG delivery owns a gesture-prepared destination, joins current full-resolution render and original settlement, revalidates exact photo version/revision and generation before commit, and wipes independent output after joined delivery or cancellation." }
 		,
+		{"path": "src/lightscaper/controller/photo-raster-export-batch-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure photo export recovery retains original member indices, classifies committed initiation separately from uncertain started work, and compares fresh catalog, version, revision and original/recipe/LUT scalar fingerprints without scheduling or granting native resource authority."}
+		,
 		{ "path": "src/lightscaper/controller/photo-raster-export-batch-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded in-session photo raster batch snapshots ordered photo/version/revision identities and output settings, binds stable filename indices, and refuses repeated identities or normalized filename collisions before destination authority acquisition; it grants no resource authority or persisted recovery." }
+		,
+		{"path": "src/lightscaper/controller/photo-raster-export-journal-destinations-v1.ts", "kind": "helper-contract", "justification": "Version 1 initial-gesture download adapter requires durable intent before native delivery, preserves actual download-started acknowledgement through journal or retirement failure, and joins captured native capabilities without serializing them or automatically retrying uncertain members."}
 		,
 		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
 		,
@@ -1297,6 +1301,10 @@
 		{"path": "src/lightscaper/storage/photo-media-restore-read-v2.ts", "kind": "helper-contract", "justification": "Version 2 restore reads require complete mixed Photo1/2 admission before bounded scalar original projection and optional synchronous reachability collection, preserving current owner and DB5 control fences."}
 		,
 		{"path": "src/lightscaper/storage/photo-media-restore-signal-v1.ts", "kind": "helper-contract", "justification": "Version 1 intrinsic restore cancellation retains opaque reasons and lends a private joined native signal to media owners."}
+		,
+		{"path": "src/lightscaper/storage/photo-raster-export-journal-owner-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar CAS owner captures selected settings receivers, reconciles lost acknowledgement only by exact readback, protects foreign history and joins admitted writes on retirement without deleting uncertain delivery intent."}
+		,
+		{"path": "src/lightscaper/storage/photo-raster-export-journal-v1.ts", "kind": "persisted-contract", "justification": "Version 1 bounded catalog-scoped scalar export journal retains ordered photo/version/revision and filename indices, original/recipe/LUT digests and pending/started/committed download-initiation states; it stores no bodies, native destination authority or physical Saved claim."}
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]
