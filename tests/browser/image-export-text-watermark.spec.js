@@ -71,22 +71,22 @@ for (const locale of ['en', 'de']) {
 
 		async function exportText(checkRefusal, textEnabled = true) {
 			await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', label));
-			const dialog = named(page, 'dialog', output.title), save = named(dialog, 'button', output.save);
+			const dialog = named(page, 'dialog', output.title), footer = dialog.locator('.lightscaper-catalog-backup-actions'), save = named(footer, 'button', output.save);
 			await expect(save).toBeEnabled(); await expect(save).toBeFocused();
 			const enabled = named(dialog, 'checkbox', text.enabled); await expect(enabled).not.toBeChecked();
-			await dialog.getByLabel(output.outputSize, { exact: true }).selectOption('percentage');
-			await dialog.getByLabel(output.percentage, { exact: true }).fill('50');
+			await choose(page, named(dialog, 'combobox', output.outputSize), 'percentage');
+			await named(dialog, 'spinbutton', output.percentage).fill('50');
 			if (textEnabled) {
-				await enabled.check(); await expect(dialog.getByText(text.help, { exact: true })).toBeVisible();
+				await toggle(page, enabled, true); await expect(dialog.getByText(text.help, { exact: true })).toBeVisible();
 				if (checkRefusal) {
-					await dialog.getByLabel(text.text, { exact: true }).fill('漢');
+					await named(dialog, 'textbox', text.text).fill('漢');
 					await keyboard(page, save); await expect(dialog.getByRole('alert')).toHaveText(output.invalidSettings);
 					await expect(dialog.locator(`[data-photo-${format}-export-receipt]`)).toHaveCount(0);
 				}
-				await dialog.getByLabel(text.text, { exact: true }).fill('H');
-				await dialog.getByLabel(text.width, { exact: true }).fill('50');
-				await dialog.getByLabel(text.margin, { exact: true }).fill('6.25');
-				await dialog.getByLabel(text.opacity, { exact: true }).fill('50');
+				await named(dialog, 'textbox', text.text).fill('H');
+				await named(dialog, 'spinbutton', text.width).fill('50');
+				await named(dialog, 'spinbutton', text.margin).fill('6.25');
+				await named(dialog, 'spinbutton', text.opacity).fill('50');
 			}
 			const pending = page.waitForEvent('download'); await keyboard(page, save); const download = await pending;
 			const bytes = await readFile(await download.path());
@@ -94,7 +94,7 @@ for (const locale of ['en', 'de']) {
 			await expect(save).toBeEnabled(); await expect(dialog.getByRole('alert')).toHaveCount(0);
 			// Private faces must retire after codec and borrowed-frame settlement.
 			expect(await page.evaluate(() => [...document.fonts].filter(face => face.family.startsWith('scape-export-text-')).length)).toBe(0);
-			await keyboard(page, named(dialog, 'button', output.close).last()); await expect(dialog).toHaveCount(0);
+			await keyboard(page, named(footer, 'button', output.close)); await expect(dialog).toHaveCount(0);
 			return { name: download.suggestedFilename(), bytes };
 		}
 	});
@@ -181,3 +181,16 @@ async function observe(page, photoId) {
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 async function keyboard(page, control) { await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Enter'); }
 async function menu(page, app, name) { await keyboard(page, app.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') })); }
+async function toggle(page, control, checked) {
+	await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused();
+	if (await control.isChecked() !== checked) await page.keyboard.press('Space');
+	if (checked) await expect(control).toBeChecked(); else await expect(control).not.toBeChecked();
+}
+async function choose(page, combo, value) {
+	await expect(combo).toBeVisible(); await expect(combo).toBeEnabled();
+	await expect.poll(() => combo.locator('option').evaluateAll((options, value) => options.some(option => option.value === value), value)).toBe(true);
+	const index = await combo.locator('option').evaluateAll((options, value) => options.findIndex(option => option.value === value), value);
+	expect(index).toBeGreaterThanOrEqual(0); expect(index).toBeLessThan(64);
+	await combo.focus(); await expect(combo).toBeFocused(); await page.keyboard.press('Home');
+	for (let step = 0; step < index; step++) await page.keyboard.press('ArrowDown'); await expect(combo).toHaveValue(value);
+}
