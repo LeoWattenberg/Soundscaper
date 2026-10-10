@@ -73,7 +73,8 @@ for (const width of [1, 2, 4, 6, 32]) for (const kind of ['clip', 'range', 'macr
 			const effect = track.effects.find(candidate => candidate.id === effectId);
 			assert.ok(effect?.enabled);
 			await initializePffft();
-			assert.deepEqual(effect.context?.noiseProfile, serializeAudacityNoiseProfile(captureAudacityNoiseProfile(input, 48_000)));
+			assert.ok(effect.context && typeof effect.context === 'object' && 'noiseProfile' in effect.context);
+			assert.deepEqual(effect.context.noiseProfile, serializeAudacityNoiseProfile(captureAudacityNoiseProfile(input, 48_000)));
 			assert.equal(captures.length, 1);
 			assert.equal(captures[0]!.masterChannels, Math.max(2, width));
 			assert.equal(profiled.masterChannels, 2);
