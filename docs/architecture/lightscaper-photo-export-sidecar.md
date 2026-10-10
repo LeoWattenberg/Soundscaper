@@ -5,8 +5,10 @@ version's Develop recipe and metadata beside a rendered export. Its suggested
 filename is the complete rendered filename followed by `.lightscaper.json`,
 such as `Photo.png.lightscaper.json`; its MIME type is `application/json`.
 This schema makes no Adobe catalog, XMP Develop-state, or DNG compatibility
-claim. The foundation supplies admission and serialization; menu, destination,
-and paired-file publication remain consumer integration work.
+claim. An optional JSON download is available inside the existing File-menu
+PNG/JPEG export dialogs and selected-photo batch export dialog. It is off by
+default; explicit export presets and recovered batch settings can retain the
+choice. The image and JSON have separate publication acknowledgments.
 
 `createPhotoExportSidecarV1` accepts one complete Photo1/2 document and a closed
 own-data request containing `catalogId`, `photoId`, `versionId`, and
@@ -29,8 +31,8 @@ The closed JSON envelope contains:
 | `extractedMetadata` | Original-derived normalized ImageMetadata1 facts, or explicit `null`. |
 
 The original binding describes the admitted photo's immutable original; the
-writer does not read or authenticate its body. Source filename spelling and
-normalization form remain exact. Authored descriptive fields stay separate
+scalar projection does not read or authenticate its body. Source filename
+spelling and normalization form remain exact. Authored descriptive fields stay separate
 from extracted EXIF/IPTC facts. Raw/partial capture-time fields and unknown
 timezone offsets keep their owning metadata semantics. Metadata is serialized
 as admitted JSON text; this does not promise authored Unicode EXIF encoding.
@@ -60,11 +62,36 @@ This is a read-only projection, with no command, undo, history, or catalog
 write. Existing Scape codecs and retention rules are unchanged; the sidecar is
 an external exported artifact, not a new Scape asset or persistent catalog
 record. Deleting that artifact changes no original, LUT, or saved recipe.
-Future sidecar consumers must first authenticate the chosen original and
-resource bodies through their existing owners before any explicit application.
+Any future sidecar import or application must explicitly authenticate the
+chosen original and resource bodies through their existing owners.
 
-The eventual export consumer must capture these facts in the same selected
-library generation as the rendered recipe and join its reads. Before paired
-publication it must revalidate the catalog/photo/version/revision and retain
-the existing destination cancellation, staging, and irreversible-ACK rules.
-The foundation does not implement multi-file atomic save or sidecar import.
+The single-export consumer captures its saved-facts reader in the selected
+library generation before preparing the raster destination. It binds the
+complete canonical sidecar to the actual detached recipe being rendered and
+rechecks catalog/photo/version/revision, active version, and complete saved
+facts before image publication. Original and renderer owners finish their
+joined checks before that publication. Close and generation retirement join
+pending reads and native deliveries before retiring their owners.
+
+A successful image save or download acknowledgment remains valid if the JSON
+download fails or is canceled. The dialog reports that partial result and
+offers a JSON-only retry using the captured reader and actual acknowledged
+image filename, without rendering or opening another picker. Changed saved
+facts refuse the retry. A real JSON download acknowledgment likewise survives
+late cancellation. These are separate deliveries, not a multi-file atomic save.
+
+Batch export captures both download targets in its initial gesture and records
+the image and JSON acknowledgments independently in its durable journal. Each
+delivery revalidates complete saved facts and the original/LUT resource
+bindings. A paired member is complete only after both acknowledgments;
+unfinished JSON remains recovery work after reopening the queue. Recovery
+retains the image acknowledgment, requires review of uncertain delivery, and
+can retry only JSON without pixel reads, encoding, or a new picker.
+
+Maintained Lightscaper tests cover deterministic JSON, selected-generation
+capture, recipe and metadata drift, joined retirement, durable acknowledgments,
+and single/batch JSON-only retry. The existing English/German Chromium/Firefox
+single-export witness passed all 14 cases for PNG/JPEG downloads, original and
+history preservation, reopening, and a refused JSON download followed by retry.
+The remaining L5 export-matrix qualification is separate; this implementation
+does not add sidecar import or complete the full L5 milestone.

@@ -374,9 +374,12 @@ photo work moves between products without loss.
   watermarks; filename templates; metadata include/strip scopes; and export
   presets — bounded, abortable, progress-reporting, and background-queued
   like the other delivery paths.
-- **Shared — Planned:** sidecar write: develop state and metadata serialized
-  beside exports in Lightscaper's documented sidecar schema, with no
-  Adobe-compatibility claim.
+- **Shared — In progress:** sidecar write: the current menu-owned PNG/JPEG and
+  batch export dialogs offer default-off JSON containing the saved Develop
+  recipe and metadata in Lightscaper's documented sidecar schema, with no
+  Adobe-compatibility claim. Image and JSON acknowledgments remain separate,
+  with JSON-only retry/recovery; the remaining L5 export-matrix qualification
+  is separate.
 - **Shared — Deferred:** output profiles beyond sRGB and Display P3 (custom
   ICC) until the platform color-management story proves them.
 - **Shared — In progress:** handoff both ways: a developed photo opens in
