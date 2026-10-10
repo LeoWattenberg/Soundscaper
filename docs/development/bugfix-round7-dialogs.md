@@ -17,6 +17,10 @@ x510, then its whole unchanged original-build workflow passes in isolation
 (8.8 seconds, 1/1). That replay adds no fix or count and does not relabel the full
 run as passing. Reviewed exact bounded screenshot/context directories and the
 isolated replay output are removed after recording these receipts.
+The WebKit preview-resolution case similarly stops at its View submenu opener;
+both original unchanged resolution workflows then pass against the original
+prepared site (6.8 and 8.2 seconds, 2/2), preserving all geometry, reload and
+rendered-pixel assertions. Its reviewed exact diagnostics are also removed.
 
 | ID | Ordinary trigger and root cause | Correction and focused evidence |
 | --- | --- | --- |
