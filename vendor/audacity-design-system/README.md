@@ -543,3 +543,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     `tests/audio-editor-round7-label-drag-release.test.tsx` and the ordinary
     label move, auxiliary release, continuation and Undo/Redo workflow.
     Upstream-PR candidate.
+
+70. `Knob` commits its accepted mouse value when primary releases while an
+    auxiliary button remains held. Browsers report this as a pointer-move
+    transition before native capture loss; subsequent capture loss cannot
+    cancel the completed input. Unexpected capture loss still cancels active
+    input. Covered by the mounted native-contact regressions in
+    `tests/vendored-design-system-knob-gesture.test.tsx` and the ordinary stereo
+    Mixer Pan, primary release, Undo and Redo workflow. Upstream-PR candidate.
