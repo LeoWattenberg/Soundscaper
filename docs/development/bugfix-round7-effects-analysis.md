@@ -548,25 +548,6 @@ The bounded failure trace is read and its short log removed immediately; the
 owned diagnostic folder had already been replaced by the next shared run.
 No manual Update AI assets run is required.
 
-### Full-suite verification follow-through — no additional roots
-
-The post-fixture full Node gate identified six stale round-four averaged
-Spectrum signatures. These are exactly the 32-, 256- and 2048-point full
-selection and half-sample-offset averages whose final remainder window FX010
-now includes. Refresh only those six signatures; all 160 other signatures,
-including PCM, routing, snapshots and painted geometry, remain byte-identical.
-The independent final-tone worker and calibrated amplitude assertions remain
-in the focused gate.
-
-The same gate also rejected FX011's raw seconds-to-sample release arithmetic.
-Use the shared secondsToSampleFrame helper with the enclosingEnd policy and
-register that exact physical crossover boundary in the existing conversion
-audit. A focused intermediate audit confirms that the new consumer requires
-classification; the corrected audit, chunk ownership, physical release,
-Spectrum calibration and frozen parity controls pass 57/57. Target lint,
-changed lint, size and owned diff checks pass. These repairs add zero bugs;
-bounded verification logs are removed immediately after recording the result.
-
 ## R7-EFFECT-016 — Sound Visualizer understates ordinary high recorded tones
 
 Import an ordinary two-second mono recording whose 468.75 Hz and 14062.5 Hz
@@ -688,3 +669,47 @@ omitted the ordinary mono pan law and is excluded as a fixture error. Corrected
 complete public verification is pending the next guarded capture. Owned logs
 and diagnostics are read and removed immediately; PCM remains in memory.
 No manual Update AI assets run is required.
+
+### Checkpoint-50 effects replay — no additional roots
+
+The two ordinary Framescaper finishing exports now contain the already verified
+3,385-frame release of the default 80 Hz native high-pass. All six original
+browser failures expected the old truncated length. Update only their exact
+duration fixtures and additionally verify the actual final 128 PCM frames are
+quiet. Preserve the automation, routing, frequency response, loudness,
+persistence and reload assertions. Both finishing cases pass in WebKit
+(14.0/13.1 seconds), Chromium (9.3/10.6 seconds) and Firefox (10.5/11.3 seconds).
+The last replay overlaps the root's guarded Framescaper refresh from 24cbd04c0
+to 54016848b; this zero-count fixture verification does not claim immutable
+baseline bytes or prove a new source defect.
+
+Unchanged WebKit Compressor, stereo mixer and both Parametric EQ raster cases
+pass their complete focused workflows. The already corrected gate-floor
+observer passes with actual recent peak 0.0001000057. Unchanged Chromium
+Nyquist, both EQ raster cases and touch ownership pass; Firefox Nyquist cases
+also pass. The two current Firefox EQ attempts stop before their healthy
+native FFT assertion, with no observed FFT value and transport still stopped,
+so neither demonstrates the target raster defect. Their diagnostics are read
+and removed immediately. Original startup failures and the post-export
+Nyquist Close timeout likewise do not establish additional effects roots.
+Owned focused replay logs and artifacts are removed immediately. These
+browser fixtures change no runtime closure and require no Update AI assets.
+
+### Full-suite verification follow-through — no additional roots
+
+The post-fixture full Node gate identified six stale round-four averaged
+Spectrum signatures. These are exactly the 32-, 256- and 2048-point full
+selection and half-sample-offset averages whose final remainder window FX010
+now includes. Refresh only those six signatures; all 160 other signatures,
+including PCM, routing, snapshots and painted geometry, remain byte-identical.
+The independent final-tone worker and calibrated amplitude assertions remain
+in the focused gate.
+
+The same gate also rejected FX011's raw seconds-to-sample release arithmetic.
+Use the shared secondsToSampleFrame helper with the enclosingEnd policy and
+register that exact physical crossover boundary in the existing conversion
+audit. A focused intermediate audit confirms that the new consumer requires
+classification; the corrected audit, chunk ownership, physical release,
+Spectrum calibration and frozen parity controls pass 57/57. Target lint,
+changed lint, size and owned diff checks pass. These repairs add zero bugs;
+bounded verification logs are removed immediately after recording the result.
