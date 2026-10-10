@@ -8,6 +8,7 @@ import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../../timeline-zoom-limit
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 import { selectedTrackContentRange } from './selected-track-content-range.ts';
 import { createSelectionBoundaryAdjustmentService } from './selection-boundary-adjustment-service.ts';
+import { zeroCrossingRenderProject } from './zero-crossing-render-project.ts';
 import type {
 	SelectionViewClipOptions,
 	SelectionViewProject,
@@ -417,13 +418,16 @@ export function createSelectionViewService<
 		state.analysisProcessing = true;
 		publishDocumentSnapshot();
 		try {
-			const rendered = await Promise.all(audioTrackIds.map((trackId) => renderSnapshot(cloneProject(projectAtStart), {
+			const rendered = await Promise.all(audioTrackIds.map((trackId) => {
+				const capture = zeroCrossingRenderProject(cloneProject(projectAtStart), trackId);
+				return renderSnapshot(capture.project, {
 				startFrame: renderStart,
 				endFrame: renderEnd,
 				includeTail: false,
 				outputFrames: renderEnd - renderStart,
-				trackId, includeMaster: false, includeTrackPan: false, respectMuteSolo: false,
-			})));
+				trackId: capture.trackId, includeMaster: false, includeTrackPan: false, respectMuteSolo: false,
+				});
+			}));
 			if (getProject() !== projectAtStart) return null;
 			const channels = rendered.flatMap(audioBufferChannels);
 			const snapEdge = (frame: number) => frame < renderStart || frame >= renderEnd
