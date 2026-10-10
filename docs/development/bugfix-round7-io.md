@@ -381,7 +381,13 @@ context and PNG were read and the owned diagnostic directory immediately
 removed. The original full-suite failure remains recorded. This is the same
 unsettled import setup observation seen in full150, whose unchanged complete
 replay passed; no product cause, deadline change or new count is inferred.
-An unchanged complete current Firefox replay is pending.
+The whole unchanged Firefox workflow passes on authenticated a3a36854d in8.6
+seconds (one case,11.6 seconds total) with the qualified Pulse sink and one
+worker: original one-clip admission and enabled named Overwrite Programme.m4a
+both pass. Source, fixture, assertions and deadlines remain unchanged. This
+does not establish a product defect or add a count; the original full-run
+failure remains recorded. Completed owned output/log are read and immediately
+removed, and all replay readers close.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
