@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { build } from 'esbuild';
 import { unzipSync, zipSync } from 'fflate';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
@@ -13,9 +11,9 @@ import { photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel } fr
 import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy.ts';
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { imageDevelopHandoffRecipeSha256V1 } from '../../src/common/editor/image-develop-handoff-provenance-v1.ts';
+import { normalizeFramescaperImageSourceV2 } from '../../src/common/editor/timeline-image-model-v2.ts';
 import { pngChunk } from '../helpers/image-metadata-fixtures.ts';
-import { expect, test } from './helpers/browser-coverage-fixture.js';
-import { installNativeOpfsWorkerCompanion, assertNativeOpfsWorkerExecution } from './helpers/native-opfs-worker-companion.ts';
+import { expect, test, installNativeImageHandoffRuntime, observeNativeImageHandoffLibrary as observe } from './helpers/lightscaper-image-handoff-native-fixture.js';
 
 const NAME = 'Returned original.png', WHITE = Array(4).fill([255, 255, 255, 255]).flat();
 const PNG = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
@@ -37,7 +35,7 @@ for (const locale of ['en', 'de']) {
 		test.skip(browserName === 'webkit', 'Native WebKit Blob/OPFS receive remains deferred.'); test.setTimeout(90_000);
 		const errors = []; page.on('pageerror', error => { errors.push(error.message); });
 		await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
-		await installNativeOpfsWorkerCompanion(page);
+		await installNativeImageHandoffRuntime(page);
 		const { app, copy } = await open(page, locale), words = photoFramescaperReceiveCopy(locale), forward = photoFramescaperHandoffCopy(locale), develop = photoDevelopCopy(locale);
 		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', copy.photoImportPhotos));
 		const importer = named(page, 'dialog', copy.photoImportPhotos);
@@ -52,14 +50,14 @@ for (const locale of ['en', 'de']) {
 			await choose(page, named(workspace, 'combobox', develop.choose), 'cube-lut-profile-v1'); await keyboard(page, named(workspace, 'button', develop.add));
 			const groups = named(workspace, 'group', develop.shared.videoEffectCubeLutProfile);
 			await groups.nth(0).getByLabel(develop.shared.videoEffectCubeLutImport, { exact: true }).setInputFiles({ name: 'Quarter red.cube', mimeType: 'text/plain', buffer: RED });
-			await expect.poll(() => pixels(named(workspace, 'img', develop.after))).toEqual(Array(4).fill([137, 0, 0, 255]).flat());
+			await expect.poll(() => pixels(named(workspace, 'img', develop.after), 2, 2)).toEqual(Array(4).fill([137, 0, 0, 255]).flat());
 			await keyboard(page, named(workspace, 'button', develop.add));
 			await groups.nth(1).getByLabel(develop.shared.videoEffectCubeLutImport, { exact: true }).setInputFiles({ name: 'Disabled blue.cube', mimeType: 'text/plain', buffer: DISABLED });
 			await expect(groups.nth(1).getByRole('status')).toHaveText(develop.shared.videoEffectCubeLutAttached);
 			await toggle(page, named(groups.nth(1), 'checkbox', develop.shared.videoEffectCubeLutProfile), false);
 			await choose(page, named(workspace, 'combobox', develop.choose), 'develop-geometry-v1'); await keyboard(page, named(workspace, 'button', develop.add));
 			const crop = named(workspace, 'spinbutton', `${develop.shared.videoEffectExactValue}: ${develop.shared.videoEffectParamCropWidth}`); await crop.fill('0.5'); await crop.press('Enter');
-			await expect.poll(() => pixels(named(workspace, 'img', develop.after))).toEqual(Array(2).fill([137, 0, 0, 255]).flat());
+			await expect.poll(() => pixels(named(workspace, 'img', develop.after), 1, 2)).toEqual(Array(2).fill([137, 0, 0, 255]).flat());
 		} else await keyboard(page, named(workspace, 'button', develop.add));
 		await keyboard(page, named(workspace, 'button', develop.save)); await expect(workspace.locator('[data-photo-develop-ack]')).toBeVisible();
 		await expect(named(workspace, 'button', develop.cancel)).toBeDisabled(); await keyboard(page, named(workspace.locator('.lightscaper-develop-actions'), 'button', develop.close)); await expect(workspace).toHaveCount(0);
@@ -90,6 +88,7 @@ for (const locale of ['en', 'de']) {
 			selected.develop.masks = [{ schemaVersion: 1, id: 'unsupported-mask', kind: 'mask', inputs: [], outputNodeId: 'rectangle',
 				nodes: [{ id: 'rectangle', kind: 'vector-shape', shape: 'rectangle', x: 0, y: 0, width: 1, height: 1 }] }];
 			selected.develop.maskBindings = [{ effectId, maskId: 'unsupported-mask' }]; selected.provenance.developSha256 = imageDevelopHandoffRecipeSha256V1(selected.develop);
+			project.sources[0] = normalizeFramescaperImageSourceV2(selected);
 			updateProject(_files, project, manifest);
 		});
 		await input.setInputFiles({ name: 'Unsupported editable mask.fscape', mimeType: 'application/zip', buffer: unsupported });
@@ -109,7 +108,7 @@ for (const locale of ['en', 'de']) {
 		expect(version.id).not.toBe(saved.id); expect(version.develop).toEqual(saved.develop); expect(version.name).toBe(saved.name); expect(version.createdAt).toBe(saved.createdAt);
 		await keyboard(page, library.locator(`[data-photo-id="${receivedId}"]`)); await menu(page, app, copy.photoFileMenu); await menu(page, app, copy.photoPhotoMenu); await keyboard(page, named(app, 'button', photoDevelopMenuLabel(locale)));
 		workspace = named(page, 'dialog', `${develop.title}: ${NAME}`); await expect(named(workspace, 'region', develop.preview)).toHaveAttribute('data-state', 'ready');
-		await expect.poll(() => pixels(named(workspace, 'img', develop.after))).toEqual(locale === 'de' ? Array(2).fill([137, 0, 0, 255]).flat() : WHITE);
+		await expect.poll(() => pixels(named(workspace, 'img', develop.after), locale === 'de' ? 1 : 2, 2)).toEqual(locale === 'de' ? Array(2).fill([137, 0, 0, 255]).flat() : WHITE);
 		await keyboard(page, named(workspace.locator('.lightscaper-develop-actions'), 'button', develop.close)); await expect(workspace).toHaveCount(0);
 		const settled = await observe(page, ids); expect(settled).toEqual(after);
 		await page.reload(); await expect(app).toBeVisible(); expect(await observe(page, ids)).toEqual(settled); expect(errors).toEqual([]);
@@ -127,13 +126,8 @@ async function open(page, locale) {
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
 	await page.goto(`${origin}/${locale}/`); const app = page.locator('[data-lightscaper-bound="true"]'); await expect(app).toBeVisible(); return { app, copy: bundledLightscaperEditorCopyForLocale(locale) };
 }
-async function observe(page, ids) {
-	const bundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('../helpers/', import.meta.url)), contents: `export { readResidentPhotoLibraryCurrent } from './lightscaper-current-app-fixture.tsx';` }, bundle: true, write: false, format: 'esm', platform: 'browser', loader: { '.woff2': 'dataurl' } });
-	await page.route('**/__editable_receive_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
-	const result = await page.evaluate(async ids => (await import(new URL('/__editable_receive_observer.js', location.href).href)).readResidentPhotoLibraryCurrent(ids, indexedDB, () => globalThis.__assertNativeOpfsWorkerExecution()), ids);
-	await assertNativeOpfsWorkerExecution(page); return result;
-}
-function pixels(canvas) { return canvas.evaluate(value => Array.from(value.getContext('2d').getImageData(0, 0, value.width, value.height).data)); }
+function pixels(canvas, width, height) { return canvas.evaluate((value, dimensions) => value.width === dimensions[0] && value.height === dimensions[1]
+	? Array.from(value.getContext('2d').getImageData(0, 0, dimensions[0], dimensions[1]).data) : null, [width, height]); }
 function sha(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 async function keyboard(page, control) { await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Enter'); }
