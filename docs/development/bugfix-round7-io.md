@@ -516,6 +516,21 @@ count is established. Completed owned replay output/log are read and immediately
 removed, with all native readers and the CPU slot released to the dialogs lane.
 The original full200 failure remains recorded.
 
+
+Full200 completed WebKit multicamera-attribution observation (verification
+follow-through, zero count): the ordinary two-camera workflow reaches initial
+camera-a attribution and successful Create group/Switch camera, then its
+unchanged30000 ms case deadline expires at the final pre-attribution saved-state
+assertion (30.696 seconds). The exact marker records “saving” rather than
+“saved”; the5000 ms expectation is interrupted by the global case deadline.
+The actual context publishes Saving project and the PNG retains the authored
+camera-a output clip. The switched-source attribution, CSV and reload checks
+have not yet run; no incorrect attribution or storage cause is demonstrated.
+The completed JSON/context/PNG were read and the exact owned diagnostic
+directory immediately removed. Preserve the original full200 timeout;
+unchanged whole WebKit replay is pending, without source, fixture, deadline or
+count changes.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
