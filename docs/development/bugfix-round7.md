@@ -674,3 +674,11 @@ the same immutable684 source and the complete 7098-case aggregate remains
 pending. Playwright releases closed Firefox framework artifacts, reducing
 results from 52 MiB to 2.9 MiB; the external exact completed-directory cleaner
 continues with zero errors and all live/failure evidence protected.
+
+A later independent qualification uses cores 16–23; its processes are left
+untouched. A fresh two-second sample finds cores 4–7 only 1.5–4.9 percent busy.
+The owned full-browser root and its 29-process tree are assigned cores 8–15,
+updating all 662 existing threads with zero errors, while isolated native
+follow-through uses otherwise free cores 4–7 sequentially. Test source,
+assertions, deadlines, retries and the four-worker aggregate are unchanged.
+This scheduling evidence does not establish a cause for earlier timeouts.
