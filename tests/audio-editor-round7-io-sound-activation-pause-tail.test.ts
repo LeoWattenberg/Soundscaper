@@ -36,7 +36,7 @@ async function createCapture(enabled = true) {
 		onmessage: null as null | ((event: Readonly<{ data: WorkletMessage }>) => void),
 		postMessage(message: WorkletMessage) { processor.port.onmessage({ data: message }); }, start() {},
 	} };
-	const recorder = await createRecordingController({
+	const recorderOptions = {
 		chunkFrames: 256,
 		context: { sampleRate: 48_000, destination: {}, audioWorklet: { async addModule() {} },
 			createMediaStreamSource: () => ({ connect() {}, disconnect() {} }),
@@ -47,7 +47,8 @@ async function createCapture(enabled = true) {
 			firstWrite?.();
 		},
 		onError(error: unknown) { errors.push(error); },
-	});
+	};
+	const recorder = await createRecordingController(recorderOptions);
 	const controller = session.wrapController(recorder);
 	const receive = (): void => {
 		while (pending.length) node.port.onmessage?.({ data: pending.shift()! });

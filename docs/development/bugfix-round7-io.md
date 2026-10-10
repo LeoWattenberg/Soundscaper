@@ -188,7 +188,11 @@ public verifies ordinary Pause (5.9 seconds), activated Pause (5.6 seconds), and
 existing activated Stop final-chunk control (7.5 seconds): all three complete
 actual captured-PCM/save assertions pass in 22.9 seconds. Owned public diagnostics
 and completed focused logs were removed immediately; no archive or raw coverage
-was generated.
+was generated. The complete compiler later found an excess-property error in
+the test's inline recorder options: JavaScript inference lists only defaulted
+fields. Name the faithful actual options object before passing it to the existing
+factory; no source API changes. All eight actual PCM/acknowledgment controls and
+targeted fixture lint pass again. Their bounded logs were removed immediately.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
