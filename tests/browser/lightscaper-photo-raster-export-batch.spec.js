@@ -55,12 +55,12 @@ for (const locale of ['en', 'de']) {
 		// A settled queue reopens from its durable journal with a fresh selection
 		// for explicit replacement, rather than retaining the old live receipt.
 		dialog = named(page, 'dialog', words.title);
-		await expect(dialog.locator('[data-photo-journal-job][data-journal-state="already-committed"]')).toHaveCount(2);
-		await expect(dialog.locator('[data-photo-batch-export-receipt]')).toHaveCount(0); await expect(dialog.getByRole('alert')).toHaveCount(0);
+		const history = dialog.getByRole('listitem'); await expect(history).toHaveCount(2);
+		await expect(named(dialog, 'button', words.continue)).toBeDisabled(); await expect(dialog.getByRole('alert')).toHaveCount(0);
 		const names = before.photos.map((item, index) => `${String(index + 1).padStart(2, '0')}-${item.photo.metadata.fileName.replace(/\.[^.]*$/u, '')}.${format === 'png' ? 'png' : 'jpg'}`);
 		expect(downloads.map(download => download.suggestedFilename())).toEqual(names);
 		for (const [index, download] of downloads.entries()) {
-			await expect(dialog.locator('[data-photo-journal-job]').nth(index)).toContainText(words.downloaded.replace('{name}', names[index]));
+			await expect(history.nth(index)).toContainText(words.downloaded.replace('{name}', names[index]));
 			const bytes = await readFile(await download.path());
 			if (format === 'png') assertPng(bytes);
 			const decoded = await page.evaluate(async input => {
