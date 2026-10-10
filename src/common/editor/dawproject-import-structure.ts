@@ -57,9 +57,16 @@ export interface ParameterTarget {
 	readonly unit: string | null;
 }
 
+export interface DawprojectImportNodeRoute {
+	readonly busId: string;
+	readonly groupId: string | null;
+	readonly sends: readonly Readonly<{ sendId: string; level: number; position: 'pre-fader' | 'post-fader' }>[];
+}
+
 /** Per-import graph semantics that the shared numeric-send document cannot carry. */
 export interface DawprojectImportRoutingContext {
 	readonly sendTaps: readonly Readonly<{ trackId: string; sendId: string; position: 'pre-fader' | 'post-fader' }>[];
+	readonly nodeRoutes?: readonly DawprojectImportNodeRoute[];
 	readonly stripChannelCounts?: readonly Readonly<{ id: string; channelCount: number }>[];
 }
 
@@ -73,6 +80,8 @@ export interface Build {
 	readonly folders: DataRecord[];
 	readonly groups: StripBuild[];
 	readonly sends: StripBuild[];
+	readonly busByChannelId: Map<string, string>;
+	readonly nodeRoutes: DawprojectImportNodeRoute[];
 	readonly stripByChannelId: Map<string, Readonly<{ kind: 'group' | 'send' | 'folder'; id: string }>>;
 	readonly parameters: Map<string, ParameterTarget>;
 	readonly routes: Map<string, { groupId: string | null; sends: Record<string, number> }>;
@@ -104,6 +113,7 @@ export function walkTrack(track: DawprojectTrack, parentFolderId: string | null,
 				// Structural gates belong to the folder; its owned bus cannot
 				// duplicate them as independent mixer mute or solo state.
 				build.groups.push({ ...strip(id, track.name || 'Folder', channel), mute: false, solo: false });
+				if (channel.id) build.busByChannelId.set(channel.id, id);
 				registerParameters(channel, { kind: 'group', id }, build);
 			} else {
 				addDeliveryReportItem(build.draft, {
@@ -126,7 +136,10 @@ export function walkTrack(track: DawprojectTrack, parentFolderId: string | null,
 	if (role === 'submix' || role === 'effect') {
 		const id = build.createStableId(role === 'submix' ? 'group-bus' : 'send-bus');
 		(role === 'submix' ? build.groups : build.sends).push(strip(id, track.name || (role === 'submix' ? 'Group' : 'Send'), channel!));
-		if (channel!.id) build.stripByChannelId.set(channel!.id, { kind: role === 'submix' ? 'group' : 'send', id });
+		if (channel!.id) {
+			build.stripByChannelId.set(channel!.id, { kind: role === 'submix' ? 'group' : 'send', id });
+			build.busByChannelId.set(channel!.id, id);
+		}
 		registerParameters(channel!, { kind: role === 'submix' ? 'group' : 'send', id }, build);
 		return;
 	}
@@ -203,6 +216,7 @@ export function resolveRouting(document: DawprojectDocument, build: Build): void
 		for (const child of track.children) visit(child);
 		const built = track.id ? build.trackByDawId.get(track.id) : undefined;
 		const channel = track.channel;
+		if (channel) resolveBusRouting(channel, build);
 		if (!built || !channel) return;
 		const route = { groupId: null as string | null, sends: {} as Record<string, number> };
 		const destination = channel.destination ? build.stripByChannelId.get(channel.destination) : undefined;
@@ -230,6 +244,30 @@ export function resolveRouting(document: DawprojectDocument, build: Build): void
 		if (route.groupId !== null || Object.keys(route.sends).length > 0) build.routes.set(built.id, route);
 	};
 	for (const track of document.tracks) visit(track);
+}
+
+/** Bus-origin routing is independent of the audio-track map. */
+function resolveBusRouting(channel: DawprojectChannel, build: Build): void {
+	const busId = channel.id ? build.busByChannelId.get(channel.id) : undefined;
+	if (!busId) return;
+	const destination = channel.destination ? build.stripByChannelId.get(channel.destination) : undefined;
+	if (destination?.kind === 'folder') {
+		addDeliveryReportItem(build.draft, {
+			code: 'dawproject.routing-omitted', disposition: 'omitted', severity: 'warning',
+			scope: { kind: 'mixer-node', id: busId },
+			message: 'The bus feeds a folder; folder buses here take only their own tracks, so the bus routes to the master.',
+		});
+	}
+	const sends = new Map<string, DawprojectImportNodeRoute['sends'][number]>();
+	for (const send of channel.sends) {
+		if (!send.enabled || !send.destination) continue;
+		const target = build.stripByChannelId.get(send.destination);
+		if (target?.kind !== 'send') continue;
+		sends.set(target.id, { sendId: target.id, level: clamp(gainOf(send.volume), 0, 4),
+			position: send.type === 'pre' ? 'pre-fader' : 'post-fader' });
+	}
+	build.nodeRoutes.push({ busId, groupId: destination?.kind === 'group' ? destination.id : null,
+		sends: [...sends.values()] });
 }
 
 export function trackForEvent(event: DawprojectAudioEvent, build: Build, document: DawprojectDocument): TrackBuild {

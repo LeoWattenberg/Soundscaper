@@ -74,6 +74,7 @@ and raw coverage are removed immediately after verification by the owning runner
 | Take-cycle signed offset (excluded; zero count) | Preferences → Audio settings → Recording offset -500 ms, then normal Record loop into takes. | Dedicated cycle PCM deliberately omits external latency calibration in its maintained production contract; no published take-cycle offset promise was found. The enabled global preference alone does not establish supported cycle calibration. No source correction or root count. | Guarded `bd5ac4718` ordinary negative-offset recording passes 7.7 seconds and zero-offset cycle capture passes 7.4 seconds; the offset cycle records positive PCM and saves a take at zero instead of 21907 frames (7.4 seconds). This difference is excluded under the existing explicit profile boundary. An initial ordinary observer read source inventory before Saved and is also excluded. All completed diagnostic files and the provisional browser spec were removed immediately. |
 | R7-IO-043 | Soundscaper Audio setup → Speakers → choose an available output; Window → Freesound → Search → Play preview. | The independently implemented HTMLAudioElement preview never inherits the chosen browser speaker device, even when the real editor context has successfully routed there. Route new, live and paused previews through the chosen device and wait for native routing before playback; retain listening gain and preview lifetime. Device variants count once, separately from IO014 scalar gain. | Guarded `2e3ad747b` default output healthy native preview passes 2.9 seconds. Chromium's built-in hardware fixture exposes genuine enumerated output devices; both native AudioContext.setSinkId and HTMLAudioElement.setSinkId accept the selected device. The ordinary Speakers control routes the actual editor graph there, then the real advancing Freesound preview causally fails in 2.5 seconds with an empty/default sinkId instead of the chosen device. No device enumeration or routing API is replaced. Read baseline PNG/context and bounded outputs are removed immediately. Strict mounted regressions causally fail both initial selected output and live device changes; the corrected new/default/live/paused/delayed-routing cases and existing gain, search, pause and account lifetime support pass 16/16 in 1.1 seconds. Native output updates are serialized, initial/resumed play waits for routing, and retired preview requests remain fenced. Target type-aware lint and diff checks pass. Completed focused logs are removed immediately. Complete unchanged native Chromium workflows pass on authenticated guarded `0f0d9ba2f`: default output 2.8 seconds and selected/live/paused output 2.7 seconds (2/2 in 7.3 seconds). Actual graph/media routing to both genuinely enumerated speaker devices and back to System default, advancing real media and same-player paused resume all pass. Completed owned outputs/log are read and removed immediately; this root is qualified once. |
 | R7-IO-044 | Soundscaper import an ordinary WAV → Audio setup → Speakers → choose an available output; Clip properties → Play source, or Move to Project bin → Play card. | The shared independently implemented audition-engine factory forwards listening gain but never the main engine's chosen speaker device, leaving its owned AudioContexts on the system default. Bind initial and live browser output choices across its Bin/source/take consumers, retaining gain, offline render separation and disposal. All factory consumers count once; Freesound IO043 owns a separate native media-element path. | Authenticated guarded `0f0d9ba2f` unchanged default Bin/source controls pass 2.5/2.6 seconds. Both chosen-output cases reach native audible PCM (>0.05 peak), but causally fail in 2.8/2.6 seconds with an empty preview AudioContext sinkId after the actual main graph successfully routes the genuinely enumerated device through ordinary Speakers. The graph/analyser observer remains passive; no device API or application state is replaced. Exact PNG/context and bounded baseline output are read and removed immediately. Actual controller-resource default control passes and selected-output inheritance causally fails. Corrected real-resource inheritance, delayed/latest-device playback, live updates/disposal and existing gain, source audition and action/take facade controls pass 29/29 in 1.7 seconds. Initial source correction is observed before its asynchronous routing queue settles; the faithful resource test yields through the actual queue, while separate controlled native-allocation tests require that no PCM plays before the latest device completes. Target type-aware lint and diff checks pass. Completed focused output is removed immediately. Canonical changed-file lint also passes. The public controls now additionally require live native device change, paused System default and resumed positive native PCM. Four unchanged complete native Chromium workflows pass on authenticated guarded `2541ed646`: Bin default/selected 3.5/4.2 seconds and source default/selected 3.7/4.0 seconds (4/4 in 17.3 seconds). Both chosen-output workflows retain live actual speaker changes, paused System default and resumed fresh audible PCM. This qualifies one shared audition factory root. Completed owned output and bounded log are read and immediately removed. |
+| R7-IO-045 (corrected source; public GREEN pending) | Soundscaper import an ordinary WAV → Mixer → two group buses → track Output Group bus1 → Routing graph → route Group bus1 through lower-fader Group bus2 → Export DAWproject → Open the unchanged download → Export audio. | The reader routes every bus directly to Master because it visits only audio tracks, bypassing the authored downstream processing. Decode bus-origin destinations and sends separately, preserve their channel widths/pre-fader position, then promote that owning context through the existing native graph adapter. All bus-origin routes share one reader owner; R3IO018 repaired the independent writer and R3IO021 promoted already decoded track routes. | Guarded2541 healthy direct-Master round trip PASS6.0 seconds; downstream round trip causally RED7.3 seconds after actual quieter source PCM and exact archive destination PASS. Reopened decoded WAV is2.703958207times louder. Strict own command/writer/reader/product witnesses independently pass two direct-Master controls and fail both group/send downstream assignments. Corrected group/send destinations, bus-origin pre-fader sends, input immutability and existing importer/product/folder/mono/master width controls PASS51/51in2.7 seconds; targeted type-aware lint passes. Corrected unchanged complete public workflow awaits next guarded products; this root is not yet added to the qualified count. Actual archive/WAV download files are deleted immediately after reading, and completed diagnostics/focused logs are consumed and removed immediately. |
 
 IO-031 checkpoint follow-through places the exact native capture listening helper
 with its eagerly composed recording-factory adapter in editor-controller-core.
@@ -390,6 +391,11 @@ New initial/live/delayed/retired controls plus prior TTS/Guided gain controls pa
 7/7. Target type-aware lint and canonical lint:changed pass, including the exact
 final strict fixture. Complete corrected native-menu workflows await next guard.
 No assistance runtime closure or generated assets change.
+Both complete unchanged native Chromium workflows pass on authenticated guarded
+cb40131e6: default speaker3.5 and selected speaker3.6 seconds (2/2in9.2 seconds),
+retaining actual generated-media time advance and actual native HTML sink identity.
+Completed own output/log are read and immediately removed. This closes shared
+TTS/Guided output routing within IO043 and adds zero count.
 
 Full150 Firefox follow-through observations (zero count, unchanged replay pending):
 two native microphone-monitor cases fail before their listening-mute assertions
@@ -446,7 +452,42 @@ preserved. Restrict the skip to WebKit's actual canonical unavailable status;
 a separate unchanged-product native WebKit replay verifies both unsupported
 prerequisites as skips. No deadline or captured-media assertions change.
 Target lint passes; all completed own proof logs/output are immediately removed.
-The whole unchanged desktop Firefox project-library replay remains pending.
+The unchanged whole Firefox project-library workflow passes9.4 seconds on
+authenticated guardedcb40131e6. Its original modal-handoff failure remains in
+the full150 receipt; reviewed completed replay output/log are immediately removed.
+
+IO045 causal baseline (source correction verified, public GREEN pending; not counted): normal two-group
+bus authoring through Mixer, Routing graph and Connection inspector produces an
+audibly quieter Group1→Group2 programme, and its actual own DAWproject archive
+correctly names the downstream channel. Reopen that unchanged archive: the
+Group1 route instead returns to Master and decoded exported WAV becomes
+2.703958207 times louder. Guarded2541 healthy direct-Master control passes in
+6.0 seconds, downstream case causally fails in 7.3 seconds (2 cases15.1 seconds).
+Read actual PNG/context and immediately remove bounded log/output; each actual
+archive/WAV download is deleted immediately after reading its bytes. Strict own
+normal command/writer/reader/product witnesses likewise pass the direct-Master
+control and fail the downstream bus, with unchanged input. The strict matrix retains two independently failing group/send origins and their
+healthy direct-Master controls. Corrected focused import, native promotion, bus
+sends and earlier folder/strip/master-width controls pass51/51in2.7 seconds. One
+initial support invocation used Node strip-only against an existing archive class
+with a TypeScript parameter property, and is excluded as runner setup; the normal
+--import tsx runner passes all51. Target type-aware lint and canonical lint:changed pass. The shared
+routing-context type requires the coordinated full repository lint. This independent
+parser owner skipped every bus-origin route; writer-only R3IO018 and
+validated-decoder product promotion R3IO021 remain different repaired owners.
+
+Full150 completed Firefox Framescaper capture follow-through (zero count):
+recording-origin protection completes actual capture/Stop before confirmed
+Delete remains visible on the replaced project (17.312 seconds). Deleting an
+unrelated project during ongoing capture likewise leaves the confirmation over
+the new project (41.053 seconds, existing30-second assertion). Both exact read
+PNG/context show that modal over the resulting project and match correctedD036;
+no new capture root is inferred. Reviewed completed original directories are
+removed immediately. Both complete unchanged Firefox workflows pass on guarded
+cb40131e6: protected recording origin10.6 seconds, other-project deletion7.2
+seconds; together with desktop library all3PASSin29.9 seconds. This closes the
+original D036 follow-through without any fixture/deadline/count changes. Reviewed
+completed own replay output/log are immediately removed.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,

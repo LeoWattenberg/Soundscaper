@@ -36,6 +36,27 @@ export function importSoundscaperAudacityMixer(decoded: AudioEditorProjectV17, p
 			type: 'mixer/route-update', trackId, changes: { groupId: route.groupId, sends: route.sends },
 		});
 	}
+	for (const route of context?.nodeRoutes ?? []) {
+		const source = [...mixer.groups, ...mixer.sends].find(bus => bus.id === route.busId);
+		if (!source) continue;
+		const destination = route.groupId === null ? { kind: 'master' as const }
+			: { kind: 'mixer-node' as const, id: route.groupId };
+		const width = route.groupId === null ? project.masterChannels
+			: mixer.groups.find(bus => bus.id === route.groupId)?.channelCount ?? project.masterChannels;
+		mixer = normalizeMixerGraphV21({ ...mixer, edges: [
+			...mixer.edges.map(edge => edge.kind === 'assignment' && edge.source.kind === 'mixer-node'
+				&& edge.source.id === source.id ? { ...edge, destination,
+					channelMap: defaultMixerChannelMapV21(source.channelCount, width) } : edge),
+			...route.sends.map((send, index) => ({
+				id: `imported-bus-send:${source.id}:${String(index)}`, kind: 'send' as const,
+				source: { kind: 'mixer-node' as const, id: source.id },
+				destination: { kind: 'mixer-node' as const, id: send.sendId },
+				position: send.position, level: send.level, enabled: true,
+				channelMap: defaultMixerChannelMapV21(source.channelCount,
+					mixer.sends.find(bus => bus.id === send.sendId)?.channelCount ?? project.masterChannels),
+			})),
+		] });
+	}
 	if (!context?.sendTaps.length) return mixer;
 	return normalizeMixerGraphV21({ ...mixer, edges: mixer.edges.map(edge => {
 		if (edge.kind !== 'send' || edge.source.kind !== 'track' || edge.destination.kind !== 'mixer-node') return edge;
