@@ -1596,3 +1596,23 @@ workflows (11.1/18.3/18.4 seconds), preserving both fresh actual WAVs,
 frames/peaks, marker/Undo and errors. Each keeps the original 30-second
 whole deadline and native decoder. Original failed aggregate statuses remain
 unchanged. No production change, new bug count or AI asset update.
+
+The two complete unchanged isolated WebKit bodies finish on prepared 684
+bytes with one worker, qualified Pulse and exclusive native cores (40.7
+seconds whole). Change Tempo passes in 28.2 seconds within its original
+30-second budget: both fresh native WAVs contain 288000 frames, with RMS
+0.1878440686 and 0.1878440684. All healthy seconds, authored musical input,
+Undo, decoded-audio equality, client-error and five-second checks remain.
+Its original full-run timeout remains recorded; this pass does not establish
+that timeout's cause, and no fixture change is made.
+
+Parametric Output repeats its first healthy ordinary drag failure in 8.7
+seconds: immediate post-release range value zero instead of greater than
+five. The actual screenshot and full context again show the output at zero,
+without an application alert. Its middle-button/completion and wet PCM/history
+checks have not run. The original explicit 60-second budget is unchanged.
+This repeated pre-scenario failure needs native event/publication evidence
+before any source repair; no cause or extra root is claimed. After the
+worker and both preview servers close, the bounded log and exact replay
+results are consumed and immediately removed. Production and test sources
+are unchanged, and no manual Update AI assets run is required.
