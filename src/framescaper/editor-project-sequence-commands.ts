@@ -30,6 +30,7 @@ import {
 	type FramescaperSequenceCommandSequence,
 } from './editor-project-sequence-sequence.ts';
 import {
+	conformFramescaperSubsequenceRatesSequence,
 	isFramescaperSubsequenceCommandSequence,
 	type FramescaperProjectCommandSequence,
 	type FramescaperSubsequenceCommandSequence,
@@ -73,6 +74,7 @@ export function applyFramescaperProjectCommandSequence(
 	) as unknown as Record<string, unknown>;
 	commanded.schemaFamily = FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
 	commanded.schemaVersion = 1;
+	conformFramescaperSubsequenceRatesSequence(persisted, commanded);
 	retainFramescaperMulticameraSourcesSequence(persisted, commanded);
 	retainFramescaperVideoProxyAttachmentsSequence(commanded, attachments);
 	commanded.multicameraGroups = structuredClone(persisted.multicameraGroups);

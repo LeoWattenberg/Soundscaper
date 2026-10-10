@@ -4,6 +4,7 @@ import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { assertFramescaperProjectSequenceProfile } from './editor-domain-runtime-profile.ts';
 import type { FramescaperMulticameraCommandSequence } from './editor-project-sequence-multicam.ts';
 import type { FramescaperSequenceCommandSequence } from './editor-project-sequence-sequence.ts';
+import type { FramescaperProjectSequence } from './editor-project-sequence-validation.ts';
 
 export const FRAMESCAPER_SEQUENCE_MAXIMUM_NESTING_DEPTH = 32;
 export const FRAMESCAPER_SEQUENCE_MAXIMUM_SUBSEQUENCES = 4_096;
@@ -148,6 +149,45 @@ export function isFramescaperSubsequenceCommandSequence(
 			|| descriptor.value === 'subsequence/update'
 			|| descriptor.value === 'subsequence/remove'),
 	);
+}
+
+/** Preserve both exact clocks when inherited sequence timing changes a referenced rate. */
+export function conformFramescaperSubsequenceRatesSequence(
+	before: FramescaperProjectSequence,
+	after: Record<string, unknown>,
+): void {
+	if (!before.subsequences.length) return;
+	const nextRates = new Map(denseArray(after.sequences, 'sequences').map(value => {
+		const sequence = dataRecord(value, 'sequence');
+		const rate = dataRecord(sequence.rate, 'sequence.rate');
+		return [String(sequence.id), { num: positiveSafeInteger(rate.num, 'sequence.rate.num'),
+			den: positiveSafeInteger(rate.den, 'sequence.rate.den') }] as const;
+	}));
+	const previousRates = new Map(before.sequences.map(sequence => [sequence.id, sequence.rate]));
+	after.subsequences = before.subsequences.map(placement => {
+		const parent = previousRates.get(placement.sequenceId)!;
+		const source = previousRates.get(placement.sourceSequenceId)!;
+		const nextParent = nextRates.get(placement.sequenceId);
+		const nextSource = nextRates.get(placement.sourceSequenceId);
+		if (!nextParent || !nextSource) throw new ReferenceError('A nested placement lost its sequence.');
+		const sequenceStartFrame = conformFrame(placement.sequenceStartFrame, parent, nextParent);
+		const sequenceEndFrame = conformFrame(placement.sequenceStartFrame + placement.sequenceFrameCount, parent, nextParent);
+		const sourceInFrame = conformFrame(placement.sourceInFrame, source, nextSource);
+		const sourceEndFrame = conformFrame(placement.sourceInFrame + placement.sourceFrameCount, source, nextSource);
+		return { ...placement, sequenceStartFrame, sequenceFrameCount: sequenceEndFrame - sequenceStartFrame,
+			sourceInFrame, sourceFrameCount: sourceEndFrame - sourceInFrame };
+	});
+}
+
+function conformFrame(frame: number, previous: SequenceRate, next: SequenceRate): number {
+	const numerator = BigInt(frame) * BigInt(previous.den) * BigInt(next.num);
+	const denominator = BigInt(previous.num) * BigInt(next.den);
+	if (numerator % denominator !== 0n) {
+		throw new RangeError('Changing the sequence rate would move a nested placement off its exact frame grid.');
+	}
+	const conformed = numerator / denominator;
+	if (conformed > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('The nested placement frame exceeds the safe-integer range.');
+	return Number(conformed);
 }
 
 /** Fence the flattened expansion of an acyclic depth-fenced graph without enumerating its paths. */
