@@ -33,10 +33,10 @@ type Bound = Readonly<{
 	controller: Data; options: Data; imports: ImportCall[]; calls: string[]; commands: Data[];
 }>;
 
-const PROJECT = createFramescaperProjectTimelineImage(PROFILE, {}) as unknown as Data;
+const PROJECT = createFramescaperProjectTimelineImage(PROFILE, { now: '2026-03-04T05:06:06.000Z' } as never) as unknown as Data;
 const PUBLISHED = createFramescaperProjectTimelineImage(
 	PROFILE,
-	{ title: 'Published' } as never,
+	{ title: 'Published', now: '2026-03-04T05:06:07.000Z' } as never,
 ) as unknown as Data;
 const NOW = '2026-03-04T05:06:07.000Z';
 const ONE_SECOND_SAMPLES = 48_000; // The default project runs a 30/1 sequence at 48000 Hz.

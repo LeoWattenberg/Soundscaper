@@ -90,7 +90,7 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		const observed = now();
 		const observedTime = observed instanceof Date ? observed.getTime() : Date.parse(observed);
 		// A saved Undo revision may share the current millisecond or precede a clock adjustment.
-		const publicationTime = new Date(Math.max(observedTime, Date.parse(String(expected.updatedAt)) + 1));
+		const publicationTime = new Date(Math.max(observedTime, Date.parse(String(expected.updatedAt)) + 1)).toISOString();
 		const nextHistory = dependencies.executeCommand(
 			capture.history,
 			request.command,
