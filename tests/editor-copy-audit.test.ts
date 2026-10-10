@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { auditEditorCopySource, auditEditorCopyTree } from '../scripts/lib/editor-copy-audit.mjs';
 import { EDITOR_COPY_AUDIT_INVENTORY } from '../scripts/lib/editor-copy-audit-inventory.mjs';
+import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
+import { photoPngExportCopy } from '../src/common/i18n/lightscaper-photo-png-export-copy.ts';
 
 test('editor copy audit detects unregistered fallbacks, reads and accessible prose', () => {
 	const issues = auditEditorCopySource('Fixture.tsx', `
@@ -23,6 +25,10 @@ test('editor copy audit detects unregistered fallbacks, reads and accessible pro
 });
 
 test('both editor products expose authored UI copy through eager or lazy owned inventories', async () => {
+	for (const [key, source] of Object.entries(photoPngExportCopy('en'))) {
+		assert.equal(EDITOR_COPY_AUDIT_INVENTORY[`ui.photoPngExport.${key}`], source);
+		assert.equal(EDITOR_ENGLISH_COPY[`ui.photoPngExport.${key}`], undefined);
+	}
 	assert.deepEqual(await auditEditorCopyTree('src/common/editor/ui', EDITOR_COPY_AUDIT_INVENTORY), []);
 });
 
