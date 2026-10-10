@@ -153,7 +153,11 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/Media Foundation.*AudioToolbox.*target-native.*ad-hoc sealed.*manifest\/payload.*Linux.*never built for mac-x64.*user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*live-verified H\.264\/AAC MP4.*VP9\/Opus WebM.*exact ffprobe.*verifies two streams.*16x16.*yuv420p.*48 kHz stereo.*hash-before-path-spawn TOCTOU.*dynamic-library closure.*filesystem\/network\/RSS\/CPU sandbox.*malicious selected executable.*Bundled video.*operating-system video.*AV1 remain disabled.*WebM is VP9.*null timing.*neither patent clearance nor non-infringement/iu,
+		/Media Foundation.*AudioToolbox.*target-native.*ad-hoc sealed.*manifest\/payload.*Linux.*never built for mac-x64.*user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*live-verified H\.264\/AAC MP4.*VP9\/Opus WebM.*exact ffprobe.*verifies two streams.*16x16.*yuv420p.*48 kHz stereo.*hash-before-path-spawn TOCTOU.*dynamic-library closure.*filesystem\/network\/RSS\/CPU sandbox.*malicious selected executable.*No bundled or separately shipped operating-system video payload.*AV1 remains disabled.*WebM is VP9.*null timing.*neither patent clearance nor non-infringement/iu,
+	);
+	assertOrderedClaim(
+		helperPayload.summary,
+		/main prefers `h264_videotoolbox`.*macOS.*`h264_mf`.*Windows.*native canary.*independently verified `libx264`.*main-owned.*closed renderer wire/isu,
 	);
 	assertEvidence(packageIntegrity, [
 		'.github/workflows/desktop-preview.yml',
@@ -208,7 +212,11 @@ test('desktop codec security separates Electron framework, application, and exte
 	assertOrderedClaim(architecture, /live.*16x16.*48 kHz stereo.*exact.*ffprobe.*exactly two streams.*yuv420p.*H\.264.*AAC.*yuv420p.*VP9.*Opus/isu);
 	assertOrderedClaim(
 		architecture,
-		/Bundled and operating-system video execution are not implemented.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external\s+WebM.*VP9.*not AV1.*Media Foundation video.*VideoToolbox video.*no execution capability.*fail\s+closed/isu,
+		/No bundled or separately shipped operating-system video payload.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external\s+WebM.*VP9.*not AV1.*direct Media Foundation or\s+VideoToolbox.*not implemented.*fail\s+closed/isu,
+	);
+	assertOrderedClaim(
+		architecture,
+		/desktop keyed-video renderer.*exact video.*optional AAC\/Opus audio.*prefer-hardware.*ordinary WebCodecs.*640x360.*provisional.*external FFmpeg.*h264_videotoolbox.*macOS.*h264_mf.*Windows.*native canary.*libx264.*main-owned/isu,
 	);
 	assert.match(
 		architecture,
