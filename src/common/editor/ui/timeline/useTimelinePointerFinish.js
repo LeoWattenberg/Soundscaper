@@ -213,7 +213,7 @@ export function useTimelinePointerFinish({
 		}
 		if (session.kind === 'move' && isOverOutputDock(event.clientX, event.clientY)) return;
 		if (session.kind === 'sample-pencil') {
-			if (session.points.length) run(() => controller.actions.sampleEdit.pencil({
+			if (session.points.length && project.clips.some(clip => clip.id === session.clipId)) run(() => controller.actions.sampleEdit.pencil({
 				clipId: session.clipId,
 				channel: session.channel,
 				points: session.points,
@@ -419,6 +419,13 @@ export function useTimelinePointerFinish({
 		globalThis.addEventListener('keydown', cancelWithEscape, true);
 		return () => globalThis.removeEventListener('keydown', cancelWithEscape, true);
 	}, [cancelPointerSession, pointerSession, setBoundarySnapGuideFrames, setClipDragPreview, setSelectionPreview]);
+
+	useEffect(() => {
+		const session = pointerSession.current;
+		if (session?.kind === 'sample-pencil' && !project?.clips.some(clip => clip.id === session.clipId)) {
+			cancelPointerSession();
+		}
+	}, [cancelPointerSession, pointerSession, project]);
 
 	return { finishPointerSession, finishTouch, cancelPointerSession };
 }
