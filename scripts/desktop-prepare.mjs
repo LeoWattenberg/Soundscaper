@@ -84,7 +84,7 @@ const DESKTOP_NOTICE_PATH = resolve(DESKTOP_LICENSE_ROOT, 'THIRD_PARTY_LICENSES.
 // against these shipped registers. Executable payloads stay outside the asar;
 // only their authenticated pins live inside it.
 const PRODUCT_ID = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
-const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+const PRODUCT_NAME = { soundscaper: 'Soundscaper', framescaper: 'Framescaper', motionscaper: 'Motionscaper' }[PRODUCT_ID];
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const DESKTOP_STAGE_TARGETS = new Set([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
@@ -92,9 +92,9 @@ const DESKTOP_STAGE_TARGETS = new Set([
 
 export function resolveDesktopProductId(value) {
 	const requested = value === undefined ? 'soundscaper' : value;
-	if (requested !== 'soundscaper' && requested !== 'framescaper') {
+	if (requested !== 'soundscaper' && requested !== 'framescaper' && requested !== 'motionscaper') {
 		throw new Error(
-			`SCAPE_PRODUCT must be soundscaper or framescaper; received ${JSON.stringify(value)}.`,
+			`SCAPE_PRODUCT must be soundscaper, framescaper, or motionscaper; received ${JSON.stringify(value)}.`,
 		);
 	}
 	return requested;
@@ -107,6 +107,10 @@ async function main() {
 	const applicationVersion = resolveProductApplicationVersion(PRODUCT_ID, releaseLines);
 	const productMetadata = resolveProductDesktopMetadata(PRODUCT_ID, releaseLines);
 	const sourceRevision = resolveDesktopSourceRevision();
+	if (PRODUCT_ID === 'motionscaper') {
+		const { prepareMotionscaperDesktop } = await import('./lib/motionscaper-desktop-staging.mjs');
+		return prepareMotionscaperDesktop({ repositoryRoot: ROOT, buildRoot: BUILD_ROOT, productMetadata, sourceRevision, buildRenderer });
+	}
 	const nativeHarnessPreparation = resolveNativeHarnessPreparation();
 	const legacyNativeAddonIncluded = desktopLegacyNativeAddonIncluded(PRODUCT_ID, productMetadata);
 	await assertFile(resolve(ROOT, 'desktop/main.mjs'), 'desktop/main.mjs');

@@ -1,0 +1,110 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session } from 'electron';
+import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import {
+	MOTIONSCAPER_DESKTOP as identity, MOTIONSCAPER_DESKTOP_CHANNELS as channels,
+	motionscaperDesktopDocumentUrl, motionscaperDesktopEnvironment,
+} from './motionscaper-desktop-contract.ts';
+import { createMotionscaperProtocolHandler } from './motionscaper-protocol.ts';
+
+interface ProductMetadata {
+	readonly schemaVersion: 1;
+	readonly id: 'motionscaper';
+	readonly applicationVersion: string;
+	readonly updateTagPrefix: 'motionscaper-v';
+}
+
+app.setName(identity.name);
+if (!app.commandLine.getSwitchValue('user-data-dir')) {
+	app.setPath('userData', join(app.getPath('appData'), identity.name));
+}
+app.setAppUserModelId(identity.appId);
+protocol.registerSchemesAsPrivileged([{
+	scheme: identity.scheme,
+	privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, codeCache: true },
+}]);
+let window: BrowserWindow | null = null;
+if (!app.requestSingleInstanceLock()) app.quit();
+else {
+	app.on('second-instance', () => { window?.show(); window?.focus(); });
+	app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+	app.on('activate', () => { if (!window) void createWindow().catch(failStartup); });
+	void start().catch(failStartup);
+}
+
+async function start(): Promise<void> {
+	const metadata: unknown = JSON.parse(await readFile(new URL('./product.json', import.meta.url), 'utf8'));
+	if (!isMetadata(metadata) || process.env.SCAPE_PRODUCT && process.env.SCAPE_PRODUCT !== identity.productId
+		|| app.isPackaged && app.getVersion() !== metadata.applicationVersion) {
+		throw new Error('Motionscaper desktop package identity does not match its declared release.');
+	}
+	await app.whenReady();
+	const desktopSession = session.fromPartition(identity.partition);
+	desktopSession.setPermissionCheckHandler(() => false);
+	desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => { callback(false); });
+	const rendererRoot = app.isPackaged ? join(process.resourcesPath, 'renderer')
+		: resolve(import.meta.dirname, '../../renderer');
+	await desktopSession.protocol.handle(identity.scheme, createMotionscaperProtocolHandler(rendererRoot));
+	ipcMain.handle(channels.environment, (event: Electron.IpcMainInvokeEvent) => {
+		if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
+			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper caller.');
+		return motionscaperDesktopEnvironment(metadata.applicationVersion, process.platform);
+	});
+	Menu.setApplicationMenu(Menu.buildFromTemplate([
+		...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
+		{ label: 'File', submenu: [{ role: 'close' }] },
+		{ role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },
+	]));
+	await createWindow();
+}
+
+async function createWindow(): Promise<void> {
+	window = new BrowserWindow({
+		title: identity.name, width: 1280, height: 800, minWidth: 720, minHeight: 480,
+		webPreferences: {
+			preload: join(import.meta.dirname, 'preload.cjs'), partition: identity.partition,
+			sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true,
+			allowRunningInsecureContent: false,
+		},
+	});
+	window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+	window.webContents.on('will-navigate', (event, url) => { if (!motionscaperDesktopDocumentUrl(url)) event.preventDefault(); });
+	window.webContents.on('will-attach-webview', (event) => { event.preventDefault(); });
+	window.on('closed', () => { window = null; });
+	await window.loadURL(`${identity.origin}/`);
+	if (process.argv.includes('--motionscaper-shell-smoke')) await smokeShell(window);
+}
+
+function isMetadata(value: unknown): value is ProductMetadata {
+	return !!value && typeof value === 'object' && 'schemaVersion' in value && value.schemaVersion === 1
+		&& 'id' in value && value.id === identity.productId
+		&& 'applicationVersion' in value && typeof value.applicationVersion === 'string'
+		&& 'updateTagPrefix' in value && value.updateTagPrefix === identity.updateTagPrefix;
+}
+
+function failStartup(error: unknown): void {
+	if (process.argv.includes('--motionscaper-shell-smoke')) console.error(error);
+	else dialog.showErrorBox('Motionscaper could not start', error instanceof Error ? error.message : 'Desktop startup failed.');
+	app.exit(1);
+}
+
+async function smokeShell(target: BrowserWindow): Promise<void> {
+	const evidence: unknown = await target.webContents.executeJavaScript(`(async () => {
+		const deadline = Date.now() + 30000;
+		while (!document.querySelector('[data-motion-editor-bound="true"][data-product="motionscaper"]')) {
+			if (Date.now() >= deadline) throw new Error('Motionscaper shell did not mount.');
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		return { environment: await window.scapeDesktop.v1.getEnvironment(),
+			foreignBridge: !!(window.soundscaperDesktop || window.framescaperDesktop),
+			origin: location.protocol + '//' + location.host };
+	})()`);
+	if (!evidence || typeof evidence !== 'object' || !('foreignBridge' in evidence)
+		|| evidence.foreignBridge !== false || !('origin' in evidence) || evidence.origin !== identity.origin) {
+		throw new Error('Motionscaper shell native isolation smoke failed.');
+	}
+	console.log(`MOTIONSCAPER_SHELL_SMOKE ${JSON.stringify(evidence)}`);
+	app.exit(0);
+}
