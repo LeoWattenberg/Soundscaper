@@ -94,14 +94,16 @@ export function walkTrack(track: DawprojectTrack, parentFolderId: string | null,
 	build.devices += channel?.devices ?? 0;
 	if (track.contentTypes.includes('tracks') || track.children.length > 0) {
 		const id = build.createStableId('folder');
-		build.folders.push({ id, name: track.name || 'Folder' });
+		build.folders.push({ id, name: track.name || 'Folder', mute: channel?.mute?.value === true, solo: channel?.solo === true });
 		build.trackNodes.push({ kind: 'folder', id, parentFolderId });
 		build.parentFolderIds.set(id, parentFolderId);
 		if (channel) {
 			// Only a top-level folder owns a bus here; a nested group's channel
 			// merges into its top-level ancestor's bus, which the report says.
 			if (parentFolderId === null) {
-				build.groups.push(strip(id, track.name || 'Folder', channel));
+				// Structural gates belong to the folder; its owned bus cannot
+				// duplicate them as independent mixer mute or solo state.
+				build.groups.push({ ...strip(id, track.name || 'Folder', channel), mute: false, solo: false });
 				registerParameters(channel, { kind: 'group', id }, build);
 			} else {
 				addDeliveryReportItem(build.draft, {

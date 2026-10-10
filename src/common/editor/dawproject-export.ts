@@ -193,9 +193,18 @@ function buildStructureNode(node: DawprojectStructureNode, context: DawprojectEx
 }
 
 function buildFolderTrack(node: DawprojectStructureNode, context: DawprojectExportContext): XmlElement {
-	// A top-level folder that owns a group bus is a submix channel; a deeper
-	// folder owns nothing and is structure only. The bus shares the folder's id.
+	// A folder-owned group bus is a submix channel with the folder's gates.
+	// Audio-free folders can remain structure only. The bus shares its id.
 	const bus = context.routing.groups.find((group) => group.id === node.id) ?? null;
+	const mute = node.folder?.mute === true;
+	const solo = node.folder?.solo === true;
+	if (!bus && (mute || solo)) {
+		addDeliveryReportItem(context.draft, {
+			code: 'dawproject.folder-gates-omitted', disposition: 'omitted', severity: 'warning',
+			scope: { kind: 'folder', id: node.id }, data: { mute, solo },
+			message: 'This folder has no submix channel in the DAWproject profile; its mute and solo state are not written.',
+		});
+	}
 	const children = node.children.map((child) => buildStructureNode(child, context));
 	const contentTypes = ['tracks'];
 	if (hasDescendant(node, 'audio')) contentTypes.push('audio');
@@ -207,7 +216,7 @@ function buildFolderTrack(node: DawprojectStructureNode, context: DawprojectExpo
 		name: String(node.folder?.name ?? node.id),
 	}, [
 		bus ? buildChannel(context, `mixer-node:${bus.id}`, {
-			role: 'submix', gain: bus.gain, pan: bus.pan, mute: bus.mute, solo: bus.solo,
+			role: 'submix', gain: bus.gain, pan: bus.pan, mute: mute || bus.mute, solo: solo || bus.solo,
 			audioChannels: bus.channelCount ?? masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(bus.id)),
 			effects: bus.effects, scope: { kind: 'folder', id: node.id },
 		}) : null,
