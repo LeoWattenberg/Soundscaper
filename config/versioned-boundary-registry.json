@@ -280,6 +280,22 @@
 		,
 		{ "path": "src/common/editor/bounded-json-structure-v1.ts", "kind": "persisted-contract", "justification": "bounded-json-structure-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/commands/clipboard-codec-v7.ts", "kind": "ipc-contract", "justification": "Descriptor V7 fully admits the current Frame clipboard wire format with complete resource effects and keyframes while the named legacy descriptors retain their original closed vocabulary." }
+		,
+		{ "path": "src/common/editor/commands/clipboard-command-v2.ts", "kind": "helper-contract", "justification": "Version 2 command types distinguish fully admitted descriptor V7 paste and recursive current command batches from the unchanged legacy command protocol." }
+		,
+		{ "path": "src/common/editor/commands/clipboard-runtime-v7.ts", "kind": "helper-contract", "justification": "The named descriptor V7 clipboard runtime captures and pastes only privately admitted current Frame command projections, preserving complete resource effects and version 2 keyframe carriers." }
+		,
+		{ "path": "src/common/editor/commands/frame-resource-command-carriers-v2.ts", "kind": "helper-contract", "justification": "A private version 2 command-project brand selects current resource-aware effect and keyframe carriers only after complete Frame admission; persisted JSON and spread copies convey no authority." }
+		,
+		{ "path": "src/common/editor/commands/frame-resource-command-clip-factory-v2.ts", "kind": "helper-contract", "justification": "Version 2 clip construction selects the current media factory solely from the private admitted Frame command-project brand while retaining the legacy factory for other command owners." }
+		,
+		{ "path": "src/common/editor/commands/frame-resource-command-v2.ts", "kind": "helper-contract", "justification": "The explicit current Frame command transaction admits resource-capable foundations, applies shared command invariants, and reconciles the persisted result without widening the legacy public command boundary." }
+		,
+		{ "path": "src/common/editor/commands/video-keyframe-carrier-v2.ts", "kind": "helper-contract", "justification": "Version 2 current command carriers preserve keyframe editing operations through the resource-aware curve owner while the legacy carrier remains independently selected." }
+		,
+		{ "path": "src/common/editor/controller/clip-video/cube-lut-effect-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar Cube LUT effect ports borrow immutable resource storage, capture method receivers, and join bound action retirement without placing resource bodies in effect parameters." }
+		,
 		{ "path": "src/common/editor/controller/export/internal/delivery/soundscaper-delivery-publication-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-delivery-publication-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-adapter-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-persistent-delivery-adapter-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -558,6 +574,10 @@
 		,
 		{"path": "src/common/editor/scape-photo-catalog-pack-v2.ts", "kind": "persisted-contract", "justification": "Explicit Photo pack2 and preset pack2 encodings admit current Photo1/2 and preset row1/2 without widening any legacy format."}
 		,
+		{ "path": "src/common/editor/session-clipboard-codec-v2.ts", "kind": "ipc-contract", "justification": "Session clipboard wrapper V2 carries fully admitted descriptor V7 and scalar source custody across project changes; it grants no body authority and does not promote legacy wrappers on read." }
+		,
+		{ "path": "src/common/editor/session-v2.ts", "kind": "ipc-contract", "justification": "The explicit session V2 snapshot protocol selects current clipboard wrapper V2 and descriptor V7 while preserving import of legacy session snapshots and their unchanged clipboard owners." }
+		,
 		{ "path": "src/common/editor/soundscaper-delivery-contract-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-delivery-contract-v1.ts is an independently versioned persisted or cross-process carrier contract." }
 		,
 		{ "path": "src/common/editor/soundscaper-persistent-delivery-plan-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-persistent-delivery-plan-v1.ts is the canonical persisted plan payload exchanged across the Soundscaper renderer and desktop delivery boundary." }
@@ -610,11 +630,15 @@
 		,
 		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/unified-exact-render-clip-picture-v2.ts", "kind": "persisted-contract", "justification": "Version 2 exact-render clip picture records independently admit complete resource-aware effects and keyframes beside the unchanged composition and timing contracts." }
+		,
 		{ "path": "src/common/editor/unified-exact-render-delivery-v15.ts", "kind": "persisted-contract", "justification": "unified-exact-render-delivery-v15.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-consumers-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v14.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-consumers-v14.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v16.ts", "kind": "helper-contract", "justification": "Named generation 16 finishing preview and export consumers require complete canonical resource-capable render-plan admission before borrowing the shared finishing execution core." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-finishing-motion-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-motion-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -626,9 +650,13 @@
 		,
 		{ "path": "src/common/editor/unified-exact-render-plan-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v16.ts", "kind": "persisted-contract", "justification": "The explicit generation 16 canonical exact-render plan binds complete version 2 clip pictures and immutable fingerprints without widening the named generation 9 through 15 plan contracts." }
+		,
 		{ "path": "src/common/editor/unified-exact-render-plan-v9.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v9.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-visual-consumers-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-consumers-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-visual-consumers-v16.ts", "kind": "helper-contract", "justification": "Named generation 16 visual preview and export consumers require complete canonical resource-capable render-plan admission before borrowing the shared visual execution core." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-visual-materializer-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-materializer-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -662,6 +690,8 @@
 		,
 		{ "path": "src/common/editor/video-cube-lut-profile-v1.ts", "kind": "persisted-contract", "justification": "Version 1 cube LUT profile owns one nullable exact V27 reference, closed effect admission and private scalar resource plans using inherited linear Rec709 trilinear semantics. Disabled references remain retained for custody; null explicitly bypasses processing. No parsed body, runtime effect registration, GPU code or expression is persisted." }
 		,
+		{ "path": "src/common/editor/video-cube-lut-project-references-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar custody collection retains complete Cube references from current timeline and project-bin effects, including disabled leaves, without granting project admission or body authentication." }
+		,
 		{ "path": "src/common/editor/video-curve-transfer-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded curve preparation maps exact admitted Float64 coordinates to binary-rational arithmetic, retaining at most four arrays of thirty-two point pairs and one detached 256-entry RGBA table. Balanced FFmpeg byte decisions have depth eight and preserve the fixed master-before-channel quantization contract." }
 		,
 		{ "path": "src/common/editor/video-curve-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared effect parameters add only closed immutable dimensionless point arrays alongside existing numeric values. Runtime point-array admission remains exclusively with the owning point-curve normalizer; old numeric effect profiles remain unchanged." }
@@ -694,9 +724,19 @@
 		,
 		{"path": "src/common/editor/video-image-geometry-v1.ts", "kind": "persisted-contract", "justification": "Version 1 numeric geometry effect settings bind crop aspect, clockwise rotation, output-axis flips and source-quad rectification across Frame and photo effect persistence."}
 		,
+		{ "path": "src/common/editor/video-keyframe-curves-v2.ts", "kind": "persisted-contract", "justification": "Version 2 keyframe curve operations admit the complete current effect context while retaining resource references as discrete nonnumeric values outside animated targets." }
+		,
+		{ "path": "src/common/editor/video-keyframe-effect-context-v2.ts", "kind": "helper-contract", "justification": "Version 2 keyframe context fully admits current effect envelopes and preserves discrete nullable Cube references without granting numeric animation targets for resource fields." }
+		,
 		{ "path": "src/common/editor/video-keyframe-export-plan-v7-values.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7-values.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-keyframe-export-plan-v7.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-keyframe-preview-state-v2.ts", "kind": "helper-contract", "justification": "Version 2 preview-state resolution accepts only a privately created current render-state provider and otherwise preserves the unchanged legacy preview-state route." }
+		,
+		{ "path": "src/common/editor/video-keyframe-render-state-provider-v2.ts", "kind": "helper-contract", "justification": "Version 2 privately branded render-state providers compile and evaluate complete current effect contexts while preserving legacy provider identity and admission." }
+		,
+		{ "path": "src/common/editor/video-keyframe-state-v2.ts", "kind": "helper-contract", "justification": "Version 2 compiled and evaluated keyframe state binds resource-aware effects and curve admission to the shared state core without changing legacy state owners." }
 		,
 		{ "path": "src/common/editor/video-mask-matte-rgba-v13.ts", "kind": "persisted-contract", "justification": "video-mask-matte-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -754,6 +794,14 @@
 		,
 		{ "path": "src/framescaper/delivery-native-target-execution-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-target-execution-v1.ts validates the V1 native delivery report target identity independently of product schema." }
 		,
+		{ "path": "src/framescaper/editor-project-unified-render-plan-v16.ts", "kind": "persisted-contract", "justification": "Current Frame generation 16 plan construction combines validated project, exact source timing, visual nodes and finishing authority into the complete resource-capable picture contract." }
+		,
+		{ "path": "src/framescaper/editor-selected-finishing-exact-preview-v16.ts", "kind": "helper-contract", "justification": "The selected current generation 16 resource preview owns a joined retirement barrier; its separate no-resource route preserves the strict generation 13 plan and legacy factory." }
+		,
+		{ "path": "src/framescaper/editor-selected-timeline-image-resource-preview-v16.ts", "kind": "helper-contract", "justification": "The generation 16 timeline-image resource preview binds complete current picture ordering, scoped image planes and privately paired native OpenFX execution under joined cancellation." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-resource-projection-v14.ts", "kind": "helper-contract", "justification": "The version 14 clipboard metadata adapter creates a transient resource-free view only after complete current admission; the original current carrier retains the full recipe and custody references." }
+		,
 		{ "path": "src/framescaper/editor-session-clipboard-v11-controller.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-controller.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v11-selection.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-selection.ts is a clipboard wire-format revision exchanged independently of project schema." }
@@ -768,11 +816,29 @@
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v13.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v13.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
+		{ "path": "src/framescaper/editor-session-clipboard-v14-paste.ts", "kind": "helper-contract", "justification": "Version 14 paste restores the complete current descriptor and already allocated sparse effect IDs after legacy rich metadata planning, preserving current resource custody and command admission." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v14.ts", "kind": "ipc-contract", "justification": "Frame clipboard wire format V14 captures complete descriptor V7, rich metadata and scalar Cube custody including disabled resources while body authentication remains owned by staged IO." }
+		,
 		{ "path": "src/framescaper/editor-session-clipboard-v8.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v8.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v9.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v9.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
+		{ "path": "src/framescaper/editor-video-exact-browser-effects-finishing-v2.ts", "kind": "helper-contract", "justification": "Version 2 exact browser finishing captures current effect capabilities before awaits and applies scoped Cube resources at their authored stage without widening legacy rendering admission." }
+		,
 		{ "path": "src/framescaper/native-render-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "native-render-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/framescaper/selected-finishing-exact-frame-execution-v16.ts", "kind": "helper-contract", "justification": "Current generation 16 selected frame execution admits complete version 2 pictures and captures active native surfaces before scoped current-stage resource acquisition." }
+		,
+		{ "path": "src/framescaper/selected-native-media-openfx-resource-v16.ts", "kind": "helper-contract", "justification": "The generation 16 native resource bridge privately pairs the complete resource-capable plan with a numeric native V14 projection; the host ABI receives no resource rendering authority." }
+		,
+		{ "path": "src/framescaper/video-export-exact-execution-v16.ts", "kind": "helper-contract", "justification": "Generation 16 exact export execution binds selected current visual and frame execution with authenticated resource-layer restoration while borrowing the existing export execution core." }
+		,
+		{ "path": "src/framescaper/video-export-image-execution-timeline-image-v16.ts", "kind": "helper-contract", "justification": "Generation 16 image export execution captures current options, admits the complete resource-capable plan and preserves timeline-image resource ordering and custody under intrinsic cancellation." }
+		,
+		{ "path": "src/framescaper/video-export-resource-carrier-v16.ts", "kind": "helper-contract", "justification": "Generation 16 export carrier adaptation retains the complete canonical resource snapshot and restores authenticated authored resource layers beside the unchanged strict numeric decoder carrier." }
+		,
+		{ "path": "src/framescaper/video-export-visual-execution-v16.ts", "kind": "helper-contract", "justification": "Generation 16 visual export execution selects the current resource-capable plan constructor while borrowing the existing shared visual execution lifetime." }
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-contract-v2.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 2 adds authenticated stack packs while preserving the Scape envelope and canonical photo version 1 contracts."}
 		,
