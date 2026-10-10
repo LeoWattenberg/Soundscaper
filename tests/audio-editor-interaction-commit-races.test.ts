@@ -12,7 +12,7 @@ test('new shortcut rows reconcile controlled input during the layout commit', as
 		'../src/common/editor/ui/dialogs/ShortcutEditorRow.tsx',
 		import.meta.url,
 	), 'utf8');
-	assert.match(source, /useLayoutEffect\(\(\) => setEntries\(editableEntries\(persisted\)\), \[persisted\]\);/u);
+	assert.match(source, /useLayoutEffect\(\(\) => \{\s*if \(!unassignedDraft\.current\) setEntries\(editableEntries\(persisted\)\);\s*\}, \[persisted\]\);/u);
 });
 
 test('dynamic macro roving focus is initialized during the layout commit', async () => {
