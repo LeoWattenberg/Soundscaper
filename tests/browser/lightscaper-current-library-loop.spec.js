@@ -60,9 +60,17 @@ for (const locale of ['en', 'de']) test(`${locale}: current keyboard library loo
 	expect(reference).toEqual({ storageKey: `lut-sha256:${LUT_SHA}`, sha256: LUT_SHA, byteLength: CUBE.length, size: 2, domainMin: [0, 0, 0], domainMax: [1, 1, 1] });
 	expect(current.rating).toBe(5); expect(current.flag).toBe('pick');
 
-	await selectBoth(); await action(copy.photoFileMenu, copy.photoStackCreate, true);
+	await selectBoth();
+	const stackIds = await library.locator('[data-photo-id][aria-pressed=true]').evaluateAll(nodes => nodes.map(node => node.dataset.photoId));
+	expect([...stackIds].sort()).toEqual([...ids].sort());
+	await action(copy.photoFileMenu, copy.photoStackCreate, true);
 	const stack = named(page, 'dialog', copy.photoStackTitle);
 	await expect(stack.locator('[data-stack-member]')).toHaveCount(2);
+	for (const [index, id] of stackIds.entries()) {
+		const member = stack.locator('[data-stack-member]').nth(index);
+		await expect(member).toHaveAttribute('data-stack-member', id);
+		await expect(member.locator('span').first()).toHaveText(resident.photos.find(item => item.photo.id === id).photo.metadata.fileName);
+	}
 	await key(stack.locator(`[data-stack-member="${legacyId}"]`).getByRole('button', { name: copy.photoStackMakeCover, exact: true }));
 	await key(named(stack, 'button', copy.photoStackSave)); await expect(stack.locator('[data-stack-ack]')).toContainText(copy.photoStackCreated);
 	await close(stack, copy.photoCloseMetadata);
@@ -116,16 +124,23 @@ for (const locale of ['en', 'de']) test(`${locale}: current keyboard library loo
 		creator: 'Keyboard author', location: 'Keyboard location', captureTime: { local: canonicalClock(authoredClock), offsetMinutes: 120 } });
 	expect(resident.photos[0].photo.folderId).toBe(folder.id); expect(resident.photos[0].photo.keywordIds).toEqual([keyword.id]);
 	const beforeRename = resident;
-	await selectBoth(); await action(copy.photoFileMenu, copy.photoBatchRenameTitle, true);
+	await selectBoth();
+	const renameIds = await library.locator('[data-photo-id][aria-pressed=true]').evaluateAll(nodes => nodes.map(node => node.dataset.photoId));
+	expect([...renameIds].sort()).toEqual([...ids].sort());
+	await action(copy.photoFileMenu, copy.photoBatchRenameTitle, true);
 	const rename = named(page, 'dialog', copy.photoBatchRenameTitle);
 	await text(rename.locator('[data-batch-rename-template]'), 'Trip-{sequence}.{extension}');
 	await text(rename.locator('[data-batch-rename-sequence-start]'), '1'); await text(rename.locator('[data-batch-rename-sequence-padding]'), '3');
 	await key(rename.locator('[data-batch-rename-preview]')); await expect(rename.locator('[data-batch-rename-plan-row]')).toHaveCount(2);
-	for (const [index, value] of ['Trip-001.png', 'Trip-002.png'].entries()) await expect(rename.locator('[data-batch-rename-plan-row]').nth(index)).toContainText(value);
+	for (const [index, value] of ['Trip-001.png', 'Trip-002.png'].entries()) {
+		const row = rename.locator('[data-batch-rename-plan-row]').nth(index);
+		await expect(row.locator('td').nth(0)).toHaveText(beforeRename.photos.find(item => item.photo.id === renameIds[index]).photo.metadata.fileName);
+		await expect(row.locator('td').nth(1)).toHaveText(value);
+	}
 	await key(rename.locator('[data-batch-rename-apply]')); await expect(rename.locator('[data-batch-rename-status="renamed"]')).toHaveCount(2);
 	await key(rename.locator('[data-batch-rename-close]')); resident = await observe(ids); assertSources(resident, imported);
 	for (let index = 0; index < 2; index++) {
-		expect(resident.photos[index].photo.metadata).toEqual({ ...beforeRename.photos[index].photo.metadata, fileName: `Trip-00${index + 1}.png` });
+		expect(resident.photos[index].photo.metadata).toEqual({ ...beforeRename.photos[index].photo.metadata, fileName: `Trip-00${renameIds.indexOf(ids[index]) + 1}.png` });
 		expect(resident.photos[index].photo.revision).toBe(beforeRename.photos[index].photo.revision + 1);
 	}
 
@@ -167,7 +182,7 @@ for (const locale of ['en', 'de']) test(`${locale}: current keyboard library loo
 	expect(archive.root).toEqual(final.root); expect(archive.photos.map(row => row.document)).toEqual([...final.photos.map(row => row.photo)].sort(byId));
 	for (const row of archive.photos) { expect(row.original).toEqual(PNG); expect(sha(row.original)).toBe(row.document.original.contentSha256); }
 	expect(archive.resources).toEqual([{ reference, bytes: CUBE }]); expect(archive.stacks).toHaveLength(1);
-	expect(archive.stacks[0]).toMatchObject({ photoIds: ids, coverPhotoId: legacyId });
+	expect(archive.stacks[0]).toMatchObject({ photoIds: stackIds, coverPhotoId: legacyId });
 	expect(archive.savedState).toMatchObject({ collectionCount: 1 }); expect(archive.saved).toHaveLength(1);
 	expect(archive.saved[0]).toMatchObject({ name: 'Trip live query', query: { filter: { kind: 'collection', id: smart.id } } });
 	expect(archive.presets.schemaVersion).toBe(2); expect(archive.presetHeader).toMatchObject({ rowSchemaVersion: 2, revision: 2, presetCount: 2 });
@@ -284,6 +299,8 @@ async function menu(page, app, title, action, submenu) {
 	await keyboard(page, named(app, 'button', action));
 }
 async function chooseWithKeyboard(page, combo, value) {
+	await expect(combo).toBeVisible(); await expect(combo).toBeEnabled();
+	await expect(combo.locator(`option[value=${JSON.stringify(value)}]`)).toHaveCount(1);
 	const index = await combo.locator('option').evaluateAll((options, value) => options.findIndex(option => option.value === value), value);
 	expect(index).toBeGreaterThanOrEqual(0); expect(index).toBeLessThan(64); await combo.focus(); await expect(combo).toBeFocused(); await page.keyboard.press('Home');
 	for (let count = 0; count < index; count++) await page.keyboard.press('ArrowDown'); await expect(combo).toHaveValue(value);
