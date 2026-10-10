@@ -76,3 +76,24 @@ preserve their semantic groups and all existing size/graph ceilings.
 Verification diagnostics are removed after their result is recorded. Permanent
 regression tests remain. Desktop assistance engine sources, recipes and runtime
 closures are unchanged; no manual **Update AI assets** run is required.
+
+The canonical checkpoint's static gate passes, including all eight lint shards,
+source and test typechecking, architecture, dependency audit, documentation
+and production build. Its first Node attempt stopped at the isolated desktop
+runtime fixture inventory; that named inventory was corrected before restarting
+the complete suite. The restarted run completes 25,132 tests in 987.4 seconds:
+25,052 pass, 47 fail and 33 skip. This is a completed failing run, followed by
+focused resolution, rather than a claimed full-suite pass.
+
+Thirty-four reference-reader cases failed because this new worktree lacked the
+repository's pinned interchange tools. After provisioning those exact tools,
+all 34 pass unchanged. The remaining 13 failures were two missing chapter
+boundary registrations, three obsolete mix/render or analysis expectations,
+one incomplete picture-selection controller stub, two old filter-tail length
+expectations, three omitted nightly fixture dependencies, the audit document
+index and the effect-tail helper's version registry row. Exact focused replay
+groups pass 19, 27, 5, 31 and 17 tests respectively, retaining physical output,
+history and ownership assertions. These corrections add no bug counts. The
+complete browser run continues against the frozen prepared checkpoint while
+later changes proceed in the advance worktree. Completed documentation build
+output and reviewed diagnostics are removed immediately after their receipts.
