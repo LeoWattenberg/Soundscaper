@@ -230,3 +230,29 @@ compilation passes. The qualified total is84: editing19, dialogs25, effects17
 and IO23. New preset-refusal and EDL overlap-report candidates remain outside
 this tally until their corrected complete public workflows pass. Reviewed
 verification logs and diagnostics are deleted immediately.
+
+## Completed checkpoint-50 browser gate
+
+The unchanged complete browser run against frozen prepared48b7bf244 finishes
+all6,414 scheduled cases in2.7 hours:6,077 pass,87 fail,244 skip and6 do not
+run (exit1). This is a completed failing full run. Focused resolution below
+does not retroactively turn it into a full-suite pass.
+
+The failures include transient editor-start readiness, short playback/progress
+observers, missing pinned external readers, intentionally extended native IIR
+delivery lengths, and the already corrected D010/D016 prerequisites. Current
+isolated Firefox file/DAW/CUE replays pass12 cases unchanged, including AUP3,
+AUP4, gain automation, group routing and loop delivery. Provisioned FCPXML
+reader checks and the complete ordinary capture retry likewise pass. The
+original WebKit dragged preset dialog passes unchanged in8.8 seconds. Native
+desktop-only plug-in Firefox fixtures do not establish shipped desktop bugs.
+These verification follow-throughs add no counts. Other exact failed-case
+replays and observer investigations remain in progress.
+
+Reviewed root diagnostics show eight Firefox editing cases and the modified
+output-lane shortcut failing before any action at editor-ready=false. Three
+Firefox picture-edit cases stop at the same prerequisite. WebKit mixed-session
+and tempo failures retain120 instead of their intended tempo; their shared
+input helper is being checked before proposing any production change.
+The original diagnostic directories are deleted once read and classified;
+only active replay output and the shared full-run log remain during review.
