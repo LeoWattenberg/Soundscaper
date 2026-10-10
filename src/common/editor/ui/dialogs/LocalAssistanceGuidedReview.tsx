@@ -6,7 +6,8 @@ import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-ass
 
 import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import { ProcessingButton as Button } from './ProcessingButton.tsx';
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import DraggableCropOverlay from './LocalAssistanceCropOverlay.tsx';
 
 import type {
 	LocalAssistanceGuidedReviewedResult,
@@ -156,36 +157,6 @@ function positionMaximum(
 	return Math.max(0, Math.floor((1 - extent) * 1_000) / 1_000);
 }
 
-function DraggableCropOverlay({ crop, label, onCrop }: Readonly<{
-	crop: ReviewCrop;
-	label: string;
-	onCrop: (crop: ReviewCrop) => unknown;
-}>) {
-	const move = (event: ReactPointerEvent<HTMLDivElement>): void => {
-		const bounds = event.currentTarget.getBoundingClientRect();
-		if (bounds.width <= 0 || bounds.height <= 0) return;
-		const width = 1 - crop.left - crop.right;
-		const height = 1 - crop.top - crop.bottom;
-		const left = boundedPosition((event.clientX - bounds.left) / bounds.width - width / 2, width);
-		const top = boundedPosition((event.clientY - bounds.top) / bounds.height - height / 2, height);
-		void onCrop({ left, top, right: unit(1 - width - left), bottom: unit(1 - height - top) });
-	};
-	return <div className="kw-local-assistance__crop-overlay" aria-label={label}
-		onPointerDown={(event) => {
-			if (event.button !== 0) return;
-			event.currentTarget.setPointerCapture(event.pointerId);
-			move(event);
-		}}
-		onPointerMove={(event) => {
-			if (event.currentTarget.hasPointerCapture(event.pointerId)) move(event);
-		}}
-		onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
-		style={{ paddingLeft: `${String(crop.left * 100)}%`,
-			paddingRight: `${String(crop.right * 100)}%`,
-			paddingTop: `${String(crop.top * 100)}%`,
-			paddingBottom: `${String(crop.bottom * 100)}%` }}><span /></div>;
-}
-
 function CropPositionControls({ copy, crop, onCrop }: Readonly<{
 	copy: Copy;
 	crop: ReviewCrop;
@@ -207,14 +178,6 @@ function CropPositionControls({ copy, crop, onCrop }: Readonly<{
 					void onCrop({ ...crop, top, bottom: 1 - height - top });
 				}} /></label>
 	</>;
-}
-
-function boundedPosition(value: number, extent: number): number {
-	return unit(Math.min(1 - extent, Math.max(0, value)));
-}
-
-function unit(value: number): number {
-	return Math.round(value * 1_000_000_000) / 1_000_000_000;
 }
 
 function HighlightReview({ copy, body, draft, authority, onTitle, onTrim, onCrop }: Readonly<{
