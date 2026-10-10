@@ -664,6 +664,24 @@ and the full log were consumed and their owned outputs/log immediately removed
 after this receipt. Original full-run and unchanged-replay failures remain
 recorded; source/count and every assertion/deadline remain unchanged so far.
 
+Freesound native-body observer follow-through (verification only, zero count):
+the two owned specs now read the actual immutable fetch File/Blob as compact
+base64 and forward the identical native fetch arguments. All original picker,
+connected account, ready response, route filename/content-type, RIFF/frame,
+source-clock and physical programme/upper-band checks and30-second/five-second
+limits remain. Where the driver supplies bytes, the observer additionally
+requires exact byte-for-byte equality. Target and changed lint pass. Complete
+three-engine proof has11 passes and one failure in53.9 seconds: Chromium four
+cases2.8/2.8/2.7/2.6 seconds; Firefox four5.4/4.3/4.2/3.9 seconds; WebKit .wav/.bwf
+4.5/4.4 and96 kHz4.2 seconds pass. WebKit44.1 kHz4.4 seconds now reaches actual
+captured RIFF but fails because it has no complete PCM frames. Its ready-upload
+UI remains healthy; this is a newly visible physical-data observation, whose
+native decode/conversion cause is still being investigated. It is not reported
+as a whole pass or assigned another count. Exact completed context/PNG/full log
+were consumed and all owned replay outputs/logs immediately removed; native
+readers and exclusive CPU slot close for queued followers. Original full-run
+driver-body failures and the unchanged replay failures remain recorded.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
