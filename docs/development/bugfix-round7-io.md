@@ -375,6 +375,11 @@ The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
 application action or adversarial media.
+IO044 strict-fixture follow-through (zero count): the complete tests/tooling
+compiler found only the optional cache cleanup invocation in its actual
+controller resource witness. Assert the real cache cleanup capability before
+calling it, preserving the owned disposal rather than widening a production
+type. The bounded compiler error log was read and removed immediately.
 Forty-two qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
