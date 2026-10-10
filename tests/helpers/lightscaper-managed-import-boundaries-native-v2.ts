@@ -169,7 +169,13 @@ async function snapshot(owner: Owners, names: Names, catalogId: string, referenc
 	return { root: await owner.catalog.loadCatalog(catalogId), photos, originals, retained: retained.roots, staged: staged.roots,
 		intent: await owner.media.settingsRepository.get(photoImportIntentKeyV1(catalogId)) ?? null, lut,
 		catalogCounts: await counts(names.catalog, ['photos', 'summaries', 'photoQueryRowsV2']),
-		mediaCounts: await counts(names.media, ['mediaAssets', 'mediaAssetStaging']) };
+		mediaCounts: await counts(names.media, ['mediaAssets', 'mediaAssetStaging']), mediaStagingRows: await nativeStagingRows(names.media) };
+}
+
+async function nativeStagingRows(name: string): Promise<readonly unknown[]> {
+	const database = await openDatabase(name);
+	try { return await request<unknown[]>(database.transaction('mediaAssetStaging', 'readonly').objectStore('mediaAssetStaging').getAll()); }
+	finally { database.close(); }
 }
 
 async function nativeAsset(name: string, key: string) {

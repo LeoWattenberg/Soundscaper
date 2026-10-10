@@ -58,7 +58,9 @@ for (const [phase, when, body, photo, staged, retained, journal] of CUTS) {
 				folders: [], keywords: [], collections: [] });
 			expect(actual.photos).toEqual([result.inputs.prior, state.photo ? result.inputs.current : null]);
 			expect(actual.catalogCounts).toEqual({ photos: state.photo ? 2 : 1, summaries: state.photo ? 2 : 1, photoQueryRowsV2: state.photo ? 2 : 1 });
-			expect(actual.mediaCounts).toEqual({ mediaAssets: state.body ? 2 : 1, mediaAssetStaging: 0 });
+			expect(actual.mediaCounts).toEqual({ mediaAssets: state.body ? 2 : 1, mediaAssetStaging: 1 });
+			expect(actual.mediaStagingRows).toEqual([{ key: 'state', kind: 'state', generation: 'initial' }]);
+			expect(actual.mediaStagingRows.filter(row => row.kind !== 'state')).toHaveLength(0);
 			expect(actual.intent).toEqual(state.journal ? { schemaVersion: 1, kind: 'photo-import', catalogId: result.catalogId, importId: result.importId } : null);
 			expect(actual.lut).toEqual({ bytes: [...CUBE], actualSha256: sha(CUBE) });
 			assertOriginal(actual.originals[0], PRIOR, 'prior', true, 1);
