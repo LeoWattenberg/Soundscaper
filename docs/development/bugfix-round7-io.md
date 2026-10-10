@@ -698,7 +698,9 @@ visible after its successful project handoff. Both exact JSON errors, contexts
 and PNGs were read; the screenshots show the replacement project underneath the
 old confirmation. This matches the already repaired D036 handoff lifetime,
 whose whole unchanged current replays passed in Chromium and Firefox. Original
-full-suite failures remain recorded; two unchanged WebKit workflows are queued.
+full-suite failures remain recorded. Both unchanged whole WebKit workflows pass
+on authenticated dd877d8a8 (origin9.0/other-project5.3 seconds,2/2 in16.0
+seconds), retaining actual capture, refusal, deletion and media assertions.
 Only these exact completed failure directories were removed immediately. No
 other completed import/export/capture diagnostic remains unconsumed by this lane.
 
