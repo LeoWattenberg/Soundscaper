@@ -104,6 +104,7 @@ for (const locale of ['en', 'de']) {
 		await keyboard(page, forget); await expect(dialog.getByRole('status')).toHaveText(words.empty);
 		expect(await observeJournal(page)).toBeNull(); expect(downloads).toHaveLength(3); expect(await observe(page, ids)).toEqual(before);
 		await keyboard(page, named(dialog, 'button', words.hide));
+		await menu(page, app, copy.photoViewMenu); await keyboard(page, named(app, 'button', copy.photoShowLibrary)); await expect(library).toBeVisible();
 		await menu(page, app, copy.photoPhotoMenu); await keyboard(page, named(app, 'button', copy.photoSelectAll));
 		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.downloadSelected));
 		dialog = named(page, 'dialog', words.title); await choose(page, dialog.getByLabel(words.format, { exact: true }), format);
