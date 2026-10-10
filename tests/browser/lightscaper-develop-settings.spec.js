@@ -149,6 +149,9 @@ async function checked(page, locator, value) {
 	if (await locator.isChecked() !== value) await page.keyboard.press('Space'); await expect(locator).toBeChecked({ checked: value });
 }
 async function choose(page, combo, choice) {
+	await expect(combo).toBeVisible(); await expect(combo).toBeEnabled();
+	await expect.poll(() => combo.locator('option').evaluateAll((values, choice) => values.filter(option =>
+		typeof choice === 'string' ? option.value === choice : option.label === choice.label).length, choice)).toBe(1);
 	const options = await combo.locator('option').evaluateAll(values => values.map(option => ({ value: option.value, label: option.label })));
 	const index = options.findIndex(option => typeof choice === 'string' ? option.value === choice : option.label === choice.label);
 	expect(index).toBeGreaterThanOrEqual(0); expect(index).toBeLessThan(64); await combo.focus(); await expect(combo).toBeFocused(); await page.keyboard.press('Home');
