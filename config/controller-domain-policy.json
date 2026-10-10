@@ -203,6 +203,7 @@
 		"shared/lifecycle.ts",
 		"shared/owned-state.ts",
 		"shared/presentation-localization.ts",
+		"shared/serial-project-operation-queue.ts",
 		"shared/storage-capacity-runtime.ts",
 		"shared/storage-capacity-service.ts",
 		"shared/task-progress.ts",

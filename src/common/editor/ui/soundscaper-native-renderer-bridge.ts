@@ -40,6 +40,7 @@ import {
 	nextNativePluginGeneration, projectPluginStates, withProjectLatency,
 } from './soundscaper-native-renderer-project-operation.ts';
 import { closeSoundscaperNativePluginVendorUi } from './soundscaper-native-vendor-ui-close.ts';
+import { createSerialProjectOperationQueue } from '../controller/shared/serial-project-operation-queue.ts';
 
 const PLUGIN_PORT_EVENT = 'soundscaper-native-plugin-rpc-port-v1';
 
@@ -102,6 +103,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	};
 	const offlineInstanceIds = new Set<string>();
 	const ownershipOperations = createSoundscaperNativeRendererOperationBarrier();
+	const stateOperations = createSerialProjectOperationQueue(() => captureSoundscaperNativeProjectOperation(options.controller));
 	let offlineSequence = 0;
 	let reconciliation: Promise<readonly unknown[]> = Promise.resolve([]);
 	let disposal: Promise<void> | null = null;
@@ -274,8 +276,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			setNativePluginBypassed(request.instanceId, update?.bypassed ?? bypassed, update?.transition?.contextTime);
 			return instance;
 		},
-		async persistNativePluginState(request: Readonly<{ instanceId: string; generation: number }>) {
-			const projectOperation = captureSoundscaperNativeProjectOperation(options.controller);
+		persistNativePluginState: stateOperations.wrap(async (projectOperation, request: Readonly<{ instanceId: string; generation: number }>) => {
 			const state = await saveNativePluginRuntimeState(request.instanceId);
 			projectOperation.assertCurrent();
 			const generation = nextNativePluginGeneration(generations, request.instanceId, request.generation);
@@ -290,12 +291,11 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 				activeStateKeys.set(request.instanceId, stateKey(projectState, projectOperation.projectId));
 			}
 			return persisted;
-		},
-		async restoreNativePluginState(request: Readonly<{
+		}),
+		restoreNativePluginState: stateOperations.wrap(async (projectOperation, request: Readonly<{
 			instanceId: string; generation: number;
 			stateBody: Readonly<{ kind: 'native-plugin-state'; bodyId: string; byteLength: number; sha256: string }>;
-		}>) {
-			const projectOperation = captureSoundscaperNativeProjectOperation(options.controller);
+		}>) => {
 			const generation = nextNativePluginGeneration(generations, request.instanceId, request.generation);
 			const restored = await (options.bridge.restoreNativePluginState({
 				...request, generation,
@@ -312,7 +312,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			project?.persist(projectState, projectOperation);
 			activeStateKeys.set(request.instanceId, stateKey(projectState, projectOperation.projectId));
 			return Object.freeze({ projectState: restored.projectState });
-		},
+		}),
 		async openNativePluginVendorUi(request: Readonly<{ instanceId: string }>) {
 			const outcome = await options.bridge.openNativePluginVendorUi(request);
 			if (outcome.status !== 'opened') return outcome;
