@@ -313,7 +313,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 });
 
 test('cancelling a prepared timed recorder keeps ordinary controls busy until disposal completes', () => {
-	const state = stateFixture({ recorder: { state: 'ready' }, timedRecordingCancelling: true });
+	const state = { ...stateFixture({ recorder: { state: 'ready' }, timedRecordingCancelling: true }) };
 	const runtime = { ...documentRuntimeFixture({ id: 'project' }), state };
 	const cancelling = createEditorDocumentSnapshot(runtime);
 	assert.equal(cancelling.recording, false, 'a cancelled prepared take is never advertised as recording');
