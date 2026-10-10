@@ -352,3 +352,11 @@ actual controller, native range/Skip, manifest and all unchanged shield audit
 checks pass24/24; type-aware targeted lint, size and diff checks pass. Reviewed
 causal diagnostics, logs and focused verification output are removed
 immediately. No manual **Update AI assets** run is required.
+
+EDIT025's exact-extent follow-through adds a native Title at4800 with Snap
+enabled: the corrected native reader reaches valid geometry but its existing
+pointer selection API still rounds the start to0. This is the same export
+consumer, with zero additional count. Use the existing exact selection API
+at both clip-export entry paths; the three actual Title placements, original
+native range/Skip, manifest and all shield support now pass25/25. Targeted
+lint passes and reviewed follow-through output is immediately removed.

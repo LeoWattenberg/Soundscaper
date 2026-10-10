@@ -299,7 +299,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				const range = clipContentRange(project(), clip);
 				if (!range) return null;
 				controllerActions.timeline.selectClip(clip.id);
-				setSelection(range.startFrame, range.endFrame, { clipIds: [clip.id] });
+				controllerActions.timeline.setExactSelection(range.startFrame, range.endFrame, { clipIds: [clip.id] });
 				return openSurface('export', { range: 'selection', clipId: clip.id });
 			},
 		},

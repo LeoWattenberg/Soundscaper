@@ -8,7 +8,7 @@ import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/ed
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../src/common/editor/ui/framescaper-candidate-authoring-actions.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-for (const startFrame of [0, 48_000]) test(`native Title clip export uses its authored range at ${startFrame}`, async context => {
+for (const startFrame of [0, 4_800, 48_000]) test(`native Title clip export uses its authored range at ${startFrame}`, async context => {
 	const environment = await createFramescaperEditorProjectEnvironment({ storeOptions: {
 		indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory, preferOpfs: false,
 		storageManager: { estimate: async () => ({ usage: 0, quota: 1024 ** 3 }),
@@ -29,6 +29,7 @@ for (const startFrame of [0, 48_000]) test(`native Title clip export uses its au
 	assert.equal(healthy.startFrame, startFrame);
 	assert.equal(healthy.endFrame, startFrame + 240_000);
 	controller.actions.timeline.clearSelection();
+	if (startFrame === 4_800) controller.actions.timeline.setSnap({ enabled: true, unit: 'seconds', mode: 'nearest' });
 	const media = structuredClone(controller.project!.clips);
 	const history = controller.getSnapshot().history;
 	const runtime = createAudacityActionRuntime(controller, { productId: 'framescaper' });

@@ -376,7 +376,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 							const range = clipContentRange(project, clip);
 							if (!range) return;
 							run(() => controller.actions.timeline.selectClip(clip.id));
-							run(() => controller.actions.timeline.setSelection(range.startFrame, range.endFrame));
+							run(() => controller.actions.timeline.setExactSelection(range.startFrame, range.endFrame));
 							openSurface('export');
 						}}
 						onUploadClipToFreesound={productId === 'soundscaper' ? uploadClipToFreesound : undefined}
