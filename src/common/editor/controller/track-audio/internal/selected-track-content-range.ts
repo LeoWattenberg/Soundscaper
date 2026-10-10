@@ -3,6 +3,7 @@
 import { resolveRuntimeClipProjection } from '../../../runtime-clip-projection.ts';
 import { sequenceFrameBoundarySample } from '../../../sequence-frame-navigation.ts';
 import type { RationalRate } from '../../../timeline-time.ts';
+import type { ClipSelectionNavigationProject } from './clip-selection-navigation-service.ts';
 import type { SelectionViewClip, SelectionViewProject } from './selection-view-service-types.d.ts';
 
 export interface SelectedTrackContentRange {
@@ -40,7 +41,7 @@ export function selectedTrackContentRange(
 	};
 }
 
-function clipContentRange(project: SelectionViewProject, clip: SelectionViewClip): SelectedTrackContentRange | null {
+export function clipContentRange(project: ClipSelectionNavigationProject, clip: SelectionViewClip): SelectedTrackContentRange | null {
 	if (isFrame(clip.sequenceStartFrame) && isFrame(clip.sequenceFrameCount)) {
 		const sequenceId = clip.sequenceId ?? project.primarySequenceId;
 		const sequence = project.sequences?.find(candidate => candidate.id === sequenceId);
@@ -58,7 +59,7 @@ function clipContentRange(project: SelectionViewProject, clip: SelectionViewClip
 		? { startFrame: clip.timelineStartFrame, endFrame: clip.timelineStartFrame + clip.durationFrames } : null;
 }
 
-function projectedClipContentRange(project: SelectionViewProject, clip: SelectionViewClip): SelectedTrackContentRange {
+function projectedClipContentRange(project: ClipSelectionNavigationProject, clip: SelectionViewClip): SelectedTrackContentRange {
 	const resolved = resolveRuntimeClipProjection(project, clip);
 	return { startFrame: resolved.timelineStartFrame, endFrame: resolved.timelineEndFrame };
 }

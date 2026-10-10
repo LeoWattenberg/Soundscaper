@@ -126,3 +126,27 @@ already passes. Remove its production handler and both unqualified regression
 files. The generic state-barrier fixture now accepts the browser's healthy
 native arrow value and still verifies actual state capture, delayed final drag,
 reset and restored position. No user bug count was ever assigned to019.
+
+## R7-EDIT-020 — Skip reads unresolved selected visual geometry
+
+Framescaper: Generate → Video Generators → Add Title/Text, select its header,
+Select → Region → Track start to end, then View → Skip to → Selection end.
+This healthy control reaches00:00:05:00. Select none, return Playhead to Home,
+select the same Title header and use Selection end again. The enabled action
+stays at00:00:00:00 because its independent Skip owner reads raw sample fields
+absent from the saved native Title. R4-EDIT-008 repaired the separately owned
+track-content range producer; that healthy producer already passes here.
+
+Resolve exact selected identities through existing editing authority, then
+reuse the existing native/musical content-range reader for their edges.
+Keep drawn ranges authoritative, expand existing groups and A/V relationships,
+retain disjoint selected spans, and preserve project/selection/history state.
+Frozen guarded wave82 reaches the causal public failure in13.8 seconds after
+the healthy range, Home and selected-header assertions. Its actual generated
+Title controller likewise reaches null instead of48000 after the healthy
+drawn-range control. Corrected native NTSC, musical and existing selection
+support passes33/33. An initial generic runtime-project projection cannot
+admit native generator records; it is discarded after its focused refusal,
+before any corrected build. Corrected complete public proof is pending.
+Reviewed causal diagnostics and logs are removed immediately. No manual
+**Update AI assets** run is required.

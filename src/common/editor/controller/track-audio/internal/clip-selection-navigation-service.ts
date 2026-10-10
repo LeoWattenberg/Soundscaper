@@ -6,6 +6,8 @@ import {
 	type RuntimePersistedClip,
 } from '../../../runtime-clip-projection.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
+import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
+import { clipContentRange } from './selected-track-content-range.ts';
 
 export interface ClipSelectionNavigationFrequencyRange {
 	readonly minimumFrequency: number;
@@ -145,9 +147,22 @@ export function createClipSelectionNavigationService<
 	function skipToSelectionBoundary(
 		boundary: 'startFrame' | 'endFrame',
 	): number | null {
-		const selection = resolveSelectionRange(dependencies.getProject(), {
-			selectedClipId: dependencies.state.selectedClipId,
+		const project = dependencies.getProject();
+		if (!project) return null;
+		const authority = resolveEditingSelectionAuthority({
+			project, focusedClipId: dependencies.state.selectedClipId,
 		});
+		let selection = authority.range;
+		if (!selection && authority.clipIds.length) {
+			const selectedIds = new Set(authority.clipIds);
+			const ranges = project.clips.filter(clip => selectedIds.has(clip.id))
+				.map(clip => clipContentRange(project, clip));
+			if (!ranges.length || ranges.some(range => range === null)) return null;
+			selection = {
+				startFrame: Math.min(...ranges.map(range => range!.startFrame)),
+				endFrame: Math.max(...ranges.map(range => range!.endFrame)),
+			};
+		}
 		if (!selection) return null;
 		const frame = selectionFrame(selection[boundary], `selection.${boundary}`);
 		dependencies.seek(frame);
