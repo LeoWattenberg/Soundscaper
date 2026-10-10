@@ -256,3 +256,11 @@ and tempo failures retain120 instead of their intended tempo; their shared
 input helper is being checked before proposing any production change.
 The original diagnostic directories are deleted once read and classified;
 only active replay output and the shared full-run log remain during review.
+
+The current guarded24cbd04c0 root replay passes all15 unchanged Firefox
+editing, output-lane shortcut and linked picture rate/roll/slip workflows in
+2.6 minutes. All five originally failing WebKit mixed-session and tempo
+workflows also pass unchanged in1.1 minutes, including persistence after
+reload. Their original startup/tempo observer failures do not reproduce;
+no production behavior, assertions, deadlines or input helpers are changed.
+Completed replay logs and output directories are removed immediately.

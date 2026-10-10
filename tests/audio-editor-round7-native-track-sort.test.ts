@@ -26,7 +26,7 @@ for (const criterion of ['name', 'time'] as const) test(`native Title tracks sor
 	const clips = controller.project?.clips.filter(clip => (clip as Readonly<Record<string, unknown>>).kind === 'generator');
 	assert.equal(clips?.length, 2);
 	const ids = clips!.map(clip => String(clip.id));
-	const ownerIds = ids.map(id => controller.project!.tracks.find(track => track.clipIds?.includes(id))!.id);
+	const ownerIds = ids.map(id => controller.project!.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(id))!.id);
 	assert.equal(new Set(ownerIds).size, 2);
 	controller.actions.clip.move(ids[0], ownerIds[0], 48_000);
 	assert.equal((controller.project!.clips.find(clip => clip.id === ids[0]) as Readonly<Record<string, unknown>>).sequenceStartFrame, 30);
