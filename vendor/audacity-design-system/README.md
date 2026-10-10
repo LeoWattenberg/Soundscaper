@@ -567,3 +567,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     document-key listener regression
     `tests/audio-editor-round7-musical-beat-step.test.tsx` and the ordinary
     Music workspace Playhead beat-step workflow. Upstream-PR candidate.
+
+73. `Slider` retains one admitted primary pointer through another finger's
+    release or cancellation. The shared native touch lease preserves the
+    browser's range drag; the application fractional sliders retain the same
+    lease through their existing hook. Covered by the actual mounted
+    `tests/audio-editor-round7-track-volume-touch-owner.test.tsx` and ordinary
+    track Volume mouse, single-finger, two-finger and one-Undo controls.
+    Upstream-PR candidate.
