@@ -210,13 +210,14 @@ function createTransitionPairs(project: Data, clips: readonly Data[]): readonly 
 	for (const track of records(project.tracks, 'project tracks')) {
 		if (track.type !== 'video' || track.locked === true || !Array.isArray(track.clipIds)) continue;
 		const ordered = track.clipIds.map(String).map((id) => clipById.get(id))
-			.filter((clip): clip is Data => clip?.kind === 'video')
+			.filter((clip): clip is Data => clip !== undefined)
 			.sort((left, right) => Number(left.sequenceStartFrame) - Number(right.sequenceStartFrame));
 		const transitions = Array.isArray(track.videoTransitions)
 			? records(track.videoTransitions, 'track transitions') : [];
 		for (let index = 1; index < ordered.length; index += 1) {
 			const outgoing = ordered[index - 1]!;
 			const incoming = ordered[index]!;
+			if (outgoing.kind !== 'video' || incoming.kind !== 'video') continue;
 			if (outgoing.sequenceId !== incoming.sequenceId) continue;
 			const sequence = sequences.find(({ id }) => id === outgoing.sequenceId);
 			if (!sequence) continue;
