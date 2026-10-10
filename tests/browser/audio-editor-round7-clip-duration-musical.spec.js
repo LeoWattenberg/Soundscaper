@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { Buffer } from 'node:buffer';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseDropdown, clipByName, closeClipProperties,
 	collectClientErrors, disableNativeSavePicker, importFiles, openClipProperties, openExportDialog,
@@ -68,13 +69,14 @@ test('Clip properties one-bar duration follows tempo at the placed recording', a
 		await expect(link).toBeVisible({ timeout: 20000 });
 		await expect(link).not.toHaveAttribute('href', previous ?? '');
 		const bytes = await readDownloadBytes(page, link);
-		const result = await page.evaluate(async bytes => {
+		const result = await page.evaluate(async encoded => {
 			const context = new OfflineAudioContext(1, 1, 48000);
-			const decoded = await context.decodeAudioData(Uint8Array.from(bytes).buffer);
+			const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+			const decoded = await context.decodeAudioData(bytes.buffer);
 			let peak = 0;
 			for (const value of decoded.getChannelData(0)) peak = Math.max(peak, Math.abs(value));
 			return { frames: decoded.length, peak };
-		}, Array.from(bytes));
+		}, Buffer.from(bytes).toString('base64'));
 		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 		return result;
 	}
