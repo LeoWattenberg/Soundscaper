@@ -37,8 +37,10 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 	editBlockedRef.current = editBlocked;
 	const cancelTimedRecordingOnClose = useRef(false);
 	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
+	// These actions intentionally replace the project before their promise settles.
+	const replacesProject = ['projects', 'delete', 'clear'].includes(type);
 	const operationState = useOwnedDialogOperation({
-		owner: JSON.stringify([type, snapshot.project?.id ?? null]), blocked: editBlocked, run,
+		owner: JSON.stringify([type, replacesProject ? null : snapshot.project?.id ?? null]), blocked: editBlocked, run,
 	});
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
 	const closeDialog = () => {
