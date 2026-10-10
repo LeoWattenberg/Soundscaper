@@ -666,7 +666,9 @@ The ordinary menu/profile/export witness is causally RED on guarded capture
 24cbd04c0 in 7.2 seconds: actual 48,000 versus more than 48,128 frames after
 healthy dry and zero-reduction exports. The initial healthy amplitude assertion
 omitted the ordinary mono pan law and is excluded as a fixture error. Corrected
-complete public verification is pending the next guarded capture. Owned logs
+complete public verification passes on authenticated capture 678a672d0 in
+8.2 seconds, including audible release, a quiet ending and normal bypass.
+Owned logs
 and diagnostics are read and removed immediately; PCM remains in memory.
 No manual Update AI assets run is required.
 
@@ -688,8 +690,11 @@ pass their complete focused workflows. The already corrected gate-floor
 observer passes with actual recent peak 0.0001000057. Unchanged Chromium
 Nyquist, both EQ raster cases and touch ownership pass; Firefox Nyquist cases
 also pass. The two current Firefox EQ attempts stop before their healthy
-native FFT assertion, with no observed FFT value and transport still stopped,
-so neither demonstrates the target raster defect. Their diagnostics are read
+native FFT assertion, with no observed FFT value and transport still stopped.
+Independent Firefox clock diagnostics subsequently identify an inherited
+nonadvancing PulseAudio server, so these healthy-control attempts remain
+environment failures and do not demonstrate the target raster defect.
+Their diagnostics are read
 and removed immediately. Original startup failures and the post-export
 Nyquist Close timeout likewise do not establish additional effects roots.
 Owned focused replay logs and artifacts are removed immediately. These
