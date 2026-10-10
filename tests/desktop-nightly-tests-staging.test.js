@@ -69,6 +69,14 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	assert.deepEqual(recorder, originalRecorder);
 	assert.equal(recorder.readUInt32LE(recorder.indexOf('fmt ') + 12), 48_000);
 	assert.ok(recorder.toString('utf8').includes('<SYNC_POINT_LOW>24000</SYNC_POINT_LOW>'));
+	for (const file of [
+		'chromium-audio-only.webm.base64', 'libsndfile-float32.aifc.base64',
+		'libsndfile-utf8-text.aiff.base64', 'libsndfile-zero-based-cues.wav.base64', 'python-uncompressed.aif.base64',
+	]) {
+		const url = new URL(`../fixtures/${file}`, recorderUrl);
+		assert.deepEqual(await readFile(url), await readFile(new URL(`./fixtures/${file}`, import.meta.url)),
+			`the staged browser must read the original ${file} bytes`);
+	}
 	const releaseLines = await readJson(join(fixture.outputRoot, 'config/product-release-lines.json'));
 	const soundscaper = releaseLines.products.soundscaper;
 	assert.equal(releaseReader.resolveProductApplicationVersion('soundscaper'),

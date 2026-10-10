@@ -174,6 +174,10 @@ export async function createFixture(context) {
 		['tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', 'ordinary BWF MetaEdit fixture\n'],
 		['tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', await readFile(new URL('../fixtures/bwfmetaedit-ixml-clock.wav.base64', import.meta.url), 'utf8')],
 		['tests/fixtures/ffmpeg-libmp3lame-one-second.mp3.base64', await readFile(new URL('../fixtures/ffmpeg-libmp3lame-one-second.mp3.base64', import.meta.url), 'utf8')],
+		...await Promise.all([
+			'chromium-audio-only.webm.base64', 'libsndfile-float32.aifc.base64',
+			'libsndfile-utf8-text.aiff.base64', 'libsndfile-zero-based-cues.wav.base64', 'python-uncompressed.aif.base64',
+		].map(async (file) => [`tests/fixtures/${file}`, await readFile(new URL(`../fixtures/${file}`, import.meta.url), 'utf8')])),
 		['src/common/editor/example.ts', 'export const source = true;\n'],
 	]) await writeFixtureFile(repositoryRoot, path, body);
 
