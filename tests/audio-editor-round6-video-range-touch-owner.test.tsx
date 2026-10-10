@@ -10,7 +10,7 @@ import type { VideoEffectLeaf } from '../src/common/editor/project-media-types.t
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-for (const variant of ['secondary-down', 'foreign-up', 'foreign-cancel']) test(`video range owns its primary gesture through ${variant}`, async () => {
+for (const pointerType of ['mouse', 'touch']) for (const variant of ['secondary-down', 'foreign-up', 'foreign-cancel']) test(`video ${pointerType} range owns its primary gesture through ${variant}`, async () => {
 	const dom = installReactTestDom();
 	const root = createRoot(dom.container as unknown as HTMLElement);
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -43,25 +43,26 @@ for (const variant of ['secondary-down', 'foreign-up', 'foreign-cancel']) test(`
 		const change = async (value: number): Promise<void> => {
 			await act(async () => { reactProps(input).onChange?.({ currentTarget: { value: String(value) } }); });
 		};
-		await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 1, button: 0, isPrimary: true,
-			currentTarget: { setPointerCapture(id: number) { captures.push(id); } } }); });
+		await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 1, pointerType, button: 0, isPrimary: true,
+			currentTarget: { ownerDocument: document, setPointerCapture(id: number) { captures.push(id); } } }); });
 		await change(0.2);
 		assert.equal(effect.params.brightness, 0.2);
 		if (variant === 'secondary-down') {
 			let consumed = false;
-			await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 2, button: 0, isPrimary: false,
+			await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 2, pointerType, button: 0, isPrimary: false,
 				preventDefault() { consumed = true; },
-				currentTarget: { setPointerCapture(id: number) { captures.push(id); } } }); });
+				currentTarget: { ownerDocument: document, setPointerCapture(id: number) { captures.push(id); } } }); });
 			assert.equal(consumed, true, 'a secondary finger must not take over the native range drag');
 		} else await act(async () => { reactProps(input)[variant === 'foreign-up' ? 'onPointerUp' : 'onPointerCancel']?.({ pointerId: 2 }); });
-		assert.deepEqual(captures, [1]);
+		assert.deepEqual(captures, pointerType === 'mouse' ? [] : [1],
+			'a native mouse thumb keeps its own drag routing while touch retains accepted capture');
 		assert.deepEqual(committed, [], 'a foreign pointer cannot publish the primary preview');
 		assert.equal(effect.params.brightness, 0.2, 'a foreign pointer cannot cancel the primary preview');
 		await change(0.5);
 		await act(async () => { reactProps(input).onPointerUp?.({ pointerId: 1 }); });
 		assert.deepEqual(committed, [0.5]);
-		await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 3, button: 0, isPrimary: true,
-			currentTarget: { setPointerCapture(id: number) { captures.push(id); } } }); });
+		await act(async () => { reactProps(input).onPointerDown?.({ pointerId: 3, pointerType, button: 0, isPrimary: true,
+			currentTarget: { ownerDocument: document, setPointerCapture(id: number) { captures.push(id); } } }); });
 		await change(0.8);
 		await act(async () => { reactProps(input).onPointerCancel?.({ pointerId: 3 }); });
 		assert.equal(effect.params.brightness, 0.5);

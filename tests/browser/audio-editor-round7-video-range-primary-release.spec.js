@@ -53,3 +53,38 @@ test('video Brightness publishes its primary edit while middle remains held', as
 	await expect(range).toHaveValue(completed);
 	expect(errors).toEqual([]);
 });
+
+
+test('video Brightness retains native outside release and keyboard history', async ({ page }) => {
+	const errors = collectClientErrors(page);
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await importFiles(editor, [createDeterministicSilentVideoFixture('outside-range.webm')]);
+	const clip = editor.getByRole('group', { name: /^Video clip:/u }).first();
+	const properties = await openClipProperties(page, editor, clip);
+	const rack = properties.locator('[data-video-effect-rack]');
+	await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+	const effect = rack.locator('[data-video-effect-id]');
+	const range = rack.getByRole('slider', { name: 'Brightness', exact: true });
+	await range.scrollIntoViewIfNeeded();
+	await expect(range).toHaveValue('0');
+	const box = await range.boundingBox();
+	expect(box).not.toBeNull();
+	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width + 30, box.y + box.height / 2, { steps: 5 });
+	await page.mouse.up();
+	await expect(range).toHaveValue('1');
+	await page.keyboard.press('ControlOrMeta+z');
+	await expect(effect).toHaveCount(1);
+	await expect(range).toHaveValue('0');
+	await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+	await expect(range).toHaveValue('1');
+	await range.press('ArrowLeft');
+	await range.press('Enter');
+	await expect(range).toHaveValue('0.99');
+	await page.keyboard.press('ControlOrMeta+z');
+	await expect(range).toHaveValue('1');
+	await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+	await expect(range).toHaveValue('0.99');
+	expect(errors).toEqual([]);
+});

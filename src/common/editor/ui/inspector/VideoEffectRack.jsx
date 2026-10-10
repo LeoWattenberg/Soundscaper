@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNativeRangeTouchOwner } from '../useNativeRangeTouchOwner.ts';
+import { retainNativeRangeMouseCustody } from '../../controller/effects/native-range-mouse-custody.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
@@ -170,6 +171,8 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 	const nativeInput = useNativeRangeTouchOwner();
 	const gesture = useEffectGesture({ actions, clipId, effectId, disabled, onError });
 	const pointer = useRef(createVideoEffectPointerCancellation()).current;
+	const mouseCustody = useRef(null);
+	useEffect(() => () => { mouseCustody.current?.(); mouseCustody.current = null; }, [actions, clipId, effectId]);
 	const label = parameterLabel(parameter, copy);
 	const numericValue = Number(value);
 	const percentage = parameter.max === parameter.min ? 0 : (numericValue - parameter.min) / (parameter.max - parameter.min) * 100;
@@ -180,7 +183,15 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 	const pointerDown = (event) => {
 		if (event.button !== 0) return;
 		if (event.isPrimary === false || !pointer.begin(event.pointerId)) { event.preventDefault(); return; }
-		event.currentTarget.setPointerCapture?.(event.pointerId); gesture.begin();
+		if (event.pointerType === 'mouse') {
+			mouseCustody.current?.();
+			mouseCustody.current = retainNativeRangeMouseCustody(event.currentTarget.ownerDocument, event.pointerId, {
+				finish: () => { if (pointer.finish(event.pointerId)) gesture.commit(); },
+				cancel: () => { if (pointer.finish(event.pointerId)) gesture.cancel(); },
+				releasesPrimaryMove: (move) => move.button === 0 && (move.buttons & 1) === 0,
+			});
+		} else event.currentTarget.setPointerCapture?.(event.pointerId);
+		gesture.begin();
 	};
 	const reset = (event) => {
 		if (disabled) return;
@@ -202,9 +213,9 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 				<input ref={nativeInput} type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => { if (pointer.allowsPreview()) gesture.preview({ [name]: Number(event.currentTarget.value) }); }}
 					onPointerMove={(event) => {
 						if (event.pointerType === 'mouse' && event.button === 0 && !(event.buttons & 1)
-							&& pointer.finish(event.pointerId)) gesture.commit();
+							&& pointer.finish(event.pointerId)) { mouseCustody.current?.(); gesture.commit(); }
 					}}
-					onPointerUp={(event) => { if (pointer.finish(event.pointerId)) gesture.commit(); }} onPointerCancel={(event) => { if (pointer.finish(event.pointerId)) gesture.cancel(); }} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
+					onPointerUp={(event) => { if (pointer.finish(event.pointerId)) { mouseCustody.current?.(); gesture.commit(); } }} onPointerCancel={(event) => { if (pointer.finish(event.pointerId)) { mouseCustody.current?.(); gesture.cancel(); } }} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
 				<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
 				<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
 			</div>
