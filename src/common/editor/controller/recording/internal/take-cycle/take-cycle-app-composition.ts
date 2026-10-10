@@ -183,6 +183,8 @@ function unavailableComposition(): Readonly<TakeCycleProductionComposition> {
 			start: async () => { throw unavailable(); },
 			stop: async () => { throw unavailable(); },
 			pause: () => { throw unavailable(); },
+			setInputGain: () => { throw unavailable(); },
+			setMonitoring: () => { throw unavailable(); },
 		}),
 		start: async () => { throw unavailable(); },
 		inspectOpenRecovery: async () => null,

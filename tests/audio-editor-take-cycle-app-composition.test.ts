@@ -30,6 +30,33 @@ test('routed cycle recorders honour monitoring and input gain changed after app 
 	await fixture.close();
 });
 
+test('the active take recorder forwards live input controls and retires them at Stop', async () => {
+	const fixture = await appFixture();
+	try {
+		const recorder = await fixture.composition.start(fixture.scope);
+		recorder.setInputGain?.(0);
+		recorder.setMonitoring?.(true);
+		assert.deepEqual(fixture.recorder.gains, [0]);
+		assert.deepEqual(fixture.recorder.monitoring, [true]);
+		recorder.setInputGain?.(.5);
+		recorder.setMonitoring?.(false);
+		assert.deepEqual(fixture.recorder.gains, [0, .5]);
+		assert.deepEqual(fixture.recorder.monitoring, [true, false]);
+		await recorder.stop();
+		const next = await fixture.composition.start(fixture.scope);
+		recorder.setInputGain?.(1);
+		recorder.setMonitoring?.(true);
+		assert.deepEqual(fixture.recorder.gains, [0, .5]);
+		assert.deepEqual(fixture.recorder.monitoring, [true, false]);
+		next.setInputGain?.(.25);
+		assert.deepEqual(fixture.recorder.gains, [0, .5, .25]);
+		await next.stop();
+	} finally {
+		await fixture.composition.routed.stop();
+		await fixture.close();
+	}
+});
+
 async function appFixture() {
 	const store = createProjectStore({
 		indexedDB: null, preferOpfs: false, databaseName: uniqueName('cycle-live-input'),
@@ -53,7 +80,9 @@ async function appFixture() {
 			routes: Object.freeze({ 'track-a': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 } }),
 		}),
 	} as unknown as TakeCycleAppCompositionDependencies['state'] & { monitoring: boolean; recordingInputGain: number };
-	const recorder: { current?: RecordingControllerFactoryOptions } = {};
+	const recorder: { current?: RecordingControllerFactoryOptions; gains: number[]; monitoring: boolean[] } = {
+		gains: [], monitoring: [],
+	};
 	const stream = {
 		getAudioTracks: () => [{ readyState: 'live', getSettings: () => ({ channelCount: 1 }) }],
 		getTracks: () => [],
@@ -82,7 +111,8 @@ async function appFixture() {
 				return {
 					start() {}, pause: () => false, resume: () => false,
 					stop: async () => {}, dispose: async () => {},
-					setMonitoring() {}, setInputGain() {},
+					setMonitoring(value) { recorder.monitoring.push(value); },
+					setInputGain(value) { recorder.gains.push(value); },
 				};
 			},
 			beginPlaybackCachePreparation: async () => {},
