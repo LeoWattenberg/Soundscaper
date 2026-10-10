@@ -43,10 +43,12 @@ for (const shorten of [false, true]) test(`native comp flatten preserves ${short
 		sourceBuffers: buffers, sourceChunkProviders: new Map(),
 		async renderSnapshot(model, options) {
 			engine.loadProject(model, buffers);
-			return await engine.renderMix({ startFrame: Number(options.startFrame), endFrame: Number(options.endFrame),
+			const rendered = await engine.renderMix({ startFrame: Number(options.startFrame), endFrame: Number(options.endFrame),
 				includeMaster: options.includeMaster === true, includeTrackPan: options.includeTrackPan === true,
 				respectMuteSolo: options.respectMuteSolo === true,
 				outputFrames: options.outputFrames == null ? null : Number(options.outputFrames) });
+			assert.ok('getChannelData' in rendered, 'the native comp renderer delivers an AudioBuffer');
+			return rendered;
 		},
 		derivedSources: {
 			async persistRenderedMixSource(rendered, name) {
