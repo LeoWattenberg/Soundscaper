@@ -613,3 +613,35 @@ The attempted menu witness passes the original visualizer frequency control
 and then cannot author pitch; it is an excluded setup failure. Remove that
 verification spec and its diagnostics immediately. No internal model state or
 altered project archive supplies qualification.
+
+## R7-EFFECT-017 — Include tails truncates ordinary Phaser feedback
+
+Import an ordinary one-second stereo bass recording, add Phaser through the
+track Effects menu and set Depth to 0, Feedback to 100%, Dry/wet to 255 and
+Output gain to −30 dB. Export with Include tails. Dry and normally bypassed
+exports contain their healthy 48,000 source frames; enabling the effect still
+exports only those frames, cutting an audible feedback release. Even when
+zero-depth all-pass stages cancel to identity, the independent feedback loop
+delays one sample. Its live release contract declares zero frames. This
+delayed feedback owner is distinct from FX013's shelf and Wahwah filter poles;
+all Phaser depth, modulation, feedback and stage variants share this one root.
+
+Bound the stationary feedback pole and accumulated wet gain, leaving a quiet
+render quantum. Modulated all-pass state retains the existing ten-second rack
+budget. Dry-only, bypassed and neutral processing retain the original duration;
+the audio processor and supported parameter limits remain unchanged.
+
+Focused physical DSP is causally RED at both 8 kHz mono and 48 kHz stereo,
+after actual healthy audio and audible post-source state are demonstrated.
+The independent delayed recurrence agrees at negative, zero and positive
+feedback. Corrected physical endings, supported stage/depth/gain variants,
+adjacent filter and live-control tests and chunk ownership pass 61/61. Target
+type-aware lint, changed lint, size and owned diff checks pass.
+
+The ordinary menu/export witness is causally RED on guarded capture b04e692b7
+in 8.3 seconds: 48,000 exported frames instead of more than 48,128, after dry
+and bypass controls pass. Guarded wave82, captured from a21e21974 plus this
+unchanged release helper, passes the same complete workflow in 10.8 seconds.
+Its actual exported PCM contains audible release and a quiet ending. All
+owned failure diagnostics and bounded logs are read and removed immediately;
+recording PCM remains in memory. No manual Update AI assets run is required.

@@ -73,6 +73,7 @@ export function audacityResidualFilterTailFrames(
 	sampleRate: number,
 	params: Readonly<Record<string, unknown>>,
 ): number | null {
+	if (type === 'audacity-phaser') return phaserReleaseFrames(params);
 	if (type === 'audacity-bass-treble') {
 		const sections: NormalizedIirCoefficients[] = [];
 		const slope = Math.fround(.4);
@@ -96,4 +97,21 @@ export function audacityResidualFilterTailFrames(
 	const a0 = 1 + alpha;
 	return releaseFrames([[(1 - cosine) / (2 * a0), (1 - cosine) / a0,
 		(1 - cosine) / (2 * a0), -2 * cosine / a0, (1 - alpha) / a0]], Number(params.outputGainDb));
+}
+
+/** At zero depth, the even all-pass cascade is identity but its feedback still
+ * delays one sample. Bound that independent pole and its accumulated gain.
+ * With modulation, held all-pass coefficients change the network recurrence;
+ * retain the caller's existing ten-second rack budget rather than claim a
+ * stationary pole bound. A dry-only output has no audible release in either case.
+ */
+function phaserReleaseFrames(params: Readonly<Record<string, unknown>>): number {
+	const wet = Number(params.dryWet) / 255;
+	if (wet === 0) return 0;
+	if (Number(params.depth) !== 0) return Number.MAX_SAFE_INTEGER;
+	const pole = Math.abs(Number(params.feedbackPercent) / 101);
+	if (pole === 0) return 0;
+	const gain = wet * 10 ** (Number(params.outputGainDb) / 20);
+	const headroom = Math.max(1, gain / (1 - pole));
+	return Math.ceil(Math.log(.0001 / headroom) / Math.log(pole)) + 128;
 }
