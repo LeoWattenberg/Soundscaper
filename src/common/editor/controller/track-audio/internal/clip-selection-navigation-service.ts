@@ -150,7 +150,11 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		if (!project) return null;
 		const authority = resolveEditingSelectionAuthority({
-			project, focusedClipId: dependencies.state.selectedClipId,
+			project: { tracks: project.tracks, selection: project.selection,
+				clips: project.clips.map(clip => ({ id: clip.id,
+					groupId: typeof clip.groupId === 'string' ? clip.groupId : null,
+					avLinkId: typeof clip.avLinkId === 'string' ? clip.avLinkId : null })) },
+			focusedClipId: dependencies.state.selectedClipId,
 		});
 		let selection = authority.range;
 		if (!selection && authority.clipIds.length) {

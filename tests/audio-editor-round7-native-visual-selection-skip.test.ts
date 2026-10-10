@@ -20,7 +20,7 @@ test('the published Skip actions resolve selected native Title geometry without 
 	const authoring = framescaperCandidateAuthoringActionRuntimeFor(controller);
 	assert.ok(authoring);
 	await authoring.run('video-title');
-	const clip = controller.project?.clips.find(candidate => candidate.kind === 'generator');
+	const clip = controller.project?.clips.find(candidate => (candidate as Readonly<Record<string, unknown>>).kind === 'generator');
 	assert.ok(clip);
 	const clipId = String(clip.id);
 	controller.actions.clip.move(clipId, null, 48_000);
