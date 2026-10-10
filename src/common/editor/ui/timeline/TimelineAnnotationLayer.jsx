@@ -45,7 +45,6 @@ export function TimelineAnnotationLayer({
 	const lastPointerTargetRef = useRef(null);
 	const [preview, setPreview] = useState(null);
 	const clearPreview = useCallback(() => { pointerFlushRef.current?.(true); setPreview(null); }, []);
-	useTimelineAnnotationDragCancellation(layerRef, dragRef, clearPreview);
 	const statusId = React.useId();
 	const {
 		actions,
@@ -77,6 +76,7 @@ export function TimelineAnnotationLayer({
 		deferKeyboardFocus: true,
 		revealKeyboardFocus: true,
 	});
+	useTimelineAnnotationDragCancellation(layerRef, dragRef, clearPreview, projected);
 	const rowById = React.useMemo(() => new Map(model.rows.map((row) => [row.id, row])), [model.rows]);
 	const ordinalById = React.useMemo(() => new Map(projected.map((annotation, index) => [annotation.id, index])), [projected]);
 	const viewportIndex = React.useMemo(() => projected.length > 128 ? createTimelineAnnotationViewportIndex(projected) : null, [projected]);
