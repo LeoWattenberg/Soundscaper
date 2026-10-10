@@ -31,6 +31,6 @@ test('native Clip properties drawers retain keyboard activation and selected aud
 	await page.keyboard.press('Space');
 	await expect(drawer).not.toHaveAttribute('open');
 	await expect(clip.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
-	await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
+	await expect(editor.locator('[data-transport="play"]').getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
 	expect(errors).toEqual([]);
 });
