@@ -106,7 +106,7 @@ for (const locale of ['en', 'de']) {
 function assertReadableH(frame, tolerance) {
 	expect([frame.width, frame.height]).toEqual([64, 64]);
 	const pixel = (x, y) => [...frame.rgb.subarray((y * 64 + x) * 3, (y * 64 + x) * 3 + 3)];
-	const inkRows = [], spans = [];
+	const inkRows = [], spans = [], inkLevels = [];
 	let maximum = 0;
 	for (let y = 0; y < 64; y++) {
 		const runs = []; let start = -1;
@@ -116,13 +116,18 @@ function assertReadableH(frame, tolerance) {
 			// margin 4px, available 56px × width 50% = 28px at bottom right.
 			if (x < 30 || x >= 62 || y >= 62) for (const channel of rgb) expect(channel).toBeLessThanOrEqual(tolerance);
 			const ink = rgb[0] > 150;
+			if (ink) inkLevels.push(rgb[0]);
 			if (ink && start === -1) start = x;
 			if (!ink && start !== -1) { runs.push([start, x]); start = -1; }
 		}
 		if (start !== -1) runs.push([start, 64]);
 		if (runs.length) { inkRows.push(y); spans.push(runs); }
 	}
-	expect(Math.abs(maximum - 188)).toBeLessThanOrEqual(tolerance);
+	// Native JPEG quantization overshoots at sharp edges. Its stroke plateau
+	// carries the composited color; PNG keeps the exact peak-value oracle.
+	inkLevels.sort((left, right) => left - right); expect(inkLevels.length).toBeGreaterThan(0);
+	const color = tolerance === 0 ? maximum : inkLevels[Math.floor(inkLevels.length / 2)];
+	expect(Math.abs(color - 188)).toBeLessThanOrEqual(tolerance);
 	expect(inkRows.length).toBeGreaterThanOrEqual(20); expect(inkRows.at(-1)).toBeLessThanOrEqual(59);
 	const upper = spans[Math.floor(spans.length / 4)], lower = spans[Math.floor(spans.length * 3 / 4)];
 	expect(upper).toHaveLength(2); expect(lower).toHaveLength(2);
