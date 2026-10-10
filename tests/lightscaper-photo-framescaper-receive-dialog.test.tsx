@@ -12,6 +12,12 @@ import { deferred, remainsPending, settle, waitFor } from './helpers/async-test-
 
 const choices = Object.freeze({ schemaVersion: 1 as const, projectId: 'project', projectRevision: 2, title: 'Saved project', unsupportedImageCount: 1,
 	sources: Object.freeze(['one', 'two'].map(sourceId => Object.freeze({ sourceId, name: `Recipe ${sourceId}`, originalName: `${sourceId}.png`, processVersion: 2 as const, width: 2, height: 3 }))) });
+const ordinaryChoices = Object.freeze({ ...choices, sources: Object.freeze([...choices.sources,
+	Object.freeze({ sourceId: 'still', name: 'Camera still', originalName: 'Camera.png', processVersion: 1 as const, width: 2, height: 3,
+		imageClips: Object.freeze([Object.freeze({ clipId: 'timeline-image', sequenceId: 'sequence', sequenceName: 'Opening sequence', scope: 'timeline' as const }),
+			Object.freeze({ clipId: 'bin-image', sequenceId: 'sequence', sequenceName: 'Opening sequence', scope: 'bin' as const })]) }),
+	Object.freeze({ sourceId: 'single', name: 'Another still', originalName: 'Another.png', processVersion: 1 as const, width: 2, height: 3,
+		imageClips: Object.freeze([Object.freeze({ clipId: 'single-image', sequenceId: 'another-sequence', sequenceName: 'Ending sequence', scope: 'bin' as const })]) })]) });
 const receipt = Object.freeze({ schemaVersion: 1 as const, status: 'imported' as const, catalogId: 'catalog', photoId: 'photo', originalId: 'original', activeVersionId: 'copy', revision: 0 as const, reusedOriginal: false, settlement: 'complete' as const });
 async function mount(overrides: Partial<PhotoFramescaperReceiveDialogProps> = {}, strict = false) {
 	const events: string[] = [], destinations = new PhotoExportDestinations();
@@ -27,8 +33,72 @@ async function mount(overrides: Partial<PhotoFramescaperReceiveDialogProps> = {}
 		assert.equal(target.value, '', 'File input must rearm without retaining the selected path.');
 	};
 	const choose = async (sourceId: string) => { await flush(() => { reactProps(mounted.dom.one('[data-photo-framescaper-receive-source]')).onChange?.({ currentTarget: { value: sourceId } }); }); };
-	return { ...mounted, props, events, destinations, flush, click, file, choose };
+	const chooseClip = async (clipId: string) => { await flush(() => { reactProps(mounted.dom.one('[data-photo-framescaper-receive-clip]')).onChange?.({ currentTarget: { value: clipId } }); }); };
+	return { ...mounted, props, events, destinations, flush, click, file, choose, chooseClip };
 }
+
+for (const locale of ['en', 'de']) test(`${locale}: Light ordinary still requires an explicit real clip even when only one exists`, async () => {
+	const calls: Readonly<{ archive: Blob; sourceId: string; imageClipId?: string }>[] = [], words = photoFramescaperReceiveCopy(locale);
+	const f = await mount({ locale, inspect: async () => ordinaryChoices, capture: { receive: async request => { calls.push(request); return { receipt, refresh: 'complete' }; }, reload: async () => undefined } });
+	try {
+		await f.file(new File([Uint8Array.of(1)], 'ordinary.fscape')); await f.choose('single');
+		assert.ok(f.dom.container.textContent.includes(words.ordinaryStill)); assert.ok(f.dom.one('[data-photo-framescaper-receive-clip]').textContent.includes(words.projectBin));
+		assert.equal(reactProps(f.dom.one('[data-photo-framescaper-receive-clip]')).value, '');
+		assert.equal(reactProps(f.dom.one('[data-photo-framescaper-receive-import]')).disabled, true);
+		await f.click(words.importPhoto); assert.equal(calls.length, 0);
+		await f.chooseClip('single-image'); await f.click(words.importPhoto);
+		assert.equal(calls[0]?.sourceId, 'single'); assert.equal(calls[0]?.imageClipId, 'single-image'); assert.ok(Object.isFrozen(calls[0]));
+		assert.deepEqual(Object.keys(calls[0]!).sort(), ['archive', 'imageClipId', 'sourceId']);
+	} finally { await f.dispose(); await f.destinations.retireAndJoin(); }
+});
+
+test('Light ordinary clip selection uses human sequence labels and resets across source and archive changes', async () => {
+	const calls: Readonly<{ archive: Blob; sourceId: string; imageClipId?: string }>[] = [];
+	const f = await mount({ inspect: async () => ordinaryChoices, capture: { receive: async request => { calls.push(request); return { receipt, refresh: 'complete' }; }, reload: async () => undefined } });
+	try {
+		await f.file(new File([Uint8Array.of(1)], 'ordinary.fscape')); await f.choose('still');
+		assert.match(f.dom.container.textContent, /Opening sequence.*Timeline/u); assert.match(f.dom.container.textContent, /Opening sequence.*Project Bin/u);
+		assert.match(f.dom.container.textContent, /original appearance/u); assert.match(f.dom.container.textContent, /filename saved in Framescaper/u);
+		assert.match(f.dom.container.textContent, /Timeline timing and composition stay in Framescaper/u);
+		assert.doesNotMatch(f.dom.one('[data-photo-framescaper-receive-clip]').textContent, /timeline-image|bin-image/u);
+		await f.chooseClip('foreign-image'); await f.click('Import photo'); assert.equal(calls.length, 0);
+		await f.chooseClip('bin-image'); await f.choose('single'); assert.equal(reactProps(f.dom.one('[data-photo-framescaper-receive-clip]')).value, '');
+		await f.chooseClip('single-image'); await f.file(new File([Uint8Array.of(2)], 'replacement.fscape')); await f.choose('still');
+		assert.equal(reactProps(f.dom.one('[data-photo-framescaper-receive-clip]')).value, '');
+		await f.choose('one'); assert.equal(f.dom.find('[data-photo-framescaper-receive-clip]'), null); assert.doesNotMatch(f.dom.container.textContent, /original appearance/u); await f.click('Import photo');
+		assert.deepEqual(Object.keys(calls[0]!).sort(), ['archive', 'sourceId']);
+	} finally { await f.dispose(); await f.destinations.retireAndJoin(); }
+});
+
+test('Light ordinary Close joins the captured clip publication and clears its retired choices before a late ACK', async () => {
+	const entered = deferred<void>(), release = deferred<void>(); let selected: unknown, signal: AbortSignal | undefined;
+	const f = await mount({ inspect: async () => ordinaryChoices, capture: { receive: async (request, caller) => {
+		selected = Object.getOwnPropertyDescriptor(request, 'imageClipId')?.value as unknown; signal = caller; entered.resolve(); await release.promise; return { receipt, refresh: 'complete' };
+	}, reload: async () => undefined } }, true);
+	try {
+		await f.file(new File([Uint8Array.of(1)], 'held.fscape')); await f.choose('still'); await f.chooseClip('bin-image'); await f.click('Import photo'); await entered.promise;
+		await f.chooseClip('timeline-image'); assert.equal(selected, 'bin-image', 'A held publication retains its gesture choice.');
+		await f.click('Close'); assert.equal(selected, 'bin-image'); assert.equal(signal?.aborted, true); assert.equal(f.dom.find('[data-photo-framescaper-receive-clip]'), null);
+		assert.equal(await remainsPending(f.destinations.retireAndJoin()), true); assert.deepEqual(f.events, []); release.resolve();
+		await waitFor(async () => { await f.flush(); return f.events.includes('closed'); }, 'ordinary joined close'); assert.deepEqual(f.events, ['closed']);
+	} finally { release.resolve(); await f.dispose(); await f.destinations.retireAndJoin(); }
+});
+
+test('Light ordinary StrictMode replacement drains held publication before fresh inspection and leaves clip selection empty', async () => {
+	const entered = deferred<void>(), release = deferred<void>(); let inspections = 0, signal: AbortSignal | undefined;
+	const f = await mount({ inspect: async () => { inspections++; return ordinaryChoices; }, capture: { receive: async (_request, caller) => {
+		signal = caller; entered.resolve(); await release.promise; return { receipt, refresh: 'complete' };
+	}, reload: async () => undefined } }, true);
+	try {
+		await f.file(new File([Uint8Array.of(1)], 'previous.fscape')); await f.choose('still'); await f.chooseClip('bin-image'); await f.click('Import photo'); await entered.promise;
+		Object.defineProperty(f.props, 'capture', { value: Object.freeze({ receive: async () => ({ receipt, refresh: 'complete' as const }), reload: async () => undefined }) });
+		await f.render(); assert.equal(signal?.aborted, true); assert.equal(f.dom.find('[data-photo-framescaper-receive-clip]'), null);
+		await f.file(new File([Uint8Array.of(2)], 'replacement.fscape')); assert.equal(inspections, 1); release.resolve();
+		await waitFor(async () => { await f.flush(); return inspections === 2; }, 'ordinary replacement drain');
+		await f.choose('single'); assert.equal(reactProps(f.dom.one('[data-photo-framescaper-receive-clip]')).value, '');
+		assert.equal(reactProps(f.dom.one('[data-photo-framescaper-receive-import]')).disabled, true); assert.deepEqual(f.events, []);
+	} finally { release.resolve(); await f.dispose(); await f.destinations.retireAndJoin(); }
+});
 
 test('Light receive dialog requires explicit choice and clears selection for another archive', async () => {
 	const calls: string[] = [], f = await mount({ capture: { receive: async request => { calls.push(request.sourceId); return { receipt, refresh: 'complete' }; }, reload: async () => undefined } });

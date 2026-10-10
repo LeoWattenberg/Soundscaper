@@ -27,14 +27,14 @@ function check(current: Scope): void { Reflect.apply(CHECK, current.stop.signal,
 export default function PhotoFramescaperReceiveDialog(props: PhotoFramescaperReceiveDialogProps) {
 	const latest = useRef(props); latest.current = props;
 	const scope = useRef<Scope | null>(null), draining = useRef<Promise<void> | null>(null), fileInput = useRef<HTMLInputElement>(null);
-	const [inspection, setInspection] = useState<Readonly<PhotoFramescaperHandoffInspectionV1> | null>(null), [sourceId, setSourceId] = useState('');
+	const [inspection, setInspection] = useState<Readonly<PhotoFramescaperHandoffInspectionV1> | null>(null), [sourceId, setSourceId] = useState(''), [imageClipId, setImageClipId] = useState('');
 	const [busy, setBusy] = useState(false), [closing, setClosing] = useState(false), [failed, setFailed] = useState(false), [reloadFailed, setReloadFailed] = useState(false);
 	const [outcome, setOutcome] = useState<Readonly<PhotoImageReceiveOutcome> | null>(null), [reloaded, setReloaded] = useState(false);
 	const copy = photoFramescaperReceiveCopy(props.locale);
 	const retire = useCallback((current: Scope): Promise<void> => {
 		if (current.retirement) return current.retirement;
 		current.closed = true; current.archive = null; current.stop.abort();
-		if (current.live) { setInspection(null); setSourceId(''); if (fileInput.current) fileInput.current.value = ''; }
+		if (current.live) { setInspection(null); setSourceId(''); setImageClipId(''); if (fileInput.current) fileInput.current.value = ''; }
 		const joined = Promise.allSettled([current.before, current.active]).then(results => {
 			const reason: unknown = Reflect.apply(REASON, current.stop.signal, []);
 			const failures = results.filter(result => result.status === 'rejected' && !Object.is(result.reason, reason)).map(result => (result as PromiseRejectedResult).reason as unknown);
@@ -50,7 +50,7 @@ export default function PhotoFramescaperReceiveDialog(props: PhotoFramescaperRec
 			archive: null, active: null, retirement: null, inspect,
 			capture: Object.freeze<CapturedPhotoImageReceive>({ receive: (request, signal) => Reflect.apply(receive, capture, [request, signal]) as ReturnType<typeof receive>,
 				reload: signal => Reflect.apply(reload, capture, [signal]) as ReturnType<typeof reload> }) };
-		scope.current = current; setInspection(null); setSourceId(''); setOutcome(null); setBusy(false); setClosing(false); setFailed(false); setReloadFailed(false); setReloaded(false);
+		scope.current = current; setInspection(null); setSourceId(''); setImageClipId(''); setOutcome(null); setBusy(false); setClosing(false); setFailed(false); setReloadFailed(false); setReloaded(false);
 		const unregister = registerDestination(() => retire(current));
 		return () => { current.live = false; unregister(); void retire(current).catch(() => undefined); };
 	}, [capture, registerDestination, inspect, retire]);
@@ -68,15 +68,16 @@ export default function PhotoFramescaperReceiveDialog(props: PhotoFramescaperRec
 		const body = event.currentTarget.files?.[0]; event.currentTarget.value = '';
 		const current = scope.current;
 		if (!body || !current || current.active || !present(current)) return;
-		current.archive = body; setInspection(null); setSourceId(''); setOutcome(null); setReloaded(false);
+		current.archive = body; setInspection(null); setSourceId(''); setImageClipId(''); setOutcome(null); setReloaded(false);
 		start(current, async () => {
 			checked(current); const result = await current.inspect({ archive: body, signal: current.stop.signal }); checked(current); setInspection(result);
 		});
 	};
 	const importPhoto = () => {
 		const current = scope.current, archive = current?.archive;
-		if (!current || !archive || current.active || !present(current) || !inspection?.sources.some(source => source.sourceId === sourceId)) return;
-		const request = Object.freeze({ archive, sourceId }); setOutcome(null); setReloaded(false);
+		const selected = inspection?.sources.find(source => source.sourceId === sourceId), clip = selected?.imageClips?.find(clip => clip.clipId === imageClipId);
+		if (!current || !archive || current.active || !present(current) || !selected || (selected.imageClips && !clip)) return;
+		const request = Object.freeze({ archive, sourceId, ...(clip ? { imageClipId: clip.clipId } : {}) }); setOutcome(null); setReloaded(false);
 		start(current, async () => {
 			checked(current); const result = await current.capture.receive(request, current.stop.signal);
 			// A returned Imported ACK remains durable. Presentation still belongs
@@ -93,20 +94,25 @@ export default function PhotoFramescaperReceiveDialog(props: PhotoFramescaperRec
 		if (current.closed) { if (current.retired && !closing) latest.current.onClose(); return; }
 		setClosing(true); void retire(current).then(() => { if (current.live) latest.current.onClose(); }, () => { if (current.live) { setFailed(true); setClosing(false); } });
 	};
-	const selected = inspection?.sources.find(source => source.sourceId === sourceId), needsReload = outcome && !reloaded && (outcome.refresh === 'failed' || outcome.receipt.settlement === 'recovery-pending');
+	const selected = inspection?.sources.find(source => source.sourceId === sourceId), imageClips = selected?.imageClips;
+	const clipSelected = !imageClips || imageClips.some(clip => clip.clipId === imageClipId);
+	const needsReload = outcome && !reloaded && (outcome.refresh === 'failed' || outcome.receipt.settlement === 'recovery-pending');
 	return <AudioEditorDialogShell title={copy.title} onClose={close} initialFocus="[data-photo-framescaper-receive-file]" className="lightscaper-dialog" overlayClassName="lightscaper-dialog-backdrop" closeOnOutside={false}>
 		<div data-photo-framescaper-receive-dialog className="lightscaper-catalog-backup">
 			<p>{copy.description}</p>
 			<label>{copy.file}<input ref={fileInput} type="file" accept=".fscape" data-photo-framescaper-receive-file disabled={busy || closing} onChange={selectFile} /></label>
-			{inspection && <><p>{inspection.title}</p><label>{copy.source}<select data-photo-framescaper-receive-source value={sourceId} disabled={busy || closing} onChange={event => { setSourceId(event.currentTarget.value); setFailed(false); setOutcome(null); }}>
+			{inspection && <><p>{inspection.title}</p><label>{copy.source}<select data-photo-framescaper-receive-source value={sourceId} disabled={busy || closing} onChange={event => { setSourceId(event.currentTarget.value); setImageClipId(''); setFailed(false); setOutcome(null); }}>
 				<option value="">{copy.choose}</option>{inspection.sources.map(source => <option key={source.sourceId} value={source.sourceId}>{source.name} — {source.originalName}</option>)}
 			</select></label>{selected && <p>{copy.originalDimensions}: {selected.width} × {selected.height}</p>}
+				{imageClips && <><p>{copy.ordinaryStill}</p><label>{copy.imageClip}<select data-photo-framescaper-receive-clip value={imageClipId} disabled={busy || closing} onChange={event => { setImageClipId(event.currentTarget.value); setFailed(false); setOutcome(null); }}>
+					<option value="">{copy.chooseClip}</option>{imageClips.map((clip, index) => <option key={clip.clipId} value={clip.clipId}>{clip.sequenceName} — {clip.scope === 'timeline' ? copy.timeline : copy.projectBin}{imageClips.length > 1 ? ` (${String(index + 1)})` : ''}</option>)}
+				</select></label></>}
 				{inspection.unsupportedImageCount > 0 && <p>{copy.unavailable.replace('{count}', String(inspection.unsupportedImageCount))}</p>}
 				{inspection.sources.length === 0 && <p>{copy.empty}</p>}</>}
 			{(busy || closing) && <p role="status">{copy.working}</p>}
 			{failed && <p role="alert">{copy.failed}</p>}{reloadFailed && <p role="alert">{copy.reloadFailed}</p>}
 			{outcome && <p role="status" data-photo-framescaper-receive-receipt="imported">{needsReload ? (outcome.receipt.settlement === 'recovery-pending' ? copy.recovery : copy.refreshFailed) : copy.imported}</p>}
-			<div className="lightscaper-catalog-backup-actions"><button type="button" data-photo-framescaper-receive-import disabled={!selected || busy || closing || outcome !== null} onClick={importPhoto}>{copy.importPhoto}</button>
+			<div className="lightscaper-catalog-backup-actions"><button type="button" data-photo-framescaper-receive-import disabled={!selected || !clipSelected || busy || closing || outcome !== null} onClick={importPhoto}>{copy.importPhoto}</button>
 				{needsReload && <button type="button" disabled={busy || closing} onClick={reload}>{copy.reload}</button>}
 				<button type="button" disabled={closing} onClick={close}>{copy.close}</button></div>
 		</div>

@@ -16,7 +16,7 @@ export interface PhotoImageReceiveOutcome {
 	readonly refresh: 'complete' | 'failed'; readonly failure?: unknown;
 }
 export interface CapturedPhotoImageReceive {
-	receive(request: Readonly<PhotoLibraryImageReceiveRequestV1>, signal: AbortSignal): Promise<Readonly<PhotoImageReceiveOutcome>>;
+	receive(request: Readonly<PhotoLibraryImageReceiveRequestV1 & { imageClipId?: string }>, signal: AbortSignal): Promise<Readonly<PhotoImageReceiveOutcome>>;
 	reload(signal: AbortSignal): Promise<void>;
 }
 interface Owners {
@@ -64,11 +64,12 @@ export function usePhotoLibraryWorkflowImageReceive({ slot, factory, loader, ren
 		};
 		return Object.freeze<CapturedPhotoImageReceive>({
 			async receive(value, caller) {
-				const input = record(value, 'image receive gesture', ['archive', 'sourceId']);
+				const input = record(value, 'image receive gesture', ['archive', 'sourceId', 'imageClipId'], ['archive', 'sourceId']);
 				const { signal } = readPhotoDevelopSignalOptionsV2({ signal: caller }); if (!signal) throw new TypeError('Image receive requires its captured signal.'); checked(signal);
 				const candidate = field(input, 'archive', 'image receive gesture'), size = Number(Reflect.apply(SIZE, candidate, []));
 				if (size < 1 || size > 256 * 1024 * 1024) throw new RangeError('Image receive archive exceeds its fixed input byte bound.');
-				const request = Object.freeze({ archive: Reflect.apply(SLICE, candidate, [0, size]) as Blob, sourceId: id(field(input, 'sourceId', 'image receive gesture')) });
+				const request = Object.freeze({ archive: Reflect.apply(SLICE, candidate, [0, size]) as Blob, sourceId: id(field(input, 'sourceId', 'image receive gesture')),
+					...(Object.hasOwn(input, 'imageClipId') ? { imageClipId: id(field(input, 'imageClipId', 'image receive gesture')) } : {}) });
 				const result: { ack?: Readonly<PhotoLibraryImageReceiveReceiptV1>; failed?: Readonly<{ value: unknown }>; refreshed: boolean } = { refreshed: false };
 				const status = await perform(async (owner, joined, current) => {
 					try {

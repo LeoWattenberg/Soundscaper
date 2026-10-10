@@ -38,7 +38,7 @@ async function fixture(receive: PhotoLibraryImageReceivePortV1['receive'] = asyn
 
 test('Light receive captures archive/source before acquisition and retains the actual receiver', async () => {
 	let source = '', bytes: number[] = [];
-	const f = await fixture(async function(this: unknown, request) { assert.equal(this, nativePort); source = request.sourceId; bytes = [...new Uint8Array(await request.archive.arrayBuffer())]; return receipt; });
+	const f = await fixture(async function(this: unknown, request) { assert.equal(this, nativePort); assert.equal(Object.hasOwn(request, 'imageClipId'), false); source = request.sourceId; bytes = [...new Uint8Array(await request.archive.arrayBuffer())]; return receipt; });
 	const nativePort: object = f.port;
 	try {
 		const captured = f.read().captureImageReceive(), request = { archive: archive(), sourceId: 'one' };
@@ -48,6 +48,28 @@ test('Light receive captures archive/source before acquisition and retains the a
 		assert.equal(f.reads(), 2, 'The plain current query must actually reload after publication.');
 		f.port.receive = async () => assert.fail('Same menu generation must retain the originally captured method.');
 		await act(async () => { await captured.receive({ archive: archive(), sourceId: 'two' }, new AbortController().signal); }); assert.equal(source, 'two');
+	} finally { await f.dispose(); }
+});
+
+test('Light ordinary receive captures its own clip scalar before acquisition without evaluating a later getter', async () => {
+	let selected: unknown, getters = 0, received: unknown;
+	const f = await fixture(async function(this: unknown, request) { assert.equal(this, nativePort); selected = Object.getOwnPropertyDescriptor(request, 'imageClipId')?.value as unknown; received = request; return receipt; });
+	const nativePort: object = f.port;
+	try {
+		const captured = f.read().captureImageReceive(), request = { archive: archive(), sourceId: 'still', imageClipId: 'real-bin-image' };
+		await act(async () => { const work = captured.receive(request, new AbortController().signal);
+			Object.defineProperty(request, 'imageClipId', { get() { getters++; throw Symbol('late clip getter'); } }); await work; });
+		assert.equal(selected, 'real-bin-image'); assert.equal(getters, 0); assert.ok(Object.isFrozen(received));
+	} finally { await f.dispose(); }
+});
+
+test('Light ordinary receive refuses missing-value and accessor clip fields before native publication', async () => {
+	let receives = 0, getters = 0; const f = await fixture(async () => { receives++; return receipt; });
+	try {
+		const captured = f.read().captureImageReceive();
+		for (const imageClipId of [undefined, '', 'foreign/id']) await assert.rejects(captured.receive({ archive: archive(), sourceId: 'still', imageClipId }, new AbortController().signal));
+		const request = Object.defineProperty({ archive: archive(), sourceId: 'still', imageClipId: 'real-image' }, 'imageClipId', { get() { getters++; return 'real-image'; } });
+		await assert.rejects(captured.receive(request, new AbortController().signal)); assert.equal(receives, 0); assert.equal(getters, 0);
 	} finally { await f.dispose(); }
 });
 
