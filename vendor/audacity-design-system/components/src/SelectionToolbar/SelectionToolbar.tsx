@@ -5,9 +5,10 @@
  * Matches Figma design: node-id=111-1630
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useContext } from 'react';
 import { useTheme } from '../ThemeProvider';
 import { TimeCode, TimeCodeFormat } from '../TimeCode/TimeCode';
+import { TimeCodeMusicalContext, type TimeCodeMusicalMap } from '../TimeCode/time-code-musical-context';
 import { CloudProjectIndicator } from '../CloudProjectIndicator';
 import { useContainerTabGroup } from '../hooks/useContainerTabGroup';
 import './SelectionToolbar.css';
@@ -43,6 +44,8 @@ export interface SelectionToolbarProps {
    * @default 'hh:mm:ss+milliseconds'
    */
   durationFormat?: TimeCodeFormat;
+  /** Host-provided interval map, rooted at selectionStart rather than project zero. */
+  durationMusicalMap?: TimeCodeMusicalMap;
   /**
    * Sample rate for sample-based formats
    * @default 44100
@@ -107,6 +110,7 @@ export function SelectionToolbar({
   instructionText = 'Click and drag to select audio',
   format = 'hh:mm:ss+milliseconds',
   durationFormat = 'hh:mm:ss+milliseconds',
+  durationMusicalMap,
   sampleRate = 44100,
   frameRate = 24,
   onFormatChange,
@@ -121,6 +125,7 @@ export function SelectionToolbar({
   className = '',
 }: SelectionToolbarProps) {
   const { theme } = useTheme();
+  const musicalMap = useContext(TimeCodeMusicalContext);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   const { onKeyDown, onBlur, containerProps, initTabIndices } = useContainerTabGroup({
@@ -207,14 +212,16 @@ export function SelectionToolbar({
           <>
             <span className="selection-toolbar__label">Duration</span>
             <div className="selection-toolbar__timecodes">
-              <TimeCode
-                value={durationValue}
-                format={durationFormat}
-                sampleRate={sampleRate}
-                frameRate={frameRate}
-                showFormatSelector={true}
-                onFormatChange={onDurationFormatChange}
-              />
+              <TimeCodeMusicalContext.Provider value={durationMusicalMap ?? musicalMap}>
+                <TimeCode
+                  value={durationValue}
+                  format={durationFormat}
+                  sampleRate={sampleRate}
+                  frameRate={frameRate}
+                  showFormatSelector={true}
+                  onFormatChange={onDurationFormatChange}
+                />
+              </TimeCodeMusicalContext.Provider>
             </div>
           </>
         )}

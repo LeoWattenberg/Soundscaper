@@ -551,3 +551,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     input. Covered by the mounted native-contact regressions in
     `tests/vendored-design-system-knob-gesture.test.tsx` and the ordinary stereo
     Mixer Pan, primary release, Undo and Redo workflow. Upstream-PR candidate.
+
+71. `SelectionToolbar` accepts a host interval musical map for its read-only
+    Duration, while Start and End retain their absolute project map. The
+    application roots this interval at the actual selection start, preserving
+    later tempo changes. Covered by the actual mounted selection toolbar
+    regression `tests/audio-editor-round7-selection-musical-duration.test.tsx`
+    and the native Music workspace, tempo-event and selection-digit workflow.
+    Upstream-PR candidate.
