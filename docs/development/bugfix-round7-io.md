@@ -393,7 +393,41 @@ still observes zero instead of >30000 at its unchanged five-second deadline
 (10.074 seconds). Its read PNG/context show the original imported clip and a
 Scheduled status. No new production root is established by these observations;
 all three exact completed original diagnostic directories were immediately
-removed after this receipt. Whole unchanged guarded replays remain queued.
+removed after this receipt. Whole unchanged Firefox replays on authenticated guarded `2541ed646` reproduce
+all three observations: microphone graph cases 10.6/10.5 seconds retain [1, 1],
+and post-Cancel keyboard recovery 10.2 seconds retains zero. Their exact reviewed
+PNG/context show active native capture and Scheduled recording cancelled,
+respectively. Preserve these unresolved full-run observations; no deadline or
+source change is claimed. Completed replay output and bounded log are immediately
+removed while the actual retired graph and keyboard owners are investigated.
+The microphone discrepancy is the real Firefox channel-count probe, which creates
+a monitor:false recorder, then disconnects its temporary node in finally. The
+passive graph observer had retained that disconnected edge forever. Record exact
+native connection triples without duplicates and retire successful native
+disconnect overloads; keep every existing positive PCM, [1]/[0]/[1] live gain,
+Stop/import and durable Bin assertion. Both complete unchanged-product Firefox
+workflows then pass 7.9/7.3 seconds on guarded `2541ed646` (2/2 in 17.6 seconds).
+This corrects verification only and adds no production source or count.
+Owned completed isolated output and log are immediately removed.
+All-engine observer controls on the same guard pass Chromium 5.3/5.7 seconds and
+Firefox 8.8/8.9 seconds. WebKit stops both cases at the Camera checkbox before
+Preview/capture in 30.2 seconds; its read PNG explicitly says Capture is unavailable
+in this runtime. This unsupported prerequisite observation is retained, rather
+than reporting an audio graph result. All six completed outputs and bounded log
+are removed immediately after reading the exact failed PNG/context.
+
+
+Full150 completed Firefox follow-through observations (zero count): both Web VCR
+preview cases time out before the Web VCR menu item exists (30.130/30.238 seconds),
+so no audio assertions run. Read PNG/context show ordinary Capture options with
+Recording setup and inactive Start/Pause/Stop, without Web VCR. Existing packaged
+Web VCR witnesses explicitly require Chromium MediaStreamTrackProcessor support;
+this fixture omitted that existing prerequisite. The desktop project-library
+whole workflow instead reaches deletion, then retains Delete this project? over
+an already replaced Untitled project (16.023 seconds), matching the corrected
+D036 handoff owner. Preserve all original full-run failures; exact reviewed PNGs,
+contexts and all three completed diagnostic directories are removed immediately.
+Unchanged desktop replay and supported Web VCR controls remain pending.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,

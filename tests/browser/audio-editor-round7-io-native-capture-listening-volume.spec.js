@@ -38,7 +38,23 @@ for (const mute of [false, true]) test(`Recording setup microphone monitoring ${
 		const connect = AudioNode.prototype.connect;
 		AudioNode.prototype.connect = function (...args) {
 			const result = Reflect.apply(connect, this, args);
-			if (args[0] instanceof AudioNode) outputs.set(this, [...(outputs.get(this) ?? []), args[0]]);
+			if (args[0] instanceof AudioNode) {
+				const edges = outputs.get(this) ?? [];
+				const edge = { destination: args[0], output: args[1] ?? 0, input: args[2] ?? 0 };
+				if (!edges.some(candidate => candidate.destination === edge.destination
+					&& candidate.output === edge.output && candidate.input === edge.input)) outputs.set(this, [...edges, edge]);
+			}
+			return result;
+		};
+		const disconnect = AudioNode.prototype.disconnect;
+		AudioNode.prototype.disconnect = function (...args) {
+			const result = Reflect.apply(disconnect, this, args);
+			outputs.set(this, (outputs.get(this) ?? []).filter(edge => {
+				if (args.length === 0) return false;
+				if (typeof args[0] === 'number') return edge.output !== args[0];
+				return edge.destination !== args[0] || (args.length > 1 && edge.output !== args[1])
+					|| (args.length > 2 && edge.input !== args[2]);
+			}));
 			return result;
 		};
 		globalThis.__captureMonitorGains = () => {
@@ -50,7 +66,7 @@ for (const mute of [false, true]) test(`Recording setup microphone monitoring ${
 				const gain = node instanceof GainNode ? scheduled && scheduled.time <= node.context.currentTime
 					? scheduled.value : node.gain.value : 1;
 				if (node instanceof AudioDestinationNode) levels.push(level * gain);
-				else for (const output of outputs.get(node) ?? []) visit(output, level * gain, visited);
+				else for (const output of outputs.get(node) ?? []) visit(output.destination, level * gain, visited);
 			};
 			for (const recorder of recorders) visit(recorder, 1, new Set());
 			return levels;
