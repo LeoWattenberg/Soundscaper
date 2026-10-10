@@ -58,7 +58,17 @@ export const editorUiChunkGroups = [
 	},
 	{
 		name: 'lightscaper-editor-copy',
-		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|develop-menu|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|develop-menu|photo-png-export-menu|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// The full export dialog labels stay behind its menu-opened lazy entry.
+		// Only the small menu label belongs to ordinary photo shell copy.
+		name: 'lightscaper-photo-png-export-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-png-export-copy\.ts$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
