@@ -757,6 +757,27 @@ report have closed, after which the root will create its stop flag, explicitly
 wait for the final guarded drain, and remove the helper/status/log. No maintained
 source, runtime closure, dependency, coverage floor or qualified count changes.
 
+Fresh compiled IO follow-through on the independently authenticated immutable
+`1541ccf681596465463d0da455b7e6193a066a78` canonical checkout: the complete
+18-case serial three-engine run finished with 17 PASS and one failed expectation
+in 2.1 minutes. All twelve Freesound picker/upload workflows pass with their
+original limits and physical source/output checks. Chromium WAV/BWF picker
+2.3/2.0 seconds and source 44.1/96 kHz 1.9/2.0; Firefox 2.9/2.9 and 2.7/3.4;
+WebKit 4.0/3.6 and 3.6/3.7. In particular the unchanged valid WebKit 44.1 kHz
+24-bit BWF now uploads positive PCM with its original 11,025 frames, 44.1 kHz
+clock and 3 kHz programme, while the 96 kHz/26 kHz control remains positive.
+Replacement continuous/frozen workflows pass in Chromium 10.3/11.2 seconds and
+Firefox 14.0/15.3, and continuous WebKit passes in 16.6. Frozen WebKit fails in
+15.4 at the unchanged five-second replacement-choice visibility expectation;
+the complete context contains the initial card/timeline, while the actual later
+PNG already displays the correct shorter-file choice. Subsequent replacement
+and Undo/Redo controls were not reached in that case. This observation remains
+failed; the later screenshot alone does not establish a production rejection
+or justify a changed timeout. The browser process exited and both default
+origin servers closed. Its complete log/context/PNG were consumed and all exact
+owned replay outputs removed immediately after this receipt. No additional bug
+count, replacement source change or assertion/deadline adjustment.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
