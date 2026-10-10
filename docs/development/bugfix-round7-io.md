@@ -98,6 +98,29 @@ publication/rollback and finishing document controls pass 34/34; targeted type-a
 lint and own diff checks pass. Guarded wave 82 public GREEN: healthy open-target publication 11.9 seconds and Close cancellation 7.8 seconds, retaining the complete consumer lease and canonical document checks.
 Owned diagnostics and temporary native sidecar directories were removed immediately.
 
+The checkpoint at fifty fixes remains a failed full browser gate: 6077 passes,
+87 failures, 244 skips and six cases not run. Its file/format/capture triage does
+not replace that receipt with the focused replays. On unchanged guarded capture
+24cbd04c0, Firefox File Open/Export, CUE and DAWproject controls pass 12/12:
+AUP3 export 6.4 seconds, imports 4.0/4.2 seconds; AUP4 5.7/6.3/5.1 seconds;
+CUE 2.8/4.4 seconds; DAWproject automation, bus, imported routing and loops
+9.5/4.3/8.3/2.9 seconds. Those original failures stopped during bootstrap except
+the automation case's decoding deadline. The original Chromium FCPXML pair
+failed only the missing external reference provision; with the pinned reader
+already available, the unchanged sequential/overlap controls pass in 1.9/1.7
+seconds. All sixteen Chromium capture/FCPXML controls pass, including ordinary
+record/pause/reopen 8.2 seconds, Inputs setup 8.3 seconds and actual Web VCR
+record/import/reopen 10.5 seconds. The two unchanged Firefox dialog-coverage
+import/control cases pass in 8.3/10.7 seconds. These are zero-count verification
+receipts. Firefox WavPack's existing Pause observer still fails after reload;
+additional ready-state and activation-fence hypotheses also failed and their
+temporary edits were reverted. Passive observation confirms ready=true, no
+activation pending and no dialog, alert or client error. That case remains
+unresolved, as do the separately queued long BW64 and cross-engine capture/format
+replays. All 27 reviewed owned original diagnostic directories and each completed
+focused replay's diagnostics/log were removed immediately; the root retains the
+small shared full-run log.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
