@@ -21,13 +21,11 @@ function find(items: readonly ParallelStackMenuItem[], id: string): ParallelStac
 	throw new Error(`Missing menu: ${id}`);
 }
 
-test('parallel processing is menu-only, desktop Soundscaper only, and defaults off', () => {
+test('parallel processing is menu-only in Soundscaper on both hosts and defaults off', () => {
 	const changed: Partial<ParallelStackPreferences>[] = [];
-	const input = { productId: 'soundscaper', desktop: true, blocked: false, preferences,
+	const input = { productId: 'soundscaper', blocked: false, preferences,
 		status: { state: 'off', sampleRate: 48000 } as const };
-	for (const variant of [{ desktop: false }, { productId: 'framescaper' }]) {
-		assert.deepEqual(appendParallelStackProcessingMenu([], { ...input, ...variant }, () => undefined), []);
-	}
+	assert.deepEqual(appendParallelStackProcessingMenu([], { ...input, productId: 'framescaper' }, () => undefined), []);
 	const menus = appendParallelStackProcessingMenu([], input, (patch) => { changed.push(patch); });
 	assert.equal(menus[0]?.label, 'Audio setup');
 	assert.equal(find(menus, 'parallel-stack-enabled').checked, false);
@@ -41,7 +39,7 @@ test('parallel processing is menu-only, desktop Soundscaper only, and defaults o
 test('parallel processing joins Audio setup and keeps status readable while playback blocks changes', () => {
 	const menus = appendParallelStackProcessingMenu([{
 		id: 'native-audio', label: 'Audio setup', items: [{ id: 'native-device', label: 'Device' }],
-	}], { productId: 'soundscaper', desktop: true, blocked: true, preferences: { ...preferences, enabled: true },
+	}], { productId: 'soundscaper', blocked: true, preferences: { ...preferences, enabled: true },
 		status: { state: 'failed', reason: 'Missed a deadline', sampleRate: 48000 },
 	}, () => { throw new Error('Must not change while playing'); });
 	assert.equal(menus.length, 1);
@@ -56,7 +54,7 @@ test('parallel processing joins Audio setup and keeps status readable while play
 test('Audio setup moves entirely into Audio preferences with its processing controls intact', () => {
 	const menus = appendParallelStackProcessingMenu([{
 		id: 'native-audio', label: 'Audio setup', items: [{ id: 'native-device', label: 'Device' }],
-	}], { productId: 'soundscaper', desktop: true, blocked: false, preferences,
+	}], { productId: 'soundscaper', blocked: false, preferences,
 		status: { state: 'off' },
 	}, () => undefined);
 	const adapt = (item: ParallelStackMenuItem): AssistanceMenuEntry => ({ ...item, items: item.items?.map(adapt) });
@@ -68,9 +66,9 @@ test('Audio setup moves entirely into Audio preferences with its processing cont
 	assert.equal(find(native, 'parallel-stack-enabled').checked, false);
 });
 
-test('processing-only Audio setup moves into preferences without requiring native audio devices', () => {
+test('browser processing-only Audio setup moves into preferences without requiring native audio devices', () => {
 	const menus = appendParallelStackProcessingMenu([], {
-		productId: 'soundscaper', desktop: true, blocked: false, preferences, status: { state: 'off' },
+		productId: 'soundscaper', blocked: false, preferences, status: { state: 'off' },
 	}, () => undefined);
 	const adapt = (item: ParallelStackMenuItem): AssistanceMenuEntry => ({ ...item, items: item.items?.map(adapt) });
 	const [tools] = organizeNativePreferences([{ id: 'tools', label: 'Tools', items: menus.map(adapt) }]);

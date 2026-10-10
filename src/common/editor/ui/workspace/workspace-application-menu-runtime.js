@@ -162,7 +162,7 @@ export function createWorkspaceApplicationMenus({
 						openAraClipEditorSurface({ controller, copy }))),
 				} : null,
 				parallelStackProcessing: createParallelStackMenuRuntime({
-					productId, desktop: fileService.isDesktop === true, controller, run,
+					productId, controller, run,
 					recording: Boolean(snapshot.recording || snapshot.recordingScheduling || snapshot.scheduledRecording),
 				}),
 				executeMulticameraCommand: (command) => run(() => {
