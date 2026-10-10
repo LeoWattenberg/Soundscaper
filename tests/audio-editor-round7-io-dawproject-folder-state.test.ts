@@ -11,6 +11,9 @@ import { createAudioTrack } from '../src/common/editor/project-media-factory.ts'
 import { createSoundscaperProject, validateSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import { importSoundscaperAudacityProject } from '../src/soundscaper/editor-audacity-project-import.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
+import { readDawprojectArchive } from '../src/common/editor/dawproject-archive.ts';
+import { createFixture } from './helpers/native-project-service-fixture.ts';
 
 for (const [mute, solo] of [[false, false], [true, false], [false, true], [true, true]] as const) test(`own DAWproject folder round trip preserves mute=${String(mute)} solo=${String(solo)}`, () => {
 	let project = createSoundscaperProject({ id: 'programme', tracks: [createAudioTrack({ id: 'voice', name: 'Voice' })] });
@@ -70,4 +73,30 @@ test('the structure-only audio-free folder profile explicitly reports authored g
 	assert.deepEqual(loss?.scope, { kind: 'folder', id: 'empty' });
 	assert.deepEqual(loss?.data, { mute: true, solo: true });
 	assert.equal(loss?.severity, 'warning');
+});
+
+for (const [mute, leafMute] of [[false, false], [true, false], [false, true], [true, true]] as const) test(`the real DAWproject save service retains leaf mute=${String(leafMute)} under folder mute=${String(mute)}`, async () => {
+	let project = createSoundscaperProject({ id: 'programme', tracks: [createAudioTrack({ id: 'voice', name: 'Voice', mute: leafMute })] });
+	project = applySoundscaperProjectCommand(project, createAddTrackFolderCommand('main-sequence', { id: 'dialogue', name: 'Dialogue' }));
+	project = applySoundscaperProjectCommand(project, createMoveTrackNodeCommand('main-sequence', 'voice', 'dialogue', 0));
+	project = applySoundscaperProjectCommand(project, createUpdateTrackFolderCommand('dialogue', { mute }));
+	const saved: Blob[] = [];
+	const fixture = createFixture({ getProject: () => project });
+	fixture.projectGeneration.activate(project.id);
+	const service = createNativeProjectService({ ...fixture.runtime,
+		fileService: { ...fixture.runtime.fileService, saveFile: async request => {
+			saved.push(request.blob);
+			return { fileName: request.suggestedName, size: request.blob.size };
+		} },
+	});
+	await service.saveDawproject();
+	assert.equal(saved.length, 1);
+	const archive = await readDawprojectArchive(saved[0]!);
+	try {
+		const document = parseDawprojectDocument(archive.projectXml, archive.metadataXml);
+		const folder = document.tracks.find(track => track.name === 'Dialogue');
+		assert.equal(folder?.channel?.mute?.value, mute);
+		assert.equal(folder?.children.find(track => track.name === 'Voice')?.channel?.mute?.value, leafMute);
+	} finally { await archive.close(); }
+	assert.equal(project.tracks.find(track => track.id === 'voice')?.mute, leafMute);
 });

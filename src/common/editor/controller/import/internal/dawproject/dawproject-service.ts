@@ -13,8 +13,8 @@ import { buildDawprojectProject, dawprojectImportedAudioMimeType, type Dawprojec
 import { createCurrentAudioEditorProject } from '../../../../project-current.ts';
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../../../../pcm-chunks.js';
 import { admitAudioImportChannelCount } from '../audio-import-channel-admission.ts';
-import { resolveDeliveredProject } from '../../../export/interchange-export-action.ts';
-import { reportInterchangeMulticameraConversion } from '../../../../interchange-multicamera-delivery.ts';
+import { projectForRuntimeConsumers } from '../../../../project-current-runtime.ts';
+import { projectInterchangeMulticamera, reportInterchangeMulticameraConversion } from '../../../../interchange-multicamera-delivery.ts';
 import { DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, dawprojectWavByteLength, dawprojectWavStream } from './dawproject-export-audio.ts';
 import { assertDawprojectCompressedWorkingBudget, stageDawprojectCompressedSource } from './dawproject-import-compressed.ts';
 import { inspectWavBlobPcm } from '../../../../wav-import.js';
@@ -228,10 +228,10 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 		const saving = runtime.copy.dawprojectSaving ?? 'Exporting DAWproject';
 		try {
 			setLocalizedStatus(runtime.setStatus, runtime.copy, 'dawprojectSaving', undefined, undefined, { fallback: 'Exporting DAWproject' });
-			const delivered = resolveDeliveredProject({
-				getProject: () => snapshot, state: runtime.state as unknown as Record<string, unknown>, projectForRuntimeConsumers: runtime.projectForRuntimeConsumers,
-			});
-			if (!delivered) throw createLocalizedError(Error, runtime.copy, 'projectNotFound');
+			// Project exchange carries editable folder and leaf gates separately;
+			// render-profile folder flattening would duplicate those gates.
+			const selected = projectInterchangeMulticamera(snapshot, runtime.projectForRuntimeConsumers);
+			const delivered = projectForRuntimeConsumers(selected as never);
 			const embeddableVideoSourceIds = typeof runtime.store.loadMediaAsset === 'function'
 				? snapshot.sources.filter((source) => source.kind === 'video').map((source) => source.id)
 				: [];
