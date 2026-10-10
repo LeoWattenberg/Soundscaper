@@ -190,3 +190,13 @@ continuous replacement control (11.5 seconds) and frozen replacement
 failure and focused tests in its area register. Both guarded builds pass;
 the largest JavaScript chunk remains 487,635 bytes. The source excludes
 provisional EDIT019. Manual **Update AI assets** is not required.
+
+The additional full Node suite required after fixture-helper edits finishes
+25,229 tests in 1,539.1 seconds: 25,193 pass, 33 skip and three fail
+(exit 1). Its only failures are the exact private timing-reader register,
+the shared sample-frame conversion register and the six intentionally
+corrected spectrum digests. Commits `ac8bf39f9` and `564b5e03b` already
+resolve these with 20/20 and 57/57 focused checks; the other 160 frozen DSP
+signatures remain unchanged. This records a failing full run followed by
+focused resolution, not a full-suite pass. The reviewed full-run log is
+deleted immediately. Startup-graph tightening finds no smaller byte ceiling.
