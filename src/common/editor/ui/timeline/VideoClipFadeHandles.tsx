@@ -46,6 +46,11 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 		return Math.max(0, Math.min(rawClip.sequenceFrameCount - (session.edge === 'in' ? envelope.fadeOutFrames : envelope.fadeInFrames),
 			Math.round(session.initial + (session.edge === 'in' ? delta : -delta))));
 	};
+	const finishGesture = (session: Gesture, clientX: number): void => {
+		gesture.current = null; setPreview(null);
+		const duration = durationAt(session, clientX);
+		if (!blocked && duration !== session.initial) update(session.edge, duration);
+	};
 	return <div className="audio-editor-clip-fade audio-editor-video-clip-fade">
 		{(current.fadeInFrames > 0 || current.fadeOutFrames > 0) && <svg className="audio-editor-clip-fade__curve" viewBox={`0 0 ${width} 100`} preserveAspectRatio="none" aria-hidden="true">
 			{(['in', 'out'] as const).map(edge => {
@@ -77,14 +82,18 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 					const session = gesture.current;
 					if (!session || session.pointerId !== event.pointerId) return;
 					event.stopPropagation();
+					if (event.pointerType === 'mouse' && !(event.buttons & 1)) {
+						finishGesture(session, event.clientX);
+						return;
+					}
 					setPreview({ ...envelope, [edge === 'in' ? 'fadeInFrames' : 'fadeOutFrames']: durationAt(session, event.clientX) });
 				}}
 				onPointerUp={event => {
 					const session = gesture.current;
 					if (!session || session.pointerId !== event.pointerId) return;
-					event.stopPropagation(); gesture.current = null; setPreview(null);
-					const duration = durationAt(session, event.clientX);
-					if (!blocked && duration !== session.initial) update(edge, duration);
+					if (event.pointerType === 'mouse' && event.button !== 0) return;
+					event.stopPropagation();
+					finishGesture(session, event.clientX);
 				}}
 				onPointerCancel={event => {
 					if (gesture.current?.pointerId !== event.pointerId) return;
