@@ -16,6 +16,7 @@ import {
 } from './GeneratorDialogFields.jsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { generatorReplacementTargetLocked } from './generator-replacement-admission.ts';
@@ -27,6 +28,8 @@ const MORSE_SPEED_RANGE = Object.freeze({ minimum: 5, maximum: 60 });
 export default function GeneratorDialog({ type, controller, snapshot = {}, copy, locale, run, onClose }) {
 	const project = controller.project;
 	const sampleRate = project?.sampleRate || 48_000;
+	const durationOrigin = resolveSelectionRange(project)?.startFrame
+		?? controller.getTelemetrySnapshot?.().positionFrame ?? 0;
 	const [params, setParams] = useState(() => generatorDefaults(type, project));
 	useEffect(() => setParams(generatorDefaults(type, controller.project)), [controller, type]);
 	const [pending, setPending] = useState(false);
@@ -140,6 +143,7 @@ export default function GeneratorDialog({ type, controller, snapshot = {}, copy,
 	};
 	const title = generatorLabel(type, copy);
 	return (
+		<EditorMusicalTimeCodeProvider controller={controller} originFrame={durationOrigin}>
 		<AudioEditorDialogShell
 			title={title}
 			headerOs={null}
@@ -354,6 +358,7 @@ export default function GeneratorDialog({ type, controller, snapshot = {}, copy,
 					</div>
 				</form>
 		</AudioEditorDialogShell>
+		</EditorMusicalTimeCodeProvider>
 	);
 }
 
