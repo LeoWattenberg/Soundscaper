@@ -206,6 +206,11 @@ function createTransitionPairs(project: Data, clips: readonly Data[]): readonly 
 	const sequences = records(project.sequences, 'project sequences');
 	const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 	const linked = linkedAudioIds(project, clips);
+	const lockedAudioLinks = new Set(records(project.tracks, 'project tracks')
+		.filter(track => track.locked === true && Array.isArray(track.clipIds))
+		.flatMap(track => (track.clipIds as unknown[]).map(id => clipById.get(String(id))))
+		.filter((clip): clip is Data => clip?.kind === 'audio' && typeof clip.avLinkId === 'string')
+		.map(clip => String(clip.avLinkId)));
 	const result: FramescaperSelectedTransitionPairFinishing[] = [];
 	for (const track of records(project.tracks, 'project tracks')) {
 		if (track.type !== 'video' || track.locked === true || !Array.isArray(track.clipIds)) continue;
@@ -218,6 +223,7 @@ function createTransitionPairs(project: Data, clips: readonly Data[]): readonly 
 			const outgoing = ordered[index - 1]!;
 			const incoming = ordered[index]!;
 			if (outgoing.kind !== 'video' || incoming.kind !== 'video') continue;
+			if (typeof incoming.avLinkId === 'string' && lockedAudioLinks.has(incoming.avLinkId)) continue;
 			if (outgoing.sequenceId !== incoming.sequenceId) continue;
 			const sequence = sequences.find(({ id }) => id === outgoing.sequenceId);
 			if (!sequence) continue;
