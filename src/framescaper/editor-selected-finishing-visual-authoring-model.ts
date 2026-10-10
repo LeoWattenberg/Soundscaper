@@ -224,9 +224,10 @@ function createTransitionPairs(project: Data, clips: readonly Data[]): readonly 
 			const incomingCount = positiveInteger(incoming.sequenceFrameCount, 'incoming duration');
 			nonNegativeInteger(outgoing.sequenceStartFrame, 'outgoing start');
 			nonNegativeInteger(incoming.sequenceStartFrame, 'incoming start');
-			const maximumDurationFrames = Math.max(1, Math.min(
+			const maximumDurationFrames = Math.min(
 				Math.floor(outgoingCount / 2), Math.floor(incomingCount / 2), 10_000,
-			));
+			);
+			if (maximumDurationFrames < 1) continue;
 			const existing = transitions.find((transition) => transition.outgoingClipId === outgoing.id
 				&& transition.incomingClipId === incoming.id);
 			const durationFrames = existing
