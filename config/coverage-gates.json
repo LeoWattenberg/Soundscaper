@@ -6,7 +6,7 @@
 			"label": "Editor",
 			"thresholds": {
 				"lines": 98,
-				"branches": 81,
+				"branches": 82,
 				"functions": 86
 			},
 			"reason": "Everything under src/common/editor/ that is not controller, command or engine code: models, workers, storage, effects and import/export, where an unexercised branch corrupts a user's project."
