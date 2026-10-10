@@ -30,6 +30,7 @@ export interface FoundationRuntimeProjectionImporterExclusion {
 
 /** Projection adapters admitted by the WP-0.2 shield audit. */
 export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntimeProjectionBoundary[] = deepFreeze([
+	{ boundary: 'resolveTimelineAnnotationRegionRange', file: 'src/common/editor/controller/document/internal/annotations/timeline-annotation-region-range.ts', root: false, delegate: 'resolveSelectionRange', guardsBrand: false },
 	{ boundary: 'resolveSelectionRange', file: 'src/common/editor/selection-range.ts', root: false, delegate: 'clipContentRange', guardsBrand: false },
 	{ boundary: 'clipContentRange', file: 'src/common/editor/clip-content-range.ts', root: false, delegate: 'projectedClipContentRange', guardsBrand: false },
 	{ boundary: 'projectedClipContentRange', file: 'src/common/editor/clip-content-range.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },

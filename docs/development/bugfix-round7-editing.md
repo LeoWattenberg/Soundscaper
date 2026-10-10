@@ -295,3 +295,28 @@ and final release. EDIT023 is fully qualified; the spectral repair adds no
 count. All reproducible full50 browser failures now have focused resolution;
 this does not relabel that failed complete run as a pass. Both public logs and
 output directories are read and removed immediately after the receipt.
+
+## R7-EDIT-024 — Named region creation drops a header-selected recording
+
+Soundscaper: import an ordinary WAV, Window → Markers. Select → Select all,
+then Add region from selection works; Undo, Select none, select the recording's
+header and use the same action. The selected recording is visibly active but
+the button is disabled. This independent annotation creation consumer reads
+only collapsed stored time bounds. The actual public healthy range and Undo
+pass before causal disabled admission on guarded04e87c277. An initial All/None
+menu-name setup failure is excluded and its diagnostics immediately removed.
+Both actual controller cases independently pass drawn-range creation and Undo,
+then refuse the selected recording at0 or4800 with the positive-selection
+error. Initial nonexistent history fixture ports are excluded before these
+causal runs.
+
+Resolve the selected clip or explicit time interval at this existing creation
+owner, keeping requested bounds authoritative. The existing panel, annotation
+lane and creation keyboard routes use the same effective range. Extract its
+range and unchanged nonnegative frame validator into a focused strict module;
+the growth-frozen controller shrinks11 lines. Register the exact helper's
+delegation to the shared selection boundary. The existing audit scopes and
+rules stay unchanged. Corrected actual controller, media immutability,
+one-step Undo/Redo, annotation command/model and shield supports pass44/44;
+targeted type-aware lint passes. Corrected complete public proof is pending;
+EDIT024 is not yet counted.
