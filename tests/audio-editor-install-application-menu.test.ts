@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import { AUDIO_EDITOR_DEFAULT_SHORTCUTS } from '../src/common/editor/preferences.js';
 import { materializeApplicationMenu } from '../src/common/editor/ui/application-menu-materialization.ts';
@@ -57,14 +58,10 @@ function menus(options: MenuOptions = {}): MenuItem[] {
 		selectionActive: false, selectedClip: null, durationFrames: 0,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({
+		actions: createMenuActionFixture({
 			installAvailable: options.available ?? (() => false),
 			installApplication: options.install ?? (() => undefined),
-		} as Record<string, unknown>, {
-			get: (target, property, receiver) => (Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined),
-		}),
+		} as Record<string, unknown>),
 	}) as MenuItem[];
 }
 

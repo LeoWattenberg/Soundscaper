@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -240,10 +241,6 @@ function menuInput(productId: string, actions: Record<string, unknown>) {
 		selectionActive: false, selectedClip: null, durationFrames: 0,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({ ...actions }, {
-			get: (target, property, receiver) => Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined,
-		}),
+		actions: createMenuActionFixture(actions),
 	};
 }

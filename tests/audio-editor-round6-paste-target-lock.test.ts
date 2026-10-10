@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { createWorkspaceEditItems } from '../src/common/editor/ui/workspace/workspace-edit-items.js';
 import { hasLockedClipboardPasteTarget, planClipboardPasteTargets } from '../src/common/editor/clipboard-paste-targets.ts';
@@ -60,7 +61,7 @@ for (const locked of [false, true]) test(`Paste projects its ${locked ? 'locked'
 		copy: ENGLISH_COPY, project: snapshot.project, snapshot, blocked: false, editBlocked: false,
 		showArmControls: false, selectionActive: false, selectedClip: null, durationFrames: 4800,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {}, actionRuntime: null,
-		actions: new Proxy({}, { get: () => () => undefined }),
+		actions: createMenuActionFixture(),
 	}) as readonly MenuItem[];
 	for (const id of ['action://paste', 'insert', 'action://trackedit/paste-insert-all-tracks-ripple']) {
 		assert.equal(findItem(menus, id).disabled, locked, id);

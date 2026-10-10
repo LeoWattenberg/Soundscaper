@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { partitionWorkspaceFiles, WORKSPACE_OPEN_FILE_ACCEPT } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
@@ -36,11 +37,7 @@ function menuInput(deliveryReport: unknown, actions: Record<string, unknown>) {
 		selectionActive: false, selectedClip: null, durationFrames: 100,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({ ...actions }, {
-			get: (target, property, receiver) => (Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined),
-		}),
+		actions: createMenuActionFixture(actions),
 	};
 }
 

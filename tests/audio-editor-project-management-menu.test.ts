@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
@@ -98,7 +99,7 @@ function menuFixture({ productId = 'soundscaper', locale = 'en', blocked = false
 		selectionActive: false, selectedClip: null, durationFrames: 0,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({}, { get: (_target, key) => () => { calls.push(String(key)); } }),
+		actions: createMenuActionFixture({}, (key) => { calls.push(key); }),
 	}) as readonly MenuItem[];
 	const file = menus.find((menu) => menu.id === 'file');
 	assert.ok(file);

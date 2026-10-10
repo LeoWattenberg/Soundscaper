@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
 import { createAudioEditorSearchEntries } from '../src/common/editor/search.js';
@@ -61,11 +62,7 @@ function menuInput({
 		showArmControls: false, selectionActive: false, selectedClip: null,
 		durationFrames: 0, effectsPanelOpen: false, projectBinEffectivelyOpen: false,
 		uiFlags: {}, actionRuntime: null,
-		actions: new Proxy(actions, {
-			get: (target, property, receiver) => Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined,
-		}),
+		actions: createMenuActionFixture(actions),
 	};
 }
 

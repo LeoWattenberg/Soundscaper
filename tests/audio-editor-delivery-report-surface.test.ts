@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createDeliveryReportForPlan } from '../src/common/editor/delivery-conversion-inventory.ts';
@@ -107,11 +108,7 @@ function menuInput(deliveryReport: unknown, actions: Record<string, unknown>) {
 		selectionActive: false, selectedClip: null, durationFrames: 100,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({ ...actions }, {
-			get: (target, property, receiver) => (Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined),
-		}),
+		actions: createMenuActionFixture(actions),
 	};
 }
 

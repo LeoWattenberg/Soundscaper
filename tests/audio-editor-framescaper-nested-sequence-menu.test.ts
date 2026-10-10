@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import {
 	createFramescaperNestedSequenceMenuItems,
@@ -310,7 +311,7 @@ function applicationMenuInput(productId: string) {
 }
 
 function actionPorts(): object {
-	return new Proxy({}, { get: () => () => undefined });
+	return createMenuActionFixture();
 }
 
 function copyValues(): object {

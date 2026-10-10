@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { createAudioEditorUiActionController } from '../src/common/editor/audacity-action-runtime.js';
@@ -58,10 +59,10 @@ function fixture({ productId = 'soundscaper', german = false, blocked = false,
 			setWorkspace: (id: string) => { calls.push(`workspace:${id}`); },
 			togglePanel: (id: string) => { calls.push(`panel:${id}`); },
 		},
-		actions: new Proxy({
+		actions: createMenuActionFixture({
 			switchProject: (id: string) => { calls.push(`project:${id}`); },
 			fullscreen: () => { calls.push('fullscreen'); },
-		} as Record<string, unknown>, { get: (target, key) => target[key as string] ?? (() => undefined) }),
+		} as Record<string, unknown>),
 	};
 	const menus = (workspaceRuntime ? createWorkspaceApplicationMenus({
 		...input,

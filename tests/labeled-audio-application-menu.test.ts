@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import { evaluateAudacityActionEnablement } from '../src/common/editor/audacity-action-parity.js';
 import { AUDIO_EDITOR_DEFAULT_SHORTCUTS } from '../src/common/editor/preferences.js';
@@ -45,13 +46,9 @@ function menus(document: ReturnType<typeof project>, calls: string[], productId 
 		selectionActive: true, selectedClip: null, durationFrames: 10_000,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({
+		actions: createMenuActionFixture({
 			executeEdit: (action: string) => { calls.push(action); },
-		} as Record<string, unknown>, {
-			get: (target, property, receiver) => (Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined),
-		}),
+		} as Record<string, unknown>),
 	}) as MenuItem[];
 }
 

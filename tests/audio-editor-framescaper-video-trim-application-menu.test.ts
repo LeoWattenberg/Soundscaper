@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import { materializeApplicationMenu } from '../src/common/editor/ui/application-menu-materialization.ts';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
@@ -461,13 +462,7 @@ function menuInput(productId: 'framescaper' | 'soundscaper', actions: object) {
 }
 
 function actionPorts(overrides: Readonly<Record<string, unknown>>): object {
-	return new Proxy({ ...overrides }, {
-		get(target, property, receiver) {
-			return Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined;
-		},
-	});
+	return createMenuActionFixture(overrides);
 }
 
 function copyValues(): object {

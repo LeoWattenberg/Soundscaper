@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -186,7 +187,7 @@ function menuInput() {
 		projectBinEffectivelyOpen: false,
 		uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({}, { get: () => () => undefined }),
+		actions: createMenuActionFixture(),
 	};
 }
 

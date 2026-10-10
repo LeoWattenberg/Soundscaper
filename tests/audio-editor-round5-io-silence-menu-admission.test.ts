@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
@@ -48,8 +49,7 @@ function menu(productId: 'framescaper' | 'soundscaper', editBlocked = false, sel
 		}, blocked: false, editBlocked, showArmControls: false, selectionActive: selected,
 		selectedClip, durationFrames: 48_000, effectsPanelOpen: false,
 		projectBinEffectivelyOpen: false, uiFlags: {}, actionRuntime: null,
-		actions: new Proxy({ executeEdit: (action: string) => { called.push(action); } },
-			{ get: (target, key) => Reflect.get(target, key) ?? (() => undefined) }),
+		actions: createMenuActionFixture({ executeEdit: (action: string) => { called.push(action); } }),
 	}) as readonly MenuItem[];
 	const removeSpecial = menus.find(item => item.id === 'edit')?.items?.find(item => item.id === 'remove-special');
 	const silence = removeSpecial?.items?.find(item => item.id === 'silence-audio');
