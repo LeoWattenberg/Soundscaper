@@ -1050,6 +1050,41 @@ as well as button presses. No Store state oracle or product source is changed
 in this follow-through. Current replay logs and diagnostics are read and removed
 immediately.
 
+## R7-EFFECT-026 — Sound Visualizer erases audible multichannel spectrum energy
+
+Import an ordinary four-channel recording in Framescaper, verify its healthy
+audio through File → Export video, then Generate → Video Generators → Add
+Sound Visualizer. In Effect → Video Finishing → Selected Visual Inspector,
+choose Spectrum and the recording, apply, and seek inside the recording.
+Matching-polarity channels produce the expected peak; alternating-polarity
+channels retain the same audible exported audio but produce a much smaller
+visual peak. The PCM window owner averages signed samples above two channels
+before analysis, discarding energy through cancellation. This is independent
+of FX016's pixel-bin projection, FX015's live EQ tap and the earlier live
+analysis channel-power owner.
+
+Retain all admitted source channels in the bounded packed FFT window so the
+existing analyzer combines independent channel power. Preserve the authored
+surround waveform mean, source layout admission, PCM cache ceilings, clipping,
+warps, fades, cancellation and timeline/window geometry. All wide-channel
+Spectrum variants count once under this owner; no waveform behavior changes.
+
+On authenticated 3b510658ddb254144c98e401603f23f5ba875aaf, the complete
+Chromium matching-polarity control passes in 24.6 seconds, while the opposite
+polarity case causally fails in 25.3 seconds at a completed fresh raster:
+first peak row is 0.1430556 rather than below 0.03, versus the matching row
+0.0111111. Both actual exported stereo WAVs contain 48,000 frames at 48 kHz
+and channel RMS approximately 0.35355 and 0.35347. An earlier attempt reaching
+the overall deadline during the finishing observer is excluded. The strict
+reference first has three failures and two healthy passes: four- and
+32-channel cancellation, and six-channel amplitude dilution. Corrected
+channel-power, retained waveform and existing PCM/cache/warp/fade/raster and
+chunk-ownership controls pass 70/70 in 6.343 seconds. Targeted type-aware lint,
+canonical changed lint and the owned diff check pass. Corrected complete
+public verification is pending a shared guarded capture. Owned causal logs
+and diagnostics are read and removed immediately. The assistance runtime
+closure is unchanged; no manual Update AI assets run is required.
+
 After confirming that explicit Store state alone enables Restore and advances
 the dialog generation, its zero-count finishing witness now waits for that
 initial Restore authority and the corresponding real parameter-get refresh.
