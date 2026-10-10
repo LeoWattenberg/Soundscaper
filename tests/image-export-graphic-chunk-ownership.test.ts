@@ -20,6 +20,16 @@ for (const path of MODULES) { const owner = chunkGroupForModulePath(path); if (o
 } }
 const RUNTIME_SOURCE = new Map<string, string>();
 
+test('video graphic and encode request helpers belong to their existing optional export service', () => {
+	for (const name of ['video-export-graphic', 'video-export-product-encode-request']) {
+		const path = `src/common/editor/controller/export/internal/video/${name}.ts`;
+		for (const separator of ['/', '\\']) {
+			assert.equal(chunkGroupForModulePath(path.replaceAll('/', separator)), 'editor-optional-export');
+			assert.notEqual(chunkGroupForModulePath((path + '.foreign').replaceAll('/', separator)), 'editor-optional-export');
+		}
+	}
+});
+
 test('graphic decode and transform have exact optional ownership without co-owning existing image readers or linear math', () => {
 	for (const path of GRAPHIC) for (const separator of ['/', '\\']) {
 		assert.equal(chunkGroupForModulePath(path.replaceAll('/', separator)), 'editor-export-graphic');

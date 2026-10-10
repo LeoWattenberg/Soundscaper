@@ -42,6 +42,8 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	// Lightscaper's lazy product bootstrap reads its compact defaults immediately.
 	// Initial-page separation remains measured by the product startup graph.
 	'lightscaper-editor-copy',
+	// The File menu reads these scalar batch labels immediately at product startup.
+	'lightscaper-photo-batch-export-menu-copy',
 	// The photo bootstrap composes these scalar owners immediately; the shared
 	// inert value validator is also read by the existing timeline boot domains.
 	'editor-photo-library-scalars',
