@@ -583,3 +583,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     `tests/audio-editor-round7-track-volume-primary-release.test.tsx` and the
     ordinary Volume completion, keyboard Undo and retained-import workflow.
     Upstream-PR candidate.
+
+75. `MixerFader` retains its admitted primary pointer through foreign motion,
+    completion and cancellation. Secondary starts cannot replace native
+    capture; owning completion, cancellation, later gestures and keyboard
+    controls remain unchanged. Covered by the actual mounted
+    `tests/audio-editor-round7-mixer-fader-pointer-owner.test.tsx` and ordinary
+    Window → Mixer Volume mouse, one-finger, two-finger and Undo/Redo controls.
+    Upstream-PR candidate.
