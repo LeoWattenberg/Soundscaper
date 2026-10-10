@@ -36,6 +36,9 @@ export function ParametricEqOutputRange({ disabled, value, minimum, maximum, onB
 			event.currentTarget.setPointerCapture?.(event.pointerId);
 		}}
 		onChange={event => onValueChange(Number(event.currentTarget.value))}
+		onPointerMove={event => {
+			if (event.pointerType === 'mouse' && (event.buttons & 1) === 0) finish(event, false);
+		}}
 		onPointerUp={event => finish(event, false)}
 		onPointerCancel={event => finish(event, true)}
 		onLostPointerCapture={event => finish(event, true)}

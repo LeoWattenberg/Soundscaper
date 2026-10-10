@@ -174,6 +174,7 @@ export function ParametricEqEditor({
 	const moveDrag = (event) => {
 		const drag = dragRef.current;
 		if (!drag || event.pointerId !== drag.pointerId) return;
+		const completed = event.pointerType === 'mouse' && (event.buttons & 1) === 0;
 		const graph = event.currentTarget.closest('.audio-editor-parametric-eq__graph');
 		const rect = graph?.getBoundingClientRect();
 		if (!rect?.width || !rect?.height) return;
@@ -186,6 +187,7 @@ export function ParametricEqEditor({
 			replaceBand(band.id, {
 				q: clamp(drag.startBand.q * 2 ** ((drag.startY - event.clientY) * sensitivity), MIN_Q, MAX_Q),
 			}, { preview: true });
+			if (completed) finishDrag(event);
 			return;
 		}
 		const changes = event.shiftKey
@@ -200,14 +202,15 @@ export function ParametricEqEditor({
 				: MAX_GAIN - y * (MAX_GAIN - MIN_GAIN);
 		}
 		replaceBand(band.id, changes, { preview: true });
+		if (completed) finishDrag(event);
 	};
 
 	const finishDrag = (event) => {
 		if (!dragRef.current || event.pointerId !== dragRef.current.pointerId) return;
-		event.currentTarget.releasePointerCapture?.(event.pointerId);
 		const drag = dragRef.current;
 		const latest = drag.latest;
 		dragRef.current = null;
+		if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
 		if (previewFrameRef.current) {
 			cancelAnimationFrame(previewFrameRef.current);
 			previewFrameRef.current = 0;
