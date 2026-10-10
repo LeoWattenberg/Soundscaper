@@ -18,6 +18,7 @@ import {
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
 import { nativeFilterTailFrames } from './native-filter-release.ts';
+import { parametricEqTailFrames } from './first-party-effects/parametric-eq/coefficients.ts';
 import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION, bandDynamicsTailSeconds, isBandDynamicsEffect } from './first-party-effects/dynamics/definition.ts';
 import { STANDARD_FILTER_EFFECT_DEFINITIONS } from './first-party-effects/standard/filters-definition.ts';
 import { STANDARD_MODULATION_EFFECT_DEFINITIONS } from './first-party-effects/standard/modulation-definition.ts';
@@ -351,6 +352,7 @@ export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, 
 	if (!normalized.enabled || normalized.bypassed === true || normalized.type === MISSING_EFFECT_TYPE) return 0;
 	const nativeTail = nativeFilterTailFrames(normalized, sampleRate, automationLanes);
 	if (nativeTail !== null) return nativeTail;
+	if (normalized.type === 'eq') return parametricEqTailFrames(normalized.params, sampleRate, automationLanes, normalized.id);
 	if (isAudacityRackEffectType(normalized.type)) {
 		return Math.ceil(audacityLiveEffectTailFrames(normalized.type, sampleRate, normalized.params));
 	}

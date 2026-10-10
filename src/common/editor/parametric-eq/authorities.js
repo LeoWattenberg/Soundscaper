@@ -11,11 +11,4 @@ export function groupParametricEqSections(sections) {
 	return groups;
 }
 
-/** Normalize the shared floating-point sample-rate contract used by JS EQ paths. */
-export function normalizeParametricEqSampleRate(value) {
-	const sampleRate = Number(value);
-	if (!Number.isFinite(sampleRate) || sampleRate < 8_000 || sampleRate > 768_000) {
-		throw new RangeError('Parametric EQ sample rate must be between 8,000 and 768,000 Hz.');
-	}
-	return sampleRate;
-}
+export { normalizeParametricEqSampleRate } from '../first-party-effects/parametric-eq/coefficients.ts';

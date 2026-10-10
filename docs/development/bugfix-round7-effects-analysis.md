@@ -383,3 +383,48 @@ export length is 48000 rather than greater than 48128. The subsequent physical
 release assertions were not reached; corrected public GREEN is pending the
 shared build. The bounded PCM stays in memory and owned failed-run diagnostics
 and log are removed immediately after inspection. Assistance assets are unchanged.
+
+## R7-EFFECT-012 — Parametric EQ cuts off its actual matched cascade release
+
+Import an ordinary one-second bass recording, add Parametric EQ to the track
+rack, and set its first band to High cut at 10 Hz with a 12 dB/oct slope. Export
+with Include tails. The actual pinned WASM TPT processor retains a 0.35355 peak
+in its first silent quantum, but the EQ family declares no release. Export
+therefore stops at sample 48000. This matched state-variable cascade has its
+own section geometry and histories, distinct from the native biquad and
+complementary-crossover families. Cut slopes and bell variants share this root.
+
+Extract the existing matched-section arithmetic into a strict, dependency-closed
+coefficient owner and reuse it in the original designer and the release
+contract. Bound the entire active cascade, including output gain, through the
+existing normalized-IIR envelope. Transparent bands and output-only gain retain
+their dry duration. Constant authored band values also enter the bound; changing
+semantic curves conservatively retain the existing ten-second rack budget to
+cover their smoothing histories. Refresh the moved JavaScript source pins,
+pin the extracted leaf, and add its emitted JavaScript desktop inventory entry.
+Root assigns that exact leaf to the existing editor and worker contract groups.
+The native source pins, fixed-memory WASM bytes and assistance closure stay unchanged.
+
+Three actual-WASM charged cases are causally RED with declared release zero;
+the neutral control already passes. Two same-root authored-automation cases are
+also RED against the initial static-only correction and GREEN after completion.
+The corrected actual cascade, analytic response, semantic automation and source
+authority support passes 23/23; the pinned WASM reproducibility audit, generic
+editor/worker closure guards and release cases pass 40/40. Target type-aware
+lint passes. The unchanged production capture `48b` is publicly RED (6.6 seconds):
+healthy dry length and bass pass, then the ordinary low-pass export still has
+48000 samples instead of more than 48128. The later physical release assertions
+were not reached; corrected public GREEN is pending the shared build.
+
+The first public attempt used custom wrapped labels and timed out before the
+Type selection. It is excluded; the corrected witness uses the observed
+accessible combobox and spinbutton names. Owned setup and causal diagnostics
+are inspected and removed immediately. The short combined causal log remains
+with its I/O owner until that parallel failure is read. All PCM stays bounded
+in memory. No manual Update AI assets run is required.
+
+An in-memory comparison against the original designer matches all 1620 ordinary
+rate/type/frequency/gain/Q/slope configurations exactly, including the same
+refusals. The size guard passes. Complete strict test compilation reports no
+errors in owned files; two concurrent I/O/navigation fixtures await their owners'
+corrections before the shared type gate can pass.
