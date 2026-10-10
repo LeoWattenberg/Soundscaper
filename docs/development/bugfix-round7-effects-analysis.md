@@ -1564,3 +1564,35 @@ isolated passes do not establish their cause and are not evidence for a
 production repair; no source or fixture changes and no additional root are
 made. After worker/server closure, the bounded replay log and generated
 results are immediately removed. No manual Update AI assets run is required.
+
+## Final full-200 WebKit parameter/musical witnesses — verification-only triage
+
+The actual completed CASE markers, PNGs and full error contexts for four
+original WebKit observations are consumed; their exact completed directories
+are immediately removed after this receipt. Parametric EQ Output
+(`19f0966ae288b2fa9a53-5139eaad12cf52afc9d2`, 7.718 seconds) fails its
+first healthy ordinary range drag at gain zero instead of greater than five.
+The actual image shows the focused output range/number at zero and an open
+selection effect. No middle-button or primary-completion assertion has run.
+Retain its explicit existing 60-second whole budget and all PCM/history/native
+controls for unchanged isolated replay; no completion cause is inferred.
+
+Change Tempo (`32aaf66657575fc22919-eed011f382614936c760`, 30.507 seconds),
+Truncate Silence (`b65fdd47accb60848052-fe5f039b1dac385e5831`, 30.833 seconds)
+and Warp (`9163b06380a55d078742-f98c59481424526d3e72`, 36.532 seconds) exceed
+their original 30-second whole budgets while closing the second export
+after numeric-array WAV transfer/native decoding. All three actual images
+show a fresh WAV download and the placed/edited recording; no Close
+interceptor or application alert is reported. Final decoded-audio assertions
+following the helper return are not reached. Change Tempo needs its exact
+unchanged whole WebKit replay when the reserved native lane is free.
+
+The frozen Silence and Warp numeric-array witness observations retain their
+already completed byte-preserving base64 follow-through, without repeating
+verification: e8b8260c4 Silence passes all three complete native workflows
+(9.6/16.3/15.2 seconds), preserving both fresh 359997-frame WAVs, RMS and
+exact equality. IO-owned 08e4aa9ed Warp passes all three complete native
+workflows (11.1/18.3/18.4 seconds), preserving both fresh actual WAVs,
+frames/peaks, marker/Undo and errors. Each keeps the original 30-second
+whole deadline and native decoder. Original failed aggregate statuses remain
+unchanged. No production change, new bug count or AI asset update.
