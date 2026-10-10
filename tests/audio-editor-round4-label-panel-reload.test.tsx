@@ -19,7 +19,7 @@ test('a persisted Labels panel survives reload before the project arrives and re
 	const selections: [number, number][] = [];
 	const controller = { actions: {
 		labels: { update() {}, remove() {}, add() {} },
-		timeline: { setSelection(start: number, end: number) { selections.push([start, end]); } },
+		timeline: { setExactSelection(start: number, end: number) { selections.push([start, end]); } },
 	}, getTelemetrySnapshot: () => ({ positionFrame: 0 }) };
 	const project = createSoundscaperProject({ id: 'saved-captions', sampleRate: 44_100,
 		tracks: [{ id: 'captions', type: 'label', name: 'Captions', labels: [

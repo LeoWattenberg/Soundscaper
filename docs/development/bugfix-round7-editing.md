@@ -360,3 +360,26 @@ consumer, with zero additional count. Use the existing exact selection API
 at both clip-export entry paths; the three actual Title placements, original
 native range/Skip, manifest and all shield support now pass25/25. Targeted
 lint passes and reviewed follow-through output is immediately removed.
+
+## R7-EDIT-026 — Manage labels Time selection quantizes authored regions
+
+Soundscaper: import an ordinary0.8-second WAV, select its header, Edit → Add
+label and finish its name. Edit → Manage labels, Select none, then its row's
+Time selection restores0..0.8 seconds. Enable Snap, Select none and use the
+same Time selection again: Selection end becomes1 second while the saved
+label still ends0.8 seconds. The unchanged guarded8fba4b346 public healthy
+control passes before this causal1.000-versus0.800 failure. This panel's
+independent selection callback still calls the pointer-grid API; R3-EDIT-009
+repaired the separately implemented timeline marker click/focus/context owner.
+An initial New label setup intentionally creates a point, a guessed Select
+button name, and a duplicate panel/toolbar End locator are excluded setup
+failures. All reviewed diagnostics are immediately removed.
+
+Call the existing exact range API at this panel owner and update its precise
+local controller port and two faithful existing panel fixtures. Two actual
+mounted row/controller cases with ordinary authored point and region labels
+pass unsnapped controls, then causally RED at0 instead of9600 with Snap.
+Corrected native media/label/history preservation, panel reload and deletion,
+composition, timeline exact-label selection and label creation support pass
+13/13; targeted type-aware lint passes. Complete public correction is pending;
+EDIT026 has no count yet. No manual **Update AI assets** run is required.
