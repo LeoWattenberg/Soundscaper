@@ -23,6 +23,7 @@ import type { VideoKeyframeOfflineRgbaRenderer } from './video-keyframe-offline-
  * runs cannot describe different things.
  */
 export interface VideoKeyframeOfflineWebCodecsDecision {
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly codec: string;
 	readonly bitrate: number;
 }
@@ -123,6 +124,7 @@ function webCodecsEncode(decision: VideoKeyframeOfflineWebCodecsDecision) {
 	return Object.freeze({
 		codec: decision.codec,
 		bitrate: decision.bitrate,
+		...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}),
 		encoderClass,
 		videoFrameClass,
 	});

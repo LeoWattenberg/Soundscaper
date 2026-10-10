@@ -67,7 +67,7 @@ export interface ProductVideoExportStrategyEncodeRequest {
 	 * The delivery's encoder decision, made once where the delivery is decided
 	 * and reported. Null means the shipped FFmpeg encodes the picture.
 	 */
-	readonly webCodecs: Readonly<{ codec: string; bitrate: number }> | null;
+	readonly webCodecs: Readonly<{ codec: string; bitrate: number; hardwareAcceleration?: 'prefer-hardware' }> | null;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly maximumOutputBytes: unknown;

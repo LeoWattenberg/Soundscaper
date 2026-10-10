@@ -30,11 +30,13 @@ export interface VideoDeliveryEncoderDecision {
 	readonly tier: 'webcodecs' | 'ffmpeg';
 	readonly codec: string | null;
 	readonly bitrate: number | null;
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	/** Why the browser's encoder was not chosen, or null when it was. */
 	readonly reason: string | null;
 }
 
 export interface VideoDeliveryEncoderTierRequest {
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	/** `mp4` or `webm`, as the plan states it. */
 	readonly format: string;
 	/** The plan's canvas, whatever shape it is: an unreadable one is refused. */
@@ -101,6 +103,7 @@ export async function resolveVideoDeliveryEncoderTier(
 			canvas,
 			bitrate,
 			encoder as never,
+			request.hardwareAcceleration,
 		);
 		if (support.tier !== 'webcodecs' || !support.codec) {
 			throw unavailable(support.reason ?? 'This browser does not encode this delivery.');
@@ -114,6 +117,7 @@ export async function resolveVideoDeliveryEncoderTier(
 			tier: 'webcodecs' as const,
 			codec: support.codec,
 			bitrate,
+			...(request.hardwareAcceleration ? { hardwareAcceleration: request.hardwareAcceleration } : {}),
 			reason: null,
 		});
 	} catch (error) {

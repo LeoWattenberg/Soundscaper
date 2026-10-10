@@ -131,6 +131,7 @@ export async function resolveVideoWebCodecsSupport(
 	canvas: VideoWebCodecsCanvas,
 	bitrate: number,
 	encoder: EncoderConfigProbe | undefined,
+	hardwareAcceleration?: 'prefer-hardware',
 ): Promise<VideoWebCodecsSupport> {
 	if (typeof encoder?.isConfigSupported !== 'function') {
 		return fallback('This browser has no WebCodecs video encoder.');
@@ -147,6 +148,7 @@ export async function resolveVideoWebCodecsSupport(
 			codec,
 			canvas: { width, height, frameRate },
 			bitrate,
+			...(hardwareAcceleration ? { hardwareAcceleration } : {}),
 			...(videoCodec === 'h264' ? { h264Format: 'avc' as const } : {}),
 		}));
 	} catch (error) {

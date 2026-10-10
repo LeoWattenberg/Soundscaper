@@ -90,6 +90,7 @@ test('the default lazy backend writes finite Mediabunny containers from browser 
 			webCodecs: {
 				codec,
 				bitrate: 100_000,
+				hardwareAcceleration: 'prefer-hardware',
 				encoderClass: encoder.Encoder,
 				videoFrameClass: encoder.Frame,
 			},
@@ -102,6 +103,7 @@ test('the default lazy backend writes finite Mediabunny containers from browser 
 			format === 'mp4' ? [...new TextEncoder().encode('ftyp')] : [0x1a, 0x45, 0xdf, 0xa3],
 		);
 		assert.deepEqual(encoder.configs[0]?.avc, format === 'mp4' ? { format: 'avc' } : undefined);
+		assert.equal(encoder.configs[0]?.hardwareAcceleration, 'prefer-hardware');
 	}
 });
 

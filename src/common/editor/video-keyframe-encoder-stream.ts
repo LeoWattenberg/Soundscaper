@@ -16,6 +16,7 @@ import {
 	type VideoKeyframeExportFrameSource,
 } from './video-keyframe-export-frame-source.ts';
 import { executeVideoKeyframeEncoder } from './video-keyframe-encoder-execution.ts';
+import { validateVideoKeyframeWebCodecsDecision } from './video-keyframe-webcodecs-decision.ts';
 import {
 	executeVideoKeyframeWebCodecsEncoder,
 	type VideoKeyframeWebCodecsEncode,
@@ -313,25 +314,9 @@ function validateWebCodecs(
 	request: Readonly<Record<string, unknown>>,
 ): VideoKeyframeWebCodecsEncode | null {
 	if (!Object.hasOwn(request, 'webCodecs')) return null;
-	const value = closedRecord(
+	return validateVideoKeyframeWebCodecsDecision(
 		dataProperty(request, 'webCodecs', 'video keyframe encoder request'),
-		new Set(['codec', 'bitrate', 'encoderClass', 'videoFrameClass']),
-		'video keyframe WebCodecs decision',
 	);
-	const codec = dataProperty(value, 'codec', 'video keyframe WebCodecs decision');
-	if (typeof codec !== 'string' || codec.length === 0 || codec.length > 128) {
-		throw new TypeError('video keyframe WebCodecs decision.codec must be a codec string.');
-	}
-	const bitrate = dataProperty(value, 'bitrate', 'video keyframe WebCodecs decision');
-	if (typeof bitrate !== 'number' || !Number.isSafeInteger(bitrate) || bitrate <= 0) {
-		throw new RangeError('video keyframe WebCodecs decision.bitrate must be a positive integer.');
-	}
-	for (const key of ['encoderClass', 'videoFrameClass']) {
-		if (typeof dataProperty(value, key, 'video keyframe WebCodecs decision') !== 'function') {
-			throw new TypeError(`video keyframe WebCodecs decision.${key} must be a constructor.`);
-		}
-	}
-	return value as unknown as VideoKeyframeWebCodecsEncode;
 }
 
 function validateProducer(

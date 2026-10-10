@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
 test.use({ browserCoverage: false });
 const ROOT = '/__video-delivery-encoder-tiers__';
-const ENTRY_MODULES = ['video-delivery-encoder-tier.ts'];
+const ENTRY_MODULES = ['video-delivery-encoder-tier.ts', 'platform-video-delivery-encoder.ts'];
 /** 29.97, stated as the rational a decimal would quietly round away. */
 const FRAME_RATE = { num: 30_000, den: 1_001 };
 const CANVAS = { width: 64, height: 64 };
@@ -97,6 +97,37 @@ test('absent and ineligible browser encoders are explicit unavailable errors', a
 	}
 	expect(result.absent.message).toMatch(/encoder/u);
 	expect(result.ineligible.message).toMatch(/keyed frame delivery/u);
+});
+
+test('desktop delivery uses real WebCodecs without an external FFmpeg provider', async ({ page }) => {
+	await installRoutes(page);
+	await page.goto(`${ROOT}/index.html`);
+	const result = await page.evaluate(async ([root, rate, canvas]) => {
+		const { resolvePlatformVideoDeliveryEncoder, resolveDesktopRendererVideoExportCapabilities } = await import(
+			`${root}/src/common/editor/platform-video-delivery-encoder.ts`
+		);
+		const { produceVideoWebCodecsChunks } = await import(`${root}/src/common/editor/video-webcodecs-producer.ts`);
+		const fileService = { isDesktop: true };
+		const capabilities = await resolveDesktopRendererVideoExportCapabilities(fileService);
+		const decision = await resolvePlatformVideoDeliveryEncoder(fileService, {
+			format: 'mp4', canvas: { ...canvas, frameRate: rate }, quality: 'balanced', eligible: true,
+		});
+		let chunks = 0;
+		let bytes = 0;
+		await produceVideoWebCodecsChunks({
+			frameSource: { frameCount: 2, canvas: { ...canvas, frameRate: rate }, frame: (index) => ({ index }) },
+			producer: { byteLength: canvas.width * canvas.height * 4, produce: (_frame, target) => { target.fill(128); } },
+			videoCodec: 'h264', codec: decision.codec, bitrate: decision.bitrate,
+			...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}),
+			h264Format: 'avc', encoderClass: VideoEncoder, videoFrameClass: VideoFrame,
+			writeChunk(chunk) { chunks += 1; bytes += chunk.byteLength; },
+		});
+		return { decision, available: capabilities.formats.mp4.available, chunks, bytes };
+	}, [ROOT, FRAME_RATE, CANVAS]);
+	expect(result.available).toBe(true);
+	expect(result.decision.tier).toBe('webcodecs');
+	expect(result.chunks).toBe(2);
+	expect(result.bytes).toBeGreaterThan(0);
 });
 
 function isFfmpegRuntimeRequest(value) {

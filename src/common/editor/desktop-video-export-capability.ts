@@ -3,7 +3,7 @@
 import { videoExportPlanFormat } from './video-export-request-format.ts';
 
 export type DesktopVideoExportFormat = 'mp4' | 'webm';
-export type DesktopVideoExportProvider = 'bundled' | 'operating-system' | 'external-ffmpeg';
+export type DesktopVideoExportProvider = 'bundled' | 'operating-system' | 'external-ffmpeg' | 'webcodecs';
 
 export interface DesktopVideoExportFormatCapability {
 	readonly available: boolean;
@@ -57,7 +57,7 @@ function normalizeFormatCapability(
 	});
 }
 
-function capabilityNotice(
+export function desktopVideoExportCapabilityNotice(
 	formats: Readonly<Record<DesktopVideoExportFormat, DesktopVideoExportFormatCapability>>,
 ): string | null {
 	const unavailable = FORMATS.filter((format) => !formats[format].available)
@@ -80,7 +80,7 @@ export function desktopVideoExportCapabilities(value: unknown): DesktopVideoExpo
 		mp4: normalizeFormatCapability('mp4', formatsValue?.mp4),
 		webm: normalizeFormatCapability('webm', formatsValue?.webm),
 	});
-	return Object.freeze({ schemaVersion: 1, formats, notice: capabilityNotice(formats) });
+	return Object.freeze({ schemaVersion: 1, formats, notice: desktopVideoExportCapabilityNotice(formats) });
 }
 
 function normalizeFormat(value: unknown): DesktopVideoExportFormat | null {

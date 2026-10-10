@@ -35,6 +35,7 @@ import { produceVideoWebCodecsStream } from './video-webcodecs-producer.ts';
 
 /** What the capability probe decided, carried down to the encoder that runs. */
 export interface VideoKeyframeWebCodecsEncode {
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	/** The full codec string `VideoEncoder.isConfigSupported` accepted. */
 	readonly codec: string;
 	readonly bitrate: number;
@@ -116,6 +117,7 @@ async function writeEncodedStream(
 		videoCodec: workload.elementaryFormat === 'ivf' ? 'vp9' : 'h264',
 		codec: webCodecs.codec,
 		bitrate: webCodecs.bitrate,
+		...(webCodecs.hardwareAcceleration ? { hardwareAcceleration: webCodecs.hardwareAcceleration } : {}),
 		encoderClass: webCodecs.encoderClass as never,
 		videoFrameClass: webCodecs.videoFrameClass as never,
 		// Split against the ring exactly as the RGBA tier splits a frame. An

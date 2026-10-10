@@ -33,9 +33,8 @@ import { deliverCaptionSidecar, stagedCaptionDocument } from './video-export-cap
 import { videoExportPlanFormat } from '../../../../video-export-request-format.ts';
 import { loadVideoBurnInFonts } from '../../../../video-burn-in-font.ts';
 import { videoBurnInFontSubsetIds } from '../../../../video-caption-burn-in.ts';
-import { resolveVideoDeliveryEncoderTier, VIDEO_DELIVERY_FFMPEG_ENCODER } from '../../../../video-delivery-encoder-tier.ts';
+import { resolvePlatformVideoDeliveryEncoder } from '../../../../platform-video-delivery-encoder.ts';
 import { loadVideoExportOriginal } from '../../video-export-original-loader.ts';
-import { assertDesktopVideoExportAvailable } from '../../../../desktop-video-export-capability.ts';
 import type { EditorExportState } from '../../export-state.ts';
 import {
 	stagedAudioChannelCount,
@@ -89,7 +88,6 @@ export function createEditorVideoExportAction(
 		if (state.exportAbort) return null;
 		const preparationGeneration = state.exportGeneration;
 		const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
-		await assertDesktopVideoExportAvailable(fileService, formatValue);
 		if (state.exportAbort || state.exportGeneration !== preparationGeneration || state.disposed) return null;
 		if (typeof runtime.prepareProjectForExport === 'function') await runtime.prepareProjectForExport('video-export');
 		if (state.exportAbort || state.exportGeneration !== preparationGeneration || state.disposed) return null;
@@ -189,8 +187,7 @@ export function createEditorVideoExportAction(
 			// written from the plan and a decision taken later could not appear
 			// in it. Only the keyed path can be handed encoded chunks: the
 			// composed graph asks FFmpeg to build the picture itself.
-			const encoderDecision = fileService.isDesktop === true ? VIDEO_DELIVERY_FFMPEG_ENCODER
-				: await resolveVideoDeliveryEncoderTier({
+			const encoderDecision = await resolvePlatformVideoDeliveryEncoder(fileService, {
 				format,
 				canvas: plan.canvas,
 				quality: plan.quality,
@@ -324,7 +321,7 @@ export function createEditorVideoExportAction(
 								videoBlobs, audioMixBlob, ffmpeg, abort.signal,
 								assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 								encoderDecision.tier === 'webcodecs'
-									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
+									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate!, ...(encoderDecision.hardwareAcceleration ? { hardwareAcceleration: encoderDecision.hardwareAcceleration } : {}) }
 									: null,
 							),
 							pendingDirectDestination,
@@ -357,7 +354,7 @@ export function createEditorVideoExportAction(
 						videoBlobs, audioMixBlob, ffmpeg, abort.signal,
 						assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 						encoderDecision.tier === 'webcodecs'
-							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
+							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate!, ...(encoderDecision.hardwareAcceleration ? { hardwareAcceleration: encoderDecision.hardwareAcceleration } : {}) }
 							: null,
 					))
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
@@ -483,7 +480,7 @@ function productEncodeRequest(
 	assertCurrent: () => void,
 	maximumOutputBytes: unknown,
 	confirmFileSizeWarning: FileSizeWarningConfirmation | undefined,
-	webCodecs: Readonly<{ codec: string; bitrate: number }> | null,
+	webCodecs: Readonly<{ codec: string; bitrate: number; hardwareAcceleration?: 'prefer-hardware' }> | null,
 ) {
 	if (!timingIndexes) throw new Error('Keyed video export lost its exact timing lease.');
 	return Object.freeze({

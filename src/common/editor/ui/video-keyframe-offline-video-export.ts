@@ -409,7 +409,7 @@ function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas
 }
 
 function snapshotWebCodecs(value: unknown): VideoKeyframeOfflineWebCodecsDecision {
-	const decision = closedRecord(value, 'offline video export webCodecs', ['codec', 'bitrate']);
+	const decision = closedRecord(value, 'offline video export webCodecs', ['codec', 'bitrate', 'hardwareAcceleration']);
 	const codec = decision.codec;
 	const bitrate = decision.bitrate;
 	if (typeof codec !== 'string' || codec.length === 0) {
@@ -418,7 +418,10 @@ function snapshotWebCodecs(value: unknown): VideoKeyframeOfflineWebCodecsDecisio
 	if (typeof bitrate !== 'number' || !Number.isSafeInteger(bitrate) || bitrate < 1) {
 		throw new RangeError('offline video export webCodecs.bitrate must be a positive safe integer.');
 	}
-	return Object.freeze({ codec, bitrate });
+	if (decision.hardwareAcceleration !== undefined && decision.hardwareAcceleration !== 'prefer-hardware') {
+		throw new TypeError('offline video export webCodecs.hardwareAcceleration must be prefer-hardware.');
+	}
+	return Object.freeze({ codec, bitrate, ...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}) });
 }
 
 function snapshotEditorFfmpeg(value: unknown): VideoKeyframeVideoEditorFfmpeg {

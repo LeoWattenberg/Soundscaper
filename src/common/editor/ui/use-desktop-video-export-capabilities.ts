@@ -6,7 +6,6 @@ import {
 	desktopVideoExportCapabilities,
 	desktopVideoExportFormatAvailable,
 	desktopVideoExportFormatReason,
-	resolveDesktopVideoExportCapabilities,
 	type DesktopVideoExportCapabilities,
 	type DesktopVideoExportFileService,
 } from '../desktop-video-export-capability.ts';
@@ -42,8 +41,12 @@ export function useDesktopVideoExportCapabilities(
 		if (!desktop || !isOpen || !fileService) { setResult(null); return undefined; }
 		let current = true;
 		setResult(null);
-		void resolveDesktopVideoExportCapabilities(fileService).then((capabilities) => {
+		void import('../platform-video-delivery-encoder.ts').then(({ resolveDesktopRendererVideoExportCapabilities }) => (
+			resolveDesktopRendererVideoExportCapabilities(fileService)
+		)).then((capabilities) => {
 			if (current) setResult({ owner: fileService, capabilities });
+		}).catch(() => {
+			if (current) setResult({ owner: fileService, capabilities: FAIL_CLOSED_CAPABILITIES });
 		});
 		return () => { current = false; };
 	}, [desktop, fileService, isOpen]);
