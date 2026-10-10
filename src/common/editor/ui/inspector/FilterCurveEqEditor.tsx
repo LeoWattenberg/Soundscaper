@@ -144,7 +144,9 @@ export default function FilterCurveEqEditor({
 		<svg ref={svgRef} viewBox="0 0 640 300" preserveAspectRatio="none" role="group"
 			aria-label={text('effectCardEqualizationCurve')} aria-describedby={`${id}-instructions`} aria-disabled={disabled} tabIndex={disabled ? -1 : 0}
 			onPointerDown={begin} onPointerMove={(event) => {
-				if (pointer.current === event.pointerId && !disabled) draftFrame.publish(gesture.current.move(atEvent(event)));
+				if (pointer.current !== event.pointerId || disabled) return;
+				if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finish(event); return; }
+				draftFrame.publish(gesture.current.move(atEvent(event)));
 			}} onPointerUp={finish} onPointerCancel={(event) => { if (pointer.current === event.pointerId) cancel(); }}
 			onLostPointerCapture={(event) => { if (pointer.current === event.pointerId) cancel(); }}
 			onKeyDown={(event) => {
