@@ -53,7 +53,9 @@ export async function ordinaryCameraPair(page) {
 async function clipSampleField(page, editor, clip, field) {
 	const properties = await openClipProperties(page, editor, clip);
 	const drawer = properties.locator('[data-clip-properties-drawer="media"]');
-	if (!await drawer.evaluate(element => element.open)) await drawer.locator('summary').click();
+	// Its compact bottom dock clips the tall vertical summary. Use the real
+	// painted top strip rather than auto-scrolling its unpainted center.
+	if (!await drawer.evaluate(element => element.open)) await drawer.locator('summary').click({ position: { x: 16, y: 4 } });
 	const group = properties.locator(`[data-clip-field="${field}"] .timecode`);
 	const digits = group.locator('.timecode-digit');
 	if (await digits.count() !== 12) {
