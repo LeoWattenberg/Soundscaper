@@ -157,6 +157,22 @@ focused replay's diagnostics/log were removed immediately; the root retains the
 small shared full-run log.
 
 
+The existing R6-IO-003 sound-activation drain owner also covers Pause (zero new
+count). Normal microphone recording → Pause → Stop on guarded `56c2efd1a`
+retains all PCM without activation (4.9 seconds), but activation saves 28672 of
+31982 actually captured frames (causal RED, 4.6 seconds). The native worklet
+flushes partial PCM before its paused acknowledgment; the old wrapper paused its
+gate before those serialized writes reached it. An optional recorder completion
+hook now places the gate boundary inside that same PCM queue, while public Pause
+and Resume remain synchronous. Early and repeated Resume requests retain the old
+held PCM and reset source continuity only after its drain; cancellation retires
+pending boundaries. Actual worklet focused RED loses audible and held quiet tails
+and rejects a resumed source gap. The corrected eight strict cases plus existing
+Stop, lifecycle, routing, gate, input and timed-pause controls pass 78/78; targeted
+five-file type-aware lint and own diff checks pass. Corrected public verification
+awaits the next guarded product build. Owned public diagnostics and completed
+focused logs were removed immediately; no archive or raw coverage was generated.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private

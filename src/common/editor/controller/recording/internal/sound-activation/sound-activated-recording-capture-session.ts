@@ -53,10 +53,12 @@ export function createSoundActivatedRecordingCaptureSession(
 	let admittedFrames = 0;
 	let scheduledStartFrame: number | null = null;
 	let expectedNextFrame: number | null = null;
+	let pendingPause: { resumed: boolean; flushed: boolean } | null = null;
+	let phaseGeneration = 0;
 
 	const session: SoundActivatedRecordingCaptureSession = {
 		get enabled() { return gate !== null; },
-		get state() { return gate?.state ?? null; },
+		get state() { return currentState(); },
 		activationTimestamps,
 		process,
 		wrapController,
@@ -64,9 +66,16 @@ export function createSoundActivatedRecordingCaptureSession(
 	};
 	return Object.freeze(session);
 
+	function currentState(): SoundActivationGateState | null {
+		if (!gate || gate.state === 'disarmed' || gate.state === 'cancelled') return gate?.state ?? null;
+		if (pendingPause && !pendingPause.flushed) return pendingPause.resumed ? 'armed' : 'paused';
+		return gate.state;
+	}
+
 	function publishState(previous: SoundActivationGateState): void {
-		if (!gate || gate.state === previous || !isCurrent()) return;
-		publishDecisionState(gate.state);
+		const state = currentState();
+		if (state === null || state === previous || !isCurrent()) return;
+		publishDecisionState(state);
 	}
 
 	function publishDecisionState(state: SoundActivationGateState): void {
@@ -113,7 +122,7 @@ export function createSoundActivatedRecordingCaptureSession(
 			frames: admitted.frames - eligibleOffset,
 			channels: Object.freeze(admitted.channels.map((channel) => channel.slice(eligibleOffset))),
 		});
-		const previous = gate.state;
+		const previous = currentState()!;
 		const filtered = filterSoundActivatedRecordingChunk(gate, eligibleChunk);
 		const activationFrames = addTimestamps
 			? new Set(filtered.transitions.filter((transition) => transition.type === 'activated')
@@ -138,8 +147,10 @@ export function createSoundActivatedRecordingCaptureSession(
 
 	function cancel(): boolean {
 		if (!gate) return false;
-		const previous = gate.state;
+		const previous = currentState()!;
 		const changed = gate.cancel();
+		pendingPause = null;
+		phaseGeneration += 1;
 		publishState(previous);
 		return changed;
 	}
@@ -155,6 +166,8 @@ export function createSoundActivatedRecordingCaptureSession(
 			}
 			const previous = gate.state;
 			if (!gate.arm()) throw new Error('The sound activation gate could not be armed.');
+			pendingPause = null;
+			phaseGeneration += 1;
 			scheduledStartFrame = startFrame;
 			expectedNextFrame = null;
 			publishState(previous);
@@ -191,24 +204,45 @@ export function createSoundActivatedRecordingCaptureSession(
 				return confirmed;
 			},
 			pause() {
-				if (gate.state !== 'armed' && gate.state !== 'capturing') return false;
-				const result = controller.pause();
-				if (result === false) return false;
-				const previous = gate.state;
-				if (!gate.pause()) return false;
+				const previous = currentState()!;
+				if (previous !== 'armed' && previous !== 'capturing') return false;
+				const priorPause = pendingPause;
+				const boundary = { resumed: false, flushed: false };
+				const generation = phaseGeneration;
+				pendingPause = boundary;
+				const finishPause = () => {
+					if (generation !== phaseGeneration || gate.state === 'cancelled' || gate.state === 'disarmed') return;
+					const previous = currentState()!;
+					gate.pause();
+					boundary.flushed = true;
+					if (boundary.resumed) {
+						gate.resume();
+						expectedNextFrame = null;
+					}
+					publishState(previous);
+				};
+				let result: boolean | void;
+				try {
+					result = controller.pauseAfterFlush ? controller.pauseAfterFlush(finishPause) : controller.pause();
+				} catch (error) { pendingPause = priorPause; throw error; }
+				if (result === false) { pendingPause = priorPause; return false; }
+				// The native worklet posts its partial PCM before paused. Preserve
+				// the old gate until those writes drain, including an early Resume.
+				if (!controller.pauseAfterFlush) finishPause();
 				publishState(previous);
 				return result;
 			},
 			resume() {
-				if (gate.state !== 'paused') return false;
+				if (currentState() !== 'paused') return false;
 				const result = controller.resume();
 				if (result === false) return false;
-				const previous = gate.state;
-				if (!gate.resume()) return false;
-				// A worklet pause intentionally advances AudioContext time without
-				// producing PCM. The first resumed chunk begins a new contiguous epoch.
-				expectedNextFrame = null;
-				publishState(previous);
+				if (pendingPause) pendingPause.resumed = true;
+				if (!pendingPause || pendingPause.flushed) {
+					if (!gate.resume()) return false;
+					// Paused AudioContext time leaves a gap in the recorder's frame clock.
+					expectedNextFrame = null;
+				}
+				publishState('paused');
 				return result;
 			},
 			async stop() {
