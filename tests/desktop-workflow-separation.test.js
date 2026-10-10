@@ -31,13 +31,17 @@ test('desktop preview keeps browser partitions and job budgets aligned with the 
 		const desktop = extractJob(preview, jobName);
 		const shards = /shard: \[([\d, ]+)\]/u.exec(canonical)?.[1];
 		assert.ok(shards, `${jobName} defines its Quality partitions`);
-		const shardCount = shards.split(',').length;
+		const shardTotal = jobName === 'browser'
+			? "${{ matrix.project == 'webkit' && 8 || 4 }}"
+			: String(shards.split(',').length);
 		assert.equal(/shard: \[([\d, ]+)\]/u.exec(desktop)?.[1], shards,
 			`${jobName} must use the same partitions to stay within the job timeout`);
 		const label = /^\s+name:\s+([^\n]+)/mu.exec(desktop)?.[1];
-		assert.ok(label?.endsWith(`\${{ matrix.shard }}/${shardCount}`),
+		assert.equal(label, /^\s+name:\s+([^\n]+)/mu.exec(canonical)?.[1],
+			`${jobName} labels the same engine partitions as Quality`);
+		assert.ok(label?.endsWith(`\${{ matrix.shard }}/${shardTotal}`),
 			`${jobName} labels the complete partition count`);
-		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardCount}`),
+		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardTotal}`),
 			`${jobName} runs every partition using the declared total`);
 		const canonicalTimeout = /^ {4}timeout-minutes: (\d+)$/mu.exec(canonical)?.[1];
 		assert.ok(canonicalTimeout, `${jobName} defines its Quality job budget`);
