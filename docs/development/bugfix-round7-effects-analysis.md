@@ -597,6 +597,8 @@ peak and complete new native raster delivery at the high-tone seek, with the
 preview ready and no pending/error state. Its passively observed actual
 putImageData peak is at row 0.0722222222 instead of less than 0.03. Native calls
 and argument types remain intact; no editor state or internal action is
-installed. Corrected public GREEN awaits the next guarded shared build. Owned
+installed. Corrected guarded capture b04e692b7 passes the complete public workflow
+in 8.2 seconds, including the healthy reference and actual high-tone projection.
+Owned
 failure context and bounded logs are read and removed immediately; recording
 PCM stays in memory. No manual Update AI assets run is required.
