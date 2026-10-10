@@ -19,6 +19,15 @@ import { resolveCatalog } from '../src/common/i18n/runtime.js';
 import { EDITOR_COPY_AUDIT_INVENTORY } from '../scripts/lib/editor-copy-audit-inventory.mjs';
 import { photoExportPresetsCopy } from '../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../src/common/i18n/image-export-graphic-copy.ts';
+import { imageExportTextCopy } from '../src/common/i18n/image-export-text-copy.ts';
+
+test('optional readable text copy is audited without entering eager runtime copy', () => {
+	for (const [key, value] of Object.entries(imageExportTextCopy('en'))) {
+		assert.equal(EDITOR_COPY_AUDIT_INVENTORY[`ui.imageExportText.${key}`], value);
+		assert.equal(EDITOR_ENGLISH_COPY[`ui.imageExportText.${key}`], undefined);
+	}
+	assert.equal(imageExportTextCopy('de').enabled, 'Textwasserzeichen hinzufügen');
+});
 
 test('optional photo export presets are audited without entering eager runtime copy', () => {
 	for (const [key, value] of Object.entries(photoExportPresetsCopy('en'))) {

@@ -8,6 +8,7 @@ import { photoJpegExportCopy } from '../../src/common/i18n/lightscaper-photo-jpe
 import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-export-copy.ts';
 import { photoExportPresetsCopy } from '../../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../../src/common/i18n/image-export-graphic-copy.ts';
+import { imageExportTextCopy } from '../../src/common/i18n/image-export-text-copy.ts';
 
 const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBUTION_ENGLISH_COPY)
 	.map(([key, value]) => [`ui.freesoundAttribution.${key}`, value]));
@@ -17,6 +18,7 @@ const photoPngExport = Object.fromEntries(Object.entries(photoPngExportCopy('en'
 	.map(([key, value]) => [`ui.photoPngExport.${key}`, value]));
 const imageExportGraphic = Object.fromEntries(Object.entries(imageExportGraphicCopy('en'))
 	.map(([key, value]) => [`ui.imageExportGraphic.${key}`, value]));
+const imageExportText = Object.fromEntries(Object.entries(imageExportTextCopy('en')).map(([key, value]) => [`ui.imageExportText.${key}`, value]));
 
 const photoBatchMenu = Object.fromEntries(Object.entries(photoBatchExportMenuCopy('en')).map(([key, value]) => [`ui.photoBatchExportMenu.${key}`, value]));
 const photoBatchExport = Object.fromEntries(Object.entries(photoBatchExportCopy('en')).map(([key, value]) => [`ui.photoBatchExport.${key}`, value]));
@@ -32,5 +34,6 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...photoPngExport,
 	...photoJpegExport,
 	...imageExportGraphic,
+	...imageExportText,
 	...photoExportPresets,
 });

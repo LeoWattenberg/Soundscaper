@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { ImageExportSizingV1 } from './imaging/image-export-size-v1.ts';
+import type { ImageExportTextV1 } from './image-export-text-v1.ts';
 
 /** Reusable scalar output only. Photo identities, resource bodies and native
  * capabilities belong to a later explicitly initiated export, never a preset. */
@@ -7,7 +8,7 @@ export interface PhotoRasterExportPresetV1 {
 	readonly schemaVersion: 1; readonly id: string; readonly name: string;
 	readonly format: 'png' | 'jpeg'; readonly filenameTemplate: string; readonly sidecarEnabled: boolean;
 	readonly output: Readonly<{ sizing: ImageExportSizingV1; quality: 'nearest' | 'bilinear';
-		metadataScope?: 'strip' | 'capture'; sharpen?: Readonly<{ amount: number; threshold: number }> }>;
+		metadataScope?: 'strip' | 'capture'; sharpen?: Readonly<{ amount: number; threshold: number }>; textWatermark?: Readonly<ImageExportTextV1> }>;
 }
 export interface PhotoExportPresetSnapshotV1 {
 	readonly schemaVersion: 1; readonly catalogId: string; readonly revision: number;

@@ -3,6 +3,7 @@
 import type { ImageExportSizingV1 } from '../../imaging/image-export-size-v1.ts';
 import type { PhotoRasterExportCopy } from './PhotoRasterExportDialog.tsx';
 import type { PhotoRasterExportOutput } from '../../../../lightscaper/controller/photo-raster-export.ts';
+import PhotoTextWatermarkFields, { DEFAULT_IMAGE_EXPORT_TEXT_SELECTION, captureImageExportTextSelection, restoreImageExportTextSelection, type ImageExportTextSelection } from '../PhotoTextWatermarkFields.tsx';
 
 export interface RasterExportSettings {
 	readonly kind: ImageExportSizingV1['kind']; readonly width: string; readonly height: string;
@@ -10,10 +11,16 @@ export interface RasterExportSettings {
 	readonly allowUpscale: boolean; readonly quality: 'nearest' | 'bilinear'; readonly filenameTemplate: string;
 	readonly metadataScope: 'strip' | 'capture';
 	readonly sharpen: boolean; readonly sharpenAmount: string; readonly sharpenThreshold: string;
+	readonly textWatermark: ImageExportTextSelection;
 }
 export const DEFAULT_RASTER_EXPORT_SETTINGS: RasterExportSettings = Object.freeze({ kind: 'original', width: '2048', height: '2048',
 	longEdge: '2048', megapixels: '8', percentage: '100', allowUpscale: false, quality: 'bilinear', filenameTemplate: '{name}',
-	metadataScope: 'strip', sharpen: false, sharpenAmount: '100', sharpenThreshold: '0' });
+	metadataScope: 'strip', sharpen: false, sharpenAmount: '100', sharpenThreshold: '0', textWatermark: DEFAULT_IMAGE_EXPORT_TEXT_SELECTION });
+
+export function rasterExportText(settings: RasterExportSettings) {
+	const textWatermark = captureImageExportTextSelection(settings.textWatermark);
+	return textWatermark ? { textWatermark } : {};
+}
 
 export function rasterExportSizing(settings: RasterExportSettings): ImageExportSizingV1 {
 	const allowUpscale = settings.allowUpscale;
@@ -32,7 +39,7 @@ export function restoreRasterExportSettings(output: Readonly<PhotoRasterExportOu
 	const sizing = output?.sizing ?? { kind: 'original' };
 	const restored: RasterExportSettings = { ...DEFAULT_RASTER_EXPORT_SETTINGS, kind: sizing.kind, filenameTemplate,
 		quality: output?.quality ?? 'bilinear', metadataScope: output?.metadataScope ?? 'strip', sharpen: output?.sharpen !== undefined,
-		sharpenAmount: String(output?.sharpen?.amount ?? 100), sharpenThreshold: String(output?.sharpen?.threshold ?? 0) };
+		sharpenAmount: String(output?.sharpen?.amount ?? 100), sharpenThreshold: String(output?.sharpen?.threshold ?? 0), textWatermark: restoreImageExportTextSelection(output?.textWatermark) };
 	switch (sizing.kind) {
 		case 'original': return Object.freeze(restored);
 		case 'fit': return Object.freeze({ ...restored, width: String(sizing.width), height: String(sizing.height), allowUpscale: sizing.allowUpscale });
@@ -42,9 +49,10 @@ export function restoreRasterExportSettings(output: Readonly<PhotoRasterExportOu
 	}
 }
 
-export default function PhotoRasterExportSettings({ value, copy, disabled, onChange }: {
+export default function PhotoRasterExportSettings({ value, copy, disabled, onChange, locale = 'en' }: {
 	readonly value: RasterExportSettings; readonly copy: PhotoRasterExportCopy; readonly disabled: boolean;
 	readonly onChange: (value: RasterExportSettings) => void;
+	readonly locale?: string;
 }) {
 	const number = (key: 'width' | 'height' | 'longEdge' | 'megapixels' | 'percentage', label: string, selector: string, step = '1') =>
 		<label>{label}<input type="number" min={step === '1' ? '1' : '0.000001'} step={step} value={value[key]} disabled={disabled}
@@ -82,5 +90,6 @@ export default function PhotoRasterExportSettings({ value, copy, disabled, onCha
 		<label>{copy.filenameTemplate}<input type="text" data-photo-raster-export-filename-template value={value.filenameTemplate} maxLength={256}
 			disabled={disabled} onChange={event => onChange({ ...value, filenameTemplate: event.target.value })} /></label>
 		<p>{copy.filenameHelp}</p>
+		<PhotoTextWatermarkFields value={value.textWatermark} locale={locale} disabled={disabled} onChange={textWatermark => { onChange({ ...value, textWatermark }); }} />
 	</fieldset>;
 }

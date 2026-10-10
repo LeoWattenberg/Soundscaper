@@ -13,12 +13,12 @@ import { photoPngExportCopy } from '../../../i18n/lightscaper-photo-png-export-c
 import { photoJpegExportCopy } from '../../../i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoBatchExportCopy } from '../../../i18n/lightscaper-photo-batch-export-copy.ts';
 import type { PhotoRasterExportDialogProps } from './PhotoRasterExportDialog.tsx';
-import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, rasterExportText, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PhotoRasterExportPresets from './PhotoRasterExportPresets.tsx';
 import './photo-catalog-backup.css';
 
-type Ports = Omit<PhotoRasterExportDialogProps, 'format' | 'encode' | 'copy' | 'photoId' | 'fileName' | 'onClose'>;
+type Ports = Omit<PhotoRasterExportDialogProps, 'format' | 'encode' | 'copy' | 'photoId' | 'fileName' | 'onClose' | 'withTextFrame'>;
 export interface PhotoRasterBatchExportDialogProps extends Ports {
 	readonly selection: readonly Readonly<PhotoRasterBatchSelection>[]; readonly batchId: string;
 	readonly captureJournal: () => PhotoLibraryExportJournalPort['open'];
@@ -84,7 +84,7 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 		if (recovering && !jobs.length || replaceCompleted && !replaceable) return;
 		const value = { schemaVersion: 1, batchId: current.batchId, format, filenameTemplate: settings.filenameTemplate, members: target.owner.prepared?.members };
 		try {
-			const output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
+			const output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
 				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
 			plan = recovering ? journal! : capturePhotoRasterExportBatchV1({ ...value, output });
 		} catch { setInvalid(true); return; }
@@ -133,11 +133,11 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 				onChange={event => { if (event.target.value === 'png' || event.target.value === 'jpeg') setFormat(event.target.value); }}>
 				<option value="png">{copy.png}</option><option value="jpeg">{copy.jpeg}</option>
 			</select></label>
-			<PhotoRasterExportSettings value={settings} copy={settingsCopy} disabled={started || !ready || !!journal && !replaceable}
+			<PhotoRasterExportSettings value={settings} copy={settingsCopy} locale={props.locale} disabled={started || !ready || !!journal && !replaceable}
 				onChange={value => { setSettings(value); setInvalid(false); }} />
 			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} batch disabled={started || !ready || !!journal && !replaceable}
 				captureCurrent={(id, name) => ({ schemaVersion: 1, id, name, format, filenameTemplate: settings.filenameTemplate, sidecarEnabled: false,
-					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
+					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
 						...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) })}
 				onApply={preset => { setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setFormat(preset.format); setInvalid(false); }} />
 			{invalid && <p role="alert">{settingsCopy.invalidSettings}</p>}

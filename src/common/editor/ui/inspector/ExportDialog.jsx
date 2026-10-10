@@ -9,9 +9,10 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import GraphicWatermarkFields, { useGraphicWatermarkSelection } from '../GraphicWatermarkFields.tsx';
+import PhotoTextWatermarkFields, { DEFAULT_IMAGE_EXPORT_TEXT_SELECTION } from '../PhotoTextWatermarkFields.tsx';
 import {
 	dialogSettingsFromDeliveryTarget, previewPresetSettingsFromDialog,
-	statedVideoCanvas, statedVideoDeliveryTarget,
+	statedVideoCanvas, statedVideoDeliveryTarget, statedVideoTextWatermark,
 } from '../export-preset-model.ts';
 import {
 	createExportDialogInitialSettings, exportDialogProjectIdentity,
@@ -296,7 +297,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						: admittedSettings.channelMapping,
 			});
 			const graphicWatermark = productId === 'framescaper' && videoFormat ? graphic.capture() : undefined;
-			Promise.resolve(controller.actions.export.start(graphicWatermark ? { ...request, graphicWatermark } : request)).then(() => {
+			const textWatermark = productId === 'framescaper' && videoFormat ? statedVideoTextWatermark(admittedSettings) : undefined;
+			Promise.resolve(controller.actions.export.start({ ...request, ...(graphicWatermark ? { graphicWatermark } : {}), ...(textWatermark ? { textWatermark } : {}) })).then(() => {
 				if (ownsSubmission()) activeExportSubmission.current = null;
 			}, failSubmission);
 		} catch (cause) {
@@ -471,6 +473,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						/>
 					)}
 					{productId === 'framescaper' && videoFormat && <GraphicWatermarkFields {...graphic} locale={locale} disabled={exporting} />}
+					{productId === 'framescaper' && videoFormat && <PhotoTextWatermarkFields value={settings.textWatermark ?? DEFAULT_IMAGE_EXPORT_TEXT_SELECTION}
+						locale={locale} disabled={exporting} onChange={value => { set('textWatermark', value); }} />}
 				</section>
 				{!videoFormat && (
 					<ExportRenderingSection

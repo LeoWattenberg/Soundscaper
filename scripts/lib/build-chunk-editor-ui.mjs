@@ -19,7 +19,7 @@ export const editorUiChunkGroups = [
 		// and the archive limit share no product domain imports. One neutral owner
 		// avoids timeline passengers and preserves startup request ceilings.
 		name: 'editor-neutral-foundations',
-		test: /src[\\/]common[\\/]editor[\\/](?:platform[\\/]bounded-transfer\.ts|(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|image-export-graphic-request|native-media-plan-canonical-form|photo-library-develop-(?:(?:proxy|original|full-resolution)-port-v1|proxy-port-v2)|photo-library-saved-collection-port-v1|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
+		test: /src[\\/]common[\\/]editor[\\/](?:platform[\\/]bounded-transfer\.ts|(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|image-export-graphic-request|image-export-text-v1|native-media-plan-canonical-form|photo-library-develop-(?:(?:proxy|original|full-resolution)-port-v1|proxy-port-v2)|photo-library-saved-collection-port-v1|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -52,6 +52,15 @@ export const editorUiChunkGroups = [
 		name: 'editor-pixel-preview-presentation',
 		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/](?:pixel-preview-presentation-v1|photo-library-develop-presentation-v[12])\.ts$/,
 		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Text controls and full glyph copy stay behind the existing export menus.
+		name: 'editor-export-text-dialog',
+		test: /src[\\/]common[\\/](?:i18n[\\/]image-export-text-copy\.ts|editor[\\/]ui[\\/]PhotoTextWatermarkFields\.tsx)$/,
+		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

@@ -43,6 +43,7 @@ import { beginExportTask, handleExportFailure } from '../export-task-lifecycle.t
 import { publishBufferedExport } from '../buffered-export-publication.ts';
 import { productEncodeRequest } from './video-export-product-encode-request.ts';
 import { captureVideoExportGraphicSettings, withVideoExportGraphicRequest } from './video-export-graphic.ts';
+import { captureVideoExportTextSettings, withVideoExportTextRequest } from './video-export-text.ts';
 
 export interface VideoExportServiceRuntime {
 	readonly state: EditorExportState;
@@ -88,6 +89,7 @@ export function createEditorVideoExportAction(
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
 		const graphic = captureVideoExportGraphicSettings(requestedSettings, runtime.options);
+		const text = captureVideoExportTextSettings(requestedSettings, runtime.options);
 		const preparationGeneration = state.exportGeneration;
 		const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 		await assertDesktopVideoExportAvailable(fileService, formatValue);
@@ -148,6 +150,7 @@ export function createEditorVideoExportAction(
 				captions: requestedSettings.captions,
 			}) ?? null;
 			if (!productPlan && graphic.request?.opacity) throw new Error('Graphic watermark requires the exact product picture export route.');
+			if (!productPlan && text.request?.opacity) throw new Error('Text watermark requires the exact product picture export route.');
 			const productTimingSourceIds = productPlan
 				? captureProductVideoExportTimingSourceIds(productStrategy!, productPlan)
 				: null;
@@ -329,7 +332,8 @@ export function createEditorVideoExportAction(
 									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
 									: null,
 							),
-							graphic.request, request => productStrategy!.encodeToSink(request, pendingDirectDestination!), graphic.reader,
+							graphic.request, request => withVideoExportTextRequest(request, text.request,
+								request => productStrategy!.encodeToSink(request, pendingDirectDestination!), text.reader), graphic.reader,
 						)
 						: await ffmpeg.encodeVideoToSink(
 							videoBlobs,
@@ -361,7 +365,8 @@ export function createEditorVideoExportAction(
 						encoderDecision.tier === 'webcodecs'
 							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
 							: null,
-					), graphic.request, request => productStrategy!.encode(request), graphic.reader)
+					), graphic.request, request => withVideoExportTextRequest(request, text.request,
+						request => productStrategy!.encode(request), text.reader), graphic.reader)
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning,
 						...(captionDocument ? { captions: captionDocument } : {}),

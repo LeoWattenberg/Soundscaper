@@ -2,6 +2,8 @@
 
 import { MEDIA_EXPORT_FORMATS } from './media-export.js';
 import { VIDEO_EXPORT_FORMATS } from './video-export.js';
+import { captureImageExportTextV1 } from './image-export-text-v1.ts';
+import { readClosedDomainField } from './closed-domain-value.ts';
 
 /**
  * Delivery presets: validated data that resolves to export-plan options.
@@ -39,7 +41,7 @@ export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, reado
 	]),
 	video: Object.freeze([
 		'size', 'fit', 'frameRate', 'backgroundColor',
-		'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'quality', 'audioLayout', 'includeAudio',
+		'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'quality', 'audioLayout', 'includeAudio', 'textWatermark',
 	]),
 });
 
@@ -109,13 +111,15 @@ export function validateDeliveryPreset(value: unknown): DeliveryPreset {
 			throw new DeliveryPresetError(`Unknown ${kind} delivery setting: ${field}.`);
 		}
 	}
+	const textWatermark = Object.hasOwn(rawSettings, 'textWatermark')
+		? captureImageExportTextV1(readClosedDomainField(rawSettings, 'textWatermark', 'Delivery preset settings')) : undefined;
 	return Object.freeze({
 		schemaVersion: 1 as const,
 		id,
 		label,
 		kind,
 		format,
-		settings: Object.freeze({ ...rawSettings }),
+		settings: Object.freeze({ ...rawSettings, ...(textWatermark ? { textWatermark } : {}) }),
 		licensingRowId: value.licensingRowId == null
 			? null
 			: requireNonEmptyString(value.licensingRowId, 'licensingRowId'),

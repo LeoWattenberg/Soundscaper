@@ -26,6 +26,8 @@ import type { ImageExifMetadataV1 } from '../../common/editor/imaging/image-meta
 import type { PhotoLibraryMetadataSnapshotV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import { captureImageExportGraphicRequest, imageExportGraphicPlacement, type ImageExportGraphicRequest } from '../../common/editor/image-export-graphic-request.ts';
 import type { withImageExportGraphicFrameV1 } from '../../common/editor/imaging/image-export-graphic-source-v1.ts';
+import { captureImageExportTextV1, type ImageExportTextV1 } from '../../common/editor/image-export-text-v1.ts';
+import type { withImageExportTextFrameV1 } from '../../common/editor/imaging/image-export-text-frame-v1.ts';
 
 export type ReadPhotoExportMetadata = (photoId: string, expectedRevision: number, options: Readonly<{ signal: AbortSignal }>) =>
 	Promise<Readonly<{ catalogId: string; snapshot: PhotoLibraryMetadataSnapshotV1 }>>;
@@ -42,6 +44,7 @@ export interface PhotoRasterExportRequest {
 	readonly sidecar?: Readonly<{ read: ReadPhotoExportSidecar }>;
 	readonly graphicWatermark?: Readonly<ImageExportGraphicRequest>;
 	readonly withGraphicFrame?: typeof withImageExportGraphicFrameV1;
+	readonly withTextFrame?: typeof withImageExportTextFrameV1;
 	readonly prepareSave: (request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
 	readonly saveFile: (request: BrowserFileSaveRequest) => BrowserSavedFile | PromiseLike<BrowserSavedFile>;
 	readonly execute: ExecutePhotoDevelopV2;
@@ -57,14 +60,16 @@ export interface PhotoRasterExportOutput {
 	readonly quality: 'nearest' | 'bilinear';
 	readonly sharpen?: Readonly<{ amount: number; threshold: number }>;
 	readonly metadataScope?: 'strip' | 'capture';
+	readonly textWatermark?: Readonly<ImageExportTextV1>;
 }
 
 /** Capture output settings in the Save gesture. Actual frame capacity is checked after Develop. */
 export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRasterExportOutput> {
-	const input = record(value, 'Photo raster output', ['sizing', 'quality', 'sharpen', 'metadataScope'], ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
+	const input = record(value, 'Photo raster output', ['sizing', 'quality', 'sharpen', 'metadataScope', 'textWatermark'], ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
 	const metadataScope = Object.hasOwn(input, 'metadataScope') ? field(input, 'metadataScope', 'Photo raster output') : 'strip';
 	if (metadataScope !== 'strip' && metadataScope !== 'capture') throw new RangeError('Unsupported photo export metadata scope.');
 	const sharpen = Object.hasOwn(input, 'sharpen') ? normalizeDetailSharpenParamsV1(field(input, 'sharpen', 'Photo raster output')) : undefined;
+	const textWatermark = Object.hasOwn(input, 'textWatermark') ? captureImageExportTextV1(field(input, 'textWatermark', 'Photo raster output')) : undefined;
 	if (quality !== 'nearest' && quality !== 'bilinear') throw new RangeError('Unsupported photo export resampling.');
 	const candidate = record(field(input, 'sizing', 'Photo raster output'), 'Photo raster sizing', ['kind', 'width', 'height', 'pixels', 'megapixels', 'percentage', 'allowUpscale'], ['kind']);
 	const kind = field(candidate, 'kind', 'Photo raster sizing');
@@ -84,7 +89,7 @@ export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRa
 		}
 		captured[key] = item as number | boolean;
 	}
-	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality, metadataScope, ...(sharpen ? { sharpen } : {}) });
+	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality, metadataScope, ...(sharpen ? { sharpen } : {}), ...(textWatermark ? { textWatermark } : {}) });
 }
 
 export type PhotoRasterExportReceipt = Readonly<{ status: 'cancelled' }> | Readonly<{
@@ -217,7 +222,8 @@ export class PhotoRasterExport {
 					const render = pin<PhotoLibraryDevelopProxyRuntimeV2['withFullResolution']>(runtime.withFullResolution, runtime);
 					let width = 0, height = 0;
 					const renderOriginal = async (graphic: Readonly<PixelFrameV1> | null) => {
-						const mark = graphic ? (await import('../../common/editor/imaging/pixel-frame-graphic-watermark-v1.ts')).withGraphicWatermarkPixelFrameV1 : null;
+						const text = request.output?.textWatermark;
+						const mark = graphic || text?.opacity ? (await import('../../common/editor/imaging/pixel-frame-graphic-watermark-v1.ts')).withGraphicWatermarkPixelFrameV1 : null;
 						current();
 						await request.withOriginalFrame({ schemaVersion: 1, photoId: request.photoId, expectedRevision: request.expectedRevision }, async original => {
 							current();
@@ -230,9 +236,20 @@ export class PhotoRasterExport {
 								const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
 								const encode = async (delivery: Readonly<PixelFrameV1>, resized: Readonly<PixelFrameV1>) => {
 									const encodeOutput = async (marked: Readonly<PixelFrameV1>) => {
-										current(); const encoded = await request.encode(marked, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
-										bytes = readEncoded(encoded, source, frame, resized, delivery, marked, ...(graphic ? [graphic] : []));
-										width = marked.descriptor.width; height = marked.descriptor.height; current();
+										const finish = async (final: Readonly<PixelFrameV1>, glyph: Readonly<PixelFrameV1> | null) => {
+											current(); const encoded = await request.encode(final, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+											bytes = readEncoded(encoded, source, frame, resized, delivery, marked, final, ...(graphic ? [graphic] : []), ...(glyph ? [glyph] : []));
+											width = final.descriptor.width; height = final.descriptor.height; current();
+										};
+										if (text?.opacity && mark) {
+											const readText = request.withTextFrame ?? (await import('../../common/editor/imaging/image-export-text-frame-v1.ts')).withImageExportTextFrameV1;
+											current(); await readText({ text, width: marked.descriptor.width, height: marked.descriptor.height, signal }, async glyph => {
+												if (!glyph) throw new Error('Enabled text export did not produce its glyph plane.');
+												await mark({ frame: marked, graphic: glyph, placement: imageExportGraphicPlacement(text, marked.descriptor.width, marked.descriptor.height), signal },
+													output => finish(readPixelFrameV1(output, LIMITS.render), glyph), { limits: LIMITS.render,
+														maximumWorkingBytes: MAXIMUM_OUTPUT_BYTES - glyph.pixels.byteLength - (graphic?.pixels.byteLength ?? 0) });
+											});
+										} else await finish(marked, null);
 									};
 									if (graphic && mark && request.graphicWatermark) await mark({ frame: delivery, graphic,
 										placement: imageExportGraphicPlacement(request.graphicWatermark, delivery.descriptor.width, delivery.descriptor.height), signal },
@@ -406,10 +423,11 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterExportRequest {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
-	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'sidecar', 'graphicWatermark', 'withGraphicFrame'], required);
+	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'sidecar', 'graphicWatermark', 'withGraphicFrame', 'withTextFrame'], required);
 	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
 	const graphicWatermark = Object.hasOwn(input, 'graphicWatermark') ? captureImageExportGraphicRequest(field(input, 'graphicWatermark', name)) : undefined;
 	const withGraphicFrame = Object.hasOwn(input, 'withGraphicFrame') ? pin<typeof withImageExportGraphicFrameV1>(field(input, 'withGraphicFrame', name), value) : undefined;
+	const withTextFrame = Object.hasOwn(input, 'withTextFrame') ? pin<typeof withImageExportTextFrameV1>(field(input, 'withTextFrame', name), value) : undefined;
 	const sidecar = Object.hasOwn(input, 'sidecar') ? record(field(input, 'sidecar', name), 'Photo sidecar export', ['read']) : undefined;
 	const capturedSidecar = sidecar ? Object.freeze({ read: pin<ReadPhotoExportSidecar>(field(sidecar, 'read', 'Photo sidecar export'), sidecar) }) : undefined;
 	const metadataRead = Object.hasOwn(input, 'readMetadata') ? pin<ReadPhotoExportMetadata>(field(input, 'readMetadata', name), value) : undefined;
@@ -428,7 +446,7 @@ function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterEx
 	return Object.freeze({ photoId: stableId(field(input, 'photoId', name)), versionId: stableId(field(input, 'versionId', name)),
 		expectedRevision: revision, fileName, fileTypeDescription: text(field(input, 'fileTypeDescription', name), 256), signal: signal as AbortSignal | undefined,
 		prepareSave: method('prepareSave'), saveFile: method('saveFile'), execute: method('execute'), withOriginalFrame: method('withOriginalFrame'),
-		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, sidecar: capturedSidecar, graphicWatermark, withGraphicFrame });
+		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, sidecar: capturedSidecar, graphicWatermark, withGraphicFrame, withTextFrame });
 }
 function pin<Method>(value: unknown, receiver: unknown): Method {
 	if (typeof value !== 'function') throw new TypeError('Photo raster export requires its captured methods.');

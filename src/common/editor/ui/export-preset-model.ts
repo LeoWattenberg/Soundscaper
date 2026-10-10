@@ -15,6 +15,8 @@ import {
 } from '../video-delivery-frame-rate.ts';
 import { DEFAULT_VIDEO_DELIVERY_QUALITY } from '../video-delivery-quality.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
+import { captureImageExportTextV1 } from '../image-export-text-v1.ts';
+import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
 import {
 	findPlatformDeliveryPreset,
 	resolvePlatformDeliveryAvailability,
@@ -74,6 +76,7 @@ const VIDEO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	canvasWidth: '', canvasHeight: '', canvasFit: CANVAS_FIT_DEFAULT, canvasFrameRate: '',
 	canvasBackgroundColor: '', videoQuality: VIDEO_QUALITY_DEFAULT, videoAudioLayout: AUDIO_LAYOUT_DEFAULT,
 	deliveryTarget: '',
+	textWatermark: undefined,
 });
 
 /** The preset-worthy subset of the dialog's settings, with numbers as numbers. */
@@ -103,8 +106,25 @@ export function presetSettingsFromDialog(
 		if (quality) result.quality = quality;
 		const audioLayout = statedVideoAudioLayout(settings);
 		if (audioLayout) result.audioLayout = audioLayout;
+		const text = statedVideoTextWatermark(settings);
+		if (text) result.textWatermark = text;
 	}
 	return Object.freeze(result);
+}
+
+/** Raw menu-opened inputs become the same closed scalar used by delivery. */
+export function statedVideoTextWatermark(settings: Readonly<Record<string, unknown>>) {
+	const descriptor = Object.getOwnPropertyDescriptor(settings, 'textWatermark');
+	if (!descriptor) return undefined;
+	if (!Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) throw new TypeError('Dialog text requires an own data setting.');
+	if (descriptor.value === undefined) return undefined;
+	const value = record(descriptor.value, 'Dialog text watermark', ['enabled', 'text', 'color', 'anchor', 'width', 'margin', 'opacity']);
+	const enabled = field(value, 'enabled', 'Dialog text watermark');
+	if (typeof enabled !== 'boolean') throw new TypeError('Dialog text enablement requires a boolean.');
+	if (!enabled) return undefined;
+	const read = (key: string) => field(value, key, 'Dialog text watermark');
+	return captureImageExportTextV1({ schemaVersion: 1, text: read('text'), font: 'inter-600-latin', color: read('color'), anchor: read('anchor'),
+		widthFraction: Number(read('width')) / 100, marginFraction: Number(read('margin')) / 100, opacity: Number(read('opacity')) / 100 });
 }
 
 /** Incomplete typing differs from a saved preset without blocking presentation. */
@@ -361,6 +381,12 @@ export function dialogSettingsFromPreset(
 		...(preset.kind === 'video' ? {} : { bitRateMode: impliedBitRateMode(preset.settings) }),
 	};
 	for (const [key, value] of Object.entries(preset.settings ?? {})) {
+		if (key === 'textWatermark') {
+			const text = captureImageExportTextV1(value);
+			patch.textWatermark = Object.freeze({ enabled: true, text: text.text, color: text.color, anchor: text.anchor,
+				width: String(text.widthFraction * 100), margin: String(text.marginFraction * 100), opacity: String(text.opacity * 100) });
+			continue;
+		}
 		if (key === 'channelMapping' && value && typeof value === 'object') {
 			patch.channelMapping = 'custom';
 			patch.channelMatrix = JSON.stringify(value);

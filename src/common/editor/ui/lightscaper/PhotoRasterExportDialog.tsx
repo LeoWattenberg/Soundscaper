@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PhotoRasterExport, isPhotoRasterExportMetadataRefusal, capturePhotoRasterExportOutput, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import { formatImageExportFilenameV1 } from '../../image-export-filename-v1.ts';
-import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, rasterExportText, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
 import PhotoRasterExportPresets from './PhotoRasterExportPresets.tsx';
 import type { PhotoLibraryExportPresetsPortV1, PhotoRasterExportPresetV1 } from '../../photo-library-export-presets-port-v1.ts';
 import type { ReadPhotoExportSidecar } from '../../photo-library-session-port-v2.ts';
@@ -27,6 +27,7 @@ export interface PhotoRasterExportDialogProps {
 	readonly captureSidecarReader?: () => ReadPhotoExportSidecar;
 	readonly readMetadata?: PhotoRasterExportRequest['readMetadata'];
 	readonly withGraphicFrame?: PhotoRasterExportRequest['withGraphicFrame'];
+	readonly withTextFrame?: PhotoRasterExportRequest['withTextFrame'];
 	readonly loadRenderer: LoadPhotoLibraryDevelopProxyRuntimeV2;
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly preparationFailed: boolean;
@@ -112,7 +113,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>, graphicWatermark: PhotoRasterExportRequest['graphicWatermark'];
 		try {
 			fileName = formatImageExportFilenameV1({ template: settings.filenameTemplate, sourceFileName: current.fileName, format: current.format, index: 1 });
-			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
+			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
 				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
 			graphicWatermark = graphic.capture();
 			if (sidecarEnabled) { if (!current.captureSidecarReader) throw new Error('Photo sidecar reader is unavailable.'); sidecar = { read: current.captureSidecarReader() }; }
@@ -126,6 +127,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 			execute: current.execute, withOriginalFrame: current.withOriginalFrame, loadRenderer: current.loadRenderer,
 			...(current.readMetadata ? { readMetadata: current.readMetadata } : {}),
 			...(graphicWatermark ? { graphicWatermark } : {}), ...(current.withGraphicFrame ? { withGraphicFrame: current.withGraphicFrame } : {}),
+			...(current.withTextFrame ? { withTextFrame: current.withTextFrame } : {}),
 			prepareSave, saveFile, encode: current.encode });
 		const joined = work.then(result => { if (lifetime.live) setReceipt(result); }, (error: unknown) => { if (lifetime.live) {
 			if (isPhotoRasterExportMetadataRefusal(error)) setMetadataFailed(true); else setFailed(true);
@@ -164,7 +166,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		className="lightscaper-dialog" overlayClassName="lightscaper-dialog-backdrop" closeOnOutside={false}>
 		<div {...{ [`data-photo-${props.format}-export-dialog`]: true }} className="lightscaper-catalog-backup">
 			<p>{copy.description}</p>
-			<PhotoRasterExportSettings value={settings} copy={copy} disabled={!ready || saving || closing}
+			<PhotoRasterExportSettings value={settings} copy={copy} locale={props.locale} disabled={!ready || saving || closing}
 				onChange={value => { setSettings(value); setInvalidSettings(false); setMetadataFailed(false); }} />
 			<label><input type="checkbox" data-photo-raster-export-sidecar checked={sidecarEnabled} disabled={!ready || saving || closing || !!partialSidecar || !props.captureSidecarReader}
 				onChange={event => { setSidecarEnabled(event.target.checked); setInvalidSettings(false); }} />{copy.sidecar}</label>
@@ -172,7 +174,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 			<GraphicWatermarkFields {...graphic} locale={props.locale} disabled={!ready || saving || closing} />
 			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} disabled={!ready || saving || closing || !!partialSidecar}
 				captureCurrent={(id, name) => ({ schemaVersion: 1, id, name, format: props.format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
-					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
+					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
 						...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) })} onApply={applyPreset} />
 			{invalidSettings && <p role="alert">{copy.invalidSettings}</p>}
 			{metadataFailed && <p role="alert" data-photo-raster-export-metadata-error>{copy.metadataFailed}</p>}
