@@ -528,3 +528,10 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     Clip gain drag, middle-button release, Undo and Redo browser workflow.
     The application publication listener follows the same release ownership.
     Upstream-PR candidate.
+
+68. `EffectsPanel` admits only primary presses for its track/master divider
+    and completes its resize only when that same mouse button releases.
+    Auxiliary release retains the accepted resize. Covered by the mounted
+    strict `tests/audio-editor-round7-rack-divider-release.test.tsx` and the
+    ordinary rack divider primary/middle-release continuation workflow.
+    Upstream-PR candidate.
