@@ -28,6 +28,7 @@ import type {
 } from './video-keyframe-ffmpeg-operation.ts';
 import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES, VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES } from './video-keyframe-audio-input.ts';
 import { VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES } from './video-keyframe-video-output.ts';
+import { validateVideoKeyframeWebCodecsDecision } from './video-keyframe-webcodecs-decision.ts';
 import type {
 	VideoKeyframeVideoEncoderDependencies,
 	VideoKeyframeVideoEncoderRequest,
@@ -99,7 +100,7 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 	const assertCurrent = optionalFunction(record, 'assertCurrent');
 	const confirmFileSizeWarning = optionalFunction(record, 'confirmFileSizeWarning');
 	const webCodecs = Object.hasOwn(record, 'webCodecs')
-		? data(record, 'webCodecs', 'video keyframe video encoder request')
+		? validateVideoKeyframeWebCodecsDecision(data(record, 'webCodecs', 'video keyframe video encoder request'))
 		: undefined;
 	const result: Record<string, unknown> = {
 		desktopExternalFfmpeg,
