@@ -233,6 +233,7 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-audio-finishing-finishing',
 	'editor-captured-video-proxy-preservation',
 	'editor-domain-runtime-profile',
+	'editor-native-action-bridge-availability',
 	'editor-native-project-action-requests',
 	'editor-project-assistance-foundation',
 	'editor-project-assistance-validation',
@@ -303,6 +304,7 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-project-visual',
 	'editor-project',
 	'editor-video-proxy-action-runtime',
+	'timeline-image-picture-carrier',
 ]);
 export const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
 	`src[\\\\/]framescaper[\\\\/](?:${framescaperProjectFoundationModules.join('|')})\\.ts$`,
