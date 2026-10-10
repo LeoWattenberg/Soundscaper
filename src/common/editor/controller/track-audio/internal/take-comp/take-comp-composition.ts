@@ -31,7 +31,7 @@ export interface TakeCompCompositionDependencies {
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
 	createPreviewEngine(options: Readonly<{ onState(state: string): void }>): TakeCompPreviewEngine;
-	stopPlayback(): void;
+	stopPlayback(): Promise<void> | void;
 	renderSnapshot: TakeCompFlattenServiceDependencies['renderSnapshot'];
 	renderPublication?: TakeCompFlattenServiceDependencies['renderPublication'];
 	setStatus?(message: string, state?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;

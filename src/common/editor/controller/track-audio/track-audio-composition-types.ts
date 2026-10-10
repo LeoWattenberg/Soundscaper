@@ -120,6 +120,7 @@ export interface TrackAudioCompositionDependencies {
 	readonly export: TrackAudioExportPorts;
 	readonly createRenderEngine: MixRenderServiceDependencies['createRenderEngine'];
 	readonly createPreviewEngine: TakeCompCompositionDependencies['createPreviewEngine'];
+	readonly stopProjectBinPreview: () => Promise<unknown>;
 	readonly prepareCommittedTimePitchCaches: MixRenderServiceDependencies['prepareCommittedTimePitchCaches'] & ExportSnapshotRendererRuntime['prepareCommittedTimePitchCaches'];
 	readonly getProject: () => TrackAudioCompositionProject | null;
 	readonly getCommandProject: DerivedAudioCompositionDependencies['getProject'];

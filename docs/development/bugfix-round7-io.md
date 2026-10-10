@@ -557,6 +557,52 @@ and Stop followed by Bin replay restores its audible output. The completed own
 output directory and log are read and immediately removed. This qualifies one
 independent direct transport handoff root.
 
+IO048 first Take/Bin proof attempt is excluded as setup: both normal recorded
+Take cases stop during the second File Import, before any audition handoff.
+Actual status remains Recording instead of import success (healthy26.5 seconds;
+Bin also fails setup). Both completed native screenshots/context and bounded log
+were read and immediately removed. No source fix or additional root is claimed.
+
+IO048 corrected ordinary baseline (not counted; before correction): stage an
+ordinary8-second recording in Bin, import a2-second loop, Record loop into
+takes, Stop, and positively observe Saved and inactive capture. Open the
+recorded track's Take lanes and comps and Audition. On authenticated ac91,
+ordinary timeline playback retires to silence, followed by Close and Bin
+replay controls (healthy6.7 seconds). Starting from Bin instead starts positive
+independent Take PCM but leaves the Bin output audible at0.247486174 instead
+of<0.001 (causal11.7 seconds; pair20.2 seconds). Actual native screenshot/context
+show the recorded take and concurrent Bin owner. All completed own baseline
+output and bounded log are read and immediately removed. The independently
+implemented Take owner stops only the main engine; this is separate from the
+direct Play-at-speed owner IO047.
+
+IO048 correction (qualification held for complete corrected public): hand the
+existing owned Bin retirement into the Take composition and await it before
+allocating or starting the isolated preview. Validate the owning request and
+project after retirement, preserving synchronous healthy callers. Three actual
+preview witnesses with ordinary durably produced take groups causally start
+PCM before asynchronous retirement; the synchronous control passes. Corrected
+retirement, cancellation, failure, exact source isolation and existing
+Take/comp/Bin ownership controls pass40/40in2.993 seconds. The initial
+cancellation assertion used lowercase text against the actual AbortError and
+is corrected to the exact error identity, with no production change. Target
+type-aware lint and canonical lint:changed pass. Both complete native public workflows retain prior
+PCM assertions and now also verify positive recovered Bin PCM and final silence.
+No new helper/source module is added. All completed focused proof logs are
+consumed and immediately removed.
+
+Full150 completed WebKit follow-through review (zero count; replays pending):
+R6 multicamera attribution times out30.612 seconds while native project
+activation publishes ready=false; it never reaches attribution. Its actual
+screenshot is an ordinary loaded camera timeline with an empty preview. Native
+plug-in restored controls fails11.955 seconds at Store default state counter2
+versus10; actual screenshot reports The active project changed during the
+native plug-in operation, shows Gain0 and disables Restore stored state. This
+is before the restoration assertion, and is not classified as a new source
+root. Both actual PNG/context and completed full150 JSON observations are read
+and immediately removed from their exact failed directories. The shared full
+failure log remains owned by root.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private

@@ -229,7 +229,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		captureProject,
 		assertProject,
 		createPreviewEngine: dependencies.createPreviewEngine,
-		stopPlayback: () => engine.stop(),
+		stopPlayback: async () => { engine.stop(); await dependencies.stopProjectBinPreview(); },
 		renderSnapshot: exportService.renderSnapshot,
 		setStatus: dependencies.setStatus,
 	});
