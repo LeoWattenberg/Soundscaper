@@ -7,9 +7,11 @@ export interface RasterExportSettings {
 	readonly kind: ImageExportSizingV1['kind']; readonly width: string; readonly height: string;
 	readonly longEdge: string; readonly megapixels: string; readonly percentage: string;
 	readonly allowUpscale: boolean; readonly quality: 'nearest' | 'bilinear'; readonly filenameTemplate: string;
+	readonly sharpen: boolean; readonly sharpenAmount: string; readonly sharpenThreshold: string;
 }
 export const DEFAULT_RASTER_EXPORT_SETTINGS: RasterExportSettings = Object.freeze({ kind: 'original', width: '2048', height: '2048',
-	longEdge: '2048', megapixels: '8', percentage: '100', allowUpscale: false, quality: 'bilinear', filenameTemplate: '{name}' });
+	longEdge: '2048', megapixels: '8', percentage: '100', allowUpscale: false, quality: 'bilinear', filenameTemplate: '{name}',
+	sharpen: false, sharpenAmount: '100', sharpenThreshold: '0' });
 
 export function rasterExportSizing(settings: RasterExportSettings): ImageExportSizingV1 {
 	const allowUpscale = settings.allowUpscale;
@@ -46,6 +48,14 @@ export default function PhotoRasterExportSettings({ value, copy, disabled, onCha
 			onChange={event => onChange({ ...value, quality: event.target.value as RasterExportSettings['quality'] })}>
 			<option value="nearest">{copy.nearest}</option><option value="bilinear">{copy.bilinear}</option>
 		</select></label>}
+		<label><input type="checkbox" data-photo-raster-export-sharpen checked={value.sharpen} disabled={disabled}
+			onChange={event => onChange({ ...value, sharpen: event.target.checked })} />{copy.outputSharpen}</label>
+		{value.sharpen && <>
+			<label>{copy.sharpenAmount}<input type="number" data-photo-raster-export-sharpen-amount min="0" max="200" step="any" value={value.sharpenAmount} disabled={disabled}
+				onChange={event => onChange({ ...value, sharpenAmount: event.target.value })} /></label>
+			<label>{copy.sharpenThreshold}<input type="number" data-photo-raster-export-sharpen-threshold min="0" max="255" step="1" value={value.sharpenThreshold} disabled={disabled}
+				onChange={event => onChange({ ...value, sharpenThreshold: event.target.value })} /></label>
+		</>}
 		<label>{copy.filenameTemplate}<input type="text" data-photo-raster-export-filename-template value={value.filenameTemplate} maxLength={256}
 			disabled={disabled} onChange={event => onChange({ ...value, filenameTemplate: event.target.value })} /></label>
 		<p>{copy.filenameHelp}</p>

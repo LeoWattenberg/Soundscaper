@@ -11,6 +11,8 @@ import { readPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contra
 import { PIXEL_FRAME_HARD_LIMITS_V1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
 import type { ImageExportSizingV1 } from '../../common/editor/imaging/image-export-size-v1.ts';
 import { withExportResizedPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-export-resize-v1.ts';
+import { withDetailSharpenPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-sharpen-v1.ts';
+import { DETAIL_SHARPEN_EFFECT_TYPE_V1, normalizeDetailSharpenParamsV1 } from '../../common/editor/video-sharpen-v1.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 as LIMITS } from '../../common/editor/photo-library-develop-full-resolution-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../common/editor/photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryDevelopSnapshotV2 } from '../../common/editor/photo-library-develop-port-v2.ts';
@@ -37,11 +39,13 @@ export interface PhotoRasterExportRequest {
 export interface PhotoRasterExportOutput {
 	readonly sizing: ImageExportSizingV1;
 	readonly quality: 'nearest' | 'bilinear';
+	readonly sharpen?: Readonly<{ amount: number; threshold: number }>;
 }
 
 /** Capture output settings in the Save gesture. Actual frame capacity is checked after Develop. */
 export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRasterExportOutput> {
-	const input = record(value, 'Photo raster output', ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
+	const input = record(value, 'Photo raster output', ['sizing', 'quality', 'sharpen'], ['sizing', 'quality']), quality = field(input, 'quality', 'Photo raster output');
+	const sharpen = Object.hasOwn(input, 'sharpen') ? normalizeDetailSharpenParamsV1(field(input, 'sharpen', 'Photo raster output')) : undefined;
 	if (quality !== 'nearest' && quality !== 'bilinear') throw new RangeError('Unsupported photo export resampling.');
 	const candidate = record(field(input, 'sizing', 'Photo raster output'), 'Photo raster sizing', ['kind', 'width', 'height', 'pixels', 'megapixels', 'percentage', 'allowUpscale'], ['kind']);
 	const kind = field(candidate, 'kind', 'Photo raster sizing');
@@ -61,7 +65,7 @@ export function capturePhotoRasterExportOutput(value: unknown): Readonly<PhotoRa
 		}
 		captured[key] = item as number | boolean;
 	}
-	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality });
+	return Object.freeze({ sizing: Object.freeze(captured) as unknown as ImageExportSizingV1, quality, ...(sharpen ? { sharpen } : {}) });
 }
 
 export type PhotoRasterExportReceipt = Readonly<{ status: 'cancelled' }> | Readonly<{
@@ -158,13 +162,20 @@ export class PhotoRasterExport {
 						await render({ frame: source, develop, signal }, async output => {
 							current(); const view = record(output, 'Photo raster render', ['frame', 'histogram'], ['frame']);
 							const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
-							const encode = async (delivery: Readonly<PixelFrameV1>) => {
+							const encode = async (delivery: Readonly<PixelFrameV1>, resized: Readonly<PixelFrameV1>) => {
 								const encoded = await request.encode(delivery, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
-								bytes = readEncoded(encoded, source, frame, delivery); width = delivery.descriptor.width; height = delivery.descriptor.height; current();
+								bytes = readEncoded(encoded, source, frame, resized, delivery); width = delivery.descriptor.width; height = delivery.descriptor.height; current();
+							};
+							const deliver = async (resized: Readonly<PixelFrameV1>) => {
+								current(); const sharpen = request.output?.sharpen;
+								if (sharpen && sharpen.amount !== 0) {
+									await withDetailSharpenPixelFrameV1({ frame: resized, signal, effect: { id: 'photo-output-sharpen',
+										type: DETAIL_SHARPEN_EFFECT_TYPE_V1, enabled: true, params: sharpen } }, output => encode(readPixelFrameV1(output, LIMITS.render), resized), { limits: LIMITS.render });
+								} else await encode(resized, resized);
 							};
 							if (request.output && request.output.sizing.kind !== 'original') {
-								await withExportResizedPixelFrameV1({ frame, ...request.output, signal }, encode, { limits: LIMITS.render });
-							} else await encode(frame);
+								await withExportResizedPixelFrameV1({ frame, sizing: request.output.sizing, quality: request.output.quality, signal }, deliver, { limits: LIMITS.render });
+							} else await deliver(frame);
 							current();
 						});
 						current();

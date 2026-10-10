@@ -35,6 +35,7 @@ export interface PhotoRasterExportCopy {
 	readonly pixels: string; readonly megapixels: string; readonly percentage: string; readonly allowUpscale: string;
 	readonly resample: string; readonly nearest: string; readonly bilinear: string; readonly filenameTemplate: string;
 	readonly filenameHelp: string; readonly invalidSettings: string;
+	readonly outputSharpen: string; readonly sharpenAmount: string; readonly sharpenThreshold: string;
 }
 interface Target { readonly versionId: string; readonly revision: number; readonly scope: Scope; }
 interface Scope {
@@ -95,7 +96,8 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>;
 		try {
 			fileName = formatImageExportFilenameV1({ template: settings.filenameTemplate, sourceFileName: current.fileName, format: current.format, index: 1 });
-			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality });
+			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality,
+				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
 		} catch { setInvalidSettings(true); return; }
 		setInvalidSettings(false);
 		setSaving(true); setReceipt(null);
