@@ -9,6 +9,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { resolveSoundscaperBrowserAssetsDirectory } from './helpers/production-build-paths.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
@@ -127,8 +128,18 @@ test('browser Preferences opens General without the desktop-only FFmpeg location
 	await expect(preferences.getByRole('tab').first()).toHaveText(/General$/u);
 	await expect(preferences.getByRole('tab', { name: /General$/u })).toHaveAttribute('aria-selected', 'true');
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toBeVisible();
-	await expect(preferences.getByRole('group', { name: 'Optimize for', exact: true })).toHaveCount(0);
+	const optimization = preferences.getByRole('group', { name: 'Optimize for', exact: true });
+	await expect(optimization.getByRole('button')).toContainText('Memory');
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
+	await chooseDropdown(page, optimization, 'Speed');
+	await expect.poll(() => savedOptimizationMode(page)).toBe('speed');
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await page.reload();
+	const reopenedEditor = await waitForEditor(page);
+	await expect(page.locator('[data-desktop-speed-warmup]')).toHaveCount(0);
+	await chooseCommandAction(page, reopenedEditor, 'Edit', 'Preferences');
+	await expect(preferences.getByRole('group', { name: 'Optimize for', exact: true })
+		.getByRole('button')).toContainText('Speed');
 });
 
 test('Track visualization opens the combined waveform and spectrogram settings', async ({ page }) => {
