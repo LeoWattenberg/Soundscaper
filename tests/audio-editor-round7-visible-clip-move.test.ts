@@ -22,7 +22,7 @@ test('global clip movement skips a normally collapsed destination track', async 
 	assert.ok(first && middle && last);
 	const runtime = createAudacityActionRuntime(controller);
 	context.after(() => runtime.dispose());
-	const owner = () => controller.getSnapshot().project?.tracks.find(track =>
+	const owner = () => controller.getSnapshot().project?.tracks?.find(track =>
 		'clipIds' in track && Array.isArray(track.clipIds) && track.clipIds.includes(clipId))?.id;
 	controller.actions.timeline.selectClip(clipId);
 	await runtime.actions.navigation.moveItemDown();
