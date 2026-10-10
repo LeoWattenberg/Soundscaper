@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
-import { applyFramescaperProjectCommand as apply } from '../src/framescaper/editor-project-commands.ts';
+import { applyFramescaperProjectCommand as apply, prepareFramescaperVideoTransitionAllocations } from '../src/framescaper/editor-project-commands.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE as PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { framescaperProjectForRuntimeConsumers } from '../src/framescaper/editor-project-runtime.ts';
 import { createFramescaperProjectHistory, executeFramescaperProjectCommand,
@@ -148,4 +148,72 @@ test('removing a routed native group preserves sends and retires only the remove
 	history = redoFramescaperProjectCommand(PROFILE, history);
 	assert.deepEqual(history.present.mixer, accepted.mixer);
 	assert.deepEqual(history.present.automationLanes, accepted.automationLanes);
+});
+
+for (const busType of ['group', 'send'] as const) {
+	const collection = busType === 'group' ? 'groups' : 'sends';
+	const busId = busType === 'group' ? 'dialogue-group' : 'room-send';
+	test(`the actual native transition preparation retains normal ${busType} strip updates`, () => {
+		const project = seeded(), before = structuredClone(project);
+		const command = { type: 'mixer/bus-update' as const, busType, busId, changes: { mute: true } };
+		let allocated = 0;
+		const prepared = prepareFramescaperVideoTransitionAllocations(PROFILE, project, command,
+			() => { allocated++; return 'unneeded-transition'; });
+		assert.deepEqual(prepared, command);
+		assert.equal(allocated, 0);
+		let history = createFramescaperProjectHistory(PROFILE, project);
+		history = executeFramescaperProjectCommand(PROFILE, history, prepared);
+		assert.equal(history.present.mixer[collection][0]!.mute, true);
+		assert.equal(history.undoStack.length, 1);
+		history = undoFramescaperProjectCommand(PROFILE, history);
+		assert.equal(history.present.mixer[collection][0]!.mute, false);
+		history = redoFramescaperProjectCommand(PROFILE, history);
+		assert.equal(history.present.mixer[collection][0]!.mute, true);
+		assert.deepEqual(project, before);
+	});
+	test(`the actual native transition preparation retains normal ${busType} removal`, () => {
+		const project = seeded();
+		const command = { type: 'mixer/bus-remove' as const, busType, busId };
+		const prepared = prepareFramescaperVideoTransitionAllocations(PROFILE, project, command,
+			() => { throw new Error('No visual overlap is authored by bus removal.'); });
+		assert.deepEqual(prepared, command);
+		const result = apply(PROFILE, project, prepared);
+		assert.equal(result.mixer[collection].length, 0);
+	});
+}
+
+test('actual native transition preparation respects a mixed compact mixer batch in order', () => {
+	const project = fixture();
+	const command = { type: 'batch' as const, commands: [
+		{ type: 'mixer/bus-add' as const, busType: 'group' as const, bus: { id: 'dialogue-group' } },
+		{ type: 'master/update' as const, changes: { gain: .75 } },
+		{ type: 'mixer/bus-update' as const, busType: 'group' as const, busId: 'dialogue-group', changes: { mute: true } },
+		{ type: 'mixer/route-update' as const, trackId: 'dialogue', changes: { groupId: 'dialogue-group' } },
+	] };
+	const prepared = prepareFramescaperVideoTransitionAllocations(PROFILE, project, command,
+		() => { throw new Error('No visual overlap is authored by compact mixer edits.'); });
+	let history = createFramescaperProjectHistory(PROFILE, project);
+	history = executeFramescaperProjectCommand(PROFILE, history, prepared);
+	assert.equal(history.present.mixer.groups[0]!.mute, true);
+	assert.equal(history.present.master.gain, .75);
+	assert.equal(history.undoStack.length, 1);
+	assert.deepEqual(history.present.mixer.edges.find(({ source }) => source.kind === 'track')?.destination,
+		{ kind: 'mixer-node', id: 'dialogue-group' });
+	history = undoFramescaperProjectCommand(PROFILE, history);
+	assert.deepEqual(history.present.mixer, project.mixer);
+	history = redoFramescaperProjectCommand(PROFILE, history);
+	assert.equal(history.present.mixer.groups[0]!.mute, true);
+});
+
+test('actual native transition preparation retains the ordinary output/send route', () => {
+	const project = seeded();
+	const command = { type: 'mixer/route-update' as const, trackId: 'dialogue',
+		changes: { groupId: 'dialogue-group', sends: { 'room-send': .5 } } };
+	const prepared = prepareFramescaperVideoTransitionAllocations(PROFILE, project, command,
+		() => { throw new Error('No visual overlap is authored by output/send routing.'); });
+	assert.deepEqual(prepared, command);
+	const result = apply(PROFILE, project, prepared);
+	assert.deepEqual(result.mixer.edges.find(({ source }) => source.kind === 'track')?.destination,
+		{ kind: 'mixer-node', id: 'dialogue-group' });
+	assert.equal(result.mixer.edges.find(({ kind }) => kind === 'send')?.level, .5);
 });
