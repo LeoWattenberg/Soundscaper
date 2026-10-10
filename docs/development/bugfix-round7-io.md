@@ -540,7 +540,7 @@ Preferences UI; native audio nodes/context/device APIs are unchanged apart
 from a passive forwarding analyser. Every completed own diagnostic and bounded
 log is read and removed immediately.
 
-IO047 correction (public qualification pending): the direct Play-at-speed
+IO047 correction: the direct Play-at-speed
 transport now awaits the same owned Bin retirement as ordinary Play, and checks
 its request generation after that asynchronous handoff. Stop during retirement
 cannot start the old timeline request. The actual transport service has two
@@ -548,8 +548,14 @@ causal focused failures before correction: Bin retirement is omitted, and Stop
 still permits one timeline start. The corrected witnesses and existing
 transport, Bin ownership, Bin service and document controls pass39/39 in1.644
 seconds. Target type-aware lint and canonical lint:changed pass. These small
-verification logs are consumed and immediately removed; the two complete native
-public workflows remain queued for a guarded product capture. No new count yet.
+verification logs are consumed and immediately removed. Both unchanged complete
+native public workflows pass on authenticated guarded capture
+ac91f0f78bbc577265eff4ceba323a8a78bb74b7: toolbar3.9 seconds and configured
+shortcut3.8 seconds, pair2/2 in9.4 seconds. Independent timeline PCM stays
+audible, the actual Bin output retires to silence, its Play control returns,
+and Stop followed by Bin replay restores its audible output. The completed own
+output directory and log are read and immediately removed. This qualifies one
+independent direct transport handoff root.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
@@ -560,6 +566,6 @@ compiler found only the optional cache cleanup invocation in its actual
 controller resource witness. Assert the real cache cleanup capability before
 calling it, preserving the owned disposal rather than widening a production
 type. The bounded compiler error log was read and removed immediately.
-Forty-five qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
+Forty-six qualifying I/O roots are fixed; the excluded int32 candidate adds no count.
 No large verification files or runtime archives were generated. These changes do
 not require a manual **Update AI assets** run.
