@@ -10,11 +10,12 @@ test('Metadata section arrows follow their visible physical order in Arabic', as
 	await editor.getByRole('menubar').getByRole('menuitem', { name: copy.editMenu, exact: true }).press('Enter');
 	await page.getByRole('menu', { name: copy.editMenu, exact: true })
 		.getByRole('menuitem', { name: copy.metadata, exact: true }).press('Enter');
-	const tabs = editor.locator('.audio-editor-metadata-tabs').getByRole('tab');
-	await expect(tabs).toHaveCount(4);
+	const tabs = editor.getByRole('tablist', { name: copy.metadataSections, exact: true }).getByRole('tab');
+	await expect(tabs).toHaveCount(5);
 	const first = tabs.nth(0);
 	const second = tabs.nth(1);
 	const third = tabs.nth(2);
+	await expect(second).toHaveText('ID3');
 	const [firstBox, secondBox, thirdBox] = await Promise.all([
 		first.boundingBox(), second.boundingBox(), third.boundingBox(),
 	]);

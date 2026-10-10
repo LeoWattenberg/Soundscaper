@@ -43,6 +43,7 @@ import { CLIP_SPREADSHEET_COPY_BY_LOCALE } from './editor-clip-spreadsheet-copy.
 import { ABOUT_DIALOG_COPY_BY_LOCALE } from './editor-about-dialog-copy.ts';
 import { ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE } from './editor-original-file-overwrite-copy.ts';
 import { BLENDER_COPY_BY_LOCALE } from './editor-blender-copy.ts';
+import { ID3_METADATA_COPY_BY_LOCALE } from './editor-id3-metadata-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -161,6 +162,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'nyquistArchive', ...NYQUIST_ARCHIVE_COPY_BY_LOCALE },
 	{ owner: 'sourceStatus', ...SOURCE_STATUS_COPY_BY_LOCALE },
 	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
+	{ owner: 'id3Metadata', ...ID3_METADATA_COPY_BY_LOCALE },
 	{ owner: 'selectedVisualAuthoring', en: SELECTED_VISUAL_AUTHORING_COPY },
 	...Object.entries(SELECTED_VISUAL_AUTHORING_SURFACE_COPY).map(([surface, en]) => ({
 		owner: `selectedVisualAuthoring.surfaces.${surface}`, en,

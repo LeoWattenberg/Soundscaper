@@ -191,7 +191,8 @@ function framescaperCopy(value: Readonly<Record<string, unknown>>): Readonly<Rec
 }
 
 function snapshotCopy(value: unknown, label: string): Readonly<Record<string, unknown>> {
-	return snapshotBootstrapCopyFields(plainRecord(value, label), label, 'own data property');
+	return snapshotBootstrapCopyFields(plainRecord(value, label), label, 'own data property',
+		new Set(Object.keys(bundledCatalogForLocale('en'))));
 }
 
 function closedRecord<const Field extends string>(

@@ -171,7 +171,8 @@ function snapshotPresentation(value: unknown): SoundscaperWebEditorRuntimePresen
 }
 
 function snapshotCopy(value: unknown, label: string): Readonly<Record<string, unknown>> {
-	return snapshotBootstrapCopyFields(plainRecord(value, label), label, 'own enumerable data property');
+	return snapshotBootstrapCopyFields(plainRecord(value, label), label, 'own enumerable data property',
+		new Set(Object.keys(bundledCatalogForLocale('en'))));
 }
 
 function closedRecord<const Field extends string>(

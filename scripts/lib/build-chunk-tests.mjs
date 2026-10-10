@@ -40,7 +40,7 @@ const editorOptionalExportControllerModule = String.raw`(?:export[\\/](?:${contr
  * Delivery preset/licensing tables and WebCodecs capability probes also have
  * only deferred delivery consumers and share that export boundary.
  */
-const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|platform-delivery-(?:licensing|presets)|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
+const editorOptionalExportFlatModule = String.raw`(?:ape-file-metadata|audio-container-metadata|audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|flac-file-metadata|ogg-comment-metadata|loudness-normalization-render|platform-delivery-(?:licensing|presets)|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis[\\/](?:analysis-service|internal[\\/]vamp-analysis-action)|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/](?:dawproject[\\/]dawproject|sesx[\\/]sesx)-service|recording[\\/]internal[\\/]recording-checkpoint-writer|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture

@@ -233,7 +233,7 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 		if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1) {
 			throw new Error('The dedicated browser codec returned no file bytes.');
 		}
-		if (settingsValue.embeddedChapters?.length) {
+		if (settingsValue.embeddedChapters?.length || Object.keys(staged.media.metadata).length) {
 			const blob = await embedBrowserAudioChapters(new Blob([Uint8Array.from(bytes)], { type: staged.media.mimeType }),
 				format, operationSettings, staged.media.sampleRate, outputBound);
 			bytes = new Uint8Array(await blob.arrayBuffer());
@@ -352,9 +352,6 @@ function assertBrowserCodecInput(
 ): void {
 	if (format !== 'aac-m4a') {
 		assertDedicatedProfile(format, media);
-		if (Object.keys(media.metadata).length > 0) throw new BrowserCodecRuntimeUnsupportedError(
-			`The dedicated ${format} browser encoder does not write metadata tags.`,
-		);
 	}
 	const maximumFrames = format === 'mp3' || format === 'mp2' ? 8_388_608 : 33_554_432;
 	const byteLength = frameCount * media.channelCount * Float32Array.BYTES_PER_ELEMENT;

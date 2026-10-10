@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { projectForRuntimeConsumers } from '../../project-current-runtime.ts';
+import { projectAudioMetadata } from '../../id3-descriptive-fields.ts';
 import type { RuntimeClipProject } from '../../runtime-clip-projection.ts';
 import { normalizeEditorExportSettings } from '../export/export-settings.ts';
 import type { EffectSelection } from '../effects/effect-selection-service.ts';
@@ -63,7 +64,7 @@ export function createControllerProjectQueries(dependencies: ControllerProjectQu
 			const metadata = dependencies.getProject()?.metadata;
 			return normalizeEditorExportSettings(
 				isRecord(value) ? value : {}, dependencies.projectSampleRate(),
-				isRecord(metadata) ? metadata.tags || {} : {},
+				projectAudioMetadata(metadata),
 			);
 		},
 	});

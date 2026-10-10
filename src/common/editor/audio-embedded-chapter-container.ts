@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeEmbeddedExportChapters, type EmbeddedExportChapter } from './export-embedded-chapters.ts';
+import { createAudioMetadataId3Tag } from './id3-metadata.js';
 
 const textEncoder = new TextEncoder();
 
@@ -11,11 +12,12 @@ export async function embedAudioChapters(
 	chapters: readonly EmbeddedExportChapter[],
 	sampleRate: number,
 	signal?: AbortSignal,
+	metadata: Readonly<Record<string, unknown>> = {},
 ): Promise<Blob> {
 	signal?.throwIfAborted();
 	if (!chapters.length) return encoded;
 	if (format === 'mp3') {
-		return new Blob([createEmbeddedMp3ChapterTag(chapters, sampleRate), encoded], { type: encoded.type });
+		return new Blob([createEmbeddedMp3ChapterTag(chapters, sampleRate, metadata), encoded], { type: encoded.type });
 	}
 	if (format === 'aac-m4a') {
 		return (await import('./m4a-embedded-chapters.ts')).embedM4aChapters(encoded, chapters, sampleRate, signal);
@@ -27,6 +29,7 @@ export async function embedAudioChapters(
 export function createEmbeddedMp3ChapterTag(
 	value: readonly EmbeddedExportChapter[],
 	sampleRate: number,
+	metadata: Readonly<Record<string, unknown>> = {},
 ): Uint8Array<ArrayBuffer> {
 	const chapters = normalizeEmbeddedExportChapters(value, sampleRate);
 	if (!chapters.length) return new Uint8Array(0);
@@ -44,7 +47,8 @@ export function createEmbeddedMp3ChapterTag(
 			frame('TIT2', concatenate([Uint8Array.of(3), textEncoder.encode(chapter.title)])),
 		])));
 	}
-	const body = concatenate(frames);
+	const tag = createAudioMetadataId3Tag(metadata);
+	const body = concatenate([Uint8Array.from(tag.subarray(10)), ...frames]);
 	return concatenate([Uint8Array.of(73, 68, 51, 4, 0, 0), synchsafe(body.length), body]);
 }
 

@@ -1,0 +1,21 @@
+[data-id3-metadata-fields] fieldset {
+	border: 1px solid var(--audio-editor-border, #777);
+	border-radius: 4px;
+	margin: 0 0 1rem;
+	padding: 0.75rem;
+	min-width: 0;
+}
+
+[data-id3-metadata-fields] legend {
+	padding: 0 0.25rem;
+}
+
+.audio-editor-id3-artwork {
+	display: grid;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+}
+
+.audio-editor-id3-artwork img {
+	object-fit: contain;
+}

@@ -1,16 +1,8 @@
-import { normalizeMediaMetadata } from './media-export.js';
+import { normalizeMediaMetadata } from './media-metadata.ts';
 
-const TEXT_FRAME_IDS = Object.freeze({
-	title: 'TIT2',
-	artist: 'TPE1',
-	album: 'TALB',
-	track: 'TRCK',
-	tracknumber: 'TRCK',
-	year: 'TDRC',
-	date: 'TDRC',
-	genre: 'TCON',
-	copyright: 'TCOP',
-});
+import { ID3_TEXT_FRAME_IDS as TEXT_FRAME_IDS, ID3_CONTROL_KEYS, id3FramePayload,
+	structuredId3Payload, id3ArtworkFrames } from './id3-frame-values.ts';
+
 const TEXT_FRAME_PRIORITIES = Object.freeze({ tracknumber: 2, date: 2 });
 
 /**
@@ -28,20 +20,22 @@ export function createAudioMetadataId3Tag(metadata = {}) {
 	const frames = [];
 	for (const entry of entries) {
 		const { key, normalizedKey, value } = entry;
-		if (normalizedKey === 'comment' || normalizedKey === 'comments') {
-			frames.push(createId3Frame('COMM', concatBytes(
-				Uint8Array.of(3),
-				new TextEncoder().encode('eng'),
-				Uint8Array.of(0),
-				new TextEncoder().encode(value),
-			)));
+		if (ID3_CONTROL_KEYS.has(normalizedKey)) continue;
+		if (key.startsWith('url.')) {
+			frames.push(createId3Frame('WXXX', concatBytes(Uint8Array.of(3), new TextEncoder().encode(key.slice(4)),
+				Uint8Array.of(0), id3FramePayload('WXXX', value))));
+			continue;
+		}
+		const structured = structuredId3Payload(normalizedKey, value, normalized);
+		if (structured) {
+			frames.push(createId3Frame(structured.id, structured.payload));
 			continue;
 		}
 		const frameId = Object.hasOwn(TEXT_FRAME_IDS, normalizedKey)
 			? TEXT_FRAME_IDS[normalizedKey]
 			: undefined;
 		if (frameId && preferredTextFrames.get(frameId) === entry) {
-			frames.push(createId3Frame(frameId, concatBytes(Uint8Array.of(3), new TextEncoder().encode(value))));
+			frames.push(createId3Frame(frameId, id3FramePayload(frameId, value)));
 			continue;
 		}
 		frames.push(createId3Frame('TXXX', concatBytes(
@@ -51,6 +45,7 @@ export function createAudioMetadataId3Tag(metadata = {}) {
 			new TextEncoder().encode(value),
 		)));
 	}
+	frames.push(...id3ArtworkFrames(normalized));
 	if (!frames.length) return new Uint8Array(0);
 	const body = concatBytes(...frames);
 	const header = new Uint8Array(10);

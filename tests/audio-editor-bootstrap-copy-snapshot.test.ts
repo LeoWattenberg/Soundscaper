@@ -12,6 +12,7 @@ import FramescaperAudioEditorBootstrap from
 	'../src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx';
 import SoundscaperAudioEditorBootstrap from
 	'../src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx';
+import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
 
 test('bootstrap copy snapshot accepts exactly 4096 own fields without invoking getters', () => {
 	const input = Object.fromEntries(Array.from({ length: 4_096 }, (_, index) => [
@@ -51,6 +52,15 @@ test('bootstrap copy snapshot rejects symbols and accessor/non-enumerable fields
 		'copy', 'own data property'), {
 		name: 'RangeError', message: 'copy has an invalid field inventory.',
 	});
+});
+
+test('bootstrap copy accepts the registered catalog beyond the supplied-data limit', () => {
+	const fields = new Set(Object.keys(EDITOR_ENGLISH_COPY));
+	assert.ok(fields.size > 4_096);
+	const copy = snapshotBootstrapCopyFields(EDITOR_ENGLISH_COPY, 'bundled copy', 'own data property', fields);
+	assert.deepEqual(Object.keys(copy), [...fields]);
+	assert.throws(() => snapshotBootstrapCopyFields({ ...EDITOR_ENGLISH_COPY, unregistered: 'Unexpected' },
+		'copy', 'own data property', fields), /invalid field inventory/u);
 });
 
 test('product fallback copy adapters retain their distinct property error wording', () => {

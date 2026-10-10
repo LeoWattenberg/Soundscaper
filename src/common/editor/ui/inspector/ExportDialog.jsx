@@ -282,6 +282,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				genre: settings.metadataGenre,
 				comments: settings.metadataComments,
 				copyright: settings.metadataCopyright,
+				id3Artwork: settings.metadataArtwork,
 			});
 			const request = createExportDialogRequest(admittedSettings, {
 				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop, captionDeliveryUnavailable,
