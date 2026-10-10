@@ -73,6 +73,7 @@ export async function prepareOrdinaryBrowserProductSites(
 	const soundscaper = siteFor(plan, 'soundscaper');
 	const framescaper = siteFor(plan, 'framescaper');
 	await verifyBrowserProductSite(framescaper);
+	await verifyBrowserProductSite(siteFor(plan, 'motionscaper'));
 
 	const source = resolve(repositoryRoot, soundscaperBuildDirectory);
 	const destination = resolve(repositoryRoot, soundscaper.outputDirectory);
@@ -141,6 +142,7 @@ function cleanBuildEnvironment(site) {
 		'SCAPE_PRODUCT',
 		'SOUNDSCAPER_SITE',
 		'FRAMESCAPER_SITE',
+		'MOTIONSCAPER_SITE',
 		'PUBLIC_TRANSFER_PEER_ORIGIN',
 	]) delete environment[key];
 	return {
@@ -151,7 +153,7 @@ function cleanBuildEnvironment(site) {
 		// the test sites always carry them.
 		SCAPE_BUILD_SOURCE_MAPS: '1',
 		SCAPE_PRODUCT: site.productId,
-		[site.productId === 'soundscaper' ? 'SOUNDSCAPER_SITE' : 'FRAMESCAPER_SITE']: site.origin,
+		[`${site.productId.toUpperCase()}_SITE`]: site.origin,
 		PUBLIC_TRANSFER_PEER_ORIGIN: site.peerOrigin,
 	};
 }
