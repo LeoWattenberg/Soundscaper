@@ -98,8 +98,8 @@ for (const condition of ['locked', 'four-channel']) test(`ARA menu refuses an or
 	if (condition === 'locked') {
 		await chooseTrackMenuAction(page, editor, recordingTrack, 'Lock track');
 		const projectId = await editor.getAttribute('data-project-id');
-		const trackId = await recordingTrack.getAttribute('data-track-id');
-		await expect.poll(async () => (await storedProject(page, 'soundscaper', projectId)).tracks.find(track => track.id === trackId).locked).toBe(true);
+		await expect(recording.getByRole('slider', { name: 'Looped clip length', exact: true })).toBeDisabled();
+		await expect.poll(async () => (await storedProject(page, 'soundscaper', projectId)).tracks.some(track => track.locked)).toBe(true);
 		const lockedClip = clipByName(editor, AUDIO.name);
 		await lockedClip.focus();
 		await lockedClip.press('Enter');

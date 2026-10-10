@@ -17,21 +17,22 @@ test('the rack stack divider keeps resizing after an auxiliary mouse release', a
 		const y = grip.y + grip.height / 2;
 		await page.mouse.move(x, y);
 		await page.mouse.down();
-		await page.mouse.move(x, y - movement, { steps: 4 });
+		await page.mouse.move(x, y + movement, { steps: 4 });
 		return { x, y };
 	};
 	const initial = await master.boundingBox();
 	expect(initial).not.toBeNull();
 	await drag(20);
-	await expect.poll(async () => (await master.boundingBox()).height).toBeGreaterThan(initial.height + 10);
+	await expect.poll(async () => (await master.boundingBox()).height).toBeLessThan(initial.height - 10);
 	await page.mouse.up();
 	await expect(handle).not.toHaveClass(/--active/u);
 	const healthy = await master.boundingBox();
 	expect(healthy).not.toBeNull();
 	const { x, y } = await drag(20);
-	await expect.poll(async () => (await master.boundingBox()).height).toBeGreaterThan(healthy.height + 10);
+	await expect.poll(async () => (await master.boundingBox()).height).toBeLessThan(healthy.height - 10);
 	const accepted = await master.boundingBox();
 	expect(accepted).not.toBeNull();
+	expect(accepted.height - 36).toBeGreaterThan(140);
 	await page.evaluate(() => {
 		document.addEventListener('mouseup', event => {
 			document.documentElement.dataset.rackDividerReleasedButton = String(event.button);
@@ -42,8 +43,9 @@ test('the rack stack divider keeps resizing after an auxiliary mouse release', a
 	await page.mouse.up({ button: 'middle' });
 	await expect(page.locator('html')).toHaveAttribute('data-rack-divider-released-button', '1');
 	await expect(page.locator('html')).toHaveAttribute('data-rack-divider-held-buttons', '1');
-	await page.mouse.move(x, y - 56, { steps: 4 });
-	await expect.poll(async () => (await master.boundingBox()).height).toBeCloseTo(accepted.height + 36, 0);
+	await page.mouse.move(x, y + 56, { steps: 4 });
+
+	await expect.poll(async () => (await master.boundingBox()).height).toBeCloseTo(accepted.height - 36, 0);
 	await page.mouse.up();
 	await expect(handle).not.toHaveClass(/--active/u);
 	expect(errors).toEqual([]);
