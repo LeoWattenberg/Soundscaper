@@ -383,3 +383,5 @@ Corrected native media/label/history preservation, panel reload and deletion,
 composition, timeline exact-label selection and label creation support pass
 13/13; targeted type-aware lint passes. Complete public correction is pending;
 EDIT026 has no count yet. No manual **Update AI assets** run is required.
+
+EDIT026 completes the unchanged full public workflow on authenticated dc8bba540: unsnapped label selection stays0..0.8 seconds, and Snap retains that exact authored extent. Its production panel, original label and native selection assertions pass. This independent panel owner is fully qualified. Complete test/tooling strict compilation and all8 repository lint shards pass; reviewed build, compiler and lint outputs are removed immediately.
