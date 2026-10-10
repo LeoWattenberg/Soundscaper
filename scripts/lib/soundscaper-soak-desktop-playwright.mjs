@@ -322,6 +322,7 @@ async function waitForDevToolsEndpoint(port, child, output) {
 	throw bootstrapError(`The packaged app did not expose CDP.\n${output()}`);
 }
 
+/** @param {Pick<import('node:child_process').ChildProcess, 'exitCode' | 'signalCode'> | null} [child] */
 export async function waitForDesktopPage(context, output = () => '', child = null) {
 	// A killed writer can leave a 30-second lease. Main waits for its expiry
 	// before creating a window, so leave room for that wait and startup work.
