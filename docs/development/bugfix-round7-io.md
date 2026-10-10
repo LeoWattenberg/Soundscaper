@@ -70,7 +70,7 @@ failures are excluded. Capture the immutable request auth identity before awaiti
 the transport and expire only its still-current owner. Mounted original-expiry and
 replacement controls now pass, with the existing account-restoration and preview
 lifetime cases (13/13). Owned browser diagnostics were read and removed immediately.
-The corrected public follow-through awaits the next guarded capture.
+Guarded wave 82 public GREEN: original expiry 2.3 seconds and replacement account retained 2.8 seconds; unchanged original restoration controls pass in 2.6 and 2.7 seconds.
 
 
 The finishing dialog's IO-018 lifetime fence also covers its native cube LUT
@@ -88,7 +88,7 @@ on Close, unmount or project/surface change and pass that signal through the
 selected read and existing guarded LUT publisher, retaining lease cleanup and
 healthy publication. Corrected mounted lifetime, existing caption lifetime, LUT
 publication/rollback and finishing document controls pass 34/34; targeted type-aware
-lint and own diff checks pass. The corrected public follow-through awaits the next capture.
+lint and own diff checks pass. Guarded wave 82 public GREEN: healthy open-target publication 11.9 seconds and Close cancellation 7.8 seconds, retaining the complete consumer lease and canonical document checks.
 Owned diagnostics and temporary native sidecar directories were removed immediately.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
