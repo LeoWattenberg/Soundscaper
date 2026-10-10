@@ -163,7 +163,7 @@ export async function createFixture(context) {
 		['tests/browser/handbook/handbook.spec.js', 'export const handbook = true;\n'],
 		['tests/aup3-fixture.js', 'export const fixture = true;\n'],
 		['tests/helpers/png-fixture.mjs', await readFile(new URL('./png-fixture.mjs', import.meta.url), 'utf8')],
-		...await Promise.all(['framescaper-ordinary-animation-fixture.ts', 'framescaper-ordinary-high-precision-image-fixture.ts', 'interchange-reference.ts'].map(async (file) => [`tests/helpers/${file}`, await readFile(new URL(`./${file}`, import.meta.url), 'utf8')])),
+		...await Promise.all(['framescaper-ordinary-animation-fixture.ts', 'framescaper-ordinary-high-precision-image-fixture.ts', 'interchange-reference.ts', 'ordinary-ogg-opus-fixture.ts', 'ordinary-tail-m4a-fixture.ts', 'os-audio-codec-fixtures.ts', 'round7-speech-preview-bridge.ts', 'round7-warp-drums.ts'].map(async (file) => [`tests/helpers/${file}`, await readFile(new URL(`./${file}`, import.meta.url), 'utf8')])),
 		['tests/helpers/framescaper-native-sidecar-fixture.ts', await readFile(new URL('./framescaper-native-sidecar-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/libsndfile-rifx-fixture.ts', await readFile(new URL('./libsndfile-rifx-fixture.ts', import.meta.url), 'utf8')],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],

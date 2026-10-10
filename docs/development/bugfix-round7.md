@@ -125,3 +125,19 @@ no graph maxima or semantic ownership guards were increased. Detailed causal
 RED, focused GREEN and excluded setup receipts remain in the four area registers.
 The complete checkpoint-50 browser run remains active; the next complete gates
 are due at 100 qualified fixes.
+
+The later packaged-test closure replay caught two new browser helper imports
+(speech preview and warp drums), and its synthetic staging fixture lacked the
+three newly required codec helpers. Stage those five exact files and copy their
+actual bytes into the fixture; all 15 staging, closure and refusal checks pass,
+alongside four native zero-crossing checks (19/19 total). This verification
+follow-through adds no user bug count. Source typechecking, targeted lint and
+size/diff checks pass; the full Node suite is rerun after this helper change.
+
+The Firefox checkpoint also reports a native plug-in healthy keyboard control
+at 1 instead of 0.26 and an old-floor sample in the Noise gate observer window.
+An unchanged isolated native replay reaches no editing actions: one editor
+readiness failure and three initial host-state persistence timeouts. These
+results remain unresolved checkpoint failures and add no count. The reviewed
+replay diagnostics are removed immediately; subsequent investigation retains
+the original production behavior and meaningful positive controls.
