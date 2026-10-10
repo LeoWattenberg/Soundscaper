@@ -140,7 +140,7 @@ test('flatten renders only the comp partition, persists exact media, and publish
 		sourceId: 'source-a', timelineStartFrame: 100, sourceStartFrame: 0, durationFrames: 400,
 	}]);
 	assert.deepEqual(fixture.renderRanges, [{
-		startFrame: 100, endFrame: 500, includeMaster: false,
+		startFrame: 100, endFrame: 500, outputFrames: 400, includeMaster: false,
 		includeTrackPan: false, respectMuteSolo: false,
 	}]);
 	assert.equal(result.publication.source.frameCount, 400);
