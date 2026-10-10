@@ -1550,3 +1550,17 @@ plot. These are original full-run failures, with no cause inferred yet.
 No assertions, deadlines, fixtures or production source are changed. The
 exact unchanged isolated WebKit workflows await the coordinated exclusive
 native lane. No additional bug count.
+
+All three complete unchanged WebKit continuity replays pass on immutable
+prepared 684 bytes, one worker, qualified Pulse and exclusive native cores:
+Click Removal 8.3 seconds, Compressor 9.1 seconds and Graphic EQ 8.3 seconds
+(3/3, 27.9 seconds whole). Before/after entire-block minimum RMS values are
+respectively 0.2960850682/0.2960858629, 0.2960850682/0.2960850683 and
+0.2960874509/0.2960858749; every post-edit observed window has zero frames
+below 0.01. All original healthy PCM, accepted parameter, elapsed-clock,
+all-blocks physical continuity assertions and 30-second/five-second budgets
+remain unchanged. The original aggregate failures remain recorded. These
+isolated passes do not establish their cause and are not evidence for a
+production repair; no source or fixture changes and no additional root are
+made. After worker/server closure, the bounded replay log and generated
+results are immediately removed. No manual Update AI assets run is required.
