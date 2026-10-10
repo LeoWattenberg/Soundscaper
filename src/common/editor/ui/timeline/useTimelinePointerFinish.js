@@ -78,7 +78,8 @@ export function useTimelinePointerFinish({
 		setBoundarySnapGuideFrames([]);
 		setTimelineSelectionPointerCursor(scrollRef?.current, null);
 		if (session?.kind === 'track-resize') {
-			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
+			if (!cancelled && !pinchSession.current && project?.tracks.some(track => track.id === session.trackId)
+				&& session.height !== session.originalHeight) {
 				run(() => controller.actions.timeline.resizeTrackHeight(
 					session.trackId,
 					session.height,
@@ -422,7 +423,8 @@ export function useTimelinePointerFinish({
 
 	useEffect(() => {
 		const session = pointerSession.current;
-		if (session?.kind === 'sample-pencil' && !project?.clips.some(clip => clip.id === session.clipId)) {
+		if ((session?.kind === 'sample-pencil' && !project?.clips.some(clip => clip.id === session.clipId))
+			|| (session?.kind === 'track-resize' && !project?.tracks.some(track => track.id === session.trackId))) {
 			cancelPointerSession();
 		}
 	}, [cancelPointerSession, pointerSession, project]);
