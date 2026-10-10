@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readdir, readlink, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-
+import externalDisplayFixtureSources from './desktop-nightly-tests-external-display-inputs.cjs';
 import {
 	assertDirectory,
 	assertRegularFile,
@@ -50,6 +50,7 @@ export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 const ESBUILD_BINARY_SCOPE = '@esbuild';
 
 export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
+	...externalDisplayFixtureSources.map(source => ({ source, destination: source, kind: 'file', label: 'native external-display browser fixture support' })),
 	...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => ({
 		source: `desktop/bundled-${format}-stream.ts`, destination: `desktop/bundled-${format}-stream.ts`,
 		kind: 'file', label: `${format} browser import fixture support`,
@@ -195,7 +196,6 @@ const REQUIRED_NOTICE_FILES = Object.freeze({
 const NOTICE_NAME = /^(?:copying|licen[cs]e|notice|thirdpartynotice[a-z]*)(?:[._-].*)?$/iu;
 const PACKAGE_NAME = /^(?:@[a-z\d](?:[a-z\d._-]*[a-z\d])?\/[a-z\d](?:[a-z\d._-]*[a-z\d])?|[a-z\d](?:[a-z\d._-]*[a-z\d])?)$/u;
 const SOURCE_REVISION = /^[a-f\d]{40}$/u;
-
 export async function stageDesktopNightlyTests({
 	repositoryRoot,
 	outputRoot,
