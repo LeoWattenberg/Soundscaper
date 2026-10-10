@@ -708,6 +708,32 @@ context/PNG/full log were consumed; both temporary specs and all owned outputs/
 log were immediately removed. All native readers and the CPU slot close for
 queued followers; product source and qualifying count remain unchanged.
 
+R7-IO-042 zero-frame conversion follow-through (zero additional count): the
+ordinary admitted24-bit BWF native-zero observation belongs to the existing
+Freesound conversion decoder owner. The converter previously trusted zero
+native frames and published an empty44-byte RIFF. It now lazily reuses the
+existing validated PCM WAV inspector/stream decoder only for a zero-frame native
+result, preserving the original positive11025-frame44100 Hz source and PCM.
+The existing converted-byte ceiling is enforced before allocating recovery
+channels, signal cancellation remains fenced, and a source without supported
+positive PCM is clearly refused instead of publishing an empty WAV. Positive
+native decode and conservative AAC clock fallback are preserved.
+
+Focused TDD captures three causal failures before the source change: valid BWF
+recovery still emits no PCM, unsupported empty decode is not refused, and empty
+decode bypasses converted-byte admission. Seven ordinary native-positive/AAC/
+input-limit/cancellation controls already pass. After the narrow change, all10
+focused tests pass in0.52 seconds, including actual11025 delivered frames at
+44100 Hz and maximum programme PCM error below1e-6. Type-aware target lint passes
+for the converter, strict test and both native-body browser specs. Consumed
+bounded RED/GREEN/lint logs are immediately removed after this receipt.
+Compiled complete browser proof and the root-owned fresh canonical gate remain
+pending; no whole pass is claimed for the unresolved old-source WebKit case.
+No dependencies, generated assistance engine closure, runtime pins/recipes,
+archives or supported target inventories change; manual Update AI assets is
+not required. All original full-run failures remain recorded and the qualified
+total remains200.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the

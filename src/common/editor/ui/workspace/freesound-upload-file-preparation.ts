@@ -4,6 +4,7 @@ import { encodeWav } from '../../wav.js';
 import { inspectDecodedAudioSampleRate } from '../../audio-file-metadata.js';
 
 const MAXIMUM_UPLOAD_BYTES = 100_000_000;
+type DecodedAudio = Pick<AudioBuffer, 'length' | 'sampleRate' | 'numberOfChannels' | 'getChannelData'>;
 
 interface DecodeContext {
 	decodeAudioData(value: ArrayBuffer): Promise<AudioBuffer>;
@@ -35,14 +36,15 @@ export async function prepareFreesoundUploadFile(
 	const sampleRate = inspectDecodedAudioSampleRate(inputBytes);
 	const options: AudioContextOptions = { latencyHint: 'playback', ...(sampleRate ? { sampleRate } : {}) };
 	const context = runtime.createDecodeContext?.(options) ?? createBrowserDecodeContext(options);
-	let decoded: AudioBuffer;
+	let decoded: DecodedAudio;
 	try { decoded = await context.decodeAudioData(inputBytes); }
 	finally { await context.close(); }
 	signal?.throwIfAborted();
-	const expectedBytes = decoded.length * decoded.numberOfChannels * 3 + 4_096;
-	if (!Number.isSafeInteger(expectedBytes) || expectedBytes > maximumBytes) {
-		throw new RangeError('The converted audio exceeds the 100 MB Freesound upload limit.');
+	if (decoded.length === 0) {
+		decoded = await recoverPcmWav(file, signal, maximumBytes);
 	}
+	signal?.throwIfAborted();
+	assertConvertedExtent(decoded.length, decoded.numberOfChannels, maximumBytes);
 	const channels = Array.from(
 		{ length: decoded.numberOfChannels },
 		(_, channel) => decoded.getChannelData(channel),
@@ -61,6 +63,35 @@ export async function prepareFreesoundUploadFile(
 		type: 'audio/wav',
 		lastModified: file.lastModified,
 	});
+}
+
+async function recoverPcmWav(file: File, signal: AbortSignal | undefined, maximumBytes: number): Promise<DecodedAudio> {
+	// Some native decoders resolve an empty buffer for valid PCM WAV. Reuse the
+	// application's validated source decoder instead of publishing an empty RIFF.
+	const { inspectWavBlobPcm, streamWavBlobPcm } = await import('../../wav-import.js');
+	const descriptor = await inspectWavBlobPcm(file, { signal }).catch((cause: unknown) => {
+		signal?.throwIfAborted();
+		throw new Error('This audio file could not be decoded into PCM frames.', { cause });
+	});
+	assertConvertedExtent(descriptor.frameCount, descriptor.channelCount, maximumBytes);
+	const channels = Array.from({ length: descriptor.channelCount }, () => new Float32Array(descriptor.frameCount));
+	await streamWavBlobPcm(file, {
+		descriptor, signal,
+		onChunk: (packet: readonly Float32Array[], info: { frameOffset: number }) => {
+			packet.forEach((channel, index) => channels[index].set(channel, info.frameOffset));
+		},
+	});
+	return {
+		length: descriptor.frameCount, sampleRate: descriptor.sampleRate, numberOfChannels: descriptor.channelCount,
+		getChannelData: index => channels[index],
+	};
+}
+
+function assertConvertedExtent(frames: number, channelCount: number, maximumBytes: number): void {
+	const expectedBytes = frames * channelCount * 3 + 4_096;
+	if (!Number.isSafeInteger(expectedBytes) || expectedBytes > maximumBytes) {
+		throw new RangeError('The converted audio exceeds the 100 MB Freesound upload limit.');
+	}
 }
 
 function createBrowserDecodeContext(options: AudioContextOptions): DecodeContext {
