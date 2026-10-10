@@ -645,3 +645,16 @@ unchanged release helper, passes the same complete workflow in 10.8 seconds.
 Its actual exported PCM contains audible release and a quiet ending. All
 owned failure diagnostics and bounded logs are read and removed immediately;
 recording PCM remains in memory. No manual Update AI assets run is required.
+
+### Excluded native-rate visualizer interpolation — no additional root
+
+An ordinary 44.1 kHz recording's 18 kHz tone projects below the matching 48 kHz
+reference in Sound Visualizer. The first menu witness reaches that actual
+native raster after equal recorded RMS and healthy low-tone controls. Its
+linear PCM window contains a 0.27944 primary amplitude instead of 0.5, plus
+an interpolation image. However, the independent native OfflineAudioContext
+delivery control also changes the recording's RMS from 0.35355 to 0.21999.
+The evidence therefore does not establish a visualizer defect distinct from
+the browser's own sample-rate conversion approximation. Exclude the candidate,
+remove its verification spec, logs and diagnostics immediately, and retain
+the existing production reader without any source change or extra count.
