@@ -376,6 +376,8 @@
 		,
 		{ "path": "src/common/editor/gray-video-frame-sampling-v1.ts", "kind": "persisted-contract", "justification": "gray-video-frame-sampling-v1.ts is a persisted video sampling contract revision shared by motion-processing consumers." }
 		,
+		{ "path": "src/common/editor/image-export-filename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded photo-export filename templates bind original stems and stable one-based batch indices to PNG or JPEG suffixes, reuse the shared save-name sanitizer, and refuse unknown tokens or oversized expansion without truncation." }
+		,
 		{ "path": "src/common/editor/imaging/cube-lut-resource-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped cube resource owns a bounded raw byte copy, reuses private V27 parsing and exact reference verification, joins intrinsic native cancellation and the borrowed-body consumer, and wipes its owned raw bytes without claiming frozen parser floats are wipeable." }
 		,
 		{ "path": "src/common/editor/imaging/cube-lut-source-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 runtime-only cube LUT source borrows bounded bytes through a joined consumer, carries no recipe body or cache, and requires the renderer to authenticate the full digest and private V27 parser independently of storage custody." }
