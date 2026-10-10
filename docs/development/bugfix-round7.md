@@ -663,3 +663,14 @@ compile without diagnostics. The 134-byte completed verification log is consumed
 and immediately removed. Each changed witness also has its focused whole native
 workflow and canonical changed-file lint receipt in its owning area register;
 production source and the qualified 200-root inventory are unchanged.
+
+The original final Firefox phase completes all 2366 scheduled cases:
+2238 PASS, 115 SKIP, eight FAIL and five timed out. Its thirteen unexpected
+observations are consumed individually; their isolated unchanged or faithful
+fixture follow-through receipts retain the original failed statuses. The
+dissolve adjacency workflow's measured setup optimization is still pending;
+all other current observations have completed follow-through. WebKit begins on
+the same immutable684 source and the complete 7098-case aggregate remains
+pending. Playwright releases closed Firefox framework artifacts, reducing
+results from 52 MiB to 2.9 MiB; the external exact completed-directory cleaner
+continues with zero errors and all live/failure evidence protected.
