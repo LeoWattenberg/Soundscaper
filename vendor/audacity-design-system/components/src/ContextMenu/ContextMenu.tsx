@@ -4,6 +4,7 @@ import { ContextMenuActionFocus } from '../ContextMenuItem/context-menu-action-f
 import './ContextMenu.css';
 
 export interface ContextMenuProps {
+  id?: string;
   /**
    * Whether the menu is open
    */
@@ -50,6 +51,7 @@ export interface ContextMenuProps {
  * Handles click-outside-to-close and positioning
  */
 export const ContextMenu: React.FC<ContextMenuProps> = ({
+  id,
   isOpen,
   onClose,
   x,
@@ -273,6 +275,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   return (
     <div
+      id={id}
       ref={menuRef}
       className={`context-menu ${className}`}
       role="menu"

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -14,6 +14,7 @@ import { clearEffectsFocusSuppression, suppressEffectsFocusForPreset } from '../
 // vendored Button drops ARIA props, so the trigger is a native button wearing
 // the design-system button classes; the action-bar CSS themes those already.
 export default function WorkspaceSwitcherControl({ copy, snapshot, controller, run }) {
+	const menuId = useId();
 	const workspace = snapshot.preferences?.workspace;
 	const options = workspaceSwitcherOptions(snapshot.productId, copy, workspace?.custom);
 	const activeId = workspace?.activeId;
@@ -83,6 +84,7 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 	// position: fixed menu to the column instead of the viewport.
 	const menu = position && createPortal(
 		<ContextMenu
+			id={menuId}
 			isOpen
 			onClose={close}
 			x={position.x}
@@ -110,6 +112,7 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 				className="button button--secondary button--small kw-audio-editor__action-bar-button kw-audio-editor__workspace-switcher"
 				aria-haspopup="menu"
 				aria-expanded={Boolean(position)}
+				aria-controls={menuId}
 				onClick={toggle}
 			>
 				<span className="button__text">{`${copy.workspace}: ${activeName}`}</span>

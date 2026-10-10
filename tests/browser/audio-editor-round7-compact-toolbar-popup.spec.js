@@ -42,3 +42,33 @@ test('a compact toolbar popup returns keyboard focus to its reachable opener', a
 	await expect(menu).toBeFocused();
 	expect(errors).toEqual([]);
 });
+
+test('a compact workspace popup keeps its expanded native toolbar opener reachable', async ({ page }) => {
+	const errors = collectClientErrors(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseNestedCommandAction(page, editor, 'View', ['Workspace', 'Audacity']);
+	const trigger = editor.locator('[data-workspace-switcher] button');
+	const popup = page.locator('.kw-audio-editor__workspace-switcher-menu');
+	await trigger.focus();
+	await page.keyboard.press('Enter');
+	await expect(popup.getByRole('menuitem', { name: 'Soundscaper', exact: true })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(popup).toHaveCount(0);
+	await expect(trigger).toBeFocused();
+
+	await page.setViewportSize({ width: 800, height: 900 });
+	await waitForResponsiveEditorLayout(editor);
+	const menu = editor.locator('[data-chrome-drawer-toggle]');
+	await menu.click();
+	await trigger.focus();
+	await page.keyboard.press('Enter');
+	await expect(popup.getByRole('menuitem', { name: 'Soundscaper', exact: true })).toBeFocused();
+	await expect(menu).toHaveAttribute('aria-expanded', 'true');
+	await page.keyboard.press('Escape');
+	await expect(popup).toHaveCount(0);
+	await expect(trigger).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(menu).toHaveAttribute('aria-expanded', 'false');
+	await expect(menu).toBeFocused();
+	expect(errors).toEqual([]);
+});
