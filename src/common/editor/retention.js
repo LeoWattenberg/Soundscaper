@@ -10,6 +10,7 @@ import {
 	isSoundscaperProductionProject,
 } from './project-schema-version.ts';
 import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
+import { collectVisualPresetGeneratorSourceIds } from './video-visual-preset-v24.ts';
 import { videoSourceCharacteristicsAreReported } from './video-source-characteristics.ts';
 
 const MAXIMUM_FRAMESCAPER_PROJECT_ASSET_ROOTS = 16_384;
@@ -47,6 +48,7 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	collectAssistanceAssetSourceIds(project, target);
 	if (isSoundscaperProductionProject(project)) collectAudioTrackFreezeSourceIds(project, target);
 	if (isSelectedFramescaperProjectSchema(project)) {
+		collectVisualPresetGeneratorSourceIds(project, target);
 		collectMulticameraMemberSourceIds(project, target);
 		collectVideoFreezeFallbackSourceIds(project, target);
 		collectOpenFxFrozenFallbackSourceIds(project, target);

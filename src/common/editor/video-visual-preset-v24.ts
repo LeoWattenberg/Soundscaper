@@ -4,6 +4,7 @@ import {
 	readClosedDomainField,
 	readClosedDomainRecord,
 } from './closed-domain-value.ts';
+import { fingerprintNativeMediaPlan } from './native-media-plan-canonical-form.ts';
 
 export interface VideoVisualPresetV1 {
 	readonly schemaVersion: 1;
@@ -39,6 +40,25 @@ export function normalizeVideoVisualPresetV1(value: unknown): VideoVisualPresetV
 		modelKind,
 		authoredStateSha256: digest(field(record, 'authoredStateSha256')),
 	});
+}
+
+/** Saved presets retain the exact generator model even without a placed clip. */
+export function collectVisualPresetGeneratorSourceIds(project: unknown, target: Set<string> = new Set()): Set<string> {
+	if (!isRecord(project)) return target;
+	const digests = new Set((Array.isArray(project.videoVisualPresets) ? project.videoVisualPresets : [])
+		.filter((preset: unknown): preset is Record<string, unknown> => isRecord(preset)
+			&& preset.modelKind === 'generator' && typeof preset.authoredStateSha256 === 'string')
+		.map(preset => preset.authoredStateSha256));
+	if (!digests.size) return target;
+	for (const source of Array.isArray(project.sources) ? project.sources : []) {
+		if (isRecord(source) && source.kind === 'generator' && typeof source.id === 'string'
+			&& digests.has(fingerprintNativeMediaPlan(source).sha256)) target.add(source.id);
+	}
+	return target;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function field(record: Readonly<Record<string, unknown>>, key: string): unknown {

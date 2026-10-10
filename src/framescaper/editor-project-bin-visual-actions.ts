@@ -2,7 +2,7 @@
 
 import { createStableId } from '../common/editor/stable-id.js';
 import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
-import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
+import { collectVisualPresetGeneratorSourceIds, normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import { sampleFrameToVideoFrame } from '../common/editor/timeline-time.ts';
 import { resolveSequenceTimingView } from '../common/editor/sequence-timing-model.ts';
 import {
@@ -93,7 +93,8 @@ export function createFramescaperProjectBinVisualActions(
 		for (const item of bin) commands.push(clipCommand(item, null, { scope: 'project-bin' }, null));
 		const source = records(project.sources).find(item => item.id === clip.sourceId);
 		if (!source) throw new ReferenceError('The visual source is missing.');
-		commands.push(sourceCommand(source, null));
+		const retainedModel = collectVisualPresetGeneratorSourceIds(project).has(String(source.id));
+		if (!retainedModel) commands.push(sourceCommand(source, null));
 		owner.actions.edit.commit({ type: 'batch', commands });
 		return Object.freeze([...ids]);
 	}
