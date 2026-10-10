@@ -620,6 +620,22 @@ original full150 failures remain recorded above; this isolated zero-count
 follow-through is not an aggregate full-suite pass. Completed own replay
 output and bounded log are read and immediately removed.
 
+Full150 seven further completed WebKit failures reviewed (zero count; unchanged
+whole replay pending): two archive cancellation cases fail7.676/7.500 seconds
+before Export because the native storage observer is undefined; their actual
+Export dialogs are idle. Frozen Bin replacement fails22.177 seconds at its
+private data locator, while the actual screenshot positively shows Replacement
+file is shorter and both ordinary spacing choices. Multicamera retention
+times out31.119 seconds while opening Tracks, before Remove; its screenshot
+shows the ordinary first camera timeline. DAWproject999 BPM fails11.918 seconds
+before download at disabled Export DAWproject, with all File actions disabled
+and an empty timeline. Both Freesound uploads fail6.417/7.446 seconds reading
+subarray from the passive request observer's null body; the actual screenshots
+show Ready to publish rows for the ordinary ungrouped and folder-owned clips.
+These are preserved full-run observations without inferred source causes or
+new counts. All seven actual PNG/context and completed JSON markers are read;
+their exact directories are immediately removed.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
