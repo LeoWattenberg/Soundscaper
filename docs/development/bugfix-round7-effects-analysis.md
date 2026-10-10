@@ -314,6 +314,19 @@ The initial browser setup attempted a Lookahead field omitted by the shipped
 Noise gate layout and is excluded before playback or the causal edit; the
 corrected witness retains the ordinary default preview buffer.
 
+Zero-count Firefox observer completion: the 50-fix full-suite run delivers the
+correct new maximum peak 0.00010000570182455704, but its early interval also
+contains old healthy peak 0.000009999081157729961. A main-thread port timestamp
+does not establish which already queued ScriptProcessor blocks have received
+the edit. Keep the entire early overshoot limit and the same-node assertion;
+require the final requested floor in four physically delivered recent blocks
+separately. The exact corrected witness passes Firefox on unchanged prepared
+capture 68 in 7.0 seconds, after a passive-observer diagnostic pass in 7.1
+seconds. Its first replay is excluded before the causal edit because the healthy
+pre-edit audio stayed silent. No product source or timeout changes. The inspected
+original failure folder, temporary passive listeners, and all focused replay
+logs and output folders were removed immediately after recording these receipts.
+
 The earlier uncounted native surround Reverb candidate is excluded. Its normal
 export is deliberately refused by the existing stereo-width admission owner;
 its corrected ordinary playback/front-pair control passes on immutable

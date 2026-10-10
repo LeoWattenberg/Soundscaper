@@ -60,7 +60,17 @@ test('reducing live Noise gate attenuation keeps a below-threshold recording clo
 	expect(peaks.length).toBeGreaterThan(4);
 	console.log('ordinary closed gate attenuation edit', { maximumPeak: Math.max(...peaks), expectedMaximumPeak: .0001 });
 	expect(Math.max(...peaks)).toBeLessThan(.000102);
-	expect(Math.min(...peaks)).toBeGreaterThan(.000098);
+	// ScriptProcessor can deliver queued pre-edit audio after the main-thread
+	// port timestamp. Preserve the early overshoot bound and verify the final
+	// requested floor against physically delivered recent blocks separately.
+	await expect.poll(() => page.evaluate(() => {
+		const observed = window.__round7GateFloorNodes.at(-1);
+		const recent = observed.samples.slice(-4);
+		return recent.length === 4 && recent.every(sample => sample.time > observed.changedAt + .2)
+			? Math.min(...recent.map(sample => sample.peak)) : 0;
+	})).toBeGreaterThan(.000098);
+	expect(await page.evaluate(() => Math.max(...window.__round7GateFloorNodes.at(-1).samples.slice(-4)
+		.map(sample => sample.peak)))).toBeLessThan(.000102);
 	expect(await page.evaluate(() => window.__round7GateFloorNodes.length)).toBe(count);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 });
