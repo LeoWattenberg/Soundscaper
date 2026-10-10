@@ -39,7 +39,7 @@ for (const locale of ['en', 'de']) {
 		await dialog.getByLabel(f.words.name, { exact: true }).fill('Print'); await keyboard(page, named(dialog, 'button', f.words.save));
 		await expect(dialog.locator('[data-photo-export-preset-message]')).toHaveText(f.words.saved);
 		const id = await named(dialog, 'combobox', f.words.choose).inputValue(); expect(id).not.toBe('');
-		await assertNativeOpfsWorkerExecution(page); await keyboard(page, named(dialog, 'button', photoPngExportCopy(locale).close));
+		await assertNativeOpfsWorkerExecution(page); await keyboard(page, closeButton(dialog, locale));
 		await page.reload(); await selectLibrary(page, f);
 		dialog = await openSingle(page, f, 'jpeg'); await presetFields(page, dialog, locale);
 		await expect(raster(dialog, locale, 'outputSize')).toHaveValue('original'); expect(downloads).toHaveLength(0);
@@ -59,7 +59,7 @@ for (const locale of ['en', 'de']) {
 		expect(sidecar.original.contentSha256).toBe(createHash('sha256').update(PNG).digest('hex')); expect(sidecar.binding.photoId).toBe(f.ids[0]);
 		await presetFields(page, dialog, locale); await choose(page, named(dialog, 'combobox', f.words.choose), id);
 		await keyboard(page, named(dialog, 'button', f.words.remove)); await expect(dialog.locator('[data-photo-export-preset-message]')).toHaveText(f.words.removed);
-		await assertNativeOpfsWorkerExecution(page); await keyboard(page, named(dialog, 'button', photoPngExportCopy(locale).close)); await page.reload(); await selectLibrary(page, f);
+		await assertNativeOpfsWorkerExecution(page); await keyboard(page, closeButton(dialog, locale)); await page.reload(); await selectLibrary(page, f);
 		dialog = await openSingle(page, f, 'png'); await presetFields(page, dialog, locale); await expect(named(dialog, 'combobox', f.words.choose).locator('option')).toHaveCount(1);
 		await expect(raster(dialog, locale, 'outputSize')).toHaveValue('original'); expect(downloads).toHaveLength(2); expect(f.errors).toEqual([]);
 		await assertNativeOpfsWorkerExecution(page);
@@ -70,7 +70,7 @@ for (const locale of ['en', 'de']) {
 		let dialog = await openSingle(page, f, 'png'); await presetFields(page, dialog, locale); await toggle(page, raster(dialog, locale, 'sidecar'), true);
 		await dialog.getByLabel(f.words.name, { exact: true }).fill('With sidecar'); await keyboard(page, named(dialog, 'button', f.words.save));
 		await expect(dialog.locator('[data-photo-export-preset-message]')).toHaveText(f.words.saved); const sidecarId = await named(dialog, 'combobox', f.words.choose).inputValue();
-		await keyboard(page, named(dialog, 'button', photoPngExportCopy(locale).close));
+		await keyboard(page, closeButton(dialog, locale));
 		await menu(page, f.app, f.copy.photoFileMenu); await menu(page, f.app, f.copy.photoPhotoMenu); await keyboard(page, named(f.app, 'button', f.copy.photoSelectAll));
 		await menu(page, f.app, f.copy.photoFileMenu); await keyboard(page, named(f.app, 'button', photoBatchExportMenuCopy(locale).downloadSelected));
 		dialog = named(page, 'dialog', photoBatchExportCopy(locale).title); await expect(named(dialog, 'button', photoBatchExportCopy(locale).start)).toBeEnabled(); await presetFields(page, dialog, locale);
@@ -159,7 +159,12 @@ function assertPng(bytes) {
 	expect([...inflateSync(Buffer.concat(compressed))]).toEqual([0, ...COLOR]);
 }
 function photoCard(app, name) { return app.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(?:\\s|$)`, 'u') }); }
-function raster(dialog, locale, key) { return dialog.getByLabel(photoPngExportCopy(locale)[key], { exact: true }); }
+function raster(dialog, locale, key) {
+	const roles = { outputSize: 'combobox', resample: 'combobox', metadata: 'combobox', percentage: 'spinbutton',
+		sharpenAmount: 'spinbutton', sharpenThreshold: 'spinbutton', filenameTemplate: 'textbox', outputSharpen: 'checkbox', sidecar: 'checkbox' };
+	return named(dialog, roles[key], photoPngExportCopy(locale)[key]);
+}
+function closeButton(dialog, locale) { return named(dialog.locator('.lightscaper-catalog-backup-actions'), 'button', photoPngExportCopy(locale).close); }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 async function keyboard(page, control) { await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Enter'); }
 async function menu(page, app, name) { await keyboard(page, app.locator('summary').filter({ hasText: new RegExp(`^${name}$`, 'u') })); }
