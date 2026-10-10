@@ -13,7 +13,7 @@ export function useLabelMarkerDragCancellation(
 	useEffect(() => {
 		const owner = markerRef.current?.ownerDocument.defaultView;
 		if (!owner) return;
-		const finish = () => { activeRef.current = false; };
+		const finish = (event: globalThis.MouseEvent) => { if (event.button === 0) activeRef.current = false; };
 		const cancel = (event: KeyboardEvent) => {
 			if (event.key !== 'Escape' || !activeRef.current) return;
 			activeRef.current = false;

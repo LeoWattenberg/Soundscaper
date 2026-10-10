@@ -535,3 +535,11 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     strict `tests/audio-editor-round7-rack-divider-release.test.tsx` and the
     ordinary rack divider primary/middle-release continuation workflow.
     Upstream-PR candidate.
+
+69. `LabelMarker` retains a primary move or edge resize through auxiliary
+    mouse release. The application label draft and Escape ownership remain
+    active until primary release, so final movement publishes once. Covered by
+    the mounted actual native-history regression
+    `tests/audio-editor-round7-label-drag-release.test.tsx` and the ordinary
+    label move, auxiliary release, continuation and Undo/Redo workflow.
+    Upstream-PR candidate.

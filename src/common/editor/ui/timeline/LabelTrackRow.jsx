@@ -211,7 +211,8 @@ export function AudacityLabelMarker({
 		inputRef.current?.select();
 	}, [editing]);
 
-	const finishDrag = useCallback(() => {
+	const finishDrag = useCallback((event) => {
+		if (event.button !== 0) return;
 		const pending = pendingRef.current;
 		if (!pending) return;
 		pendingRef.current = null;
