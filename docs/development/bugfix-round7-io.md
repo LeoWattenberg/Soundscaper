@@ -157,6 +157,18 @@ focused replay's diagnostics/log were removed immediately; the root retains the
 small shared full-run log.
 
 
+The checkpoint100 Firefox IO-016 take-retention failure and unchanged frozen
+`ee53e1126` focused replay stop before editor boot: Playwright rejects the fixture's
+`clipboard-read` permission (replay 0.814 seconds). This is a fixture failure and
+adds no product bug count. Advance uses the already established spreadsheet
+ClipboardEvent path in Firefox/WebKit and retains Chromium's native permission,
+keyboard and clipboard path. All original actual recording, take placement,
+confirmed bin removal and subsequent take audition assertions remain. The complete
+Firefox workflow passes on unchanged guarded `56c2efd1a` in 10.5 seconds (12.8 seconds
+including setup). Only that completed checkpoint diagnostic directory and the
+owned replay/verification outputs were removed immediately; the full checkpoint
+failure log and frozen tracked/build bytes remain untouched.
+
 The existing R6-IO-003 sound-activation drain owner also covers Pause (zero new
 count). Normal microphone recording → Pause → Stop on guarded `56c2efd1a`
 retains all PCM without activation (4.9 seconds), but activation saves 28672 of

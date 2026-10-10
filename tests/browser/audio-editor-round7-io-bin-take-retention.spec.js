@@ -8,8 +8,8 @@ import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 test.describe('ordinary cycle take media ownership', () => {
 	registerAudioEditorHooks();
-	test('removing a placed recorded take from Project bin preserves its editable take lane', async ({ page, context }) => {
-		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	test('removing a placed recorded take from Project bin preserves its editable take lane', async ({ page, context, browserName }) => {
+		if (browserName === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 		await installOscillatorMicrophone(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -42,8 +42,18 @@ test.describe('ordinary cycle take media ownership', () => {
 		const grid = editor.locator('[data-workspace-panel="clip-spreadsheet"]').getByRole('grid');
 		await grid.focus();
 		await page.keyboard.press('Escape');
-		await page.evaluate(text => navigator.clipboard.writeText(text), ['Placed take', placementTrack.id, '2', sourceId, '0', '0.05'].join('\t'));
-		await page.keyboard.press('ControlOrMeta+v');
+		const row = ['Placed take', placementTrack.id, '2', sourceId, '0', '0.05'].join('\t');
+		if (browserName === 'chromium') {
+			await page.evaluate(text => navigator.clipboard.writeText(text), row);
+			await page.keyboard.press('ControlOrMeta+v');
+		} else {
+			// Firefox/WebKit use the same DOM clipboard path as the spreadsheet suite.
+			await page.evaluate(text => {
+				const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: new DataTransfer() });
+				event.clipboardData.setData('text/plain', text);
+				document.activeElement.dispatchEvent(event);
+			}, row);
+		}
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		await closeWorkspacePanel(editor, 'clip-spreadsheet');
 		const clip = clipByName(editor, 'Placed take');
