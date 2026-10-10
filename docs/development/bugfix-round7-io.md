@@ -451,6 +451,25 @@ recording placed at four seconds. No failed marker, frame, peak or peak-position
 assertion establishes a DSP regression. The completed JSON/context/PNG were
 read and the exact owned diagnostic directory immediately removed. The original
 full-suite timeout remains recorded; unchanged whole Firefox replay is pending.
+The complete unchanged Firefox replay repeats the same second exportedDrum
+page.evaluate timeout in37.9 seconds at the original30-second deadline. Its
+actual repeat context again shows a completed real WAV download; its PNG
+is an empty image. The numeric array transport serializes every downloaded byte across the Playwright boundary;
+only that verification transport will be replaced with byte-preserving Node
+Buffer base64 and browser atob/Uint8Array, retaining the native WAV decoder and
+all fresh-delivery, frame, peak, peak-position, marker, Undo and client-error
+assertions. The repeat log/context/PNG were read and the exact owned replay
+output/log immediately removed. No product or helper edit or new count is added.
+The complete byte-preserving workflow on authenticated a3a36854d passes all3
+engines within the unchanged30-second case deadline: Chromium11.1 seconds,
+Firefox18.3 seconds and WebKit18.4 seconds (3/3 in53.0 seconds). Both actual
+fresh WAV deliveries, exact432000 frames, healthy/drum peak and peak-position
+bounds, the musical marker, Undo, empty alerts and client errors all remain
+asserted. Target type-aware lint, canonical changed-file lint and whitespace
+checks pass. Completed owned replay output and bounded logs are consumed and
+immediately removed; all native readers close. The original full200 timeout
+remains recorded. Only this browser spec's transport and the I/O verification
+receipt change; no manual Update AI assets run is required.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →

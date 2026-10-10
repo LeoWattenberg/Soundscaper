@@ -92,16 +92,17 @@ async function exportedDrum(page, editor) {
 	await expect(link).toBeVisible({ timeout: 20000 });
 	await expect(link).not.toHaveAttribute('href', previous ?? '');
 	const bytes = await readDownloadBytes(page, link);
-	const result = await page.evaluate(async bytes => {
+	const result = await page.evaluate(async encoded => {
 		const context = new OfflineAudioContext(2, 1, 48000);
-		const decoded = await context.decodeAudioData(Uint8Array.from(bytes).buffer);
+		const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+		const decoded = await context.decodeAudioData(bytes.buffer);
 		const pcm = decoded.getChannelData(0);
 		let peak = 0; let peakFrame = 0;
 		for (let frame = 0; frame < pcm.length; frame++) {
 			if (Math.abs(pcm[frame]) > peak) { peak = Math.abs(pcm[frame]); peakFrame = frame; }
 		}
 		return { frames: decoded.length, peak, peakFrame };
-	}, Array.from(bytes));
+	}, Buffer.from(bytes).toString('base64'));
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 	return result;
 }
