@@ -20,9 +20,11 @@ const COPY_MODULES = [...sourceModules(resolve(ROOT, 'src/common/i18n')), resolv
 const TRANSFER = 'src/common/editor/platform/bounded-transfer.ts';
 const CURRENT_IMAGE_LEAVES = ['video-effects-v2.ts', 'video-color-cube-lut-v27.ts',
 	'video-color-management-v27.ts', 'video-color-byte-encoding.ts'].map(name => `src/common/editor/${name}`);
+const CURRENT_PACK_TAGS = ['scape-photo-catalog-pack-v2.ts', 'scape-photo-cube-lut.ts'].map(name => `src/common/editor/${name}`);
 const PHOTO_OWNERS = new Set(['editor-neutral-foundations', 'editor-photo-library-scalars', 'editor-imaging',
 	'editor-media-storage-contracts', 'editor-media-custody-storage', 'editor-closed-domain-values',
-	'editor-dialog-foundations', 'lightscaper-editor-copy', 'lightscaper-develop-copy', 'editor-visual-effect-copy']);
+	'editor-dialog-foundations', 'editor-file-saving', 'editor-scape-archive-bytes',
+	'lightscaper-editor-copy', 'lightscaper-develop-copy', 'editor-visual-effect-copy']);
 const PHOTO_COOWNERS = sourceModules(resolve(ROOT, 'src')).filter(path => PHOTO_OWNERS.has(chunkGroupForModulePath(path) ?? ''));
 
 test('optional develop labels and shared visual labels have exact independent nonrecursive owners', () => {
@@ -98,6 +100,29 @@ test('the actual photo bootstrap and import dialog stay cold across non-i18n co-
 		for (const path of [TRANSFER, ...CURRENT_IMAGE_LEAVES]) assert.ok(reached.has(path), `${entry} omitted ${path}`);
 		for (const path of reached) assert.doesNotMatch(path, /\/i18n\/(?:canonical-extras[^/]*|catalogs|runtime|editor-copy-inventory)\./u);
 	}
+});
+
+test('current photo archive tags retain the existing exact nonrecursive byte owner', () => {
+	for (const path of CURRENT_PACK_TAGS) {
+		for (const separator of ['/', '\\']) {
+			assert.equal(chunkGroupForModulePath(path.replaceAll('/', separator)), 'editor-scape-archive-bytes', path);
+			assert.notEqual(chunkGroupForModulePath((path + '.foreign').replaceAll('/', separator)), 'editor-scape-archive-bytes');
+		}
+		assert.deepEqual(staticRelativeDependencies(runtimeSource(resolve(ROOT, path))), [], path);
+		assert.deepEqual(dynamicRelativeImports(runtimeSource(resolve(ROOT, path))), [], path);
+	}
+	for (const path of ['scape-photo-catalog-pack-v3.ts', 'scape-photo-cube-lut-future.ts']) {
+		assert.notEqual(chunkGroupForModulePath(`src/common/editor/${path}`), 'editor-scape-archive-bytes', path);
+	}
+	const group = chunkGroups.find(candidate => candidate.name === 'editor-scape-archive-bytes'); assert.ok(group);
+	assert.equal(group.priority, 99); assert.equal(group.minSize, 0); assert.equal(group.maxSize, 400_000);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
+test('the actual current backup entry stays cold across file and archive byte co-owners', () => {
+	const reached = photoRuntimeClosure('src/lightscaper/controller/photo-library-backup-v5.ts');
+	for (const path of CURRENT_PACK_TAGS) assert.ok(reached.has(path), `Current backup omitted ${path}`);
+	for (const path of reached) assert.doesNotMatch(path, /\/i18n\/(?:canonical-extras[^/]*|catalogs|runtime|editor-copy-inventory)\./u);
 });
 
 function runtimeSource(path: string): string {
