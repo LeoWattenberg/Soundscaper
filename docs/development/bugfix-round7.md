@@ -386,3 +386,12 @@ removed immediately. A separate immutable8fba4b346 helper checkpoint runs
 another full Node suite for the new annotation/capture helper owners while
 the frozen100 browser gate continues. Manual **Update AI assets** is not
 required. Later public-causal candidates have no count until complete GREEN.
+
+The full100 browser gate's third observation is the old native automation
+fixture's immediate console-delivery assertion, before final gesture output.
+Its complete unchanged12px/20px primary and foreign-release cases pass3/3
+focused replay on source-equivalent8fba4b346 in11.4 seconds, with final position
+and Undo/Redo unchanged. No product, assertion or deadline is changed. Exact
+reviewed full diagnostic and focused replay output are removed immediately.
+Completed screenshot buffers from the ongoing suite are also cleared once
+consumed, reclaiming81MB during this wave; active writes are retained.
