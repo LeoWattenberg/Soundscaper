@@ -37,7 +37,7 @@ for (const interrupted of [false, true]) test(`the parametric output fader compl
 		const second = { x: middle.x + 2, y: middle.y + 2, id: 2 };
 		await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [middle, second] });
 		await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [second] });
-		expect(releases).toEqual(['eq-output-touch-release false']);
+		await expect.poll(() => releases).toEqual(['eq-output-touch-release false']);
 	}
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [final] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });

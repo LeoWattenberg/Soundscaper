@@ -46,19 +46,26 @@ for (const variant of ['neighboring bin', 'skipped high-frequency bin']) {
 		await addRackEffect(page, panel, 'track', 'Parametric EQ');
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => window.__round6EqSpectrum?.level ?? -120)).toBeGreaterThan(-35);
-		const plot = await inputCanvas.evaluate(canvas => {
-			const { width, height } = canvas;
-			const pixels = canvas.getContext('2d').getImageData(0, 0, width, height).data;
-			let top = height; let first = 0; let last = 0;
-			for (let x = 0; x < width; x++) {
-				for (let y = 0; y < height; y++) if (pixels[(y * width + x) * 4 + 3] > 20) {
-					if (y < top) { top = y; first = x; last = x; } else if (y === top) last = x;
-					break;
+		// The probe reads input and output analysers independently. Capture the
+		// input peak's height and position together after its painted frame is ready.
+		let spectrum;
+		await expect.poll(async () => {
+			spectrum = await inputCanvas.evaluate(canvas => {
+				const { width, height } = canvas;
+				const pixels = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+				let top = height; let first = 0; let last = 0;
+				for (let x = 0; x < width; x++) {
+					for (let y = 0; y < height; y++) if (pixels[(y * width + x) * 4 + 3] > 20) {
+						if (y < top) { top = y; first = x; last = x; } else if (y === top) last = x;
+						break;
+					}
 				}
-			}
-			return { width, height, top: top / height, peakX: (first + last) / 2 };
-		});
-		const observed = await page.evaluate(() => window.__round6EqSpectrum);
+				return { plot: { width, height, top: top / height, peakX: (first + last) / 2 },
+					observed: window.__round6EqSpectrum };
+			});
+			return spectrum.plot.top;
+		}).toBeLessThan(.35);
+		const { plot, observed } = spectrum;
 		console.log('ordinary EQ input spectrum high tone', { frequency, fftBin, width, plot, observed });
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		expect(observed.rate).toBe(outputRate); expect(observed.size).toBe(4096);

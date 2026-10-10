@@ -3,11 +3,19 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 
+const AUTHORING_OPTIONS = { timeout: 30_000 };
+
 test('a saved visual preset still applies after its model card is removed from the project Bin', async ({ page }) => {
-	test.setTimeout(120_000);
+	// Repeated authored-state changes checkpoint the preview workers in Chromium
+	// coverage runs; use the same budget as the visual-authoring menu workflows.
+	test.setTimeout(180_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Title/Text']);
 	const title = editor.getByRole('group', { name: 'Video clip: Title', exact: true });
+	const closeDialog = async dialog => {
+		await dialog.getByRole('button', { name: 'Close', exact: true }).press('Enter');
+		await expect(dialog).toBeHidden(AUTHORING_OPTIONS);
+	};
 	const inspector = async () => {
 		await title.press('Enter');
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Selected Visual Inspector']);
@@ -17,9 +25,9 @@ test('a saved visual preset still applies after its model card is removed from t
 		const dialog = await inspector();
 		await dialog.getByRole('textbox', { name: 'Text', exact: true }).fill(text);
 		await dialog.getByRole('spinbutton', { name: 'Font size', exact: true }).fill(size);
-		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
-		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.');
-		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).press('Enter');
+		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.', AUTHORING_OPTIONS);
+		await closeDialog(dialog);
 	};
 	const library = async () => {
 		await title.press('Enter');
@@ -30,22 +38,22 @@ test('a saved visual preset still applies after its model card is removed from t
 		const dialog = await inspector();
 		await expect(dialog.getByRole('textbox', { name: 'Text', exact: true })).toHaveValue(text);
 		await expect(dialog.getByRole('spinbutton', { name: 'Font size', exact: true })).toHaveValue(size);
-		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await closeDialog(dialog);
 	};
 	const applyPreset = async () => {
 		const dialog = await library();
 		await dialog.getByRole('combobox', { name: 'Saved visual preset', exact: true }).selectOption({ label: 'Saved title' });
 		await expect(dialog.getByRole('button', { name: 'Apply to selected generator', exact: true })).toBeEnabled();
-		await dialog.getByRole('button', { name: 'Apply to selected generator', exact: true }).click();
-		await expect(dialog.getByRole('status')).toHaveText('Selected authored state applied.');
-		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Apply to selected generator', exact: true }).press('Enter');
+		await expect(dialog.getByRole('status')).toHaveText('Selected authored state applied.', AUTHORING_OPTIONS);
+		await closeDialog(dialog);
 	};
 	await changeTitle('Saved title', '40');
 	const saved = await library();
 	await saved.getByRole('textbox', { name: 'Preset name', exact: true }).fill('Saved title');
-	await saved.getByRole('button', { name: 'Save selected generator preset', exact: true }).click();
-	await expect(saved.getByRole('status')).toHaveText('Selected visual preset saved.');
-	await saved.getByRole('button', { name: 'Close', exact: true }).click();
+	await saved.getByRole('button', { name: 'Save selected generator preset', exact: true }).press('Enter');
+	await expect(saved.getByRole('status')).toHaveText('Selected visual preset saved.', AUTHORING_OPTIONS);
+	await closeDialog(saved);
 	await changeTitle('Changed title', '72');
 	await applyPreset();
 	await expectTitle('Saved title', '40');

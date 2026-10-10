@@ -79,8 +79,10 @@ test.describe('keyboard shortcut preferences', () => {
 
 		await chooseDropdown(page, preferences.locator('[role="group"][aria-label="Sort commands"]'), 'Alphabetical');
 		await expect(groups).toHaveCount(0);
-		await expect(preferences.locator('[data-shortcut-action]').first())
-			.toHaveAttribute('data-shortcut-action', 'label-add');
+		const labels = await preferences.locator('[data-shortcut-action]').getByRole('group')
+			.evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')));
+		expect(labels.length).toBeGreaterThan(0);
+		expect(labels).toEqual([...labels].sort((left, right) => left.localeCompare(right, 'en')));
 		await expect(preferences.locator('[data-shortcut-action="about-audacity"]')).toHaveCount(0);
 	});
 

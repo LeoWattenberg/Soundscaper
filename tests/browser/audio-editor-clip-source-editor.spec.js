@@ -201,9 +201,13 @@ test.describe('clip source editor', () => {
 		const sourcePlay = panel.getByRole('button', { name: 'Play', exact: true });
 		await sourcePlay.focus();
 		await expect(mainTransport.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		const sourcePosition = await ruler.getAttribute('aria-valuenow');
 		await sourcePlay.click();
 		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect(mainTransport.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		// The Pause label appears while the audio engine is still starting.
+		// Stop the running source after its clock confirms that startup settled.
+		await expect.poll(() => ruler.getAttribute('aria-valuenow')).not.toBe(sourcePosition);
 		await panel.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(panel.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(ruler).toHaveAttribute('aria-valuenow', '0');

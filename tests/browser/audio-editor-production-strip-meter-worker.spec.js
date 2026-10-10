@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, longTone, test } from './audio-editor-test-fixtures.js';
+import { expect, halfMinuteTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
@@ -59,7 +59,8 @@ for (const platform of ['web', 'desktop']) {
 
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [longTone]);
+		// The 20-second observation must fit inside audible playback.
+		await importFiles(editor, [halfMinuteTone]);
 		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const mixer = editor.locator('[data-mixer-panel]');
 		await expect(mixer).toBeVisible();

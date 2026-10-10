@@ -98,6 +98,22 @@ test('a pending preview cannot begin playback after focus is lost', async () => 
 	await service.dispose();
 });
 
+test('Stop cancels source preparation while preserving source transport focus', async () => {
+	let release!: () => void;
+	const pending = new Promise<void>((resolve) => { release = resolve; });
+	const { service, events } = fixture(() => pending);
+	const playback = service.playPause('clip');
+	assert.equal(service.snapshot().state, 'loading');
+	service.stop();
+	release();
+	await playback;
+	assert.equal(service.snapshot().focused, true);
+	assert.equal(service.snapshot().state, 'stopped');
+	assert.equal(service.snapshot().positionFrame, 0);
+	assert.equal(events.includes('play'), false);
+	await service.dispose();
+});
+
 
 test('repeated focus preserves playing state and refreshes edited source duration', async () => {
 	const { service, project, events } = fixture();

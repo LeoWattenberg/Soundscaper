@@ -4,8 +4,11 @@ import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 test('a menu-authored spectrum preserves equal-level low and high recorded tones', async ({ page }) => {
+	// CI coverage reached the final seek at the former 30-second workflow limit.
+	test.setTimeout(120_000);
 	await page.addInitScript(() => {
 		window.__visualizerPeak = { calls: 0, row: 1 };
 		const nativePut = CanvasRenderingContext2D.prototype.putImageData;
@@ -29,6 +32,7 @@ test('a menu-authored spectrum preserves equal-level low and high recorded tones
 		};
 	});
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	test.skip(!await page.evaluate(hasWebGl2Capability), 'Spectrum pixels require the exact WebGL2 preview.');
 	const recording = createWavFixture({ name: 'equal-level-recorded-tones.wav', duration: 2,
 		frequency: 468.75, channelCount: 1, channelAmplitudes: [0.5] });
 	for (let frame = 48_000; frame < 96_000; frame++) {

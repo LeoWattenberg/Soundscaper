@@ -10,6 +10,8 @@ const LUT = ['TITLE "Identity"', 'LUT_3D_SIZE 2', '0 0 0', '1 0 0', '0 1 0', '1 
 	'0 0 1', '1 0 1', '0 1 1', '1 1 1', ''].join('\n');
 
 for (const closed of [false, true]) test(`pending native LUT read ${closed ? 'is cancelled by Close' : 'publishes to the open finishing target'}`, async ({ page }) => {
+	test.setTimeout(120_000);
+	const authoringOptions = { timeout: 30_000 };
 	let resume;
 	const reading = new Promise(resolve => { resume = resolve; });
 	let started = false;
@@ -27,22 +29,26 @@ for (const closed of [false, true]) test(`pending native LUT read ${closed ? 'is
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Selected Visual Inspector']);
 		const inspector = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
 		await inspector.getByRole('spinbutton', { name: 'Opacity', exact: true }).fill('0.5');
-		await inspector.getByRole('button', { name: 'Apply', exact: true }).click();
-		await expect(inspector.getByRole('status').last()).toHaveText('Selected visual updated.');
-		await inspector.getByRole('button', { name: 'Close', exact: true }).click();
+		await inspector.getByRole('button', { name: 'Apply', exact: true }).press('Enter');
+		await expect(inspector.getByRole('status').last()).toHaveText('Selected visual updated.', authoringOptions);
+		await inspector.getByRole('button', { name: 'Close', exact: true }).press('Enter');
+		await expect(inspector).toBeHidden(authoringOptions);
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Grading & Finishing Presets']);
 		let dialog = page.getByRole('dialog', { name: 'Grading & Finishing Presets', exact: true });
 		await expect(dialog.getByRole('combobox', { name: 'Cube LUT target', exact: true })).toHaveValue(/^presentation:/u);
-		await dialog.getByRole('button', { name: 'Choose .cube LUT', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Choose .cube LUT', exact: true }).press('Enter');
 		await expect.poll(() => started).toBe(true);
 		await expect(dialog.getByRole('button', { name: 'Choose .cube LUT', exact: true })).toBeDisabled();
-		if (closed) await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		if (closed) {
+			await dialog.getByRole('button', { name: 'Close', exact: true }).press('Enter');
+			await expect(dialog).toBeHidden(authoringOptions);
+		}
 		resume();
 		// The native lease encloses the complete LUT consumer and its history
 		// publication, so its release positively fences the canonical observer.
 		await expect.poll(() => native.releases.length).toBe(1);
-		if (!closed) await expect(dialog.getByRole('status')).toHaveText(/^Presentation .+: [0-9a-f]{12}$/u);
-		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		if (!closed) await expect(dialog.getByRole('status')).toHaveText(/^Presentation .+: [0-9a-f]{12}$/u, authoringOptions);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', authoringOptions);
 		if (closed) {
 			await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Grading & Finishing Presets']);
 			dialog = page.getByRole('dialog', { name: 'Grading & Finishing Presets', exact: true });

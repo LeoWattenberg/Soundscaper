@@ -32,7 +32,9 @@ test('ordinary External display switching refuses a retired actual preview Messa
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		test.skip(!await page.evaluate(hasWebGl2Capability), 'Clean display requires the real evaluated framebuffer.');
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
-		await expect(editor.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'ready');
+		const preview = editor.locator('[data-video-preview]');
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready', { timeout: 30_000 });
+		await expect(preview).toHaveAttribute('data-video-preview-visual-pending', 'false');
 		const selectDisplay = async name => {
 			await chooseNestedCommandAction(page, editor, 'View', ['External display', name]);
 		};

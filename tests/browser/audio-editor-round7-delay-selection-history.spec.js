@@ -6,7 +6,8 @@ import { addRackEffect, bootEditor, chooseCommandAction, chooseDropdown, closeDi
 	openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 
 test('a selected delivery retains the ordinary finite echoes heard in the complete mix', async ({ page }) => {
-	test.setTimeout(75_000);
+	// Three PCM deliveries and the sample-digit edits exceed 75 seconds under CI coverage.
+	test.setTimeout(180_000);
 	const errors = collectClientErrors(page);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');

@@ -5,8 +5,11 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import { bootEditor, chooseFileAction, chooseNestedCommandAction, closeDialog,
 	disableNativeSavePicker, importFiles, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 for (const opposite of [false, true]) test(`a menu-authored spectrum retains an audible ${opposite ? 'opposite' : 'matching'}-polarity four-channel recording`, async ({ page }) => {
+	// Software compositing and exact PCM rendering run more slowly under CI coverage.
+	test.setTimeout(120_000);
 	await disableNativeSavePicker(page);
 	await page.addInitScript(() => {
 		window.__wideVisualizerPeak = { calls: 0, row: 1 };
@@ -31,6 +34,7 @@ for (const opposite of [false, true]) test(`a menu-authored spectrum retains an 
 		};
 	});
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	test.skip(!await page.evaluate(hasWebGl2Capability), 'Spectrum pixels require the exact WebGL2 preview.');
 	const recording = createWavFixture({ name: 'four-channel recording.wav', duration: 1,
 		frequency: 468.75, channelCount: 4, channelAmplitudes: opposite ? [.5, -.5, .5, -.5] : [.5, .5, .5, .5] });
 	expect(recording.buffer.readUInt16LE(22)).toBe(4);

@@ -4,6 +4,8 @@ import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, chooseNestedCommandAction, clipByName, disableNativeSavePicker, importFiles, readDownloadBytes } from './audio-editor-test-helpers.js';
 
 test('clip export uses the exact authored range of an ordinary native Title', async ({ page }) => {
+	// CI coverage reaches the second decoded delivery at the former 30-second limit.
+	test.setTimeout(120_000);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await importFiles(editor, [toneA]);
