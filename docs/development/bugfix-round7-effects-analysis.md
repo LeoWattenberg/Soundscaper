@@ -845,3 +845,33 @@ sample clocks and downloaded maxima all pass. Target ESLint, changed
 lint, size and owned diff checks pass. All bounded verification
 logs and generated diagnostics are read and removed immediately. This uses the
 same runtime closure; no manual Update AI assets run is required.
+
+## R7-EFFECT-022 — Preserved multichannel strips accept inaudible Pan edits
+
+Import ordinary stereo and four-channel recordings. Use the track header Pan
+control, or Window → Mixer and its Pan knob. Stereo Pan 100 correctly silences
+the exported left channel. Four-channel Pan also accepts 100, yet the exported
+audio is unchanged: the production graph deliberately suspends stereo Pan to
+preserve the recording's channels. The visible controls do not reflect that
+existing capability. Header, Mixer, shortcuts and automation share one strip
+admission owner; preserved ADM and wide bus/master manifestations count once.
+
+Share the existing native graph capability through the terminal channel-width
+owner. Disable only unavailable Pan controls, refuse their static gestures and
+Pan shortcuts, and mark the corresponding automation target unavailable. Keep
+stereo/mono Pan, the foundation graph, all gains and audibility controls intact.
+The graph uses the same pure capability without changing channel processing.
+
+On authenticated 8fba4b346 the normal header and Mixer workflows each fail
+causally in 13.3 seconds, after stereo PCM, four-channel audibility and unchanged
+post-edit PCM controls pass. Both actual controls retain an enabled Pan 100.
+Earlier attempts targeted the empty initial track or omitted the native-save
+picker fallback; those incomplete export setups are excluded. Four strict
+mounted/action cases are initially RED while four stereo controls pass. The
+corrected new and existing strip gestures, Pan shortcuts, automation, native
+graph, mono routing and vendor controls pass 49/49, including ADM and declared
+wide bus/master capability controls. Corrected complete public verification
+awaits the next guarded capture. Target ESLint, changed lint, size and owned
+diff checks pass. Bounded logs and generated diagnostics are read and removed
+immediately. This uses the same runtime closure; no manual Update AI assets run
+is required.

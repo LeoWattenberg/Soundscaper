@@ -17,6 +17,7 @@ export interface TrackControlPanelProps {
   volume?: number; // 0-100
   defaultVolume?: number;
   pan?: number; // -100 to 100
+  panDisabled?: boolean;
   isMuted?: boolean;
   isSolo?: boolean;
   isFocused?: boolean;
@@ -108,6 +109,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   volume = 75,
   defaultVolume = 75,
   pan = 0,
+  panDisabled = false,
   isMuted = false,
   isSolo = false,
   isFocused = false,
@@ -919,12 +921,10 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
           </div>
         </div>
 
-        {/* Controls Row - Hidden for label tracks and when audio track height <= 70px */}
         {!isLabelTrack && (!trackHeight || trackHeight > 70) && (
           <div className="track-control-panel__controls-row">
             {/* Pan Knob — wrapped in a focusable slot so the outline
-                sits around the whole control; Enter on the slot
-                pushes focus into the knob itself. */}
+                sits around the whole control. */}
             <div
               className="track-control-panel__slot track-control-panel__slot--pan"
               data-tcp-slot="pan"
@@ -934,6 +934,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
             >
               <PanKnob
                 value={pan}
+                disabled={panDisabled}
                 onChange={onPanChange}
                 onGestureStart={onPanGestureStart}
                 onGestureEnd={onPanGestureEnd}
@@ -942,8 +943,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
               />
             </div>
 
-            {/* Volume Slider — slot wrapper gives the slider a
-                container-level focus ring. */}
+            {/* Volume Slider */}
             <div
               className="track-control-panel__slot track-control-panel__slot--volume"
               data-tcp-slot="volume"

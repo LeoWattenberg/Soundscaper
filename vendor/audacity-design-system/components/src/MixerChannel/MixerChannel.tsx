@@ -48,6 +48,8 @@ export interface MixerChannelProps {
    * @default 0
    */
   pan?: number;
+  /** Pan is unavailable when the host must preserve native channel identity. */
+  panDisabled?: boolean;
   /**
    * Whether the channel is muted
    * @default false
@@ -133,6 +135,7 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
   variant = 'mono',
   volume = -6,
   pan = 0,
+  panDisabled = false,
   muted = false,
   soloed = false,
   meterLeft = 0,
@@ -215,6 +218,7 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
         <div className="mixer-channel__pan-row">
           <Knob
             value={pan}
+            disabled={panDisabled}
             defaultValue={0}
             min={-100}
             max={100}
