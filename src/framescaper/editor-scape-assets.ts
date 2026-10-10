@@ -9,7 +9,7 @@ import { composeScapeProjectAssetExtensions } from
 	'../common/editor/scape-project-asset-extension-composition.ts';
 import type { ScapeProjectAssetExtension } from '../common/editor/scape-project-asset-extension.ts';
 import { framescaperProjectTimelineImageFoundationShapeAssistance } from './editor-project-assistance-foundation.ts';
-import { createFramescaperScapeProjectAssetExtensionTimelineImage } from './editor-scape-assets-timeline-image.ts';
+import { createFramescaperScapeProjectAssetExtensionTimelineImageCurrent } from './editor-scape-assets-timeline-image-current.ts';
 import { validateFramescaperProject } from './editor-project.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
 
@@ -18,7 +18,7 @@ export function createFramescaperScapeProjectAssetExtension(
 	profile: unknown,
 ): Readonly<ScapeProjectAssetExtension> {
 	assertFramescaperProjectRuntimeProfile(profile);
-	const images = createFramescaperScapeProjectAssetExtensionTimelineImage(profile, {
+	const images = createFramescaperScapeProjectAssetExtensionTimelineImageCurrent(profile, {
 		authenticate: assertFramescaperProjectRuntimeProfile,
 		clone: (_codecProfile, project) => framescaperProjectTimelineImageFoundationShapeAssistance(
 			project,

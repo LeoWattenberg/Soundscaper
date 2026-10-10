@@ -10,12 +10,11 @@ import type {
 import {
 	framescaperImageSourceForClipTimelineImage,
 	mapFramescaperImageFrameAtSampleTimelineImage,
-	openFramescaperStoredImageFramePackTimelineImage,
 	scaleFramescaperImageRgbaTimelineImage,
 	throwIfFramescaperImagePreviewAbortedTimelineImage,
 	type FramescaperImageClipV1,
-	type FramescaperImageFramePackReaderV1,
-	type FramescaperImageSourceV1,
+	type FramescaperCurrentImageSourceTimelineImage,
+	framescaperImageDimensionsTimelineImage,
 } from './editor-selected-timeline-image-image-frame-source.ts';
 import {
 	admitFramescaperImageTimelineFilmstripResourcesTimelineImage,
@@ -27,6 +26,8 @@ import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './edi
 import {
 	cloneFramescaperProjectTimelineImage,
 } from './editor-project-timeline-image.ts';
+
+import { openFramescaperCurrentImageFrameSource, type FramescaperCurrentImageFrameReader } from './timeline-image-current-frame-source.ts';
 
 export interface FramescaperSelectedTimelineFilmstripOptionsTimelineImage
 	extends ProductVideoTimelineFilmstripRequest {
@@ -43,7 +44,7 @@ interface ImageFilmstripContextTimelineImage {
 	readonly index: number;
 	readonly request: ProductVideoTimelineFilmstripRequest['frames'][number];
 	readonly clip: FramescaperImageClipV1;
-	readonly source: FramescaperImageSourceV1;
+	readonly source: FramescaperCurrentImageSourceTimelineImage;
 	readonly sequenceRate: Readonly<{ readonly num: number; readonly den: number }>;
 }
 
@@ -86,7 +87,7 @@ export async function createFramescaperSelectedTimelineFilmstripTimelineImage(
 	));
 	const inheritedPromise = inheritedRequests.length === 0 ? Promise.resolve(Object.freeze([]))
 		: Promise.resolve().then(() => inheritedFactory({ ...options, project, frames: inheritedRequests }));
-	const readers = new Map<string, Promise<FramescaperImageFramePackReaderV1>>();
+	const readers = new Map<string, Promise<FramescaperCurrentImageFrameReader>>();
 	const scaledFrames = new Map<string, Uint8Array<ArrayBuffer>>();
 	let inheritedOutput: readonly ProductVideoTimelineFilmstripFrame[] | null = null;
 	let published = false;
@@ -119,6 +120,7 @@ export async function createFramescaperSelectedTimelineFilmstripTimelineImage(
 	} finally {
 		for (const pixels of scaledFrames.values()) pixels.fill(0);
 		scaledFrames.clear();
+		await Promise.allSettled([...readers.values()].map(async reader => { await (await reader).closeAndJoin(); }));
 		readers.clear();
 		if (!published) disposeUnpublishedOutputs(output, inheritedOutput);
 		images.length = 0;
@@ -129,7 +131,7 @@ export async function createFramescaperSelectedTimelineFilmstripTimelineImage(
 			throwIfFramescaperImagePreviewAbortedTimelineImage(options.signal);
 			let readerPromise = readers.get(context.source.id);
 			if (!readerPromise) {
-				readerPromise = openFramescaperStoredImageFramePackTimelineImage(
+				readerPromise = openFramescaperCurrentImageFrameSource(
 					options.store, context.source, options.signal, (byteLength) => {
 						assertFramescaperImagePreviewReaderMetadataTimelineImage(context.source, byteLength);
 					},
@@ -147,7 +149,7 @@ export async function createFramescaperSelectedTimelineFilmstripTimelineImage(
 				const raw = await reader.readFrame(address.frameIndex, options.signal);
 				try {
 					pixels = scaleFramescaperImageRgbaTimelineImage(
-						raw, context.source.canonical.width, context.source.canonical.height,
+						raw, framescaperImageDimensionsTimelineImage(context.source).width, framescaperImageDimensionsTimelineImage(context.source).height,
 						width, height, options.signal,
 					);
 				} finally { raw.fill(0); }

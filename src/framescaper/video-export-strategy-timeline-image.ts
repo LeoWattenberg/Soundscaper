@@ -20,6 +20,7 @@ import {
 	cloneFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
 } from './editor-project-timeline-image.ts';
+import { captureCurrentImageExecutionOptionsV16, createTimelineImageExecutionCore } from './video-export-image-execution-timeline-image-core.ts';
 import { createFramescaperVideoExportImageExecutionTimelineImage } from './video-export-image-execution-timeline-image.ts';
 import { createFramescaperVideoExportImageExecutionTimelineImageV16 } from './video-export-image-execution-timeline-image-v16.ts';
 import type { CreateFramescaperSupplementalPictureExecutionV16 } from './video-export-exact-execution-v16.ts';
@@ -77,14 +78,17 @@ export function createFramescaperVideoExportStrategyTimelineImage(
 		const authority = foundationAuthorities.get(canonicalProject);
 		if (!authority) throw new Error('Selected timelineImage image export lost its exact project authority.');
 		if (!authority.hasTimelineImages) return null;
-		return createFramescaperVideoExportImageExecutionTimelineImage({
+		const options = {
 			profile,
 			project: authority.canonicalSnapshot,
 			foundationPlan,
 			store: assetStore,
 			signal,
 			assertCurrent() { assertSource(authority, assertCurrent); }, confirmFileSizeWarning,
-		});
+		};
+		return authority.canonicalSnapshot.sources.some(source => source.kind === 'image' && source.schemaVersion === 2)
+			? createTimelineImageExecutionCore(captureCurrentImageExecutionOptionsV16(options), true)
+			: createFramescaperVideoExportImageExecutionTimelineImage(options);
 	};
 	const delegate = createFramescaperVideoExportStrategyNativeMedia(
 		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, dependencies, assetStore,

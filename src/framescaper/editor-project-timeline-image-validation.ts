@@ -6,10 +6,10 @@ import type { ProjectHierarchySequence } from '../common/editor/project-hierarch
 import type { FramescaperProfessionalVideoSourceProfessionalMedia } from './editor-project-professional-media-validation.ts';
 import {
 	normalizeFramescaperImageClipV1,
-	normalizeFramescaperImageSourceV1,
 	type FramescaperImageClipV1,
 	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
+import { normalizeFramescaperImageSourceV1OrV2, type FramescaperImageSourceV2 } from '../common/editor/timeline-image-model-v2.ts';
 import {
 	validateFramescaperProjectFeatureRequirementsTimelineImage,
 } from './editor-project-feature-requirements-timeline-image.ts';
@@ -27,7 +27,7 @@ export type FramescaperImageOrInheritedClipTimelineImage =
 type FramescaperTimelineSource =
 	| (Extract<MediaSourceLeaf, { kind: 'video' }> & FramescaperProfessionalVideoSourceProfessionalMedia)
 	| Extract<MediaSourceLeaf, { kind: 'audio' }>
-	| (FramescaperImageSourceV1 & Readonly<Record<string, unknown>>);
+	| ((FramescaperImageSourceV1 | FramescaperImageSourceV2) & Readonly<Record<string, unknown>>);
 
 /** Shared body fields survive the extensible wire without claiming a legacy schema identity. */
 export interface FramescaperProjectTimelineImage extends ProjectDocumentBody<
@@ -89,7 +89,7 @@ function validateImageModels(project: Record<string, unknown>): void {
 	}
 	for (const source of sources) {
 		if (source.kind !== 'image') continue;
-		assertCanonical(source, normalizeFramescaperImageSourceV1(source), 'image source');
+		assertCanonical(source, normalizeFramescaperImageSourceV1OrV2(source), 'image source');
 	}
 	const timelineImageIds = new Set<string>();
 	const binImageIds = new Set<string>();

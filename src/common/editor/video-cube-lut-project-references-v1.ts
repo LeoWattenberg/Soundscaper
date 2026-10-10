@@ -3,6 +3,7 @@
 import { readClosedDomainArray } from './closed-domain-value.ts';
 import { CUBE_LUT_PROFILE_EFFECT_TYPE_V1, normalizeCubeLutProfileEffectV1 } from './video-cube-lut-profile-v1.ts';
 import type { VideoCubeLutReferenceV1 } from './video-color-cube-lut-v27.ts';
+import { normalizeFramescaperImageSourceV1OrV2, framescaperImageSourceResourceReferencesV2 } from './timeline-image-model-v2.ts';
 
 const MAXIMUM_REFERENCES = 16_384;
 
@@ -15,6 +16,13 @@ export function collectCubeLutProfileProjectReferencesV1(value: unknown): readon
 	const binValue = optional(project, 'projectBin');
 	const references = new Map<string, Readonly<VideoCubeLutReferenceV1>>();
 	const identities = new Map<string, string>();
+	const sources = optional(project, 'sources');
+	if (sources !== undefined) for (const raw of readClosedDomainArray(sources, 'Cube LUT project sources', 0, 100_000)) {
+		const source = object(raw, 'Cube LUT project source');
+		if (optional(source, 'kind') !== 'image' || optional(source, 'schemaVersion') === 1) continue;
+		const image = normalizeFramescaperImageSourceV1OrV2(source);
+		if (image.schemaVersion === 2) for (const reference of framescaperImageSourceResourceReferencesV2(image)) add(reference);
+	}
 	const collections = [optional(project, 'clips'), binValue === undefined ? undefined : optional(object(binValue, 'Cube LUT project bin'), 'clips')];
 	for (const collection of collections) {
 		if (collection === undefined) continue;
@@ -25,15 +33,17 @@ export function collectCubeLutProfileProjectReferencesV1(value: unknown): readon
 				if (optional(object(raw, 'Cube LUT project effect'), 'type') !== CUBE_LUT_PROFILE_EFFECT_TYPE_V1) continue;
 				const reference = normalizeCubeLutProfileEffectV1(raw).params.lut;
 				if (reference === null) continue;
-				const identity = JSON.stringify(reference);
-				const previous = identities.get(reference.storageKey);
-				if (previous !== undefined && previous !== identity) throw new RangeError('Cube LUT project references have conflicting identity.');
-				identities.set(reference.storageKey, identity); references.set(reference.storageKey, reference);
-				if (references.size > MAXIMUM_REFERENCES) throw new RangeError('Cube LUT project reference bound was exceeded.');
+				add(reference);
 			}
 		}
 	}
 	return Object.freeze([...references.values()]);
+	function add(reference: Readonly<VideoCubeLutReferenceV1>): void {
+		const identity = JSON.stringify(reference), previous = identities.get(reference.storageKey);
+		if (previous !== undefined && previous !== identity) throw new RangeError('Cube LUT project references have conflicting identity.');
+		identities.set(reference.storageKey, identity); references.set(reference.storageKey, reference);
+		if (references.size > MAXIMUM_REFERENCES) throw new RangeError('Cube LUT project reference bound was exceeded.');
+	}
 }
 
 function object(value: unknown, name: string): Readonly<Record<string, unknown>> {

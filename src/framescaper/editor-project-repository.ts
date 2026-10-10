@@ -13,6 +13,7 @@ import {
 	type FramescaperProject,
 } from './editor-project.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
+import type { FramescaperScapeImageProjectPublication } from './editor-scape-image-project-publication.ts';
 
 const REQUIRED_METHODS = Object.freeze([
 	'createIfAbsent', 'createForScapeImportIfAbsent', 'save', 'saveIfCurrent',
@@ -24,12 +25,14 @@ const REQUIRED_METHODS = Object.freeze([
 export class FramescaperProjectRepository implements ProjectRepositoryPort {
 	readonly #profile: unknown;
 	readonly #delegate: ProjectRepositoryPort;
+	readonly #scapeImages: FramescaperScapeImageProjectPublication | undefined;
 
-	constructor(profile: unknown, delegateValue: ProjectRepositoryPort | unknown) {
+	constructor(profile: unknown, delegateValue: ProjectRepositoryPort | unknown, scapeImages?: FramescaperScapeImageProjectPublication) {
 		assertFramescaperProjectRuntimeProfile(profile);
 		assertDelegate(delegateValue);
 		this.#profile = profile;
 		this.#delegate = delegateValue;
+		this.#scapeImages = scapeImages;
 	}
 
 	async createIfAbsent(projectValue: ProjectDocument): Promise<ProjectDocument | null> {
@@ -40,6 +43,10 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 
 	async createForScapeImportIfAbsent(projectValue: ProjectDocument): Promise<ProjectDocument | null> {
 		const project = this.#exact(projectValue);
+		if (imageAuthority(project).size !== 0 && this.#scapeImages) {
+			if (proxyAuthority(project).size !== 0) throw new Error('A proxy-attached Framescaper Scape import requires atomic preservation publication.');
+			return this.#scapeImages.create(project);
+		}
 		assertNoBodyAttachments(project, 'Scape import');
 		return this.#optionalExact(await this.#delegate.createForScapeImportIfAbsent!(project));
 	}
@@ -167,6 +174,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 	}
 
 	async deleteIfCurrent(projectValue: ProjectDocument): Promise<boolean> {
+		if (this.#scapeImages?.owns(projectValue)) return this.#scapeImages.deleteIfCurrent(projectValue);
 		if (typeof this.#delegate.deleteIfCurrent !== 'function') return false;
 		return this.#delegate.deleteIfCurrent(this.#exact(projectValue));
 	}
@@ -243,7 +251,10 @@ function imageAuthority(project: FramescaperProject): ReadonlyMap<string, string
 	for (const source of project.sources as readonly Readonly<Record<string, unknown>>[]) {
 		if (source.kind !== 'image') continue;
 		const { name: _name, ...authority } = source;
-		result.set(String(source.id), JSON.stringify(authority));
+		if (source.schemaVersion === 2) {
+			const { develop: _develop, developed: _developed, provenance: _provenance, ...pack } = authority;
+			result.set(String(source.id), JSON.stringify({ ...pack, schemaVersion: 1 }));
+		} else result.set(String(source.id), JSON.stringify(authority));
 	}
 	return result;
 }

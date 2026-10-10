@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { normalizeFramescaperImageClipV1, normalizeFramescaperImageSourceV1 } from '../common/editor/timeline-image-model.ts';
+import { normalizeFramescaperImageClipV1 } from '../common/editor/timeline-image-model.ts';
+import { normalizeFramescaperImageSourceV1OrV2 } from '../common/editor/timeline-image-model-v2.ts';
+import { framescaperImageDimensionsTimelineImage } from './editor-selected-timeline-image-image-frame-source.ts';
 import { reconcileFramescaperProjectFeatureRequirementsNativeMedia } from './editor-project-feature-requirements-native-media.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
@@ -16,7 +18,7 @@ export function createTimelineImagePictureCarrier(project: Readonly<Record<strin
 	const imagesBySourceId = new Map(records(project.sources, 'timelineImage export sources')
 		.filter(({ kind }) => kind === 'image')
 		.map((source) => {
-			const normalized = normalizeFramescaperImageSourceV1(source);
+			const normalized = normalizeFramescaperImageSourceV1OrV2(source);
 			return [normalized.id, normalized] as const;
 		}));
 	const sequences = new Map(records(project.sequences, 'timelineImage export sequences')
@@ -36,8 +38,8 @@ export function createTimelineImagePictureCarrier(project: Readonly<Record<strin
 			kind: 'generator',
 			id: source.id,
 			name: source.name,
-			width: source.canonical.width,
-			height: source.canonical.height,
+			width: framescaperImageDimensionsTimelineImage(source).width,
+			height: framescaperImageDimensionsTimelineImage(source).height,
 			frameRate: rate,
 			frameCount,
 			generator: { kind: 'solid', color: '#00000000' },

@@ -9,6 +9,8 @@ import {
 } from './editor-project-store-foundation.ts';
 import { applyFramescaperProjectCommand } from './editor-project-commands.ts';
 import { FramescaperProjectRepository } from './editor-project-repository.ts';
+import { FramescaperScapeImageProjectPublication } from './editor-scape-image-project-publication.ts';
+import type { FramescaperProjectStoreFoundationDefinition } from './editor-project-store-foundation.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
 import { FRAMESCAPER_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile.ts';
 import { cloneFramescaperProject } from './editor-project.ts';
@@ -24,8 +26,11 @@ const DEFINITION = Object.freeze({
 	profile: null as unknown,
 	authenticate: assertFramescaperProjectRuntimeProfile,
 	storageProfile: FRAMESCAPER_PROJECT_STORAGE_PROFILE,
-	repository: (profile: unknown, delegate: ConstructorParameters<typeof FramescaperProjectRepository>[1]) => (
-		new FramescaperProjectRepository(profile, delegate)
+	repository: (profile: unknown, delegate: ConstructorParameters<typeof FramescaperProjectRepository>[1],
+		authority: Parameters<FramescaperProjectStoreFoundationDefinition['repository']>[2]) => (
+		new FramescaperProjectRepository(profile, delegate, new FramescaperScapeImageProjectPublication({
+			port: authority.port, media: authority.repositories.media, retention: authority.repositories.retention,
+		}))
 	),
 });
 

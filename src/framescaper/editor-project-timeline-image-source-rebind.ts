@@ -2,8 +2,8 @@
 
 import {
 	normalizeFramescaperImageClipV1,
-	normalizeFramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
+import { normalizeFramescaperImageSourceV1OrV2 } from '../common/editor/timeline-image-model-v2.ts';
 import { rebindFramescaperSourceIdentitiesFinishing } from './editor-project-finishing-source-rebind.ts';
 
 /** Follow one Scape source collision map through finishing state and exact timelineImage image authority. */
@@ -17,7 +17,7 @@ export function rebindFramescaperSourceIdentitiesTimelineImage(
 		if (source.kind !== 'image') return source;
 		const before = stableId(source.id, 'timelineImage image source ID');
 		const after = sourceIdMap.get(before) ?? before;
-		return normalizeFramescaperImageSourceV1({
+		return normalizeFramescaperImageSourceV1OrV2({
 			...source,
 			id: after,
 			storageKey: after,

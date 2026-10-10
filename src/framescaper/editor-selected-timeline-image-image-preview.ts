@@ -26,7 +26,7 @@ import {
 	throwIfFramescaperImagePreviewAbortedTimelineImage,
 	type FramescaperImageClipV1,
 	type FramescaperImageFramePackReaderV1,
-	type FramescaperImageSourceV1,
+	type FramescaperCurrentImageSourceTimelineImage,
 } from './editor-selected-timeline-image-image-frame-source.ts';
 import {
 	admitFramescaperImageProjectBinThumbnailResourcesTimelineImage,
@@ -38,6 +38,8 @@ import {
 	cloneFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
 } from './editor-project-timeline-image.ts';
+
+import { materializeFramescaperCurrentImageThumbnail } from './timeline-image-current-frame-source.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -90,7 +92,7 @@ export interface FramescaperSelectedProjectBinThumbnailOptionsTimelineImage
 }
 
 interface LoadedImageSourceTimelineImage {
-	readonly source: FramescaperImageSourceV1;
+	readonly source: FramescaperCurrentImageSourceTimelineImage;
 	readonly reader: FramescaperImageFramePackReaderV1;
 	readonly width: number;
 	readonly height: number;
@@ -98,7 +100,7 @@ interface LoadedImageSourceTimelineImage {
 }
 
 interface PlannedImageSourceTimelineImage {
-	readonly source: FramescaperImageSourceV1;
+	readonly source: FramescaperCurrentImageSourceTimelineImage;
 	readonly width: number;
 	readonly height: number;
 }
@@ -209,19 +211,8 @@ export async function createFramescaperSelectedProjectBinThumbnailTimelineImage(
 	const width = positiveDimension(options.width, 'timelineImage Project Bin thumbnail width');
 	const height = positiveDimension(options.height, 'timelineImage Project Bin thumbnail height');
 	admitFramescaperImageProjectBinThumbnailResourcesTimelineImage(source, width, height);
-	const reader = await openFramescaperStoredImageFramePackTimelineImage(
-		options.store, source, options.signal,
-		(byteLength) => { assertFramescaperImagePreviewReaderMetadataTimelineImage(source, byteLength); },
-	);
-	const frameIndex = reader.frameIndexAtTicks(BigInt(clip.sourceStartTicks));
-	const rgba = await reader.readFrame(frameIndex, options.signal);
-	let pixels: Uint8Array<ArrayBuffer>;
-	try {
-		pixels = scaleFramescaperImageRgbaTimelineImage(
-			rgba, source.canonical.width, source.canonical.height,
-			width, height, options.signal,
-		);
-	} finally { rgba.fill(0); }
+	const pixels = await materializeFramescaperCurrentImageThumbnail(options.store, source, BigInt(clip.sourceStartTicks), width, height, options.signal,
+		(byteLength) => { assertFramescaperImagePreviewReaderMetadataTimelineImage(source, byteLength); });
 	return Object.freeze({
 		clipId,
 		sourceId: source.id,

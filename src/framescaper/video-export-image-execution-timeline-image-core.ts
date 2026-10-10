@@ -4,7 +4,6 @@ import { confirmFileSizeWarning, type FileSizeWarningConfirmation, type FileSize
 import {
 	mapFramescaperImageTimelineFrameV1,
 	type FramescaperImageClipV1,
-	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
 import { FRAMESCAPER_IMAGE_FRAME_PACK_MAXIMUM_CHUNK_BYTES } from '../common/editor/timeline-image-frame-pack-v1.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
@@ -19,10 +18,11 @@ import { resolveVideoRenderDescription } from '../common/editor/video-render-des
 import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import {
 	framescaperImageSourceForClipTimelineImage,
-	openFramescaperStoredImageFramePackTimelineImage,
-	type FramescaperImageFramePackReaderV1,
+	framescaperImageDimensionsTimelineImage,
+	type FramescaperCurrentImageSourceTimelineImage,
 	type FramescaperStoredImageAssetStoreTimelineImage,
 } from './editor-selected-timeline-image-image-frame-source.ts';
+import { openFramescaperCurrentImageFrameSource, framescaperEditableImageWorkingBytes, type FramescaperCurrentImageFrameReader } from './timeline-image-current-frame-source.ts';
 import { cloneFramescaperProjectTimelineImage, type FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { gradeEncodedFrame } from './selected-finishing-exact-frame-support.ts';
 import type { FramescaperSelectedExactSupplementalPictureFinishing } from './selected-finishing-exact-frame-execution.ts';
@@ -30,8 +30,8 @@ import type { FramescaperVideoExportSupplementalPictureExecutionFinishing } from
 
 interface ImageContextTimelineImage {
 	readonly clip: FramescaperImageClipV1;
-	readonly source: FramescaperImageSourceV1;
-	readonly reader: FramescaperImageFramePackReaderV1;
+	readonly source: FramescaperCurrentImageSourceTimelineImage;
+	readonly reader: FramescaperCurrentImageFrameReader;
 	readonly trackId: string;
 	readonly trackIndex: number;
 }
@@ -73,9 +73,11 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 		...item,
 		source: framescaperImageSourceForClipTimelineImage(project.sources, item.clip),
 	}));
+	const editable = planned.some(({ source }) => source.schemaVersion === 2);
+	if (!currentMode && editable) throw new RangeError('Legacy timeline image execution cannot render an editable image source.');
 	await admitActiveImageAssets(planned.map(({ source }) => source), options);
 	const baseResources = await admitImageExecutionResources(planned, options);
-	const readers = new Map<string, FramescaperImageFramePackReaderV1>();
+	const readers = new Map<string, FramescaperCurrentImageFrameReader>();
 	const contexts: ImageContextTimelineImage[] = [];
 	const frameCache = new Map<string, CachedImageFrameTimelineImage>();
 	let readerMetadataBytes = 0n;
@@ -85,7 +87,7 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 			let reader = readers.get(source.id);
 			if (!reader) {
 				let admittedMetadataBytes: bigint | null = null;
-				reader = await openFramescaperStoredImageFramePackTimelineImage(
+				reader = await openFramescaperCurrentImageFrameSource(
 					store, source, options.signal, (byteLength) => {
 						admittedMetadataBytes = BigInt(byteLength);
 						admitImageReaderMetadata(
@@ -104,7 +106,7 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 			contexts.push({ ...item, source, reader });
 		}
 	} catch (error) {
-		disposeExecutionState(contexts, readers, frameCache);
+		await disposeExecutionState(contexts, readers, frameCache, editable);
 		throw error;
 	}
 	const resources = Object.freeze({ ...baseResources, readerMetadataBytes });
@@ -144,13 +146,13 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 						clipId: clip.id,
 						sourceId: context.source.id,
 						frame,
-						displayWidth: context.source.canonical.width,
-						displayHeight: context.source.canonical.height,
+						displayWidth: framescaperImageDimensionsTimelineImage(context.source).width,
+						displayHeight: framescaperImageDimensionsTimelineImage(context.source).height,
 						renderDescription: resolveVideoRenderDescription({
 							composition: DEFAULT_VIDEO_CLIP_COMPOSITION,
 							sourceDisplaySize: {
-								width: context.source.canonical.width,
-								height: context.source.canonical.height,
+								width: framescaperImageDimensionsTimelineImage(context.source).width,
+								height: framescaperImageDimensionsTimelineImage(context.source).height,
 							},
 							canvas: {
 								width: request.width,
@@ -173,7 +175,7 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 			if (disposed) return;
 			if (active) throw new Error('The timelineImage image export execution is active.');
 			disposed = true;
-			disposeExecutionState(contexts, readers, frameCache);
+			return disposeExecutionState(contexts, readers, frameCache, editable);
 		},
 	});
 }
@@ -223,13 +225,14 @@ const MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES = 512 * 1024 * 1024;
 interface ImageExecutionResourcesTimelineImage {
 	readonly maximumAssetBytes: bigint;
 	readonly snapshotBytes: bigint;
+	readonly recipeWorkingBytes: bigint;
 	readonly maximumWorkingBytes: bigint;
 	readonly readerMetadataBytes: bigint;
 }
 
 type ImageExecutionBaseResourcesTimelineImage = Omit<ImageExecutionResourcesTimelineImage, 'readerMetadataBytes'>;
 
-async function admitActiveImageAssets(sources: readonly FramescaperImageSourceV1[], options: FileSizeWarningOptions): Promise<void> {
+async function admitActiveImageAssets(sources: readonly FramescaperCurrentImageSourceTimelineImage[], options: FileSizeWarningOptions): Promise<void> {
 	const unique = new Map(sources.map((source) => [source.id, source] as const));
 	if (unique.size > MAXIMUM_ACTIVE_IMAGE_ASSETS) {
 		throw new RangeError('timelineImage active image assets exceed their count bound.');
@@ -243,28 +246,30 @@ async function admitActiveImageAssets(sources: readonly FramescaperImageSourceV1
 async function admitImageExecutionResources(
 	planned: readonly Readonly<{
 		readonly clip: FramescaperImageClipV1;
-		readonly source: FramescaperImageSourceV1;
+		readonly source: FramescaperCurrentImageSourceTimelineImage;
 	}>[],
 	options: FileSizeWarningOptions,
 ): Promise<ImageExecutionBaseResourcesTimelineImage> {
 	if (planned.length > MAXIMUM_ACTIVE_IMAGE_CONTEXTS) {
 		throw new RangeError('timelineImage active image clips exceed their context bound.');
 	}
-	const sources = new Map<string, FramescaperImageSourceV1>();
+	const sources = new Map<string, FramescaperCurrentImageSourceTimelineImage>();
 	for (const { source } of planned) sources.set(source.id, source);
 	let snapshotBytes = 0n;
-	let maximumAssetBytes = 0n;
+	let maximumAssetBytes = 0n, recipeWorkingBytes = 0n;
 	for (const source of sources.values()) {
 		const assetBytes = BigInt(source.assetByteLength);
 		snapshotBytes += assetBytes;
 		maximumAssetBytes = maximumBigInt(maximumAssetBytes, assetBytes);
+		recipeWorkingBytes = maximumBigInt(recipeWorkingBytes, framescaperEditableImageWorkingBytes(source));
 	}
 	const maximum = BigInt(MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
 	const inputBytes = snapshotBytes + maximumAssetBytes + rangeReadChunkBytes();
+	if (recipeWorkingBytes && inputBytes + recipeWorkingBytes > maximum) throw new RangeError('Editable image recipe exceeds its export working byte bound.');
 	await confirmFileSizeWarning(Number(inputBytes), MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES, 'Video export image snapshots', options);
 	// Confirmed large input snapshots keep the frame and decoder workspace budget.
 	const maximumWorkingBytes = inputBytes > maximum ? inputBytes + maximum : maximum;
-	return Object.freeze({ maximumAssetBytes, snapshotBytes, maximumWorkingBytes });
+	return Object.freeze({ maximumAssetBytes, snapshotBytes, recipeWorkingBytes, maximumWorkingBytes });
 }
 
 function admitImageReaderMetadata(
@@ -284,7 +289,7 @@ function admitResolvedImageFrames(
 	width: number,
 	height: number,
 ): void {
-	const frames = new Map<string, FramescaperImageSourceV1>();
+	const frames = new Map<string, FramescaperCurrentImageSourceTimelineImage>();
 	for (const { context, frameIndex } of resolved) {
 		frames.set(imageFrameKey(context.source.id, frameIndex), context.source);
 	}
@@ -324,8 +329,8 @@ async function linearFrame(
 	let linear: LinearImageFrameTimelineImage;
 	try {
 		linear = gradeEncodedFrame({
-			width: context.source.canonical.width,
-			height: context.source.canonical.height,
+			width: framescaperImageDimensionsTimelineImage(context.source).width,
+			height: framescaperImageDimensionsTimelineImage(context.source).height,
 			pixels: sourcePixels as Uint8Array<ArrayBuffer>,
 		}, defaultVideoSourceColorInterpretationV1('still', context.source.id), [], new Map(), signal);
 	} finally { sourcePixels.fill(0); }
@@ -429,12 +434,18 @@ function assertReady(options: Readonly<{
 
 function disposeExecutionState(
 	contexts: ImageContextTimelineImage[],
-	readers: Map<string, FramescaperImageFramePackReaderV1>,
+	readers: Map<string, FramescaperCurrentImageFrameReader>,
 	cache: Map<string, CachedImageFrameTimelineImage>,
-): void {
+	editable: boolean,
+): Promise<void> | void {
 	disposeFrameCache(cache);
 	contexts.length = 0;
-	readers.clear();
+	if (!editable) { readers.clear(); return; }
+	const closing = [...readers.values()].map(reader => reader.closeAndJoin()); readers.clear();
+	return Promise.allSettled(closing).then(results => {
+		const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason as unknown] : []);
+		if (errors.length) throw new AggregateError(errors, 'Current image frame source cleanup failed.');
+	});
 }
 
 function retainCachedFrames(
@@ -453,8 +464,9 @@ function disposeFrameCache(cache: Map<string, CachedImageFrameTimelineImage>): v
 	cache.clear();
 }
 
-function decodedFrameBytes(source: FramescaperImageSourceV1): bigint {
-	return BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n;
+function decodedFrameBytes(source: FramescaperCurrentImageSourceTimelineImage): bigint {
+	const size = framescaperImageDimensionsTimelineImage(source);
+	return BigInt(size.width) * BigInt(size.height) * 4n;
 }
 
 function executionBaseBytes(
@@ -462,7 +474,7 @@ function executionBaseBytes(
 	readerMetadataBytes: bigint,
 ): bigint {
 	return resources.snapshotBytes + resources.maximumAssetBytes
-		+ rangeReadChunkBytes() + readerMetadataBytes;
+		+ rangeReadChunkBytes() + readerMetadataBytes + resources.recipeWorkingBytes;
 }
 
 function rangeReadChunkBytes(): bigint {

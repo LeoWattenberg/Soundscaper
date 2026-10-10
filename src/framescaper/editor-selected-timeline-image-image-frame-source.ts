@@ -19,6 +19,12 @@ import {
 	type FramescaperImageClipV1,
 	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
+import { normalizeFramescaperImageSourceV1OrV2, type FramescaperImageSourceV2 } from '../common/editor/timeline-image-model-v2.ts';
+
+export type FramescaperCurrentImageSourceTimelineImage = FramescaperImageSourceV1 | FramescaperImageSourceV2;
+export function framescaperImageDimensionsTimelineImage(source: FramescaperCurrentImageSourceTimelineImage) {
+	return source.schemaVersion === 2 ? source.developed : source.canonical;
+}
 
 export interface FramescaperStoredImageFrameTimelineImage {
 	readonly sourceTicks: bigint;
@@ -142,11 +148,11 @@ export function scaleFramescaperImageRgbaTimelineImage(
 }
 
 export function fitFramescaperImagePreviewSizeTimelineImage(
-	source: FramescaperImageSourceV1,
+	source: FramescaperCurrentImageSourceTimelineImage,
 	maximumWidthValue: number,
 	maximumHeightValue: number,
 ): Readonly<{ readonly width: number; readonly height: number }> {
-	const canonical = normalizeFramescaperImageSourceV1(source).canonical;
+	const canonical = framescaperImageDimensionsTimelineImage(normalizeFramescaperImageSourceV1OrV2(source));
 	const maximumWidth = dimension(maximumWidthValue, 'timelineImage image preview width');
 	const maximumHeight = dimension(maximumHeightValue, 'timelineImage image preview height');
 	return fitPixelSizeV1(canonical.width, canonical.height, maximumWidth, maximumHeight);
@@ -155,7 +161,7 @@ export function fitFramescaperImagePreviewSizeTimelineImage(
 export function framescaperImageSourceForClipTimelineImage(
 	sources: readonly unknown[],
 	clipValue: unknown,
-): FramescaperImageSourceV1 {
+): FramescaperCurrentImageSourceTimelineImage {
 	const clip = normalizeFramescaperImageClipV1(clipValue);
 	const source = sources.find((candidate) => (
 		candidate && typeof candidate === 'object'
@@ -163,7 +169,7 @@ export function framescaperImageSourceForClipTimelineImage(
 		&& (candidate as Readonly<Record<string, unknown>>).id === clip.sourceId
 	));
 	if (source === undefined) throw new ReferenceError(`timelineImage image source ${clip.sourceId} is unavailable.`);
-	const normalized = normalizeFramescaperImageSourceV1(source);
+	const normalized = normalizeFramescaperImageSourceV1OrV2(source);
 	if (normalized.id !== clip.sourceId) throw new ReferenceError('timelineImage image clip changed source authority.');
 	return normalized;
 }
