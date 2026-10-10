@@ -606,6 +606,18 @@ original full200 timeout; unchanged whole WebKit replay awaits the coordinated
 native slot, retaining every visibility/history assertion and its original
 30-second case/five-second assertion limits. No product cause or added count is
 inferred from the original timeout alone.
+Both complete unchanged WebKit workflows pass on authenticated a3a36854d with
+the coordinated exclusive4–7 CPU slot, qualified Pulse and one worker: picture
+Mute all/Undo/Redo/Unmute all17.2 seconds and native NTSC import/source-properties
+9.6 seconds (2/2 in29.3 seconds). Every original30-second case and5000 ms
+assertion limit remains. NTSC checks retain native camera decode/dimensions,
+real bin import, coded720×480, actual native display size,40:33 pixel aspect and
+absence of notes. Picture checks retain initial visibility, Mute all, Undo,
+Redo and final Unmute all restored visibility. These passes alone do not prove
+the cause of the original unsettled import and command-stage timeout; both
+full-run failures remain recorded. No source, fixture, deadline or count changes.
+Completed owned replay output/log are read and removed immediately; all native
+readers and the coordinated CPU slot close for the queued dialogs follow-through.
 
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
