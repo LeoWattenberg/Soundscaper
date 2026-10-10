@@ -241,7 +241,7 @@ export function AudacityLabelMarker({
 	};
 	const select = () => {
 		onSelect();
-		baselineRef.current = preview || label;
+		if (!dragCancellation.activeRef.current) baselineRef.current = preview || label;
 		run(() => controller.actions.timeline.selectTrack(trackId));
 		run(() => controller.actions.timeline.setExactSelection(label.startFrame, label.endFrame));
 	};

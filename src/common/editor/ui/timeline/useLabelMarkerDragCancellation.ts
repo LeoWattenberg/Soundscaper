@@ -31,6 +31,7 @@ export function useLabelMarkerDragCancellation(
 		};
 	}, [clearPreview, markerRef, pendingRef]);
 	return {
+		activeRef,
 		cancelledRef,
 		onMouseDownCapture: (event: MouseEvent<HTMLElement>) => {
 			if (event.button !== 0 || !(event.target as Element).closest('.label-marker')) return;

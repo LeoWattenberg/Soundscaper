@@ -61,6 +61,7 @@ for (const control of ['label-box', 'left-ear', 'right-ear']) for (const button 
 			assert.equal(updates.length, 0);
 			assert.equal(history.undoStack.length, 0);
 			assert.deepEqual(history.present, initial);
+			await act(async () => reactProps(marker).onFocus?.({ target: marker, currentTarget: marker }));
 			await act(async () => dispatch(listeners.get('mousemove'), { clientX: 80 } as MouseEvent));
 			await act(async () => dispatch(listeners.get('mouseup'), { button: 0 } as MouseEvent));
 			assert.equal(updates.length, 1);
