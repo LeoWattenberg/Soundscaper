@@ -751,3 +751,25 @@ aggregate log, remaining bounded result metadata and stopped helper/map/status/l
 are now reclaimed immediately. Immutable prepared source/assets remain until
 the last direct native reader closes; the delivery branch and permanent
 regression witnesses remain intact.
+
+The admitted converter, Parametric and Brightness observations now have concrete
+production follow-through without increasing the 200-root count. The shared
+mouse completion helper is a narrow public effects capability; its exact policy
+registration preserves all domain directions. A strict ownership check first
+fails the missing public registration with its existing core-owner control
+passing, then passes 2/2 after registration. The complete chunk ownership/lazy
+controls pass 50/50, and controller policy plus desktop payload/staging/runtime
+closure controls pass 28/28. Its existing non-recursive controller-core owner
+keeps VideoEffectRack from loading the whole EQ parameter owner. No chunk group,
+budget, assistance runtime closure or desktop fixture inventory changes.
+Targeted type-aware lint and whitespace checks pass; these controls add no root.
+
+After all direct native readers close, an actual process cwd/file-descriptor
+audit finds no reader of the original frozen 684b0ca893 checkout. Its 72 private
+dependency executable symlinks are preserved by moving, without copying,
+1317227761 bytes of root dependencies, 126413573 bytes of handbook dependencies
+and 7803810 bytes of pinned reference fixtures into the fresh detached final
+canonical checkout. Removing only the completed owned frozen worktree explicitly
+closes with exit 0 and reclaims its 27807735-byte build, 70504724-byte prepared
+browser product tree and 23566-byte handbook metadata. Fresh source and guarded
+products will verify the repaired source; old compiled products are not reused.
