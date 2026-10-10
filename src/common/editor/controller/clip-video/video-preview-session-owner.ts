@@ -29,8 +29,12 @@ export function createVideoPreviewSessionOwner<Session extends RetirableSession>
 			return Promise.resolve(work).then(() => undefined, (error: unknown) => { markFailure(error); throw error; });
 		} catch (error) { markFailure(error); return Promise.reject(error); }
 	}
-	async function joinRetirement(retirement: Promise<void>): Promise<void> {
-		const barrier = Promise.resolve().then(beforeReplace).then(() => undefined, (error: unknown) => { markFailure(error); });
+	function startBarrier(): Promise<void> {
+		try {
+			return Promise.resolve(beforeReplace()).then(() => undefined, (error: unknown) => { markFailure(error); });
+		} catch (error) { markFailure(error); return Promise.resolve(); }
+	}
+	async function joinRetirement(retirement: Promise<void>, barrier: Promise<void>): Promise<void> {
 		await Promise.allSettled([retirement, barrier]);
 		checkFailure();
 	}
@@ -45,14 +49,16 @@ export function createVideoPreviewSessionOwner<Session extends RetirableSession>
 		drain = result.then(() => undefined, () => undefined);
 		void result.catch(() => undefined);
 		const stop = new AbortController(); activeStop = stop;
-		// The new drain is installed before borrowed callbacks/native abort.
+		// Admission and drain are installed before the hard barrier revokes
+		// frame publication; its cancellation must win before Session abort.
+		const barrier = startBarrier();
 		previousStop?.abort();
 		let clearing: Readonly<{ error: unknown }> | undefined;
 		try { publish(null); } catch (error) { clearing = { error }; markFailure(error); }
 		const retirement = retire(previous); void retirement.catch(() => undefined);
 		void (async () => {
 			await predecessor;
-			await joinRetirement(retirement);
+			await joinRetirement(retirement, barrier);
 			if (clearing) throw clearing.error;
 			if (sealed || epoch !== ticket) return null;
 			if (!create) return null;
@@ -71,12 +77,13 @@ export function createVideoPreviewSessionOwner<Session extends RetirableSession>
 		let resolve!: () => void, reject!: (error: unknown) => void;
 		closing = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
 		void closing.catch(() => undefined);
+		const barrier = startBarrier();
 		activeStop?.abort();
 		try { publish(null); } catch (error) { markFailure(error); }
 		const retirement = retire(previous); void retirement.catch(() => undefined);
 		void (async () => {
 			await predecessor;
-			await joinRetirement(retirement);
+			await joinRetirement(retirement, barrier);
 		})().then(resolve, reject);
 		return closing;
 	}

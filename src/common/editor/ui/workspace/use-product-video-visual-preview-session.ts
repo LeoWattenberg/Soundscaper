@@ -74,8 +74,20 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 			sessionRef.current = session;
 			requestFrameRef.current();
 		}, async () => {
-			if (predecessor) await predecessor.close();
-			if (beforeReplace) await beforeReplace();
+			const pending: Promise<void>[] = [];
+			// Revoke coordinator publication before any predecessor can cancel
+			// its Session; both actual retirements still join on failure.
+			for (const join of [beforeReplace, predecessor ? () => predecessor.close() : undefined]) {
+				if (!join) continue;
+				try { pending.push(Promise.resolve(join())); }
+				catch (error) { pending.push(Promise.reject(error)); }
+			}
+			const failures: unknown[] = [];
+			for (const outcome of await Promise.allSettled(pending)) {
+				if (outcome.status === 'rejected' && !failures.some(value => Object.is(value, outcome.reason))) failures.push(outcome.reason);
+			}
+			if (failures.length === 1) throw failures[0];
+			if (failures.length > 1) throw new AggregateError(failures, 'Video preview replacement join failed.');
 		});
 		lifetimeRef.current = lifetime;
 		ownerRetirement.current = lifetime;
