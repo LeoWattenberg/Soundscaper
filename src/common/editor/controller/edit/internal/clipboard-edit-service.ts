@@ -16,7 +16,7 @@ import type {
 } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
-import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
+import { mergeEditingRanges, resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
 import { clipboardPasteTrackType, planClipboardPasteTargets } from '../../../clipboard-paste-targets.ts';
 import { createAudioEditorSessionClipboard } from '../../../session-clipboard-codec.ts';
@@ -386,6 +386,7 @@ export function createClipboardEditService(
 		if (dependencies.editingBlocked()) return false;
 		const project = dependencies.getProject();
 		const targetTrackIds = new Set(trackIds);
+		const scanRegions = mergeEditingRanges(regions.filter(region => region.endFrame > region.startFrame));
 		const commands: AudioEditorCommand[] = [];
 		for (const track of project.tracks) {
 			if (!targetTrackIds.has(track.id) || !Array.isArray((track as ClipboardEditMediaTrack).clipIds)) continue;
@@ -397,8 +398,7 @@ export function createClipboardEditService(
 				const current = dependencies.getProject();
 				if (current.id !== project.id || current.revision !== project.revision) return false;
 				if (!clip || !buffer) continue;
-				for (const region of [...regions].reverse()) {
-					if (region.endFrame <= region.startFrame) continue;
+				for (const region of [...scanRegions].reverse()) {
 					commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region, project)));
 				}
 			}
