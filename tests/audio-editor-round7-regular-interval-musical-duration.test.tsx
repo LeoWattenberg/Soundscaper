@@ -36,7 +36,7 @@ for (const originSeconds of [0, 4, 2]) {
 				{ beat: { num: 4, den: 1 }, bpm: { num: 120, den: 1 } },
 			] }, signatureMap: { events: [{ bar: 0, numerator: 4, denominator: 4 }] },
 		});
-		const snapshot = { project };
+		const snapshot = { project, readOnly: false };
 		const submissions: RegularIntervalAnnotationOptions[] = [];
 		const controller = { project, getSnapshot: () => snapshot, subscribe: () => () => undefined,
 			actions: { project: { importFiles: () => undefined }, timelineAnnotations: { regularInterval: (request: RegularIntervalAnnotationOptions) => { submissions.push(request); } } } };
