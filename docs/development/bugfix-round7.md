@@ -16,8 +16,9 @@ follow-through receipts. Final native diagnoses identified additional necessary
 follow-through within the existing owners; those repairs are committed and all
 complete affected compiled workflows now pass. The fresh canonical static gate
 and full primary Node batch pass, while its separate desktop preflight fails
-and the unchanged complete isolated controls pass. A final full canonical gate
-is being repeated after closing all native follow-ups. Completed verification
+and the unchanged complete isolated controls pass. The final canonical repeat
+was interrupted during lint before its Node phase and has no completed result.
+Completed verification
 artifacts are reclaimed after their readers close. No manual **Update AI assets**
 run is required. The chronological checkpoint receipts below preserve earlier
 failures and pending states; the four area registers hold each root's evidence.
@@ -876,3 +877,26 @@ raw/normalized/compact-raw/compact-normalized c8 detailed/summary equality and
 the exact compactor all pass; e656fac27 preserves its CLI/hash/age/live controls.
 Its proof fixtures/scripts/logs are removed immediately. No maintained source,
 dependency or coverage floor changes are made by either temporary helper.
+
+The final repeat uses committed 61feaedc0 with the same four production
+follow-through paths and final c55e9feb7 witness. Before any test batch, a short
+static-only launcher is explicitly closed with exit 143 to align its native
+audio server with the complete focused controls; it has zero profiles and its
+579-byte log is consumed and removed. The aligned full repeat is then
+intentionally interrupted during its second lint shard. Session lookup no
+longer finds its process, and actual process cwd/file-descriptor audits find
+neither the canonical runner nor its filtered watcher. Its last status records
+239 scans and zero profiles/logical coverage bytes. No completed full result,
+exit 0 or guarded final drain is claimed for this interrupted run.
+
+With all verification readers absent, cleanup explicitly closes with exit 0
+and removes the remaining two private dependency trees (1317227694 and
+1317226881 bytes), two handbook dependency trees (126413573 bytes each), two
+pinned verification fixture trees (7803810 bytes each), and the consumed
+476-byte repeat log, 269-byte status, empty watcher log and 9766-byte filtered
+helper. The completed detached verification worktree is removed after another
+actual reader audit. The delivery worktree and branch are kept for review;
+their maintained source is unchanged, no generated verification files remain,
+and all 200 qualifying roots remain committed. The latest full canonical
+aggregate remains the recorded failed preflight with the passing primary and
+separate unchanged controls; the final repeat still requires a completed run.
