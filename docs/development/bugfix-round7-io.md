@@ -321,6 +321,17 @@ pass 29/29 in 0.3 seconds, with targeted ESLint and diff checks passing. The
 immutable checkpoint remains unchanged; bounded focused logs are removed
 immediately. No source semantics, capability ceiling or count changes.
 
+Checkpoint150 scheduled recording keyboard healthy control (zero count): the
+Chromium seek=false case passes arming, original playhead, ordinary cancellation
+and restored keyboard navigation, then fails only the post-cancel actual recording
+clip-count assertion (one instead of two). Its read PNG/context show Saved/Done
+and the original clip; no canonical refusal is visible. The exact unchanged
+five complete cases on frozen `bd5ac4718`, qualified Pulse and one worker pass
+5.6/5.4 seconds (keyboard controls) and 4.6/4.8/4.9 seconds (unchanged/region/skip
+selection controls), 5/5 in 27.1 seconds. Preserve the original full-run failure;
+no source cause or deadline correction is established. The reviewed failure
+folder and completed isolated output/log are removed immediately.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
