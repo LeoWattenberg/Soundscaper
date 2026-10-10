@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useId } from 'react';
+import { useId, type ComponentProps } from 'react';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import {
 	normalizeTimedRecordingDialogValue,
 	timedRecordingLocalDateTimeValid,
@@ -27,6 +28,8 @@ interface ScheduledRecording {
 }
 
 interface TimedRecordingDialogFieldsProps {
+	readonly controller?: ComponentProps<typeof EditorMusicalTimeCodeProvider>['controller'];
+	readonly originFrame?: number;
 	readonly value: unknown;
 	readonly onValueChange: (value: TimedRecordingDialogValue) => void;
 	readonly onSubmit: () => void;
@@ -36,6 +39,8 @@ interface TimedRecordingDialogFieldsProps {
 }
 
 export default function TimedRecordingDialogFields({
+	controller,
+	originFrame = 0,
 	value,
 	onValueChange,
 	onSubmit,
@@ -77,12 +82,14 @@ export default function TimedRecordingDialogFields({
 						)} />
 					<span>{copy.timedRecordingDuration}</span>
 				</label>
-				<AudioEditorTimeCodeInput label={copy.timedRecordingDuration}
+				<EditorMusicalTimeCodeProvider controller={controller} originFrame={originFrame}>
+					<AudioEditorTimeCodeInput label={copy.timedRecordingDuration}
 					className="kw-audio-editor-timed-recording__control" variant="light"
 					value={model.durationSeconds} unit="seconds" minimum={1}
 					disabled={model.endMode !== 'duration'} onChange={(duration) => onValueChange(
 						updateTimedRecordingDialogDuration(model, duration),
 					)} />
+				</EditorMusicalTimeCodeProvider>
 			</div>
 			<div className="kw-audio-editor-timed-recording__end-option">
 				<label>
