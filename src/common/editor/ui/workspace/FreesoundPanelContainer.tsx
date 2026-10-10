@@ -55,6 +55,7 @@ interface ActiveFreesoundPreview {
 	playRequest: number;
 	metadataLoaded: boolean;
 	pendingSeekSeconds: number | null;
+	outputReady: Promise<void>;
 }
 
 interface FreesoundPanelContainerProps {
@@ -123,6 +124,8 @@ export function FreesoundPanelContainer({
 	const searchSequence = useRef(0);
 	const searchAbort = useRef<AbortController | null>(null);
 	const preview = useRef<ActiveFreesoundPreview | null>(null);
+	const preferredOutput = dataRecord(snapshot.audioDevices)?.preferredOutputDeviceId;
+	const outputDeviceId = typeof preferredOutput === 'string' && !preferredOutput.startsWith('native:') ? preferredOutput : '';
 	const playbackGain = Math.max(0, Math.min(1, Number(dataRecord(snapshot.audioDevices)?.playbackGain ?? 1)));
 
 	useEffect(() => {
@@ -141,9 +144,22 @@ export function FreesoundPanelContainer({
 		}
 		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false, previewPositionSeconds: 0 }));
 	}, []);
+	const routePreviewOutput = useCallback((active: ActiveFreesoundPreview, deviceId: string) => {
+		if (typeof active.audio.setSinkId !== 'function') return;
+		active.outputReady = active.outputReady.then(async () => {
+			if (preview.current === active && active.audio.sinkId !== deviceId) await active.audio.setSinkId(deviceId);
+		});
+		void active.outputReady.catch(() => { if (preview.current === active) stopPreview(); });
+	}, [stopPreview]);
+	useEffect(() => {
+		if (preview.current) routePreviewOutput(preview.current, outputDeviceId);
+	}, [outputDeviceId, routePreviewOutput]);
+
 	const playPreview = useCallback((active: ActiveFreesoundPreview) => {
 		const request = ++active.playRequest;
-		void active.audio.play().catch(() => {
+		void active.outputReady.then(() => {
+			if (preview.current === active && active.playRequest === request) return active.audio.play();
+		}).catch(() => {
 			if (preview.current === active && active.playRequest === request) stopPreview();
 		});
 	}, [stopPreview]);
@@ -202,8 +218,10 @@ export function FreesoundPanelContainer({
 		audio.volume = playbackGain;
 		const active: ActiveFreesoundPreview = {
 			soundId, audio, playing: true, playRequest: 0, metadataLoaded: false, pendingSeekSeconds: null,
+			outputReady: Promise.resolve(),
 		};
 		preview.current = active;
+		routePreviewOutput(active, outputDeviceId);
 		const finish = () => { if (preview.current === active) stopPreview(); };
 		audio.preload = 'metadata';
 		audio.addEventListener('loadedmetadata', () => {
@@ -224,7 +242,7 @@ export function FreesoundPanelContainer({
 		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false,
 			previewPositionSeconds: seekSeconds }));
 		playPreview(active);
-	}, [panelActive, playbackGain, playPreview, stopPreview]);
+	}, [panelActive, playbackGain, playPreview, routePreviewOutput, outputDeviceId, stopPreview]);
 
 	const pausePreview = useCallback(() => {
 		const active = preview.current;
