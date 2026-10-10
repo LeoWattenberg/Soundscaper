@@ -274,6 +274,7 @@ export function AudacityLabelMarker({
 				setContextMenu({ x: event.clientX, y: event.clientY, target: event.currentTarget });
 			}}
 			onKeyDown={(event) => {
+				if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				if ((event.key === 'Enter' || event.key === 'F2') && !editing && !blocked) {
 					event.preventDefault();
 					event.stopPropagation();
