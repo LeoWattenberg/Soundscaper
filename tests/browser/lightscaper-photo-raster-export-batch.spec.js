@@ -52,12 +52,15 @@ for (const locale of ['en', 'de']) {
 		await keyboard(page, dialog.locator('[data-photo-batch-export-hide]')); await expect(dialog).toHaveCount(0);
 		await expect.poll(() => downloads.length).toBe(2);
 		await menu(page, app, copy.photoFileMenu); await keyboard(page, named(app, 'button', labels.queue));
-		dialog = named(page, 'dialog', words.title); await expect(dialog.locator('[data-photo-batch-export-receipt]')).toHaveAttribute('data-phase', 'settled');
-		await expect(dialog.locator('[data-photo-batch-job][data-state="completed"]')).toHaveCount(2); await expect(dialog.getByRole('alert')).toHaveCount(0);
+		// A settled queue reopens from its durable journal with a fresh selection
+		// for explicit replacement, rather than retaining the old live receipt.
+		dialog = named(page, 'dialog', words.title);
+		await expect(dialog.locator('[data-photo-journal-job][data-journal-state="already-committed"]')).toHaveCount(2);
+		await expect(dialog.locator('[data-photo-batch-export-receipt]')).toHaveCount(0); await expect(dialog.getByRole('alert')).toHaveCount(0);
 		const names = before.photos.map((item, index) => `${String(index + 1).padStart(2, '0')}-${item.photo.metadata.fileName.replace(/\.[^.]*$/u, '')}.${format === 'png' ? 'png' : 'jpg'}`);
 		expect(downloads.map(download => download.suggestedFilename())).toEqual(names);
 		for (const [index, download] of downloads.entries()) {
-			await expect(dialog.locator('[data-photo-batch-job]').nth(index)).toContainText(words.downloaded.replace('{name}', names[index]));
+			await expect(dialog.locator('[data-photo-journal-job]').nth(index)).toContainText(words.downloaded.replace('{name}', names[index]));
 			const bytes = await readFile(await download.path());
 			if (format === 'png') assertPng(bytes);
 			const decoded = await page.evaluate(async input => {
@@ -68,7 +71,7 @@ for (const locale of ['en', 'de']) {
 			}, { bytes: [...bytes], mimeType: format === 'png' ? 'image/png' : 'image/jpeg' });
 			expect([decoded.width, decoded.height]).toEqual([2, 2]);
 			for (let offset = 0; offset < decoded.pixels.length; offset += 4) {
-				for (const [channel, value] of [255, 200, 0, 255].entries()) expect(Math.abs(decoded.pixels[offset + channel] - value)).toBeLessThanOrEqual(format === 'png' ? 0 : 3);
+				for (const [channel, value] of [255, 32, 0, 255].entries()) expect(Math.abs(decoded.pixels[offset + channel] - value)).toBeLessThanOrEqual(format === 'png' ? 0 : 3);
 			}
 		}
 		expect(await observe(page, ids)).toEqual(before); expect(errors).toEqual([]);
@@ -102,7 +105,7 @@ function assertPng(bytes) {
 		else if (type === 'IDAT') compressed.push(data); else expect(['sRGB', 'IEND']).toContain(type);
 		offset += size + 12;
 	}
-	expect(offset).toBe(bytes.length); expect([...inflateSync(Buffer.concat(compressed))]).toEqual([0, 255, 200, 0, 255, 255, 200, 0, 255, 0, 255, 200, 0, 255, 255, 200, 0, 255]);
+	expect(offset).toBe(bytes.length); expect([...inflateSync(Buffer.concat(compressed))]).toEqual([0, 255, 32, 0, 255, 255, 32, 0, 255, 0, 255, 32, 0, 255, 255, 32, 0, 255]);
 }
 async function open(page, locale) {
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
