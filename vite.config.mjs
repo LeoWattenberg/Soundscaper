@@ -12,6 +12,7 @@ import {
 	enforceDesktopRendererProductIsolation,
 } from './scripts/lib/desktop-renderer-product-isolation.mjs';
 import { productResolveAliases, productSubstitutionPlugin } from './scripts/lib/product-aliases.mjs';
+import { resolveFramescaperBuildLine } from './scripts/lib/product-build-line.mjs';
 import {
 	readProductReleaseLinesSync,
 	resolveProductApplicationVersion,
@@ -29,6 +30,7 @@ import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-s
 import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities.js';
 
 const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
+const framescaperLine = resolveFramescaperBuildLine(productId, process.env.SCAPE_FRAMESCAPER_LINE);
 const applicationVersion = resolveProductApplicationVersion(
 	productId, readProductReleaseLinesSync(import.meta.dirname),
 );
@@ -129,6 +131,7 @@ export default defineConfig({
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	define: {
 		__SCAPE_PRODUCT__: JSON.stringify(productId),
+		__SCAPE_FRAMESCAPER_LINE__: JSON.stringify(framescaperLine),
 		__SCAPE_VERSION__: JSON.stringify(applicationVersion),
 		__SCAPE_DESKTOP_RENDERER__: JSON.stringify(productId === 'soundscaper' && desktopCodecComposition),
 	},
