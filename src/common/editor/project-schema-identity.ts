@@ -2,11 +2,14 @@
 
 export const SOUNDSCAPER_PROJECT_SCHEMA_FAMILY = 'soundscaper' as const;
 export const FRAMESCAPER_PROJECT_SCHEMA_FAMILY = 'framescaper' as const;
+export const MOTIONSCAPER_PROJECT_SCHEMA_FAMILY = 'motionscaper' as const;
+/** Historical 1.0 baseline; new callers select a version by family and release line. */
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 
 export const PROJECT_SCHEMA_FAMILIES = Object.freeze([
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	MOTIONSCAPER_PROJECT_SCHEMA_FAMILY,
 ] as const);
 
 export type ProjectSchemaFamily = (typeof PROJECT_SCHEMA_FAMILIES)[number];
@@ -16,7 +19,27 @@ export interface ProjectSchemaIdentity {
 	readonly schemaVersion: number;
 }
 
-export type ProjectSchemaDisposition = 'current' | 'foreign' | 'future';
+export type ProjectSchemaReleaseLine = 'baseline' | 'successor';
+export type ProjectSchemaDisposition = 'current' | 'foreign' | 'future' | 'legacy';
+
+const CURRENT_SCHEMA_VERSIONS = Object.freeze({
+	baseline: Object.freeze({ soundscaper: 1, framescaper: 1, motionscaper: 1 }),
+	successor: Object.freeze({ soundscaper: 1, framescaper: 2, motionscaper: 1 }),
+});
+
+/** Framescaper v2 is admitted only on the successor line, never the 1.0 RC/stable line. */
+export function currentProjectSchemaVersion(
+	family: ProjectSchemaFamily,
+	releaseLine: ProjectSchemaReleaseLine = 'baseline',
+): number {
+	if (!isProjectSchemaFamily(family)) {
+		throw new TypeError(`Unsupported project schema family: ${String(family)}.`);
+	}
+	if (releaseLine !== 'baseline' && releaseLine !== 'successor') {
+		throw new TypeError(`Unsupported project schema release line: ${String(releaseLine)}.`);
+	}
+	return CURRENT_SCHEMA_VERSIONS[releaseLine][family];
+}
 
 export interface ClassifiedProjectSchemaIdentity {
 	readonly identity: Readonly<ProjectSchemaIdentity>;
@@ -75,23 +98,27 @@ export function readProjectSchemaIdentity(value: unknown): Readonly<ProjectSchem
 export function classifyProjectSchemaIdentity(
 	value: unknown,
 	currentFamily: ProjectSchemaFamily,
+	releaseLine: ProjectSchemaReleaseLine = 'baseline',
 ): Readonly<ClassifiedProjectSchemaIdentity> {
 	if (!isProjectSchemaFamily(currentFamily)) {
 		throw new TypeError(`Unsupported current project schema family: ${String(currentFamily)}.`);
 	}
 	const identity = readProjectSchemaIdentity(value);
+	const currentVersion = currentProjectSchemaVersion(currentFamily, releaseLine);
 	const disposition: ProjectSchemaDisposition = identity.schemaFamily !== currentFamily
 		? 'foreign'
-		: identity.schemaVersion === PROJECT_SCHEMA_VERSION ? 'current' : 'future';
+		: identity.schemaVersion === currentVersion ? 'current'
+			: identity.schemaVersion < currentVersion ? 'legacy' : 'future';
 	return Object.freeze({ identity, disposition });
 }
 
 export function isCurrentProjectSchemaIdentity(
 	value: unknown,
 	currentFamily: ProjectSchemaFamily,
+	releaseLine: ProjectSchemaReleaseLine = 'baseline',
 ): boolean {
 	try {
-		return classifyProjectSchemaIdentity(value, currentFamily).disposition === 'current';
+		return classifyProjectSchemaIdentity(value, currentFamily, releaseLine).disposition === 'current';
 	} catch {
 		return false;
 	}
@@ -99,7 +126,8 @@ export function isCurrentProjectSchemaIdentity(
 
 export function isProjectSchemaFamily(value: unknown): value is ProjectSchemaFamily {
 	return value === SOUNDSCAPER_PROJECT_SCHEMA_FAMILY
-		|| value === FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+		|| value === FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| value === MOTIONSCAPER_PROJECT_SCHEMA_FAMILY;
 }
 
 function requiredEnumerableDataValue(
