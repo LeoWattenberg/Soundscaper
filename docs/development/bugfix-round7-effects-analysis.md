@@ -802,8 +802,11 @@ and existing drafts, keyboard, deletion focus, axis and inversion controls pass
 db368adda products in 7.2 seconds each: healthy single-finger 6 dB edits pass,
 then releasing the ignored second finger resets the accepted Graphic 10 dB and
 Curve 9 dB previews to zero. The protocol identifies the finger actually lifted
-with touchEnd[secondary]. Corrected public verification awaits the coordinated
-build. Target ESLint, changed lint, size and owned diff checks pass.
+with touchEnd[secondary]. Corrected complete native public verification passes both unchanged cases on
+authenticated 04e87c277 in 2.3 seconds each, 2/2 in 6.3 seconds total. Healthy
+solo edits, retained previews, final 15 dB completion and the untouched secondary
+band all pass. Its bounded success log and generated output are immediately
+removed. Target ESLint, changed lint, size and owned diff checks pass.
 All bounded failure logs and generated diagnostics are read and removed
 immediately. This UI correction uses the same runtime closure; no manual
 Update AI assets run is required.
