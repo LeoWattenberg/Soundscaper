@@ -145,7 +145,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
-	{ file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', surfaces: ['navigation'] },
+	{ file: 'src/common/editor/clip-content-range.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
@@ -166,8 +166,8 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 		reason: 'Contextual item movement converts exact authored visual sequence boundaries through the owning sequence clock, delegates musical geometry to its registered projection helper, and preserves sample-authoritative legacy clips without using native visual audio aliases.',
 	},
 	{
-		file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', entryPoint: 'clipContentRange',
-		reason: 'Track selection converts authored visual sequence boundaries through the exact owning sequence clock, delegates musical sample geometry to its registered projection helper, and reads legacy sample-authoritative clips directly; image and generator leaves have no audio source coordinates to project.',
+		file: 'src/common/editor/clip-content-range.ts', entryPoint: 'clipContentRange',
+		reason: 'Track and clip selection convert authored visual sequence boundaries through the exact owning sequence clock, delegates musical sample geometry to its registered projection helper, and reads legacy sample-authoritative clips directly; image and generator leaves have no audio source coordinates to project.',
 	},
 	{
 		file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', entryPoint: 'projectFrames',
@@ -207,6 +207,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/selection-range.ts',
+		reason: 'The shared range resolver imports only persisted clip types and delegates selected geometry to the independently shielded clip-content reader; it preserves identity authority and reads returned sample boundaries without projecting media itself.',
+	},
 	{
 		file: 'src/common/editor/interchange-multicamera-delivery.ts',
 		reason: 'The shared exchange adapter imports only the owning runtime project type for its injected product projection port; it delegates the selected active-angle projection and reports group identities without reading clip timing coordinates.',

@@ -231,3 +231,18 @@ reader preserves its existing sequence-boundary and musical-clock logic;
 selected persisted media/history stay byte-for-byte unchanged. Corrected
 complete public proof remains pending and no count is assigned yet. No manual
 **Update AI assets** run is required.
+
+Authenticated guardeddb368adda completes the unchanged ordinary Title range
+workflows: All tracks6.4 seconds and Contract selection5.9 seconds. EDIT022
+is fully qualified. The subsequent helper-triggered full Node run detects
+stale shield-register paths after the reader extraction; move the exact
+owned boundary and native/musical exclusion to its common module and register
+the range resolver's type-only importer. No audit rule or projection guard
+is relaxed. This metadata follow-through adds no user-bug count. A separate
+audio navigation candidate stops at incorrect Split tool casing before its
+healthy action and is excluded; its corrected ordinary fixture is replayed.
+
+The exact moved shield registrations and actual range/Skip support pass19/19
+focused tests. The register follows the existing reader's ownership and
+retains its precise native-clock exclusion. Completed compiler, public and
+focused audit logs are deleted after their receipts.
