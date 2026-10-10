@@ -999,3 +999,16 @@ with the same persistence path, so the raw counter includes automatic captures
 as well as button presses. No Store state oracle or product source is changed
 in this follow-through. Current replay logs and diagnostics are read and removed
 immediately.
+
+After confirming that explicit Store state alone enables Restore and advances
+the dialog generation, its zero-count finishing witness now waits for that
+initial Restore authority and the corresponding real parameter-get refresh.
+The delayed second Store likewise waits for its new control refresh, then
+requires the exact pointer-release value in both the host and visible control.
+Reset must reach 0.25 and Restore must return that same exact accepted value.
+On unchanged authenticated 32eb4cebf5615659c4e65630a61fb14464cff4c1 the complete
+strengthened Store workflow passes Chromium in 4.9 seconds and Firefox in
+7.5 seconds, 2/2 in 16.4 seconds. This removes the unrelated automatic-capture
+count assumption while preserving the actual saved-body and queue barrier
+oracle. Targeted lint and the owned diff check pass. No production source or helper is changed; all bounded artifacts are
+read and removed immediately.

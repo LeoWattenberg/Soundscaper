@@ -9,8 +9,10 @@ test('Store state captures the completed native slider position while host write
 	await range.focus();
 	await page.keyboard.press('ArrowRight');
 	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBeGreaterThan(.25);
+	const initialReads = await page.evaluate(() => globalThis.__nativePluginParameterHost.requests.filter(kind => kind === 'parameter-get').length);
 	await dialog.locator('[data-native-plugin-persist-state]').click();
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.persisted)).toBe(2);
+	await expect(dialog.locator('[data-native-plugin-restore-state]')).toBeEnabled();
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.requests.filter(kind => kind === 'parameter-get').length)).toBeGreaterThan(initialReads);
 	await expect(range).toHaveValue(String(await page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])));
 	await page.evaluate(() => globalThis.__nativePluginParameterHost.setDelay(400));
 	const bounds = await range.boundingBox();
@@ -19,14 +21,18 @@ test('Store state captures the completed native slider position while host write
 	await page.mouse.down();
 	await page.mouse.move(bounds.x + bounds.width * .8, bounds.y + bounds.height / 2, { steps: 6 });
 	await page.mouse.up();
+	const acceptedFinalValue = Number(await range.inputValue());
+	expect(acceptedFinalValue).toBeGreaterThan(.75);
+	const readsBeforeStore = await page.evaluate(() => globalThis.__nativePluginParameterHost.requests.filter(kind => kind === 'parameter-get').length);
 	await dialog.locator('[data-native-plugin-persist-state]').click();
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.persisted)).toBe(3);
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBeGreaterThan(.75);
-	await expect(range).toHaveValue(String(await page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])));
+	// Only explicit Store state advances the dialog generation and refreshes its controls.
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.requests.filter(kind => kind === 'parameter-get').length)).toBeGreaterThan(readsBeforeStore);
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(acceptedFinalValue);
+	await expect(range).toHaveValue(String(acceptedFinalValue));
 	await page.evaluate(() => globalThis.__nativePluginParameterHost.setDelay(0));
 	await range.dblclick();
 	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(.25);
 	await dialog.locator('[data-native-plugin-restore-state]').click();
-	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBeGreaterThan(.75);
-	await expect(range).toHaveValue(String(await page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])));
+	await expect.poll(() => page.evaluate(() => globalThis.__nativePluginParameterHost.values[0])).toBe(acceptedFinalValue);
+	await expect(range).toHaveValue(String(acceptedFinalValue));
 });
