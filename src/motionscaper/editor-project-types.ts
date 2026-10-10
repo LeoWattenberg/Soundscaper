@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { MotionAsset } from '../common/editor/motion-asset.ts';
+import type { MotionComposition } from '../common/editor/motion-composition.ts';
+
+export interface MotionscaperProject {
+	readonly schemaFamily: 'motionscaper'; readonly schemaVersion: 1;
+	readonly id: string; readonly title: string; readonly revision: number; readonly sampleRate: number;
+	readonly primaryCompositionId: string; readonly compositions: readonly MotionComposition[];
+	readonly assets: readonly MotionAsset[];
+}
