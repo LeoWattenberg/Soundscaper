@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
+import { TimeCodeMusicalContext } from '../../../../vendor/audacity-design-system/components/src/TimeCode/time-code-musical-context.ts';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import ParameterNumber from './inspector/EffectParameterNumber.jsx';
 import { LabeledDropdown } from './inspector/inspector-controls.jsx';
@@ -27,6 +28,8 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 	] : [1, 1_000];
 	const [fromRpm, setFromRpm] = useState(100 / 3);
 	const sourceDuration = Number(effectContext.selectionDuration);
+	const projectMap = useContext(TimeCodeMusicalContext);
+	const durationMap = effectContext.selectionDurationMap ?? projectMap;
 	const label = key => canonicalCopyValue(key, copy);
 	const commit = next => {
 		const value = Number(Math.min(100, Math.max(-50, next)).toFixed(3));
@@ -79,13 +82,15 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 					}} />
 			</div>
 		</section>}
-		{sourceDuration > 0 && Number.isFinite(sourceDuration) && <section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
-			<h3 className="audio-editor-audacity-port__heading">{label('effectAudacitySelectionLength')}</h3>
-			<div className="audio-editor-audacity-pitch__pair">
-				{number('effectAudacityCurrentLength', sourceDuration, [0, sourceDuration], () => undefined, 's', true)}
-				{number('effectAudacityNewLength', sourceDuration / multiplier,
-					[sourceDuration / 2, sourceDuration * 2], next => commit((sourceDuration / next - 1) * 100), 's')}
-			</div>
-		</section>}
+		{sourceDuration > 0 && Number.isFinite(sourceDuration) && <TimeCodeMusicalContext.Provider value={durationMap}>
+			<section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
+				<h3 className="audio-editor-audacity-port__heading">{label('effectAudacitySelectionLength')}</h3>
+					<div className="audio-editor-audacity-pitch__pair">
+						{number('effectAudacityCurrentLength', sourceDuration, [0, sourceDuration], () => undefined, 's', true)}
+						{number('effectAudacityNewLength', sourceDuration / multiplier,
+							[sourceDuration / 2, sourceDuration * 2], next => commit((sourceDuration / next - 1) * 100), 's')}
+					</div>
+			</section>
+		</TimeCodeMusicalContext.Provider>}
 	</div>;
 }
