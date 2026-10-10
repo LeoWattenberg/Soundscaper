@@ -214,7 +214,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 
 	function selectRelativeClip(direction) {
 		return import('./audacity-shortcut-actions/relative-item-navigation.ts').then(({ relativeNavigationClipId }) => {
-			const id = relativeNavigationClipId(project(), snapshot().selectedClipId, direction);
+			const id = relativeNavigationClipId(project(), snapshot().selectedClipId, direction, snapshot().trackFolders);
 			if (!id) return null;
 			controllerActions.timeline.selectClip(id);
 			return id;

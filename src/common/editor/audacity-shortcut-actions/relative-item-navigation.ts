@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { itemNavigationClipGeometry } from './item-navigation-geometry.ts';
+import { visibleNavigationTracks } from '../audacity-visible-navigation-tracks.ts';
 import type { ControllerProject } from '../controller/track-audio/track-domain-types.ts';
 
 /** Compare authored items in one clock before choosing the adjacent item. */
@@ -8,9 +9,12 @@ export function relativeNavigationClipId(
 	project: ControllerProject | null | undefined,
 	selectedClipId: string | null | undefined,
 	direction: number,
+	folders: Parameters<typeof visibleNavigationTracks>[1] = null,
 ): string | null {
 	if (!project?.clips.length) return null;
-	const clips = project.clips.map(clip => ({
+	const visibleClipIds = new Set(visibleNavigationTracks(project.tracks, folders)
+		.flatMap(track => track.clipIds ?? []));
+	const clips = project.clips.filter(clip => visibleClipIds.has(clip.id)).map(clip => ({
 		id: clip.id,
 		startFrame: itemNavigationClipGeometry(project, clip).timelineStartFrame,
 	})).sort((left, right) => left.startFrame - right.startFrame
