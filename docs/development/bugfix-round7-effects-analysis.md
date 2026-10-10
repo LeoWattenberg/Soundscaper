@@ -999,8 +999,12 @@ the independent unmuted range refusal and the existing muted/unsoloed release
 omission. Corrected dry, audible delayed, muted, unsoloed and authored muted-bus
 cases, existing publication identity/WAV/capacity/abort controls, live-sync
 authority, FX004 audibility, time-conversion and chunk ownership pass 62/62 in
-16.469 seconds. Targeted type-aware lint, canonical changed lint and owned diff checks pass. Corrected
-whole public verification is pending; this root is not yet qualified. Bounded
+16.469 seconds. Targeted type-aware lint, canonical changed lint and owned diff
+checks pass. The complete unchanged Chromium workflow passes on authenticated
+3b510658ddb254144c98e401603f23f5ba875aaf in 5.8 seconds, 1/1 in 8.1 seconds:
+dry WAV has 48,000 frames, delayed WAV has 96,000 frames with audible release,
+and the muted stem retains the same physical PCM while publishing mute
+separately. This independent Blender range root is fully qualified. Bounded
 owned logs and generated diagnostics are read and removed immediately. The
 assistance runtime closure is unchanged; no manual Update AI assets is required.
 
