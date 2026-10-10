@@ -58,7 +58,27 @@ export const editorUiChunkGroups = [
 	},
 	{
 		name: 'lightscaper-editor-copy',
-		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|develop|develop-menu|develop-settings|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|develop-menu|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Develop and import presets read these labels only after their surfaces open.
+		// Co-owning them with the ordinary photo catalog would preload visual copy.
+		name: 'lightscaper-develop-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-develop(?:-settings)?-copy\.ts$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Both photo and timeline surfaces read this inert shared label table.
+		// The complete timeline copy owner also contains unrelated audio catalogs.
+		name: 'editor-visual-effect-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]video-effect-copy\.js$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
