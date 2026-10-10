@@ -21,7 +21,10 @@ interface KeyboardEventLike {
 	ctrlKey: boolean;
 	defaultPrevented: boolean;
 	key: string;
+	isComposing?: boolean;
+	keyCode?: number;
 	metaKey: boolean;
+	nativeEvent?: Readonly<{ isComposing?: boolean; keyCode?: number }>;
 	repeat?: boolean;
 	shiftKey: boolean;
 	target: EventTarget | null;
@@ -76,6 +79,8 @@ export function handleWorkspaceKeyboard(
 	registry: ShortcutRegistry = {},
 ): void {
 	if (event.defaultPrevented) return;
+	if (event.isComposing || event.nativeEvent?.isComposing
+		|| event.keyCode === 229 || event.nativeEvent?.keyCode === 229) return;
 	if (isWorkspaceModalShortcutTarget(event.target)) return;
 	const targetDisposition = workspaceShortcutTargetDisposition(event);
 	if (targetDisposition === 'blocked') return;
