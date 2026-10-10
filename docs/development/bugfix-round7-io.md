@@ -647,6 +647,27 @@ All own replay output and bounded log are immediately removed. Original full150
 failures remain recorded; capability/physical-request witness follow-through is
 zero count and must retain every actual media/control assertion.
 
+Full150 six further completed WebKit observations consumed (zero count):
+scheduled keyboard seek=false/true11.420/11.697 seconds reach the final
+post-cancel capture and observe one clip instead of two; the actual PNG shows
+Done and the ordinary recorded Audio clip on the original imported track,
+consistent with the already reviewed destructive-recording fixture. Both
+microphone listening cases30.172/30.247 seconds stop at a missing Camera
+checkbox, and Web VCR30.238/30.260 seconds stops at its absent menu. All four
+actual screenshots and contexts explicitly publish Capture is unavailable in
+this runtime; the existing actual-capability prerequisite witness applies.
+Every completed JSON marker, PNG and context was read and these exact six
+failed directories were removed immediately. Their original full-suite
+failures remain recorded; current faithful follow-through is pending.
+
+A provisional zero-count Freesound request-receiver verification attempt fails
+before navigation because it calls an unavailable Playwright cleanup API
+(testInfo.onTestFinished); both blank-page PNG/context and bounded log were
+read. This excluded fixture setup establishes no product behavior. Cleanup is
+being changed to ordinary awaited finally ownership. The two native ZIP cases
+truthfully skip when writable-stream capabilities are absent. Completed own
+attempt artifacts and log are immediately removed.
+
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,
 native File Open service or mounted controls; they do not introduce a private
