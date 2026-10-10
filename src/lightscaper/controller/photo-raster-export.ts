@@ -22,6 +22,8 @@ import { normalizeImageMetadataV1 } from '../../common/editor/imaging/image-meta
 import { withImageExifContainerV1 } from '../../common/editor/imaging/image-exif-container-v1.ts';
 import type { ImageExifMetadataV1 } from '../../common/editor/imaging/image-metadata-model-v1.ts';
 import type { PhotoLibraryMetadataSnapshotV1 } from '../../common/editor/photo-library-session-port-v1.ts';
+import { captureImageExportGraphicRequest, imageExportGraphicPlacement, type ImageExportGraphicRequest } from '../../common/editor/image-export-graphic-request.ts';
+import type { withImageExportGraphicFrameV1 } from '../../common/editor/imaging/image-export-graphic-source-v1.ts';
 
 export type ReadPhotoExportMetadata = (photoId: string, expectedRevision: number, options: Readonly<{ signal: AbortSignal }>) =>
 	Promise<Readonly<{ catalogId: string; snapshot: PhotoLibraryMetadataSnapshotV1 }>>;
@@ -35,6 +37,8 @@ export interface PhotoRasterExportRequest {
 	readonly signal?: AbortSignal;
 	readonly output?: PhotoRasterExportOutput;
 	readonly readMetadata?: ReadPhotoExportMetadata;
+	readonly graphicWatermark?: Readonly<ImageExportGraphicRequest>;
+	readonly withGraphicFrame?: typeof withImageExportGraphicFrameV1;
 	readonly prepareSave: (request: BrowserFileSaveRequest) => PreparedBrowserSave | PromiseLike<PreparedBrowserSave>;
 	readonly saveFile: (request: BrowserFileSaveRequest) => BrowserSavedFile | PromiseLike<BrowserSavedFile>;
 	readonly execute: ExecutePhotoDevelopV2;
@@ -182,33 +186,48 @@ export class PhotoRasterExport {
 					const runtime = await request.loadRenderer(); current();
 					const render = pin<PhotoLibraryDevelopProxyRuntimeV2['withFullResolution']>(runtime.withFullResolution, runtime);
 					let width = 0, height = 0;
-					await request.withOriginalFrame({ schemaVersion: 1, photoId: request.photoId, expectedRevision: request.expectedRevision }, async original => {
+					const renderOriginal = async (graphic: Readonly<PixelFrameV1> | null) => {
+						const mark = graphic ? (await import('../../common/editor/imaging/pixel-frame-graphic-watermark-v1.ts')).withGraphicWatermarkPixelFrameV1 : null;
 						current();
-						const originalView = record(original, 'Photo raster original', ['photoId', 'revision', 'frame']);
-						if (field(originalView, 'photoId', 'Photo raster original') !== request.photoId
-							|| field(originalView, 'revision', 'Photo raster original') !== request.expectedRevision) throw new Error('Photo raster original revision or identity changed.');
-						const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), LIMITS.source);
-						await render({ frame: source, develop, signal }, async output => {
-							current(); const view = record(output, 'Photo raster render', ['frame', 'histogram'], ['frame']);
-							const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
-							const encode = async (delivery: Readonly<PixelFrameV1>, resized: Readonly<PixelFrameV1>) => {
-								const encoded = await request.encode(delivery, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
-								bytes = readEncoded(encoded, source, frame, resized, delivery); width = delivery.descriptor.width; height = delivery.descriptor.height; current();
-							};
-							const deliver = async (resized: Readonly<PixelFrameV1>) => {
-								current(); const sharpen = request.output?.sharpen;
-								if (sharpen && sharpen.amount !== 0) {
-									await withDetailSharpenPixelFrameV1({ frame: resized, signal, effect: { id: 'photo-output-sharpen',
-										type: DETAIL_SHARPEN_EFFECT_TYPE_V1, enabled: true, params: sharpen } }, output => encode(readPixelFrameV1(output, LIMITS.render), resized), { limits: LIMITS.render });
-								} else await encode(resized, resized);
-							};
-							if (request.output && request.output.sizing.kind !== 'original') {
-								await withExportResizedPixelFrameV1({ frame, sizing: request.output.sizing, quality: request.output.quality, signal }, deliver, { limits: LIMITS.render });
-							} else await deliver(frame);
+						await request.withOriginalFrame({ schemaVersion: 1, photoId: request.photoId, expectedRevision: request.expectedRevision }, async original => {
 							current();
-						});
-						current();
-					}, { signal });
+							const originalView = record(original, 'Photo raster original', ['photoId', 'revision', 'frame']);
+							if (field(originalView, 'photoId', 'Photo raster original') !== request.photoId
+								|| field(originalView, 'revision', 'Photo raster original') !== request.expectedRevision) throw new Error('Photo raster original revision or identity changed.');
+							const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), LIMITS.source);
+							await render({ frame: source, develop, signal }, async output => {
+								current(); const view = record(output, 'Photo raster render', ['frame', 'histogram'], ['frame']);
+								const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
+								const encode = async (delivery: Readonly<PixelFrameV1>, resized: Readonly<PixelFrameV1>) => {
+									const encodeOutput = async (marked: Readonly<PixelFrameV1>) => {
+										current(); const encoded = await request.encode(marked, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+										bytes = readEncoded(encoded, source, frame, resized, delivery, marked, ...(graphic ? [graphic] : []));
+										width = marked.descriptor.width; height = marked.descriptor.height; current();
+									};
+									if (graphic && mark && request.graphicWatermark) await mark({ frame: delivery, graphic,
+										placement: imageExportGraphicPlacement(request.graphicWatermark, delivery.descriptor.width, delivery.descriptor.height), signal },
+										output => encodeOutput(readPixelFrameV1(output, LIMITS.render)), { limits: LIMITS.render, maximumWorkingBytes: MAXIMUM_OUTPUT_BYTES - graphic.pixels.byteLength });
+									else await encodeOutput(delivery);
+								};
+								const deliver = async (resized: Readonly<PixelFrameV1>) => {
+									current(); const sharpen = request.output?.sharpen;
+									if (sharpen && sharpen.amount !== 0) {
+										await withDetailSharpenPixelFrameV1({ frame: resized, signal, effect: { id: 'photo-output-sharpen',
+											type: DETAIL_SHARPEN_EFFECT_TYPE_V1, enabled: true, params: sharpen } }, output => encode(readPixelFrameV1(output, LIMITS.render), resized), { limits: LIMITS.render });
+									} else await encode(resized, resized);
+								};
+								if (request.output && request.output.sizing.kind !== 'original') {
+									await withExportResizedPixelFrameV1({ frame, sizing: request.output.sizing, quality: request.output.quality, signal }, deliver, { limits: LIMITS.render });
+								} else await deliver(frame);
+								current();
+							});
+							current();
+						}, { signal });
+					};
+					if (request.graphicWatermark && request.graphicWatermark.opacity !== 0) {
+						const withGraphic = request.withGraphicFrame ?? (await import('../../common/editor/imaging/image-export-graphic-source-v1.ts')).withImageExportGraphicFrameV1;
+						current(); await withGraphic({ body: request.graphicWatermark.body, signal }, graphic => renderOriginal(graphic));
+					} else await renderOriginal(null);
 					// Both renderer and original owner have completed their late checks and cleanup.
 					current();
 					if (!bytes) throw new Error('Photo raster renderer did not complete its frame consumer.');
@@ -348,8 +367,10 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterExportRequest {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
-	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata'], required);
+	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'graphicWatermark', 'withGraphicFrame'], required);
 	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
+	const graphicWatermark = Object.hasOwn(input, 'graphicWatermark') ? captureImageExportGraphicRequest(field(input, 'graphicWatermark', name)) : undefined;
+	const withGraphicFrame = Object.hasOwn(input, 'withGraphicFrame') ? pin<typeof withImageExportGraphicFrameV1>(field(input, 'withGraphicFrame', name), value) : undefined;
 	const metadataRead = Object.hasOwn(input, 'readMetadata') ? pin<ReadPhotoExportMetadata>(field(input, 'readMetadata', name), value) : undefined;
 	if (output?.metadataScope === 'capture' && !metadataRead) throw new TypeError('Capture export requires its selected metadata reader.');
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', name) : undefined;
@@ -366,7 +387,7 @@ function admitRequest(value: unknown, extension: '.png' | '.jpg'): PhotoRasterEx
 	return Object.freeze({ photoId: stableId(field(input, 'photoId', name)), versionId: stableId(field(input, 'versionId', name)),
 		expectedRevision: revision, fileName, fileTypeDescription: text(field(input, 'fileTypeDescription', name), 256), signal: signal as AbortSignal | undefined,
 		prepareSave: method('prepareSave'), saveFile: method('saveFile'), execute: method('execute'), withOriginalFrame: method('withOriginalFrame'),
-		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead });
+		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, graphicWatermark, withGraphicFrame });
 }
 function pin<Method>(value: unknown, receiver: unknown): Method {
 	if (typeof value !== 'function') throw new TypeError('Photo raster export requires its captured methods.');

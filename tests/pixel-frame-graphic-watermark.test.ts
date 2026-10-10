@@ -149,3 +149,30 @@ test('output detachment during the scoped consumer refuses successful delivery',
 		structuredClone(result.pixels.buffer, { transfer: [result.pixels.buffer] });
 	}, options), /detached/u);
 });
+
+test('Rec.709 delivery keeps its declared transfer while blending an sRGB graphic in shared linear light', async () => {
+	const source = { descriptor: { ...descriptor(2, 1), primaries: 'bt709', transfer: 'bt709' },
+		pixels: Uint8Array.of(19, 83, 125, 0, 0, 0, 255, 255) };
+	const input = { frame: source, graphic: frame(2, 1, Uint8Array.of(255, 0, 0, 0, 255, 0, 0, 128)), placement };
+	const before = source.pixels.slice();
+	await withGraphicWatermarkPixelFrameV1(input, result => {
+		assert.deepEqual(result.descriptor, source.descriptor);
+		assert.deepEqual([...result.pixels], [19, 83, 125, 0, 180, 0, 180, 255]);
+	}, options);
+	assert.deepEqual(source.pixels, before);
+	await withGraphicWatermarkPixelFrameV1({ ...input, placement: { ...placement, opacity: 0 } },
+		result => assert.deepEqual(result.pixels, before), { ...options, maximumWorkingBytes: 8 });
+});
+
+test('only the source admits Rec.709 and its additional transfer lookup fits the captured workspace ceiling', async () => {
+	const input = request(), rec709 = { ...input.frame, descriptor: { ...input.frame.descriptor, primaries: 'bt709', transfer: 'bt709' } };
+	await withGraphicWatermarkPixelFrameV1({ ...input, frame: rec709 }, result => assert.deepEqual([...result.pixels], [180, 0, 180, 255]),
+		{ ...options, maximumWorkingBytes: 4 + 4 + 64 + 4096 });
+	await assert.rejects(withGraphicWatermarkPixelFrameV1({ ...input, frame: rec709 }, () => assert.fail('capacity refused'),
+		{ ...options, maximumWorkingBytes: 4 + 4 + 64 + 4095 }), /capacity/u);
+	for (const change of [{ primaries: 'srgb', transfer: 'bt709' }, { primaries: 'bt709', transfer: 'linear' }]) {
+		await assert.rejects(withGraphicWatermarkPixelFrameV1({ ...input, frame: { ...input.frame, descriptor: { ...input.frame.descriptor, ...change } } },
+			() => assert.fail('mixed or linear profile refused'), options), /profile/u);
+	}
+	await assert.rejects(withGraphicWatermarkPixelFrameV1({ ...input, graphic: rec709 }, () => assert.fail('graphic must stay sRGB'), options), /profile/u);
+});

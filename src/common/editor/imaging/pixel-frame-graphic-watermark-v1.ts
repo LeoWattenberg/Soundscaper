@@ -15,12 +15,16 @@ export interface GraphicWatermarkPlacementV1 {
 	readonly widthFraction: number; readonly marginPixels: number; readonly opacity: number;
 }
 const CHECK = AbortSignal.prototype.throwIfAborted;
+const GRAPHIC_PROFILES = Object.freeze([Object.freeze({ sampleFormat: 'unorm8' as const, primaries: 'srgb' as const, transfer: 'srgb' as const })]);
+const SOURCE_PROFILES = Object.freeze([...GRAPHIC_PROFILES,
+	Object.freeze({ sampleFormat: 'unorm8' as const, primaries: 'bt709' as const, transfer: 'bt709' as const })]);
 const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
 const COPY_BYTES = 65_536, TILE_PIXELS = 1024, MAXIMUM_WORKING_BYTES = 268_435_456;
 const yieldTask = () => new Promise<void>(resolve => { setTimeout(resolve, 0); });
 
 /** Output-only normal blending in linear light, using the same span as Frame
- * exact composition. Only the graphic is resampled; pixels with no graphic
+ * exact composition. Source pixels are encoded sRGB or Rec.709; the graphic
+ * is strictly sRGB. Only the graphic is resampled; pixels with no graphic
  * coverage keep their exact bytes, including hidden RGB. The independently
  * owned output, resized graphic, lookup and bounded Float64 tiles share one
  * captured working-byte ceiling. Borrowed source/graphic frames are admitted
@@ -40,13 +44,14 @@ export async function withGraphicWatermarkPixelFrameV1<Result>(value: unknown,
 	const limit = (key: string) => integer(field(rawLimits, key, 'graphic watermark limits'), 1, Number.MAX_SAFE_INTEGER, 'Graphic watermark frame capacity');
 	const limits = Object.freeze({ maximumSidePixels: limit('maximumSidePixels'), maximumPixels: limit('maximumPixels'), maximumBytes: limit('maximumBytes') });
 	const maximumWorkingBytes = integer(field(options, 'maximumWorkingBytes', 'graphic watermark options'), 1, MAXIMUM_WORKING_BYTES, 'Graphic watermark working capacity');
-	const source = captureFrame(field(input, 'frame', 'graphic watermark request'), limits);
+	const source = captureFrame(field(input, 'frame', 'graphic watermark request'), limits, true);
 	const graphic = captureFrame(field(input, 'graphic', 'graphic watermark request'), limits);
+	const outputSpace = source.descriptor.transfer === 'bt709' ? 'rec709' : 'srgb';
 	const place = capturePlacement(field(input, 'placement', 'graphic watermark request'), source.descriptor.width, source.descriptor.height);
 	const sizing = Object.freeze({ kind: 'fit' as const, width: Math.max(1, Math.round((source.descriptor.width - 2 * place.marginPixels) * place.widthFraction)),
 		height: source.descriptor.height - 2 * place.marginPixels, allowUpscale: true });
 	const plan = planImageExportSizeV1(graphic.descriptor, sizing, limits), tilePixels = Math.min(TILE_PIXELS, plan.pixelCount);
-	const scratchBytes = place.opacity === 0 ? 0 : plan.byteLength + tilePixels * 4 * 8 * 2 + 256 * 8;
+	const scratchBytes = place.opacity === 0 ? 0 : plan.byteLength + tilePixels * 4 * 8 * 2 + 256 * 8 * (outputSpace === 'srgb' ? 1 : 2);
 	if (source.pixels.byteLength + scratchBytes > maximumWorkingBytes) throw new RangeError('Graphic watermark working capacity is exceeded.');
 	const checkSource = () => {
 		check(); for (const buffer of [source.pixels.buffer, graphic.pixels.buffer]) {
@@ -61,11 +66,14 @@ export async function withGraphicWatermarkPixelFrameV1<Result>(value: unknown,
 			if (end < pixels.length) { await yieldTask(); checkSource(); }
 		}
 		if (place.opacity !== 0) await withExportResizedPixelFrameV1({ frame: graphic, sizing, quality: 'bilinear', signal }, async resized => {
-			let backdrop: Float64Array<ArrayBuffer> | null = null, foreground: Float64Array<ArrayBuffer> | null = null, decoded: Float64Array<ArrayBuffer> | null = null;
+			let backdrop: Float64Array<ArrayBuffer> | null = null, foreground: Float64Array<ArrayBuffer> | null = null;
+			let decoded: Float64Array<ArrayBuffer> | null = null, sourceDecoded: Float64Array<ArrayBuffer> | null = null;
 			try {
 				backdrop = new Float64Array(tilePixels * 4); foreground = new Float64Array(tilePixels * 4); decoded = new Float64Array(256);
 				for (let byte = 0; byte < 256; byte++) decoded[byte] = decodeManagedSdrOutputPixelV1([byte / 255, byte / 255, byte / 255, 1], 'srgb')[0];
-				const encode = createManagedSdrLinearByteEncoderV1('srgb'), width = resized.descriptor.width, height = resized.descriptor.height;
+				sourceDecoded = outputSpace === 'srgb' ? decoded : new Float64Array(256);
+				if (sourceDecoded !== decoded) for (let byte = 0; byte < 256; byte++) sourceDecoded[byte] = decodeManagedSdrOutputPixelV1([byte / 255, byte / 255, byte / 255, 1], outputSpace)[0];
+				const encode = createManagedSdrLinearByteEncoderV1(outputSpace), width = resized.descriptor.width, height = resized.descriptor.height;
 				const [vertical, horizontal] = place.anchor.split('-');
 				const originX = position(horizontal!, source.descriptor.width, width, place.marginPixels), originY = position(vertical!, source.descriptor.height, height, place.marginPixels);
 				for (let start = 0; start < plan.pixelCount; start += tilePixels) {
@@ -73,7 +81,7 @@ export async function withGraphicWatermarkPixelFrameV1<Result>(value: unknown,
 					for (let index = 0; index < count; index++) {
 						const pixel = start + index, mark = pixel * 4, target = ((originY + Math.floor(pixel / width)) * source.descriptor.width + originX + pixel % width) * 4;
 						const alpha = pixels[target + 3]! / 255, graphicAlpha = resized.pixels[mark + 3]! / 255 * place.opacity, offset = index * 4;
-						for (let channel = 0; channel < 3; channel++) { backdrop[offset + channel] = decoded[pixels[target + channel]!]! * alpha;
+						for (let channel = 0; channel < 3; channel++) { backdrop[offset + channel] = sourceDecoded[pixels[target + channel]!]! * alpha;
 							foreground[offset + channel] = decoded[resized.pixels[mark + channel]!]! * graphicAlpha; }
 						backdrop[offset + 3] = alpha; foreground[offset + 3] = graphicAlpha;
 					}
@@ -86,7 +94,7 @@ export async function withGraphicWatermarkPixelFrameV1<Result>(value: unknown,
 					}
 					if (start + count < plan.pixelCount) { await yieldTask(); checkSource(); }
 				}
-			} finally { backdrop?.fill(0); foreground?.fill(0); decoded?.fill(0); }
+			} finally { backdrop?.fill(0); foreground?.fill(0); decoded?.fill(0); if (sourceDecoded !== decoded) sourceDecoded?.fill(0); }
 		}, { limits });
 		checkSource(); const descriptor = Object.freeze({ ...source.descriptor, sampleFormat: 'unorm8' as const });
 		const result = await consume(Object.freeze({ descriptor, pixels })); checkSource();
@@ -95,11 +103,11 @@ export async function withGraphicWatermarkPixelFrameV1<Result>(value: unknown,
 	} finally { if (Number(Reflect.apply(BUFFER_SIZE, outputBuffer, [])) > 0) new Uint8Array(outputBuffer).fill(0); }
 }
 
-function captureFrame(value: unknown, limits: PixelFrameLimitsV1): GeometryPixelFrameV1 {
+function captureFrame(value: unknown, limits: PixelFrameLimitsV1, source = false): GeometryPixelFrameV1 {
 	const input = record(value, 'graphic watermark frame', ['descriptor', 'pixels']);
-	const plan = admitPixelFrameV1(field(input, 'descriptor', 'graphic watermark frame'), { limits });
+	const plan = admitPixelFrameV1(field(input, 'descriptor', 'graphic watermark frame'), { limits, profiles: source ? SOURCE_PROFILES : GRAPHIC_PROFILES });
 	const frame = readPixelFrameV1({ descriptor: plan.descriptor, pixels: field(input, 'pixels', 'graphic watermark frame') }, limits);
-	if (frame.descriptor.sampleFormat !== 'unorm8') throw new RangeError('Graphic watermark requires UNORM8 encoded sRGB.');
+	if (frame.descriptor.sampleFormat !== 'unorm8') throw new RangeError('Graphic watermark requires UNORM8 encoded SDR.');
 	return Object.freeze({ descriptor: Object.freeze({ ...frame.descriptor, sampleFormat: 'unorm8' as const }),
 		pixels: new Uint8Array(frame.pixels.buffer, frame.pixels.byteOffset, plan.byteLength) });
 }

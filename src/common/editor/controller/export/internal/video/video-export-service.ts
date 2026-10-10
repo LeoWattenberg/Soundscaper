@@ -2,7 +2,6 @@
 
 import { createVisibleVideoTrackPredicate } from '../../../../video-timeline.js'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 
-import type { FileSizeWarningConfirmation } from '../../../shared/file-size-warning.ts';
 import { prepareBrowserExportBlobWithWarning as prepareBrowserExportBlob } from '../../../../browser-export-output.ts';
 import { getVideoExportFormat } from '../../../../video-export.js';
 import { projectTrackFolderMediaStateV12 } from '../../../../track-folder-media-runtime.ts';
@@ -24,7 +23,6 @@ import {
 import {
 	captureProductVideoExportTimingSourceIds,
 	resolveProductVideoExportStrategy,
-	type ProductVideoExportPlan,
 } from '../../product-video-export-strategy.ts';
 import { acquireVideoExportTimingIndexes } from '../../video-export-timing.ts';
 import { createVideoDeliveryReportForPlan } from '../../../../delivery-video-conversion-inventory.ts';
@@ -43,6 +41,8 @@ import {
 } from './video-export-staged-audio.ts';
 import { beginExportTask, handleExportFailure } from '../export-task-lifecycle.ts';
 import { publishBufferedExport } from '../buffered-export-publication.ts';
+import { productEncodeRequest } from './video-export-product-encode-request.ts';
+import { captureVideoExportGraphicSettings, withVideoExportGraphicRequest } from './video-export-graphic.ts';
 
 export interface VideoExportServiceRuntime {
 	readonly state: EditorExportState;
@@ -87,6 +87,7 @@ export function createEditorVideoExportAction(
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
+		const graphic = captureVideoExportGraphicSettings(requestedSettings, runtime.options);
 		const preparationGeneration = state.exportGeneration;
 		const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 		await assertDesktopVideoExportAvailable(fileService, formatValue);
@@ -146,6 +147,7 @@ export function createEditorVideoExportAction(
 				audioLayout: requestedSettings.audioLayout,
 				captions: requestedSettings.captions,
 			}) ?? null;
+			if (!productPlan && graphic.request?.opacity) throw new Error('Graphic watermark requires the exact product picture export route.');
 			const productTimingSourceIds = productPlan
 				? captureProductVideoExportTimingSourceIds(productStrategy!, productPlan)
 				: null;
@@ -318,7 +320,7 @@ export function createEditorVideoExportAction(
 			if (pendingDirectDestination) {
 				try {
 					encoded = productPlan
-						? await productStrategy!.encodeToSink(
+						? await withVideoExportGraphicRequest(
 							productEncodeRequest(
 								canonicalProject, exportProject, productPlan, keyedTimingIndexes,
 								videoBlobs, audioMixBlob, ffmpeg, abort.signal,
@@ -327,7 +329,7 @@ export function createEditorVideoExportAction(
 									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
 									: null,
 							),
-							pendingDirectDestination,
+							graphic.request, request => productStrategy!.encodeToSink(request, pendingDirectDestination!), graphic.reader,
 						)
 						: await ffmpeg.encodeVideoToSink(
 							videoBlobs,
@@ -352,14 +354,14 @@ export function createEditorVideoExportAction(
 				}
 			} else {
 				encoded = productPlan
-					? await productStrategy!.encode(productEncodeRequest(
+					? await withVideoExportGraphicRequest(productEncodeRequest(
 						canonicalProject, exportProject, productPlan, keyedTimingIndexes,
 						videoBlobs, audioMixBlob, ffmpeg, abort.signal,
 						assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 						encoderDecision.tier === 'webcodecs'
 							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
 							: null,
-					))
+					), graphic.request, request => productStrategy!.encode(request), graphic.reader)
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning,
 						...(captionDocument ? { captions: captionDocument } : {}),
@@ -469,37 +471,6 @@ export function videoExportMissingOriginalError(
 	return new Error(source?.proxyAttachment
 		? 'The original video is unavailable. Relink the original; proxies are preview-only and cannot be delivered.'
 		: fallbackMessage);
-}
-
-function productEncodeRequest(
-	canonicalProject: RuntimeValue,
-	exportProject: RuntimeValue,
-	plan: ProductVideoExportPlan,
-	timingIndexes: Awaited<ReturnType<typeof acquireVideoExportTimingIndexes>> | null,
-	videoBlobs: ReadonlyMap<string, Blob>,
-	audioMix: Blob | null,
-	editorFfmpeg: RuntimeValue,
-	signal: AbortSignal,
-	assertCurrent: () => void,
-	maximumOutputBytes: unknown,
-	confirmFileSizeWarning: FileSizeWarningConfirmation | undefined,
-	webCodecs: Readonly<{ codec: string; bitrate: number }> | null,
-) {
-	if (!timingIndexes) throw new Error('Keyed video export lost its exact timing lease.');
-	return Object.freeze({
-		canonicalProject,
-		exportProject,
-		plan,
-		timingBySourceId: timingIndexes.timingBySourceId,
-		timingViewsBySourceId: timingIndexes.timingViewsBySourceId,
-		videoBlobs,
-		audioMix,
-		editorFfmpeg,
-		webCodecs,
-		signal,
-		assertCurrent,
-		maximumOutputBytes, confirmFileSizeWarning,
-	});
 }
 
 /**

@@ -14,6 +14,15 @@ export const imagingChunkGroups = [{
 	maxSize: 400_000,
 	includeDependenciesRecursively: false,
 }, {
+	// File decoding and watermark allocation belong only to an opted-in delivery.
+	// Shared static admission, native import and linear blend readers stay below.
+	name: 'editor-export-graphic',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-export-graphic-source-v1|pixel-frame-graphic-watermark-v1)\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
 	name: 'editor-jpeg-bytes',
 	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-jpeg-v1\.ts$/,
 	priority: 99,

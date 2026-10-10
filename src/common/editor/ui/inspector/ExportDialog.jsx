@@ -8,6 +8,7 @@ import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
+import GraphicWatermarkFields, { useGraphicWatermarkSelection } from '../GraphicWatermarkFields.tsx';
 import {
 	dialogSettingsFromDeliveryTarget, previewPresetSettingsFromDialog,
 	statedVideoCanvas, statedVideoDeliveryTarget,
@@ -53,7 +54,7 @@ import {
 import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-capabilities.ts';
 import { samePresetParams } from './effect-helpers.ts';
 
-export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
+export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, locale = 'en', onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.taskProgress?.kind === 'export' ? telemetry.taskProgress.value : telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [metadataTab, setMetadataTab] = useState('general');
@@ -70,6 +71,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		[controller, isOpen, projectIdentity],
 	);
 	const currentOperationOwner = useRef(operationOwner);
+	const graphic = useGraphicWatermarkSelection(operationOwner);
 	const activeExportSubmission = useRef(null);
 	const downloadRef = useRef(null);
 	const startedDownloadUrl = useRef(snapshot.export?.output?.url || null);
@@ -293,7 +295,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						? parseJsonChannelMapping(admittedSettings.channelMatrix, copy.customChannelMapping, copy)
 						: admittedSettings.channelMapping,
 			});
-			Promise.resolve(controller.actions.export.start(request)).then(() => {
+			const graphicWatermark = productId === 'framescaper' && videoFormat ? graphic.capture() : undefined;
+			Promise.resolve(controller.actions.export.start(graphicWatermark ? { ...request, graphicWatermark } : request)).then(() => {
 				if (ownsSubmission()) activeExportSubmission.current = null;
 			}, failSubmission);
 		} catch (cause) {
@@ -467,6 +470,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 							captionDeliveryUnavailable={captionDeliveryUnavailable}
 						/>
 					)}
+					{productId === 'framescaper' && videoFormat && <GraphicWatermarkFields {...graphic} locale={locale} disabled={exporting} />}
 				</section>
 				{!videoFormat && (
 					<ExportRenderingSection

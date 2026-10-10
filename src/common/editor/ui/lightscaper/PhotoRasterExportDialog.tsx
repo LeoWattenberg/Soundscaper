@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PhotoRasterExport, isPhotoRasterExportMetadataRefusal, capturePhotoRasterExportOutput, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import { formatImageExportFilenameV1 } from '../../image-export-filename-v1.ts';
 import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing } from './PhotoRasterExportSettings.tsx';
@@ -9,6 +9,7 @@ import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/ph
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import GraphicWatermarkFields, { useGraphicWatermarkSelection } from '../GraphicWatermarkFields.tsx';
 import './photo-catalog-backup.css';
 
 export interface PhotoRasterExportDialogProps {
@@ -21,6 +22,7 @@ export interface PhotoRasterExportDialogProps {
 	readonly execute: ExecutePhotoDevelopCurrent;
 	readonly withOriginalFrame: PhotoLibraryDevelopOriginalPortV1['withFrame'];
 	readonly readMetadata?: PhotoRasterExportRequest['readMetadata'];
+	readonly withGraphicFrame?: PhotoRasterExportRequest['withGraphicFrame'];
 	readonly loadRenderer: LoadPhotoLibraryDevelopProxyRuntimeV2;
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly preparationFailed: boolean;
@@ -56,6 +58,8 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 	const [metadataFailed, setMetadataFailed] = useState(false);
 	const saveButton = useRef<HTMLButtonElement>(null), focused = useRef(false);
 	const controller = owner.current, copy = props.copy;
+	const graphic = useGraphicWatermarkSelection(useMemo(() => ({ execute: props.execute, photoId: props.photoId, registerDestination: props.registerDestination }),
+		[props.execute, props.photoId, props.registerDestination]));
 	const retire = useCallback((current: Scope) => {
 		if (current.retirement) return current.retirement;
 		current.closed = true; current.stop.abort();
@@ -96,11 +100,12 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		const current = latest.current, runtime = current.saveRuntime;
 		const lifetime = scope.current;
 		if (!lifetime?.live || lifetime.closed || lifetime.active || !target || target.scope !== lifetime || !runtime || failed || current.preparationFailed) return;
-		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>;
+		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>, graphicWatermark: PhotoRasterExportRequest['graphicWatermark'];
 		try {
 			fileName = formatImageExportFilenameV1({ template: settings.filenameTemplate, sourceFileName: current.fileName, format: current.format, index: 1 });
 			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope,
 				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
+			graphicWatermark = graphic.capture();
 		} catch { setInvalidSettings(true); return; }
 		setInvalidSettings(false); setMetadataFailed(false);
 		setSaving(true); setReceipt(null);
@@ -109,6 +114,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 			fileName, output, fileTypeDescription: copy.fileType,
 			execute: current.execute, withOriginalFrame: current.withOriginalFrame, loadRenderer: current.loadRenderer,
 			...(current.readMetadata ? { readMetadata: current.readMetadata } : {}),
+			...(graphicWatermark ? { graphicWatermark } : {}), ...(current.withGraphicFrame ? { withGraphicFrame: current.withGraphicFrame } : {}),
 			prepareSave: request => runtime.prepareSave(request), saveFile: request => runtime.saveFile(request), encode: current.encode });
 		const joined = work.then(result => { if (lifetime.live) setReceipt(result); }, (error: unknown) => { if (lifetime.live) {
 			if (isPhotoRasterExportMetadataRefusal(error)) setMetadataFailed(true); else setFailed(true);
@@ -129,6 +135,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 			<p>{copy.description}</p>
 			<PhotoRasterExportSettings value={settings} copy={copy} disabled={!ready || saving || closing}
 				onChange={value => { setSettings(value); setInvalidSettings(false); setMetadataFailed(false); }} />
+			<GraphicWatermarkFields {...graphic} locale={props.locale} disabled={!ready || saving || closing} />
 			{invalidSettings && <p role="alert">{copy.invalidSettings}</p>}
 			{metadataFailed && <p role="alert" data-photo-raster-export-metadata-error>{copy.metadataFailed}</p>}
 			{!ready && !failed && !props.preparationFailed && !saving && !closing && <p role="status">{copy.preparing}</p>}
