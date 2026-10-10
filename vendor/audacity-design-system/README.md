@@ -591,3 +591,12 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     `tests/audio-editor-round7-mixer-fader-pointer-owner.test.tsx` and ordinary
     Window → Mixer Volume mouse, one-finger, two-finger and Undo/Redo controls.
     Upstream-PR candidate.
+
+76. `MixerFader` completes its admitted mouse gesture when primary releases
+    while another button remains held. Its native pointermove transition uses
+    the final coordinates and retires capture before the existing completion
+    callbacks, preserving foreign pointer rejection, touch/pen completion and
+    intentional cancellation. Covered by the mounted regression
+    `tests/audio-editor-round7-io-mixer-fader-primary-release.test.tsx` and the
+    ordinary Window → Mixer Master Volume, primary release and keyboard
+    Undo/Redo workflow that retains the imported recording. Upstream-PR candidate.
