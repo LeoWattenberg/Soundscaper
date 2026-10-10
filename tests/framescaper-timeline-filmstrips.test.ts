@@ -140,6 +140,15 @@ test('the finishing filmstrip receives the same selected OpenFX execution as the
 	]);
 	assert.match(filmstripSource,
 		/createFramescaperSelectedVisualPreviewSessionFinishing\(\{[\s\S]*createOpenFxExecution: options\.createOpenFxExecution/u);
+	assert.match(filmstripSource, /createOpenFxExecutionV16: options\.createOpenFxExecutionV16/u);
 	assert.match(controllerSource,
-		/createFramescaperSelectedTimelineFilmstripFinishing\(\{[\s\S]*createOpenFxExecution/u);
+		/const nativeProject = projectNativeMedia\(request\.project\);[\s\S]*nativeProject, request: \{ \.\.\.request,[\s\S]*project: framescaperProjectFinishingFoundationShapeNativeMedia\(nativeProject\)/u);
+	assert.match(controllerSource,
+		/createOpenFxExecution:[\s\S]*createFramescaperOpenFxExecutionForFoundationNativeMedia\(\{[\s\S]*project: nativeProject, foundationPlan, timingViews, execute: openFxExecute/u);
+	assert.match(controllerSource,
+		/createOpenFxExecutionV16:[\s\S]*createFramescaperOpenFxExecutionForResourceFoundationV16\(\{[\s\S]*project: nativeProject, foundationPlan, timingViews, execute: openFxExecute/u);
+	assert.match(controllerSource,
+		/const captured = inherited\(request\), ports = companions\(captured\.nativeProject\);\s*const module = await import\('\.\/editor-selected-finishing-visual-preview\.ts'\);\s*return module\.createFramescaperSelectedVisualPreviewSessionFinishing\(\{ \.\.\.captured\.request, \.\.\.ports \}\);/u);
+	assert.match(controllerSource,
+		/const captured = inherited\(request\), ports = companions\(captured\.nativeProject\);\s*const module = await import\('\.\/editor-selected-finishing-timeline-filmstrip\.ts'\);\s*return module\.createFramescaperSelectedTimelineFilmstripFinishing\(\{ \.\.\.captured\.request, \.\.\.ports \} as never\);/u);
 });
