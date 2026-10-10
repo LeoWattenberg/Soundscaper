@@ -682,6 +682,32 @@ were consumed and all owned replay outputs/logs immediately removed; native
 readers and exclusive CPU slot close for queued followers. Original full-run
 driver-body failures and the unchanged replay failures remain recorded.
 
+Bounded native diagnostic of the remaining44.1 kHz observation (verification
+only, zero count): the complete original body fails after4.2 seconds. Passive
+decode/close tracing shows the running44100 Hz native context receives the
+ordinary owned24-bit BWF33730-byte source (RIFF size33722; bext602; PCM format1,
+mono44100 Hz, block alignment3,24-bit; data33075 bytes,11025 frames). Native
+decode resolves with one channel but length0 before close, before awaiting close
+and after close. The actual forwarded upload is44 bytes, RIFF size36 with an
+empty data chunk. The Node source descriptor is positive and the same-source
+Chromium/Firefox complete PCM controls already pass; WebKit96 kHz programme/
+upper-band control also passes. No capture or post-close invalidation cause is
+established. The admitted ready empty upload remains unresolved pending review
+of the application's supported PCM fallback, without a capability skip or
+changed source-frame oracle.
+
+The same bounded diagnostic runs both complete replacement bodies with only
+the identical round2 peer's20-second choice wait and60-second whole envelope.
+Continuous/Freeze pass17.0/19.2 seconds, retaining exact source identity,
+authored curve/source clock and Undo/Redo controls. Passive stage times measure
+file-selected→choice-visible4.251/4.042 seconds and whole completion16.513/
+18.612 seconds. Those measured waits are below5 seconds in this run, so this
+probe alone does not establish the need for maintained timeout growth. Original
+full/unchanged5-second failures remain recorded. Exact completed diagnostic
+context/PNG/full log were consumed; both temporary specs and all owned outputs/
+log were immediately removed. All native readers and the CPU slot close for
+queued followers; product source and qualifying count remain unchanged.
+
 IO043 shared HTML speech-player follow-through (zero count, correction pending):
 authenticated guarded `2541ed646` default Speakers completes ordinary Generate →
 Text to Speech → native Play in 2.9 seconds. The chosen-speaker case routes the
