@@ -450,6 +450,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-histogram-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded RGB histogram and clipping diagnostics admit encoded sRGB bytes and publish immutable counts only after complete joined evaluation." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-jpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 native JPEG encoding admits opaque encoded-sRGB UNORM8 frames, bounds owned pixel/output bytes, preserves explicit quality and borrowed offsets, joins codec settlement through cancellation and refuses wrong MIME, markers or dimensions without converting color or alpha." }
+		,
 		{"path": "src/common/editor/imaging/pixel-frame-managed-sdr-grade-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped managed SDR grading reuses prepared color math with bounded borrowed chunks and wiped output."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped RGB noise reduction owns one original encoded-sRGB snapshot and one output, evaluates alpha-weighted replicated-edge reversible-luma and chroma neighborhoods, joins native cancellation and consumer settlement, and wipes both backings on every retirement path." }
