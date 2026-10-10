@@ -108,6 +108,7 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 		const rendered = await dependencies.renderSnapshot(renderProject, {
 			startFrame: preparation.renderPlan.startSample,
 			endFrame: preparation.renderPlan.endSample,
+			outputFrames: preparation.renderPlan.endSample - preparation.renderPlan.startSample,
 			includeMaster: false,
 			includeTrackPan: false,
 			respectMuteSolo: false,
