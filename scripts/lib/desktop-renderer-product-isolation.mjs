@@ -3,7 +3,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 
 const SOUNDSCAPER_CUSTODY_MODULES = Object.freeze(new Set([
 	'/src/common/cross-product-handoff-intent.ts',
@@ -22,6 +22,7 @@ export function assertDesktopRendererProductIsolation(bundleValue, productIdValu
 	const productId = rendererProduct(productIdValue);
 	const bundle = rendererBundle(bundleValue);
 	if (productId === 'framescaper') return;
+	if (productId === 'motionscaper') return assertMotionscaperRendererIsolation(bundle);
 	for (const output of Object.values(bundle)) {
 		if (output?.type === 'asset') {
 			if (soundscaperRendererAssetForbidden(output.fileName)) {
@@ -74,7 +75,7 @@ export function desktopRendererProductPublicAssetFiles(productIdValue, filesValu
 		throw new TypeError('Desktop renderer public asset inventory contains duplicates.');
 	}
 	return Object.freeze(files.filter((path) => productId === 'framescaper'
-		|| !soundscaperRendererAssetForbidden(path)));
+		|| !(productId === 'motionscaper' ? motionscaperRendererAssetForbidden(path) : soundscaperRendererAssetForbidden(path))));
 }
 
 /** Emit a product-selected Vite public tree when the default public copier is disabled. */
@@ -108,6 +109,7 @@ export function enforceDesktopRendererProductIsolation(productIdValue) {
 		apply: 'build',
 		generateBundle: { order: 'pre', handler(_options, bundle) {
 			if (productId === 'framescaper') return;
+			if (productId === 'motionscaper') return assertMotionscaperRendererIsolation(bundle);
 			for (const output of Object.values(bundle)) {
 				if (output?.type !== 'chunk') continue;
 				const modules = Object.keys(output.modules ?? {});
@@ -222,4 +224,31 @@ async function collectPublicFiles(root, relativeRoot = '') {
 		else throw new Error(`Desktop renderer public asset is not a regular file: ${relativePath}.`);
 	}
 	return files;
+}
+
+// Motionscaper owns its editor runtime; descriptive profiles and schema custody
+// remain shared so foreign projects can be identified without activating them.
+function assertMotionscaperRendererIsolation(bundle) {
+	for (const output of Object.values(bundle)) {
+		if (motionscaperRendererAssetForbidden(output.fileName)) {
+			throw new Error(`Motionscaper renderer contains forbidden asset ${output.fileName}.`);
+		}
+		if (output.type !== 'chunk') continue;
+		for (const id of Object.keys(output.modules ?? {})) {
+			const path = repositoryModuleSuffix(normalizedModuleId(id));
+			if (SOUNDSCAPER_CUSTODY_MODULES.has(path)) continue;
+			if (/^\/src\/(?:soundscaper|framescaper)\/(?!product-profile\.[jt]s$)/u.test(path)
+				|| /\/src\/common\/(?:editor|i18n)\/.*(?:framescaper|soundscaper).*(?:runtime|bootstrap|native-services|capture)/iu.test(path)) {
+				throw new Error(`Motionscaper renderer contains forbidden module ${id}.`);
+			}
+		}
+		if (/(?:framescaperDesktop|(?:framescaper|soundscaper):v1:(?:native-services|capture|native-plugin|delivery))/u.test(output.code ?? '')) {
+			throw new Error(`Motionscaper renderer contains callable foreign product code in ${output.fileName}.`);
+		}
+	}
+}
+
+function motionscaperRendererAssetForbidden(path) {
+	if (/^logo\/(?:soundscaper|framescaper|motionscaper)\.svg$/u.test(path)) return false;
+	return /(?:^|\/)(?:soundscaper|framescaper)[^/]*\.(?:[cm]?js|wasm)$/iu.test(path);
 }
