@@ -78,7 +78,6 @@ import {
 	type VideoTimingProbePort,
 } from '../../video-timing-probe.ts';
 import { createContainerVideoTimingProbe } from '../../video-timing-demux.ts';
-
 type EncodedCaptureRepositories = Pick<EncodedCaptureSpoolRepository,
 	'create' | 'load' | 'append' | 'reconcileAppend' | 'seal' | 'delete' | 'read'
 	| 'releaseAdopted' | 'restoreAcknowledgedPrefix'>;
@@ -102,7 +101,6 @@ export interface FramescaperCapturePublicationContext {
 	readonly signal?: AbortSignal | null;
 }
 export type { FramescaperCaptureDesktopBridgeV1 } from './internal/framescaper-capture-device-adapter.ts';
-
 export interface FramescaperCaptureAppCompositionOptions {
 	readonly productId: string;
 	readonly schemaFamily: 'framescaper';
@@ -117,6 +115,7 @@ export interface FramescaperCaptureAppCompositionOptions {
 	readonly VideoFrame?: WebVcrVideoFrameCropRuntime['VideoFrame'] | null;
 	readonly recordingControllerFactory?: FramescaperBrowserRecorderFactoryOptions['recordingControllerFactory'];
 	readonly getAudioContext: FramescaperBrowserRecorderFactoryOptions['getAudioContext'];
+	readonly getMonitorDestination?: Parameters<typeof createFramescaperWebVcrCaptureAdapter>[0]['getMonitorDestination'];
 	readonly AudioWorkletNode?: unknown;
 	readonly videoProbe?: CaptureVideoProbe | null;
 	readonly helperTimingProbe?: VideoTimingProbePort | null;
@@ -226,6 +225,7 @@ export function createFramescaperCaptureAppComposition(
 		baseRecorder: recorderFactory,
 		createStream,
 		getAudioContext: options.getAudioContext as unknown as Parameters<typeof createFramescaperWebVcrCaptureAdapter>[0]['getAudioContext'],
+		getMonitorDestination: options.getMonitorDestination,
 		openCrop: ({ source, crop, onError }) => createWebVcrCroppedVideoTrack({
 			source, crop, onError, runtime: cropRuntime,
 		}),

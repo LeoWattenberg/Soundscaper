@@ -448,7 +448,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setProject: documentScope.set, setHistory: value => { state.history = value; },
 				synchronizeProject: async value => { await bindings.applyProjectToPlaybackEngine(value); bindings.publishProjectState(); } }),
 			prepareCaptureStart: async () => { await bindings.flushProject(); },
-			getAudioContext: () => engine.getAudioContext({ resume: false }),
+			getAudioContext: () => engine.getAudioContext({ resume: false }), getMonitorDestination: () => engine.getPlaybackDestination(),
 			createStream: options.createStream, MediaRecorder: options.MediaRecorder,
 			MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
 			recordingControllerFactory: captureRuntime.adaptRecordingControllerFactory(options.recordingControllerFactory, { getGain: () => engine.getPlaybackGain(), subscribe: documentChannel.subscribe }), AudioWorkletNode: options.AudioWorkletNode,
