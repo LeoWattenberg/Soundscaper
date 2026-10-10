@@ -178,6 +178,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 		reason: 'Image, still, and generator cards read their authored sequence-frame count and explicitly convert that extent at the primary sequence clock; these leaves have no legacy audio or video runtime timing aliases to project.',
 	},
 	{
+		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'retimePreview',
+		reason: 'Private retimed preview helper runs after the registered bin preview projection boundary and intentionally binds persisted sequence/source frame ordinals to the authenticated source timing view; the authored retime curve is evaluated before drawable source timestamps are presented.',
+	},
+	{
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'rowsForProject',
 		reason: 'Private table projection receives the resolved project captured by getClipSpreadsheetRows or planEdits before converting sample coordinates into spreadsheet seconds.',
 	},
