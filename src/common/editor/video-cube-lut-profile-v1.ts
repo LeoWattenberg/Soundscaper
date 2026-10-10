@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
-import type { VideoCubeLutReferenceV1 } from './video-color-cube-lut-v27.ts';
-import { normalizeVideoColorGradeV1 } from './video-color-management-v27.ts';
+import { normalizeVideoCubeLutReferenceV1, type VideoCubeLutReferenceV1 } from './cube-lut-reference-contract.ts';
 
 export const CUBE_LUT_PROFILE_EFFECT_TYPE_V1 = 'cube-lut-profile-v1';
 /** The existing V27 table samples AFTER an identity linear Rec709 grade;
@@ -44,7 +43,7 @@ export function normalizeCubeLutProfileParamsV1(value: unknown = undefined): Rea
 	if (value && typeof value === 'object' && PARAMS.has(value)) return value as Readonly<CubeLutProfileParamsV1>;
 	const input = record(value, 'cube LUT profile parameters', ['lut']);
 	const raw = field(input, 'lut', 'cube LUT profile parameters');
-	const lut = raw === null ? null : normalizeVideoColorGradeV1({ ...normalizeVideoColorGradeV1(), lut: raw }).lut;
+	const lut = raw === null ? null : normalizeVideoCubeLutReferenceV1(raw);
 	const result = Object.freeze({ lut });
 	PARAMS.add(result);
 	return result;

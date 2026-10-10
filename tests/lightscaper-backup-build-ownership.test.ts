@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { transformSync } from 'esbuild';
@@ -49,7 +50,9 @@ test('actual photo export composition uses neutral archive bytes instead of time
 				'editor-imaging', 'editor-closed-domain-values', 'project-interchange-foundations']
 				.some(owner => owner === chunkGroupForModulePath(path)), path);
 		}
-		assert.ok(!/\/(?:wavpack|ui|soundscaper|framescaper)\//u.test(path), path);
+		const sourcePath = relative(root, path).split(sep).join('/');
+		assert.ok(sourcePath !== '' && !sourcePath.startsWith('../') && !isAbsolute(sourcePath), path);
+		assert.ok(!/(?:^|\/)(?:wavpack|ui|soundscaper|framescaper)\//u.test(sourcePath), sourcePath);
 		for (const dependency of runtimeDependencies(path)) { const target = resolveRelativeModule(path, dependency); assert.ok(target); pending.push(target); }
 	}
 	for (const name of ['scape-archive-envelope.ts', 'scape-archive-media.ts', 'file-service.js']) assert.ok(!seen.has(editor + name), name);

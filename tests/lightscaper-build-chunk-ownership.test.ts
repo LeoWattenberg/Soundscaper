@@ -342,6 +342,26 @@ test('shared byte publication budgets and writer leases keep their codec and cus
 	}
 });
 
+test('Cube custody owns only exact scalar references and plans without parsing or rendering passengers', () => {
+	const modules = ['cube-lut-reference-contract.ts', 'video-cube-lut-profile-v1.ts', 'video-cube-lut-project-references-v1.ts'];
+	const pending = modules.map(module => directory + module), seen = new Set<string>();
+	for (const path of pending) {
+		assert.equal(chunkGroupForModulePath(path), 'editor-media-storage-contracts', path);
+		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), 'editor-media-storage-contracts', path);
+		assert.notEqual(chunkGroupForModulePath(path + '.foreign'), 'editor-media-storage-contracts', path);
+	}
+	while (pending.length) {
+		const path = pending.pop()!; if (seen.has(path)) continue; seen.add(path);
+		assert.ok(['editor-media-storage-contracts', 'editor-closed-domain-values']
+			.some(owner => owner === chunkGroupForModulePath(path)), path);
+		const source = transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code;
+		for (const dependency of staticRelativeDependencies(source)) {
+			const target = resolveRelativeModule(path, dependency); assert.ok(target); pending.push(target);
+		}
+	}
+	assert.deepEqual([...seen].sort(), [...modules, 'closed-domain-value.ts'].map(module => directory + module).sort());
+});
+
 test('shared file-storage failure classification uses neutral message metadata without WAV or effect ownership', () => {
 	const path = directory + 'web-file-limit-failure.ts', owner = 'editor-neutral-foundations';
 	assert.equal(chunkGroupForModulePath(path), owner);

@@ -6,7 +6,7 @@
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const mediaRetentionChunkGroups = [{
 	name: 'editor-media-storage-contracts',
-	test: /src[\\/]common[\\/]editor[\\/](?:(?:retention|project-lock)\.js|(?:project-schema-version|publication-byte-estimates|take-group-source-references|video-source-characteristics|sequence-timecode|waveform-peak-contract)\.ts)$/,
+	test: /src[\\/]common[\\/]editor[\\/](?:(?:retention|project-lock)\.js|(?:project-schema-version|publication-byte-estimates|take-group-source-references|cube-lut-reference-contract|video-cube-lut-(?:profile|project-references)-v1|video-source-characteristics|sequence-timecode|waveform-peak-contract)\.ts)$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,
