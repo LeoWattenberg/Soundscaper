@@ -271,3 +271,16 @@ test('committed receipts survive late workflow failure and distinct destination 
 	assert.equal(error.failure.cause, cleanup); assert.deepEqual(error.failure.receipt.members.map(member => member.state), ['completed', 'completed']);
 	assert.deepEqual(error.failure.receipt.members.map(member => member.delivery?.status), ['saved', 'saved']); assert.equal(f.writes.size, 2);
 });
+
+test('scalar progress observes saved classification, isolates observer throws, and unsubscribes without revoking work', async () => {
+	const f = fixture(), held = deferred<void>(), snapshots: ReturnType<PhotoRasterExportBatchQueue['getSnapshot']>[] = [];
+	f.hooks.commit = id => id === 'one' ? held.promise : Promise.resolve();
+	const unsubscribe = f.owner.subscribe(snapshot => { snapshots.push(snapshot); throw Symbol('observer'); });
+	const work = f.owner.start(input()); await waitForEvent(f.events, 'commit:one');
+	assert.equal(snapshots.some(snapshot => snapshot.members[0]?.state === 'running'), true);
+	held.resolve(); const receipt = await work;
+	assert.equal(snapshots.some(snapshot => snapshot.members[0]?.state === 'completed' && snapshot.members[0].delivery?.status === 'saved'), true);
+	assert.equal(snapshots.at(-1)?.phase, 'settled'); assert.equal(snapshots.every(snapshot => Object.isFrozen(snapshot) && Object.isFrozen(snapshot.members)), true);
+	unsubscribe(); unsubscribe(); const count = snapshots.length; await f.owner.cancelAndJoin(); assert.equal(snapshots.length, count);
+	assert.deepEqual(receipt.members.map(member => member.state), ['completed', 'completed']);
+});

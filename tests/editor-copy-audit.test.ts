@@ -8,6 +8,8 @@ import test from 'node:test';
 import { auditEditorCopySource, auditEditorCopyTree } from '../scripts/lib/editor-copy-audit.mjs';
 import { EDITOR_COPY_AUDIT_INVENTORY } from '../scripts/lib/editor-copy-audit-inventory.mjs';
 import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
+import { photoBatchExportMenuCopy } from '../src/common/i18n/lightscaper-photo-batch-export-menu-copy.ts';
+import { photoBatchExportCopy } from '../src/common/i18n/lightscaper-photo-batch-export-copy.ts';
 import { photoJpegExportCopy } from '../src/common/i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoPngExportCopy } from '../src/common/i18n/lightscaper-photo-png-export-copy.ts';
 
@@ -33,6 +35,12 @@ test('both editor products expose authored UI copy through eager or lazy owned i
 	for (const [key, source] of Object.entries(photoPngExportCopy('en'))) {
 		assert.equal(EDITOR_COPY_AUDIT_INVENTORY[`ui.photoPngExport.${key}`], source);
 		assert.equal(EDITOR_ENGLISH_COPY[`ui.photoPngExport.${key}`], undefined);
+	}
+	for (const [scope, copy] of [['photoBatchExportMenu', photoBatchExportMenuCopy('en')], ['photoBatchExport', photoBatchExportCopy('en')]] as const) {
+		for (const [key, value] of Object.entries(copy)) {
+			assert.equal(EDITOR_COPY_AUDIT_INVENTORY[`ui.${scope}.${key}`], value);
+			assert.equal(EDITOR_ENGLISH_COPY[`ui.${scope}.${key}`], undefined);
+		}
 	}
 	assert.deepEqual(await auditEditorCopyTree('src/common/editor/ui', EDITOR_COPY_AUDIT_INVENTORY), []);
 });

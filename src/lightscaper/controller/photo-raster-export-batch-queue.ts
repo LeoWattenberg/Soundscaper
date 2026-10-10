@@ -66,6 +66,7 @@ export class PhotoRasterExportBatchQueue {
 	readonly #completed = new Map<string, PhotoRasterExportReceipt>();
 	readonly #failures = new Map<string, Readonly<{ cause: unknown }>>();
 	readonly #members = new Map<string, MemberCompletion>();
+	readonly #observers = new Set<(receipt: Readonly<PhotoRasterExportBatchReceipt>) => void>();
 	#plan: Readonly<PhotoRasterExportBatchV1> | null = null;
 	#destinations: Readonly<PhotoRasterExportBatchDestinations> | null = null;
 	#phase: PhotoRasterExportBatchReceipt['phase'] = 'idle';
@@ -81,6 +82,7 @@ export class PhotoRasterExportBatchQueue {
 			onChange: queue => {
 				this.#queue = queue;
 				for (const entry of queue.entries) if (entry.state !== 'queued' && entry.state !== 'running') this.#members.get(entry.jobId)?.resolve();
+				this.#publish();
 			}, isAbortError: value => typeof value === 'object' && value !== null && CANCELLED.has(value) });
 		this.#queue = this.#runner.getQueue();
 	}
@@ -88,6 +90,19 @@ export class PhotoRasterExportBatchQueue {
 		const members = this.#plan?.members.map(member => Object.freeze({ ...member,
 			state: this.#queue.entries.find(entry => entry.jobId === member.jobId)?.state ?? 'queued', delivery: this.#completed.get(member.jobId) ?? null })) ?? [];
 		return Object.freeze({ batchId: this.#plan?.batchId ?? null, phase: this.#phase, paused: this.#queue.paused, members: Object.freeze(members) });
+	}
+	/** Observers receive scalar receipts only and cannot revoke a delivered member. */
+	subscribe(observer: (receipt: Readonly<PhotoRasterExportBatchReceipt>) => void): () => void {
+		this.#observers.add(observer);
+		return () => { this.#observers.delete(observer); };
+	}
+	#publish(): void {
+		if (!this.#observers.size) return;
+		const receipt = this.getSnapshot();
+		for (const observer of [...this.#observers]) {
+			if (!this.#observers.has(observer)) continue;
+			try { observer(receipt); } catch { /* Progress cannot change owned work or ACKs. */ }
+		}
 	}
 	/** Single use: neither Maps nor atomic-restart labels constitute persisted resume. */
 	start(value: unknown): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
@@ -105,7 +120,7 @@ export class PhotoRasterExportBatchQueue {
 			preparation = this.#runtime.prepareDestinations(this.#plan, { signal: this.#stop.signal });
 		} catch (cause) {
 			this.#cancelQueued();
-			this.#phase = 'settled'; return Promise.reject(new PhotoRasterExportBatchError(cause, this.getSnapshot()));
+			this.#phase = 'settled'; this.#publish(); return Promise.reject(new PhotoRasterExportBatchError(cause, this.getSnapshot()));
 		}
 		this.#work = this.#run(preparation);
 		this.#joined = this.#work.then(() => undefined, () => undefined);
@@ -127,7 +142,7 @@ export class PhotoRasterExportBatchQueue {
 	async cancelAndJoin(): Promise<void> {
 		this.#runner.pause(); this.#stop.abort();
 		this.#cancelQueued();
-		if (this.#phase === 'idle') this.#phase = 'settled';
+		if (this.#phase === 'idle') { this.#phase = 'settled'; this.#publish(); }
 		if (this.#active) { this.#active.cancelled = true; await this.#active.owner.cancelAndJoin(this.#active.cancelReason); }
 		await this.#joined;
 	}
@@ -145,7 +160,7 @@ export class PhotoRasterExportBatchQueue {
 			// Enqueueing while paused creates a settling admission drain. Join it
 			// before resuming, including immediately fulfilled authority promises.
 			await this.#runner.settled();
-			if (!this.#stop.signal.aborted) { this.#phase = 'running'; if (!this.#paused) this.#runner.resume(); }
+			if (!this.#stop.signal.aborted) { this.#phase = 'running'; this.#publish(); if (!this.#paused) this.#runner.resume(); }
 			// Pausing ends one drain. Completion belongs to members, not that drain.
 			await Promise.all([...this.#members.values()].map(member => member.joined));
 			await this.#runner.settled();
@@ -156,6 +171,7 @@ export class PhotoRasterExportBatchQueue {
 				try { await retire(); } catch (cause) { cleanup = Object.freeze({ cause }); }
 			}
 			this.#phase = 'settled';
+			this.#publish();
 		}
 		const receipt = this.getSnapshot();
 		if (failure) throw new PhotoRasterExportBatchError(failure.cause, receipt, cleanup ?? undefined);

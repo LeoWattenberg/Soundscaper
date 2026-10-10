@@ -74,6 +74,22 @@ export const editorUiChunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
+		name: 'lightscaper-photo-batch-export-menu-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-batch-export-menu-copy\.ts$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'lightscaper-photo-batch-export-copy',
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-batch-export-copy\.ts$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'lightscaper-photo-jpeg-export-copy',
 		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-jpeg-export-copy\.ts$/,
 		priority: 98,

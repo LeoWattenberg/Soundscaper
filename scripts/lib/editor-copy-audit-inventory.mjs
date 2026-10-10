@@ -2,6 +2,8 @@
 
 import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { FREESOUND_ATTRIBUTION_ENGLISH_COPY } from '../../src/common/i18n/freesound-attribution-copy.js';
+import { photoBatchExportMenuCopy } from '../../src/common/i18n/lightscaper-photo-batch-export-menu-copy.ts';
+import { photoBatchExportCopy } from '../../src/common/i18n/lightscaper-photo-batch-export-copy.ts';
 import { photoJpegExportCopy } from '../../src/common/i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-export-copy.ts';
 import { imageExportGraphicCopy } from '../../src/common/i18n/image-export-graphic-copy.ts';
@@ -15,10 +17,15 @@ const photoPngExport = Object.fromEntries(Object.entries(photoPngExportCopy('en'
 const imageExportGraphic = Object.fromEntries(Object.entries(imageExportGraphicCopy('en'))
 	.map(([key, value]) => [`ui.imageExportGraphic.${key}`, value]));
 
+const photoBatchMenu = Object.fromEntries(Object.entries(photoBatchExportMenuCopy('en')).map(([key, value]) => [`ui.photoBatchExportMenu.${key}`, value]));
+const photoBatchExport = Object.fromEntries(Object.entries(photoBatchExportCopy('en')).map(([key, value]) => [`ui.photoBatchExport.${key}`, value]));
+
 /** Build-time inventory includes copy owned by lazy surfaces without bundling it eagerly. */
 export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...EDITOR_ENGLISH_COPY,
 	...freesoundAttribution,
+	...photoBatchMenu,
+	...photoBatchExport,
 	...photoPngExport,
 	...photoJpegExport,
 	...imageExportGraphic,

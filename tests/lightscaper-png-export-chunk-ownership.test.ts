@@ -83,8 +83,12 @@ test('JPEG codec and full copy remain exact optional owners while only its menu 
 		assert.notEqual(chunkGroupForModulePath(JPEG.replace('-v1.', '-v2.').replaceAll('/', separator)), 'editor-jpeg-bytes');
 	}
 	const app = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/LightscaperAppV2.tsx'));
-	assert.match(app, /lazy\(\(\) => import\("\.\/PhotoJpegExportDialog\.tsx"\)\)/u);
+	assert.match(app, /lazy\(\(\) => import\("\.\/PhotoRasterExportSurface\.tsx"\)\)/u);
+	assert.ok(!staticRelativeDependencies(app).includes('./PhotoRasterExportSurface.tsx'));
 	assert.ok(!staticRelativeDependencies(app).includes('./PhotoJpegExportDialog.tsx'));
+	const surface = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/PhotoRasterExportSurface.tsx'));
+	assert.match(surface, /lazy\(\(\) => import\("\.\/PhotoJpegExportDialog\.tsx"\)\)/u);
+	assert.ok(!staticRelativeDependencies(surface).includes('./PhotoJpegExportDialog.tsx'));
 	assert.ok(runtimeClosure('src/common/editor/ui/lightscaper/PhotoJpegExportDialog.tsx').has(JPEG));
 });
 
