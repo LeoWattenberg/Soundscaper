@@ -4,7 +4,7 @@ import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { assistanceDialogRequest, assistanceTaskLabel } from '../assistance-task-catalog.ts';
 import AssistanceLoadingDialog from '../dialogs/AssistanceLoadingDialog.tsx';
 import { resolveLocalModelManagerBridge } from '../local-model-manager-availability.ts';
-import { AudioEditorListeningGainContext } from '../audio-editor-listening-preview.tsx';
+import { AudioEditorListeningGainContext, AudioEditorListeningOutputDeviceContext } from '../audio-editor-listening-preview.tsx';
 import type { LocalAssistanceSelectedMediaPreparationPort } from '../../assistance/local-assistance-preparation.ts';
 import type { TextToSpeechProjectPort } from '../dialogs/text-to-speech-port-runtime.ts';
 
@@ -19,7 +19,7 @@ export default function LocalProcessingOverlays({ activeSurface, fileService, ca
 	readonly fileService: { readonly isDesktop: boolean; readonly bridge?: unknown };
 	readonly capabilities: { readonly assistanceAssets?: boolean };
 	readonly snapshot: { readonly project?: { readonly id: string } | null;
-		readonly audioDevices?: { readonly playbackGain?: number } };
+		readonly audioDevices?: { readonly playbackGain?: number; readonly preferredOutputDeviceId?: string } };
 	readonly copy: Readonly<Record<string, string>>;
 	readonly locale: string;
 	readonly selectedMediaPreparation: LocalAssistanceSelectedMediaPreparationPort | null;
@@ -34,6 +34,7 @@ export default function LocalProcessingOverlays({ activeSurface, fileService, ca
 			: request ? copy.advancedLocalProcessing || 'Advanced Local Processing'
 				: copy.manageLocalModels || 'Model Manager';
 	return <AudioEditorListeningGainContext.Provider value={snapshot.audioDevices?.playbackGain ?? 1}>
+		<AudioEditorListeningOutputDeviceContext.Provider value={snapshot.audioDevices?.preferredOutputDeviceId ?? ''}>
 		<Suspense fallback={<AssistanceLoadingDialog title={title} copy={copy} onClose={close} />}>
 		{activeSurface === 'local-models' && <div data-editor-surface="local-models">
 			<LocalModelManagerDialog bridge={resolveLocalModelManagerBridge(fileService.bridge)}
@@ -49,5 +50,6 @@ export default function LocalProcessingOverlays({ activeSurface, fileService, ca
 				bridgeScope={fileService.bridge} projectPort={textToSpeechProjectPort ?? null}
 				copy={copy} locale={locale} onClose={close} /></div>}
 		</Suspense>
+		</AudioEditorListeningOutputDeviceContext.Provider>
 	</AudioEditorListeningGainContext.Provider>;
 }

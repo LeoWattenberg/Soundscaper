@@ -381,6 +381,15 @@ device. Both actual device APIs remain native. Exact PNG/context were read;
 completed owning output and bounded log are immediately removed. TTS and Guided
 review share the same HTML preview component; this is conservative IO043 device
 routing closure and adds no new count.
+The mounted strict witness first fails all three default/selected/native-device
+controls with no actual media routing calls. Correct shared context propagation
+and serialize native allocations on the owned audio element; native Play controls
+wait for the latest chosen speaker, while existing gain, paused state, position
+and player identity remain intact. Pending retired allocations cannot publish.
+New initial/live/delayed/retired controls plus prior TTS/Guided gain controls pass
+7/7. Target type-aware lint and canonical lint:changed pass, including the exact
+final strict fixture. Complete corrected native-menu workflows await next guard.
+No assistance runtime closure or generated assets change.
 
 Full150 Firefox follow-through observations (zero count, unchanged replay pending):
 two native microphone-monitor cases fail before their listening-mute assertions
