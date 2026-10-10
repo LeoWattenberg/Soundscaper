@@ -827,7 +827,7 @@ modules/45 runtime pairs/25 type-only pairs and 11438 maintained files with
 239 unchanged ratchets. All audits, notices, docs and the production build pass.
 Both completed startup-report tightening commands have no further ceiling to
 claim. Its full Node run is still active; the unchanged desktop parallel-stack
-preflight reports Running status 3, one deadline fault and zero measured
+preflight reports status 3, one deadline fault and zero measured
 progress/peak, so that original failed status is preserved. The complete
 unchanged protocol/session/verified Electron control set separately passes
 21/21 in 30.977 seconds, including Running 1/fault 0, both real workers advancing
@@ -842,3 +842,14 @@ metadata, runtime closure, asset pins and target inventories remain unchanged;
 the public helper registration is the only policy addition. Subsequent delivery
 commits are receipts and the faithful browser witness. The count stays 200 and
 manual Update AI assets remains unnecessary.
+
+The first fresh repaired-source full canonical runner explicitly closes with
+exit 1. Its separate desktop preflight schedules one case and fails; its full
+primary batch independently schedules 25900 cases and completes 25867 PASS,
+33 SKIP, zero FAIL/cancelled in 1141.569 seconds. Across both actual batches this
+is 25901 scheduled, 25867 PASS, 33 SKIP and one FAIL. All static gates passed;
+the following `&&` coverage report is not reached. The separately unchanged
+21/21 healthy native controls do not rewrite that failed aggregate. All browser
+follow-through readers are closed. Only after this writer closes is the unique
+watcher stop flag created for its guarded final drain, followed by immediate
+raw-profile reclamation and a fresh full gate using the final witness correction.
