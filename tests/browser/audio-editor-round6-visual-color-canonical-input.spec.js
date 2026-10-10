@@ -4,6 +4,8 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 
 test('Selected Visual Inspector accepts ordinary uppercase RGBA text at Apply', async ({ page }) => {
+	// Three inspector round trips include live preview work under CI coverage.
+	test.setTimeout(60_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
 	const clip = editor.getByRole('group', { name: 'Video clip: Solid', exact: true });
