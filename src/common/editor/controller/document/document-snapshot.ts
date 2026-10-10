@@ -280,7 +280,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		projectActivationPending: state.projectActivationPending,
 		importing: state.importing,
 		recordingStarting: state.recordingStarting,
-		recordingScheduling: state.timedRecordingPreparing,
+		recordingScheduling: state.timedRecordingPreparing || state.timedRecordingCancelling,
 		scheduledRecording: state.timedRecording
 			? Object.freeze({
 				startTimeMs: state.timedRecording.startTimeMs,
