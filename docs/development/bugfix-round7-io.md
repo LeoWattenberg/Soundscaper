@@ -112,12 +112,25 @@ seconds. All sixteen Chromium capture/FCPXML controls pass, including ordinary
 record/pause/reopen 8.2 seconds, Inputs setup 8.3 seconds and actual Web VCR
 record/import/reopen 10.5 seconds. The two unchanged Firefox dialog-coverage
 import/control cases pass in 8.3/10.7 seconds. These are zero-count verification
-receipts. Firefox WavPack's existing Pause observer still fails after reload;
+receipts. The initial Firefox WavPack replay's Pause observer failed after reload;
 additional ready-state and activation-fence hypotheses also failed and their
-temporary edits were reverted. Passive observation confirms ready=true, no
-activation pending and no dialog, alert or client error. That case remains
-unresolved, as do the separately queued long BW64 and cross-engine capture/format
-replays. All 27 reviewed owned original diagnostic directories and each completed
+temporary edits were reverted. Passive observation confirmed ready=true, no
+activation pending and no dialog, alert or client error. The unchanged existing
+CI Firefox audio-clock probe then proved the inherited WSLg Pulse socket unhealthy:
+zero clock advance, a suspended context and four timed-out resume probes. The
+initial long pristine BW64 replay reached its 175446 ms publication deadline;
+the second case was interrupted after 16.5 seconds and is excluded. Restoring
+the existing CI null sink with already extracted binaries gives the unchanged
+probe 0.059 seconds of advance and a maximum restart of 38 ms. Against guarded
+authenticated capture `678a672d0`, unchanged WavPack persistence/reload/play/edit
+and legacy read now pass in 8.6 seconds; pristine BW64 passthrough and authored
+BW64 stream/cancellation pass in 1.8 and 1.4 minutes, retaining every original
+deadline, PCM, container and publication assertion. Four unchanged Firefox
+capture/Inputs cases pass in 4.5/9.4/11.1/6.7 seconds. Nine unchanged WebKit
+format/capture cases also pass: WAV/BWF/BW64/AIFF export round trips in
+3.3/3.8/4.0/3.4 seconds; AIFF/M4A/OGA/AIF import, playback and reload in
+4.5/4.1/4.5/4.3 seconds; capture/pause/resume/import/reopen in 11.7 seconds.
+These replays change no source, test, deadline or bug count. All 27 reviewed owned original diagnostic directories and each completed
 focused replay's diagnostics/log were removed immediately; the root retains the
 small shared full-run log.
 
