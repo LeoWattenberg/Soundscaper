@@ -436,7 +436,17 @@ whole workflow instead reaches deletion, then retains Delete this project? over
 an already replaced Untitled project (16.023 seconds), matching the corrected
 D036 handoff owner. Preserve all original full-run failures; exact reviewed PNGs,
 contexts and all three completed diagnostic directories are removed immediately.
-Unchanged desktop replay and supported Web VCR controls remain pending.
+On guarded2541, all supported whole prerequisite controls pass: native monitor
+Chromium5.1/5.4 and Firefox7.7/7.8 seconds, Web VCR Chromium3.0/3.1 seconds.
+The Web VCR fixture now declares the existing packaged Chromium prerequisite,
+retaining all audible PCM/local-mute/Playback-volume/release assertions. Native
+WebKit exposes getDisplayMedia but still publishes Capture is unavailable; that
+alone did not establish supported capture. Its exact read setup failures are
+preserved. Restrict the skip to WebKit's actual canonical unavailable status;
+a separate unchanged-product native WebKit replay verifies both unsupported
+prerequisites as skips. No deadline or captured-media assertions change.
+Target lint passes; all completed own proof logs/output are immediately removed.
+The whole unchanged desktop Firefox project-library replay remains pending.
 
 The strict Node witnesses use ordinary media generated in memory and ordinary
 authored project data. They call the normal product commands, import recorder,

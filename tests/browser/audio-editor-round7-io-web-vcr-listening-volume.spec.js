@@ -6,7 +6,8 @@ import { installWebVcrHost } from './helpers/web-vcr-host.js';
 
 test.use({ browserCoverage: false });
 
-for (const mute of [false, true]) test(`Web VCR page-audio preview ${mute ? 'follows Playback volume' : 'retains its independent local mute'}`, async ({ page }) => {
+for (const mute of [false, true]) test(`Web VCR page-audio preview ${mute ? 'follows Playback volume' : 'retains its independent local mute'}`, async ({ page, browserName }) => {
+	test.skip(browserName !== 'chromium', 'The packaged Web VCR capture adapter requires Chromium MediaStreamTrackProcessor support.');
 	await page.addInitScript(() => {
 		globalThis.__webVcrSpeakerOutputs = [];
 		const connect = AudioNode.prototype.connect;

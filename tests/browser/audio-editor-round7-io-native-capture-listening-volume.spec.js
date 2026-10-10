@@ -6,7 +6,7 @@ import { expectCapturePhase, openRecordingSetup, selectSourceRoles } from './hel
 
 test.use({ browserCoverage: false });
 
-for (const mute of [false, true]) test(`Recording setup microphone monitoring ${mute ? 'follows listening mute' : 'preserves full-level monitoring'} without muting captured PCM`, async ({ page }) => {
+for (const mute of [false, true]) test(`Recording setup microphone monitoring ${mute ? 'follows listening mute' : 'preserves full-level monitoring'} without muting captured PCM`, async ({ page, browserName }) => {
 	await page.addInitScript(() => {
 		Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
 			configurable: true,
@@ -92,6 +92,8 @@ for (const mute of [false, true]) test(`Recording setup microphone monitoring ${
 	});
 	const editor = await bootEditor(page, '/framescaper/en/');
 	const panel = await openRecordingSetup(page, editor);
+	test.skip(browserName === 'webkit' && (await panel.getByRole('status').textContent()).includes('Capture is unavailable in this runtime'),
+		'This native WebKit build lacks the published Framescaper capture prerequisites.');
 	await selectSourceRoles(panel, ['microphone']);
 	await panel.getByRole('button', { name: 'Preview sources', exact: true }).click();
 	await expectCapturePhase(panel, 'previewing');
