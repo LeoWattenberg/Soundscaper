@@ -17,6 +17,13 @@ const HOOK = 'src/common/editor/ui/lightscaper/use-lightscaper-editor-copy.ts';
 const DEVELOP = ['src/common/i18n/lightscaper-develop-copy.ts', 'src/common/i18n/lightscaper-develop-settings-copy.ts'];
 const VISUAL = 'src/common/i18n/video-effect-copy.js';
 const COPY_MODULES = [...sourceModules(resolve(ROOT, 'src/common/i18n')), resolve(ROOT, HOOK)];
+const TRANSFER = 'src/common/editor/platform/bounded-transfer.ts';
+const CURRENT_IMAGE_LEAVES = ['video-effects-v2.ts', 'video-color-cube-lut-v27.ts',
+	'video-color-management-v27.ts', 'video-color-byte-encoding.ts'].map(name => `src/common/editor/${name}`);
+const PHOTO_OWNERS = new Set(['editor-neutral-foundations', 'editor-photo-library-scalars', 'editor-imaging',
+	'editor-media-storage-contracts', 'editor-media-custody-storage', 'editor-closed-domain-values',
+	'editor-dialog-foundations', 'lightscaper-editor-copy', 'lightscaper-develop-copy', 'editor-visual-effect-copy']);
+const PHOTO_COOWNERS = sourceModules(resolve(ROOT, 'src')).filter(path => PHOTO_OWNERS.has(chunkGroupForModulePath(path) ?? ''));
 
 test('optional develop labels and shared visual labels have exact independent nonrecursive owners', () => {
 	for (const [paths, owner] of [[DEVELOP, 'lightscaper-develop-copy'], [[VISUAL], 'editor-visual-effect-copy']] as const) {
@@ -65,8 +72,56 @@ test('both photo applications retain actual lazy import and develop entries with
 	}
 });
 
+test('shared current transfer and image leaves have neutral owners without timeline dependencies', () => {
+	assert.equal(chunkGroupForModulePath(TRANSFER), 'editor-neutral-foundations');
+	assert.deepEqual(staticRelativeDependencies(runtimeSource(resolve(ROOT, TRANSFER))), []);
+	for (const path of CURRENT_IMAGE_LEAVES) {
+		for (const separator of ['/', '\\']) {
+			assert.equal(chunkGroupForModulePath(path.replaceAll('/', separator)), 'editor-imaging', path);
+			assert.notEqual(chunkGroupForModulePath((path + '.foreign').replaceAll('/', separator)), 'editor-imaging');
+		}
+		const source = runtimeSource(resolve(ROOT, path));
+		assert.deepEqual(dynamicRelativeImports(source), [], path);
+		for (const specifier of staticRelativeDependencies(source)) {
+			const target = resolveRelativeModule(resolve(ROOT, path), specifier); assert.ok(target, specifier);
+			assert.ok(PHOTO_OWNERS.has(chunkGroupForModulePath(target) ?? ''), `${path} imports ${specifier}`);
+		}
+	}
+	for (const name of ['video-effects-v3.ts', 'video-color-management-v28.ts', 'video-color-cube-lut-v28.ts', 'video-clip-composition.ts']) {
+		assert.notEqual(chunkGroupForModulePath(`src/common/editor/${name}`), 'editor-imaging', name);
+	}
+});
+
+test('the actual photo bootstrap and import dialog stay cold across non-i18n co-owned runtime modules', () => {
+	for (const entry of ['src/lightscaper/ui/LightscaperBootstrap.tsx', 'src/common/editor/ui/lightscaper/PhotoImportDialogV2.tsx']) {
+		const reached = photoRuntimeClosure(entry);
+		for (const path of [TRANSFER, ...CURRENT_IMAGE_LEAVES]) assert.ok(reached.has(path), `${entry} omitted ${path}`);
+		for (const path of reached) assert.doesNotMatch(path, /\/i18n\/(?:canonical-extras[^/]*|catalogs|runtime|editor-copy-inventory)\./u);
+	}
+});
+
 function runtimeSource(path: string): string {
-	return transformSync(readFileSync(path, 'utf8'), { loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : 'js', format: 'esm' }).code;
+	return transformSync(readFileSync(path, 'utf8'), { loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : path.endsWith('.jsx') ? 'jsx' : 'js', format: 'esm' }).code;
+}
+
+// A neutral or image owner's static dependency is paid even when a different
+// co-owned consumer uses it. Inspect real product entries, not just their copy hook.
+function photoRuntimeClosure(entry: string): ReadonlySet<string> {
+	const reached = new Set<string>(), pending = [resolve(ROOT, entry)];
+	while (pending.length) {
+		const path = pending.pop()!, repositoryPath = relative(ROOT, path).split(sep).join('/');
+		if (reached.has(repositoryPath)) continue;
+		reached.add(repositoryPath);
+		const owner = chunkGroupForModulePath(path);
+		assert.notEqual(owner, 'editor-domain', `Photo runtime loads timeline domain ${repositoryPath}`);
+		if (owner && PHOTO_OWNERS.has(owner)) for (const candidate of PHOTO_COOWNERS) {
+			if (chunkGroupForModulePath(candidate) === owner && !reached.has(relative(ROOT, candidate).split(sep).join('/'))) pending.push(candidate);
+		}
+		for (const specifier of staticRelativeDependencies(runtimeSource(path))) {
+			const target = resolveRelativeModule(path, specifier); assert.ok(target, specifier); pending.push(target);
+		}
+	}
+	return reached;
 }
 
 // Follow real runtime imports and also pay for every copy module sharing an owner.
