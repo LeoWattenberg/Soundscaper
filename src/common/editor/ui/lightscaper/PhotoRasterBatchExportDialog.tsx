@@ -13,7 +13,7 @@ import { photoPngExportCopy } from '../../../i18n/lightscaper-photo-png-export-c
 import { photoJpegExportCopy } from '../../../i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoBatchExportCopy } from '../../../i18n/lightscaper-photo-batch-export-copy.ts';
 import type { PhotoRasterExportDialogProps } from './PhotoRasterExportDialog.tsx';
-import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import './photo-catalog-backup.css';
 
@@ -60,6 +60,8 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 			const owner = await PhotoRasterPersistedBatch.prepare({ selection, execute, readSidecar, openJournal, signal: current.stop.signal });
 			current.persisted = owner;
 			if (current.live && !current.closed) {
+				const retained = owner.journal;
+				if (retained) { setSettings(restoreRasterExportSettings(retained.output, retained.filenameTemplate)); setFormat(retained.format); }
 				setTarget({ owner, lifetime: current });
 				if (!owner.journal && !owner.prepared || owner.journal?.members.every(member => member.state === 'committed')) latest.current.onSettled();
 			}

@@ -2,6 +2,7 @@
 
 import type { ImageExportSizingV1 } from '../../imaging/image-export-size-v1.ts';
 import type { PhotoRasterExportCopy } from './PhotoRasterExportDialog.tsx';
+import type { PhotoRasterExportOutput } from '../../../../lightscaper/controller/photo-raster-export.ts';
 
 export interface RasterExportSettings {
 	readonly kind: ImageExportSizingV1['kind']; readonly width: string; readonly height: string;
@@ -22,6 +23,22 @@ export function rasterExportSizing(settings: RasterExportSettings): ImageExportS
 		case 'long-edge': return { kind: 'long-edge', pixels: Number(settings.longEdge), allowUpscale };
 		case 'megapixels': return { kind: 'megapixels', megapixels: Number(settings.megapixels), allowUpscale };
 		case 'percentage': return { kind: 'percentage', percentage: Number(settings.percentage) };
+	}
+}
+
+/** Present the normalized retained recipe, without changing its output plan.
+ * Older journals without output retain the single-owner default semantics. */
+export function restoreRasterExportSettings(output: Readonly<PhotoRasterExportOutput> | undefined, filenameTemplate: string): RasterExportSettings {
+	const sizing = output?.sizing ?? { kind: 'original' };
+	const restored: RasterExportSettings = { ...DEFAULT_RASTER_EXPORT_SETTINGS, kind: sizing.kind, filenameTemplate,
+		quality: output?.quality ?? 'bilinear', metadataScope: output?.metadataScope ?? 'strip', sharpen: output?.sharpen !== undefined,
+		sharpenAmount: String(output?.sharpen?.amount ?? 100), sharpenThreshold: String(output?.sharpen?.threshold ?? 0) };
+	switch (sizing.kind) {
+		case 'original': return Object.freeze(restored);
+		case 'fit': return Object.freeze({ ...restored, width: String(sizing.width), height: String(sizing.height), allowUpscale: sizing.allowUpscale });
+		case 'long-edge': return Object.freeze({ ...restored, longEdge: String(sizing.pixels), allowUpscale: sizing.allowUpscale });
+		case 'megapixels': return Object.freeze({ ...restored, megapixels: String(sizing.megapixels), allowUpscale: sizing.allowUpscale });
+		case 'percentage': return Object.freeze({ ...restored, percentage: String(sizing.percentage) });
 	}
 }
 

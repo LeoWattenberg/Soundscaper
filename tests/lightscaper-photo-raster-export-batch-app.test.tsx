@@ -25,6 +25,8 @@ import { createPhotoMediaCubeLutResourcesV1 } from '../src/lightscaper/storage/p
 import { normalizePhotoRasterExportJournalV1 } from '../src/lightscaper/storage/photo-raster-export-journal-v1.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile } from '../src/common/editor/browser-file-save-service.ts';
 import { photoBatchExportCopy } from '../src/common/i18n/lightscaper-photo-batch-export-copy.ts';
+import { formatImageExportFilenameV1 } from '../src/common/editor/image-export-filename-v1.ts';
+import type { PhotoRasterExportOutput } from '../src/lightscaper/controller/photo-raster-export.ts';
 
 const previousRange = Object.getOwnPropertyDescriptor(globalThis, 'IDBKeyRange');
 Object.defineProperty(globalThis, 'IDBKeyRange', { configurable: true, value: InstrumentedKeyRange });
@@ -90,6 +92,76 @@ function fixture() {
 	};
 	return { props, runtime, events, blobs, held, photos, hold: () => { hold = true; }, retire: () => retired!(), close: () => lifetime.close(() => resources.close()) };
 }
+
+async function retainRecipe(f: ReturnType<typeof fixture>, output: Readonly<PhotoRasterExportOutput> | undefined, completed = false) {
+	const access = await f.props.captureJournal()(), key = `photo-library:raster-export-journal:v1:${access.catalogId}`, raw = await access.settings.get(key);
+	const before = normalizePhotoRasterExportJournalV1(raw), filenameTemplate = 'retained-{index:3}-{name}', format = completed ? 'png' : 'jpeg';
+	// Condition the actual settings row, without claiming a physical crash or
+	// a new download ACK. The already recorded delivery names follow its plan.
+	const next = normalizePhotoRasterExportJournalV1({ schemaVersion: 1, kind: before.kind, catalogId: before.catalogId,
+		revision: before.revision + 1, batchId: before.batchId, format, filenameTemplate, ...(output ? { output } : {}),
+		members: before.members.map(member => {
+			const fileName = formatImageExportFilenameV1({ template: filenameTemplate, sourceFileName: member.sourceFileName, format, index: member.index });
+			return { ...member, fileName, state: completed ? 'committed' : 'pending', delivery: completed ? { ...member.delivery!, fileName } : null };
+		}) });
+	assert.equal(await access.settings.replaceIfCurrent(key, raw, next), true);
+}
+
+const retainedSizing = [
+	{ sizing: { kind: 'original' }, fields: [] },
+	{ sizing: { kind: 'fit', width: 123, height: 456, allowUpscale: true }, fields: [['width', '123'], ['height', '456']] },
+	{ sizing: { kind: 'long-edge', pixels: 789, allowUpscale: true }, fields: [['long-edge', '789']] },
+	{ sizing: { kind: 'megapixels', megapixels: 2.5, allowUpscale: true }, fields: [['megapixels', '2.5']] },
+	{ sizing: { kind: 'percentage', percentage: 50 }, fields: [['percentage', '50']] },
+] as const;
+for (const recipe of [...retainedSizing, undefined]) test(`${recipe?.sizing.kind ?? 'absent output'}: reopened journal displays its retained recipe before recovery is ready`, async () => {
+	const f = fixture(); let m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...f.props} />);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'ready');
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return f.events.includes('settled'); }, 'committed'); await m.dispose(); await settle();
+		await retainRecipe(f, recipe ? { sizing: recipe.sizing, quality: 'nearest', metadataScope: 'capture', sharpen: { amount: 37, threshold: 9 } } : undefined);
+		m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...f.props} selection={[]} batchId="reopened-settings" />);
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'recovery ready');
+		const value = (key: string) => reactProps(m.dom.one(`[data-photo-raster-export-${key}]`)).value;
+		assert.equal(value('sizing'), recipe?.sizing.kind ?? 'original');
+		for (const [key, expected] of recipe?.fields ?? []) assert.equal(value(key), expected);
+		if (recipe && 'allowUpscale' in recipe.sizing) assert.equal(reactProps(m.dom.one('[data-photo-raster-export-upscale]')).checked, true);
+		assert.equal(value('filename-template'), 'retained-{index:3}-{name}');
+		assert.equal(value('metadata'), recipe ? 'capture' : 'strip');
+		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-sharpen]')).checked, !!recipe);
+		if (recipe) { assert.equal(value('sharpen-amount'), '37'); assert.equal(value('sharpen-threshold'), '9'); }
+		if (recipe && recipe.sizing.kind !== 'original') assert.equal(value('resample'), 'nearest');
+		assert.equal(reactProps(m.dom.one('[data-photo-batch-export-format]')).value, 'jpeg');
+		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-sizing]')).disabled, true);
+		assert.equal(f.blobs.length, 2);
+	} finally { await m.dispose(); await settle(); await f.close(); }
+});
+
+test('completed replacement begins with the retained settings and stays editable', async () => {
+	const f = fixture(); let m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...f.props} />);
+	const flush = async (action: () => void = () => undefined) => { await act(async () => { action(); await settle(); }); };
+	try {
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-start]')?.disabled === false; }, 'ready');
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-start]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return f.events.includes('settled'); }, 'committed'); await m.dispose(); await settle();
+		await retainRecipe(f, { sizing: { kind: 'percentage', percentage: 50 }, quality: 'nearest', metadataScope: 'capture', sharpen: { amount: 37, threshold: 9 } }, true);
+		m = await mountPhotoImportUi(() => <PhotoRasterBatchExportDialog {...f.props} batchId="replace-retained" />);
+		await waitFor(async () => { await flush(); return m.dom.find('[data-photo-batch-export-replace]')?.disabled === false; }, 'replace ready');
+		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-percentage]')).value, '50');
+		assert.equal(reactProps(m.dom.one('[data-photo-raster-export-percentage]')).disabled, false);
+		await flush(() => {
+			reactProps(m.dom.one('[data-photo-raster-export-percentage]')).onChange?.({ target: { value: '75' } });
+		});
+		await flush(() => { reactProps(m.dom.one('[data-photo-raster-export-metadata]')).onChange?.({ target: { value: 'strip' } }); });
+		await flush(() => { reactProps(m.dom.one('[data-photo-batch-export-replace]')).onClick?.({}); });
+		await waitFor(async () => { await flush(); return f.blobs.length === 4; }, 'replacement downloads');
+		const access = await f.props.captureJournal()(), current = normalizePhotoRasterExportJournalV1(await access.settings.get(`photo-library:raster-export-journal:v1:${access.catalogId}`));
+		assert.deepEqual(current.output, { sizing: { kind: 'percentage', percentage: 75 }, quality: 'nearest', metadataScope: 'strip', sharpen: { amount: 37, threshold: 9 } });
+		assert.equal(current.filenameTemplate, 'retained-{index:3}-{name}');
+	} finally { await m.dispose(); await settle(); await f.close(); }
+});
 for (const format of ['png', 'jpeg'] as const) test(`${format}: real renderer/encoder owner downloads frozen page-order indices and presents Download started`, async t => {
 	const f = fixture(); let props = f.props;
 	if (format === 'jpeg') {
