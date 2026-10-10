@@ -1441,3 +1441,40 @@ reached. This observation alone does not prove a signal failure; the native
 channel graph and completion timing remain under investigation. The exact
 completed failure directory was removed immediately after this receipt.
 No bug count or production source changes are made.
+
+The exact unchanged Firefox workflow passes in an isolated one-worker replay
+on the same immutable prepared 684 product bytes (8.5 seconds, 11.6 seconds
+whole), with the qualified Pulse sink and original deadlines and assertions.
+It reaches the mono splitter, fresh FFT-read and signal-raster assertions.
+No production failure is reproduced. Its completed output and short log are
+removed immediately after recording this evidence.
+
+A bounded passive timing run on those same bytes also passes (7.9 seconds).
+Immediately after the second Play click, it records only the four original
+stereo splitters and 12 old FFT reads. The new mono graph constructs its first
+one-output splitter 12.06 milliseconds later; fresh FFT reads subsequently
+rise to 17. Native playback awaits context/worklet/meter preparation, while
+the displayed scalar peak remains available from the previous playback.
+The width assertion now polls the same required one-output native splitter
+within the existing five-second assertion budget; the fresh FFT and physical
+peak/raster checks remain. This is an observer completion correction, with
+no production changes or additional bug count. The passive temporary spec,
+its result directory and log are removed immediately.
+
+The corrected complete Mono workflow passes all three native engines on
+unchanged prepared 684 bytes: Chromium 5.8 seconds, Firefox 9.2 seconds and
+WebKit 7.5 seconds (3/3). Targeted ESLint and whitespace checks pass. The
+completed replay output/log are removed after recording the result.
+
+## Full-200 Firefox Truncate Silence observation — zero-count triage
+
+The immutable full-run CASE `b65fdd47accb60848052-173cd580d22a37a4f40b`
+is timedOut at 30.392 seconds under its unchanged 30-second deadline. The
+stack points to page.evaluate at exportedRecording line 80 during the second
+(musical threshold) export. Actual PNG/context were read: a fresh WAV download
+link is present and the edited clip is 3.5 seconds long at its authored
+four-second start. Native decoded-audio equality/second RMS assertions were
+not reached. The witness transports the entire WAV as an array of JavaScript
+numbers before native decoding; no application failure is established by
+this timeout alone. The exact completed failure directory is removed after
+this receipt; unchanged isolated replay is next. No new bug count.

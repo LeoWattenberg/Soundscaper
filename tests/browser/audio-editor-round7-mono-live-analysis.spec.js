@@ -51,7 +51,7 @@ test('live Spectrum survives an ordinarily authored Mono ADM bed', async ({ page
 	await closeWorkspacePanel(editor, 'metadata');
 	const previousReads = await page.evaluate(() => window.__round7SpectrumReads);
 	await playAndVerifyPeak();
-	expect(await page.evaluate(() => window.__round7SplitterWidths)).toContain(1);
+	await expect.poll(() => page.evaluate(() => window.__round7SplitterWidths)).toContain(1);
 	await expect.poll(() => page.evaluate(() => window.__round7SpectrumReads)).toBeGreaterThan(previousReads);
 	await expect.poll(signalPixels).toBeGreaterThan(4);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
