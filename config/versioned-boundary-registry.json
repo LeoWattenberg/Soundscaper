@@ -1096,6 +1096,8 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable archive assembles one current SourceV2 Frame project from authenticated original and active and disabled LUT bodies under joined saved-facts fences, with fixed unique-body and ZIP limits and no sender project publication." }
 		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-inspect-v1.ts", "kind": "helper-contract", "justification": "Version 1 editable image choice inspection authenticates current project facts and declared asset closure under bounded joined ZIP ownership, returning scalar SourceV2 choices without original, pixel, LUT or publication authority." }
+		,
 		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-photo-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure editable image handoff composes one normalized Photo1 or Photo2 with fresh destination identities, exact retained-original facts and unchanged selected process recipe, without byte, storage or publication authority." }
 		,
 		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-project-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo Frame assembly preserves complete SourceV2 recipe and provenance through the current project factory and image commands, creating an unpublished single-still project without storage authority." }
