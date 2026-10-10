@@ -48,8 +48,9 @@ export function createPhotoLibraryImageReceiveSessionV1(host: Host,
 	const openImage = Object.hasOwn(deps, 'openImage') ? pin<OpenFramescaperBrowserNativeImageV1>(field(deps, 'openImage', 'image receive native dependencies'), dependencies) : undefined;
 	return Object.freeze<PhotoLibraryImageReceivePortV1>({ receive(value, options = {}) {
 		try {
-			const request = record(value, 'image receive request', ['archive', 'sourceId']);
+			const request = record(value, 'image receive request', ['archive', 'sourceId', 'imageClipId'], ['archive', 'sourceId']);
 			const sourceId = id(field(request, 'sourceId', 'image receive request'), 'selected image source ID');
+			const imageClipId = Object.hasOwn(request, 'imageClipId') ? id(field(request, 'imageClipId', 'image receive request'), 'selected image clip ID') : undefined;
 			const selected = field(request, 'archive', 'image receive request'), size = Number(Reflect.apply(SIZE, selected, []));
 			if (size < 1 || size > 256 * 1024 * 1024) throw new RangeError('Image receive archive exceeds its fixed byte bound.');
 			const archive = Reflect.apply(SLICE, selected, [0, size]) as Blob;
@@ -57,7 +58,7 @@ export function createPhotoLibraryImageReceiveSessionV1(host: Host,
 			const state: { ack: Readonly<PhotoLibraryImageReceiveReceiptV1> | null } = { ack: null };
 			const work = mutate(async (catalogId, admitted) => {
 				const { withPhotoFramescaperHandoffReadV1 } = await import('./photo-framescaper-handoff-read-v1.ts'); check(admitted);
-				return withPhotoFramescaperHandoffReadV1({ archive, sourceId, signal: admitted }, async view => {
+				return withPhotoFramescaperHandoffReadV1({ archive, sourceId, ...(imageClipId === undefined ? {} : { imageClipId }), signal: admitted }, async view => {
 					const { preparePhotoFramescaperHandoffOriginalV1 } = await import('./photo-framescaper-handoff-original-v1.ts'); check(admitted);
 					const original = await preparePhotoFramescaperHandoffOriginalV1({ source: view.source, originalBlob: view.originalBlob,
 						canonicalFrameSha256: view.canonicalFrameSha256, signal: admitted }, openImage ? { openImage } : {}); check(admitted);

@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export interface PhotoLibraryImageReceiveRequestV1 { readonly archive: Blob; readonly sourceId: string }
+export interface PhotoLibraryImageReceiveRequestV1 {
+	readonly archive: Blob; readonly sourceId: string;
+	/** Ordinary Source1 requires a matching real timeline or Project Bin clip;
+	 * editable Source2 rejects this field. Clip effects and timing are not imported. */
+	readonly imageClipId?: string;
+}
 export interface PhotoLibraryImageReceiveOptionsV1 { readonly signal?: AbortSignal }
 /** A confirmed publication stays imported even if native custody settlement or
  * lease cleanup fails afterwards. The exact opaque failure is retained without

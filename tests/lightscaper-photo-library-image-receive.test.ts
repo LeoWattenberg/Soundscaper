@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
+import { createHash } from 'node:crypto';
 import { PhotoLibrarySessionV2 } from '../src/lightscaper/controller/photo-library-session-v2.ts';
 import type { PhotoLibrarySessionPortsV2 } from '../src/lightscaper/controller/photo-library-session-ports-v2.ts';
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
@@ -12,7 +13,7 @@ import { resolvePhotoImportKeywordsV1 } from '../src/lightscaper/controller/phot
 import { exportPhotoFramescaperHandoffArchiveV1 } from '../src/lightscaper/controller/photo-framescaper-handoff-archive-v1.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { mediaRestoreFixture } from './helpers/lightscaper-media-restore-fixture.ts';
-import { LUT_BODY, LUT_REFERENCE } from './helpers/lightscaper-lut-archive-fixture.ts';
+import { LUT_BODY, LUT_REFERENCE, rewriteLutArchiveFixture } from './helpers/lightscaper-lut-archive-fixture.ts';
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
 import { iptcText, jpegFixture, jpegSegment, joinBytes, photoshopIptc } from './helpers/image-metadata-fixtures.ts';
@@ -71,13 +72,107 @@ async function fixture(processVersion: 1 | 2 = 2, virtual = false, configure?: (
 			decodeFrame: async () => ({ rgba: new Uint8Array(PIXELS), durationMicroseconds: null }), close() {} }) });
 	const before = serializePhotoDocumentV1OrV2(photo); await session.close();
 	configure?.(recipient); const receiver = new PhotoLibrarySessionV2(recipient.ports);
-	return { recipient, receiver, photo, before, request: { archive: archive.blob, sourceId: 'archive-2' },
+	return { sender, recipient, receiver, photo, before, request: { archive: archive.blob, sourceId: 'archive-2' },
 		async close() { nativeGate = null; await receiver.close(); } };
 }
 function receive(session: PhotoLibrarySessionV2) {
 	assert.ok('imageReceive' in session && session.imageReceive, 'Actual selected Session must expose the receive publication port.');
 	return session.imageReceive;
 }
+
+async function ordinaryArchive(archive: Blob, scope: 'timeline' | 'bin' = 'timeline', edit?: (project: Record<string, unknown>) => void) {
+	let imageClipId = '';
+	const body = await rewriteLutArchiveFixture(archive, files => {
+		const project = JSON.parse(new TextDecoder().decode(files.get('project.json'))) as Record<string, unknown>;
+		const source = (project.sources as Record<string, unknown>[])[0]!, clip = (project.clips as Record<string, unknown>[])[0]!;
+		source.schemaVersion = 1; delete source.develop; delete source.developed; delete source.provenance;
+		(source.original as Record<string, unknown>).mimeType = null; imageClipId = clip.id as string;
+		if (scope === 'bin') { (project.projectBin as { clips: unknown[] }).clips.push(clip); project.clips = [];
+			for (const track of project.tracks as { clipIds: string[] }[]) track.clipIds = []; }
+		edit?.(project);
+		const bytes = new TextEncoder().encode(JSON.stringify(project)); files.set('project.json', bytes);
+		const manifest = JSON.parse(new TextDecoder().decode(files.get('manifest.json'))) as { project: { size: number; sha256: string } };
+		manifest.project.size = bytes.length; manifest.project.sha256 = createHash('sha256').update(bytes).digest('hex');
+		files.set('manifest.json', new TextEncoder().encode(JSON.stringify(manifest)));
+	});
+	return { archive: body, imageClipId };
+}
+
+for (const scope of ['timeline', 'bin'] as const) test(`Light ordinary receive publishes one neutral Photo from an explicit real ${scope} clip`, async () => {
+	const f = await fixture(1), selected = await ordinaryArchive(f.request.archive, scope), before = new Uint8Array(await selected.archive.arrayBuffer());
+	try {
+		const result = await receive(f.receiver).receive({ ...f.request, ...selected });
+		assert.equal(result.status, 'imported'); assert.equal(result.settlement, 'complete'); assert.equal(result.revision, 0);
+		const photo = normalizePhotoDocumentV1OrV2(await f.recipient.catalog.loadPhoto(result.catalogId, result.photoId));
+		assert.equal(photo.versions.length, 1); assert.equal(photo.versions[0]!.kind, 'master'); assert.equal(photo.activeVersionId, result.activeVersionId);
+		assert.deepEqual(photo.versions[0]!.develop, { processVersion: 1, effects: [], masks: [], maskBindings: [],
+			geometry: { crop: null, rotationDegrees: 0, flipHorizontal: false, flipVertical: false } });
+		assert.equal(photo.original.contentSha256, f.photo.original.contentSha256); assert.equal(photo.original.name, f.photo.original.name.normalize('NFC'));
+		assert.equal(photo.original.mimeType, 'image/png'); assert.equal(photo.original.width, 1); assert.equal(photo.original.height, 1);
+		assert.deepEqual(new Uint8Array(await (await f.recipient.media.mediaRepository.loadAsset(photo.original.storageKey))!.arrayBuffer()), PNG);
+		assert.deepEqual(new Uint8Array(await selected.archive.arrayBuffer()), before);
+		const sender = new PhotoCatalogRepositoryV2({ indexedDB: f.sender.native.factory, databaseName: `${f.sender.name}-catalog`, verifyOriginal: f.sender.media.verifyOriginal });
+		try { assert.equal(serializePhotoDocumentV1OrV2(await sender.loadPhoto(f.photo.catalogId, f.photo.id)), f.before); } finally { await sender.close(); }
+		assert.equal(nativeCloses, 1); assert.equal(f.recipient.leases, 2, 'Startup recovery and one selected receive, without a nested import lease.');
+	} finally { await f.close(); }
+});
+
+test('Light ordinary receive requires explicit matching clip context and leaves invalid selections unpublished', async () => {
+	const f = await fixture(1), selected = await ordinaryArchive(f.request.archive);
+	try {
+		await assert.rejects(receive(f.receiver).receive({ archive: selected.archive, sourceId: f.request.sourceId }), /explicit.*clip/iu);
+		await assert.rejects(receive(f.receiver).receive({ ...f.request, ...selected, imageClipId: 'stale-clip' }), /clip/iu);
+		for (const field of ['sourceId', 'sequenceId'] as const) {
+			const invalid = await ordinaryArchive(f.request.archive, 'timeline', project => { (project.clips as Record<string, unknown>[])[0]![field] = 'missing-owner'; });
+			await assert.rejects(receive(f.receiver).receive({ ...f.request, ...invalid }));
+		}
+		assert.equal(nativeCloses, 0); assert.equal((await f.recipient.catalog.loadCatalog(f.recipient.root.id))!.photoCount, 0);
+		assert.equal(await f.recipient.media.mediaRepository.loadAsset('received-3'), null);
+	} finally { await f.close(); }
+});
+
+test('Light ordinary receive refuses malformed clip selection before selected startup without getter invocation', async () => {
+	const f = await fixture(1); let getters = 0;
+	try {
+		const accessor = Object.defineProperty({ ...f.request }, 'imageClipId', { enumerable: true, get() { getters++; return 'archive-5'; } });
+		for (const request of [accessor, { ...f.request, imageClipId: undefined }, { ...f.request, imageClipId: '' }, Object.create({ ...f.request, imageClipId: 'archive-5' }) as typeof f.request]) {
+			await assert.rejects(receive(f.receiver).receive(request));
+		}
+		assert.equal(getters, 0); assert.equal(f.recipient.leases, 0); assert.equal(nativeCloses, 0);
+	} finally { await f.close(); }
+});
+
+test('Light ordinary receive never accepts clip selection for an editable Source2', async () => {
+	const f = await fixture(2), selected = await ordinaryArchive(f.request.archive);
+	try { await assert.rejects(receive(f.receiver).receive({ ...f.request, imageClipId: selected.imageClipId }), /Source2/iu);
+		assert.equal(nativeCloses, 0); assert.equal((await f.recipient.catalog.loadCatalog(f.recipient.root.id))!.photoCount, 0);
+		await assert.rejects(f.recipient.resources.source.withBytes(LUT_REFERENCE, () => undefined), /missing/iu);
+	} finally { await f.close(); }
+});
+
+test('Light ordinary receive verifies canonical native pixels before any original publication', async () => {
+	const f = await fixture(1), selected = await ordinaryArchive(f.request.archive); nativePixels = Uint8Array.of(24, 71, 149, 255);
+	try { await assert.rejects(receive(f.receiver).receive({ ...f.request, ...selected }), /canonical|pixel|digest/iu);
+		assert.equal(nativeCloses, 1); assert.equal((await f.recipient.catalog.loadCatalog(f.recipient.root.id))!.photoCount, 0);
+		assert.equal(await f.recipient.media.mediaRepository.loadAsset('received-3'), null);
+	} finally { await f.close(); }
+});
+
+for (const cancel of [false, true]) test(`Light ordinary receive pins clip before yield and joins held native work${cancel ? ' on Close' : ''}`, async () => {
+	const f = await fixture(1), selected = await ordinaryArchive(f.request.archive), entered = deferred<void>(), release = deferred<void>();
+	nativeGate = async () => { entered.resolve(); await release.promise; };
+	const request = { ...f.request, ...selected }, work = receive(f.receiver).receive(request); request.imageClipId = 'late-selection';
+	const observed = work.then(() => { entered.reject(new Error('Native verification was not held.')); }, (error: unknown) => { entered.reject(error); });
+	try {
+		await entered.promise;
+		if (cancel) { const refusal = assert.rejects(work), closing = f.receiver.close();
+			assert.equal(await remainsPending(closing), true); assert.equal(f.recipient.closed, 0); release.resolve(); await refusal; await closing;
+			const reopened = new PhotoCatalogRepositoryV2({ indexedDB: f.recipient.native.factory, databaseName: `${f.recipient.name}-catalog`, verifyOriginal: f.recipient.media.verifyOriginal });
+			try { assert.equal((await reopened.loadCatalog(f.recipient.root.id))!.photoCount, 0); } finally { await reopened.close(); }
+		} else { assert.equal(await remainsPending(work), true); release.resolve(); assert.equal((await work).status, 'imported'); }
+		assert.equal(nativeCloses, 1);
+	} finally { release.resolve(); await observed; await f.close(); }
+});
 
 for (const [process, virtual] of [[1, false], [2, false], [2, true]] as const) test(`Light receive publishes complete process${process} selected ${virtual ? 'copy' : 'master'} with original and disabled LUT custody`, async () => {
 	const f = await fixture(process, virtual);
