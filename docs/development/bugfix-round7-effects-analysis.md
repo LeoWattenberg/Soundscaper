@@ -1117,3 +1117,12 @@ equal-level raster and exact seek assertions and deadlines are retained.
 This changes no fixture, production source or bug count. Finished full-run
 diagnostics and every bounded owned replay log/result are read and removed
 immediately.
+
+The frozen full run's WebKit preset-skin case reports unchanged dialog x=310
+instead of its expected dragged x=510. Its complete unchanged focused replay
+on the same ee53e112619b862826b7466dc422b3c6760bba27 passes in 8.2 seconds,
+1/1 in 10.7 seconds, retaining the drag, both menus, inherited RTL direction,
+skin colors, font, border radius, prompt, advanced controls, Close and absence
+of client errors under the original deadlines. No source, fixture or count
+changes. The exact finished full-run diagnostic and owned replay artifacts
+are read and immediately removed.
