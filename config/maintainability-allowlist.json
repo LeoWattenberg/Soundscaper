@@ -60,7 +60,7 @@
 		"src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts": 596,
 		"src/common/editor/controller/capture/internal/framescaper-capture-session-service.ts": 600,
 		"src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts": 599,
-		"src/common/editor/controller/document/internal/annotations/timeline-annotation-service.ts": 587,
+		"src/common/editor/controller/document/internal/annotations/timeline-annotation-service.ts": 576,
 		"src/common/editor/controller/export/internal/direct/direct-compressed-plan.ts": 599,
 		"src/common/editor/controller/import/internal/project-bin/project-bin-linked-audio-relink-service.ts": 593,
 		"src/common/editor/controller/import/project-bin-linked-video-relink-service.ts": 559,
