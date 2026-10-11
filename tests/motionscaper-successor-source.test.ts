@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createFramescaperCompositionPlacement } from '../src/framescaper/editor-composition-link-placement.ts';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { createMotionscaperRevision } from '../src/common/editor/motion-project-revision.ts';
 import { createMotionCompositionOffer } from '../src/common/editor/motion-link-protocol.ts';
@@ -85,4 +86,14 @@ test('accepted scene replacement derives both source descriptors without pretend
 	assert.equal(resolveFramescaperCompositionSource(updated, sources.find(source => source.id === 'picture')!)?.offer.revision.digest, revision.digest);
 	assert.equal(resolveFramescaperCompositionAudioSource(updated, sources.find(source => source.id === 'sound')!)?.offer.revision.digest, revision.digest);
 	assert.throws(() => applyFramescaperSuccessorCommand(updated, { type: 'source/update', sourceId: 'sound', changes: { mimeType: 'audio/wav' } }), /conform|detach/iu);
+});
+
+test('composition insertion is one validated AV placement on the selected Frame sequence', () => {
+	const { offer } = fixture(); const runtime = createFramescaperSuccessorRuntime({ line: 'successor' }); const initial = runtime.createProject({ id: 'placement' });
+	const command = createFramescaperCompositionPlacement({ project: initial, offer, sourceId: 'picture', audioSourceId: 'sound', videoTrackId: 'picture-track', audioTrackId: 'sound-track', videoClipId: 'picture-clip', audioClipId: 'sound-clip', avLinkId: 'av', positionFrame: 3 });
+	const history = runtime.executeCommand(runtime.createHistory(initial), command); const project = framescaperSuccessorBaselineProject(history.present);
+	assert.equal(history.undoStack.length, 1); assert.equal(project.clips.length, 2);
+	assert.equal(project.clips.find(clip => clip.id === 'picture-clip')?.sequenceStartFrame, 3);
+	assert.equal(project.clips.find(clip => clip.id === 'sound-clip')?.avLinkId, 'av');
+	assert.equal(history.present.compositionLinks[0]?.audioSourceId, 'sound');
 });

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createAudioEditorController } from '../common/editor/app.js';
 import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
+import { bindFramescaperSuccessorCompositionPreview } from './editor-composition-link-preview-controller.ts';
 import { createVideoRetimeProgramOrdinalBridge } from '../common/editor/video-retime-program-ordinal-bridge.ts';
 import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from './editor-capture-runtime.ts';
 import { assertFramescaperSuccessorEnvironment, type FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
@@ -33,6 +34,7 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		locale: presentation.locale, copy: presentation.copy, fileService: presentation.fileService,
 		confirmMonoConversion: presentation.confirmMonoConversion, confirmFileSizeWarning: presentation.confirmFileSizeWarning,
 	});
+	bindFramescaperSuccessorCompositionPreview({ controller, store: environment.controllerStore, readAsset: asset => environment.owners.readAsset(asset) });
 	CONTEXTS.set(controller, Object.freeze({ environment, session })); return controller;
 }
 export function framescaperSuccessorControllerContext(controller: object) {
