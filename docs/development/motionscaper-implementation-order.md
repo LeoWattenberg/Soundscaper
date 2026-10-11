@@ -127,9 +127,15 @@ Authenticated generated video sources pass the actual Frame finishing exporter
 without encoded proxy bodies. Fresh and edited family-v2 archives export and
 import with retained ordinary media and linked closure; Chromium covers failed
 publication, retry, reopen, deliberate media-cache loss and portable re-export.
-The successor site builds within unchanged startup and chunk limits. Connected
-sender/receiver menu qualification, generated thumbnails, desktop transport and
-native delivery remain unfinished. M11 has a bounded
+The successor site builds within unchanged startup and chunk limits. Generated
+bin thumbnails, exact filmstrips and muted source-monitor Play/Pause/Mark use
+the retained renderer without encoded proxy URLs. Standard File Copy/Replace
+retain original archives, rebind conflicting ordinary media and fence atomic
+owner publication; focused tests cover complete cache recovery and prior-v1
+custody. The dedicated real-editor browser gate covers saved sender updates,
+Undo/Resume, width Conform, portable File Save/Open and offline reopen. Actual
+video delivery, duration/FPS Conform review and complete platform qualification
+remain unfinished. M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
 limited importer scripts with media digest verification, a bounded script
 download, explicit numeric sampling and limited editable exchange conversion.
@@ -144,8 +150,10 @@ Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-The Motionscaper Node shard passes 520 tests at this integration
-point. These results do not close a package's completion gate.
+The latest Motionscaper Node shard checkpoint passes 525 tests; a separate run
+of all Motion-named TypeScript tests, including cross-product link tests,
+passes 627 tests. Subsequent feature changes receive focused qualification.
+These results do not close a package's completion gate.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
 M09's camera, depth-group, lighting and quality semantics. It does not claim

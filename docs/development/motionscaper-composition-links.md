@@ -146,8 +146,16 @@ conservatively before publication; a failed owner transaction exposes no owner.
 On reopen, missing ordinary-media cache entries are recovered from verified
 portable custody before activation. Chromium qualifies publication failure,
 retry, page closure, deliberate deletion of the separate ordinary-media cache,
-reopen and re-export. Existing owner identities refuse import until an explicit
-copy workflow is available. Shared live validation limits aggregate linked
+reopen and re-export. Standard File Copy gives the imported document a fresh
+owner identity while preserving its exact source archive. Replace requires the
+physical project lease and an unchanged durable owner digest/write fence. Its
+transaction preserves the previous portable archive before publishing the new
+owner, link states and custody; original-v1 migration records stay unchanged.
+Conflicting ordinary media receives deterministic local source identities and
+all inherited source references are rebound through the maintained Frame
+helpers. Reopen verifies that these bindings are the only changes to the
+archived project before restoring media, including after complete cache loss.
+Shared live validation limits aggregate linked
 output to 2,000,000 frames before any timing-table allocation.
 
 Focused Node and real Chromium IndexedDB fixtures qualify private staging,
