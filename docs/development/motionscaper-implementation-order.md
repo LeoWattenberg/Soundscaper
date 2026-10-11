@@ -73,7 +73,8 @@ package complete.
 
 ### Implementation status
 
-M01–M11 are **In progress**; M12 remains **Planned**. The isolated browser
+M01–M12 are **In progress**. M12 has begun release-register and reference
+preparation; its complete release gate still depends on M01–M11. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
 origin with bounded project-file capabilities. Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
@@ -111,6 +112,9 @@ alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
 projective corner pins. Tracking freshness stops preview/export before resource
 acquisition; point analysis/correction, planar pins, stabilization, cancellation,
 history and reopen pass menu-driven workflows using actual encoded footage.
+Keyed footage with a corrected animated mask, a tracked overlay and a planar
+corner pin survive save/reopen and produce delivered PNG pixels identical to
+the matching preview frames.
 Menu-opened masks, effects, blend modes, mattes and adjustments pass browser
 editing and property-animation workflows. M08
 includes a closed expression parser/interpreter, shared exact scene/audio
@@ -168,10 +172,12 @@ Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-The latest Motionscaper Node shard checkpoint passes 525 tests; a separate run
-of all Motion-named TypeScript tests, including cross-product link tests,
-passes 627 tests. Subsequent feature changes receive focused qualification.
+The latest run of all Motion-named TypeScript tests, including cross-product
+link tests, passes 736 tests. Subsequent feature changes receive focused qualification.
 These results do not close a package's completion gate.
+The capability register and generated references describe the independent Motion
+workspace and partial platform qualification. They preserve the frozen family-v1
+baselines and exclude inherited Audacity/Nyquist/shared-layout authoring claims.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
 M09's camera, depth-group, lighting and quality semantics. It does not claim

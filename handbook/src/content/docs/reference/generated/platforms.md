@@ -30,6 +30,10 @@ The editor runs in a browser and as a desktop application. This page lists what 
 | Windows | x64 | Installer; Zip archive | Packaged and started in an automated smoke test |
 | macOS | arm64 | Disk image | Packaged and started in an automated smoke test |
 
+## Motionscaper development qualification
+
+Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, the remaining native targets, signing/updating and installed After Effects interchange remain unqualified for the first Motionscaper release.
+
 ## Where a capability can run
 
 Capabilities are grouped by what they need from the platform. See [Product capabilities](/reference/generated/product-capabilities/) for which capabilities each product enables.

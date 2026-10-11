@@ -8,6 +8,8 @@ const BROWSER_LABELS = Object.freeze({
 	webkit: 'WebKit (Safari)',
 });
 
+const DEVELOPMENT_PRODUCT_LABELS = Object.freeze({ motionscaper: 'Motionscaper' });
+
 const OPERATING_SYSTEM_LABELS = Object.freeze({
 	windows: 'Windows',
 	macos: 'macOS',
@@ -105,6 +107,9 @@ export function renderPlatformReference({ capabilities, packageTargets }) {
 		'',
 		table(['Operating system', 'Architecture', 'Packages', 'Packaging check'], desktopRows),
 		'',
+		...Object.entries(capabilities.products ?? {}).flatMap(([id, product]) => product.development ? [
+			`## ${reviewedLabel(DEVELOPMENT_PRODUCT_LABELS, id, 'development product')} development qualification`, '', product.development.qualificationSummary, '',
+		] : []),
 		'## Where a capability can run',
 		'',
 		'Capabilities are grouped by what they need from the platform. See [Product capabilities](/reference/generated/product-capabilities/) for which capabilities each product enables.',

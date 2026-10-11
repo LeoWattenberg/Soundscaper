@@ -745,6 +745,145 @@
 					"tests/audio-editor-framescaper-baseline.test.ts"
 				]
 			}
+		},
+		"motionscaper": {
+			"profileEvidence": "src/motionscaper/product.js",
+			"release": {
+				"softwareStatus": "pre-release",
+				"channel": "candidate",
+				"candidateVersion": "0.1.0-alpha.1",
+				"stableTarget": null
+			},
+			"applicationFeatures": {},
+			"platforms": {
+				"web-core": {
+					"status": "partial",
+					"evidence": [
+						"src/motionscaper/editor-project-runtime-profile.ts",
+						"src/common/editor/ui/motionscaper/MotionscaperDocumentRuntime.tsx",
+						"tests/browser/motionscaper-documents.spec.js",
+						"tests/browser/motionscaper-compositing-delivery.spec.ts"
+					]
+				},
+				"web-enhanced": {
+					"status": "partial",
+					"evidence": [
+						"src/motionscaper/editor-project-store.ts",
+						"src/motionscaper/editor-project-write-lease.ts",
+						"src/motionscaper/editor-delivery-queue.ts",
+						"tests/browser/motionscaper-project-lock.spec.ts",
+						"tests/browser/motionscaper-render-queue.spec.ts",
+						"tests/browser/motionscaper-video-delivery.spec.ts"
+					]
+				},
+				"electron-enhanced": {
+					"status": "partial",
+					"evidence": [
+						"desktop/motionscaper-main.ts",
+						"desktop/motionscaper-file-authority.ts",
+						"desktop/motionscaper-packaged-smoke.ts",
+						"desktop/motionscaper-successor-native-qualification.ts",
+						"tests/motionscaper-document-desktop.test.ts",
+						"docs/development/motionscaper-desktop-saved-links.md"
+					]
+				},
+				"electron-only": {
+					"status": "partial",
+					"evidence": [
+						"desktop/motionscaper-delivery-authority.ts",
+						"desktop/motionscaper-native-executor.ts",
+						"desktop/motionscaper-native-smoke.ts",
+						"native/motionscaper-media-host/source-manifest.json",
+						"tests/motionscaper-native-pcm-carrier.test.ts",
+						"docs/development/motionscaper-native-delivery.md"
+					]
+				}
+			},
+			"importFamilies": [
+				"scape"
+			],
+			"exportFamilies": [
+				"scape"
+			],
+			"projectFeatures": {
+				"project": false,
+				"projectBin": false,
+				"audioImport": false,
+				"audioPlayback": false,
+				"audioTimelineEditing": false,
+				"audioMixing": false,
+				"videoImport": false,
+				"videoPlayback": false,
+				"videoTimelineEditing": false,
+				"videoExport": false,
+				"assistanceAssets": false,
+				"audioRecording": false,
+				"audioGenerators": false,
+				"audioEffects": false,
+				"audioSpectralEditing": false,
+				"audioAnalysis": false,
+				"audioMacros": false,
+				"audioSampleEditing": false,
+				"audioAutomation": false,
+				"audioMixerGraph": false,
+				"audioTrackFreeze": false,
+				"videoEffects": false,
+				"videoAdjustmentLayers": false,
+				"videoCompositing": false,
+				"videoFreeze": false,
+				"videoGenerators": false,
+				"videoGeometry": false,
+				"videoKeyframes": false,
+				"videoMasksMattes": false,
+				"multicamera": false,
+				"musicalTimeline": false,
+				"nestedSequences": false,
+				"ofxEffects": false,
+				"timelineAnnotations": false,
+				"trackFolders": false,
+				"takeComp": false,
+				"timelineImages": false,
+				"audioWarp": false,
+				"sequenceTiming": false,
+				"videoRetime": false,
+				"videoCaptions": false,
+				"videoColorManagement": false,
+				"videoDenoise": false,
+				"videoGrading": false,
+				"videoMotionTracking": false,
+				"videoStabilization": false,
+				"videoStills": false,
+				"videoTimingAssets": false,
+				"videoTransitionDissolve": false,
+				"videoTransitions": false,
+				"sourceCharacteristics": false,
+				"masteringSequences": false,
+				"immersiveAdm": false
+			},
+			"projectSchemaIdentity": {
+				"schemaFamily": "motionscaper",
+				"schemaVersion": 1,
+				"evidence": [
+					"src/motionscaper/editor-project.ts",
+					"src/motionscaper/editor-project-runtime-profile.ts",
+					"src/motionscaper/editor-scape.ts",
+					"tests/motionscaper-project-contract.test.ts"
+				]
+			},
+			"development": {
+				"status": "in-progress",
+				"summary": "Motionscaper develops a separate motion workspace reached through menus. It owns layered compositions, property animation, imported font and vector rendering, linear-SDR compositing, masks and mattes, tracking, bounded expressions, 2.5D scenes, retained media, and revision-pinned preview and delivery. The shared Soundscaper/Framescaper capability flags below do not grant authority to this workspace.",
+				"qualificationSummary": "Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, the remaining native targets, signing/updating and installed After Effects interchange remain unqualified for the first Motionscaper release.",
+				"evidence": [
+					"docs/development/motionscaper-implementation-order.md",
+					"docs/development/motionscaper-after-effects-bridge.md",
+					"tests/motionscaper-capability-register.test.ts",
+					"tests/browser/motionscaper-script-fonts.spec.ts",
+					"tests/browser/motionscaper-scene.spec.ts",
+					"tests/browser/motionscaper-compositing-delivery.spec.ts",
+					"tests/browser/motionscaper-linked-editors.spec.ts"
+				]
+			}
 		}
 	}
 }

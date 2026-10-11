@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { assertProducts, compareText, page, reviewedLabel, table } from './markdown.mjs';
+import { assertProducts, compareText, page, productSentence, reviewedLabel, table } from './markdown.mjs';
 
 const CAPABILITY_LABELS = Object.freeze({
 	project: 'Projects',
@@ -99,7 +99,7 @@ function familyNames(product, families) {
 	}).join(', ');
 }
 
-export function renderCapabilityReference({ products }) {
+export function renderCapabilityReference({ products, capabilities = {} }) {
 	assertProducts(products);
 	const featureRows = renderFeatureRows(products, 'capabilities', CAPABILITY_LABELS, 'capability');
 	const applicationFeatureRows = renderFeatureRows(
@@ -114,6 +114,10 @@ export function renderCapabilityReference({ products }) {
 		familyNames(product, product.exportChoices),
 	]);
 	const featureHeaders = ['Capability', ...products.map(({ name }) => name)];
+	const development = products.flatMap((product) => {
+		const claim = capabilities?.products?.[product.id]?.development;
+		return claim ? [{ product, claim }] : [];
+	});
 	const sections = [
 		'This page reflects the current product profiles. “Enabled” means that the profile exposes that authoring or runtime capability. A disabled capability can still be preserved when a project is opened across products; this table does not claim that it can be edited.',
 		'',
@@ -123,7 +127,10 @@ export function renderCapabilityReference({ products }) {
 		'',
 		'Families describe product entry points, not every file extension a decoder might accept. See [Export formats](/reference/generated/formats/) for concrete output formats and runtime conditions.',
 		'',
-		'## Editing and project capabilities',
+		...development.flatMap(({ product, claim }) => [
+			`## ${product.name} development workspace`, '', claim.summary, '', claim.qualificationSummary, '',
+		]),
+		development.length > 0 ? '## Shared editor capabilities' : '## Editing and project capabilities',
 		'',
 		table(featureHeaders, featureRows),
 	];
@@ -137,7 +144,7 @@ export function renderCapabilityReference({ products }) {
 	}
 	return page({
 		title: 'Product capabilities',
-		description: 'Soundscaper and Framescaper import, export, editing, and project capabilities.',
+		description: `${productSentence(products)} import, export, editing, and project capabilities.`,
 		order: 3,
 		body: sections.join('\n'),
 	});
