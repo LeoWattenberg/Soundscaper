@@ -62,6 +62,7 @@ import {
 	editorOptionalSurfaceModule,
 	editorPath,
 } from './build-chunk-tests.mjs';
+import { motionChunkGroups } from './build-motion-chunks.mjs';
 import { withUiPreparationChunkTest } from './build-chunk-ui-preparation.mjs';
 
 // The membership patterns keep their long-standing import site.
@@ -92,6 +93,7 @@ export {
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	...motionChunkGroups,
 	{ name: 'editor-assistance-model-preflight', test: EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
 		priority: 100, minSize: 0, maxSize: 400_000,
 		includeDependenciesRecursively: false },
@@ -454,15 +456,13 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]|motionscaper[\\\\/](?:MotionscaperWorkspace|MotionscaperDocumentRuntime|MotionProjectSettingsDialog|MotionProjectLibraryDialog)\\.tsx$))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
+		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]|motionscaper[\\\\/](?:MotionscaperWorkspace|MotionscaperDocumentRuntime|MotionProjectSettingsDialog|MotionProjectLibraryDialog|MotionLayerDialog|MotionPreviewDialog)\\.tsx$))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
 	{
 		// The schema, planners, assistance domain, and value tables the shell and dialogs share.
-		// They are owned here rather than placed by reachability; see the module
-		// comment for what an unowned shared leaf does to the boot path.
 		name: 'editor-domain',
 		test: EDITOR_DOMAIN_CHUNK_TEST,
 		priority: 65,

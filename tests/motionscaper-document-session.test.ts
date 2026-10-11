@@ -78,3 +78,22 @@ test('Motionscaper refuses stale saves while retaining the visible unsaved docum
 		assert.equal((await store.load(initial.project!.id))?.project.title, 'Other window');
 	} finally { await store.close(); }
 });
+
+test('Motionscaper layers are one recoverable undo step and their assets survive archive transfer', async () => {
+	const { store, session } = fixture(); const other = fixture();
+	try {
+		await session.create(settings);
+		const initial = session.getSnapshot();
+		await session.addLayer({ kind: 'rectangle', name: 'Card', x: 50, y: 20, width: 200, height: 100, color: '#ff0000', opacity: 80, text: '', fontSize: 48 });
+		assert.equal(session.getSnapshot().project?.compositions[0]?.layers[0]?.name, 'Card');
+		assert.equal((await store.load(initial.project!.id))?.digest, initial.savedDigest);
+		assert.equal((await store.loadRecovery(initial.project!.id))?.compositions[0]?.layers.length, 1);
+		await session.undo(); assert.equal(session.getSnapshot().project?.compositions[0]?.layers.length, 0);
+		await session.redo(); assert.equal(session.getSnapshot().project?.compositions[0]?.layers.length, 1);
+		const copy = await session.saveCopy(); await other.session.importArchive(copy.blob);
+		assert.equal(other.session.getSnapshot().project?.compositions[0]?.layers[0]?.kind, 'shapes');
+		const revision = session.getSnapshot().project?.revision;
+		await assert.rejects(session.addLayer({ kind: 'solid', name: 'Invalid', x: 0, y: 0, width: 0, height: 1, color: '#000000', opacity: 100, text: '', fontSize: 48 }));
+		assert.equal(session.getSnapshot().project?.revision, revision);
+	} finally { await store.close(); await other.store.close(); }
+});

@@ -10,7 +10,7 @@ export interface MotionscaperShellMenuItem {
 }
 
 export interface MotionscaperShellMenu {
-	readonly id: 'file' | 'edit' | 'view';
+	readonly id: 'file' | 'edit' | 'view' | 'tracks';
 	readonly label: string;
 	readonly items: readonly MotionscaperShellMenuItem[];
 }
@@ -25,7 +25,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -61,6 +61,16 @@ export function createMotionscaperShellMenus(
 				id: 'motion-workspace', label: copy.workspaceMotion,
 				checked: workspaceOpen, onClick: onToggleWorkspace,
 			}), item('motion-settings', copy.motionscaperSettings, 'settings', options.hasProject)]),
+		}),
+		Object.freeze({
+			id: 'tracks' as const, label: copy.motionscaperLayerMenu,
+			items: Object.freeze([
+				item('motion-solid', copy.motionscaperSolid, 'solid', options.hasProject),
+				item('motion-text', copy.motionscaperText, 'text', options.hasProject),
+				item('motion-rectangle', copy.motionscaperRectangle, 'rectangle', options.hasProject),
+				item('motion-ellipse', copy.motionscaperEllipse, 'ellipse', options.hasProject),
+				item('motion-star', copy.motionscaperStar, 'star', options.hasProject),
+			]),
 		}),
 	]);
 }

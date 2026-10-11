@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -8,7 +8,11 @@ import { MotionscaperDocumentSession, UnsupportedMotionArchiveError, type Motion
 import { createMotionscaperProjectStore, MotionProjectConflictError, type MotionProjectSummary } from '../../../../motionscaper/editor-project-store.ts';
 import MotionProjectSettingsDialog from './MotionProjectSettingsDialog.tsx';
 import MotionProjectLibraryDialog from './MotionProjectLibraryDialog.tsx';
+import type { MotionAuthoredLayerKind } from '../../../../motionscaper/editor-layer-authoring.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
+
+const MotionLayerDialog = lazy(() => import('./MotionLayerDialog.tsx'));
+const layerKinds: readonly MotionAuthoredLayerKind[] = ['solid', 'text', 'rectangle', 'ellipse', 'star'];
 
 export interface MotionscaperDocumentRuntimeProps {
 	readonly copy: Readonly<Record<string, string>>; readonly request: MotionDocumentRequest;
@@ -20,7 +24,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | MotionAuthoredLayerKind | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
@@ -41,6 +45,8 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		lastRequest.current = request.id;
 		setError(null);
 		const command = request.command;
+		const kind = layerKinds.find((entry) => entry === command);
+		if (kind) { setDialog(kind); return; }
 		if (command === 'new' || command === 'settings' || command === 'open') { setDialog(command); return; }
 		if (command === 'library') {
 			setDialog('library');
@@ -65,6 +71,12 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			opened();
 		});
 	};
+	const layerKind = layerKinds.find((entry) => entry === dialog);
+	const primary = snapshot.project?.compositions.find((entry) => entry.id === snapshot.project?.primaryCompositionId);
+	if (layerKind && primary) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionLayerDialog key={request.id} copy={copy} kind={layerKind} composition={primary} busy={busy} error={error} onClose={close}
+			onSubmit={(draft) => { void run(async () => { await session.addLayer(draft); opened(); }); }} />
+	</Suspense>;
 	if (dialog === 'new' || dialog === 'settings') {
 		const composition = snapshot.project?.compositions.find((item) => item.id === snapshot.project?.primaryCompositionId);
 		const settings = dialog === 'settings' && composition && snapshot.project

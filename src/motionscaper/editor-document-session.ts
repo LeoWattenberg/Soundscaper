@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MotionLayerDraft } from './editor-layer-authoring.ts';
+import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { Rational } from '../common/editor/timeline-time.ts';
 import { createMotionscaperProject } from './editor-project.ts';
-import { createMotionscaperHistory, type MotionscaperHistory } from './editor-project-commands.ts';
+import { applyMotionscaperCommands, createMotionscaperHistory, type MotionscaperHistory, type MotionscaperProjectCommand } from './editor-project-commands.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import type { MotionscaperProjectStore } from './editor-project-store.ts';
 
@@ -86,6 +88,39 @@ export class MotionscaperDocumentSession {
 					width: settings.width, height: settings.height, frameRate: settings.frameRate, durationFrames: settings.durationFrames } },
 			]);
 			await this.#recover();
+		});
+	}
+	async #edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[]): Promise<void> {
+		applyMotionscaperCommands(this.#requireProject(), commands);
+		for (const { asset, body } of assets) await this.#store.putAsset(asset, body);
+		this.#history!.commit(commands);
+		await this.#recover();
+	}
+	edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[] = []): Promise<void> {
+		return this.#run(() => this.#edit(commands, assets));
+	}
+	addLayer(draft: MotionLayerDraft): Promise<void> {
+		return this.#run(async () => {
+			const project = this.#requireProject();
+			const composition = project.compositions.find((entry) => entry.id === project.primaryCompositionId)!;
+			const { createAuthoredMotionLayer } = await import('./editor-layer-authoring.ts');
+			const assets: { asset: MotionAsset; body: Blob }[] = [];
+			const commands: MotionscaperProjectCommand[] = [];
+			let fontId: string | undefined;
+			if (draft.kind === 'text') {
+				const { motionDefaultFontAsset } = await import('../common/editor/motion-canvaskit-browser.ts');
+				const { loadMotionRasterRuntime } = await import('../common/editor/controller/composition/motion-raster-runtime.ts');
+				const { asset, bytes } = motionDefaultFontAsset(await loadMotionRasterRuntime());
+				const existing = project.assets.find((entry) => entry.kind === 'font' && entry.sha256 === asset.sha256);
+				const retained = project.assets.some((entry) => entry.id === asset.id) ? { ...asset, id: this.#randomId() } : asset;
+				fontId = existing?.id ?? retained.id;
+				if (!existing) {
+					assets.push({ asset: retained, body: new Blob([new Uint8Array(bytes)]) }); commands.push({ type: 'asset/add', asset: retained });
+				}
+			}
+			const layer = createAuthoredMotionLayer(this.#randomId(), composition, draft, fontId);
+			commands.push({ type: 'layer/add', compositionId: composition.id, layer, index: 0 });
+			await this.#edit(commands, assets);
 		});
 	}
 	save(): Promise<void> {
