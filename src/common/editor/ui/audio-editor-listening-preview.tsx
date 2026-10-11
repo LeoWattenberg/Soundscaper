@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createContext, useContext, useLayoutEffect, useRef, useState, type AudioHTMLAttributes } from 'react';
+import { bindListeningMediaReadiness } from './listening-media-readiness.ts';
 
 /** Menu-owned auditions share the editor's listening output without changing media transport. */
 export const AudioEditorListeningGainContext = createContext(1);
@@ -16,9 +17,15 @@ export function AudioEditorListeningPreview(props: AudioHTMLAttributes<HTMLAudio
 	const canRouteOutput = typeof HTMLMediaElement !== 'undefined'
 		&& typeof HTMLMediaElement.prototype.setSinkId === 'function';
 	const volume = Number.isFinite(gain) ? Math.max(0, Math.min(1, gain)) : 1;
+	const currentVolume = useRef(volume);
 	useLayoutEffect(() => {
+		currentVolume.current = volume;
 		if (audio.current) audio.current.volume = volume;
 	}, [volume]);
+	useLayoutEffect(() => {
+		const player = audio.current;
+		if (player) return bindListeningMediaReadiness(player, () => currentVolume.current, () => audio.current === player);
+	}, []);
 	useLayoutEffect(() => {
 		const player = audio.current;
 		if (!player || typeof player.setSinkId !== 'function') return;

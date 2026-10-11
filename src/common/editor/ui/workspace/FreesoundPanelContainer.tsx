@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { bindListeningMediaReadiness } from '../listening-media-readiness.ts';
 
 import { freesoundAttributionCopy } from '../../../i18n/freesound-attribution-copy.js';
 import FreesoundPanel, {
@@ -56,6 +57,7 @@ interface ActiveFreesoundPreview {
 	metadataLoaded: boolean;
 	pendingSeekSeconds: number | null;
 	outputReady: Promise<void>;
+	readonly disposeListeningGain: () => void;
 }
 
 interface FreesoundPanelContainerProps {
@@ -127,8 +129,10 @@ export function FreesoundPanelContainer({
 	const preferredOutput = dataRecord(snapshot.audioDevices)?.preferredOutputDeviceId;
 	const outputDeviceId = typeof preferredOutput === 'string' && !preferredOutput.startsWith('native:') ? preferredOutput : '';
 	const playbackGain = Math.max(0, Math.min(1, Number(dataRecord(snapshot.audioDevices)?.playbackGain ?? 1)));
+	const currentPlaybackGain = useRef(playbackGain);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
+		currentPlaybackGain.current = playbackGain;
 		if (preview.current) preview.current.audio.volume = playbackGain;
 	}, [playbackGain]);
 
@@ -138,6 +142,7 @@ export function FreesoundPanelContainer({
 		const active = preview.current;
 		preview.current = null;
 		if (active) {
+			active.disposeListeningGain();
 			active.audio.pause();
 			active.audio.src = '';
 			active.audio.load();
@@ -173,6 +178,7 @@ export function FreesoundPanelContainer({
 		const active = preview.current;
 		preview.current = null;
 		if (active) {
+			active.disposeListeningGain();
 			active.audio.pause();
 			active.audio.src = '';
 		}
@@ -219,6 +225,7 @@ export function FreesoundPanelContainer({
 		const active: ActiveFreesoundPreview = {
 			soundId, audio, playing: true, playRequest: 0, metadataLoaded: false, pendingSeekSeconds: null,
 			outputReady: Promise.resolve(),
+			disposeListeningGain: bindListeningMediaReadiness(audio, () => currentPlaybackGain.current, () => preview.current?.audio === audio),
 		};
 		preview.current = active;
 		routePreviewOutput(active, outputDeviceId);
