@@ -13,7 +13,7 @@ class SyntheticSocket extends EventTarget {
 		assert.equal(this.closed, false);
 		const request = JSON.parse(data) as Request; this.sent.push(request);
 		if (this.holdEnable && request.method === 'Runtime.enable') return;
-		queueMicrotask(() => this.message({ id: request.id, result: this.failEvaluation && request.method === 'Runtime.evaluate'
+		queueMicrotask(() => this.message({ id: request.id, ...(request.sessionId ? { sessionId: request.sessionId } : {}), result: this.failEvaluation && request.method === 'Runtime.evaluate'
 			? { exceptionDetails: { text: 'Synthetic observation failure' } } : {} }));
 	}
 	message(value: unknown): void { this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(value) })); }

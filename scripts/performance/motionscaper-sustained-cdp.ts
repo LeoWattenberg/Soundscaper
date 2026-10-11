@@ -23,7 +23,7 @@ export interface MotionSustainedTelemetry {
 /** External, bounded CDP observer. It pauses newly attached workers only to install observation,
  * then resumes their unchanged production scripts. It provides no application capability. */
 export class MotionSustainedCdp {
-	readonly #socket: WebSocket; readonly #pending = new Map<number, { resolve(value: Fields): void; reject(error: unknown): void; timer: NodeJS.Timeout }>();
+	readonly #socket: WebSocket; readonly #pending = new Map<number, { resolve(value: Fields): void; reject(error: unknown): void; timer: NodeJS.Timeout; sessionId: string | undefined }>();
 	readonly #targets = new Map<string, MotionSustainedTarget>(); readonly #preparing = new Set<Promise<void>>();
 	readonly #errors: string[] = []; #next = 1; #closed = false;
 	private constructor(socket: WebSocket) {
@@ -35,6 +35,9 @@ export class MotionSustainedCdp {
 				if (typeof message.id === 'number') {
 					const pending = this.#pending.get(message.id); if (!pending) throw new Error('Unowned CDP response.');
 					clearTimeout(pending.timer); this.#pending.delete(message.id);
+					if (message.sessionId !== pending.sessionId) {
+						const error = new Error('CDP response session does not match its owned request.'); pending.reject(error); throw error;
+					}
 					if (message.error) pending.reject(new Error(JSON.stringify(message.error))); else pending.resolve(fields(message.result));
 				} else this.#event(message);
 			} catch (error) { this.#invalid(error); }
@@ -54,7 +57,12 @@ export class MotionSustainedCdp {
 			socket.addEventListener('error', () => { clearTimeout(timeout); reject(new Error('CDP connection failed.')); }, { once: true });
 		});
 		const observer = new MotionSustainedCdp(socket);
-		await observer.#attach(); await observer.ready(); return observer;
+		try { await observer.#attach(); await observer.ready(); return observer; }
+		catch (error) {
+			try { await observer.close(); }
+			catch (cleanup) { throw new AggregateError([error, cleanup], 'CDP connection preparation and cleanup failed.', { cause: cleanup }); }
+			throw error;
+		}
 	}
 	async #attach(sessionId?: string): Promise<void> {
 		await this.#send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true,
@@ -75,9 +83,19 @@ export class MotionSustainedCdp {
 		}
 	}
 	async #prepare(target: MotionSustainedTarget): Promise<void> {
+		if (target.type === 'page') {
+			// A new page may not answer Runtime.enable until resumed. Queue its pre-document
+			// hook and child attachment first on this ordered session, then resume and await all
+			// acknowledgements. runImmediately also covers an existing page context.
+			await Promise.all([
+				this.#send('Page.addScriptToEvaluateOnNewDocument', { source: motionWasmObservationSource(), runImmediately: true }, target.sessionId),
+				this.#attach(target.sessionId), this.#send('Runtime.enable', {}, target.sessionId),
+				this.#send('Runtime.runIfWaitingForDebugger', {}, target.sessionId),
+			]);
+			target.ready = true; return;
+		}
 		try {
 			await this.#send('Runtime.enable', {}, target.sessionId);
-			if (target.type === 'page') await this.#send('Page.addScriptToEvaluateOnNewDocument', { source: motionWasmObservationSource() }, target.sessionId);
 			const result = await this.#send('Runtime.evaluate', { expression: motionWasmObservationSource() }, target.sessionId);
 			if (result.exceptionDetails) throw new Error('External WASM observation installation failed.');
 			await this.#attach(target.sessionId); target.ready = true;
@@ -88,7 +106,7 @@ export class MotionSustainedCdp {
 		const id = this.#next++;
 		return new Promise((resolve, reject) => {
 			const timer = setTimeout(() => { this.#pending.delete(id); reject(new Error(`CDP observation timed out: ${method}`)); }, 10000);
-			this.#pending.set(id, { resolve, reject, timer });
+			this.#pending.set(id, { resolve, reject, timer, sessionId });
 			try { this.#socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); }
 			catch (error) { clearTimeout(timer); this.#pending.delete(id); reject(error); }
 		});
