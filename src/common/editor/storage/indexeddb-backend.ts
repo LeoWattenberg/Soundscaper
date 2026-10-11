@@ -202,9 +202,10 @@ export function readCursorPage<RecordValue = unknown>(
 
 export function transactionCompletion(transaction: IDBTransaction): Promise<void> {
 	return new Promise((resolve, reject) => {
+		// Request errors can bubble before abort or be handled; only the native
+		// complete/abort events settle this transaction's ownership join.
 		transaction.oncomplete = () => resolve();
 		transaction.onabort = () => reject(transaction.error || new Error('The IndexedDB transaction was aborted.'));
-		transaction.onerror = () => reject(transaction.error || new Error('The IndexedDB transaction failed.'));
 	});
 }
 

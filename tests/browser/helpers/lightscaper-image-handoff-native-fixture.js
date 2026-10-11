@@ -167,6 +167,21 @@ export async function qualifyNativePhotoPreviewSessionClose(page, cut) {
 	await assertNativeOpfsWorkerExecution(page); return facts;
 }
 
+/** Qualify the genuinely restored allocation; the native worker checkpoint
+ * authenticates donor import, while preview publication uses IndexedDB. */
+export async function qualifyNativePhotoRestoredPreviewSessionClose(page, cut) {
+	const script = await mappedBundle('restored-preview-session-close.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-restored-preview-session-close-native-v1.ts'));
+	register(page, '/__restored_preview_session_close_native.js', script);
+	await page.route('**/__restored_preview_session_close_native.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	const facts = await page.evaluate(async cut => (await import(new URL('/__restored_preview_session_close_native.js', location.href).href))
+		.qualifyPhotoRestoredPreviewSessionCloseNativeV1(cut), cut);
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
 /** Full canvas comparison happens after the measured current-ready paint. */
 export async function validateNativePhotoDevelopProxyCanvas(page, selector, stage) {
 	const script = await mappedBundle('develop-proxy-reference.js', resolve(repositoryRoot, 'tests/browser/helpers/lightscaper-develop-proxy-reference.ts'));

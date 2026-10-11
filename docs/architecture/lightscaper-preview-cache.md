@@ -65,6 +65,11 @@ work, then releases its existing resources.
 Scheduler close joins its active work and preserves cleanup failures, including
 diagnostics from a committed cache write whose observer was cancelled.
 
+Shared IndexedDB joining waits for the native complete or abort event, including
+when pending request errors bubble after cancellation. Handled request errors
+can still commit; operation failures retain their exact primary error after
+abort joins. This follows the [IndexedDB transaction lifecycle](https://www.w3.org/TR/IndexedDB/).
+
 Selected-Session tests keep subscriber refusal separate from resource retirement.
 The held-read controls forward a real cache body read before delaying its return:
 Close refuses new work, retains its promise, and waits before closing the media
@@ -78,8 +83,20 @@ and close acknowledgments, each paired-record put, transaction completion and
 replacement cleanup. Pre-commit cancellation leaves the pair absent; after
 transaction completion the pair remains durable. Cleanup failure retention is
 checked independently from subscriber cancellation. These boundaries qualify
-the fresh default-library profile in Chromium and Firefox; they do not qualify
-restored-library persistence or WebKit.
+the fresh default-library profile in Chromium and Firefox.
+
+Restored-library tests export a real V5 backup, restore it through the current
+restore owner, and open the current Session from its committed allocated pointer.
+They interrupt native IndexedDB publication after the payload put, inventory put
+and transaction completion. Both rows must be absent before commit and complete
+after acknowledgment. Close waits for delivery of the actual settled store
+outcome before releasing resources. Reopen either regenerates the missing pair
+or reads its acknowledged Blob. The complete restored photo, original record,
+private content token, custody and bytes stay unchanged, as do the donor's
+catalog and media. These tests qualify those three allocated-profile boundaries
+in Chromium and Firefox; they do not qualify WebKit or every restore boundary.
+Default donor snapshots join their native worker checkpoint before closing the
+temporary media reader, retaining checkpoint and owner-close failures together.
 
 Fresh default libraries prefer OPFS. The current Session's initializer publishes
 the default pointer, and its location reader selects the existing media anchor.
@@ -102,6 +119,6 @@ documented 192 MiB JavaScript peak; decoder surfaces and retained Blob backing
 are accounted separately. The one-active-job limit prevents multiplying those
 working sets by the queue length.
 
-This packet has no user interface or capability activation. Root session/menu
-composition owns later consumer wiring. Shared storage packaging does not change
-the assistance engine closure and requires no manual **Update AI assets** run.
+The current library and Develop workspace consume the selected Session's preview
+scheduler. Shared storage packaging does not change the assistance engine closure
+and requires no manual **Update AI assets** run.
