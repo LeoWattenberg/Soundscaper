@@ -690,6 +690,11 @@ The artifact also retains each staged npm package's installed `LICENSE`,
 distribution does not change the dependency surface of the normal Soundscaper
 or Framescaper desktop executables.
 
+## Motionscaper rasterization
+
+- `canvaskit-wasm` 0.42.0 — BSD-3-Clause; Copyright 2011 Google Inc.; upstream: <https://github.com/google/skia>; full package license: `LICENSES/canvaskit-wasm.txt`. The exact registry archive, source revision, loader/WASM hashes, and bundled Inter fallback-font hashes are retained in `config/motionscaper-raster-runtime.json`. The regular Latin, Greek, Cyrillic and Vietnamese Inter subsets use the existing SIL Open Font License 1.1 font distribution recorded below. `node scripts/audit-motionscaper-raster-runtime.mjs` checks the pinned installed assets before bundling. CanvasKit is loaded only when motion rasterization is requested.
+- `@webgpu/types` 0.1.21 — BSD-3-Clause; compile-time WebGPU definitions used by CanvasKit; upstream: <https://github.com/gpuweb/types>.
+
 ## Interchange conformance reference implementations
 
 The opt-in interchange reference tests execute these pinned Python packages as

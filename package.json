@@ -191,6 +191,7 @@
 		"@noble/hashes": "^2.2.0",
 		"@sqlite.org/sqlite-wasm": "3.53.0-build1",
 		"@zip.js/zip.js": "^2.8.33",
+		"canvaskit-wasm": "0.42.0",
 		"fflate": "0.8.3",
 		"mediabunny": "1.55.3",
 		"react": "19.2.7",

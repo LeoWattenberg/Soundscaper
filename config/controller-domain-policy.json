@@ -66,6 +66,7 @@
 		"composition/editor-action-functions.ts",
 		"composition/editor-action-resources.ts",
 		"composition/label-action-group.ts",
+		"composition/motion-raster-runtime.ts",
 		"composition/native-render-input-composition.ts",
 		"composition/presentation-localization-binding.ts",
 		"composition/presentation-state.ts",

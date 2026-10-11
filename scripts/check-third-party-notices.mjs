@@ -36,6 +36,7 @@ const trackedVersions = [
 	'@types/gettext-parser',
 	'@zip.js/zip.js',
 	'axe-core',
+	'canvaskit-wasm',
 	'electron',
 	'fflate',
 	'gettext-parser',
