@@ -28,6 +28,10 @@ export function normalizeFramescaperSuccessorProject(value: unknown): Framescape
 	for (const link of links) {
 		if (!sourceIds.has(link.sourceId) || linked.has(link.sourceId)) throw new RangeError('Composition link requires one unique existing source.');
 		linked.add(link.sourceId);
+		if (link.audioSourceId !== undefined) {
+			if (linked.has(link.audioSourceId) || !project.sources.some(source => source.id === link.audioSourceId && source.kind === 'audio')) throw new RangeError('Composition companion audio requires one unique existing audio source.');
+			linked.add(link.audioSourceId);
+		}
 	}
 	return freezeMotionValue({ ...project, schemaVersion: 2 as const, compositionLinks: links });
 }

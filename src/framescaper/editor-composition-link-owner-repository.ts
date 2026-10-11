@@ -76,7 +76,7 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 		const linkStates: { sourceId: string; state: MotionCompositionLinkState }[] = [];
 		for (const link of record.project.compositionLinks) {
 			const state = await loadFramescaperLinkState(stores, assets, record.id, link.sourceId);
-			if (!state || JSON.stringify(createFramescaperCompositionLink(link.sourceId, state.accepted.compositionId, state.accepted.revision)) !== JSON.stringify(link)) throw new RangeError('Owner link differs from its accepted immutable receiver state.');
+			if (!state || JSON.stringify(createFramescaperCompositionLink(link.sourceId, state.accepted.compositionId, state.accepted.revision, { audioSourceId: link.audioSourceId })) !== JSON.stringify(link)) throw new RangeError('Owner link differs from its accepted immutable receiver state.');
 			linkStates.push({ sourceId: link.sourceId, state });
 		}
 		for (const project of [record.history.present, ...record.history.undoStack.map((entry) => entry.project), ...record.history.redoStack.map((entry) => entry.project)]) {

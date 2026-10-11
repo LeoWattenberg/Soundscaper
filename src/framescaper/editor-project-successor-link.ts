@@ -5,6 +5,8 @@ import { verifyMotionscaperRevision, type MotionscaperRevision } from '../common
 
 export interface FramescaperCompositionLink {
 	readonly kind: 'motionscaper-composition'; readonly sourceId: string;
+	/** Optional PCM placement shares this one accepted revision and receiver state. */
+	readonly audioSourceId?: string;
 	readonly projectId: string; readonly compositionId: string;
 	readonly acceptedRevision: number; readonly acceptedDigest: string;
 	readonly output: Pick<MotionComposition, 'width' | 'height' | 'frameRate' | 'durationFrames' | 'color'>;
@@ -13,12 +15,15 @@ export interface FramescaperCompositionLink {
 }
 
 /** This persisted relation owns intent and bytes only; discovery transports remain platform-local. */
-export function createFramescaperCompositionLink(sourceId: string, compositionId: string, value: unknown): FramescaperCompositionLink {
+export function createFramescaperCompositionLink(sourceId: string, compositionId: string, value: unknown, options: Readonly<{ audioSourceId?: string }> = {}): FramescaperCompositionLink {
 	const snapshot = verifyMotionscaperRevision(value);
 	const composition = snapshot.project.compositions.find(({ id }) => id === compositionId);
 	if (!composition) throw new RangeError('Linked composition is absent from the saved revision.');
 	const { width, height, frameRate, durationFrames, color } = composition;
+	const audioSourceId = options.audioSourceId === undefined ? undefined : motionId(options.audioSourceId);
+	if (audioSourceId === sourceId) throw new RangeError('Composition audio and video sources must have distinct identities.');
 	return freezeMotionValue({ kind: 'motionscaper-composition' as const, sourceId: motionId(sourceId),
+		...(audioSourceId === undefined ? {} : { audioSourceId }),
 		projectId: snapshot.projectId, compositionId: motionId(compositionId),
 		acceptedRevision: snapshot.revision, acceptedDigest: snapshot.digest,
 		output: { width, height, frameRate, durationFrames, color }, snapshot,
@@ -26,9 +31,10 @@ export function createFramescaperCompositionLink(sourceId: string, compositionId
 }
 
 export function normalizeFramescaperCompositionLink(value: unknown): FramescaperCompositionLink {
-	const record = motionRecord(value, ['kind', 'sourceId', 'projectId', 'compositionId', 'acceptedRevision', 'acceptedDigest', 'output', 'snapshot', 'dependencyDigests'], 'Framescaper composition link');
+	const fields = ['kind', 'sourceId', 'projectId', 'compositionId', 'acceptedRevision', 'acceptedDigest', 'output', 'snapshot', 'dependencyDigests'];
+	const record = motionRecord(value, [...fields, 'audioSourceId'], 'Framescaper composition link', fields);
 	if (record.kind !== 'motionscaper-composition') throw new RangeError('Unsupported composition link kind.');
-	const expected = createFramescaperCompositionLink(motionId(record.sourceId), motionId(record.compositionId), record.snapshot);
+	const expected = createFramescaperCompositionLink(motionId(record.sourceId), motionId(record.compositionId), record.snapshot, record.audioSourceId === undefined ? {} : { audioSourceId: motionId(record.audioSourceId) });
 	if (motionId(record.projectId) !== expected.projectId || motionInteger(record.acceptedRevision, 'accepted revision') !== expected.acceptedRevision
 		|| motionDigest(record.acceptedDigest) !== expected.acceptedDigest) throw new RangeError('Link revision identity does not match its immutable snapshot.');
 	const output = motionRecord(record.output, ['width', 'height', 'frameRate', 'durationFrames', 'color'], 'link output');
