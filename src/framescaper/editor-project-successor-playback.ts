@@ -4,9 +4,14 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { registerVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import { createFramescaperPlaybackProjectService } from './editor-project-playback.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile.ts';
-import { normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
+import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject } from './editor-project-successor.ts';
 import { framescaperSuccessorBaselineProject } from './editor-project-successor-commands.ts';
 import { resolveFramescaperCompositionSource } from './editor-composition-link-source.ts';
+const CANONICAL = new WeakMap<object, FramescaperSuccessorProject>();
+export function framescaperSuccessorPlaybackCanonicalProject(value: object): FramescaperSuccessorProject | null { return CANONICAL.get(value) ?? null; }
+function associated<T extends { readonly project: object }>(result: T, value: unknown): T {
+	CANONICAL.set(result.project, normalizeFramescaperSuccessorProject(value)); return result;
+}
 /** Existing timeline evaluation receives a transient v1 shape, while session and storage retain canonical v2 intent. */
 export function createFramescaperSuccessorPlayback(media: AudioEditorProjectStore): PlaybackProjectService {
 	const ordinary = createFramescaperPlaybackProjectService(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, { timingStore: media });
@@ -25,9 +30,9 @@ export function createFramescaperSuccessorPlayback(media: AudioEditorProjectStor
 			} });
 			await preparation.prepareProjectForActivation?.(baseline, options);
 		},
-		projectForActivationAdmission: (value: object) => ordinary.projectForActivationAdmission!(project(value)),
-		projectForPlayback: (value: object) => ordinary.projectForPlayback(project(value)),
-		projectForAudioRenderedFallbackDelivery: (value: object) => ordinary.projectForAudioRenderedFallbackDelivery(project(value)),
-		projectForVideoRenderedFallbackDelivery: (value: object) => ordinary.projectForVideoRenderedFallbackDelivery(project(value)),
+		projectForActivationAdmission: (value: object) => associated(ordinary.projectForActivationAdmission!(project(value)), value),
+		projectForPlayback: (value: object) => associated(ordinary.projectForPlayback(project(value)), value),
+		projectForAudioRenderedFallbackDelivery: (value: object) => associated(ordinary.projectForAudioRenderedFallbackDelivery(project(value)), value),
+		projectForVideoRenderedFallbackDelivery: (value: object) => associated(ordinary.projectForVideoRenderedFallbackDelivery(project(value)), value),
 	}) as PlaybackProjectService;
 }
