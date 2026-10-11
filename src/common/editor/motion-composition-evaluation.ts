@@ -37,7 +37,7 @@ interface PreparedComposition {
 }
 
 /** Compile already-validated immutable intent supplied by a product's project boundary. */
-export function createMotionSceneEvaluator(input: Readonly<{ compositions: readonly MotionComposition[]; assets: readonly MotionAsset[]; sampleRate: number }>): MotionSceneEvaluator {
+export function createMotionSceneEvaluator(input: Readonly<{ compositions: readonly MotionComposition[]; assets: readonly MotionAsset[]; sampleRate: number }>, options: Readonly<{ revisionDigest?: string }> = {}): MotionSceneEvaluator {
 	const compositions = new Map<string, PreparedComposition>(input.compositions.map((composition) => [composition.id, {
 		composition, layers: new Map(composition.layers.map((layer) => [layer.id, { layer, evaluate: compileMotionState(layer) }])),
 		audioLayers: composition.layers.flatMap((layer) => layer.kind === 'precomp' || layer.kind === 'footage'
@@ -45,7 +45,7 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 		audio: composition.audio.map((placement) => ({ placement, evaluate: compileMotionState(placement) })),
 	}]));
 	const assets = new Map(input.assets.map((asset) => [asset.id, asset]));
-	const sampleRate = input.sampleRate; const expressions = createMotionExpressionRuntime(input.compositions);
+	const sampleRate = input.sampleRate; const expressions = createMotionExpressionRuntime(input.compositions, { ...options, assets: input.assets });
 	return Object.freeze({ evaluate(request: MotionFrameRequest, options?: MotionExpressionQueryOptions): MotionCompositionFrame {
 		options?.signal?.throwIfAborted();
 		const time = normalizeRational(request.time, { maximumDenominator: Number.MAX_SAFE_INTEGER });

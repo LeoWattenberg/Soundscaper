@@ -11,7 +11,7 @@ import { createMotionAudioSampler } from './motion-audio-sampling.ts';
 
 /** Sample-addressable, revision-pinned mixing. All timing comes from the same scene evaluator as video. */
 export function createMotionAudioMixer(options: MotionAudioMixerOptions): MotionAudioMixer {
-	const revision = createMotionscaperRevision(options.project); const evaluator = createMotionSceneEvaluator(revision.project);
+	const revision = createMotionscaperRevision(options.project); const evaluator = createMotionSceneEvaluator(revision.project, { revisionDigest: revision.digest });
 	const maximumBlock = motionInteger(options.maximumBlockSamples ?? 4096, 'maximum audio block samples', 1, MOTION_AUDIO_MAX_BLOCK_SAMPLES);
 	const maximumEvaluated = motionInteger(options.maximumEvaluatedOccurrences ?? 4_194_304, 'maximum audio evaluated occurrences', 3, 16_777_216);
 	const cache = createMotionAudioWindowCache(options.provider, options.maximumCacheBytes ?? 16 * 1024 * 1024); const sample = createMotionAudioSampler();

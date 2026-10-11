@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { MotionAsset } from './motion-asset.ts';
+import { readPreparedMotionExpressionAudio, type MotionPreparedExpressionAudio } from './motion-expression-audio-capability.ts';
 import type { MotionComposition } from './motion-composition.ts';
 import { motionLayerProperties, type MotionPropertyAddress } from './motion-project-graph.ts';
 import { compileMotionProperty, type MotionPropertyValue, type MotionStatePropertyResolver } from './motion-property-evaluation.ts';
@@ -11,7 +13,7 @@ import { createMotionExpressionBudget, evaluateMotionExpression, type MotionExpr
 import { evaluateMotionExpressionLoop } from './motion-expression-loop.ts';
 import { expressionNumber, expressionVector } from './motion-expression-values.ts';
 
-export interface MotionExpressionQueryOptions { readonly expressionBudget?: MotionExpressionBudget; readonly signal?: AbortSignal }
+export interface MotionExpressionQueryOptions { readonly expressionBudget?: MotionExpressionBudget; readonly signal?: AbortSignal; readonly preparedAudio?: MotionPreparedExpressionAudio }
 export interface MotionExpressionSession {
 	resolver(compositionId: string, layerId: string, aliases?: Readonly<Record<string, string>>): MotionStatePropertyResolver;
 	sample(request: Readonly<{ compositionId: string; layerId: string; propertyPath: string; frame: Rational }>): MotionPropertyValue;
@@ -27,7 +29,8 @@ export class MotionExpressionPropertyError extends MotionExpressionError {
 }
 
 /** A revision owns bounded compiled bindings; every scene query owns an independent bounded value cache. */
-export function createMotionExpressionRuntime(compositions: readonly MotionComposition[]): Readonly<{ createSession(options?: MotionExpressionQueryOptions): MotionExpressionSession }> {
+export function createMotionExpressionRuntime(compositions: readonly MotionComposition[], identity: Readonly<{ revisionDigest?: string; assets?: readonly MotionAsset[] }> = {}): Readonly<{ createSession(options?: MotionExpressionQueryOptions): MotionExpressionSession }> {
+	const assets = new Map((identity.assets ?? []).map((asset) => [asset.id, asset]));
 	const compositionMap = new Map(compositions.map((composition) => [composition.id, composition]));
 	const registries = new Map<string, ReadonlyMap<string, Binding>>();
 	const bases = new WeakMap<MotionProperty, (position: Rational) => MotionPropertyValue>();
@@ -96,6 +99,12 @@ export function createMotionExpressionRuntime(compositions: readonly MotionCompo
 							const target = reference && registry(binding.composition.id).get(`${reference.layerId}/${reference.propertyPath}`);
 							if (!target) throw new MotionExpressionError('reference', `Expression reference ${id} has no bound property.`, program.ast);
 							return evaluate(target, time === undefined ? globalFrame : frameAt(time));
+						},
+						audioAmplitude(request) {
+							if (!options.preparedAudio) throw new MotionExpressionError('unavailable', 'Prepared native PCM amplitude is unavailable for this query.', program.ast);
+							const asset = assets.get(request.assetId);
+							if (!asset || (asset.kind !== 'audio' && !(asset.kind === 'footage' && asset.hasAudio))) throw new MotionExpressionError('reference', 'Audio amplitude source is outside this scene asset closure.', program.ast);
+							return readPreparedMotionExpressionAudio(options.preparedAudio, identity.revisionDigest, asset, request);
 						},
 						loop: (direction, mode, count) => evaluateMotionExpressionLoop(binding.property, base, position, direction, mode, count, budget, program.ast),
 					}, budget), binding.property, program.ast) : value;
