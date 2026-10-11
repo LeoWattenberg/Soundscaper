@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { planVideoPreviewCapture } from '../video-preview-capture-admission.ts';
+import { planVideoPreviewCapture } from './video-preview-capture-admission.ts';
 
 export interface VideoKeyframeOfflineDrawableSource {
 	readonly drawable: TexImageSource;

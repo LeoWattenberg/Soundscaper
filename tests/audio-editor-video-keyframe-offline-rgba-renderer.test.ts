@@ -14,7 +14,7 @@ import {
 	VIDEO_KEYFRAME_OFFLINE_MAXIMUM_RETAINED_RGBA_BYTES,
 	VideoKeyframeOfflineSourceCache,
 	type VideoKeyframeOfflineSourcePresentation,
-} from '../src/common/editor/ui/video-keyframe-offline-rgba-source.ts';
+} from '../src/common/editor/video-keyframe-offline-rgba-source.ts';
 
 test('offline renderer consumes an owned frame, flips RGBA in place, and cleans resources', async () => {
 	const frameSource = source();

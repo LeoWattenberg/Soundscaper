@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import type { VideoKeyframeOfflineSourceResolver } from './ui/video-keyframe-offline-rgba-source.ts';
+import type { VideoKeyframeOfflineSourceResolver } from './video-keyframe-offline-rgba-source.ts';
 
 /** Injected product authority; these capabilities never enter persisted project intent. */
 export interface VideoExportGeneratedSources {

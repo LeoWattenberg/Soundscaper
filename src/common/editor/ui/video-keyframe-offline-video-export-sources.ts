@@ -19,7 +19,7 @@ import {
 import type {
 	VideoKeyframeOfflineHtmlVideoSourceAsset,
 } from './video-keyframe-offline-html-video-source-resolver.ts';
-import type { VideoKeyframeOfflineSourceResolver, VideoKeyframeOfflineSourcePresentation } from './video-keyframe-offline-rgba-source.ts';
+import type { VideoKeyframeOfflineSourceResolver, VideoKeyframeOfflineSourcePresentation } from '../video-keyframe-offline-rgba-source.ts';
 import { snapshotVideoExportGeneratedSources, type VideoExportGeneratedSources } from '../video-export-generated-sources.ts';
 
 export interface VideoKeyframeOfflineVideoSourceInputSnapshot {

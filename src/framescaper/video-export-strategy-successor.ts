@@ -3,7 +3,7 @@ import { bindFramescaperVideoFrameConsumer, consumeFramescaperVideoFrames } from
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import type { ProductVideoExportPlan, ProductVideoExportStrategy, ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoExportGeneratedSources } from '../common/editor/video-export-generated-sources.ts';
-import type { VideoKeyframeOfflineSourcePresentation } from '../common/editor/ui/video-keyframe-offline-rgba-source.ts';
+import type { VideoKeyframeOfflineSourcePresentation } from '../common/editor/video-keyframe-offline-rgba-source.ts';
 import { motionSurfaceLength } from '../common/editor/motion-surface.ts';
 import { motionCompositionHasAudio } from '../common/editor/motion-composition-audio.ts';
 import { planVideoPreviewCapture } from '../common/editor/video-preview-capture-admission.ts';
