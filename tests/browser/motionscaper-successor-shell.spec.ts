@@ -13,3 +13,16 @@ test('successor opens the real editor with its own durable owner and menu-only u
 	await page.reload(); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
 	expect(errors).toEqual([]);
 });
+
+test('saved-revision pairing is menu opened, survives dialog close, and can be disconnected', async ({ page }) => {
+	await page.goto('/embed/en/'); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	await expect(page.locator('[data-framescaper-composition-links]')).toHaveCount(0);
+	await page.getByRole('menuitem', { name: 'File', exact: true }).click(); await page.getByRole('menuitem', { name: 'Linked compositions…', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Linked Motionscaper compositions' }); await expect(dialog).toBeVisible();
+	await dialog.getByRole('button', { name: 'Create pairing URL', exact: true }).click();
+	const url = dialog.getByRole('textbox', { name: 'Pairing URL', exact: true }); await expect(url).toHaveValue(/\/composition-link\/receive\/#cap=[a-f0-9]{64}$/u);
+	const pairing = await url.inputValue(); await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+	await page.getByRole('menuitem', { name: 'File', exact: true }).click(); await page.getByRole('menuitem', { name: 'Linked compositions…', exact: true }).click();
+	await expect(dialog.getByRole('textbox', { name: 'Pairing URL', exact: true })).toHaveValue(pairing);
+	await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click(); await expect(dialog.getByRole('textbox', { name: 'Pairing URL', exact: true })).toHaveCount(0);
+});

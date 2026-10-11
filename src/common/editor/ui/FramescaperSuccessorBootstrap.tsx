@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createFramescaperSuccessorMenuBinding } from './framescaper-successor-menu-binding.ts';
 import { Suspense } from 'react';
 import { EditorStartupProgress } from '../../site/EditorStartupProgress.tsx';
 import { createAudioEditorFileService } from '../file-service.js';
@@ -12,12 +13,14 @@ interface Presentation { readonly locale: string; readonly copy: Readonly<Record
 type FileService = ReturnType<typeof createAudioEditorFileService>;
 type Controller = ReturnType<typeof createFramescaperSuccessorController>;
 type Runtime = AudioEditorWebRuntime<Controller, FileService>;
-const lifecycle = createAudioEditorWebRuntimeLifecycle<Presentation, FileService, FramescaperSuccessorEnvironment['runtime']['projectForRuntimeConsumers'], FramescaperSuccessorEnvironment, Controller, never>({
+const lifecycle = createAudioEditorWebRuntimeLifecycle<Presentation, FileService, FramescaperSuccessorEnvironment['runtime']['projectForRuntimeConsumers'], FramescaperSuccessorEnvironment, Controller, ReturnType<typeof createFramescaperSuccessorMenuBinding>>({
 	createFileService: () => createAudioEditorFileService({ bridge: null }),
 	createEnvironment: fileService => createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: { linkedOriginalPort: fileService.linkedOriginalPort, linkedVideoOriginalPort: fileService.linkedVideoOriginalPort } }),
 	createController: (environment, presentation, fileService, mono, size) => createFramescaperSuccessorController(environment, {
 		...presentation, copy: copy(presentation.copy), fileService, confirmMonoConversion: mono.confirm, confirmFileSizeWarning: size.confirm,
 	}),
+	createExtension: controller => createFramescaperSuccessorMenuBinding(controller),
+	disposeExtension: binding => binding.dispose(),
 	constructionCleanupMessage: 'Successor editor construction and cleanup failed.',
 	controllerAndEnvironmentDisposalMessage: 'Successor editor and storage cleanup failed.',
 	controllerAndEnvironmentDisposalCause: true, exactRuntimeMessage: 'An exact successor runtime is required.',

@@ -112,7 +112,7 @@ export function createApplicationMenuProductItems({
 			...nativeServices.tools, ...appendParallelStackProcessingMenu(soundscaperNativeServices.tools,
 				actions.parallelStackProcessing ? { ...actions.parallelStackProcessing, productId, copy } : null,
 				(patch) => actions.parallelStackProcessing?.change(patch))]),
-		fileImport: [...nativeServices.fileImport, ...createFramescaperSuccessorMigrationMenuItems(productId)],
+		fileImport: [...nativeServices.fileImport, ...createFramescaperSuccessorMigrationMenuItems(productId, actions.framescaperSuccessor)],
 		fileExport: nativeServices.fileExport,
 		view: nativeServices.view,
 	});

@@ -8,16 +8,16 @@ import { exportFramescaperSuccessorArchive, type FramescaperMigrationRecord } fr
 let closeActiveDialog: (() => void) | null = null;
 
 /** The workspace is created only by its File menu command. */
-export function openFramescaperSuccessorMigrationDialog(): void {
+export function openFramescaperSuccessorMigrationDialog(openProject?: (id: string) => Promise<void>): void {
 	closeActiveDialog?.();
 	const host = document.createElement('div'); document.body.append(host);
 	const root = createRoot(host);
 	const close = () => { root.unmount(); host.remove(); closeActiveDialog = null; };
 	closeActiveDialog = close;
-	root.render(<MigrationDialog close={close} />);
+	root.render(<MigrationDialog close={close} openProject={openProject} />);
 }
 
-function MigrationDialog({ close }: { readonly close: () => void }) {
+function MigrationDialog({ close, openProject }: { readonly close: () => void; readonly openProject?: (id: string) => Promise<void> }) {
 	const copy = framescaperSuccessorCopy(document.documentElement.lang);
 	const dialog = useRef<HTMLDialogElement>(null);
 	const input = useRef<HTMLInputElement>(null);
@@ -72,6 +72,7 @@ function MigrationDialog({ close }: { readonly close: () => void }) {
 		<p role={failed ? 'alert' : 'status'}>{status}</p>
 		<ul>{records.map((record) => <li key={record.id}>
 			{record.project.title}{' — '}{copy.schema}{' '}
+			{openProject && <button type="button" disabled={busy} onClick={() => run(async () => { await openProject(record.id); close(); })}>{copy.openProject}</button>}
 			<button type="button" onClick={() => download(record.originalArchive, `${record.project.title}-original.fscape`)}>{copy.original}</button>
 			<button type="button" disabled={busy} onClick={() => run(async () => {
 				const archive = await exportFramescaperSuccessorArchive(record, controller.current.signal);

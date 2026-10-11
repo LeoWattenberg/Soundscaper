@@ -155,6 +155,7 @@ export function createWorkspaceApplicationMenus({
 				framescaperCandidateAuthoring: framescaperRuntime.framescaperCandidateAuthoring,
 				openFramescaperFinishing: framescaperRuntime.openFramescaperFinishing,
 				framescaperNativeServices: framescaperRuntime.framescaperNativeServices,
+				framescaperSuccessor: framescaperRuntime.framescaperSuccessor,
 				soundscaperWorkflow,
 				soundscaperNativeServices,
 				araClipEditing: fileService.isDesktop === true && controller?.araClipEditing ? {
