@@ -5,7 +5,6 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from './audio-editor-test-fixtures.js';
 
 const routeRoot = '/__motionscaper-successor-migration__';
-test.use({ browserCoverage: false });
 
 test('successor menu upgrades an archive durably and downloads the retained original after reopen', async ({ page }) => {
 	const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
