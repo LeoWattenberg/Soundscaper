@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-const EN = Object.freeze({
+export const FRAMESCAPER_SUCCESSOR_ENGLISH_COPY = Object.freeze({
 	menu: 'Upgrade archive for Framescaper 1.1 development…',
 	title: 'Framescaper 1.1 development — archive upgrade',
 	description: 'Upgrade a complete Framescaper 1.0 archive into a separate library. Your project identity and original archive are retained. Upgraded archives use schema v2; open them with the successor editor when its linked-composition runtime is available.',
@@ -8,6 +8,7 @@ const EN = Object.freeze({
 	verifying: 'Verifying complete archive and retaining original bytes…', schema: 'schema v2',
 	original: 'Download original v1 archive', upgraded: 'Download upgraded v2 archive',
 });
+const EN = FRAMESCAPER_SUCCESSOR_ENGLISH_COPY;
 const DE: Readonly<Record<keyof typeof EN, string>> = Object.freeze({
 	menu: 'Archiv für Framescaper 1.1 Entwicklung aktualisieren…',
 	title: 'Framescaper 1.1 Entwicklung — Archiv aktualisieren',
