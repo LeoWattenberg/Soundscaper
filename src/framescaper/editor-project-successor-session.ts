@@ -4,7 +4,7 @@ import { normalizeFramescaperSuccessorProject } from './editor-project-successor
 import { normalizeFramescaperSuccessorHistory, type FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
 type Delegate = ReturnType<typeof createAudioEditorSessionController>;
 export type FramescaperSuccessorSession = Omit<Delegate, 'captureProjectHistory' | 'getProjectHistory'> & Readonly<{
-	captureProjectHistory(projectId: string): Readonly<{ history: FramescaperSuccessorHistory; token: unknown }>;
+	captureProjectHistory(projectId: string): Readonly<{ history: FramescaperSuccessorHistory; token: object }>;
 	getProjectHistory(projectId: string): FramescaperSuccessorHistory;
 }>;
 export interface FramescaperSuccessorPublicationFence {
@@ -27,7 +27,7 @@ export function createFramescaperSuccessorSessionAuthority(retainHistory: (histo
 				assertEditable(); return delegate.updateProject(projectId, (previous: unknown) => normalizeFramescaperSuccessorProject(typeof update === 'function' ? (update as (value: unknown) => unknown)(previous) : update), options);
 			},
 			updateProjectHistory(projectId: string, history: unknown, options: Record<string, unknown> = {}) { assertEditable(); return delegate.updateProjectHistory(projectId, normalizeFramescaperSuccessorHistory(history), options); },
-			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: unknown }; return Object.freeze({ history: retainHistory(normalizeFramescaperSuccessorHistory(capture.history)), token: capture.token }); },
+			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: object }; return Object.freeze({ history: retainHistory(normalizeFramescaperSuccessorHistory(capture.history)), token: capture.token }); },
 			getProjectHistory(projectId: string) { return retainHistory(normalizeFramescaperSuccessorHistory(delegate.getProjectHistory(projectId))); },
 		});
 		sessions.set(session, delegate); return session;

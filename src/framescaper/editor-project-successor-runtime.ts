@@ -24,12 +24,8 @@ export function createFramescaperSuccessorRuntime(options: Readonly<{ line: unkn
 		compatibility: Object.freeze({ evaluate: (value: unknown) => baseline.compatibility.evaluate(framescaperSuccessorBaselineProject(value)) }),
 		createProject: (value: FramescaperProjectOptions = {}) => { session.assertEditable(); return migrateFramescaperSuccessorProject(baseline.createProject(value)); },
 		cloneProject: custody.cloneProject, historyForSnapshot: custody.historyForSnapshot, retainStoredHistory: custody.retainStoredHistory,
-		compactProjectSourceMetadata: (value: unknown, compact: Readonly<{ preserveSourceIds: Iterable<string> }>) => {
-			const project = normalizeFramescaperSuccessorProject(value);
-			const preserveSourceIds = new Set([...compact.preserveSourceIds, ...project.compositionLinks.flatMap(({ sourceId, audioSourceId }) => audioSourceId ? [sourceId, audioSourceId] : [sourceId])]);
-			const applied = baseline.compactProjectSourceMetadata(framescaperSuccessorBaselineProject(project), { preserveSourceIds });
-			return custody.retainCompactedSnapshot(value, normalizeFramescaperSuccessorProject({ ...applied, schemaVersion: 2, compositionLinks: project.compositionLinks }));
-		},
+		// Successor custody retains unused ordinary sources as well as linked companions. Cache cleanup cannot rewrite authored inventory.
+		compactProjectSourceMetadata: (value: unknown, _compact: Readonly<{ preserveSourceIds: Iterable<string> }>) => custody.cloneProject(value),
 		validateProject: (value: unknown): value is FramescaperSuccessorProject => { try { normalizeFramescaperSuccessorProject(value); return true; } catch { return false; } },
 		loadProject(value: unknown) {
 			const identity = classifyProjectSchemaIdentity(value, 'framescaper', 'successor');

@@ -1,0 +1,40 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import { createAudioEditorController } from '../common/editor/app.js';
+import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
+import { createVideoRetimeProgramOrdinalBridge } from '../common/editor/video-retime-program-ordinal-bridge.ts';
+import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from './editor-capture-runtime.ts';
+import { assertFramescaperSuccessorEnvironment, type FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
+import { resolveFramescaperCompositionSource } from './editor-composition-link-source.ts';
+import { createFramescaperSequenceActionsSequence } from './editor-project-sequence-sequence-actions.ts';
+import { createFramescaperMulticameraActionsSequence } from './editor-project-sequence-multicam-actions.ts';
+import { createFramescaperVideoRetimeActionsRetime } from './editor-project-retime-retime-actions.ts';
+import type { FramescaperProjectCommand } from './editor-project-commands.ts';
+import type { FramescaperAudioEditorControllerPresentation } from './editor-controller.ts';
+const CONTEXTS = new WeakMap<object, Readonly<{ environment: FramescaperSuccessorEnvironment; session: ReturnType<FramescaperSuccessorEnvironment['runtime']['createSessionController']> }>>();
+/** Own the successor session, store and project runtime explicitly; the common editor supplies timeline interaction. */
+export function createFramescaperSuccessorController(value: unknown, presentation: FramescaperAudioEditorControllerPresentation = {}) {
+	const environment = assertFramescaperSuccessorEnvironment(value); const session = environment.runtime.createSessionController();
+	let controller: ReturnType<typeof createAudioEditorController> | null = null;
+	const execute = (command: FramescaperProjectCommand) => { if (!controller) throw new Error('Successor controller is not ready.'); return controller.actions.edit.commit(command as never); };
+	const retime = createFramescaperVideoRetimeActionsRetime(execute);
+	controller = createAudioEditorController(null, {
+		headless: true, productId: 'framescaper', framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
+		store: environment.controllerStore, sessionController: session,
+		projectRuntime: environment.runtime as unknown as ControllerOptions['projectRuntime'],
+		acquireProjectLock: environment.runtime.acquireProjectLock, playbackProjectService: environment.playback,
+		createProjectIfAbsent: (project, options) => environment.controllerStore.createProjectIfAbsent(project, options),
+		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
+		productSequenceActions: { ...createFramescaperSequenceActionsSequence(execute), ...createFramescaperMulticameraActionsSequence(execute),
+			retimeSet: retime.set, retimeReset: retime.reset, retimeConstant: retime.constant, retimeReverse: retime.reverse, retimeFreeze: retime.freeze, retimeRamp: retime.ramp },
+		resolveProductVideoSource: async request => {
+			request.assertCurrent(); const resolved = resolveFramescaperCompositionSource(request.project, request.source); request.signal?.throwIfAborted(); request.assertCurrent();
+			return resolved ? { mediaKind: 'composition', timingIndex: resolved.timing.index } : null;
+		},
+		locale: presentation.locale, copy: presentation.copy, fileService: presentation.fileService,
+		confirmMonoConversion: presentation.confirmMonoConversion, confirmFileSizeWarning: presentation.confirmFileSizeWarning,
+	});
+	CONTEXTS.set(controller, Object.freeze({ environment, session })); return controller;
+}
+export function framescaperSuccessorControllerContext(controller: object) {
+	const context = CONTEXTS.get(controller); if (!context) throw new TypeError('An exact successor controller is required.'); return context;
+}
