@@ -39,9 +39,10 @@ test('Motionscaper packaged smoke supervises exit, deadlines, output bounds and 
 
 test('Motionscaper packaged native smoke requires an actual published MOV and exact precision', () => {
 	const native = { ...evidence, deliveryProfile: MOTION_PRORES_DELIVERY_PROFILE,
-		nativeSmoke: { status: 'passed', frameCount: 2, sha256: 'a'.repeat(64), profile: MOTION_PRORES_DELIVERY_PROFILE },
+		nativeSmoke: { status: 'passed', frameCount: 2, sha256: 'a'.repeat(64), profile: MOTION_PRORES_DELIVERY_PROFILE, audio: { sampleRate: 48000, channels: 2, sampleCount: 3204 } },
 		environment: { ...evidence.environment, nativeCapabilities: ['project-files-v1', 'prores-4444-v1'] } };
 	assert.deepEqual(assertMotionscaperPackagedSmoke(marker(native), { ...expected, nativeProres: true }), native);
 	assert.throws(() => assertMotionscaperPackagedSmoke(marker(native), expected), /evidence/u);
 	assert.throws(() => assertMotionscaperPackagedSmoke(marker({ ...native, nativeSmoke: { ...native.nativeSmoke, frameCount: 0 } }), { ...expected, nativeProres: true }), /evidence/u);
+	assert.throws(() => assertMotionscaperPackagedSmoke(marker({ ...native, nativeSmoke: { ...native.nativeSmoke, audio: null } }), { ...expected, nativeProres: true }), /evidence/u);
 });

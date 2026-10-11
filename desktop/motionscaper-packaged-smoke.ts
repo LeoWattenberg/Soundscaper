@@ -20,6 +20,7 @@ export function assertMotionscaperPackagedSmoke(output: string, expected: SmokeI
 	if (expected.nativeProres) {
 		const native = record(evidence.nativeSmoke);
 		if (native.status !== 'passed' || native.frameCount !== 2 || typeof native.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(native.sha256)
+			|| JSON.stringify(native.audio) !== JSON.stringify({ sampleRate: 48000, channels: 2, sampleCount: 3204 })
 			|| JSON.stringify(native.profile) !== JSON.stringify(nativeProfile)) throw new Error('Motionscaper native smoke evidence is invalid.');
 	} else if (evidence.nativeSmoke !== null) throw new Error('Motionscaper native smoke evidence exceeded its admitted capability.');
 	if (evidence.arch !== expected.arch || evidence.origin !== 'motionscaper-app://bundle'

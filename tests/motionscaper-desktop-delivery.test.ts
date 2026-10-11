@@ -23,7 +23,7 @@ await test('Motionscaper native delivery commits atomically only after exact car
 	await writeFile(path, 'original'); let runs = 0;
 	const authority = createMotionscaperDeliveryAuthority({ chooseOutput: async () => path, encoder: { async encode(request) {
 		runs++; const bytes = Buffer.from('verified movie'); await writeFile(request.output, bytes);
-		return { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), frameCount: 1 };
+		return { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), frameCount: 1, audioSamples: 0 };
 	} } });
 	try {
 		await assert.rejects(authority.begin({ plan: { ...plan, frameCount: 32_769 }, suggestedName: 'too-long.mov' }), /bounded/u);
@@ -65,7 +65,7 @@ await test('Motionscaper native delivery preserves an output edited while the en
 	await writeFile(path, 'original');
 	const authority = createMotionscaperDeliveryAuthority({ chooseOutput: async () => path, encoder: { async encode(request) {
 		await writeFile(path, 'external edit'); const bytes = Buffer.from('new movie'); await writeFile(request.output, bytes);
-		return { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), frameCount: 1 };
+		return { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), frameCount: 1, audioSamples: 0 };
 	} } });
 	try {
 		const selected = await authority.begin({ plan, suggestedName: 'x.mov' }); assert.ok(selected);

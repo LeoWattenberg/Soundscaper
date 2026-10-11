@@ -20,7 +20,7 @@ await test('Motionscaper renderer sink carries floats and waits for the native p
 			const source = createScapeArchiveByteSource({ size: total, read: ({ offset, length }) => bytes.slice(offset, offset + length) });
 			const reader = await openMotionNativeFrameReader(source, plan.identity); const frame = await reader.read(0);
 			assert.equal(frame.pixels[0], Math.fround(0.123456 * 0.5)); assert.equal(reader.header.firstFrame, 10);
-			published = true; return { identity: plan.identity, name: 'out.mov', byteLength: 30, sha256: 'b'.repeat(64), frameCount: 1, profile: MOTION_PRORES_DELIVERY_PROFILE };
+			published = true; return { identity: plan.identity, name: 'out.mov', byteLength: 30, sha256: 'b'.repeat(64), frameCount: 1, profile: MOTION_PRORES_DELIVERY_PROFILE, audio: null };
 		}, cancel: () => { cancelled++; return Promise.resolve(); },
 	};
 	assert.equal(motionscaperDesktopDelivery({ scapeDesktop: { v1: { motionDelivery: delivery } } }), delivery);
