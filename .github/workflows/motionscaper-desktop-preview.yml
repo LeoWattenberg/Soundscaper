@@ -1,7 +1,13 @@
-name: Motionscaper candidate package inventory
+name: Motionscaper package inventory
 
 on:
   workflow_call:
+    inputs:
+      expected-channel:
+        description: Exact active own release channel; stable must be selected explicitly.
+        type: string
+        required: false
+        default: candidate
 
 permissions:
   contents: read
@@ -48,13 +54,14 @@ jobs:
         with: { node-version-file: .nvmrc, architecture: '${{ matrix.target.arch }}', cache: npm }
       - run: npm install --global npm@12.0.1
       - run: npm ci
-      - name: Validate the own active candidate tag
-        env: { RELEASE_TAG: '${{ github.ref_name }}' }
+      - name: Validate the own active tag, source and selected channel
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          MOTION_RELEASE_CHANNEL: ${{ inputs.expected-channel }}
         run: >-
-          node --input-type=module -e
-          "import { readProductReleaseLinesSync, resolveProductReleaseTag } from './scripts/lib/product-release-lines.mjs';
-          const release = resolveProductReleaseTag(process.env.RELEASE_TAG, readProductReleaseLinesSync());
-          if (release.productId !== 'motionscaper' || release.channel !== 'candidate') throw new Error('An active Motion candidate tag is required.');"
+          node scripts/verify-motionscaper-release.ts --tag="$RELEASE_TAG"
+          --expected-channel="$MOTION_RELEASE_CHANNEL" --source-revision="${{ github.sha }}"
       - name: Download the exact target native result
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -128,7 +135,7 @@ jobs:
         run: node scripts/desktop-signing-keychain.mjs cleanup
 
   inventory:
-    name: Verify all Motion candidates and mandatory corresponding source
+    name: Verify all Motion packages and mandatory corresponding source
     needs: package
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -152,24 +159,27 @@ jobs:
       - name: Assemble own packages, authenticated corresponding source and checksums
         env:
           MOTION_RELEASE_TAG: ${{ github.ref_name }}
+          MOTION_RELEASE_CHANNEL: ${{ inputs.expected-channel }}
         shell: bash
         run: >-
           node scripts/motionscaper-release-assets.ts --tag="$MOTION_RELEASE_TAG"
+          --expected-channel="$MOTION_RELEASE_CHANNEL"
           --inputs="${{ runner.temp }}/motionscaper-packages"
           --native-results="${{ runner.temp }}/motionscaper-native-results"
           --source-inputs="${{ runner.temp }}/motionscaper-source-inputs"
-          --output=motionscaper-release --evidence=motionscaper-release-evidence
-      - name: Retain the complete candidate inventory without publication
+          --output="${{ runner.temp }}/motionscaper-release"
+          --evidence="${{ runner.temp }}/motionscaper-release-evidence"
+      - name: Retain the complete inventory without publication
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: motionscaper-preview-inventory
-          path: motionscaper-release/
+          path: ${{ runner.temp }}/motionscaper-release/
           if-no-files-found: error
           retention-days: 14
       - name: Retain separate source-bound package and native receipts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: motionscaper-preview-evidence
-          path: motionscaper-release-evidence/
+          path: ${{ runner.temp }}/motionscaper-release-evidence/
           if-no-files-found: error
           retention-days: 14

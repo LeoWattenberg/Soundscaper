@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -296,8 +297,8 @@ jobs:
       - name: Check the architecture rules
         run: npm run check:architecture
         env:
-          CONTROLLER_DOMAIN_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || github.sha }}
-          MAINTAINABILITY_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || github.sha }}
+          CONTROLLER_DOMAIN_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.ref_type == 'branch' && github.event.before || github.sha }}
+          MAINTAINABILITY_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.ref_type == 'branch' && github.event.before || github.sha }}
 
       - name: Audit the pinned third-party payloads
         run: npm run audit:ci

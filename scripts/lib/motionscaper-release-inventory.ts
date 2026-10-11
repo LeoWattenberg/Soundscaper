@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { lstat, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { MOTION_NATIVE_TARGETS, type MotionNativeTarget, type MotionNativeFilePin } from './motionscaper-native-source.ts';
+import { motionReleaseVersionChannel } from './motionscaper-release-policy.ts';
 
 export const MOTION_RELEASE_EVIDENCE = ['stage-manifest.json', 'native-build-result.json', 'native-payload.json', 'smoke.txt'] as const;
 export interface MotionReleaseReceipt {
@@ -11,7 +12,8 @@ export interface MotionReleaseReceipt {
 	readonly applicationVersion: string; readonly sourceRevision: string; readonly files: readonly MotionNativeFilePin[];
 }
 export function motionReleasePackageNames(target: MotionNativeTarget, version: string): readonly string[] {
-	if (!MOTION_NATIVE_TARGETS.includes(target) || !/^\d+\.\d+\.\d+-(?:alpha|beta|rc)\.[A-Za-z\d.-]+$/u.test(version)) throw new Error('Motion preview target or version is invalid.');
+	if (!MOTION_NATIVE_TARGETS.includes(target)) throw new Error('Motion release target is invalid.');
+	motionReleaseVersionChannel(version);
 	const suffixes = target.startsWith('linux-') ? ['AppImage', 'deb'] : target.startsWith('win-') ? ['exe', 'zip'] : ['dmg'];
 	return suffixes.map(suffix => `Motionscaper-${version}-${target}.${suffix}`);
 }

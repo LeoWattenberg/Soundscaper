@@ -31,6 +31,13 @@ test('Motion release inventory requires nine own packages, target evidence and e
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('Motion stable inventory retains exactly nine own target packages', () => {
+	const targets = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'] as const;
+	assert.equal(targets.flatMap(target => motionReleasePackageNames(target, '1.0.0')).length, 9);
+	assert.deepEqual(motionReleasePackageNames('mac-arm64', '1.0.0'), ['Motionscaper-1.0.0-mac-arm64.dmg']);
+	for (const version of ['01.0.0', '1.0.0-alpha.01', '1.0.0+foreign']) assert.throws(() => motionReleasePackageNames('mac-arm64', version));
+});
+
 test('Motion corresponding-source plan includes every pinned linked library and Boost source before assembly', async () => {
 	const plan = await motionReleaseSourcePlan(join(import.meta.dirname, '..'));
 	assert.deepEqual(plan.map(source => source.id), ['ffmpeg', 'boost', 'x264', 'x265', 'libvpx', 'libopus', 'zlib']);

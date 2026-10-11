@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,13 +10,11 @@ import { verifyMotionscaperNativeBuildResult } from './lib/motionscaper-native-b
 import { MOTION_NATIVE_TARGETS } from './lib/motionscaper-native-source.ts';
 import { motionReleasePackageNames, pinMotionReleaseFile, releaseRecord, validateMotionReleaseReceipt, verifyMotionReleaseReceiptFiles } from './lib/motionscaper-release-inventory.ts';
 import { stageMotionReleaseSources } from './lib/motionscaper-release-sources.ts';
-import { readProductReleaseLinesSync, resolveProductApplicationVersion, resolveProductReleaseTag } from './lib/product-release-lines.mjs';
+import { verifyMotionRelease, type MotionReleaseChannel } from './lib/motionscaper-release-policy.ts';
 
-export async function assembleMotionRelease(options: { root: string; inputs: string; nativeResults: string; output: string; evidence: string; sourceInputs: string; tag: string }): Promise<void> {
-	const lines = readProductReleaseLinesSync(options.root); const release = resolveProductReleaseTag(options.tag, lines);
-	if (release.productId !== 'motionscaper' || release.channel !== 'candidate') throw new Error('Motion preview assembly requires its exact active candidate tag.');
-	const version = resolveProductApplicationVersion('motionscaper', lines);
-	const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: options.root, encoding: 'utf8' }).trim();
+export async function assembleMotionRelease(options: { root: string; inputs: string; nativeResults: string; output: string; evidence: string; sourceInputs: string; tag: string; expectedChannel?: MotionReleaseChannel }): Promise<void> {
+	const release = verifyMotionRelease(options);
+	const version = release.version; const revision = release.sourceRevision;
 	const expectedDirectories = MOTION_NATIVE_TARGETS.map(target => `motionscaper-preview-${target}`).sort();
 	if ((await readdir(options.inputs)).sort().join() !== expectedDirectories.join()) throw new Error('Motion release must contain exactly five target artifacts.');
 	await mkdir(options.output, { recursive: false }); await mkdir(options.evidence, { recursive: false });
@@ -58,8 +55,9 @@ export async function assembleMotionRelease(options: { root: string; inputs: str
 	const notices = ['THIRD_PARTY_LICENSES.md', 'native/motionscaper-media-host/THIRD_PARTY_NOTICES.md', 'native/framescaper-media-host/THIRD_PARTY_NOTICES.md'];
 	await writeFile(join(options.output, 'THIRD_PARTY_LICENSES.md'), (await Promise.all(notices.map(path => readFile(join(options.root, path), 'utf8')))).join('\n\n'), { flag: 'wx' });
 	const files = [...packagePins, await pinMotionReleaseFile(options.output, 'sources.zip'), await pinMotionReleaseFile(options.output, 'THIRD_PARTY_LICENSES.md')].sort((a, b) => a.path.localeCompare(b.path, 'en'));
+	if (JSON.stringify(verifyMotionRelease(options)) !== JSON.stringify(release)) throw new Error('Motion release source changed during assembly.');
 	await writeFile(join(options.output, 'SHA256SUMS'), files.map(file => `${file.sha256}  ${file.path}\n`).join(''), { flag: 'wx' });
-	await writeFile(join(options.evidence, 'release-inventory.json'), `${JSON.stringify({ schemaVersion: 1, productId: 'motionscaper', tag: options.tag, sourceRevision: revision, applicationVersion: version, qualification: 'target-native-packaged-smoke; signing-and-installation-receipts-separate', files }, null, '\t')}\n`, { flag: 'wx' });
+	await writeFile(join(options.evidence, 'release-inventory.json'), `${JSON.stringify({ schemaVersion: 1, productId: 'motionscaper', tag: options.tag, channel: release.channel, sourceRevision: revision, applicationVersion: version, qualification: 'target-native-packaged-smoke; signing-and-installation-receipts-separate', files }, null, '\t')}\n`, { flag: 'wx' });
 }
 async function json(path: string): Promise<unknown> {
 	const bytes = await pinMotionReleaseFile(resolve(path, '..'), path.split(/[\\/]/u).at(-1)!);
@@ -67,8 +65,10 @@ async function json(path: string): Promise<unknown> {
 	return JSON.parse(await readFile(path, 'utf8')) as unknown;
 }
 export async function main(args = process.argv.slice(2)): Promise<void> {
-	const { values } = parseArgs({ args, options: Object.fromEntries(['inputs', 'native-results', 'output', 'evidence', 'source-inputs', 'tag'].map(key => [key, { type: 'string' as const }])) });
+	const { values } = parseArgs({ args, options: Object.fromEntries(['inputs', 'native-results', 'output', 'evidence', 'source-inputs', 'tag', 'expected-channel'].map(key => [key, { type: 'string' as const }])) });
 	for (const key of ['inputs', 'native-results', 'output', 'evidence', 'source-inputs', 'tag']) if (typeof values[key] !== 'string' || !values[key]) throw new Error(`Motion preview assembly requires --${key}.`);
-	await assembleMotionRelease({ root: resolve(import.meta.dirname, '..'), inputs: resolve(String(values.inputs)), nativeResults: resolve(String(values['native-results'])), output: resolve(String(values.output)), evidence: resolve(String(values.evidence)), sourceInputs: resolve(String(values['source-inputs'])), tag: String(values.tag) });
+	const expectedChannel = values['expected-channel'] ?? 'candidate';
+	if (expectedChannel !== 'candidate' && expectedChannel !== 'stable') throw new Error('Motion expected release channel must be candidate or stable.');
+	await assembleMotionRelease({ root: resolve(import.meta.dirname, '..'), inputs: resolve(String(values.inputs)), nativeResults: resolve(String(values['native-results'])), output: resolve(String(values.output)), evidence: resolve(String(values.evidence)), sourceInputs: resolve(String(values['source-inputs'])), tag: String(values.tag), expectedChannel });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await main();

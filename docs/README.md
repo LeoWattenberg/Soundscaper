@@ -51,6 +51,9 @@ belong in Git history, not in the maintained documentation set.
 
 ## Operate and release
 
+- [Motionscaper release preparation](operations/motionscaper-release.md) describes
+  its own tag, package, quality and exact-artifact Pages publication gates.
+
 - [Release process](operations/release.md) separates automated evidence,
   optional owner QA, and the owner's release decision.
 - [Desktop signing and notarization](operations/signing.md) covers the external

@@ -1,0 +1,176 @@
+name: Motionscaper stable release
+
+on:
+  push:
+    tags:
+      - 'motionscaper-v*'
+      - '!motionscaper-v*-*'
+
+permissions: {}
+concurrency: { group: motionscaper-stable-release, cancel-in-progress: false }
+
+jobs:
+  admit:
+    name: Verify the exact active Motion stable tag
+    permissions: { contents: read }
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with: { node-version-file: .nvmrc }
+      - id: release
+        env: { RELEASE_TAG: '${{ github.ref_name }}' }
+        run: >-
+          node scripts/verify-motionscaper-release.ts --tag="$RELEASE_TAG"
+          --expected-channel=stable --source-revision="${{ github.sha }}"
+          --github-output="$GITHUB_OUTPUT"
+
+  # Wait for the whole reusable workflow, including Firefox (not only Coverage).
+  # Its main-branch-only deployment condition is false for this own stable tag.
+  quality:
+    needs: admit
+    permissions: { contents: read, packages: read }
+    uses: ./.github/workflows/quality.yml
+
+  package:
+    needs: admit
+    permissions: { contents: read }
+    uses: ./.github/workflows/motionscaper-desktop-preview.yml
+    with:
+      expected-channel: stable
+    secrets: inherit
+
+  web:
+    name: Build the own production site and handbook
+    needs: [admit, quality]
+    permissions: { contents: read }
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SCAPE_PRODUCT: motionscaper
+      MOTIONSCAPER_SITE: https://motionscaper.org
+      NODE_OPTIONS: --max-old-space-size=8192
+      # Explicit owner declaration only for the first deployment. The existing
+      # preflight refuses this declaration once the origin answers.
+      SCAPE_PAGES_COLD_START: ${{ vars.MOTIONSCAPER_PAGES_COLD_START || '' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - name: Build, preflight and bind the exact tagged source and production bytes
+        env: { RELEASE_TAG: '${{ github.ref_name }}' }
+        run: >-
+          node scripts/motionscaper-release-web.ts --operation=build
+          --directory=dist --evidence="$RUNNER_TEMP/motionscaper-web-artifact.json"
+          --tag="$RELEASE_TAG" --expected-channel=stable --source-revision="${{ github.sha }}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motionscaper-stable-web
+          path: dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motionscaper-stable-web-evidence
+          path: ${{ runner.temp }}/motionscaper-web-artifact.json
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    name: Create the qualified own release draft
+    needs: [admit, quality, package, web]
+    permissions: { contents: write }
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # These internal artifact names are shared with the candidate caller;
+      # the reusable job independently admits this run's stable channel.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: motionscaper-preview-inventory, path: release/motionscaper }
+      - name: Check the assembled package and source inventory
+        working-directory: release/motionscaper
+        run: sha256sum --check SHA256SUMS
+      - name: Create the draft without publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MOTION_VERSION: ${{ needs.admit.outputs.version }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" release/motionscaper/*
+          --draft --verify-tag --title "Motionscaper $MOTION_VERSION" --generate-notes
+
+  deploy-web:
+    name: Deploy and verify the admitted Motion artifact
+    needs: [admit, web, draft-release]
+    permissions: { contents: read }
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency: { group: deploy-motionscaper-production, cancel-in-progress: false }
+    env:
+      SCAPE_PRODUCT: motionscaper
+      MOTIONSCAPER_SITE: https://motionscaper.org
+      SCAPE_PAGES_COLD_START: ${{ vars.MOTIONSCAPER_PAGES_COLD_START || '' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: motionscaper-stable-web, path: dist }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: motionscaper-stable-web-evidence, path: '${{ runner.temp }}' }
+      - name: Verify downloaded bytes against the independent tag and checkout
+        env: { RELEASE_TAG: '${{ github.ref_name }}' }
+        run: >-
+          node scripts/motionscaper-release-web.ts --operation=verify
+          --directory=dist --evidence="$RUNNER_TEMP/motionscaper-web-artifact.json"
+          --tag="$RELEASE_TAG" --expected-channel=stable --source-revision="${{ github.sha }}"
+      - name: Recheck the predecessor immediately before upload
+        run: node scripts/preflight-pages-deploy.mjs
+      - name: Deploy the verified artifact without rebuilding
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler pages deploy dist --project-name=motionscaper --branch=main | tee pages-deployment.log
+      - name: Verify exact live offline-shell bytes and the product routes
+        run: npm run verify:pages
+        env:
+          SCAPE_DEPLOY_EXPECTED_OFFLINE_SHELL: dist/offline-shell.json
+          SCAPE_DEPLOY_IDENTITY_EVIDENCE: pages-deployment-identity.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motionscaper-stable-pages-deployment
+          path: |
+            pages-deployment.log
+            pages-deployment-identity.json
+            ${{ runner.temp }}/motionscaper-web-artifact.json
+          if-no-files-found: error
+          retention-days: 90
+
+  publish-release:
+    name: Publish only after the own site is verified
+    needs: [admit, deploy-web]
+    permissions: { contents: write }
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: motionscaper-stable-pages-deployment, path: . }
+      - name: Retain deployment evidence and publish the draft
+        env: { GH_TOKEN: '${{ github.token }}', GH_REPO: '${{ github.repository }}' }
+        run: |
+          gh release upload "$GITHUB_REF_NAME" pages-deployment.log pages-deployment-identity.json motionscaper-web-artifact.json
+          gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=false --latest

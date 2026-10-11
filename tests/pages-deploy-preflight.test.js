@@ -100,7 +100,7 @@ test('Pages CLI separates predecessor preflight from intended post-deploy verifi
 	);
 	assert.match(packageMetadata.scripts['build:pages'], /npm run build.*preflight-pages-deploy\.mjs/u);
 	assert.match(packageMetadata.scripts['verify:pages'], /verify-pages-deploy\.mjs/u);
-	assert.match(packageMetadata.scripts.deploy, /^npm run build:pages && wrangler pages deploy/u);
+	assert.equal(packageMetadata.scripts.deploy, 'node scripts/deploy-pages.ts');
 	assert.match(documentation, /gated build command\s+`npm run build:pages`/u);
 	assert.match(documentation, /do not\s+replace it with the ungated `npm run build`/u);
 	const workflow = await readFile('.github/workflows/quality.yml', 'utf8');
