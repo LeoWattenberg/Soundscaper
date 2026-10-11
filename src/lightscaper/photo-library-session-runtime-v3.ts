@@ -81,12 +81,13 @@ export async function createPhotoLibrarySessionV3(options: PhotoLibrarySessionRu
 			}, privateSignal);
 			assertNotAborted(privateSignal);
 			const selectedMedia = media!, selectedCatalog = catalog!, catalogId = selection.location.catalogId;
+			const selectedMaskRasterResources = () => selectedMedia.getMaskRasterResources();
 			const loadOriginal = selectedMedia.mediaRepository.loadAsset;
 			return new PhotoLibrarySessionV2({ catalog: selectedCatalog, stacks: selectedCatalog, smartCollections: selectedCatalog,
 				media: { writeAsset: selectedMedia.mediaRepository.writeAsset, custody: selectedMedia.mediaRepository.catalogOriginals },
 				journal: selectedMedia.settingsRepository, settings: anchor.settingsRepository,
 				developPresetSettings: selectedMedia.settingsRepository, exportJournalSettings: selectedMedia.settingsRepository, exportPresetSettings: selectedMedia.settingsRepository, exclusive,
-			cubeLutResources: selectedMediaResources, verifyResources,
+			cubeLutResources: selectedMediaResources, maskRasterResources: selectedMaskRasterResources, verifyResources,
 				initialize: async admitted => { assertNotAborted(admitted); const root = await selectedCatalog.loadCatalog(catalogId);
 					assertNotAborted(admitted); if (!root) throw new ReferenceError('Selected photo library catalog is missing.'); return root; },
 				originalInspection: { inspect: (binding, admitted) => selectedMedia.mediaRepository.inspectCatalogOriginalBody(binding, { signal: admitted }) },

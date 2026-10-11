@@ -4,6 +4,7 @@ import type { PhotoLibrarySessionPortV1 } from './photo-library-session-port-v1.
 import type { PhotoLibraryDevelopPortV2 } from './photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopImportPortV2 } from './photo-library-develop-import-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from './photo-library-cube-lut-port-v1.ts';
+import type { MaskRasterSourcePortV1 } from './imaging/mask-raster-source-port-v1.ts';
 import type { PhotoLibraryExportPresetsPortV1 } from './photo-library-export-presets-port-v1.ts';
 import type { PhotoLibraryImageReceivePortV1 } from './photo-library-image-receive-port-v1.ts';
 import type { PhotoLibraryImageHandoffPortV1 } from './photo-library-image-handoff-port-v1.ts';
@@ -37,6 +38,8 @@ export interface PhotoLibrarySessionPortV2 extends Omit<PhotoLibrarySessionPortV
 	readonly develop: Readonly<PhotoLibraryDevelopPortV2>;
 	readonly developImport: Readonly<PhotoLibraryDevelopImportPortV2>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
+	/** Selected immutable brush bytes, borrowed inside the Session operation. */
+	readonly maskRasterSource?: Readonly<MaskRasterSourcePortV1>;
 	readonly imageReceive?: Readonly<PhotoLibraryImageReceivePortV1>;
 	readonly imageHandoff?: Readonly<PhotoLibraryImageHandoffPortV1>;
 	readonly collectionHandoff?: Readonly<PhotoLibraryCollectionHandoffPortV1>;

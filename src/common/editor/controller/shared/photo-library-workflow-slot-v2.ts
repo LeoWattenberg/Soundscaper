@@ -4,6 +4,7 @@ import type { PhotoLibraryWorkflowSlotV1 } from './photo-library-workflow-slot.t
 import type { CreatePhotoLibrarySessionV3, PhotoLibrarySessionPortV2 } from '../../photo-library-session-port-v2.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2, PhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { CubeLutSourcePortV1 } from '../../imaging/cube-lut-source-port-v1.ts';
+import { captureMaskRasterSourceV1 } from '../../imaging/mask-raster-source-scope-v1.ts';
 
 export interface PhotoLibraryWorkflowSlotV2 extends Omit<PhotoLibraryWorkflowSlotV1, 'factory' | 'pending'> {
 	readonly factory: CreatePhotoLibrarySessionV3 | undefined;
@@ -42,6 +43,8 @@ export function loadPhotoLibraryDevelopProxyV2(current: PhotoLibraryWorkflowSlot
 			check(current);
 			if (!current.proxyFactory) throw new Error('Photo develop preview is unavailable.');
 			const owner = await acquirePhotoLibraryWorkflowSlotV2(current); check(current);
+			const selectedMaskSource = owner.maskRasterSource;
+			const maskSource = selectedMaskSource === undefined ? undefined : captureMaskRasterSourceV1(selectedMaskSource);
 			const source = owner.cubeLuts.source, withBytes = source.withBytes;
 			if (typeof withBytes !== 'function') throw new TypeError('The selected library LUT source is unavailable.');
 			const captured: Readonly<CubeLutSourcePortV1> = Object.freeze({
@@ -49,7 +52,7 @@ export function loadPhotoLibraryDevelopProxyV2(current: PhotoLibraryWorkflowSlot
 					options?: Readonly<{ signal?: AbortSignal }>) { return Reflect.apply(withBytes, source, [reference, consume, options]) as Promise<Result>; },
 			});
 			check(current);
-			const runtime = await current.proxyFactory(captured); check(current); return runtime;
+			const runtime = await current.proxyFactory(captured, maskSource); check(current); return runtime;
 		});
 		current.proxyPending = pending;
 		void pending.catch(() => { if (current.proxyPending === pending && current.live) current.proxyPending = null; });

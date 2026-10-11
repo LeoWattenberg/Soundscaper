@@ -5,6 +5,7 @@ import type { ImageDevelopStateV2 } from './imaging/image-develop-state-v2.ts';
 import type { PixelFrameV1 } from './imaging/pixel-frame-contract-v1.ts';
 import type { PhotoLibraryDevelopProxyViewV1 } from './photo-library-develop-proxy-port-v1.ts';
 import type { CubeLutSourcePortV1 } from './imaging/cube-lut-source-port-v1.ts';
+import type { MaskRasterSourcePortV1 } from './imaging/mask-raster-source-port-v1.ts';
 import type { ImageDevelopMaskOverlaySelectionV1, ImageDevelopMaskOverlayViewV1 } from './imaging/image-develop-mask-overlay-v1.ts';
 
 export interface PhotoLibraryDevelopFrameRequestV2 {
@@ -25,4 +26,5 @@ export interface PhotoLibraryDevelopProxyRuntimeV2 {
 }
 export type LoadPhotoLibraryDevelopProxyRuntimeV2 = () => Promise<Readonly<PhotoLibraryDevelopProxyRuntimeV2>>;
 /** The UI generation supplies its selected library source before constructing a renderer. */
-export type CreatePhotoLibraryDevelopProxyRuntimeV2 = (source: Readonly<CubeLutSourcePortV1>) => Promise<Readonly<PhotoLibraryDevelopProxyRuntimeV2>>;
+export type CreatePhotoLibraryDevelopProxyRuntimeV2 = (source: Readonly<CubeLutSourcePortV1>,
+	maskSource?: Readonly<MaskRasterSourcePortV1>) => Promise<Readonly<PhotoLibraryDevelopProxyRuntimeV2>>;

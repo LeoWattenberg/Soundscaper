@@ -52,6 +52,7 @@ import type { PhotoLibraryCubeLutPortV1 } from '../../common/editor/photo-librar
 import type { PhotoLibraryImageHandoffPortV1, PhotoLibraryImageHandoffRequestV1, PhotoLibraryImageHandoffViewV1 } from '../../common/editor/photo-library-image-handoff-port-v1.ts';
 import type { PhotoLibraryCollectionHandoffPortV1, PhotoLibraryCollectionHandoffRequestV1, PhotoLibraryCollectionHandoffViewV1 } from '../../common/editor/photo-library-collection-handoff-port-v1.ts';
 import type { CubeLutSourcePortV1 } from '../../common/editor/imaging/cube-lut-source-port-v1.ts';
+import type { MaskRasterSourcePortV1 } from '../../common/editor/imaging/mask-raster-source-port-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../../common/editor/video-color-management-v27.ts';
 import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cube-lut-v27.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
@@ -60,6 +61,7 @@ import { createPhotoLibraryImageReceiveSessionV1 } from './photo-library-image-r
 import { createPhotoLibrarySessionImport } from './photo-library-session-import.ts';
 import { backupPhotoLibrarySession } from './photo-library-session-backup.ts';
 import { capturePhotoLibrarySessionPorts } from './photo-library-session-bindings.ts';
+import { createPhotoLibraryMaskRasterSourceV1 } from './photo-library-mask-raster-session-v1.ts';
 
 const CHECK = AbortSignal.prototype.throwIfAborted;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
@@ -75,6 +77,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly #lifetime = new PhotoLibrarySessionLifetime();
 	readonly #imports: ReturnType<typeof createPhotoLibrarySessionImport>;
 	readonly cubeLuts: Readonly<PhotoLibraryCubeLutPortV1>;
+	readonly maskRasterSource: Readonly<MaskRasterSourcePortV1>;
 	readonly imageReceive: ReturnType<typeof createPhotoLibraryImageReceiveSessionV1>;
 	readonly imageHandoff: Readonly<PhotoLibraryImageHandoffPortV1>;
 	readonly collectionHandoff: Readonly<PhotoLibraryCollectionHandoffPortV1>;
@@ -90,6 +93,8 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	constructor(ports: PhotoLibrarySessionPortsV2) {
 		ports = capturePhotoLibrarySessionPorts(ports);
 		this.#ports = ports;
+		this.maskRasterSource = createPhotoLibraryMaskRasterSourceV1({ resources: ports.maskRasterResources, ready: () => this.#ready(),
+			operation: (run, signal, admit) => this.#operation(run, signal, admit) });
 		if (ports.catalog.readCullingDestinationPage) this.cullingNavigation = createPhotoLibraryCullingNavigationSessionV1({
 			repository: { readCullingDestinationPage: ports.catalog.readCullingDestinationPage }, ready: () => this.#ready(), operation: (run, signal) => this.#operation(run, signal) });
 		this.imageReceive = createPhotoLibraryImageReceiveSessionV1({ ports, managed: this.#managedPorts(),

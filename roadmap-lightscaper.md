@@ -440,8 +440,10 @@ resource storage. Catalog writes verify bodies reachable through retained
 versions, history, redo, snapshots, and disabled or unbound graphs in the
 selected media namespace. The shared renderer now accepts an explicit authenticated
 brush source, resamples linear alpha coverage at each adjustment's actual input,
-and projects the exact blended coverage into its temporary overlay. Photo proxy
-and full-resolution render runtimes forward this capability. Selected-session and
+and projects the exact blended coverage into its temporary overlay. The selected
+Photo Session now lends its immutable brush bodies through its existing joined
+operation lifetime. Its cached renderer shares that source across proxy,
+full-resolution, and PNG/JPEG export, including restored catalog namespaces.
 Frame integration, menu authoring, portable body custody, full mask management,
 composition authoring, and healing remain open; this foundation does not close L6.
 

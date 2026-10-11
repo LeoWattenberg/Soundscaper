@@ -4,6 +4,7 @@ import type { PhotoCatalogRepositoryV2 } from '../catalog/photo-catalog-reposito
 import type { importManagedPhotosV2 } from '../import/managed-import-v2.ts';
 import type { PhotoManagedImportPortsV2 } from '../import/managed-import-ports-v2.ts';
 import type { PhotoMediaCubeLutResourcesV1 } from '../storage/photo-media-cube-lut-resources-v1.ts';
+import type { PhotoMediaMaskRasterResourcesV1 } from '../storage/photo-media-mask-raster-resources-v1.ts';
 import type { PhotoPreviewSchedulerV2 } from '../preview/photo-preview-scheduler-v2.ts';
 import type { PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 import type { PhotoLibraryExportJournalSettings } from '../../common/editor/photo-library-session-port-v2.ts';
@@ -16,6 +17,7 @@ export interface PhotoLibrarySessionPortsV2 extends Omit<PhotoLibrarySessionPort
 	readonly createPreviewScheduler?: (catalogId: string) => Promise<PhotoLibraryPreviewSchedulerPortV2>;
 	readonly importPhotos?: typeof importManagedPhotosV2;
 	readonly cubeLutResources?: () => Promise<Readonly<PhotoMediaCubeLutResourcesV1>>;
+	readonly maskRasterResources?: () => Promise<Readonly<PhotoMediaMaskRasterResourcesV1>>;
 	readonly verifyResources?: PhotoManagedImportPortsV2['verifyResources'];
 	readonly exportJournalSettings?: Readonly<PhotoLibraryExportJournalSettings>;
 	readonly exportPresetSettings?: Readonly<PhotoDevelopPresetSettingsPortV1>;

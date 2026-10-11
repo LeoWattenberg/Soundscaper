@@ -10,7 +10,7 @@ export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV
 	const settings = ports.settings, presetSettings = ports.developPresetSettings, exportPresets = ports.exportPresetSettings, inspection = ports.originalInspection,
 		restoration = ports.originalRestoration, backup = ports.backup;
 	const initialize = ports.initialize, closeResources = ports.closeResources, exclusive = ports.exclusive,
-		verifyResources = ports.verifyResources, cubeLutResources = ports.cubeLutResources, createPreviewScheduler = ports.createPreviewScheduler,
+		verifyResources = ports.verifyResources, cubeLutResources = ports.cubeLutResources, maskRasterResources = ports.maskRasterResources, createPreviewScheduler = ports.createPreviewScheduler,
 		prepare = ports.prepare, importPhotos = ports.importPhotos, createId = ports.createId, now = ports.now;
 	const managed = capturePhotoManagedImportPortsV2({ catalog, media, journal,
 		...(exclusive === undefined ? {} : { exclusive }), ...(verifyResources === undefined ? {} : { verifyResources }) });
@@ -42,6 +42,7 @@ export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV
 		...(backup === undefined ? {} : { backup: Object.freeze({ readSnapshot: pin(backup.readSnapshot, backup),
 			captureSmartCollectionArchiveV1: pin(backup.captureSmartCollectionArchiveV1, backup), loadOriginal: pin(backup.loadOriginal, backup) }) }),
 		...(cubeLutResources === undefined ? {} : { cubeLutResources: pin(cubeLutResources, ports) }),
+		...(maskRasterResources === undefined ? {} : { maskRasterResources: pin(maskRasterResources, ports) }),
 		...(createPreviewScheduler === undefined ? {} : { createPreviewScheduler: pin(createPreviewScheduler, ports) }),
 		...(prepare === undefined ? {} : { prepare: pin(prepare, ports) }),
 		...(importPhotos === undefined ? {} : { importPhotos: pin(importPhotos, ports) }),
