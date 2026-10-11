@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
+import { pendingMotionDeliveryCleanup, type MotionDeliveryCleanupFailure } from '../common/editor/motion-delivery-cleanup.ts';
 import { createMotionRenderQueue } from '../common/editor/controller/export/motion-render-pipeline.ts';
 import { createMotionscaperRevision } from './editor-project-revision.ts';
 import { renderMotionscaperDelivery, type MotionDeliveryOptions } from './editor-render-delivery.ts';
@@ -19,7 +20,7 @@ interface QueuedJob {
 	view: MotionDeliveryJob; readonly intent: MotionDeliveryIntent; readonly bytes: number;
 	readonly controller: AbortController; readonly completion: Promise<MotionDeliveryOutput>;
 	resolve(output: MotionDeliveryOutput): void; reject(error: unknown): void; output: MotionDeliveryOutput;
-	cancellation: Promise<void> | null; cleanupRequired: boolean;
+	cancellation: Promise<void> | null; cleanupRequired: boolean; cleanup: readonly MotionDeliveryCleanupFailure[];
 }
 export interface MotionDeliveryQueueOptions {
 	readonly store: MotionAssetReader; readonly maximumJobs?: number; readonly maximumOutputBytes?: number;
@@ -74,7 +75,7 @@ export class MotionscaperDeliveryQueue {
 		let resolve!: QueuedJob['resolve']; let reject!: QueuedJob['reject'];
 		const completion = new Promise<MotionDeliveryOutput>((yes, no) => { resolve = yes; reject = no; }); void completion.catch(() => undefined);
 		const job: QueuedJob = { intent: Object.freeze({ ...intent, project: revision.project, ...(intent.background ? { background: Object.freeze([...intent.background]) as MotionDeliveryIntent['background'] } : {}) }),
-			bytes, controller: new AbortController(), completion, resolve, reject, output: null, cancellation: null, cleanupRequired: false,
+			bytes, controller: new AbortController(), completion, resolve, reject, output: null, cancellation: null, cleanupRequired: false, cleanup: [],
 			view: Object.freeze({ id, title: revision.project.title, composition: composition.name, revisionDigest: revision.digest, format: intent.format,
 				firstFrame: intent.firstFrame, endFrame: intent.endFrame, attempt, status: 'queued', completed: 0, total: intent.endFrame - intent.firstFrame, error: null, downloadAvailable: false, cleanupRequired: false }) };
 		this.#jobs.set(id, job); this.#pending.push(job); this.#emit(); this.#draining ??= Promise.resolve().then(() => this.#drain());
@@ -99,6 +100,7 @@ export class MotionscaperDeliveryQueue {
 					const failures: unknown[] = [];
 					try { if (!handedToDelivery) await job.intent.writable?.abort(error); } catch (failure) { failures.push(failure); job.cleanupRequired = true; }
 					const failure = aggregateScapeErrors(error, failures, 'Motion render admission and destination cleanup failed.');
+					job.cleanup = pendingMotionDeliveryCleanup(failure); job.cleanupRequired ||= job.cleanup.length > 0;
 					this.#update(job, { status: job.controller.signal.aborted ? 'cancelled' : 'failed', error: failure instanceof Error ? failure.message : String(failure), cleanupRequired: job.cleanupRequired }); job.reject(failure);
 				} finally { this.#active = null; }
 			}
@@ -108,10 +110,14 @@ export class MotionscaperDeliveryQueue {
 		const job = this.#jobs.get(id); if (!job || (!job.cleanupRequired && !['queued', 'rendering'].includes(job.view.status))) return Promise.resolve();
 		if (job.cancellation) return job.cancellation;
 		const error = new DOMException('Motion render was cancelled.', 'AbortError'); job.controller.abort(error);
-		if (job === this.#active) return job.completion.then(() => undefined, () => undefined);
+		if (job === this.#active) return job.completion.then(() => undefined, () => undefined).then(() => job.cleanupRequired ? this.cancel(id) : undefined);
 		const index = this.#pending.indexOf(job); if (index >= 0) this.#pending.splice(index, 1);
 		job.cancellation = (async () => {
-			try { await job.intent.writable?.abort(error); job.cleanupRequired = false; this.#update(job, { status: 'cancelled', cleanupRequired: false }); job.reject(error); }
+			try {
+				if (job.cleanup.length) for (const failure of job.cleanup) await failure.retryCleanup();
+				else await job.intent.writable?.abort(error);
+				job.cleanupRequired = false; job.cleanup = []; this.#update(job, { status: 'cancelled', cleanupRequired: false }); job.reject(error);
+			}
 			catch (failure) { job.cleanupRequired = true; this.#update(job, { status: 'failed', error: failure instanceof Error ? failure.message : String(failure), cleanupRequired: job.cleanupRequired }); job.reject(failure); throw failure; }
 			finally { job.cancellation = null; }
 		})(); return job.cancellation;

@@ -11,6 +11,7 @@ import { createMotionMediaProvider } from '../common/editor/motion-media-provide
 import { createMotionExpressionAudioPreparation, motionProjectUsesAudioAmplitude } from '../common/editor/motion-expression-audio-preparation.ts';
 import { createMotionAudioMixer } from '../common/editor/motion-audio-mixer.ts';
 import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
+import { MotionDeliveryCleanupFailure, pendingMotionDeliveryCleanup } from '../common/editor/motion-delivery-cleanup.ts';
 import type { MotionDesktopDeliveryReceipt } from './desktop-delivery-contract.ts';
 import type { MotionVideoBackground } from '../common/editor/motion-video-delivery.ts';
 import { admitMotionTemporalWork } from '../common/editor/motion-temporal-sampling.ts';
@@ -82,7 +83,15 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 		try {
 			if (sink) await sink.abort(error);
 			else if (options.writable && !options.writable.locked) await options.writable.abort(error);
-		} catch (failure) { cleanup.push(failure); }
+		} catch (failure) {
+			if (pendingMotionDeliveryCleanup(failure).length) cleanup.push(failure);
+			else {
+				const ownedSink = sink;
+				throw new MotionDeliveryCleanupFailure([error, failure], 'Motion delivery and output cleanup both failed.', async () => {
+					if (ownedSink) await ownedSink.abort(error); else await options.writable?.abort(error);
+				});
+			}
+		}
 		throw aggregateScapeErrors(error, cleanup, 'Motion delivery and output cleanup both failed.');
 	} finally { if (!options.queue) await queue.close(); }
 }

@@ -58,3 +58,40 @@ test('browser Render does not advertise unavailable native ProRes', async ({ pag
 	await expect(page.getByRole('dialog')).toHaveCount(0); await menu(page, 'File', 'Render');
 	await expect(page.getByRole('option', { name: /ProRes/u })).toHaveCount(0);
 });
+
+test('native render queue retains failed cleanup and retries the original revision through a fresh destination', async ({ page }) => {
+	await page.goto('/embed/en/');
+	await page.evaluate(profile => {
+		const state = { begins: 0, commits: 0, cancellations: 0, cleanupFails: true, publicationFails: true, plan: null as MotionRenderPlan | null };
+		Object.defineProperty(globalThis, 'motionCleanupTestState', { value: state });
+		Object.defineProperty(globalThis, 'scapeDesktop', { value: { v1: { motionDelivery: {
+			getProfile: () => Promise.resolve(profile),
+			begin: ({ plan }: { plan: MotionRenderPlan }) => { state.plan = plan; return Promise.resolve({ token: `chosen-${++state.begins}` }); },
+			write: () => Promise.resolve(),
+			commit: ({ byteLength, sha256 }: { byteLength: number; sha256: string }) => {
+				state.commits++; if (state.publicationFails) return Promise.reject(new Error('Native publication failed'));
+				return Promise.resolve({ identity: state.plan!.identity, name: 'Cleanup.mov', frameCount: state.plan!.frameCount, byteLength, sha256, profile, audio: null });
+			},
+			cancel: () => { state.cancellations++; return state.cleanupFails ? Promise.reject(new Error('Native cleanup unavailable')) : Promise.resolve(); },
+		} } } });
+	}, MOTION_PRORES_DELIVERY_PROFILE);
+	await menu(page, 'File', 'New Composition'); await page.getByLabel('Project title', { exact: true }).fill('Retained cleanup');
+	await page.getByLabel('Width', { exact: true }).fill('32'); await page.getByLabel('Height', { exact: true }).fill('32'); await page.getByLabel('Duration in frames', { exact: true }).fill('2');
+	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'Layer', 'New Solid'); await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'File', 'Render'); const render = page.getByRole('dialog', { name: 'Render Composition', exact: true });
+	await render.getByLabel('Output format', { exact: true }).selectOption('prores'); await render.getByRole('button', { name: 'Render', exact: true }).click();
+	await expect(render.getByRole('alert')).toBeVisible(); await render.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await menu(page, 'File', 'Render Queue'); const queue = page.getByRole('dialog', { name: 'Render Queue', exact: true }); const job = queue.locator('[data-motion-render-job]');
+	await expect(job.getByRole('button', { name: 'Retry Output Cleanup', exact: true })).toBeVisible();
+	await expect(job.getByRole('button', { name: 'Remove Job', exact: true })).toHaveCount(0); await expect(job.getByRole('button', { name: 'Retry Original Revision', exact: true })).toHaveCount(0);
+	await job.getByText('Submitted revision', { exact: true }).click(); const digest = await job.locator('code').textContent();
+	await job.getByRole('button', { name: 'Retry Output Cleanup', exact: true }).click(); await expect(queue.getByRole('alert')).toContainText('Native cleanup unavailable');
+	await expect(job.getByRole('button', { name: 'Retry Output Cleanup', exact: true })).toBeVisible();
+	await page.evaluate(() => { const state = Reflect.get(globalThis, 'motionCleanupTestState') as { cleanupFails: boolean; publicationFails: boolean }; state.cleanupFails = false; state.publicationFails = false; });
+	await job.getByRole('button', { name: 'Retry Output Cleanup', exact: true }).click(); await expect(job.getByRole('button', { name: 'Retry Original Revision', exact: true })).toBeVisible();
+	await job.getByRole('button', { name: 'Retry Original Revision', exact: true }).click(); await expect(job.getByRole('status')).toHaveText('Completed');
+	await expect(job).toContainText('Attempt 2'); await expect(job.locator('code')).toHaveText(digest!);
+	const counts = await page.evaluate(() => Reflect.get(globalThis, 'motionCleanupTestState') as { begins: number; commits: number; cancellations: number });
+	expect(counts.begins).toBe(2); expect(counts.commits).toBe(2); expect(counts.cancellations).toBeGreaterThan(1);
+});

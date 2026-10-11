@@ -7,6 +7,7 @@ export type MotionNativePcmBlock = Omit<MotionAudioMixBlock, 'revision'>;
 import type { MotionSurface } from './motion-surface.ts';
 import type { MotionRenderPlan, MotionRenderSink } from './controller/export/motion-render-pipeline.ts';
 import type { MotionDesktopDelivery, MotionDesktopDeliveryReceipt } from './motion-desktop-delivery-contract.ts';
+import { MotionDeliveryCleanupFailure } from './motion-delivery-cleanup.ts';
 export interface MotionDesktopDeliverySink extends Omit<MotionRenderSink<MotionDesktopDeliveryReceipt>, 'write' | 'audio'> {
 	readonly audio?: Readonly<{ sampleRate: number; channels: 1 | 2; write(block: MotionNativePcmBlock, signal?: AbortSignal): Promise<void> }>;
 	write(index: number, surface: MotionSurface, signal?: AbortSignal): Promise<void>;
@@ -19,7 +20,7 @@ export async function createMotionDesktopDeliverySink(delivery: MotionDesktopDel
 	const pcmPlan = options.audio ? motionNativePcmPlan(options.plan, options.audio) : null;
 	const selected = await delivery.begin({ plan: options.plan, suggestedName: options.suggestedName, ...(options.audio ? { audio: options.audio } : {}) });
 	if (!selected) return null;
-	let offset = 0; let terminal = false; let cancelling: Promise<void> | null = null;
+	let offset = 0; let terminal = false; let cancelling: Promise<void> | null = null; let cleanupFailure: MotionDeliveryCleanupFailure | null = null;
 	const cancel = async () => {
 		if (terminal) return;
 		cancelling ??= delivery.cancel({ token: selected.token });
@@ -27,12 +28,16 @@ export async function createMotionDesktopDeliverySink(delivery: MotionDesktopDel
 	};
 	const onAbort = () => { void cancel().catch(() => undefined); };
 	options.signal?.addEventListener('abort', onAbort, { once: true });
-	const cleanup = () => { terminal = true; options.signal?.removeEventListener('abort', onAbort); };
+	const cleanup = () => { terminal = true; cleanupFailure?.completeCleanup(); options.signal?.removeEventListener('abort', onAbort); };
+	const retainCleanup = (errors: readonly unknown[], message: string) => {
+		cleanupFailure ??= new MotionDeliveryCleanupFailure(errors, message, async () => { await cancel(); cleanup(); });
+		return cleanupFailure;
+	};
 	const fail = async (primary: unknown): Promise<never> => {
-		try { await cancel(); } catch (failure) { throw new AggregateError([primary, failure], 'Motionscaper native delivery failed and cancellation failed.', { cause: failure }); }
+		try { await cancel(); } catch (failure) { throw retainCleanup([primary, failure], 'Motionscaper native delivery failed and cancellation failed.'); }
 		cleanup(); throw primary;
 	};
-	if (options.signal?.aborted) { try { await cancel(); } finally { cleanup(); } options.signal.throwIfAborted(); }
+	if (options.signal?.aborted) return fail(options.signal.reason);
 	const stream = new WritableStream<Uint8Array>({
 		async write(bytes) {
 			if (terminal) throw new Error('Motionscaper native export is closed.'); options.signal?.throwIfAborted();
@@ -62,8 +67,9 @@ export async function createMotionDesktopDeliverySink(delivery: MotionDesktopDel
 			},
 			async abort(reason) {
 				const failures: unknown[] = [];
-				for (const release of [() => writer.abort(reason), () => audio?.abort(reason), cancel]) { try { await release(); } catch (error) { failures.push(error); } }
-				if (failures.length) throw new AggregateError(failures, 'Motionscaper native export cleanup failed.'); cleanup();
+				for (const release of [() => writer.abort(reason), () => audio?.abort(reason)]) { try { await release(); } catch (error) { failures.push(error); } }
+				try { await cancel(); } catch (error) { failures.push(error); throw retainCleanup(failures, 'Motionscaper native export cleanup failed.'); }
+				cleanup(); if (failures.length) throw new AggregateError(failures, 'Motionscaper native export cleanup failed.');
 			},
 		};
 	} catch (error) { return fail(error); }

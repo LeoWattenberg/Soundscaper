@@ -47,7 +47,9 @@ color and alpha precision in the render dialog. **File → Render Queue** keeps
 jobs available across dialog closes and project switches. It retains up to eight
 jobs and 128 MiB of browser downloads; each download admits up to 64 MiB. Choose
 a streaming file destination for larger output and remove finished jobs to
-release retained downloads.
+release retained downloads. If native output cleanup fails, use **Retry Output
+Cleanup** in this queue. The job keeps its destination until cleanup succeeds;
+you can then remove it or retry the submitted revision with a fresh destination.
 
 ## Link to Framescaper {#link-to-framescaper}
 

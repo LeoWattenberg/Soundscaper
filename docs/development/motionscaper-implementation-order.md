@@ -95,7 +95,11 @@ M05 has a revision-pinned, cancellable render queue, menu-opened
 worker preview and delivery, transparent PNG sequences, and browser MP4/WebM
 round trips. The queue survives dialog closure and project switches, serializes
 one renderer, and bounds retained intent and downloads. Retry retains the original
-revision and obtains a fresh destination. Shared bounded PCM mixing, an audio sample clock, retained-media
+revision and obtains a fresh destination. Failed active native cancellation retains
+the destination cleanup capability: **Retry Output Cleanup** must succeed before
+removing the job or retrying its original revision. Queue disposal also retains
+failed cleanup for another attempt. Header/publication failure and a real browser
+render-to-queue workflow cover this ownership. Shared bounded PCM mixing, an audio sample clock, retained-media
 decoding, and audio/video muxing pass a menu-driven media import, save/reopen,
 preview, export, and re-import workflow. WebM declares its millisecond container
 timing resolution. The separate float-carrier native helper and own-origin
