@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { createMotionscaperRevision } from '../src/common/editor/motion-project-revision.ts';
 import { createMotionCompositionOffer } from '../src/common/editor/motion-link-protocol.ts';
-import { createFramescaperCompositionSource, resolveFramescaperCompositionSource } from '../src/framescaper/editor-composition-link-source.ts';
+import { createFramescaperCompositionSource, resolveFramescaperCompositionSource, resolveFramescaperCompositionAudioSource } from '../src/framescaper/editor-composition-link-source.ts';
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { validateFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -52,4 +52,21 @@ test('composition activation refuses stale results and preserves strict source r
 	} satisfies ProjectVisualServiceDependencies);
 	await assert.rejects(service.activateVideoSource(linked.source), /stale/u); assert.equal(service.getVideoSourceVisualData('linked')?.mediaKind, undefined);
 	current = true; refusal = true; await assert.rejects(service.activateVideoSource(linked.source), /Retained closure unavailable/u); await service.dispose();
+});
+
+test('composition audio companion retains its native sample grid and refuses descriptor drift', () => {
+	const { offer } = fixture();
+	const native = createMotionscaperProject({ id: 'native', title: 'Native', compositionId: 'title', sampleRate: 44100, frameRate: { num: 30000, den: 1001 }, durationFrames: 3 });
+	const linked = createFramescaperCompositionSource({ sourceId: 'picture', audioSourceId: 'sound', offer: createMotionCompositionOffer('title', createMotionscaperRevision(native)), sampleRate: 48000 });
+	assert.ok(linked.audioSource); assert.equal(linked.link.audioSourceId, 'sound');
+	assert.equal(linked.audioSource.sampleRate, 44100); assert.equal(linked.audioSource.originalSampleRate, 44100);
+	assert.equal(linked.audioSource.frameCount, 4415); assert.equal(linked.audioSource.channelCount, 2); assert.equal(linked.audioSource.chunkFrames, 4096);
+	assert.equal(linked.source.hasAudio, false); // The stable companion permits silence now and audio in a later saved revision.
+	const project = { ...createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ id: 'frame', sources: [linked.source, linked.audioSource] }), compositionLinks: [linked.link] };
+	assert.equal(resolveFramescaperCompositionAudioSource(project, linked.audioSource)?.offer.revision.digest, linked.offer.revision.digest);
+	assert.throws(() => resolveFramescaperCompositionAudioSource(project, { ...linked.audioSource, frameCount: 4414 }), /descriptor|contract/iu);
+	assert.throws(() => resolveFramescaperCompositionAudioSource({ ...project, compositionLinks: [] }, linked.audioSource), /link|authority/iu);
+	assert.equal(resolveFramescaperCompositionAudioSource(project, linked.source), null);
+	assert.equal(createFramescaperCompositionSource({ sourceId: 'legacy', offer, sampleRate: 48000 }).audioSource, undefined);
+	assert.throws(() => createFramescaperCompositionSource({ sourceId: 'same', audioSourceId: 'same', offer, sampleRate: 48000 }), /distinct/iu);
 });
