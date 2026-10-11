@@ -9,6 +9,7 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import type { PixelFrameLimitsV1 } from './pixel-frame-contract-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../video-image-geometry-v1.ts';
 import { normalizeVideoMaskMatteGraphV1, videoMaskMatteWorkingBytesV1, type VideoMaskMatteGraphV1 } from '../video-mask-matte-v24.ts';
+import { videoMaskMatteGraphComputationV1 } from '../video-mask-matte-name-v2.ts';
 
 export interface PreparedImageDevelopBrushMasksV1 {
 	readonly plan: Readonly<ImageDevelopMaskPlanV1>;
@@ -29,7 +30,7 @@ const MAXIMUM_DECLARED_BODY_BYTES = 16n * 1024n * 1024n;
  * and node is admitted, including unbound, disabled and unreachable entries. */
 export function admitImageDevelopBrushMaskAuthorityV1(developValue: unknown) {
 	const develop = normalizeImageDevelopStateV1OrV2(developValue);
-	for (const graph of develop.masks) admitGraph(graph);
+	for (const graph of develop.masks) admitGraph(videoMaskMatteGraphComputationV1(graph));
 	const bound = new Set(develop.maskBindings.map(binding => binding.effectId));
 	if (develop.effects.some(effect => effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && bound.has(effect.id))) {
 		throw new RangeError('Geometry effects cannot bind a local adjustment mask.');
@@ -43,7 +44,7 @@ export function prepareImageDevelopBrushMasksV1(developValue: unknown, width: nu
 	renderLimits: PixelFrameLimitsV1, selectionValue?: Readonly<ImageDevelopMaskOverlaySelectionV1>): Readonly<PreparedImageDevelopBrushMasksV1> {
 	const develop = admitImageDevelopBrushMaskAuthorityV1(developValue);
 	const plan = planAdmittedImageDevelopMasksV1(develop, width, height, renderLimits);
-	const references = collectReferences(develop.masks), retainedStorageKeys = new Set<string>();
+	const references = collectReferences(develop.masks.map(videoMaskMatteGraphComputationV1)), retainedStorageKeys = new Set<string>();
 	for (const binding of plan.bindings) for (const key of reachableStorageKeys(binding.graph)) retainedStorageKeys.add(key);
 	const selection = selectionValue === undefined ? undefined : admitSelection(selectionValue);
 	const selected = selection && plan.bindings.find(binding => binding.maskId === selection.maskId && binding.effectId === selection.effectId);

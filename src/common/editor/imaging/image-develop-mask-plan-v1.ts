@@ -7,6 +7,7 @@ import { planImageGeometryV1 } from './image-geometry-plan-v1.ts';
 import type { ImageGeometryV1 } from './image-geometry-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../video-image-geometry-v1.ts';
 import { videoMaskMatteWorkingBytesV1, VIDEO_MASK_MATTE_WORKING_LIMIT_V1, type VideoMaskMatteGraphV1 } from '../video-mask-matte-v24.ts';
+import { videoMaskMatteGraphComputationV1 } from '../video-mask-matte-name-v2.ts';
 
 export const IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1 = VIDEO_MASK_MATTE_WORKING_LIMIT_V1;
 export interface ImageDevelopMaskBindingPlanV1 {
@@ -68,7 +69,7 @@ export function planAdmittedImageDevelopMasksV1(developValue: unknown, sourceWid
 	for (const effect of develop.effects) {
 		const maskId = bound.get(effect.id);
 		if (maskId !== undefined) {
-			const graph = develop.masks.find(candidate => candidate.id === maskId)!;
+			const graph = videoMaskMatteGraphComputationV1(develop.masks.find(candidate => candidate.id === maskId)!);
 			pending.push({ effectId: effect.id, maskId, width, height, graph, workingBytes: videoMaskMatteWorkingBytesV1(graph, width, height), suffixStart: geometries.length });
 		}
 		if (effect.enabled && effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) apply(imageGeometryForVideoEffectV1(effect, width, height));

@@ -3,21 +3,22 @@
 import type { ImageDevelopGeometryV1, ImageDevelopMaskBindingV1 } from './image-develop-contract-v1.ts';
 import { IMAGE_DEVELOP_LIMITS_V1 } from './image-develop-contract-v1.ts';
 import type { VideoMaskMatteGraphV1 } from '../video-mask-matte-v24.ts';
+import type { VideoMaskMatteGraphV1OrV2 } from '../video-mask-matte-name-v2.ts';
 import type { ImageDevelopSelectionV1 } from './image-develop-settings-contract-v1.ts';
 import { defaultImageDevelopStateV1 } from './image-develop-state-v1.ts';
 
-export interface ImageDevelopSettingsGroupsV1<Effect extends Readonly<{ id: string; type: string }>> {
+export interface ImageDevelopSettingsGroupsV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1> {
 	readonly effects: readonly Effect[];
 	readonly geometry: ImageDevelopGeometryV1;
-	readonly masks: readonly VideoMaskMatteGraphV1[];
+	readonly masks: readonly Mask[];
 	readonly maskBindings: readonly ImageDevelopMaskBindingV1[];
 }
 
 /** Pure group algorithms receive already owning-normalized states/selection.
  * They admit no process or nested parameter and confer no resource authority. */
-export function copyImageDevelopGroupsV1<Effect extends Readonly<{ id: string; type: string }>>(
-	develop: ImageDevelopSettingsGroupsV1<Effect>, selection: ImageDevelopSelectionV1,
-): ImageDevelopSettingsGroupsV1<Effect> {
+export function copyImageDevelopGroupsV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
+	develop: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
 	const bound = new Set(develop.maskBindings.map(binding => binding.effectId));
 	const effects = develop.effects.filter(effect => selected(effect, selection, bound));
 	const ids = new Set(effects.map(effect => effect.id));
@@ -30,9 +31,9 @@ export function copyImageDevelopGroupsV1<Effect extends Readonly<{ id: string; t
 
 /** Insert the donated group at its first replaced target position; keep all
  * unselected IDs/order and remap only real colliding effect/mask identities. */
-export function mergeImageDevelopGroupsV1<Effect extends Readonly<{ id: string; type: string }>>(
-	target: ImageDevelopSettingsGroupsV1<Effect>, source: ImageDevelopSettingsGroupsV1<Effect>, selection: ImageDevelopSelectionV1,
-): ImageDevelopSettingsGroupsV1<Effect> {
+export function mergeImageDevelopGroupsV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
+	target: ImageDevelopSettingsGroupsV1<Effect, Mask>, source: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
 	if (selection.effectTypes === 'all' && selection.localAdjustments) {
 		return { effects: source.effects, masks: source.masks, maskBindings: source.maskBindings,
 			geometry: selection.geometry ? source.geometry : target.geometry };

@@ -43,12 +43,12 @@ export default function PhotoDevelopGradientDialogV1(props: PhotoDevelopGradient
 			if (form.bindings.length === 0
 				|| form.bindings.some(id => !effects.some(effect => effect.id === id))
 				|| form.showOverlay && !form.bindings.includes(form.overlayEffect)) throw new RangeError('Invalid gradient selection.');
-			const maskId = form.maskId || crypto.randomUUID(), nodeId = props.develop.masks.find(mask => mask.id === maskId)?.outputNodeId ?? crypto.randomUUID();
+			const retained = gradients.find(mask => mask.id === form.maskId), maskId = retained?.id ?? crypto.randomUUID(), nodeId = retained?.outputNodeId ?? crypto.randomUUID();
 			const node = form.kind === 'linear-gradient' ? { id: nodeId, kind: form.kind,
 				start: { x: coordinate(form.startX), y: coordinate(form.startY) }, end: { x: coordinate(form.endX), y: coordinate(form.endY) } }
 				: { id: nodeId, kind: form.kind, center: { x: coordinate(form.centerX), y: coordinate(form.centerY) },
 					radius: { x: positiveCoordinate(form.radiusX), y: positiveCoordinate(form.radiusY) }, innerFraction: fraction(form.innerFraction) };
-			const graph = { schemaVersion: 1, id: maskId, kind: props.develop.masks.find(mask => mask.id === maskId)?.kind ?? 'mask', inputs: [], nodes: [node], outputNodeId: nodeId };
+			const graph = { ...retained, schemaVersion: retained?.schemaVersion ?? 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [], nodes: [node], outputNodeId: nodeId };
 			const value = normalizeImageDevelopStateV1OrV2({ ...props.develop,
 				masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
 				maskBindings: [...props.develop.maskBindings.filter(binding => binding.maskId !== maskId && !form.bindings.includes(binding.effectId)),
@@ -77,7 +77,7 @@ export default function PhotoDevelopGradientDialogV1(props: PhotoDevelopGradient
 			<label>{text.gradient}<select value={form.maskId} disabled={props.disabled} aria-label={text.gradient} onChange={event => {
 				const id = event.currentTarget.value;
 				if (current() && (id === '' || gradients.some(mask => mask.id === id))) { setForm(initial(props.develop, id, kind)); setError(false); }
-			}}><option value="">{text.newGradient}</option>{gradients.map(mask => <option key={mask.id} value={mask.id}>{mask.id}</option>)}</select></label>
+			}}><option value="">{text.newGradient}</option>{gradients.map(mask => <option key={mask.id} value={mask.id}>{mask.schemaVersion === 2 ? `${mask.name} (${mask.id})` : mask.id}</option>)}</select></label>
 			<fieldset disabled={props.disabled}><legend>{text.title}</legend>
 				{fields.map(([key, caption, value, minimum, maximum]) => <label key={key}>{caption}<input type="number" min={minimum} max={maximum}
 					step="any" value={value} aria-label={caption} onChange={event => { update({ ...form, [key]: event.currentTarget.value }); }} /></label>)}

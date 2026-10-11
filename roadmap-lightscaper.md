@@ -488,8 +488,20 @@ binding, removal, history restoration, reload, full preview, and PNG export,
 checking independent pixels and unchanged originals and immutable brush bodies.
 Focused mounted tests also fence retained actions after local edits, Close,
 owner replacement, same-event draft replacement, and React effect replay.
-Persisted mask names, further overlay modes, composition authoring, Frame
-integration, and healing remain open; these slices do not close L6.
+The opt-in mask manager now supports an explicit Rename action. Typing remains
+local and does not rename until that action; Apply edits the draft and Save
+records the existing history. Named options show the label and stable graph ID.
+Duplicates inherit the label and start unbound; a blank rename clears only the
+name. Named graphs use schema 2 inside Develop process 2; an explicit rename of
+a process 1 recipe promotes it, while loading an unnamed recipe never upgrades
+it. Legacy graph and Develop readers remain strict. Names participate in recipe
+digests and survive history, snapshots, virtual copies, settings/preset 2,
+names-only archive 5, brush archive 6, and editable Frame Source 2 handoff.
+Rendering validates the name and evaluates the same graph through a computational
+view, preserving pixels, alpha, binding IDs, and immutable brush references.
+Gradient, range, and brush re-editing preserve retained names.
+Further overlay modes, composition authoring, direct Frame mask-name authoring,
+and healing remain open; these slices do not close L6.
 
 ### Exit gate
 

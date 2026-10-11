@@ -154,7 +154,7 @@ export default function PhotoDevelopBrushMaskDialogV1(props: PhotoDevelopBrushMa
 				const retained = masks.find(mask => mask.id === form.maskId), maskId = retained?.id ?? crypto.randomUUID(), nodeId = retained?.outputNodeId ?? crypto.randomUUID();
 				const oldInput = retained?.inputs[0], inputName = oldInput?.name ?? 'paint';
 				const retainedNode = retained?.nodes[0], raster = retainedNode?.kind === 'raster';
-				const graph = { schemaVersion: 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [{ name: inputName, kind: raster ? 'raster' : 'alpha', sourceRef: receipt.reference.storageKey }],
+				const graph = { ...retained, schemaVersion: retained?.schemaVersion ?? 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [{ name: inputName, kind: raster ? 'raster' : 'alpha', sourceRef: receipt.reference.storageKey }],
 					nodes: [raster ? { id: nodeId, kind: 'raster', inputName, channel: 'alpha' } : { id: nodeId, kind: 'alpha', inputName }], outputNodeId: nodeId };
 				const value = normalizeImageDevelopStateV1OrV2({ ...props.develop, masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
 					maskBindings: [...props.develop.maskBindings.filter(binding => binding.maskId !== maskId && !form.bindings.includes(binding.effectId)), ...form.bindings.map(effectId => ({ effectId, maskId }))],
@@ -174,7 +174,7 @@ export default function PhotoDevelopBrushMaskDialogV1(props: PhotoDevelopBrushMa
 		overlayClassName="lightscaper-dialog-backdrop" closeOnOutside={false}>
 		<div data-photo-develop-brush-mask><p>{text.coordinates}</p><p>{text.local}</p>
 			<label>{text.mask}<select aria-label={text.mask} value={form.maskId} disabled={disabled} onChange={event => { changeMask(event.currentTarget.value); }}>
-				<option value="">{text.newMask}</option>{masks.map(mask => <option key={mask.id} value={mask.id}>{mask.id}</option>)}</select></label>
+				<option value="">{text.newMask}</option>{masks.map(mask => <option key={mask.id} value={mask.id}>{mask.schemaVersion === 2 ? `${mask.name} (${mask.id})` : mask.id}</option>)}</select></label>
 			<div className="lightscaper-brush-mask-controls">{(['width', 'height'] as const).map(key => <label key={key}>{text[key]}<input type="number" aria-label={text[key]}
 				min={1} max={1024} step={1} value={form[key]} disabled={disabled || form.maskId !== ''} onChange={event => { update({ ...form, [key]: event.currentTarget.value }); }} /></label>)}
 				<button type="button" disabled={disabled || form.maskId !== ''} onClick={() => attempt(() => { setRequest({ width: dimension(form.width), height: dimension(form.height), epoch: request.epoch + 1 }); })}>{text.create}</button>

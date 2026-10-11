@@ -4,6 +4,7 @@ import { VIDEO_EFFECT_DEFINITIONS, createVideoEffect } from '../video-effects.js
 import { CUBE_LUT_PROFILE_EFFECT_TYPE_V1 } from '../video-cube-lut-profile-v1.ts';
 import { GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1, normalizeGlobalDevelopParamsV1 } from '../video-global-develop-v1.ts';
 import type { VideoEffectLeafV2 } from '../video-effect-leaf-v2.ts';
+import type { VideoMaskMatteGraphV1OrV2 } from '../video-mask-matte-name-v2.ts';
 import { IMAGE_DEVELOP_LIMITS_V1, type ImageDevelopStateV1 } from './image-develop-contract-v1.ts';
 import type { ImageDevelopStateV2 } from './image-develop-state-v2.ts';
 import { normalizeImageDevelopStateV1OrV2 } from './image-develop-state-v2.ts';
@@ -54,13 +55,14 @@ export function normalizeImageDevelopSelectionV2(value: unknown): Readonly<Image
 }
 
 /** Retain an explicit process2 target. A process1 target promotes only when
- * the merged authored recipe actually contains a resource-family instance. */
+ * the merged authored recipe contains a resource instance or named graph. */
 export function mergeImageDevelopSettingsV2(value: unknown): ImageDevelopStateV1 | ImageDevelopStateV2 {
 	const input = request(value, ['schemaVersion', 'target', 'settings']);
 	const target = normalizeImageDevelopStateV1OrV2(field(input, 'target'));
 	const packet = normalizeImageDevelopSettingsPacketV1OrV2(field(input, 'settings'));
-	const groups = mergeImageDevelopGroupsV1<VideoEffectLeafV2>(target, packet.develop, packet.selection);
-	const processVersion = target.processVersion === 2 || groups.effects.some(effect => effect.type === CUBE_LUT_PROFILE_EFFECT_TYPE_V1) ? 2 : 1;
+	const groups = mergeImageDevelopGroupsV1<VideoEffectLeafV2, VideoMaskMatteGraphV1OrV2>(target, packet.develop, packet.selection);
+	const processVersion = target.processVersion === 2 || groups.effects.some(effect => effect.type === CUBE_LUT_PROFILE_EFFECT_TYPE_V1)
+		|| groups.masks.some(mask => mask.schemaVersion === 2) ? 2 : 1;
 	return bounded(normalizeImageDevelopStateV1OrV2({ processVersion, ...groups }));
 }
 

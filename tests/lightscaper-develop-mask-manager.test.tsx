@@ -82,7 +82,9 @@ for (const locale of ['en', 'de']) test(`${locale}: mask manager lists every gra
 		assert.equal(f.control(f.text.showOverlay).checked, false); assert.equal(f.dom.find(`[aria-label="${f.text.overlayEffect}"]`), null);
 		assert.deepEqual(f.binds().map(field => field.getAttribute('data-photo-develop-mask-binding')), ['warm', 'detail']);
 		assert.ok(f.binds().every(field => field.type === 'checkbox')); assert.equal(f.binds().length, 2);
-		assert.equal(f.dom.container.querySelectorAll('input').length, 3, 'manager owns bindings and overlay, not effect enabled controls');
+		assert.equal(f.dom.container.querySelectorAll('input').filter(field => field.type === 'checkbox').length, 3, 'manager owns bindings and overlay, not effect enabled controls');
+		assert.equal(f.dom.container.querySelectorAll('input').filter(field => field.type === 'text').length, 1);
+		assert.equal(f.control(f.text.name).type, 'text');
 		f.control(f.text.mask).focus(); assert.equal(document.activeElement, f.control(f.text.mask));
 		for (const label of [f.text.duplicate, f.text.remove, f.text.apply, f.text.close]) { assert.equal(f.button(label).type, 'button'); }
 		await f.click(f.text.apply); assert.deepEqual(f.applied, [{ value: initial, overlay: null }]);
@@ -215,4 +217,92 @@ test('StrictMode layout replay restores live manager actions without restoring a
 		await act(async () => { close?.({}); apply?.({}); close?.({}); });
 		assert.equal(f.closed(), 1); assert.equal(f.applied.length, 1);
 	} finally { await f.dispose(); }
+});
+
+function nameCopy(locale = 'en') {
+	return locale === 'de' ? { name: 'Maskenname', rename: 'Maske umbenennen' } : { name: 'Mask name', rename: 'Rename mask' };
+}
+function graphName(value: PhotoLibraryDevelopSettingsV2['masks'][number]): unknown {
+	return Object.getOwnPropertyDescriptor(value, 'name')?.value as unknown;
+}
+
+for (const locale of ['en', 'de']) test(`${locale}: explicit Rename keeps a canonical name local until Apply and preserves the exact graph identity`, async () => {
+	const initial = recipe(), wire = JSON.stringify(initial), f = await fixture(locale, initial), names = nameCopy(locale);
+	try {
+		await f.change(f.text.mask, 'brush'); const field = f.control(names.name);
+		assert.equal(field.type, 'text'); assert.equal(f.value(names.name), '');
+		assert.equal(Object.getOwnPropertyDescriptor(reactProps(field), 'maxLength')?.value, 256);
+		field.focus(); assert.equal(document.activeElement, field); assert.equal(f.button(names.rename).type, 'button');
+		await f.change(names.name, '  Cafe\u0301  '); assert.equal(f.applied.length, 0);
+		await f.click(f.text.apply); assert.deepEqual(f.applied[0]!.value, initial, 'Typing alone does not rename the graph.');
+		await f.click(names.rename); assert.equal(f.applied.length, 1);
+		assert.equal(f.value(names.name), 'Café');
+		assert.equal(f.control(f.text.mask).options.find(option => option.value === 'brush')!.textContent, 'Café (brush)');
+		await f.click(f.text.apply); const renamed = f.applied[1]!.value, graph = renamed.masks.find(mask => mask.id === 'brush')!;
+		assert.equal(renamed.processVersion, 2); assert.deepEqual(graph, { ...initial.masks.find(mask => mask.id === 'brush'), schemaVersion: 2, name: 'Café' });
+		assert.deepEqual(renamed.maskBindings, initial.maskBindings); assert.deepEqual(renamed.effects, initial.effects);
+		assert.deepEqual(renamed.masks.filter(mask => mask.id !== 'brush'), initial.masks.filter(mask => mask.id !== 'brush'));
+		assert.equal(JSON.stringify(initial), wire);
+	} finally { await f.dispose(); }
+});
+
+test('named duplicate inherits its label unbound; blank Rename clears only the copy to exact Graph1 without downgrading process2', async () => {
+	const initial = recipe(), f = await fixture('en', initial), names = nameCopy();
+	try {
+		await f.change(f.text.mask, 'composed'); await f.change(names.name, 'Sky'); await f.click(names.rename);
+		await f.click(f.text.duplicate); const copyId = f.value(f.text.mask);
+		assert.equal(f.value(names.name), 'Sky'); assert.ok(f.binds().every(field => !field.checked));
+		assert.equal(f.control(f.text.mask).options.find(option => option.value === copyId)!.textContent, `Sky (${copyId})`);
+		await f.change(names.name, ' \t '); await f.click(names.rename); assert.equal(f.value(names.name), '');
+		assert.equal(f.control(f.text.mask).options.find(option => option.value === copyId)!.textContent, copyId);
+		await f.click(f.text.apply); const value = f.applied[0]!.value, original = initial.masks.find(mask => mask.id === 'composed')!;
+		assert.equal(value.processVersion, 2); assert.deepEqual(value.masks.find(mask => mask.id === copyId), { ...original, id: copyId });
+		assert.deepEqual(value.masks.find(mask => mask.id === 'composed'), { ...original, schemaVersion: 2, name: 'Sky' });
+		assert.deepEqual(value.maskBindings, initial.maskBindings);
+	} finally { await f.dispose(); }
+});
+
+test('legacy process1 renaming explicitly upgrades to process2, while Close discards that local upgrade', async () => {
+	const initial = normalizeImageDevelopStateV1OrV2({ ...recipe(), processVersion: 1 }), f = await fixture('en', initial), names = nameCopy();
+	try {
+		await f.change(f.text.mask, 'rectangle'); await f.change(names.name, 'Foreground'); await f.click(names.rename);
+		await f.click(f.text.close); assert.equal(f.applied.length, 0); assert.equal(f.closed(), 1); assert.equal(initial.processVersion, 1);
+	} finally { await f.dispose(); }
+	const reopened = await fixture('en', initial);
+	try {
+		await reopened.change(reopened.text.mask, 'rectangle'); await reopened.change(names.name, 'Foreground'); await reopened.click(names.rename);
+		await reopened.click(reopened.text.apply); assert.equal(reopened.applied[0]!.value.processVersion, 2);
+		assert.equal(graphName(reopened.applied[0]!.value.masks.find(mask => mask.id === 'rectangle')!), 'Foreground');
+	} finally { await reopened.dispose(); }
+});
+
+test('invalid names cannot change the local graph and a corrected buffer remains usable', async () => {
+	const initial = recipe(), f = await fixture('en', initial), names = nameCopy();
+	try {
+		await f.change(f.text.mask, 'linear');
+		for (const name of ['x'.repeat(257), 'line\nbreak', 'nul\u0000name', '\uD800', '\uDC00']) {
+			await f.change(names.name, name); await f.click(names.rename); assert.ok(f.dom.one('[role="alert"]').textContent);
+			assert.equal(f.control(f.text.mask).options.find(option => option.value === 'linear')!.textContent, 'linear');
+			assert.equal(f.applied.length, 0);
+		}
+		await f.change(names.name, 'Valid name'); await f.click(names.rename); await f.click(f.text.apply);
+		assert.equal(graphName(f.applied[0]!.value.masks.find(mask => mask.id === 'linear')!), 'Valid name'); assert.deepEqual(initial, recipe());
+	} finally { await f.dispose(); }
+});
+
+test('retained Rename and name input handlers reject old forms, recipe replacement, disability, Close and unmount before reading stale events', async () => {
+	const f = await fixture(), names = nameCopy();
+	let rename: ((...args: unknown[]) => unknown) | undefined, change: ((...args: unknown[]) => unknown) | undefined;
+	try {
+		await f.change(names.name, 'Pending'); rename = reactProps(f.button(names.rename)).onClick; change = reactProps(f.control(names.name)).onChange;
+		await f.change(f.text.mask, 'linear'); let reads = 0;
+		const event = { currentTarget: Object.defineProperty({}, 'value', { get() { reads++; return 'Stale'; } }) };
+		await act(async () => { rename?.({}); change?.(event); }); assert.equal(reads, 0); assert.equal(f.value(names.name), '');
+		const oldRename = reactProps(f.button(names.rename)).onClick;
+		await f.replace(recipe()); await act(async () => { oldRename?.({}); }); assert.equal(f.applied.length, 0);
+		await f.replace(recipe(), true); await f.change(names.name, 'Disabled'); await f.click(names.rename); assert.equal(f.value(names.name), '');
+		await f.replace(recipe()); await f.change(names.name, 'Closing'); rename = reactProps(f.button(names.rename)).onClick;
+		await f.click(f.text.close); await act(async () => { rename?.({}); }); assert.equal(f.applied.length, 0); assert.equal(f.closed(), 1);
+	} finally { await f.dispose(); }
+	await act(async () => { rename?.({}); change?.({ currentTarget: { value: 'Unmounted' } }); }); assert.equal(f.applied.length, 0);
 });

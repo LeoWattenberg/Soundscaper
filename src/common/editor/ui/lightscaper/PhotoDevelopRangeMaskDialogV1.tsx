@@ -50,7 +50,7 @@ export default function PhotoDevelopRangeMaskDialogV1(props: PhotoDevelopRangeMa
 			const node = form.kind === 'color-range' ? { id: nodeId, kind: form.kind,
 				color: { r: fraction(form.red), g: fraction(form.green), b: fraction(form.blue) }, radius: fraction(form.radius), falloff }
 				: { id: nodeId, kind: form.kind, lower: fraction(form.lower), upper: fraction(form.upper), falloff };
-			const graph = { schemaVersion: 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [],
+			const graph = { ...retained, schemaVersion: retained?.schemaVersion ?? 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [],
 				nodes: [node], outputNodeId: nodeId };
 			const value = normalizeImageDevelopStateV1OrV2({ ...props.develop,
 				masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
@@ -76,7 +76,7 @@ export default function PhotoDevelopRangeMaskDialogV1(props: PhotoDevelopRangeMa
 			<label>{text.gradient}<select value={form.maskId} disabled={props.disabled} aria-label={text.gradient} onChange={event => {
 				const id = event.currentTarget.value;
 				if (presented() && (id === '' || ranges.some(mask => mask.id === id))) { setForm(initial(props.develop, id, kind)); setError(false); }
-			}}><option value="">{text.newGradient}</option>{ranges.map(mask => <option key={mask.id} value={mask.id}>{mask.id}</option>)}</select></label>
+			}}><option value="">{text.newGradient}</option>{ranges.map(mask => <option key={mask.id} value={mask.id}>{mask.schemaVersion === 2 ? `${mask.name} (${mask.id})` : mask.id}</option>)}</select></label>
 			<fieldset disabled={props.disabled}><legend>{text.title}</legend>
 				{fields.map(([key, caption, value]) => <label key={key}>{caption}<input type="number" min={0} max={1} step="any"
 					value={value} aria-label={caption} onChange={event => { update({ ...form, [key]: event.currentTarget.value }); }} /></label>)}
