@@ -5,6 +5,10 @@ import {
 	createPendingLightscaperLargeLibraryResult,
 	parseLightscaperLargeLibraryDiagnostic,
 } from './lightscaper-large-library-diagnostics-v1.ts';
+import {
+	createPendingLightscaperDevelopProxyResult,
+	parseLightscaperDevelopProxyDiagnostic,
+} from './lightscaper-develop-proxy-diagnostics-v1.ts';
 
 import {
 	createPendingM3LongformEditorialResult,
@@ -40,6 +44,9 @@ export const HOSTED_CI_COLLECTORS = Object.freeze([
 	collector('l3-photo-library-large', 'blocking', 'any',
 		'tests/browser/lightscaper-large-library-native.spec.js',
 		parseLightscaperLargeLibraryDiagnostic, createPendingLightscaperLargeLibraryResult),
+	collector('l4-photo-develop-proxy-spatial', 'blocking', 'any',
+		'tests/browser/lightscaper-develop-proxy-interaction.spec.js',
+		parseLightscaperDevelopProxyDiagnostic, createPendingLightscaperDevelopProxyResult),
 	collector('m1-video-preview-12fx-720p', 'observational', 'hardware',
 		'tests/browser/audio-editor-video-preview-benchmark.spec.js',
 		parseM1VideoPreviewDiagnostic, createPendingM1VideoPreviewResult),

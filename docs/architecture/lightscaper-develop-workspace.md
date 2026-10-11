@@ -235,3 +235,52 @@ ordered stacks, saved criteria and original custody. Native browser qualificatio
 of that combined workflow remains separate. These format and host JavaScript
 changes do not alter the assistance
 runtime closure and do not require a manual **Update AI assets** run.
+
+### Representative large-image proxy qualification
+
+The menu-driven browser workload imports a deterministic 4096 × 3072 lossless
+PNG and opens its actual 2048 × 1536 fit-screen Develop preview. The original
+contains opaque 2 × 2 grayscale blocks whose phase varies along both axes.
+It has the encoder's fixed sRGB intent 0 and no ICC profile. Ordered Dehaze
+37.125 followed by Detail sharpening at threshold 0 exercises fractional
+parameters, spatial neighborhoods, replicated borders and low clipping.
+
+The expected pixels come from independent finite integer tables. Separate
+BigInt neighborhood enumeration and Node SHA-256 tests check all border classes
+and complete proxy planes. Browser checks compare every RGBA channel, full
+digests, histogram bins and clipping counts after the timing endpoint. Expected
+pixels never come from the production effect, resize or histogram kernels.
+
+The real numeric input event starts each measurement. Current-ready state,
+correct extent and amount-sensitive pixel witnesses followed by one animation
+frame end it. Full-frame validation and original reads remain outside that
+interval. Each locale runs one genuine warmup and five measured serial edits;
+each rapid-edit trial submits 25, 100 and 50 while earlier work is genuinely
+pending. Five measured bursts follow one burst warmup. Nearest-rank p95 is
+computed within each locale and the worse English/German value is retained.
+Browsers remain separate. The uninstrumented workflow has a 90-second case
+deadline; it is not the edit-latency budget.
+
+The quality register pins the source and seven independent proxy stage digests,
+geometry, timing protocol and uninstrumented timing profile.
+Its three correctness counts must equal zero. Serial and latest-burst p95 have
+initial observational ceilings of 2500 ms, chosen after an actual baseline
+whose worst browser/locale serial p95 was 1953.28 ms. These timings describe
+the recorded environment and do not promise hardware performance. Ordinary
+Chromium coverage runs retain their instrumentation label and correctness
+evidence. Their separate 180-second case deadline accounts for precise V8
+instrumentation overhead; they do not qualify the uninstrumented timing profile. Hosted
+diagnostics collect both locales in Chromium; Firefox qualifies separately.
+
+Save, reopen, reload and Close during pending work are part of the same native
+workflow. They preserve the ordered recipe and version history, retire the old
+canvases, and authenticate the retained original's encoded digest, byte length,
+hidden content token, complete native fixture custody and public permanent root.
+The original observer reads the actual selected namespace and streams its digest
+in 64 KiB pieces, closing all borrowed owners before returning scalar facts.
+
+This is one representative spatial workload. All-operation golden coverage,
+preview/export equivalence, raw and ICC corpora, generated settings/history
+properties, and total-memory qualification remain separate L4 work. The tests,
+diagnostic register and documentation keep the same assistance runtime closure;
+a manual **Update AI assets** run is not required.

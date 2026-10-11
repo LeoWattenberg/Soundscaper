@@ -167,6 +167,28 @@ export async function qualifyNativePhotoPreviewSessionClose(page, cut) {
 	await assertNativeOpfsWorkerExecution(page); return facts;
 }
 
+/** Full canvas comparison happens after the measured current-ready paint. */
+export async function validateNativePhotoDevelopProxyCanvas(page, selector, stage) {
+	const script = await mappedBundle('develop-proxy-reference.js', resolve(repositoryRoot, 'tests/browser/helpers/lightscaper-develop-proxy-reference.ts'));
+	register(page, '/__develop_proxy_reference.js', script);
+	await page.route('**/__develop_proxy_reference.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	return page.evaluate(async ({ selector, stage }) => {
+		const canvas = document.querySelector(selector);
+		if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Actual Develop canvas missing.');
+		return (await import(new URL('/__develop_proxy_reference.js', location.href).href)).validateDevelopProxyCanvasV1(canvas, stage);
+	}, { selector, stage });
+}
+
+/** Authenticate actual selected originals without transferring large pixel planes. */
+export async function observeNativePhotoDevelopProxyCustody(page, photoId) {
+	const script = await mappedBundle('develop-proxy-custody.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-develop-proxy-native-observer.ts'));
+	register(page, '/__develop_proxy_custody.js', script);
+	await page.route('**/__develop_proxy_custody.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	const facts = await page.evaluate(async photoId => (await import(new URL('/__develop_proxy_custody.js', location.href).href))
+		.readPhotoDevelopProxyCustodyNativeV1(photoId, () => globalThis.__assertNativeOpfsWorkerExecution()), photoId);
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');

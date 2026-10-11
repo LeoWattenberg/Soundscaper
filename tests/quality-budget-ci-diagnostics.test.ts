@@ -110,6 +110,7 @@ test('the diagnostic collector table retains parity, timing, and GPU observation
 			['m4b2-keyframe-render-parity', 'blocking', 'any'],
 			['m3-longform-editorial', 'blocking', 'any'],
 			['l3-photo-library-large', 'blocking', 'any'],
+			['l4-photo-develop-proxy-spatial', 'blocking', 'any'],
 			['m1-video-preview-12fx-720p', 'observational', 'hardware'],
 		],
 	);
@@ -118,6 +119,7 @@ test('the diagnostic collector table retains parity, timing, and GPU observation
 		'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js',
 		'tests/browser/audio-editor-longform-editorial-benchmark.spec.js',
 		'tests/browser/lightscaper-large-library-native.spec.js',
+		'tests/browser/lightscaper-develop-proxy-interaction.spec.js',
 	]);
 });
 
