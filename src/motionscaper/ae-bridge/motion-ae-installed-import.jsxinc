@@ -103,6 +103,24 @@ function applyProperty(target, property, probeTime) {
             target.setRovingAtKey(index + 1, property.keys[index].roving);
     applyExpression(target, property.expression, probeTime);
 }
+function verifySceneValue(target, property) {
+    var verify = function (value, expected) {
+        var actual = typeof value === 'number' ? [value] : Object.prototype.toString.call(value) === '[object Array]' ? value : [];
+        if (actual.length !== expected.length)
+            throw new Error('AE changed a scene property dimension.');
+        for (var axis = 0; axis < expected.length; axis++)
+            if (typeof actual[axis] !== 'number' || !isFinite(actual[axis]) || Math.abs(actual[axis] - expected[axis]) > Math.max(1, Math.abs(expected[axis])) * 1e-6)
+                throw new Error('AE clamped or changed a reviewed scene value.');
+    };
+    if (!property.keys.length)
+        verify(target.value, property.value);
+    else {
+        if (target.numKeys !== property.keys.length)
+            throw new Error('AE changed the scene key count.');
+        for (var index = 0; index < property.keys.length; index++)
+            verify(target.keyValue(index + 1), property.keys[index].value);
+    }
+}
 function beginImport(project, root, plan, shapeProfile) {
     app.beginUndoGroup('Import Motionscaper exchange');
     var folder;
@@ -136,16 +154,27 @@ function beginImport(project, root, plan, shapeProfile) {
             items[item.id] = comp;
         },
         layer: function (comp, item) {
-            var target = comps[comp.id], layer = item.shapes ? target.layers.addShape() : item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId]);
+            var target = comps[comp.id], layer = item.scene ? item.scene.kind === 'camera' ? target.layers.addCamera(item.name, [comp.width / 2, comp.height / 2]) : target.layers.addLight(item.name, [comp.width / 2, comp.height / 2]) : item.shapes ? target.layers.addShape() : item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId]);
             layers[item.id] = layer;
             layer.name = item.name;
-            layer.threeDLayer = item.threeD;
+            if (item.scene) {
+                layer.autoOrient = AutoOrientType.NO_AUTO_ORIENT;
+                if (layer.autoOrient !== AutoOrientType.NO_AUTO_ORIENT)
+                    throw new Error('AE did not apply the reviewed scene orientation.');
+                if (item.scene.kind === 'ambient') {
+                    layer.lightType = LightType.AMBIENT;
+                    if (layer.lightType !== LightType.AMBIENT)
+                        throw new Error('AE did not create the reviewed ambient light type.');
+                }
+            }
+            else
+                layer.threeDLayer = item.threeD;
             layer.stretch = item.stretch;
             layer.startTime = item.startTime;
             layer.inPoint = item.inPoint;
             layer.outPoint = item.outPoint;
             layer.enabled = item.enabled;
-            if (plan.muteAudio)
+            if (plan.muteAudio && !item.scene)
                 layer.audioEnabled = false;
         },
         parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
@@ -175,6 +204,18 @@ function beginImport(project, root, plan, shapeProfile) {
             for (var index = 0; index < item.properties.length; index++) {
                 var property = item.properties[index];
                 applyProperty(transform.property(property.matchName), property, item.inPoint);
+            }
+            if (item.scene) {
+                var group = layers[item.id].property(item.scene.kind === 'camera' ? 'ADBE Camera Options Group' : 'ADBE Light Options Group');
+                for (var index = 0; index < item.scene.properties.length; index++) {
+                    var property = item.scene.properties[index], target = group.property(property.matchName);
+                    applyProperty(target, property, item.inPoint);
+                    verifySceneValue(target, property);
+                }
+                for (var index = 0; index < item.properties.length; index++) {
+                    var property = item.properties[index];
+                    verifySceneValue(transform.property(property.matchName), property);
+                }
             }
             for (var index = 0; index < item.masks.length; index++) {
                 var mask = item.masks[index], target = layers[item.id].property('ADBE Mask Parade').addProperty('ADBE Mask Atom');

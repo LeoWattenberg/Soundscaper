@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readMotionAeImportScene, type MotionAeImportScene } from './motion-ae-host-import-scene.ts';
 import { readMotionAeHostScalarExpression } from './motion-ae-host-scalar-expression.ts';
 import { readMotionAeImportShapes, type MotionAeImportShapeGroup } from './motion-ae-host-import-shape.ts';
 import { readMotionAeImportText, type MotionAeImportText } from './motion-ae-host-import-text.ts';
@@ -9,11 +10,11 @@ export interface MotionAeImportNumeric {
 	readonly matchName: string; readonly expression: string | null; readonly value: readonly number[]; readonly spatial: boolean; readonly keys: readonly MotionAeKey<readonly number[]>[];
 }
 export interface MotionAeImportLayer {
-	readonly id: string; readonly name: string; readonly kind: 'footage' | 'composition' | 'null' | 'text' | 'shape'; readonly sourceId: string | null; readonly parentId: string | null;
+	readonly id: string; readonly name: string; readonly kind: 'footage' | 'composition' | 'null' | 'text' | 'shape' | 'camera' | 'light'; readonly sourceId: string | null; readonly parentId: string | null;
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
 	readonly enabled: boolean; readonly threeD: boolean; readonly properties: readonly MotionAeImportNumeric[];
 	readonly text: MotionAeImportText | null; readonly shapes: readonly MotionAeImportShapeGroup[] | null;
-	readonly masks: readonly MotionAeImportMask[];
+	readonly masks: readonly MotionAeImportMask[]; readonly scene?: MotionAeImportScene;
 	readonly matte: MotionAeLayer['matte'];
 }
 export interface MotionAeImportComposition {
@@ -87,7 +88,7 @@ function properties(input: unknown, warnings: string[], budget: { properties: nu
 	for (let rootIndex = 0; rootIndex < roots.length; rootIndex++) {
 		if (++budget.properties > 65_536) throw new Error('AE import property budget exceeded.');
 		const root = record(roots[rootIndex]);
-		if (root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties' || root.matchName === 'ADBE Root Vectors Group') continue;
+		if (root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties' || root.matchName === 'ADBE Root Vectors Group' || root.matchName === 'ADBE Camera Options Group' || root.matchName === 'ADBE Light Options Group') continue;
 		if (root.kind !== 'group' || root.matchName !== 'ADBE Transform Group') { warnings.push('An unmapped property group is omitted; retain the source package and render its composition for visual fidelity.'); continue; }
 		const children = array(root.children, 65_536), seen: Record<string, boolean> = {};
 		for (let index = 0; index < children.length; index++) {
@@ -112,7 +113,7 @@ function verifyGraph(plan: MotionAeImportPlan): void {
 		for (let j = 0; j < comp.layers.length; j++) { const layer = comp.layers[j]!; register(layer.id); layers[layer.id] = layer; }
 		for (let j = 0; j < comp.layers.length; j++) {
 			const layer = comp.layers[j]!;
-			if ((layer.kind === 'null' || layer.kind === 'text' || layer.kind === 'shape') ? layer.sourceId !== null : layer.sourceId === null || !own(layer.kind === 'footage' ? footage : comps, layer.sourceId)) throw new Error('AE import layer source is unresolved.');
+			if ((layer.kind === 'null' || layer.kind === 'text' || layer.kind === 'shape' || layer.kind === 'camera' || layer.kind === 'light') ? layer.sourceId !== null : layer.sourceId === null || !own(layer.kind === 'footage' ? footage : comps, layer.sourceId)) throw new Error('AE import layer source is unresolved.');
 			let parent = layer.parentId, visited = 0;
 			while (parent !== null) { if (!own(layers, parent)) throw new Error('AE import parent is unresolved.'); if (++visited > comp.layers.length) throw new Error('AE import parent cycle.'); parent = layers[parent]!.parentId; }
 			let matteId = layer.matte?.layerId ?? null; visited = 0;
@@ -148,14 +149,15 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 		const comp = record(rawComps[index]), rawLayers = array(comp.layers, 4096), layers: MotionAeImportLayer[] = [];
 		totalLayers += rawLayers.length; if (totalLayers > 4096) throw new Error('AE import layer budget exceeded.');
 		for (let j = 0; j < rawLayers.length; j++) {
-			const layer = record(rawLayers[j]); if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null' && layer.kind !== 'text' && layer.kind !== 'shape') throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
+			const layer = record(rawLayers[j]); if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null' && layer.kind !== 'text' && layer.kind !== 'shape' && layer.kind !== 'camera' && layer.kind !== 'light') throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
 			if (layer.adjustment !== false || layer.blendMode !== 'normal') warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
 			const inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
 			if (outPoint < inPoint || Math.abs(stretch) < 1) throw new Error('AE import layer timing is invalid.');
 			const textDocument = layer.kind === 'text' ? readMotionAeImportText(layer.properties, warnings, budget) : null;
 			if (layer.kind === 'text' && !textDocument) throw new Error('AE text layer requires reviewed Source Text; render the original composition when it cannot be captured.');
-			layers.push({ shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
-				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
+			const transform = properties(layer.properties, warnings, budget), scene = readMotionAeImportScene(layer, transform, warnings, budget, numericProperty);
+			layers.push({ ...(scene ? { scene } : {}), shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
+				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
 		}
 		const width = number(comp.width, 4, 30_000), height = number(comp.height, 4, 30_000);
 		if (width !== Math.floor(width) || height !== Math.floor(height)) throw new Error('AE import dimensions must be integral.');

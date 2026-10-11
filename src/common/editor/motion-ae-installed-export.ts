@@ -22,7 +22,7 @@ interface AeItem {
 interface AeLayer {
 	readonly index: number; readonly name: string; readonly parent: AeLayer | null; readonly source?: AeItem;
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
-	readonly enabled: boolean; readonly threeDLayer?: boolean; readonly adjustmentLayer?: boolean; readonly nullLayer?: boolean;
+	readonly autoOrient?: unknown; readonly lightType?: unknown; readonly enabled: boolean; readonly threeDLayer?: boolean; readonly adjustmentLayer?: boolean; readonly nullLayer?: boolean;
 	readonly blendingMode?: unknown; readonly trackMatteType?: unknown; readonly trackMatteLayer?: AeLayer | null;
 	property(name: string): MotionAePropertyHost | null;
 }
@@ -45,6 +45,8 @@ declare const ShapeLayer: { new(): AeLayer & { readonly shapeLayerBrand: true } 
 declare const PropertyType: { PROPERTY: unknown };
 declare const PropertyValueType: { OneD: unknown; TwoD: unknown; ThreeD: unknown; TwoD_SPATIAL: unknown; ThreeD_SPATIAL: unknown; COLOR: unknown; SHAPE: unknown; TEXT_DOCUMENT: unknown };
 declare const KeyframeInterpolationType: { HOLD: unknown; LINEAR: unknown; BEZIER: unknown };
+declare const AutoOrientType: Record<string, unknown>;
+declare const LightType: Record<string, unknown>;
 declare const BlendingMode: Record<string, unknown>;
 declare const TrackMatteType: { NO_TRACK_MATTE: unknown; ALPHA: unknown; ALPHA_INVERTED: unknown; LUMA: unknown; LUMA_INVERTED: unknown };
 declare const MaskMode: Record<string, unknown>;
@@ -91,6 +93,17 @@ function layerKind(layer: AeLayer): MotionAeLayer['kind'] {
 	if (layer instanceof TextLayer) return 'text'; if (layer instanceof ShapeLayer) return 'shape'; if (layer.nullLayer) return 'null';
 	if (layer.source instanceof CompItem) return 'composition'; if (layer.source?.file) return 'footage'; return 'solid';
 }
+function sceneMetadata(layer: AeLayer, kind: MotionAeLayer['kind']): MotionAeLayer['scene'] {
+	if (kind !== 'camera' && kind !== 'light') return undefined;
+	const orientation: [string, NonNullable<MotionAeLayer['scene']>['autoOrient']][] = [['NO_AUTO_ORIENT', 'none'], ['CAMERA_OR_POINT_OF_INTEREST', 'point-of-interest'], ['ALONG_PATH', 'along-path'], ['CHARACTERS_TOWARD_CAMERA', 'characters']];
+	let autoOrient: NonNullable<MotionAeLayer['scene']>['autoOrient'] = 'unavailable';
+	for (let index = 0; index < orientation.length; index++) if (AutoOrientType[orientation[index]![0]] !== undefined && layer.autoOrient === AutoOrientType[orientation[index]![0]]) autoOrient = orientation[index]![1];
+	if (kind === 'camera') return { autoOrient };
+	const types: [string, NonNullable<MotionAeLayer['scene']>['lightType']][] = [['AMBIENT', 'ambient'], ['POINT', 'point'], ['SPOT', 'spot'], ['PARALLEL', 'parallel'], ['ENVIRONMENT', 'environment']];
+	let lightType: NonNullable<MotionAeLayer['scene']>['lightType'] = 'unavailable';
+	for (let index = 0; index < types.length; index++) if (LightType[types[index]![0]] !== undefined && layer.lightType === LightType[types[index]![0]]) lightType = types[index]![1];
+	return { autoOrient, lightType };
+}
 function blendMode(value: unknown): string {
 	const names = ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'ADD', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION'];
 	for (let i = 0; i < names.length; i++) if (BlendingMode[names[i]!] === value) return names[i]!.toLowerCase(); return 'unsupported';
@@ -119,7 +132,8 @@ function readComposition(comp: AeComposition, report: MotionAeReportEntry[], bud
 			if (target && supported) matte = { layerId: id + '-layer-' + String(target.index), type: source.trackMatteType === TrackMatteType.ALPHA ? 'alpha' : source.trackMatteType === TrackMatteType.ALPHA_INVERTED ? 'alpha-inverted' : source.trackMatteType === TrackMatteType.LUMA ? 'luma' : 'luma-inverted' };
 			else report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'matte', message: 'This AE version does not expose a supported matte source/type. Use AE 23 or newer, or render the composition.' });
 		}
-		layers.push({ id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
+		const scene = sceneMetadata(source, kind);
+		layers.push({ ...(scene ? { scene } : {}), id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
 			parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte,
 			startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch,
 			enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true,

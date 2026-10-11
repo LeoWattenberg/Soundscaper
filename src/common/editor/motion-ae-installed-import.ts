@@ -12,7 +12,7 @@ interface AeFile { readonly exists: boolean; readonly length: number; readonly a
 interface AeItem { name: string; parentFolder: AeItem; remove(): void }
 interface AeProperty {
 	readonly canSetExpression: boolean; expression: string; expressionEnabled: boolean; readonly expressionError: string; valueAtTime(time: number, preExpression: boolean): unknown;
-	readonly value: unknown; readonly numKeys: number; readonly numProperties: number; readonly propertyIndex: number; readonly canSetEnabled: boolean; enabled: boolean; property(name: string | number): AeProperty;
+	readonly value: unknown; keyValue(index: number): unknown; readonly numKeys: number; readonly numProperties: number; readonly propertyIndex: number; readonly canSetEnabled: boolean; enabled: boolean; property(name: string | number): AeProperty;
 	name: string; addProperty(name: string): AeProperty; maskMode: unknown; inverted: boolean; rotoBezier: boolean; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
 	setValue(value: unknown): void; setValueAtTime(time: number, value: unknown): void;
 	setInterpolationTypeAtKey(index: number, incoming: unknown, outgoing: unknown): void;
@@ -22,11 +22,11 @@ interface AeProperty {
 	setSpatialTangentsAtKey(index: number, incoming: readonly number[], outgoing: readonly number[]): void; setRovingAtKey(index: number, value: boolean): void;
 }
 interface AeLayer {
-	name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
+	autoOrient: unknown; lightType: unknown; name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
 	setTrackMatte?(source: AeLayer, type: unknown): void;
 }
-interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { addShape(): AeLayer; add(item: AeItem): AeLayer; addNull(duration: number): AeLayer; addBoxText(size: readonly number[], text: string): AeLayer } }
+interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { addCamera(name: string, center: readonly number[]): AeLayer; addLight(name: string, center: readonly number[]): AeLayer; addShape(): AeLayer; add(item: AeItem): AeLayer; addNull(duration: number): AeLayer; addBoxText(size: readonly number[], text: string): AeLayer } }
 interface AeProject {
 	readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: number;
 	readonly items: { addFolder(name: string): AeItem; addComp(name: string, width: number, height: number, aspect: number, duration: number, frameRate: number): AeComposition };
@@ -37,6 +37,8 @@ declare const File: { new(path: string): AeFile; openDialog(prompt: string): AeF
 declare const Folder: { new(path: string): AeFolder };
 declare const ImportOptions: { new(file: AeFile): { file: AeFile; sequence: boolean; importAs: unknown } };
 declare const ImportAsType: { FOOTAGE: unknown };
+declare const AutoOrientType: { NO_AUTO_ORIENT: unknown };
+declare const LightType: { AMBIENT: unknown };
 declare const KeyframeInterpolationType: { HOLD: unknown; LINEAR: unknown; BEZIER: unknown };
 declare const KeyframeEase: { new(speed: number, influence: number): unknown };
 declare const Shape: { new(): { closed: boolean; vertices: MotionAeShape['vertices']; inTangents: MotionAeShape['inTangents']; outTangents: MotionAeShape['outTangents'] } };
@@ -98,6 +100,15 @@ function applyProperty(target: AeProperty, property: MotionAeImportNumeric, prob
 	if (property.spatial) for (let index = 1; index < property.keys.length - 1; index++) target.setRovingAtKey(index + 1, property.keys[index]!.roving);
 	applyExpression(target, property.expression, probeTime);
 }
+function verifySceneValue(target: AeProperty, property: MotionAeImportNumeric): void {
+	const verify = (value: unknown, expected: readonly number[]) => {
+		const actual = typeof value === 'number' ? [value] : Object.prototype.toString.call(value) === '[object Array]' ? value as readonly unknown[] : [];
+		if (actual.length !== expected.length) throw new Error('AE changed a scene property dimension.');
+		for (let axis = 0; axis < expected.length; axis++) if (typeof actual[axis] !== 'number' || !isFinite(actual[axis] as number) || Math.abs((actual[axis] as number) - expected[axis]!) > Math.max(1, Math.abs(expected[axis]!)) * 1e-6) throw new Error('AE clamped or changed a reviewed scene value.');
+	};
+	if (!property.keys.length) verify(target.value, property.value);
+	else { if (target.numKeys !== property.keys.length) throw new Error('AE changed the scene key count.'); for (let index = 0; index < property.keys.length; index++) verify(target.keyValue(index + 1), property.keys[index]!.value); }
+}
 function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPlan, shapeProfile: MotionAeShapeProfile | null): MotionAeImportTransaction {
 	app.beginUndoGroup('Import Motionscaper exchange'); let folder: AeItem;
 	try { folder = project.items.addFolder('Motionscaper ' + plan.transferId); } catch (error) { app.endUndoGroup(); throw error; }
@@ -112,9 +123,14 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 			comp.displayStartTime = item.displayStartTime; comp.bgColor = item.background; comps[item.id] = comp; items[item.id] = comp;
 		},
 		layer: (comp, item) => {
-			const target = comps[comp.id]!, layer = item.shapes ? target.layers.addShape() : item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
-			layers[item.id] = layer; layer.name = item.name; layer.threeDLayer = item.threeD; layer.stretch = item.stretch; layer.startTime = item.startTime;
-			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled; if (plan.muteAudio) layer.audioEnabled = false;
+			const target = comps[comp.id]!, layer = item.scene ? item.scene.kind === 'camera' ? target.layers.addCamera(item.name, [comp.width / 2, comp.height / 2]) : target.layers.addLight(item.name, [comp.width / 2, comp.height / 2]) : item.shapes ? target.layers.addShape() : item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
+			layers[item.id] = layer; layer.name = item.name;
+			if (item.scene) {
+				layer.autoOrient = AutoOrientType.NO_AUTO_ORIENT; if (layer.autoOrient !== AutoOrientType.NO_AUTO_ORIENT) throw new Error('AE did not apply the reviewed scene orientation.');
+				if (item.scene.kind === 'ambient') { layer.lightType = LightType.AMBIENT; if (layer.lightType !== LightType.AMBIENT) throw new Error('AE did not create the reviewed ambient light type.'); }
+			} else layer.threeDLayer = item.threeD;
+			layer.stretch = item.stretch; layer.startTime = item.startTime;
+			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled; if (plan.muteAudio && !item.scene) layer.audioEnabled = false;
 		},
 		parent: (item) => { layers[item.id]!.setParentWithJump(layers[item.parentId!]!); },
 		properties: (item) => {
@@ -133,6 +149,11 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 			}
 			const transform = layers[item.id]!.property('ADBE Transform Group');
 			for (let index = 0; index < item.properties.length; index++) { const property = item.properties[index]!; applyProperty(transform.property(property.matchName), property, item.inPoint); }
+			if (item.scene) {
+				const group = layers[item.id]!.property(item.scene.kind === 'camera' ? 'ADBE Camera Options Group' : 'ADBE Light Options Group');
+				for (let index = 0; index < item.scene.properties.length; index++) { const property = item.scene.properties[index]!, target = group.property(property.matchName); applyProperty(target, property, item.inPoint); verifySceneValue(target, property); }
+				for (let index = 0; index < item.properties.length; index++) { const property = item.properties[index]!; verifySceneValue(transform.property(property.matchName), property); }
+			}
 			for (let index = 0; index < item.masks.length; index++) {
 				const mask = item.masks[index]!, target = layers[item.id]!.property('ADBE Mask Parade').addProperty('ADBE Mask Atom');
 				target.name = mask.name; target.maskMode = MaskMode[mask.metadata.mode.toUpperCase()]; target.inverted = mask.metadata.inverted; target.rotoBezier = false;

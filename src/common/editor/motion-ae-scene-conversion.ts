@@ -74,14 +74,14 @@ export function convertMotionAeSceneLayer(layer: MotionAeLayer, rate: Rational, 
 				focusDistance: scalar(required(values, 'ADBE Camera Focus Distance', 1), rate, 1, 0, 1e9), aperture: motionScalar(0) }, transform: cameraTransform(properties, rate) };
 		} else {
 			if (layer.scene.lightType !== 'ambient') throw new Error('This editable light subset requires the captured SDK AMBIENT type. Point/spot falloff, parallel, environment and shadow semantics require a separate mapping or rendered fallback.');
-			for (const name of values.keys()) if (!['ADBE Light Color', 'ADBE Light Intensity'].includes(name)) throw new Error('This ambient light exposes additional unsupported controls.');
+			for (const name of values.keys()) if (!['ADBE Light Color', 'ADBE Light Intensity', 'ADBE Light Cone Angle', 'ADBE Light Cone Feather 2', 'ADBE Light Falloff Type', 'ADBE Light Falloff Start', 'ADBE Light Falloff Distance', 'ADBE Light Shadow Darkness', 'ADBE Light Shadow Diffusion'].includes(name)) throw new Error('This ambient light exposes additional unsupported controls.');
 			const color = values.get('ADBE Light Color');
 			if (!color || ![3, 4].includes(color.value.length) || !fixed(color) || color.value.some(value => value < 0 || value > 1) || color.value.length === 4 && color.value[3] !== 1) throw new Error('Ambient light color requires static opaque SDR RGB; animated or translucent colors need a separate mapping.');
 			const rgb = color.value.slice(0, 3).map(value => colorSpace === 'srgb' ? decodeMotionChannel(value, 'srgb') : value);
 			result = { content: { kind: 'light', lightType: 'ambient', color: motionColor([rgb[0]!, rgb[1]!, rgb[2]!, 1]), intensity: scalar(required(values, 'ADBE Light Intensity', 1), rate, 0.01, 0, 64), coneAngle: motionScalar(90), coneFeather: motionScalar(0), castsShadows: false }, transform: identity() };
 		}
 		if (properties.some(root => root.kind === 'group' && root.children.some(property => property.kind === 'numeric' && property.keys.some(key => motionAeBoundedClock(key.time * rate.num / rate.den).quantized)))) report.push({ scopeId: layer.id, propertyPath: '', status: 'sampled', code: 'clock-quantization', message: 'AE floating key times were rounded to the bounded one-millionth Motion frame. Original times remain in custody.' });
-		report.push({ scopeId: layer.id, propertyPath: groupName, status: 'editable', code: 'scene-parameters', message: 'The admitted camera or ambient-light parameters and hold/linear keys remain editable. Ambient spatial controls have no lighting effect and use identity transforms.' },
+		report.push({ scopeId: layer.id, propertyPath: groupName, status: 'editable', code: 'scene-parameters', message: 'The admitted camera or ambient-light parameters and hold/linear keys remain editable. Ambient spatial, cone, falloff and shadow controls have no lighting effect; captured inactive values remain in custody and spatial transforms use identity.' },
 			{ scopeId: layer.id, propertyPath: '', status: 'unsupported', code: 'scene-renderer-differences', message: differences }); return result;
 	} catch (error) { return issue(report, layer.id, error instanceof Error ? error.message : String(error)); }
 }

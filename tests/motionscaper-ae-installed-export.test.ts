@@ -15,7 +15,7 @@ async function script(sampled = false, rendered = false): Promise<string> {
 	}
 	return parts.join('\n');
 }
-function host(writeFailure = false, evaluate = false, confirmed = true, includeMask = false) {
+function host(writeFailure = false, evaluate = false, confirmed = true, includeMask = false, includeScene = false) {
 	const files = new Map<string, string>([['/source/Original.aep', 'original-project-bytes'], ['/source/Clip.mp4', 'original-media-bytes']]);
 	const folders = new Set(['/destination']), alerts: string[] = [], preExpression: boolean[] = [];
 	class HostFile {
@@ -49,9 +49,12 @@ function host(writeFailure = false, evaluate = false, confirmed = true, includeM
 	const footage = new FootageItem();
 	const layer = { index: 1, name: 'Clip layer', parent: null, source: footage, startTime: 0, inPoint: 0, outPoint: 1, stretch: 100, enabled: true,
 		threeDLayer: false, adjustmentLayer: false, blendingMode: 'normal', trackMatteType: 'none', property: (name: string) => name === 'ADBE Transform Group' ? transform : name === 'ADBE Mask Parade' && includeMask ? masks : null };
+	class CameraLayer { index = 1; name = 'Camera'; parent = null; startTime = 0; inPoint = 0; outPoint = 1; stretch = 100; enabled = true; autoOrient = 71; property() { return null; } }
+	class LightLayer { index = 2; name = 'Ambient'; parent = null; startTime = 0; inPoint = 0; outPoint = 1; stretch = 100; enabled = true; autoOrient = 71; lightType = 91; property() { return null; } }
+	const camera = new CameraLayer(), light = new LightLayer();
 	class CompItem {
-		id = 1; name = 'Composition'; width = 64; height = 64; pixelAspect = 1; frameRate = 24; duration = 1; numLayers = 1; displayStartTime = 0; bgColor = [0, 0, 0];
-		layer() { return layer; }
+		id = 1; name = 'Composition'; width = 64; height = 64; pixelAspect = 1; frameRate = 24; duration = 1; numLayers = includeScene ? 2 : 1; displayStartTime = 0; bgColor = [0, 0, 0];
+		layer(index: number) { return includeScene ? index === 1 ? camera : light : layer; }
 	}
 	const comp = new CompItem(), items = [comp, footage];
 	const output = { templates: ['User PNG Alpha'], file: new HostFile('/unset'), postRenderAction: 'import', applyTemplate: (name: string) => assert.equal(name, 'User PNG Alpha') };
@@ -67,7 +70,7 @@ function host(writeFailure = false, evaluate = false, confirmed = true, includeM
 	} };
 	const project = { activeItem: comp, renderQueue, numItems: 2, file: new HostFile('/source/Original.aep'), workingSpace: '', linearBlending: false, bitsPerChannel: 8, item: (index: number) => items[index - 1] };
 	return { files, folders, alerts, preExpression, project, sandbox: { app: { version: 'synthetic-host-not-AE', project }, File: HostFile, Folder: HostFolder, CompItem, FootageItem,
-		CameraLayer: class {}, LightLayer: class {}, TextLayer: class {}, ShapeLayer: class {},
+		CameraLayer, LightLayer, AutoOrientType: { NO_AUTO_ORIENT: 71, CAMERA_OR_POINT_OF_INTEREST: 72 }, LightType: { AMBIENT: 91, POINT: 92 }, TextLayer: class {}, ShapeLayer: class {},
 		PropertyType: { PROPERTY: 'property' }, PropertyValueType: { OneD: 'oneD', TwoD: 'twoD', ThreeD: 'threeD', TwoD_SPATIAL: 'twoDSpatial', ThreeD_SPATIAL: 'threeDSpatial', COLOR: 'color', SHAPE: 'shape', TEXT_DOCUMENT: 'text' },
 		BlendingMode: { NORMAL: 'normal' }, TrackMatteType: { NO_TRACK_MATTE: 'none' }, alert: (message: string) => alerts.push(message),
 		MaskMode: { SUBTRACT: 'subtract' }, MaskFeatherFalloff: { FFO_LINEAR: 'linear', FFO_SMOOTH: 'smooth' }, MaskMotionBlur: { SAME_AS_LAYER: 'same', ON: 'on', OFF: 'off' },
@@ -132,4 +135,13 @@ test('rendered JSX requires confirmation and refuses to mutate an existing AE re
 	const fixture = host(); fixture.project.renderQueue.numItems = 1; vm.runInNewContext(await script(false, true), fixture.sandbox, { timeout: 5000 });
 	assert.match(fixture.alerts[0]!, /empty render queue/u); assert.equal(fixture.project.renderQueue.numItems, 1); assert.equal(fixture.files.size, 2);
 	assert.deepEqual([...fixture.folders], ['/destination']);
+});
+
+test('Motion AE installed exporter captures SDK scene names read-only without assuming popup integers', async () => {
+	const fixture = host(false, false, true, false, true); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange written/u);
+	const exchange = parseMotionAeExchange([...fixture.files].find(([path]) => path.endsWith('/motionae.json'))![1]), layers = exchange.compositions[0]!.layers;
+	assert.deepEqual(layers.map(layer => layer.scene), [{ autoOrient: 'none' }, { autoOrient: 'none', lightType: 'ambient' }]);
+	assert.ok(layers.every(layer => layer.threeD && layer.blendMode === 'normal')); assert.equal(fixture.project.numItems, 2);
+	assert.equal(fixture.files.get('/source/Original.aep'), 'original-project-bytes');
 });

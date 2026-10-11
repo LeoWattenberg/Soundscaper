@@ -14,6 +14,7 @@
 #include "motion-ae-host-apply-shape.jsxinc"
 #include "motion-ae-host-import-mask.jsxinc"
 #include "motion-ae-host-scalar-expression.jsxinc"
+#include "motion-ae-host-import-scene.jsxinc"
 #include "motion-ae-host-import-plan.jsxinc"
 #include "motion-ae-host-import.jsxinc"
 #include "motion-ae-installed-import.jsxinc"

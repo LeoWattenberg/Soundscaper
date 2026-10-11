@@ -8,7 +8,7 @@ The admitted light is a captured SDK `LightType.AMBIENT`, without adjustment or 
 
 Optional `scene` metadata is closed and retained only on camera/light layers. Missing legacy metadata remains absent and does not acquire guessed orientation or light types. Popup integers are not an authority for semantic light types.
 
-The focused domain tests exercise custody absence, exact parameter units, key timing, color interpretation, reverse mapping and refusal paths. They are structural fixtures, not captures from an installed Adobe host. Host capture/application and the opt-in File dialog must be qualified separately, followed by real installed-host frame/subframe, camera projection, light/material, color and rollback reference checks.
+The focused domain tests exercise custody absence, exact parameter units, key timing, color interpretation, reverse mapping and refusal paths. They are structural fixtures, not captures from an installed Adobe host. The generated ES3 exporter captures SDK names without source mutation. The importer validates scene metadata and bounds before creating native camera/light layers, then verifies SDK types and numeric base/key values; host clamping rolls back its owned items. Synthetic host tests cover these operations and rollback. The opt-in File dialog and real installed-host frame/subframe, camera projection, light/material, color and rollback reference checks remain separate gates.
 
 ## Primary references
 
