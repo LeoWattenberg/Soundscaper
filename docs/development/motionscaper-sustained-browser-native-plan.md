@@ -228,7 +228,11 @@ taskset -c0-3 xvfb-run -a node --import tsx scripts/performance/motionscaper-sus
 Placeholders must be replaced and reviewed before execution. The browser origin
 must already be served by the owned canonical preview server; this driver does
 not start a server or rebuild production. Native requires the real configured
-GTK/X11 chooser and sandboxed package. Browser uses declared SwiftShader software
+GTK/X11 chooser and sandboxed package. Native outputs use a fresh
+`/tmp/motionscaper-sustained-<safe-id>` root (1–96 ASCII letters, digits, `_` or
+`-` in the identifier); the explicit `--sustained` chooser mode admits only
+`input.mscape` and the exact declared 300/1200 movie/cancellation/retry names.
+Default native-scene chooser admission stays unchanged. Browser uses declared SwiftShader software
 rendering; the packaged fixture uses `--disable-gpu` as prior native references.
 The small WebM verifier bundle and separate C++ decoder are test-only artifacts
 created by the approved run, never installed in the app.

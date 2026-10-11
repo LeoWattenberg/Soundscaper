@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Select a scene-owned project/movie path in the real Motion GTK chooser on X11."""
 import ctypes
-import re
 import sys
 import time
+from motionscaper_native_chooser_paths import validate_arguments
 
-if len(sys.argv) != 2 or not re.fullmatch(r"/tmp/motionscaper-native-scene-[A-Za-z0-9_-]+/(saved\.mscape|output\.mov)", sys.argv[1]):
-    raise SystemExit("Expected one native scene qualification project/movie path.")
-saving = sys.argv[1].endswith("/output.mov")
+try:
+    selected_path, saving = validate_arguments(sys.argv[1:])
+except ValueError as error:
+    raise SystemExit(str(error)) from error
 dialog_title = "Export ProRes 4444" if saving else "Open Motionscaper project"
 x11 = ctypes.CDLL("libX11.so.6")
 xtst = ctypes.CDLL("libXtst.so.6")
@@ -113,7 +114,7 @@ try:
     chord(ord("a"))
     x11.XFlush(display)
     time.sleep(0.1)
-    for character in sys.argv[1]:
+    for character in selected_path:
         shifted = character.isupper() or character == "_"
         if shifted:
             key(0xFFE1, True)

@@ -14,7 +14,7 @@ type Application = Awaited<ReturnType<typeof launchMotionSustainedApplication>>;
 export function motionSustainedNativeChooser(root: string, directory: string) {
 	let sequence = 0;
 	return async (path: string) => {
-		const result = await motionSustainedCommand({ command: 'python3', args: [join(root, 'scripts/lib/motionscaper-scene-chooser-x11.py'), path],
+		const result = await motionSustainedCommand({ command: 'python3', args: ['-B', '-E', '-s', join(root, 'scripts/lib/motionscaper-scene-chooser-x11.py'), '--sustained', path],
 			cwd: root, directory, id: `gtk-chooser-${++sequence}`, timeoutMs: 20000 });
 		assert.match(result.stdout, /MOTIONSCAPER_NATIVE_FILE_CHOOSER_SELECTED/u);
 	};
