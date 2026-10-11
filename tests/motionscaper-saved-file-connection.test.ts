@@ -37,3 +37,14 @@ test('Motion saved-file disconnect aborts private receive, awaits release, and r
 	assert.equal(connection.state().receipt, null); assert.equal(f.releases(), 1); assert.equal(connection.state().status, 'error');
 	f.failCancel(false); await connection.dispose(); assert.equal(f.cancelled(), 2); assert.equal(connection.state().status, 'disconnected');
 });
+test('Motion saved-file connection retries an unchanged complete snapshot after a private receiver failure', async () => {
+	const f = await fixture(); let receives = 0;
+	const connection = createMotionSavedFileConnection({ files: f.files, pollIntervalMs: 60000, receive: () => {
+		receives += 1; return receives === 1 ? Promise.reject(new Error('temporary receiver failure')) : Promise.resolve();
+	} });
+	try {
+		await connection.connect(); assert.equal(connection.state().status, 'error'); assert.equal(connection.state().receipt, null);
+		await connection.refresh(); assert.equal(receives, 2); assert.equal(connection.state().status, 'connected');
+		assert.equal(connection.state().receipt?.generation, 1); assert.equal(f.releases(), 2);
+	} finally { await connection.dispose(); }
+});

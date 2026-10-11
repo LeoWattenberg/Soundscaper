@@ -38,9 +38,9 @@ export function createMotionSavedFileConnection(options: MotionSavedFileConnecti
 					if (discovery.state === 'snapshot') try { await options.files.release({ token: discovery.snapshot.token }); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Stale Motion discovery cleanup failed.', { cause: cleanup }); }
 					throw error;
 				}
-				generation = next;
-				if (discovery.state !== 'snapshot') { if (!signal.aborted && discovery.state === 'unavailable') update('unavailable'); return; }
+				if (discovery.state !== 'snapshot') { generation = next; if (!signal.aborted && discovery.state === 'unavailable') update('unavailable'); return; }
 				const receipt = await receiveMotionSavedFileSnapshot(options.files, discovery.snapshot, { compositionId: options.compositionId, receive: options.receive, signal });
+				generation = next;
 				update(signal.aborted ? 'disconnecting' : 'connected', null, receipt); options.onReceived?.(receipt);
 			} catch (error) {
 				if (signal.aborted && error instanceof DOMException && error.name === 'AbortError') return;

@@ -34,7 +34,9 @@ finish its transaction. No selected path or active watcher is portable intent.
 `createMotionSavedFileConnection` belongs to the controller lifetime, so an
 opt-in dialog can close without disconnecting the link. Receives are serial;
 the next poll observes the newest generation after a busy transaction. A failed
-update preserves the last accepted receipt and closure. Disconnect aborts the
+private receive leaves its generation eligible for another poll, so Refresh can
+retry unchanged saved bytes after a temporary receiver write failure. Failure
+preserves the last verified receive receipt and closure. Disconnect aborts the
 private receive, waits for its cleanup and cancels the watch. Cleanup failures
 remain visible and cancellation can be retried. A completed owner publication
 is not undone by a later cancellation; post-publication cleanup errors carry
