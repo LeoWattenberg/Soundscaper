@@ -6,6 +6,7 @@ import type {
 	ProductVideoExportStrategyEncodeRequest,
 } from './controller/export/product-video-export-strategy.ts';
 import type { VideoKeyframeExportPlanV7 } from './video-keyframe-export-plan-v7.ts';
+import { snapshotVideoExportGeneratedSources } from './video-export-generated-sources.ts';
 import type {
 	VideoKeyframeVideoEncoderResult,
 	VideoKeyframeVideoEditorFfmpeg,
@@ -40,11 +41,12 @@ function exactSources(
 	plan: VideoKeyframeExportPlanV7,
 	videoBlobs: ReadonlyMap<string, Blob>,
 	errors: VideoExportEncodeErrorText,
+	generatedIds: ReadonlySet<string>,
 ): readonly Readonly<{ sourceId: string; blob: Blob }>[] {
-	if (!(videoBlobs instanceof Map) || videoBlobs.size !== plan.activeSourceIds.length) {
+	if ([...generatedIds].some(id => !plan.activeSourceIds.includes(id)) || !(videoBlobs instanceof Map) || videoBlobs.size !== plan.activeSourceIds.length - generatedIds.size) {
 		throw new TypeError(errors.sourceSet);
 	}
-	return Object.freeze(plan.activeSourceIds.map((sourceId) => {
+	return Object.freeze(plan.activeSourceIds.filter(id => !generatedIds.has(id)).map((sourceId) => {
 		const blob = videoBlobs.get(sourceId);
 		if (!(blob instanceof Blob)) throw new TypeError(errors.sourceMissing(sourceId));
 		return Object.freeze({ sourceId, blob });
@@ -58,7 +60,8 @@ export function createVideoExportOfflineRequest(
 	backend: EncodeBackend,
 	errors: VideoExportEncodeErrorText,
 ) {
-	const sources = exactSources(plan, request.videoBlobs, errors);
+	const generatedSources = snapshotVideoExportGeneratedSources(request.generatedSources);
+	const sources = exactSources(plan, request.videoBlobs, errors, new Set(generatedSources?.sourceIds));
 	const includesAudio = plan.inputs.some((input) => input.kind === 'staged-audio-mix');
 	if (includesAudio !== (request.audioMix instanceof Blob)) {
 		throw new TypeError(errors.audioMix);
@@ -67,6 +70,7 @@ export function createVideoExportOfflineRequest(
 		project: request.exportProject,
 		timingBySourceId: request.timingBySourceId,
 		sources,
+		...(generatedSources ? { generatedSources } : {}),
 		canvas: Object.freeze({
 			width: plan.canvas.width, height: plan.canvas.height,
 			frameRate: plan.canvas.frameRate, fit: plan.canvas.fit,

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
+import { snapshotVideoExportGeneratedSources, type VideoExportGeneratedSources } from '../video-export-generated-sources.ts';
 import {
 	offlineVideoExportRecord as record, offlineVideoExportData as data,
 	offlineVideoExportDenseArray as denseArray, offlineVideoExportBoundedId as boundedId,
@@ -69,6 +70,7 @@ export interface VideoKeyframeOfflineVideoSourceInput {
 }
 
 export interface VideoKeyframeOfflineVideoExportRequest {
+	readonly generatedSources?: VideoExportGeneratedSources;
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
 	readonly sources: readonly VideoKeyframeOfflineVideoSourceInput[];
@@ -114,6 +116,7 @@ export interface VideoKeyframeOfflineVideoExportDependencies {
 }
 
 interface NormalizedRequest {
+	readonly generatedSources?: VideoExportGeneratedSources;
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
 	readonly sources: readonly Readonly<{ sourceId: string; blob: Blob }>[];
@@ -139,7 +142,7 @@ const REQUEST_FIELDS = [
 	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent', 'confirmFileSizeWarning',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent', 'confirmFileSizeWarning', 'generatedSources',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
@@ -257,7 +260,7 @@ async function executeOfflineVideo<Output>(
 			const renderer = dependencies.createRenderer(Object.freeze({
 				frameSource,
 				canvas,
-				resolveSource: resolver.resolveSource,
+				resolveSource: sourcePlan.resolveSource(resolver.resolveSource),
 				...(request.rgbaPostprocessor === undefined ? {} : {
 					postprocess: request.rgbaPostprocessor,
 				}),
@@ -302,6 +305,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 			request.sourceTimeoutMs, MAXIMUM_SOURCE_TIMEOUT_MS, 'offline video export sourceTimeoutMs',
 		);
 	const project = snapshotProject(request.project);
+	const generatedSources = snapshotVideoExportGeneratedSources(request.generatedSources);
 	const timingBySourceId = snapshotTiming(request.timingBySourceId);
 	const sourceValues = denseArray(request.sources, 'offline video export sources', MAXIMUM_SOURCE_COUNT);
 	const sources: Readonly<{ sourceId: string; blob: Blob }>[] = [];
@@ -331,6 +335,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		: undefined;
 	return Object.freeze({
 		project,
+		...(generatedSources ? { generatedSources } : {}),
 		timingBySourceId,
 		sources: Object.freeze(sources),
 		canvas: snapshotCanvas(request.canvas),

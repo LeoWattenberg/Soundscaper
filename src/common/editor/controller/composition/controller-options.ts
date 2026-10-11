@@ -33,6 +33,7 @@ type ScapeInspectionRuntime = ScapeProjectFileServiceRuntime<ScapeProjectInspect
 export interface ControllerOptions extends ControllerResourceOptions, ControllerTimerOptions {
 	readonly productSequenceActions?: ReturnType<typeof import('./product-action-runtime.ts').productActionRuntime>['productSequenceActions'];
 	readonly productVideoExportStrategy?: import('../export/product-video-export-strategy.ts').ProductVideoExportStrategy;
+	readonly loadProductVideoExportStrategy?: () => Promise<import('../export/product-video-export-strategy.ts').ProductVideoExportStrategy>;
 	readonly productId?: string;
 	readonly product?: Readonly<{ id: string }>;
 	readonly locale?: string;

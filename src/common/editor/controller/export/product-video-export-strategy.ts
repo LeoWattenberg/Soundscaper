@@ -2,6 +2,7 @@
 
 import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import type { FfmpegOutputSink } from '../../ffmpeg-output-stream.ts';
+import { snapshotVideoExportGeneratedSources, type VideoExportGeneratedSources } from '../../video-export-generated-sources.ts';
 import type {
 	VideoKeyframeOfflineRgbaCompositor,
 	VideoKeyframeOfflineRgbaPostprocessor,
@@ -61,6 +62,7 @@ export interface ProductVideoExportStrategyEncodeRequest {
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
 	readonly timingViewsBySourceId?: ReadonlyMap<string, VideoSourceTimingView>;
 	readonly videoBlobs: ReadonlyMap<string, Blob>;
+	readonly generatedSources?: VideoExportGeneratedSources;
 	readonly audioMix: Blob | null;
 	readonly editorFfmpeg: unknown;
 	/**
@@ -110,6 +112,7 @@ export interface ProductVideoExportStrategy {
 	): Promise<ProductVideoExportSinkOutput<Output>>;
 	/** Optional product authority that requires timing for canonical inactive sources too. */
 	captureTimingSourceIds?(plan: ProductVideoExportPlan): readonly string[];
+	captureGeneratedSources?(plan: ProductVideoExportPlan): VideoExportGeneratedSources | undefined;
 }
 
 /** Read one product-owned strategy without importing a product from common code. */
@@ -129,6 +132,7 @@ export function resolveProductVideoExportStrategy(options: unknown): ProductVide
 	const encodeToSink = dataMethod(strategy, 'encodeToSink');
 	const captureTimingSourceIds = Object.hasOwn(strategy, 'captureTimingSourceIds')
 		? dataMethod(strategy, 'captureTimingSourceIds') : undefined;
+	const captureGeneratedSources = Object.hasOwn(strategy, 'captureGeneratedSources') ? dataMethod(strategy, 'captureGeneratedSources') : undefined;
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			return Reflect.apply(createExportProject, strategy, [request]) as Readonly<Record<string, unknown>>;
@@ -163,7 +167,29 @@ export function resolveProductVideoExportStrategy(options: unknown): ProductVide
 				return Reflect.apply(captureTimingSourceIds, strategy, [plan]) as readonly string[];
 			},
 		} : {}),
+		...(captureGeneratedSources ? { captureGeneratedSources(plan: ProductVideoExportPlan) {
+			return snapshotVideoExportGeneratedSources(Reflect.apply(captureGeneratedSources, strategy, [plan]));
+		} } : {}),
 	});
+}
+
+/** Generated source authority may replace encoded input only inside the owned active plan. */
+export function captureProductVideoExportGeneratedSources(strategy: ProductVideoExportStrategy, plan: ProductVideoExportPlan): VideoExportGeneratedSources | undefined {
+	const generated = snapshotVideoExportGeneratedSources(strategy.captureGeneratedSources?.(plan));
+	const active = new Set(captureProductVideoExportActiveSourceIds(plan));
+	if (generated?.sourceIds.some(id => !active.has(id))) throw new RangeError('Generated video export source IDs must belong to the active plan.');
+	return generated;
+}
+
+/** Load a product delivery closure only when the shared export facade itself is requested. */
+export async function loadProductVideoExportStrategyOptions(options: unknown): Promise<unknown> {
+	if (!options || typeof options !== 'object' || !Object.hasOwn(options, 'loadProductVideoExportStrategy')) return options;
+	if (Object.hasOwn(options, 'productVideoExportStrategy')) throw new TypeError('Provide one product video export strategy authority.');
+	const descriptor = Object.getOwnPropertyDescriptor(options, 'loadProductVideoExportStrategy');
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') throw new TypeError('Product video strategy loader must be an own enumerable data function.');
+	const productVideoExportStrategy: unknown = await Reflect.apply(descriptor.value, options, []);
+	if (!resolveProductVideoExportStrategy({ productVideoExportStrategy })) throw new TypeError('Product video strategy loader returned no strategy.');
+	return Object.freeze({ ...options, productVideoExportStrategy });
 }
 
 /** Capture a product's complete timing closure while retaining every active source. */
@@ -252,7 +278,7 @@ function captureSourceIdArray(value: unknown, name: string): readonly string[] {
 function dataMethod(
 	value: unknown,
 	key: 'createExportProject' | 'hasPicture' | 'createPlan' | 'encode' | 'encodeToSink'
-		| 'captureTimingSourceIds',
+		| 'captureTimingSourceIds' | 'captureGeneratedSources',
 ): (...arguments_: never[]) => unknown {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Product video export strategy must be an object.');

@@ -25,7 +25,7 @@ const NO_OPTIONAL_FIELDS: ReadonlySet<string> = new Set();
 
 export function videoMime(value: unknown): string {
 	const result = boundedString(value, 'video MIME type', 128);
-	if (!VIDEO_MIME.test(result)) throw new TypeError('Video MIME type must be canonical.');
+	if (!VIDEO_MIME.test(result) && result !== 'application/vnd.motionscaper.composition') throw new TypeError('Video MIME type must be canonical.');
 	return result;
 }
 
