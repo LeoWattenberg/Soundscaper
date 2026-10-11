@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { canonicalJsonSha256 } from '../common/canonical-json-sha256.ts';
 import { motionArray, motionDigest, motionId, motionRecord, freezeMotionValue } from '../common/editor/motion-values.ts';
 import { applyFramescaperProjectCommand, snapshotFramescaperProjectCommand, type FramescaperProjectCommand, type FramescaperProjectCommandOptions } from './editor-project-commands.ts';
 import { cloneFramescaperProject, type FramescaperProject } from './editor-project.ts';
@@ -57,7 +58,7 @@ export function applyFramescaperSuccessorCommand(value: unknown, commandValue: u
 	const links = project.compositionLinks.filter(({ sourceId }) => sourceIds.has(sourceId));
 	for (const link of links) {
 		for (const linkedId of [link.sourceId, link.audioSourceId].filter(id => id !== undefined)) {
-			if (JSON.stringify(baseline.sources.find(({ id }) => id === linkedId)) !== JSON.stringify(applied.sources.find(({ id }) => id === linkedId))) throw new Error('Use the composition link conform or detach command before replacing a linked source.');
+			if (canonicalJsonSha256(baseline.sources.find(({ id }) => id === linkedId) ?? null) !== canonicalJsonSha256(applied.sources.find(({ id }) => id === linkedId) ?? null)) throw new Error('Use the composition link conform or detach command before replacing a linked source.');
 		}
 	}
 	return normalizeFramescaperSuccessorProject({ ...applied, schemaVersion: 2, compositionLinks: links });
