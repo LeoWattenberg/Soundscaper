@@ -4,8 +4,9 @@ import { normalizeMotionAeProperties } from './motion-ae-property-custody.ts';
 import { normalizeMotionProperty, type MotionScalarProperty, type MotionVector3Property } from './motion-property.ts';
 import { normalizeRational, type Rational } from './timeline-time.ts';
 import type { CompiledInterpolationCurve } from './interpolation-curve.ts';
+import { translateMotionAeScalarExpression, type MotionAeExpressionReview } from './motion-ae-expression-conversion.ts';
 
-export interface MotionAeNumericConversionOptions {
+export interface MotionAeNumericConversionOptions extends MotionAeExpressionReview {
 	readonly frameRate: Rational; readonly axes: readonly (number | null)[]; readonly defaults: readonly number[]; readonly scale: number;
 }
 export interface MotionAeNumericConversion {
@@ -29,7 +30,14 @@ export function convertMotionAeNumericProperty(input: Extract<MotionAeProperty, 
 		|| options.defaults.length !== options.axes.length || options.defaults.some((value) => !Number.isFinite(value))) throw new TypeError('AE numeric mapping is invalid.');
 	const unsupported = (message: string): MotionAeNumericConversion => ({ status: 'unsupported', property: null, message, quantizedClock: false });
 	if (options.axes.some((axis) => axis !== null && (!Number.isInteger(axis) || axis < 0 || axis >= source.value.length))) return unsupported('The AE property dimensions require a different mapping.');
-	if (source.expression?.enabled && !source.samples) return unsupported('Sample this expression explicitly in AE or render the complete composition. Expression text remains inert.');
+	let expression: Readonly<{ source: string; enabled: true; references: readonly never[] }> | null = null;
+	let expressionMessage = '';
+	if (source.expression?.enabled && !source.samples) {
+		if (options.translateScalarExpressions !== true || source.value.length !== 1 || options.axes.length !== 1 || options.axes[0] !== 0) return unsupported('Opt in to supported scalar expression translation, explicitly sample this expression in AE or render the complete composition. Original expression text remains in custody.');
+		const converted = translateMotionAeScalarExpression(source.expression.source, { direction: 'from-after-effects', scale: options.scale });
+		if (!converted.source) return unsupported(converted.message);
+		expression = { source: converted.source, enabled: true, references: [] }; expressionMessage = ` ${converted.message}`;
+	}
 	if (!source.samples) for (let index = 0; index < source.keys.length; index++) {
 		const key = source.keys[index]!;
 		if (key.time < 0 || key.roving) return unsupported('Negative-time or roving keys require explicit AE frame sampling.');
@@ -54,10 +62,10 @@ export function convertMotionAeNumericProperty(input: Extract<MotionAeProperty, 
 		segments: keys.slice(1).map((_, index) => ({ kind: samples ? 'linear' : source.keys[index]!.outInterpolation === 'hold' ? 'hold' : 'linear' })),
 	});
 	const property = normalizeMotionProperty(options.axes.length === 1
-		? { kind: 'scalar', value: value[0], curve: curves[0], expression: null }
+		? { kind: 'scalar', value: value[0], curve: curves[0], expression }
 		: { kind: 'vector3', value, curves, expression: null });
 	if (property.kind !== 'scalar' && property.kind !== 'vector3') throw new TypeError('Unexpected numeric destination.');
 	return { status: samples ? 'sampled' : 'editable', property, quantizedClock,
 		message: samples ? 'AE frame values became linear Motion keys; authored source data is retained separately. Subframe motion and motion blur require rendered fallback.'
-			: 'Numeric values and hold/linear keys remain editable; AE percentage units are converted explicitly where required.' };
+			: 'Numeric values and hold/linear keys remain editable; AE percentage units are converted explicitly where required.' + expressionMessage };
 }

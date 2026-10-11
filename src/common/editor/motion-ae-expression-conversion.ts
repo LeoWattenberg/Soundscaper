@@ -7,6 +7,7 @@ export interface MotionAeScalarExpressionOptions {
 	/** Destination numeric units per source numeric unit, including percentage conversion. */
 	readonly scale: number;
 }
+export interface MotionAeExpressionReview { readonly translateScalarExpressions?: boolean }
 export interface MotionAeExpressionConversion {
 	readonly status: 'translated' | 'unsupported'; readonly source: string | null; readonly message: string;
 }

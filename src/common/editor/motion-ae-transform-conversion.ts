@@ -3,8 +3,9 @@ import type { MotionAeLayer, MotionAeReportEntry } from './motion-ae-exchange-ty
 import { convertMotionAeNumericProperty } from './motion-ae-property-conversion.ts';
 import type { MotionTransform } from './motion-composition.ts';
 import type { Rational } from './timeline-time.ts';
+import type { MotionAeExpressionReview } from './motion-ae-expression-conversion.ts';
 
-export function convertMotionAeTransform(layer: MotionAeLayer, frameRate: Rational, base: MotionTransform, report: MotionAeReportEntry[], durationFrames: number): MotionTransform {
+export function convertMotionAeTransform(layer: MotionAeLayer, frameRate: Rational, base: MotionTransform, report: MotionAeReportEntry[], durationFrames: number, review: MotionAeExpressionReview = {}): MotionTransform {
 	let transform = base;
 	const reportUnsupported = (path: string, message: string) => { report.push({ scopeId: layer.id, propertyPath: path, status: 'unsupported', code: 'property-mapping', message }); };
 	if (!layer.properties.some((property) => property.matchName === 'ADBE Transform Group')) reportUnsupported('', 'The exchange has no captured transform group. Default Motion transforms are used in this partial draft.');
@@ -38,7 +39,7 @@ export function convertMotionAeTransform(layer: MotionAeLayer, frameRate: Ration
 			const options = field === 'opacity' ? { axes: [0], defaults: [1], scale: 0.01 }
 				: field === 'rotation' ? { axes: [null, null, 0], defaults: [0, 0, 0], scale: 1 }
 					: { axes: [0, 1, property.value.length === 3 ? 2 : null], defaults: field === 'scale' ? [1, 1, 1] : [0, 0, 0], scale: field === 'scale' ? 0.01 : 1 };
-			const converted = convertMotionAeNumericProperty(property, { frameRate, ...options });
+			const converted = convertMotionAeNumericProperty(property, { frameRate, ...options, translateScalarExpressions: review.translateScalarExpressions });
 			report.push({ scopeId: layer.id, propertyPath: path, status: converted.status, code: 'numeric-mapping', message: converted.message });
 			if (converted.quantizedClock) report.push({ scopeId: layer.id, propertyPath: path, status: 'sampled', code: 'clock-quantization', message: 'AE floating key times were rounded to one millionth of a Motion frame; original times remain in the exchange.' });
 			if (converted.property?.kind === 'scalar' && field === 'opacity') transform = { ...transform, opacity: converted.property };

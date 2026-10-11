@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useState } from 'react';
 import { MotionAeTextExportOptions, type MotionAeTextReview } from './MotionAeTextOptions.tsx';
+import MotionAeExpressionOptions from './MotionAeExpressionOptions.tsx';
 import { Button } from '@soundscaper/design-system/Button';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
 import type { MotionscaperProjectStore } from '../../../../motionscaper/editor-project-store.ts';
@@ -11,6 +12,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 	run: (operation: (signal: AbortSignal) => Promise<void>) => Promise<void>; download: (blob: Blob, name: string) => void;
 }>) {
 	const [textReview, setTextReview] = useState<MotionAeTextReview>({ enabled: false, spacing: 48, colorSpace: 'linear-rec709-d65' });
+	const [translateExpressions, setTranslateExpressions] = useState(false);
 	const [fontNames, setFontNames] = useState<Readonly<Record<string, string>>>({});
 	const fonts = project?.assets.filter(asset => asset.kind === 'font') ?? [];
 	const names = Object.fromEntries(fonts.map(font => [font.id, fontNames[font.id] ?? project?.interchangeCustody?.fonts?.find(binding => binding.assetId === font.id)?.postScriptName ?? '']));
@@ -21,7 +23,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 		if (!project) return;
 		setReview(null); setAcknowledged(false); setPage(0); setComplete(false);
 		const module = await import('../../../../motionscaper/editor-ae-export-conversion.ts'); signal.throwIfAborted();
-		const prepared = module.prepareMotionscaperAeExport(project, textReview.enabled ? { fonts: fonts.filter(font => names[font.id]).map(asset => ({ asset, postScriptName: names[asset.id]! })), text: { layoutPolicy: 'review-reflow', leading: textReview.spacing, colorSpace: textReview.colorSpace } } : {}); signal.throwIfAborted(); setReview({ source: project, prepared });
+		const prepared = module.prepareMotionscaperAeExport(project, { translateScalarExpressions: translateExpressions, ...(textReview.enabled ? { fonts: fonts.filter(font => names[font.id]).map(asset => ({ asset, postScriptName: names[asset.id]! })), text: { layoutPolicy: 'review-reflow' as const, leading: textReview.spacing, colorSpace: textReview.colorSpace } } : {}) }); signal.throwIfAborted(); setReview({ source: project, prepared });
 	});
 	const publish = () => run(async signal => {
 		if (!prepared || !acknowledged) return;
@@ -32,6 +34,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 	});
 	return <section aria-label={copy.motionscaperAeExport}>
 		<h3>{copy.motionscaperAeExport}</h3><p>{copy.motionscaperAeExportInstructions}</p><p>{copy.motionscaperAeExportLimits}</p>
+		<MotionAeExpressionOptions copy={copy} disabled={disabled || !project} enabled={translateExpressions} onChange={value => { setReview(null); setAcknowledged(false); setComplete(false); setTranslateExpressions(value); }} mode="export" />
 		<MotionAeTextExportOptions copy={copy} disabled={disabled || !project} value={textReview} onChange={value => { setReview(null); setAcknowledged(false); setTextReview(value); }} fonts={fonts} names={names} onName={(id, value) => { setReview(null); setAcknowledged(false); setFontNames(current => ({ ...current, [id]: value })); }} />
 		<Button variant="secondary" disabled={disabled || !project} onClick={() => { void prepare(); }}>{copy.motionscaperAeReviewExport}</Button>
 		{prepared && <section aria-label={copy.motionscaperAeExportReport}>

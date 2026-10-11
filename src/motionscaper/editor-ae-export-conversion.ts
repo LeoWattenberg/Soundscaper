@@ -12,6 +12,7 @@ import { exportMotionAeMattes } from '../common/editor/motion-ae-matte-conversio
 import { freezeMotionValue } from '../common/editor/motion-values.ts';
 import { createMotionscaperRevision, type MotionscaperRevision } from './editor-project-revision.ts';
 import type { Rational } from '../common/editor/timeline-time.ts';
+import type { MotionAeExpressionReview } from '../common/editor/motion-ae-expression-conversion.ts';
 
 export interface PreparedMotionscaperAeExport {
 	readonly revision: MotionscaperRevision; readonly exchange: MotionAeExchange;
@@ -29,7 +30,7 @@ function flat(layer: MotionLayer): boolean {
 	return !layer.is3D && anchor.value[2] === 0 && !anchor.curves[2] && position.value[2] === 0 && !position.curves[2]
 		&& scale.value[2] === 1 && !scale.curves[2] && rotation.value[0] === 0 && rotation.value[1] === 0 && !rotation.curves[0] && !rotation.curves[1];
 }
-function transform(layer: MotionLayer, id: string, comp: MotionComposition, report: MotionAeReportEntry[]): readonly MotionAeProperty[] {
+function transform(layer: MotionLayer, id: string, comp: MotionComposition, report: MotionAeReportEntry[], review: MotionAeExpressionReview): readonly MotionAeProperty[] {
 	const definitions = [
 		{ field: 'anchor', matchName: 'ADBE Anchor Point', name: 'Anchor Point', axes: [0, 1], scale: 1, spatial: true },
 		{ field: 'position', matchName: 'ADBE Position', name: 'Position', axes: [0, 1], scale: 1, spatial: true },
@@ -38,16 +39,16 @@ function transform(layer: MotionLayer, id: string, comp: MotionComposition, repo
 		{ field: 'opacity', matchName: 'ADBE Opacity', name: 'Opacity', axes: [0], scale: 100, spatial: false },
 	] as const;
 	return [{ kind: 'group', matchName: 'ADBE Transform Group', name: 'Transform', children: definitions.map((definition, index) => {
-		const converted = exportMotionAeNumeric(layer.transform[definition.field], { ...definition, rate: number(comp.frameRate), startFrame: layer.startFrame });
+		const converted = exportMotionAeNumeric(layer.transform[definition.field], { ...definition, rate: number(comp.frameRate), startFrame: layer.startFrame, translateScalarExpressions: review.translateScalarExpressions });
 		const propertyPath = `0:ADBE Transform Group/${String(index)}:${definition.matchName}`;
 		report.push({ scopeId: id, propertyPath, status: converted.unsupported ? 'unsupported' : 'editable', code: 'curve-mapping',
 			message: converted.unsupported ?? 'Numeric units and admitted transform keys are structurally mapped. Installed AE interpolation qualification remains pending.' });
-		if (converted.property.expression?.enabled) report.push({ scopeId: id, propertyPath, status: 'unsupported', code: 'expression', message: 'Motion expression text is inert and is not activated in After Effects. Authored intent remains in original.mscape.' });
+		if (converted.property.expression?.enabled) report.push({ scopeId: id, propertyPath, status: converted.property.expression.disposition === 'translated' ? 'editable' : 'unsupported', code: 'expression', message: converted.expressionMessage ?? 'Motion expression text is inert and is not activated in After Effects. Authored intent remains in original.mscape.' });
 		return converted.property;
 	}) }];
 }
 /** Immutable, deterministic partial transfer. The companion archive must retain this exact source revision. */
-export function prepareMotionscaperAeExport(input: unknown, options: MotionAeProjectTextExport = {}): PreparedMotionscaperAeExport {
+export function prepareMotionscaperAeExport(input: unknown, options: MotionAeProjectTextExport & MotionAeExpressionReview = {}): PreparedMotionscaperAeExport {
 	const revision = createMotionscaperRevision(input), project = revision.project, transferId = `motion-${revision.digest}`;
 	for (const binding of normalizeMotionAeFontBindings(options.fonts ?? [])) {
 		const retained = project.assets.find(asset => asset.id === binding.asset.id);
@@ -109,7 +110,7 @@ export function prepareMotionscaperAeExport(input: unknown, options: MotionAePro
 			if ([startTime, inPoint, outPoint].some(time => Math.abs(time) > 10800)) throw new RangeError('AE layer timing exceeds its documented ±three-hour range. Retain original.mscape or prepare timing within that host range.');
 			return { id: layerId, name: layer.name, kind, sourceId, parentId: layer.parentId === null ? null : layerIds.get(layer.parentId)!, matte: null,
 				startTime, inPoint, outPoint, stretch: validTiming ? 100 / scale : 100,
-				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report), ...(contentProperty ? [contentProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
+				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report, options), ...(contentProperty ? [contentProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
 		});
 		return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: 1, frameRate: number(comp.frameRate),
 			duration: comp.durationFrames / number(comp.frameRate), displayStartTime: 0, background: comp.background.slice(0, 3) as [number, number, number], layers: exportMotionAeMattes(comp.layers, layers, report) };

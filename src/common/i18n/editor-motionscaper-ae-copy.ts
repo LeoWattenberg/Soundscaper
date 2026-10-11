@@ -2,6 +2,9 @@
 import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 const ENTRIES = [
+	['motionscaperAeExpressionImport', 'Translate supported scalar expressions on import', 'Unterstützte skalare Expressions beim Import übersetzen'],
+	['motionscaperAeExpressionExport', 'Translate supported scalar expressions on export', 'Unterstützte skalare Expressions beim Export übersetzen'],
+	['motionscaperAeExpressionHint', 'Opt in to scalar opacity expressions using arithmetic, composition time, pre-expression value and standard Math. Unsupported expressions need sampling or complete rendering. Original source is retained; installed-AE expression and subframe fidelity remain unqualified.', 'Aktiviere skalare Deckkraft-Expressions mit Arithmetik, Kompositionszeit, dem Wert vor der Expression und Standard-Math-Funktionen. Nicht unterstützte Expressions benötigen Abtastung oder vollständiges Rendern. Der Originalquelltext bleibt erhalten; Expression- und Zwischenbildtreue im installierten AE sind noch nicht qualifiziert.'],
 	['motionscaperAeTextImportOptions', 'Editable Text Import Options', 'Optionen für bearbeitbaren Textimport'],
 	['motionscaperAeTextExportOptions', 'Editable Text Export Options', 'Optionen für bearbeitbaren Textexport'],
 	['motionscaperAeTextReviewHint', 'Text is reflowed. Baselines, shaping, kerning, wrapping and clipping can differ. Choose destination spacing and color interpretation, then compare a rendered reference. Mixed styles, text animation, stroke and vertical or point text need fallback.', 'Text wird neu umbrochen. Grundlinien, Formung, Unterschneidung, Umbruch und Beschnitt können abweichen. Wähle Zielabstand und Farbinterpretation und vergleiche eine gerenderte Referenz. Gemischte Stile, Textanimation, Konturen sowie vertikaler oder Punkttext benötigen einen Ersatz.'],

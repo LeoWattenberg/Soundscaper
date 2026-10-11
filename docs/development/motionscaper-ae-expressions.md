@@ -23,13 +23,25 @@ An independent ES3-compatible validator admits only the canonical fully
 parenthesized scalar grammar. A package's `translated` disposition is not
 authority to execute source. The installed-side validator rejects untrusted
 members/calls, side effects, loose/coerced types, nonfinite literals and oversized
-expressions before returning a source string. Menu option, project conversion and
-installed-side application integration are the following implementation slice.
+expressions before returning a source string.
+
+**File → After Effects Bridge** offers separate import and export checkboxes,
+both off initially. Changing an option retires the prepared report and its
+acknowledgement. The project adapter currently maps scalar transform opacity;
+vector expressions and scalar channels inside vector properties require fallback.
+Import preserves admitted hold/linear keys and refuses expression activation
+when the underlying interpolation is unsupported. Explicit AE frame samples
+take priority over translation. Export retains the exact authored source in
+`original.mscape`; import retains the exact original exchange alongside the
+translated expression through Save and reopening. Installed-side application
+integration and real AE qualification remain separate gates.
 
 Focused tests compare Motion evaluation with standard JavaScript evaluation
 across times, base values, percentage conversions and reverse transfers. They
-also check refusal and both independent parser bounds. These tests do not
-qualify an installed AE expression engine, interpolation or rendered pixels.
+also check refusal and both independent parser bounds. A Chromium menu workflow
+compares half-second opacity pixels before export, after importing the reviewed
+exchange and after Save/reopen, and verifies the original archive source. These
+tests do not qualify an installed AE expression engine or AE-rendered pixels.
 
 The semantics are based on Adobe's [expression language reference](https://helpx.adobe.com/after-effects/desktop/work-with-expressions/expression-language-reference/expression-language-reference.html)
 and [expression-time description](https://helpx.adobe.com/after-effects/desktop/work-with-expressions/expression-basics/expression-language.html).

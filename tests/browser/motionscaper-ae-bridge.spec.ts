@@ -73,7 +73,7 @@ test('AE import reviews unsupported intent, paints retained PNG pixels and prese
 	const reportDownload = await downloaded;
 	const report = JSON.parse(await readFile((await reportDownload.path())!, 'utf8')) as { sourceExchange: MotionAeExchange; report: unknown };
 	expect(report.sourceExchange).toEqual(source.exchange);
-	await dialog.getByRole('checkbox').check(); await commit.click(); await expect(dialog).toHaveCount(0);
+	await dialog.getByRole('region', { name: 'Conversion report', exact: true }).getByRole('checkbox').check(); await commit.click(); await expect(dialog).toHaveCount(0);
 	await expect(page.locator('[data-motion-project-title]')).toHaveText('Original Café.aep');
 	await menu(page, 'Composition Preview', 'View'); const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true }), canvas = preview.locator('canvas');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
@@ -126,7 +126,7 @@ test('AE rendered fallback imports and seeks every retained PNG frame without fl
 	await dialog.getByLabel('AE exchange manifest', { exact: true }).setInputFiles({ ...source.manifest, buffer: Buffer.from(JSON.stringify(exchange)) });
 	await dialog.getByLabel('Package media files', { exact: true }).setInputFiles(source.files); await dialog.getByRole('button', { name: 'Review Import', exact: true }).click();
 	await expect(dialog.getByRole('region', { name: 'Conversion report', exact: true })).toContainText('Rendered: 2');
-	await dialog.getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Import New Project', exact: true }).click(); await expect(dialog).toHaveCount(0);
+	await dialog.getByRole('region', { name: 'Conversion report', exact: true }).getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Import New Project', exact: true }).click(); await expect(dialog).toHaveCount(0);
 	await menu(page, 'Composition Preview', 'View'); const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true }), canvas = preview.locator('canvas');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
 	const pixel = () => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(8, 8, 1, 1).data));

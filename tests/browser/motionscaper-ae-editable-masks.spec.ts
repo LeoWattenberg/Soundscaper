@@ -39,7 +39,7 @@ test('AE menu imports hard-edge masks and a disabled matte source, renders their
 	await dialog.getByRole('button', { name: 'Review Import', exact: true }).click();
 	await expect(dialog.getByRole('region', { name: 'Conversion report', exact: true })).toContainText('Mask path, opacity, inversion and operation remain editable');
 	await expect(dialog.getByRole('region', { name: 'Conversion report', exact: true })).toContainText('original source visibility is retained');
-	await dialog.getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Import New Project', exact: true }).click(); await expect(dialog).toHaveCount(0);
+	await dialog.getByRole('region', { name: 'Conversion report', exact: true }).getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Import New Project', exact: true }).click(); await expect(dialog).toHaveCount(0);
 	await menu(page, 'Composition Preview', 'View'); const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true }), canvas = preview.locator('canvas');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
 	expect(await canvas.evaluate((element: HTMLCanvasElement) => { const context = element.getContext('2d')!; return [Array.from(context.getImageData(8, 8, 1, 1).data), Array.from(context.getImageData(48, 8, 1, 1).data)]; })).toEqual([[255, 0, 0, 255], [0, 0, 0, 0]]);

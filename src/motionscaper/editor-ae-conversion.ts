@@ -13,6 +13,7 @@ import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-
 import { MOTION_BLEND_MODES, type MotionComposition, type MotionLayer, type MotionLayerContent } from '../common/editor/motion-composition.ts';
 import { freezeMotionValue, motionId } from '../common/editor/motion-values.ts';
 import { motionScalar } from '../common/editor/motion-property.ts';
+import type { MotionAeExpressionReview } from '../common/editor/motion-ae-expression-conversion.ts';
 import { normalizeMotionscaperProject } from './editor-project-validation.ts';
 import { createMotionLayer, type MotionscaperProject } from './editor-project.ts';
 
@@ -24,7 +25,7 @@ export interface MotionscaperAeConversion {
 /** Pure draft preparation. The import controller must verify every retained body before publication. */
 export function convertMotionscaperAeExchange(input: unknown, options: Readonly<{
 	projectId: string; allocateId: () => string; bindings: readonly MotionAeMediaBinding[]; primaryCompositionId?: string;
-} & MotionAeProjectTextImport>): MotionscaperAeConversion {
+} & MotionAeProjectTextImport & MotionAeExpressionReview>): MotionscaperAeConversion {
 	const exchange = normalizeMotionAeExchange(input), projectId = motionId(options.projectId);
 	if (!exchange.compositions.length) throw new Error('The AE exchange contains no compositions.');
 	const report: MotionAeReportEntry[] = [...exchange.report];
@@ -103,7 +104,7 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 				inFrame: clock(layer.inPoint * frequency, layer.id), outFrame: clock(layer.outPoint * frequency, layer.id),
 				// All imported property keys use composition frames. Rebase source timing explicitly to the same origin.
 				sourceStart: clock(-layer.startTime * timeScale, layer.id), timeScale: clock(timeScale, layer.id),
-				transform: convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames), blendMode,
+				transform: convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames, options), blendMode,
 				masks: convertMotionAeMasks(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report),
 				matte: layer.matte === null ? null : { layerId: ids.get(layer.matte.layerId)!, mode: layer.matte.type } };
 			const offset = textOffsets.get(layer.id);
