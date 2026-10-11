@@ -12,8 +12,10 @@ import { normalizePhotoDevelopWorkspaceCommandV2, PHOTO_DEVELOP_WORKSPACE_COMMAN
 import { createPhotoLibraryDevelopSettingsSessionV2, type PhotoLibraryDevelopSettingsSessionHostV2 } from './photo-library-develop-settings-session-v2.ts';
 import { createPhotoLibraryDevelopPresetsSessionV2, type PhotoLibraryDevelopPresetStorageV2 } from './photo-library-develop-presets-session-v2.ts';
 import { createPhotoLibraryDevelopOriginalSessionV2, type PhotoLibraryDevelopOriginalSessionHostV2 } from './photo-library-develop-original-session-v2.ts';
+import type { PhotoLibraryDevelopMaskRasterPortV1 } from '../../common/editor/photo-library-develop-mask-raster-port-v1.ts';
 
 export interface PhotoLibraryDevelopSessionHostV2 extends PhotoLibraryDevelopSettingsSessionHostV2 {
+	readonly maskRasters?: Readonly<PhotoLibraryDevelopMaskRasterPortV1>;
 	readonly originalSource?: Pick<PhotoLibraryDevelopOriginalSessionHostV2, 'loadOriginal' | 'withFrame'>;
 	readonly presetStorage?: PhotoLibraryDevelopPresetStorageV2;
 	readonly repository: Pick<PhotoCatalogRepositoryV2, 'loadPhoto'>;
@@ -24,7 +26,7 @@ export interface PhotoLibraryDevelopSessionHostV2 extends PhotoLibraryDevelopSet
 
 /** Borrows the existing Session's lifetime, single writer and durable photo owner. */
 export function createPhotoLibraryDevelopSessionV2(host: PhotoLibraryDevelopSessionHostV2): Readonly<PhotoLibraryDevelopPortV2> {
-	const repository = host.repository, originalSource = host.originalSource, presetStorage = host.presetStorage;
+	const repository = host.repository, originalSource = host.originalSource, presetStorage = host.presetStorage, maskRasters = host.maskRasters;
 	const initialize = host.ready, readPhoto = repository.loadPhoto, borrowedOperation = host.operation, borrowedEdit = host.edit, borrowedMutate = host.mutate;
 	if ([initialize, readPhoto, borrowedOperation, borrowedEdit].some(method => typeof method !== 'function')) throw new TypeError('Complete Develop host capabilities are required.');
 	const ready = (): Promise<string> => Reflect.apply(initialize, host, []) as Promise<string>;
@@ -33,6 +35,7 @@ export function createPhotoLibraryDevelopSessionV2(host: PhotoLibraryDevelopSess
 	const mutate: PhotoLibraryDevelopSessionHostV2['mutate'] = (run, signal) => Reflect.apply(borrowedMutate, host, [run, signal]);
 	const loadPhoto: typeof readPhoto = (...args) => Reflect.apply(readPhoto, repository, args);
 	return Object.freeze({ schemaVersion: 2,
+		...(maskRasters ? { maskRasters } : {}),
 		...(originalSource ? { original: createPhotoLibraryDevelopOriginalSessionV2({ repository: { loadPhoto },
 			ready, operation, ...originalSource }) } : {}),
 		settings: createPhotoLibraryDevelopSettingsSessionV2(host),

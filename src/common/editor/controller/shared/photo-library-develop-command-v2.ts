@@ -2,6 +2,7 @@
 
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../closed-domain-value.ts';
 import type { PhotoLibraryDevelopCommandV2, PhotoLibraryDevelopSettingsV2, PhotoLibraryDevelopPortV2 } from '../../photo-library-develop-port-v2.ts';
+import { capturePhotoLibraryDevelopMaskRasterPortV1 } from '../../photo-library-develop-mask-raster-port-v1.ts';
 
 import type { PhotoDevelopExecutionContextV2 } from './photo-library-develop-workflow-v2.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
@@ -61,8 +62,9 @@ function detached(value: unknown, maximumBytes = 2_097_152): unknown {
 /** Borrow only current scalar authoring methods under the caller's existing Session scope. */
 export function capturePhotoLibraryDevelopPortV2(port: PhotoLibraryDevelopPortV2): Readonly<PhotoLibraryDevelopPortV2> {
 	if (field(port as unknown as Record<string, unknown>, 'schemaVersion', 'current Develop capability') !== 2) throw new RangeError('Current Develop requires a schema2 capability.');
-	const read = port.read, apply = port.apply, settings = port.settings, presets = port.presets;
+	const read = port.read, apply = port.apply, settings = port.settings, presets = port.presets, maskRasters = port.maskRasters;
 	return Object.freeze({ schemaVersion: 2, read: pin(read, port), apply: pin(apply, port),
+		...(maskRasters === undefined ? {} : { maskRasters: capturePhotoLibraryDevelopMaskRasterPortV1(maskRasters) }),
 		...(settings === undefined ? {} : { settings: Object.freeze({ copy: pin(settings.copy, settings), merge: pin(settings.merge, settings),
 			adjust: pin(settings.adjust, settings), applyBatch: pin(settings.applyBatch, settings) }) }),
 		...(presets === undefined ? {} : { presets: Object.freeze({ create: pin(presets.create, presets), parse: pin(presets.parse, presets),

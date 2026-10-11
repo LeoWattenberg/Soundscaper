@@ -2,6 +2,7 @@
 
 import type { PhotoLibraryDevelopPortV2 } from '../../photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
+import { capturePhotoLibraryDevelopMaskRasterPortV1 } from '../../photo-library-develop-mask-raster-port-v1.ts';
 
 export interface PhotoDevelopExecutionContextCurrent {
 	readonly signal: AbortSignal;
@@ -19,8 +20,9 @@ export function capturePhotoLibraryDevelopPortV2(owner: Readonly<PhotoLibraryDev
 	try {
 		if (owner.schemaVersion !== 2) throw new RangeError('Photo develop requires the fixed current contract.');
 		const read = pin(owner, 'read'), apply = pin(owner, 'apply');
-		const settings = owner.settings, presets = owner.presets, original = owner.original;
+		const settings = owner.settings, presets = owner.presets, original = owner.original, maskRasters = owner.maskRasters;
 		const port = Object.freeze({ schemaVersion: 2 as const, read, apply,
+			...(maskRasters === undefined ? {} : { maskRasters: capturePhotoLibraryDevelopMaskRasterPortV1(maskRasters) }),
 			...(settings ? { settings: Object.freeze({ copy: pin(settings, 'copy'), merge: pin(settings, 'merge'),
 				adjust: pin(settings, 'adjust'), applyBatch: pin(settings, 'applyBatch') }) } : {}),
 			...(presets ? { presets: Object.freeze({ create: pin(presets, 'create'), parse: pin(presets, 'parse'), serialize: pin(presets, 'serialize'),

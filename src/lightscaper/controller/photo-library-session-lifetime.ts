@@ -56,11 +56,11 @@ export class PhotoLibrarySessionLifetime {
 		return work;
 	}
 
-	mutation<Result>(run: (signal: AbortSignal) => Promise<Result>, caller?: AbortSignal): Promise<Result> {
+	mutation<Result>(run: (signal: AbortSignal) => Promise<Result>, caller?: AbortSignal, admit?: () => void): Promise<Result> {
 		try { this.assertAccepting(); } catch (error) { return Promise.reject(error); }
 		if (this.#writing) return Promise.reject(new Error('A photo library change is already pending.'));
 		this.#writing = true;
-		const work = this.operation(run, caller), release = () => { this.#writing = false; };
+		const work = this.operation(run, caller, admit), release = () => { this.#writing = false; };
 		void work.then(release, release); return work;
 	}
 

@@ -62,6 +62,7 @@ import { createPhotoLibrarySessionImport } from './photo-library-session-import.
 import { backupPhotoLibrarySession } from './photo-library-session-backup.ts';
 import { capturePhotoLibrarySessionPorts } from './photo-library-session-bindings.ts';
 import { createPhotoLibraryMaskRasterSourceV1 } from './photo-library-mask-raster-session-v1.ts';
+import { createPhotoLibraryDevelopMaskRasterSessionV1 } from './photo-library-develop-mask-raster-session-v1.ts';
 
 const CHECK = AbortSignal.prototype.throwIfAborted;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
@@ -151,6 +152,8 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 		this.developImport = createPhotoLibraryDevelopImportSessionV2({ settings: presetSettings, ready: () => this.#ready(),
 			operation: (run, signal) => this.#operation(run, signal), importFiles: (files, request) => this.#importFiles(files, request) });
 		this.develop = createPhotoLibraryDevelopSessionV2({ repository: ports.catalog, ready: () => this.#ready(),
+			...(ports.maskRasterResources ? { maskRasters: createPhotoLibraryDevelopMaskRasterSessionV1({ source: this.maskRasterSource,
+				resources: ports.maskRasterResources, mutate: (run, signal, admit) => this.#mutation(run, signal, false, admit) }) } : {}),
 			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal } : undefined,
 			presetStorage: presetSettings ? { settings: presetSettings, catalog: ports.catalog,
 				verifyResources: async (preset, signal) => { if (!ports.cubeLutResources) throw new Error('Selected LUT resources are unavailable.');
@@ -482,11 +485,14 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 		finally { this.#presetActive = false; }
 	}
 
-	#mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal, preReady = false): Promise<Result> {
+	#mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal, preReady = false, admit?: () => void): Promise<Result> {
 		return this.#lifetime.mutation(async admitted => {
-			const catalogId = preReady ? id((await this.#ports.initialize(admitted)).id, 'catalog ID') : await this.#ready(); check(admitted);
+			let catalogId: string;
+			try { catalogId = preReady ? id((await this.#ports.initialize(admitted)).id, 'catalog ID') : await this.#ready(); }
+			catch (error) { check(admitted); throw error; }
+			check(admitted);
 			return (this.#ports.exclusive ?? withPhotoCatalogWriteLockV1)(catalogId, leaseSignal => run(catalogId, leaseSignal ?? admitted), admitted);
-		}, signal);
+		}, signal, admit);
 	}
 	#operation<Result>(run: (signal: AbortSignal) => Promise<Result>, signal?: AbortSignal, admit?: () => void): Promise<Result> {
 		return this.#lifetime.operation(run, signal, admit);

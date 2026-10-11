@@ -10,13 +10,14 @@ import type { ImageDevelopSelectionV1 } from '../../imaging/image-develop-settin
 import PhotoDevelopSettingsPickerV2 from './PhotoDevelopSettingsPickerV2.tsx';
 import PhotoDevelopQuickSettings from './PhotoDevelopQuickSettings.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
+import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-brush-mask-copy.ts';
 
 export interface PhotoDevelopSettingsMenuPropsV2 {
 	readonly locale: string; readonly owner: PhotoLibraryDevelopSettingsWorkflowV2; readonly snapshot: PhotoDevelopSettingsWorkflowSnapshotV2;
 	readonly source: PhotoDevelopSettingsSourceV2; readonly selectedIds: readonly string[]; readonly disabled: boolean; readonly dirty: boolean;
 	readonly isCurrent: () => boolean; readonly onChanged: () => Promise<unknown>;
 	readonly resolution?: Readonly<{ value: PhotoDevelopResolutionV1; fullAvailable: boolean; onChange: (value: PhotoDevelopResolutionV1) => void }>;
-	readonly localAdjustments?: Readonly<{ onOpen: (kind: 'linear-gradient' | 'radial-gradient' | 'luminance-range' | 'color-range') => void }>;
+	readonly localAdjustments?: Readonly<{ onOpen: (kind: 'linear-gradient' | 'radial-gradient' | 'luminance-range' | 'color-range' | 'brush') => void }>;
 }
 type Mode = 'copy' | 'sync' | 'auto' | 'quick' | 'presets';
 
@@ -55,6 +56,9 @@ export default function PhotoDevelopSettingsMenuV2(props: PhotoDevelopSettingsMe
 			{props.localAdjustments && (['linear-gradient', 'radial-gradient', 'luminance-range', 'color-range'] as const).map(kind => <button key={kind} type="button" disabled={busy} onClick={() => {
 				if (current() && !busy && !active.current) props.localAdjustments?.onOpen(kind);
 			}}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}
+			{props.localAdjustments && <button type="button" disabled={busy} onClick={() => {
+				if (current() && !busy && !active.current) props.localAdjustments?.onOpen('brush');
+			}}>{photoDevelopBrushMaskCopy(props.locale).menu}</button>}
 			<button type="button" disabled={busy} onClick={() => { open('copy'); }}>{messages.copy}</button>
 			<button type="button" disabled={busy || props.dirty || !snapshot.clipboard} onClick={() => { run(() => owner.paste(source, messages.pasteLabel), true); }}>{messages.paste}</button>
 			<button type="button" disabled={busy || props.dirty || props.selectedIds.filter(id => id !== source.photoId).length === 0} onClick={() => { open('sync'); }}>{messages.sync}</button>

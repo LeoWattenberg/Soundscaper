@@ -444,8 +444,17 @@ and projects the exact blended coverage into its temporary overlay. The selected
 Photo Session now lends its immutable brush bodies through its existing joined
 operation lifetime. Its cached renderer shares that source across proxy,
 full-resolution, and PNG/JPEG export, including restored catalog namespaces.
-Frame integration, menu authoring, portable body custody, full mask management,
-composition authoring, and healing remain open; this foundation does not close L6.
+Photo Develop's Settings menu now opens an opt-in brush mask dialog. Its bounded
+alpha grid supports pointer paint/erase, keyboard stamps, local undo/redo, and
+authenticated re-editing of installed alpha or raster-alpha masks. The grid maps
+to each bound adjustment's input; an explicitly selected overlay shows the result
+through later geometry in After. Applying installs immutable bytes in the current
+selected media owner before editing the still-current draft. Save records that
+recipe through the existing Photo history and revision check. Existing graph
+identities and unrelated masks survive re-editing; bindings can select multiple
+existing adjustments and their enabled states.
+Frame integration, portable body custody, full mask management, composition
+authoring, and healing remain open; this authoring slice does not close L6.
 
 Until portable brush body transport lands, backups and editable handoffs refuse
 brush references throughout the retained Photo. Catalog backup checks complete

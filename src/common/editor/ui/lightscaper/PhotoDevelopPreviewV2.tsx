@@ -26,6 +26,7 @@ export interface PhotoDevelopPreviewPropsV2 {
 	readonly messages: PhotoDevelopCopyV1;
 	readonly locale: string;
 	readonly maskOverlay?: Readonly<PhotoDevelopMaskOverlaySelectionV1>;
+	readonly suspended?: boolean;
 	readonly isCurrent?: () => boolean;
 }
 const MODES = ['compare', 'before', 'after', 'split'] as const;
@@ -46,7 +47,8 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 	const registrationRef = useRef({ method: registerRetirement, receiver: props });
 	if (registrationRef.current.method !== registerRetirement) registrationRef.current = { method: registerRetirement, receiver: props };
 	const registration = registrationRef.current;
-	const interaction = useMemo(() => ({ owner, photoId: props.photoId, develop: props.develop, revision: props.revision, resolution: props.resolution, maskOverlay: props.maskOverlay }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay]);
+	const interaction = useMemo(() => ({ owner, photoId: props.photoId, develop: props.develop, revision: props.revision, resolution: props.resolution,
+		maskOverlay: props.maskOverlay, suspended: props.suspended }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.suspended]);
 	const activeInteraction = useRef(interaction); activeInteraction.current = interaction;
 	const before = useRef<HTMLCanvasElement>(null), after = useRef<HTMLCanvasElement>(null), overlay = useRef<HTMLCanvasElement>(null);
 	const [view, setView] = useState(() => ({ owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 }));
@@ -62,6 +64,12 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 	}, [owner, registration]);
 	useLayoutEffect(() => {
 		let current = true;
+		if (props.suspended) {
+			void joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]).catch(() => {
+				if (current) setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
+			});
+			return () => { current = false; };
+		}
 		// Capture the complete request while this generation owns its targets,
 		// before joining the predecessor or any externally supplied barrier.
 		try {
@@ -77,9 +85,9 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 			setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
 		}
 		return () => { current = false; void owner.pause().catch(() => undefined); };
-	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay]);
+	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.suspended]);
 	const { messages } = props, { mode, divider } = selected;
-	const current = () => lifetime.current && activeInteraction.current === interaction && rendered.current === selected;
+	const current = () => lifetime.current && activeInteraction.current === interaction && rendered.current === selected && !props.suspended;
 	const aspect = mode === 'split' && snapshot.extent ? `${snapshot.extent.after.width} / ${snapshot.extent.after.height}` : undefined;
 	return <section aria-label={props.resolution === 'full' ? messages.fullPreview : messages.preview} data-photo-develop-preview data-state={snapshot.status}>
 		<label>{messages.previewMode}<select value={mode} onChange={event => {

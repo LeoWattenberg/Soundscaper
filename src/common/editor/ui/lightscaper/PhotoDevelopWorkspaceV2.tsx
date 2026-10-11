@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
 import { usePhotoDevelopV2 } from './use-photo-develop-v2.ts';
@@ -16,7 +16,12 @@ import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-libr
 import type { ExecutePhotoDevelopV2 } from '../../controller/shared/photo-library-develop-workflow-v2.ts';
 import type { PhotoDevelopResolutionV1 } from '../../photo-library-develop-full-resolution-port-v1.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-port-v1.ts';
+import type { PhotoLibraryDevelopMaskRasterPortV1 } from '../../photo-library-develop-mask-raster-port-v1.ts';
+import { capturePhotoDevelopExecutionContextV2, capturePhotoLibraryDevelopPortV2 } from '../../controller/shared/photo-library-develop-command-v2.ts';
+import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-brush-mask-copy.ts';
 import './photo-develop.css';
+
+const PhotoDevelopBrushMaskDialogV1 = lazy(() => import('./PhotoDevelopBrushMaskDialogV1.tsx'));
 
 export interface PhotoDevelopWorkspacePropsV2 extends Omit<PhotoDevelopPreviewPropsV2, 'develop' | 'messages' | 'maskOverlay' | 'isCurrent'> {
 	readonly generation: unknown;
@@ -118,13 +123,16 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const importing = tasks.importing || (importState.tasks === tasks && importState.pending);
 	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !props.settings?.snapshot.busy && !importing) void action(); };
 	const document = snapshot.document, draft = snapshot.draft, busy = snapshot.busy || props.settings?.snapshot.busy === true || importing, disabled = busy || !document;
-	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']>;
+	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush';
 	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
 	const [localEntry, setLocalEntry] = useState<LocalEntry | null>(null);
 	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
+	const [brushPort, setBrushPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopMaskRasterPortV1> }> | null>(null);
+	const [brushFailed, setBrushFailed] = useState<LocalEntry | null>(null);
 	const [overlay, setOverlay] = useState<Readonly<{ entry: LocalEntry; recipe: string; selection: Readonly<PhotoDevelopMaskOverlaySelectionV1> }> | null>(null);
 	const localCurrent = () => current() && !busy && localEntry !== null && activeLocal.current === localEntry
 		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
+	const brushCurrent = localEntry?.kind === 'brush' && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
 	const openLocal = (kind: LocalKind) => { if (current() && !busy && document && draft) setLocalEntry({ kind, owner, document, draft }); };
 	const applyLocal: PhotoDevelopRangeMaskDialogPropsV1['onApply'] = (value, selection) => {
 		if (!localCurrent() || !localEntry || !document) return; owner.edit(value);
@@ -133,6 +141,28 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 		setLocalEntry(null);
 	};
 	const closeLocal = () => { if (mounted() && activeLocal.current === localEntry) setLocalEntry(null); };
+	useEffect(() => {
+		if (localEntry?.kind !== 'brush') return;
+		const entry = localEntry, stop = new AbortController(); let liveEntry = true;
+		const entryCurrent = () => liveEntry && live.current && owned.current === entry.owner && activeLocal.current === entry
+			&& entry.owner.snapshot().document === entry.document && entry.owner.snapshot().draft === entry.draft;
+		const work = joinPhotoLibraryRetirementV1(collect(tasks.previews)).then(async () => {
+			Reflect.apply(AbortSignal.prototype.throwIfAborted, stop.signal, []);
+			if (!entryCurrent()) return;
+			await execute(async value => {
+				const context = capturePhotoDevelopExecutionContextV2(value, value.signal);
+				Reflect.apply(AbortSignal.prototype.throwIfAborted, context.signal, []);
+				if (!entryCurrent() || !context.isCurrent()) return;
+				const port = capturePhotoLibraryDevelopPortV2(await context.acquire());
+				Reflect.apply(AbortSignal.prototype.throwIfAborted, context.signal, []);
+				if (!port.maskRasters) throw new Error('Selected brush installation is unavailable.');
+				if (entryCurrent() && context.isCurrent()) setBrushPort({ entry, port: port.maskRasters });
+			}, stop.signal);
+		});
+		const joined = work.then(() => undefined, () => { if (liveEntry && activeLocal.current === entry) setBrushFailed(entry); });
+		const unregister = registerImportRetirement(() => { stop.abort(); return joined; });
+		return () => { liveEntry = false; stop.abort(); unregister(); };
+	}, [localEntry, execute, registerImportRetirement, tasks]);
 	const recipe = useMemo(() => draft ? JSON.stringify(draft) : null, [draft]);
 	const selectedOverlay = overlay?.entry.owner === owner && overlay.entry.document.photoId === document?.photoId
 		&& overlay.entry.document.versionId === document?.versionId && overlay.recipe === recipe ? overlay.selection : undefined;
@@ -158,14 +188,15 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 					localAdjustments={{ onOpen: openLocal }} />}
 				{!props.settings && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale).menu}</summary>
 					{(['linear-gradient', 'radial-gradient', 'luminance-range', 'color-range'] as const).map(kind => <button key={kind} type="button" disabled={busy}
-						onClick={() => { openLocal(kind); }}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}</details>}
+						onClick={() => { openLocal(kind); }}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}
+					<button type="button" disabled={busy} onClick={() => { openLocal('brush'); }}>{photoDevelopBrushMaskCopy(props.locale).menu}</button></details>}
 				<label>{messages.version}<select value={document.versionId} disabled={busy || snapshot.dirty} onChange={event => {
 					const id = event.currentTarget.value; run(() => owner.open(props.photoId, id));
 				}}>{document.versions.map(version => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label>
 				<button type="button" disabled={busy || snapshot.dirty || document.activeVersionId === document.versionId}
 					onClick={() => { run(() => owner.apply({ type: 'activate-version', versionId: document.versionId })); }}>{messages.useVersion}</button>
 				<div className="lightscaper-develop-layout"><PhotoDevelopPreviewV2 {...props} {...previewSource} registerRetirement={registerPreviewRetirement} develop={draft} messages={messages} revision={document.revision} resolution={selectedResolution.value}
-					maskOverlay={selectedOverlay} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
+					maskOverlay={selectedOverlay} suspended={brushCurrent} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
 					<PhotoDevelopEffectsV2 effects={draft.effects} owner={owner} messages={messages} disabled={busy}
 						isCurrent={() => mounted() && owner.snapshot().document === document} importCubeLut={importCubeLut}
 						onImportPending={onImportPending} registerImportRetirement={registerImportRetirement} /></div>
@@ -194,7 +225,12 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 				</section></div>
 			</>}
 			{localEntry && document && draft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
-				&& (localEntry.kind === 'luminance-range' || localEntry.kind === 'color-range'
+				&& (localEntry.kind === 'brush'
+					? brushPort?.entry === localEntry
+						? <Suspense fallback={<p role="status">{photoDevelopBrushMaskCopy(props.locale).working}</p>}><PhotoDevelopBrushMaskDialogV1 port={brushPort.port}
+							develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={applyLocal} onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
+						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{photoDevelopBrushMaskCopy(props.locale)[brushFailed === localEntry ? 'failed' : 'working']}</p>
+					: localEntry.kind === 'luminance-range' || localEntry.kind === 'color-range'
 					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
 						onApply={applyLocal} onClose={closeLocal} />
 					: <PhotoDevelopGradientDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
