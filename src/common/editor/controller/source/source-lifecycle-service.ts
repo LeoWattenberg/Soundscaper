@@ -8,6 +8,7 @@ import {
 	type PreparedRequiredProjectSources,
 } from './internal/prepared-project-sources.ts';
 import { createSourceChunkProviderRegistration } from './internal/source-chunk-provider-registration.ts';
+import { resolveProductAudioChunkProvider } from './internal/product-audio-source-provider.ts';
 import { createWaveformPcmWindowRequester } from './internal/waveform-pcm-window-service.ts';
 import type {
 	ActivateStoredSourceOptions,
@@ -102,6 +103,12 @@ export function createSourceLifecycleService<
 		sourceBuffers.delete(sourceId);
 		return false;
 	}
+	async function activateProductAudioSource(project: Project, source: SourceLifecycleSource, signal?: AbortSignal): Promise<boolean> {
+		const provider = await resolveProductAudioChunkProvider(runtime, project, source, signal);
+		if (!provider) return false;
+		sourceChunkProviders.set(source.id, provider); sourceBuffers.delete(source.id);
+		state.missingSourceIds.delete(source.id); engine.setChunkSources?.(sourceChunkProviders); return true;
+	}
 
 	const requestWaveformPcmWindow = createWaveformPcmWindowRequester(runtime, registerStoredChunkProvider);
 	function clearWaveformPcmWindows() {
@@ -161,6 +168,7 @@ export function createSourceLifecycleService<
 				// service. Treating them as PCM made a valid visual-only project look
 				// like it had missing local audio and incorrectly fenced video export.
 				if (source.kind === 'still' || source.kind === 'generator' || source.kind === 'image') continue;
+				if (await activateProductAudioSource(project, source, options.signal)) continue;
 				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
@@ -256,6 +264,8 @@ export function createSourceLifecycleService<
 		let context: unknown = null;
 		try {
 			for (const source of project.sources.filter((candidate) => requiredSourceIds.has(candidate.id))) {
+				const productProvider = await resolveProductAudioChunkProvider(runtime, project, source, options.signal);
+				if (productProvider) { prepared.set(source.id, Object.freeze({ kind: 'provider', value: productProvider })); continue; }
 				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
@@ -337,6 +347,7 @@ export function createSourceLifecycleService<
 			candidate.kind !== 'video' && usedSourceIds.has(candidate.id)
 		))) {
 			const required = requiredSourceIds.has(source.id);
+			if (await activateProductAudioSource(snapshot, source, options.signal)) continue;
 			if (required) {
 				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),

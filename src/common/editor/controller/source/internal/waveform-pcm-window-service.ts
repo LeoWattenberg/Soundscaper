@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { raceAbortableRead } from '../../../abort-race.ts';
+import { resolveProductAudioChunkProvider } from './product-audio-source-provider.ts';
 import {
 	audioWarpMinimumSourceSpanPerColumn,
 	audioWarpSourceWindowRange,
@@ -58,6 +59,8 @@ export function createWaveformPcmWindowRequester<
 	} = runtime;
 
 	async function loadWaveformProvider(projectAtStart: Project, source: SourceLifecycleSource) {
+		const product = await resolveProductAudioChunkProvider(runtime, projectAtStart, source);
+		if (product) { sourceChunkProviders.set(source.id, product); runtime.engine.setChunkSources?.(sourceChunkProviders); return product; }
 		const metadata = await store.getSourceMetadata(source.storageKey || source.id);
 		if (getProject() !== projectAtStart) return null;
 		const provider = registerStoredChunkProvider(source, metadata);

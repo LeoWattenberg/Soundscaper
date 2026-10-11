@@ -12,7 +12,7 @@ import type { PlaybackProjectService } from './playback-project-service.ts';
 import type { ProjectVisualProject, ProjectVisualService, ProjectVisualServiceDependencies } from '../document/project-visual-types.ts';
 import type { bufferFromChannels, createStoredChunkProvider, readStoredAudioBuffer } from './source-audio.ts';
 import type { SourceChunkProviderRegistry } from './source-chunk-provider-registry.ts';
-import type { SourceLifecycleBufferCache } from './internal/source-lifecycle-types.d.ts';
+import type { SourceLifecycleBufferCache, SourceLifecycleServiceRuntime } from './internal/source-lifecycle-types.d.ts';
 import type { generateStoredWaveformPeaks, generateWaveformPeaks } from './waveform-analysis.ts';
 
 /** The document shape the visual, time-pitch and playback services read. */
@@ -70,6 +70,7 @@ export interface SourceRuntimeCompositionDependencies<
 	readonly createProjectVisualService: (dependencies: ProjectVisualServiceDependencies) => Readonly<ProjectVisualService>;
 	readonly resolveProductVideoPreviewMedia?: ProjectVisualServiceDependencies['resolveProductVideoPreviewMedia'];
 	readonly resolveProductVideoSource?: ProjectVisualServiceDependencies['resolveProductVideoSource'];
+	readonly resolveProductAudioSource?: SourceLifecycleServiceRuntime<AudioBuffer, SourceRuntimeProject, ReturnType<typeof createStoredChunkProvider>>['resolveProductAudioSource'];
 	readonly projectDurationFrames: ProjectVisualServiceDependencies['projectDurationFrames'];
 	readonly getProject: () => SourceRuntimeProject | null;
 	readonly publishDocumentSnapshot: () => void;

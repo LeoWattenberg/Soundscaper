@@ -64,6 +64,7 @@ export interface ControllerOptions extends ControllerResourceOptions, Controller
 	readonly createProductVideoRetimeProgramOrdinalBridge?: ClipVideoCompositionDependencies['createVideoRetimeProgramOrdinalBridge'];
 	readonly resolveProductVideoPreviewMedia?: SourceRuntimeCompositionDependencies['resolveProductVideoPreviewMedia'];
 	readonly resolveProductVideoSource?: SourceRuntimeCompositionDependencies['resolveProductVideoSource'];
+	readonly resolveProductAudioSource?: SourceRuntimeCompositionDependencies['resolveProductAudioSource'];
 	readonly reportProductVideoPreviewPressure?: EditorActionFunctions['reportVideoPreviewPressure'];
 	readonly saveLabelFile?: EditCompositionDependencies['saveLabelFile'];
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
