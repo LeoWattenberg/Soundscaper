@@ -12,6 +12,7 @@ import { retainFramescaperSuccessorMediaHistory } from './editor-project-success
 import type { FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
 import type { FramescaperSuccessorSession } from './editor-project-successor-session.ts';
 import type { PreparedFramescaperCompositionLinkOwner, FramescaperCompositionLinkOwnerReceipt } from './editor-composition-link-owner-repository.ts';
+import type { FramescaperCompositionConformPlan } from './editor-composition-link-conform.ts';
 type PreparedPublication = Pick<PreparedFramescaperCompositionLinkOwner, 'commit' | 'rollback'>;
 interface ReceiveOptions { readonly readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>; readonly signal?: AbortSignal; readonly sourceId?: string }
 /** Receive and history publication share the owner CAS. Live editor intent is adopted only after durable success. */
@@ -71,7 +72,28 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 				} catch (error) { return rollback(prepared, error); }
 			});
 		},
-		async transition(sourceId: string, type: 'conform' | 'resume') {
+		async reviewConform(sourceId: string): Promise<FramescaperCompositionConformPlan> {
+			await controller.actions.project.flush(); const project = normalizeFramescaperSuccessorProject(controller.project);
+			const owner = await env.owners.loadOwner(project.id), pending = owner?.linkStates.find(entry => entry.sourceId === sourceId)?.state.pending;
+			if (!pending) throw new Error('No pending composition revision is available for review.');
+			const { createFramescaperCompositionConformPlan } = await import('./editor-composition-link-conform.ts');
+			return createFramescaperCompositionConformPlan({ project, sourceId, offer: pending });
+		},
+		async applyConform(plan: FramescaperCompositionConformPlan) {
+			return publish(async history => {
+				const sourceId = plan.command.sourceId, owner = await env.owners.loadOwner(history.present.id);
+				const offer = owner?.linkStates.find(entry => entry.sourceId === sourceId)?.state.pending;
+				if (!offer) throw new Error('Composition Conform review is stale; review the current pending revision again.');
+				const { verifyFramescaperCompositionConformPlan } = await import('./editor-composition-link-conform.ts');
+				const command = verifyFramescaperCompositionConformPlan(plan, { project: history.present, offer });
+				const prepared = await env.owners.prepareTransition(history.present.id, sourceId, { type: 'conform' });
+				try {
+					if (prepared.state.accepted.revision.digest !== plan.pendingDigest) throw new Error('Composition Conform review is stale; the pending revision changed.');
+					return { prepared, history: executeFramescaperSuccessorHistory(history, command) };
+				} catch (error) { return rollback(prepared, error); }
+			});
+		},
+		async transition(sourceId: string, type: 'resume') {
 			return publish(async history => {
 				const prior = history.present.compositionLinks.find(link => link.sourceId === sourceId); if (!prior) throw new RangeError('Composition link is unavailable.');
 				const prepared = await env.owners.prepareTransition(history.present.id, sourceId, { type });

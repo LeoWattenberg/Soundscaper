@@ -5,6 +5,8 @@ import { framescaperSuccessorCopy } from '../../i18n/framescaper-successor-copy.
 import { createFramescaperCompositionConnection, type SuccessorController, type SuccessorContext } from './framescaper-composition-link-connection.ts';
 import type { FramescaperCompositionLinkOwnerReceipt } from '../../../framescaper/editor-composition-link-owner-repository.ts';
 import { createFramescaperNativeCompositionConnection, framescaperNativeMotionFiles } from './framescaper-composition-native-connection.ts';
+import FramescaperCompositionConformReview from './FramescaperCompositionConformReview.tsx';
+import type { FramescaperCompositionConformPlan } from '../../../framescaper/editor-composition-link-conform.ts';
 type Connection = ReturnType<typeof createFramescaperCompositionConnection>;
 type NativeConnection = ReturnType<typeof createFramescaperNativeCompositionConnection>;
 const connections = new WeakMap<object, Connection>();
@@ -29,10 +31,14 @@ function LinksDialog({ controller, context, connection, native, close }: { contr
 	const state = useSyncExternalStore(connection.subscribe, connection.snapshot); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 	const nativeState = useSyncExternalStore(native?.subscribe ?? noSubscription, native?.snapshot ?? noNativeState);
 	const [receipt, setReceipt] = useState<FramescaperCompositionLinkOwnerReceipt | null>(null); const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+	const [review, setReview] = useState<FramescaperCompositionConformPlan | null>(null);
+	const reviewInvoker = useRef<HTMLButtonElement | null>(null);
 	const projectId = snapshot.project?.id;
 	useEffect(() => { dialog.current?.showModal(); }, []);
+	useEffect(() => { setReview(null); }, [projectId]);
 	useEffect(() => { let cancelled = false; if (projectId) void context.environment.owners.loadOwner(projectId).then(value => { if (!cancelled) setReceipt(value); }).catch((failure: unknown) => { if (!cancelled) setError(message(failure)); }); return () => { cancelled = true; }; }, [context, projectId, snapshot.project, state, nativeState]);
 	function run(action: () => Promise<unknown> | void) { setBusy(true); setError(null); void Promise.resolve().then(action).catch((failure: unknown) => setError(message(failure))).finally(() => setBusy(false)); }
+	function closeReview() { setReview(null); if (reviewInvoker.current?.isConnected) reviewInvoker.current.focus(); }
 	const status = { idle: copy.connectionIdle, pending: copy.connectionPending, ready: copy.connectionReady, received: copy.connectionReceived }[state.status];
 	return <dialog ref={dialog} data-framescaper-composition-links="true" aria-labelledby="frame-links-title" style={{ maxWidth: 'min(54rem,90vw)', maxHeight: '80vh', overflow: 'auto', padding: '1.5rem' }} onClose={close}>
 		<h2 id="frame-links-title">{copy.linksTitle}</h2><p>{native ? copy.nativeDescription : copy.linksDescription}</p>
@@ -52,10 +58,11 @@ function LinksDialog({ controller, context, connection, native, close }: { contr
 			const receiver = receipt.linkStates.find(entry => entry.sourceId === link.sourceId)?.state;
 			return <li key={link.sourceId}><strong>{link.snapshot.project.title}</strong><p>{copy.accepted}: <code>{link.acceptedDigest}</code></p>
 				{receiver?.pending && <p>{copy.pending}</p>}{receiver?.paused && <p>{copy.paused}</p>}
-				<button type="button" disabled={busy || !receiver?.pending || snapshot.readOnly} onClick={() => run(async () => { setReceipt(await context.links.transition(link.sourceId, 'conform')); })}>{copy.conform}</button>{' '}
+				<button type="button" disabled={busy || !receiver?.pending || snapshot.readOnly} onClick={event => { reviewInvoker.current = event.currentTarget; run(async () => { setReview(await context.links.reviewConform(link.sourceId)); }); }}>{copy.conform}</button>{' '}
 				<button type="button" disabled={busy || !receiver?.paused || snapshot.readOnly} onClick={() => run(async () => { setReceipt(await context.links.transition(link.sourceId, 'resume')); })}>{copy.resume}</button>
 			</li>;
 		})}</ul> : <p>{copy.emptyLinks}</p>}
+		{review && <FramescaperCompositionConformReview plan={review} project={receipt?.project ?? null} copy={copy} busy={busy} readOnly={snapshot.readOnly} onCancel={closeReview} onApply={() => run(async () => { setReceipt(await context.links.applyConform(review)); closeReview(); })} />}
 		<button type="button" onClick={close}>{copy.close}</button>
 	</dialog>;
 }

@@ -70,7 +70,11 @@ test('actual editor menus connect saved compositions, update automatically, and 
 	const third = await links.locator('code').textContent();
 	await menu(motion, 'View', 'Composition Settings'); await motion.getByLabel('Width', { exact: true }).fill('96'); await motion.getByRole('button', { name: 'Apply', exact: true }).click(); await expect(motion.getByRole('dialog')).toHaveCount(0); await save(motion);
 	await expect(links.getByText('Pending output change', { exact: true })).toBeVisible(); await expect(links.locator('code')).toHaveText(third!);
-	await links.getByRole('button', { name: 'Conform pending revision', exact: true }).click(); await expect(links.locator('code')).not.toHaveText(third!); const conformed = await links.locator('code').textContent();
+	await links.getByRole('button', { name: 'Conform pending revision', exact: true }).click();
+	const review = links.getByRole('region', { name: 'Review composition change', exact: true }); await expect(review).toBeVisible(); await expect(review.getByRole('heading')).toBeFocused(); await expect(links.locator('code')).toHaveText(third!);
+	await review.getByRole('button', { name: 'Cancel review', exact: true }).click(); await expect(review).toHaveCount(0); await expect(links.locator('code')).toHaveText(third!); await expect(links.getByRole('button', { name: 'Conform pending revision', exact: true })).toBeFocused();
+	await links.getByRole('button', { name: 'Conform pending revision', exact: true }).click(); await review.getByRole('button', { name: 'Apply reviewed changes', exact: true }).click();
+	await expect(review).toHaveCount(0); await expect(links.locator('code')).not.toHaveText(third!); const conformed = await links.locator('code').textContent();
 	await links.getByRole('button', { name: 'Disconnect', exact: true }).click(); await close(frame); const projectId = await frame.locator('[data-project-id]').getAttribute('data-project-id');
 	const download = frame.waitForEvent('download'); await menu(frame, 'File', 'Export project file (.fscape)'); const archive = await download;
 	const path = await archive.path(); if (!path) throw new Error('The successor archive download is absent.'); const bytes = await readFile(path);
