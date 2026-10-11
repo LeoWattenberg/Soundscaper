@@ -21,7 +21,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const parentSite = localeLanguage(localeDescriptor.locale) === 'de' ? 'https://mindscaper.org/de/' : 'https://mindscaper.org/';
 	const catalog = useSiteCopy(localeDescriptor.locale);
 	const copy = sidebarCopy(catalog);
-	if (productId === 'motionscaper') copy.label = catalog.motionscaperNavigation;
+	copy.label = copy.label.replace('Soundscaper', profile.name);
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
 	const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 	const [workspace, setWorkspace] = useState({ activeId: profile.defaultWorkspace, workspaces: [] });
