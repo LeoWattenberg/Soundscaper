@@ -13,6 +13,7 @@ import { renderMotionLayerSource } from './motion-render-layer-source.ts';
 import { motionAdjustmentApplies, renderMotionAdjustment } from './motion-adjustment-rendering.ts';
 
 export interface MotionRasterizer extends Partial<MotionMaskRasterizer>, Partial<MotionEffectRasterizer> {
+	readonly supportedSourceOperations?: readonly ('shape-operator' | 'text-animator')[];
 	/** Peak scratch plus returned pixels; the default assumes two composition-sized float surfaces. */
 	estimateWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	/** Rasterize source plus its world transform into the target composition's pixel grid. */
@@ -98,7 +99,7 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer,
 		if (layer.state.is3D) throw new Error(`Unsupported 3D motion layer ${layer.state.name}.`);
 		assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
-			if (['camera', 'light', 'shape-operator', 'text-animator'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (['camera', 'light'].includes(operation.kind) || (operation.kind === 'shape-operator' || operation.kind === 'text-animator') && !rasterizer.supportedSourceOperations?.includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
 			if (operation.kind === 'effect' && (!rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes || layer.state.kind !== 'adjustment' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes))) {
 				throw new Error(`Unsupported motion effect ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}

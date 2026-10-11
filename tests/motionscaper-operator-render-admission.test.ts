@@ -27,13 +27,14 @@ test('unimplemented shape operators refuse before allocation through renderer an
 	const result = await renderMotionCompositionFrame(evaluate(false), { rasterizer: raster }); assert.equal(result.pixels[(8 * 32 + 8) * 4 + 3], 1);
 });
 
-test('unimplemented text animators refuse before font loading rather than silently losing shaped animation', async () => {
+test('a backend without shaped text animation refuses before font loading and invalid animated parameters fail at the direct entry', async () => {
 	const digest = 'a'.repeat(64); const font = { id: 'font', name: 'Font', kind: 'font' as const, sha256: digest, byteLength: 4,
 		storageKey: `motion-sha256:${digest}`, mimeType: 'font/woff2', family: 'Inter', style: 'Regular' };
 	const layer = createMotionLayer({ id: 'text', name: 'Text', durationFrames: 300, content: { kind: 'text', document: {
 		runs: [{ text: 'office', fontAssetId: 'font', fontSize: motionScalar(20), tracking: motionScalar(0), color: motionColor([1, 1, 1, 1]) }],
 		align: 'left', lineHeight: motionScalar(1.2), boxSize: motionVector([32, 32]), animators: [createMotionTextAnimator('animate')] } } });
 	const frame = compileMotionscaperProject({ ...project, assets: [font], compositions: [{ ...project.compositions[0], layers: [layer] }] }).evaluate({ compositionId: 'main', time: 0 });
-	await assert.rejects(renderMotionCompositionFrame(frame, { rasterizer: raster }), /text-animator/u);
-	await assert.rejects(raster.rasterizeSource(frame.layers[0]!, frame), /text-animator/u);
+	await assert.rejects(renderMotionCompositionFrame(frame, { rasterizer: { ...raster, supportedSourceOperations: [] } }), /text-animator/u);
+	const own = frame.layers[0]!; if (own.state.kind !== 'text') throw new Error('Unexpected fixture.');
+	await assert.rejects(raster.rasterizeSource({ ...own, state: { ...own.state, document: { ...own.state.document, animators: [{ ...own.state.document.animators![0]!, opacity: 2 }] } } }, frame), /opacity.*range/u);
 });

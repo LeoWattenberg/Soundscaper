@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { CanvasKit, Paragraph, TypefaceFontProvider } from 'canvaskit-wasm';
+import type { CanvasKit, Paragraph, ShapedLine, TypefaceFontProvider } from 'canvaskit-wasm';
 import type { MotionTextDocument } from './motion-composition.ts';
 import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import { freezeMotionValue } from './motion-values.ts';
@@ -11,13 +11,14 @@ export interface MotionShapedText {
 	readonly lines: readonly { readonly first: number; readonly last: number; readonly top: number; readonly bottom: number; readonly baseline: number;
 		readonly runs: readonly { readonly glyphs: readonly number[]; readonly positions: readonly number[]; readonly clusters: readonly number[]; readonly size: number }[] }[];
 }
-export interface MotionParagraph { readonly paragraph: Paragraph; readonly metrics: MotionShapedText; dispose(): void }
+export interface MotionParagraph { readonly paragraph: Paragraph; readonly metrics: MotionShapedText; readonly shapedLines: readonly ShapedLine[]; dispose(): void }
 
 /** Only explicitly supplied font bytes enter this provider; no host/system font discovery. */
 export function createMotionParagraph(kit: CanvasKit, document: EvaluatedMotionState<MotionTextDocument>, fonts: readonly MotionFontBytes[], fallbacks: readonly MotionFontBytes[]): MotionParagraph {
 	if (document.boxSize.some((value) => !Number.isFinite(value) || value <= 0 || value > 32768) || !Number.isFinite(document.lineHeight) || document.lineHeight <= 0 || document.lineHeight > 100) throw new RangeError('Motion text box/line height is outside the rendering range.');
 	const provider = kit.TypefaceFontProvider.Make();
 	let paragraph: Paragraph | null = null;
+	let shapedLines: readonly ShapedLine[] = [];
 	try {
 		if ([...fonts, ...fallbacks].reduce((total, font) => total + font.bytes.length, 0) > 64 * 1024 * 1024) throw new RangeError('Motion paragraph exceeds the 64 MiB font budget.');
 		for (const font of [...fonts, ...fallbacks]) registerFont(kit, provider, font);
@@ -37,13 +38,14 @@ export function createMotionParagraph(kit: CanvasKit, document: EvaluatedMotionS
 		paragraph.layout(document.boxSize[0]);
 		const unresolvedCodepoints = paragraph.unresolvedCodepoints();
 		if (unresolvedCodepoints.length > 0) throw new Error(`Motion text has missing glyphs ${unresolvedCodepoints.map((point) => `U+${point.toString(16).toUpperCase()}`).join(', ')}; import a font containing those characters.`);
+		shapedLines = paragraph.getShapedLines();
 		const metrics: MotionShapedText = freezeMotionValue({ width: paragraph.getLongestLine(), height: paragraph.getHeight(), unresolvedCodepoints,
-			lines: paragraph.getShapedLines().map((line) => ({ first: line.textRange.first, last: line.textRange.last, top: line.top, bottom: line.bottom, baseline: line.baseline,
+			lines: shapedLines.map((line) => ({ first: line.textRange.first, last: line.textRange.last, top: line.top, bottom: line.bottom, baseline: line.baseline,
 				runs: line.runs.map((run) => ({ glyphs: Array.from(run.glyphs), positions: Array.from(run.positions), clusters: Array.from(run.offsets), size: run.size })) })) });
 		const retained = paragraph;
 		let disposed = false;
-		return { paragraph: retained, metrics, dispose() { if (!disposed) { disposed = true; retained.delete(); provider.delete(); } } };
-	} catch (error) { paragraph?.delete(); provider.delete(); throw error; }
+		return { paragraph: retained, metrics, shapedLines, dispose() { if (!disposed) { disposed = true; for (const line of shapedLines) for (const run of line.runs) run.typeface?.delete(); retained.delete(); provider.delete(); } } };
+	} catch (error) { for (const line of shapedLines) for (const run of line.runs) run.typeface?.delete(); paragraph?.delete(); provider.delete(); throw error; }
 }
 
 function registerFont(kit: CanvasKit, provider: TypefaceFontProvider, font: MotionFontBytes): void {

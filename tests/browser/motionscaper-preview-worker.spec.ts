@@ -21,13 +21,15 @@ import { createMotionPreviewClient as createClient } from ${JSON.stringify(join(
 import { createMotionPreviewRenderSession as createSession } from ${JSON.stringify(join(repository, 'src/common/editor/controller/composition/motion-preview-render-session.ts'))};
 import { createMotionscaperProject, createMotionLayer } from ${JSON.stringify(join(repository, 'src/motionscaper/editor-project.ts'))};
 import { motionColor, motionScalar, motionVector } from ${JSON.stringify(join(repository, 'src/common/editor/motion-property.ts'))};
+import { createMotionTextAnimator } from ${JSON.stringify(join(repository, 'src/common/editor/motion-authoring-operators.ts'))};
 import manifest from ${JSON.stringify(join(repository, 'config/motionscaper-raster-runtime.json'))};
 import fontUrl from ${JSON.stringify(join(repository, 'node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2?url'))};
 const pin = manifest.assets.find(asset => asset.id === 'inter-latin');
 const font = { id: 'font', kind: 'font', name: 'Inter', family: 'Inter', style: 'Regular', sha256: pin.sha256, byteLength: pin.byteLength, storageKey: 'motion-sha256:' + pin.sha256, mimeType: 'font/woff2' };
 const base = createMotionscaperProject({ id: 'preview', title: 'Preview', compositionId: 'main', width: 64, height: 32 });
 const solid = createMotionLayer({ id: 'solid', name: 'Solid', durationFrames: 300, content: { kind: 'solid', color: motionColor([0.5, 0, 0, 0.5]), size: motionVector([64, 32]) } });
-const text = createMotionLayer({ id: 'text', name: 'Text', durationFrames: 300, content: { kind: 'text', document: { runs: [{ text: 'A Ω', fontAssetId: 'font', fontSize: motionScalar(24), color: motionColor([1, 1, 1, 1]), tracking: motionScalar(0) }], align: 'left', lineHeight: motionScalar(1), boxSize: motionVector([64, 32]) } } });
+const animator = createMotionTextAnimator('shift');
+const text = createMotionLayer({ id: 'text', name: 'Text', durationFrames: 300, content: { kind: 'text', document: { runs: [{ text: 'A Ω', fontAssetId: 'font', fontSize: motionScalar(24), color: motionColor([1, 1, 1, 1]), tracking: motionScalar(0) }], align: 'left', lineHeight: motionScalar(1), boxSize: motionVector([64, 32]), animators: [{ ...animator, selector: { ...animator.selector, unit: 'line' }, position: motionVector([5, 0]) }] } } });
 const project = { ...base, assets: [font], compositions: [{ ...base.compositions[0], layers: [text, solid] }] };
 globalThis.motionFixture = { createClient, createSession, project, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
 `;
@@ -52,7 +54,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); if (directory) await rm(directory, { recursive: true, force: true }); });
 
-test('M05 bundled preview loads fonts and WASM lazily in a persistent worker and renders after the network goes offline', async ({ page, context }) => {
+test('M05 bundled preview loads fonts and WASM lazily, animates shaped fallback glyphs and renders offline in a persistent worker', async ({ page, context }) => {
 	const requests: string[] = []; page.on('request', (request) => requests.push(request.url()));
 	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
 	expect(requests.filter((url) => /\.wasm|\.woff2/u.test(url))).toEqual([]);

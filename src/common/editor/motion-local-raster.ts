@@ -5,6 +5,7 @@ import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import type { MotionSurface } from './motion-surface.ts';
 import { motionSurfaceLength } from './motion-surface.ts';
 import { multiplyMotionMatrices, type MotionMatrix4 } from './motion-transform.ts';
+import { motionTextAnimationBounds } from './motion-text-animation.ts';
 
 export type MotionSourceOrigin = readonly [number, number];
 export interface MotionLocalRaster { readonly surface: MotionSurface; readonly origin: MotionSourceOrigin }
@@ -26,7 +27,7 @@ export function motionLocalSourceBounds(state: EvaluatedMotionState<MotionLayer>
 		return bounds(0, 0, asset.width, asset.height);
 	}
 	if (state.kind === 'solid') return dimensions(state.size);
-	if (state.kind === 'text') return dimensions(state.document.boxSize);
+	if (state.kind === 'text') return state.document.animators?.some((item) => item.enabled) ? motionTextAnimationBounds(state.document) : dimensions(state.document.boxSize);
 	if (state.kind !== 'shapes') throw new Error(`Motion ${state.kind} has no local raster source.`);
 	let left = Infinity; let top = Infinity; let right = -Infinity; let bottom = -Infinity;
 	for (const shape of state.shapes) {
