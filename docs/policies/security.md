@@ -745,12 +745,12 @@ power loss, and cross-tab concurrent reservation remain unqualified.
 <!-- policy-narrative:isolated-motion-composition-bridge -->
 The Motionscaper composition-link bridge belongs to the explicit Framescaper
 successor development line. Connected editor workflows have focused Chromium and
-packaged Linux x64 evidence; remaining supported-platform and native
-generated-source delivery qualification is unfinished. Only the exact
-Motionscaper /composition-link/send/ path replaces Cross-Origin-Opener-Policy
-with same-origin-allow-popups, and only successor Framescaper
-/composition-link/receive/ replaces it with unsafe-none. The isolated editor
-routes retain same-origin opener policy. Both bridges inherit
+packaged Linux x64 evidence; bounded native generated-source delivery has Linux
+software-rendering evidence while remaining platform qualification is
+unfinished. Only the exact Motionscaper /composition-link/send/ path replaces
+Cross-Origin-Opener-Policy with same-origin-allow-popups, and only successor
+Framescaper /composition-link/receive/ replaces it with unsafe-none. The
+isolated editor routes retain same-origin opener policy. Both bridges inherit
 Cross-Origin-Embedder-Policy: credentialless and the existing CSP, referrer and
 nosniff policies, seal microphone, speaker selection, screen capture, camera and
 geolocation permissions, and refuse editor service-worker fallback. A
@@ -785,8 +785,48 @@ closure. These fixtures do not qualify abrupt process or power loss,
 supported-browser popup lifecycle parity, maximum-scale heap/RSS/elapsed time,
 concurrent storage reservation or publisher authenticity. Neither this
 development control nor its receiver storage changes the frozen family-v1
-production admission.
+production admission. An actual packaged Linux x64 successor reopens retained
+links offline and publishes authenticated native ProRes pictures with mixed PCM
+through an actual Save dialog. Subsequent focused Chromium checks qualify
+complete CPU finishing preview for linked scenes when WebGL is unavailable or
+loses its context, GPU restoration, receiver reload and clearing a new document;
+preview converts declared Rec.709 output to sRGB without changing native
+delivery bytes. This CPU fixture does not qualify mixed timeline-image layers or
+maximum workloads.
 <!-- /policy-narrative:isolated-motion-composition-bridge -->
+
+### Motionscaper native capabilities in the development line
+
+<!-- policy-narrative:isolated-motion-desktop-capabilities -->
+Motionscaper owns a separate development desktop shell at
+motionscaper-app://bundle with a sandboxed, context-isolated renderer, no Node
+integration, denied new windows, webviews and permissions, and an exact
+own-window/main-frame/document caller fence. Its closed channels are
+motionscaper:v1:environment, motionscaper:v1:project-files,
+motionscaper:v1:project-launch, motionscaper:v1:project-launch:pending,
+motionscaper:v1:delivery, motionscaper:v1:documentation and
+motionscaper:v1:updates:check. Native project paths stay main-private.
+OS-selected .mscape and .scape launch arguments admit at most 16
+pending/open/active selections; the renderer can only take a bounded read
+capability or acknowledge its exact token. The pending notification carries no
+payload and confers no file authority. Cold startup, second-instance arguments
+and macOS open-file notifications use that same queue; reload or renderer loss
+revokes the current read token and reissues the queued selection. Authoring and
+archive reviews defer additional selections, retain the previous document and
+preserve retryable file release/acknowledgement authority. Project file reads
+and private save publication use the existing closed pathless capability
+methods; unknown or future archives remain exact-byte opaque custody without
+binding an editable native destination. Delivery uses the declared native
+carrier/encoder profile and an explicitly chosen destination, with retained
+cleanup authority when cancellation fails. Documentation and manual own-tag
+update checks open only reviewed fixed-origin links; no automatic installer is
+admitted. Focused Chromium and an actual packaged Linux x64 executable qualify
+cold/warm launch, original-file save, collision review, opaque custody and
+reload reissue. Other native targets, installed OS association behavior, abrupt
+process/power loss and signing/update release behavior remain unqualified. This
+development control does not extend the frozen Soundscaper/Framescaper family-v1
+bridge authority.
+<!-- /policy-narrative:isolated-motion-desktop-capabilities -->
 
 ### Desktop download release lookup
 

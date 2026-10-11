@@ -86,6 +86,12 @@ in Chromium. Motion DB2 appends storage-only write leases; saved pointers and
 recovery drafts are atomically fenced, and competing windows retain one authoring
 owner. Motion File Open preserves foreign/future archives as private read-only
 custody, with exact Save Copy and the previous document/history unchanged.
+Same-identity File Open reviews Copy/Replace/Keep and Saved/Recover choices;
+failed post-adoption native release retains an explicit cleanup retry.
+The [packaged Linux native launch workflow](motionscaper-native-launch-qualification.md)
+covers cold/warm OS arguments, original-file Save, deferred collision review,
+opaque custody and renderer-reload reissue through main-private capabilities.
+Lease release keeps its durable fence and navigator lock until deletion succeeds.
 English/German Help-menu destinations open the Motion handbook through bounded
 browser/native adapters. The desktop Help menu also offers a manual, bounded
 own-tag release check with a verified repository link; release installation and
@@ -211,12 +217,16 @@ preview-pixel, save/reopen, original-media custody and refusal checks; AEP/AEPX
 selection routes to installed-AE guidance. The explicit whole-composition PNG
 fallback has a bounded installed-host adapter, generated entry and complete
 256-frame image-layer carrier with distinct-frame Chromium pixel checks.
+The reverse [rendered Motion-to-AE transfer](motionscaper-ae-render-transfer-qualification.md)
+uses full authored shutter/lens quality at every frame, verifies frame bytes
+against normal PNG delivery, and retains the complete original project and
+source media. Refusal, cancellation and failed output cleanup publish no package.
 Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-The latest run of all Motion-named TypeScript tests, including cross-product
-link tests, passes 736 tests. Subsequent feature changes receive focused qualification.
+An earlier run of all Motion-named TypeScript tests, including cross-product
+link tests, passed 736 tests. Subsequent feature changes receive focused qualification.
 These results do not close a package's completion gate.
 The [platform fixture](motionscaper-platform-qualification.md) passes twelve
 actual Chromium, Firefox and Linux WebKit workflows covering keyboard menus,
