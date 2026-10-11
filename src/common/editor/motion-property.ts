@@ -126,7 +126,7 @@ function normalizeExpression(value: unknown): MotionExpression | null {
 	const record = motionRecord(value, ['source', 'enabled', 'references'], 'motion expression');
 	const references = motionArray(record.references, 256, 'expression references').map((item) => {
 		const reference = motionRecord(item, ['id', 'layerId', 'propertyPath'], 'expression reference');
-		return { id: motionId(reference.id), layerId: motionId(reference.layerId), propertyPath: motionString(reference.propertyPath, 'property path', 256) };
+		return { id: motionId(reference.id), layerId: motionId(reference.layerId), propertyPath: motionString(reference.propertyPath, 'property path', 1024) };
 	});
 	if (new Set(references.map(({ id }) => id)).size !== references.length) throw new RangeError('Expression references contain duplicate identity.');
 	return freezeMotionValue({ source: motionString(record.source, 'expression source', 16_384, true), enabled: motionBoolean(record.enabled, 'expression enabled'), references });

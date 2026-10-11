@@ -54,32 +54,41 @@ function requireAsset(assets: ReadonlyMap<string, MotionAsset>, id: string, kind
 }
 
 /** This traverses only already-normalized inert intent. */
-export function motionLayerProperties(layer: MotionLayer): readonly { readonly path: string; readonly property: MotionProperty }[] {
-	const result: { path: string; property: MotionProperty }[] = [];
-	const walk = (value: unknown, path: string): void => {
+export interface MotionPropertyAddress { readonly path: string; readonly stablePath: string; readonly property: MotionProperty }
+export function motionLayerProperties(layer: MotionLayer): readonly MotionPropertyAddress[] {
+	const result: MotionPropertyAddress[] = [];
+	const walk = (value: unknown, path: string, stablePath: string): void => {
 		if (!value || typeof value !== 'object') return;
 		if (!Array.isArray(value)) {
 			const record = value as Record<string, unknown>;
 			if (['scalar', 'vector2', 'vector3', 'color', 'path'].includes(String(record.kind)) && Object.hasOwn(record, 'expression')) {
-				result.push({ path, property: record as unknown as MotionProperty });
-				return;
+				result.push({ path, stablePath, property: record as unknown as MotionProperty }); return;
 			}
 		}
-		for (const [key, item] of Object.entries(value)) walk(item, path ? `${path}.${key}` : key);
+		for (const [key, item] of Object.entries(value)) {
+			const id = Array.isArray(value) && item && typeof item === 'object' && !Array.isArray(item) ? (item as Record<string, unknown>).id : undefined;
+			const token = typeof id === 'string' ? `@${encodeURIComponent(id).replaceAll('.', '%2E')}` : key;
+			walk(item, path ? `${path}.${key}` : key, stablePath ? `${stablePath}.${token}` : token);
+		}
 	};
-	walk(layer, '');
+	walk(layer, '', '');
 	return Object.freeze(result.map((entry) => Object.freeze(entry)));
 }
 
 function validatePropertyLinks(layers: ReadonlyMap<string, MotionLayer>): void {
-	const keys = new Set<string>();
 	const properties = [...layers.values()].flatMap((layer) => motionLayerProperties(layer).map((entry) => ({ ...entry, layerId: layer.id })));
-	for (const entry of properties) keys.add(`${entry.layerId}/${entry.path}`);
+	const aliases = new Map<string, string>();
+	for (const entry of properties) {
+		const canonical = `${entry.layerId}/${entry.stablePath}`;
+		aliases.set(`${entry.layerId}/${entry.path}`, canonical); aliases.set(canonical, canonical);
+	}
 	const edges = new Map<string, readonly string[]>();
 	for (const entry of properties) {
-		const dependencies = (entry.property.expression?.references ?? []).map((reference) => `${reference.layerId}/${reference.propertyPath}`);
-		for (const key of dependencies) if (!keys.has(key)) throw new ReferenceError(`Expression property reference ${key} is missing.`);
-		edges.set(`${entry.layerId}/${entry.path}`, entry.property.expression?.enabled ? dependencies : []);
+		const dependencies = (entry.property.expression?.references ?? []).map((reference) => {
+			const key = `${reference.layerId}/${reference.propertyPath}`; const canonical = aliases.get(key);
+			if (!canonical) throw new ReferenceError(`Expression property reference ${key} is missing.`); return canonical;
+		});
+		edges.set(`${entry.layerId}/${entry.stablePath}`, entry.property.expression?.enabled ? dependencies : []);
 	}
 	assertMotionAcyclic(edges, 'expression property', 128);
 }

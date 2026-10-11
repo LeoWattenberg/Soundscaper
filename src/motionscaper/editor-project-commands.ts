@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { stabilizeMotionExpressionReferences } from '../common/editor/motion-expression-links.ts';
 import { compareRationals, type Rational } from '../common/editor/timeline-time.ts';
 import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionComposition, MotionLayer } from '../common/editor/motion-composition.ts';
@@ -37,7 +38,7 @@ export function applyMotionscaperCommands(projectValue: unknown, commandsValue: 
 	const commands = motionArray(commandsValue, 4096, 'motion command transaction', 1);
 	let candidate = project;
 	for (const value of commands) candidate = applyCommand(candidate, value);
-	return normalizeMotionscaperProject({ ...candidate, revision: project.revision + 1 });
+	return normalizeMotionscaperProject({ ...stabilizeMotionExpressionReferences(project, candidate), revision: project.revision + 1 });
 }
 
 function applyCommand(project: MotionscaperProject, value: unknown): MotionscaperProject {
