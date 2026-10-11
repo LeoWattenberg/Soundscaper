@@ -56,7 +56,7 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 				assertFingerprint(value.fingerprint, fingerprintOf(await value.file.stat())); return bytes;
 			} finally { value.busy = false; }
 		},
-		async release({ token }) { const value = reader(token); readers.delete(token); await value.file.close(); },
+		async release({ token }) { const value = reader(token); await value.file.close(); readers.delete(token); },
 		async bindOpened({ token, projectId }) {
 			const value = reader(token); identity(projectId);
 			if (!bindings.has(projectId) && bindings.size >= 256) throw new RangeError('Too many Motionscaper file bindings.');
@@ -83,6 +83,8 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 				}
 				if (saveCopy && bound && (path === bound.path || fingerprint && bound.fingerprint
 					&& fingerprint.dev === bound.fingerprint.dev && fingerprint.ino === bound.fingerprint.ino)) throw new Error('Save Copy requires an independent destination.');
+				if (saveCopy && [...readers.values()].some(value => path === value.path || fingerprint
+					&& fingerprint.dev === value.fingerprint.dev && fingerprint.ino === value.fingerprint.ino)) throw new Error('Save Copy requires an independent destination from every retained open archive.');
 				active();
 				const temporary = join(dirname(path), `.${basename(path)}.motionscaper-${randomUUID()}.tmp`);
 				const file = await open(temporary, 'wx', 0o600);

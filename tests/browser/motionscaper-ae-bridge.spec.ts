@@ -56,7 +56,7 @@ test('AE bridge stays opt-in, downloads readable scripts and routes Adobe projec
 	await expect(dialog).toContainText('Open this project in installed After Effects');
 	await expect(dialog.getByRole('button', { name: 'Review Import', exact: true })).toBeDisabled();
 	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click(); await expect(dialog).toHaveCount(0);
-	await menu(page, 'Open'); await page.getByLabel('Motionscaper project (.mscape)', { exact: true }).setInputFiles({ name: 'Original.aepx', mimeType: 'application/xml', buffer: Buffer.from('<AfterEffectsProject/>') });
+	await menu(page, 'Open'); await page.getByLabel('Scape project (.mscape, .fscape, .sscape)', { exact: true }).setInputFiles({ name: 'Original.aepx', mimeType: 'application/xml', buffer: Buffer.from('<AfterEffectsProject/>') });
 	await expect(dialog).toContainText('Original.aepx'); await expect(dialog).toContainText('Open this project in installed After Effects');
 });
 

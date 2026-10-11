@@ -58,7 +58,7 @@ test('Motionscaper imports and saves a portable .mscape copy without changing it
 	const archive = await exportMotionscaperArchive(project, () => null);
 	await page.goto('/embed/en/');
 	await menu(page, 'File', 'Open');
-	await page.getByLabel('Motionscaper project (.mscape)', { exact: true }).setInputFiles({
+	await page.getByLabel('Scape project (.mscape, .fscape, .sscape)', { exact: true }).setInputFiles({
 		name: 'portable.mscape', mimeType: 'application/octet-stream', buffer: Buffer.from(await archive.arrayBuffer()),
 	});
 	await expect(page.locator('[data-motion-project-title]')).toHaveText('Portable animation');
@@ -74,7 +74,7 @@ test('Motionscaper imports and saves a portable .mscape copy without changing it
 	expect(copy.kind).toBe('current');
 	expect(copy.project).toEqual(project);
 	await menu(page, 'File', 'Open');
-	await page.getByLabel('Motionscaper project (.mscape)', { exact: true }).setInputFiles({
+	await page.getByLabel('Scape project (.mscape, .fscape, .sscape)', { exact: true }).setInputFiles({
 		name: 'again.mscape', mimeType: 'application/octet-stream', buffer: bytes,
 	});
 	await expect(page.getByRole('alert')).toContainText('already exists');

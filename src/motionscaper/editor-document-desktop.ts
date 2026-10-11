@@ -7,6 +7,7 @@ import type { MotionscaperProjectStore } from './editor-project-store.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import { motionDocumentFileName } from './editor-document-file-name.ts';
 import { exportMotionscaperArchive } from './editor-scape.ts';
+import { inspectMotionscaperOpaqueArchive, type MotionscaperOpaqueArchive } from './editor-opaque-archive.ts';
 
 /** False cancels publication. The local saved pointer advances only after native atomic commit. */
 export async function writeMotionscaperDesktopProject(project: MotionscaperProject, store: Pick<MotionscaperProjectStore, 'readAsset'>,
@@ -25,14 +26,20 @@ export async function writeMotionscaperDesktopProject(project: MotionscaperProje
 
 /** The open capability remains private and is bound only after a complete verified archive import. */
 export async function openMotionscaperDesktopProject(session: MotionscaperDocumentSession,
-	files: MotionDesktopFiles | null = motionscaperDesktopFiles()): Promise<'browser' | 'cancelled' | 'opened'> {
+	files: MotionDesktopFiles | null = motionscaperDesktopFiles(),
+	onOpaque?: (archive: MotionscaperOpaqueArchive) => void | Promise<void>): Promise<'browser' | 'cancelled' | 'opened' | 'opaque'> {
 	if (!files) return 'browser';
 	const selected = await selectMotionscaperDesktopArchive(files);
 	if (!selected) return 'cancelled';
+	let retained = false;
 	try {
+		if (onOpaque) {
+			const archive = await inspectMotionscaperOpaqueArchive(selected.input, selected.name, { release: selected.release });
+			if (archive) { await onOpaque(archive); retained = true; return 'opaque'; }
+		}
 		await session.importArchive(selected.input);
 		const project = session.getSnapshot().project;
 		if (!project) throw new Error('The imported motion document is unavailable.');
 		await selected.bind(project.id); return 'opened';
-	} finally { await selected.release(); }
+	} finally { if (!retained) await selected.release(); }
 }

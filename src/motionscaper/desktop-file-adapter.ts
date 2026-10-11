@@ -23,13 +23,17 @@ export function motionscaperDesktopFiles(value: unknown = globalThis): MotionDes
 export async function selectMotionscaperDesktopArchive(files: MotionDesktopFiles, signal?: AbortSignal): Promise<MotionDesktopArchiveInput | null> {
 	signal?.throwIfAborted(); const selected = await files.selectOpen();
 	if (!selected) return null;
-	let released = false;
-	const release = async () => { if (!released) { released = true; await files.release({ token: selected.token }); } };
+	let released = false; let releasing: Promise<void> | null = null;
+	const release = async () => {
+		if (released) return;
+		releasing ??= files.release({ token: selected.token });
+		try { await releasing; released = true; } finally { releasing = null; }
+	};
 	if (signal?.aborted) { await release(); signal.throwIfAborted(); }
 	return Object.freeze({ name: selected.name,
 		input: createScapeArchiveByteSource({ size: selected.byteLength, maximumReadBytes: MOTIONSCAPER_FILE_CHUNK_BYTES,
 			read: async ({ offset, length, signal: readSignal }) => {
-				if (released) throw new Error('Motionscaper archive capability was released.');
+				if (released || releasing) throw new Error('Motionscaper archive capability was released.');
 				signal?.throwIfAborted(); readSignal?.throwIfAborted();
 				const bytes = await files.read({ token: selected.token, offset, length });
 				signal?.throwIfAborted(); readSignal?.throwIfAborted(); return bytes;
