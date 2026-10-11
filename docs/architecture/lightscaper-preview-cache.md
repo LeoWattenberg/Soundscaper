@@ -65,11 +65,35 @@ work, then releases its existing resources.
 Scheduler close joins its active work and preserves cleanup failures, including
 diagnostics from a committed cache write whose observer was cancelled.
 
-OPFS is preferred. The existing IndexedDB Blob fallback can fail on the pinned
-WebKit engine. Failure aborts both cache records and reports a per-preview
-persistence failure; the prepared transient body remains usable. A derivative
-is never written as an original to bypass that failure, and this packet does
-not qualify WebKit's deferred full storage workflow.
+Selected-Session tests keep subscriber refusal separate from resource retirement.
+The held-read controls forward a real cache body read before delaying its return:
+Close refuses new work, retains its promise, and waits before closing the media
+and catalog. A distinct opaque read failure remains available from Close. Reopen
+checks the acknowledged cache pair, full photo document, original bytes and
+custody without substituting a decoder or preview scheduler.
+
+Native browser tests reach the current Session through its default initializer,
+managed import and native preview decode. They observe actual sync-worker write
+and close acknowledgments, each paired-record put, transaction completion and
+replacement cleanup. Pre-commit cancellation leaves the pair absent; after
+transaction completion the pair remains durable. Cleanup failure retention is
+checked independently from subscriber cancellation. These boundaries qualify
+the fresh default-library profile in Chromium and Firefox; they do not qualify
+restored-library persistence or WebKit.
+
+Fresh default libraries prefer OPFS. The current Session's initializer publishes
+the default pointer, and its location reader selects the existing media anchor.
+Restored libraries select their allocated media namespace and intentionally use
+IndexedDB, matching the restore candidate's storage profile. Preview caches use
+the selected media owner's storage profile. When an OPFS writer is unavailable,
+paired publication stores a complete Blob in IndexedDB in the same transaction
+as its scalar inventory row.
+
+The existing IndexedDB Blob fallback can fail on the pinned WebKit engine.
+Failure aborts both cache records and reports a per-preview persistence failure;
+the prepared transient body remains usable. A derivative is never written as an
+original to bypass that failure, and this packet does not qualify WebKit's
+deferred full storage workflow.
 
 The storage limit is not a JavaScript memory limit. Shared preparation owns at
 most 96 MiB including its fixed source snapshot, output and Blob, while a borrowed

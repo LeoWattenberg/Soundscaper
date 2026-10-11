@@ -156,6 +156,17 @@ export async function observeNativePhotoCullingOriginals(page, ids) {
 	await assertNativeOpfsWorkerExecution(page); return facts;
 }
 
+/** Qualify the selected Session with real storage acknowledgments. The helper
+ * joins its held work and closes every owner before returning scalar facts. */
+export async function qualifyNativePhotoPreviewSessionClose(page, cut) {
+	const script = await mappedBundle('preview-session-close.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-preview-session-close-native-v1.ts'));
+	register(page, '/__photo_preview_session_close.js', script);
+	await page.route('**/__photo_preview_session_close.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	const facts = await page.evaluate(async cut => (await import(new URL('/__photo_preview_session_close.js', location.href).href))
+		.qualifyPhotoPreviewSessionCloseNativeV1(cut), cut);
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');
