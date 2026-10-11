@@ -5,6 +5,7 @@ import { normalizeVideoMaskMatteGraphV1, VIDEO_MASK_MATTE_LIMITS_V1, videoMaskMa
 	type VideoMaskMatteGraphV1, type VideoMaskMatteNodeV1 } from './video-mask-matte-v24.ts';
 import { captureVideoMaskLuminanceFrameV1, videoMaskLuminanceRangeCoverageV1, videoMaskMatteUsesCurrentFrameV1,
 	type CapturedVideoMaskLuminanceFrameV1 } from './video-mask-luminance-range-v1.ts';
+import { prepareVideoMaskColorRangeCoverageV1 } from './video-mask-color-range-v1.ts';
 
 export interface VideoMaskMatteRgbaInputV13 {
 	readonly width: number;
@@ -81,6 +82,7 @@ function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1,
 		dimension(frame.width, 'mask input width'); dimension(frame.height, 'mask input height');
 		if (!(frame.pixels instanceof Uint8Array) || frame.pixels.byteLength !== frame.width * frame.height * 4) throw new RangeError('Mask input RGBA length does not match its dimensions.');
 	}
+	const colorCoverage = node.kind === 'color-range' ? prepareVideoMaskColorRangeCoverageV1(node, currentFrame!) : undefined;
 	const output = allocate(width * height);
 	for (let start = 0; start < output.length; start += CHUNK_PIXELS) {
 		const end = Math.min(output.length, start + CHUNK_PIXELS);
@@ -88,6 +90,7 @@ function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1,
 			const x = index % width, y = Math.floor(index / width), px = (x + 0.5) / width, py = (y + 0.5) / height;
 			if (node.kind === 'linear-gradient') output[index] = gradient(node, px, py);
 			else if (node.kind === 'luminance-range') output[index] = videoMaskLuminanceRangeCoverageV1(node, currentFrame!, index);
+			else if (node.kind === 'color-range') output[index] = colorCoverage!(index);
 			else if (node.kind === 'radial-gradient') output[index] = radialGradient(node, px, py);
 			else if (node.kind === 'vector-shape') {
 				const inside = node.shape === 'rectangle' ? px >= node.x && px < node.x + node.width && py >= node.y && py < node.y + node.height

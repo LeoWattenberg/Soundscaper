@@ -70,6 +70,7 @@ export interface FramescaperSelectedVisualAuthoringRequestFinishing {
 	readonly startX?: number; readonly startY?: number; readonly endX?: number; readonly endY?: number;
 	readonly centerX?: number; readonly centerY?: number; readonly radiusX?: number; readonly radiusY?: number; readonly innerFraction?: number;
 	readonly lower?: number; readonly upper?: number; readonly falloff?: number;
+	readonly red?: number; readonly green?: number; readonly blue?: number; readonly radius?: number;
 	readonly presetId?: string | null;
 	readonly name?: string;
 	readonly playheadSample?: number;

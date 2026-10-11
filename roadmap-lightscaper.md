@@ -430,13 +430,13 @@ on the shared mask graph.
   with a visualize-spots view.
 - **Shared — Optional:** red-eye correction.
 
-Menu-authored linear and radial gradients and luminance ranges bind existing
-adjustments through the shared renderer. Luminance membership samples the actual
-input of the bound adjustment, and the temporary overlay observes that coverage
+Menu-authored linear and radial gradients and luminance/color ranges bind
+existing adjustments through the shared renderer. Range membership samples the
+actual input of the bound adjustment, and the temporary overlay observes coverage
 through later geometry in the joined preview owner. Saved recipes retain their
-masks through editable handoff; Frame authors and renders the same range node.
-Color ranges, brush resources, full mask management, composition authoring, and
-healing remain open; these authoring slices do not close L6.
+masks through editable handoff; Frame authors and renders the same range nodes.
+Brush resources, full mask management, composition authoring, and healing remain
+open; these authoring slices do not close L6.
 
 ### Exit gate
 

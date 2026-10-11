@@ -118,7 +118,7 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const importing = tasks.importing || (importState.tasks === tasks && importState.pending);
 	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !props.settings?.snapshot.busy && !importing) void action(); };
 	const document = snapshot.document, draft = snapshot.draft, busy = snapshot.busy || props.settings?.snapshot.busy === true || importing, disabled = busy || !document;
-	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind']> | 'luminance-range';
+	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']>;
 	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
 	const [localEntry, setLocalEntry] = useState<LocalEntry | null>(null);
 	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
@@ -157,7 +157,7 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
 					localAdjustments={{ onOpen: openLocal }} />}
 				{!props.settings && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale).menu}</summary>
-					{(['linear-gradient', 'radial-gradient', 'luminance-range'] as const).map(kind => <button key={kind} type="button" disabled={busy}
+					{(['linear-gradient', 'radial-gradient', 'luminance-range', 'color-range'] as const).map(kind => <button key={kind} type="button" disabled={busy}
 						onClick={() => { openLocal(kind); }}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}</details>}
 				<label>{messages.version}<select value={document.versionId} disabled={busy || snapshot.dirty} onChange={event => {
 					const id = event.currentTarget.value; run(() => owner.open(props.photoId, id));
@@ -194,8 +194,8 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 				</section></div>
 			</>}
 			{localEntry && document && draft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
-				&& (localEntry.kind === 'luminance-range'
-					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
+				&& (localEntry.kind === 'luminance-range' || localEntry.kind === 'color-range'
+					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
 						onApply={applyLocal} onClose={closeLocal} />
 					: <PhotoDevelopGradientDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
 						onApply={applyLocal} onClose={closeLocal} />)}

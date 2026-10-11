@@ -1,8 +1,8 @@
-# Luminance range local adjustments
+# Range local adjustments
 
-Develop’s existing Settings and presets menu authors a luminance range and binds
-it to an existing adjustment. Frame’s selected visual mask dialog authors the
-same shared node. Saved recipes retain scalar thresholds and bindings; overlay
+Develop’s existing Settings and presets menu authors a luminance or color range
+and binds it to an existing adjustment. Frame’s selected visual mask dialog authors the
+same shared nodes. Saved recipes retain scalar thresholds and bindings; overlay
 selection stays temporary presentation state.
 
 The closed `luminance-range` node stores `id`, `lower`, `upper`, and `falloff`.
@@ -11,8 +11,17 @@ All values are canonical finite numbers: `0 <= lower <= upper <= 1` and
 linearly to zero over `falloff` outside each endpoint. Zero falloff makes a hard
 inclusive interval. The evaluator rounds once to a coverage byte.
 
-Membership uses straight linear Rec. 709 luminance. sRGB inputs are decoded
-once; declared linear inputs are used directly. Fully transparent pixels have
+The closed `color-range` node stores `id`, an encoded sRGB target
+`color: { r, g, b }`, `radius`, and `falloff`. Each channel and scalar is a
+canonical finite fraction in `[0, 1]`. The evaluator decodes the target once
+and measures normalized Euclidean distance in linear RGB:
+`sqrt(((R - Rt)^2 + (G - Gt)^2 + (B - Bt)^2) / 3)`. Coverage is full at distances
+up to the inclusive radius and falls linearly over the outer falloff. Zero
+falloff makes a hard radius. This fixed RGB distance gives saved recipes an
+explicit, deterministic interpretation.
+
+Luminance membership uses straight linear Rec. 709 luminance. Both range kinds
+decode sRGB inputs once and use declared linear inputs directly. Fully transparent pixels have
 zero coverage. Partial alpha does not attenuate membership again because the
 masked blend preserves input alpha. Existing encoded raster-luma semantics and
 vector, gradient, feather, invert, and boolean nodes remain compatible.
@@ -40,7 +49,7 @@ After canvas. Mask graph planes, captured signals, projection scratch, retained
 coverage, and overlay pixels are admitted against the existing 64 MiB mask working
 limit before allocation; this is not a total application memory ceiling.
 
-Color ranges, brush resources, full mask management, composition authoring,
-and healing remain open L6 work. Qualification is limited to Lightscaper tests;
-full-suite and cross-product cleanup follow implementation. The assistance runtime
+Brush resources, full mask management, composition authoring, and healing remain
+open L6 work. Qualification is limited to Lightscaper tests; full-suite and
+cross-product cleanup follow implementation. The assistance runtime
 closure is unchanged, so no manual **Update AI assets** run is required.

@@ -19,7 +19,7 @@ export function videoMaskMatteUsesCurrentFrameV1(graph: Readonly<VideoMaskMatteG
 	const visit = (id: string): boolean => {
 		if (seen.has(id)) return false; seen.add(id);
 		const node = nodes.get(id)!;
-		if (node.kind === 'luminance-range') return true;
+		if (node.kind === 'luminance-range' || node.kind === 'color-range') return true;
 		if (node.kind === 'feather' || node.kind === 'invert') return visit(node.inputNodeId);
 		return node.kind === 'boolean' && node.inputNodeIds.some(visit);
 	};

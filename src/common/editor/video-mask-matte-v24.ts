@@ -76,6 +76,14 @@ export interface VideoLuminanceRangeMaskNodeV1 {
 	readonly falloff: number;
 }
 
+export interface VideoColorRangeMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'color-range';
+	readonly color: Readonly<{ r: number; g: number; b: number }>;
+	readonly radius: number;
+	readonly falloff: number;
+}
+
 export interface VideoRasterMaskNodeV1 {
 	readonly id: string;
 	readonly kind: 'raster';
@@ -115,6 +123,7 @@ export type VideoMaskMatteNodeV1 =
 	| VideoLinearGradientMaskNodeV1
 	| VideoRadialGradientMaskNodeV1
 	| VideoLuminanceRangeMaskNodeV1
+	| VideoColorRangeMaskNodeV1
 	| VideoRasterMaskNodeV1
 	| VideoAlphaMaskNodeV1
 	| VideoFeatherMaskNodeV1
@@ -137,6 +146,8 @@ const PATH_NODE_FIELDS = Object.freeze(['id', 'kind', 'fillRule', 'paths']);
 const GRADIENT_FIELDS = Object.freeze(['id', 'kind', 'start', 'end']);
 const RADIAL_FIELDS = Object.freeze(['id', 'kind', 'center', 'radius', 'innerFraction']);
 const LUMINANCE_FIELDS = Object.freeze(['id', 'kind', 'lower', 'upper', 'falloff']);
+const COLOR_FIELDS = Object.freeze(['id', 'kind', 'color', 'radius', 'falloff']);
+const COLOR_CHANNEL_FIELDS = Object.freeze(['r', 'g', 'b']);
 const PATH_FIELDS = Object.freeze(['id', 'closed', 'points']);
 const POINT_FIELDS = Object.freeze(['position', 'inHandle', 'outHandle']);
 const COORDINATE_FIELDS = Object.freeze(['x', 'y']);
@@ -147,7 +158,7 @@ const INVERT_FIELDS = Object.freeze(['id', 'kind', 'inputNodeId']);
 const BOOLEAN_FIELDS = Object.freeze(['id', 'kind', 'operation', 'inputNodeIds']);
 const ALL_NODE_FIELDS = Object.freeze([...new Set([
 	...SHAPE_FIELDS, ...PATH_NODE_FIELDS, ...RASTER_FIELDS, ...ALPHA_FIELDS,
-	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS, ...RADIAL_FIELDS, ...LUMINANCE_FIELDS,
+	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS, ...RADIAL_FIELDS, ...LUMINANCE_FIELDS, ...COLOR_FIELDS,
 ])]);
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const INPUT_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
@@ -218,6 +229,7 @@ function normalizeNodes(value: unknown): readonly VideoMaskMatteNodeV1[] {
 		if (kind === 'linear-gradient') return linearGradient(candidate, name, id);
 		if (kind === 'radial-gradient') return radialGradient(candidate, name, id);
 		if (kind === 'luminance-range') return luminanceRange(candidate, name, id);
+		if (kind === 'color-range') return colorRange(candidate, name, id);
 		if (kind === 'vector-path') {
 			const result = vectorPath(candidate, name, id, pathIds);
 			pointCount += result.pointCount;
@@ -327,6 +339,15 @@ function luminanceRange(value: unknown, name: string, id: string): VideoLuminanc
 	return Object.freeze({ id, kind: 'luminance-range', lower, upper, falloff });
 }
 
+function colorRange(value: unknown, name: string, id: string): VideoColorRangeMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, COLOR_FIELDS);
+	const target = readClosedDomainRecord(field(record, 'color', name), `${name}.color`, COLOR_CHANNEL_FIELDS);
+	const color = Object.freeze({ r: boundedFinite(field(target, 'r', name), 0, 1, `${name}.color.r`),
+		g: boundedFinite(field(target, 'g', name), 0, 1, `${name}.color.g`), b: boundedFinite(field(target, 'b', name), 0, 1, `${name}.color.b`) });
+	return Object.freeze({ id, kind: 'color-range', color, radius: boundedFinite(field(record, 'radius', name), 0, 1, `${name}.radius`),
+		falloff: boundedFinite(field(record, 'falloff', name), 0, 1, `${name}.falloff`) });
+}
+
 /** A scoped evaluator caches only reachable coverage and one feather scratch span. */
 export function videoMaskMatteWorkingBytesV1(graph: Readonly<VideoMaskMatteGraphV1>, width: number, height: number): number {
 	const nodes = new Map(graph.nodes.map(node => [node.id, node]));
@@ -335,7 +356,7 @@ export function videoMaskMatteWorkingBytesV1(graph: Readonly<VideoMaskMatteGraph
 	const visit = (id: string): void => {
 		if (reached.has(id)) return; reached.add(id);
 		const node = nodes.get(id)!;
-		currentFrame ||= node.kind === 'luminance-range';
+		currentFrame ||= node.kind === 'luminance-range' || node.kind === 'color-range';
 		if (node.kind === 'feather') { feather ||= node.radius > 0; visit(node.inputNodeId); }
 		else if (node.kind === 'invert') visit(node.inputNodeId);
 		else if (node.kind === 'boolean') for (const input of node.inputNodeIds) visit(input);

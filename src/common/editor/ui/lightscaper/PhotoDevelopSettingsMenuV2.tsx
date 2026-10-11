@@ -16,7 +16,7 @@ export interface PhotoDevelopSettingsMenuPropsV2 {
 	readonly source: PhotoDevelopSettingsSourceV2; readonly selectedIds: readonly string[]; readonly disabled: boolean; readonly dirty: boolean;
 	readonly isCurrent: () => boolean; readonly onChanged: () => Promise<unknown>;
 	readonly resolution?: Readonly<{ value: PhotoDevelopResolutionV1; fullAvailable: boolean; onChange: (value: PhotoDevelopResolutionV1) => void }>;
-	readonly localAdjustments?: Readonly<{ onOpen: (kind: 'linear-gradient' | 'radial-gradient' | 'luminance-range') => void }>;
+	readonly localAdjustments?: Readonly<{ onOpen: (kind: 'linear-gradient' | 'radial-gradient' | 'luminance-range' | 'color-range') => void }>;
 }
 type Mode = 'copy' | 'sync' | 'auto' | 'quick' | 'presets';
 
@@ -52,7 +52,7 @@ export default function PhotoDevelopSettingsMenuV2(props: PhotoDevelopSettingsMe
 				<button type="button" disabled={busy || !props.resolution.fullAvailable} aria-pressed={props.resolution.value === 'full'}
 					onClick={() => { if (current() && !busy && props.resolution?.fullAvailable) props.resolution.onChange('full'); }}>{previewMessages.fullResolution}</button>
 			</>}
-			{props.localAdjustments && (['linear-gradient', 'radial-gradient', 'luminance-range'] as const).map(kind => <button key={kind} type="button" disabled={busy} onClick={() => {
+			{props.localAdjustments && (['linear-gradient', 'radial-gradient', 'luminance-range', 'color-range'] as const).map(kind => <button key={kind} type="button" disabled={busy} onClick={() => {
 				if (current() && !busy && !active.current) props.localAdjustments?.onOpen(kind);
 			}}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}
 			<button type="button" disabled={busy} onClick={() => { open('copy'); }}>{messages.copy}</button>
