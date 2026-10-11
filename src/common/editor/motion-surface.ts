@@ -106,11 +106,15 @@ export function transformMotionSurface(source: MotionSurface, width: number, hei
 		const sx = (d * (x + 0.5 - tx) - c * (y + 0.5 - ty)) / determinant - 0.5;
 		const sy = (-b * (x + 0.5 - tx) + a * (y + 0.5 - ty)) / determinant - 0.5;
 		const ix = Math.floor(sx); const iy = Math.floor(sy); const fx = sx - ix; const fy = sy - iy;
+		let red = 0; let green = 0; let blue = 0; let alpha = 0;
 		for (let dy = 0; dy <= 1; dy++) for (let dx = 0; dx <= 1; dx++) {
 			if (ix + dx < 0 || ix + dx >= source.width || iy + dy < 0 || iy + dy >= source.height) continue;
 			const weight = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy);
-			for (let channel = 0; channel < 4; channel++) output.pixels[(y * width + x) * 4 + channel]! += source.pixels[((iy + dy) * source.width + ix + dx) * 4 + channel]! * weight;
+			const i = ((iy + dy) * source.width + ix + dx) * 4;
+			red += source.pixels[i]! * weight; green += source.pixels[i + 1]! * weight; blue += source.pixels[i + 2]! * weight; alpha += source.pixels[i + 3]! * weight;
 		}
+		const i = (y * width + x) * 4;
+		output.pixels[i] = red; output.pixels[i + 1] = green; output.pixels[i + 2] = blue; output.pixels[i + 3] = Math.min(1, alpha);
 	}
 	return output;
 }
