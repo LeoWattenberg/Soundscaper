@@ -1,22 +1,30 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createHash } from 'node:crypto';
-import { open } from 'node:fs/promises';
+import { constants, type BigIntStats } from 'node:fs';
+import { lstat, open } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { decodeMotionPngPixels } from '../../tests/browser/helpers/motion-png-pixels.ts';
 import { MOTION_SUSTAINED_PLAN } from './motionscaper-sustained-plan.ts';
 
+function sameFile(left: BigIntStats, right: BigIntStats): boolean {
+	return left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino
+		&& left.size === right.size && left.ctimeNs === right.ctimeNs && left.mtimeNs === right.mtimeNs;
+}
 interface Selection { readonly frames: 300 | 1200; readonly revisionDigest: string; readonly projectId: string; readonly compositionId: string }
 export async function verifyMotionSustainedPng(path: string, selection: Selection) {
 	const plan = MOTION_SUSTAINED_PLAN;
 	if (!plan.runs.includes(selection.frames) || !/^[a-f\d]{64}$/u.test(selection.revisionDigest)
 		|| !selection.projectId || !selection.compositionId) throw new Error('Invalid sustained PNG selection.');
-	const file = await open(path, 'r'); const hash = createHash('sha256'); let offset = 0, maximumReadBytes = 0;
+	const pathBefore = await lstat(path, { bigint: true });
+	if (!pathBefore.isFile() || pathBefore.size < 1024n || pathBefore.size > BigInt(plan.maximumOutputBytes)) throw new Error('Sustained TAR requires a bounded regular file.');
+	const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW); const hash = createHash('sha256'); let offset = 0, maximumReadBytes = 0;
 	const selected: { index: number; name: string; byteLength: number; sha256: string; png: Uint8Array }[] = [];
 	try {
-		const before = await file.stat();
-		if (!before.isFile() || before.size < 1024 || before.size > plan.maximumOutputBytes) throw new Error('Sustained TAR byte admission failed.');
+		const before = await file.stat({ bigint: true });
+		if (!sameFile(pathBefore, before)) throw new Error('Sustained TAR changed before verification.');
+		const size = Number(before.size);
 		async function read(length: number): Promise<Buffer> {
-			if (offset + length > before.size) throw new Error('Truncated sustained TAR.');
+			if (offset + length > size) throw new Error('Truncated sustained TAR.');
 			const bytes = Buffer.alloc(length); let position = 0;
 			while (position < length) {
 				const count = Math.min(length - position, plan.maximumReadBytes); maximumReadBytes = Math.max(maximumReadBytes, count);
@@ -55,9 +63,9 @@ export async function verifyMotionSustainedPng(path: string, selection: Selectio
 			width: plan.width, height: plan.height, frameRate: { num: plan.fps, den: 1 }, firstFrame: 0, frameCount: selection.frames,
 			colorSpace: 'srgb', alphaMode: 'straight', pattern: 'frames/frame%012d.png' };
 		if (!isDeepStrictEqual(metadata, expected)) throw new Error('Sustained sequence metadata or identity differs.');
-		if ((await read(1024)).some(byte => byte !== 0) || offset !== before.size) throw new Error('Sustained TAR completion or trailing bytes differ.');
-		const after = await file.stat();
-		if (before.size !== after.size || before.ino !== after.ino || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs) throw new Error('Sustained TAR changed during verification.');
+		if ((await read(1024)).some(byte => byte !== 0) || offset !== size) throw new Error('Sustained TAR completion or trailing bytes differ.');
+		const [after, pathAfter] = await Promise.all([file.stat({ bigint: true }), lstat(path, { bigint: true })]);
+		if (!sameFile(before, after) || !sameFile(before, pathAfter)) throw new Error('Sustained TAR changed during verification.');
 		return { byteLength: offset, sha256: hash.digest('hex'), frames: selection.frames, metadata: expected, selected,
 			maximumReadBytes, retainedPngBytes: selected.reduce((sum, frame) => sum + frame.byteLength, 0) };
 	} finally { await file.close(); }

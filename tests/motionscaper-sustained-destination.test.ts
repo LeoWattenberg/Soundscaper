@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, open, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, open, readFile, rename, rm, symlink, type FileHandle } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
 import { crc32, deflateSync } from 'node:zlib';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import type { Page } from '@playwright/test';
 import { motionSustainedOpfsSource, readMotionSustainedDestination } from '../scripts/performance/motionscaper-sustained-opfs.ts';
 import { verifyMotionSustainedPng } from '../scripts/performance/motionscaper-sustained-png.ts';
@@ -49,6 +49,25 @@ test('Motion sustained TAR verification streams all exact frames and retains onl
 			assert.equal(result.sha256, createHash('sha256').update(await readFile(path)).digest('hex'));
 			assert.ok(result.maximumReadBytes <= 65536); assert.ok(result.retainedPngBytes <= 3 * 151936); await rm(path);
 		}
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('Motion sustained TAR refuses symlinks and a replaced parent pathname while the original file stays open', async t => {
+	const root = await mkdtemp(join(tmpdir(), 'motion-sustained-custody-'));
+	const current = join(root, 'current'), next = join(root, 'next'), path = join(current, 'sequence.tar');
+	try {
+		await mkdir(current); await mkdir(next); await archive(path); await archive(join(next, 'sequence.tar'));
+		const link = join(root, 'link.tar'); await symlink(path, link);
+		await t.test('direct symlink', async () => { await assert.rejects(verifyMotionSustainedPng(link, selection), /regular|symlink|ELOOP/u); });
+		const probe = await open(path, 'r');
+		const prototype = Object.getPrototypeOf(probe) as { read: (buffer: Uint8Array, offset: number, length: number, position: number) => Promise<{ bytesRead: number; buffer: Uint8Array }> };
+		const original = prototype.read; await probe.close(); let replaced = false;
+		const reader = mock.method(prototype, 'read', async function (this: FileHandle, buffer: Uint8Array, offset: number, length: number, position: number) {
+			if (!replaced) { replaced = true; await rename(current, join(root, 'original')); await rename(next, current); }
+			return original.call(this, buffer, offset, length, position);
+		});
+		try { await t.test('parent pathname replacement', async () => { await assert.rejects(verifyMotionSustainedPng(path, selection), /changed/u); assert.equal(replaced, true); }); }
+		finally { reader.mock.restore(); }
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
