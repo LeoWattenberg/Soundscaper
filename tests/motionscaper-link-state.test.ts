@@ -6,10 +6,10 @@ import { createMotionscaperRevision } from '../src/common/editor/motion-project-
 import { createMotionCompositionOffer } from '../src/common/editor/motion-link-protocol.ts';
 import { createMotionCompositionLinkState, normalizeMotionCompositionLinkState, receiveMotionCompositionUpdate, conformMotionCompositionLink, resumeMotionCompositionLink, restoreMotionCompositionLink } from '../src/common/editor/motion-link-state.ts';
 
-function offer(revision: number, changes: Partial<{ width: number; height: number; durationFrames: number; title: string; projectId: string; compositionId: string; frameRate: { num: number; den: number }; outputSpace: 'srgb' | 'rec709' }> = {}) {
+function offer(revision: number, changes: Partial<{ width: number; height: number; durationFrames: number; sampleRate: number; title: string; projectId: string; compositionId: string; frameRate: { num: number; den: number }; outputSpace: 'srgb' | 'rec709' }> = {}) {
 	const project = createMotionscaperProject({ id: changes.projectId ?? 'motion', title: changes.title ?? `Revision ${revision}`, compositionId: changes.compositionId ?? 'main' });
 	const composition = project.compositions[0]!;
-	return createMotionCompositionOffer(composition.id, createMotionscaperRevision({ ...project, revision, compositions: [{ ...composition,
+	return createMotionCompositionOffer(composition.id, createMotionscaperRevision({ ...project, sampleRate: changes.sampleRate ?? project.sampleRate, revision, compositions: [{ ...composition,
 		width: changes.width ?? composition.width, height: changes.height ?? composition.height, durationFrames: changes.durationFrames ?? composition.durationFrames,
 		frameRate: changes.frameRate ?? composition.frameRate, color: { ...composition.color, outputSpace: changes.outputSpace ?? composition.color.outputSpace } }] }));
 }
@@ -23,7 +23,7 @@ test('M10 compatible saved revisions replace the accepted immutable snapshot onc
 });
 
 test('M10 every incompatible output dimension remains pending until explicit conform', () => {
-	for (const changes of [{ width: 1280 }, { height: 720 }, { durationFrames: 42 }, { frameRate: { num: 24, den: 1 } }, { outputSpace: 'rec709' as const }]) {
+	for (const changes of [{ width: 1280 }, { height: 720 }, { durationFrames: 42 }, { sampleRate: 44100 }, { frameRate: { num: 24, den: 1 } }, { outputSpace: 'rec709' as const }]) {
 		const state = createMotionCompositionLinkState(offer(1)); const update = offer(2, changes);
 		const pending = receiveMotionCompositionUpdate(state, update); assert.equal(pending.accepted.revision.revision, 1); assert.equal(pending.pending?.revision.digest, update.revision.digest);
 		assert.equal(resumeMotionCompositionLink(pending).accepted.revision.revision, 1);

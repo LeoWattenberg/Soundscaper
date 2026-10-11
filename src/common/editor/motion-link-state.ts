@@ -24,7 +24,7 @@ function newest(state: MotionCompositionLinkState): MotionCompositionOffer {
 	return state.pending && state.pending.revision.revision > state.accepted.revision.revision ? state.pending : state.accepted;
 }
 function compatible(first: MotionCompositionOffer, second: MotionCompositionOffer): boolean {
-	return JSON.stringify(first.output) === JSON.stringify(second.output);
+	return JSON.stringify(first.output) === JSON.stringify(second.output) && first.revision.project.sampleRate === second.revision.project.sampleRate;
 }
 
 /** Call only once the receiver durably owns this verified revision and its complete asset closure. */
