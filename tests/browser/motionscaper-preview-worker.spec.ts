@@ -13,7 +13,8 @@ import type { MotionPreviewBackend } from '../../src/common/editor/controller/co
 import type { MotionscaperProject } from '../../src/common/editor/motion-project-types.ts';
 
 type Fixture = Readonly<{ createClient(options: MotionPreviewOptions): Promise<MotionPreviewClient>; createSession(options: MotionPreviewSessionOptions): MotionPreviewBackend;
-	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject; loadAsset(): Promise<Uint8Array> }>;
+	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject;
+	audioFixture(): Promise<{ project: MotionscaperProject; bytes: Uint8Array }>; loadAsset(): Promise<Uint8Array> }>;
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const fixtureSource = () => `
@@ -23,6 +24,8 @@ import { createMotionscaperProject, createMotionLayer } from ${JSON.stringify(jo
 import { motionColor, motionScalar, motionVector } from ${JSON.stringify(join(repository, 'src/common/editor/motion-property.ts'))};
 import { createMotionShapeOperator, createMotionTextAnimator } from ${JSON.stringify(join(repository, 'src/common/editor/motion-authoring-operators.ts'))};
 import { motionRectanglePath } from ${JSON.stringify(join(repository, 'src/common/editor/motion-shape-primitives.ts'))};
+import { motionWavFixture } from ${JSON.stringify(join(repository, 'tests/helpers/motion-media-fixture.ts'))};
+import { prepareMotionMedia } from ${JSON.stringify(join(repository, 'src/common/editor/motion-media-import.ts'))};
 import manifest from ${JSON.stringify(join(repository, 'config/motionscaper-raster-runtime.json'))};
 import fontUrl from ${JSON.stringify(join(repository, 'node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2?url'))};
 const pin = manifest.assets.find(asset => asset.id === 'inter-latin');
@@ -39,7 +42,12 @@ const shapeProject = { ...base, compositions: [{ ...base.compositions[0], layers
 const card = createMotionLayer({ id: 'card', name: 'Pinned card', durationFrames: 300, content: { kind: 'solid', color: motionColor([0, 0.5, 0, 0.5]), size: motionVector([8, 8]) } });
 const corners = [[-4, 0], [8, 0], [12, 12], [0, 12]];
 const pinProject = { ...base, compositions: [{ ...base.compositions[0], layers: [{ ...card, transform: { ...card.transform, position: motionVector([8, 4, 0]) }, effects: [{ id: 'pin', type: 'corner-pin', enabled: true, parameters: ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((id, index) => ({ id, value: motionVector(corners[index]) })) }] }] }] };
-globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
+const audioFixture = async () => {
+ const bytes = motionWavFixture(2); const { asset } = await prepareMotionMedia(new Blob([bytes]), { id: 'sound', name: 'Sound.wav' });
+ const audioSolid = { ...solid, transform: { ...solid.transform, opacity: { ...motionScalar(1), expression: { source: 'audioAmplitude("sound", time, 0.02)', enabled: true, references: [] } } } };
+ return { bytes, project: { ...base, assets: [asset], compositions: [{ ...base.compositions[0], layers: [audioSolid] }] } };
+};
+globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, audioFixture, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
 `;
 
 test.beforeAll(async () => {
@@ -159,4 +167,27 @@ test('M05 actual WebGL context loss retries the same frame through CanvasKit CPU
 		return { first: first.backend, retried: retried.backend, same: first.rgba.every((value, index) => Math.abs(value - retried.rgba[index]!) <= 1) };
 	});
 	expect(result).toEqual({ first: 'worker-webgl2', retried: 'worker-cpu', same: true });
+});
+
+
+test('M08 native PCM-driven pixels match worker WebGL and host CPU after arbitrary and offline seeks', async ({ page, context }) => {
+	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
+	const initial = await page.evaluate(async () => {
+		const scope = globalThis as unknown as { motionFixture: Fixture; audioPreview: MotionPreviewClient; audioFrame: MotionPreviewFrame; audioBytes: Uint8Array };
+		const authored = await scope.motionFixture.audioFixture(); scope.audioBytes = authored.bytes;
+		let host: MotionPreviewFrame | undefined;
+		const fallback = await scope.motionFixture.createClient({ backendFactory: () => Promise.resolve(scope.motionFixture.createSession({ backend: 'host-cpu', maximumAssetBytes: 1024 * 1024, maximumWorkingBytes: 8 * 1024 * 1024 })), onFrame(frame) { host = frame; }, onState() {} });
+		await fallback.setProject(authored.project, () => Promise.resolve(authored.bytes)); await fallback.seek({ compositionId: 'main', time: { num: 1, den: 25 } }); fallback.dispose();
+		scope.audioPreview = await scope.motionFixture.createClient({ onFrame(frame) { scope.audioFrame = frame; }, onState() {} });
+		await scope.audioPreview.setProject(authored.project, () => Promise.resolve(authored.bytes)); await scope.audioPreview.seek({ compositionId: 'main', time: { num: 1, den: 25 } });
+		return { worker: scope.audioFrame.backend, same: scope.audioFrame.rgba.every((value, index) => value === host!.rgba[index]), alpha: scope.audioFrame.rgba[3], bytes: authored.bytes.length };
+	});
+	expect(initial.worker).toBe('worker-webgl2'); expect(initial.same).toBe(true); expect(initial.alpha).toBeGreaterThan(1); expect(initial.alpha).toBeLessThan(127);
+	await context.setOffline(true);
+	const next = await page.evaluate(async () => {
+		const scope = globalThis as unknown as { audioPreview: MotionPreviewClient; audioFrame: MotionPreviewFrame; audioBytes: Uint8Array };
+		for (const num of [1, 0, 2, 1]) await scope.audioPreview.seek({ compositionId: 'main', time: { num, den: 25 } });
+		const result = { alpha: scope.audioFrame.rgba[3], bytes: scope.audioBytes.length }; scope.audioPreview.dispose(); return result;
+	});
+	expect(next).toEqual({ alpha: initial.alpha, bytes: initial.bytes });
 });

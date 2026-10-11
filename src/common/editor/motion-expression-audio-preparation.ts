@@ -5,6 +5,8 @@ import { createPreparedMotionExpressionAudio, MotionExpressionAudioNeeded } from
 import { analyzeMotionAmplitudeWindow } from './motion-expression-audio-window.ts';
 import { createMotionExpressionBudget } from './motion-expression-evaluator.ts';
 import type { MotionExpressionQueryOptions } from './motion-expression-runtime.ts';
+import { motionLayerProperties } from './motion-project-graph.ts';
+import type { MotionscaperProject } from './motion-project-types.ts';
 import { motionInteger } from './motion-values.ts';
 
 export interface MotionExpressionAudioPreparation {
@@ -55,4 +57,9 @@ export function createMotionExpressionAudioPreparation(options: Readonly<{
 	}, snapshot: () => ({ cacheEntries: cache.size, cacheBytes, inFlight, disposed }),
 	dispose() { if (!disposed) { disposed = true; disposal.abort(); cache.clear(); formats.clear(); cacheBytes = 0; } },
 	});
+}
+
+/** Conservative lazy-resource hint; the parser and evaluator still decide which calls execute. */
+export function motionProjectUsesAudioAmplitude(project: MotionscaperProject): boolean {
+	return project.compositions.some((composition) => [...composition.layers, ...composition.audio].some((owner) => motionLayerProperties(owner).some(({ property }) => property.expression?.enabled && property.expression.source.includes('audioAmplitude'))));
 }

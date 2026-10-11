@@ -4,7 +4,9 @@ import { createMotionSceneEvaluator, type MotionSceneEvaluator } from '../../mot
 import { renderMotionCompositionFrame, motionCpuCompositor } from '../../motion-composition-renderer.ts';
 import { createCanvasKitMotionRasterizer } from '../../motion-canvaskit-rasterizer.ts';
 import type { MotionRasterRuntime } from '../../motion-canvaskit-browser.ts';
-import { normalizeMotionscaperProject } from '../../motion-project-validation.ts';
+import { createMotionscaperRevision } from '../../motion-project-revision.ts';
+import { createMotionMediaProvider, type MotionMediaProvider } from '../../motion-media-provider.ts';
+import { createMotionExpressionAudioPreparation, motionProjectUsesAudioAmplitude, type MotionExpressionAudioPreparation } from '../../motion-expression-audio-preparation.ts';
 import type { MotionscaperProject } from '../../motion-project-types.ts';
 import { verifyMotionAssetBody, type MotionAsset } from '../../motion-asset.ts';
 import { motionSurfaceToRgba8 } from '../../motion-surface.ts';
@@ -25,13 +27,19 @@ export function createMotionPreviewRenderSession(options: MotionPreviewSessionOp
 	if (!Number.isSafeInteger(options.maximumAssetBytes) || options.maximumAssetBytes < 1 || options.maximumAssetBytes > 256 * 1024 * 1024) throw new RangeError('Motion preview asset budget must be between one byte and 256 MiB.');
 	let project: MotionscaperProject | null = null; let evaluator: MotionSceneEvaluator | null = null;
 	let loadAsset: MotionPreviewAssetLoader | null = null; let decodeFootage: MotionPreviewFootageDecoder | undefined;
+	let media: MotionMediaProvider | null = null; let expressionAudio: MotionExpressionAudioPreparation | null = null;
 	let gpu: MotionWebGlCompositor | null = null; let name: MotionPreviewBackendName = options.backend;
 	let disposed = false; const disposal = new AbortController(); const cache = new Map<string, Uint8Array>(); let cacheBytes = 0;
 	return {
 		setProject(value, provider, signal, decoder) {
-			assertActive(signal); const normalized = normalizeMotionscaperProject(value);
-			requireMotionTrackingReady(normalized);
-			project = normalized; evaluator = createMotionSceneEvaluator(normalized); loadAsset = provider; decodeFootage = decoder;
+			assertActive(signal); const revision = createMotionscaperRevision(value);
+			requireMotionTrackingReady(revision.project);
+			expressionAudio?.dispose(); expressionAudio = null; media?.dispose(); media = null;
+			project = revision.project; evaluator = createMotionSceneEvaluator(revision.project, { revisionDigest: revision.digest }); loadAsset = provider; decodeFootage = decoder;
+			if (motionProjectUsesAudioAmplitude(revision.project)) {
+				media = createMotionMediaProvider({ loadAsset: bytesFor });
+				expressionAudio = createMotionExpressionAudioPreparation({ project: revision.project, provider: media });
+			}
 			cache.clear(); cacheBytes = 0; gpu?.dispose(); gpu = null; name = options.backend;
 			if (options.createCanvas) {
 				try { gpu = createMotionWebGlCompositor(options.createCanvas()).compositor; } catch { gpu = null; }
@@ -42,7 +50,8 @@ export function createMotionPreviewRenderSession(options: MotionPreviewSessionOp
 		async render(request, externalSignal) {
 			const signal = AbortSignal.any([externalSignal, disposal.signal]); assertActive(signal);
 			if (!project || !evaluator) throw new Error('Load a motion project before rendering preview.');
-			const retained = project; const frame = evaluator.evaluate(request);
+			const retained = project; const compiled = evaluator;
+			const frame = expressionAudio ? await expressionAudio.evaluate((query) => compiled.evaluate(request, query), signal) : compiled.evaluate(request, { signal });
 			const runtime = await (options.loadRuntime ? options.loadRuntime() : loadMotionRasterRuntime(signal)); assertActive(signal);
 			const rasterizer = createCanvasKitMotionRasterizer(runtime.kit, { assets: retained.assets, fallbackFonts: runtime.fallbackFonts, loadAsset: bytesFor,
 				...(decodeFootage ? { decodeFootage } : {}) });
@@ -57,7 +66,7 @@ export function createMotionPreviewRenderSession(options: MotionPreviewSessionOp
 			return { width: frame.width, height: frame.height, rgba: motionSurfaceToRgba8(rendered, 'srgb'),
 				time: frame.time, compositionId: frame.compositionId, revision: retained.revision, generation: request.generation, backend: name };
 		},
-		dispose() { if (!disposed) { disposed = true; disposal.abort(); gpu?.dispose(); gpu = null; cache.clear(); cacheBytes = 0; project = null; evaluator = null; loadAsset = null; decodeFootage = undefined; } },
+		dispose() { if (!disposed) { disposed = true; disposal.abort(); expressionAudio?.dispose(); expressionAudio = null; media?.dispose(); media = null; gpu?.dispose(); gpu = null; cache.clear(); cacheBytes = 0; project = null; evaluator = null; loadAsset = null; decodeFootage = undefined; } },
 	};
 
 	function assertActive(signal: AbortSignal): void { signal.throwIfAborted(); if (disposed) throw new Error('Motion preview renderer is disposed.'); }

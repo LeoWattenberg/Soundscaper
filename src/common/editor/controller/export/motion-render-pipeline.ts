@@ -7,6 +7,7 @@ import { freezeMotionValue, motionDigest, motionId, motionInteger, motionRationa
 import { aggregateScapeErrors, throwIfScapeAborted } from '../../scape-abort.ts';
 import { compareRationals, divideRationals, type Rational } from '../../timeline-time.ts';
 import type { MotionAudioMixBlock, MotionAudioMixer } from '../../motion-audio-contract.ts';
+import type { MotionExpressionAudioPreparation } from '../../motion-expression-audio-preparation.ts';
 import { createMotionRenderAudio } from './internal/motion-render-audio.ts';
 
 export interface MotionRenderIdentity {
@@ -23,6 +24,7 @@ export interface MotionRenderLease {
 	readonly evaluator: MotionSceneEvaluator; readonly rasterizer: MotionRasterizer; readonly compositor?: MotionCompositor;
 	readonly maximumWorkingBytes?: number;
 	readonly audioMixer?: MotionAudioMixer;
+	readonly expressionAudio?: MotionExpressionAudioPreparation;
 	release(): Promise<void>;
 }
 export interface MotionRenderAudioSink {
@@ -72,11 +74,14 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 		lease = await request.acquire(request.signal);
 		throwIfScapeAborted(request.signal);
 		const audio = createMotionRenderAudio(plan, lease, request.sink);
+		if (lease.expressionAudio && lease.expressionAudio.revision.digest !== plan.identity.revisionDigest) throw new Error('Prepared expression audio belongs to a stale render revision.');
 		const duration = Object.freeze(divideRationals({ num: 1, den: 1 }, plan.frameRate));
 		for (let index = 0; index < plan.frameCount; index += 1) {
 			throwIfScapeAborted(request.signal);
 			const time = Object.freeze(divideRationals({ num: plan.firstFrame + index, den: 1 }, plan.frameRate));
-			const frame = lease.evaluator.evaluate({ compositionId: plan.identity.compositionId, time });
+			const evaluator = lease.evaluator; const query = { compositionId: plan.identity.compositionId, time };
+			const frame = lease.expressionAudio ? await lease.expressionAudio.evaluate((options) => evaluator.evaluate(query, options), request.signal)
+				: evaluator.evaluate(query, request.signal ? { signal: request.signal } : {});
 			if (frame.compositionId !== plan.identity.compositionId || compareRationals(frame.time, time) !== 0) throw new Error('Motion evaluator returned a different composition/time identity.');
 			if (frame.width !== plan.width || frame.height !== plan.height) throw new Error('Motion evaluator dimensions changed during rendering.');
 			if (!audio && request.sink.audioPolicy !== 'exclude' && motionFrameHasAudio(frame)) throw new Error('This video renderer cannot deliver composition audio. Choose an image sequence or an audio-capable video encoder.');

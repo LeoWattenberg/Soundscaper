@@ -8,6 +8,7 @@ import type { MotionscaperProject } from './editor-project-types.ts';
 import { loadMotionscaperAssetBytes, type MotionAssetReader } from './editor-render-resources.ts';
 import { motionCompositionHasAudio } from '../common/editor/motion-composition-audio.ts';
 import { createMotionMediaProvider } from '../common/editor/motion-media-provider.ts';
+import { createMotionExpressionAudioPreparation, motionProjectUsesAudioAmplitude } from '../common/editor/motion-expression-audio-preparation.ts';
 import { createMotionAudioMixer } from '../common/editor/motion-audio-mixer.ts';
 import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
 import type { MotionDesktopDeliveryReceipt } from './desktop-delivery-contract.ts';
@@ -63,11 +64,12 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 				}
 				const loadAsset = (asset: Parameters<typeof loadMotionscaperAssetBytes>[0], readSignal?: AbortSignal) => loadMotionscaperAssetBytes(asset, options.store, readSignal);
 				const provider = createMotionMediaProvider({ loadAsset });
+				const expressionAudio = motionProjectUsesAudioAmplitude(revision.project) ? createMotionExpressionAudioPreparation({ project: revision.project, provider }) : undefined;
 				const audioMixer = hasAudio ? createMotionAudioMixer({ project: revision.project, provider }) : undefined;
 				try {
 					const rasterizer = await createMotionBrowserRasterizer({ assets: revision.project.assets, loadAsset, decodeFootage: provider.decodeFootage }, signal);
-					return { rasterizer, audioMixer, release: () => { audioMixer?.dispose(); provider.dispose(); return Promise.resolve(); } };
-				} catch (error) { audioMixer?.dispose(); provider.dispose(); throw error; }
+					return { rasterizer, audioMixer, expressionAudio, release: () => { expressionAudio?.dispose(); audioMixer?.dispose(); provider.dispose(); return Promise.resolve(); } };
+				} catch (error) { expressionAudio?.dispose(); audioMixer?.dispose(); provider.dispose(); throw error; }
 			},
 		});
 		return (await queue.enqueue(request).completion).output;
