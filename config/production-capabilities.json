@@ -754,7 +754,9 @@
 				"candidateVersion": "0.1.0-alpha.1",
 				"stableTarget": null
 			},
-			"applicationFeatures": {},
+			"applicationFeatures": {
+				"motionscaperMotionWorkspace": true
+			},
 			"platforms": {
 				"web-core": {
 					"status": "partial",

@@ -61,6 +61,7 @@ const CAPABILITY_LABELS = Object.freeze({
 const APPLICATION_FEATURE_LABELS = Object.freeze({
 	framescaperCapture: 'Screen and camera capture',
 	framescaperWebVcr: 'Web VCR capture',
+	motionscaperMotionWorkspace: 'Motion graphics workspace',
 });
 
 // The `scape` family ID is one machine-level identity shared by every product;

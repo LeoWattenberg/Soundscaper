@@ -22,6 +22,7 @@ test('Motionscaper owns independent project commands without inheriting media au
 	assert.deepEqual(profile.exportChoices, ['scape']);
 	assert.ok(profile.enabledCommands.includes('project'));
 	assert.ok(Object.values(profile.capabilities).every((enabled) => enabled === false));
+	assert.deepEqual(profile.applicationFeatures, { motionscaperMotionWorkspace: true });
 	assert.ok(Object.isFrozen(profile));
 });
 

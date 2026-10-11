@@ -145,7 +145,7 @@ export const MOTIONSCAPER_PROFILE = {
 	importChoices: ['scape'],
 	exportChoices: ['scape'],
 	shortcuts: { disabledCommandIds: [] },
-	applicationFeatures: {},
+	applicationFeatures: { motionscaperMotionWorkspace: true },
 	capabilities: Object.fromEntries(Object.keys(FRAMESCAPER_PROFILE.capabilities).map((id) => [id, false])),
 	desktop: {
 		appId: 'org.motionscaper.desktop',

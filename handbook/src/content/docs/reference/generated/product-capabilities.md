@@ -88,5 +88,6 @@ Focused Chromium workflows cover editing, history, portable save/reopen, offline
 
 | Capability | Soundscaper | Framescaper | Motionscaper |
 | --- | --- | --- | --- |
+| Motion graphics workspace | Not enabled | Not enabled | Enabled |
 | Screen and camera capture | Not enabled | Enabled | Not enabled |
 | Web VCR capture | Not enabled | Enabled | Not enabled |

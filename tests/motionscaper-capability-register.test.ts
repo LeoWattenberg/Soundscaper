@@ -65,6 +65,7 @@ test('generated references describe Motion workspace ownership and its own platf
 	const capabilities = renderCapabilityReference({ products, capabilities: register });
 	assert.ok(capabilities.includes(development.summary)); assert.ok(capabilities.includes(development.qualificationSummary));
 	assert.match(capabilities, /Motionscaper development workspace/u); assert.match(capabilities, /Shared editor capabilities/u);
+	assert.match(capabilities, /Motion graphics workspace \| Not enabled \| Not enabled \| Enabled/u);
 	const platforms = renderPlatformReference({ capabilities: register, packageTargets: { win: ['nsis', 'zip'], mac: ['dmg', 'zip'], linux: ['AppImage', 'deb'] } });
 	assert.ok(platforms.includes(development.qualificationSummary));
 	assert.match(platforms, /Motionscaper development qualification/u);
