@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { MOTION_PRORES_DELIVERY_PROFILE } from '../src/motionscaper/desktop-delivery-contract.ts';
 import { assertMotionscaperPackagedSmoke, runMotionscaperSmokeProcess } from '../desktop/motionscaper-packaged-smoke.ts';
 
 const expected = { platform: process.platform, arch: process.arch, version: '0.1.0-alpha.1' };
 const evidence = {
 	arch: process.arch, origin: 'motionscaper-app://bundle', foreignBridge: false, fileBridge: true,
-	fileRejection: 'Unknown Motionscaper read capability.',
+	fileRejection: 'Unknown Motionscaper read capability.', deliveryRejection: 'Unknown Motionscaper delivery capability.', deliveryProfile: null, nativeSmoke: null,
 	environment: { productId: 'motionscaper', appName: 'Motionscaper', version: expected.version,
 		platform: process.platform, nativeCapabilities: ['project-files-v1'] },
 };
@@ -34,4 +35,13 @@ test('Motionscaper packaged smoke supervises exit, deadlines, output bounds and 
 	await assert.rejects(runMotionscaperSmokeProcess({ ...options, timeoutMs: 50, args: ['-e', 'setInterval(()=>{},1000)'] }), /timed out/iu);
 	await assert.rejects(runMotionscaperSmokeProcess({ ...options, args: ['-e', 'console.log("x".repeat(1048577))'] }), /output bound/iu);
 	await assert.rejects(runMotionscaperSmokeProcess({ ...options, command: '/absent/motionscaper', args: [] }), /ENOENT/u);
+});
+
+test('Motionscaper packaged native smoke requires an actual published MOV and exact precision', () => {
+	const native = { ...evidence, deliveryProfile: MOTION_PRORES_DELIVERY_PROFILE,
+		nativeSmoke: { status: 'passed', frameCount: 2, sha256: 'a'.repeat(64), profile: MOTION_PRORES_DELIVERY_PROFILE },
+		environment: { ...evidence.environment, nativeCapabilities: ['project-files-v1', 'prores-4444-v1'] } };
+	assert.deepEqual(assertMotionscaperPackagedSmoke(marker(native), { ...expected, nativeProres: true }), native);
+	assert.throws(() => assertMotionscaperPackagedSmoke(marker(native), expected), /evidence/u);
+	assert.throws(() => assertMotionscaperPackagedSmoke(marker({ ...native, nativeSmoke: { ...native.nativeSmoke, frameCount: 0 } }), { ...expected, nativeProres: true }), /evidence/u);
 });

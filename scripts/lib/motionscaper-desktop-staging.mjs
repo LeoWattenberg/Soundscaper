@@ -6,9 +6,10 @@ import { build } from 'esbuild';
 import { generateDesktopIcon } from '../desktop-icons.mjs';
 import { resolveNativeAddonPayloadTarget } from './native-addon-payload-manifest.mjs';
 import { DESKTOP_CODEC_POLICY } from './desktop-codec-policy.mjs';
+import { stageMotionscaperNativePayload } from './motionscaper-native-staging.ts';
 import { createMotionscaperStageInventory, verifyMotionscaperDesktopStage } from './motionscaper-desktop-package.mjs';
 
-/** Stage the M01 shell through its own exact closure, with no native-service payloads. */
+/** Stage only this product and its independently verified optional native export payload. */
 export async function prepareMotionscaperDesktop({ repositoryRoot, buildRoot, productMetadata, sourceRevision, buildRenderer }) {
 	if (productMetadata.id !== 'motionscaper') throw new TypeError('Motionscaper staging requires its own product metadata.');
 	const target = resolveNativeAddonPayloadTarget({
@@ -40,12 +41,14 @@ export async function prepareMotionscaperDesktop({ repositoryRoot, buildRoot, pr
 		sourcePath: join(repositoryRoot, 'public/logo/motionscaper.svg'),
 		outputPath: join(buildRoot, 'icons/icon.png'),
 	});
+	const native = await stageMotionscaperNativePayload({ repositoryRoot, buildRoot, targetId: target.id,
+		buildResultRoot: process.env.MOTIONSCAPER_NATIVE_BUILD_RESULT });
 	const [platform, arch] = target.id.split('-');
 	await writeJson(join(buildRoot, 'stage-manifest.json'), {
 		schemaVersion: 1, productId: 'motionscaper', nativeServiceProfile: 'motionscaper-desktop-v1',
 		applicationVersion: productMetadata.applicationVersion,
 		applicationVersionChannel: productMetadata.applicationVersionChannel, releaseChannel: productMetadata.releaseChannel,
-		sourceRevision, target: { platform, arch }, nativeCapabilities: ['project-files-v1'], desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		sourceRevision, target: { platform, arch }, nativeCapabilities: ['project-files-v1', ...(native.helper ? ['prores-4444-v1'] : [])], desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		files: await createMotionscaperStageInventory(buildRoot),
 	});
 	await verifyMotionscaperDesktopStage(buildRoot, target.id);

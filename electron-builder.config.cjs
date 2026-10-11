@@ -106,7 +106,8 @@ module.exports = {
 		hardenedRuntime: true,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
-		signIgnore: signing.mac.notarize ? '/Contents/Resources/runtime/' : macPreAuthenticatedRuntimePayload,
+		signIgnore: signing.mac.notarize ? '/Contents/Resources/runtime/' : motionscaper
+			? '/Contents/Resources/runtime/motionscaper-media-host/motionscaper-media-host$' : macPreAuthenticatedRuntimePayload,
 		gatekeeperAssess: false,
 		category: productId === 'soundscaper' ? 'public.app-category.music' : 'public.app-category.video',
 		target: ['dmg'],

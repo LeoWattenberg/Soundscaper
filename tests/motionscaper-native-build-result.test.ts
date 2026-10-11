@@ -2,10 +2,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { stageMotionscaperNativePayload } from '../scripts/lib/motionscaper-native-staging.ts';
+import { createMotionscaperStageInventory } from '../scripts/lib/motionscaper-desktop-package.mjs';
 import { verifyMotionscaperNativeBuildResult } from '../scripts/lib/motionscaper-native-build-result.ts';
 import { MOTION_NATIVE_PRECISION, MOTION_NATIVE_SELF_TEST } from '../scripts/lib/motionscaper-native-build.ts';
 
@@ -56,4 +58,19 @@ await test('Motionscaper native artifact rechecks source, target, payload closur
 		await writeFile(join(directory, 'motionscaper-media-host'), 'tampered');
 		await assert.rejects(verifyMotionscaperNativeBuildResult({ repositoryRoot: root, resultRoot: directory, target: 'linux-x64' }), /digest/u);
 	} finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+await test('Motionscaper staging admits exactly its verified native helper and retains codec notices', async () => {
+	const { directory } = await fixture(); const staged = await mkdtemp(join(tmpdir(), 'motionscaper-native-stage-'));
+	try {
+		for (const path of ['app/desktop', 'renderer', 'runtime']) await mkdir(join(staged, path), { recursive: true });
+		for (const path of ['app/desktop/main.mjs', 'app/desktop/preload.cjs', 'app/desktop/product.json', 'app/package.json', 'renderer/index.html']) await writeFile(join(staged, path), 'fixture');
+		const manifest = await stageMotionscaperNativePayload({ repositoryRoot: root, buildRoot: staged, targetId: 'linux-x64', buildResultRoot: directory });
+		assert.equal(manifest.helper?.path, 'runtime/motionscaper-media-host/motionscaper-media-host');
+		assert.match(await readFile(join(staged, 'app/desktop/native-notices.md'), 'utf8'), /32,768/u);
+		const inventory = await createMotionscaperStageInventory(staged);
+		assert.equal(inventory.filter((entry: { path: string }) => entry.path.startsWith('runtime/')).length, 1);
+		await writeFile(join(staged, 'runtime/foreign.node'), 'foreign');
+		await assert.rejects(createMotionscaperStageInventory(staged), /undeclared/u);
+	} finally { await rm(directory, { recursive: true, force: true }); await rm(staged, { recursive: true, force: true }); }
 });

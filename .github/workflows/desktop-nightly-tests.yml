@@ -54,12 +54,17 @@ jobs:
             `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
           NODE
 
+  motionscaper-native-build:
+    needs: nightly-test-targets
+    uses: ./.github/workflows/motionscaper-media-host-native-build.yml
+
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       !cancelled()
       && needs.nightly-test-targets.result == 'success'
-    needs: nightly-test-targets
+      && needs.motionscaper-native-build.result == 'success'
+    needs: [nightly-test-targets, motionscaper-native-build]
     timeout-minutes: 150
     strategy:
       fail-fast: false
@@ -84,6 +89,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download the independently qualified Motionscaper native helper
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: motionscaper-media-host-build-result-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/motionscaper-native-build-result
 
       - name: Stage the pinned AI runtime handoff
         run: node scripts/stage-desktop-test-runtime-snapshot.mjs
@@ -127,6 +138,7 @@ jobs:
       - name: Package the product runtimes exercised by nightly-with-tests
         run: node scripts/desktop-nightly-tests-products.mjs
         env:
+          MOTIONSCAPER_NATIVE_BUILD_RESULT: ${{ runner.temp }}/motionscaper-native-build-result
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
@@ -147,13 +159,13 @@ jobs:
 
       - name: Qualify the packaged Motionscaper launch on Linux
         if: runner.os == 'Linux'
-        run: xvfb-run -a node scripts/motionscaper-desktop-smoke.mjs
+        run: xvfb-run -a node scripts/motionscaper-desktop-smoke.mjs --require-native-prores
         env:
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
 
       - name: Qualify the packaged Motionscaper launch on Windows and macOS
         if: runner.os != 'Linux'
-        run: node scripts/motionscaper-desktop-smoke.mjs
+        run: node scripts/motionscaper-desktop-smoke.mjs --require-native-prores
         env:
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
 

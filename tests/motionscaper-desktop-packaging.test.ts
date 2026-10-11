@@ -35,6 +35,8 @@ test('Motionscaper shell stage authenticates bytes and rejects undeclared native
 		for (const file of ['app/desktop/main.mjs', 'app/desktop/preload.cjs', 'app/desktop/product.json', 'app/package.json', 'renderer/index.html']) {
 			await writeFile(join(root, file), file);
 		}
+		await writeFile(join(root, 'app/desktop/native-payload.json'), JSON.stringify({ schemaVersion: 1, productId: 'motionscaper', helperContractVersion: 1, carrierVersion: 1, target: 'linux-x64', helper: null }));
+		await writeFile(join(root, 'app/desktop/native-notices.md'), '');
 		const files = await createMotionscaperStageInventory(root);
 		const stage = { schemaVersion: 1, productId: 'motionscaper', nativeServiceProfile: 'motionscaper-desktop-v1', target: { platform: 'linux', arch: 'x64' }, nativeCapabilities: ['project-files-v1'], desktopCodecPolicy: DESKTOP_CODEC_POLICY, files };
 		await writeFile(join(root, 'stage-manifest.json'), JSON.stringify(stage));

@@ -10,6 +10,9 @@ import {
 import { MOTIONSCAPER_FILE_METHODS } from '../src/motionscaper/desktop-file-contract.ts';
 import { createMotionscaperFileAuthority } from './motionscaper-file-authority.ts';
 import { dispatchMotionscaperFileCall } from './motionscaper-file-ipc.ts';
+import { createMotionscaperNativeEncoder } from './motionscaper-native-executor.ts';
+import { createMotionscaperDeliveryAuthority } from './motionscaper-delivery-authority.ts';
+import { dispatchMotionscaperDeliveryCall } from './motionscaper-delivery-ipc.ts';
 import { createMotionscaperProtocolHandler } from './motionscaper-protocol.ts';
 
 interface ProductMetadata {
@@ -29,6 +32,8 @@ protocol.registerSchemesAsPrivileged([{
 	privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, codeCache: true },
 }]);
 let window: BrowserWindow | null = null;
+let nativeSmoke: unknown = null;
+let abortNativeDelivery: () => Promise<void> = () => Promise.resolve();
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
 	app.on('second-instance', () => { window?.show(); window?.focus(); });
@@ -49,11 +54,17 @@ async function start(): Promise<void> {
 	desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => { callback(false); });
 	const rendererRoot = app.isPackaged ? join(process.resourcesPath, 'renderer')
 		: resolve(import.meta.dirname, '../../renderer');
+	const nativeMetadata: unknown = JSON.parse(await readFile(new URL('./native-payload.json', import.meta.url), 'utf8'));
+	const nativeEncoder = await createMotionscaperNativeEncoder(app.isPackaged ? process.resourcesPath : resolve(import.meta.dirname, '../..'), nativeMetadata);
+	if (nativeEncoder && process.argv.includes('--motionscaper-shell-smoke')) {
+		const { smokeMotionscaperNativeDelivery } = await import('./motionscaper-native-smoke.ts');
+		nativeSmoke = await smokeMotionscaperNativeDelivery(nativeEncoder);
+	}
 	await desktopSession.protocol.handle(identity.scheme, createMotionscaperProtocolHandler(rendererRoot));
 	ipcMain.handle(channels.environment, (event: Electron.IpcMainInvokeEvent) => {
 		if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
 			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper caller.');
-		return motionscaperDesktopEnvironment(metadata.applicationVersion, process.platform);
+		return motionscaperDesktopEnvironment(metadata.applicationVersion, process.platform, nativeEncoder !== null);
 	});
 	const files = createMotionscaperFileAuthority({
 		chooseOpen: async () => {
@@ -72,7 +83,18 @@ async function start(): Promise<void> {
 			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper file caller.');
 		return dispatchMotionscaperFileCall(files, method, request);
 	});
-	app.on('before-quit', () => { void files.dispose().catch((error: unknown) => { console.error(error); }); });
+	const delivery = createMotionscaperDeliveryAuthority({ encoder: nativeEncoder, chooseOutput: async (suggestedName) => {
+		if (!window) throw new Error('Motionscaper has no active document window.');
+		const selection = await dialog.showSaveDialog(window, { title: 'Export ProRes 4444', defaultPath: suggestedName, filters: [{ name: 'QuickTime movie', extensions: ['mov'] }] });
+		return selection.canceled ? null : selection.filePath ?? null;
+	} });
+	abortNativeDelivery = () => delivery.abortActive();
+	ipcMain.handle(channels.delivery, (event: Electron.IpcMainInvokeEvent, method: unknown, request: unknown) => {
+		if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
+			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper delivery caller.');
+		return dispatchMotionscaperDeliveryCall(delivery, method, request);
+	});
+	app.on('before-quit', () => { void Promise.all([files.dispose(), delivery.dispose()]).catch((error: unknown) => { console.error(error); }); });
 	Menu.setApplicationMenu(Menu.buildFromTemplate([
 		...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
 		{ label: 'File', submenu: [{ role: 'close' }] },
@@ -93,7 +115,8 @@ async function createWindow(): Promise<void> {
 	window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 	window.webContents.on('will-navigate', (event, url) => { if (!motionscaperDesktopDocumentUrl(url)) event.preventDefault(); });
 	window.webContents.on('will-attach-webview', (event) => { event.preventDefault(); });
-	window.on('closed', () => { window = null; });
+	window.on('closed', () => { window = null; void abortNativeDelivery().catch((error: unknown) => { console.error(error); }); });
+	window.webContents.on('render-process-gone', () => { void abortNativeDelivery().catch((error: unknown) => { console.error(error); }); });
 	await window.loadURL(`${identity.origin}/`);
 	if (process.argv.includes('--motionscaper-shell-smoke')) await smokeShell(window);
 }
@@ -119,7 +142,8 @@ async function smokeShell(target: BrowserWindow): Promise<void> {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
 		const fileRejection = await window.scapeDesktop.v1.motionFiles.read({ token: 'unadmitted', offset: 0, length: 1 }).then(() => '', (error) => String(error));
-		return { fileRejection, environment: await window.scapeDesktop.v1.getEnvironment(),
+		const deliveryRejection = await window.scapeDesktop.v1.motionDelivery.cancel({ token: 'unadmitted' }).then(() => '', (error) => String(error));
+		return { fileRejection, deliveryRejection, deliveryProfile: await window.scapeDesktop.v1.motionDelivery.getProfile(), environment: await window.scapeDesktop.v1.getEnvironment(),
 			foreignBridge: !!(window.soundscaperDesktop || window.framescaperDesktop),
 			fileBridge: ${JSON.stringify(MOTIONSCAPER_FILE_METHODS)}.every((method) => typeof window.scapeDesktop.v1.motionFiles[method] === 'function'),
 			origin: location.protocol + '//' + location.host };
@@ -128,6 +152,6 @@ async function smokeShell(target: BrowserWindow): Promise<void> {
 		|| evidence.foreignBridge !== false || !('fileRejection' in evidence) || !String(evidence.fileRejection).includes('read capability') || !('fileBridge' in evidence) || evidence.fileBridge !== true || !('origin' in evidence) || evidence.origin !== identity.origin) {
 		throw new Error('Motionscaper shell native isolation smoke failed.');
 	}
-	console.log(`MOTIONSCAPER_SHELL_SMOKE ${JSON.stringify({ ...evidence, arch: process.arch })}`);
+	console.log(`MOTIONSCAPER_SHELL_SMOKE ${JSON.stringify({ ...evidence, nativeSmoke, arch: process.arch })}`);
 	app.exit(0);
 }

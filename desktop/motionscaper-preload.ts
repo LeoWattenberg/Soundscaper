@@ -4,6 +4,16 @@ import { MOTIONSCAPER_DESKTOP_CHANNELS as channels } from './motionscaper-deskto
 
 import type { MotionDesktopFiles, MotionDesktopFileMethod } from '../src/motionscaper/desktop-file-contract.ts';
 import { MOTIONSCAPER_FILE_CHUNK_BYTES } from '../src/motionscaper/desktop-file-contract.ts';
+import { MOTION_DELIVERY_CHUNK_BYTES, type MotionDesktopDelivery, type MotionDeliveryMethod } from '../src/motionscaper/desktop-delivery-contract.ts';
+const deliver = <T>(method: MotionDeliveryMethod, payload: unknown): Promise<T> => ipcRenderer.invoke(channels.delivery, method, payload) as Promise<T>;
+const motionDelivery: MotionDesktopDelivery = {
+	getProfile: () => deliver('getProfile', {}), begin: (request) => deliver('begin', request),
+	commit: (request) => deliver('commit', request), cancel: (request) => deliver('cancel', request),
+	write: (request) => {
+		if (!(request.bytes instanceof Uint8Array) || request.bytes.byteLength > MOTION_DELIVERY_CHUNK_BYTES) return Promise.reject(new RangeError('Motionscaper delivery chunk exceeds the bridge limit.'));
+		return deliver('write', request);
+	},
+};
 const invoke = <T>(method: MotionDesktopFileMethod, payload: unknown): Promise<T> => ipcRenderer.invoke(channels.projectFiles, method, payload) as Promise<T>;
 const motionFiles: MotionDesktopFiles = {
 	selectOpen: () => invoke('selectOpen', {}), read: (request) => invoke('read', request),
@@ -15,5 +25,5 @@ const motionFiles: MotionDesktopFiles = {
 	},
 };
 contextBridge.exposeInMainWorld('scapeDesktop', Object.freeze({
-	v1: Object.freeze({ motionFiles: Object.freeze(motionFiles), getEnvironment: (): Promise<unknown> => ipcRenderer.invoke(channels.environment) as Promise<unknown> }),
+	v1: Object.freeze({ motionDelivery: Object.freeze(motionDelivery), motionFiles: Object.freeze(motionFiles), getEnvironment: (): Promise<unknown> => ipcRenderer.invoke(channels.environment) as Promise<unknown> }),
 }));

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { MOTION_PRORES_DELIVERY_PROFILE } from '../src/motionscaper/desktop-delivery-contract.ts';
 import { spawn } from 'node:child_process';
 
-interface SmokeIdentity { readonly platform: string; readonly arch: string; readonly version: string }
+interface SmokeIdentity { readonly platform: string; readonly arch: string; readonly version: string; readonly nativeProres?: boolean }
 interface SmokeProcess {
 	readonly command: string; readonly args: readonly string[]; readonly cwd: string;
 	readonly environment?: NodeJS.ProcessEnv; readonly timeoutMs?: number;
@@ -14,12 +15,21 @@ export function assertMotionscaperPackagedSmoke(output: string, expected: SmokeI
 	const value: unknown = JSON.parse(lines[0]!.slice(marker.length));
 	const evidence = record(value);
 	const environment = record(evidence.environment);
+	const capabilities = ['project-files-v1', ...(expected.nativeProres ? ['prores-4444-v1'] : [])];
+	const nativeProfile = expected.nativeProres ? MOTION_PRORES_DELIVERY_PROFILE : null;
+	if (expected.nativeProres) {
+		const native = record(evidence.nativeSmoke);
+		if (native.status !== 'passed' || native.frameCount !== 2 || typeof native.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(native.sha256)
+			|| JSON.stringify(native.profile) !== JSON.stringify(nativeProfile)) throw new Error('Motionscaper native smoke evidence is invalid.');
+	} else if (evidence.nativeSmoke !== null) throw new Error('Motionscaper native smoke evidence exceeded its admitted capability.');
 	if (evidence.arch !== expected.arch || evidence.origin !== 'motionscaper-app://bundle'
 		|| evidence.foreignBridge !== false || evidence.fileBridge !== true
+		|| JSON.stringify(evidence.deliveryProfile) !== JSON.stringify(nativeProfile)
+		|| typeof evidence.deliveryRejection !== 'string' || !evidence.deliveryRejection.includes('Unknown Motionscaper delivery capability.')
 		|| typeof evidence.fileRejection !== 'string' || !evidence.fileRejection.includes('Unknown Motionscaper read capability.')
 		|| environment.productId !== 'motionscaper' || environment.appName !== 'Motionscaper'
 		|| environment.version !== expected.version || environment.platform !== expected.platform
-		|| JSON.stringify(environment.nativeCapabilities) !== JSON.stringify(['project-files-v1'])) {
+		|| JSON.stringify(environment.nativeCapabilities) !== JSON.stringify(capabilities)) {
 		throw new Error('Motionscaper packaged smoke evidence does not match the declared product authority.');
 	}
 	return value;

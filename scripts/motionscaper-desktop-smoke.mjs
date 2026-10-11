@@ -7,6 +7,8 @@ import { assertMotionscaperPackagedSmoke, runMotionscaperSmokeProcess } from '..
 import { resolvePackagedProductExecutable } from './lib/desktop-packaged-product-executable.mjs';
 import { readProductReleaseLinesSync, resolveProductApplicationVersion } from './lib/product-release-lines.mjs';
 
+if (process.argv.slice(2).some(argument => argument !== '--require-native-prores')) throw new Error('Unsupported Motionscaper smoke argument.');
+const nativeProres = process.argv.includes('--require-native-prores');
 const root = resolve(import.meta.dirname, '..');
 const arch = process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH || process.arch;
 const executable = resolvePackagedProductExecutable({
@@ -17,7 +19,7 @@ const profile = await mkdtemp(join(tmpdir(), 'motionscaper-packaged-smoke-'));
 try {
 	const output = await runMotionscaperSmokeProcess({ command: executable,
 		args: ['--motionscaper-shell-smoke', '--disable-gpu', `--user-data-dir=${profile}`], cwd: root, environment: process.env });
-	const evidence = assertMotionscaperPackagedSmoke(output, { platform: process.platform, arch,
+	const evidence = assertMotionscaperPackagedSmoke(output, { platform: process.platform, arch, nativeProres,
 		version: resolveProductApplicationVersion('motionscaper', readProductReleaseLinesSync(root)) });
 	console.log(`MOTIONSCAPER_PACKAGED_QUALIFIED ${JSON.stringify(evidence)}`);
 } finally { await rm(profile, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 }); }

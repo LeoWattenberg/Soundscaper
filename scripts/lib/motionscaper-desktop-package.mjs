@@ -3,16 +3,19 @@
 import { createHash } from 'node:crypto';
 import { lstat, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { loadMotionscaperNativeExecutable, parseMotionscaperNativePayload } from '../../desktop/motionscaper-native-payload.ts';
 import { extractFile, listPackage, statFile } from '@electron/asar';
 import { auditDesktopFfmpegAbsence, DESKTOP_CODEC_POLICY } from './desktop-codec-policy.mjs';
 
-const APP_FILES = Object.freeze(['app/desktop/main.mjs', 'app/desktop/preload.cjs', 'app/desktop/product.json', 'app/package.json']);
+const APP_FILES = Object.freeze(['app/desktop/main.mjs', 'app/desktop/preload.cjs', 'app/desktop/product.json', 'app/desktop/native-payload.json', 'app/desktop/native-notices.md', 'app/package.json']);
 
 export async function createMotionscaperStageInventory(root) {
+	const native = parseMotionscaperNativePayload(JSON.parse(await readFile(join(root, 'app/desktop/native-payload.json'), 'utf8')));
+	await loadMotionscaperNativeExecutable(root, native);
 	const result = [];
 	for (const tree of ['app', 'renderer', 'runtime']) {
 		for (const path of await regularFiles(root, tree)) {
-			if (tree === 'runtime') throw new Error('Motionscaper shell admits no native runtime inventory.');
+			if (tree === 'runtime' && path !== native.helper?.path) throw new Error('Motionscaper admits no undeclared native runtime inventory.');
 			if (tree === 'app' && !APP_FILES.includes(path)) throw new Error(`Motionscaper shell admits no application file ${path}.`);
 			const bytes = await readFile(join(root, path));
 			result.push({ path, byteLength: bytes.byteLength, sha256: digest(bytes) });
@@ -25,9 +28,11 @@ export async function createMotionscaperStageInventory(root) {
 
 export async function verifyMotionscaperDesktopStage(root, targetId) {
 	const stage = JSON.parse(await readFile(join(root, 'stage-manifest.json'), 'utf8'));
+	const native = parseMotionscaperNativePayload(JSON.parse(await readFile(join(root, 'app/desktop/native-payload.json'), 'utf8')));
+	const capabilities = ['project-files-v1', ...(native.helper ? ['prores-4444-v1'] : [])];
 	if (stage?.schemaVersion !== 1 || stage.productId !== 'motionscaper'
 		|| stage.nativeServiceProfile !== 'motionscaper-desktop-v1'
-		|| JSON.stringify(stage.nativeCapabilities) !== '["project-files-v1"]'
+		|| JSON.stringify(stage.nativeCapabilities) !== JSON.stringify(capabilities) || native.target !== targetId
 		|| `${stage.target?.platform}-${stage.target?.arch}` !== targetId) {
 		throw new Error('Motionscaper shell stage identity, target, or native admission is invalid.');
 	}

@@ -10,14 +10,15 @@ export const MOTIONSCAPER_DESKTOP = Object.freeze({
 export const MOTIONSCAPER_DESKTOP_CHANNELS = Object.freeze({
 	environment: 'motionscaper:v1:environment',
 	projectFiles: 'motionscaper:v1:project-files',
+	delivery: 'motionscaper:v1:delivery',
 	checkForUpdates: 'motionscaper:v1:updates:check',
 });
 
 /** File I/O is explicitly admitted; no foreign native processing service is exposed. */
-export function motionscaperDesktopEnvironment(version: string, platform: string) {
+export function motionscaperDesktopEnvironment(version: string, platform: string, nativeProres = false) {
 	return Object.freeze({
 		productId: MOTIONSCAPER_DESKTOP.productId, appName: MOTIONSCAPER_DESKTOP.name,
-		version, platform, locale: 'en', nativeCapabilities: Object.freeze(['project-files-v1']),
+		version, platform, locale: 'en', nativeCapabilities: Object.freeze(['project-files-v1', ...(nativeProres ? ['prores-4444-v1'] : [])]),
 	});
 }
 
