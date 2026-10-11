@@ -6,6 +6,7 @@ import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
 import { DesignSystemProviders } from '../DesignSystemRuntime.jsx';
 import { createMotionscaperShellMenus, type MotionDocumentCommand, type MotionDocumentRequest } from './shell-menu.ts';
 import { openMotionscaperDocumentation } from './motionscaper-documentation.ts';
+import { motionscaperDesktopUpdates } from './motionscaper-updates.ts';
 import type { MotionscaperDocumentSnapshot } from '../../../../motionscaper/editor-document-session.ts';
 import '../audio-editor-design-system.css';
 import './motionscaper-shell.css';
@@ -26,6 +27,8 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 	const [request, setRequest] = useState<MotionDocumentRequest | null>(null);
 	const [helpError, setHelpError] = useState(false);
 	const [launchError, setLaunchError] = useState(false);
+	const [checkingUpdates, setCheckingUpdates] = useState(false); const [updatesError, setUpdatesError] = useState(false);
+	const updates = motionscaperDesktopUpdates();
 	const [documentState, setDocumentState] = useState<MotionscaperDocumentSnapshot>({
 		project: null, savedDigest: null, dirty: false, busy: false, canUndo: false, canRedo: false,
 	});
@@ -72,6 +75,10 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 		onCommand, hasProject: documentState.project !== null, busy: documentState.busy,
 		canUndo: documentState.canUndo, canRedo: documentState.canRedo,
 		onDocumentation: destination => { setHelpError(false); void openMotionscaperDocumentation(destination, locale).catch(() => setHelpError(true)); },
+		...(updates ? { checkingUpdates, onCheckForUpdates: () => {
+			setCheckingUpdates(true); setUpdatesError(false);
+			void updates.check().catch(() => setUpdatesError(true)).finally(() => setCheckingUpdates(false));
+		} } : {}),
 		...(onNewComposition ? { onNewComposition: () => { onNewComposition(); setWorkspaceOpen(true); } } : {}),
 	});
 	const toggleFullscreen = () => {
@@ -86,6 +93,7 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 				onSearchActivate={noAction} onFullscreen={toggleFullscreen} />
 			{helpError && <p role="alert">{copy.motionscaperHelpFailed}</p>}
 			{launchError && <p role="alert">{copy.motionscaperLaunchFailed}</p>}
+			{updatesError && <p role="alert">{copy.motionscaperUpdatesFailed}</p>}
 			{workspaceOpen && <Suspense fallback={<p role="status">{copy.loading}</p>}>
 				<MotionWorkspace copy={copy} document={documentState} />
 			</Suspense>}

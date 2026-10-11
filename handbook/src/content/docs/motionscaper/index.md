@@ -52,6 +52,14 @@ offline use. Undo pins a prior revision until you resume updates. Changes to
 output size, timing, or the audio grid require an explicit Conform review.
 The desktop receiver can instead watch a saved `.mscape` file you select.
 
+## Check desktop updates {#check-desktop-updates}
+
+Choose **Help → Check for Updates** in the desktop app. This manual check looks
+for compatible Motionscaper releases in the project's GitHub repository. Preview
+versions can receive newer preview releases; stable versions receive stable
+releases. Choose **View Release** to open the verified release page. The check
+does not download or install an update. Browser builds omit this menu command.
+
 ## After Effects exchange {#after-effects-exchange}
 
 **File → After Effects Bridge** provides readable scripts and reviews supported

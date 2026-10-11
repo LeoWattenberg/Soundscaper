@@ -15,6 +15,8 @@ import { createMotionscaperDeliveryAuthority } from './motionscaper-delivery-aut
 import { dispatchMotionscaperDeliveryCall } from './motionscaper-delivery-ipc.ts';
 import { createMotionscaperProtocolHandler } from './motionscaper-protocol.ts';
 import { dispatchMotionscaperDocumentation } from './motionscaper-documentation.ts';
+import { createMotionscaperUpdateChecker, dispatchMotionscaperUpdateCheck } from './motionscaper-update-check.ts';
+import { MOTIONSCAPER_UPDATES_COPY_BY_LOCALE } from '../src/common/i18n/editor-motionscaper-updates-copy.ts';
 
 interface ProductMetadata {
 	readonly schemaVersion: 1;
@@ -72,6 +74,20 @@ async function start(): Promise<void> {
 		mainFrame: window !== null && event.senderFrame === window.webContents.mainFrame,
 		url: event.senderFrame?.url ?? '',
 	}, request, url => shell.openExternal(url)));
+	const checkUpdates = createMotionscaperUpdateChecker(metadata.applicationVersion); let updateDialog: Promise<void> | null = null;
+	ipcMain.handle(channels.checkForUpdates, (event: Electron.IpcMainInvokeEvent, request: unknown) => dispatchMotionscaperUpdateCheck({
+		ownWindow: window !== null && event.sender === window.webContents,
+		mainFrame: window !== null && event.senderFrame === window.webContents.mainFrame, url: event.senderFrame?.url ?? '',
+	}, request, () => updateDialog ??= (async () => {
+		const target = window; if (!target) return;
+		const copy = MOTIONSCAPER_UPDATES_COPY_BY_LOCALE[new URL(event.senderFrame.url).pathname.startsWith('/de/') ? 'de' : 'en'];
+		const result = await checkUpdates(); if (window !== target || target.isDestroyed()) return;
+		const available = result.status === 'available';
+		const choice = await dialog.showMessageBox(target, { type: result.status === 'error' ? 'warning' : 'info', title: copy.motionscaperUpdatesTitle,
+			message: available ? copy.motionscaperUpdatesAvailable.replace('{version}', result.version) : result.status === 'current' ? copy.motionscaperUpdatesCurrent : copy.motionscaperUpdatesFailed,
+			buttons: available ? [copy.motionscaperUpdatesViewRelease, copy.motionscaperUpdatesClose] : [copy.motionscaperUpdatesClose], cancelId: available ? 1 : 0 });
+		if (available && choice.response === 0 && window === target && !target.isDestroyed()) await shell.openExternal(result.url);
+	})().finally(() => { updateDialog = null; })));
 	const files = createMotionscaperFileAuthority({
 		chooseOpen: async () => {
 			if (!window) throw new Error('Motionscaper has no active document window.');

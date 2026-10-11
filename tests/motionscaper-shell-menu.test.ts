@@ -14,6 +14,14 @@ test('AE bridge is an idle File command available before a document is created',
 import { motionscaperCopy } from '../src/common/editor/ui/motionscaper/motionscaper-copy.ts';
 import { createMotionscaperShellMenus } from '../src/common/editor/ui/motionscaper/shell-menu.ts';
 
+test('manual Motion updates are a desktop-supplied Help action and coalesce while checking', () => {
+	let calls = 0;
+	const options = { copy: motionscaperCopy('de'), workspaceOpen: false, onToggleWorkspace: () => undefined, onCheckForUpdates: () => { calls += 1; } };
+	const find = (checkingUpdates: boolean) => createMotionscaperShellMenus({ ...options, checkingUpdates }).find(menu => menu.id === 'help')?.items.find(item => item.id === 'motion-check-updates');
+	assert.equal(find(false)?.label, 'Nach Updates suchen'); find(false)?.onClick?.(); assert.equal(calls, 1);
+	assert.equal(find(true)?.disabled, true); assert.equal(find(true)?.onClick, undefined);
+});
+
 test('Motionscaper starts with only menu-reached motion surfaces and refuses unavailable authoring', () => {
 	let opened = 0;
 	const menus = createMotionscaperShellMenus({

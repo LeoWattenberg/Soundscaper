@@ -24,6 +24,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly hasProject?: boolean; readonly busy?: boolean;
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 	readonly onDocumentation?: (destination: 'manual' | 'tutorials') => void;
+	readonly onCheckForUpdates?: () => void; readonly checkingUpdates?: boolean;
 }
 
 export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'canvas' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
@@ -91,10 +92,11 @@ export function createMotionscaperShellMenus(
 			]),
 		}),
 		Object.freeze({ id: 'help' as const, label: copy.motionscaperHelpMenu,
-			items: Object.freeze((['manual', 'tutorials'] as const).map(destination => Object.freeze({
+			items: Object.freeze([ ...(['manual', 'tutorials'] as const).map(destination => Object.freeze({
 				id: `motion-help-${destination}`, label: destination === 'manual' ? copy.motionscaperManual : copy.motionscaperFirstProject,
 				disabled: !options.onDocumentation, ...(options.onDocumentation ? { onClick: () => options.onDocumentation?.(destination) } : {}),
-			}))),
+			})), ...(options.onCheckForUpdates ? [Object.freeze({ id: 'motion-check-updates', label: copy.motionscaperCheckUpdates,
+				disabled: Boolean(options.checkingUpdates), ...(options.checkingUpdates ? {} : { onClick: options.onCheckForUpdates }) })] : []) ]),
 		}),
 	]);
 }
