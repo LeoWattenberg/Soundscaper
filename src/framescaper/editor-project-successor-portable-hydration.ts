@@ -9,13 +9,17 @@ import type { admitFramescaperSuccessorPortableEnvelope } from './editor-project
 import { hydrateFramescaperSuccessorMediaBody, hydrateFramescaperSuccessorAudioBody, successorHydrationStore } from './editor-project-successor-hydration-media.ts';
 import { createFramescaperSuccessorHistory } from './editor-project-successor-history.ts';
 import { retainFramescaperSuccessorMediaHistory } from './editor-project-successor-media-roots.ts';
+import { framescaperSuccessorPortableAssets } from './editor-project-successor-portable-assets.ts';
 
 /** Ordinary bytes acquire a conservative cache root before owner publication; no virtual source body is materialized. */
-export async function hydrateFramescaperSuccessorPortableMedia(envelope: ScapeArchiveEnvelope, closure: ReturnType<typeof admitFramescaperSuccessorPortableEnvelope>, media: AudioEditorProjectStore, signal?: AbortSignal): Promise<void> {
+export async function hydrateFramescaperSuccessorPortableMedia(envelope: ScapeArchiveEnvelope, closure: ReturnType<typeof admitFramescaperSuccessorPortableEnvelope>, media: AudioEditorProjectStore, signal?: AbortSignal, projectValue: unknown = closure.project): Promise<void> {
+	const target = framescaperSuccessorPortableAssets(projectValue);
+	const sourceIdMap = new Map(closure.baseline.sources.map((source, index) => [source.id, target.baseline.sources[index]!.id]));
+	const originalSourceIds = new Map([...sourceIdMap].map(([original, rebound]) => [rebound, original]));
 	const store = successorHydrationStore(media); const transaction = new ScapeImportTransaction(store, signal);
 	try {
-		const request = { ...envelope, archiveProject: closure.baseline, project: closure.baseline, validation: closure.extensionValidation,
-			sourceIdMap: new Map(closure.baseline.sources.map(source => [source.id, source.id])), store, transaction, signal };
+		const request = { ...envelope, archiveProject: closure.baseline, project: target.baseline, validation: closure.extensionValidation,
+			sourceIdMap, store, transaction, signal };
 		for (const [storageKey, asset] of indexScapeProjectTimingAssets(closure.ordinary, closure.ordinaryManifest)) {
 			const source = closure.ordinary.sources.find(value => typeof value.timingAsset === 'object' && value.timingAsset !== null && Reflect.get(value.timingAsset, 'storageKey') === storageKey)!;
 			const reference = normalizeVideoTimingAssetReference(source.timingAsset);
@@ -24,11 +28,11 @@ export async function hydrateFramescaperSuccessorPortableMedia(envelope: ScapeAr
 			validateVideoTimingAssetBytes(reference, new Uint8Array(await body.arrayBuffer()));
 		}
 		await closure.extension.stageImportAssets(request); const budget = new ScapeAudioChunkBudget();
-		for (const source of closure.ordinary.sources) {
-			const asset = closure.ordinaryAssets.get(source.id); if (!asset) continue;
+		for (const source of target.ordinary.sources) {
+			const asset = closure.ordinaryAssets.get(originalSourceIds.get(source.id)!); if (!asset) continue;
 			if (source.kind === 'video') await hydrateFramescaperSuccessorMediaBody(String(source.storageKey), { name: source.name, mimeType: source.mimeType }, asset, request);
 			else if (source.kind === 'audio') await hydrateFramescaperSuccessorAudioBody(source, asset, request, budget);
 		}
-		signal?.throwIfAborted(); await retainFramescaperSuccessorMediaHistory(media, createFramescaperSuccessorHistory(closure.project)); transaction.complete();
+		signal?.throwIfAborted(); await retainFramescaperSuccessorMediaHistory(media, createFramescaperSuccessorHistory(target.project)); transaction.complete();
 	} catch (error) { await transaction.rollback(error); }
 }

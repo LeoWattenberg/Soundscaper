@@ -21,15 +21,22 @@ import { createFramescaperLinkOwnerRecord } from './editor-composition-link-owne
 import { createFramescaperLinkedAssetDescriptor } from './editor-project-successor-link-assets.ts';
 import { preflightScapeImportCapacity, type ScapeImportCapacityOptions } from '../common/editor/scape-import-capacity.ts';
 import { framescaperLinkRevisionKey, putFramescaperLinkState } from './editor-composition-link-records.ts';
+import { createStableId } from '../common/editor/stable-id.js';
+import type { ScapeReplaceWriteAuthority } from '../common/editor/scape-import-transaction.ts';
+import { bindFramescaperSuccessorPortableProject, planFramescaperSuccessorPortableStorageBindings, type FramescaperSuccessorPortableBinding } from './editor-project-successor-portable-rebinding.ts';
+import { assertFramescaperSuccessorPortableIdentityAbsent, framescaperSuccessorPortableIdentityOccupied, captureFramescaperSuccessorPortableReplacement, retainFramescaperSuccessorPreviousPortableArchive } from './editor-project-successor-portable-publication.ts';
 
 export interface FramescaperSuccessorPortableCustody {
-	readonly kind: 'framescaper-successor-portable-v1'; readonly id: string; readonly archive: Blob;
+	readonly kind: 'framescaper-successor-portable-v1' | 'framescaper-successor-portable-v2'; readonly id: string; readonly archive: Blob;
 	readonly archiveDigest: string; readonly project: FramescaperSuccessorProject;
+	readonly binding?: FramescaperSuccessorPortableBinding;
 }
 export interface FramescaperSuccessorPortableImportOptions {
 	readonly indexedDB?: IDBFactory; readonly line: unknown; readonly signal?: AbortSignal; readonly maximumArchiveBlobBytes?: number;
 	readonly assertCurrent?: () => void;
 	readonly estimateStorageForPreflight?: ScapeImportCapacityOptions['estimateStorageForPreflight'];
+	readonly collision?: string;
+	readonly acquireReplaceProjectWriteAuthority?: (projectId: string) => Promise<ScapeReplaceWriteAuthority>;
 }
 const STORES = ['owners', 'projects', 'pending', 'portableArchives', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'] as const;
 
@@ -42,17 +49,28 @@ export async function importFramescaperSuccessorPortableArchive(input: ScapeProj
 	const archive = await retainArchive(input, options.maximumArchiveBlobBytes, signal);
 	const database = await openFramescaperSuccessorDatabase(media.indexedDB ?? globalThis.indexedDB, options.line);
 	const assets = new MotionAssetRepository(async () => database); const stages: MotionAssetStaging[] = [];
-	async function assertAbsent(stores: Record<string, IDBObjectStore>, id: string) {
-		for (const name of ['owners', 'projects', 'pending', 'portableArchives']) if (await request(stores[name]!.get(id)) !== undefined) throw new RangeError('Successor import identity already has retained owner custody.');
-	}
+	let authority: ScapeReplaceWriteAuthority | undefined;
 	try {
 		const archiveDigest = await digestMediaContent(archive, { signal });
 		return await withFramescaperSuccessorPortableArchive(archive, signal, async (envelope, closure) => {
-			const owner = createFramescaperLinkOwnerRecord(closure.project); await transact(database, STORES, 'readonly', stores => assertAbsent(stores, owner.id));
+			const occupied = await transact(database, STORES, 'readonly', stores => framescaperSuccessorPortableIdentityOccupied(stores, closure.project.id));
+			const collision = occupied ? options.collision ?? 'cancel' : null;
+			if (collision !== null && collision !== 'copy' && collision !== 'replace') throw new RangeError('Successor import identity already has retained owner custody.');
+			if (collision === 'replace') {
+				if (!options.acquireReplaceProjectWriteAuthority) throw new TypeError('Successor replace requires project write authority.');
+				authority = await options.acquireReplaceProjectWriteAuthority(closure.project.id);
+			}
+			const replacement = authority ? await transact(database, STORES, 'readonly', stores => captureFramescaperSuccessorPortableReplacement(stores, closure.project.id, authority!)) : null;
+			const rebound = bindFramescaperSuccessorPortableProject(closure, {
+				copy: collision === 'copy' ? { id: createStableId('project'), timestamp: new Date().toISOString() } : null,
+				storageSourceIds: await planFramescaperSuccessorPortableStorageBindings(closure, media, signal),
+			});
+			const owner = createFramescaperLinkOwnerRecord(rebound.project);
+			if (!replacement) await transact(database, STORES, 'readonly', stores => assertFramescaperSuccessorPortableIdentityAbsent(stores, owner.id));
 			await preflightScapeImportCapacity({ assets: [...envelope.manifest.assets, { size: archive.size }] }, {
 				signal, estimateStorageForPreflight: options.estimateStorageForPreflight, estimateStorage: () => media.estimateStorage(),
 			});
-			await hydrateFramescaperSuccessorPortableMedia(envelope, closure, media, signal);
+			await hydrateFramescaperSuccessorPortableMedia(envelope, closure, media, signal, owner.project);
 			for (const asset of closure.linked) {
 				signal?.throwIfAborted(); const stage = await assets.stage(asset); stages.push(stage);
 				const entry = envelope.entryByName.get(createFramescaperLinkedAssetDescriptor(asset).entry)!;
@@ -62,9 +80,15 @@ export async function importFramescaperSuccessorPortableArchive(input: ScapeProj
 					for (let offset = 0; offset < chunk.length; offset += 4 * 1024 * 1024) { signal?.throwIfAborted(); await stage.write(chunk.slice(offset, offset + 4 * 1024 * 1024)); }
 				} }), { signal, strictness: 'strict' }); await stage.finish();
 			}
-			const custody: FramescaperSuccessorPortableCustody = { kind: 'framescaper-successor-portable-v1', id: owner.id, archive, archiveDigest, project: closure.project };
+			const hasBinding = rebound.binding.copy !== null || rebound.binding.storageSourceIds.length > 0;
+			const custody: FramescaperSuccessorPortableCustody = { kind: hasBinding ? 'framescaper-successor-portable-v2' : 'framescaper-successor-portable-v1', id: owner.id, archive, archiveDigest, project: owner.project, ...(hasBinding ? { binding: rebound.binding } : {}) };
 			await transact(database, STORES, 'readwrite', async stores => {
-				signal?.throwIfAborted(); options.assertCurrent?.(); await assertAbsent(stores, owner.id);
+				signal?.throwIfAborted(); options.assertCurrent?.();
+				if (replacement) {
+					const current = await captureFramescaperSuccessorPortableReplacement(stores, owner.id, authority!);
+					if (current.ownerDigest !== replacement.ownerDigest) throw new RangeError('Successor replacement owner changed before publication.');
+					await retainFramescaperSuccessorPreviousPortableArchive(stores, owner.id);
+				} else await assertFramescaperSuccessorPortableIdentityAbsent(stores, owner.id);
 				for (const stage of stages) await stage.publish(stores);
 				for (const link of owner.project.compositionLinks) {
 					for (const asset of link.snapshot.project.assets) await assets.assertAvailable(stores, asset);
@@ -72,14 +96,14 @@ export async function importFramescaperSuccessorPortableArchive(input: ScapeProj
 					await request(stores.linkRevisions.put({ key: framescaperLinkRevisionKey(link.projectId, link.acceptedDigest), snapshot: link.snapshot }));
 					await putFramescaperLinkState(stores, owner.id, link.sourceId, state);
 				}
-				await request(stores.portableArchives.add(custody)); await request(stores.owners.put(owner)); signal?.throwIfAborted(); options.assertCurrent?.();
+				await request(stores.portableArchives.put(custody)); await request(stores.owners.put({ ...owner, ...(authority ? { writeFence: authority.writeFence } : {}) })); signal?.throwIfAborted(); options.assertCurrent?.(); authority?.assertCurrent();
 			});
-			return { project: owner.project, manifest: envelope.manifest, readOnly: false as const, reason: null, collision: null, publicationCommitted: true as const };
+			return { project: owner.project, manifest: envelope.manifest, readOnly: false as const, reason: null, collision, publicationCommitted: true as const };
 		});
 	} catch (error) {
 		const failures: unknown[] = []; for (const stage of stages) { try { await stage.rollback(); } catch (failure) { failures.push(failure); } }
 		if (failures.length) throw new AggregateError([error, ...failures], 'Successor portable import and private cleanup failed.', { cause: error }); throw error;
-	} finally { database.close(); }
+	} finally { database.close(); await authority?.release(); }
 }
 
 /** Validate the retained variant before it can be used for recovery. Original migration records are never rewritten. */
@@ -88,19 +112,21 @@ export function loadFramescaperSuccessorPortableCustody(id: string, options: Fra
 }
 export function restoreFramescaperSuccessorPortableCustody(id: string, media: AudioEditorProjectStore, options: FramescaperSuccessorPortableImportOptions): Promise<string | null> {
 	assertEditorProjectStoreProfile(media, FRAMESCAPER_SUCCESSOR_MEDIA_STORAGE_PROFILE);
-	return withPortableCustody(id, options, async (record, envelope, closure) => { await hydrateFramescaperSuccessorPortableMedia(envelope, closure, media, options.signal); return record.archiveDigest; });
+	return withPortableCustody(id, options, async (record, envelope, closure) => { await hydrateFramescaperSuccessorPortableMedia(envelope, closure, media, options.signal, record.project); return record.archiveDigest; });
 }
 async function withPortableCustody<T>(id: string, options: FramescaperSuccessorPortableImportOptions, action: (record: FramescaperSuccessorPortableCustody, envelope: ScapeArchiveEnvelope, closure: ReturnType<typeof admitFramescaperSuccessorPortableEnvelope>) => Promise<T>): Promise<T | null> {
 	motionId(id); options.signal?.throwIfAborted(); const database = await openFramescaperSuccessorDatabase(options.indexedDB ?? globalThis.indexedDB, options.line);
 	try {
 		const stored: unknown = await transact(database, ['portableArchives'], 'readonly', stores => request(stores.portableArchives.get(id)));
-		if (stored === undefined) return null; const record = motionRecord(stored, ['kind', 'id', 'project', 'archiveDigest', 'archive'], 'successor portable custody');
-		if (record.kind !== 'framescaper-successor-portable-v1' || motionId(record.id) !== id) throw new RangeError('Successor portable custody identity changed.');
+		if (stored === undefined) return null; const record = motionRecord(stored, ['kind', 'id', 'project', 'archiveDigest', 'archive', 'binding'], 'successor portable custody', ['kind', 'id', 'project', 'archiveDigest', 'archive']);
+		if ((record.kind !== 'framescaper-successor-portable-v1' && record.kind !== 'framescaper-successor-portable-v2') || motionId(record.id) !== id) throw new RangeError('Successor portable custody identity changed.');
 		const project = normalizeFramescaperSuccessorProject(record.project); const archive = canonicalMediaContentBlob(record.archive); const archiveDigest = motionDigest(record.archiveDigest);
 		if (project.id !== id || await digestMediaContent(archive, { signal: options.signal }) !== archiveDigest) throw new RangeError('Successor portable custody bytes changed.');
 		return withFramescaperSuccessorPortableArchive(archive, options.signal, async (envelope, closure) => {
-			if (JSON.stringify(closure.project) !== JSON.stringify(project)) throw new RangeError('Successor portable custody project changed.');
-			return action({ kind: 'framescaper-successor-portable-v1', id, project, archive, archiveDigest }, envelope, closure);
+			const rebound = record.kind === 'framescaper-successor-portable-v2' ? bindFramescaperSuccessorPortableProject(closure, record.binding) : null;
+			if (record.kind === 'framescaper-successor-portable-v1' && record.binding !== undefined) throw new RangeError('Original portable custody cannot contain rebound identities.');
+			if (JSON.stringify(rebound?.project ?? closure.project) !== JSON.stringify(project)) throw new RangeError('Successor portable custody project changed.');
+			return action({ kind: record.kind as FramescaperSuccessorPortableCustody['kind'], id, project, archive, archiveDigest, ...(rebound ? { binding: rebound.binding } : {}) }, envelope, closure);
 		});
 	} finally { database.close(); }
 }

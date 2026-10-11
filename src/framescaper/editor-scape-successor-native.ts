@@ -27,8 +27,10 @@ export function createFramescaperSuccessorScapeNativeRuntime(value: unknown): No
 			const result = await importFramescaperSuccessorPortableArchive(input, environment.store, {
 				line: 'successor', signal: options.signal, assertCurrent: options.assertCurrent,
 				estimateStorageForPreflight: options.estimateStorageForPreflight,
+				collision: options.collision, acquireReplaceProjectWriteAuthority: options.acquireReplaceProjectWriteAuthority,
 			});
 			// Durable publication owns late cancellation; capture its history before activation.
+			environment.invalidatePortableCustody(result.project.id);
 			const project = await environment.controllerStore.loadProject(result.project.id);
 			if (!project) throw new Error('The published successor owner is unavailable.');
 			return { ...result, project: normalizeFramescaperSuccessorProject(project) };

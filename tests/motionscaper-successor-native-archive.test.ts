@@ -53,8 +53,11 @@ test('M10 actual successor File Save/Open preserves virtual picture and PCM with
 		const original = await second.owners.readAsset(asset); assert.ok(original);
 		assert.deepEqual(new Uint8Array(await new Response(original.stream()).arrayBuffer()), bytes);
 		assert.equal(await second.store.loadProject(id), null);
-		await assert.rejects(reader.actions.project.openScape(saved, { collision: 'replace' }), /already|retained|collision/u);
+		const replaced = await reader.actions.project.openScape(saved, { collision: 'replace' }); assert.equal(replaced?.collision, 'replace');
 		assert.equal((await second.owners.loadOwner(id))?.ownerDigest, owner?.ownerDigest);
+		const copied = await reader.actions.project.openScape(saved, { collision: 'copy' }); assert.equal(copied?.collision, 'copy'); assert.notEqual(reader.project!.id, id);
+		assert.equal((await second.owners.loadOwner(id))?.ownerDigest, owner?.ownerDigest);
+		assert.equal(normalizeFramescaperSuccessorProject(reader.project).compositionLinks[0]!.acceptedDigest, digest);
 	} finally { await reader.dispose(); await second.close(); }
 });
 
