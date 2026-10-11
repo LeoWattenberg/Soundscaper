@@ -6,6 +6,7 @@ import { PHOTO_CUBE_LUT_ASSET_KIND, PHOTO_CUBE_LUT_ENCODING } from '../../common
 import { readValidatedPhotoCatalogRootV1 } from '../catalog/documents.ts';
 import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../common/editor/closed-domain-value.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
+import { assertPhotoMaskRasterPortableV1 } from '../catalog/photo-mask-raster-portability-v1.ts';
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
 import { createPhotoCubeLutReachabilityV1 } from '../catalog/photo-cube-lut-reachability-v1.ts';
 import { normalizePhotoSmartCollectionsStateV1 } from '../catalog/photo-smart-collection-state-v1.ts';
@@ -24,6 +25,7 @@ import { encodePhotoDevelopPresetPackV2 } from './develop-preset-pack-v2.ts';
 import { borrowPhotoCubeLutArchiveSourceV1, type PhotoCubeLutArchiveSourceV1 } from './cube-lut-archive-source-v1.ts';
 
 export type PhotoCatalogArchiveExportResultV5 = PhotoCatalogArchiveWrittenResult<PhotoCatalogArchiveDocumentV5>;
+const CHECK = AbortSignal.prototype.throwIfAborted;
 
 /** Complete admitted Photo/preset closure, then serial exact body publication.
  * Originals, stacks and saved collections retain their existing authorities.
@@ -44,13 +46,8 @@ export async function exportPhotoCatalogArchiveV5(rootValue: unknown,
 	for (const preset of row?.presets ?? []) reachability.addPreset(preset);
 	const identity = new PhotoCatalogArchiveIdentityLedger();
 	const writeCompanions = createPhotoCatalogCompanionWriter(root, stacks, state, definitions, identity, signal);
-	async function* records() { for await (const value of photos) {
-		const input = record(value, 'photo archive input', ['photo', 'original']);
-		const photo = normalizePhotoDocumentV1OrV2(field(input, 'photo', 'photo archive input'));
-		const original = canonicalMediaContentBlob(field(input, 'original', 'photo archive input'));
-		reachability.addPhoto(photo); yield { photo, original };
-	} }
-	return writePhotoCatalogArchiveV5(root, records(), new PhotoCatalogArchiveIdentityGuard(root, identity), async (packs, writer) => {
+	const records = portableRecords(photos, photo => reachability.addPhoto(photo), signal);
+	return writePhotoCatalogArchiveV5(root, records, new PhotoCatalogArchiveIdentityGuard(root, identity), async (packs, writer) => {
 		const companions = await writeCompanions(writer);
 		let developPresetPack: PhotoCatalogArchiveDevelopPresetPackV5 | null = null;
 		if (row) {
@@ -74,4 +71,50 @@ export async function exportPhotoCatalogArchiveV5(rootValue: unknown,
 			await verify();
 		} };
 	}, options);
+}
+
+/** A mapping iterator owns upstream retirement even when metadata refusal
+ * precedes the first original. Pin methods/receiver before any asynchronous
+ * demand and join the actual return outcome, retaining distinct opaque errors. */
+function portableRecords(photos: Iterable<PhotoCatalogPackInputV2> | AsyncIterable<PhotoCatalogPackInputV2>,
+	admit: (photo: PhotoCatalogPackInputV2['photo']) => void, signal?: AbortSignal): AsyncIterable<PhotoCatalogPackInputV2> {
+	// The writer's synchronous signal admission still precedes source opening.
+	return Object.freeze({ [Symbol.asyncIterator]() {
+		const iterate = Symbol.asyncIterator in photos ? photos[Symbol.asyncIterator] : photos[Symbol.iterator];
+		if (typeof iterate !== 'function') throw new TypeError('A photo archive iterator is required.');
+		const owner = Reflect.apply(iterate, photos, []) as AsyncIterator<PhotoCatalogPackInputV2> | Iterator<PhotoCatalogPackInputV2>;
+		const next = owner.next, leave = owner.return;
+		if (typeof next !== 'function' || leave !== undefined && typeof leave !== 'function') throw new TypeError('A photo archive iterator is incomplete.');
+		const done = Object.freeze({ done: true as const, value: undefined });
+		let retired = false, failureOwnsRetirement = false, retiring: Promise<IteratorResult<PhotoCatalogPackInputV2>> | undefined;
+		function retire(): Promise<IteratorResult<PhotoCatalogPackInputV2>> {
+			// A failed next already joined and retained return's failure. Sequence
+			// Close must not report that same cleanup failure a second time.
+			if (failureOwnsRetirement || retired && retiring === undefined) return Promise.resolve(done);
+			retired = true;
+			retiring ??= Promise.resolve().then(async () => { if (leave !== undefined) await Reflect.apply(leave, owner, []); return done; });
+			return retiring;
+		}
+		const iterator: AsyncIterator<PhotoCatalogPackInputV2> = Object.freeze({ async next(): Promise<IteratorResult<PhotoCatalogPackInputV2>> {
+			if (retired) return done;
+			let primary: unknown;
+			try {
+				if (signal !== undefined) Reflect.apply(CHECK, signal, []);
+				const result = await Reflect.apply(next, owner, []) as IteratorResult<PhotoCatalogPackInputV2>;
+				if (signal !== undefined) Reflect.apply(CHECK, signal, []);
+				if (result.done) { retired = true; return done; }
+				const input = record(result.value, 'photo archive input', ['photo', 'original']);
+				const photo = normalizePhotoDocumentV1OrV2(field(input, 'photo', 'photo archive input'));
+				assertPhotoMaskRasterPortableV1(photo);
+				const original = canonicalMediaContentBlob(field(input, 'original', 'photo archive input'));
+				admit(photo); return { done: false, value: { photo, original } };
+			} catch (error) { primary = error; }
+			let cleanup: unknown, cleanupFailed = false;
+			try { await retire(); } catch (error) { cleanup = error; cleanupFailed = true; }
+			failureOwnsRetirement = true;
+			if (cleanupFailed && !Object.is(primary, cleanup)) throw new AggregateError([primary, cleanup], 'Photo archive metadata and source retirement both failed.', { cause: primary });
+			throw primary;
+		}, return: retire });
+		return iterator;
+	} });
 }

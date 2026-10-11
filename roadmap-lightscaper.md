@@ -442,6 +442,12 @@ selected media namespace. Brush rendering, menu authoring, portable body custody
 full mask management, composition authoring, and healing remain open; this
 resource foundation does not close L6.
 
+Until portable brush body transport lands, backups and editable handoffs refuse
+brush references throughout the retained Photo. Catalog backup checks complete
+photo metadata before reading originals or opening the selected writable file.
+Archive imports reject such records before consuming their originals and join
+rollback of any earlier provisional records before returning the failure.
+
 ### Exit gate
 
 - New mask node kinds pass property tests and goldens and are authorable from

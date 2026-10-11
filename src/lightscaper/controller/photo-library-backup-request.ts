@@ -7,16 +7,22 @@ import { admitPhotoLibraryQueryBuildRequestV1 } from './photo-library-query-v1.t
 export interface PhotoLibraryAdmittedBackupRequestV1 {
 	readonly signal?: AbortSignal;
 	readonly writable?: WritableStream<Uint8Array>;
+	readonly createWritable?: () => Promise<WritableStream<Uint8Array>>;
 	readonly maximumBlobBytes: number;
 }
 const nativeLocked = Object.getOwnPropertyDescriptor(WritableStream.prototype, 'locked')!.get!;
 
 /** Scalar admission borrows an unacquired destination; its caller still owns it. */
 export function admitPhotoLibraryBackupRequestV1(value: unknown = {}): PhotoLibraryAdmittedBackupRequestV1 {
-	const input = record(value, 'photo backup options', ['signal', 'writable', 'maximumBlobBytes'], []);
+	const input = record(value, 'photo backup options', ['signal', 'writable', 'createWritable', 'maximumBlobBytes'], []);
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal') : undefined;
 	const cancellation = admitPhotoLibraryQueryBuildRequestV1({ signal });
 	const writable = Object.hasOwn(input, 'writable') ? field(input, 'writable') : undefined;
+	const factory = Object.hasOwn(input, 'createWritable') ? field(input, 'createWritable') : undefined;
+	if (factory !== undefined && (typeof factory !== 'function' || writable !== undefined)) {
+		throw new TypeError('Photo backup requires one writable destination or a deferred writable factory.');
+	}
+	const createWritable = factory === undefined ? undefined : () => Reflect.apply(factory as (...args: never[]) => Promise<WritableStream<Uint8Array>>, value, []);
 	if (writable !== undefined) {
 		if (!(writable instanceof WritableStream) || Object.getPrototypeOf(writable) !== WritableStream.prototype
 			|| ['getWriter', 'locked', 'abort', 'close'].some(key => Object.hasOwn(writable, key))) {
@@ -26,5 +32,5 @@ export function admitPhotoLibraryBackupRequestV1(value: unknown = {}): PhotoLibr
 	}
 	const maximumBlobBytes = Object.hasOwn(input, 'maximumBlobBytes')
 		? integer(field(input, 'maximumBlobBytes'), 1, SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES, 'photo backup Blob maximum') : SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES;
-	return Object.freeze({ ...cancellation, writable: writable as WritableStream<Uint8Array> | undefined, maximumBlobBytes });
+	return Object.freeze({ ...cancellation, writable: writable as WritableStream<Uint8Array> | undefined, createWritable, maximumBlobBytes });
 }

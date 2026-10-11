@@ -6,6 +6,7 @@ import { readClosedDomainField, readClosedDomainRecord } from '../../common/edit
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
 import { parsePhotoDocumentV1OrV2, serializePhotoDocumentV1OrV2, normalizePhotoDocumentV1OrV2, type PhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoDocumentV1 } from '../catalog/types.ts';
+import { assertPhotoMaskRasterPortableV1 } from '../catalog/photo-mask-raster-portability-v1.ts';
 import { photoPackByteView } from './pack-byte-chunk.ts';
 
 const MAGIC = new TextEncoder().encode('LSCPACK2');
@@ -37,6 +38,7 @@ type PhotoCatalogPackLimits = Readonly<Record<keyof typeof PHOTO_CATALOG_PACK_LI
 /** Admit one record's fixed format bytes before opening its retained original. */
 export function measurePhotoCatalogPackRecordV2(value: unknown): number {
 	const photo = normalizePhotoDocumentV1OrV2(value);
+	assertPhotoMaskRasterPortableV1(photo);
 	const size = 12 + TEXT_ENCODER.encode(serializePhotoDocumentV1OrV2(photo)).byteLength + photo.original.byteLength;
 	if (!Number.isSafeInteger(size) || size + MAGIC.byteLength > PHOTO_CATALOG_PACK_LIMITS_V2.maximumPackBytes) {
 		throw new RangeError('A photo original cannot fit the bounded archive pack.');
@@ -65,6 +67,7 @@ export async function* encodePhotoCatalogPackV2(
 		check(options.signal);
 		const record = readClosedDomainRecord(value, 'photo pack input', ['photo', 'original']);
 		const photo = normalizePhotoDocumentV1OrV2(readClosedDomainField(record, 'photo', 'photo pack input'));
+		assertPhotoMaskRasterPortableV1(photo);
 		checkPhoto(photo, ids, limits.maximumRecords, catalogId); catalogId ??= photo.catalogId;
 		const original = canonicalMediaContentBlob(readClosedDomainField(record, 'original', 'photo pack input'));
 		if (original.size !== photo.original.byteLength) throw new RangeError('Photo pack original length differs from its reference.');
@@ -120,6 +123,7 @@ export async function readPhotoCatalogPackV2(
 			if (originalBytes < 1n || originalBytes + BigInt(cursor.consumedBytes + metadataBytes) > BigInt(limits.maximumPackBytes)) throw new RangeError('Photo pack original exceeds its pack byte limit.');
 			const document = parsePhotoDocumentV1OrV2(TEXT_DECODER.decode(await cursor.exact(metadataBytes)));
 			if (document.kind !== 'photo') throw new TypeError('Photo pack records require photo documents.');
+			assertPhotoMaskRasterPortableV1(document);
 			checkPhoto(document, ids, limits.maximumRecords, catalogId); catalogId ??= document.catalogId;
 			if (originalBytes !== BigInt(document.original.byteLength)) throw new RangeError('Photo pack original length differs from its reference.');
 			let consumed = false;

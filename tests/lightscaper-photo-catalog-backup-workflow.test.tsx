@@ -35,8 +35,8 @@ function direct(commit: () => Promise<void>, abort: () => Promise<void> = async 
 function owner(events: string[] = []) {
 	const value = createImportTestPort();
 	value.backupCatalog = async options => {
-		events.push('archive'); assert.ok(options?.writable);
-		const writer = options.writable.getWriter();
+		events.push('archive'); assert.ok(options?.createWritable); assert.equal(options.writable, undefined);
+		const writable = await options.createWritable(), writer = writable.getWriter();
 		try { await writer.write(new Uint8Array([1, 2, 3])); await writer.close(); } finally { writer.releaseLock(); }
 		return archive;
 	};
@@ -111,13 +111,16 @@ test('factory retirement waits for native commit, preserves caller ACK and suppr
 });
 
 test('cancelled precommit archive joins held destination abort and admits no second picker while cleanup remains pending', async () => {
-	const staged = deferred<PhotoLibraryBackupResultV1>(), cleaned = deferred<void>(); let aborts = 0, picks = 0;
-	const value = owner(); value.backupCatalog = () => staged.promise;
+	const staged = deferred<PhotoLibraryBackupResultV1>(), cleaned = deferred<void>(), acquired = deferred<void>(); let aborts = 0, picks = 0;
+	const value = owner(); value.backupCatalog = async options => {
+		assert.ok(options?.createWritable); assert.equal(options.writable, undefined);
+		await options.createWritable(); acquired.resolve(); return staged.promise;
+	};
 	const mounted = await mount(async () => value, async () => ports(() => { picks++; return direct(async () => undefined, () => { aborts++; return cleaned.promise; }); }));
 	try {
 		await act(async () => { await mounted.current.prepareBackupSave(); });
 		let saving: ReturnType<typeof mounted.current.saveBackup> | undefined;
-		await act(async () => { saving = mounted.current.saveBackup(request); await settle(); mounted.current.cancel(); staged.resolve(archive); await settle(); });
+		await act(async () => { saving = mounted.current.saveBackup(request); await acquired.promise; mounted.current.cancel(); staged.resolve(archive); await settle(); });
 		assert.equal(aborts, 1); assert.equal(mounted.current.busy, true);
 		await act(async () => { assert.equal(await mounted.current.saveBackup(request), null); }); assert.equal(picks, 1);
 		await act(async () => { cleaned.resolve(); assert.equal((await saving)?.status, 'cancelled'); });
@@ -141,13 +144,16 @@ test('fallback reports download-started rather than saved and archive refusal re
 });
 
 test('cancellation plus failed destination discard remains a visible failure without a false cancelled receipt', async () => {
-	const staged = deferred<PhotoLibraryBackupResultV1>(), value = owner(); value.backupCatalog = () => staged.promise;
+	const staged = deferred<PhotoLibraryBackupResultV1>(), acquired = deferred<void>(), value = owner(); value.backupCatalog = async options => {
+		assert.ok(options?.createWritable); assert.equal(options.writable, undefined);
+		await options.createWritable(); acquired.resolve(); return staged.promise;
+	};
 	const mounted = await mount(async () => value, async () => ports(() => direct(async () => undefined,
 		async () => { throw new Error('Native discard failed'); })));
 	try {
 		await act(async () => { await mounted.current.prepareBackupSave(); });
 		let saving: ReturnType<typeof mounted.current.saveBackup> | undefined;
-		await act(async () => { saving = mounted.current.saveBackup(request); await settle(); mounted.current.cancel(); staged.resolve(archive); });
+		await act(async () => { saving = mounted.current.saveBackup(request); await acquired.promise; mounted.current.cancel(); staged.resolve(archive); });
 		await act(async () => { assert.equal(await saving, null); });
 		assert.match(mounted.current.error ?? '', /cleanup failed/u); assert.equal(mounted.current.backupReceipt, null);
 		assert.equal(mounted.current.busy, false);

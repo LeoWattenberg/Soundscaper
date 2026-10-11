@@ -28,8 +28,25 @@ export async function exportPhotoLibraryBackupV5(catalogValue: unknown, ports: P
 		const presets = await capturePhotoDevelopPresetsArchiveV2(presetSettings, catalogId, { signal });
 		const inventory = await capturePhotoLibraryBackupInventoryV2(catalogId, borrowed, signal);
 		const verifyPresets = presets.verify, verifyInventory = inventory.verify;
+		const verifySource = () => Reflect.apply(verifyInventory, inventory, [() => Reflect.apply(verifyPresets, presets, [])]);
+		const verifyCatalog = inventory.source.verifyCatalog;
+		const verifyMetadata = async () => {
+			await Reflect.apply(verifyCatalog, inventory.source, []);
+			await Reflect.apply(verifyPresets, presets, []);
+			await Reflect.apply(verifyCatalog, inventory.source, []);
+		};
+		// Saved definitions retain their one-shot final verification after delivery.
+		await verifyMetadata();
+		if (signal !== undefined) Reflect.apply(AbortSignal.prototype.throwIfAborted, signal, []);
+		let writable = options.writable;
+		if (options.createWritable) {
+			writable = admitPhotoLibraryBackupRequestV1({ writable: await options.createWritable(), signal }).writable;
+			if (writable === undefined) throw new TypeError('Photo backup destination factory must return a native writable stream.');
+		}
+		if (signal !== undefined) Reflect.apply(AbortSignal.prototype.throwIfAborted, signal, []);
+		if (options.createWritable) await verifyMetadata();
 		return exportPhotoCatalogArchiveV5(inventory.source.initial.catalog, inventory.source.originals, inventory.stacks,
-			inventory.state, inventory.definitions, presets.row, lutSource, { ...options, signal,
-				verifySource: () => Reflect.apply(verifyInventory, inventory, [() => Reflect.apply(verifyPresets, presets, [])]) });
+			inventory.state, inventory.definitions, presets.row, lutSource, { writable, signal,
+				maximumBlobBytes: options.maximumBlobBytes, verifySource });
 	});
 }

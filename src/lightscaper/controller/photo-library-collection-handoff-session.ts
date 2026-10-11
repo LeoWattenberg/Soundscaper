@@ -7,6 +7,7 @@ import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { createPhotoCubeLutClosureV1 } from '../catalog/photo-cube-lut-closure-v1.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
 import { canonicalPhotoDocumentJsonV1 } from '../catalog/photo-document-json-v1.ts';
+import { assertPhotoMaskRasterPortableV1 } from '../catalog/photo-mask-raster-portability-v1.ts';
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
 import { normalizePhotoCatalogQueryV2, photoQueryDigestV2, readPhotoQueryContinuationV2, type PhotoQueryContinuationV2 } from '../catalog/photo-query-types-v2.ts';
 import { projectPhotoQueryRowV2 } from '../catalog/photo-query-index-v2.ts';
@@ -57,7 +58,9 @@ export async function withPhotoLibraryCollectionHandoffV1<Result>(
 	const digests = new Map<string, string>();
 	await walk(initial, async (summary, ordinal) => {
 		if (ordinal >= LIMITS.entries) throw new RangeError('Collection handoff entry capacity exceeded.');
-		const photo = await photoFor(summary, initial), fullJson = canonicalPhotoDocumentJsonV1(photo);
+		const photo = await photoFor(summary, initial);
+		assertPhotoMaskRasterPortableV1(photo);
+		const fullJson = canonicalPhotoDocumentJsonV1(photo);
 		const binding = Object.freeze({ catalogId, photoId: photo.id, versionId: photo.activeVersionId, expectedRevision: photo.revision });
 		const factsJson = serializePhotoExportSidecarV1(createPhotoExportSidecarV1(photo, binding)), original = photo.original;
 		const view = Object.freeze({ binding, factsJson, original: Object.freeze({ exactName: original.name, contentSha256: original.contentSha256,

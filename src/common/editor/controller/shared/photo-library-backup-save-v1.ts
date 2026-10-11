@@ -93,9 +93,7 @@ export class PhotoLibraryBackupSaveV1 {
 			checkSignal(active.stop.signal);
 			if (prepared.mode === 'cancelled') return Object.freeze({ status: 'cancelled' });
 			if (prepared.mode === 'stream') {
-				const writable = await prepared.createWritable(request.maximumStreamingBytes, 'maximum');
-				checkSignal(active.stop.signal);
-				const archive = readArchiveResult(await request.backupCatalog({ writable, signal: active.stop.signal }), request.maximumStreamingBytes);
+				const archive = readArchiveResult(await this.#streamArchive(request, active, prepared), request.maximumStreamingBytes);
 				checkSignal(active.stop.signal);
 				if (archive.blob !== null || prepared.bytesWritten() !== archive.byteLength) {
 					throw new TypeError('Photo backup stream byte length does not match its completed archive.');
@@ -125,6 +123,47 @@ export class PhotoLibraryBackupSaveV1 {
 			}
 			throw primary;
 		}
+	}
+
+	async #streamArchive(request: PhotoLibraryBackupSaveRequestV1, active: ActiveSave,
+		prepared: PreparedDirectSave): Promise<PhotoLibraryBackupResultV1> {
+		let creation: Promise<WritableStream<Uint8Array>> | null = null, retired = false;
+		let repeated: Error | null = null, archive: PhotoLibraryBackupResultV1 | undefined;
+		const failures: unknown[] = [];
+		const reject = (error: Error): Promise<WritableStream<Uint8Array>> => {
+			const work = Promise.reject<WritableStream<Uint8Array>>(error);
+			void work.catch(() => undefined);
+			return work;
+		};
+		const createWritable = (): Promise<WritableStream<Uint8Array>> => {
+			if (retired) return reject(new Error('Photo backup destination factory is retired.'));
+			if (creation) {
+				repeated ??= new Error('Photo backup destination factory may be claimed only once.');
+				return reject(repeated);
+			}
+			// Latch before destination reentry and retain every child until the producer has settled.
+			creation = Promise.resolve().then(async () => {
+				checkSignal(active.stop.signal);
+				const writable = await prepared.createWritable(request.maximumStreamingBytes, 'maximum');
+				checkSignal(active.stop.signal);
+				return writable;
+			});
+			void creation.catch(() => undefined);
+			return creation;
+		};
+		try { archive = await request.backupCatalog({ createWritable, signal: active.stop.signal }); }
+		catch (primary) { failures.push(primary); }
+		retired = true;
+		if (creation) {
+			try { await creation; }
+			catch (child) { if (!failures.some(error => Object.is(error, child))) failures.push(child); }
+		}
+		if (repeated && !failures.some(error => Object.is(error, repeated))) failures.push(repeated);
+		if (failures.length > 1) throw new AggregateError(failures, 'Photo backup archive and destination creation failed.');
+		if (failures.length === 1) throw failures[0];
+		checkSignal(active.stop.signal);
+		if (!creation) throw new TypeError('Photo backup archive did not claim its deferred destination.');
+		return archive!;
 	}
 }
 

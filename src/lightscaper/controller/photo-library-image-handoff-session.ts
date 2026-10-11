@@ -6,6 +6,7 @@ import { canonicalMediaContentBlob, digestMediaContent } from '../../common/edit
 import { createPhotoCubeLutClosureV1 } from '../catalog/photo-cube-lut-closure-v1.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
 import { canonicalPhotoDocumentJsonV1 } from '../catalog/photo-document-json-v1.ts';
+import { assertPhotoMaskRasterPortableV1 } from '../catalog/photo-mask-raster-portability-v1.ts';
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
 import type { PhotoLibrarySessionPortsV2 } from './photo-library-session-ports-v2.ts';
 import { withPhotoLibraryImageHandoffResourcesV1 } from './photo-library-image-handoff-resources-v1.ts';
@@ -28,7 +29,9 @@ export async function withPhotoLibraryImageHandoff<Result>(
 	if (catalogId !== request.catalogId) throw new Error('Image handoff selected catalog changed.');
 	const load = ports.backup?.loadOriginal;
 	if (!load) throw new Error('Image handoff original source is unavailable.');
-	const initial = await read(), factsJson = serializePhotoExportSidecarV1(createPhotoExportSidecarV1(initial, request));
+	const initial = await read();
+	assertPhotoMaskRasterPortableV1(initial);
+	const factsJson = serializePhotoExportSidecarV1(createPhotoExportSidecarV1(initial, request));
 	const fullJson = canonicalPhotoDocumentJsonV1(initial), collector = createPhotoCubeLutClosureV1();
 	collector.addDevelop(initial.versions.find(version => version.id === request.versionId)!.develop);
 	const lutReferences = collector.finish(), original = initial.original;

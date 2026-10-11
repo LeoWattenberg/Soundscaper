@@ -3,8 +3,10 @@
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
+import { sourceMapDirectoryFor } from '../../scripts/lib/build-source-map-relocation.mjs';
 import { importPhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-import-v5.ts';
 import { normalizePhotoCatalogArchiveV5 } from '../../src/lightscaper/archive/catalog-archive-contract-v5.ts';
 import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
@@ -43,7 +45,7 @@ for (const locale of ['en', 'de']) {
 		await page.reload(); await expect(app).toBeVisible();
 		await action(page, app, copy.photoViewMenu, copy.photoShowLibrary);
 		expect(await observe(page, ids)).toEqual(before);
-		expect(errors).toEqual([]); expect(requests.filter(url => /\/assets\/editor-copy-/u.test(url))).toEqual([]);
+		expect(errors).toEqual([]); expect(await fullEditorCopyGroupRequests(requests)).toEqual([]);
 	});
 
 	test(`${locale}: saved full metadata criteria, physical state and a stack survive the menu archive5 backup`, async ({ page, browserName }) => {
@@ -87,7 +89,7 @@ for (const locale of ['en', 'de']) {
 		await expect(backup.locator('[data-photo-backup-receipt]')).toContainText(copy.photoBackupDownloadStarted.replace('{name}', download.suggestedFilename()));
 		await keyboard(page, bodyClose(backup, copy.photoBackupClose));
 		expect(await observe(page, ids)).toEqual(previous); expect(await observeSaved(page, previous.root.id, collectionId, ids[0])).toEqual(saved);
-		expect(errors).toEqual([]); expect(requests.filter(url => /\/assets\/editor-copy-/u.test(url))).toEqual([]);
+		expect(errors).toEqual([]); expect(await fullEditorCopyGroupRequests(requests)).toEqual([]);
 	});
 }
 
@@ -134,8 +136,38 @@ test('a held picker is joined across Close and reopen, then a genuine native wri
 	}
 	await authenticate(new Uint8Array(saved.bytes), before);
 	expect(await observe(page, ids)).toEqual(before); expect(errors).toEqual([]);
-	expect(requests.filter(url => /\/assets\/editor-copy-/u.test(url))).toEqual([]);
+	expect(await fullEditorCopyGroupRequests(requests)).toEqual([]);
 });
+
+/** The editor-copy group also contains shared effect labels and Light copy.
+ * Authenticate its requested chunks before identifying full catalog owners. */
+async function fullEditorCopyGroupRequests(requests) {
+	const site = browserProductSiteForBuild('lightscaper');
+	const directory = resolve(fileURLToPath(new URL('../../', import.meta.url)), site.outputDirectory);
+	const metadata = JSON.parse(await readFile(resolve(directory, '.browser-product-build.json'), 'utf8'));
+	expect(metadata.productId).toBe('lightscaper'); expect(metadata.origin).toBe(site.origin);
+	const forbidden = ['src/common/i18n/catalogs.js', 'src/common/i18n/editor-copy-inventory.ts', 'src/common/i18n/runtime.js'];
+	const matches = [];
+	for (const request of new Set(requests)) {
+		const url = new URL(request);
+		if (url.origin !== site.origin || !/^\/assets\/editor-copy-[^/]+\.js$/u.test(url.pathname)) continue;
+		const asset = url.pathname.slice(1), mapName = `${basename(asset)}.map`;
+		const bytes = await readFile(resolve(directory, asset));
+		const mapBytes = await readFile(resolve(sourceMapDirectoryFor(directory), mapName));
+		for (const [data, pin] of [[bytes, metadata.files[asset]], [mapBytes, metadata.sourceMaps[mapName]]]) {
+			expect(pin).toBeDefined(); expect(data.byteLength).toBe(pin.byteLength);
+			expect(createHash('sha256').update(data).digest('hex')).toBe(pin.sha256);
+		}
+		const map = JSON.parse(mapBytes.toString('utf8'));
+		expect(basename(map.file)).toBe(basename(asset)); expect(Array.isArray(map.sources)).toBe(true);
+		for (const source of map.sources) {
+			expect(typeof source).toBe('string');
+			const path = (source.startsWith('file:') ? fileURLToPath(source) : source).replaceAll('\\', '/');
+			if (forbidden.some(owner => path.endsWith(`/${owner}`))) matches.push({ request, source });
+		}
+	}
+	return matches;
+}
 
 async function authenticate(bytes, previous, { definitions = [], savedState = null, stacks = [] } = {}) {
 	const blob = new Blob([bytes]);
@@ -175,7 +207,7 @@ async function setup(page, locale) {
 	const bundle = await build({ stdin: { contents: `export { readResidentPhotoLibraryCurrent as observe } from "./tests/helpers/lightscaper-current-app-fixture.tsx";
 		export { readCurrentCatalogCompanionsV1 as companions } from "./tests/helpers/lightscaper-current-catalog-companions-fixture.ts";
 		export { bundledLightscaperEditorCopyForLocale as copyForLocale } from "./src/common/i18n/lightscaper-editor-copy.ts";`,
-		resolveDir: fileURLToPath(new URL('../../', import.meta.url)) }, bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'] });
+		resolveDir: fileURLToPath(new URL('../../', import.meta.url)) }, bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'], loader: { '.woff2': 'dataurl' } });
 	await page.route(`**${ROOT}`, async route => { await route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }); });
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
 	await page.goto(`${origin}/${locale}/`);

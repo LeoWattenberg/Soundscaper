@@ -3,6 +3,9 @@
 export interface PhotoLibraryBackupOptionsV1 {
 	readonly signal?: AbortSignal;
 	readonly writable?: WritableStream<Uint8Array>;
+	/** Exclusive with writable; requested after metadata preflight. The caller
+	 * owns cleanup until the archive writer acquires the returned stream. */
+	readonly createWritable?: () => Promise<WritableStream<Uint8Array>>;
 	/** May only tighten the shared 512 MiB renderer-resident Blob maximum. */
 	readonly maximumBlobBytes?: number;
 }

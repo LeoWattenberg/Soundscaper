@@ -17,8 +17,8 @@ import { reactProps } from './helpers/react-test-dom.ts';
 function owner() {
 	const value = createImportTestPort(); let opens = 0, archives = 0, closes = 0;
 	value.backupCatalog = async options => {
-		archives++; assert.ok(options?.writable);
-		const writer = options.writable.getWriter();
+		archives++; assert.ok(options?.createWritable); assert.equal(options.writable, undefined);
+		const writable = await options.createWritable(), writer = writable.getWriter();
 		try { await writer.write(new Uint8Array([1, 2, 3])); await writer.close(); } finally { writer.releaseLock(); }
 		return { catalogId: 'catalog', catalogName: 'Library', photoCount: 0, byteLength: 3, blob: null, notices: [] };
 	};
