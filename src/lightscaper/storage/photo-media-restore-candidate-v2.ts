@@ -16,8 +16,11 @@ import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
 import { getMemoryDatabase } from '../../common/editor/storage/memory-backend.ts';
 import { normalizeCubeLutProfileEffectV1 } from '../../common/editor/video-cube-lut-profile-v1.ts';
 import type { PhotoCatalogArchiveLutResourceV5 } from '../archive/catalog-archive-contract-v5.ts';
+import type { PhotoCatalogArchiveMaskRasterResourceV6 } from '../archive/catalog-archive-contract-v6.ts';
 import { admitPhotoMediaRestoreLutsV1 } from './photo-media-restore-luts-v1.ts';
 import { PhotoCubeLutRepositoryV1 } from './photo-cube-lut-repository-v1.ts';
+import { PhotoMaskRasterRepositoryV1 } from './photo-mask-raster-repository-v1.ts';
+import { admitPhotoMediaRestoreMaskRastersV1, admitPhotoMediaRestoreMaskRasterReferenceV1 } from './photo-media-restore-mask-rasters-v1.ts';
 import type { PhotoCatalogRootV1 } from '../catalog/types.ts';
 import { PhotoMediaStoreV1 } from './photo-media-store.ts';
 import { createPhotoMediaRestoreNamespaceV1, inspectPhotoMediaRestoreNamespaceV1, type PhotoMediaRestoreNamespaceV1 } from './photo-media-restore-namespace-v1.ts';
@@ -29,7 +32,7 @@ import { photoDevelopPresetsKeyV1 } from './photo-develop-presets-v1.ts';
 import { admitPhotoMediaRestorePresetHeaderV2, admitPhotoMediaRestorePresetsV2, bindPhotoMediaRestorePresetsV2,
 	type PhotoMediaRestorePresetHeaderV2, type PhotoMediaRestorePresetBindingV2 } from './photo-media-restore-presets-v2.ts';
 
-export interface PhotoMediaRestoreCandidateOptionsV2 { readonly indexedDB: IDBFactory; readonly allocation: unknown; readonly root: unknown; readonly signal?: AbortSignal; readonly developPresets?: PhotoMediaRestorePresetHeaderV2 | null; readonly lutResources?: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[] }
+export interface PhotoMediaRestoreCandidateOptionsV2 { readonly indexedDB: IDBFactory; readonly allocation: unknown; readonly root: unknown; readonly signal?: AbortSignal; readonly developPresets?: PhotoMediaRestorePresetHeaderV2 | null; readonly lutResources?: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[]; readonly maskRasters?: readonly Readonly<PhotoCatalogArchiveMaskRasterResourceV6>[] }
 export interface PhotoMediaRestoreOriginalReceiptV1 { readonly photoId: string; readonly assetId: string; readonly sha256: string; readonly size: number; readonly reused: boolean }
 export interface PhotoMediaRestoreReceiptV2 extends PhotoMediaRestoreCountsV2 { readonly databaseName: string; readonly catalogId: string }
 export interface PhotoMediaRestoreCandidateV2 {
@@ -37,6 +40,7 @@ export interface PhotoMediaRestoreCandidateV2 {
 	writeOriginal(photo: unknown, source: AsyncIterable<Uint8Array>): Promise<Readonly<PhotoMediaRestoreOriginalReceiptV1>>;
 	writeDevelopPresets(value: unknown): Promise<void>;
 	writeLut(reference: unknown, bytes: unknown): Promise<void>;
+	writeMaskRaster(reference: unknown, bytes: unknown): Promise<void>;
 	finish(): Promise<Readonly<PhotoMediaRestoreReceiptV2>>;
 	close(): Promise<void>; rollback(): Promise<void>;
 }
@@ -44,7 +48,7 @@ const names = new WeakMap<object, Set<string>>();
 
 /** Fresh private IDB-only candidate. Incoming originals are serial; no default namespace or digest deduplication. */
 export async function createPhotoMediaRestoreCandidateV2(value: PhotoMediaRestoreCandidateOptionsV2): Promise<PhotoMediaRestoreCandidateV2> {
-	const input = readClosedDomainRecord(value, 'media restore candidate', ['indexedDB', 'allocation', 'root', 'signal', 'developPresets', 'lutResources'], ['indexedDB', 'allocation', 'root']);
+	const input = readClosedDomainRecord(value, 'media restore candidate', ['indexedDB', 'allocation', 'root', 'signal', 'developPresets', 'lutResources', 'maskRasters'], ['indexedDB', 'allocation', 'root']);
 	const field = (name: string) => readClosedDomainField(input, name, 'media restore candidate');
 	const signal = Object.hasOwn(input, 'signal') ? field('signal') : undefined;
 	if (signal !== undefined) assertMediaRestoreSignalV1(signal);
@@ -52,6 +56,8 @@ export async function createPhotoMediaRestoreCandidateV2(value: PhotoMediaRestor
 	if (root.id !== allocation.catalogId) throw new Error('Media restore root and allocation differ.');
 	const presets = admitPhotoMediaRestorePresetHeaderV2(Object.hasOwn(input, 'developPresets') ? field('developPresets') : null);
 	const luts = admitPhotoMediaRestoreLutsV1(Object.hasOwn(input, 'lutResources') ? field('lutResources') : []);
+	const masks = admitPhotoMediaRestoreMaskRastersV1(Object.hasOwn(input, 'maskRasters') ? field('maskRasters') : []);
+	if (luts.length + masks.length > 4094) throw new RangeError('Restore LUT and brush declarations exceed the shared resource capacity.');
 	const factory = field('indexedDB') as IDBFactory, open = factory?.open, remove = factory?.deleteDatabase;
 	if (typeof open !== 'function' || typeof remove !== 'function') throw new TypeError('Media restore requires durable IndexedDB.');
 	checkMediaRestoreSignalV1(signal);
@@ -61,12 +67,13 @@ export async function createPhotoMediaRestoreCandidateV2(value: PhotoMediaRestor
 	let owns = false;
 	const claim = (): void => { if (owns) return; if (held.has(databaseName)) throw new Error('A restore already owns this media name.'); held.add(databaseName); names.set(factory, held); owns = true; };
 	const release = (): void => { if (owns) { held.delete(databaseName); owns = false; } };
-	claim(); const owner = new Candidate(captured, allocation, root, signal, claim, release, presets, luts);
+	claim(); const owner = new Candidate(captured, allocation, root, signal, claim, release, presets, luts, masks);
 	try {
 		await owner.initialize();
 		return Object.freeze({ databaseName, catalogId: root.id, writeOriginal: (photo: unknown, source: AsyncIterable<Uint8Array>) => owner.write(photo, source),
 			writeDevelopPresets: (value: unknown) => owner.writePresets(value),
 			writeLut: (reference: unknown, bytes: unknown) => owner.writeLut(reference, bytes),
+			writeMaskRaster: (reference: unknown, bytes: unknown) => owner.writeMaskRaster(reference, bytes),
 			finish: () => owner.finish(), close: () => owner.close(), rollback: () => owner.rollback() });
 	} catch (error) {
 		const cleanup: unknown[] = []; try { await owner.rollback(); } catch (failure) { cleanup.push(failure); }
@@ -92,9 +99,12 @@ class Candidate {
 	#presets: Readonly<PhotoMediaRestorePresetBindingV2> | null = null;
 	#luts: PhotoCubeLutRepositoryV1 | null = null;
 	readonly #deliveredLuts = new Set<string>();
+	#maskRasters: PhotoMaskRasterRepositoryV1 | null = null;
+	readonly #deliveredMaskRasters = new Set<string>();
 	constructor(readonly factory: IDBFactory, readonly allocation: PhotoLibraryRestoreAllocationV1,
 		readonly root: PhotoCatalogRootV1, signal: AbortSignal | undefined, readonly claim: () => void, readonly release: () => void,
-		readonly presetHeader: PhotoMediaRestorePresetHeaderV2 | null, readonly lutResources: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[]) {
+		readonly presetHeader: PhotoMediaRestorePresetHeaderV2 | null, readonly lutResources: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[],
+		readonly maskRasters: readonly Readonly<PhotoCatalogArchiveMaskRasterResourceV6>[]) {
 		this.stop = forwardMediaRestoreSignalV1(signal); this.databaseName = photoLibraryRestoreNamespacesV1(allocation).mediaDatabaseName;
 	}
 	cancelled(error: unknown): boolean { return mediaRestoreCancellationV1(error, this.stop.signal); }
@@ -108,6 +118,7 @@ class Candidate {
 		if (await inspectPhotoMediaRestoreNamespaceV1({ indexedDB: this.factory, allocation: this.allocation, signal: this.stop.signal }) !== 'owned') throw new Error('Media restore owner/profile differs.');
 		this.#database = await openMediaRestoreExistingV1(this.factory.open, this.databaseName, this.stop.signal);
 		this.#luts = new PhotoCubeLutRepositoryV1({ memory: getMemoryDatabase(this.databaseName), database: async () => this.#database });
+		this.#maskRasters = new PhotoMaskRasterRepositoryV1({ memory: getMemoryDatabase(this.databaseName), database: async () => this.#database });
 	}
 	#run<T>(operation: () => Promise<T>): Promise<T> {
 		if (this.#active) return Promise.reject(new Error('A media restore operation is pending.'));
@@ -139,6 +150,14 @@ class Candidate {
 			if (this.#deliveredLuts.has(reference.storageKey)) throw new Error('Restore LUT body was already delivered.');
 			await this.#luts!.put(reference, bytes, { signal: this.stop.signal });
 			this.#deliveredLuts.add(reference.storageKey);
+		});
+	}
+	writeMaskRaster(value: unknown, bytes: unknown): Promise<void> {
+		return this.#run(async () => {
+			const reference = admitPhotoMediaRestoreMaskRasterReferenceV1(value), declared = this.maskRasters.find(row => row.id === reference.storageKey);
+			if (!declared || JSON.stringify(reference) !== JSON.stringify(declared.reference)) throw new Error('Restore brush body was not exactly declared.');
+			if (this.#deliveredMaskRasters.has(reference.storageKey)) throw new Error('Restore brush body was already delivered.');
+			await this.#maskRasters!.put(reference, bytes, { signal: this.stop.signal }); this.#deliveredMaskRasters.add(reference.storageKey);
 		});
 	}
 	async #write(value: unknown, source: AsyncIterable<Uint8Array>): Promise<Readonly<PhotoMediaRestoreOriginalReceiptV1>> {
@@ -199,13 +218,14 @@ class Candidate {
 		return this.#run(async () => {
 			if (this.presetHeader !== null && this.#presets === null) throw new Error('Restore preset row was not delivered.');
 			if (this.#deliveredLuts.size !== this.lutResources.length) throw new Error('Restore LUT bodies were not completely delivered.');
+			if (this.#deliveredMaskRasters.size !== this.maskRasters.length) throw new Error('Restore brush bodies were not completely delivered.');
 			if (await inspectPhotoMediaRestoreNamespaceV1({ indexedDB: this.factory, allocation: this.allocation, signal: this.stop.signal }) !== 'owned') throw new Error('Media restore owner/profile differs.');
 			const catalog = await openMediaRestoreExistingV1(this.factory.open, photoLibraryRestoreNamespacesV1(this.allocation).catalogDatabaseName, this.stop.signal);
 			this.#catalog = catalog;
 			let failed = false, failure: unknown, counts: Readonly<PhotoMediaRestoreCountsV2> | undefined; const cleanup: unknown[] = [];
 			try { counts = await finishPhotoMediaRestoreV2(this.#database!, catalog, this.allocation, this.root,
 				{ photoCount: this.#photos, originalCount: this.#assets, originalByteLength: this.#bytes, lutCount: this.#deliveredLuts.size,
-					lutByteLength: this.lutResources.reduce((total, row) => total + row.reference.byteLength, 0) }, this.stop.signal, this.#presets, this.lutResources); }
+					lutByteLength: this.lutResources.reduce((total, row) => total + row.reference.byteLength, 0) }, this.stop.signal, this.#presets, this.lutResources, this.maskRasters); }
 			catch (error) { failed = true; failure = error; }
 			try { catalog.close(); this.#catalog = null; } catch (error) { cleanup.push(error); }
 			this.#cleanupErrors.push(...cleanup);
@@ -222,6 +242,7 @@ class Candidate {
 			await this.#active?.catch(() => undefined); const failures: unknown[] = [...this.#cleanupErrors];
 			try { this.#catalog?.close(); this.#catalog = null; } catch (error) { failures.push(error); }
 			try { await this.#luts?.close(); } catch (error) { failures.push(error); }
+			try { await this.#maskRasters?.close(); } catch (error) { failures.push(error); }
 			try { this.#database?.close(); this.#database = null; } catch (error) { failures.push(error); }
 			try { await this.#closeStore?.(); } catch (error) { failures.push(error); }
 			try { await this.#namespace?.close(); } catch (error) { failures.push(error); }

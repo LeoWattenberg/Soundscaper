@@ -13,6 +13,7 @@ import { commitPhotoDevelopWorkspaceV2, createPhotoDevelopWorkspaceV2, selectPho
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
 import { admitPhotoLibraryBackupRequestV1 } from '../src/lightscaper/controller/photo-library-backup-request.ts';
 import { importPhotoCatalogArchiveV5 } from '../src/lightscaper/archive/catalog-archive-import-v5.ts';
+import { importPhotoCatalogArchiveV6 } from '../src/lightscaper/archive/catalog-archive-import-v6.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
@@ -72,15 +73,43 @@ function destination(f: Awaited<ReturnType<typeof fixture>>) {
 	return { controller, input, events, parts };
 }
 
-test('actual selected Runtime3 and Save refuse a retained later brush before originals or native writable, preserving picker and catalog', async () => {
+test('actual selected Runtime3 and Save commit exact V6 retained brush, redo Photo and original bytes without changing the source catalog', async () => {
 	const f = await fixture(true), target = destination(f), reads = f.reads();
+	const streams: WritableStream<Uint8Array>[] = [], backup = target.input.backupCatalog;
+	target.input.backupCatalog = async options => {
+		assert.ok(options);
+		const createWritable = options.createWritable; assert.equal(typeof createWritable, 'function');
+		return backup({ ...options, createWritable: async () => {
+			const stream = await createWritable!(); streams.push(stream); return stream;
+		} });
+	};
 	try {
 		const work = target.controller.start(target.input); assert.deepEqual(target.events, ['picker']);
-		await assert.rejects(work, /brush|portable|transport/iu);
-		assert.deepEqual(target.events, ['picker', 'prepared-abort']); assert.equal(f.reads(), reads);
-		assert.equal(target.parts.length, 0); assert.equal(target.controller.isPending(), false);
+		const saved = await work; assert.ok(saved.status === 'saved');
+		assert.equal(saved.method, 'file-system-access'); assert.equal(saved.fileName, 'Brush backup.liscape');
+		assert.equal(saved.catalogId, f.root.id); assert.equal(saved.photoCount, 2); assert.deepEqual(saved.notices, []);
+		assert.equal(target.events[1], 'open'); assert.equal(target.events.at(-1), 'commit');
+		assert.equal(target.events.filter(event => event === 'commit').length, 1);
+		assert.equal(target.events.includes('prepared-abort'), false); assert.equal(target.events.includes('native-abort'), false);
+		assert.equal(streams.length, 1); assert.equal(streams[0]!.locked, false); assert.equal(target.controller.isPending(), false);
+		const blob = new Blob(target.parts); assert.equal(saved.byteLength, blob.size); assert.ok(f.reads() > reads);
+		const brush = brushBody(); let originals = 0, masks = 0, published = 0;
+		const borrowed: Uint8Array<ArrayBuffer>[] = [];
+		await importPhotoCatalogArchiveV6(blob, async (root, _saved, _presets, _luts, declarations) => {
+			assert.deepEqual(root, f.before!.catalog); assert.deepEqual(declarations, [{ id: brush.reference.storageKey,
+				entry: `assets/masks/${brush.reference.sha256}.scmask`, reference: brush.reference }]);
+			return { async writePhoto(photo, original) {
+				assert.deepEqual(photo, f.photos[originals]);
+				const chunks: Uint8Array<ArrayBuffer>[] = []; for await (const chunk of original) chunks.push(new Uint8Array(chunk));
+				assert.deepEqual(new Uint8Array(await new Blob(chunks).arrayBuffer()), new Uint8Array(await f.records[originals]!.original.arrayBuffer()));
+				originals++;
+			}, async writeMaskRaster(reference, bytes) { masks++; borrowed.push(bytes); assert.deepEqual(reference, brush.reference); assert.deepEqual(bytes, brush.bytes); },
+			async writeStack() {}, async writeSavedCollection() {}, async writeDevelopPresets() {}, async writeLut() {},
+			async publish() { published++; }, async rollback() { assert.fail('Valid V6 streaming backup rolled back.'); } };
+		});
+		assert.equal(originals, 2); assert.equal(masks, 1); assert.equal(published, 1); assert.ok(borrowed.every(bytes => bytes.every(byte => byte === 0)));
 		assert.deepEqual(await f.catalog.readSnapshot(f.root.id), f.before);
-		assert.deepEqual(await f.catalog.loadPhoto(f.root.id, f.photos[1]!.id), f.photos[1]);
+		for (const photo of f.photos) assert.deepEqual(await f.catalog.loadPhoto(f.root.id, photo.id), photo);
 	} finally { await target.controller.cancelAndJoin(); await f.close(); }
 });
 

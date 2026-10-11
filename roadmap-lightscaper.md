@@ -453,14 +453,28 @@ selected media owner before editing the still-current draft. Save records that
 recipe through the existing Photo history and revision check. Existing graph
 identities and unrelated masks survive re-editing; bindings can select multiple
 existing adjustments and their enabled states.
-Frame integration, portable body custody, full mask management, composition
-authoring, and healing remain open; this authoring slice does not close L6.
-
-Until portable brush body transport lands, backups and editable handoffs refuse
-brush references throughout the retained Photo. Catalog backup checks complete
-photo metadata before reading originals or opening the selected writable file.
-Archive imports reject such records before consuming their originals and join
-rollback of any earlier provisional records before returning the failure.
+Catalog backups now use archive schema 6 and photo pack 3 when any retained
+Photo needs brush bodies; catalogs without brushes keep schema 5. The new
+archive stores authenticated SCMASK01 bodies beside originals and LUTs, covering
+inactive versions, history, redo, snapshots, disabled or unbound masks, and
+unused declared inputs. Selected backup checks complete metadata and
+authenticates bodies serially before reading originals or opening the selected
+writable file, then verifies them again before destination Close. The scalar
+closure budget does not impose a renderer-sized aggregate body limit.
+Restore installs bodies in the freshly allocated media namespace and audits
+the exact declared, delivered, reachable, and stored inventories before and
+after promotion and at the final native publication ACK. Reader and decoder
+cleanup join before the existing one-pointer catalog selection. Original bytes,
+permanent custody, recipes, and brush identities survive restore and reopen.
+Focused Lightscaper tests and English/German native Chromium and Firefox
+workflows cover catalog backup, allocated restore, two reopens, and selected
+proxy/full rendering. The native File System Access backup witness is qualified
+in Chromium and remains skipped in Firefox, where that capability is absent.
+Archives 1–5 remain readable; direct schema 5 and pack 2 paths still refuse
+brush references before consuming their originals and join provisional rollback.
+Editable Frame handoff and preset transport retain their brush refusal guards.
+Frame integration, full mask management, composition authoring, and healing
+remain open; these brush slices do not close L6.
 
 ### Exit gate
 

@@ -11,6 +11,8 @@ import { assertMediaRestoreOwnerV1, assertMediaRestorePhotoRootV1,
 import { readMediaRestoreCatalogPageV2 } from './photo-media-restore-read-v2.ts';
 import { assertPhotoMediaRestoreLutsV1, auditPhotoMediaRestoreLutReachabilityV1 } from './photo-media-restore-luts-v1.ts';
 import type { PhotoCatalogArchiveLutResourceV5 } from '../archive/catalog-archive-contract-v5.ts';
+import type { PhotoCatalogArchiveMaskRasterResourceV6 } from '../archive/catalog-archive-contract-v6.ts';
+import { assertPhotoMediaRestoreMaskRastersV1, auditPhotoMediaRestoreMaskRasterReachabilityV1 } from './photo-media-restore-mask-rasters-v1.ts';
 import { checkMediaRestoreSignalV1 } from './photo-media-restore-signal-v1.ts';
 import { assertPhotoMediaRestorePresetsV2, type PhotoMediaRestorePresetBindingV2 } from './photo-media-restore-presets-v2.ts';
 
@@ -22,12 +24,14 @@ export interface PhotoMediaRestoreCountsV2 {
  * Counts are controls, not substitutes for the canonical binding/body audit. No whole-heap claim. */
 export async function finishPhotoMediaRestoreV2(media: IDBDatabase, catalog: IDBDatabase,
 	allocation: PhotoLibraryRestoreAllocationV1, root: PhotoCatalogRootV1, expected: PhotoMediaRestoreCountsV2,
-	signal: AbortSignal, presets: PhotoMediaRestorePresetBindingV2 | null, luts: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[]): Promise<Readonly<PhotoMediaRestoreCountsV2>> {
+	signal: AbortSignal, presets: PhotoMediaRestorePresetBindingV2 | null, luts: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[],
+	maskRasters: readonly Readonly<PhotoCatalogArchiveMaskRasterResourceV6>[] = []): Promise<Readonly<PhotoMediaRestoreCountsV2>> {
 	await catalogTransaction(media, ['settings'], 'readonly', async stores => {
 		await assertMediaRestoreOwnerV1(stores, allocation);
 		await assertPhotoMediaRestorePresetsV2(stores.settings!, root.id, presets);
 	}, signal);
 	await auditPhotoMediaRestoreLutReachabilityV1(media, catalog, allocation, root, presets, luts, signal);
+	await auditPhotoMediaRestoreMaskRasterReachabilityV1(media, catalog, allocation, root, maskRasters, signal);
 	let photoCount = 0, after: string | null = null;
 	for (;;) {
 		const page = await readMediaRestoreCatalogPageV2(catalog, allocation, root, after, signal);
@@ -58,6 +62,7 @@ export async function finishPhotoMediaRestoreV2(media: IDBDatabase, catalog: IDB
 	await promote(media, allocation, photoCount, signal);
 	// Recheck the source namespace after promotion; no transient delivery cache is publication authority.
 	await auditPhotoMediaRestoreLutReachabilityV1(media, catalog, allocation, root, presets, luts, signal);
+	await auditPhotoMediaRestoreMaskRasterReachabilityV1(media, catalog, allocation, root, maskRasters, signal);
 	// Scalar native count fence supplements the completed bounded canonical audit. Backend count cost is not claimed O(1).
 	return catalogTransaction(media, ['settings', 'mediaAssets', 'mediaAssetChunks', 'catalogOriginalRoots', 'analysis'], 'readwrite', async stores => {
 		await assertMediaRestoreOwnerV1(stores, allocation);
@@ -66,6 +71,7 @@ export async function finishPhotoMediaRestoreV2(media: IDBDatabase, catalog: IDB
 			if (await request(stores[name]!.count()) !== count) throw new Error('Restore inventory changed before completion.');
 		}
 		await assertPhotoMediaRestoreLutsV1(stores.analysis!, luts, signal);
+		await assertPhotoMediaRestoreMaskRastersV1(stores.analysis!, maskRasters, signal);
 		return Object.freeze({ photoCount, originalCount, originalByteLength, lutCount: luts.length,
 			lutByteLength: luts.reduce((total, row) => total + row.reference.byteLength, 0) });
 	}, signal); // Completed native acknowledgement wins a later cancellation.

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
@@ -13,6 +16,8 @@ import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-
 import { photoPngExportMenuLabel } from '../../src/common/i18n/lightscaper-photo-png-export-menu-copy.ts';
 import { photoJpegExportCopy } from '../../src/common/i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoJpegExportMenuLabel } from '../../src/common/i18n/lightscaper-photo-jpeg-export-menu-copy.ts';
+import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restore-copy.ts';
+import { importPhotoCatalogArchiveV6 } from '../../src/lightscaper/archive/catalog-archive-import-v6.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from '../../src/lightscaper/storage/photo-library-location-v2.ts';
 import { expect, test, installNativeImageHandoffRuntime, observeNativePhotoDevelopProxyCustody } from './helpers/lightscaper-image-handoff-native-fixture.js';
 
@@ -22,7 +27,7 @@ const FIRST = [...CROSS.slice(0, 15), 255], ORIGINAL = Array.from({ length: 16 }
 // linear .5, which IEC sRGB encodes as188. No production mask/pixel oracle.
 const pixels = alpha => alpha.flatMap(value => [value ? 188 : 255, value ? 188 : 255, value ? 188 : 255, 255]);
 
-for (const locale of ['en', 'de']) test(`${locale}: menu brush pointer and keyboard edits persist immutable bodies and render through reopen, PNG and JPEG`, async ({ page, browserName }) => {
+for (const locale of ['en', 'de']) test(`${locale}: menu brush edits persist through PNG, JPEG, archive restore and two reopens`, async ({ page, browserName }) => {
 	test.skip(browserName === 'webkit', 'The roadmap defers native WebKit storage qualification.');
 	test.setTimeout(120_000); expect(test.info().config.workers).toBe(1); expect(test.info().retry).toBe(0); expect(test.info().project.retries).toBe(0);
 	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), settings = photoDevelopSettingsCopy(locale);
@@ -107,6 +112,41 @@ for (const locale of ['en', 'de']) test(`${locale}: menu brush pointer and keybo
 		}
 		expect(failures).toEqual([]);
 	} finally { await page.evaluate(() => globalThis.__brushDestination.retire()); }
+	const donor = await restoredState(page, photoId), firstArchive = await catalogBackup();
+	const expectedArchive = await inspectArchive(firstArchive.buffer);
+	expect(expectedArchive.photos).toEqual([saved.photo]); expect(expectedArchive.originals).toEqual([[...input]]);
+	expect(expectedArchive.bodies).toEqual([firstBody, finalBody].sort((a, b) => a.key.localeCompare(b.key)).map(value => ({ key: value.key, bytes: [...value.bytes] })));
+	const restoreWords = lightscaperRestoreCopy(locale); await menu(copy.photoFileMenu); await keyboard(page, named(app, 'button', restoreWords.title));
+	const restoreDialog = named(page, 'dialog', restoreWords.title);
+	await restoreDialog.locator('[data-photo-restore-file]').setInputFiles(firstArchive);
+	await keyboard(page, named(restoreDialog, 'button', restoreWords.restore)); await expect(restoreDialog.locator('[data-photo-restore-receipt]')).toBeVisible();
+	await keyboard(page, named(restoreDialog, 'button', restoreWords.close).last()); await expect(restoreDialog).toHaveCount(0);
+	const restored = await restoredState(page, photoId);
+	expect(restored.pointer.schemaVersion).toBe(2); expect(restored.names.mediaDatabaseName).not.toBe(donor.names.mediaDatabaseName);
+	expect(restored.photo).toEqual(donor.photo); expect(restored.originalSha256).toBe(donor.originalSha256); expect(restored.originalSize).toBe(input.length);
+	expect(restored.metadata.storage).toBe('indexeddb-media-chunks-v1'); expect(restored.bodies).toEqual(donor.bodies);
+	for (let reopen = 0; reopen < 2; reopen++) {
+		await page.reload(); await expect(app).toBeVisible(); await menu(copy.photoViewMenu); await keyboard(page, named(app, 'button', copy.photoShowLibrary));
+		await keyboard(page, app.getByRole('button', { name: /^Brush original\.png/u })); await openDevelop();
+		await expect.poll(() => canvasPixels(after)).toEqual(pixels(CROSS)); await settingsMenu(); await keyboard(page, named(develop, 'button', words.fullResolution));
+		await expect.poll(() => canvasPixels(after)).toEqual(pixels(CROSS)); await openBrush();
+		const reopenedBrush = named(page, 'dialog', brush.title); await expect(named(reopenedBrush, 'img', brush.grid)).toHaveAttribute('data-state', 'ready');
+		await named(reopenedBrush, 'combobox', brush.mask).selectOption(graph.id); await expect(named(reopenedBrush, 'spinbutton', brush.width)).toHaveValue('4');
+		await keyboard(page, named(reopenedBrush, 'button', brush.close).last()); await keyboard(page, named(develop, 'button', words.close).last());
+		expect(await restoredState(page, photoId)).toEqual(restored); expect(await inspectArchive((await catalogBackup()).buffer)).toEqual(expectedArchive);
+	}
+	expect(await nativeBody(page, firstBody.key)).toEqual([...firstBody.bytes]); expect(await nativeBody(page, finalBody.key)).toEqual([...finalBody.bytes]);
+	expect(failures).toEqual([]);
+
+	async function catalogBackup() {
+		await page.evaluate(() => { Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined }); });
+		await menu(copy.photoFileMenu); await keyboard(page, named(app, 'button', copy.photoBackupTitle));
+		const backup = named(page, 'dialog', copy.photoBackupTitle), pending = page.waitForEvent('download');
+		await keyboard(page, backup.locator('[data-photo-backup-save]')); const download = await pending, path = await download.path();
+		expect(path).toBeTruthy(); const buffer = await readFile(path); await expect(backup.locator('[data-photo-backup-receipt]')).toBeVisible();
+		await keyboard(page, backup.locator('[data-photo-backup-close]')); await expect(backup).toHaveCount(0);
+		return { name: download.suggestedFilename(), mimeType: 'application/octet-stream', buffer };
+	}
 
 	async function openDevelop() { await menu(copy.photoFileMenu); await menu(copy.photoPhotoMenu); await keyboard(page, named(app, 'button', photoDevelopMenuLabel(locale))); }
 	async function settingsMenu() { const summary = develop.getByText(settings.menu, { exact: true }); if (!await summary.locator('..').evaluate(details => details.open)) await keyboard(page, summary); }
@@ -116,6 +156,27 @@ for (const locale of ['en', 'de']) test(`${locale}: menu brush pointer and keybo
 	async function check(control) { await control.focus(); await page.keyboard.press('Space'); await expect(control).toBeChecked(); }
 	async function savedKey(key) { await expect.poll(async () => active((await observeNativePhotoDevelopProxyCustody(page, photoId)).photo).develop.masks.flatMap(mask => mask.inputs.map(input => input.sourceRef))).toEqual([key]); }
 });
+
+let observer;
+async function restoredState(page, photoId) {
+	observer ??= build({ entryPoints: [fileURLToPath(new URL('../helpers/lightscaper-brush-restore-native-observer.ts', import.meta.url))],
+		bundle: true, write: false, platform: 'browser', format: 'esm', target: 'es2022' });
+	const result = await observer; expect(result.outputFiles).toHaveLength(1);
+	await page.route('**/__brush_restore_observer.js', route => route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text }));
+	return page.evaluate(async photoId => (await import(new URL('/__brush_restore_observer.js', location.href).href))
+		.observeBrushRestoreNative(photoId, () => globalThis.__assertNativeOpfsWorkerExecution()), photoId);
+}
+async function inspectArchive(buffer) {
+	const photos = [], originals = [], bodies = [];
+	await importPhotoCatalogArchiveV6(new Blob([buffer]), async (_root, _saved, _presets, _luts, declarations) => ({
+		async writePhoto(photo, source) { const bytes = []; for await (const chunk of source) bytes.push(...chunk); photos.push(photo); originals.push(bytes); },
+		async writeStack() {}, async writeSavedCollection() {}, async writeDevelopPresets() {}, async writeLut() {},
+		async writeMaskRaster(reference, bytes) { expect(createHash('sha256').update(bytes).digest('hex')).toBe(reference.sha256); bodies.push({ key: reference.storageKey, bytes: [...bytes] }); },
+		async publish() { expect(bodies.map(value => value.key)).toEqual(declarations.map(value => value.id)); },
+		async rollback() { throw new Error('Valid native brush archive rolled back.'); },
+	}));
+	return { photos, originals, bodies };
+}
 
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }
 async function keyboard(page, control) { await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Enter'); }

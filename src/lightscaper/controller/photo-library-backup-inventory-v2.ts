@@ -5,7 +5,7 @@ import { normalizePhotoSmartCollectionsStateV1 } from '../catalog/photo-smart-co
 import { normalizePhotoStackStateV1 } from '../catalog/photo-stack-v1.ts';
 import { PhotoCatalogRevisionConflictError } from '../catalog/repository-types.ts';
 import { field, record } from '../catalog/value-validation.ts';
-import { capturePhotoLibraryBackupSourceV2, type PhotoLibraryBackupSourcePortsV2 } from './photo-library-backup-source-v2.ts';
+import { capturePhotoLibraryBackupSourceV2, type PhotoLibraryBackupSourcePortsV2, type PhotoLibraryBackupSourceV2 } from './photo-library-backup-source-v2.ts';
 import { capturePhotoLibraryBackupStacksV1, type PhotoLibraryBackupStackPortsV1 } from './photo-library-backup-stacks-v1.ts';
 
 export interface PhotoLibraryBackupInventoryPortsV2 extends PhotoLibraryBackupSourcePortsV2 {
@@ -40,6 +40,14 @@ export function borrowPhotoLibraryBackupInventoryPortsV2(ports: PhotoLibraryBack
  * profiles remain unchanged; their complete fences bracket preset verification. */
 export async function capturePhotoLibraryBackupInventoryV2(catalogId: string, borrowed: PhotoLibraryBackupInventoryPortsV2, signal?: AbortSignal) {
 	const source = await capturePhotoLibraryBackupSourceV2(catalogId, borrowed, signal);
+	return capturePhotoLibraryBackupInventorySourceV2(catalogId, borrowed, source, signal);
+}
+
+/** The metadata owner has already admitted its wire profile. Preserve the
+ * existing one-shot saved inventory and complete stack/preset/catalog fences
+ * for either legacy or mixed-resource sources, without a second body walk. */
+export async function capturePhotoLibraryBackupInventorySourceV2<Source extends PhotoLibraryBackupSourceV2>(catalogId: string,
+	borrowed: PhotoLibraryBackupInventoryPortsV2, source: Source, signal?: AbortSignal) {
 	const capture = await borrowed.catalog.captureSmartCollectionArchiveV1(catalogId, { signal }); check(signal);
 	const context = record(capture.context, 'saved backup context', ['schemaVersion', 'kind', 'catalogId', 'catalogRevision', 'indexRevision', 'state']);
 	if (field(context, 'schemaVersion') !== 1 || field(context, 'kind') !== 'photo-smart-collection-archive-context'

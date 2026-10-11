@@ -2,7 +2,7 @@
 
 const EN = Object.freeze({ menu: 'Brush mask…', title: 'Brush mask', mask: 'Brush mask', newMask: 'New brush mask',
 	grid: 'Mask coverage grid', coordinates: 'Paint coverage in this grid, from zero on the left/top to one on the right/bottom. The grid maps to the image entering each selected adjustment. Apply to see the result on your photo; the mask overlay follows later crop and rotation.',
-	local: 'Brush masks are stored in this browser library. Editable backup and project handoff are unavailable while a photo retains a brush mask.',
+	local: 'Catalog backups preserve brush masks. Editable project handoff is unavailable while a photo retains a brush mask.',
 	width: 'Grid width', height: 'Grid height', create: 'Create grid', mode: 'Brush mode', paint: 'Paint', erase: 'Erase',
 	radius: 'Brush radius', hardness: 'Brush hardness', opacity: 'Brush opacity', x: 'Stamp X', y: 'Stamp Y', stamp: 'Add stroke',
 	undo: 'Undo stroke', redo: 'Redo stroke', strokes: 'Strokes', working: 'Preparing brush mask…',
@@ -13,7 +13,7 @@ const EN = Object.freeze({ menu: 'Brush mask…', title: 'Brush mask', mask: 'Br
 	failed: 'The brush mask action failed. Your saved photo is unchanged.', cleanup: 'The mask was stored, but cleanup reported a failure.' });
 const DE: Readonly<Record<keyof typeof EN, string>> = Object.freeze({ menu: 'Pinselmaske…', title: 'Pinselmaske', mask: 'Pinselmaske', newMask: 'Neue Pinselmaske',
 	grid: 'Maskenraster', coordinates: 'Male die Abdeckung in diesem Raster, von null links/oben bis eins rechts/unten. Das Raster bezieht sich auf das Bild am Eingang jeder gewählten Anpassung. Wende die Maske an, um das Ergebnis im Foto zu sehen; die Maskenüberlagerung folgt anschließendem Zuschnitt und Drehen.',
-	local: 'Pinselmasken werden in dieser Browser-Bibliothek gespeichert. Bearbeitbare Sicherung und Projektübergabe sind nicht verfügbar, solange ein Foto eine Pinselmaske behält.',
+	local: 'Katalogsicherungen bewahren Pinselmasken. Die bearbeitbare Projektübergabe ist nicht verfügbar, solange ein Foto eine Pinselmaske behält.',
 	width: 'Rasterbreite', height: 'Rasterhöhe', create: 'Raster erstellen', mode: 'Pinselmodus', paint: 'Malen', erase: 'Radieren',
 	radius: 'Pinselradius', hardness: 'Pinselhärte', opacity: 'Pinseldeckkraft', x: 'Stempel X', y: 'Stempel Y', stamp: 'Strich hinzufügen',
 	undo: 'Strich rückgängig', redo: 'Strich wiederholen', strokes: 'Striche', working: 'Pinselmaske wird vorbereitet…',

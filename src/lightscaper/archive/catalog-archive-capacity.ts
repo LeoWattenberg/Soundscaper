@@ -23,6 +23,14 @@ export function maximumPhotoCatalogStreamingOutputBytesV5(): number {
 	})));
 }
 
+// The mask extension changes only the longest filename's ZIP framing.
+export function maximumPhotoCatalogStreamingOutputBytesV6(): number {
+	return maximumScapeStoreArchiveBytes(Array.from({ length: SCAPE_ARCHIVE_LIMITS.maximumEntryCount }, (_, index) => ({
+		filename: `assets/masks/${index.toString(16).padStart(64, '0')}.scmask`,
+		payloadBytes: index === 0 ? SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes : 0,
+	})));
+}
+
 function maximumForPackEntry(prefix: string): number {
 	const entries = Array.from({ length: SCAPE_ARCHIVE_LIMITS.maximumEntryCount }, (_, index) => ({
 		filename: `assets/${prefix}-${String(index).padStart(6, '0')}.bin`,

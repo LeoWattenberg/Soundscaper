@@ -4,7 +4,7 @@ import type { PhotoLibraryRestoreReceiptV1 } from '../../common/editor/photo-lib
 import { readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
 import { aggregateScapeErrors } from '../../common/editor/scape-abort.ts';
 import type { ScapeProjectInput, ScapeProjectInputReaderFactories } from '../../common/editor/scape-project-input.ts';
-import { importPhotoCatalogArchiveV5, type PhotoCatalogArchiveStageV5 } from '../archive/catalog-archive-import-v5.ts';
+import { importPhotoCatalogArchiveV6, type PhotoCatalogArchiveStageV6 } from '../archive/catalog-archive-import-v6.ts';
 import { readValidatedPhotoCatalogRootV1 } from '../catalog/documents.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
 import { name } from '../catalog/value-validation.ts';
@@ -40,7 +40,7 @@ const add = EventTarget.prototype.addEventListener, remove = EventTarget.prototy
 const reason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 const abort = AbortController.prototype.abort;
 
-/** Named V5-or-legacy restore: authenticate complete originals/LUTs and mixed recipes in fresh private namespaces, then retain the unchanged one native pointer ACK. */
+/** Named V6-or-legacy restore: authenticate originals/LUTs/brush bodies and mixed recipes in fresh private namespaces, then retain the unchanged one native pointer ACK. */
 export async function restorePhotoLibraryArchiveV2(input: ScapeProjectInput,
 	options: PhotoLibraryArchiveRestoreOptionsV2): Promise<Readonly<PhotoLibraryRestoreReceiptV1>> {
 	const value = readClosedDomainRecord(options, 'library archive restore', ['name', 'indexedDB', 'locks', 'settings', 'signal', 'allocateToken', 'readerFactories'],
@@ -155,17 +155,17 @@ export async function restorePhotoLibraryArchiveV2(input: ScapeProjectInput,
 					})(); return cleaning;
 				};
 				try {
-					await importPhotoCatalogArchiveV5(input, (rootValue, savedState, presetPack, lutResources) => throughCodec(async () => {
+					await importPhotoCatalogArchiveV6(input, (rootValue, savedState, presetPack, lutResources, maskRasters) => throughCodec(async () => {
 						assertHeld(); const root = readValidatedPhotoCatalogRootV1(rootValue);
 						allocation = normalizePhotoLibraryRestoreAllocationV1({ ...reservation, catalogId: root.id });
 						await journal.stage(allocation, selected.pointer); assertHeld();
 						catalog = await createPhotoCatalogRestoreStageV2({ indexedDB: native, databaseName: names.catalogDatabaseName,
 							root, savedState, restoreAllocation: allocation, signal: stop.signal });
 						assertHeld(); media = await createPhotoMediaRestoreCandidateV2({ indexedDB: native, allocation, root, signal: stop.signal,
-							developPresets: presetPack === null ? null : { rowSchemaVersion: presetPack.rowSchemaVersion, revision: presetPack.revision, presetCount: presetPack.presetCount }, lutResources });
+							developPresets: presetPack === null ? null : { rowSchemaVersion: presetPack.rowSchemaVersion, revision: presetPack.revision, presetCount: presetPack.presetCount }, lutResources, maskRasters });
 						const catalogOwner = catalog, mediaOwner = media;
 						const photoMethod = catalogOwner.writePhoto, stackMethod = catalogOwner.writeStack, savedMethod = catalogOwner.writeSavedCollection,
-							originalMethod = mediaOwner.writeOriginal, presetMethod = mediaOwner.writeDevelopPresets, lutMethod = mediaOwner.writeLut,
+							originalMethod = mediaOwner.writeOriginal, presetMethod = mediaOwner.writeDevelopPresets, lutMethod = mediaOwner.writeLut, maskMethod = mediaOwner.writeMaskRaster,
 							catalogFinish = catalogOwner.finish, mediaFinish = mediaOwner.finish;
 						const writePhoto = (...args: Parameters<typeof photoMethod>) => Reflect.apply(photoMethod, catalogOwner, args),
 							writeStack = (...args: Parameters<typeof stackMethod>) => Reflect.apply(stackMethod, catalogOwner, args),
@@ -173,8 +173,9 @@ export async function restorePhotoLibraryArchiveV2(input: ScapeProjectInput,
 							writeOriginal = (...args: Parameters<typeof originalMethod>) => Reflect.apply(originalMethod, mediaOwner, args),
 							writeDevelopPresets = (...args: Parameters<typeof presetMethod>) => Reflect.apply(presetMethod, mediaOwner, args),
 							writeLut = (...args: Parameters<typeof lutMethod>) => Reflect.apply(lutMethod, mediaOwner, args),
+							writeMaskRaster = (...args: Parameters<typeof maskMethod>) => Reflect.apply(maskMethod, mediaOwner, args),
 							finishCatalog = () => Reflect.apply(catalogFinish, catalogOwner, []), finishMedia = () => Reflect.apply(mediaFinish, mediaOwner, []);
-						return Object.freeze<PhotoCatalogArchiveStageV5>({
+						return Object.freeze<PhotoCatalogArchiveStageV6>({
 							writePhoto: (value, original) => throughCodec(async () => {
 								assertHeld(); const photo = normalizePhotoDocumentV1OrV2(value);
 								await writeOriginal(photo, original); assertHeld(); await writePhoto(photo);
@@ -183,6 +184,7 @@ export async function restorePhotoLibraryArchiveV2(input: ScapeProjectInput,
 							writeSavedCollection: value => throughCodec(async () => { assertHeld(); await writeSavedCollection(value); }),
 							writeDevelopPresets: value => throughCodec(async () => { assertHeld(); await writeDevelopPresets(value); }),
 							writeLut: (reference, bytes) => throughCodec(async () => { assertHeld(); await writeLut(reference, bytes); }),
+							writeMaskRaster: (reference, bytes) => throughCodec(async () => { assertHeld(); await writeMaskRaster(reference, bytes); }),
 							publish: () => throughCodec(async () => {
 								assertHeld(); const catalogReady = await finishCatalog(); assertHeld();
 								const mediaReady = await finishMedia(); assertHeld();
