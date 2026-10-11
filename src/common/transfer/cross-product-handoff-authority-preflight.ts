@@ -29,6 +29,7 @@ export function crossProductHandoffSourceAuthorityRefusals(
 	family: ProjectSchemaFamily,
 	source: Record<string, unknown>,
 ): readonly Readonly<CrossProductHandoffAuthorityRefusal>[] {
+	if (family === 'motionscaper') return motionHandoffRefusal();
 	const result: CrossProductHandoffAuthorityRefusal[] = [];
 	const compatibility = COMPATIBILITY[family].evaluate(source);
 	if (compatibility === null) result.push({
@@ -59,6 +60,7 @@ export function crossProductHandoffDestinationAuthorityRefusals(
 	family: ProjectSchemaFamily,
 	destination: Record<string, unknown>,
 ): readonly Readonly<CrossProductHandoffAuthorityRefusal>[] {
+	if (family === 'motionscaper') return motionHandoffRefusal();
 	const compatibility = COMPATIBILITY[family].evaluate(destination);
 	if (compatibility?.compatible === true) return Object.freeze([]);
 	const count = compatibility?.items.filter(({ disposition }) => disposition !== 'native').length ?? 0;
@@ -69,6 +71,11 @@ export function crossProductHandoffDestinationAuthorityRefusals(
 			: `The constructed ${family} destination has ${String(count)} non-native feature requirement(s)`
 				+ ' and would be intrinsically read-only; no authenticated materializer produced editable authority.',
 	})]);
+}
+
+function motionHandoffRefusal(): readonly Readonly<CrossProductHandoffAuthorityRefusal>[] {
+	return Object.freeze([Object.freeze({ root: 'schemaFamily',
+		reason: 'Motion scenes require the saved composition link workflow; editorial copy conversion has no motion authority.' })]);
 }
 
 function appendSoundscaperDestinationRefusals(

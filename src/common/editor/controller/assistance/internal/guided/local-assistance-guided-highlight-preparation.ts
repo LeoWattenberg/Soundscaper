@@ -301,6 +301,9 @@ function sourceTimeAuthority(
 function primitiveFence(value: unknown): LocalAssistanceGuidedPrimitiveFence {
 	const row = record(value, 'highlight selection fence');
 	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaFamily !== 'soundscaper' && identity.schemaFamily !== 'framescaper') {
+		throw new RangeError('Highlight selection requires an editorial project family.');
+	}
 	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
 		throw new RangeError('Highlight selection requires the current project schema.');
 	}

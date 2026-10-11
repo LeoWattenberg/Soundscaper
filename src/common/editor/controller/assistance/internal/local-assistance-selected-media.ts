@@ -350,6 +350,9 @@ function prepareRequest(value: unknown): Readonly<{
 
 function selectedProject(value: unknown): SelectedMediaProject {
 	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== 'soundscaper' && identity.schemaFamily !== 'framescaper') {
+		throw new RangeError('Local assistance requires an editorial project family.');
+	}
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Local assistance requires an active project.');
 	}

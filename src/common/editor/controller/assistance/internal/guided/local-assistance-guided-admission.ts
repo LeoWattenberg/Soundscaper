@@ -29,6 +29,9 @@ export interface InventorySource { readonly sourceId: string; readonly mediaKind
 export function primitiveFence(value: unknown): PrimitiveFence {
 	const row = dataRecord(value, 'primitive selection fence');
 	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaFamily !== 'soundscaper' && identity.schemaFamily !== 'framescaper') {
+		throw new RangeError('Primitive selection requires an editorial project family.');
+	}
 	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
 		throw new RangeError('Primitive selection requires the current project schema.');
 	}
