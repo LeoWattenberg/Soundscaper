@@ -10,13 +10,15 @@ import { exportMotionscaperArchive } from './editor-scape.ts';
 
 /** False cancels publication. The local saved pointer advances only after native atomic commit. */
 export async function writeMotionscaperDesktopProject(project: MotionscaperProject, store: Pick<MotionscaperProjectStore, 'readAsset'>,
-	files: MotionDesktopFiles | null = motionscaperDesktopFiles(), saveCopy = false): Promise<boolean> {
+	files: MotionDesktopFiles | null = motionscaperDesktopFiles(), saveCopy = false, assertCurrent?: () => Promise<void>): Promise<boolean> {
 	if (!files) return true;
+	await assertCurrent?.();
 	const output = await beginMotionscaperDesktopSave(files, { projectId: project.id, suggestedName: motionDocumentFileName(project.title),
 		...(saveCopy ? { saveAs: true, saveCopy: true } : {}) });
 	if (!output) return false;
 	try {
 		await exportMotionscaperArchive(project, (asset) => store.readAsset(asset), { writable: output.writable });
+		await assertCurrent?.();
 		await output.commit(); return true;
 	} catch (error) { await output.abort(); throw error; }
 }

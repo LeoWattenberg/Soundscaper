@@ -14,6 +14,8 @@ import { createMotionscaperRevision, verifyMotionscaperRevision, type Motionscap
 import { normalizeMotionscaperProject } from './editor-project-validation.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import type { MotionArchiveImportTransaction } from './editor-scape.ts';
+import { MotionProjectConflictError, MotionProjectWriteLeases, MOTION_PROJECT_LEASE_STORE, type MotionProjectWriteLease } from './editor-project-write-lease.ts';
+export { MotionProjectConflictError, MotionProjectLeaseError } from './editor-project-write-lease.ts';
 
 interface ProjectPointer {
 	readonly id: string; readonly savedDigest: string | null;
@@ -22,14 +24,10 @@ interface ProjectPointer {
 	readonly savedRevision: number | null;
 }
 interface StoredRevision { readonly key: string; readonly projectId: string; readonly snapshot: MotionscaperRevision }
-export interface MotionscaperProjectStoreOptions { readonly indexedDB?: IDBFactory }
+export interface MotionscaperProjectStoreOptions { readonly indexedDB?: IDBFactory; readonly now?: () => number }
 export interface MotionProjectSummary {
 	readonly id: string; readonly title: string; readonly revision: number;
 	readonly savedDigest: string | null; readonly hasRecovery: boolean;
-}
-
-export class MotionProjectConflictError extends Error {
-	constructor() { super('The saved motion project changed in another session; reopen before saving.'); this.name = 'MotionProjectConflictError'; }
 }
 
 export function createMotionscaperProjectStore(options: MotionscaperProjectStoreOptions = {}): MotionscaperProjectStore {
@@ -40,6 +38,7 @@ export function createMotionscaperProjectStore(options: MotionscaperProjectStore
 export class MotionscaperProjectStore {
 	readonly #databasePromise: Promise<IDBDatabase>;
 	readonly #assets: MotionAssetRepository;
+	readonly #leases: MotionProjectWriteLeases;
 	readonly #listeners = new Set<(revision: MotionscaperRevision) => void>();
 	#closed = false;
 
@@ -53,6 +52,7 @@ export class MotionscaperProjectStore {
 			catch (error) { database.close(); throw error; }
 		});
 		this.#assets = new MotionAssetRepository(() => this.#database());
+		this.#leases = new MotionProjectWriteLeases({ database: () => this.#databasePromise, physicalLocks: indexedDB === globalThis.indexedDB, now: options.now });
 	}
 
 	async #database(): Promise<IDBDatabase> {
@@ -61,9 +61,16 @@ export class MotionscaperProjectStore {
 	}
 
 	async close(): Promise<void> {
+		if (this.#closed) return;
 		this.#closed = true;
 		this.#listeners.clear();
-		(await this.#databasePromise).close();
+		try { await this.#leases.close(); } finally { (await this.#databasePromise).close(); }
+	}
+	acquireWriteAccess(id: string): Promise<MotionProjectWriteLease> { return this.#leases.acquire(id); }
+	releaseWriteAccess(lease: MotionProjectWriteLease): Promise<void> { return this.#leases.release(lease); }
+	async assertWriteAccess(lease: MotionProjectWriteLease): Promise<void> {
+		const database = await this.#database();
+		await transact(database, [MOTION_PROJECT_LEASE_STORE], 'readonly', stores => this.#leases.assert(stores, lease));
 	}
 
 	subscribeSaved(listener: (revision: MotionscaperRevision) => void): () => void {
@@ -71,17 +78,20 @@ export class MotionscaperProjectStore {
 		return () => { this.#listeners.delete(listener); };
 	}
 
-	async save(value: unknown, expectedDigest: string | null): Promise<MotionscaperRevision> {
+	async save(value: unknown, expectedDigest: string | null, lease?: MotionProjectWriteLease): Promise<MotionscaperRevision> {
 		const snapshot = createMotionscaperRevision(value);
-		await this.#publish(snapshot, expectedDigest, []);
+		await this.#publish(snapshot, expectedDigest, [], lease);
 		this.#notify(snapshot);
 		return snapshot;
 	}
 
-	async #publish(snapshot: MotionscaperRevision, expectedDigest: string | null, staging: readonly MotionAssetStaging[]): Promise<void> {
+	async #publish(snapshot: MotionscaperRevision, expectedDigest: string | null, staging: readonly MotionAssetStaging[], authority?: MotionProjectWriteLease): Promise<void> {
 		if (expectedDigest !== null) motionDigest(expectedDigest);
 		const database = await this.#database();
-		await transact(database, ['projects', 'revisions', 'assets', 'chunks', 'staging'], 'readwrite', async (stores) => {
+		const lease = authority ?? await this.#leases.defaultLease(snapshot.projectId);
+		if (lease.projectId !== snapshot.projectId) throw new MotionProjectConflictError();
+		await transact(database, ['projects', 'revisions', 'assets', 'chunks', 'staging', MOTION_PROJECT_LEASE_STORE], 'readwrite', async (stores) => {
+			await this.#leases.assert(stores, lease, true);
 			const prior: unknown = await request(stores.projects.get(snapshot.projectId));
 			const pointer = prior === undefined ? null : readPointer(prior, snapshot.projectId);
 			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
@@ -94,6 +104,7 @@ export class MotionscaperProjectStore {
 			}
 			for (const stage of staging) await stage.publish(stores);
 			for (const asset of snapshot.project.assets) await this.#assets.assertAvailable(stores, asset);
+			await this.#leases.assert(stores, lease);
 			await request(stores.revisions.put({ key: revisionKey(snapshot.projectId, snapshot.digest),
 				projectId: snapshot.projectId, snapshot } satisfies StoredRevision));
 			await request(stores.projects.put({ id: snapshot.projectId, savedDigest: snapshot.digest,
@@ -108,15 +119,19 @@ export class MotionscaperProjectStore {
 		}
 	}
 
-	async saveRecovery(value: unknown, expectedDigest: string | null): Promise<void> {
+	async saveRecovery(value: unknown, expectedDigest: string | null, authority?: MotionProjectWriteLease): Promise<void> {
 		const project = normalizeMotionscaperProject(value);
 		if (expectedDigest !== null) motionDigest(expectedDigest);
 		const database = await this.#database();
-		await transact(database, ['projects', 'assets'], 'readwrite', async (stores) => {
+		const lease = authority ?? await this.#leases.defaultLease(project.id);
+		if (lease.projectId !== project.id) throw new MotionProjectConflictError();
+		await transact(database, ['projects', 'assets', MOTION_PROJECT_LEASE_STORE], 'readwrite', async (stores) => {
+			await this.#leases.assert(stores, lease, true);
 			const stored: unknown = await request(stores.projects.get(project.id));
 			const pointer = stored === undefined ? null : readPointer(stored, project.id);
 			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
 			for (const asset of project.assets) await this.#assets.assertAvailable(stores, asset);
+			await this.#leases.assert(stores, lease);
 			await request(stores.projects.put({ id: project.id, savedDigest: expectedDigest,
 				savedTitle: pointer?.savedTitle ?? null, savedRevision: pointer?.savedRevision ?? null,
 				recovery: project } satisfies ProjectPointer));
@@ -180,7 +195,7 @@ export class MotionscaperProjectStore {
 	loadAsset(asset: unknown): Promise<Blob | null> { return this.#assets.load(asset); }
 	readAsset(asset: unknown): Promise<MotionAssetBody | null> { return this.#assets.read(asset); }
 
-	async beginImport(projectInput: unknown): Promise<MotionArchiveImportTransaction> {
+	async beginImport(projectInput: unknown, lease?: MotionProjectWriteLease): Promise<MotionArchiveImportTransaction> {
 		const project = normalizeMotionscaperProject(projectInput);
 		const stages = new Map<string, MotionAssetStaging>();
 		let settled = false;
@@ -199,7 +214,7 @@ export class MotionscaperProjectStore {
 				if (settled) throw new Error('Motion import transaction is closed.');
 				const snapshot = createMotionscaperRevision(value);
 				if (snapshot.digest !== createMotionscaperRevision(project).digest) throw new Error('Motion project changed during import.');
-				await this.#publish(snapshot, null, [...stages.values()]);
+				await this.#publish(snapshot, null, [...stages.values()], lease);
 				settled = true;
 				this.#notify(snapshot);
 			},

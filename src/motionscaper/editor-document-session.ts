@@ -9,6 +9,7 @@ import { createMotionscaperProject } from './editor-project.ts';
 import { applyMotionscaperCommands, createMotionscaperHistory, type MotionscaperHistory, type MotionscaperProjectCommand } from './editor-project-commands.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import type { MotionscaperProjectStore } from './editor-project-store.ts';
+import { MotionProjectLeaseError, type MotionProjectWriteLease } from './editor-project-write-lease.ts';
 
 export interface MotionProjectSettings {
 	readonly title: string; readonly width: number; readonly height: number;
@@ -32,6 +33,8 @@ export class MotionscaperDocumentSession {
 	readonly #listeners = new Set<() => void>();
 	#history: MotionscaperHistory | null = null;
 	#snapshot = EMPTY_MOTION_DOCUMENT;
+	#lease: MotionProjectWriteLease | null = null;
+	#disposed = false;
 
 	constructor(store: MotionscaperProjectStore, randomId: () => string = () => crypto.randomUUID()) {
 		this.#store = store; this.#randomId = randomId;
@@ -46,6 +49,7 @@ export class MotionscaperDocumentSession {
 		for (const listener of this.#listeners) listener();
 	}
 	async #run<T>(operation: () => Promise<T>): Promise<T> {
+		if (this.#disposed) throw new MotionProjectLeaseError();
 		if (this.#snapshot.busy) throw new Error('Another motion document operation is still running.');
 		this.#update({ busy: true });
 		try { return await operation(); }
@@ -56,23 +60,48 @@ export class MotionscaperDocumentSession {
 		if (!project) throw new Error('Open a motion composition first.');
 		return project;
 	}
-	#adopt(project: MotionscaperProject, savedDigest: string | null, dirty: boolean): void {
+	async #adopt(project: MotionscaperProject, savedDigest: string | null, dirty: boolean, lease: MotionProjectWriteLease): Promise<void> {
+		if (this.#disposed) throw new MotionProjectLeaseError();
+		const prior = this.#lease; this.#lease = lease;
 		this.#history = createMotionscaperHistory(project);
 		this.#update({ savedDigest, dirty });
+		if (prior && prior !== lease) await this.#store.releaseWriteAccess(prior);
+	}
+	#requireLease(): MotionProjectWriteLease { if (this.#disposed || !this.#lease) throw new MotionProjectLeaseError(); return this.#lease; }
+	async #withLease<T>(id: string, operation: (lease: MotionProjectWriteLease) => Promise<T>): Promise<T> {
+		if (this.#lease?.projectId === id) {
+			try { await this.#store.assertWriteAccess(this.#lease); }
+			catch (error) {
+				if (!(error instanceof MotionProjectLeaseError)) throw error;
+				const previous = this.#lease; this.#lease = null; await this.#store.releaseWriteAccess(previous);
+			}
+		}
+		const lease = this.#lease?.projectId === id ? this.#lease : await this.#store.acquireWriteAccess(id);
+		try { await this.#store.assertWriteAccess(lease); return await operation(lease); }
+		catch (error) { if (lease !== this.#lease) await this.#store.releaseWriteAccess(lease); throw error; }
+	}
+	async dispose(): Promise<void> {
+		if (this.#disposed) return; this.#disposed = true; this.#listeners.clear();
+		const lease = this.#lease; this.#lease = null;
+		if (lease) await this.#store.releaseWriteAccess(lease);
 	}
 	create(settings: MotionProjectSettings): Promise<void> {
 		return this.#run(async () => {
 			const project = createMotionscaperProject({ ...settings, id: this.#randomId(), compositionId: this.#randomId() });
-			const saved = await this.#store.save(project, null);
-			this.#adopt(saved.project, saved.digest, false);
+			await this.#withLease(project.id, async lease => {
+				const saved = await this.#store.save(project, null, lease);
+				await this.#adopt(saved.project, saved.digest, false, lease);
+			});
 		});
 	}
 	open(id: string, recover = false): Promise<void> {
 		return this.#run(async () => {
-			const saved = await this.#store.load(id);
-			const project = recover ? await this.#store.loadRecovery(id) : saved?.project;
-			if (!project) throw new Error('The requested motion project is unavailable.');
-			this.#adopt(project, saved?.digest ?? null, recover);
+			await this.#withLease(id, async lease => {
+				const saved = await this.#store.load(id);
+				const project = recover ? await this.#store.loadRecovery(id) : saved?.project;
+				if (!project) throw new Error('The requested motion project is unavailable.');
+				await this.#adopt(project, saved?.digest ?? null, recover, lease);
+			});
 		});
 	}
 	changeSettings(settings: MotionProjectSettings): Promise<void> {
@@ -88,10 +117,11 @@ export class MotionscaperDocumentSession {
 		});
 	}
 	async #edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[]): Promise<void> {
+		const lease = this.#requireLease(); await this.#store.assertWriteAccess(lease);
 		const candidate = applyMotionscaperCommands(this.#requireProject(), commands);
 		for (const { asset, body } of assets) await this.#store.putAsset(asset, body);
 		// Retain the complete descriptor closure before any observer can see the edit.
-		await this.#store.saveRecovery(candidate, this.#snapshot.savedDigest);
+		await this.#store.saveRecovery(candidate, this.#snapshot.savedDigest, lease);
 		this.#history!.commit(commands);
 		this.#update({ dirty: true });
 	}
@@ -134,11 +164,12 @@ export class MotionscaperDocumentSession {
 			await this.#edit(commands, [imported]);
 		});
 	}
-	save(writeSnapshot?: (project: MotionscaperProject) => Promise<boolean>): Promise<void> {
+	save(writeSnapshot?: (project: MotionscaperProject, assertCurrent: () => Promise<void>) => Promise<boolean>): Promise<void> {
 		return this.#run(async () => {
 			const project = this.#requireProject();
-			if (writeSnapshot && !await writeSnapshot(project)) return;
-			const saved = await this.#store.save(project, this.#snapshot.savedDigest);
+			const lease = this.#requireLease(); await this.#store.assertWriteAccess(lease);
+			if (writeSnapshot && !await writeSnapshot(project, () => this.#store.assertWriteAccess(lease))) return;
+			const saved = await this.#store.save(project, this.#snapshot.savedDigest, lease);
 			this.#update({ savedDigest: saved.digest, dirty: false });
 		});
 	}
@@ -146,7 +177,7 @@ export class MotionscaperDocumentSession {
 		return this.#run(async () => {
 			const transition = direction === 'undo' ? this.#history?.prepareUndo() : this.#history?.prepareRedo();
 			if (!transition) return;
-			await this.#store.saveRecovery(transition.project, this.#snapshot.savedDigest);
+			await this.#store.saveRecovery(transition.project, this.#snapshot.savedDigest, this.#requireLease());
 			transition.accept(); this.#update({ dirty: true });
 		});
 	}
@@ -169,11 +200,17 @@ export class MotionscaperDocumentSession {
 	importArchive(file: ScapeProjectInput): Promise<void> {
 		return this.#run(async () => {
 			const { importMotionscaperArchive } = await import('./editor-scape.ts');
-			const opened = await importMotionscaperArchive(file, (project) => this.#store.beginImport(project));
-			if (opened.kind !== 'current') throw new UnsupportedMotionArchiveError();
-			const saved = await this.#store.load(opened.project.id);
-			if (!saved) throw new Error('The imported motion project was not published.');
-			this.#adopt(saved.project, saved.digest, false);
+			let lease: MotionProjectWriteLease | null = null;
+			try {
+				const opened = await importMotionscaperArchive(file, async project => {
+					lease = this.#lease?.projectId === project.id ? this.#lease : await this.#store.acquireWriteAccess(project.id);
+					return this.#store.beginImport(project, lease);
+				});
+				if (opened.kind !== 'current') throw new UnsupportedMotionArchiveError();
+				const saved = await this.#store.load(opened.project.id);
+				if (!saved || !lease) throw new Error('The imported motion project was not published.');
+				await this.#adopt(saved.project, saved.digest, false, lease);
+			} catch (error) { if (lease && lease !== this.#lease) await this.#store.releaseWriteAccess(lease); throw error; }
 		});
 	}
 }

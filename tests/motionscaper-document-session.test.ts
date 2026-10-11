@@ -35,6 +35,7 @@ test('Motionscaper document commands separate explicit saves from recoverable ed
 		assert.notEqual(session.getSnapshot().savedDigest, savedDigest);
 		assert.equal(await store.loadRecovery(id), null);
 		await session.changeSettings({ ...settings, title: 'Recovered edit' });
+		await session.dispose();
 		const reopened = new MotionscaperDocumentSession(store);
 		await reopened.open(id, false);
 		assert.equal(reopened.getSnapshot().project?.title, 'First edit');
@@ -65,18 +66,23 @@ test('Motionscaper Save Copy exports the immutable draft without publishing a li
 });
 
 test('Motionscaper refuses stale saves while retaining the visible unsaved document', async () => {
-	const { store, session } = fixture();
+	let now = 1000;
+	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory;
+	const store = createMotionscaperProjectStore({ indexedDB, now: () => now });
+	const other = createMotionscaperProjectStore({ indexedDB, now: () => now });
+	const session = new MotionscaperDocumentSession(store);
 	try {
 		await session.create(settings);
 		const initial = session.getSnapshot();
 		await session.changeSettings({ ...settings, title: 'This window' });
-		await store.save({ ...initial.project, revision: 1, title: 'Other window' }, initial.savedDigest);
+		now += 16000;
+		await other.save({ ...initial.project, revision: 1, title: 'Other window' }, initial.savedDigest);
 		await assert.rejects(session.save(), MotionProjectConflictError);
 		assert.equal(session.getSnapshot().project?.title, 'This window');
 		assert.equal(session.getSnapshot().dirty, true);
 		assert.equal(session.getSnapshot().busy, false);
 		assert.equal((await store.load(initial.project!.id))?.project.title, 'Other window');
-	} finally { await store.close(); }
+	} finally { await store.close(); await other.close(); }
 });
 
 test('Motionscaper layers are one recoverable undo step and their assets survive archive transfer', async () => {

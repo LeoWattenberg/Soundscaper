@@ -50,3 +50,21 @@ test('native document workflow streams a verified archive, binds opened files an
 		assert.equal(await openMotionscaperDesktopProject(second.session, null), 'browser');
 	} finally { await authority.dispose(); await first.store.close(); await second.store.close(); await rm(root, { recursive: true, force: true }); }
 });
+
+test('native Save checks the document fence before file commit and keeps the prior file after ownership loss', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'motionscaper-fenced-native-')), path = join(root, 'native.mscape');
+	const authority = createMotionscaperFileAuthority({ chooseSave: async () => path, chooseOpen: async () => path });
+	const { store, session } = fixture(); let releaseDuringWrite = false;
+	const files = { ...authority, write: async (input: Parameters<typeof authority.write>[0]) => {
+		await authority.write(input); if (releaseDuringWrite) { releaseDuringWrite = false; await session.dispose(); }
+	} };
+	try {
+		await session.create(settings);
+		await session.save((project, assertCurrent) => writeMotionscaperDesktopProject(project, store, files, false, assertCurrent));
+		const before = await readFile(path), saved = session.getSnapshot().savedDigest;
+		await session.changeSettings({ ...settings, title: 'Must stay a draft' }); releaseDuringWrite = true;
+		await assert.rejects(session.save((project, assertCurrent) => writeMotionscaperDesktopProject(project, store, files, false, assertCurrent)), /write access/iu);
+		assert.deepEqual(await readFile(path), before); assert.equal(session.getSnapshot().savedDigest, saved);
+		assert.equal(session.getSnapshot().dirty, true);
+	} finally { await authority.dispose(); await store.close(); await rm(root, { recursive: true, force: true }); }
+});
