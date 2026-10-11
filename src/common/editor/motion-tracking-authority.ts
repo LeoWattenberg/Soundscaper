@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { MotionComposition, MotionLayer } from './motion-composition.ts';
 import type { MotionAsset } from './motion-asset.ts';
+import type { MotionscaperProject } from './motion-project-types.ts';
 import { createMotionscaperRevision } from './motion-project-revision.ts';
 import { normalizeMotionscaperProject } from './motion-project-validation.ts';
 import { addRationals, compareRationals, divideRationals, multiplyRationals, subtractRationals, type Rational } from './timeline-time.ts';
@@ -10,7 +11,9 @@ export interface MotionTrackingSource {
 	readonly asset: Extract<MotionAsset, { kind: 'footage' }>;
 }
 export function resolveMotionTrackingSource(projectValue: unknown, compositionId: string, layerId: string): MotionTrackingSource {
-	const project = normalizeMotionscaperProject(projectValue);
+	return resolveSource(normalizeMotionscaperProject(projectValue), compositionId, layerId);
+}
+function resolveSource(project: MotionscaperProject, compositionId: string, layerId: string): MotionTrackingSource {
 	const composition = project.compositions.find(item => item.id === compositionId); const layer = composition?.layers.find(item => item.id === layerId);
 	if (!composition || !layer || layer.kind !== 'footage') throw new Error('Tracking needs a retained footage layer; select footage or render the composition to retained footage first.');
 	const asset = project.assets.find(item => item.id === layer.assetId);
@@ -25,24 +28,35 @@ export function motionTrackingSourceTime(composition: MotionComposition, layer: 
 }
 export function createMotionTrackingBinding(projectValue: unknown, compositionId: string, layerId: string, settingsValue: MotionTrackingSettings): MotionTrackingBinding {
 	const revision = createMotionscaperRevision(projectValue); const settings = normalizeMotionTrackingSettings(settingsValue);
-	const { composition, layer, asset } = resolveMotionTrackingSource(revision.project, compositionId, layerId);
+	return normalizeMotionTrackingBinding({ ...sourceAuthority(revision.project, compositionId, layerId, settings), originRevision: revision.revision, originRevisionDigest: revision.digest });
+}
+function sourceAuthority(project: MotionscaperProject, compositionId: string, layerId: string, settings: MotionTrackingSettings): Omit<MotionTrackingBinding, 'originRevision' | 'originRevisionDigest'> {
+	const { composition, layer, asset } = resolveSource(project, compositionId, layerId);
 	if (settings.points.some(([x, y]) => x < 0 || y < 0 || x >= asset.width || y >= asset.height)) throw new RangeError('Tracking seed points must be inside the retained raw source.');
 	const last = settings.firstFrame + settings.frameCount - 1;
 	if (last >= composition.durationFrames || compareRationals(settings.firstFrame, layer.inFrame) < 0 || compareRationals(last, layer.outFrame) >= 0) throw new RangeError('Tracking range must fit the selected layer; trim the analysis range.');
 	for (const frame of [settings.firstFrame, last]) { const time = motionTrackingSourceTime(composition, layer, frame); if (time.num < 0 || compareRationals(time, asset.duration) >= 0) throw new RangeError('Tracking range reaches missing source frames; trim the range or restore the footage.'); }
-	const source = { coordinateSpace: 'raw-source-pixels', projectId: revision.projectId, compositionId, layerId, assetId: asset.id,
+	const source = { coordinateSpace: 'raw-source-pixels', projectId: project.id, compositionId, layerId, assetId: asset.id,
 		asset: { sha256: asset.sha256, byteLength: asset.byteLength, mimeType: asset.mimeType, width: asset.width, height: asset.height, frameRate: asset.frameRate, duration: asset.duration, hasAlpha: asset.hasAlpha },
 		frameRate: composition.frameRate, durationFrames: composition.durationFrames,
 		timing: { startFrame: layer.startFrame, inFrame: layer.inFrame, outFrame: layer.outFrame, sourceStart: layer.sourceStart, timeScale: layer.timeScale, timeRemap: null } };
-	return normalizeMotionTrackingBinding({ coordinateSpace: 'raw-source-pixels', projectId: revision.projectId, compositionId, layerId, assetId: asset.id,
+	return { coordinateSpace: 'raw-source-pixels', projectId: project.id, compositionId, layerId, assetId: asset.id,
 		inputSha256: asset.sha256, sourceDigest: motionTrackingDigest(source), settingsDigest: motionTrackingDigest(settings),
-		originRevision: revision.revision, originRevisionDigest: revision.digest, width: asset.width, height: asset.height });
+		width: asset.width, height: asset.height };
 }
 export type MotionTrackingFreshness = { readonly status: 'fresh' } | { readonly status: 'stale'; readonly reason: string };
 export function motionTrackingFreshness(project: unknown, resultValue: unknown): MotionTrackingFreshness {
+	return freshness(() => normalizeMotionscaperProject(project), resultValue);
+}
+/** Pin normalization once at revision admission; source checks do not rehash every stored analysis. */
+export function createMotionTrackingFreshnessChecker(projectValue: unknown): (result: unknown) => MotionTrackingFreshness {
+	const project = normalizeMotionscaperProject(projectValue);
+	return result => freshness(() => project, result);
+}
+function freshness(project: () => MotionscaperProject, resultValue: unknown): MotionTrackingFreshness {
 	const result = normalizeMotionTrackingResult(resultValue);
 	try {
-		const expected = createMotionTrackingBinding(project, result.binding.compositionId, result.binding.layerId, result.settings);
+		const expected = sourceAuthority(project(), result.binding.compositionId, result.binding.layerId, result.settings);
 		if (expected.projectId !== result.binding.projectId || expected.assetId !== result.binding.assetId || expected.inputSha256 !== result.binding.inputSha256
 			|| expected.sourceDigest !== result.binding.sourceDigest || expected.settingsDigest !== result.binding.settingsDigest || expected.width !== result.binding.width || expected.height !== result.binding.height) return { status: 'stale', reason: 'Tracking source pixels or timing changed; reanalyze before applying or exporting this track.' };
 		return { status: 'fresh' };

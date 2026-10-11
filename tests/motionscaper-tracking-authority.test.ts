@@ -4,7 +4,7 @@ import test from 'node:test';
 import { trackingProject } from './helpers/motionscaper-tracking-fixture.ts';
 import { applyMotionscaperCommands } from '../src/motionscaper/editor-project-commands.ts';
 import { createMotionTrackingSettings, createMotionTrackingResult, normalizeMotionTrackingResult } from '../src/common/editor/motion-tracking-contract.ts';
-import { createMotionTrackingBinding, motionTrackingFreshness, admitMotionTrackingResult, motionTrackingSourceTime } from '../src/common/editor/motion-tracking-authority.ts';
+import { createMotionTrackingBinding, createMotionTrackingFreshnessChecker, motionTrackingFreshness, admitMotionTrackingResult, motionTrackingSourceTime } from '../src/common/editor/motion-tracking-authority.ts';
 const settings = createMotionTrackingSettings({ mode: 'point', firstFrame: 2, frameCount: 3, points: [[20, 20]] });
 function result() { const project = trackingProject(); return createMotionTrackingResult({ id: 'track', binding: createMotionTrackingBinding(project, 'comp', 'source', settings), settings,
 	samples: [2, 3, 4].map(frame => ({ frame, status: 'tracked', points: [[20 + frame, 20]], confidence: 1, error: 0 })) }); }
@@ -29,4 +29,10 @@ test('Motion tracking marks changed footage and source timing stale and refuses 
 	assert.throws(() => normalizeMotionTrackingResult({ ...tracked, settings: { ...settings, maximumError: 0.25 } }), /settings digest/iu);
 	assert.throws(() => normalizeMotionTrackingResult({ ...tracked, samples: tracked.samples.map(sample => ({ ...sample, points: [[30, 30]] })) }), /result digest/iu);
 	assert.throws(() => createMotionTrackingBinding(project, 'comp', 'overlay', settings), /footage/iu);
+});
+test('Motion revision freshness checks pin one immutable source snapshot for multiple analyses', () => {
+	const project = trackingProject(); const tracked = result(); const mutable = { ...project, assets: [...project.assets] };
+	const check = createMotionTrackingFreshnessChecker(mutable); assert.equal(check(tracked).status, 'fresh');
+	mutable.assets = project.assets.map(asset => ({ ...asset, sha256: 'b'.repeat(64), storageKey: `motion-sha256:${'b'.repeat(64)}` }));
+	assert.equal(check(tracked).status, 'fresh'); assert.equal(motionTrackingFreshness(mutable, tracked).status, 'stale');
 });

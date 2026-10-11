@@ -3,7 +3,7 @@ import type { MotionComposition, MotionLayer } from './motion-composition.ts';
 import { normalizeMotionscaperProject } from './motion-project-validation.ts';
 import { motionTrackingDigest, type MotionTrackingResult } from './motion-tracking-contract.ts';
 import type { MotionTrackingApplication } from './motion-tracking-application-contract.ts';
-import { motionTrackingFreshness } from './motion-tracking-authority.ts';
+import { createMotionTrackingFreshnessChecker } from './motion-tracking-authority.ts';
 export interface MotionTrackingDiagnostic { readonly compositionId: string; readonly analysisId: string; readonly targetLayerId: string | null; readonly message: string }
 export function motionTrackingGeometryDigest(layer: MotionLayer): string {
 	const { anchor, position, scale, rotation } = layer.transform;
@@ -27,9 +27,10 @@ export function motionTrackingApplicationGeometry(composition: MotionComposition
 /** Read-only gate: stale intent stays editable and is never silently rewritten or omitted. */
 export function motionTrackingReadiness(projectValue: unknown): readonly MotionTrackingDiagnostic[] {
 	const project = normalizeMotionscaperProject(projectValue); const diagnostics: MotionTrackingDiagnostic[] = [];
+	const checkFreshness = createMotionTrackingFreshnessChecker(project);
 	for (const composition of project.compositions) {
 		for (const result of composition.tracking ?? []) {
-			const freshness = motionTrackingFreshness(project, result);
+			const freshness = checkFreshness(result);
 			if (freshness.status === 'stale') diagnostics.push({ compositionId: composition.id, analysisId: result.id, targetLayerId: null, message: freshness.reason });
 		}
 		for (const application of composition.trackingApplications ?? []) {
