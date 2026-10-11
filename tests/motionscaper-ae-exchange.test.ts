@@ -53,3 +53,12 @@ test('AE exchange rejects oversized input, unresolved composition sources, and f
 	assert.throws(() => normalizeMotionAeExchange({ ...source, report: [{ scopeId: 'missing', propertyPath: '', status: 'rendered', code: 'bake', message: 'Done' }] }), /scope/u);
 	assert.throws(() => normalizeMotionAeExchange({ ...source, report: [{ scopeId: 'comp-one', propertyPath: '', status: 'rendered', code: 'bake', message: 'Done' }] }), /rendered.*media/u);
 });
+test('AE color keys retain the single temporal ease documented for non-vector value types', () => {
+	const source = fixture(), comp = (source.compositions as Record<string, unknown>[])[0]!;
+	const color = [1, 0, 0, 1], ease = [{ speed: 0, influence: 33.333 }];
+	const property = { kind: 'numeric', matchName: 'ADBE Vector Fill Color', name: 'Color', value: color, spatial: false, expression: null,
+		keys: [{ time: 0, value: color, inInterpolation: 'bezier', outInterpolation: 'bezier', inEase: ease, outEase: ease, inSpatialTangent: null, outSpatialTangent: null, roving: false }] };
+	const layer = { id: 'shape', name: 'Shape', kind: 'shape', sourceId: null, parentId: null, matte: null, startTime: 0, inPoint: 0, outPoint: 2, stretch: 100,
+		enabled: true, threeD: false, adjustment: false, blendMode: 'normal', properties: [property] };
+	assert.equal(normalizeMotionAeExchange({ ...source, compositions: [{ ...comp, layers: [layer] }] }).compositions[0]!.layers[0]!.properties[0]!.kind, 'numeric');
+});

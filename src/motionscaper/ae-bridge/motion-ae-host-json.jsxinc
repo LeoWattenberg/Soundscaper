@@ -1,0 +1,230 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostJson = (function () {
+
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/** ES3-host-compatible codec. No eval, host JSON object, prototypes, or application state is changed. */
+function parseMotionAeHostJson(source) {
+    if (source.length > 16777216)
+        throw new Error('AE JSON input budget exceeded.');
+    var position = 0, nodes = 0;
+    function whitespace() { while (position < source.length && /[ \t\n\r]/.test(source.charAt(position)))
+        position++; }
+    function string() {
+        if (source.charAt(position++) !== '"')
+            throw new Error('AE JSON string expected.');
+        var result = '';
+        while (position < source.length) {
+            var character = source.charAt(position++);
+            if (character === '"')
+                return result;
+            if (character === '\\') {
+                character = source.charAt(position++);
+                if (character === 'u') {
+                    var hex = source.substr(position, 4);
+                    if (!/^[0-9a-fA-F]{4}$/.test(hex))
+                        throw new Error('AE JSON Unicode escape is invalid.');
+                    result += String.fromCharCode(parseInt(hex, 16));
+                    position += 4;
+                }
+                else if (character === '"' || character === '\\' || character === '/')
+                    result += character;
+                else if (character === 'b')
+                    result += '\b';
+                else if (character === 'f')
+                    result += '\f';
+                else if (character === 'n')
+                    result += '\n';
+                else if (character === 'r')
+                    result += '\r';
+                else if (character === 't')
+                    result += '\t';
+                else
+                    throw new Error('AE JSON escape is invalid.');
+            }
+            else {
+                if (character.charCodeAt(0) < 32)
+                    throw new Error('AE JSON control character is invalid.');
+                result += character;
+            }
+        }
+        throw new Error('AE JSON string is unterminated.');
+    }
+    function value(depth) {
+        if (depth > 64)
+            throw new Error('AE JSON depth budget exceeded.');
+        if (++nodes > 1048576)
+            throw new Error('AE JSON value budget exceeded.');
+        whitespace();
+        var character = source.charAt(position);
+        if (character === '"')
+            return string();
+        if (character === '{') {
+            position++;
+            whitespace();
+            var result_1 = {};
+            if (source.charAt(position) === '}') {
+                position++;
+                return result_1;
+            }
+            while (position < source.length) {
+                whitespace();
+                var key = string();
+                if (key === '__proto__' || key === 'constructor' || key === 'prototype')
+                    throw new Error('AE JSON object key is forbidden.');
+                if (Object.prototype.hasOwnProperty.call(result_1, key))
+                    throw new Error('AE JSON contains a duplicate key.');
+                whitespace();
+                if (source.charAt(position++) !== ':')
+                    throw new Error('AE JSON colon expected.');
+                result_1[key] = value(depth + 1);
+                whitespace();
+                var delimiter = source.charAt(position++);
+                if (delimiter === '}')
+                    return result_1;
+                if (delimiter !== ',')
+                    throw new Error('AE JSON object delimiter expected.');
+            }
+        }
+        else if (character === '[') {
+            position++;
+            whitespace();
+            var result_2 = [];
+            if (source.charAt(position) === ']') {
+                position++;
+                return result_2;
+            }
+            while (position < source.length) {
+                result_2.push(value(depth + 1));
+                whitespace();
+                var delimiter = source.charAt(position++);
+                if (delimiter === ']')
+                    return result_2;
+                if (delimiter !== ',')
+                    throw new Error('AE JSON array delimiter expected.');
+            }
+        }
+        else {
+            var end = position;
+            while (end < source.length && /[0-9.eE+-]/.test(source.charAt(end)))
+                end++;
+            var number = source.substring(position, end);
+            if (/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(number)) {
+                position = end;
+                var result_3 = Number(number);
+                if (!isFinite(result_3))
+                    throw new Error('AE JSON number must be finite.');
+                return result_3;
+            }
+            if (source.substr(position, 4) === 'null') {
+                position += 4;
+                return null;
+            }
+            if (source.substr(position, 4) === 'true') {
+                position += 4;
+                return true;
+            }
+            if (source.substr(position, 5) === 'false') {
+                position += 5;
+                return false;
+            }
+        }
+        throw new Error('AE JSON value is invalid.');
+    }
+    var result = value(0);
+    whitespace();
+    if (position !== source.length)
+        throw new Error('AE JSON has trailing input.');
+    return result;
+}
+function stringifyMotionAeHostJson(input) {
+    var parts = [], active = [];
+    var length = 0, nodes = 0, buffer = '';
+    function append(text) {
+        length += text.length;
+        if (length > 16777216)
+            throw new Error('AE JSON output budget exceeded.');
+        buffer += text;
+        if (buffer.length >= 4096) {
+            parts.push(buffer);
+            buffer = '';
+        }
+    }
+    function string(text) {
+        append('"');
+        for (var i = 0; i < text.length; i++) {
+            var character = text.charAt(i), code = text.charCodeAt(i);
+            if (character === '"' || character === '\\')
+                append('\\' + character);
+            else if (code < 32 || code > 126)
+                append('\\u' + ('0000' + code.toString(16)).slice(-4));
+            else
+                append(character);
+        }
+        append('"');
+    }
+    function value(item, depth) {
+        if (depth > 64)
+            throw new Error('AE JSON depth budget exceeded.');
+        if (++nodes > 1048576)
+            throw new Error('AE JSON value budget exceeded.');
+        if (item === null) {
+            append('null');
+            return;
+        }
+        if (typeof item === 'string') {
+            string(item);
+            return;
+        }
+        if (typeof item === 'boolean') {
+            append(item ? 'true' : 'false');
+            return;
+        }
+        if (typeof item === 'number') {
+            if (!isFinite(item))
+                throw new Error('AE JSON number must be finite.');
+            append(String(item));
+            return;
+        }
+        if (typeof item !== 'object')
+            throw new Error('AE JSON accepts only inert values.');
+        for (var i = 0; i < active.length; i++)
+            if (active[i] === item)
+                throw new Error('AE JSON cannot serialize a cyclic object.');
+        active.push(item);
+        if (Object.prototype.toString.call(item) === '[object Array]') {
+            var array = item;
+            append('[');
+            for (var i = 0; i < array.length; i++) {
+                if (i)
+                    append(',');
+                value(array[i], depth + 1);
+            }
+            append(']');
+        }
+        else {
+            var record = item;
+            var count = 0;
+            append('{');
+            for (var key in record)
+                if (Object.prototype.hasOwnProperty.call(record, key)) {
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype')
+                        throw new Error('AE JSON object key is forbidden.');
+                    if (count++)
+                        append(',');
+                    string(key);
+                    append(':');
+                    value(record[key], depth + 1);
+                }
+            append('}');
+        }
+        active.pop();
+    }
+    value(input, 0);
+    parts.push(buffer);
+    return parts.join('');
+}
+
+return { parseMotionAeHostJson: parseMotionAeHostJson, stringifyMotionAeHostJson: stringifyMotionAeHostJson };
+}());

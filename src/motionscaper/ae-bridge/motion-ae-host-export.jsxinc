@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostExport = (function () {
+var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+function exportMotionAeHostProject(host, transferId) {
+    var _a;
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(transferId))
+        throw new Error('AE transfer identity is invalid.');
+    host.checkCancelled();
+    var report = [{ scopeId: transferId, propertyPath: '', status: 'unsupported', code: 'qualification',
+            message: 'This development bridge has not been qualified in installed After Effects. Review the transfer report and compare the result before using it.' }];
+    var transaction = host.begin(transferId);
+    try {
+        var compositions = host.compositions(report), footage = host.footage(report);
+        if (compositions.length > 256 || footage.length > 4096 || report.length > 65536)
+            throw new Error('AE bridge item/report budget exceeded.');
+        var totalBytes = 0, totalLayers = 0;
+        for (var index = 0; index < compositions.length; index++) {
+            totalLayers += compositions[index].layers.length;
+            if (totalLayers > 4096)
+                throw new Error('AE bridge layer budget exceeded.');
+        }
+        for (var index = 0; index < footage.length; index++) {
+            host.checkCancelled();
+            var item = footage[index];
+            if (item.path === null)
+                continue;
+            totalBytes += (_a = item.byteLength) !== null && _a !== void 0 ? _a : 0;
+            if (totalBytes > 274877906944)
+                throw new Error('AE bridge media byte budget exceeded.');
+            transaction.copyMedia(item);
+        }
+        var exchange = { format: 'org.motionscaper.ae-exchange', version: 1, transferId: transferId, producer: { application: 'after-effects', version: host.version, bridgeVersion: '0.1.0' }, source: { name: host.projectName, revisionDigest: null },
+            color: host.color, compositions: compositions, footage: footage, report: report };
+        host.checkCancelled();
+        var serialized = stringifyMotionAeHostJson(exchange);
+        host.checkCancelled();
+        transaction.publish(serialized);
+        return exchange;
+    }
+    catch (error) {
+        try {
+            transaction.rollback();
+        }
+        catch (cleanup) {
+            var cause = { primary: error, cleanup: cleanup }, failure = new Error('AE transfer failed: ' + String(error) + '; package cleanup failed: ' + String(cleanup), { cause: cause });
+            failure.cause = cause; // Older ExtendScript Error constructors ignore the optional options argument.
+            throw failure;
+        }
+        throw error;
+    }
+}
+
+return { exportMotionAeHostProject: exportMotionAeHostProject };
+}());

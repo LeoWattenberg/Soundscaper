@@ -1,7 +1,7 @@
 # Motionscaper After Effects bridge
 
-M11 is in development. The versioned exchange contract is implemented; the
-installed-After-Effects scripts, editor menu workflow, editable conversion, and
+M11 is in development. The versioned exchange contract and readable exporter
+are implemented; the importer, editor menu workflow, editable conversion, and
 reference qualification are still being built. No After Effects version has
 been qualified. Synthetic host tests must not populate that qualification matrix.
 
@@ -12,6 +12,32 @@ its [Scripts help](https://helpx.adobe.com/ca/after-effects/desktop/automate-in-
 That page designates the [After Effects Scripting Guide](https://ae-scripting.docsforadobe.dev/)
 for the API. The bridge will not change those application preferences, parse
 binary `.aep` projects, or claim native AE plug-in compatibility.
+
+## Readable exporter
+
+`node scripts/build-motionscaper-ae-bridge.mjs` derives readable ES3-syntax
+artifacts from the strict TypeScript host controllers. Its `--check` form rejects
+drift, and generation parses every executable include as ES3. The source entry
+is stored as `Motionscaper-Export.jsx.txt` so web tooling does not parse Adobe
+preprocessor directives as React; the downloadable filename is `.jsx`. Keep the
+generated `.jsxinc` files alongside that entry when running it in AE.
+
+The exporter reads compositions and authored property values without changing
+the open project, copying media into a newly created transfer folder. The JSON
+manifest is published last. Copy/write failure removes only files owned by that
+pending package; failed cleanup remains visible with the original error. It
+never saves the original `.aep`, overwrites retained media, or changes script
+permissions. The JSON codec requires neither a host `JSON` global nor `eval`.
+
+Enabled expression text is retained but not run by this exporter; it reads
+pre-expression values. Sampling and rendered fallback are still pending.
+Unmapped features receive explicit unsupported reports, including layers whose
+text runs, mask attributes, solid sources, footage interpretation, or plug-ins
+need further mapping. The host API tests exercise the generated entry, media
+copy, source-byte preservation, pre-expression reads, manifest publication and
+rollback. They are synthetic host evidence, not an AE execution result. Escape
+handling and filesystem behavior require actual installed-AE qualification;
+media copying uses AE's per-file operation.
 
 ## Exchange contract
 

@@ -32,7 +32,8 @@ function keys<Value>(input: unknown, read: (v: unknown) => Value, dimensions: nu
 	budget.keys += values.length; if (budget.keys > limits.keys) throw new RangeError('AE exchange key budget exceeded.');
 	const result = values.map((value) => {
 		const r = motionRecord(value, ['time', 'value', 'inInterpolation', 'outInterpolation', 'inEase', 'outEase', 'inSpatialTangent', 'outSpatialTangent', 'roving'], 'AE key');
-		const ease = (input: unknown) => motionArray(input, spatial ? 1 : dimensions, 'AE temporal ease', spatial ? 1 : dimensions).map((entry) => {
+		const easeDimensions = spatial || dimensions === 4 ? 1 : dimensions;
+		const ease = (input: unknown) => motionArray(input, easeDimensions, 'AE temporal ease', easeDimensions).map((entry) => {
 			const e = motionRecord(entry, ['speed', 'influence'], 'AE temporal ease'); return { speed: motionNumber(e.speed, 'AE ease speed'), influence: motionNumber(e.influence, 'AE ease influence', 0.1, 100) };
 		});
 		const tangent = (input: unknown) => spatial ? motionAeVector(input, 'AE spatial tangent', dimensions) : input === null ? null : (() => { throw new TypeError('Non-spatial AE key cannot carry spatial tangents.'); })();
