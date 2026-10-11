@@ -58,7 +58,7 @@ export default function MotionPropertyDialog({ copy, project, busy, canUndo, can
 				{composition.layers.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
 			</select>
 			<label htmlFor={`${id}-property`}>{copy.motionscaperProperty}</label><select id={`${id}-property`} data-motion-property value={current?.path ?? ''} onChange={(event) => { setPath(event.currentTarget.value); setChannel(0); reset(); }}>
-				{properties.map((entry) => <option key={entry.path} value={entry.path}>{motionPropertyLabel(entry.path, copy)}</option>)}
+				{properties.map((entry) => <option key={entry.path} value={entry.path}>{motionPropertyLabel(entry.path, copy, layer)}</option>)}
 			</select>
 			<label htmlFor={`${id}-channel`}>{copy.motionscaperChannel}</label><select id={`${id}-channel`} value={activeChannel} onChange={(event) => { setChannel(Number(event.currentTarget.value)); reset(); }}>
 				{Array.from({ length: count }, (_, index) => <option key={index} value={index}>{copy[`motionscaperChannel_${channelLabels[index]}`]}</option>)}

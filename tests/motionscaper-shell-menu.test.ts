@@ -62,3 +62,15 @@ test('tracking is a localized opt-in layer command that requires an idle documen
 	assert.equal(tracking(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
 	assert.equal(tracking(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Tracking und Stabilisierung');
 });
+
+test('compositing is localized, opt-in and available only for an idle document', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('de'), workspaceOpen: true, onToggleWorkspace: () => undefined,
+		onCommand: (command: string) => { commands.push(command); }, hasProject: true, busy: false };
+	const entry = (values: ReturnType<typeof createMotionscaperShellMenus>) => values.find(({ id }) => id === 'tracks')?.items.find(({ id }) => id === 'motion-compositing');
+	assert.equal(entry(createMotionscaperShellMenus(options))?.label, 'Masken und Compositing');
+	entry(createMotionscaperShellMenus(options))?.onClick?.(); assert.deepEqual(commands, ['compositing']);
+	assert.equal(entry(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(entry(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+	assert.equal(options.copy.videoEffectGaussianBlur, 'Gaußscher Weichzeichner');
+});
