@@ -80,9 +80,14 @@ history, deterministic evaluation, streamed `.mscape` archives, durable
 saved/recovery storage, paragraph/vector rasterization, and linear-light CPU
 and WebGL2 compositing have focused Motionscaper coverage. Menu-driven document
 workflows, offline reopen, successor archive custody, and GPU context loss pass
-in Chromium. M05 now has a revision-pinned, cancellable render queue and
-streamed transparent PNG-sequence delivery. Preview/playback, remaining delivery
-formats, complete authoring, and platform qualification are still being
+in Chromium. M05 has a revision-pinned, cancellable render queue, menu-opened
+worker preview and delivery, transparent PNG sequences, and browser MP4/WebM
+round trips. Shared bounded PCM mixing, an audio sample clock, retained-media
+decoding, and audio/video muxing have focused coverage; their complete menu
+workflow is still being connected. WebM declares its millisecond container
+timing resolution. The separate float-carrier native helper passes a Linux
+ProRes 4444 reference round trip; its desktop admission and packaging remain
+unfinished. Complete authoring and platform qualification are still being
 completed. These results do not close a package's completion gate.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
