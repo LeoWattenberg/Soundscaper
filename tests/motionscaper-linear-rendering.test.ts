@@ -69,3 +69,17 @@ test('M04 unsupported authored operations refuse before rasterization and cancel
 	const controller = new AbortController(); controller.abort();
 	await assert.rejects(renderMotionCompositionFrame(frame, { rasterizer, signal: controller.signal }), { name: 'AbortError' });
 });
+
+test('M04 nested working surfaces are bounded before any target or source allocation', async () => {
+	const project = createMotionscaperProject({ id: 'project', title: 'Bounded', compositionId: 'main', width: 8, height: 8 });
+	const pre = (id: string) => createMotionLayer({ id: 'nested', name: 'Nested', durationFrames: 300, content: { kind: 'precomp', compositionId: id } });
+	const solid = createMotionLayer({ id: 'solid', name: 'Solid', durationFrames: 300, content: { kind: 'solid', size: motionVector([8, 8]), color: motionColor([1, 0, 0, 1]) } });
+	const compositions = [{ ...project.compositions[0]!, layers: [pre('one')] }, { ...project.compositions[0]!, id: 'one', layers: [pre('two')] }, { ...project.compositions[0]!, id: 'two', layers: [solid] }];
+	const frame = compileMotionscaperProject({ ...project, compositions }).evaluate({ compositionId: 'main', time: 0 });
+	let allocations = 0;
+	await assert.rejects(renderMotionCompositionFrame(frame, { maximumWorkingBytes: 4096,
+		compositor: { retainedSurfaceCount: 1, begin() { allocations++; throw new Error('Unexpected allocation'); } },
+		rasterizer: { rasterize() { allocations++; return Promise.reject(new Error('Unexpected allocation')); } },
+	}), /working.*budget/iu);
+	assert.equal(allocations, 0);
+});

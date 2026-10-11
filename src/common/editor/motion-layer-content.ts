@@ -2,6 +2,7 @@
 
 import type { MotionLayerContent, MotionShape, MotionTextDocument } from './motion-composition.ts';
 import { motionPropertyOfKind } from './motion-property.ts';
+import { normalizeMotionFill } from './motion-fill.ts';
 import { freezeMotionValue, motionArray, motionBoolean, motionEnum, motionId, motionNumber, motionRecord, motionString, uniqueMotionIds } from './motion-values.ts';
 
 export const MOTION_LAYER_CONTENT_FIELDS = {
@@ -66,7 +67,7 @@ function normalizeShape(value: unknown): MotionShape {
 	const record = motionRecord(value, ['id', 'path', 'fill', 'stroke'], 'motion shape');
 	const stroke = record.stroke === null ? null : motionRecord(record.stroke, ['color', 'width', 'lineCap', 'lineJoin'], 'shape stroke');
 	return freezeMotionValue({ id: motionId(record.id), path: motionPropertyOfKind(record.path, 'path'),
-		fill: record.fill === null ? null : motionPropertyOfKind(record.fill, 'color'),
+		fill: record.fill === null ? null : normalizeMotionFill(record.fill),
 		stroke: stroke === null ? null : { color: motionPropertyOfKind(stroke.color, 'color'), width: motionPropertyOfKind(stroke.width, 'scalar'),
 			lineCap: motionEnum(stroke.lineCap, ['butt', 'round', 'square'], 'stroke cap'), lineJoin: motionEnum(stroke.lineJoin, ['miter', 'round', 'bevel'], 'stroke join') } });
 }

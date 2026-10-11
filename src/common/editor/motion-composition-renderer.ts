@@ -3,8 +3,11 @@
 import { assertMotionFrameConsumed, type MotionCompositionFrame, type MotionEvaluatedLayer } from './motion-composition-evaluation.ts';
 import { assertMotion2DMatrix, compositeMotionSurfaces, createMotionSurface, transformMotionSurface, validateMotionSurface, type MotionBlendMode, type MotionSurface } from './motion-surface.ts';
 import type { MotionColor } from './motion-property.ts';
+import { assertMotionWorkingBudget, estimateMotionFrameWorkingBytes, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
 
 export interface MotionRasterizer {
+	/** Peak scratch plus returned pixels; the default assumes two composition-sized float surfaces. */
+	estimateWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	/** Rasterize source plus its world transform into the target composition's pixel grid. */
 	rasterize(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionSurface>;
 }
@@ -13,10 +16,10 @@ export interface MotionCompositeTarget {
 	finish(): MotionSurface;
 	dispose(): void;
 }
-export interface MotionCompositor { begin(width: number, height: number, background: MotionColor): MotionCompositeTarget }
+export interface MotionCompositor { readonly retainedSurfaceCount?: 1 | 3; begin(width: number, height: number, background: MotionColor): MotionCompositeTarget }
 export interface MotionRenderResult extends MotionSurface { readonly consumedOperationIds: readonly string[] }
 
-export const motionCpuCompositor: MotionCompositor = Object.freeze({ begin(width: number, height: number, background: MotionColor): MotionCompositeTarget {
+export const motionCpuCompositor: MotionCompositor = Object.freeze({ retainedSurfaceCount: 1, begin(width: number, height: number, background: MotionColor): MotionCompositeTarget {
 	let surface: MotionSurface | null = createMotionSurface(width, height, background);
 	return { composite(source, mode, opacity) { if (!surface) throw new Error('Motion composition target is disposed.'); compositeMotionSurfaces(surface, source, mode, opacity); },
 		finish() { if (!surface) throw new Error('Motion composition target is disposed.'); return surface; }, dispose() { surface = null; } };
@@ -24,10 +27,11 @@ export const motionCpuCompositor: MotionCompositor = Object.freeze({ begin(width
 
 /** Identical evaluated input and rasterizer serve seeking, preview, thumbnails, delivery and linked sources. */
 export async function renderMotionCompositionFrame(frame: MotionCompositionFrame, options: Readonly<{
-	rasterizer: MotionRasterizer; compositor?: MotionCompositor; signal?: AbortSignal;
+	rasterizer: MotionRasterizer; compositor?: MotionCompositor; signal?: AbortSignal; maximumWorkingBytes?: number;
 }>): Promise<MotionRenderResult> {
 	options.signal?.throwIfAborted();
 	admitFrame(frame);
+	assertMotionWorkingBudget(estimateMotionFrameWorkingBytes(frame, options.rasterizer, options.compositor ?? motionCpuCompositor), options.maximumWorkingBytes ?? MOTION_DEFAULT_WORKING_BYTES);
 	const consumed: string[] = [];
 	const render = async (current: MotionCompositionFrame): Promise<MotionSurface> => {
 		options.signal?.throwIfAborted();

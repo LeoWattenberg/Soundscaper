@@ -2,6 +2,7 @@
 
 import type { Rational } from './timeline-time.ts';
 import type { MotionColor, MotionColorProperty, MotionPathProperty, MotionProperty, MotionScalarProperty, MotionVector2Property, MotionVector3Property } from './motion-property.ts';
+import type { MotionFill } from './motion-fill.ts';
 
 export interface MotionTransform {
 	readonly anchor: MotionVector3Property; readonly position: MotionVector3Property;
@@ -45,7 +46,7 @@ export interface MotionTextDocument {
 	readonly lineHeight: MotionScalarProperty; readonly boxSize: MotionVector2Property;
 }
 export interface MotionShape {
-	readonly id: string; readonly path: MotionPathProperty; readonly fill: MotionColorProperty | null;
+	readonly id: string; readonly path: MotionPathProperty; readonly fill: MotionFill | null;
 	readonly stroke: { readonly color: MotionColorProperty; readonly width: MotionScalarProperty; readonly lineCap: 'butt' | 'round' | 'square'; readonly lineJoin: 'miter' | 'round' | 'bevel' } | null;
 }
 export type MotionLayerContent =

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { Canvas, CanvasKit, Paint, Path } from 'canvaskit-wasm';
+import type { Canvas, CanvasKit, Path } from 'canvaskit-wasm';
 import { verifyMotionAssetBody, type MotionAsset } from './motion-asset.ts';
 import type { MotionTextDocument } from './motion-composition.ts';
 import type { MotionRasterizer } from './motion-composition-renderer.ts';
@@ -8,6 +8,7 @@ import type { MotionPath } from './motion-property.ts';
 import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import type { Rational } from './timeline-time.ts';
 import { createMotionParagraph, type MotionFontBytes, type MotionShapedText } from './motion-canvaskit-text.ts';
+import { withMotionCanvasKitPaint as paint } from './motion-canvaskit-paint.ts';
 import { assertMotion2DMatrix, createMotionSurface, motionSurfaceFromRgba8, motionSurfaceLength, transformMotionSurface, validateMotionSurface, type MotionSurface } from './motion-surface.ts';
 
 export interface MotionRasterResources {
@@ -37,6 +38,17 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		return bytes;
 	}
 	return {
+		estimateWorkingBytes(layer, target) {
+			const output = motionSurfaceLength(target.width, target.height) * 4;
+			const state = layer.state;
+			if (state.kind === 'image' || state.kind === 'footage') {
+				const asset = assets.get(state.assetId);
+				if (asset?.kind === 'image' || asset?.kind === 'footage') return output + motionSurfaceLength(asset.width, asset.height) * 8 + (asset.kind === 'image' ? asset.byteLength : 0);
+			}
+			const fontBytes = state.kind === 'text' ? [...new Set(state.document.runs.map((run) => run.fontAssetId))].reduce((sum, id) => sum + (assets.get(id)?.byteLength ?? 0), 0)
+				+ resources.fallbackFonts.reduce((sum, font) => sum + font.bytes.length, 0) : 0;
+			return output * 2 + fontBytes * 4;
+		},
 		async shapeText(document, signal) {
 			const paragraph = createMotionParagraph(kit, document, await fontsFor(document, signal), resources.fallbackFonts);
 			try { signal?.throwIfAborted(); return paragraph.metrics; } finally { paragraph.dispose(); }
@@ -92,11 +104,6 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 	};
 }
 
-function paint(kit: CanvasKit, color: readonly [number, number, number, number], draw: (paint: Paint) => void): void {
-	const brush = new kit.Paint();
-	try { brush.setAntiAlias(true); brush.setColor(kit.Color4f(...color), kit.ColorSpace.SRGB); draw(brush); }
-	finally { brush.delete(); }
-}
 export function motionCanvasKitPath(kit: CanvasKit, value: MotionPath): Path {
 	const path = new kit.PathBuilder(); const first = value.vertices[0]!;
 	path.moveTo(...first.point);
