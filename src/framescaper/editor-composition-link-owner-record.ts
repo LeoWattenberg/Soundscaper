@@ -8,6 +8,20 @@ export interface FramescaperCompositionLinkOwnerRecord {
 	readonly id: string; readonly project: FramescaperSuccessorProject;
 	readonly history: FramescaperSuccessorHistory; readonly ownerDigest: string;
 }
+export type FramescaperLinkOwnerStoredRecord = (FramescaperCompositionLinkOwnerRecord & Readonly<{ writeFence?: string; deleted?: boolean }>)
+	| Readonly<{ id: string; project: null; history: null; ownerDigest: null; writeFence: string; deleted: false }>;
+/** Storage-only fencing and retention metadata never enter project intent or its digest. */
+export function normalizeFramescaperLinkOwnerStoredRecord(value: unknown): FramescaperLinkOwnerStoredRecord {
+	const record = motionRecord(value, ['id', 'project', 'history', 'ownerDigest', 'writeFence', 'deleted'], 'Framescaper owner storage', ['id', 'project', 'history', 'ownerDigest']);
+	const id = motionId(record.id); const writeFence = record.writeFence === undefined ? undefined : motionId(record.writeFence, 'owner write fence');
+	if (record.deleted !== undefined && typeof record.deleted !== 'boolean') throw new RangeError('Owner deleted state must be boolean.');
+	if (record.project === null) {
+		if (record.history !== null || record.ownerDigest !== null || !writeFence || record.deleted !== false) throw new RangeError('An uncreated owner fence cannot carry authored or retired intent.');
+		return freezeMotionValue({ id, project: null, history: null, ownerDigest: null, writeFence, deleted: false });
+	}
+	const expected = normalizeFramescaperLinkOwnerRecord({ id, project: record.project, history: record.history, ownerDigest: record.ownerDigest });
+	return freezeMotionValue({ ...expected, ...(writeFence === undefined ? {} : { writeFence }), ...(record.deleted === undefined ? {} : { deleted: record.deleted }) });
+}
 export function createFramescaperLinkOwnerRecord(projectValue: unknown, historyValue?: unknown): FramescaperCompositionLinkOwnerRecord {
 	const project = normalizeFramescaperSuccessorProject(projectValue);
 	const history = historyValue === undefined ? createFramescaperSuccessorHistory(project) : normalizeFramescaperSuccessorHistory(historyValue);

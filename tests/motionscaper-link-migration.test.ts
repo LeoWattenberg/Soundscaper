@@ -125,6 +125,7 @@ test('successor migration and fresh owner creation cannot claim each other’s p
 	try {
 		await migration.stage(await archive(project));
 		await assert.rejects(owner.saveOwner(migrateFramescaperSuccessorProject(project), null), /pending/u);
+		await assert.rejects(owner.claimOwnerWriteFence(project.id), /pending/u);
 		await migration.complete(project.id); const retained = await owner.loadOwner(project.id); assert.ok(retained);
 		assert.equal(retained.project.id, project.id); await assert.rejects(owner.saveOwner(retained.project, null), /changed/u);
 		const fresh = createFramescaperProject(); const receipt = await owner.saveOwner(migrateFramescaperSuccessorProject(fresh), null);

@@ -155,3 +155,34 @@ test('M10 real owner transactions keep history and accepted links together throu
 	});
 	expect(result.failure).toBe('QuotaExceededError'); expect(result.preserved).toBe(result.initial); expect(result.history).toBe(1); expect(result.accepted).toBe(1); expect(result.paused).toBe(true); expect(result.restored).toBe(result.expected); expect(result.same).toBe(true);
 });
+
+test('M10 a second real tab fences an unchanged owner against late link publication and deletion', async ({ page, context }) => {
+	await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionLinkFixture: Fixture }).motionLinkFixture;
+		const portable = await fixture.archive(); const receiver = await fixture.open(); await receiver.importArchive(portable.archive); await receiver.close();
+		const owner = await fixture.owner(); const initial = await owner.loadOwner(portable.projectId); if (!initial) throw new Error('Imported owner is unavailable.');
+		const fence = await owner.claimOwnerWriteFence(portable.projectId);
+		const prepared = await owner.prepareReceive(portable.projectId, portable.sourceId, fixture.offer(1), { readAsset: async () => ({ size: 4, stream: () => new Blob([fixture.bytes]).stream() }) });
+		const history = fixture.accept(initial.history, prepared.state, portable.sourceId);
+		Object.assign(globalThis, { motionLinkTakeover: { owner, initial, prepared, history, fence } });
+	});
+	const second = await context.newPage(); await second.goto(address); await second.waitForFunction(() => 'motionLinkFixture' in globalThis);
+	const newFence = await second.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionLinkFixture: Fixture }).motionLinkFixture; const owner = await fixture.owner();
+		try { const entries = await owner.listOwners(); return await owner.claimOwnerWriteFence(entries[0]!.project.id); } finally { await owner.close(); }
+	});
+	const result = await page.evaluate(async (newFence) => {
+		const state = (globalThis as unknown as { motionLinkTakeover: {
+			owner: FramescaperCompositionLinkOwnerRepository; initial: NonNullable<Awaited<ReturnType<FramescaperCompositionLinkOwnerRepository['loadOwner']>>>;
+			prepared: Awaited<ReturnType<FramescaperCompositionLinkOwnerRepository['prepareReceive']>>; history: FramescaperSuccessorHistory; fence: string;
+		} }).motionLinkTakeover;
+		const { owner, initial, prepared, history, fence } = state; let rejected = false;
+		try { await prepared.commit({ project: history.present, history, expectedOwnerDigest: initial.ownerDigest, writeFence: fence }); }
+		catch (error) { rejected = error instanceof Error && /fence/u.test(error.message); }
+		const before = await owner.loadOwner(initial.project.id); const staleDelete = await owner.deleteOwner(initial.project.id, initial.ownerDigest, { writeFence: fence });
+		const deleted = await owner.deleteOwner(initial.project.id, initial.ownerDigest, { writeFence: newFence });
+		const after = await owner.loadOwner(initial.project.id); const catalog = await owner.listOwners(); await owner.close();
+		return { rejected, sameIntent: before?.ownerDigest === initial.ownerDigest, staleDelete, deleted, after, catalog };
+	}, newFence);
+	await second.close(); expect(result).toEqual({ rejected: true, sameIntent: true, staleDelete: false, deleted: true, after: null, catalog: [] });
+});

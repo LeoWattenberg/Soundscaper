@@ -122,3 +122,42 @@ test('M10 malformed owner history and accessor transitions are refused without i
 		assert.equal(calls, 0); assert.deepEqual(await repository.loadOwner(linked.project.id), linked);
 	} finally { await repository.close(); }
 });
+
+test('M10 forced takeover fences stale autosaves and prepared links even when the exact owner digest is unchanged', async () => {
+	const { repository, indexedDB, linked, factory } = await fixture(); const other = await openFramescaperCompositionLinkOwnerRepository({ indexedDB, line: 'successor' });
+	try {
+		const oldFence = await repository.claimOwnerWriteFence(linked.project.id); const prepared = await repository.prepareReceive(linked.project.id, sourceId, offer(2, true), { readAsset });
+		const history = accept(linked.history, prepared.state); const newFence = await other.claimOwnerWriteFence(linked.project.id); assert.notEqual(oldFence, newFence);
+		await assert.rejects(prepared.commit({ expectedOwnerDigest: linked.ownerDigest, project: history.present, history, writeFence: oldFence }), /fence|changed/u);
+		const rename = executeFramescaperSuccessorHistory(linked.history, { type: 'project/rename', title: 'New writer' }, { now: NOW });
+		await assert.rejects(repository.saveOwner(rename.present, linked.ownerDigest, rename, { writeFence: oldFence }), /fence/u);
+		await assert.rejects(repository.saveOwner(rename.present, linked.ownerDigest, rename), /fence/u);
+		const accepted = await other.saveOwner(rename.present, linked.ownerDigest, rename, { writeFence: newFence }); assert.equal(accepted.project.title, 'New writer');
+		assert.equal(await repository.readAsset(offer(2, true).revision.project.assets[0]!), null); assert.equal(factory.recordCount('kw-media-framescaper-editor-v2', 'staging'), 0);
+	} finally { await other.close(); await repository.close(); }
+});
+
+test('M10 catalog deletion withdraws the owner atomically while preserving original history closure against late writers', async () => {
+	const { repository, linked, factory } = await fixture();
+	try {
+		assert.deepEqual(await repository.listOwners(), [{ project: linked.project, ownerDigest: linked.ownerDigest }]); const fence = await repository.claimOwnerWriteFence(linked.project.id);
+		assert.equal(await repository.deleteOwner(linked.project.id, '0'.repeat(64), { writeFence: fence }), false);
+		factory.failNextPutForStore('owners', new Error('delete disk failure'));
+		await assert.rejects(repository.deleteOwner(linked.project.id, linked.ownerDigest, { writeFence: fence }), /delete disk failure/u);
+		assert.deepEqual(await repository.loadOwner(linked.project.id), linked);
+		assert.equal(await repository.deleteOwner(linked.project.id, linked.ownerDigest, { writeFence: fence }), true);
+		assert.equal(await repository.loadOwner(linked.project.id), null); assert.deepEqual(await repository.listOwners(), []); assert.ok(await repository.readAsset(offer(1).revision.project.assets[0]!));
+		await assert.rejects(repository.saveOwner(linked.project, null, linked.history, { writeFence: fence }), /retired|fence/u);
+		await assert.rejects(repository.claimOwnerWriteFence(linked.project.id), /retired/u);
+	} finally { await repository.close(); }
+});
+
+test('M10 a fresh document write fence does not create a catalog entry or permit an unfenced first save', async () => {
+	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory; const repository = await openFramescaperCompositionLinkOwnerRepository({ indexedDB, line: 'successor' });
+	const project = migrateFramescaperSuccessorProject(createFramescaperBaselineImageFixture({ imageOnly: true }).project);
+	try {
+		const writeFence = await repository.claimOwnerWriteFence(project.id); assert.deepEqual(await repository.listOwners(), []); assert.equal(await repository.loadOwner(project.id), null);
+		await assert.rejects(repository.saveOwner(project, null), /fence/u); const accepted = await repository.saveOwner(project, null, undefined, { writeFence });
+		assert.deepEqual(await repository.listOwners(), [{ project: accepted.project, ownerDigest: accepted.ownerDigest }]);
+	} finally { await repository.close(); }
+});

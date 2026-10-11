@@ -5,14 +5,14 @@ import { normalizeMotionCompositionOffer, type MotionCompositionOffer } from '..
 import { transferMotionCompositionOffer } from '../common/editor/motion-link-transfer.ts';
 import { createMotionCompositionLinkState, receiveMotionCompositionUpdate, conformMotionCompositionLink, resumeMotionCompositionLink, restoreMotionCompositionLink, type MotionCompositionLinkState } from '../common/editor/motion-link-state.ts';
 import { freezeMotionValue, motionDigest, motionId, motionRecord } from '../common/editor/motion-values.ts';
-import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
+import { readCursorPage, request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor/storage/motion-asset-repository.ts';
 import { reclaimExpiredMotionStaging } from '../common/editor/storage/motion-asset-staging.ts';
 import { openFramescaperSuccessorDatabase } from './editor-project-successor-database.ts';
 import { assertFramescaperSuccessorLine, type FramescaperSuccessorProject } from './editor-project-successor.ts';
 import { createFramescaperCompositionLink } from './editor-project-successor-link.ts';
 import type { FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
-import { createFramescaperLinkOwnerRecord, normalizeFramescaperLinkOwnerRecord, type FramescaperCompositionLinkOwnerRecord } from './editor-composition-link-owner-record.ts';
+import { createFramescaperLinkOwnerRecord, normalizeFramescaperLinkOwnerStoredRecord, type FramescaperLinkOwnerStoredRecord, type FramescaperCompositionLinkOwnerRecord } from './editor-composition-link-owner-record.ts';
 import { framescaperLinkRevisionKey, framescaperLinkStateKey, loadFramescaperLinkState, loadFramescaperLinkRevision, putFramescaperLinkState, type FramescaperLinkStores } from './editor-composition-link-records.ts';
 
 const STORES = ['owners', 'projects', 'pending', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'] as const;
@@ -22,6 +22,11 @@ export interface FramescaperCompositionLinkOwnerReceipt {
 }
 export interface FramescaperCompositionLinkOwnerCommit {
 	readonly expectedOwnerDigest: string | null; readonly project: FramescaperSuccessorProject; readonly history?: FramescaperSuccessorHistory;
+	readonly writeFence?: string;
+}
+export interface FramescaperCompositionLinkOwnerWriteOptions { readonly writeFence?: string }
+export class FramescaperCompositionLinkOwnerConflictError extends Error {
+	readonly code = 'OWNER_CONFLICT';
 }
 export interface PreparedFramescaperCompositionLinkOwner {
 	readonly state: MotionCompositionLinkState;
@@ -31,7 +36,10 @@ export interface PreparedFramescaperCompositionLinkOwner {
 export type FramescaperCompositionLinkOwnerTransition = Readonly<{ type: 'conform' | 'resume' }> | Readonly<{ type: 'restore'; offer: unknown }>;
 export interface FramescaperCompositionLinkOwnerRepository {
 	loadOwner(id: string): Promise<FramescaperCompositionLinkOwnerReceipt | null>;
-	saveOwner(project: FramescaperSuccessorProject, expectedOwnerDigest: string | null, history?: FramescaperSuccessorHistory): Promise<FramescaperCompositionLinkOwnerReceipt>;
+	listOwners(): Promise<readonly Readonly<{ project: FramescaperSuccessorProject; ownerDigest: string }>[]>;
+	claimOwnerWriteFence(id: string): Promise<string>;
+	deleteOwner(id: string, expectedOwnerDigest: string, options?: FramescaperCompositionLinkOwnerWriteOptions): Promise<boolean>;
+	saveOwner(project: FramescaperSuccessorProject, expectedOwnerDigest: string | null, history?: FramescaperSuccessorHistory, options?: FramescaperCompositionLinkOwnerWriteOptions): Promise<FramescaperCompositionLinkOwnerReceipt>;
 	prepareReceive(ownerProjectId: string, sourceId: string, offer: unknown, options: Readonly<{ readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>; signal?: AbortSignal; maximumBytes?: number }>): Promise<PreparedFramescaperCompositionLinkOwner>;
 	prepareTransition(ownerProjectId: string, sourceId: string, transition: FramescaperCompositionLinkOwnerTransition): Promise<PreparedFramescaperCompositionLinkOwner>;
 	readAsset(asset: unknown): Promise<MotionAssetBody | null>;
@@ -52,9 +60,13 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 		const task = Promise.resolve().then(operation); tasks.add(task);
 		void task.then(() => tasks.delete(task), () => tasks.delete(task)); return task;
 	}
+	async function readStored(stores: FramescaperLinkStores, id: string): Promise<FramescaperLinkOwnerStoredRecord | null> {
+		motionId(id); const value: unknown = await request(stores.owners.get(id)); if (value === undefined) return null;
+		const row = normalizeFramescaperLinkOwnerStoredRecord(value); if (row.id !== id) throw new RangeError('Stored owner identity changed.'); return row;
+	}
 	async function readOwner(stores: FramescaperLinkStores, id: string): Promise<FramescaperCompositionLinkOwnerRecord | null> {
-		motionId(id); const stored: unknown = await request(stores.owners.get(id));
-		if (stored !== undefined) { const record = normalizeFramescaperLinkOwnerRecord(stored); if (record.id !== id) throw new RangeError('Stored owner identity changed.'); return record; }
+		const stored = await readStored(stores, id);
+		if (stored) return stored.deleted || stored.project === null ? null : stored as FramescaperCompositionLinkOwnerRecord;
 		const migration: unknown = await request(stores.projects.get(id)); if (migration === undefined) return null;
 		const retained = motionRecord(migration, ['id', 'archiveDigest', 'originalArchive', 'project'], 'retained successor custody');
 		if (motionId(retained.id) !== id || !(retained.originalArchive instanceof Blob)) throw new RangeError('Retained successor custody identity changed.'); motionDigest(retained.archiveDigest);
@@ -75,10 +87,18 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 		}
 		return freezeMotionValue({ project: record.project, history: record.history, ownerDigest: record.ownerDigest, linkStates });
 	}
-	async function assertOwnerCAS(stores: FramescaperLinkStores, id: string, expected: string | null): Promise<void> {
+	async function assertOwnerCAS(stores: FramescaperLinkStores, id: string, expected: string | null, writeFence?: string): Promise<void> {
+		const stored = await readStored(stores, id);
+		if (stored?.deleted) throw new FramescaperCompositionLinkOwnerConflictError('Composition link owner is retired; late writes cannot recreate it.');
+		if (stored?.writeFence !== undefined && stored.writeFence !== writeFence) throw new FramescaperCompositionLinkOwnerConflictError('Composition link owner write fence changed; this writer no longer owns publication.');
+		if (writeFence !== undefined && stored?.writeFence !== writeFence) throw new FramescaperCompositionLinkOwnerConflictError('Composition link owner write fence is unavailable.');
 		if (expected !== null) motionDigest(expected); const prior = await readOwner(stores, id);
 		if (!prior && await request(stores.pending.get(id)) !== undefined) throw new Error('Successor migration remains pending; complete it before publishing its owner.');
-		if ((prior?.ownerDigest ?? null) !== expected) throw new Error('Composition link owner changed; retry against its current intent.');
+		if ((prior?.ownerDigest ?? null) !== expected) throw new FramescaperCompositionLinkOwnerConflictError('Composition link owner changed; retry against its current intent.');
+	}
+	async function writeOwner(stores: FramescaperLinkStores, record: FramescaperCompositionLinkOwnerRecord): Promise<void> {
+		const prior = await readStored(stores, record.id);
+		await request(stores.owners.put({ ...record, ...(prior?.writeFence === undefined ? {} : { writeFence: prior.writeFence }) }));
 	}
 	async function rollbackStages(stages: ReadonlyMap<string, MotionAssetStaging>): Promise<void> {
 		const failures: unknown[] = []; for (const stage of stages.values()) { try { await stage.rollback(); } catch (error) { failures.push(error); } }
@@ -92,17 +112,17 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 				consumed = true;
 				return start(async () => {
 					try {
-						const command = motionRecord(value, ['expectedOwnerDigest', 'project', 'history'], 'prepared owner commit', ['expectedOwnerDigest', 'project']);
+						const command = motionRecord(value, ['expectedOwnerDigest', 'project', 'history', 'writeFence'], 'prepared owner commit', ['expectedOwnerDigest', 'project']);
 						const record = createFramescaperLinkOwnerRecord(command.project, command.history);
 						if (record.id !== ownerProjectId || !record.project.compositionLinks.some((link) => link.sourceId === sourceId)) throw new RangeError('Prepared accepted link must belong to its exact owner project.');
 						return await transact(database, STORES, 'readwrite', async (stores) => {
-							signal?.throwIfAborted(); lifetime.signal.throwIfAborted(); await assertOwnerCAS(stores, record.id, command.expectedOwnerDigest === null ? null : motionDigest(command.expectedOwnerDigest));
+							signal?.throwIfAborted(); lifetime.signal.throwIfAborted(); await assertOwnerCAS(stores, record.id, command.expectedOwnerDigest === null ? null : motionDigest(command.expectedOwnerDigest), command.writeFence === undefined ? undefined : motionId(command.writeFence));
 							const current = await loadFramescaperLinkState(stores, assets, ownerProjectId, sourceId);
-							if (JSON.stringify(current) !== priorText) throw new Error('Prepared composition link state changed; retry its owner transaction.');
+							if (JSON.stringify(current) !== priorText) throw new FramescaperCompositionLinkOwnerConflictError('Prepared composition link state changed; retry its owner transaction.');
 							for (const stage of stages.values()) await stage.publish(stores);
 							if (offer) await request(stores.linkRevisions.put({ key: framescaperLinkRevisionKey(offer.revision.projectId, offer.revision.digest), snapshot: offer.revision }));
 							await putFramescaperLinkState(stores, ownerProjectId, sourceId, state); const result = await receipt(stores, record);
-							await request(stores.owners.put(record)); signal?.throwIfAborted(); lifetime.signal.throwIfAborted(); return result;
+							await writeOwner(stores, record); signal?.throwIfAborted(); lifetime.signal.throwIfAborted(); return result;
 						});
 					} catch (error) {
 						try { await rollbackStages(stages); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition link owner publication and cleanup both failed.', { cause: cleanup }); } throw error;
@@ -114,10 +134,47 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 	}
 	return Object.freeze({
 		loadOwner(id) { return start(async () => transact(database, STORES, 'readonly', async (stores) => { const record = await readOwner(stores, id); return record ? receipt(stores, record) : null; })); },
-		saveOwner(project, expectedOwnerDigest, history) {
+		listOwners() {
+			return start(async () => {
+				const ids = new Set<string>(); let visited = 0;
+				for (const name of ['owners', 'projects']) {
+					let afterPrimaryKey: string | undefined;
+					while (true) {
+						const page = await transact(database, [name], 'readonly', (stores) => readCursorPage(stores[name], { afterPrimaryKey, limit: 1, project: (value: unknown) => motionId((value as Readonly<{ id: unknown }>).id) }));
+						if (!page.length) break; if (++visited > 8192) throw new RangeError('Owner catalog exceeds its scan budget.'); afterPrimaryKey = page[0]!; ids.add(afterPrimaryKey);
+					}
+				}
+				const result: { project: FramescaperSuccessorProject; ownerDigest: string }[] = []; let bytes = 0;
+				for (const id of ids) {
+					lifetime.signal.throwIfAborted(); const record = await transact(database, STORES, 'readonly', (stores) => readOwner(stores, id)); if (!record) continue;
+					const entry = { project: record.project, ownerDigest: record.ownerDigest }; bytes += new TextEncoder().encode(JSON.stringify(entry)).length;
+					if (bytes > 64 * 1024 * 1024 || result.length >= 4096) throw new RangeError('Owner catalog exceeds its 64 MiB metadata budget.'); result.push(entry);
+				}
+				return freezeMotionValue(result);
+			});
+		},
+		claimOwnerWriteFence(id) {
+			return start(() => transact(database, STORES, 'readwrite', async (stores) => {
+				motionId(id); lifetime.signal.throwIfAborted(); const prior = await readStored(stores, id);
+				if (prior?.deleted) throw new FramescaperCompositionLinkOwnerConflictError('A retired owner cannot claim write authority.');
+				const record = await readOwner(stores, id);
+				if (!record && await request(stores.pending.get(id)) !== undefined) throw new Error('Successor migration remains pending; complete it before claiming its owner.');
+				const writeFence = crypto.randomUUID();
+				await request(stores.owners.put(record ? { ...record, writeFence } : { id, project: null, history: null, ownerDigest: null, writeFence, deleted: false })); lifetime.signal.throwIfAborted(); return writeFence;
+			}));
+		},
+		deleteOwner(id, expectedOwnerDigest, writeOptions = {}) {
+			return start(() => transact(database, STORES, 'readwrite', async (stores) => {
+				lifetime.signal.throwIfAborted();
+				try { await assertOwnerCAS(stores, id, expectedOwnerDigest, writeOptions.writeFence); } catch (error) { if (error instanceof FramescaperCompositionLinkOwnerConflictError) return false; throw error; }
+				const record = await readOwner(stores, id); if (!record) return false;
+				await request(stores.owners.put({ ...record, writeFence: crypto.randomUUID(), deleted: true })); lifetime.signal.throwIfAborted(); return true;
+			}));
+		},
+		saveOwner(project, expectedOwnerDigest, history, writeOptions = {}) {
 			return start(async () => {
 				const record = createFramescaperLinkOwnerRecord(project, history);
-				return transact(database, STORES, 'readwrite', async (stores) => { lifetime.signal.throwIfAborted(); await assertOwnerCAS(stores, record.id, expectedOwnerDigest); const result = await receipt(stores, record); await request(stores.owners.put(record)); lifetime.signal.throwIfAborted(); return result; });
+				return transact(database, STORES, 'readwrite', async (stores) => { lifetime.signal.throwIfAborted(); await assertOwnerCAS(stores, record.id, expectedOwnerDigest, writeOptions.writeFence); const result = await receipt(stores, record); await writeOwner(stores, record); lifetime.signal.throwIfAborted(); return result; });
 			});
 		},
 		prepareReceive(ownerProjectId, sourceId, value, receiveOptions) {
