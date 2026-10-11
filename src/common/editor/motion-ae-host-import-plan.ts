@@ -16,7 +16,7 @@ export interface MotionAeImportComposition {
 }
 export interface MotionAeImportFootage { readonly id: string; readonly name: string; readonly path: string; readonly byteLength: number; readonly sha256: string | null }
 export interface MotionAeImportPlan {
-	readonly transferId: string; readonly footage: readonly MotionAeImportFootage[]; readonly compositions: readonly MotionAeImportComposition[]; readonly warnings: readonly string[];
+	readonly transferId: string; readonly muteAudio: boolean; readonly footage: readonly MotionAeImportFootage[]; readonly compositions: readonly MotionAeImportComposition[]; readonly warnings: readonly string[];
 	readonly color: { readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: number };
 }
 function record(value: unknown): Record<string, unknown> {
@@ -103,6 +103,8 @@ function verifyGraph(plan: MotionAeImportPlan): void {
 /** Parse the inert manifest and admit only operations implemented by this script version. No AE mutation occurs here. */
 export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 	const input = record(parseMotionAeHostJson(json)); if (input.format !== 'org.motionscaper.ae-exchange' || input.version !== 1) throw new Error('AE import format/version is unsupported.');
+	const muteAudio = input.producer !== undefined && record(input.producer).application === 'motionscaper';
+	if (muteAudio && record(input.producer).bridgeVersion !== '0.1.0') throw new Error('Motion export bridge version is unsupported.');
 	const warnings: string[] = [], footage: MotionAeImportFootage[] = [], compositions: MotionAeImportComposition[] = [], paths: Record<string, boolean> = {};
 	const rawFootage = array(input.footage, 4096), rawComps = array(input.compositions, 256), budget = { properties: 0, keys: 0 }; let totalBytes = 0, totalLayers = 0;
 	for (let index = 0; index < rawFootage.length; index++) {
@@ -136,6 +138,7 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 	const color = record(input.color), bits = number(color.bitsPerChannel, 8, 32); if (bits !== 8 && bits !== 16 && bits !== 32) throw new Error('AE color depth is unsupported.');
 	const reports = array(input.report, 65_536);
 	for (let index = 0; index < reports.length; index++) if (record(reports[index]).status === 'unsupported') { warnings.push('The source exchange contains unsupported content. Review its original transfer report and compare reference frames.'); break; }
-	const plan = { transferId: id(input.transferId), footage, compositions, warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
+	if (muteAudio) warnings.push('This Motion-authored editable subset is video-only. Imported footage and nested composition layers will be muted; original audio is preserved in original.mscape.');
+	const plan = { muteAudio, transferId: id(input.transferId), footage, compositions, warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
 	verifyGraph(plan); return plan;
 }

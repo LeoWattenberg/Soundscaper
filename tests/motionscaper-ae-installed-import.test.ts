@@ -38,7 +38,7 @@ function host(source: string, failLayer = false) {
 		set expression(_value: string) { throw new Error('Expression source must remain inert.'); }
 	}
 	class Layer {
-		name = ''; enabled = true; threeDLayer = false; startTime = 0; inPoint = 0; outPoint = 2; stretch = 100; parent: Layer | null = null; position = new Property();
+		name = ''; enabled = true; audioEnabled = true; threeDLayer = false; startTime = 0; inPoint = 0; outPoint = 2; stretch = 100; parent: Layer | null = null; position = new Property();
 		setParentWithJump(parent: Layer) { this.parent = parent; } property() { return { property: () => this.position }; }
 	}
 	class Item {
@@ -79,4 +79,16 @@ test('generated AE importer refuses changed media and color mismatch before crea
 test('generated AE importer rolls back new objects after creation failure and leaves original items present', async () => {
 	const fixture = host(manifest(), true); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
 	assert.match(fixture.alerts[0]!, /layer creation failed/u); assert.deepEqual(fixture.items, [fixture.existing]); assert.equal(fixture.calls.at(-1), 'end');
+});
+
+test('generated AE importer mutes the Motion-authored video-only subset without muting legacy exchanges', async () => {
+	const input = JSON.parse(manifest(true)) as Record<string, unknown>;
+	const motion = host(JSON.stringify({ ...input, producer: { application: 'motionscaper', bridgeVersion: '0.1.0', version: '0.1.0-alpha.1' } }));
+	vm.runInNewContext(await script(), motion.sandbox, { timeout: 5000 });
+	assert.match(motion.alerts[0]!, /Exchange imported/u);
+	const comp = motion.items.find(item => item instanceof motion.Composition)! as InstanceType<typeof motion.Composition>;
+	assert.ok(comp.authored.every(layer => !layer.audioEnabled));
+	const legacy = host(manifest(true)); vm.runInNewContext(await script(), legacy.sandbox, { timeout: 5000 });
+	const original = legacy.items.find(item => item instanceof legacy.Composition)! as InstanceType<typeof legacy.Composition>;
+	assert.ok(original.authored.every(layer => layer.audioEnabled));
 });

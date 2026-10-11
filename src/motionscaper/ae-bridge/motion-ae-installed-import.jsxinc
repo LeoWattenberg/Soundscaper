@@ -126,6 +126,8 @@ function beginImport(project, root, plan) {
             layer.inPoint = item.inPoint;
             layer.outPoint = item.outPoint;
             layer.enabled = item.enabled;
+            if (plan.muteAudio)
+                layer.audioEnabled = false;
         },
         parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
         properties: function (item) {

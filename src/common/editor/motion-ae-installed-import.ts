@@ -15,7 +15,7 @@ interface AeProperty {
 	setSpatialTangentsAtKey(index: number, incoming: readonly number[], outgoing: readonly number[]): void; setRovingAtKey(index: number, value: boolean): void;
 }
 interface AeLayer {
-	name: string; enabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
+	name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
 }
 interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { add(item: AeItem): AeLayer; addNull(duration: number): AeLayer } }
@@ -93,7 +93,7 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 		layer: (comp, item) => {
 			const target = comps[comp.id]!, layer = item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
 			layers[item.id] = layer; layer.name = item.name; layer.threeDLayer = item.threeD; layer.stretch = item.stretch; layer.startTime = item.startTime;
-			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled;
+			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled; if (plan.muteAudio) layer.audioEnabled = false;
 		},
 		parent: (item) => { layers[item.id]!.setParentWithJump(layers[item.parentId!]!); },
 		properties: (item) => {

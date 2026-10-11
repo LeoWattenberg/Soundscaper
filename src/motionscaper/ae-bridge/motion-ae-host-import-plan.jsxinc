@@ -165,6 +165,9 @@ function prepareMotionAeHostImport(json) {
     var input = record(parseMotionAeHostJson(json));
     if (input.format !== 'org.motionscaper.ae-exchange' || input.version !== 1)
         throw new Error('AE import format/version is unsupported.');
+    var muteAudio = input.producer !== undefined && record(input.producer).application === 'motionscaper';
+    if (muteAudio && record(input.producer).bridgeVersion !== '0.1.0')
+        throw new Error('Motion export bridge version is unsupported.');
     var warnings = [], footage = [], compositions = [], paths = {};
     var rawFootage = array(input.footage, 4096), rawComps = array(input.compositions, 256), budget = { properties: 0, keys: 0 };
     var totalBytes = 0, totalLayers = 0;
@@ -225,7 +228,9 @@ function prepareMotionAeHostImport(json) {
             warnings.push('The source exchange contains unsupported content. Review its original transfer report and compare reference frames.');
             break;
         }
-    var plan = { transferId: id(input.transferId), footage: footage, compositions: compositions, warnings: warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
+    if (muteAudio)
+        warnings.push('This Motion-authored editable subset is video-only. Imported footage and nested composition layers will be muted; original audio is preserved in original.mscape.');
+    var plan = { muteAudio: muteAudio, transferId: id(input.transferId), footage: footage, compositions: compositions, warnings: warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
     verifyGraph(plan);
     return plan;
 }
