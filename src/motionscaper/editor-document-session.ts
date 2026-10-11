@@ -9,7 +9,9 @@ import { createMotionscaperProject } from './editor-project.ts';
 import { applyMotionscaperCommands, createMotionscaperHistory, type MotionscaperHistory, type MotionscaperProjectCommand } from './editor-project-commands.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import type { MotionscaperProjectStore } from './editor-project-store.ts';
-import { MotionProjectLeaseError, type MotionProjectWriteLease } from './editor-project-write-lease.ts';
+import { createMotionscaperRevision } from './editor-project-revision.ts';
+import type { MotionArchiveReview, MotionArchiveOpenAction, MotionArchiveOpenReceipt } from './editor-document-import.ts';
+import { MotionProjectConflictError, MotionProjectLeaseError, type MotionProjectWriteLease } from './editor-project-write-lease.ts';
 
 export interface MotionProjectSettings {
 	readonly title: string; readonly width: number; readonly height: number;
@@ -35,6 +37,7 @@ export class MotionscaperDocumentSession {
 	#snapshot = EMPTY_MOTION_DOCUMENT;
 	#lease: MotionProjectWriteLease | null = null;
 	#disposed = false;
+	readonly #archiveReviews = new WeakMap<MotionArchiveReview, { input: ScapeProjectInput; project: MotionscaperProject | null; savedDigest: string | null }>();
 
 	constructor(store: MotionscaperProjectStore, randomId: () => string = () => crypto.randomUUID()) {
 		this.#store = store; this.#randomId = randomId;
@@ -197,6 +200,62 @@ export class MotionscaperDocumentSession {
 			return Object.freeze({ blob, fileName });
 		});
 	}
+	inspectArchive(input: ScapeProjectInput): Promise<MotionArchiveReview> {
+		return this.#run(async () => {
+			const { inspectMotionArchive } = await import('./editor-document-import.ts');
+			const incoming = await inspectMotionArchive(input); if (!incoming) throw new UnsupportedMotionArchiveError();
+			const existing = await this.#store.inspectImport(incoming.id);
+			const review: MotionArchiveReview = Object.freeze({ incoming, incomingDigest: createMotionscaperRevision(incoming).digest,
+				existing: existing ? Object.freeze({ ...existing, active: this.#snapshot.project?.id === incoming.id }) : null });
+			this.#archiveReviews.set(review, { input, project: this.#snapshot.project, savedDigest: this.#snapshot.savedDigest }); return review;
+		});
+	}
+	openArchive(review: MotionArchiveReview, action: MotionArchiveOpenAction): Promise<MotionArchiveOpenReceipt> {
+		return this.#run(async () => {
+			const held = this.#archiveReviews.get(review);
+			if (!held || held.project !== this.#snapshot.project || held.savedDigest !== this.#snapshot.savedDigest) throw new MotionProjectConflictError('The archive review is stale or closed; inspect the file again.');
+			if (!['import', 'copy', 'replace', 'keep', 'saved', 'recover'].includes(action)) throw new TypeError('Unknown archive review action.');
+			const { incoming, existing } = review;
+			if (action === 'import' && existing || action !== 'import' && action !== 'copy' && !existing) throw new MotionProjectConflictError('Choose an explicit action for this archive collision.');
+			if (action === 'keep') {
+				if (!existing?.active) throw new MotionProjectConflictError('This project is not the active document.');
+				await this.#store.assertWriteAccess(this.#requireLease()); this.#archiveReviews.delete(review);
+				return Object.freeze({ projectId: incoming.id, action, bindOriginal: false });
+			}
+			if ((action === 'saved' || action === 'recover') && existing?.active) throw new MotionProjectConflictError('Keep the active document to preserve its history.');
+			const { copyMotionArchiveProject } = await import('./editor-document-import.ts');
+			const target = action === 'copy' ? copyMotionArchiveProject(incoming, this.#randomId()) : incoming;
+			return this.#withLease(target.id, async lease => {
+				if (action !== 'copy') {
+					const current = await this.#store.inspectImport(target.id);
+					if (Boolean(current) !== Boolean(existing) || current?.savedDigest !== existing?.savedDigest || current?.recoveryDigest !== existing?.recoveryDigest) throw new MotionProjectConflictError('The local saved project or recovery changed after review.');
+				}
+				if (action === 'saved' || action === 'recover') {
+					const selected = action === 'saved' ? existing?.saved?.project : existing?.recovery;
+					if (!selected) throw new Error('The reviewed local revision is unavailable.');
+					await this.#adopt(selected, existing!.savedDigest, action === 'recover', lease); this.#archiveReviews.delete(review);
+					return Object.freeze({ projectId: target.id, action, bindOriginal: action === 'saved' && review.incomingDigest === existing!.savedDigest });
+				}
+				const history = action === 'replace' ? existing?.active ? this.#history! : createMotionscaperHistory(existing!.recovery ?? existing!.saved!.project) : null;
+				const transition = history?.prepareReplacement(target), candidate = transition?.project ?? target;
+				const { importMotionscaperArchive } = await import('./editor-scape.ts');
+				const imported = await importMotionscaperArchive(held.input, async project => {
+					if (createMotionscaperRevision(project).digest !== review.incomingDigest) throw new MotionProjectConflictError('The selected archive changed after review.');
+					const staging = await this.#store.beginImport(candidate, lease, action === 'replace' ? { recovery: true, expected: existing! } : undefined);
+					return { ...staging, commit: () => staging.commit(candidate) };
+				});
+				if (imported.kind !== 'current') throw new UnsupportedMotionArchiveError();
+				this.#archiveReviews.delete(review);
+				if (transition && history) {
+					transition.accept(); const prior = this.#lease; this.#lease = lease; this.#history = history;
+					this.#update({ savedDigest: existing!.savedDigest, dirty: true }); if (prior && prior !== lease) await this.#store.releaseWriteAccess(prior);
+				} else await this.#adopt(candidate, createMotionscaperRevision(candidate).digest, false, lease);
+				return Object.freeze({ projectId: candidate.id, action, bindOriginal: action === 'import' });
+			});
+		});
+	}
+	closeArchiveReview(review: MotionArchiveReview): void { this.#archiveReviews.delete(review); }
+
 	importArchive(file: ScapeProjectInput): Promise<void> {
 		return this.#run(async () => {
 			const { importMotionscaperArchive } = await import('./editor-scape.ts');

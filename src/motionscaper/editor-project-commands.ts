@@ -123,6 +123,7 @@ export interface MotionscaperHistory {
 	commit(commands: unknown): MotionscaperProject;
 	undo(): boolean; redo(): boolean;
 	prepareUndo(): MotionscaperHistoryTransition | null; prepareRedo(): MotionscaperHistoryTransition | null;
+	prepareReplacement(value: unknown): MotionscaperHistoryTransition;
 	retainedAssetDigests(): readonly string[];
 }
 
@@ -152,6 +153,15 @@ export function createMotionscaperHistory(initial: unknown, options: Readonly<{ 
 			return project;
 		},
 		prepareUndo: () => prepare(past, future), prepareRedo: () => prepare(future, past),
+		prepareReplacement(value: unknown) {
+			const incoming = normalizeMotionscaperProject(value); const original = project;
+			if (incoming.id !== project.id) throw new Error('A replacement draft must retain its local project identity.');
+			const candidate = normalizeMotionscaperProject({ ...incoming, revision: Math.max(project.revision, incoming.revision) + 1 });
+			return Object.freeze({ project: candidate, accept() {
+				if (project !== original) throw new Error('The prepared replacement is stale because history changed.');
+				publish(candidate, past); future.length = 0; return project;
+			} });
+		},
 		undo() { const transition = prepare(past, future); if (!transition) return false; transition.accept(); return true; },
 		redo() { const transition = prepare(future, past); if (!transition) return false; transition.accept(); return true; },
 		retainedAssetDigests() {

@@ -25,6 +25,13 @@ interface ProjectPointer {
 }
 interface StoredRevision { readonly key: string; readonly projectId: string; readonly snapshot: MotionscaperRevision }
 export interface MotionscaperProjectStoreOptions { readonly indexedDB?: IDBFactory; readonly now?: () => number }
+export interface MotionProjectImportState {
+	readonly saved: MotionscaperRevision | null; readonly recovery: MotionscaperProject | null;
+	readonly savedDigest: string | null; readonly recoveryDigest: string | null;
+}
+export interface MotionProjectImportPublication {
+	readonly recovery: true; readonly expected: MotionProjectImportState;
+}
 export interface MotionProjectSummary {
 	readonly id: string; readonly title: string; readonly revision: number;
 	readonly savedDigest: string | null; readonly hasRecovery: boolean;
@@ -85,7 +92,7 @@ export class MotionscaperProjectStore {
 		return snapshot;
 	}
 
-	async #publish(snapshot: MotionscaperRevision, expectedDigest: string | null, staging: readonly MotionAssetStaging[], authority?: MotionProjectWriteLease): Promise<void> {
+	async #publish(snapshot: MotionscaperRevision, expectedDigest: string | null, staging: readonly MotionAssetStaging[], authority?: MotionProjectWriteLease, imported?: MotionProjectImportPublication | true): Promise<void> {
 		if (expectedDigest !== null) motionDigest(expectedDigest);
 		const database = await this.#database();
 		const lease = authority ?? await this.#leases.defaultLease(snapshot.projectId);
@@ -95,6 +102,8 @@ export class MotionscaperProjectStore {
 			const prior: unknown = await request(stores.projects.get(snapshot.projectId));
 			const pointer = prior === undefined ? null : readPointer(prior, snapshot.projectId);
 			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
+			if (imported === true && pointer || imported && imported !== true && (!pointer ||
+				(pointer.recovery ? createMotionscaperRevision(pointer.recovery).digest : null) !== imported.expected.recoveryDigest)) throw new MotionProjectConflictError();
 			if (pointer?.savedDigest) {
 				const previous = readRevision(await request(stores.revisions.get(revisionKey(snapshot.projectId, pointer.savedDigest))), snapshot.projectId, pointer.savedDigest);
 				assertSavedPointer(pointer, previous);
@@ -105,6 +114,15 @@ export class MotionscaperProjectStore {
 			for (const stage of staging) await stage.publish(stores);
 			for (const asset of snapshot.project.assets) await this.#assets.assertAvailable(stores, asset);
 			await this.#leases.assert(stores, lease);
+			if (imported && imported !== true) {
+				if (!pointer || snapshot.revision <= Math.max(pointer.savedRevision ?? -1, pointer.recovery?.revision ?? -1)) throw new MotionProjectConflictError('The replacement draft must advance the local revision.');
+				if (pointer.recovery) {
+					const retained = createMotionscaperRevision(pointer.recovery);
+					await request(stores.revisions.put({ key: revisionKey(retained.projectId, retained.digest), projectId: retained.projectId, snapshot: retained } satisfies StoredRevision));
+				}
+				await request(stores.projects.put({ ...pointer, recovery: snapshot.project } satisfies ProjectPointer));
+				return;
+			}
 			await request(stores.revisions.put({ key: revisionKey(snapshot.projectId, snapshot.digest),
 				projectId: snapshot.projectId, snapshot } satisfies StoredRevision));
 			await request(stores.projects.put({ id: snapshot.projectId, savedDigest: snapshot.digest,
@@ -152,6 +170,19 @@ export class MotionscaperProjectStore {
 		});
 	}
 
+	/** One transactional view of the saved head and recovery used by an explicit archive review. */
+	async inspectImport(id: string): Promise<MotionProjectImportState | null> {
+		motionId(id); const database = await this.#database();
+		return transact(database, ['projects', 'revisions'], 'readonly', async stores => {
+			const value: unknown = await request(stores.projects.get(id)); if (value === undefined) return null;
+			const pointer = readPointer(value, id);
+			const saved = pointer.savedDigest ? readRevision(await request(stores.revisions.get(revisionKey(id, pointer.savedDigest))), id, pointer.savedDigest) : null;
+			if (saved) assertSavedPointer(pointer, saved);
+			return Object.freeze({ saved, recovery: pointer.recovery, savedDigest: pointer.savedDigest,
+				recoveryDigest: pointer.recovery ? createMotionscaperRevision(pointer.recovery).digest : null });
+		});
+	}
+
 	async loadRevision(id: string, digest: string): Promise<MotionscaperRevision | null> {
 		motionId(id); motionDigest(digest);
 		const database = await this.#database();
@@ -195,7 +226,7 @@ export class MotionscaperProjectStore {
 	loadAsset(asset: unknown): Promise<Blob | null> { return this.#assets.load(asset); }
 	readAsset(asset: unknown): Promise<MotionAssetBody | null> { return this.#assets.read(asset); }
 
-	async beginImport(projectInput: unknown, lease?: MotionProjectWriteLease): Promise<MotionArchiveImportTransaction> {
+	async beginImport(projectInput: unknown, lease?: MotionProjectWriteLease, publication?: MotionProjectImportPublication): Promise<MotionArchiveImportTransaction> {
 		const project = normalizeMotionscaperProject(projectInput);
 		const stages = new Map<string, MotionAssetStaging>();
 		let settled = false;
@@ -214,9 +245,9 @@ export class MotionscaperProjectStore {
 				if (settled) throw new Error('Motion import transaction is closed.');
 				const snapshot = createMotionscaperRevision(value);
 				if (snapshot.digest !== createMotionscaperRevision(project).digest) throw new Error('Motion project changed during import.');
-				await this.#publish(snapshot, null, [...stages.values()], lease);
+				await this.#publish(snapshot, publication?.expected.savedDigest ?? null, [...stages.values()], lease, publication ?? true);
 				settled = true;
-				this.#notify(snapshot);
+				if (!publication) this.#notify(snapshot);
 			},
 			rollback: async () => {
 				if (settled) return;
