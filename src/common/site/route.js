@@ -1,6 +1,6 @@
 import { getLocaleDescriptor } from '../i18n/locales.js';
 import { PRODUCT_IDS } from '../product-identities.js';
-import { isTransferRoutePath } from '../transfer/transfer-routes.js';
+import { isTransferRoutePath } from '../transfer/transfer-route-path.ts';
 
 /**
  * The product this bundle was built for.

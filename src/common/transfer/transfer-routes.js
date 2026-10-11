@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { TRANSFER_ROUTE_PATHS } from './transfer-route-path.ts';
+export { TRANSFER_ROUTE_PREFIX, isTransferRoutePath } from './transfer-route-path.ts';
 
 /**
  * The two cross-origin project transfer documents.
@@ -19,8 +21,8 @@
  * only in which URL serves the page module.
  *
  * Imported by `scripts/generate-static-routes.mjs` (plain node, no loader) and
- * by `src/common/site/route.js` (browser), so this module stays dependency-free
- * JavaScript.
+ * by the browser transfer document. The startup route predicate lives in a
+ * separate module so editor startup does not retain this document copy.
  */
 
 /** Source path of the page module, as the Vite build manifest keys it. */
@@ -28,8 +30,6 @@ export const TRANSFER_PAGE_ENTRY_MODULE = 'src/common/transfer/transfer-page-ent
 
 /** URL the dev server serves that same module from. */
 export const TRANSFER_PAGE_DEV_MODULE_URL = `/${TRANSFER_PAGE_ENTRY_MODULE}`;
-
-export const TRANSFER_ROUTE_PREFIX = '/transfer/';
 
 /** @typedef {'send' | 'receive'} TransferRole */
 
@@ -45,7 +45,7 @@ export const TRANSFER_ROUTE_PREFIX = '/transfer/';
 export const TRANSFER_ROUTES = Object.freeze([
 	Object.freeze({
 		role: /** @type {TransferRole} */ ('send'),
-		path: '/transfer/send/',
+		path: TRANSFER_ROUTE_PATHS.send,
 		title: 'Send projects to the other product',
 		summary: 'Export every project stored on this origin as a .scape archive, then download the'
 			+ ' archives or hand them straight to the other product in one click. Nothing stored here'
@@ -53,7 +53,7 @@ export const TRANSFER_ROUTES = Object.freeze([
 	}),
 	Object.freeze({
 		role: /** @type {TransferRole} */ ('receive'),
-		path: '/transfer/receive/',
+		path: TRANSFER_ROUTE_PATHS.receive,
 		title: 'Receive projects from the other product',
 		summary: 'Accept .scape archives from the other product - over the transfer handshake, or from'
 			+ ' files you downloaded - and import them into this origin\'s storage.',
@@ -69,14 +69,6 @@ export function transferRouteForPath(pathname) {
 	// The closed route table also refuses malformed segments and deeper paths.
 	const normalized = pathname.endsWith('/') ? pathname : `${pathname}/`;
 	return TRANSFER_ROUTES.find((route) => route.path === normalized) || null;
-}
-
-/**
- * @param {unknown} pathname
- * @returns {boolean}
- */
-export function isTransferRoutePath(pathname) {
-	return transferRouteForPath(pathname) !== null;
 }
 
 /**

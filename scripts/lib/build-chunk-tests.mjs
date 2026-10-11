@@ -402,7 +402,7 @@ export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
  * imports, so sharing this owner does not grow the mounted transfer graph.
  */
 export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/](?:document[\\\\/]deferred-archive-runtime|shared[\\\\/]file-size-warning(?:-confirmation)?))|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
+	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/](?:document[\\\\/]deferred-archive-runtime|shared[\\\\/]file-size-warning(?:-confirmation)?))|src[\\\\/]common[\\\\/](?:cross-product-handoff-intent|project-file-extensions))\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
