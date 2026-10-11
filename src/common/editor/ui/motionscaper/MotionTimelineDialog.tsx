@@ -7,14 +7,10 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
 import type { MotionscaperProjectCommand } from '../../../../motionscaper/editor-project-commands.ts';
 import { createMotionscaperLayerCommands, type MotionscaperLayerEdit } from '../../../../motionscaper/editor-layer-commands.ts';
-import { normalizeRational, type Rational } from '../../timeline-time.ts';
+import MotionTimelineAudio from './MotionTimelineAudio.tsx';
+import { parseMotionExactInput as frame, formatMotionExactInput as format } from './motion-exact-input.ts';
 import MotionTimelineLayerRow from './MotionTimelineLayerRow.tsx';
 
-function frame(value: string): Rational {
-	if (!/^-?\d+(?:\/[1-9]\d*)?$/u.test(value.trim())) throw new TypeError('Use a whole frame or an exact fraction such as 3/2.');
-	const [num, den = '1'] = value.trim().split('/'); return normalizeRational({ num: Number(num), den: Number(den) });
-}
-const format = (value: Rational) => value.den === 1 ? String(value.num) : `${value.num}/${value.den}`;
 
 export default function MotionTimelineDialog({ copy, project, busy, canUndo, canRedo, onEdit, onUndo, onRedo, onClose }: Readonly<{
 	copy: Readonly<Record<string, string>>; project: MotionscaperProject; busy: boolean; canUndo: boolean; canRedo: boolean;
@@ -83,6 +79,7 @@ export default function MotionTimelineDialog({ copy, project, busy, canUndo, can
 			<Button variant="secondary" disabled={!name.trim() || selected.length === 0} onClick={() => edit(() => ({ type: 'precompose', newCompositionId: crypto.randomUUID(), newLayerId: crypto.randomUUID(), name, layerIds: selectionIds }))}>{copy.motionscaperPrecompose}</Button>
 		</fieldset>
 		<p>{copy.motionscaperParentHint}</p>
+		<MotionTimelineAudio copy={copy} project={project} composition={composition} busy={disabled} onEdit={onEdit} />
 		{error && <p role="alert">{copy.motionscaperEditFailed} {error}</p>}
 	</AudioEditorDialogShell>;
 }

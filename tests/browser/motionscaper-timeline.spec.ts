@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { Page } from '@playwright/test';
+import { motionWavFixture } from '../helpers/motion-media-fixture.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 async function menu(page: Page, top: string, command: string): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click();
@@ -58,4 +59,26 @@ test('menu Timeline edits layer timing, groups and nests a title while preservin
 	await page.reload(); await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Animated title', exact: true }).click();
 	await menu(page, 'View', 'Timeline'); await dialog.getByLabel('Composition', { exact: true }).selectOption({ label: 'Title scene' });
 	await expect(dialog.locator('[data-motion-layer-row]')).toHaveCount(3); await expect(title).toHaveAttribute('data-motion-in', '5/1');
+});
+
+
+test('Timeline audio edits preserve independent gain, timing and undo', async ({ page }: { page: Page }) => {
+	await page.goto('/embed/en/'); await menu(page, 'File', 'New Composition');
+	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'File', 'Import Media');
+	await page.getByLabel('Media file', { exact: true }).setInputFiles({ name: 'Tone.wav', mimeType: 'audio/wav', buffer: Buffer.from(motionWavFixture(2, 48000)) });
+	await expect(page.getByRole('dialog')).toHaveCount(0); await menu(page, 'View', 'Timeline');
+	const dialog = page.getByRole('dialog', { name: 'Timeline', exact: true }); const audio = dialog.locator('[data-motion-audio-editor]');
+	await audio.getByLabel('Base gain (%)', { exact: true }).fill('50'); await audio.getByRole('button', { name: 'Apply Gain', exact: true }).click();
+	await expect(audio).toHaveAttribute('data-motion-gain', '0.5');
+	await audio.getByLabel('Move by frames', { exact: true }).fill('3'); await audio.getByRole('button', { name: 'Move', exact: true }).click();
+	await expect(audio).toHaveAttribute('data-motion-in', '3/1');
+	await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(audio).toHaveAttribute('data-motion-in', '0/1');
+	await expect(audio).toHaveAttribute('data-motion-gain', '0.5');
+	await audio.getByLabel('In frame', { exact: true }).fill('2'); await audio.getByLabel('Out frame', { exact: true }).fill('20');
+	await audio.getByRole('button', { name: 'Trim', exact: true }).click(); await expect(audio).toHaveAttribute('data-motion-in', '2/1');
+	await audio.getByLabel('Audio enabled', { exact: true }).uncheck(); await expect(audio).toHaveAttribute('data-motion-enabled', 'false');
+	await audio.getByRole('button', { name: 'Remove Audio', exact: true }).click(); await expect(audio).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(audio).toHaveCount(1);
+	await expect(audio).toHaveAttribute('data-motion-gain', '0.5'); await expect(audio).toHaveAttribute('data-motion-in', '2/1');
 });
