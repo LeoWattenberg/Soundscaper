@@ -288,6 +288,17 @@ const ENTRIES = [
 	['motionscaperShapeField_3', 'Shape height', 'Formhöhe'],
 	['motionscaperAddShape', 'Add Shape', 'Form hinzufügen'],
 	['motionscaperShapesHint', 'New paths inherit the selected shape appearance. Change path geometry in Paths and Motion; animate fills and strokes in Properties and Keyframes. Boolean operators use the first current shape appearance.', 'Neue Pfade übernehmen das Aussehen der gewählten Form. Ändere die Geometrie unter Pfade und Bewegung; animiere Füllungen und Konturen unter Eigenschaften und Schlüsselbilder. Boolesche Operatoren verwenden das Aussehen der ersten aktuellen Form.'],
+	['motionscaperWorkArea', 'Work area', 'Arbeitsbereich'],
+	['motionscaperWorkAreaStart', 'Work area start', 'Arbeitsbereichsanfang'],
+	['motionscaperWorkAreaEnd', 'Work area end (exclusive)', 'Arbeitsbereichsende (ausschließlich)'],
+	['motionscaperSetWorkArea', 'Set Work Area', 'Arbeitsbereich festlegen'],
+	['motionscaperResetWorkArea', 'Reset Work Area', 'Arbeitsbereich zurücksetzen'],
+	['motionscaperUseWorkArea', 'Use Work Area', 'Arbeitsbereich verwenden'],
+	['motionscaperUseFullComposition', 'Use Full Composition', 'Ganze Komposition verwenden'],
+	['motionscaperWorkAreaHint', 'Use whole frames or exact fractions, such as 3/2. The end is excluded. Preview plays this saved range.', 'Nutze ganze Bilder oder exakte Bruchteile wie 3/2. Das Ende ist ausgeschlossen. Die Vorschau spielt diesen gespeicherten Bereich ab.'],
+	['motionscaperWorkAreaOutputHint', 'Output samples whole frames within the work area. The fields show the actual sampled range; fractional work-area endpoints remain saved unchanged.', 'Die Ausgabe verwendet ganze Bilder innerhalb des Arbeitsbereichs. Die Felder zeigen den tatsächlichen Ausgabebereich; gebrochene Endpunkte bleiben unverändert gespeichert.'],
+	['motionscaperWorkAreaNoSamples', 'This range contains no whole-frame sample. Widen the range or choose Use Full Composition.', 'Dieser Bereich enthält kein ganzzahliges Ausgabebild. Erweitere den Bereich oder wähle Ganze Komposition verwenden.'],
+	['motionscaperPreviewFrameInvalid', 'Enter a whole frame or exact fraction within the composition.', 'Gib ein ganzes Bild oder einen exakten Bruch innerhalb der Komposition ein.'],
 ] as const;
 
 export const MOTIONSCAPER_COPY_BY_LOCALE = Object.freeze({

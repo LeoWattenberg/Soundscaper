@@ -7,6 +7,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
 import type { MotionscaperProjectCommand } from '../../../../motionscaper/editor-project-commands.ts';
 import { createMotionscaperLayerCommands, type MotionscaperLayerEdit } from '../../../../motionscaper/editor-layer-commands.ts';
+import MotionWorkArea from './MotionWorkArea.tsx';
 import MotionTimelineAudio from './MotionTimelineAudio.tsx';
 import { parseMotionExactInput as frame, formatMotionExactInput as format } from './motion-exact-input.ts';
 import MotionTimelineLayerRow from './MotionTimelineLayerRow.tsx';
@@ -42,7 +43,7 @@ export default function MotionTimelineDialog({ copy, project, busy, canUndo, can
 		if (next < 0 || next >= ids.length) return; [ids[index], ids[next]] = [ids[next]!, ids[index]!]; edit(() => ({ type: 'reorder', layerIds: ids }));
 	};
 	const selectionIds = selected.map((layer) => layer.id);
-	return <AudioEditorDialogShell title={copy.motionscaperTimeline} onClose={disabled ? undefined : onClose} width={960} initialFocus="[data-motion-composition]"
+	return <AudioEditorDialogShell title={copy.motionscaperTimeline} onClose={disabled ? undefined : onClose} width={960} initialFocus="[data-motion-composition]" bodyClassName="kw-audio-editor-dialog__body audio-editor-controlled-dialog__body motionscaper-property-body"
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={disabled} onClick={onClose}>{copy.motionscaperClose}</Button>} />}>
 		<div className="motionscaper-timeline-toolbar">
 			<label htmlFor={`${id}-composition`}>{copy.motionscaperComposition}</label>
@@ -52,6 +53,7 @@ export default function MotionTimelineDialog({ copy, project, busy, canUndo, can
 			<Button variant="secondary" disabled={disabled || !canUndo} onClick={() => { void run(onUndo); }}>{copy.motionscaperUndo}</Button>
 			<Button variant="secondary" disabled={disabled || !canRedo} onClick={() => { void run(onRedo); }}>{copy.motionscaperRedo}</Button>
 		</div>
+		<MotionWorkArea key={`${composition.id}/${project.revision}`} copy={copy} project={project} composition={composition} busy={disabled} onEdit={onEdit} />
 		<p>{copy.motionscaperTimelineHint}</p>
 		<ul className="motionscaper-timeline-list">{composition.layers.map((layer) => <MotionTimelineLayerRow key={layer.id} layer={layer} durationFrames={composition.durationFrames}
 			checked={selection.includes(layer.id)} busy={disabled} copy={copy} onSelect={(checked) => select(layer.id, checked)}
