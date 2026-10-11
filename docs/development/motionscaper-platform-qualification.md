@@ -1,9 +1,10 @@
 # Motionscaper platform qualification
 
 This is a bounded M12 development gate, not a public-release certification. The
-dedicated Motion configuration retains the existing Chromium suite and adds one
-focused workflow spec for Firefox and WebKit. The main repository configuration
-and CI continue to select all three engines for the broader suite.
+dedicated Motion configuration retains the existing Chromium suite and adds
+focused workflow, video-delivery and durable-lease specs for Firefox and WebKit.
+The main repository configuration and CI continue to select all three engines
+for the broader suite.
 
 ## Run locally
 
@@ -98,6 +99,36 @@ not replace service-worker responses, mock renderers, or claim success from a
 crashing probe. Initial feature use before service-worker control does not count
 as warming the offline cache; installation and a controlled reload precede the
 offline workflow.
+
+## Browser video color and durable release
+
+The focused video suite also runs on all three engines. Linux WebKit follows
+the product's explicit pre-probe refusal; tests no longer call an independent
+audio probe before that admission. Refusal must match a declared video/audio
+capability boundary, leave a supplied destination unlocked and publish no bytes.
+
+A standalone WebCodecs reproduction found different implicit RGBA conversion:
+an input pixel `[180, 0, 180, 255]` decoded as `[181, 2, 180, 255]` in Chromium
+but `[193, 28, 178, 255]` in Firefox. The former carried SMPTE 170M tags and the
+latter BT.709 tags. Motion now provides explicit limited-range BT.709 I420 planes
+and color tags, avoiding that implicit conversion. The original decoded-color
+tolerance remains unchanged and passes for actual H.264 and VP9 output in both
+engines. Actual mixed PCM, packet timing and complete streamed publication are
+also checked where each browser admits the audio codec.
+
+This browser boundary is opaque, lossy, 8-bit 4:2:0 SDR video. Coverage is
+flattened against the chosen background in linear light, then Rec.709 transfer
+encoding precedes the luma/chroma matrix and deterministic 2×2 chroma averaging.
+Odd WebM dimensions use bounded partial edge cells. PNG retains alpha and its
+independent image boundary; native ProRes keeps its separately qualified higher
+precision. I420 layout follows the [WebCodecs pixel format contract](https://www.w3.org/TR/webcodecs/#video-pixel-format)
+and matrix/range values follow [ITU-R BT.709](https://www.itu.int/rec/R-REC-BT.709-6-201506-I/en).
+
+The durable-release spec aborts a real IndexedDB lease deletion. All three
+engines retain the physical Navigator Lock and reject both a competing owner
+and stale writes until retry succeeds. A subsequent owner can then acquire it.
+These five video cases and one lease case passed on each engine: 18 cases, no
+skips or retries. They complement the twelve editor/offline cases above.
 
 ## Distribution and remaining gates
 

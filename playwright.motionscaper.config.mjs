@@ -29,7 +29,7 @@ export default defineConfig({
 	projects: [
 		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },
 		// Qualify this bounded workflow before widening the local engine matrix.
-		{ name: 'firefox', testMatch: '**/motionscaper-platform.spec.ts', use: { ...devices['Desktop Firefox'], browserName: 'firefox', deviceScaleFactor: 1 } },
-		{ name: 'webkit', testMatch: '**/motionscaper-platform.spec.ts', use: { ...devices['Desktop Safari'], browserName: 'webkit', deviceScaleFactor: 1 } },
+		{ name: 'firefox', testMatch: ['**/motionscaper-platform.spec.ts', '**/motionscaper-video-delivery.spec.ts', '**/motionscaper-project-release.spec.ts'], use: { ...devices['Desktop Firefox'], browserName: 'firefox', deviceScaleFactor: 1 } },
+		{ name: 'webkit', testMatch: ['**/motionscaper-platform.spec.ts', '**/motionscaper-video-delivery.spec.ts', '**/motionscaper-project-release.spec.ts'], use: { ...devices['Desktop Safari'], browserName: 'webkit', deviceScaleFactor: 1 } },
 	],
 });

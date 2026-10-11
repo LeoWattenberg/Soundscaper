@@ -9,7 +9,7 @@ test('Motion local qualification includes all declared engines without widening 
 	const projects = config.projects ?? [];
 	assert.equal(projects[0]?.testMatch, undefined);
 	for (const project of projects.slice(1)) {
-		assert.equal(project.testMatch, '**/motionscaper-platform.spec.ts');
+		assert.deepEqual(project.testMatch, ['**/motionscaper-platform.spec.ts', '**/motionscaper-video-delivery.spec.ts', '**/motionscaper-project-release.spec.ts']);
 		assert.equal(project.use?.browserName, project.name);
 		assert.equal(project.use?.deviceScaleFactor, 1);
 		assert.equal(project.use?.launchOptions, undefined);

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createMotionOutputDestination, type MotionOutputDestinationOptions } from '../../motion-output-destination.ts';
-import { motionVideoFrameTimestamp, motionVideoPixels, normalizeMotionVideoAudio, normalizeMotionVideoDelivery, type MotionVideoAudioDelivery, type MotionVideoAudioOptions, type MotionVideoBackground, type MotionVideoFormat } from '../../motion-video-delivery.ts';
+import { motionVideoFrameTimestamp, normalizeMotionVideoAudio, normalizeMotionVideoDelivery, type MotionVideoAudioDelivery, type MotionVideoAudioOptions, type MotionVideoBackground, type MotionVideoFormat } from '../../motion-video-delivery.ts';
+import { motionVideoI420Pixels } from '../../motion-video-planar.ts';
 import type { MotionAudioMixBlock } from '../../motion-audio-contract.ts';
 import { aggregateScapeErrors, throwIfScapeAborted } from '../../scape-abort.ts';
 import { compareRationals, divideRationals } from '../../timeline-time.ts';
@@ -98,8 +99,8 @@ export async function createMotionBrowserVideoSink(options: MotionBrowserVideoOp
 				expectedTimestamp = motionVideoFrameTimestamp(written, plan.frameRate);
 				expectedDuration = motionVideoFrameTimestamp(written + 1, plan.frameRate) - expectedTimestamp;
 				encoded = null;
-				const nativeFrame = host.createFrame(motionVideoPixels(frame.surface, delivery.background), { format: 'RGBA', codedWidth: plan.width, codedHeight: plan.height,
-					timestamp: expectedTimestamp, duration: expectedDuration, colorSpace: { primaries: 'bt709', transfer: 'bt709', matrix: 'rgb', fullRange: true } });
+				const nativeFrame = host.createFrame(motionVideoI420Pixels(frame.surface, delivery.background), { format: 'I420', codedWidth: plan.width, codedHeight: plan.height,
+					timestamp: expectedTimestamp, duration: expectedDuration, colorSpace: { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false } });
 				try { admittedEncoder.encode(nativeFrame, { keyFrame: true }); await admittedEncoder.flush(); }
 				finally { nativeFrame.close(); }
 				throwIfScapeAborted(signal);
