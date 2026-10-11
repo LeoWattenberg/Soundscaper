@@ -24,7 +24,7 @@ for (const adjustment of [false, true]) test(`successor File Open displays compl
 	page.on('pageerror', error => errors.push(error.message));
 	await page.addInitScript(() => {
 		const original = HTMLCanvasElement.prototype.getContext;
-		HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
+		HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: [contextId: string, options?: unknown]): unknown {
 			return args[0] === 'webgl2' ? null : Reflect.apply(original, this, args);
 		} as typeof original;
 	});

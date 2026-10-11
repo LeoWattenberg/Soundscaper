@@ -40,7 +40,7 @@ for (const unavailablePreview of [false, true]) test(`native successor File expo
 	const { openMotionNativeFrameReader } = await import('../../src/common/editor/motion-native-frame-carrier-v1.ts');
 	const { openMotionNativePcmReader, motionNativePcmPlan } = await import('../../src/common/editor/motion-native-pcm-carrier-v1.ts');
 	const { FRAMESCAPER_SUCCESSOR_DELIVERY_PROFILE } = await import('../../src/framescaper/editor-successor-native-delivery-contract.ts');
-	if (unavailablePreview) await page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) { return args[0] === 'webgl2' && this.hasAttribute('data-video-preview-canvas') ? null : Reflect.apply(original, this, args); } as typeof original; });
+	if (unavailablePreview) await page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: [contextId: string, options?: unknown]): unknown { return args[0] === 'webgl2' && this.hasAttribute('data-video-preview-canvas') ? null : Reflect.apply(original, this, args); } as typeof original; });
 	const fixture = motionscaperSuccessorNativeFixture(); const archive = await exportMotionscaperArchive(fixture.revision.project, () => new Blob([fixture.bytes])); if (!archive) throw new Error('Missing native test archive');
 	await page.addInitScript(({ archive, profile }) => {
 		const bytes = new Uint8Array(archive), picture: number[] = [], audio: number[] = [];
