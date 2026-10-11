@@ -16,8 +16,9 @@ export type FramescaperSuccessorStoreAdapter = AudioEditorProjectStore & Readonl
 	ownerWriteFence(id: string): string | undefined;
 }>;
 /** Canonical project APIs never reach the ordinary media database. Its internal rows exist only to retain bytes. */
-export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime }: Readonly<{
+export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime, prepareOpen }: Readonly<{
 	media: AudioEditorProjectStore; owners: FramescaperCompositionLinkOwnerRepository; runtime: Runtime;
+	prepareOpen?: (id: string, signal?: AbortSignal) => Promise<void>;
 }>): FramescaperSuccessorStoreAdapter {
 	const known = new Map<string, { ownerDigest: string; projectDigest: string }>(); const fences = new Map<string, string>();
 	const digest = (value: unknown) => digestScapeBytes(new TextEncoder().encode(JSON.stringify(normalizeFramescaperSuccessorProject(value))));
@@ -32,6 +33,7 @@ export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime 
 	async function load(projectId: string, options: ProjectLoadOptions = {}): Promise<FramescaperSuccessorProject | null> {
 		options.signal?.throwIfAborted(); const receipt = await owners.loadOwner(projectId); options.signal?.throwIfAborted();
 		if (!receipt) { known.delete(projectId); return null; }
+		await prepareOpen?.(projectId, options.signal); options.signal?.throwIfAborted();
 		if (options.revision !== undefined && options.revision !== receipt.project.revision) {
 			const found = [...receipt.history.undoStack, ...receipt.history.redoStack].find(entry => entry.project.revision === options.revision);
 			return found?.project ?? null;
