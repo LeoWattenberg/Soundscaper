@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { motionLayerProperties } from '../common/editor/motion-project-graph.ts';
 import { motionExpressionReference } from '../common/editor/motion-expression-links.ts';
+import type { MotionExpressionAudioPreparation } from '../common/editor/motion-expression-audio-preparation.ts';
+import { createMotionAmplitudeNativeBudget } from '../common/editor/motion-expression-audio-energy.ts';
 import { createMotionExpressionRuntime } from '../common/editor/motion-expression-runtime.ts';
 import { createMotionExpressionBudget } from '../common/editor/motion-expression-evaluator.ts';
 import { replaceMotionLayerProperty } from '../common/editor/motion-layer-links.ts';
@@ -44,8 +46,39 @@ export interface MotionscaperExpressionBake {
 	readonly commands: readonly MotionscaperProjectCommand[]; readonly sourceRevisionDigest: string; readonly sampleCount: number;
 	readonly startFrame: Rational; readonly endFrame: Rational; readonly stepFrames: Rational;
 }
+export interface MotionscaperExpressionBakeOptions extends Address {
+	readonly startFrame: Rational; readonly endFrame: Rational; readonly stepFrames: Rational; readonly signal?: AbortSignal;
+}
 /** Samples [startFrame,endFrame) in containing-composition frames, replacing curve authority with linear samples. */
-export function bakeMotionscaperExpression(options: Address & Readonly<{ startFrame: Rational; endFrame: Rational; stepFrames: Rational; signal?: AbortSignal }>): MotionscaperExpressionBake {
+export function bakeMotionscaperExpression(options: MotionscaperExpressionBakeOptions): MotionscaperExpressionBake {
+	const prepared = prepareBake(options); const samples: Sample[] = [];
+	for (let index = 0; index < prepared.sampleCount; index++) {
+		options.signal?.throwIfAborted(); const frame = addRationals(prepared.start, multiplyRationals(prepared.step, index));
+		const value = prepared.runtime.createSession({ expressionBudget: prepared.budget, ...(options.signal ? { signal: options.signal } : {}) }).sample({ ...prepared.address, frame });
+		samples.push({ position: subtractRationals(frame, prepared.target.owner.startFrame), value });
+	}
+	return finishBake(prepared, samples);
+}
+
+/** The caller retains/disposes the analysis lease and compares sourceRevisionDigest before publishing async commands. */
+export async function bakeMotionscaperExpressionWithAudio(options: MotionscaperExpressionBakeOptions & Readonly<{
+	expressionAudio: MotionExpressionAudioPreparation; onProgress?: (completed: number, total: number) => void;
+}>): Promise<MotionscaperExpressionBake> {
+	const prepared = prepareBake(options); if (options.expressionAudio.revision.digest !== prepared.revision.digest) throw new RangeError('Expression bake analysis belongs to a stale project revision.');
+	const samples: Sample[] = []; const nativeBudget = createMotionAmplitudeNativeBudget(16_777_216);
+	for (let index = 0; index < prepared.sampleCount; index++) {
+		options.signal?.throwIfAborted(); const frame = addRationals(prepared.start, multiplyRationals(prepared.step, index));
+		const value = await options.expressionAudio.evaluate((query) => prepared.runtime.createSession({ ...query, expressionBudget: prepared.budget }).sample({ ...prepared.address, frame }), options.signal, nativeBudget);
+		samples.push({ position: subtractRationals(frame, prepared.target.owner.startFrame), value });
+		if ((index + 1) % 16 === 0 || index + 1 === prepared.sampleCount) {
+			try { options.onProgress?.(index + 1, prepared.sampleCount); } catch { /* Presentation cannot revoke completed analysis. */ }
+			await new Promise<void>((resolve) => { setTimeout(resolve, 0); }); options.signal?.throwIfAborted();
+		}
+	}
+	return finishBake(prepared, samples);
+}
+interface Sample { readonly position: Rational; readonly value: MotionPropertyValue }
+function prepareBake(options: MotionscaperExpressionBakeOptions) {
 	options.signal?.throwIfAborted(); const target = resolve(options); const { property } = target.entry;
 	if (!property.expression?.enabled) throw new RangeError('Enable the motion expression before baking it.');
 	const start = motionRational(options.startFrame, 'bake start frame'), end = motionRational(options.endFrame, 'bake end frame'), step = motionRational(options.stepFrames, 'bake frame step', true);
@@ -53,17 +86,16 @@ export function bakeMotionscaperExpression(options: Address & Readonly<{ startFr
 	if (compareRationals(start, target.owner.startFrame) < 0) throw new RangeError('Start baking at or after the layer start so local keys remain non-negative.');
 	const ratio = divideRationals(subtractRationals(end, start), step); const countBig = (BigInt(ratio.num) + BigInt(ratio.den) - 1n) / BigInt(ratio.den);
 	if (countBig > 4096n) throw new RangeError('Expression bake exceeds its 4096-key budget.'); const sampleCount = Number(countBig);
-	const revision = createMotionscaperRevision(target.project); const runtime = createMotionExpressionRuntime(target.project.compositions);
+	const revision = createMotionscaperRevision(target.project); const runtime = createMotionExpressionRuntime(target.project.compositions, { revisionDigest: revision.digest, assets: revision.project.assets });
 	const expressionBudget = createMotionExpressionBudget({ maximumOperations: 1_000_000, ...(options.signal ? { signal: options.signal } : {}) });
 	const sampleBytes = 128 + (property.kind === 'path' ? property.value.vertices.length * 96 : property.kind === 'scalar' ? 8 : property.value.length * 8);
 	if (sampleBytes * sampleCount > 16 * 1024 * 1024) throw new RangeError('Expression bake exceeds its retained sample memory budget.');
-	const samples: { position: Rational; value: MotionPropertyValue }[] = [];
-	for (let index = 0; index < sampleCount; index++) {
-		options.signal?.throwIfAborted(); const frame = addRationals(start, multiplyRationals(step, index));
-		const value = runtime.createSession({ expressionBudget, ...(options.signal ? { signal: options.signal } : {}) }).sample({ compositionId: target.composition.id, layerId: target.owner.id, propertyPath: target.entry.stablePath, frame });
-		samples.push({ position: subtractRationals(frame, target.owner.startFrame), value });
-	}
-	const disabled = { ...property.expression, enabled: false }; const segments = samples.slice(1).map(() => ({ kind: 'linear' as const }));
+	return { target, revision, runtime, budget: expressionBudget, property, start, end, step, sampleCount,
+		address: { compositionId: target.composition.id, layerId: target.owner.id, propertyPath: target.entry.stablePath } };
+}
+function finishBake(prepared: ReturnType<typeof prepareBake>, samples: readonly Sample[]): MotionscaperExpressionBake {
+	const { property, target, revision, sampleCount, start, end, step } = prepared;
+	const disabled = { ...property.expression!, enabled: false }; const segments = samples.slice(1).map(() => ({ kind: 'linear' as const }));
 	const curve = (channel: number) => ({ anchors: samples.map(({ position, value }) => ({ position, value: typeof value === 'number' ? value : (value as readonly number[])[channel]! })), segments });
 	const baked = normalizeMotionProperty(property.kind === 'path' ? { ...property, keyframes: samples, segments: segments.map(({ kind }) => kind), expression: disabled }
 		: property.kind === 'scalar' ? { ...property, curve: curve(0), expression: disabled } : { ...property, curves: property.value.map((_, channel) => curve(channel)), expression: disabled });
