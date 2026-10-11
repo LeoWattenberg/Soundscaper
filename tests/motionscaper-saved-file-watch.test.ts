@@ -67,3 +67,12 @@ test('saved-file discovery wire refuses paths, accessors and invalid numeric or 
 	let invoked = false; const accessor = { ...good }; Object.defineProperty(accessor, 'name', { enumerable: true, get() { invoked = true; return 'Bad.mscape'; } });
 	assert.throws(() => normalizeMotionSavedFileSnapshot(accessor), /data fields/u); assert.equal(invoked, false);
 });
+test('failed native watch cancellation keeps its closed capability available for an explicit cleanup retry', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'motionscaper-close-retry-')), path = join(directory, 'Selected.mscape'); await writeFile(path, 'retained'); let failClose = true;
+	const authority = createMotionSavedFileAuthority({ chooseFile: () => Promise.resolve(path), closeFile: async file => { if (failClose) throw new Error('Injected file close failure'); await file.close(); } });
+	try {
+		const selected = (await authority.select())!; await authority.poll({ watchId: selected.watchId, afterGeneration: 0 });
+		await assert.rejects(authority.cancel({ watchId: selected.watchId }), /could not close/u);
+		failClose = false; await authority.cancel({ watchId: selected.watchId }); await assert.rejects(authority.poll({ watchId: selected.watchId, afterGeneration: 0 }), /unknown/iu);
+	} finally { failClose = false; await authority.dispose(); await rm(directory, { recursive: true, force: true }); }
+});

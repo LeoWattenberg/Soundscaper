@@ -10,7 +10,8 @@ interface Snapshot { readonly watchId: string; readonly file: FileHandle; readon
 export interface MotionSavedFileAuthority extends MotionSavedFileCapabilities { dispose(): Promise<void> }
 
 /** Selected-path authority only. Directory watches survive the inode replacement used by atomic Save. */
-export function createMotionSavedFileAuthority(options: Readonly<{ chooseFile: () => Promise<string | null> }>): MotionSavedFileAuthority {
+export function createMotionSavedFileAuthority(options: Readonly<{ chooseFile: () => Promise<string | null>; closeFile?: (file: FileHandle) => Promise<void> }>): MotionSavedFileAuthority {
+	const closeFile = options.closeFile ?? ((file: FileHandle) => file.close());
 	const watches = new Map<string, WatchEntry>(), snapshots = new Map<string, Snapshot>(); let closed = false, selecting = 0, openingSnapshots = 0;
 	const active = () => { if (closed) throw new Error('Motion saved file authority is closed.'); };
 	function watching(id: string): WatchEntry { active(); const entry = watches.get(id); if (!entry || entry.closed) throw new Error('Unknown Motion saved file watch.'); return entry; }
@@ -27,16 +28,18 @@ export function createMotionSavedFileAuthority(options: Readonly<{ chooseFile: (
 	async function release(token: string): Promise<void> {
 		const entry = snapshots.get(token); if (!entry) throw new Error('Unknown Motion saved file snapshot.');
 		if (entry.closing) return entry.closing; entry.closed = true;
-		entry.closing = (async () => { if (entry.reading) await Promise.allSettled([entry.reading]); await entry.file.close(); snapshots.delete(token); })();
+		entry.closing = (async () => { if (entry.reading) await Promise.allSettled([entry.reading]); await closeFile(entry.file); snapshots.delete(token); })();
 		try { await entry.closing; } finally { entry.closing = null; }
 	}
 	async function cancel(id: string): Promise<void> {
 		const entry = watches.get(id); if (!entry) throw new Error('Unknown Motion saved file watch.');
-		watches.delete(id); entry.closed = true; entry.watcher?.close(); entry.watcher = null;
+		entry.closed = true; entry.watcher?.close(); entry.watcher = null;
 		const failures: unknown[] = [];
 		if (entry.polling) { const result = (await Promise.allSettled([entry.polling]))[0]!; if (result.status === 'rejected' && result.reason instanceof AggregateError) failures.push(result.reason); }
 		for (const [token, snapshot] of snapshots) if (snapshot.watchId === id) try { await release(token); } catch (error) { failures.push(error); }
 		if (failures.length) throw new AggregateError(failures, 'Motion watch cancellation could not close every pinned file.');
+		// Keep a closed watch addressable until every handle closes, so failed cancellation can be retried.
+		watches.delete(id);
 	}
 	async function discover(watchId: string, entry: WatchEntry, afterGeneration: number): Promise<MotionSavedFileDiscovery> {
 		renewWatcher(entry); const parent = await selectedParent(entry.path, false);
@@ -58,7 +61,7 @@ export function createMotionSavedFileAuthority(options: Readonly<{ chooseFile: (
 			if (!sameFingerprint(fingerprint, fingerprintOf(await file.stat())) || !sameFingerprint(fingerprint, await selectedFile(entry.path, false))) throw new Error('Selected Motion file changed during snapshot discovery; retry discovery.');
 			const token = randomUUID(); snapshots.set(token, { watchId, file, fingerprint, closed: false, reading: null, closing: null });
 			return { state: 'snapshot', snapshot: { token, name: entry.name, byteLength: fingerprint.size, generation: entry.generation } };
-		} catch (error) { try { await file.close(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Motion snapshot discovery and file cleanup failed.', { cause: cleanup }); } throw error; }
+		} catch (error) { try { await closeFile(file); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Motion snapshot discovery and file cleanup failed.', { cause: cleanup }); } throw error; }
 		} finally { openingSnapshots--; }
 	}
 	return {
