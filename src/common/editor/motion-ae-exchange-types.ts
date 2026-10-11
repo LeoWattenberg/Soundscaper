@@ -63,6 +63,10 @@ export interface MotionAeFootage {
 	readonly width: number; readonly height: number; readonly pixelAspect: number; readonly frameRate: number; readonly duration: number;
 	readonly hasVideo: boolean; readonly hasAudio: boolean; readonly still: boolean;
 }
+export interface MotionAeSceneMetadata {
+	readonly autoOrient: 'none' | 'point-of-interest' | 'along-path' | 'characters' | 'unavailable';
+	readonly lightType?: 'ambient' | 'point' | 'spot' | 'parallel' | 'environment' | 'unavailable';
+}
 export interface MotionAeLayer {
 	readonly id: string; readonly name: string; readonly kind: 'footage' | 'composition' | 'null' | 'solid' | 'text' | 'shape' | 'camera' | 'light';
 	readonly sourceId: string | null; readonly parentId: string | null;
@@ -70,6 +74,8 @@ export interface MotionAeLayer {
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
 	readonly enabled: boolean; readonly threeD: boolean; readonly adjustment: boolean; readonly blendMode: string;
 	readonly properties: readonly MotionAeProperty[];
+	/** Captured SDK names, never inferred from raw popup integers. Missing legacy metadata stays absent. */
+	readonly scene?: MotionAeSceneMetadata;
 }
 export interface MotionAeComposition {
 	readonly id: string; readonly name: string; readonly width: number; readonly height: number; readonly pixelAspect: number;
