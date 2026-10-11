@@ -56,7 +56,7 @@ import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../.
 import { createPhotoLibraryDevelopSessionV2 } from './photo-library-develop-session-v2.ts';
 import { createPhotoLibraryCullingNavigationSessionV1 } from './photo-library-culling-navigation-session-v1.ts';
 
-import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
+import { readPhotoLibrarySessionExportSidecarForProfileV1, createPhotoLibrarySessionExportJournalPortV1 } from './photo-library-session-export-sidecar.ts';
 import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2, PhotoLibraryExportJournalPort } from '../../common/editor/photo-library-session-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../common/editor/photo-library-cube-lut-port-v1.ts';
 import type { PhotoLibraryImageHandoffPortV1, PhotoLibraryImageHandoffRequestV1, PhotoLibraryImageHandoffViewV1 } from '../../common/editor/photo-library-image-handoff-port-v1.ts';
@@ -97,6 +97,7 @@ export class PhotoLibrarySessionKernelV2 {
 	readonly collectionHandoff: Readonly<PhotoLibraryCollectionHandoffPortV1>;
 	readonly cullingNavigation?: PhotoLibrarySessionPortV2['cullingNavigation'];
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
+	readonly exportJournalCurrent?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
 	#catalog: Promise<string> | null = null;
 	#photo: PhotoCommandOwnerV2 | PhotoCommandOwnerCurrentV1 | null = null;
@@ -156,15 +157,12 @@ export class PhotoLibrarySessionKernelV2 {
 					operation: (run, caller, admit) => this.#operation(run, caller, admit), mutate: (run, caller) => this.#mutation(run, caller) }, { signal: admitted });
 			}, signal);
 		} });
-		if (ports.exportJournalSettings) this.exportJournal = Object.freeze({ open: (options = {}) => {
-			const { signal } = readPhotoDevelopSignalOptionsV2(options);
-			return this.#operation(async admitted => {
-				const { openPhotoLibraryExportJournalSession } = await import('./photo-library-export-journal-session.ts'); check(admitted);
-				return openPhotoLibraryExportJournalSession({ settings: ports.exportJournalSettings!, ready: () => this.#ready(),
-					catalog: legacy.catalog, loadOriginal: ports.backup?.loadOriginal, verifyResources: legacy.verifyResources,
-					operation: (run, caller, admit) => this.#operation(run, caller, admit) }, { signal });
-			}, signal);
-		} });
+		if (ports.exportJournalSettings) {
+			const host = { settings: ports.exportJournalSettings, ready: () => this.#ready(), loadOriginal: ports.backup?.loadOriginal,
+				operation: <Result>(run: (signal: AbortSignal) => Promise<Result>, caller?: AbortSignal, admit?: () => void) => this.#operation(run, caller, admit) };
+			this.exportJournal = createPhotoLibrarySessionExportJournalPortV1('legacy2', { ...host, catalog: legacy.catalog, verifyResources: legacy.verifyResources });
+			if (this.#current) this.exportJournalCurrent = createPhotoLibrarySessionExportJournalPortV1('current3', { ...host, catalog: ports.catalog, verifyResources: ports.verifyResources });
+		}
 		const presetSettings = ports.developPresetSettings ?? ports.settings; this.#developPresetSettings = presetSettings;
 		this.developImport = createPhotoLibraryDevelopImportSessionV2({ settings: presetSettings, ready: () => this.#ready(),
 			operation: (run, signal) => this.#operation(run, signal), importFiles: (files, request) => this.#importFiles(files, request) });
@@ -413,18 +411,13 @@ export class PhotoLibrarySessionKernelV2 {
 	}
 
 	readExportSidecar(value: Readonly<PhotoLibraryExportSidecarRequest>, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<string> {
-		const { signal } = readPhotoDevelopSignalOptionsV2(options); let binding!: Readonly<PhotoLibraryExportSidecarRequest>;
-		return this.#operation(async admitted => {
-			const catalogId = await this.#ready(); check(admitted);
-			if (catalogId !== binding.catalogId) throw new Error('Photo sidecar selected catalog changed.');
-			const photo = await this.#ports.catalog.loadPhoto(catalogId, binding.photoId); check(admitted);
-			if (!photo) throw new ReferenceError('The photo is missing.');
-			const text = serializePhotoExportSidecarV1(createPhotoExportSidecarV1(photo, binding)); check(admitted); return text;
-		}, signal, () => {
-			const request = record(value, 'photo sidecar request', ['catalogId', 'photoId', 'versionId', 'expectedRevision']);
-			binding = Object.freeze({ catalogId: id(field(request, 'catalogId'), 'sidecar catalog ID'), photoId: id(field(request, 'photoId'), 'sidecar photo ID'),
-				versionId: id(field(request, 'versionId'), 'sidecar version ID'), expectedRevision: integer(field(request, 'expectedRevision'), 0, Number.MAX_SAFE_INTEGER, 'sidecar revision') });
-		});
+		return readPhotoLibrarySessionExportSidecarForProfileV1('legacy2', { catalog: this.#ports.catalog, ready: () => this.#ready(),
+			operation: (run, signal, admit) => this.#operation(run, signal, admit) }, value, options);
+	}
+	async readExportSidecarCurrent(value: Readonly<PhotoLibraryExportSidecarRequest>, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<string> {
+		if (!this.#current) return Promise.reject(new TypeError('Current sidecars require the genuine Current Session.'));
+		return readPhotoLibrarySessionExportSidecarForProfileV1('current3', { catalog: this.#ports.catalog, ready: () => this.#ready(),
+			operation: (run, signal, admit) => this.#operation(run, signal, admit) }, value, options);
 	}
 
 	async readMetadata(photoId: string, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryMetadataSnapshotV1> {

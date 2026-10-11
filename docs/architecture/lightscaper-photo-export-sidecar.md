@@ -1,4 +1,4 @@
-# Lightscaper photo export sidecar V1
+# Lightscaper photo export sidecars
 
 The Lightscaper-owned `photo-export-sidecar` schema records one saved photo
 version's Develop recipe and metadata beside a rendered export. Its suggested
@@ -17,13 +17,23 @@ fully admits the source through the owning Photo1/2 validator, rechecks the
 admitted identities, then selects the explicitly requested version. A virtual
 copy need not be the active version; a delayed caller never follows a different
 active version implicitly. Missing versions and stale revisions refuse.
+This remains the permanent legacy reader and refuses Photo3.
+
+`createPhotoExportSidecarV2` admits a complete Photo3 and retains its selected
+process1/2/3 recipe, including ordered Clone/Heal definitions. A Photo3 with
+an older active recipe still produces Sidecar2: the envelope describes the
+admitted source document, not only its active recipe. The explicit Current
+reader dispatches complete Photo1/2 to Sidecar1 and Photo3 to Sidecar2 without
+rewriting the document. Current Session capabilities are named
+`readExportSidecarCurrent` and `exportJournalCurrent`; the legacy capabilities
+retain their original Photo1/2 admission.
 
 The closed JSON envelope contains:
 
 | Field | Meaning |
 | --- | --- |
-| `schemaFamily`, `schemaVersion`, `kind` | Exactly `lightscaper`, `1`, and `photo-export-sidecar`. |
-| `photoSchemaVersion` | The admitted source Photo version, 1 or 2. |
+| `schemaFamily`, `schemaVersion`, `kind` | `lightscaper`, sidecar version `1` or `2`, and `photo-export-sidecar`. |
+| `photoSchemaVersion` | Photo1/2 for Sidecar1; exactly Photo3 for Sidecar2. |
 | `binding` | Catalog/photo IDs, photo revision, and the captured active version ID as provenance. |
 | `original` | Exact original filename, lowercase SHA-256, and positive safe-integer byte length. |
 | `version` | Selected ID, master/virtual-copy kind, name, creation time, and saved shared Develop state. |
@@ -37,11 +47,13 @@ from extracted EXIF/IPTC facts. Raw/partial capture-time fields and unknown
 timezone offsets keep their owning metadata semantics. Metadata is serialized
 as admitted JSON text; this does not promise authored Unicode EXIF encoding.
 
-Develop process1 and process2 keep their explicit versions. Shared admission
+Develop process1, process2, and process3 keep their explicit versions. Shared
+admission
 preserves effect order and canonical mask graph/binding order. Disabled LUT
 references remain present with their exact digest-derived scalar identities.
 There are no original or LUT bodies, catalog storage locators, pixel buffers,
-or native capabilities in the sidecar. A LUT reference is not proof that its
+brush raster bodies, or native capabilities in the sidecar. A LUT reference is
+not proof that its
 body is available, and reading the sidecar grants no storage or import
 authority. Output-only sizing, resampling, sharpening, watermarks, raster
 encoding, and container metadata scopes are not part of the saved Develop
@@ -83,7 +95,13 @@ late cancellation. These are separate deliveries, not a multi-file atomic save.
 Batch export captures both download targets in its initial gesture and records
 the image and JSON acknowledgments independently in its durable journal. Each
 delivery revalidates complete saved facts and the original/LUT resource
-bindings. A paired member is complete only after both acknowledgments;
+bindings. Current delivery also verifies the complete retained brush closure.
+Current fresh image and JSON intent require the caller's positive native CAS
+acknowledgment; matching readback after a false or lost acknowledgment retains
+durable uncertainty for review and does not authorize another download.
+Legacy lost-acknowledgment reconciliation remains unchanged, and the scalar
+journal wire version remains one. A paired member is complete only after both
+acknowledgments;
 unfinished JSON remains recovery work after reopening the queue. Recovery
 retains the image acknowledgment, requires review of uncertain delivery, and
 can retry only JSON without pixel reads, encoding, or a new picker.
@@ -93,5 +111,11 @@ capture, recipe and metadata drift, joined retirement, durable acknowledgments,
 and single/batch JSON-only retry. The existing English/German Chromium/Firefox
 single-export witness passed all 14 cases for PNG/JPEG downloads, original and
 history preservation, reopening, and a refused JSON download followed by retry.
+The Current repair export witness also passes 14 English/German Chromium/Firefox
+cases: Clone/Heal before crop/flip/exposure, exact PNG and independently decoded
+JPEG pixels, Sidecar2 saved facts, JSON-only retry and reopened batch recovery,
+and unchanged native Original hash, bytes, and custody. Focused Lightscaper
+tests prove exclusive positive native claims and hidden replacement-batch
+Develop exclusion alongside the permanent legacy behavior.
 The remaining L5 export-matrix qualification is separate; this implementation
 does not add sidecar import or complete the full L5 milestone.

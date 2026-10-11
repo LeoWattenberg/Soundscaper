@@ -67,5 +67,7 @@ export function usePhotoRasterExportEntry(options: {
 		} },
 	];
 	return { entry, menus, close: () => { update(() => null); }, hide: () => { update(value => Object.freeze({ ...value, visible: false })); },
+		pending: () => { update(value => value.mode === 'batch' ? Object.freeze({ ...value, settled: false }) : value); },
+		hasPendingBatch: () => { const value = currentEntry(); return value?.mode === 'batch' && !value.settled; },
 		settled: () => { update(value => Object.freeze({ ...value, settled: true })); } };
 }

@@ -105,12 +105,14 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 		const signal = AbortSignal.any([options.signal, current.lifetime.signal]);
 		const checked = () => { check(signal); if (!isCurrent()) throw new DOMException('Photo metadata generation is closed.', 'AbortError'); };
 		checked(); const owner = await acquire(profile, current); checked();
-		const metadataRead = owner.readMetadata, develop = legacy(profile, owner, signal);
+		const metadataRead = owner.readMetadata;
 		const currentSnapshot = await admitCurrent(profile, owner, photoId, signal); checked();
 		if (typeof metadataRead !== 'function') throw new TypeError('Photo metadata reader is unavailable.');
 		const snapshot = await Reflect.apply(metadataRead, owner, [photoId, { signal }]) as Awaited<ReturnType<typeof metadataRead>>; checked();
-		const selected = await develop.read({ schemaVersion: 2, photoId }, { signal }); checked();
-		if (snapshot.photoId !== photoId || selected.photoId !== photoId || selected.schemaVersion !== 2
+		const selected = profile === 'current3'
+			? await capturePhotoLibraryDevelopPortV3((owner as PhotoLibrarySessionPortCurrentV1).develop, signal).read({ schemaVersion: 3, photoId }, { signal })
+			: await legacy(profile, owner, signal).read({ schemaVersion: 2, photoId }, { signal }); checked();
+		if (snapshot.photoId !== photoId || selected.photoId !== photoId || selected.schemaVersion !== (profile === 'current3' ? 3 : 2)
 			|| snapshot.revision !== expectedRevision || selected.revision !== expectedRevision) throw new Error('Photo metadata revision or identity changed.');
 		if (currentSnapshot && (currentSnapshot.photoId !== selected.photoId || currentSnapshot.revision !== selected.revision || currentSnapshot.versionId !== selected.versionId)) throw new Error('Current photo selection changed.');
 		return Object.freeze({ catalogId: selected.catalogId, snapshot });
@@ -128,9 +130,10 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 			const checked = () => { check(signal); if (!isCurrent()) throw new DOMException('Photo sidecar generation is closed.', 'AbortError'); };
 			checked(); const owner = await acquire(profile, current); checked();
 			if (!capturedRead) {
-				const read = owner.readExportSidecar;
+				const read = profile === 'current3' ? (owner as PhotoLibrarySessionPortCurrentV1).readExportSidecarCurrent : owner.readExportSidecar;
 				if (typeof read !== 'function') throw new TypeError('Photo sidecar reader is unavailable.');
-				capturedRead = Reflect.apply(Function.prototype.bind, read, [owner]) as ReadPhotoExportSidecar;
+				capturedRead = profile === 'current3' ? (request, options) => Reflect.apply(read, owner, [request, options]) as Promise<string>
+					: Reflect.apply(Function.prototype.bind, read, [owner]) as ReadPhotoExportSidecar;
 			}
 			const result = await capturedRead(request, { signal }); checked(); return result;
 		};
@@ -143,8 +146,11 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 			if (!current || !isCurrent()) throw new DOMException('Photo export journal generation is closed.', 'AbortError');
 			const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
 			check(signal); const owner = await acquire(profile, current); check(signal);
-			if (!isCurrent() || !owner.exportJournal) throw new Error('Photo export journal is unavailable.');
-			const access = await owner.exportJournal.open({ signal }); check(signal);
+			const journal = profile === 'current3' ? (owner as PhotoLibrarySessionPortCurrentV1).exportJournalCurrent : owner.exportJournal;
+			if (!isCurrent() || !journal) throw new Error('Photo export journal is unavailable.');
+			const open = journal.open;
+			if (typeof open !== 'function') throw new TypeError('Photo export journal opener is unavailable.');
+			const access = await Reflect.apply(open, journal, [{ signal }]) as Awaited<ReturnType<PhotoLibraryExportJournalPort['open']>>; check(signal);
 			if (!isCurrent()) throw new DOMException('Photo export journal generation is closed.', 'AbortError'); return access;
 		};
 	}, [profile, createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);

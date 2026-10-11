@@ -13,6 +13,7 @@ import type { LightscaperAppPropsV2 } from './LightscaperAppV2.tsx';
 import type { LightscaperAppPropsCurrentV1 } from './LightscaperAppCurrentV1.tsx';
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import LightscaperPhotoDevelopSurfaceV1 from './LightscaperPhotoDevelopSurfaceV1.tsx';
+import LightscaperRasterExportSurfaceV1 from './LightscaperRasterExportSurfaceV1.tsx';
 type WorkflowHook = (profile: 'legacy2' | 'current3', createSession?: CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1,
 	loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, renderer?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3) => PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1;
 const useWorkflowForProfile = usePhotoLibraryWorkflowForProfileV1 as WorkflowHook;
@@ -59,7 +60,6 @@ const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
 const PhotoStackDialog = lazy(() => import('./PhotoStackDialog.tsx'));
 const PhotoSavedFiltersSurface = lazy(() => import('./PhotoSavedFiltersSurface.tsx'));
-const PhotoRasterExportSurface = lazy(() => import('./PhotoRasterExportSurface.tsx'));
 
 
 const unavailableQueryRuntime: LoadPhotoMetadataQueryRuntimeV2 = async () => { throw new Error('Photo query controls are unavailable.'); };
@@ -233,6 +233,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 	const raster = usePhotoRasterExportEntry({ generation, locale, selection, closeMenu, prepareSave: library.prepareBackupSave,
 		disabled: !createSession || !loadBackupSaveRuntime || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 		selected: library.page?.rows.filter(row => photoSelection.snapshot.selectedIds.includes(row.id)) ?? [] });
+	const rasterPending = () => profile === 'current3' && raster.hasPendingBatch();
 	const handoff = usePhotoFramescaperHandoffEntry({ generation, locale, selection, closeMenu, selectedCount: photoSelection.snapshot.selectedIds.length, workingLabel: copy.photoWorking,
 		disabled: !createSession || !loadBackupSaveRuntime || !libraryVisible || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 		capture: library.captureImageHandoff, prepareSave: library.prepareBackupSave, saveRuntime: library.backupSaveRuntime, registerDestination: library.registerExportDestination,
@@ -280,7 +281,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 		const current = stackMenu.current;
 		if (!developSurface.isCurrent() || !selection || current.primaryId !== selection.id || factory.current !== generation || !current.libraryVisible || current.busy
 			|| current.pending !== null || current.reviewing || current.stacks.visible || current.stacks.busy || restore.busy
-			|| reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current) return;
+			|| reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || rasterPending()) return;
 		if (!closeMenu(event)) return; developSurface.begin(selection.id, selection.fileName, () => {
 			const beforePresent = joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]);
 			previewDrain.current = beforePresent; void beforePresent.catch(() => undefined); return beforePresent;
@@ -364,7 +365,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
 								{handoff.menu}{handoff.collectionMenu}
-								<button type="button" data-photo-develop-menu disabled={restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing}
+								<button type="button" data-photo-develop-menu disabled={restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing || rasterPending()}
 									onClick={openDevelop}>{photoDevelopMenuLabel(locale)}</button>
 								<button type="button" disabled={restore.busy || !libraryVisible || !library.page?.rows.length} onClick={event => {
 									if (!closeMenu(event)) return; photoSelection.selectAll();
@@ -517,9 +518,8 @@ export default function LightscaperAppKernelV1(props: Props) {
 			<PhotoBatchRenameDialog snapshot={library.batchRenameSnapshot} busy={library.busy} error={library.error} copy={copy}
 				onPlan={library.planBatchRename} onApply={library.renamePhotos} onClose={closeBatchRename} />
 		</Suspense>}
-		{!restore.busy && raster.entry && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}><PhotoRasterExportSurface key={raster.entry.key} entry={raster.entry} locale={locale} workingLabel={copy.photoWorking}
-			execute={library.executeLegacyDevelop} withOriginalFrame={library.withOriginalFrame} loadRenderer={library.loadDevelopProxyRuntime} readMetadata={library.readExportMetadata} captureSidecarReader={library.captureExportSidecarReader}
-			saveRuntime={library.backupSaveRuntime} preparationFailed={library.error !== null} registerDestination={library.registerExportDestination} captureJournal={library.captureExportJournalOpener} capturePresets={library.captureExportPresetsOpener} onClose={raster.close} onHide={raster.hide} onSettled={raster.settled} /></Suspense>}
+		{!restore.busy && raster.entry && <LightscaperRasterExportSurfaceV1 profile={profile} library={library} raster={raster}
+			locale={locale} workingLabel={copy.photoWorking} />}
 		{!restore.busy && <>{handoff.surface}{handoff.receiveSurface}{handoff.collectionSurface}</>}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}

@@ -82,14 +82,32 @@ test('JPEG codec and full copy remain exact optional owners while only its menu 
 		assert.equal(chunkGroupForModulePath('src/common/i18n/lightscaper-photo-jpeg-export-menu-copy.ts'.replaceAll('/', separator)), 'lightscaper-editor-copy');
 		assert.notEqual(chunkGroupForModulePath(JPEG.replace('-v1.', '-v2.').replaceAll('/', separator)), 'editor-jpeg-bytes');
 	}
-	const app = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/LightscaperAppV2.tsx'));
-	assert.match(app, /lazy\(\(\) => import\("\.\/PhotoRasterExportSurface\.tsx"\)\)/u);
-	assert.ok(!staticRelativeDependencies(app).includes('./PhotoRasterExportSurface.tsx'));
-	assert.ok(!staticRelativeDependencies(app).includes('./PhotoJpegExportDialog.tsx'));
+	for (const entry of ['LightscaperAppV2.tsx', 'LightscaperAppCurrentV1.tsx']) {
+		const path = `src/common/editor/ui/lightscaper/${entry}`, app = runtimeSource(resolve(ROOT, path));
+		assert.ok(staticRelativeDependencies(app).includes('./LightscaperAppKernelV1.tsx'), entry);
+		assert.ok(!staticRelativeDependencies(app).includes('./PhotoRasterExportSurface.tsx'), entry);
+		assert.ok(!staticRelativeDependencies(app).includes('./PhotoJpegExportDialog.tsx'), entry);
+		const reached = runtimeClosure(path);
+		assert.ok(reached.has('src/common/editor/ui/lightscaper/LightscaperAppKernelV1.tsx'), entry);
+		assert.ok(reached.has('src/common/editor/ui/lightscaper/LightscaperRasterExportSurfaceV1.tsx'), entry);
+		for (const optional of [JPEG, PNG, EXPORT_COPY, 'src/common/i18n/lightscaper-photo-jpeg-export-copy.ts',
+			'src/common/i18n/lightscaper-photo-batch-export-copy.ts', 'src/common/editor/ui/lightscaper/PhotoRasterExportSurface.tsx',
+			'src/lightscaper/controller/photo-raster-export-current-v1.ts', 'src/lightscaper/controller/photo-raster-export-batch-queue-current-v1.ts']) {
+			assert.ok(!reached.has(optional), `${entry} loads optional ${optional}`);
+		}
+	}
+	const kernel = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/LightscaperAppKernelV1.tsx'));
+	assert.ok(staticRelativeDependencies(kernel).includes('./LightscaperRasterExportSurfaceV1.tsx'));
+	const composition = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/LightscaperRasterExportSurfaceV1.tsx'));
+	assert.match(composition, /lazy\(\(\) => import\("\.\/PhotoRasterExportSurface\.tsx"\)\)/u);
+	assert.ok(!staticRelativeDependencies(composition).includes('./PhotoRasterExportSurface.tsx'));
+	assert.match(composition, /module\.PhotoRasterExportSurfaceCurrentV1/u);
 	const surface = runtimeSource(resolve(ROOT, 'src/common/editor/ui/lightscaper/PhotoRasterExportSurface.tsx'));
 	assert.match(surface, /lazy\(\(\) => import\("\.\/PhotoJpegExportDialog\.tsx"\)\)/u);
 	assert.ok(!staticRelativeDependencies(surface).includes('./PhotoJpegExportDialog.tsx'));
 	assert.ok(runtimeClosure('src/common/editor/ui/lightscaper/PhotoJpegExportDialog.tsx').has(JPEG));
+	assert.match(surface, /module\.PhotoJpegExportDialogCurrentV1/u);
+	assert.ok(!staticRelativeDependencies(surface).includes('./PhotoRasterBatchExportDialog.tsx'));
 });
 
 function runtimeSource(path: string): string {

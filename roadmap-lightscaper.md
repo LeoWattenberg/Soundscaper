@@ -390,6 +390,16 @@ photo work moves between products without loss.
   Adobe-compatibility claim. Image and JSON acknowledgments remain separate,
   with JSON-only retry/recovery; the remaining L5 export-matrix qualification
   is separate.
+  Genuine Current Photo3 exports now use Sidecar2, preserving ordered repairs
+  and full saved provenance. Single and batch PNG/JPEG render repairs before
+  crop/flip and adjustments; explicit JSON-only retry and reopened batch
+  recovery retain native image acknowledgments. Current journal starts require
+  the caller's positive native CAS acknowledgment before downloading, and
+  unfinished hidden or replacement batches retain Develop exclusion until
+  their renderer work joins. Legacy Photo1/2 readers and Sidecar1 bytes stay
+  unchanged. Qualification includes 1,103 selected Lightscaper Node tests and
+  14 English/German Chromium/Firefox workflows covering repaired pixels,
+  metadata, sidecars, retry/recovery, and unchanged native Original custody.
 - **Shared — Deferred:** output profiles beyond sRGB and Display P3 (custom
   ICC) until the platform color-management story proves them.
 - **Shared — In progress:** handoff both ways: a developed photo opens in
@@ -563,7 +573,14 @@ English/German Chromium and Firefox workflows for Clone/Heal, Original-edge
 visualization, pointer movement/cancellation, Save, history, virtual copies,
 and reopen. These browser checks assert repaired preview/full-resolution
 pixels and unchanged native Original bytes, hash, and custody.
-Process3 settings, clipboard, presets, portable backup/restore, raster export,
+Current single and batch PNG/JPEG exports now retain repaired recipes and use
+Sidecar2 for Photo3, including a restored legacy active recipe. Current saved
+facts and the complete Original/LUT/brush closure are checked before durable
+delivery; JSON retry and reopened recovery avoid another image render or
+download. English/German Chromium and Firefox checks verify literal PNG and
+independently decoded JPEG pixels after Clone/Heal, crop/flip, and exposure,
+along with immutable Original bytes and native custody.
+Process3 settings, clipboard, presets, portable backup/restore,
 and editable Frame handoff still require explicit successors. Direct Frame
 mask-name and repair authoring remain open. This does not close L6; L7–L9
 remain incomplete.
