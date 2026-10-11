@@ -45,6 +45,7 @@ import { ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE } from './editor-original-file-o
 import { BLENDER_COPY_BY_LOCALE } from './editor-blender-copy.ts';
 import { ID3_METADATA_COPY_BY_LOCALE } from './editor-id3-metadata-copy.ts';
 import { MOTIONSCAPER_COPY_BY_LOCALE } from './editor-motionscaper-copy.ts';
+import { MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE } from './editor-motionscaper-appearance-copy.ts';
 import { MOTIONSCAPER_TRACKING_COPY_BY_LOCALE } from './editor-motionscaper-tracking-copy.ts';
 
 export interface EditorCopyOwner {
@@ -166,6 +167,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
 	{ owner: 'id3Metadata', ...ID3_METADATA_COPY_BY_LOCALE },
 	{ owner: 'motionscaper', ...MOTIONSCAPER_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-appearance', ...MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE },
 	{ owner: 'motionscaper-tracking', ...MOTIONSCAPER_TRACKING_COPY_BY_LOCALE },
 	{ owner: 'selectedVisualAuthoring', en: SELECTED_VISUAL_AUTHORING_COPY },
 	...Object.entries(SELECTED_VISUAL_AUTHORING_SURFACE_COPY).map(([surface, en]) => ({
