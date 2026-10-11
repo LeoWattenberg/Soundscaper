@@ -524,7 +524,17 @@ overlapping spots blend destinations in authored order. The shared byte kernel
 preflights complete work and memory bounds before reading pixels, joins native
 cancellation and consumers, and retires its owned frames and serial patch scratch.
 This explicit pixel-frame API does not establish original provenance or admit
-repairs into existing process 1/2 recipes. Process 3 persistence, menu authoring,
+repairs into existing process 1/2 recipes. A strict process 3 recipe now retains
+the ordered repair definitions alongside existing effects, geometry, masks, and
+bindings. Only an explicit repair edit promotes an older recipe; removing the
+last spot keeps process 3. The new shared current renderer accepts process 1/2/3
+and runs repairs before legacy geometry and every adjustment. It copies one
+staged frame, awaits repair snapshot/output/scratch retirement, then adopts that
+frame before borrowing brush bodies. Range masks sample the repaired input of
+each adjustment; existing strict process 1/2 readers still refuse repairs.
+Focused Lightscaper goldens cover Clone/Heal, moved sources, crop/flip/exposure,
+range/LUT ordering, authentic brush declarations, and joined native retirement.
+Selected Photo persistence, menu authoring,
 the visualize-spots view, authenticated-original preview/export routing, and
 editable Frame integration remain required before healing is usable in the product.
 Direct Frame mask-name authoring and healing remain open; these slices do not
