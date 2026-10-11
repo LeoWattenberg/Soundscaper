@@ -154,6 +154,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/desktop-nightly-tests-dual-origin.mjs',
 		'scripts/lib/pages-site-static-server.mjs',
 		'scripts/lib/product-web-routing.mjs',
+		'scripts/lib/build-worker-chunks.mjs',
 		'scripts/lib/desktop-nightly-tests-local-assistance.mjs',
 		'scripts/lib/local-model-real-test-cases.mjs',
 		'scripts/lib/local-model-mirror-publication.mjs',

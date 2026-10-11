@@ -90,6 +90,7 @@ export async function createFixture(context) {
 		['scripts/lib/desktop-nightly-tests-dual-origin.mjs', 'export const dualOrigin = true;\n'],
 		['scripts/lib/pages-site-static-server.mjs', 'export const pagesServer = true;\n'],
 		['scripts/lib/product-web-routing.mjs', 'export const routing = true;\n'],
+		['scripts/lib/build-worker-chunks.mjs', 'export const workerChunkGroups = [];\n'],
 		['scripts/lib/desktop-nightly-tests-local-assistance.mjs', 'export const realModels = true;\n'],
 		['scripts/lib/local-model-real-test-cases.mjs', 'export const modelCases = true;\n'],
 		['scripts/lib/local-model-mirror-publication.mjs', 'export const publicDelivery = true;\n'],

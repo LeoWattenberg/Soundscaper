@@ -65,6 +65,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/desktop-nightly-tests-dual-origin.mjs', destination: 'scripts/lib/desktop-nightly-tests-dual-origin.mjs', kind: 'file', label: 'nightly dual-origin browser coverage phase' },
 	{ source: 'scripts/lib/pages-site-static-server.mjs', destination: 'scripts/lib/pages-site-static-server.mjs', kind: 'file', label: 'Pages-compatible nightly product server' },
 	{ source: 'scripts/lib/product-web-routing.mjs', destination: 'scripts/lib/product-web-routing.mjs', kind: 'file', label: 'Pages routing policy reader' },
+	{ source: 'scripts/lib/build-worker-chunks.mjs', destination: 'scripts/lib/build-worker-chunks.mjs', kind: 'file', label: 'production worker chunk ownership for browser fixtures' },
 	{ source: 'scripts/lib/desktop-nightly-tests-local-assistance.mjs', destination: 'scripts/lib/desktop-nightly-tests-local-assistance.mjs', kind: 'file', label: 'real local assistance model runtime' },
 	{ source: 'scripts/lib/local-model-real-test-cases.mjs', destination: 'scripts/lib/local-model-real-test-cases.mjs', kind: 'file', label: 'real local model case validation' },
 	{ source: 'scripts/lib/local-model-mirror-publication.mjs', destination: 'scripts/lib/local-model-mirror-publication.mjs', kind: 'file', label: 'live local model public-delivery verification' },
