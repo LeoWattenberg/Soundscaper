@@ -60,7 +60,7 @@ export async function stageDesktopReleaseSources({
 		'# Release sources', '',
 		`Application source revision: ${sourceRevision}.`, '',
 		'Extract application.zip for the complete committed repository, including native build recipes, patches, and license notices.',
-		'Extract the ZIPs under bundled-codecs/ for the codec sources, authenticated upstream archives, and rebuild instructions.',
+		'Extract the archives under bundled-codecs/ for the codec sources, authenticated upstream archives, and rebuild instructions.',
 		'The sdk/ directory retains the exact authenticated upstream SDK source archives. Extract them when following the native build recipes.',
 		'SOURCE_MANIFEST.json records the byte length and SHA-256 digest of every inner archive.', '',
 	].join('\n'));

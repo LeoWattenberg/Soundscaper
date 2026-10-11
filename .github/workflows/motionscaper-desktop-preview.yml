@@ -1,0 +1,166 @@
+name: Motionscaper candidate package inventory
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    uses: ./.github/workflows/motionscaper-media-host-native-build.yml
+
+  package:
+    name: Package Motion / ${{ matrix.target.id }}
+    needs: native
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { id: linux-x64, platform: linux, arch: x64, runner: ubuntu-24.04 }
+          - { id: linux-arm64, platform: linux, arch: arm64, runner: ubuntu-24.04-arm }
+          - { id: mac-arm64, platform: mac, arch: arm64, runner: macos-15 }
+          - { id: win-x64, platform: win, arch: x64, runner: windows-2025 }
+          - { id: win-arm64, platform: win, arch: arm64, runner: windows-11-vs2026-arm }
+    runs-on: ${{ matrix.target.runner }}
+    env:
+      SCAPE_PRODUCT: motionscaper
+      SCAPE_MAC_SIGNING: ${{ vars.MAC_SIGNING_ENABLED == 'true' && 'true' || 'false' }}
+      SCAPE_WIN_SIGNING: ${{ vars.WINDOWS_SIGNING_MODE || 'none' }}
+      CSC_NAME: ${{ vars.MAC_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      APPLE_ID: ${{ matrix.target.platform == 'mac' && vars.MAC_SIGNING_ENABLED == 'true' && secrets.APPLE_ID || '' }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.target.platform == 'mac' && vars.MAC_SIGNING_ENABLED == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+      WIN_CSC_LINK: ${{ matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'certificate' && secrets.WIN_CSC_LINK || '' }}
+      WIN_CSC_KEY_PASSWORD: ${{ matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'certificate' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+      WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
+      AZURE_TENANT_ID: ${{ matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_TENANT_ID || '' }}
+      AZURE_CLIENT_ID: ${{ matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_CLIENT_ID || '' }}
+      AZURE_CLIENT_SECRET: ${{ matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_CLIENT_SECRET || '' }}
+      AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+      AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with: { node-version-file: .nvmrc, architecture: '${{ matrix.target.arch }}', cache: npm }
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - name: Validate the own active candidate tag
+        env: { RELEASE_TAG: '${{ github.ref_name }}' }
+        run: >-
+          node --input-type=module -e
+          "import { readProductReleaseLinesSync, resolveProductReleaseTag } from './scripts/lib/product-release-lines.mjs';
+          const release = resolveProductReleaseTag(process.env.RELEASE_TAG, readProductReleaseLinesSync());
+          if (release.productId !== 'motionscaper' || release.channel !== 'candidate') throw new Error('An active Motion candidate tag is required.');"
+      - name: Download the exact target native result
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: motionscaper-media-host-build-result-${{ matrix.target.id }}
+          path: ${{ runner.temp }}/motionscaper-native-build-result
+      - name: Verify source pins and native artifact closure
+        run: >-
+          node scripts/verify-motionscaper-native-build-result.mjs
+          --target=${{ matrix.target.id }} --result-root="${{ runner.temp }}/motionscaper-native-build-result"
+      - name: Stage the owned renderer and authenticated helper
+        run: node scripts/desktop-prepare.mjs
+        env:
+          MOTIONSCAPER_NATIVE_BUILD_RESULT: ${{ runner.temp }}/motionscaper-native-build-result
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+      - name: Import the configured Developer ID identity
+        if: runner.os == 'macOS' && env.SCAPE_MAC_SIGNING == 'true'
+        run: node scripts/desktop-signing-keychain.mjs setup
+        env:
+          MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+      - name: Build own installer formats without publishing
+        run: >-
+          bash scripts/ci-electron-builder.sh --config electron-builder.config.cjs
+          --config.directories.output=release/motionscaper-preview/motionscaper
+          --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.SCAPE_MAC_SIGNING == 'true' && 'true' || 'false' }}
+      - name: Install the Linux virtual display
+        if: runner.os == 'Linux'
+        run: bash scripts/ci-apt-install.sh xvfb
+      - name: Preserve the packaged Linux sandbox
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mapfile -t sandboxes < <(find release/motionscaper-preview/motionscaper -type f -name chrome-sandbox -print)
+          if [[ "${#sandboxes[@]}" -ne 1 ]]; then exit 1; fi
+          sudo chown root:root -- "${sandboxes[0]}"
+          sudo chmod 4755 -- "${sandboxes[0]}"
+      - name: Qualify actual own-origin renderer, native picture and PCM on Linux
+        if: runner.os == 'Linux'
+        run: >-
+          xvfb-run -a node scripts/motionscaper-release-target.ts --target=${{ matrix.target.id }}
+          --native-result="${{ runner.temp }}/motionscaper-native-build-result"
+          --product-root=release/motionscaper-preview --output=release/motionscaper-target
+      - name: Qualify actual own-origin renderer, native picture and PCM on Windows and macOS
+        if: runner.os != 'Linux'
+        run: >-
+          node scripts/motionscaper-release-target.ts --target=${{ matrix.target.id }}
+          --native-result="${{ runner.temp }}/motionscaper-native-build-result"
+          --product-root=release/motionscaper-preview --output=release/motionscaper-target
+      - name: Retain only the qualified target packages and exact receipts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motionscaper-preview-${{ matrix.target.id }}
+          path: release/motionscaper-target/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove the temporary signing keychain
+        if: always() && runner.os == 'macOS' && env.SCAPE_MAC_SIGNING == 'true'
+        run: node scripts/desktop-signing-keychain.mjs cleanup
+
+  inventory:
+    name: Verify all Motion candidates and mandatory corresponding source
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - name: Collect each target in its own directory
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: motionscaper-preview-*
+          path: ${{ runner.temp }}/motionscaper-packages
+      - name: Collect independently verified native results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: motionscaper-media-host-build-result-*
+          path: ${{ runner.temp }}/motionscaper-native-results
+      - name: Assemble own packages, authenticated corresponding source and checksums
+        env:
+          MOTION_RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: >-
+          node scripts/motionscaper-release-assets.ts --tag="$MOTION_RELEASE_TAG"
+          --inputs="${{ runner.temp }}/motionscaper-packages"
+          --native-results="${{ runner.temp }}/motionscaper-native-results"
+          --source-inputs="${{ runner.temp }}/motionscaper-source-inputs"
+          --output=motionscaper-release --evidence=motionscaper-release-evidence
+      - name: Retain the complete candidate inventory without publication
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motionscaper-preview-inventory
+          path: motionscaper-release/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain separate source-bound package and native receipts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motionscaper-preview-evidence
+          path: motionscaper-release-evidence/
+          if-no-files-found: error
+          retention-days: 14

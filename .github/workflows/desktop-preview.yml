@@ -11,6 +11,9 @@ on:
       - 'soundscaper-v*-rc.*'
       - 'framescaper-v*-beta.*'
       - 'framescaper-v*-rc.*'
+      - 'motionscaper-v*-alpha.*'
+      - 'motionscaper-v*-beta.*'
+      - 'motionscaper-v*-rc.*'
   workflow_dispatch:
 
 permissions:
@@ -519,6 +522,7 @@ jobs:
           retention-days: 7
 
   publish-assistance-runtime-handoff:
+    if: ${{ !startsWith(github.ref, 'refs/tags/motionscaper-v') }}
     name: Publish AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests, coverage, browser, firefox]
     timeout-minutes: 90
@@ -619,6 +623,7 @@ jobs:
           retention-days: 14
 
   professional-native-source:
+    if: ${{ !startsWith(github.ref, 'refs/tags/motionscaper-v') }}
     name: Verify professional-native sources
     permissions:
       contents: read
@@ -1225,6 +1230,7 @@ jobs:
           retention-days: 14
 
   soundscaper-project-library-lease-matrix:
+    if: ${{ !startsWith(github.ref, 'refs/tags/motionscaper-v') }}
     name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests, coverage, browser, firefox]
     runs-on: ${{ matrix.target.runner }}
@@ -1339,3 +1345,10 @@ jobs:
           path: ${{ runner.temp }}/soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14
+
+  motionscaper-preview:
+    name: Prepare Motion candidate packages and corresponding source
+    if: startsWith(github.ref, 'refs/tags/motionscaper-v')
+    needs: [quality, tests, coverage, browser, firefox]
+    uses: ./.github/workflows/motionscaper-desktop-preview.yml
+    secrets: inherit
