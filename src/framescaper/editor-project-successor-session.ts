@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import { createAudioEditorSessionController } from '../common/editor/session.js';
+import { normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
+import { normalizeFramescaperSuccessorHistory, type FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
+type Delegate = ReturnType<typeof createAudioEditorSessionController>;
+export type FramescaperSuccessorSession = Omit<Delegate, 'captureProjectHistory' | 'getProjectHistory'> & Readonly<{
+	captureProjectHistory(projectId: string): Readonly<{ history: FramescaperSuccessorHistory; token: unknown }>;
+	getProjectHistory(projectId: string): FramescaperSuccessorHistory;
+}>;
+export interface FramescaperSuccessorPublicationFence {
+	acceptHistory(history: FramescaperSuccessorHistory): void;
+	release(): void;
+}
+/** The fence protects all product mutations while an asynchronous owner/link transaction is publishing. */
+export function createFramescaperSuccessorSessionAuthority() {
+	let active: object | null = null; const sessions = new WeakMap<FramescaperSuccessorSession, Delegate>();
+	const assertEditable = () => { if (active) throw new Error('Wait for the current successor publication to finish.'); };
+	return Object.freeze({ assertEditable, createSessionController, beginPublication });
+	function createSessionController(): FramescaperSuccessorSession {
+		const delegate = createAudioEditorSessionController({ currentSchemaVersion: 2 });
+		const session = Object.freeze({ ...delegate,
+			openProject(value: unknown, options: Record<string, unknown> = {}) {
+				assertEditable(); const project = normalizeFramescaperSuccessorProject(value);
+				return delegate.openProject(project, { ...options, ...(options.history ? { history: normalizeFramescaperSuccessorHistory(options.history) } : {}) });
+			},
+			updateProject(projectId: string, update: unknown, options: Record<string, unknown> = {}) {
+				assertEditable(); return delegate.updateProject(projectId, (previous: unknown) => normalizeFramescaperSuccessorProject(typeof update === 'function' ? (update as (value: unknown) => unknown)(previous) : update), options);
+			},
+			updateProjectHistory(projectId: string, history: unknown, options: Record<string, unknown> = {}) { assertEditable(); return delegate.updateProjectHistory(projectId, normalizeFramescaperSuccessorHistory(history), options); },
+			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: unknown }; return Object.freeze({ history: normalizeFramescaperSuccessorHistory(capture.history), token: capture.token }); },
+			getProjectHistory(projectId: string) { return normalizeFramescaperSuccessorHistory(delegate.getProjectHistory(projectId)); },
+		});
+		sessions.set(session, delegate); return session;
+	}
+	function beginPublication(session: FramescaperSuccessorSession, projectId: string, historyToken: unknown): FramescaperSuccessorPublicationFence {
+		assertEditable(); const delegate = sessions.get(session); if (!delegate) throw new TypeError('The successor publication requires its own session.');
+		const reservation = delegate.beginProjectActivation(projectId, { expectedHistoryToken: historyToken, exclusive: true });
+		const token = Object.freeze({}); active = token;
+		return Object.freeze({
+			acceptHistory(value: FramescaperSuccessorHistory) {
+				if (active !== token) throw new Error('Successor publication fence is stale.');
+				delegate.assertProjectHistoryToken(projectId, historyToken); const history = normalizeFramescaperSuccessorHistory(value);
+				if (history.present.id !== projectId) throw new RangeError('Successor publication changed project identity.');
+				delegate.installCommittedProjectHistory(projectId, history, { activationToken: reservation.token, expectedHistoryToken: historyToken, readOnly: false, dirty: false });
+			},
+			release() { if (active === token) { reservation.release(); active = null; } },
+		});
+	}
+}
