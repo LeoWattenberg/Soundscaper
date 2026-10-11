@@ -4,6 +4,7 @@ import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import { motionDigest, motionId, motionInteger, motionRecord, motionString } from '../common/editor/motion-values.ts';
 import { openMotionProjectDatabase } from '../common/editor/storage/motion-project-database.ts';
+import { reclaimExpiredMotionStaging } from '../common/editor/storage/motion-asset-staging.ts';
 import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor/storage/motion-asset-repository.ts';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { editorProjectStorageProfileNames } from '../common/editor/storage/project-storage-profile.ts';
@@ -47,7 +48,10 @@ export class MotionscaperProjectStore {
 		if (!indexedDB) throw new Error('Motionscaper requires durable browser storage.');
 		bindEditorProjectStoreProfile(this, MOTIONSCAPER_PROJECT_STORAGE_PROFILE);
 		this.#databasePromise = openMotionProjectDatabase(indexedDB,
-			editorProjectStorageProfileNames(MOTIONSCAPER_PROJECT_STORAGE_PROFILE).databaseName);
+			editorProjectStorageProfileNames(MOTIONSCAPER_PROJECT_STORAGE_PROFILE).databaseName).then(async (database) => {
+			try { await reclaimExpiredMotionStaging(database); return database; }
+			catch (error) { database.close(); throw error; }
+		});
 		this.#assets = new MotionAssetRepository(() => this.#database());
 	}
 

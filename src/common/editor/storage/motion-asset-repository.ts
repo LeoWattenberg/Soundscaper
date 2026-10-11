@@ -7,6 +7,7 @@ import type { MotionAssetBody } from '../motion-asset-body.ts';
 import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../scape-export-estimate.ts';
 import { aggregateScapeErrors } from '../scape-abort.ts';
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
+import { discardMotionAssetStage, motionAssetStageRecord, renewMotionAssetStage } from './motion-asset-staging.ts';
 
 export const MOTION_ASSET_CHUNK_BYTES = 4 * 1024 * 1024;
 
@@ -38,34 +39,44 @@ export class MotionAssetRepository {
 		let chunks = 0;
 		let finished = false;
 		let rolledBack = false;
+		let writing = false;
 		await transact(database, ['staging'], 'readwrite', async (stores) => {
-			await request(stores.staging.put({ key: token, asset, expiresAt: Date.now() + 86_400_000 }));
+			await request(stores.staging.add(motionAssetStageRecord(token, asset)));
 		});
 		return {
 			asset,
 			async write(bytes) {
 				if (finished || rolledBack) throw new Error('Motion asset staging is closed.');
+				if (writing) throw new Error('Motion asset staging writes must be sequential.');
 				if (!(bytes instanceof Uint8Array) || bytes.byteLength > asset.byteLength - size) {
 					throw new RangeError('Motion asset staging exceeds its declared size.');
 				}
-				for (let offset = 0; offset < bytes.byteLength; offset += MOTION_ASSET_CHUNK_BYTES) {
-					const chunk = bytes.slice(offset, offset + MOTION_ASSET_CHUNK_BYTES);
-					const record = { key: chunkKey(token, chunks), token, bytes: chunk };
-					await transact(database, ['chunks'], 'readwrite', async (stores) => { await request(stores.chunks.put(record)); });
-					digest.update(chunk);
-					chunks += 1;
-					size += chunk.byteLength;
-				}
+				writing = true;
+				try {
+					for (let offset = 0; offset < bytes.byteLength; offset += MOTION_ASSET_CHUNK_BYTES) {
+						const chunk = bytes.slice(offset, offset + MOTION_ASSET_CHUNK_BYTES);
+						const record = { key: chunkKey(token, chunks), token, bytes: chunk };
+						await transact(database, ['chunks', 'staging'], 'readwrite', async (stores) => {
+							await renewMotionAssetStage(stores, token, asset);
+							await request(stores.chunks.add(record));
+						});
+						digest.update(chunk);
+						chunks += 1;
+						size += chunk.byteLength;
+					}
+				} finally { writing = false; }
 			},
 			async finish() {
-				if (finished || rolledBack) throw new Error('Motion asset staging is closed.');
+				if (finished || rolledBack || writing) throw new Error('Motion asset staging is closed or still writing.');
 				if (size !== asset.byteLength || scapeHex(digest.digest()) !== asset.sha256) {
 					throw new RangeError('Motion asset staging digest or size does not match its contract.');
 				}
+				await transact(database, ['staging'], 'readwrite', async (stores) => { await renewMotionAssetStage(stores, token, asset); });
 				finished = true;
 			},
 			async publish(stores) {
 				if (!finished || rolledBack) throw new Error('Motion asset must be verified before publication.');
+				await renewMotionAssetStage(stores, token, asset);
 				const existing: unknown = await request(stores.assets.get(asset.storageKey));
 				if (existing !== undefined) {
 					assertBodyRecord(existing, asset);
@@ -78,10 +89,7 @@ export class MotionAssetRepository {
 			},
 			async rollback() {
 				if (rolledBack) return;
-				await transact(database, ['chunks', 'staging'], 'readwrite', async (stores) => {
-					await deleteByIndex(stores.chunks.index('token'), token);
-					await request(stores.staging.delete(token));
-				});
+				await transact(database, ['chunks', 'staging', 'assets'], 'readwrite', async (stores) => { await discardMotionAssetStage(stores, token); });
 				rolledBack = true;
 			},
 		};
