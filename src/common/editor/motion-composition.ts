@@ -2,6 +2,7 @@
 
 import type { Rational } from './timeline-time.ts';
 import type { MotionColor, MotionColorProperty, MotionPathProperty, MotionProperty, MotionScalarProperty, MotionVector2Property, MotionVector3Property } from './motion-property.ts';
+import type { MotionTemporalSettings } from './motion-temporal-settings.ts';
 import type { MotionWorkArea } from './motion-composition-work-area.ts';
 import type { MotionFill } from './motion-fill.ts';
 import type { MotionShapeOperator, MotionTextAnimator } from './motion-authoring-operators.ts';
@@ -78,6 +79,7 @@ export interface MotionComposition {
 	/** Topmost layer first; the order is authored and must survive normalization. */
 	readonly layers: readonly MotionLayer[];
 	readonly audio: readonly MotionAudioPlacement[];
+	readonly temporal?: MotionTemporalSettings; readonly depthOfFieldSamples?: number;
 	readonly tracking?: readonly MotionTrackingResult[];
 	readonly trackingApplications?: readonly MotionTrackingApplication[];
 }

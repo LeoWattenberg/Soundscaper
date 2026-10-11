@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { admitAudioEditorProjectValidationStructure, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS } from './project-validation-budget.ts';
+import { normalizeMotionTemporalSettings, motionDepthOfFieldSamples } from './motion-temporal-settings.ts';
 import { normalizeMotionWorkArea } from './motion-composition-work-area.ts';
 import { MOTION_TRACKING_LIMITS, normalizeMotionTrackingResult } from './motion-tracking-contract.ts';
 import { normalizeMotionTrackingApplication } from './motion-tracking-application-contract.ts';
@@ -41,7 +42,7 @@ export function normalizeMotionscaperProject(value: unknown): MotionscaperProjec
 
 export function normalizeMotionComposition(value: unknown): MotionComposition {
 	const fields = ['id', 'name', 'width', 'height', 'frameRate', 'durationFrames', 'background', 'color', 'layers', 'audio'];
-	const record = motionRecord(value, [...fields, 'workArea', 'tracking', 'trackingApplications'], 'motion composition', fields);
+	const record = motionRecord(value, [...fields, 'workArea', 'tracking', 'trackingApplications', 'temporal', 'depthOfFieldSamples'], 'motion composition', fields);
 	const durationFrames = motionInteger(record.durationFrames, 'composition duration', 1, 100_000_000);
 	const color = motionRecord(record.color, ['workingSpace', 'outputSpace', 'alphaMode'], 'composition color');
 	const layers = motionArray(record.layers, 4096, 'composition layers').map(normalizeMotionLayer);
@@ -59,6 +60,8 @@ export function normalizeMotionComposition(value: unknown): MotionComposition {
 		color: { workingSpace: motionEnum(color.workingSpace, ['linear-rec709-d65'], 'working space'),
 			outputSpace: motionEnum(color.outputSpace, ['srgb', 'rec709'], 'output space'), alphaMode: motionEnum(color.alphaMode, ['premultiplied'], 'working alpha') },
 		layers, audio, ...(Object.hasOwn(record, 'workArea') ? { workArea: normalizeMotionWorkArea(record.workArea, durationFrames) } : {}),
+		...(Object.hasOwn(record, 'temporal') ? { temporal: normalizeMotionTemporalSettings(record.temporal) } : {}),
+		...(Object.hasOwn(record, 'depthOfFieldSamples') ? { depthOfFieldSamples: motionDepthOfFieldSamples(record.depthOfFieldSamples) } : {}),
 		...(tracking ? { tracking } : {}), ...(applications ? { trackingApplications: applications } : {}),
 	});
 }
