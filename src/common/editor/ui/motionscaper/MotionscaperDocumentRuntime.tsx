@@ -14,6 +14,7 @@ import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
 const MotionCompositionsDialog = lazy(() => import('./MotionCompositionsDialog.tsx'));
+const MotionAeBridgeDialog = lazy(() => import('./MotionAeBridgeDialog.tsx'));
 const MotionSceneDialog = lazy(() => import('./MotionSceneDialog.tsx'));
 const MotionAppearanceDialog = lazy(() => import('./MotionAppearanceDialog.tsx'));
 const MotionExpressionDialog = lazy(() => import('./MotionExpressionDialog.tsx'));
@@ -38,8 +39,9 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | MotionAuthoredLayerKind | null>(null);
 	const [targetCompositionId, setTargetCompositionId] = useState('');
+	const [bridgeFile, setBridgeFile] = useState<File | undefined>();
 	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
 	const [keyframeClipboard, setKeyframeClipboard] = useState<MotionKeyframeClipboard | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
@@ -63,9 +65,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		setError(null);
 		const command = request.command;
 		setTargetCompositionId('');
+		setBridgeFile(undefined);
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene') { setDialog(command); return; }
+		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene' || command === 'after-effects') { setDialog(command); return; }
 		if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
@@ -106,6 +109,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			opened();
 		});
 	};
+	if (dialog === 'after-effects') return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionAeBridgeDialog copy={copy} store={store} busy={busy} initialFile={bridgeFile}
+			onOpen={async (id) => { await session.open(id); opened(); }} onClose={close} />
+	</Suspense>;
 	if (dialog === 'compositions' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionCompositionsDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
@@ -182,8 +189,9 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	</AudioEditorDialogShell>;
 	if (dialog === 'open') return <AudioEditorDialogShell title={copy.motionscaperOpen} onClose={busy ? undefined : close} width={460}
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={busy} onClick={close}>{copy.motionscaperCancel}</Button>} />}>
-		<label>{copy.motionscaperOpenFile}<input type="file" accept=".mscape" disabled={busy} onChange={(event) => {
+		<label>{copy.motionscaperOpenFile}<input type="file" accept=".mscape,.aep,.aepx" disabled={busy} onChange={(event) => {
 			const file = event.currentTarget.files?.[0];
+			if (file && /\.aepx?$/iu.test(file.name)) { setBridgeFile(file); setDialog('after-effects'); return; }
 			if (file) void run(async () => { await session.importArchive(file); opened(); });
 		}} /></label>
 		{busy && <p role="status">{copy.motionscaperWorking}</p>}
