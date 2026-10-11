@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './browser-coverage-fixture.js';
+import { decodeMotionPngPixels } from './motion-png-pixels.ts';
 
 async function menu(page: Page, top: string, label: string): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: label, exact: true }).click();
@@ -27,10 +28,15 @@ export async function assertMotionPngDeliveryMatchesPreview(page: Page, frames: 
 	expect(metadata.firstFrame).toBe(first); expect(metadata.frameCount).toBe(end - first);
 	for (const [frame, preview] of frames) {
 		const bytes = entries.get(`frames/frame${String(frame - first + 1).padStart(12, '0')}.png`); expect(bytes).toBeDefined();
-		const decoded = await page.evaluate(async bytes => {
-			const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' })); const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
-			const context = canvas.getContext('2d')!; try { context.drawImage(bitmap, 0, 0); return Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data); } finally { bitmap.close(); }
-		}, Array.from(bytes!));
+		const raw = decodeMotionPngPixels(bytes!);
+		const decoded = await page.evaluate(({ width, height, rgba }) => {
+			// Match preview's straight RGBA -> canvas boundary. Native ImageBitmap may quantize
+			// partial-alpha RGB differently; the independent decoder preserves exact PNG bytes.
+			const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+			const context = canvas.getContext('2d')!;
+			context.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+			return Array.from(context.getImageData(0, 0, width, height).data);
+		}, { width: raw.width, height: raw.height, rgba: Array.from(raw.rgba) });
 		expect(digest(Buffer.from(decoded)), `delivered frame ${String(frame)}`).toBe(digest(preview));
 	}
 	await expect(dialog.getByRole('status')).toHaveText('Render complete'); await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);

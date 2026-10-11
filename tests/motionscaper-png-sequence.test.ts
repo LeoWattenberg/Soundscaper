@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import CanvasKitInit from 'canvaskit-wasm';
+import { crc32, deflateSync } from 'node:zlib';
+import { decodeMotionPngPixels } from './browser/helpers/motion-png-pixels.ts';
 import { createMotionSurface, motionSurfaceToRgba8 } from '../src/common/editor/motion-surface.ts';
 import { encodeMotionPng } from '../src/common/editor/motion-png.ts';
 import { createMotionPngSequenceSink } from '../src/common/editor/controller/export/motion-png-sequence.ts';
@@ -123,4 +125,59 @@ test('M05 destination failure and malformed PNG dimensions cannot publish a comp
 	await assert.rejects(malformed.write(frame(0)), /dimensions/u);
 	await malformed.abort(diskFailure);
 	await assert.rejects(malformed.finish(), /closed/u);
+});
+
+function pngChunk(type: string, body: Uint8Array): Buffer {
+	const name = Buffer.from(type); const chunk = Buffer.alloc(body.byteLength + 12);
+	chunk.writeUInt32BE(body.byteLength); chunk.set(name, 4); chunk.set(body, 8);
+	chunk.writeUInt32BE(crc32(chunk.subarray(4, 8 + body.byteLength)), 8 + body.byteLength); return chunk;
+}
+function pixelsPng(rows: Uint8Array, { width = 2, height = 5, depth = 8, colorType = 6, interlace = 0 } = {}): Buffer {
+	const header = Buffer.alloc(13); header.writeUInt32BE(width); header.writeUInt32BE(height, 4);
+	header.set([depth, colorType, 0, 0, interlace], 8);
+	return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk('IHDR', header),
+		pngChunk('IDAT', deflateSync(rows)), pngChunk('IEND', new Uint8Array())]);
+}
+
+test('independent Motion PNG pixels retain exact straight colors through all five PNG row filters', () => {
+	const filtered = Uint8Array.from([
+		0, 10, 20, 30, 40, 50, 60, 70, 80,
+		1, 1, 2, 3, 4, 4, 4, 4, 4,
+		2, 8, 8, 8, 8, 8, 8, 8, 8,
+		3, 16, 25, 35, 44, 44, 48, 53, 57,
+		4, 1, 2, 3, 4, 5, 6, 7, 8,
+	]);
+	const decoded = decodeMotionPngPixels(pixelsPng(filtered));
+	assert.deepEqual([decoded.width, decoded.height], [2, 5]);
+	assert.deepEqual([...decoded.rgba], [10, 20, 30, 40, 50, 60, 70, 80,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		20, 30, 40, 50, 60, 70, 80, 90, 21, 32, 43, 54, 65, 76, 87, 98]);
+	const surface = frame(0).surface;
+	assert.deepEqual(decodeMotionPngPixels(encodeMotionPng(kit, surface)).rgba, motionSurfaceToRgba8(surface, 'srgb'));
+});
+
+test('independent Motion PNG pixels refuse corrupt, truncated, oversized and unsupported output', () => {
+	const rows = new Uint8Array(45); const valid = pixelsPng(rows);
+	const corrupt = new Uint8Array(valid); corrupt[29] ^= 1;
+	assert.throws(() => decodeMotionPngPixels(corrupt), /CRC/u);
+	for (const end of [7, 20, valid.length - 1, valid.length - 12]) assert.throws(() => decodeMotionPngPixels(valid.subarray(0, end)), /PNG/u);
+	assert.throws(() => decodeMotionPngPixels(pixelsPng(rows, { width: 0 })), /dimensions/u);
+	assert.throws(() => decodeMotionPngPixels(pixelsPng(rows, { width: 0xffff_ffff })), /dimensions/u);
+	for (const change of [{ depth: 16 }, { colorType: 2 }, { interlace: 1 }]) assert.throws(() => decodeMotionPngPixels(pixelsPng(rows, change)), /RGBA8/u);
+	assert.throws(() => decodeMotionPngPixels(pixelsPng(new Uint8Array(44))), /scanlines/u);
+	assert.throws(() => decodeMotionPngPixels(pixelsPng(new Uint8Array(46))), /larger than/u);
+	rows[0] = 5; assert.throws(() => decodeMotionPngPixels(pixelsPng(rows)), /filter/u);
+	assert.throws(() => decodeMotionPngPixels(Buffer.concat([valid, Buffer.from([0])])), /trailing/u);
+});
+
+test('independent Motion PNG pixels accept consecutive split image data and refuse critical or reordered chunks', () => {
+	const original = pixelsPng(new Uint8Array(45));
+	const prefix = original.subarray(0, 33); const compressed = original.subarray(41, 41 + original.readUInt32BE(33));
+	const middle = Math.floor(compressed.length / 2);
+	const first = pngChunk('IDAT', compressed.subarray(0, middle)); const second = pngChunk('IDAT', compressed.subarray(middle));
+	const end = pngChunk('IEND', new Uint8Array());
+	const split = Buffer.concat([prefix, first, second, end]);
+	assert.deepEqual(decodeMotionPngPixels(split).rgba, new Uint8ClampedArray(40));
+	assert.throws(() => decodeMotionPngPixels(Buffer.concat([prefix, pngChunk('FAKE', new Uint8Array()), first, second, end])), /critical/u);
+	assert.throws(() => decodeMotionPngPixels(Buffer.concat([prefix, first, pngChunk('tEXt', new Uint8Array()), second, end])), /consecutive/u);
 });
