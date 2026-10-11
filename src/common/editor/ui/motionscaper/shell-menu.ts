@@ -25,7 +25,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -63,7 +63,8 @@ export function createMotionscaperShellMenus(
 				id: 'motion-workspace', label: copy.workspaceMotion,
 				checked: workspaceOpen, onClick: onToggleWorkspace,
 			}), item('motion-settings', copy.motionscaperSettings, 'settings', options.hasProject),
-			item('motion-preview', copy.motionscaperPreview, 'preview', options.hasProject)]),
+			item('motion-preview', copy.motionscaperPreview, 'preview', options.hasProject),
+			item('motion-timeline', copy.motionscaperTimeline, 'timeline', options.hasProject)]),
 		}),
 		Object.freeze({
 			id: 'tracks' as const, label: copy.motionscaperLayerMenu,

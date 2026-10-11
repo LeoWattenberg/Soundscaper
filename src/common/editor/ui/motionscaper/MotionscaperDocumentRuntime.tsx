@@ -11,6 +11,7 @@ import MotionProjectLibraryDialog from './MotionProjectLibraryDialog.tsx';
 import type { MotionAuthoredLayerKind } from '../../../../motionscaper/editor-layer-authoring.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
+const MotionTimelineDialog = lazy(() => import('./MotionTimelineDialog.tsx'));
 const MotionRenderDialog = lazy(() => import('./MotionRenderDialog.tsx'));
 const MotionPreviewDialog = lazy(() => import('./MotionPreviewDialog.tsx'));
 const MotionLayerDialog = lazy(() => import('./MotionLayerDialog.tsx'));
@@ -26,7 +27,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | MotionAuthoredLayerKind | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
@@ -49,7 +50,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		const command = request.command;
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import') { setDialog(command); return; }
+		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline') { setDialog(command); return; }
 		if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
@@ -90,6 +91,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			opened();
 		});
 	};
+	if (dialog === 'timeline' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionTimelineDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
+			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
+	</Suspense>;
 	if (dialog === 'render' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionRenderDialog copy={copy} project={snapshot.project} store={store} onClose={close} />
 	</Suspense>;

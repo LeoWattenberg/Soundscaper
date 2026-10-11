@@ -40,3 +40,14 @@
 .motionscaper-preview-controls { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
 .motionscaper-preview-controls label { display: flex; align-items: center; gap: .5rem; }
 .motionscaper-preview-controls input { width: 7rem; }
+
+.motionscaper-timeline-toolbar, .motionscaper-timeline-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.motionscaper-timeline-actions { margin-top: 1rem; padding: .75rem; }
+.motionscaper-timeline-actions label { display: flex; gap: .5rem; align-items: center; }
+.motionscaper-timeline-actions input { width: 6rem; }
+.motionscaper-timeline-list { list-style: none; padding: 0; max-height: 35vh; overflow: auto; }
+.motionscaper-timeline-row { display: grid; grid-template-columns: minmax(8rem, 1fr) 7rem minmax(10rem, 3fr); gap: .5rem; align-items: center; margin: .5rem 0; }
+.motionscaper-timeline-row label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.motionscaper-timeline-track { position: relative; height: 2rem; background: #80808020; overflow: hidden; }
+.motionscaper-timeline-bar { position: absolute; min-width: .5rem; height: 100%; background: #4a80ff55; color: inherit; border: 1px solid #4a80ff; touch-action: none; overflow: hidden; cursor: grab; }
+.motionscaper-timeline-bar:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
