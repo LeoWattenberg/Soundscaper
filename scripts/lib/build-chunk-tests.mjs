@@ -322,6 +322,7 @@ export const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
  * an uninitialized command initializer during a cross-product handoff.
  */
 const framescaperProjectCommandModules = Object.freeze([
+	'editor-project-commands',
 	'editor-adjustment-effect-membership',
 	'editor-audio-finishing-reconciliation-finishing',
 	'editor-clip-placement-command',

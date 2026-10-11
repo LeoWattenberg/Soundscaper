@@ -23,3 +23,12 @@ test('Motionscaper menu surfaces cannot move their dynamic entry into the eager 
 	}
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/AudioEditorApplicationHeader.jsx'), 'editor-shell');
 });
+
+test('successor model and controller modules keep explicit owners after portable archive hydration', async () => {
+	const owner = (path: string) => motionChunkGroups.find(group => group.test.test(`/src/framescaper/${path}.ts`))?.name;
+	for (const name of ['editor-project-successor', 'editor-project-successor-link', 'editor-project-successor-database', 'editor-project-successor-commands', 'editor-composition-link-source']) assert.equal(owner(name), 'framescaper-successor-foundations');
+	assert.equal(owner('editor-composition-link-preview-project'), 'framescaper-successor-runtime');
+	assert.equal(owner('editor-project-successor-portable-import'), undefined);
+	const { chunkGroupForModulePath } = await import('../scripts/lib/build-chunk-groups.mjs');
+	assert.equal(chunkGroupForModulePath('src/framescaper/editor-project-commands.ts'), 'framescaper-project-commands');
+});
