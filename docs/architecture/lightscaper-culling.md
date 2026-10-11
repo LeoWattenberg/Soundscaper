@@ -161,11 +161,14 @@ observer reentry, saved receipt ordering, stale callbacks and exclusive review
 menu admission.
 
 The maintained pagination qualification imports 80 actual originals in 64 + 16
-batches and checks plain and filename-ordered boundary advance in English and
-German, continuation after an earlier manual rating, within-page selection,
-subsequent ratings and immutable original digests. Focused current-V2 workflow
-tests cover saved and collapsed contexts, changed definitions, held readers,
-manual interaction and retirement without losing the acknowledged save.
+batches and checks plain, filename-ordered, saved metadata-filter and collapsed-stack
+boundary advance in English and German. It covers continuation after an earlier
+manual rating, removal from a saved query, skipped non-cover members, within-page
+selection, subsequent ratings, reopened definitions and groups, and immutable
+original digests. Index candidates and grouping checks share the bounded page
+work budget, so a page can contain fewer than 64 visible photos. Focused current-V2
+workflow tests cover changed definitions, held readers, manual interaction and
+retirement without losing the acknowledged save.
 Library stacks have their separate grouping and archive owners; per-photo
 develop versions are not library groups. The full L3 keyboard loop remains
 open until its remaining integration gates pass.
