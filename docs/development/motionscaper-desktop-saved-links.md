@@ -78,6 +78,11 @@ count changes from zero to one after selection and returns to zero on
 Disconnect. The receipt records the authenticated package source revision,
 accepted digests and database names; temporary archives and profile are removed.
 
+The helper-bearing successor additionally qualifies retained linked picture and
+PCM through its own [native delivery route](motionscaper-successor-native-delivery.md).
+The updated harness retains an original stereo WAV, exercises offline reopen
+and saves an actual MOV after Disconnect.
+
 Windows, macOS, other Linux architectures, Wayland and other native chooser
 configurations still need platform qualification. Node tests additionally cover
 pinned old/new bytes, transfer cancellation and retryable cleanup failures;
