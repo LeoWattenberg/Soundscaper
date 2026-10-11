@@ -11,11 +11,14 @@ import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor
 import { reclaimExpiredMotionStaging } from '../common/editor/storage/motion-asset-staging.ts';
 import { assertFramescaperSuccessorLine } from './editor-project-successor.ts';
 import { openFramescaperSuccessorDatabase } from './editor-project-successor-database.ts';
+import { persistFramescaperLinkedSuccessorArchive, type FramescaperLinkedArchiveReceiveOptions } from './editor-project-successor-linked-import-repository.ts';
+import type { FramescaperMigrationRecord } from './editor-project-successor-archive.ts';
 
 type Stores = Readonly<Record<string, IDBObjectStore>>;
 type ReceiveOptions = Readonly<{ readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>; signal?: AbortSignal; maximumBytes?: number }>;
 const CUSTODY_STORES = ['linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'] as const;
 export interface FramescaperCompositionLinkRepository {
+	importArchive(archive: Blob, options?: FramescaperLinkedArchiveReceiveOptions): Promise<FramescaperMigrationRecord>;
 	receive(ownerProjectId: string, sourceId: string, value: unknown, options: ReceiveOptions): Promise<MotionCompositionLinkState>;
 	load(ownerProjectId: string, sourceId: string): Promise<MotionCompositionLinkState | null>;
 	loadRevision(projectId: string, digest: string): Promise<MotionscaperRevision | null>;
@@ -64,6 +67,7 @@ export async function openFramescaperCompositionLinkRepository(options: Readonly
 		});
 	}
 	return Object.freeze({
+		importArchive: (archive, receiveOptions = {}) => persistFramescaperLinkedSuccessorArchive(getDatabase(), assets, archive, receiveOptions),
 		async receive(ownerProjectId, sourceId, value, receiveOptions) {
 			stateKey(ownerProjectId, sourceId); const offer = normalizeMotionCompositionOffer(value); const stages = new Map<string, MotionAssetStaging>();
 			let result: MotionCompositionLinkState | undefined;

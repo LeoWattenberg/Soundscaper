@@ -13,6 +13,7 @@ import type { MotionAsset } from '../../src/common/editor/motion-asset.ts';
 interface Fixture {
 	open(): Promise<FramescaperCompositionLinkRepository>; offer(revision: number, width?: number): MotionCompositionOffer;
 	bytes: Uint8Array<ArrayBuffer>; asset: MotionAsset; database(): Promise<IDBDatabase>;
+	archive(): Promise<{ archive: Blob; projectId: string; sourceId: string; digest: string }>;
 }
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -27,9 +28,30 @@ import { createMotionCompositionOffer } from ${source('src/common/editor/motion-
 import { createMotionscaperRevision } from ${source('src/common/editor/motion-project-revision.ts')};
 import { createMotionscaperProject } from ${source('src/motionscaper/editor-project.ts')};
 import { digestScapeBytes } from ${source('src/common/editor/scape-archive-media.ts')};
+import { BlobWriter, TextReader, ZipWriter } from ${source('node_modules/@zip.js/zip.js/index-native.js')};
+import { createFramescaperBaselineImageFixture } from ${source('tests/helpers/framescaper-baseline-image-fixture.ts')};
+import { createFramescaperProject } from ${source('src/framescaper/editor-project.ts')};
+import { applyFramescaperProjectCommand } from ${source('src/framescaper/editor-project-commands.ts')};
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from ${source('src/framescaper/editor-project-runtime-profile.ts')};
+import { migrateFramescaperSuccessorProject } from ${source('src/framescaper/editor-project-successor.ts')};
+import { createFramescaperCompositionLink } from ${source('src/framescaper/editor-project-successor-link.ts')};
+import { digestFramescaperMigrationArchive } from ${source('src/framescaper/editor-project-successor-archive.ts')};
+import { exportFramescaperLinkedSuccessorArchive } from ${source('src/framescaper/editor-project-successor-linked-archive.ts')};
 const bytes = new Uint8Array([1,2,3,4]); const sha256 = digestScapeBytes(bytes);
 const asset = { id: 'image', kind: 'image', name: 'Image', mimeType: 'image/png', width: 1, height: 1, hasAlpha: true, sha256, byteLength: bytes.length, storageKey: 'motion-sha256:' + sha256 };
-globalThis.motionLinkFixture = { bytes, asset, open: () => openFramescaperCompositionLinkRepository({line:'successor'}), database: () => openFramescaperSuccessorDatabase(indexedDB,'successor'),
+async function archive() {
+ const image = createFramescaperBaselineImageFixture({imageOnly:true});
+ const frame = applyFramescaperProjectCommand(FRAMESCAPER_PROJECT_RUNTIME_PROFILE,createFramescaperProject(),{type:'image-source/set',sourceId:image.source.id,expectedSource:null,source:image.source});
+ const text = JSON.stringify(frame); const descriptor = {entry:'framescaper/timelineImage/image/'+image.source.id+'/body',sourceId:'framescaper:image:'+image.source.id,kind:'framescaper-image-asset',encoding:'framescaper-image-asset-v1',mimeType:image.source.mimeType,size:image.bytes.length,sha256:digestScapeBytes(image.bytes)};
+ const writer = new ZipWriter(new BlobWriter(),{level:0,useWebWorkers:false}); await writer.add('project.json',new TextReader(text));
+ await writer.add('manifest.json',new TextReader(JSON.stringify({format:'scape-project',formatVersion:1,project:{entry:'project.json',schemaFamily:'framescaper',schemaVersion:1,size:new TextEncoder().encode(text).length,sha256:digestScapeBytes(new TextEncoder().encode(text))},assets:[descriptor]})));
+ await writer.add(descriptor.entry,new Blob([image.bytes]).stream()); const originalArchive = await writer.close();
+ const snapshot = createMotionscaperRevision({...createMotionscaperProject({id:'motion',compositionId:'main',title:'Portable'}),assets:[asset]});
+ const project = {...migrateFramescaperSuccessorProject(frame),compositionLinks:[createFramescaperCompositionLink(image.source.id,'main',snapshot)]};
+ const archive = await exportFramescaperLinkedSuccessorArchive({id:frame.id,project,originalArchive,archiveDigest:await digestFramescaperMigrationArchive(originalArchive)},{readAsset:async()=>({size:bytes.length,stream:()=>new Blob([bytes]).stream()})});
+ return {archive,projectId:frame.id,sourceId:image.source.id,digest:snapshot.digest};
+}
+globalThis.motionLinkFixture = { bytes, asset, archive, open: () => openFramescaperCompositionLinkRepository({line:'successor'}), database: () => openFramescaperSuccessorDatabase(indexedDB,'successor'),
  offer: (revision, width = 1920) => createMotionCompositionOffer('main', createMotionscaperRevision({...createMotionscaperProject({id:'motion',compositionId:'main',title:'Revision ' + revision,width}),revision,assets:[asset]})) };
 `);
 	await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', build: { outDir: output, emptyOutDir: true, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
@@ -87,4 +109,22 @@ test('M10 real storage retains incompatible updates and Undo pause across reopen
 		return { paused: paused?.paused, accepted: paused?.accepted.revision.revision, pending: paused?.pending?.revision.revision, resumed: resumed.accepted.revision.revision, conformed: conformed.accepted.revision.revision, historical: historical?.revision };
 	});
 	expect(result).toEqual({ paused: true, accepted: 1, pending: 3, resumed: 1, conformed: 3, historical: 1 });
+});
+
+test('M10 real storage imports a portable linked project atomically and recovers from owner write failure', async ({ page }) => {
+	const result = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionLinkFixture: Fixture }).motionLinkFixture; const portable = await fixture.archive(); const receiver = await fixture.open();
+		const original = IDBObjectStore.prototype.put;
+		IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<typeof original>) { if (this.name === 'linkStates') throw new DOMException('Planned storage failure', 'QuotaExceededError'); return original.apply(this, args); };
+		let failure = '';
+		try { await receiver.importArchive(portable.archive); } catch (error) { failure = error instanceof Error ? error.name : 'failure'; }
+		finally { IDBObjectStore.prototype.put = original; }
+		const database = await fixture.database();
+		const stores = ['projects', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'];
+		const before = await new Promise<number[]>((resolve, reject) => { const transaction = database.transaction(stores, 'readonly'); const counts = stores.map((name) => transaction.objectStore(name).count()); transaction.oncomplete = () => resolve(counts.map((request) => request.result)); transaction.onabort = () => reject(transaction.error); });
+		database.close(); const imported = await receiver.importArchive(portable.archive); await receiver.close(); const reopened = await fixture.open(); const loaded = await reopened.load(portable.projectId, portable.sourceId);
+		const body = await reopened.readAsset(fixture.asset); const bytes = body ? [...new Uint8Array(await new Response(body.stream()).arrayBuffer())] : null; await reopened.close();
+		return { failure, before, id: imported.id, expectedId: portable.projectId, digest: loaded?.accepted.revision.digest, expectedDigest: portable.digest, bytes };
+	});
+	expect(result.failure).toBe('QuotaExceededError'); expect(result.before).toEqual([0, 0, 0, 0, 0, 0]); expect(result.id).toBe(result.expectedId); expect(result.digest).toBe(result.expectedDigest); expect(result.bytes).toEqual([1, 2, 3, 4]);
 });

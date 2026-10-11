@@ -3,7 +3,7 @@ import { TextReader, ZipWriter } from '@zip.js/zip.js/index-native.js';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import { createScapeDigest, digestScapeBytes, scapeHex } from '../common/editor/scape-archive-media.ts';
-import { readScapeArchiveEnvelope, SCAPE_ARCHIVE_LIMITS, type ScapeAssetDescriptor } from '../common/editor/scape-archive-envelope.ts';
+import { readScapeArchiveEnvelope, SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts';
 import { withScapeArchiveReader } from '../common/editor/scape-archive-reader.ts';
 import { copyScapeArchiveEntry } from '../common/editor/scape-archive-entry-copy.ts';
 import { createScapeExportDestination } from '../common/editor/scape-export-destination.ts';
@@ -13,8 +13,8 @@ import { normalizeFramescaperSuccessorProject } from './editor-project-successor
 import { inspectFramescaperMigrationArchive, type FramescaperMigrationRecord } from './editor-project-successor-archive.ts';
 import { createFramescaperScapeProjectAssetExtension } from './editor-scape-assets.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile.ts';
+import { createFramescaperLinkedAssetDescriptor, indexFramescaperLinkedAssets } from './editor-project-successor-link-assets.ts';
 
-export const MOTION_LINKED_ARCHIVE_ASSET_KIND = 'motion-linked-original';
 export interface FramescaperLinkedArchiveOptions {
 	readonly readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>;
 	readonly signal?: AbortSignal; readonly writable?: WritableStream<Uint8Array>; readonly maximumBlobBytes?: number;
@@ -27,13 +27,8 @@ export async function exportFramescaperLinkedSuccessorArchive(record: Framescape
 	if (record.id !== project.id || original.project.id !== project.id || record.archiveDigest !== original.archiveDigest) throw new RangeError('Linked archive original custody identity mismatch.');
 	const baseline = Object.fromEntries(Object.entries(project).filter(([key]) => key !== 'compositionLinks'));
 	if (JSON.stringify({ ...baseline, schemaVersion: 1 }) !== JSON.stringify(original.project)) throw new RangeError('Linked archive assembly requires unchanged baseline intent and original custody.');
-	const assets = new Map<string, MotionAsset>();
-	for (const link of project.compositionLinks) for (const asset of link.snapshot.project.assets) {
-		const prior = assets.get(asset.sha256); if (prior && prior.byteLength !== asset.byteLength) throw new RangeError('Linked archive asset aliases disagree about byte length.');
-		if (!prior) assets.set(asset.sha256, asset);
-	}
-	const ordered = [...assets.values()].sort((first, second) => first.sha256.localeCompare(second.sha256));
-	const descriptors = ordered.map(linkedDescriptor); const extension = createFramescaperScapeProjectAssetExtension(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
+	const ordered = indexFramescaperLinkedAssets(project);
+	const descriptors = ordered.map(createFramescaperLinkedAssetDescriptor); const extension = createFramescaperScapeProjectAssetExtension(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
 	return withScapeArchiveReader(record.originalArchive, signal, async (entries) => {
 		const envelope = await readScapeArchiveEnvelope(entries, {}, signal, extension.assetKinds);
 		const projectText = JSON.stringify(project); const projectBytes = new TextEncoder().encode(projectText);
@@ -59,13 +54,10 @@ export async function exportFramescaperLinkedSuccessorArchive(record: Framescape
 					if (!(chunk instanceof Uint8Array) || !chunk.length || chunk.length > 4 * 1024 * 1024 || chunk.length > asset.byteLength - size) throw new RangeError(`Linked archive asset ${asset.id} exceeds its chunk/length contract.`);
 					const retained = chunk.slice(); size += retained.length; digest.update(retained); controller.enqueue(retained);
 				} }), { signal });
-				await writer.add(linkedDescriptor(asset).entry, stream, { signal });
+				await writer.add(createFramescaperLinkedAssetDescriptor(asset).entry, stream, { signal });
 				if (size !== asset.byteLength || scapeHex(digest.digest()) !== asset.sha256) throw new RangeError(`Linked archive asset ${asset.id} digest or length changed.`);
 			}
 			await writer.add('manifest.json', new TextReader(manifestText), { signal }); return await destination.finish(writer, signal);
 		} catch (error) { return destination.abort(writer, error); }
 	});
-}
-function linkedDescriptor(asset: MotionAsset): ScapeAssetDescriptor {
-	return { sourceId: `motion-linked:${asset.sha256}`, kind: MOTION_LINKED_ARCHIVE_ASSET_KIND, encoding: 'motion-linked-original-v1', entry: `motion-links/sha256/${asset.sha256}/original`, size: asset.byteLength, sha256: asset.sha256, mimeType: 'application/octet-stream' };
 }
