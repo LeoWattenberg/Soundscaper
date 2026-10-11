@@ -67,14 +67,26 @@ test('M10 successor File runtime fences its store and refuses stale import insid
 	const reader = createFramescaperSuccessorController(destination, { locale: 'en', copy: COPY });
 	try {
 		await Promise.all([writer.ready, reader.ready]); const signal = new AbortController().signal;
+		const bytes = new Uint8Array([7, 8, 9]); const sha256 = digestScapeBytes(bytes);
+		const asset = { kind: 'image' as const, id: 'retained-quota-original', name: 'Retained original', mimeType: 'image/png', width: 1, height: 1, hasAlpha: true, sha256, byteLength: bytes.length, storageKey: `motion-sha256:${sha256}` };
+		const revision = createMotionscaperRevision({ ...createMotionscaperProject({ id: 'quota-motion', title: 'Quota Motion', compositionId: 'main', width: 2, height: 2, durationFrames: 2 }), assets: [asset] });
+		await framescaperSuccessorControllerContext(writer).links.receive(createMotionCompositionOffer('main', revision), { readAsset: async () => ({ size: bytes.length, stream: () => new Blob([bytes]).stream() }) });
 		const output = createFramescaperSuccessorScapeNativeRuntime(source);
 		await assert.rejects(output.exportScapeProject!(writer.project!, source.store, { signal }), /exact owning/u);
 		await assert.rejects(output.exportScapeProject!(writer.project!, source.controllerStore, { signal, assertCurrent: () => { throw new Error('stale writer'); } }), /stale writer/u);
 		const saved = await output.exportScapeProject!(writer.project!, source.controllerStore, { signal }); assert.ok(saved.blob);
-		const input = createFramescaperSuccessorScapeNativeRuntime(destination); let checks = 0;
+		const manifest = saved.manifest as ScapeManifest;
+		assert.deepEqual(manifest.assets.map(entry => entry.kind).sort(), ['motion-linked-original', 'video-timing']);
+		const original = manifest.assets.find(entry => entry.kind === 'motion-linked-original')!;
+		assert.equal(original.size, bytes.length); assert.equal(original.sha256, sha256);
+		const remainingBytes = manifest.assets.reduce((sum, entry) => sum + entry.size, 0);
+		const input = createFramescaperSuccessorScapeNativeRuntime(destination); let checks = 0; let quotaChecks = 0;
 		await assert.rejects(input.importScapeProject!(saved.blob, destination.controllerStore, {
-			signal, collision: 'copy', estimateStorageForPreflight: () => ({ usage: 0, quota: 0 }),
+			signal, collision: 'copy', estimateStorageForPreflight: (assetBytes, operation) => {
+				assert.equal(assetBytes, remainingBytes); assert.equal(operation, 'import'); quotaChecks++; return { usage: 0, quota: 0 };
+			},
 		}), /not enough storage/u);
+		assert.equal(quotaChecks, 1);
 		assert.equal(await destination.owners.loadOwner(writer.project!.id), null);
 		await assert.rejects(input.importScapeProject!(saved.blob, destination.controllerStore, {
 			signal, collision: 'copy', estimateStorageForPreflight: () => ({ usage: 0, quota: 1_000_000_000 }),
