@@ -12,6 +12,11 @@ export function motionPropertyChannelValue(property: MotionNumericProperty, chan
 	return normalizeMotionProperty({ ...property, value: property.kind === 'scalar' ? value : property.value.map((entry, index) => index === channel ? value : entry) }).value;
 }
 export function motionPropertyLabel(path: string, copy: Readonly<Record<string, string>>): string {
+	const operator = path.match(/^(operators|document\.animators)\.(\d+)\.(.+)$/u);
+	if (operator) {
+		const label = copy[`motionscaperOperatorField_${operator[3]!.replaceAll('.', '_')}`];
+		if (label) return `${operator[1] === 'operators' ? copy.motionscaperShapeOperators : copy.motionscaperAnimator} ${Number(operator[2]) + 1}: ${label}`;
+	}
 	const key = path.split('.').at(-1)!;
 	const label = copy[`motionscaperProperty_${key}`] ?? key;
 	const index = path.match(/\.(\d+)\./u)?.[1];

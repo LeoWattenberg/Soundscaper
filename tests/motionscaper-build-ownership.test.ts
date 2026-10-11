@@ -14,3 +14,12 @@ test('motion scene and lazy raster runtime have distinct semantic chunk owners',
 	assert.equal(owner('/node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2?url'), 'motion-raster');
 	assert.equal(owner('/src/common/editor/ui/motionscaper/MotionscaperShell.tsx'), undefined);
 });
+
+test('Motionscaper menu surfaces cannot move their dynamic entry into the eager shell', async () => {
+	const { chunkGroupForModulePath } = await import('../scripts/lib/build-chunk-groups.mjs');
+	for (const name of ['MotionscaperShell.tsx', 'shell-menu.ts', 'motionscaper-copy.ts', 'motionscaper-shell.css']) assert.equal(chunkGroupForModulePath(`src/common/editor/ui/motionscaper/${name}`), 'editor-shell', name);
+	for (const name of ['MotionOperatorsDialog.tsx', 'MotionOperatorForm.tsx', 'MotionShapeCollection.tsx', 'MotionPathsDialog.tsx', 'MotionPropertyGraph.tsx', 'motion-plane-geometry.ts', 'MotionscaperDocumentRuntime.tsx', 'MotionPreviewDialog.tsx']) {
+		assert.equal(chunkGroupForModulePath(`src/common/editor/ui/motionscaper/${name}`), null, name);
+	}
+	assert.equal(chunkGroupForModulePath('src/common/editor/ui/AudioEditorApplicationHeader.jsx'), 'editor-shell');
+});
