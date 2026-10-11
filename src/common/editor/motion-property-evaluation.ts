@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { evaluateInterpolationCurveAtExactPosition, type CompiledInterpolationCurve } from './interpolation-curve.ts';
-import { compareRationals, divideRationals, subtractRationals, type Rational } from './timeline-time.ts';
+import { compileInterpolationCurve, evaluateInterpolationCurveAtExactPosition, type CompiledInterpolationCurve } from './interpolation-curve.ts';
+import { compareRationals, type Rational } from './timeline-time.ts';
 import { normalizeMotionProperty, type MotionPath, type MotionPathProperty, type MotionProperty, type MotionScalarProperty, type MotionVector2, type MotionVector3, type MotionColor } from './motion-property.ts';
 import { freezeMotionValue } from './motion-values.ts';
 
@@ -15,10 +15,11 @@ export type EvaluatedMotionState<T> = T extends MotionScalarProperty ? number
 
 export function compileMotionProperty(value: unknown): (position: Rational) => MotionPropertyValue {
 	const property = normalizeMotionProperty(value);
+	const pathCurves = property.kind === 'path' ? property.segments.map((shape, index) => compileInterpolationCurve({ anchors: [{ position: property.keyframes[index]!.position, value: 0 }, { position: property.keyframes[index + 1]!.position, value: 1 }], segments: [typeof shape === 'string' ? { kind: shape } : shape] })) : [];
 	return (position) => {
 		if (property.expression?.enabled) throw new Error('Motion expression evaluation is unavailable until the expression engine is installed.');
 		if (property.kind === 'scalar') return property.curve === null ? property.value : evaluateCurve(property.curve, position);
-		if (property.kind === 'path') return evaluatePath(property, position);
+		if (property.kind === 'path') return evaluatePath(property, position, pathCurves);
 		const channels = property.value.map((channel, index) => {
 			const curve = property.curves[index];
 			const result = curve == null ? channel : evaluateCurve(curve, position);
@@ -50,7 +51,7 @@ function isProperty(value: Readonly<Record<string, unknown>>): value is MotionPr
 	return ['scalar', 'vector2', 'vector3', 'color', 'path'].includes(String(value.kind)) && Object.hasOwn(value, 'expression');
 }
 
-function evaluatePath(property: MotionPathProperty, position: Rational): MotionPath {
+function evaluatePath(property: MotionPathProperty, position: Rational, curves: readonly CompiledInterpolationCurve[]): MotionPath {
 	const first = property.keyframes[0];
 	const last = property.keyframes.at(-1);
 	if (!first || !last) return property.value;
@@ -59,11 +60,7 @@ function evaluatePath(property: MotionPathProperty, position: Rational): MotionP
 	const endIndex = property.keyframes.findIndex((key) => compareRationals(key.position, position) > 0);
 	const start = property.keyframes[endIndex - 1]!;
 	const end = property.keyframes[endIndex]!;
-	const kind = property.segments[endIndex - 1]!;
-	if (kind === 'hold') return start.value;
-	const fraction = divideRationals(subtractRationals(position, start.position), subtractRationals(end.position, start.position));
-	const linear = fraction.num / fraction.den;
-	const amount = kind === 'eased' ? linear * linear * (3 - 2 * linear) : linear;
+	const amount = evaluateInterpolationCurveAtExactPosition(curves[endIndex - 1]!, position);
 	const point = (a: MotionVector2, b: MotionVector2): MotionVector2 => [a[0] + (b[0] - a[0]) * amount, a[1] + (b[1] - a[1]) * amount];
 	return freezeMotionValue({ closed: start.value.closed, vertices: start.value.vertices.map((vertex, index) => {
 		const target = end.value.vertices[index]!;

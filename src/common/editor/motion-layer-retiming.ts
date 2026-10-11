@@ -4,6 +4,7 @@ import type { MotionLayer } from './motion-composition.ts';
 import { motionLayerProperties } from './motion-project-graph.ts';
 import { normalizeMotionLayer } from './motion-layer-validation.ts';
 import { normalizeMotionProperty, type MotionProperty } from './motion-property.ts';
+import { retimeMotionPathKeys } from './motion-path-keyframe-edit.ts';
 import { retimeMotionCurve } from './motion-keyframe-curve-edit.ts';
 import { addRationals, multiplyRationals, type Rational } from './timeline-time.ts';
 import { motionRational } from './motion-values.ts';
@@ -23,7 +24,7 @@ export function retimeMotionLayer(layer: MotionLayer, frameRatio: Rational, offs
 	return normalizeMotionLayer({ ...mapped, startFrame: move(layer.startFrame), inFrame: move(layer.inFrame), outFrame: move(layer.outFrame) });
 }
 function retimeProperty(property: MotionProperty, scale: (at: Rational) => Rational): MotionProperty {
-	if (property.kind === 'path') return normalizeMotionProperty({ ...property, keyframes: property.keyframes.map((key) => ({ ...key, position: scale(key.position) })) });
+	if (property.kind === 'path') return normalizeMotionProperty(retimeMotionPathKeys(property, scale));
 	if (property.kind === 'scalar') return normalizeMotionProperty({ ...property, curve: property.curve === null ? null : retimeMotionCurve(property.curve, scale) });
 	return normalizeMotionProperty({ ...property, curves: property.curves.map((curve) => curve === null ? null : retimeMotionCurve(curve, scale)) });
 }

@@ -5,6 +5,7 @@ import { motionArray, motionInteger, motionRational, motionRecord, freezeMotionV
 import { normalizeMotionProperty, type MotionPathProperty, type MotionProperty } from './motion-property.ts';
 import type { MotionPropertyValue } from './motion-property-evaluation.ts';
 import { addRationals, compareRationals, divideRationals, multiplyRationals, subtractRationals, type Rational } from './timeline-time.ts';
+import { mergeMotionPathKeys, moveMotionPathKeys, retimeMotionPathKeys, setMotionPathKey } from './motion-path-keyframe-edit.ts';
 import { mergeMotionCurveKeys, motionKeyPositionId as keyId, moveMotionCurveKeys, retimeMotionCurve, selectMotionCurveKeys, setMotionCurveKey } from './motion-keyframe-curve-edit.ts';
 
 export type MotionKeyframeEdit =
@@ -56,8 +57,8 @@ export function pasteMotionKeyframes(value: MotionProperty, clipboardValue: unkn
 	const ratio = divideRationals(motionRational(options.frameRate, 'destination frame rate', true), motionRational(record.frameRate, 'clipboard frame rate', true));
 	const convert = (value: Rational) => addRationals(at, multiplyRationals(subtractRationals(value, origin), ratio));
 	if (source.kind === 'path' && target.kind === 'path') {
-		const moved = { ...source, keyframes: source.keyframes.map((key) => ({ ...key, position: convert(key.position) })) };
-		return normalizeMotionProperty({ ...mergePaths(options.mode === 'replace' ? { ...target, keyframes: [], segments: [] } : target, moved), expression: target.expression });
+		const moved = retimeMotionPathKeys(source, convert);
+		return normalizeMotionProperty({ ...mergeMotionPathKeys(options.mode === 'replace' ? { ...target, keyframes: [], segments: [] } : target, moved), expression: target.expression });
 	}
 	if (source.kind === 'path' || target.kind === 'path') throw new TypeError('Motion keyframe paste kinds differ.');
 	const destination = numericCurves(target);
@@ -89,23 +90,12 @@ function selectPath(property: MotionPathProperty, selected: (position: Rational)
 function editPath(property: MotionPathProperty, edit: Exclude<MotionKeyframeEdit, { type: 'set-base' }>): MotionProperty {
 	if (edit.type === 'set-key') {
 		const typed = normalizeMotionProperty({ ...property, value: edit.value }); if (typed.kind !== 'path') throw new TypeError('Expected a motion path.');
-		return normalizeMotionProperty(mergePaths(property, { ...property, keyframes: [{ position: position(edit.position), value: typed.value }], segments: [] }));
+		return normalizeMotionProperty(setMotionPathKey(property, { position: position(edit.position), value: typed.value }));
 	}
 	if (edit.type === 'delete-keys') { const selected = positions(edit.positions); return normalizeMotionProperty(selectPath(property, (at) => !selected.has(keyId(at)))); }
 	if (edit.type === 'move-keys') { const selected = positions(edit.positions); const delta = motionRational(edit.deltaFrames, 'keyframe movement');
-		return normalizeMotionProperty({ ...property, keyframes: property.keyframes.map((key) => selected.has(keyId(key.position)) ? { ...key, position: addRationals(key.position, delta) } : key) }); }
-	if (edit.shape.kind === 'bezier') throw new RangeError('Path morph interpolation currently supports hold, linear and eased segments.');
+		return normalizeMotionProperty(moveMotionPathKeys(property, (at) => selected.has(keyId(at)) ? addRationals(at, delta) : at)); }
 	const from = position(edit.fromPosition); const index = property.keyframes.findIndex((key) => compareRationals(key.position, from) === 0);
 	if (index < 0 || index >= property.segments.length) throw new ReferenceError('The selected path key has no outgoing segment.');
-	return normalizeMotionProperty({ ...property, segments: property.segments.map((shape, offset) => offset === index ? edit.shape.kind : shape) });
-}
-function mergePaths(target: MotionPathProperty, source: MotionPathProperty): MotionPathProperty {
-	const keys = new Map(target.keyframes.map((key) => [keyId(key.position), key])); for (const key of source.keyframes) keys.set(keyId(key.position), key);
-	const keyframes = [...keys.values()].sort((a, b) => compareRationals(a.position, b.position));
-	const segments = keyframes.slice(1).map((end, index) => {
-		for (const owner of [source, target]) { const begin = owner.keyframes.findIndex((key) => compareRationals(key.position, keyframes[index]!.position) === 0);
-			if (begin >= 0 && begin < owner.segments.length && compareRationals(owner.keyframes[begin + 1]!.position, end.position) === 0) return owner.segments[begin]!; }
-		return 'linear' as const;
-	});
-	return { ...target, keyframes, segments };
+	return normalizeMotionProperty({ ...property, segments: property.segments.map((shape, offset) => offset === index ? edit.shape.kind === 'bezier' ? edit.shape : edit.shape.kind : shape) });
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { compileInterpolationCurve, type CompiledInterpolationCurve } from './interpolation-curve.ts';
+import { compileInterpolationCurve, type CompiledInterpolationCurve, type InterpolationShape } from './interpolation-curve.ts';
 import { compareRationals, type Rational } from './timeline-time.ts';
 import { freezeMotionValue, motionArray, motionBoolean, motionEnum, motionId, motionNumber, motionRational, motionRecord, motionString } from './motion-values.ts';
 
@@ -35,7 +35,7 @@ export interface MotionPath { readonly closed: boolean; readonly vertices: reado
 export interface MotionPathProperty extends PropertyBase {
 	readonly kind: 'path'; readonly value: MotionPath;
 	readonly keyframes: readonly { readonly position: Rational; readonly value: MotionPath }[];
-	readonly segments: readonly ('hold' | 'linear' | 'eased')[];
+	readonly segments: readonly ('hold' | 'linear' | 'eased' | Extract<InterpolationShape, { kind: 'bezier' }>)[];
 }
 export type MotionProperty = MotionScalarProperty | MotionVector2Property | MotionVector3Property | MotionColorProperty | MotionPathProperty;
 
@@ -109,8 +109,15 @@ function normalizePathProperty(record: Readonly<Record<string, unknown>>, expres
 	for (let index = 1; index < keyframes.length; index += 1) {
 		if (compareRationals(keyframes[index - 1]!.position, keyframes[index]!.position) >= 0) throw new RangeError('Path keyframes must have increasing positions.');
 	}
-	const segments = motionArray(record.segments, 4095, 'path segments').map((item) => motionEnum(item, ['hold', 'linear', 'eased'], 'path segment'));
-	if (segments.length !== Math.max(0, keyframes.length - 1)) throw new RangeError('Path segments must connect every pair of keyframes.');
+	const values = motionArray(record.segments, 4095, 'path segments');
+	if (values.length !== Math.max(0, keyframes.length - 1)) throw new RangeError('Path segments must connect every pair of keyframes.');
+	const segments = values.map((item, index) => {
+		if (typeof item === 'string') return motionEnum(item, ['hold', 'linear', 'eased'], 'path segment');
+		const curve = compileInterpolationCurve({ anchors: [{ position: keyframes[index]!.position, value: 0 }, { position: keyframes[index + 1]!.position, value: 1 }], segments: [item] });
+		const shape = curve.segments[0]!; if (shape.kind !== 'bezier') throw new TypeError('Non-Bezier path segments use their canonical string name.');
+		motionNumber(shape.control1.value, 'path control progress'); motionNumber(shape.control2.value, 'path control progress');
+		return shape;
+	});
 	return freezeMotionValue({ kind: 'path' as const, value, keyframes, segments, expression });
 }
 
