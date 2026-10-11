@@ -500,8 +500,15 @@ names-only archive 5, brush archive 6, and editable Frame Source 2 handoff.
 Rendering validates the name and evaluates the same graph through a computational
 view, preserving pixels, alpha, binding IDs, and immutable brush references.
 Gradient, range, and brush re-editing preserve retained names.
-Further overlay modes, composition authoring, direct Frame mask-name authoring,
-and healing remain open; these slices do not close L6.
+The same opt-in manager now authors Add, Subtract, and Intersect compositions.
+The selected graph keeps its name, ID, and bindings; it copies the other graph's
+complete definition with collision-safe node, input, and path identities, while
+the other mask remains available. Subtraction is selected minus other coverage.
+Composition remains local until Apply and the existing Save records it in history.
+Copied range nodes sample the input of the selected mask's bound adjustment;
+brush references retain their immutable body identity and archive custody.
+Further overlay modes, direct Frame mask-name authoring, and healing remain open;
+these slices do not close L6.
 
 ### Exit gate
 

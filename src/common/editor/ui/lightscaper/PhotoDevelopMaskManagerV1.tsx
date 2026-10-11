@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
-import { manageImageDevelopMasksV2, type ImageDevelopMaskManagementCommandV2 } from '../../imaging/image-develop-mask-management-v2.ts';
+import { manageImageDevelopMasksV3, type ImageDevelopMaskManagementCommandV3 } from '../../imaging/image-develop-mask-management-v3.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
@@ -22,7 +22,7 @@ export interface PhotoDevelopMaskManagerPropsV1 {
 	readonly onClose: () => void;
 }
 type Form = Readonly<{ source: PhotoLibraryDevelopSettingsV2; draft: PhotoLibraryDevelopSettingsV2;
-	maskId: string; name: string; nameInvalid: boolean; showOverlay: boolean; overlayEffect: string; invalid: boolean }>;
+	maskId: string; operandMaskId: string; name: string; nameInvalid: boolean; showOverlay: boolean; overlayEffect: string; invalid: boolean }>;
 
 /** Scalar recipe editing only. Body custody and history belong to the selected
  * Develop owner; this dialog never acquires a mask resource. */
@@ -39,17 +39,20 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 	const update = (next: Form) => { if (current()) { rendered.current = next; setForm(next); } };
 	const effects = form.draft.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1);
 	const selected = form.draft.masks.find(mask => mask.id === form.maskId);
+	const operands = form.draft.masks.filter(mask => mask.id !== form.maskId);
+	const operand = operands.find(mask => mask.id === form.operandMaskId);
 	const bindings = form.draft.maskBindings.filter(binding => binding.maskId === form.maskId).map(binding => binding.effectId);
 	const label = (type: string) => { const definition = videoEffectDefinitionV2(type); return messages.shared[definition.labelKey] ?? definition.label; };
 	const close = () => { if (presented()) { live.current = false; Reflect.apply(props.onClose, props, []); } };
-	const edit = (command: ImageDevelopMaskManagementCommandV2) => {
+	const edit = (command: ImageDevelopMaskManagementCommandV3) => {
 		if (!current()) return;
 		try {
-			const draft = manageImageDevelopMasksV2(form.draft, command);
+			const draft = manageImageDevelopMasksV3(form.draft, command);
 			const maskId = command.type === 'duplicate' ? command.duplicateId : command.type === 'remove' ? draft.masks[0]?.id ?? '' : form.maskId;
 			const sameSelection = maskId === form.maskId, chosen = draft.maskBindings.some(binding => binding.maskId === maskId && binding.effectId === form.overlayEffect);
-			const name = command.type === 'bindings' ? form.name : graphName(draft.masks.find(mask => mask.id === maskId));
-			update({ ...form, draft, maskId, name, nameInvalid: false, invalid: false, showOverlay: sameSelection && form.showOverlay,
+			const name = command.type === 'bindings' || command.type === 'compose' ? form.name : graphName(draft.masks.find(mask => mask.id === maskId));
+			const operandMaskId = sameSelection && draft.masks.some(mask => mask.id === form.operandMaskId && mask.id !== maskId) ? form.operandMaskId : '';
+			update({ ...form, draft, maskId, operandMaskId, name, nameInvalid: false, invalid: false, showOverlay: sameSelection && form.showOverlay,
 				overlayEffect: sameSelection && chosen ? form.overlayEffect : '' });
 		} catch { update({ ...form, nameInvalid: command.type === 'rename', invalid: command.type !== 'rename' }); }
 	};
@@ -67,7 +70,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 				onChange={event => {
 					if (!current()) return; const maskId = event.currentTarget.value;
 					const mask = form.draft.masks.find(mask => mask.id === maskId);
-					if (mask) update({ ...form, maskId, name: graphName(mask), nameInvalid: false, showOverlay: false, overlayEffect: '', invalid: false });
+					if (mask) update({ ...form, maskId, operandMaskId: '', name: graphName(mask), nameInvalid: false, showOverlay: false, overlayEffect: '', invalid: false });
 				}}>
 				{form.draft.masks.length === 0 && <option value="">{text.empty}</option>}
 				{form.draft.masks.map(mask => <option key={mask.id} value={mask.id}>{graphLabel(mask)}</option>)}
@@ -87,6 +90,16 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 				<button type="button" disabled={props.disabled || !selected} onClick={() => {
 					if (current() && selected) edit({ type: 'remove', maskId: selected.id });
 				}}>{text.remove}</button>
+			</div>
+			<label className="lightscaper-mask-management-selection">{text.operand}<select aria-label={text.operand} data-photo-develop-mask-operand
+				value={form.operandMaskId} disabled={props.disabled || !selected || operands.length === 0} onChange={event => {
+					if (!current() || !selected) return; const operandMaskId = event.currentTarget.value;
+					if (operandMaskId === '' || operands.some(mask => mask.id === operandMaskId)) update({ ...form, operandMaskId, invalid: false });
+				}}><option value="">{text.chooseOperand}</option>{operands.map(mask => <option key={mask.id} value={mask.id}>{graphLabel(mask)}</option>)}</select></label>
+			<p>{text.compositionHelp}</p><div className="lightscaper-mask-management-operations">
+				{([['union', text.add], ['subtract', text.subtract], ['intersect', text.intersect]] as const).map(([operation, caption]) =>
+					<button key={operation} type="button" data-photo-develop-mask-compose={operation} disabled={props.disabled || !selected || !operand}
+						onClick={() => { if (current() && selected && operand) edit({ type: 'compose', maskId: selected.id, operandMaskId: operand.id, operation }); }}>{caption}</button>)}
 			</div>
 			<fieldset className="lightscaper-mask-management-bindings" disabled={props.disabled || !selected}><legend>{text.bindings}</legend>
 				{effects.length === 0 && <p>{text.noEffects}</p>}
@@ -119,7 +132,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 
 function initial(source: PhotoLibraryDevelopSettingsV2): Form {
 	const draft = normalizeImageDevelopStateV1OrV2(source);
-	return { source, draft, maskId: draft.masks[0]?.id ?? '', name: graphName(draft.masks[0]), nameInvalid: false, showOverlay: false, overlayEffect: '', invalid: false };
+	return { source, draft, maskId: draft.masks[0]?.id ?? '', operandMaskId: '', name: graphName(draft.masks[0]), nameInvalid: false, showOverlay: false, overlayEffect: '', invalid: false };
 }
 function graphName(graph: VideoMaskMatteGraphV1OrV2 | undefined): string { return graph?.schemaVersion === 2 ? graph.name : ''; }
 function graphLabel(graph: VideoMaskMatteGraphV1OrV2): string { return graph.schemaVersion === 2 ? `${graph.name} (${graph.id})` : graph.id; }
