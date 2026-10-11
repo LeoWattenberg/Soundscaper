@@ -3,7 +3,7 @@
 M10 is in progress. Versioned offers, streamed verification, receiver storage,
 atomic owner/history updates, saved-revision picture/PCM adapters and bounded
 portable archive assembly/import are implemented foundations. Framescaper
-successor editor/source routing and browser/desktop transports remain unfinished.
+successor editor integration, complete save/delivery and desktop transports remain unfinished.
 There is no shipping connected-editor workflow yet.
 
 ## Revision and closure authority
@@ -26,14 +26,17 @@ The sender's digest is independently recomputed while streaming, and receiver
 staging verifies its own byte contract before publication. Missing, short, long
 or corrupt bodies never publish a new accepted snapshot. Cancellation cancels
 an active reader and rolls back private staging. Injected providers and storage
-transactions own their cancellation/timeouts; the future transport must bound
-their response time.
+transactions own their cancellation/timeouts. The connected browser transport
+bounds pairing to 60 seconds, active RPC to 30 seconds, and established peer
+presence to 120 seconds for throttled tabs. Each session pins one project and
+composition identity, serializes saved updates, and exposes Disconnect.
 
 ## Update and history rules
 
 Only a complete, durably retained offer may enter the update state machine.
 A newer compatible output replaces the accepted snapshot as one owning-editor
-history action. A newer incompatible output remains pending until Conform.
+history action. A newer incompatible output or native PCM sample grid remains
+pending until Conform.
 Older deliveries are ignored, exact repeats are idempotent, and a known revision
 number with another digest refuses. The newest pending revision supersedes
 earlier pending deliveries.
@@ -67,6 +70,19 @@ failure, cancellation and close reclaim their private chunks. Standalone link
 writes refuse identities already owned by a document. Pending migrations and
 fresh owners cannot claim each other's identity.
 
+Session write fences are storage-only metadata. Claiming a new fence withdraws
+the previous writer's publication authority even if project intent is unchanged.
+Every later save, prepared link commit and deletion must present that fence.
+A fresh fence creates no library entry, and pending migration identities refuse
+claims. The bounded owner catalog omits uncreated and retired entries. Deletion
+writes a tombstone atomically, preserving original custody and historical media
+while rejecting late autosaves and link commits. Restore/reimport policy and
+garbage collection remain separate work.
+
+A link may also own one distinct companion audio source through `audioSourceId`.
+Both placement leaves share one accepted revision, receiver state and atomic
+history action; companion ownership cannot overlap another linked leaf.
+
 Compiled link render plans pin the saved revision and use the shared scene,
 expression, shutter, depth and lens renderer. Source time is exact composition
 seconds after the owning timeline applies trim/retime. Requests outside the
@@ -80,8 +96,26 @@ straight-alpha RGBA8. That boundary quantizes once; it is not float-lossless.
 ImageData/WebGL fixtures preserve the resulting bytes and alpha. The PCM source
 adapter pins the same saved revision, retains its provider lease, and supplies
 exact `sourceTime + i/sampleRate` windows of at most 4,096 frames. Frame's source
-addressing owns clip trim, reverse and retime policy. Both adapters still need
-the successor editor's actual source routing and native delivery integration.
+addressing owns clip trim, reverse and retime policy.
+
+The successor Frame source adapter now resolves its exact drawable ordinal to
+`ordinal / composition.frameRate`, sharing Frame's clip/keyframe presentation
+oracle for forward/reverse/retimed placement. It captures the retained scene
+before any encoded decoder. A bounded eight-request queue and 16 MiB default
+frame LRU (256 MiB explicit maximum) keep random seeks independent of prior
+playback. Returned pixels are private copies; resizing uses explicit nearest
+sampling at this display carrier. The actual exact Frame preview composes these
+pictures with its color/alpha pipeline. Projects with timeline images retain
+the existing layered painter order, materializing Motion pictures before the
+shared compositor. Virtual sources also request asynchronous frames during
+playback. Focused actual CanvasKit/Frame tests cover seek/reseek, transparency
+and mixed image order; the connected menu browser workflow remains unfinished.
+
+The engine companion adapter presents 4,096-frame stereo Float32 storage chunks
+on the saved Motion project's native sample rate, including a short terminal
+chunk and silent scenes. The engine retains ownership of trim, reverse,
+resampling and pitch policy. Both adapters still need complete successor menu
+integration and native delivery qualification.
 
 ## Portable archive foundations
 
