@@ -16,7 +16,7 @@ import { createMotionAeBridgeArchive } from '../common/editor/motion-ae-bridge-a
 
 export const MOTIONSCAPER_AE_BRIDGE_DOWNLOAD_NAME = 'Motionscaper-AE-Bridge-0.1.0.zip';
 export const MOTIONSCAPER_AE_BRIDGE_PROFILE = Object.freeze({ version: '0.1.0', qualification: 'unqualified' as const,
-	exportFromAfterEffects: true, importIntoAfterEffects: true, importIntoMotionscaper: false, sampledExpressions: true, renderedFallback: false });
+	exportFromAfterEffects: true, importIntoAfterEffects: true, importIntoMotionscaper: true, sampledExpressions: true, renderedFallback: false });
 export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promise<Blob> {
 	return createMotionAeBridgeArchive({
 		'Motionscaper-Export.jsx': exporter,
@@ -39,7 +39,8 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'If needed, enable script file access yourself in After Effects preferences. The bridge never changes preferences.\n'
 			+ 'Choose a parent folder. The script creates a new motion-transfer-* folder, copies media and publishes motionae.json last.\n'
 			+ 'The original project and media are not saved or overwritten. Keep all .jsxinc files beside the .jsx script.\n'
-			+ 'The standard exporter captures authored values and inert expression text. Motionscaper conversion and rendered fallback are still in development.\n'
+			+ 'The standard exporter captures authored values and inert expression text. Motionscaper supports a limited, explicitly reviewed 2D conversion; rendered fallback is still in development.\n'
+			+ 'Choose motionae.json and all package media through the Motionscaper bridge menu. Original exchange intent, conversion reports and every retained media body survive normal Save and .mscape export. Unsupported original media types must be converted or carried by a future inert binary format before import.\n'
 			+ 'For explicit numeric expression/animation sampling, run Motionscaper-Export-Sampled.jsx and confirm evaluation. It adds separate samples at each composition frame, retaining original keys and expression text.\n'
 			+ 'Sampling is limited to 4096 values per property and 262144 total keys/samples. It does not preserve subframe motion or motion blur. Native expression calls may block; installed-AE cancellation behavior is unqualified.\n'
 			+ 'For a limited AE re-import, use Run Script File with Motionscaper-Import.jsx and choose motionae.json.\n'

@@ -6,6 +6,7 @@ import { normalizeMotionWorkArea } from './motion-composition-work-area.ts';
 import { MOTION_TRACKING_LIMITS, normalizeMotionTrackingResult } from './motion-tracking-contract.ts';
 import { normalizeMotionTrackingApplication } from './motion-tracking-application-contract.ts';
 import { normalizeMotionAsset } from './motion-asset.ts';
+import { admitMotionProjectCustody, normalizeMotionAeProjectCustody } from './motion-ae-project-custody.ts';
 import type { MotionComposition } from './motion-composition.ts';
 import { normalizeMotionAudioPlacement, normalizeMotionLayer } from './motion-layer-validation.ts';
 import { motionColor } from './motion-property.ts';
@@ -17,8 +18,10 @@ export type { MotionscaperProject } from './motion-project-types.ts';
 
 /** Detach persisted intent; renderer state and source discovery never enter this wire. */
 export function normalizeMotionscaperProject(value: unknown): MotionscaperProject {
+	admitMotionProjectCustody(value);
 	admitAudioEditorProjectValidationStructure(value, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS);
-	const record = motionRecord(value, ['schemaFamily', 'schemaVersion', 'id', 'title', 'revision', 'sampleRate', 'primaryCompositionId', 'compositions', 'assets'], 'Motionscaper project');
+	const fields = ['schemaFamily', 'schemaVersion', 'id', 'title', 'revision', 'sampleRate', 'primaryCompositionId', 'compositions', 'assets'];
+	const record = motionRecord(value, [...fields, 'interchangeCustody'], 'Motionscaper project', fields);
 	if (record.schemaFamily !== 'motionscaper') throw new RangeError('Motionscaper project family must be motionscaper.');
 	if (record.schemaVersion !== 1) throw new RangeError('Motionscaper project version must be 1.');
 	const compositions = motionArray(record.compositions, 1024, 'project compositions', 1).map(normalizeMotionComposition);
@@ -29,6 +32,7 @@ export function normalizeMotionscaperProject(value: unknown): MotionscaperProjec
 		id: motionId(record.id, 'project ID'), title: motionString(record.title, 'project title'),
 		revision: motionInteger(record.revision, 'project revision'), sampleRate: motionInteger(record.sampleRate, 'project sample rate', 8000, 768000),
 		primaryCompositionId: motionId(record.primaryCompositionId), compositions, assets,
+		...(Object.hasOwn(record, 'interchangeCustody') ? { interchangeCustody: normalizeMotionAeProjectCustody(record.interchangeCustody, assets) } : {}),
 	};
 	validateMotionscaperProjectGraph(project);
 	let analyses = 0; let samples = 0;

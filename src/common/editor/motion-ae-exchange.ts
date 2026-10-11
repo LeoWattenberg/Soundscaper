@@ -102,7 +102,7 @@ function validatePropertyReports(properties: readonly MotionAeProperty[], layerI
 	}
 }
 export function normalizeMotionAeExchange(value: unknown): MotionAeExchange {
-	guardInput(value);
+	admitMotionAeCustodyInput(value);
 	const r = motionRecord(value, ['format', 'version', 'transferId', 'producer', 'source', 'color', 'footage', 'compositions', 'report'], 'AE exchange');
 	if (r.format !== 'org.motionscaper.ae-exchange' || r.version !== 1) throw new Error('AE exchange format/version is unsupported.');
 	const producer = motionRecord(r.producer, ['application', 'version', 'bridgeVersion'], 'AE producer'), source = motionRecord(r.source, ['name', 'revisionDigest'], 'AE source');
@@ -118,7 +118,7 @@ export function normalizeMotionAeExchange(value: unknown): MotionAeExchange {
 	validateClosure(result); requireByteBudget(JSON.stringify(result)); return freezeMotionValue(result);
 }
 /** Bound direct unknown-object callers too, before copying property values or serializing them. */
-function guardInput(value: unknown): void {
+export function admitMotionAeCustodyInput(value: unknown): void {
 	let units = 0;
 	const active = new Set<object>();
 	function inspect(item: unknown, depth: number): void {
@@ -140,6 +140,12 @@ function guardInput(value: unknown): void {
 		active.delete(item);
 	}
 	inspect(value, 0);
+}
+/** Conversion reports use the same closed scope/media authority as their retained source exchange. */
+export function normalizeMotionAeConversionReport(input: unknown, exchange: MotionAeExchange): readonly MotionAeReportEntry[] {
+	admitMotionAeCustodyInput(input);
+	const entries = motionArray(input, limits.reportEntries, 'AE conversion report').map(report);
+	validateClosure({ ...exchange, report: entries }); requireByteBudget(JSON.stringify(entries)); return freezeMotionValue(entries);
 }
 function requireByteBudget(text: string): void {
 	if (text.length > limits.jsonBytes || new TextEncoder().encode(text).byteLength > limits.jsonBytes) throw new RangeError('AE exchange JSON byte budget exceeded.');

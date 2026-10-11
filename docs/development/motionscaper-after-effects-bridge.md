@@ -145,6 +145,23 @@ composition-origin keys, while source timing is rebased to that same origin.
 The converter validates declared media bindings; an importing controller must
 independently verify actual retained bytes before publishing them.
 
+The import controller now prepares without storage writes, requires explicit
+acknowledgement of the report, stages at most 4 MiB per write, verifies every
+body digest, and atomically commits a new project. Each selected source must
+pass the existing 64 MiB decoder admission; a transfer admits at most 256 MiB
+of selected media. Every original footage file, including unused originals,
+must be selected and representable by a validated Motion asset. Missing files
+or unsupported original byte carriers refuse publication; named null draft
+placeholders alone cannot substitute for media custody.
+
+Optional project `interchangeCustody` carries the closed inert original AE
+exchange, exact conversion report, and source-to-asset digest/length bindings.
+It is omitted for ordinary projects, bounded to 16 MiB before traversal and
+serialization, and part of the saved revision digest. Asset removal or
+replacement cannot discard its bound originals. Normal Save/reopen and
+`.mscape` roundtrip tests retain unsupported intent, original source names,
+and unused original media bytes. No custody expression enters the evaluator.
+
 The installed-AE matrix remains empty. It must record actual application
 versions, exported fixture hashes, subsequent AE re-import results, structure
 comparisons, and reference frames. Required cases include media and font loss,
