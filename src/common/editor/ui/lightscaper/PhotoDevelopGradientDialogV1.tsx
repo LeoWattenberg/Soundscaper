@@ -4,20 +4,20 @@ import { useEffect, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
-import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
+import { replaceImageDevelopLocalMasksCurrentV1 } from '../../imaging/image-develop-mask-management-current-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
-import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
+import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { PhotoDevelopMaskDisplaySelectionV1 } from '../../photo-develop-mask-display-v1.ts';
 
 export type PhotoDevelopMaskOverlaySelectionV1 = PhotoDevelopMaskDisplaySelectionV1;
 export interface PhotoDevelopGradientDialogPropsV1 {
 	readonly kind?: 'linear-gradient' | 'radial-gradient';
-	readonly develop: PhotoLibraryDevelopSettingsV2;
+	readonly develop: ImageDevelopStateCurrentV1;
 	readonly locale: string;
 	readonly disabled?: boolean;
 	readonly isCurrent: () => boolean;
-	readonly onApply: (value: PhotoLibraryDevelopSettingsV2, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
+	readonly onApply: (value: ImageDevelopStateCurrentV1, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly onClose: () => void;
 }
 type Kind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind']>;
@@ -50,7 +50,7 @@ export default function PhotoDevelopGradientDialogV1(props: PhotoDevelopGradient
 				: { id: nodeId, kind: form.kind, center: { x: coordinate(form.centerX), y: coordinate(form.centerY) },
 					radius: { x: positiveCoordinate(form.radiusX), y: positiveCoordinate(form.radiusY) }, innerFraction: fraction(form.innerFraction) };
 			const graph = { ...retained, schemaVersion: retained?.schemaVersion ?? 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [], nodes: [node], outputNodeId: nodeId };
-			const value = normalizeImageDevelopStateV1OrV2({ ...props.develop,
+			const value = replaceImageDevelopLocalMasksCurrentV1(props.develop, {
 				masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
 				maskBindings: [...props.develop.maskBindings.filter(binding => binding.maskId !== maskId && !form.bindings.includes(binding.effectId)),
 					...form.bindings.map(effectId => ({ effectId, maskId }))],
@@ -61,7 +61,7 @@ export default function PhotoDevelopGradientDialogV1(props: PhotoDevelopGradient
 	};
 	const remove = () => {
 		if (!current() || !form.maskId || !gradients.some(mask => mask.id === form.maskId)) return;
-		const value = normalizeImageDevelopStateV1OrV2({ ...props.develop, masks: props.develop.masks.filter(mask => mask.id !== form.maskId),
+		const value = replaceImageDevelopLocalMasksCurrentV1(props.develop, { effects: props.develop.effects, masks: props.develop.masks.filter(mask => mask.id !== form.maskId),
 			maskBindings: props.develop.maskBindings.filter(binding => binding.maskId !== form.maskId) });
 		Reflect.apply(props.onApply, props, [value, null]);
 	};
@@ -116,7 +116,7 @@ function positiveCoordinate(value: string): number {
 function fraction(value: string): number {
 	const number = coordinate(value); if (number < 0 || number >= 1) throw new RangeError('Invalid gradient falloff.'); return number;
 }
-function initial(develop: PhotoLibraryDevelopSettingsV2, maskId: string, kind: Kind): Form {
+function initial(develop: ImageDevelopStateCurrentV1, maskId: string, kind: Kind): Form {
 	const mask = develop.masks.find(value => value.id === maskId), node = mask?.nodes[0];
 	const common = { maskId, bindings: develop.maskBindings.filter(binding => binding.maskId === maskId).map(binding => binding.effectId), enabled: {}, showOverlay: false, overlayEffect: '' };
 	if (kind === 'radial-gradient') {

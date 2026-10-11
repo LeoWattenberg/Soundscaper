@@ -2,13 +2,13 @@
 
 import { useRef } from 'react';
 import type { VideoEffectLeafV2 } from '../../video-effect-leaf-v2.ts';
-import type { PhotoLibraryDevelopWorkflowV2 } from '../../controller/shared/photo-library-develop-workflow-v2.ts';
+import type { PhotoDevelopEffectsAuthoringPortV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
 import VideoColorWheelsControls, { type VideoColorWheelGroupV1 } from '../inspector/VideoColorWheelsControls.tsx';
 
 /** Each live gesture follows only its own preview array. External replacement
  * retires its authority; captured settlement can still finish after rerenders. */
 export default function PhotoDevelopColorWheelsV2(props: Readonly<{ effect: VideoEffectLeafV2; effects: readonly VideoEffectLeafV2[];
-	owner: PhotoLibraryDevelopWorkflowV2; copy: Readonly<Record<string, string>>; disabled: boolean; isCurrent: () => boolean }>) {
+	owner: PhotoDevelopEffectsAuthoringPortV1; copy: Readonly<Record<string, string>>; disabled: boolean; isCurrent: () => boolean }>) {
 	const { owner, effect, effects } = props;
 	const gestures = useRef(new Map<VideoColorWheelGroupV1, { readonly original: readonly VideoEffectLeafV2[]; expected: readonly VideoEffectLeafV2[] }>());
 	const restored = useRef<{ readonly from: readonly VideoEffectLeafV2[]; readonly to: readonly VideoEffectLeafV2[] } | null>(null);

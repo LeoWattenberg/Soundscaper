@@ -44,7 +44,7 @@ async function fixture(locale = 'en', initial = recipe(), strict = false) {
 	let renderedProps: PhotoDevelopMaskManagerPropsV1;
 	const applied: Array<{ value: PhotoLibraryDevelopSettingsV2; overlay: Parameters<PhotoDevelopMaskManagerPropsV1['onApply']>[1] }> = [];
 	const onApply: PhotoDevelopMaskManagerPropsV1['onApply'] = function (this: PhotoDevelopMaskManagerPropsV1, value, overlay) {
-		assert.equal(this, renderedProps); applied.push({ value, overlay });
+		assert.equal(this, renderedProps); applied.push({ value: normalizeImageDevelopStateV1OrV2(value), overlay });
 	};
 	const mounted = await mountPhotoImportUi(() => {
 		const element = <PhotoDevelopMaskManagerV1 develop={develop} locale={locale} disabled={disabled} isCurrent={() => current}

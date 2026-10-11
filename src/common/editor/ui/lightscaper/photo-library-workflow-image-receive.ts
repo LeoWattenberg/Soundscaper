@@ -4,9 +4,12 @@ import { useCallback, type RefObject } from 'react';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../closed-domain-value.ts';
 import type { PhotoLibraryImageReceivePortV1, PhotoLibraryImageReceiveReceiptV1, PhotoLibraryImageReceiveRequestV1 } from '../../photo-library-image-receive-port-v1.ts';
 import type { CreatePhotoLibrarySessionV3, PhotoLibrarySessionPortV2 } from '../../photo-library-session-port-v2.ts';
+import type { PhotoLibraryWorkflowSlotCurrentV1 } from '../../controller/shared/photo-library-workflow-slot-current-v1.ts';
+import type { CreatePhotoLibrarySessionCurrentV1 } from '../../photo-library-session-port-current-v1.ts';
+import type { CreatePhotoLibraryDevelopProxyRuntimeV3 } from '../../photo-library-develop-proxy-port-v3.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
-import type { PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
+import type { PhotoLibraryWorkflowSlotV2 } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import { readVisiblePage } from '../../controller/shared/photo-library-query-navigation.ts';
 import type { PhotoLibraryPageV1 } from '../../photo-library-session-port-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../../../../lightscaper/storage/photo-develop-preset-read-v2.ts';
@@ -19,12 +22,15 @@ export interface CapturedPhotoImageReceive {
 	receive(request: Readonly<PhotoLibraryImageReceiveRequestV1 & { imageClipId?: string }>, signal: AbortSignal): Promise<Readonly<PhotoImageReceiveOutcome>>;
 	reload(signal: AbortSignal): Promise<void>;
 }
+type SessionSlot = PhotoLibraryWorkflowSlotV2 | PhotoLibraryWorkflowSlotCurrentV1;
+type SessionFactory = CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1;
+type RendererFactory = CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3;
 interface Owners {
-	readonly slot: RefObject<SessionSlot | null>; readonly factory: RefObject<CreatePhotoLibrarySessionV3 | undefined>;
-	readonly loader: RefObject<LoadPhotoLibraryBackupSaveRuntimeV1 | undefined>; readonly renderer: RefObject<CreatePhotoLibraryDevelopProxyRuntimeV2 | undefined>;
-	readonly createSession: CreatePhotoLibrarySessionV3 | undefined; readonly loadBackupSaveRuntime: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
-	readonly createDevelopProxyRuntime: CreatePhotoLibraryDevelopProxyRuntimeV2 | undefined;
-	readonly perform: (action: (owner: PhotoLibrarySessionPortV2, signal: AbortSignal, current: SessionSlot) => Promise<void>, signal?: AbortSignal) => Promise<'completed' | 'failed' | 'cancelled' | 'busy'>;
+	readonly slot: RefObject<SessionSlot | null>; readonly factory: RefObject<SessionFactory | undefined>;
+	readonly loader: RefObject<LoadPhotoLibraryBackupSaveRuntimeV1 | undefined>; readonly renderer: RefObject<RendererFactory | undefined>;
+	readonly createSession: SessionFactory | undefined; readonly loadBackupSaveRuntime: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
+	readonly createDevelopProxyRuntime: RendererFactory | undefined;
+	readonly perform: (action: (owner: Omit<PhotoLibrarySessionPortV2, 'develop'>, signal: AbortSignal, current: SessionSlot) => Promise<void>, signal?: AbortSignal) => Promise<'completed' | 'failed' | 'cancelled' | 'busy'>;
 	readonly publishPage: (current: SessionSlot, page: PhotoLibraryPageV1 | null) => PhotoLibraryPageV1 | null;
 }
 const CHECK = AbortSignal.prototype.throwIfAborted, SIZE = Object.getOwnPropertyDescriptor(Blob.prototype, 'size')!.get!, SLICE = Blob.prototype.slice;
@@ -54,7 +60,7 @@ export function usePhotoLibraryWorkflowImageReceive({ slot, factory, loader, ren
 			&& captured.proxyFactory === createDevelopProxyRuntime && captured.proxyFactory === renderer.current
 			&& captured.backupLoader === loadBackupSaveRuntime && captured.backupLoader === loader.current;
 		const checked = (signal: AbortSignal, current?: SessionSlot) => { check(signal); if (!captured || !isCurrent() || (current && current !== captured)) throw new DOMException('Photo receive generation is closed.', 'AbortError'); };
-		const refresh = async (owner: PhotoLibrarySessionPortV2, signal: AbortSignal, current: SessionSlot) => {
+		const refresh = async (owner: Omit<PhotoLibrarySessionPortV2, 'develop'>, signal: AbortSignal, current: SessionSlot) => {
 			checked(signal, current);
 			if (current.page) publishPage(current, Object.freeze({ ...current.page, cursor: null }));
 			const next = await readVisiblePage(owner, current, null, signal); checked(signal, current); publishPage(current, next);

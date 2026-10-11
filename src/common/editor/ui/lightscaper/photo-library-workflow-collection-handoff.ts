@@ -2,9 +2,12 @@
 
 import { useCallback, type RefObject } from 'react';
 import { readClosedDomainRecord as record, readClosedDomainField as field, readClosedDomainArray as array } from '../../closed-domain-value.ts';
-import { acquirePhotoLibraryWorkflowSlotV2 as acquire, type PhotoLibraryWorkflowSlotV2 as SessionSlot } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
+import { acquirePhotoLibraryWorkflowSlotV2, type PhotoLibraryWorkflowSlotV2 } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { CreatePhotoLibrarySessionV3, PhotoLibrarySessionPortV2 } from '../../photo-library-session-port-v2.ts';
+import { acquirePhotoLibraryWorkflowSlotCurrentV1, type PhotoLibraryWorkflowSlotCurrentV1 } from '../../controller/shared/photo-library-workflow-slot-current-v1.ts';
+import type { CreatePhotoLibrarySessionCurrentV1 } from '../../photo-library-session-port-current-v1.ts';
+import type { CreatePhotoLibraryDevelopProxyRuntimeV3 } from '../../photo-library-develop-proxy-port-v3.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { PhotoLibraryDefinitionPageV1 } from '../../photo-library-session-port-v1.ts';
 import type { PhotoLibrarySavedCollectionPageV1, PhotoLibrarySavedCollectionPortV1 } from '../../photo-library-saved-collection-port-v1.ts';
@@ -18,11 +21,14 @@ export interface CapturedPhotoCollectionHandoff {
 	prepare(selection: Readonly<{ scope: 'catalog' | 'saved-query'; collectionId: string }>, signal: AbortSignal):
 		Promise<Readonly<{ fileName: string; target: Readonly<PhotoFramescaperCollectionHandoffTarget> }>>;
 }
+type SessionSlot = PhotoLibraryWorkflowSlotV2 | PhotoLibraryWorkflowSlotCurrentV1;
+type SessionFactory = CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1;
+type RendererFactory = CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3;
 interface Owners {
-	readonly slot: RefObject<SessionSlot | null>; readonly factory: RefObject<CreatePhotoLibrarySessionV3 | undefined>;
-	readonly loader: RefObject<LoadPhotoLibraryBackupSaveRuntimeV1 | undefined>; readonly renderer: RefObject<CreatePhotoLibraryDevelopProxyRuntimeV2 | undefined>;
-	readonly createSession: CreatePhotoLibrarySessionV3 | undefined; readonly loadBackupSaveRuntime: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
-	readonly createDevelopProxyRuntime: CreatePhotoLibraryDevelopProxyRuntimeV2 | undefined;
+	readonly slot: RefObject<SessionSlot | null>; readonly factory: RefObject<SessionFactory | undefined>;
+	readonly loader: RefObject<LoadPhotoLibraryBackupSaveRuntimeV1 | undefined>; readonly renderer: RefObject<RendererFactory | undefined>;
+	readonly createSession: SessionFactory | undefined; readonly loadBackupSaveRuntime: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
+	readonly createDevelopProxyRuntime: RendererFactory | undefined;
 }
 interface Ports {
 	readonly readCatalog: PhotoLibrarySessionPortV2['readDefinitionPage']; readonly readDefinition: PhotoLibrarySessionPortV2['readDefinition'];
@@ -61,7 +67,7 @@ function paging(value: unknown, catalog: boolean) {
 
 /** Menu-gesture generation capture. Every demand borrows the actual selected
  * Session operation; no mutation queue or lease is held around a returned UI. */
-export function usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime }: Owners) {
+export function usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime }: Owners, profile: 'legacy2' | 'current3' = 'legacy2') {
 	const captureCollectionHandoff = useCallback((): Readonly<CapturedPhotoCollectionHandoff> => {
 		const captured = slot.current; let pending: Promise<Readonly<Ports>> | null = null;
 		const isCurrent = () => captured?.live && slot.current === captured && captured.factory === createSession && captured.factory === factory.current
@@ -78,7 +84,7 @@ export function usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader
 			checked(signal);
 			if (!pending) {
 				const work = (async () => {
-					const owner = await acquire(captured!); checked(signal);
+					const owner = await (profile === 'current3' ? acquirePhotoLibraryWorkflowSlotCurrentV1(captured as PhotoLibraryWorkflowSlotCurrentV1) : acquirePhotoLibraryWorkflowSlotV2(captured as PhotoLibraryWorkflowSlotV2)); checked(signal);
 					const saved = data(owner, 'savedCollections'), handoff = data(owner, 'collectionHandoff');
 					return Object.freeze({ readCatalog: pin<Ports['readCatalog']>(owner, 'readDefinitionPage', true), readDefinition: pin<Ports['readDefinition']>(owner, 'readDefinition', true),
 						readSaved: pin<Ports['readSaved']>(saved, 'readPage'), readSnapshot: pin<Ports['readSnapshot']>(saved, 'readSnapshot'), withCapture: pin<Ports['withCapture']>(handoff, 'withCapture') });
@@ -145,7 +151,7 @@ export function usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader
 				return Object.freeze({ fileName: `${selected.name}.fscape`, target });
 			},
 		});
-	}, [slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime]);
+	}, [profile, slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime]);
 	return { captureCollectionHandoff };
 }
 

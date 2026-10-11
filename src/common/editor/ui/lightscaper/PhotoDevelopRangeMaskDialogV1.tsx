@@ -4,19 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
-import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
+import { replaceImageDevelopLocalMasksCurrentV1 } from '../../imaging/image-develop-mask-management-current-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
-import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
+import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 
 export interface PhotoDevelopRangeMaskDialogPropsV1 {
 	readonly kind?: 'luminance-range' | 'color-range';
-	readonly develop: PhotoLibraryDevelopSettingsV2;
+	readonly develop: ImageDevelopStateCurrentV1;
 	readonly locale: string;
 	readonly disabled?: boolean;
 	readonly isCurrent: () => boolean;
-	readonly onApply: (value: PhotoLibraryDevelopSettingsV2, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
+	readonly onApply: (value: ImageDevelopStateCurrentV1, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly onClose: () => void;
 }
 type Kind = NonNullable<PhotoDevelopRangeMaskDialogPropsV1['kind']>;
@@ -52,7 +52,7 @@ export default function PhotoDevelopRangeMaskDialogV1(props: PhotoDevelopRangeMa
 				: { id: nodeId, kind: form.kind, lower: fraction(form.lower), upper: fraction(form.upper), falloff };
 			const graph = { ...retained, schemaVersion: retained?.schemaVersion ?? 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [],
 				nodes: [node], outputNodeId: nodeId };
-			const value = normalizeImageDevelopStateV1OrV2({ ...props.develop,
+			const value = replaceImageDevelopLocalMasksCurrentV1(props.develop, {
 				masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
 				maskBindings: [...props.develop.maskBindings.filter(binding => binding.maskId !== maskId && !form.bindings.includes(binding.effectId)),
 					...form.bindings.map(effectId => ({ effectId, maskId }))],
@@ -63,7 +63,7 @@ export default function PhotoDevelopRangeMaskDialogV1(props: PhotoDevelopRangeMa
 	};
 	const remove = () => {
 		if (!current() || !form.maskId || !ranges.some(mask => mask.id === form.maskId)) return;
-		const value = normalizeImageDevelopStateV1OrV2({ ...props.develop, masks: props.develop.masks.filter(mask => mask.id !== form.maskId),
+		const value = replaceImageDevelopLocalMasksCurrentV1(props.develop, { effects: props.develop.effects, masks: props.develop.masks.filter(mask => mask.id !== form.maskId),
 			maskBindings: props.develop.maskBindings.filter(binding => binding.maskId !== form.maskId) });
 		Reflect.apply(props.onApply, props, [value, null]);
 	};
@@ -108,7 +108,7 @@ function fraction(value: string): number {
 	const number = value.trim() === '' ? NaN : Number(value);
 	if (!Number.isFinite(number) || Object.is(number, -0) || number < 0 || number > 1) throw new RangeError('Invalid range fraction.'); return number;
 }
-function initial(develop: PhotoLibraryDevelopSettingsV2, maskId: string, kind: Kind): Form {
+function initial(develop: ImageDevelopStateCurrentV1, maskId: string, kind: Kind): Form {
 	const node = develop.masks.find(value => value.id === maskId)?.nodes[0];
 	const common = { maskId, bindings: develop.maskBindings.filter(binding => binding.maskId === maskId).map(binding => binding.effectId),
 		enabled: {}, showOverlay: false, overlayEffect: '' };

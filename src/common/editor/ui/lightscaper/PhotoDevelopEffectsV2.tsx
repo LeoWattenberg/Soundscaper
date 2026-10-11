@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { createVideoEffectV2, normalizeVideoEffectV2, videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import type { VideoEffectLeafV2 } from '../../video-effect-leaf-v2.ts';
 import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.ts';
-import type { PhotoLibraryDevelopWorkflowV2 } from '../../controller/shared/photo-library-develop-workflow-v2.ts';
+import type { PhotoDevelopEffectsAuthoringPortV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
 import VideoEffectNumberInput from '../inspector/VideoEffectNumberInput.tsx';
 import VideoCurveControl from '../inspector/VideoCurveControl.tsx';
 import PhotoDevelopColorWheelsV2 from './PhotoDevelopColorWheelsV2.tsx';
@@ -13,7 +13,7 @@ import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-por
 import { normalizePointCurvesParamsV1 } from '../../video-curves-v1.ts';
 
 const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1', 'noise-reduction-v1', 'grain-v1', 'texture-v1', 'dehaze-v1', 'cube-lut-profile-v1'] as const;
-export default function PhotoDevelopEffectsV2(props: Readonly<{ effects: readonly VideoEffectLeafV2[]; owner: PhotoLibraryDevelopWorkflowV2;
+export default function PhotoDevelopEffectsV2(props: Readonly<{ effects: readonly VideoEffectLeafV2[]; owner: PhotoDevelopEffectsAuthoringPortV1;
 	messages: PhotoDevelopCopyV1; disabled: boolean; isCurrent: () => boolean; importCubeLut?: PhotoLibraryCubeLutPortV1['importFile'];
 	onImportPending: (pending: boolean) => void; registerImportRetirement: (retire: () => Promise<void>) => () => void }>) {
 	const { messages, owner, effects, disabled } = props, [type, setType] = useState<string>(TYPES[0]), [error, setError] = useState('');

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import React, { act } from 'react';
 import { usePhotoLibraryWorkflowV2 } from '../src/common/editor/ui/lightscaper/use-photo-library-workflow-v2.ts';
 import { createPhotoLibrarySessionV3 } from '../src/lightscaper/photo-library-session-runtime-v3.ts';
@@ -10,6 +10,11 @@ import { MemoryLockManager } from './helpers/offline-browser-runtime-store-fixtu
 import { mediaRestoreFixture } from './helpers/lightscaper-media-restore-fixture.ts';
 import { mountPhotoImportUi } from './helpers/photo-import-options-react-fixture.tsx';
 import { deferred, remainsPending, settle } from './helpers/async-test-control.ts';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
+
+const priorRange = Object.getOwnPropertyDescriptor(globalThis, 'IDBKeyRange');
+Object.defineProperty(globalThis, 'IDBKeyRange', { configurable: true, value: InstrumentedKeyRange });
+after(() => { if (priorRange) Object.defineProperty(globalThis, 'IDBKeyRange', priorRange); else Reflect.deleteProperty(globalThis, 'IDBKeyRange'); });
 
 async function fixture() {
 	const native = mediaRestoreFixture(), events: string[] = [];

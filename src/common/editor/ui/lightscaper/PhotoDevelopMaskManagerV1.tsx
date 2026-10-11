@@ -4,25 +4,26 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
-import { manageImageDevelopMasksV3, type ImageDevelopMaskManagementCommandV3 } from '../../imaging/image-develop-mask-management-v3.ts';
-import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
+import type { ImageDevelopMaskManagementCommandV3 } from '../../imaging/image-develop-mask-management-v3.ts';
+import { normalizeImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
+import { manageImageDevelopMasksCurrentV1 } from '../../imaging/image-develop-mask-management-current-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
-import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
+import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { VideoMaskMatteGraphV1OrV2 } from '../../video-mask-matte-name-v2.ts';
 import type { PhotoDevelopMaskDisplayModeV1 } from '../../photo-develop-mask-display-v1.ts';
 import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 import './photo-develop-mask-management.css';
 
 export interface PhotoDevelopMaskManagerPropsV1 {
-	readonly develop: PhotoLibraryDevelopSettingsV2;
+	readonly develop: ImageDevelopStateCurrentV1;
 	readonly locale: string;
 	readonly disabled?: boolean;
 	readonly isCurrent: () => boolean;
-	readonly onApply: (value: PhotoLibraryDevelopSettingsV2, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
+	readonly onApply: (value: ImageDevelopStateCurrentV1, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly onClose: () => void;
 }
-type Form = Readonly<{ source: PhotoLibraryDevelopSettingsV2; draft: PhotoLibraryDevelopSettingsV2;
+type Form = Readonly<{ source: ImageDevelopStateCurrentV1; draft: ImageDevelopStateCurrentV1;
 	maskId: string; operandMaskId: string; name: string; nameInvalid: boolean; showOverlay: boolean; overlayEffect: string; displayMode: PhotoDevelopMaskDisplayModeV1; invalid: boolean }>;
 
 /** Scalar recipe editing only. Body custody and history belong to the selected
@@ -48,7 +49,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 	const edit = (command: ImageDevelopMaskManagementCommandV3) => {
 		if (!current()) return;
 		try {
-			const draft = manageImageDevelopMasksV3(form.draft, command);
+			const draft = manageImageDevelopMasksCurrentV1(form.draft, command);
 			const maskId = command.type === 'duplicate' ? command.duplicateId : command.type === 'remove' ? draft.masks[0]?.id ?? '' : form.maskId;
 			const sameSelection = maskId === form.maskId, chosen = draft.maskBindings.some(binding => binding.maskId === maskId && binding.effectId === form.overlayEffect);
 			const name = command.type === 'bindings' || command.type === 'compose' ? form.name : graphName(draft.masks.find(mask => mask.id === maskId));
@@ -137,8 +138,8 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 	</AudioEditorDialogShell>;
 }
 
-function initial(source: PhotoLibraryDevelopSettingsV2): Form {
-	const draft = normalizeImageDevelopStateV1OrV2(source);
+function initial(source: ImageDevelopStateCurrentV1): Form {
+	const draft = normalizeImageDevelopStateCurrentV1(source);
 	return { source, draft, maskId: draft.masks[0]?.id ?? '', operandMaskId: '', name: graphName(draft.masks[0]), nameInvalid: false, showOverlay: false, overlayEffect: '', displayMode: 'color', invalid: false };
 }
 function graphName(graph: VideoMaskMatteGraphV1OrV2 | undefined): string { return graph?.schemaVersion === 2 ? graph.name : ''; }

@@ -550,13 +550,23 @@ verifies the retained LUT and brush closure before promoting original custody;
 metadata and membership receipts preserve repaired state. The Current original
 reader authenticates immutable bytes and revisions through the existing owner,
 and the Photo renderer evaluates repairs before adjustments in both resolution
-profiles. These directly exercised entry points do not activate the existing
-menu workflow or establish native browser qualification. UI activation,
-process3 settings, clipboard, presets and portable archive formats, repair menu
-authoring, the visualize-spots view, preview/export routing, and editable Frame
-integration remain required before healing is usable in the product.
-Direct Frame mask-name authoring and healing remain open; these slices do not
-close L6.
+profiles. Selected Lightscaper now uses genuine Current documents throughout
+the menu-owned Develop workflow. Settings opens Repair spots for ordered Clone
+and Heal authoring, with numeric edits and target/source pointer movement on
+the authenticated Original. Visualize spots starts off and displays actual
+linear-light Original edges without changing the recipe. Existing effect,
+geometry, and local-mask edits preserve repairs. Apply changes the draft;
+Save uses the existing native revision check and history, and virtual copies
+retain repairs without another original.
+Qualification includes 1,012 passing selected Lightscaper Node tests and
+English/German Chromium and Firefox workflows for Clone/Heal, Original-edge
+visualization, pointer movement/cancellation, Save, history, virtual copies,
+and reopen. These browser checks assert repaired preview/full-resolution
+pixels and unchanged native Original bytes, hash, and custody.
+Process3 settings, clipboard, presets, portable backup/restore, raster export,
+and editable Frame handoff still require explicit successors. Direct Frame
+mask-name and repair authoring remain open. This does not close L6; L7–L9
+remain incomplete.
 
 ### Exit gate
 

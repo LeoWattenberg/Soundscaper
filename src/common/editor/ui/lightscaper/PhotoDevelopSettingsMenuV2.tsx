@@ -3,28 +3,25 @@
 import { useEffect, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopSettingsCopy } from '../../../i18n/lightscaper-develop-settings-copy.ts';
-import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
 import type { PhotoDevelopResolutionV1 } from '../../photo-library-develop-full-resolution-port-v1.ts';
 import type { PhotoLibraryDevelopSettingsWorkflowV2, PhotoDevelopSettingsSourceV2, PhotoDevelopSettingsWorkflowSnapshotV2 } from '../../controller/shared/photo-library-develop-settings-workflow-v2.ts';
 import type { ImageDevelopSelectionV1 } from '../../imaging/image-develop-settings-contract-v1.ts';
 import PhotoDevelopSettingsPickerV2 from './PhotoDevelopSettingsPickerV2.tsx';
 import PhotoDevelopQuickSettings from './PhotoDevelopQuickSettings.tsx';
-import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
-import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-brush-mask-copy.ts';
-import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
+import PhotoDevelopLocalAdjustmentsMenuV1 from './PhotoDevelopLocalAdjustmentsMenuV1.tsx';
 
 export interface PhotoDevelopSettingsMenuPropsV2 {
 	readonly locale: string; readonly owner: PhotoLibraryDevelopSettingsWorkflowV2; readonly snapshot: PhotoDevelopSettingsWorkflowSnapshotV2;
 	readonly source: PhotoDevelopSettingsSourceV2; readonly selectedIds: readonly string[]; readonly disabled: boolean; readonly dirty: boolean;
 	readonly isCurrent: () => boolean; readonly onChanged: () => Promise<unknown>;
 	readonly resolution?: Readonly<{ value: PhotoDevelopResolutionV1; fullAvailable: boolean; onChange: (value: PhotoDevelopResolutionV1) => void }>;
+	readonly repairs?: Readonly<{ available: boolean; onOpen: () => void }>;
 	readonly localAdjustments?: Readonly<{ onOpen: (kind: 'linear-gradient' | 'radial-gradient' | 'luminance-range' | 'color-range' | 'brush' | 'masks') => void }>;
 }
 type Mode = 'copy' | 'sync' | 'auto' | 'quick' | 'presets';
 
 export default function PhotoDevelopSettingsMenuV2(props: PhotoDevelopSettingsMenuPropsV2) {
 	const { owner, snapshot, source } = props, messages = photoDevelopSettingsCopy(props.locale);
-	const previewMessages = photoDevelopCopy(props.locale);
 	const [entry, setEntry] = useState<Readonly<{ mode: Mode }> | null>(null);
 	const [selection, setSelection] = useState<ImageDevelopSelectionV1>({ effectTypes: 'all', geometry: true, localAdjustments: true });
 	const [presetName, setPresetName] = useState(''), [presetId, setPresetId] = useState('');
@@ -48,21 +45,8 @@ export default function PhotoDevelopSettingsMenuV2(props: PhotoDevelopSettingsMe
 	const modes = { copy: messages.copy, sync: messages.sync, auto: messages.auto, quick: messages.quick, presets: messages.presets };
 	return <>
 		<details className="lightscaper-develop-settings-menu"><summary>{messages.menu}</summary>
-			{props.resolution && <>
-				<button type="button" disabled={busy} aria-pressed={props.resolution.value === 'proxy'}
-					onClick={() => { if (current() && !busy) props.resolution?.onChange('proxy'); }}>{previewMessages.fitResolution}</button>
-				<button type="button" disabled={busy || !props.resolution.fullAvailable} aria-pressed={props.resolution.value === 'full'}
-					onClick={() => { if (current() && !busy && props.resolution?.fullAvailable) props.resolution.onChange('full'); }}>{previewMessages.fullResolution}</button>
-			</>}
-			{props.localAdjustments && (['linear-gradient', 'radial-gradient', 'luminance-range', 'color-range'] as const).map(kind => <button key={kind} type="button" disabled={busy} onClick={() => {
-				if (current() && !busy && !active.current) props.localAdjustments?.onOpen(kind);
-			}}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}
-			{props.localAdjustments && <button type="button" disabled={busy} onClick={() => {
-				if (current() && !busy && !active.current) props.localAdjustments?.onOpen('brush');
-			}}>{photoDevelopBrushMaskCopy(props.locale).menu}</button>}
-			{props.localAdjustments && <button type="button" disabled={busy} onClick={() => {
-				if (current() && !busy && !active.current) props.localAdjustments?.onOpen('masks');
-			}}>{photoDevelopMaskManagementCopy(props.locale).menu}</button>}
+			<PhotoDevelopLocalAdjustmentsMenuV1 locale={props.locale} disabled={busy} isCurrent={() => current() && !active.current}
+				resolution={props.resolution} localAdjustments={props.localAdjustments} repairs={props.repairs} />
 			<button type="button" disabled={busy} onClick={() => { open('copy'); }}>{messages.copy}</button>
 			<button type="button" disabled={busy || props.dirty || !snapshot.clipboard} onClick={() => { run(() => owner.paste(source, messages.pasteLabel), true); }}>{messages.paste}</button>
 			<button type="button" disabled={busy || props.dirty || props.selectedIds.filter(id => id !== source.photoId).length === 0} onClick={() => { open('sync'); }}>{messages.sync}</button>

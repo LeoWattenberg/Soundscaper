@@ -3,12 +3,12 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { VideoEffectLeafV2 } from '../../video-effect-leaf-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-port-v1.ts';
-import type { PhotoLibraryDevelopWorkflowV2 } from '../../controller/shared/photo-library-develop-workflow-v2.ts';
+import type { PhotoDevelopEffectsAuthoringPortV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
 import { normalizeCubeLutProfileEffectV1 } from '../../video-cube-lut-profile-v1.ts';
 import VideoCubeLutControl from '../inspector/VideoCubeLutControl.tsx';
 
 export interface PhotoDevelopCubeLutPropsV2 {
-	readonly effect: VideoEffectLeafV2; readonly effects: readonly VideoEffectLeafV2[]; readonly owner: PhotoLibraryDevelopWorkflowV2;
+	readonly effect: VideoEffectLeafV2; readonly effects: readonly VideoEffectLeafV2[]; readonly owner: PhotoDevelopEffectsAuthoringPortV1;
 	readonly copy: Readonly<Record<string, string>>; readonly disabled: boolean; readonly isCurrent: () => boolean;
 	readonly importCubeLut?: PhotoLibraryCubeLutPortV1['importFile']; readonly onPending: (pending: boolean) => void;
 	readonly registerRetirement: (retire: () => Promise<void>) => () => void;

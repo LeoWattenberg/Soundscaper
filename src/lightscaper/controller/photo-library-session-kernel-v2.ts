@@ -81,6 +81,7 @@ function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
 export class PhotoLibrarySessionKernelV2 {
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
 	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV2> | ReturnType<typeof createPhotoLibraryDevelopSessionV3>;
+	readonly legacyDevelop?: ReturnType<typeof createPhotoLibraryDevelopSessionV2>;
 	readonly developImport: Readonly<PhotoLibraryDevelopImportPortV2>;
 	readonly #ports: PhotoLibrarySessionPortsCurrentV1;
 	readonly #legacyPorts: PhotoLibrarySessionPortsV2;
@@ -169,10 +170,7 @@ export class PhotoLibrarySessionKernelV2 {
 			operation: (run, signal) => this.#operation(run, signal), importFiles: (files, request) => this.#importFiles(files, request) });
 		const maskRasters = ports.maskRasterResources ? createPhotoLibraryDevelopMaskRasterSessionV1({ source: this.maskRasterSource,
 			resources: ports.maskRasterResources, mutate: (run, signal, admit) => this.#mutation(run, signal, false, admit) }) : undefined;
-		this.develop = this.#current ? createPhotoLibraryDevelopSessionV3({ repository: ports.catalog, ready: () => this.#ready(), maskRasters,
-			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal } : undefined,
-			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted), signal) })
-			: createPhotoLibraryDevelopSessionV2({ repository: legacy.catalog, ready: () => this.#ready(),
+		const legacyDevelop = createPhotoLibraryDevelopSessionV2({ repository: legacy.catalog, ready: () => this.#ready(),
 			...(maskRasters ? { maskRasters } : {}),
 			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal } : undefined,
 			presetStorage: presetSettings ? { settings: presetSettings, catalog: legacy.catalog,
@@ -180,6 +178,10 @@ export class PhotoLibrarySessionKernelV2 {
 					await (await ports.cubeLutResources()).verifyPreset(preset, signal); } } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(legacyPhotoCommandOwnerV1(owner), admitted), signal),
 			mutate: (run, signal) => this.#mutation(run, signal), withPhoto: (catalogId, key, signal, run) => this.#withPhoto(catalogId, key, signal, (owner, admitted) => run(legacyPhotoCommandOwnerV1(owner), admitted)) });
+		this.legacyDevelop = this.#current ? legacyDevelop : undefined;
+		this.develop = this.#current ? createPhotoLibraryDevelopSessionV3({ repository: ports.catalog, ready: () => this.#ready(), maskRasters,
+			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal } : undefined,
+			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted), signal) }) : legacyDevelop;
 		this.#imports = createPhotoLibrarySessionImport({ ports: legacy, managed: this.#legacyManagedPorts(), presetSettings,
 			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 		const resources = ports.cubeLutResources;

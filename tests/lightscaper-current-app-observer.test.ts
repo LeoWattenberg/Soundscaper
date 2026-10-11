@@ -15,6 +15,7 @@ import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { lutArchiveFixture, LUT_BODY } from './helpers/lightscaper-lut-archive-fixture.ts';
 import { deferred, settle, waitFor } from './helpers/async-test-control.ts';
 import { readCurrentCatalogCompanionsV1 } from './helpers/lightscaper-current-catalog-companions-fixture.ts';
+import { installDirectoryModel } from './helpers/lightscaper-opfs-original-staging-fixture.ts';
 
 const priorRange = Object.getOwnPropertyDescriptor(globalThis, 'IDBKeyRange');
 Object.defineProperty(globalThis, 'IDBKeyRange', { configurable: true, value: InstrumentedKeyRange });
@@ -24,14 +25,16 @@ after(() => { if (priorRange) Object.defineProperty(globalThis, 'IDBKeyRange', p
  * owners choose the backend and preserve native Blob bytes and metadata. */
 function filesystem() {
 	const directories = new Map<string, Map<string, Blob>>(), reads: string[] = [];
+	const handles = new Map<string, object>(), models: ReturnType<typeof installDirectoryModel>[] = [];
 	let rootReads = 0;
 	const storage = { async getDirectory() {
 		rootReads++;
 		return { async getDirectoryHandle(name: string, options?: FileSystemGetDirectoryOptions) {
+			const existing = handles.get(name); if (existing) return existing;
 			let files = directories.get(name);
 			if (!files) { if (!options?.create) throw new DOMException('Missing directory', 'NotFoundError'); files = new Map(); directories.set(name, files); }
 			const captured = files;
-			return { async getFileHandle(path: string, demand?: FileSystemGetFileOptions) {
+			const directory = { async getFileHandle(path: string, demand?: FileSystemGetFileOptions) {
 				if (!captured.has(path) && !demand?.create) throw new DOMException('Missing file', 'NotFoundError');
 				return { async getFile() {
 					reads.push(path); const body = captured.get(path); if (!body) throw new DOMException('Missing body', 'NotFoundError');
@@ -42,12 +45,16 @@ function filesystem() {
 						async close() { assert.ok(body); captured.set(path, body); }, async abort() { body = null; } };
 				} };
 			}, async removeEntry(path: string) { captured.delete(path); } };
+			// Model the native intrinsic directory identity and IDB handle clone,
+			// while the actual OPFS owner still authenticates and writes the body.
+			models.push(installDirectoryModel({ directory })); handles.set(name, directory); return directory;
 		} };
 	} };
 	const prior = Object.getOwnPropertyDescriptor(globalThis.navigator, 'storage');
 	Object.defineProperty(globalThis.navigator, 'storage', { configurable: true, value: storage });
 	return { directories, reads, rootReads: () => rootReads,
-		restore() { if (prior) Object.defineProperty(globalThis.navigator, 'storage', prior); else Reflect.deleteProperty(globalThis.navigator, 'storage'); } };
+		restore() { for (const model of [...models].reverse()) model.reset();
+			if (prior) Object.defineProperty(globalThis.navigator, 'storage', prior); else Reflect.deleteProperty(globalThis.navigator, 'storage'); } };
 }
 
 test('current observer loads the actual default OPFS original with its complete admitted key, digest and bytes', async () => {
@@ -76,7 +83,7 @@ test('current observer loads the actual default OPFS original with its complete 
 		assert.equal(createHash('sha256').update(new Uint8Array(observed.photos[0]!.bytes)).digest('hex'), digest);
 		assert.ok(fs.reads.includes(row.path as string)); assert.ok(fs.rootReads() > 0);
 		assert.equal(fs.directories.get(PHOTO_MEDIA_NAMESPACES_V1.opfsDirectoryName)?.size, 1);
-	} finally { await Promise.all([media?.close(), catalog?.close()]); fs.restore(); }
+	} finally { try { await Promise.all([media?.close(), catalog?.close()]); } finally { fs.restore(); } }
 });
 
 test('current observer follows actual private Restore2 IDB allocation and authenticates Photo2 and disabled LUT custody without OPFS reads', async () => {
@@ -104,7 +111,7 @@ test('current observer follows actual private Restore2 IDB allocation and authen
 		const retained = await anchor.mediaRepository.loadAsset(expected.record.photo.original.storageKey); assert.ok(retained instanceof Blob);
 		assert.deepEqual(new Uint8Array(await retained.arrayBuffer()), staleBytes);
 		assert.equal(fs.rootReads(), 0); assert.deepEqual(fs.reads, []); assert.equal(fs.directories.size, 0);
-	} finally { await Promise.all([restore.close(), anchor.close()]); fs.restore(); }
+	} finally { try { await Promise.all([restore.close(), anchor.close()]); } finally { fs.restore(); } }
 });
 
 test('current observer joins a held execution observation before closing its borrowed catalog and media owners', async context => {

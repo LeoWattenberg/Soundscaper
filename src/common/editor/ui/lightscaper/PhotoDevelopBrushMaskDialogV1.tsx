@@ -6,9 +6,9 @@ import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-bru
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
 import { PhotoLibraryBrushMaskAuthoringV1 } from '../../controller/shared/photo-library-brush-mask-authoring-v1.ts';
 import type { PhotoLibraryDevelopMaskRasterPortV1 } from '../../photo-library-develop-mask-raster-port-v1.ts';
-import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
+import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import { normalizeBrushMaskResourceReferenceV1, type BrushMaskResourceReferenceV1 } from '../../imaging/brush-mask-resource-v1.ts';
-import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
+import { replaceImageDevelopLocalMasksCurrentV1 } from '../../imaging/image-develop-mask-management-current-v1.ts';
 import type { BrushMaskPointV1, BrushMaskStrokeV1 } from '../../imaging/brush-mask-plane-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
@@ -17,18 +17,18 @@ import './photo-develop-brush-mask.css';
 
 export interface PhotoDevelopBrushMaskDialogPropsV1 {
 	readonly port: Readonly<PhotoLibraryDevelopMaskRasterPortV1>;
-	readonly develop: PhotoLibraryDevelopSettingsV2;
+	readonly develop: ImageDevelopStateCurrentV1;
 	readonly locale: string;
 	readonly disabled?: boolean;
 	readonly isCurrent: () => boolean;
-	readonly onApply: (value: PhotoLibraryDevelopSettingsV2, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
+	readonly onApply: (value: ImageDevelopStateCurrentV1, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly onClose: () => void;
 	readonly registerRetirement?: (retire: () => Promise<void>) => () => void;
 }
 type Form = Readonly<{ maskId: string; width: string; height: string; mode: 'paint' | 'erase'; radius: string; hardness: string; opacity: string;
 	x: string; y: string; bindings: readonly string[]; enabled: Readonly<Record<string, boolean>>; showOverlay: boolean; overlayEffect: string }>;
 type Request = Readonly<{ width: number; height: number; reference?: Readonly<BrushMaskResourceReferenceV1>; epoch: number }>;
-type Graph = PhotoLibraryDevelopSettingsV2['masks'][number];
+type Graph = ImageDevelopStateCurrentV1['masks'][number];
 
 export default function PhotoDevelopBrushMaskDialogV1(props: PhotoDevelopBrushMaskDialogPropsV1) {
 	const text = photoDevelopBrushMaskCopy(props.locale), words = photoDevelopCopy(props.locale);
@@ -156,7 +156,7 @@ export default function PhotoDevelopBrushMaskDialogV1(props: PhotoDevelopBrushMa
 				const retainedNode = retained?.nodes[0], raster = retainedNode?.kind === 'raster';
 				const graph = { ...retained, schemaVersion: retained?.schemaVersion ?? 1, id: maskId, kind: retained?.kind ?? 'mask', inputs: [{ name: inputName, kind: raster ? 'raster' : 'alpha', sourceRef: receipt.reference.storageKey }],
 					nodes: [raster ? { id: nodeId, kind: 'raster', inputName, channel: 'alpha' } : { id: nodeId, kind: 'alpha', inputName }], outputNodeId: nodeId };
-				const value = normalizeImageDevelopStateV1OrV2({ ...props.develop, masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
+				const value = replaceImageDevelopLocalMasksCurrentV1(props.develop, { masks: [...props.develop.masks.filter(mask => mask.id !== maskId), graph],
 					maskBindings: [...props.develop.maskBindings.filter(binding => binding.maskId !== maskId && !form.bindings.includes(binding.effectId)), ...form.bindings.map(effectId => ({ effectId, maskId }))],
 					effects: props.develop.effects.map(effect => Object.hasOwn(form.enabled, effect.id) ? { ...effect, enabled: form.enabled[effect.id] } : effect) });
 				if (current()) Reflect.apply(props.onApply, props, [value, form.showOverlay ? Object.freeze({ maskId, effectId: form.overlayEffect }) : null]);
@@ -164,7 +164,7 @@ export default function PhotoDevelopBrushMaskDialogV1(props: PhotoDevelopBrushMa
 		} catch { if (current()) setFailure(true); }
 	};
 	const remove = () => { if (!interactive() || !form.maskId || !masks.some(mask => mask.id === form.maskId)) return;
-		const value = normalizeImageDevelopStateV1OrV2({ ...props.develop, masks: props.develop.masks.filter(mask => mask.id !== form.maskId), maskBindings: props.develop.maskBindings.filter(binding => binding.maskId !== form.maskId) });
+		const value = replaceImageDevelopLocalMasksCurrentV1(props.develop, { effects: props.develop.effects, masks: props.develop.masks.filter(mask => mask.id !== form.maskId), maskBindings: props.develop.maskBindings.filter(binding => binding.maskId !== form.maskId) });
 		Reflect.apply(props.onApply, props, [value, null]); };
 	const close = () => { if (!current()) return; void retire().then(() => { if (presentationCurrent()) Reflect.apply(props.onClose, props, []); })
 		.catch(() => { if (presentationCurrent()) setFailure(true); }); };
@@ -218,7 +218,7 @@ function brushGraph(graph: Graph): boolean {
 		|| !(node.kind === 'alpha' || node.kind === 'raster' && node.channel === 'alpha') || node.inputName !== input.name || node.kind !== input.kind) return false;
 	try { normalizeBrushMaskResourceReferenceV1(input.sourceRef); return true; } catch { return false; }
 }
-function initial(develop: PhotoLibraryDevelopSettingsV2, maskId: string, width: number, height: number): Form {
+function initial(develop: ImageDevelopStateCurrentV1, maskId: string, width: number, height: number): Form {
 	return { maskId, width: String(width), height: String(height), mode: 'paint', radius: '0.05', hardness: '0.8', opacity: '1', x: '0.5', y: '0.5',
 		bindings: develop.maskBindings.filter(binding => binding.maskId === maskId).map(binding => binding.effectId), enabled: {}, showOverlay: false, overlayEffect: '' };
 }

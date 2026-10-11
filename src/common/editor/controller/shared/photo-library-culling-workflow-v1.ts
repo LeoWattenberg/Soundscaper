@@ -12,12 +12,14 @@ import type { PhotoLibraryCullingNavigationContextV1, PhotoLibraryCullingNavigat
 
 export interface PhotoLibraryCullEditOptionsV1 { readonly signal?: AbortSignal; readonly advance?: Readonly<PhotoLibraryCullAdvanceRequestV1> }
 type ActionStatus = 'completed' | 'failed' | 'cancelled' | 'busy';
-type Action = (owner: PhotoLibrarySessionPortV2, signal: AbortSignal, current: SessionSlot) => Promise<void>;
-interface Owners {
-	readonly perform: (action: Action, signal?: AbortSignal) => Promise<ActionStatus>;
-	readonly publishPage: (current: SessionSlot, next: PhotoLibraryPageV1 | null) => PhotoLibraryPageV1 | null;
-	readonly getCurrent: () => SessionSlot | null;
-	readonly isCurrent: (current: SessionSlot) => boolean;
+type ScalarSession = Omit<PhotoLibrarySessionPortV2, 'develop'>;
+type ScalarSlot = Pick<SessionSlot, 'live' | 'page' | 'query' | 'savedCollectionId' | 'stackCollapsed'>;
+type Action<Slot extends ScalarSlot> = (owner: ScalarSession, signal: AbortSignal, current: Slot) => Promise<void>;
+interface Owners<Slot extends ScalarSlot> {
+	readonly perform: (action: Action<Slot>, signal?: AbortSignal) => Promise<ActionStatus>;
+	readonly publishPage: (current: Slot, next: PhotoLibraryPageV1 | null) => PhotoLibraryPageV1 | null;
+	readonly getCurrent: () => Slot | null;
+	readonly isCurrent: (current: Slot) => boolean;
 }
 const CHECK = AbortSignal.prototype.throwIfAborted, SIGNAL = AbortSignal.prototype, ABORTED = Object.getOwnPropertyDescriptor(SIGNAL, 'aborted')!.get!;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
@@ -78,7 +80,7 @@ function ids(page: PhotoLibraryPageV1): readonly string[] {
 		return field(row, 'id', 'photo culling row');
 	}));
 }
-function readPorts(owner: PhotoLibrarySessionPortV2): PhotoLibraryQueryNavigationPort {
+function readPorts(owner: ScalarSession): PhotoLibraryQueryNavigationPort {
 	const saved = data(owner, 'savedCollections');
 	return { readPage: pin(owner, 'readPage'), readQueryStep: pin(owner, 'readQueryStep'), readStackQueryStep: pin(owner, 'readStackQueryStep'),
 		readQueryStepV2: pin(owner, 'readQueryStepV2'), readStackQueryStepV2: pin(owner, 'readStackQueryStepV2'),
@@ -86,13 +88,13 @@ function readPorts(owner: PhotoLibrarySessionPortV2): PhotoLibraryQueryNavigatio
 }
 
 /** Coordinate an existing foreground action; no additional Session or read queue. */
-export function createPhotoLibraryCullingWorkflowV1({ perform, publishPage, getCurrent, isCurrent }: Owners) {
-	const refreshQuery = async (owner: PhotoLibrarySessionPortV2, signal: AbortSignal, current: SessionSlot) => {
+export function createPhotoLibraryCullingWorkflowV1<Slot extends ScalarSlot>({ perform, publishPage, getCurrent, isCurrent }: Owners<Slot>) {
+	const refreshQuery = async (owner: ScalarSession, signal: AbortSignal, current: Slot) => {
 		if (!current.query && !current.stackCollapsed && current.savedCollectionId === null) return current.live ? current.page : null;
 		const next = await readVisiblePage(owner, current, null, signal); check(signal);
 		return publishPage(current, next);
 	};
-	const updateRow = (updated: PhotoLibraryRowV1, current: SessionSlot) => {
+	const updateRow = (updated: PhotoLibraryRowV1, current: Slot) => {
 		const previous = current.page;
 		return publishPage(current, previous ? Object.freeze({ ...previous, cursor: null,
 			rows: Object.freeze(previous.rows.map(row => row.id === updated.id ? updated : row)) }) : null);

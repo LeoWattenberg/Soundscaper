@@ -40,7 +40,7 @@ export function detachPhotoLibraryImportGestureV2(files: unknown, options: unkno
 }
 
 /** Scope ACK observation to the one selected request; receipts outlive later refresh failures. */
-export async function executePhotoLibraryImportGestureV2(owner: PhotoLibrarySessionPortV2,
+export async function executePhotoLibraryImportGestureV2(owner: Pick<PhotoLibrarySessionPortV2, 'importFiles' | 'developImport'>,
 	draft: ReturnType<typeof detachPhotoLibraryImportGestureV2>, signal: AbortSignal, publish: () => void): Promise<void> {
 	let observing = true;
 	const request = { signal, ...(draft.settings === undefined ? {} : { settings: draft.settings }),
