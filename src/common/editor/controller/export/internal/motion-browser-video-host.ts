@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { MotionVideoHost } from '../motion-browser-video.ts';
 import { aggregateScapeErrors } from '../../../scape-abort.ts';
+import { assertMotionBrowserVideoProbeSafe } from './motion-browser-video-admission.ts';
 
 /** Use only browser-admitted codecs; the pinned muxer writes sequential fragmented containers. */
 export const motionBrowserVideoHost: MotionVideoHost = {
 	async supported(config) {
+		assertMotionBrowserVideoProbeSafe();
 		if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return false;
 		try { return (await VideoEncoder.isConfigSupported(config)).supported === true; } catch { return false; }
 	},

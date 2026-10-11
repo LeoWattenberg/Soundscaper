@@ -26,5 +26,10 @@ export default defineConfig({
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure',
 	},
-	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+	projects: [
+		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+		// Qualify this bounded workflow before widening the local engine matrix.
+		{ name: 'firefox', testMatch: '**/motionscaper-platform.spec.ts', use: { ...devices['Desktop Firefox'], browserName: 'firefox', deviceScaleFactor: 1 } },
+		{ name: 'webkit', testMatch: '**/motionscaper-platform.spec.ts', use: { ...devices['Desktop Safari'], browserName: 'webkit', deviceScaleFactor: 1 } },
+	],
 });
