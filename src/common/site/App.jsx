@@ -1,3 +1,4 @@
+/* global __SCAPE_FRAMESCAPER_LINE__ */
 import { Suspense } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
@@ -19,6 +20,9 @@ import './site.css';
 // output property for both product builds.
 const EditorBootstrap = __SCAPE_PRODUCT__ === 'motionscaper'
 	? lazyEditorModule(() => import('../../motionscaper/MotionscaperBootstrap.tsx')
+		.then((module) => { editorStartupProgress.markPreparing(); return module; }))
+	: __SCAPE_PRODUCT__ === 'framescaper' && __SCAPE_FRAMESCAPER_LINE__ === 'successor'
+	? lazyEditorModule(() => import('../editor/ui/FramescaperSuccessorBootstrap.tsx')
 		.then((module) => { editorStartupProgress.markPreparing(); return module; }))
 	: __SCAPE_PRODUCT__ === 'framescaper'
 	? lazyEditorModule(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx')

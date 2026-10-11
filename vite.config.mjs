@@ -112,7 +112,7 @@ export default defineConfig({
 		createTranslationCatalogBundlePlugin(),
 		react(),
 		assertDesignSystemCssLayered(),
-		enforceStartupGraphBudgets(productId),
+		enforceStartupGraphBudgets(productId, { framescaperLine }),
 		...(productId === 'soundscaper' && desktopCodecComposition
 			? [emitDesktopRendererProductPublicAssets(import.meta.dirname, productId)]
 			: []),
