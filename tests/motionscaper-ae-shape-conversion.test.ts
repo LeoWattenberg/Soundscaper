@@ -120,3 +120,13 @@ test('Motion AE path direction requires captured forward semantics when a raw po
 	assert.ok(convert(direction('forward')).result);
 	for (const candidate of [direction('reversed'), direction('unavailable'), direction('forward', true)]) assert.equal(convert(candidate).result, null);
 });
+
+test('Motion AE neutral modern stroke taper/wave controls preserve paint while active or animated controls refuse', () => {
+	const root = exportRoot();
+	const modified = (amount: number): MotionAeProperty => {
+		const walk = (item: MotionAeProperty): MotionAeProperty => item.kind !== 'group' ? item : { ...item, children: [...item.children.map(walk),
+			...(item.matchName === 'ADBE Vector Graphic - Stroke' ? [group('ADBE Vector Stroke Taper', [num('ADBE Vector Taper Start Length', [0]), num('ADBE Vector Taper End Length', [0])]), group('ADBE Vector Stroke Wave', [num('ADBE Vector Taper Wave Amount', [amount])])] : [])] };
+		return walk(root);
+	};
+	assert.ok(convert(modified(0)).result); assert.equal(convert(modified(10)).result, null);
+});

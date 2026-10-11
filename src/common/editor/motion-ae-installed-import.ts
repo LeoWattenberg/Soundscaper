@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { applyMotionAeHostShapes } from './motion-ae-host-apply-shape.ts';
+import { chooseMotionAeShapeProfile } from './motion-ae-installed-shape-profile.ts';
+import type { MotionAeShapeProfile } from './motion-ae-host-shape-profile.ts';
 import { applyMotionAeInstalledText, verifyMotionAeInstalledTextFont } from './motion-ae-installed-text.ts';
 import { prepareMotionAeHostImport, type MotionAeImportFootage, type MotionAeImportNumeric, type MotionAeImportPlan } from './motion-ae-host-import-plan.ts';
 import { importMotionAeHostPlan, type MotionAeImportHost, type MotionAeImportTransaction } from './motion-ae-host-import.ts';
@@ -8,9 +11,9 @@ interface AeFolder { readonly fsName: string; readonly alias: boolean }
 interface AeFile { readonly exists: boolean; readonly length: number; readonly alias: boolean; readonly fsName: string; readonly parent: AeFolder; encoding: string; open(mode: string): boolean; read(count?: number): string; close(): boolean }
 interface AeItem { name: string; parentFolder: AeItem; remove(): void }
 interface AeProperty {
-	readonly value: unknown; readonly numKeys: number; property(name: string): AeProperty;
+	readonly value: unknown; readonly numKeys: number; readonly numProperties: number; readonly propertyIndex: number; readonly canSetEnabled: boolean; enabled: boolean; property(name: string | number): AeProperty;
 	name: string; addProperty(name: string): AeProperty; maskMode: unknown; inverted: boolean; rotoBezier: boolean; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
-	setValue(value: unknown): void; setValueAtTime(time: number, value: number | readonly number[] | MotionAeShape): void;
+	setValue(value: unknown): void; setValueAtTime(time: number, value: unknown): void;
 	setInterpolationTypeAtKey(index: number, incoming: unknown, outgoing: unknown): void;
 	setTemporalEaseAtKey(index: number, incoming: readonly unknown[], outgoing: readonly unknown[]): void;
 	setTemporalAutoBezierAtKey(index: number, value: boolean): void; setTemporalContinuousAtKey(index: number, value: boolean): void;
@@ -22,7 +25,7 @@ interface AeLayer {
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
 	setTrackMatte?(source: AeLayer, type: unknown): void;
 }
-interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { add(item: AeItem): AeLayer; addNull(duration: number): AeLayer; addBoxText(size: readonly number[], text: string): AeLayer } }
+interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { addShape(): AeLayer; add(item: AeItem): AeLayer; addNull(duration: number): AeLayer; addBoxText(size: readonly number[], text: string): AeLayer } }
 interface AeProject {
 	readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: number;
 	readonly items: { addFolder(name: string): AeItem; addComp(name: string, width: number, height: number, aspect: number, duration: number, frameRate: number): AeComposition };
@@ -86,7 +89,7 @@ function applyProperty(target: AeProperty, property: MotionAeImportNumeric): voi
 	}
 	if (property.spatial) for (let index = 1; index < property.keys.length - 1; index++) target.setRovingAtKey(index + 1, property.keys[index]!.roving);
 }
-function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPlan): MotionAeImportTransaction {
+function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPlan, shapeProfile: MotionAeShapeProfile | null): MotionAeImportTransaction {
 	app.beginUndoGroup('Import Motionscaper exchange'); let folder: AeItem;
 	try { folder = project.items.addFolder('Motionscaper ' + plan.transferId); } catch (error) { app.endUndoGroup(); throw error; }
 	const created: AeItem[] = [folder], items: Record<string, AeItem> = {}, comps: Record<string, AeComposition> = {}, layers: Record<string, AeLayer> = {}; let ended = false;
@@ -100,12 +103,18 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 			comp.displayStartTime = item.displayStartTime; comp.bgColor = item.background; comps[item.id] = comp; items[item.id] = comp;
 		},
 		layer: (comp, item) => {
-			const target = comps[comp.id]!, layer = item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
+			const target = comps[comp.id]!, layer = item.shapes ? target.layers.addShape() : item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
 			layers[item.id] = layer; layer.name = item.name; layer.threeDLayer = item.threeD; layer.stretch = item.stretch; layer.startTime = item.startTime;
 			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled; if (plan.muteAudio) layer.audioEnabled = false;
 		},
 		parent: (item) => { layers[item.id]!.setParentWithJump(layers[item.parentId!]!); },
 		properties: (item) => {
+			if (item.shapes) {
+				if (!shapeProfile) throw new Error('Choose a reviewed shape profile before creating editable shapes.');
+				applyMotionAeHostShapes(layers[item.id]!.property('ADBE Root Vectors Group'), item.shapes, shapeProfile, { hold: KeyframeInterpolationType.HOLD, linear: KeyframeInterpolationType.LINEAR, shape: (input) => {
+					const shape = new Shape(); shape.closed = input.closed; shape.vertices = input.vertices; shape.inTangents = input.inTangents; shape.outTangents = input.outTangents; return shape;
+				} });
+			}
 			if (item.text) applyMotionAeInstalledText(layers[item.id]!.property('ADBE Text Properties').property('ADBE Text Document'), item.text);
 			if (item.matte) {
 				const target = layers[item.id]!, source = layers[item.matte.layerId]!;
@@ -151,17 +160,19 @@ export function runMotionAeInstalledImport(): void {
 		if (file.alias || file.length > 16_777_216) throw new Error('Exchange manifest is aliased or exceeds its byte budget.');
 		file.encoding = 'UTF-8'; if (!file.open('r')) throw new Error('Cannot read the exchange manifest.'); let json: string;
 		try { json = file.read(); } catch (error) { closeOnError(file, error); } if (!file.close()) throw new Error('Cannot close exchange manifest.');
-		const plan = prepareMotionAeHostImport(json);
+		const plan = prepareMotionAeHostImport(json); let needsShapes = false;
 		for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
+			if (plan.compositions[comp]!.layers[index]!.shapes) needsShapes = true;
 			const text = plan.compositions[comp]!.layers[index]!.text; if (text) verifyMotionAeInstalledTextFont(text.font);
 			if (plan.compositions[comp]!.layers[index]!.matte && !(parseFloat(app.version) >= 23)) throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
 		}
+		const shapeProfile = needsShapes ? chooseMotionAeShapeProfile() : null; if (needsShapes && !shapeProfile) return;
 		if (project.workingSpace !== plan.color.workingSpace || project.linearBlending !== plan.color.linearBlending || project.bitsPerChannel !== plan.color.bitsPerChannel) throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
 		let warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';
 		for (let index = 0; index < Math.min(plan.warnings.length, 8); index++) warning += '\n\n' + plan.warnings[index];
 		if (plan.warnings.length > 8) warning += '\n\nAdditional warnings: ' + String(plan.warnings.length - 8);
 		if (!confirm(warning + '\n\nCreate this separate imported folder?')) return;
-		const host: MotionAeImportHost = { checkCancelled: () => {}, verifyMedia: (items) => verifyMedia(file.parent, items), begin: (input) => beginImport(project, file.parent, input) };
+		const host: MotionAeImportHost = { checkCancelled: () => {}, verifyMedia: (items) => verifyMedia(file.parent, items), begin: (input) => beginImport(project, file.parent, input, shapeProfile) };
 		importMotionAeHostPlan(plan, host); alert('Exchange imported into a new Motionscaper folder. Original files were not saved. Review unsupported content and compare reference frames; actual AE qualification remains pending.');
 	} catch (error) { alert('Motionscaper import did not complete: ' + String(error)); }
 }

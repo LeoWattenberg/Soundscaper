@@ -4,7 +4,7 @@ import type { MotionAeProperty } from './motion-ae-exchange-types.ts';
 import { convertMotionAeNumericProperty } from './motion-ae-property-conversion.ts';
 import { exportMotionAeNumeric } from './motion-ae-export-property.ts';
 import { motionPropertyOfKind, type MotionColorProperty, type MotionScalarProperty } from './motion-property.ts';
-import { shapeFields, shapeGroupRecord, shapeNumber, shapeNumeric, shapeStatic, UnsupportedAeShape, type ShapeGroup } from './motion-ae-shape-transform.ts';
+import { shapeFields, shapeGroup, shapeGroupRecord, shapeNumber, shapeNumeric, shapeStatic, UnsupportedAeShape, type ShapeGroup } from './motion-ae-shape-transform.ts';
 import type { Rational } from './timeline-time.ts';
 const styleFields = ['ADBE Vector Blend Mode', 'ADBE Vector Composite Order'];
 export function assertNormalAeVector(group: ShapeGroup): void {
@@ -20,7 +20,7 @@ function scalar(group: ShapeGroup, name: string, rate: Rational, scale: number, 
 }
 export function convertAeShapePaint(group: ShapeGroup, rate: Rational, scale: number): Readonly<{ fill: MotionShape['fill']; stroke: MotionShape['stroke']; quantizedClock: boolean }> {
 	assertNormalAeVector(group); const stroke = group.matchName === 'ADBE Vector Graphic - Stroke', label = stroke ? 'Stroke' : 'Fill';
-	const fields = shapeFields(group, [...styleFields, `ADBE Vector ${label} Color`, `ADBE Vector ${label} Opacity`, ...(stroke ? ['ADBE Vector Stroke Width', 'ADBE Vector Stroke Line Cap', 'ADBE Vector Stroke Line Join', 'ADBE Vector Stroke Miter Limit', 'ADBE Vector Stroke Dashes'] : ['ADBE Vector Fill Rule'])]);
+	const fields = shapeFields(group, [...styleFields, `ADBE Vector ${label} Color`, `ADBE Vector ${label} Opacity`, ...(stroke ? ['ADBE Vector Stroke Width', 'ADBE Vector Stroke Line Cap', 'ADBE Vector Stroke Line Join', 'ADBE Vector Stroke Miter Limit', 'ADBE Vector Stroke Dashes', 'ADBE Vector Stroke Taper', 'ADBE Vector Stroke Wave'] : ['ADBE Vector Fill Rule'])]);
 	const raw = fields.get(`ADBE Vector ${label} Color`);
 	if (raw?.kind !== 'numeric' || (raw.value.length !== 3 && raw.value.length !== 4)) throw new UnsupportedAeShape('Captured solid RGB/RGBA color is required.');
 	const rgb = shapeStatic(fields, raw.matchName, raw.value.length);
@@ -38,6 +38,15 @@ export function convertAeShapePaint(group: ShapeGroup, rate: Rational, scale: nu
 	if (shapeStatic(fields, 'ADBE Vector Stroke Miter Limit')[0] !== 4) throw new UnsupportedAeShape('Only the Motion miter limit of four is editable.');
 	const dashes = fields.get('ADBE Vector Stroke Dashes');
 	if (dashes && (dashes.kind !== 'group' || dashes.children.length)) throw new UnsupportedAeShape('Dashed, tapered or waved strokes require an explicit mapping.');
+	for (const [name, neutral, allowed] of [
+		['ADBE Vector Stroke Taper', ['ADBE Vector Taper Start Length', 'ADBE Vector Taper End Length'], ['ADBE Vector Taper Start Width', 'ADBE Vector Taper Length Units', 'ADBE Vector Taper End Width', 'ADBE Vector Taper End Ease', 'ADBE Vector Taper End Length', 'ADBE Vector Taper Start Length', 'ADBE Vector Taper Start Ease']],
+		['ADBE Vector Stroke Wave', ['ADBE Vector Taper Wave Amount'], ['ADBE Vector Taper Wave Amount', 'ADBE Vector Taper Wave Units', 'ADBE Vector Taper Wave Phase', 'ADBE Vector Taper Wavelength']],
+	] as const) {
+		const raw = fields.get(name); if (!raw) continue;
+		const controls = shapeFields(shapeGroup(raw, name), allowed);
+		for (const key of controls.keys()) shapeStatic(controls, key);
+		for (const key of neutral) if (shapeStatic(controls, key)[0] !== 0) throw new UnsupportedAeShape('Nonzero stroke taper lengths or wave amount require a separate mapping.');
+	}
 	const width = scalar(group, 'ADBE Vector Stroke Width', rate, scale, 0, 32768 / scale);
 	return { fill: null, stroke: { color, width: width.property, lineCap: cap, lineJoin: join }, quantizedClock: alpha.quantizedClock || width.quantizedClock };
 }

@@ -38,10 +38,13 @@ and gives profile/rendered-fallback guidance. A raw path-direction override is
 editable only when the selected profile establishes its forward interpretation.
 Profile data is closed, inert JSON bounded to 8 KiB. It executes no source code.
 
-The installed-host importer remains profile-gated staging until its separate
-shape-creation adapter is admitted. Project conversion alone does not establish
-host application. Source-preserving fallback and the unsupported ledger remain
-available while this adapter is completed.
+The installed-host importer preflights named shape operations and asks for a
+matching profile before creating any items. It creates a fresh shape layer and
+ordered path/paint groups; reads popup values back after applying them; applies
+static similarity transforms and hold/linear path, opacity and width keys; and
+sets neutral taper/wave controls on new strokes. Rejected controls trigger the
+existing transaction rollback, removing only newly created items. Unsupported
+shape intent remains in the source-preserving fallback and conversion ledger.
 
 The host identity and enable-switch authority come from the published
 [Application](https://ae-scripting.docsforadobe.dev/general/application/) and
@@ -52,7 +55,9 @@ documentation.
 
 Node tests exercise project roundtrips, actual CanvasKit painter-order/alpha
 pixels, closed profile admission, calibration ownership, generated ES3 execution,
-cancellation, overwrite refusal and cleanup errors. These are automated contract
+cancellation, overwrite refusal and cleanup errors. The browser workflow imports
+a structural shape fixture, paints actual half-alpha pixels, saves/reopens the
+project and verifies editable reverse operations plus original exchange custody. These are automated contract
 checks, not installed-AE qualification. No AE installation was used to obtain
 actual popup values or compare reference frames. Installed-AE shape rendering,
 color/alpha/edge fidelity, UI labels, cancellation and platform behavior remain

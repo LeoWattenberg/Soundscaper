@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import importPath from './ae-bridge/motion-ae-host-import-path.jsxinc?raw';
+import importShape from './ae-bridge/motion-ae-host-import-shape.jsxinc?raw';
+import applyShape from './ae-bridge/motion-ae-host-apply-shape.jsxinc?raw';
 import shapeProfile from './ae-bridge/motion-ae-host-shape-profile.jsxinc?raw';
 import shapeCalibration from './ae-bridge/motion-ae-host-shape-calibration.jsxinc?raw';
 import installedShapeProfile from './ae-bridge/motion-ae-installed-shape-profile.jsxinc?raw';
@@ -37,6 +40,9 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 		'Motionscaper-Prepare-Shape-Profile.jsx': prepareShapes,
 		'Motionscaper-Capture-Shape-Profile.jsx': captureShapes,
 		'motion-ae-host-shape-profile.jsxinc': shapeProfile,
+		'motion-ae-host-import-path.jsxinc': importPath,
+		'motion-ae-host-import-shape.jsxinc': importShape,
+		'motion-ae-host-apply-shape.jsxinc': applyShape,
 		'motion-ae-host-shape-calibration.jsxinc': shapeCalibration,
 		'motion-ae-installed-shape-profile.jsxinc': installedShapeProfile,
 		'Motionscaper-Export-Sampled.jsx': sampledExporter,
@@ -75,7 +81,8 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'To export a Motion-authored project, open File > After Effects Bridge, review Export Current Project to AE and download the package. It contains original.mscape, every original asset, the partial editable manifest and its omission report. The source archive is limited to 128 MiB and the final package to 256 MiB. Motion-authored transfers are video-only: the importer mutes every new layer.\n'
 			+ 'For a limited AE re-import, use Run Script File with Motionscaper-Import.jsx and choose motionae.json.\n'
 			+ 'The importer creates a new folder with compositions, footage, null layers, parent links and transform keys/easing. Existing project items and files are not overwritten or saved.\n'
-			+ 'Shapes, solid sources, cameras and lights are not yet admitted by this importer. Render complete compositions in AE when unsupported content is required.\n'
+			+ 'Solid sources, cameras and lights are not yet admitted by this importer. Render complete compositions in AE when unsupported content is required.\n'
+			+ 'Editable shapes require a separately selected reviewed profile for this exact AE host before any items are created. Each path plus one solid fill/stroke becomes an ordered group. Named blend/fill/cap/join/direction semantics use only that profile; no numeric popup values are inferred. Animated paths/opacity/width admit hold/linear keys. Gradients, operators, non-neutral taper/waves, dashes, compound paths and unsupported transforms require fallback.\n'
 			+ 'Editable paragraph text requires AE 24.6+, explicit reviewed reflow and one real non-variable installed font for each selected PostScript name. Mixed styles, text animation, stroke, point/vertical text and unavailable style metadata require fallback. Font bytes remain in original.mscape; this script never installs fonts.\n'
 			+ 'Captured hard-edge masks preserve editable paths, opacity, inversion and supported operations. Feather, expansion, RotoBezier, variable feather and path easing require rendered fallback. Track mattes use source IDs and require AE 23 or newer; unsupported source-visibility spans need rendered fallback. Expressions are never activated. Unmapped effects/blends produce warnings. The importer requires matching destination color settings and verifies declared media byte lengths and SHA-256 digests.\n'
 			+ 'Read all unsupported reports in motionae.json. Text runs, mask attributes, solids, footage interpretation and plug-ins need further mapping.\n'

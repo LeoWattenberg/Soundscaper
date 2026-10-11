@@ -1,0 +1,169 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostImportShape = (function () {
+var readMotionAeImportPath = MotionAeHostImportPath.readMotionAeImportPath;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
+function record(value) { if (!value || typeof value !== 'object' || Object.prototype.toString.call(value) === '[object Array]')
+    throw new Error('AE shape requires a record.'); return value; }
+function array(value, maximum) { if (Object.prototype.toString.call(value) !== '[object Array]' || value.length > maximum)
+    throw new Error('AE shape array budget exceeded.'); return value; }
+function group(value, matchName, budget, active) {
+    if (active === void 0) { active = false; }
+    var item = record(value);
+    if (++budget.properties > 65536)
+        throw new Error('AE import property budget exceeded.');
+    if (item.kind !== 'group' || item.matchName !== matchName || (active && item.enabled !== true))
+        throw new Error('AE shape requires captured active ' + matchName);
+    return item;
+}
+function fields(value, allowed, budget) {
+    var children = array(value.children, allowed.length), result = {};
+    for (var index = 0; index < children.length; index++) {
+        if (++budget.properties > 65536)
+            throw new Error('AE import property budget exceeded.');
+        var child = record(children[index]);
+        var name = void 0;
+        for (var candidate = 0; candidate < allowed.length; candidate++)
+            if (child.matchName === allowed[candidate])
+                name = allowed[candidate];
+        if (name === undefined || result[name])
+            throw new Error('AE shape has unsupported or duplicated controls.');
+        result[name] = child;
+    }
+    return result;
+}
+function style(value, normal) {
+    if (normal === void 0) { normal = true; }
+    var result = record(value.vectorStyle);
+    if (normal && result.blendMode !== 'normal')
+        throw new Error('AE shape needs reviewed normal vector blending.');
+    return result;
+}
+/** Only explicit named semantics are admitted. Raw popup values never become host write authority. */
+function readMotionAeImportShapes(input, warnings, budget, readNumeric) {
+    var roots = array(input, 65536);
+    var root;
+    for (var i = 0; i < roots.length; i++) {
+        var item = record(roots[i]);
+        if (item.matchName !== 'ADBE Root Vectors Group')
+            continue;
+        if (root)
+            throw new Error('AE shape has duplicate roots.');
+        root = group(item, 'ADBE Root Vectors Group', budget);
+    }
+    if (!root)
+        throw new Error('AE shape root is missing.');
+    var rawGroups = array(root.children, 1024), result = [];
+    function numeric(field, dimensions, animated, min, max) {
+        if (min === void 0) { min = -1e12; }
+        if (max === void 0) { max = 1e12; }
+        if (!field || field.kind !== 'numeric' || field.samples !== undefined || (field.expression !== null && record(field.expression).enabled !== false))
+            throw new Error('AE shape numeric control requires authored values without samples or enabled expressions.');
+        var value = readNumeric(field, warnings, budget);
+        if (value.spatial || value.value.length !== dimensions || (!animated && value.keys.length))
+            throw new Error('AE shape numeric control dimensions/animation are unsupported.');
+        var check = function (values) { for (var i = 0; i < values.length; i++)
+            if (values[i] < min || values[i] > max)
+                throw new Error('AE shape value is outside its supported range.'); };
+        check(value.value);
+        for (var i = 0; i < value.keys.length; i++) {
+            var key = value.keys[i];
+            check(key.value);
+            if (key.inInterpolation === 'bezier' || key.outInterpolation === 'bezier' || key.roving)
+                throw new Error('AE shape easing needs explicit baked keys.');
+        }
+        return value;
+    }
+    function rawPopup(source, name) { if (source[name])
+        numeric(source[name], 1, false); }
+    for (var i = 0; i < rawGroups.length; i++) {
+        var item = group(rawGroups[i], 'ADBE Vector Group', budget, true);
+        style(item);
+        if (typeof item.name !== 'string' || item.name.length > 1024)
+            throw new Error('AE shape name exceeds its budget.');
+        var parts = fields(item, ['ADBE Vectors Group', 'ADBE Vector Transform Group', 'ADBE Vector Blend Mode'], budget);
+        rawPopup(parts, 'ADBE Vector Blend Mode');
+        var content = group(parts['ADBE Vectors Group'], 'ADBE Vectors Group', budget), children = array(content.children, 2);
+        if (children.length !== 2)
+            throw new Error('AE shape requires one path followed by one paint.');
+        var pathGroup = group(children[0], 'ADBE Vector Shape - Group', budget, true), pathFields = fields(pathGroup, ['ADBE Vector Shape', 'ADBE Vector Shape Direction'], budget);
+        if (style(pathGroup, false).pathDirection !== 'forward')
+            throw new Error('AE shape needs explicit forward path direction.');
+        rawPopup(pathFields, 'ADBE Vector Shape Direction');
+        var path = readMotionAeImportPath(pathFields['ADBE Vector Shape'], budget);
+        var rawPaint = record(children[1]), stroke = rawPaint.matchName === 'ADBE Vector Graphic - Stroke', label = stroke ? 'Stroke' : 'Fill';
+        var paint = group(rawPaint, 'ADBE Vector Graphic - ' + label, budget, true), paintStyle = style(paint);
+        var paintFields = fields(paint, __spreadArray(['ADBE Vector Blend Mode', 'ADBE Vector Composite Order', 'ADBE Vector ' + label + ' Color', 'ADBE Vector ' + label + ' Opacity'], (stroke ? ['ADBE Vector Stroke Width', 'ADBE Vector Stroke Miter Limit', 'ADBE Vector Stroke Line Cap', 'ADBE Vector Stroke Line Join', 'ADBE Vector Stroke Dashes', 'ADBE Vector Stroke Taper', 'ADBE Vector Stroke Wave'] : ['ADBE Vector Fill Rule']), true), budget);
+        rawPopup(paintFields, 'ADBE Vector Blend Mode');
+        rawPopup(paintFields, 'ADBE Vector Composite Order');
+        var rawColor = paintFields['ADBE Vector ' + label + ' Color'], colorLength = array(rawColor === null || rawColor === void 0 ? void 0 : rawColor.value, 4).length;
+        if (colorLength !== 3 && colorLength !== 4)
+            throw new Error('AE shape requires solid RGB color.');
+        var color = numeric(rawColor, colorLength, false, 0, 1).value;
+        if (colorLength === 4 && color[3] !== 1)
+            throw new Error('AE shape color alpha must use its separate opacity control.');
+        var opacity = numeric(paintFields['ADBE Vector ' + label + ' Opacity'], 1, true, 0, 100);
+        var width = null, lineCap = null, lineJoin = null;
+        if (stroke) {
+            width = numeric(paintFields['ADBE Vector Stroke Width'], 1, true, 0, 32768);
+            if (numeric(paintFields['ADBE Vector Stroke Miter Limit'], 1, false).value[0] !== 4)
+                throw new Error('AE shape miter limit must be four.');
+            if (paintStyle.lineCap !== 'butt' && paintStyle.lineCap !== 'round' && paintStyle.lineCap !== 'square')
+                throw new Error('AE shape line cap is unavailable.');
+            lineCap = paintStyle.lineCap;
+            if (paintStyle.lineJoin !== 'miter' && paintStyle.lineJoin !== 'round' && paintStyle.lineJoin !== 'bevel')
+                throw new Error('AE shape line join is unavailable.');
+            lineJoin = paintStyle.lineJoin;
+            rawPopup(paintFields, 'ADBE Vector Stroke Line Cap');
+            rawPopup(paintFields, 'ADBE Vector Stroke Line Join');
+            var dashes = paintFields['ADBE Vector Stroke Dashes'];
+            if (dashes && (dashes.kind !== 'group' || array(dashes.children, 0).length))
+                throw new Error('AE shape dashes are unsupported.');
+            var taper = paintFields['ADBE Vector Stroke Taper'], wave = paintFields['ADBE Vector Stroke Wave'];
+            if (taper) {
+                var controls = fields(group(taper, 'ADBE Vector Stroke Taper', budget), ['ADBE Vector Taper Start Width', 'ADBE Vector Taper Length Units', 'ADBE Vector Taper End Width', 'ADBE Vector Taper End Ease', 'ADBE Vector Taper End Length', 'ADBE Vector Taper Start Length', 'ADBE Vector Taper Start Ease'], budget);
+                for (var key in controls)
+                    if (Object.prototype.hasOwnProperty.call(controls, key))
+                        numeric(controls[key], 1, false);
+                if (numeric(controls['ADBE Vector Taper Start Length'], 1, false).value[0] !== 0 || numeric(controls['ADBE Vector Taper End Length'], 1, false).value[0] !== 0)
+                    throw new Error('AE shape taper must be neutral.');
+            }
+            if (wave) {
+                var controls = fields(group(wave, 'ADBE Vector Stroke Wave', budget), ['ADBE Vector Taper Wave Amount', 'ADBE Vector Taper Wave Units', 'ADBE Vector Taper Wave Phase', 'ADBE Vector Taper Wavelength'], budget);
+                for (var key in controls)
+                    if (Object.prototype.hasOwnProperty.call(controls, key))
+                        numeric(controls[key], 1, false);
+                if (numeric(controls['ADBE Vector Taper Wave Amount'], 1, false).value[0] !== 0)
+                    throw new Error('AE shape wave must be neutral.');
+            }
+        }
+        else {
+            if (paintStyle.fillRule !== 'nonzero')
+                throw new Error('AE shape needs nonzero fill rule.');
+            rawPopup(paintFields, 'ADBE Vector Fill Rule');
+        }
+        var transformNames = ['ADBE Vector Anchor', 'ADBE Vector Position', 'ADBE Vector Scale', 'ADBE Vector Rotation', 'ADBE Vector Skew', 'ADBE Vector Skew Axis', 'ADBE Vector Group Opacity'];
+        var transformFields = fields(group(parts['ADBE Vector Transform Group'], 'ADBE Vector Transform Group', budget), transformNames, budget), transform = [];
+        for (var index = 0; index < transformNames.length; index++)
+            transform.push(numeric(transformFields[transformNames[index]], index < 3 ? 2 : 1, false));
+        if (transform[2].value[0] <= 0 || transform[2].value[0] !== transform[2].value[1] || transform[4].value[0] !== 0 || transform[6].value[0] !== 100)
+            throw new Error('AE shape supports only positive similarity group transforms.');
+        result.push({ name: item.name, path: path, transform: transform, paint: { kind: stroke ? 'stroke' : 'fill', color: color, opacity: opacity, width: width, lineCap: lineCap, lineJoin: lineJoin } });
+    }
+    if (!result.length)
+        throw new Error('AE editable shape has no paint groups.');
+    return result;
+}
+
+return { readMotionAeImportShapes: readMotionAeImportShapes };
+}());
