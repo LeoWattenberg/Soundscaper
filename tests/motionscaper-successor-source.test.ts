@@ -9,6 +9,8 @@ import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-pro
 import { validateFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { framescaperSuccessorBaselineProject } from '../src/framescaper/editor-project-successor-commands.ts';
+import { framescaperSuccessorMediaRootDocument } from '../src/framescaper/editor-project-successor-media-roots.ts';
+import { createFramescaperSuccessorHistory } from '../src/framescaper/editor-project-successor-history.ts';
 import { createProjectVisualService, type ProjectVisualServiceDependencies } from '../src/common/editor/controller/document/project-visual-service.ts';
 function fixture() {
 	const motion = createMotionscaperProject({ id: 'motion', title: 'Motion', compositionId: 'title', frameRate: { num: 30000, den: 1001 }, durationFrames: 3 });
@@ -63,6 +65,7 @@ test('composition audio companion retains its native sample grid and refuses des
 	assert.equal(linked.audioSource.frameCount, 4415); assert.equal(linked.audioSource.channelCount, 2); assert.equal(linked.audioSource.chunkFrames, 4096);
 	assert.equal(linked.source.hasAudio, false); // The stable companion permits silence now and audio in a later saved revision.
 	const project = { ...createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ id: 'frame', sources: [linked.source, linked.audioSource] }), compositionLinks: [linked.link] };
+	assert.deepEqual(framescaperSuccessorMediaRootDocument(createFramescaperSuccessorHistory(project)).sources, []);
 	assert.equal(resolveFramescaperCompositionAudioSource(project, linked.audioSource)?.offer.revision.digest, linked.offer.revision.digest);
 	assert.throws(() => resolveFramescaperCompositionAudioSource(project, { ...linked.audioSource, frameCount: 4414 }), /descriptor|contract/iu);
 	assert.throws(() => resolveFramescaperCompositionAudioSource({ ...project, compositionLinks: [] }, linked.audioSource), /link|authority/iu);

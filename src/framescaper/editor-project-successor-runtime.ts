@@ -26,7 +26,7 @@ export function createFramescaperSuccessorRuntime(options: Readonly<{ line: unkn
 		cloneProject: custody.cloneProject, historyForSnapshot: custody.historyForSnapshot, retainStoredHistory: custody.retainStoredHistory,
 		compactProjectSourceMetadata: (value: unknown, compact: Readonly<{ preserveSourceIds: Iterable<string> }>) => {
 			const project = normalizeFramescaperSuccessorProject(value);
-			const preserveSourceIds = new Set([...compact.preserveSourceIds, ...project.compositionLinks.map(({ sourceId }) => sourceId)]);
+			const preserveSourceIds = new Set([...compact.preserveSourceIds, ...project.compositionLinks.flatMap(({ sourceId, audioSourceId }) => audioSourceId ? [sourceId, audioSourceId] : [sourceId])]);
 			const applied = baseline.compactProjectSourceMetadata(framescaperSuccessorBaselineProject(project), { preserveSourceIds });
 			return custody.retainCompactedSnapshot(value, normalizeFramescaperSuccessorProject({ ...applied, schemaVersion: 2, compositionLinks: project.compositionLinks }));
 		},
