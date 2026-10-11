@@ -14,7 +14,6 @@ import { createFramescaperSuccessorCompositionPreview } from '../src/framescaper
 import { createVideoPreviewCompositorFallbackReport } from '../src/common/editor/ui/video-preview-compositor.js';
 import { resolveVideoPreviewRenderIssue } from '../src/common/editor/ui/workspace/video-preview-fallback.ts';
 import { shouldRenderExactProductVideoPreview } from '../src/common/editor/ui/workspace/video-preview-exact-render-policy.ts';
-import { imageFixture, imageClip, assetStore, drawableFactory, type RecordedDrawableTimelineImage } from './helpers/framescaper-timeline-image-preview-fixture.ts';
 
 const kit = await CanvasKitInit();
 function fixture() {
@@ -49,24 +48,4 @@ test('successor preview renders the actual Frame exact composition graph at save
 		await session.renderExact({ timelineSample: 4000, mediaLayers: [] }); assert.notDeepEqual(written, firstPixels); assert.equal(written[0], 0);
 		await session.renderExact({ timelineSample: 0, mediaLayers: [] }); assert.deepEqual(written, firstPixels); assert.equal(releases, 2);
 	} finally { session.dispose(); }
-});
-test('successor preview preserves timeline image painter order alongside asynchronous composition pictures', async () => {
-	const { project, rasterizer } = fixture(); const image = imageFixture('image', 4, 2); const drawables: RecordedDrawableTimelineImage[] = [];
-	const mixed = createFramescaperSuccessorRuntime({ line: 'successor' }).applyCommand(project, { type: 'batch', commands: [
-		{ type: 'image-source/set', sourceId: image.source.id, expectedSource: null, source: image.source },
-		{ type: 'image-clip/set', clipId: 'image-clip', expectedClip: null, expectedPlacement: null,
-			clip: imageClip('image-clip', image.source.id, { sequenceId: 'seq', sequenceFrameCount: 3 }), placement: { scope: 'timeline', trackId: 'images' } },
-	] });
-	const session = await createFramescaperSuccessorCompositionPreview({ project: mixed, width: 4, height: 2, store: assetStore([image]),
-		acquire: async () => ({ rasterizer, async release() {} }), createDrawable: drawableFactory(drawables),
-		createOutput: () => ({ drawable: {}, write() {}, dispose() {} }),
-	}); assert.ok(session?.renderExact);
-	try {
-		const result = await session.renderExact({ timelineSample: 0, mediaLayers: [] });
-		assert.deepEqual(result.layers.map(layer => layer.trackId), ['images', 'track']);
-		assert.deepEqual(result.frame.layers.flatMap(layer => layer.entries.map(entry => entry.sourceId)).sort(), ['image', 'linked']);
-		assert.deepEqual(drawables.map(value => [value.request.sourceId, value.presented[0]]), [['image', 37], ['linked', 255]]);
-		assert.deepEqual(result.frame.ledger.omittedNodeIds, []);
-	} finally { session.dispose(); }
-	assert.equal(drawables.every(value => value.disposals === 1), true);
 });

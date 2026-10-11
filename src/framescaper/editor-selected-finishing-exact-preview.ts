@@ -26,6 +26,7 @@ import { createSelectedFinishingPreviewSamplePresentation } from './selected-fin
 import type { FramescaperCompositionFrameSource } from './editor-composition-link-frame-source.ts';
 import { framescaperCompositionCapture, framescaperCompositionFrameAddress } from './editor-composition-link-finishing-port.ts';
 import { videoPreviewSrgbBytes } from '../common/editor/video-preview-output-encoding.ts';
+import type { CreateFramescaperSupplementalPictureExecution, FramescaperSupplementalPictureExecution } from './selected-finishing-supplemental-picture-execution.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -65,12 +66,22 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 	readonly compositionFrames?: FramescaperCompositionFrameSource;
 	readonly openFx?: FramescaperSelectedOpenFxExecutionNativeMedia;
 	readonly createOutput?: (width: number, height: number) => PreviewOutputFinishing;
+	readonly createSupplementalPictureExecution?: CreateFramescaperSupplementalPictureExecution;
 }>): Promise<FramescaperSelectedExactPreviewFinishing> {
 	const output = (options.createOutput ?? createCanvasOutput)(
 		options.plan.output.canvas.width, options.plan.output.canvas.height,
 	);
 	const publishedLayers = outputLayers(output.drawable, options.plan);
 	let sourceFrames: FramescaperVideoFrameAddressFinishing | undefined;
+	let exactResource: Awaited<ReturnType<typeof createFramescaperSelectedExactFrameExecutionFinishing>> | undefined;
+	let supplemental: FramescaperSupplementalPictureExecution | null = null;
+	async function releaseExecutors(): Promise<void> {
+		const failures: unknown[] = [];
+		for (const resource of [supplemental, exactResource, sourceFrames]) {
+			try { await resource?.dispose(); } catch (error) { failures.push(error); }
+		}
+		if (failures.length) throw new AggregateError(failures, 'Selected finishing preview executor cleanup failed.');
+	}
 	try {
 		sourceFrames = await createTemporalSourceFrames(options);
 		const exact = await createFramescaperSelectedExactFrameExecutionFinishing({
@@ -81,6 +92,9 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 			...(options.openFx ? { openFx: options.openFx } : {}),
 			signal: options.signal, assertCurrent: options.assertCurrent,
 		});
+		exactResource = exact;
+		supplemental = await options.createSupplementalPictureExecution?.({ plan: options.plan, signal: options.signal, assertCurrent: options.assertCurrent }) ?? null;
+		options.signal.throwIfAborted(); options.assertCurrent();
 		const project = options.project as unknown as Data;
 		const clips = new Map(records(project.clips, 'Selected finishing preview clips')
 			.filter(({ kind }) => kind === 'video').map((clip) => [String(clip.id), clip]));
@@ -118,8 +132,12 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 				const layers = enrichMediaLayers(
 					request.mediaLayers, sequence, sample, clips, sources, presentation,
 				);
+				const supplementalPictures = await supplemental?.resolve({ sequencePosition: sequence,
+					width: options.plan.output.canvas.width, height: options.plan.output.canvas.height, signal: options.signal,
+				}) ?? [];
+				if (!Array.isArray(supplementalPictures)) throw new TypeError('Selected finishing preview supplemental pictures must be an array.');
 				const result = await exact.render({
-					sequencePosition: sequence, layers, timelineSample: sample,
+					sequencePosition: sequence, layers, supplementalPictures, timelineSample: sample,
 					outputOrdinal: outputAtSequencePosition(sequence, options.plan),
 					width: options.plan.output.canvas.width,
 					height: options.plan.output.canvas.height,
@@ -128,6 +146,7 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 				const finishing = options.plan.nodes.find(node => node.kind === 'finishing');
 				if (!finishing) throw new Error('Preview finishing output encoding is unavailable.');
 				const display = videoPreviewSrgbBytes(target, finishing.colorContext.outputSpace);
+				if (disposed) throw new DOMException('Selected finishing preview was disposed.', 'AbortError');
 				output.write(display);
 				return Object.freeze({
 					frame: exactFrameLedger(request.frame, result.consumedNodeIds),
@@ -145,16 +164,15 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 		function dispose(): void {
 			if (disposed) return;
 			disposed = true;
-			output.dispose();
-			void renderIdle.then(async () => {
-				await exact.dispose();
-				if (sourceFrames) await sourceFrames.dispose();
-			}).catch(() => undefined);
+			try { output.dispose(); }
+			finally { void renderIdle.then(releaseExecutors).catch(() => undefined); }
 		}
 		return Object.freeze({ render, dispose });
 	} catch (error) {
-		output.dispose();
-		if (sourceFrames) await sourceFrames.dispose();
+		const failures = [error];
+		try { output.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
+		try { await releaseExecutors(); } catch (cleanupError) { failures.push(cleanupError); }
+		if (failures.length > 1) throw new AggregateError(failures, 'Selected finishing preview startup and cleanup failed.', { cause: error });
 		throw error;
 	}
 }

@@ -186,8 +186,13 @@ Chromium workflow verifies complete CPU finishing preview for retained linked
 compositions when WebGL is unavailable or loses its context, context restoration,
 offline receiver reload, and clearing the picture for a new document. Preview
 converts declared Rec.709 finishing bytes to sRGB without changing delivery bytes.
-This CPU qualification currently covers linked scenes with ordinary decoded
-media; mixed timeline-image layers still require complete finishing admission.
+Complete CPU finishing also covers retained timeline-image layers mixed with
+linked scenes, through the same authenticated supplemental-picture executor as
+export. Actual Chromium disables WebGL2 globally and verifies File Open,
+animated-image playback, Stop, reopen and project replacement. Exact NTSC
+random-seek pixels match export in either painter order. Inherited Frame
+adjustment effects that require WebGL2 remain an explicit unavailable-render
+error when WebGL2 is absent; no incomplete frame is reported as rendered.
 The remaining native platform matrix remains unfinished.
 M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
