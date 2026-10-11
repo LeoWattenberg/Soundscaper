@@ -12,8 +12,9 @@ export function normalizeMotionLayer(value: unknown): MotionLayer {
 	const candidate = motionRecord(value, [...LAYER_FIELDS, ...new Set(Object.values(MOTION_LAYER_CONTENT_FIELDS).flat())], 'motion layer', ['kind']);
 	const kind = motionEnum(candidate.kind, ['footage', 'image', 'text', 'shapes', 'solid', 'null', 'adjustment', 'precomp', 'camera', 'light'], 'layer kind');
 	const contentFields = MOTION_LAYER_CONTENT_FIELDS[kind];
-	const record = motionRecord(candidate, [...LAYER_FIELDS, ...contentFields], 'motion layer');
-	const content = normalizeMotionLayerContent(Object.fromEntries(['kind', ...contentFields].map((field) => [field, record[field]])));
+	const fields = [...LAYER_FIELDS, ...contentFields];
+	const record = motionRecord(candidate, fields, 'motion layer', fields.filter((field) => field !== 'operators'));
+	const content = normalizeMotionLayerContent(Object.fromEntries(['kind', ...contentFields].filter((field) => Object.hasOwn(record, field)).map((field) => [field, record[field]])));
 	const inFrame = motionRational(record.inFrame, 'layer in frame');
 	const outFrame = motionRational(record.outFrame, 'layer out frame');
 	if (compareRationals(inFrame, outFrame) >= 0) throw new RangeError('Layer out frame must exceed its in frame.');

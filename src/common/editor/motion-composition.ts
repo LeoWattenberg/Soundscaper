@@ -3,6 +3,7 @@
 import type { Rational } from './timeline-time.ts';
 import type { MotionColor, MotionColorProperty, MotionPathProperty, MotionProperty, MotionScalarProperty, MotionVector2Property, MotionVector3Property } from './motion-property.ts';
 import type { MotionFill } from './motion-fill.ts';
+import type { MotionShapeOperator, MotionTextAnimator } from './motion-authoring-operators.ts';
 
 export interface MotionTransform {
 	readonly anchor: MotionVector3Property; readonly position: MotionVector3Property;
@@ -44,6 +45,7 @@ export interface MotionTextRun {
 export interface MotionTextDocument {
 	readonly runs: readonly MotionTextRun[]; readonly align: 'left' | 'center' | 'right' | 'justify';
 	readonly lineHeight: MotionScalarProperty; readonly boxSize: MotionVector2Property;
+	readonly animators?: readonly MotionTextAnimator[];
 }
 export interface MotionShape {
 	readonly id: string; readonly path: MotionPathProperty; readonly fill: MotionFill | null;
@@ -53,7 +55,7 @@ export type MotionLayerContent =
 	| { readonly kind: 'footage'; readonly assetId: string; readonly audioEnabled: boolean; readonly audioGain: MotionScalarProperty }
 	| { readonly kind: 'image'; readonly assetId: string }
 	| { readonly kind: 'text'; readonly document: MotionTextDocument }
-	| { readonly kind: 'shapes'; readonly shapes: readonly MotionShape[] }
+	| { readonly kind: 'shapes'; readonly shapes: readonly MotionShape[]; readonly operators?: readonly MotionShapeOperator[] }
 	| { readonly kind: 'solid'; readonly color: MotionColorProperty; readonly size: MotionVector2Property }
 	| { readonly kind: 'null' }
 	| { readonly kind: 'adjustment'; readonly targetLayerIds: readonly string[] }

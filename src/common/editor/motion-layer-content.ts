@@ -2,11 +2,12 @@
 
 import type { MotionLayerContent, MotionShape, MotionTextDocument } from './motion-composition.ts';
 import { motionPropertyOfKind } from './motion-property.ts';
+import { normalizeMotionShapeOperators, normalizeMotionTextAnimators } from './motion-authoring-operators.ts';
 import { normalizeMotionFill } from './motion-fill.ts';
 import { freezeMotionValue, motionArray, motionBoolean, motionEnum, motionId, motionNumber, motionRecord, motionString, uniqueMotionIds } from './motion-values.ts';
 
 export const MOTION_LAYER_CONTENT_FIELDS = {
-	footage: ['assetId', 'audioEnabled', 'audioGain'], image: ['assetId'], text: ['document'], shapes: ['shapes'],
+	footage: ['assetId', 'audioEnabled', 'audioGain'], image: ['assetId'], text: ['document'], shapes: ['shapes', 'operators'],
 	solid: ['color', 'size'], null: [], adjustment: ['targetLayerIds'], precomp: ['compositionId'],
 	camera: ['projection', 'zoom', 'near', 'far', 'focusDistance', 'aperture'],
 	light: ['lightType', 'color', 'intensity', 'coneAngle', 'coneFeather', 'castsShadows'],
@@ -16,7 +17,8 @@ export const MOTION_LAYER_CONTENT_FIELDS = {
 export function normalizeMotionLayerContent(value: unknown): MotionLayerContent {
 	const input = motionRecord(value, ['kind', ...new Set(Object.values(MOTION_LAYER_CONTENT_FIELDS).flat())], 'layer content', ['kind']);
 	const kind = motionEnum(input.kind, ['footage', 'image', 'text', 'shapes', 'solid', 'null', 'adjustment', 'precomp', 'camera', 'light'], 'layer kind');
-	const record = motionRecord(value, ['kind', ...MOTION_LAYER_CONTENT_FIELDS[kind]], 'layer content');
+	const fields = ['kind', ...MOTION_LAYER_CONTENT_FIELDS[kind]];
+	const record = motionRecord(value, fields, 'layer content', fields.filter((field) => field !== 'operators'));
 	switch (kind) {
 		case 'footage': return freezeMotionValue({ kind, assetId: motionId(record.assetId), audioEnabled: motionBoolean(record.audioEnabled, 'footage audio enabled'), audioGain: motionPropertyOfKind(record.audioGain, 'scalar') });
 		case 'image': return Object.freeze({ kind, assetId: motionId(record.assetId) });
@@ -24,7 +26,7 @@ export function normalizeMotionLayerContent(value: unknown): MotionLayerContent 
 		case 'shapes': {
 			const shapes = motionArray(record.shapes, 1024, 'layer shapes', 1).map(normalizeShape);
 			uniqueMotionIds(shapes, 'layer shapes');
-			return freezeMotionValue({ kind, shapes });
+			return freezeMotionValue({ kind, shapes, ...(Object.hasOwn(record, 'operators') ? { operators: normalizeMotionShapeOperators(record.operators) } : {}) });
 		}
 		case 'solid': return freezeMotionValue({ kind, color: motionPropertyOfKind(record.color, 'color'), size: motionPropertyOfKind(record.size, 'vector2') });
 		case 'null': return Object.freeze({ kind });
@@ -49,7 +51,7 @@ export function normalizeMotionLayerContent(value: unknown): MotionLayerContent 
 }
 
 function normalizeText(value: unknown): MotionTextDocument {
-	const record = motionRecord(value, ['runs', 'align', 'lineHeight', 'boxSize'], 'text document');
+	const record = motionRecord(value, ['runs', 'align', 'lineHeight', 'boxSize', 'animators'], 'text document', ['runs', 'align', 'lineHeight', 'boxSize']);
 	let length = 0;
 	const runs = motionArray(record.runs, 1024, 'text runs', 1).map((item) => {
 		const run = motionRecord(item, ['text', 'fontAssetId', 'fontSize', 'color', 'tracking'], 'text run');
@@ -60,7 +62,8 @@ function normalizeText(value: unknown): MotionTextDocument {
 			color: motionPropertyOfKind(run.color, 'color'), tracking: motionPropertyOfKind(run.tracking, 'scalar') };
 	});
 	return freezeMotionValue({ runs, align: motionEnum(record.align, ['left', 'center', 'right', 'justify'], 'text alignment'),
-		lineHeight: motionPropertyOfKind(record.lineHeight, 'scalar'), boxSize: motionPropertyOfKind(record.boxSize, 'vector2') });
+		lineHeight: motionPropertyOfKind(record.lineHeight, 'scalar'), boxSize: motionPropertyOfKind(record.boxSize, 'vector2'),
+		...(Object.hasOwn(record, 'animators') ? { animators: normalizeMotionTextAnimators(record.animators) } : {}) });
 }
 
 function normalizeShape(value: unknown): MotionShape {

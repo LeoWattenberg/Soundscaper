@@ -8,7 +8,7 @@ import { compileMotionState, type EvaluatedMotionState } from './motion-property
 import { motionTransformMatrix, multiplyMotionMatrices, type MotionMatrix4 } from './motion-transform.ts';
 import { freezeMotionValue } from './motion-values.ts';
 
-export type MotionOperationKind = 'background' | 'source' | 'mask' | 'effect' | 'transform' | 'matte' | 'opacity' | 'composite' | 'precomposition' | 'camera' | 'light';
+export type MotionOperationKind = 'background' | 'source' | 'shape-operator' | 'text-animator' | 'mask' | 'effect' | 'transform' | 'matte' | 'opacity' | 'composite' | 'precomposition' | 'camera' | 'light';
 export interface MotionFrameOperation { readonly id: string; readonly kind: MotionOperationKind; readonly sourceId: string }
 export interface MotionEvaluatedLayer {
 	readonly occurrenceId: string; readonly state: EvaluatedMotionState<MotionLayer>; readonly localFrame: Rational;
@@ -169,6 +169,8 @@ function layerOperations(state: EvaluatedMotionState<MotionLayer>, path: string)
 	if (state.kind === 'null') { add('transform'); return operations; }
 	if (state.kind === 'camera' || state.kind === 'light') { add('transform'); add(state.kind); return operations; }
 	add(state.kind === 'precomp' ? 'precomposition' : 'source');
+	if (state.kind === 'shapes') for (const operator of state.operators ?? []) if (operator.enabled) add('shape-operator', operator.id);
+	if (state.kind === 'text') for (const animator of state.document.animators ?? []) if (animator.enabled) add('text-animator', animator.id);
 	for (const mask of state.masks) add('mask', mask.id);
 	for (const effect of state.effects) if (effect.enabled) add('effect', effect.id);
 	add('transform');
