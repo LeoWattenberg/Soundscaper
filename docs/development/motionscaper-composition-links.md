@@ -64,12 +64,19 @@ accepted revision unchanged.
 ## Receiver storage and rendering
 
 Explicit successor admission opens `kw-media-framescaper-editor-v2` database
-version 4. Version 2 appended asset, chunk, staging, linked-revision and
+version 5. Version 2 appended asset, chunk, staging, linked-revision and
 link-state stores; version 3 appends a separate owner/history store while
 preserving the original migration journal and linked bytes. Version 4 adds a
 separate portable-archive custody store; immutable original family-v1 migration
-records remain separate. Neither
-Framescaper family-v1 storage nor Motionscaper storage is opened by this receiver.
+records remain separate. Version 5 adds archive-body references, binary chunks
+and private archive staging. Neither Framescaper family-v1 storage nor
+Motionscaper storage is opened by this receiver.
+
+New archive custody uses binary chunks of at most 4 MiB and retains the exact
+source bytes with whole-archive and per-chunk SHA-256 verification. Existing
+Blob records remain readable. Private staging has a renewable 24-hour lease;
+publication joins the owning transaction, and failure or cancellation rolls
+back its private chunks. Expired staging is reclaimed in pages of 64 records.
 
 Verified bodies, revision retention and state publication share one IndexedDB
 transaction. Publication failure leaves the previous accepted revision intact;
