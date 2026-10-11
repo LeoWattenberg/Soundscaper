@@ -196,6 +196,20 @@ export async function qualifyNativePhotoRestoredImportSessionClose(page, cut) {
 	await assertNativeOpfsWorkerExecution(page); return facts;
 }
 
+/** Observe default-library import through its actual native OPFS worker. */
+export async function qualifyNativePhotoDefaultImportSessionClose(page, cut) {
+	const script = await mappedBundle('default-import-session-close.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-default-import-session-close-native-v1.ts'));
+	register(page, '/__default_import_session_close.js', script);
+	await page.route('**/__default_import_session_close.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	const facts = await page.evaluate(async cut => (await import(new URL('/__default_import_session_close.js', location.href).href))
+		.qualifyPhotoDefaultImportSessionCloseNativeV1(cut), cut);
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
 /** Full canvas comparison happens after the measured current-ready paint. */
 export async function validateNativePhotoDevelopProxyCanvas(page, selector, stage) {
 	const script = await mappedBundle('develop-proxy-reference.js', resolve(repositoryRoot, 'tests/browser/helpers/lightscaper-develop-proxy-reference.ts'));

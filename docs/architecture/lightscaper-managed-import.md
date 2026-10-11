@@ -67,3 +67,25 @@ The strict Node tests separately qualify selected owner outcome joining with a
 scoped bitmap/canvas platform fixture. They do not qualify native decoding or
 native transaction timing. These bounded interruption tests do not establish
 the complete L3 exit criteria or WebKit support.
+
+## Default-library interruption qualification
+
+The default import Close tests select the ordinary library through the current
+Session runtime, preserving its schema-1 pointer and null allocation. Originals
+use the actual synchronous OPFS worker. Three writer cuts observe successful
+open, write and close acknowledgements; close covers synchronous flush and
+file-handle close in one worker turn. Twelve further cuts observe mutation
+success and completed acknowledgement at the six managed-import phases above.
+
+Writer acknowledgements are forwarded immediately. Only delivery of the fully
+settled original-write outcome is held, after actual cancellation and file
+cleanup have drained. The fixture independently inspects the physical path,
+length and digest, alongside immutable media metadata, private tokens, full
+Photos, summary/query rows, memberships, index revisions and custody. Completed
+metadata publication can retain an unrooted immutable OPFS original; successful
+Photo publication must retain that original through recovery. Existing Photos,
+saved process-2 presets and disabled LUT resources stay exact throughout.
+
+These cases qualify completed ownership boundaries under Session Close. They do
+not qualify cancellation during unresolved native acquisition or abrupt process
+death before media publication. Both remain separate from this bounded packet.
