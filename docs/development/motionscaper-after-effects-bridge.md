@@ -23,11 +23,13 @@ be downloaded alongside its untouched source exchange. Choosing `.aep` or
 `.aepx` through **File > Open** routes to installed-AE instructions without
 trying to parse the source project.
 
-Four actual Chromium workflows cover script ZIP download, AEP/AEPX routing,
+Actual Chromium workflows cover script ZIP download, AEP/AEPX routing,
 real encoded PNG import and alpha pixels in the preview, report acknowledgement,
 Save/reopen and `.mscape` custody, unused original media byte preservation,
 missing files, digest mismatch, closing a prepared review without changing
-the open document, and seeking distinct retained rendered PNG frames. These browser checks do not establish installed-AE behavior.
+the open document, seeking distinct retained rendered PNG frames, and editable
+hard-edge mask import, preview pixels and reverse export after Save. These
+browser checks do not establish installed-AE behavior.
 
 ## Readable exporter
 
@@ -49,7 +51,7 @@ Enabled expression text is retained but not run by this exporter; it reads
 pre-expression values. A separate confirmed entry supports numeric sampling as
 described below; the separate rendered entry is described under qualification.
 Unmapped features receive explicit unsupported reports, including layers whose
-text runs, mask attributes, solid sources, footage interpretation, or plug-ins
+text runs, advanced masks, solid sources, footage interpretation, or plug-ins
 need further mapping. The host API tests exercise the generated entry, media
 copy, source-byte preservation, pre-expression reads, manifest publication and
 rollback. They are synthetic host evidence, not an AE execution result. Escape
@@ -61,9 +63,9 @@ media copying uses AE's per-file operation.
 `Motionscaper-Import.jsx` parses inert bounded JSON before opening an undo group.
 Its current admitted subset is compositions, retained footage, null layers,
 parent links, layer timing and transforms, temporal interpolation/ease, spatial
-tangents and roving keys. Unsupported layer kinds produce an actionable request
+tangents and roving keys, plus the explicit hard-edge mask subset below. Unsupported layer kinds produce an actionable request
 to render the complete composition; unsupported property groups, expressions,
-masks, mattes and blend intent produce a preflight warning requiring an explicit
+mattes and blend intent produce a preflight warning requiring an explicit
 choice before creating partial imported content. Imported expressions are never
 activated. Text, shapes, solid sources, cameras, lights, effect mappings and
 Motionscaper model conversion remain incomplete.
@@ -83,6 +85,33 @@ the open destination project.
 Generated-script host tests cover separate item creation, ordering, parent
 binding, temporal ease and spatial tangents, media hash mismatch, color mismatch,
 and rollback. These tests do not establish actual AE re-import or pixel parity.
+
+## Editable paths and hard-edge masks
+
+Both project converters preserve path vertices and their relative Bézier handles,
+as defined by Adobe's [Shape API](https://ae-scripting.docsforadobe.dev/other/shape/).
+Static paths and topology-preserving hold/linear path keys remain editable.
+Export rebases local frame keys to composition seconds; import reports any
+one-millionth-frame quantization. Expressions, negative imported key times,
+changing topology and unsupported temporal easing require an explicit bake or
+rendered fallback. No temporal speed curve is guessed.
+
+The exporter captures [MaskPropertyGroup attributes](https://ae-scripting.docsforadobe.dev/property/maskpropertygroup/)
+as optional closed metadata: mode, inversion, RotoBezier, feather falloff and
+mask motion blur. Existing exchanges without that field retain identical data;
+their masks require a new capture before editable conversion. Variable feather
+points remain bounded inert shape custody and are refused by editable mapping.
+
+The admitted subset maps path, opacity, inversion and add/subtract/intersect/
+difference operations with zero feather and expansion. Motion feather uses
+Gaussian sigma; AE radius and falloff are not silently treated as equivalent.
+RotoBezier, forced mask motion blur, variable feather and unsupported mask
+properties produce explicit refusals or unsupported conversion reports. The
+generated importer validates its subset before mutation, constructs `Shape`
+objects, creates new masks with explicit attributes and applies admitted keys.
+Its generated-script tests cover those calls and refusal before mutation. Actual
+AE edge pixels, compositing modes and interpolation still need host/reference
+qualification.
 
 ## Exchange contract
 
@@ -185,7 +214,7 @@ The new document uses fresh identities and retains the original exchange as
 separate custody. Unsupported layer kinds become named null placeholders, and
 all partial conversion requires explicit report acknowledgement before any
 publication. Audio, non-square pixels, color/footage interpretation, 3D,
-text/shapes/effects/masks and broader editable mapping remain incomplete.
+text/shapes/effects, advanced masks and broader editable mapping remain incomplete.
 
 AE floating clocks cross an explicit one-millionth frame/second boundary;
 changed values get a sampling report and original values remain in custody.

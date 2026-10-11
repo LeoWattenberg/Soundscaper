@@ -136,6 +136,27 @@ function beginImport(project, root, plan) {
                 var property = item.properties[index];
                 applyProperty(transform.property(property.matchName), property);
             }
+            for (var index = 0; index < item.masks.length; index++) {
+                var mask = item.masks[index], target = layers[item.id].property('ADBE Mask Parade').addProperty('ADBE Mask Atom');
+                target.name = mask.name;
+                target.maskMode = MaskMode[mask.metadata.mode.toUpperCase()];
+                target.inverted = mask.metadata.inverted;
+                target.rotoBezier = false;
+                target.maskFeatherFalloff = mask.metadata.featherFalloff === 'linear' ? MaskFeatherFalloff.FFO_LINEAR : MaskFeatherFalloff.FFO_SMOOTH;
+                target.maskMotionBlur = mask.metadata.motionBlur === 'off' ? MaskMotionBlur.OFF : MaskMotionBlur.SAME_AS_LAYER;
+                var path = target.property('ADBE Mask Shape'), value = function (input) { var shape = new Shape(); shape.closed = input.closed; shape.vertices = input.vertices; shape.inTangents = input.inTangents; shape.outTangents = input.outTangents; return shape; };
+                if (path.numKeys !== 0)
+                    throw new Error('New AE mask unexpectedly has authored keys.');
+                if (!mask.path.keys.length)
+                    path.setValue(value(mask.path.value));
+                for (var key = 0; key < mask.path.keys.length; key++)
+                    path.setValueAtTime(mask.path.keys[key].time, value(mask.path.keys[key].value));
+                for (var key = 0; key < mask.path.keys.length; key++)
+                    path.setInterpolationTypeAtKey(key + 1, mask.path.keys[key].inInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR, mask.path.keys[key].outInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR);
+                applyProperty(target.property('ADBE Mask Opacity'), mask.opacity);
+                target.property('ADBE Mask Feather').setValue([0, 0]);
+                target.property('ADBE Mask Offset').setValue(0);
+            }
         },
         finish: function () { app.endUndoGroup(); ended = true; },
         rollback: function () {

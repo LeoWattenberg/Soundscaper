@@ -2,7 +2,7 @@
 import { renderMotionAeInstalledComposition, type MotionAeOwnedRenderEntry } from './motion-ae-installed-render.ts';
 import { exportMotionAeHostProject, type MotionAeExportHost, type MotionAeExportTransaction } from './motion-ae-host-export.ts';
 import { readMotionAeHostProperty, type MotionAePropertyHost, type MotionAePropertyReadHost } from './motion-ae-host-property.ts';
-import type { MotionAeComposition, MotionAeFootage, MotionAeLayer, MotionAeProperty, MotionAeReportEntry, MotionAeText } from './motion-ae-exchange-types.ts';
+import type { MotionAeComposition, MotionAeFootage, MotionAeLayer, MotionAeMaskMetadata, MotionAeProperty, MotionAeReportEntry, MotionAeText } from './motion-ae-exchange-types.ts';
 
 interface AeFile {
 	readonly name: string; readonly fsName: string; readonly exists: boolean; readonly length: number;
@@ -45,6 +45,9 @@ declare const KeyframeInterpolationType: { HOLD: unknown; LINEAR: unknown; BEZIE
 declare const ParagraphJustification: { LEFT_JUSTIFY: unknown; CENTER_JUSTIFY: unknown; RIGHT_JUSTIFY: unknown };
 declare const BlendingMode: Record<string, unknown>;
 declare const TrackMatteType: { NO_TRACK_MATTE: unknown; ALPHA: unknown; ALPHA_INVERTED: unknown; LUMA: unknown; LUMA_INVERTED: unknown };
+declare const MaskMode: Record<string, unknown>;
+declare const MaskFeatherFalloff: { FFO_LINEAR: unknown; FFO_SMOOTH: unknown };
+declare const MaskMotionBlur: { SAME_AS_LAYER: unknown; ON: unknown; OFF: unknown };
 declare function alert(message: string): void;
 declare function confirm(message: string): boolean;
 
@@ -60,6 +63,16 @@ function propertyHost(sampling?: Readonly<{ frameRate: number; duration: number 
 			return 'unsupported';
 		},
 		interpolation: (value) => { if (value === KeyframeInterpolationType.HOLD) return 'hold'; if (value === KeyframeInterpolationType.LINEAR) return 'linear'; if (value === KeyframeInterpolationType.BEZIER) return 'bezier'; throw new Error('Unsupported AE interpolation.'); },
+		mask: (property) => {
+			const mask = property as MotionAePropertyHost & { maskMode: unknown; inverted: boolean; rotoBezier: boolean; maskFeatherFalloff: unknown; maskMotionBlur: unknown };
+			const names: readonly MotionAeMaskMetadata['mode'][] = ['none', 'add', 'subtract', 'intersect', 'lighten', 'darken', 'difference'];
+			let mode: MotionAeMaskMetadata['mode'] | null = null;
+			for (let index = 0; index < names.length; index++) if (MaskMode[names[index]!.toUpperCase()] === mask.maskMode) mode = names[index]!;
+			if (mode === null || (mask.maskFeatherFalloff !== MaskFeatherFalloff.FFO_LINEAR && mask.maskFeatherFalloff !== MaskFeatherFalloff.FFO_SMOOTH)
+				|| (mask.maskMotionBlur !== MaskMotionBlur.SAME_AS_LAYER && mask.maskMotionBlur !== MaskMotionBlur.ON && mask.maskMotionBlur !== MaskMotionBlur.OFF)) throw new Error('Unsupported AE mask metadata.');
+			return { mode, inverted: mask.inverted, rotoBezier: mask.rotoBezier, featherFalloff: mask.maskFeatherFalloff === MaskFeatherFalloff.FFO_LINEAR ? 'linear' : 'smooth',
+				motionBlur: mask.maskMotionBlur === MaskMotionBlur.ON ? 'on' : mask.maskMotionBlur === MaskMotionBlur.OFF ? 'off' : 'same-as-layer' };
+		},
 		text: (value) => {
 			const text = value as AeTextDocument;
 			if (text.justification !== ParagraphJustification.LEFT_JUSTIFY && text.justification !== ParagraphJustification.CENTER_JUSTIFY && text.justification !== ParagraphJustification.RIGHT_JUSTIFY) throw new Error('This paragraph alignment needs an explicit text mapping.');

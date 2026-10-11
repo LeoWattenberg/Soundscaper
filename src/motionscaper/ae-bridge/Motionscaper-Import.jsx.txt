@@ -3,6 +3,7 @@
 #target aftereffects
 #include "motion-ae-host-json.jsxinc"
 #include "motion-ae-host-sha256.jsxinc"
+#include "motion-ae-host-import-mask.jsxinc"
 #include "motion-ae-host-import-plan.jsxinc"
 #include "motion-ae-host-import.jsxinc"
 #include "motion-ae-installed-import.jsxinc"

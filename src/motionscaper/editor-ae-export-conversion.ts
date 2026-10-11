@@ -4,6 +4,7 @@ import type { MotionComposition, MotionLayer } from '../common/editor/motion-com
 import type { MotionAeExchange, MotionAeLayer, MotionAeProperty, MotionAeReportEntry } from '../common/editor/motion-ae-exchange-types.ts';
 import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
 import { exportMotionAeNumeric } from '../common/editor/motion-ae-export-property.ts';
+import { exportMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
 import { freezeMotionValue } from '../common/editor/motion-values.ts';
 import { createMotionscaperRevision, type MotionscaperRevision } from './editor-project-revision.ts';
 import type { Rational } from '../common/editor/timeline-time.ts';
@@ -85,13 +86,13 @@ export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscape
 				sourceId = mediaIds.get(layer.assetId) ?? null;
 				if (sourceId) kind = 'footage'; else { enabled = false; add(layerId, 'media-mapping', 'The layer media is retained in original.mscape and is not admitted by this AE import subset.'); }
 			} else if (layer.kind !== 'null') { enabled = false; add(layerId, 'layer-kind', `Layer kind “${layer.kind}” becomes a disabled named null. Its full authored content remains in original.mscape.`); }
-			if (layer.masks.length || layer.matte || layer.effects.some(effect => effect.enabled) || layer.blendMode !== 'normal') add(layerId, 'compositing', 'Masks, mattes, enabled effects and non-normal blend modes are not mapped by this subset. Render the original composition to preserve their appearance.');
+			if (layer.matte || layer.effects.some(effect => effect.enabled) || layer.blendMode !== 'normal') add(layerId, 'compositing', 'Mattes, enabled effects and non-normal blend modes are not mapped by this subset. Render the original composition to preserve their appearance.');
 			const startTime = number(layer.startFrame) / number(comp.frameRate) - (validTiming ? number(layer.sourceStart) / scale : 0);
 			const inPoint = number(layer.inFrame) / number(comp.frameRate), outPoint = number(layer.outFrame) / number(comp.frameRate);
 			if ([startTime, inPoint, outPoint].some(time => Math.abs(time) > 10800)) throw new RangeError('AE layer timing exceeds its documented ±three-hour range. Retain original.mscape or prepare timing within that host range.');
 			return { id: layerId, name: layer.name, kind, sourceId, parentId: layer.parentId === null ? null : layerIds.get(layer.parentId)!, matte: null,
 				startTime, inPoint, outPoint, stretch: validTiming ? 100 / scale : 100,
-				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: transform(layer, layerId, comp, report) };
+				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
 		});
 		return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: 1, frameRate: number(comp.frameRate),
 			duration: comp.durationFrames / number(comp.frameRate), displayStartTime: 0, background: comp.background.slice(0, 3) as [number, number, number], layers };

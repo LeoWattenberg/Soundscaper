@@ -2,12 +2,14 @@
 import { prepareMotionAeHostImport, type MotionAeImportFootage, type MotionAeImportNumeric, type MotionAeImportPlan } from './motion-ae-host-import-plan.ts';
 import { importMotionAeHostPlan, type MotionAeImportHost, type MotionAeImportTransaction } from './motion-ae-host-import.ts';
 import { createMotionAeHostSha256 } from './motion-ae-host-sha256.ts';
+import type { MotionAeShape } from './motion-ae-exchange-types.ts';
 interface AeFolder { readonly fsName: string; readonly alias: boolean }
 interface AeFile { readonly exists: boolean; readonly length: number; readonly alias: boolean; readonly fsName: string; readonly parent: AeFolder; encoding: string; open(mode: string): boolean; read(count?: number): string; close(): boolean }
 interface AeItem { name: string; parentFolder: AeItem; remove(): void }
 interface AeProperty {
 	readonly numKeys: number; property(name: string): AeProperty;
-	setValue(value: number | readonly number[]): void; setValueAtTime(time: number, value: number | readonly number[]): void;
+	name: string; addProperty(name: string): AeProperty; maskMode: unknown; inverted: boolean; rotoBezier: boolean; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
+	setValue(value: number | readonly number[] | MotionAeShape): void; setValueAtTime(time: number, value: number | readonly number[] | MotionAeShape): void;
 	setInterpolationTypeAtKey(index: number, incoming: unknown, outgoing: unknown): void;
 	setTemporalEaseAtKey(index: number, incoming: readonly unknown[], outgoing: readonly unknown[]): void;
 	setTemporalAutoBezierAtKey(index: number, value: boolean): void; setTemporalContinuousAtKey(index: number, value: boolean): void;
@@ -31,6 +33,10 @@ declare const ImportOptions: { new(file: AeFile): { file: AeFile; sequence: bool
 declare const ImportAsType: { FOOTAGE: unknown };
 declare const KeyframeInterpolationType: { HOLD: unknown; LINEAR: unknown; BEZIER: unknown };
 declare const KeyframeEase: { new(speed: number, influence: number): unknown };
+declare const Shape: { new(): { closed: boolean; vertices: MotionAeShape['vertices']; inTangents: MotionAeShape['inTangents']; outTangents: MotionAeShape['outTangents'] } };
+declare const MaskMode: Record<string, unknown>;
+declare const MaskFeatherFalloff: { FFO_LINEAR: unknown; FFO_SMOOTH: unknown };
+declare const MaskMotionBlur: { SAME_AS_LAYER: unknown; OFF: unknown };
 declare function alert(message: string): void;
 declare function confirm(message: string): boolean;
 
@@ -99,6 +105,18 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 		properties: (item) => {
 			const transform = layers[item.id]!.property('ADBE Transform Group');
 			for (let index = 0; index < item.properties.length; index++) { const property = item.properties[index]!; applyProperty(transform.property(property.matchName), property); }
+			for (let index = 0; index < item.masks.length; index++) {
+				const mask = item.masks[index]!, target = layers[item.id]!.property('ADBE Mask Parade').addProperty('ADBE Mask Atom');
+				target.name = mask.name; target.maskMode = MaskMode[mask.metadata.mode.toUpperCase()]; target.inverted = mask.metadata.inverted; target.rotoBezier = false;
+				target.maskFeatherFalloff = mask.metadata.featherFalloff === 'linear' ? MaskFeatherFalloff.FFO_LINEAR : MaskFeatherFalloff.FFO_SMOOTH;
+				target.maskMotionBlur = mask.metadata.motionBlur === 'off' ? MaskMotionBlur.OFF : MaskMotionBlur.SAME_AS_LAYER;
+				const path = target.property('ADBE Mask Shape'), value = (input: MotionAeShape) => { const shape = new Shape(); shape.closed = input.closed; shape.vertices = input.vertices; shape.inTangents = input.inTangents; shape.outTangents = input.outTangents; return shape; };
+				if (path.numKeys !== 0) throw new Error('New AE mask unexpectedly has authored keys.');
+				if (!mask.path.keys.length) path.setValue(value(mask.path.value));
+				for (let key = 0; key < mask.path.keys.length; key++) path.setValueAtTime(mask.path.keys[key]!.time, value(mask.path.keys[key]!.value));
+				for (let key = 0; key < mask.path.keys.length; key++) path.setInterpolationTypeAtKey(key + 1, mask.path.keys[key]!.inInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR, mask.path.keys[key]!.outInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR);
+				applyProperty(target.property('ADBE Mask Opacity'), mask.opacity); target.property('ADBE Mask Feather').setValue([0, 0]); target.property('ADBE Mask Offset').setValue(0);
+			}
 		},
 		finish: () => { app.endUndoGroup(); ended = true; },
 		rollback: () => {

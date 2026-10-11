@@ -1,18 +1,32 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import type { MotionAeExpression, MotionAeKey, MotionAeProperty, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
+import type { MotionAeExpression, MotionAeKey, MotionAeMaskMetadata, MotionAeProperty, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
 import { MOTION_AE_EXCHANGE_LIMITS as limits } from './motion-ae-exchange-types.ts';
 import { motionArray, motionBoolean, motionEnum, motionNumber, motionRecord } from './motion-values.ts';
 import { motionAeCustodyString as motionString } from './motion-ae-custody-string.ts';
 
 export interface MotionAeCustodyBudget { properties: number; keys: number }
+function mask(value: unknown): MotionAeMaskMetadata {
+	const r = motionRecord(value, ['mode', 'inverted', 'rotoBezier', 'featherFalloff', 'motionBlur'], 'AE mask metadata');
+	return { mode: motionEnum(r.mode, ['none', 'add', 'subtract', 'intersect', 'lighten', 'darken', 'difference'], 'AE mask mode'),
+		inverted: motionBoolean(r.inverted, 'AE inverted mask'), rotoBezier: motionBoolean(r.rotoBezier, 'AE RotoBezier mask'),
+		featherFalloff: motionEnum(r.featherFalloff, ['linear', 'smooth'], 'AE mask feather falloff'), motionBlur: motionEnum(r.motionBlur, ['same-as-layer', 'on', 'off'], 'AE mask motion blur') };
+}
 export function motionAeVector(value: unknown, name: string, length?: number, color = false): readonly number[] {
 	return motionArray(value, length ?? 4, name, length ?? 1).map((entry) => motionNumber(entry, name, color ? 0 : -1e12, color ? 1 : 1e12));
 }
 function shape(value: unknown): MotionAeShape {
-	const r = motionRecord(value, ['closed', 'vertices', 'inTangents', 'outTangents'], 'AE shape');
+	const fields = ['closed', 'vertices', 'inTangents', 'outTangents'];
+	const r = motionRecord(value, [...fields, 'feather'], 'AE shape', fields);
 	const vertices = motionArray(r.vertices, limits.shapeVertices, 'AE shape vertices', 1).map((v) => motionAeVector(v, 'AE vertex', 2) as readonly [number, number]);
 	const tangents = (input: unknown) => motionArray(input, vertices.length, 'AE shape tangents', vertices.length).map((v) => motionAeVector(v, 'AE tangent', 2) as readonly [number, number]);
-	return { closed: motionBoolean(r.closed, 'AE shape closed'), vertices, inTangents: tangents(r.inTangents), outTangents: tangents(r.outTangents) };
+	let feather: MotionAeShape['feather'];
+	if (r.feather !== undefined) {
+		const f = motionRecord(r.feather, ['segmentLocations', 'relativeLocations', 'radii', 'interpolations', 'tensions', 'types', 'cornerAngles'], 'AE variable feather');
+		const segmentLocations = motionArray(f.segmentLocations, limits.shapeVertices, 'AE feather segments', 1).map(v => motionNumber(v, 'AE feather segment', 0, vertices.length - 1));
+		const values = (input: unknown) => motionArray(input, segmentLocations.length, 'AE feather values', segmentLocations.length).map(v => motionNumber(v, 'AE feather value'));
+		feather = { segmentLocations, relativeLocations: values(f.relativeLocations), radii: values(f.radii), interpolations: values(f.interpolations), tensions: values(f.tensions), types: values(f.types), cornerAngles: values(f.cornerAngles) };
+	}
+	return { closed: motionBoolean(r.closed, 'AE shape closed'), vertices, inTangents: tangents(r.inTangents), outTangents: tangents(r.outTangents), ...(feather === undefined ? {} : { feather }) };
 }
 function text(value: unknown): MotionAeText {
 	const r = motionRecord(value, ['text', 'font', 'fontSize', 'fillColor', 'applyFill', 'applyStroke', 'strokeColor', 'strokeWidth', 'tracking', 'leading', 'autoLeading', 'justification'], 'AE text');
@@ -50,13 +64,16 @@ export function normalizeMotionAeProperties(input: unknown, budget: MotionAeCust
 	if (depth > limits.propertyDepth) throw new RangeError('AE property depth budget exceeded.');
 	return motionArray(input, limits.properties, 'AE properties').map((value): MotionAeProperty => {
 		budget.properties++; if (budget.properties > limits.properties) throw new RangeError('AE property budget exceeded.');
-		const d = motionRecord(value, ['kind', 'matchName', 'name', 'children', 'value', 'keys', 'expression', 'spatial', 'reason', 'samples'], 'AE property', ['kind']);
+		const d = motionRecord(value, ['kind', 'matchName', 'name', 'children', 'value', 'keys', 'expression', 'spatial', 'reason', 'samples', 'mask'], 'AE property', ['kind']);
 		const kind = motionEnum(d.kind, ['group', 'numeric', 'shape', 'text', 'unsupported'], 'AE property kind');
 		const fields = kind === 'group' ? ['children'] : kind === 'unsupported' ? ['reason'] : kind === 'numeric' ? ['value', 'keys', 'expression', 'spatial'] : ['value', 'keys', 'expression'];
 		const required = ['kind', 'matchName', 'name', ...fields];
-		const r = motionRecord(value, kind === 'numeric' ? [...required, 'samples'] : required, 'AE property', required);
+		const r = motionRecord(value, kind === 'numeric' ? [...required, 'samples'] : kind === 'group' ? [...required, 'mask'] : required, 'AE property', required);
 		const base = { matchName: motionString(r.matchName, 'AE match name', 256), name: motionString(r.name, 'AE property name', 1024, true) };
-		if (kind === 'group') return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1) };
+		if (kind === 'group') {
+			if (r.mask !== undefined && base.matchName !== 'ADBE Mask Atom') throw new TypeError('AE mask metadata requires a mask atom group.');
+			return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1), ...(r.mask === undefined ? {} : { mask: mask(r.mask) }) };
+		}
 		if (kind === 'unsupported') return { ...base, kind, reason: motionString(r.reason, 'AE unsupported reason', 2048) };
 		const expr = expression(r.expression);
 		if (kind === 'numeric') {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { parseMotionAeHostJson } from './motion-ae-host-json.ts';
 import type { MotionAeKey } from './motion-ae-exchange-types.ts';
+import { readMotionAeImportMasks, type MotionAeImportMask } from './motion-ae-host-import-mask.ts';
 export interface MotionAeImportNumeric {
 	readonly matchName: string; readonly value: readonly number[]; readonly spatial: boolean; readonly keys: readonly MotionAeKey<readonly number[]>[];
 }
@@ -8,6 +9,7 @@ export interface MotionAeImportLayer {
 	readonly id: string; readonly name: string; readonly kind: 'footage' | 'composition' | 'null'; readonly sourceId: string | null; readonly parentId: string | null;
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
 	readonly enabled: boolean; readonly threeD: boolean; readonly properties: readonly MotionAeImportNumeric[];
+	readonly masks: readonly MotionAeImportMask[];
 }
 export interface MotionAeImportComposition {
 	readonly id: string; readonly name: string; readonly width: number; readonly height: number; readonly pixelAspect: number;
@@ -39,12 +41,34 @@ function vector(value: unknown, dimensions?: number): readonly number[] {
 function interpolation(value: unknown): 'hold' | 'linear' | 'bezier' {
 	if (value !== 'hold' && value !== 'linear' && value !== 'bezier') throw new Error('AE interpolation is unsupported.'); return value;
 }
+function numericProperty(property: Record<string, unknown>, warnings: string[], budget: { properties: number; keys: number }): MotionAeImportNumeric {
+	const value = vector(property.value), spatial = boolean(property.spatial), rawKeys = array(property.keys, 4096), keys: MotionAeKey<readonly number[]>[] = [];
+	budget.keys += rawKeys.length; if (budget.keys > 262_144) throw new Error('AE import key budget exceeded.');
+	if (spatial && value.length !== 2 && value.length !== 3) throw new Error('AE spatial dimensions are invalid.');
+	const easeCount = spatial || value.length === 4 ? 1 : value.length;
+	function ease(input: unknown) {
+		const values = array(input, easeCount), result: { speed: number; influence: number }[] = [];
+		if (values.length !== easeCount) throw new Error('AE temporal ease dimensions differ.');
+		for (let entry = 0; entry < values.length; entry++) { const e = record(values[entry]); result.push({ speed: number(e.speed, -1e12, 1e12), influence: number(e.influence, 0.1, 100) }); } return result;
+	}
+	for (let keyIndex = 0; keyIndex < rawKeys.length; keyIndex++) {
+		const key = record(rawKeys[keyIndex]), time = number(key.time, -1e6, 1e6), roving = boolean(key.roving);
+		if (keyIndex > 0 && time <= keys[keyIndex - 1]!.time) throw new Error('AE import key times must increase.');
+		if (roving && (!spatial || keyIndex === 0 || keyIndex === rawKeys.length - 1)) throw new Error('AE roving key position is invalid.');
+		keys.push({ time, value: vector(key.value, value.length), inInterpolation: interpolation(key.inInterpolation), outInterpolation: interpolation(key.outInterpolation),
+			inEase: ease(key.inEase), outEase: ease(key.outEase), inSpatialTangent: spatial ? vector(key.inSpatialTangent, value.length) : null,
+			outSpatialTangent: spatial ? vector(key.outSpatialTangent, value.length) : null, roving });
+	}
+	if (property.expression !== null && boolean(record(property.expression).enabled)) warnings.push('Expression source is preserved in the package but is not activated in AE. Review sampled keys or render the original composition.');
+	return { matchName: text(property.matchName, 256), value, spatial, keys };
+}
 function properties(input: unknown, warnings: string[], budget: { properties: number; keys: number }): readonly MotionAeImportNumeric[] {
 	const roots = array(input, 65_536), result: MotionAeImportNumeric[] = [];
 	const allowed = ['ADBE Anchor Point', 'ADBE Position', 'ADBE Scale', 'ADBE Orientation', 'ADBE Rotate X', 'ADBE Rotate Y', 'ADBE Rotate Z', 'ADBE Opacity'];
 	for (let rootIndex = 0; rootIndex < roots.length; rootIndex++) {
 		if (++budget.properties > 65_536) throw new Error('AE import property budget exceeded.');
 		const root = record(roots[rootIndex]);
+		if (root.matchName === 'ADBE Mask Parade') continue;
 		if (root.kind !== 'group' || root.matchName !== 'ADBE Transform Group') { warnings.push('An unmapped property group is omitted; retain the source package and render its composition for visual fidelity.'); continue; }
 		const children = array(root.children, 65_536), seen: Record<string, boolean> = {};
 		for (let index = 0; index < children.length; index++) {
@@ -53,25 +77,7 @@ function properties(input: unknown, warnings: string[], budget: { properties: nu
 			for (let candidate = 0; candidate < allowed.length; candidate++) if (allowed[candidate] === name) supported = true;
 			if (!supported || property.kind !== 'numeric') { warnings.push('An unmapped transform property is omitted: ' + name); continue; }
 			if (seen[name]) throw new Error('AE import has duplicate transform properties.'); seen[name] = true;
-			const value = vector(property.value), spatial = boolean(property.spatial), rawKeys = array(property.keys, 4096), keys: MotionAeKey<readonly number[]>[] = [];
-			budget.keys += rawKeys.length; if (budget.keys > 262_144) throw new Error('AE import key budget exceeded.');
-			if (spatial && value.length !== 2 && value.length !== 3) throw new Error('AE spatial dimensions are invalid.');
-			const easeCount = spatial || value.length === 4 ? 1 : value.length;
-			function ease(input: unknown) {
-				const values = array(input, easeCount), result: { speed: number; influence: number }[] = [];
-				if (values.length !== easeCount) throw new Error('AE temporal ease dimensions differ.');
-				for (let entry = 0; entry < values.length; entry++) { const e = record(values[entry]); result.push({ speed: number(e.speed, -1e12, 1e12), influence: number(e.influence, 0.1, 100) }); } return result;
-			}
-			for (let keyIndex = 0; keyIndex < rawKeys.length; keyIndex++) {
-				const key = record(rawKeys[keyIndex]), time = number(key.time, -1e6, 1e6), roving = boolean(key.roving);
-				if (keyIndex > 0 && time <= keys[keyIndex - 1]!.time) throw new Error('AE import key times must increase.');
-				if (roving && (!spatial || keyIndex === 0 || keyIndex === rawKeys.length - 1)) throw new Error('AE roving key position is invalid.');
-				keys.push({ time, value: vector(key.value, value.length), inInterpolation: interpolation(key.inInterpolation), outInterpolation: interpolation(key.outInterpolation),
-					inEase: ease(key.inEase), outEase: ease(key.outEase), inSpatialTangent: spatial ? vector(key.inSpatialTangent, value.length) : null,
-					outSpatialTangent: spatial ? vector(key.outSpatialTangent, value.length) : null, roving });
-			}
-			if (property.expression !== null && boolean(record(property.expression).enabled)) warnings.push('Expression source is preserved in the package but is not activated in AE. Review sampled keys or render the original composition.');
-			result.push({ matchName: name, value, spatial, keys });
+			result.push(numericProperty(property, warnings, budget));
 		}
 	}
 	return result;
@@ -126,7 +132,7 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 			const inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
 			if (outPoint < inPoint || Math.abs(stretch) < 1) throw new Error('AE import layer timing is invalid.');
 			layers.push({ id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
-				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget) });
+				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
 		}
 		const width = number(comp.width, 4, 30_000), height = number(comp.height, 4, 30_000);
 		if (width !== Math.floor(width) || height !== Math.floor(height)) throw new Error('AE import dimensions must be integral.');

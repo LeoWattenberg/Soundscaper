@@ -37,9 +37,15 @@ function host(source: string, failLayer = false) {
 		setSpatialTangentsAtKey() { calls.push('tangents'); } setRovingAtKey() {}
 		set expression(_value: string) { throw new Error('Expression source must remain inert.'); }
 	}
+	class Mask {
+		name = ''; maskMode: unknown; inverted = false; rotoBezier = true; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
+		fields = new Map<string, Property>(); property(name: string) { let field = this.fields.get(name); if (!field) { field = new Property(); this.fields.set(name, field); } return field; }
+	}
 	class Layer {
 		name = ''; enabled = true; audioEnabled = true; threeDLayer = false; startTime = 0; inPoint = 0; outPoint = 2; stretch = 100; parent: Layer | null = null; position = new Property();
-		setParentWithJump(parent: Layer) { this.parent = parent; } property() { return { property: () => this.position }; }
+		masks: Mask[] = [];
+		setParentWithJump(parent: Layer) { this.parent = parent; }
+		property(name: string) { return name === 'ADBE Mask Parade' ? { addProperty: (matchName: string) => { assert.equal(matchName, 'ADBE Mask Atom'); const mask = new Mask(); this.masks.push(mask); return mask; } } : { property: () => this.position }; }
 	}
 	class Item {
 		name: string; parentFolder: Item | null = null; constructor(name: string) { this.name = name; }
@@ -59,6 +65,7 @@ function host(source: string, failLayer = false) {
 	class ImportOptions { file: File; sequence = true; importAs: unknown; constructor(file: File) { this.file = file; } }
 	return { items, existing, files, alerts, calls, project, Composition, sandbox: { app: { project, beginUndoGroup: () => calls.push('begin'), endUndoGroup: () => calls.push('end') }, File, Folder, ImportOptions,
 		ImportAsType: { FOOTAGE: 'footage' }, KeyframeInterpolationType: { HOLD: 'hold', LINEAR: 'linear', BEZIER: 'bezier' }, KeyframeEase: class {},
+		Shape: class {}, MaskMode: { ADD: 'add', SUBTRACT: 'subtract' }, MaskFeatherFalloff: { FFO_LINEAR: 'linear', FFO_SMOOTH: 'smooth' }, MaskMotionBlur: { SAME_AS_LAYER: 'same', OFF: 'off' },
 		alert: (message: string) => alerts.push(message), confirm: () => true, JSON: undefined } };
 }
 test('generated AE importer creates separate compositions, parent links and spatial keys while preserving existing items', async () => {
@@ -69,6 +76,24 @@ test('generated AE importer creates separate compositions, parent links and spat
 	assert.deepEqual([...comp.authored[0]!.position.keys].map(([time, values]) => [time, Array.from(values)]), [[0, [2, 3]], [1, [10, 11]]]);
 	assert.equal(fixture.calls.filter((call) => call === 'ease').length, 2); assert.equal(fixture.calls.filter((call) => call === 'tangents').length, 2);
 	assert.equal(fixture.files.get('/package/media/asset.png'), 'abc'); assert.equal(fixture.calls.at(-1), 'end');
+});
+test('generated AE importer creates real Shape values and explicit hard-edge mask attributes from its admitted plan', async () => {
+	const input = JSON.parse(manifest()) as { compositions: { layers: { properties: unknown[] }[] }[] };
+	const numeric = (matchName: string, value: number[]) => ({ kind: 'numeric', name: matchName, matchName, value, spatial: false, keys: [], expression: null });
+	const shape = { closed: true, vertices: [[0, 0], [20, 0], [10, 20]], inTangents: [[-2, 1], [0, 0], [0, 0]], outTangents: [[4, 3], [0, 0], [0, 0]] };
+	const mask = { kind: 'group', name: 'Owned mask', matchName: 'ADBE Mask Atom', mask: { mode: 'subtract', inverted: true, rotoBezier: false, featherFalloff: 'linear', motionBlur: 'off' }, children: [
+		{ kind: 'shape', name: 'Path', matchName: 'ADBE Mask Shape', value: shape, keys: [], expression: null },
+		numeric('ADBE Mask Opacity', [75]), numeric('ADBE Mask Feather', [0, 0]), numeric('ADBE Mask Offset', [0]),
+	] };
+	input.compositions[0]!.layers[0]!.properties.push({ kind: 'group', name: 'Masks', matchName: 'ADBE Mask Parade', children: [mask] });
+	const fixture = host(JSON.stringify(input)); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange imported/u);
+	const comp = fixture.items.find(item => item instanceof fixture.Composition)! as InstanceType<typeof fixture.Composition>;
+	const target = comp.authored[0]!.masks[0]!; assert.equal(target.name, 'Owned mask'); assert.equal(target.maskMode, 'subtract'); assert.equal(target.inverted, true); assert.equal(target.rotoBezier, false);
+	assert.equal(target.maskMotionBlur, 'off'); assert.equal(target.fields.get('ADBE Mask Opacity')!.value, 75);
+	const value = target.fields.get('ADBE Mask Shape')!.value; assert.ok(value instanceof fixture.sandbox.Shape); assert.deepEqual(JSON.parse(JSON.stringify(value)), shape);
+	mask.mask.rotoBezier = true; const refused = host(JSON.stringify(input)); vm.runInNewContext(await script(), refused.sandbox, { timeout: 5000 });
+	assert.match(refused.alerts[0]!, /RotoBezier/u); assert.deepEqual(refused.items, [refused.existing]); assert.deepEqual(refused.calls, []);
 });
 test('generated AE importer refuses changed media and color mismatch before creating objects', async () => {
 	const changed = host(manifest(true, true)); vm.runInNewContext(await script(), changed.sandbox, { timeout: 5000 });

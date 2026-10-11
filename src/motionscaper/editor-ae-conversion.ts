@@ -4,6 +4,7 @@ import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeRepo
 import { motionAeRenderedSequence } from '../common/editor/motion-ae-render-sequence.ts';
 import { motionAeBoundedClock } from '../common/editor/motion-ae-property-conversion.ts';
 import { convertMotionAeTransform } from '../common/editor/motion-ae-transform-conversion.ts';
+import { convertMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
 import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-asset.ts';
 import { MOTION_BLEND_MODES, type MotionComposition, type MotionLayer, type MotionLayerContent } from '../common/editor/motion-composition.ts';
 import { freezeMotionValue, motionId } from '../common/editor/motion-values.ts';
@@ -85,6 +86,7 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 				// All imported property keys use composition frames. Rebase source timing explicitly to the same origin.
 				sourceStart: clock(-layer.startTime * timeScale, layer.id), timeScale: clock(timeScale, layer.id),
 				transform: convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames), blendMode,
+				masks: convertMotionAeMasks(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report),
 				matte: layer.matte === null ? null : { layerId: ids.get(layer.matte.layerId)!, mode: layer.matte.type } };
 		});
 		return { id: ids.get(source.id)!, name: name(source.name, 'Composition'), width: source.width, height: source.height, frameRate, durationFrames,

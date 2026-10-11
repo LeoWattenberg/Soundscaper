@@ -21,6 +21,8 @@ function readMotionAeHostProperty(property, host, layerId, path, report, budget,
             var child = property.property(index);
             children.push(readMotionAeHostProperty(child, host, layerId, path + '/' + String(index - 1) + ':' + child.matchName, report, budget, depth + 1));
         }
+        if (matchName === 'ADBE Mask Atom' && host.mask)
+            return { kind: kind, name: name, matchName: matchName, children: children, mask: host.mask(property) };
         return { kind: kind, name: name, matchName: matchName, children: children };
     }
     function unsupported(reason) {
@@ -102,7 +104,19 @@ function copyShape(input) {
             result.push([values[index][0], values[index][1]]);
         return result;
     }
-    return { closed: source.closed, vertices: points(source.vertices), inTangents: points(source.inTangents), outTangents: points(source.outTangents) };
+    var shape = { closed: source.closed, vertices: points(source.vertices), inTangents: points(source.inTangents), outTangents: points(source.outTangents) };
+    if (source.featherSegLocs && source.featherSegLocs.length) {
+        var count_2 = source.featherSegLocs.length;
+        if (count_2 > 4096)
+            throw new Error('AE shape feather budget exceeded.');
+        var copy = function (values) { if (values.length !== count_2)
+            throw new Error('AE shape feather dimensions differ.'); var result = []; for (var i = 0; i < count_2; i++)
+            result.push(values[i]); return result; };
+        return { closed: shape.closed, vertices: shape.vertices, inTangents: shape.inTangents, outTangents: shape.outTangents,
+            feather: { segmentLocations: copy(source.featherSegLocs), relativeLocations: copy(source.featherRelSegLocs), radii: copy(source.featherRadii),
+                interpolations: copy(source.featherInterps), tensions: copy(source.featherTensions), types: copy(source.featherTypes), cornerAngles: copy(source.featherRelCornerAngles) } };
+    }
+    return shape;
 }
 
 return { readMotionAeHostProperty: readMotionAeHostProperty };

@@ -26,6 +26,19 @@ function propertyHost(sampling) {
             return 'hold'; if (value === KeyframeInterpolationType.LINEAR)
             return 'linear'; if (value === KeyframeInterpolationType.BEZIER)
             return 'bezier'; throw new Error('Unsupported AE interpolation.'); },
+        mask: function (property) {
+            var mask = property;
+            var names = ['none', 'add', 'subtract', 'intersect', 'lighten', 'darken', 'difference'];
+            var mode = null;
+            for (var index = 0; index < names.length; index++)
+                if (MaskMode[names[index].toUpperCase()] === mask.maskMode)
+                    mode = names[index];
+            if (mode === null || (mask.maskFeatherFalloff !== MaskFeatherFalloff.FFO_LINEAR && mask.maskFeatherFalloff !== MaskFeatherFalloff.FFO_SMOOTH)
+                || (mask.maskMotionBlur !== MaskMotionBlur.SAME_AS_LAYER && mask.maskMotionBlur !== MaskMotionBlur.ON && mask.maskMotionBlur !== MaskMotionBlur.OFF))
+                throw new Error('Unsupported AE mask metadata.');
+            return { mode: mode, inverted: mask.inverted, rotoBezier: mask.rotoBezier, featherFalloff: mask.maskFeatherFalloff === MaskFeatherFalloff.FFO_LINEAR ? 'linear' : 'smooth',
+                motionBlur: mask.maskMotionBlur === MaskMotionBlur.ON ? 'on' : mask.maskMotionBlur === MaskMotionBlur.OFF ? 'off' : 'same-as-layer' };
+        },
         text: function (value) {
             var text = value;
             if (text.justification !== ParagraphJustification.LEFT_JUSTIFY && text.justification !== ParagraphJustification.CENTER_JUSTIFY && text.justification !== ParagraphJustification.RIGHT_JUSTIFY)

@@ -15,7 +15,7 @@ async function script(sampled = false, rendered = false): Promise<string> {
 	}
 	return parts.join('\n');
 }
-function host(writeFailure = false, evaluate = false, confirmed = true) {
+function host(writeFailure = false, evaluate = false, confirmed = true, includeMask = false) {
 	const files = new Map<string, string>([['/source/Original.aep', 'original-project-bytes'], ['/source/Clip.mp4', 'original-media-bytes']]);
 	const folders = new Set(['/destination']), alerts: string[] = [], preExpression: boolean[] = [];
 	class HostFile {
@@ -39,13 +39,16 @@ function host(writeFailure = false, evaluate = false, confirmed = true) {
 		valueAtTime: (time: number, before: boolean) => { preExpression.push(before); if (!before && !evaluate) throw new Error('Expression executed'); return before ? [32, 32] : [32 + time, 32]; },
 	};
 	const transform = { name: 'Transform', matchName: 'ADBE Transform Group', propertyType: 'group', numProperties: 1, property: () => position };
+	const mask = { name: 'Mask', matchName: 'ADBE Mask Atom', propertyType: 'group', numProperties: 0,
+		maskMode: 'subtract', inverted: true, rotoBezier: false, maskFeatherFalloff: 'smooth', maskMotionBlur: 'off' };
+	const masks = { name: 'Masks', matchName: 'ADBE Mask Parade', propertyType: 'group', numProperties: 1, property: () => mask };
 	class FootageItem {
 		id = 2; name = 'Clip.mp4'; file = new HostFile('/source/Clip.mp4'); width = 64; height = 64; pixelAspect = 1; frameRate = 24; duration = 1;
 		hasVideo = true; hasAudio = false; mainSource = { isStill: false };
 	}
 	const footage = new FootageItem();
 	const layer = { index: 1, name: 'Clip layer', parent: null, source: footage, startTime: 0, inPoint: 0, outPoint: 1, stretch: 100, enabled: true,
-		threeDLayer: false, adjustmentLayer: false, blendingMode: 'normal', trackMatteType: 'none', property: (name: string) => name === 'ADBE Transform Group' ? transform : null };
+		threeDLayer: false, adjustmentLayer: false, blendingMode: 'normal', trackMatteType: 'none', property: (name: string) => name === 'ADBE Transform Group' ? transform : name === 'ADBE Mask Parade' && includeMask ? masks : null };
 	class CompItem {
 		id = 1; name = 'Composition'; width = 64; height = 64; pixelAspect = 1; frameRate = 24; duration = 1; numLayers = 1; displayStartTime = 0; bgColor = [0, 0, 0];
 		layer() { return layer; }
@@ -67,6 +70,7 @@ function host(writeFailure = false, evaluate = false, confirmed = true) {
 		CameraLayer: class {}, LightLayer: class {}, TextLayer: class {}, ShapeLayer: class {},
 		PropertyType: { PROPERTY: 'property' }, PropertyValueType: { OneD: 'oneD', TwoD: 'twoD', ThreeD: 'threeD', TwoD_SPATIAL: 'twoDSpatial', ThreeD_SPATIAL: 'threeDSpatial', COLOR: 'color', SHAPE: 'shape', TEXT_DOCUMENT: 'text' },
 		BlendingMode: { NORMAL: 'normal' }, TrackMatteType: { NO_TRACK_MATTE: 'none' }, alert: (message: string) => alerts.push(message),
+		MaskMode: { SUBTRACT: 'subtract' }, MaskFeatherFalloff: { FFO_LINEAR: 'linear', FFO_SMOOTH: 'smooth' }, MaskMotionBlur: { SAME_AS_LAYER: 'same', ON: 'on', OFF: 'off' },
 		confirm: () => confirmed, prompt: () => 'User PNG Alpha', PostRenderAction: { NONE: 'none' },
 		JSON: undefined,
 	} };
@@ -80,6 +84,14 @@ test('readable AE exporter artifact preserves source files and captures authored
 	assert.equal(exchange.compositions[0]!.layers[0]!.properties[0]!.kind, 'group'); assert.ok(exchange.report.some((entry) => entry.code === 'expression'));
 	assert.equal(fixture.files.get('/source/Original.aep'), 'original-project-bytes'); assert.equal(fixture.files.get('/source/Clip.mp4'), 'original-media-bytes');
 	assert.equal(fixture.project.numItems, 2); assert.equal([...fixture.files.keys()].filter((path) => path.endsWith('/footage-2.mp4')).length, 1);
+});
+test('readable AE exporter captures mask mode, inversion, feather and motion-blur authority', async () => {
+	const fixture = host(false, false, true, true); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange written/u);
+	const exchange = parseMotionAeExchange([...fixture.files].find(([path]) => path.endsWith('/motionae.json'))![1]);
+	const group = exchange.compositions[0]!.layers[0]!.properties[1]!; assert.equal(group.kind, 'group'); if (group.kind !== 'group') throw new Error('Expected masks');
+	const mask = group.children[0]!; assert.equal(mask.kind, 'group'); if (mask.kind !== 'group') throw new Error('Expected mask');
+	assert.deepEqual(mask.mask, { mode: 'subtract', inverted: true, rotoBezier: false, featherFalloff: 'smooth', motionBlur: 'off' });
 });
 test('readable AE exporter removes only its newly created package after a manifest write failure', async () => {
 	const fixture = host(true); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });

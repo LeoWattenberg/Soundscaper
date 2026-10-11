@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import type { MotionAeEase, MotionAeExpression, MotionAeKey, MotionAeProperty, MotionAeReportEntry, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
+import type { MotionAeEase, MotionAeExpression, MotionAeKey, MotionAeMaskMetadata, MotionAeProperty, MotionAeReportEntry, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
 import { sampleMotionAeNumericProperty } from './motion-ae-host-sampling.ts';
 export interface MotionAePropertyHost {
 	readonly name: string; readonly matchName: string; readonly numProperties?: number; readonly numKeys?: number;
@@ -17,6 +17,7 @@ export interface MotionAePropertyReadHost {
 	kind(property: MotionAePropertyHost): 'group' | 'numeric' | 'shape' | 'text' | 'unsupported';
 	interpolation(value: unknown): 'hold' | 'linear' | 'bezier';
 	text(value: unknown): MotionAeText;
+	mask?(property: MotionAePropertyHost): MotionAeMaskMetadata;
 	checkCancelled(): void;
 }
 export interface MotionAeHostPropertyBudget { properties: number; keys: number }
@@ -34,6 +35,7 @@ export function readMotionAeHostProperty(
 			const child = property.property(index);
 			children.push(readMotionAeHostProperty(child, host, layerId, path + '/' + String(index - 1) + ':' + child.matchName, report, budget, depth + 1));
 		}
+		if (matchName === 'ADBE Mask Atom' && host.mask) return { kind, name, matchName, children, mask: host.mask(property) };
 		return { kind, name, matchName, children };
 	}
 	function unsupported(reason: string): MotionAeProperty {
@@ -89,11 +91,20 @@ function copyEase(source: readonly MotionAeEase[]): readonly MotionAeEase[] {
 	for (let index = 0; index < source.length; index++) result.push({ speed: source[index]!.speed, influence: source[index]!.influence }); return result;
 }
 function copyShape(input: unknown): MotionAeShape {
-	const source = input as MotionAeShape;
+	const source = input as MotionAeShape & { featherSegLocs?: readonly number[]; featherRelSegLocs: readonly number[]; featherRadii: readonly number[];
+		featherInterps: readonly number[]; featherTensions: readonly number[]; featherTypes: readonly number[]; featherRelCornerAngles: readonly number[] };
 	if (!source || !source.vertices || source.vertices.length > 4096) throw new Error('AE shape vertex budget exceeded.');
 	function points(values: readonly (readonly [number, number])[]): readonly (readonly [number, number])[] {
 		const result: (readonly [number, number])[] = [];
 		for (let index = 0; index < values.length; index++) result.push([values[index]![0], values[index]![1]]); return result;
 	}
-	return { closed: source.closed, vertices: points(source.vertices), inTangents: points(source.inTangents), outTangents: points(source.outTangents) };
+	const shape = { closed: source.closed, vertices: points(source.vertices), inTangents: points(source.inTangents), outTangents: points(source.outTangents) };
+	if (source.featherSegLocs && source.featherSegLocs.length) {
+		const count = source.featherSegLocs.length; if (count > 4096) throw new Error('AE shape feather budget exceeded.');
+		const copy = (values: readonly number[]) => { if (values.length !== count) throw new Error('AE shape feather dimensions differ.'); const result: number[] = []; for (let i = 0; i < count; i++) result.push(values[i]!); return result; };
+		return { closed: shape.closed, vertices: shape.vertices, inTangents: shape.inTangents, outTangents: shape.outTangents,
+			feather: { segmentLocations: copy(source.featherSegLocs), relativeLocations: copy(source.featherRelSegLocs), radii: copy(source.featherRadii),
+				interpolations: copy(source.featherInterps), tensions: copy(source.featherTensions), types: copy(source.featherTypes), cornerAngles: copy(source.featherRelCornerAngles) } };
+	}
+	return shape;
 }

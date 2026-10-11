@@ -16,6 +16,8 @@ export interface MotionAeKey<Value> {
 export interface MotionAeShape {
 	readonly closed: boolean; readonly vertices: readonly (readonly [number, number])[];
 	readonly inTangents: readonly (readonly [number, number])[]; readonly outTangents: readonly (readonly [number, number])[];
+	readonly feather?: { readonly segmentLocations: readonly number[]; readonly relativeLocations: readonly number[]; readonly radii: readonly number[];
+		readonly interpolations: readonly number[]; readonly tensions: readonly number[]; readonly types: readonly number[]; readonly cornerAngles: readonly number[] };
 }
 export interface MotionAeText {
 	readonly text: string; readonly font: string; readonly fontSize: number; readonly fillColor: readonly [number, number, number];
@@ -23,8 +25,13 @@ export interface MotionAeText {
 	readonly tracking: number; readonly leading: number; readonly autoLeading: boolean; readonly justification: 'left' | 'center' | 'right';
 }
 interface MotionAePropertyBase { readonly matchName: string; readonly name: string }
+export interface MotionAeMaskMetadata {
+	readonly mode: 'none' | 'add' | 'subtract' | 'intersect' | 'lighten' | 'darken' | 'difference';
+	readonly inverted: boolean; readonly rotoBezier: boolean; readonly featherFalloff: 'linear' | 'smooth';
+	readonly motionBlur: 'same-as-layer' | 'on' | 'off';
+}
 export type MotionAeProperty =
-	| (MotionAePropertyBase & { readonly kind: 'group'; readonly children: readonly MotionAeProperty[] })
+	| (MotionAePropertyBase & { readonly kind: 'group'; readonly children: readonly MotionAeProperty[]; readonly mask?: MotionAeMaskMetadata })
 	| (MotionAePropertyBase & { readonly kind: 'numeric'; readonly value: readonly number[]; readonly spatial: boolean;
 		readonly keys: readonly MotionAeKey<readonly number[]>[]; readonly expression: MotionAeExpression | null; readonly samples?: MotionAeNumericSamples })
 	| (MotionAePropertyBase & { readonly kind: 'shape'; readonly value: MotionAeShape;

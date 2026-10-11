@@ -16,6 +16,7 @@ const modules = [
 	{ name: 'motion-ae-host-export', global: 'MotionAeHostExport', exports: ['exportMotionAeHostProject'] },
 	{ name: 'motion-ae-installed-export', global: 'MotionAeInstalledExport', exports: ['runMotionAeInstalledExport'] },
 	{ name: 'motion-ae-host-sha256', global: 'MotionAeHostSha256', exports: ['createMotionAeHostSha256'] },
+	{ name: 'motion-ae-host-import-mask', global: 'MotionAeHostImportMask', exports: ['readMotionAeImportMasks'] },
 	{ name: 'motion-ae-host-import-plan', global: 'MotionAeHostImportPlan', exports: ['prepareMotionAeHostImport'] },
 	{ name: 'motion-ae-host-import', global: 'MotionAeHostImport', exports: ['importMotionAeHostPlan'] },
 	{ name: 'motion-ae-installed-import', global: 'MotionAeInstalledImport', exports: ['runMotionAeInstalledImport'] },

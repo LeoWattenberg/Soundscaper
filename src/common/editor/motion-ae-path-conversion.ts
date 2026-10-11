@@ -24,6 +24,7 @@ export function convertMotionAePath(input: Shape, frameRate: Rational): PathConv
 	const rate = number(normalizeRational(frameRate)); if (rate <= 0 || rate > 1000) throw new RangeError('AE path frame rate is outside its bound.');
 	const unsupported = (message: string): PathConversion => ({ status: 'unsupported', property: null, message, quantizedClock: false });
 	if (source.expression?.enabled) return unsupported('Path expressions remain inert. Bake an editable path explicitly in AE or render the composition.');
+	if (source.value.feather || source.keys.some(key => key.value.feather)) return unsupported('Variable mask feather remains in exchange custody. Render this mask in AE; dropping its feather points would change its appearance.');
 	let quantizedClock = false;
 	for (let index = 0; index < source.keys.length; index++) {
 		const key = source.keys[index]!, next = source.keys[index + 1];

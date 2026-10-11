@@ -37,6 +37,7 @@ test('Motion AE paths refuse expression execution, temporal Bezier guesses and t
 		{ ...input, keys: [{ ...key, outInterpolation: 'bezier' as const }, { ...key, time: 1 }] },
 		{ ...input, keys: [key, { ...key, time: 1, value: { ...key.value, closed: false } }] },
 		{ ...input, keys: [{ ...key, time: -1 }, key] },
+		{ ...input, value: { ...exported.value, feather: { segmentLocations: [0], relativeLocations: [0.5], radii: [4], interpolations: [0], tensions: [0], types: [0], cornerAngles: [0] } } },
 	]) { const result = convertMotionAePath(candidate, rate); assert.equal(result.status, 'unsupported'); assert.equal(result.property, null); }
 	const animated = motionPropertyOfKind({ ...path, keyframes: [{ position: { num: 0, den: 1 }, value }, { position: { num: 24, den: 1 }, value }], segments: ['eased'] }, 'path');
 	assert.match(exportMotionAePath(animated, options).unsupported!, /temporal/iu);
