@@ -6,6 +6,7 @@ import { createScapeExportDestination } from '../common/editor/scape-export-dest
 import type { MotionAssetReader } from '../common/editor/motion-render-resources.ts';
 import { exportMotionscaperArchive } from './editor-scape.ts';
 import { assertPreparedMotionscaperAeRender, motionAeRenderedExchange, type MotionAeRenderedFrame, type PreparedMotionscaperAeRender } from './editor-ae-render-export.ts';
+import { normalizeMotionscaperAeRenderFailure } from './editor-ae-render-failure.ts';
 import { createMotionAeRenderStream } from './editor-ae-render-stream.ts';
 export const MOTION_AE_RENDER_PACKAGE_LIMITS = Object.freeze({ originalArchiveBytes: 128 * 1024 * 1024, packageBytes: 256 * 1024 * 1024, frameBytes: 64 * 1024 * 1024 });
 const README = 'Motionscaper complete-composition rendered transfer — development bridge, unqualified\n\n'
@@ -45,6 +46,9 @@ export async function createMotionscaperAeRenderPackage(prepared: PreparedMotion
 			{ name: 'conversion-report.json', text: JSON.stringify({ format: 'org.motionscaper.ae-render-report', version: 1, sourceRevisionDigest: prepared.revision.digest, compositionId: prepared.plan.identity.compositionId, firstFrame: 0, frameCount: prepared.plan.frameCount, report: exchange.report }) }, { name: 'README.txt', text: README }];
 		for (const item of texts) { throwIfScapeAborted(signal); await writer.add(item.name, new TextReader(item.text), { level: 0, zip64: true, signal }); }
 		await destination.finish(writer, signal); throwIfScapeAborted(signal); return new Blob(chunks, { type: 'application/zip' });
-	} catch (error) { return await destination.abort(writer, error); }
+	} catch (error) {
+		try { return await destination.abort(writer, error); }
+		catch (failure) { throw normalizeMotionscaperAeRenderFailure(failure, signal); }
+	}
 	finally { chunks.length = 0; }
 }
