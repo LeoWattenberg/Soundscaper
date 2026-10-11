@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { createMotionscaperOpaqueArchive } from '../helpers/motionscaper-opaque-archive.ts';
+import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST } from '../../src/common/project-file-extensions.ts';
 
 async function menu(page: Page, top: string, label: string): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click();
@@ -28,8 +29,8 @@ async function projectInventory(page: Page): Promise<Record<string, unknown[]>> 
 	});
 }
 
-for (const [family, version] of [['motionscaper', 2], ['framescaper', 2], ['soundscaper', 1]] as const) {
-	test(`M02 File menu retains ${family}/${String(version)} read-only, copies exact bytes and restores authored history`, async ({ page }) => {
+for (const [family, version, extension] of [['motionscaper', 2, '.scape'], ['framescaper', 2, '.fscape'], ['soundscaper', 1, '.liscape']] as const) {
+	test(`M02 File menu retains ${family}/${String(version)} from ${extension} read-only, copies exact bytes and restores authored history`, async ({ page }) => {
 		const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
 		await page.goto('/embed/en/'); await menu(page, 'File', 'New Composition');
 		await page.getByRole('dialog').getByLabel('Project title', { exact: true }).fill('Retained composition');
@@ -42,7 +43,9 @@ for (const [family, version] of [['motionscaper', 2], ['framescaper', 2], ['soun
 		const projectId = (rows?.[0] as { id: string }).id;
 		const original = Buffer.from(await (await createMotionscaperOpaqueArchive(family, version, projectId)).arrayBuffer());
 		await menu(page, 'File', 'Open');
-		await page.getByLabel('Scape project (.mscape, .fscape, .sscape)', { exact: true }).setInputFiles({ name: 'Opaque original.mscape', mimeType: 'application/zip', buffer: original });
+		const input = page.getByLabel('Scape project (.mscape, .fscape, .sscape)', { exact: true });
+		await expect(input).toHaveAttribute('accept', `${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.aep,.aepx`);
+		await input.setInputFiles({ name: `Opaque original${extension}`, mimeType: 'application/zip', buffer: original });
 		const dialog = page.getByRole('dialog', { name: 'Read-only archive', exact: true }); await expect(dialog).toBeVisible();
 		await expect(dialog).toContainText(`${family} / ${String(version)}`);
 		await expect(page.locator('[data-motion-project-title]')).toHaveText('Retained unsaved edit');

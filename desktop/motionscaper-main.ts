@@ -3,6 +3,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from '../src/common/project-file-extensions.ts';
 import {
 	MOTIONSCAPER_DESKTOP as identity, MOTIONSCAPER_DESKTOP_CHANNELS as channels,
 	motionscaperDesktopDocumentUrl, motionscaperDesktopEnvironment,
@@ -107,7 +108,7 @@ async function start(): Promise<void> {
 	const files = createMotionscaperFileAuthority({
 		chooseOpen: async () => {
 			if (!window) throw new Error('Motionscaper has no active document window.');
-			const selection = await dialog.showOpenDialog(window, { title: 'Open Motionscaper project', properties: ['openFile'], filters: [{ name: 'Scape project', extensions: ['mscape', 'scape', 'fscape', 'sscape'] }] });
+			const selection = await dialog.showOpenDialog(window, { title: 'Open Motionscaper project', properties: ['openFile'], filters: [{ name: 'Scape project', extensions: ACCEPTED_PROJECT_FILE_EXTENSIONS.map(extension => extension.slice(1)) }] });
 			return selection.canceled ? null : selection.filePaths[0] ?? null;
 		},
 		chooseSave: async ({ suggestedName, defaultPath }) => {

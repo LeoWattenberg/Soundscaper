@@ -8,6 +8,7 @@ import { createMotionscaperFileAuthority } from '../desktop/motionscaper-file-au
 import { createMotionscaperLaunchAuthority, motionLaunchPaths } from '../desktop/motionscaper-launch-authority.ts';
 import { dispatchMotionscaperLaunchCall } from '../desktop/motionscaper-launch-ipc.ts';
 import { takeMotionscaperDesktopLaunch } from '../src/motionscaper/desktop-launch-adapter.ts';
+import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from '../src/common/project-file-extensions.ts';
 
 async function fixture() {
 	const root = await mkdtemp(join(tmpdir(), 'motionscaper-launch-'));
@@ -22,7 +23,7 @@ async function fixture() {
 test('Motion native cold and warm launches retain paths in main and review one bounded file at a time', async () => {
 	const f = await fixture();
 	try {
-		assert.deepEqual(motionLaunchPaths(['motion', '--user-data-dir=private.mscape', 'first.mscape', f.second, 'compat.scape', 'other.fscape'], f.root), [f.first, f.second, join(f.root, 'compat.scape')]);
+		assert.deepEqual(motionLaunchPaths(['motion', '--user-data-dir=private.mscape', 'first.mscape', f.second, 'compat.scape', 'other.fscape'], f.root), [f.first, f.second, join(f.root, 'compat.scape'), join(f.root, 'other.fscape')]);
 		f.launch.enqueue(motionLaunchPaths(['first.mscape'], f.root)); f.launch.enqueue([f.first, f.second]);
 		const first = await f.launch.take(); assert.ok(first); assert.deepEqual(Object.keys(first).sort(), ['byteLength', 'name', 'token']);
 		assert.equal(first.name, 'first.mscape'); assert.equal(await f.launch.take(), null);
@@ -35,11 +36,32 @@ test('Motion native cold and warm launches retain paths in main and review one b
 	} finally { await f.close(); }
 });
 
+test('Motion native launches admit every shared project suffix case-insensitively while archive bytes stay unchanged', async () => {
+	const f = await fixture();
+	try {
+		const names = ACCEPTED_PROJECT_FILE_EXTENSIONS.flatMap(extension => [`archive${extension}`, `uppercase${extension.toUpperCase()}`]);
+		const paths = names.map(name => join(f.root, name));
+		assert.deepEqual(motionLaunchPaths(names, f.root), paths);
+		for (const path of paths) await writeFile(path, 'retained archive bytes');
+		f.launch.enqueue(paths);
+		for (const name of names) {
+			const opened = await f.launch.take(); assert.ok(opened); assert.equal(opened.name, name);
+			assert.deepEqual(Object.keys(opened).sort(), ['byteLength', 'name', 'token']);
+			assert.equal(new TextDecoder().decode(await f.files.read({ token: opened.token, offset: 0, length: opened.byteLength })), 'retained archive bytes');
+			await f.launch.acknowledge({ token: opened.token });
+		}
+		assert.equal(await f.launch.take(), null);
+		const refused = ['project.mscape.zip', 'project.liscape.backup', 'project.aep', 'project.aepx', 'folder.scape/ordinary.bin'];
+		assert.deepEqual(motionLaunchPaths([...refused, '--file=project.fscape'], f.root), []);
+		for (const name of refused) assert.throws(() => f.launch.enqueue([join(f.root, name)]), /archive/u);
+	} finally { await f.close(); }
+});
+
 test('Motion native launch admission rejects path injection, links and excessive pending work', async () => {
 	const f = await fixture();
 	try {
 		assert.throws(() => f.launch.enqueue(['relative.mscape']), /absolute/u);
-		assert.throws(() => f.launch.enqueue([join(f.root, 'other.fscape')]), /mscape/u);
+		assert.throws(() => f.launch.enqueue([join(f.root, 'other.fscape.zip')]), /archive/u);
 		assert.throws(() => f.launch.enqueue(Array.from({ length: 17 }, (_, i) => join(f.root, `${i}.mscape`))), /pending/u);
 		assert.equal(await f.launch.take(), null);
 		const linked = join(f.root, 'link.mscape'); await symlink(f.first, linked);

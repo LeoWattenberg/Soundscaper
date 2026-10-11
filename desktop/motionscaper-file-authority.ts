@@ -4,6 +4,7 @@ import { constants } from 'node:fs';
 import { lstat, open, rename, rm, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join } from 'node:path';
 import { MOTIONSCAPER_FILE_CHUNK_BYTES, type MotionDesktopFiles, type MotionOpenFileCapability } from '../src/motionscaper/desktop-file-contract.ts';
+import { withProjectFileExtension } from '../src/common/project-file-extensions.ts';
 
 interface Fingerprint { readonly dev: number; readonly ino: number; readonly size: number; readonly mtimeMs: number; readonly ctimeMs: number }
 interface Binding { readonly path: string; readonly fingerprint: Fingerprint | null }
@@ -89,9 +90,9 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 			try {
 				const bound = bindings.get(projectId);
 				let path: string; let fingerprint: Fingerprint | null;
-				if (!saveAs && bound) { path = bound.path; fingerprint = await optionalFile(path); assertFingerprint(bound.fingerprint, fingerprint); }
+				if (!saveAs && bound && extname(bound.path).toLowerCase() === '.mscape') { path = bound.path; fingerprint = await optionalFile(path); assertFingerprint(bound.fingerprint, fingerprint); }
 				else {
-					const chosen = await dialogs.chooseSave({ suggestedName: safeName(suggestedName), ...(bound && !saveCopy ? { defaultPath: bound.path } : {}) });
+					const chosen = await dialogs.chooseSave({ suggestedName: safeName(suggestedName), ...(bound && !saveCopy ? { defaultPath: withProjectFileExtension(bound.path, '.mscape') } : {}) });
 					if (chosen === null) { saving.delete(projectId); return null; }
 					if (!isAbsolute(chosen) || extname(chosen).toLowerCase() !== '.mscape') throw new TypeError('Choose a Motionscaper .mscape destination.');
 					path = chosen; fingerprint = await optionalFile(path);
@@ -163,7 +164,10 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 }
 function integer(value: number, label: string): void { if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`Invalid Motionscaper ${label}.`); }
 function identity(value: string): void { if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(value)) throw new TypeError('Invalid Motionscaper project identity.'); }
-function safeName(value: string): string { return `${value.replace(/[\\/\p{Cc}<>:"|?*]/gu, '_').replace(/\.mscape$/iu, '').slice(0,180) || 'Motionscaper project'}.mscape`; }
+function safeName(value: string): string {
+	const name = withProjectFileExtension(value.replace(/[\\/\p{Cc}<>:"|?*]/gu, '_').trim() || 'Motionscaper project', '.mscape');
+	return `${name.slice(0, -'.mscape'.length).slice(0, 180) || 'Motionscaper project'}.mscape`;
+}
 function fingerprintOf(value: Fingerprint): Fingerprint { return { dev: value.dev, ino: value.ino, size: value.size, mtimeMs: value.mtimeMs, ctimeMs: value.ctimeMs }; }
 function assertFingerprint(expected: Fingerprint | null, actual: Fingerprint | null): void { if (JSON.stringify(expected) !== JSON.stringify(actual)) throw new Error('The selected Motionscaper archive changed outside this save.'); }
 async function optionalFile(path: string): Promise<Fingerprint | null> {

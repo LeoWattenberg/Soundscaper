@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createMotionscaperFileAuthority } from '../desktop/motionscaper-file-authority.ts';
 import { MOTIONSCAPER_FILE_CHUNK_BYTES } from '../src/motionscaper/desktop-file-contract.ts';
+import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from '../src/common/project-file-extensions.ts';
 
 test('Motionscaper file capabilities retain paths in main and replace a bound archive only at commit', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'motionscaper-files-'));
@@ -31,6 +32,38 @@ test('Motionscaper file capabilities retain paths in main and replace a bound ar
 	} finally { await files.dispose(); await rm(root, { recursive: true, force: true }); }
 });
 
+test('normal native Save of legacy or foreign-suffixed Motion input chooses .mscape and preserves its original', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'motionscaper-file-suffix-'));
+	try {
+		for (const extension of ACCEPTED_PROJECT_FILE_EXTENSIONS.filter(value => value !== '.mscape')) {
+			const original = join(root, `original${extension.toUpperCase()}`), destination = join(root, 'saved.mscape');
+			await writeFile(original, 'original archive');
+			let choice: string | null = null;
+			const selections: { readonly suggestedName: string; readonly defaultPath?: string }[] = [];
+			const files = createMotionscaperFileAuthority({ chooseOpen: async () => original, chooseSave: async selection => { selections.push(selection); return choice; } });
+			try {
+				const selected = await files.selectOpen(); assert.ok(selected);
+				await files.bindOpened({ token: selected.token, projectId: 'p' }); await files.release({ token: selected.token });
+				const request = { projectId: 'p', suggestedName: `Imported/title${extension}`, saveAs: false };
+				assert.equal(await files.beginSave(request), null);
+				assert.deepEqual(selections, [{ suggestedName: 'Imported_title.mscape', defaultPath: join(root, 'original.mscape') }]);
+				assert.equal(await readFile(original, 'utf8'), 'original archive');
+				choice = destination;
+				const pending = await files.beginSave(request); assert.ok(pending); assert.equal(selections.length, 2);
+				await files.write({ token: pending.token, offset: 0, bytes: new TextEncoder().encode('saved archive') });
+				assert.equal(await readFile(original, 'utf8'), 'original archive');
+				assert.equal((await files.commit({ token: pending.token, byteLength: 13 })).name, 'saved.mscape');
+				assert.equal(await readFile(destination, 'utf8'), 'saved archive');
+				const next = await files.beginSave(request); assert.ok(next); assert.equal(selections.length, 2);
+				await files.write({ token: next.token, offset: 0, bytes: new TextEncoder().encode('next archive') });
+				await files.commit({ token: next.token, byteLength: 12 });
+				assert.equal(await readFile(destination, 'utf8'), 'next archive');
+				assert.equal(await readFile(original, 'utf8'), 'original archive');
+			} finally { await files.dispose(); await rm(destination, { force: true }); }
+		}
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('cancelled or conflicting saves preserve the destination and refuse invalid chunk capabilities', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'motionscaper-file-conflict-'));
 	const path = join(root, 'archive.mscape'); await writeFile(path, 'original');
@@ -50,6 +83,23 @@ test('cancelled or conflicting saves preserve the destination and refuse invalid
 		assert.equal(await readFile(path, 'utf8'), 'external update');
 		assert.deepEqual(await readdir(root), ['archive.mscape']);
 	} finally { await files.dispose(); await rm(root, { recursive: true, force: true }); }
+});
+
+test('native Save suggestions replace only terminal shared suffixes after sanitizing the bounded name', async () => {
+	const suggestions: string[] = [];
+	const files = createMotionscaperFileAuthority({ chooseOpen: async () => null, chooseSave: async ({ suggestedName }) => { suggestions.push(suggestedName); return null; } });
+	try {
+		for (const suffix of ACCEPTED_PROJECT_FILE_EXTENSIONS) {
+			await files.beginSave({ projectId: 'p', suggestedName: `Title/name${suffix.toUpperCase()}`, saveAs: true });
+			assert.equal(suggestions.at(-1), 'Title_name.mscape');
+		}
+		for (const [suggestedName, expected] of [
+			['.mscape', 'Motionscaper project.mscape'], ['  ', 'Motionscaper project.mscape'],
+			['Title.scape.zip', 'Title.scape.zip.mscape'], [`${'x'.repeat(190)}.fscape`, `${'x'.repeat(180)}.mscape`],
+		]) {
+			await files.beginSave({ projectId: 'p', suggestedName, saveAs: true }); assert.equal(suggestions.at(-1), expected);
+		}
+	} finally { await files.dispose(); }
 });
 
 test('native Save Copy commits an independent file while normal Save retains its original binding', async () => {

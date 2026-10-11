@@ -17,6 +17,7 @@ import type { MotionDocumentRequest } from './shell-menu.ts';
 import type { MotionDesktopArchiveInput } from '../../../../motionscaper/desktop-file-adapter.ts';
 import type { MotionscaperOpaqueArchive } from '../../../../motionscaper/editor-opaque-archive.ts';
 import { MotionProjectLeaseError } from '../../../../motionscaper/editor-project-write-lease.ts';
+import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST } from '../../../project-file-extensions.ts';
 
 const MotionOpaqueArchiveDialog = lazy(() => import('./MotionOpaqueArchiveDialog.tsx'));
 const MotionSendCompositionDialog = lazy(() => import('./MotionSendCompositionDialog.tsx'));
@@ -288,7 +289,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	</AudioEditorDialogShell>;
 	if (dialog === 'open') return <AudioEditorDialogShell title={copy.motionscaperOpen} onClose={busy ? undefined : close} width={460}
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={busy} onClick={close}>{copy.motionscaperCancel}</Button>} />}>
-		<label>{copy.motionscaperOpenFile}<input type="file" accept=".mscape,.fscape,.sscape,.aep,.aepx" disabled={busy} onChange={(event) => {
+		<label>{copy.motionscaperOpenFile}<input type="file" accept={`${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.aep,.aepx`} disabled={busy} onChange={(event) => {
 			const file = event.currentTarget.files?.[0];
 			if (file) void run(() => openBrowserFile(file));
 		}} /></label>

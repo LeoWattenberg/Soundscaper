@@ -2,9 +2,9 @@
 import { extname, isAbsolute, normalize, resolve } from 'node:path';
 import type { MotionDesktopLaunch } from '../src/motionscaper/desktop-launch-contract.ts';
 import type { MotionOpenFileCapability } from '../src/motionscaper/desktop-file-contract.ts';
+import { isAcceptedProjectFileExtension } from '../src/common/project-file-extensions.ts';
 
 const MAXIMUM_PENDING = 16;
-const EXTENSIONS = new Set(['.mscape', '.scape']);
 interface Opening { readonly path: string; readonly generation: number; requeued: boolean }
 export interface MotionLaunchAuthority extends Pick<MotionDesktopLaunch, 'take' | 'acknowledge'> {
 	enqueue(paths: readonly string[]): void;
@@ -12,10 +12,10 @@ export interface MotionLaunchAuthority extends Pick<MotionDesktopLaunch, 'take' 
 	dispose(): Promise<void>;
 }
 
-/** Parse OS arguments only; switches and foreign extensions confer no authority. */
+/** Parse OS arguments only; switches and non-project extensions confer no authority. */
 export function motionLaunchPaths(argv: readonly string[], workingDirectory: string): readonly string[] {
 	if (argv.length > 512 || !isAbsolute(workingDirectory)) throw new RangeError('Invalid Motionscaper launch arguments.');
-	return argv.filter(value => !value.startsWith('-') && EXTENSIONS.has(extname(value).toLowerCase()))
+	return argv.filter(value => !value.startsWith('-') && isAcceptedProjectFileExtension(extname(value)))
 		.map(value => launchPath(resolve(workingDirectory, value)));
 }
 
@@ -68,6 +68,6 @@ export function createMotionscaperLaunchAuthority(options: {
 }
 function launchPath(path: string): string {
 	if (typeof path !== 'string' || path.length > 8192 || path.includes('\0') || !isAbsolute(path)) throw new TypeError('Motionscaper native launch requires a bounded absolute path.');
-	if (!EXTENSIONS.has(extname(path).toLowerCase())) throw new TypeError('Motionscaper native launch requires an .mscape or .scape archive.');
+	if (!isAcceptedProjectFileExtension(extname(path))) throw new TypeError('Motionscaper native launch requires a shared project archive suffix.');
 	return normalize(path);
 }
