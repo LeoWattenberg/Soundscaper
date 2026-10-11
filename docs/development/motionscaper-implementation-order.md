@@ -112,6 +112,12 @@ timing resolution. The separate float-carrier native helper and own-origin
 desktop delivery pass a packaged Linux ProRes 4444 publication smoke test with
 authenticated PCM24 audio. Other desktop targets remain unqualified. Flat MOV
 delivery admits at most 32,768 frames so its retained sample index is bounded.
+The [sustained CPU fixture](motionscaper-sustained-workload.md) verifies real
+worker preview, retained WAV decoding, exact stereo PCM and forward-only PNG
+delivery as duration grows. Its explicit Node/V8 profile passes 300 and 1,200
+frames with fixed retained queue/cache sizes; browser RSS and maximum workloads
+remain separate qualification gates. Preview and render leases reuse bounded,
+digest-bound font providers while preserving imported multilingual pixels.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and
 spatial/path editing pass actual browser workflows, including pixel preview,
@@ -261,8 +267,9 @@ M09's camera, depth-group, lighting and quality semantics. It does not claim
 After Effects pixel parity.
 
 The current [composition link foundations](motionscaper-composition-links.md)
-declare M10's revision, closure, history and rendering authority. Complete
-connected-editor and desktop qualification remain open.
+declare M10's revision, closure, history and rendering authority. Connected
+browser editing and bounded Linux x64 native delivery have actual receipts;
+the remaining native/browser target and hardware qualification matrix stays open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
