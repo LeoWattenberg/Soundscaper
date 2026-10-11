@@ -544,10 +544,17 @@ saving; its database, memberships, and scalar query profiles stay unchanged.
 Focused Lightscaper tests cover persistence/reopen, revision conflicts, atomic
 rollback, borrowed verification, cancellation, and save acknowledgement. These
 instrumented IndexedDB tests do not establish native browser qualification.
-Selected-session activation, process3 clipboard and portable archive formats,
-menu authoring, the visualize-spots view, authenticated-original preview/export
-routing, and editable Frame integration remain required before healing is usable
-in the product.
+Explicit Current Session and Develop3 entry points now retain complete repaired
+documents through the selected default or restored library. Startup recovery
+verifies the retained LUT and brush closure before promoting original custody;
+metadata and membership receipts preserve repaired state. The Current original
+reader authenticates immutable bytes and revisions through the existing owner,
+and the Photo renderer evaluates repairs before adjustments in both resolution
+profiles. These directly exercised entry points do not activate the existing
+menu workflow or establish native browser qualification. UI activation,
+process3 settings, clipboard, presets and portable archive formats, repair menu
+authoring, the visualize-spots view, preview/export routing, and editable Frame
+integration remain required before healing is usable in the product.
 Direct Frame mask-name authoring and healing remain open; these slices do not
 close L6.
 

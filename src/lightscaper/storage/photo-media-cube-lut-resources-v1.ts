@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
+import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
+import { normalizeVideoCubeLutReferenceV1, type VideoCubeLutReferenceV1 } from '../../common/editor/cube-lut-reference-contract.ts';
 import type { CubeLutSourcePortV1 } from '../../common/editor/imaging/cube-lut-source-port-v1.ts';
 import type { StorageRepositoryPort } from '../../common/editor/storage/repository-port.ts';
 import { parseCubeLutV1, VIDEO_COLOR_LIMITS_V1 } from '../../common/editor/video-color-cube-lut-v27.ts';
@@ -13,6 +14,7 @@ export interface PhotoMediaCubeLutResourcesV1 {
 	importFile(file: Blob, options?: PhotoCubeLutOptionsV1): Promise<Readonly<PhotoCubeLutReceiptV1>>;
 	verifyPhoto(photo: unknown, signal?: AbortSignal): Promise<void>;
 	verifyPreset(preset: unknown, signal?: AbortSignal): Promise<void>;
+	readonly verifyReferencesV1?: (references: readonly Readonly<VideoCubeLutReferenceV1>[], signal?: AbortSignal) => Promise<void>;
 }
 export interface PhotoMediaCubeLutResourceOwnerV1 {
 	readonly resources: Readonly<PhotoMediaCubeLutResourcesV1>;
@@ -60,6 +62,7 @@ export function createPhotoMediaCubeLutResourcesV1(
 		}),
 		verifyPhoto: (value, signal) => verifyPacket(value, 'photo', signal),
 		verifyPreset: (value, signal) => verifyPacket(value, 'preset', signal),
+		verifyReferencesV1: (value, signal) => verifyPacket(value, 'references', signal),
 	});
 	return Object.freeze({ resources, close });
 
@@ -70,14 +73,16 @@ export function createPhotoMediaCubeLutResourcesV1(
 			try { return await operation(); } finally { writing = false; }
 		});
 	}
-	function verifyPacket(value: unknown, kind: 'photo' | 'preset', signal?: AbortSignal): Promise<void> {
+	function verifyPacket(value: unknown, kind: 'photo' | 'preset' | 'references', signal?: AbortSignal): Promise<void> {
 		return own(async () => {
 			open(); check(signal); if (verifying) throw new Error('LUT writer verification is pending.');
 			verifying = true;
 			try {
-				const collector = createPhotoCubeLutReachabilityV1();
-				if (kind === 'photo') collector.addPhoto(value); else collector.addPreset(value);
-				const references = collector.finish(); open(); check(signal);
+				let references: readonly Readonly<VideoCubeLutReferenceV1>[];
+				if (kind === 'references') references = readClosedDomainArray(value, 'selected LUT references', 0, 4_094).map(normalizeVideoCubeLutReferenceV1);
+				else { const collector = createPhotoCubeLutReachabilityV1();
+					if (kind === 'photo') collector.addPhoto(value); else collector.addPreset(value); references = collector.finish(); }
+				open(); check(signal);
 				for (const reference of references) { await verify.withBytes(reference, () => undefined, { signal }); open(); check(signal); }
 			} finally { verifying = false; }
 		});

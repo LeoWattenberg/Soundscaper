@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readClosedDomainArray, readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
+import { normalizeBrushMaskResourceReferenceV1, type BrushMaskResourceReferenceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
 import type { MaskRasterSourcePortV1 } from '../../common/editor/imaging/mask-raster-source-port-v1.ts';
 import type { StorageRepositoryPort } from '../../common/editor/storage/repository-port.ts';
 import { createPhotoMaskRasterReachabilityV1 } from '../catalog/photo-mask-raster-reachability-v1.ts';
@@ -10,6 +12,7 @@ export interface PhotoMediaMaskRasterResourcesV1 {
 	put(reference: unknown, bytes: unknown, options?: PhotoMaskRasterOptionsV1): Promise<Readonly<PhotoMaskRasterReceiptV1>>;
 	verifyPhoto(photo: unknown, signal?: AbortSignal): Promise<void>;
 	verifyPreset(preset: unknown, signal?: AbortSignal): Promise<void>;
+	readonly verifyReferencesV1?: (references: readonly Readonly<BrushMaskResourceReferenceV1>[], signal?: AbortSignal) => Promise<void>;
 }
 export interface PhotoMediaMaskRasterResourceOwnerV1 {
 	readonly resources: Readonly<PhotoMediaMaskRasterResourcesV1>;
@@ -40,17 +43,20 @@ export function createPhotoMediaMaskRasterResourcesV1(
 		}),
 		verifyPhoto: (value, signal) => verifyPacket(value, 'photo', signal),
 		verifyPreset: (value, signal) => verifyPacket(value, 'preset', signal),
+		verifyReferencesV1: (value, signal) => verifyPacket(value, 'references', signal),
 	});
 	return Object.freeze({ resources, close });
 
-	function verifyPacket(value: unknown, kind: 'photo' | 'preset', signal?: AbortSignal): Promise<void> {
+	function verifyPacket(value: unknown, kind: 'photo' | 'preset' | 'references', signal?: AbortSignal): Promise<void> {
 		return own(async () => {
 			open(); check(signal); if (verifying) throw new Error('Brush writer verification is pending.');
 			verifying = true;
 			try {
-				const collector = createPhotoMaskRasterReachabilityV1();
-				if (kind === 'photo') collector.addPhoto(value); else collector.addPreset(value);
-				const references = collector.finish(); open(); check(signal);
+				let references: readonly Readonly<BrushMaskResourceReferenceV1>[];
+				if (kind === 'references') references = readClosedDomainArray(value, 'selected brush references', 0, 4_094).map(admitReference);
+				else { const collector = createPhotoMaskRasterReachabilityV1();
+					if (kind === 'photo') collector.addPhoto(value); else collector.addPreset(value); references = collector.finish(); }
+				open(); check(signal);
 				for (const reference of references) { await verify.withBytes(reference, () => undefined, { signal }); open(); check(signal); }
 			} finally { verifying = false; }
 		});
@@ -64,3 +70,10 @@ export function createPhotoMediaMaskRasterResourcesV1(
 }
 
 function check(signal?: AbortSignal): void { if (signal !== undefined) Reflect.apply(CHECK, signal, []); }
+
+function admitReference(value: unknown): Readonly<BrushMaskResourceReferenceV1> {
+	const fields = ['storageKey', 'sha256', 'width', 'height', 'byteLength'] as const;
+	const input = record(value, 'selected brush reference', fields), reference = normalizeBrushMaskResourceReferenceV1(field(input, 'storageKey', 'selected brush reference'));
+	for (const key of fields) if (field(input, key, 'selected brush reference') !== reference[key]) throw new TypeError('Selected brush reference differs from its canonical key.');
+	return reference;
+}

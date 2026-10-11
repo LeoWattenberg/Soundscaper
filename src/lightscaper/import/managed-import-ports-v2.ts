@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { PhotoDocumentV1 } from '../catalog/types.ts';
+import type { PhotoManagedImportPortsCurrentV1 } from './managed-import-ports-current-v1.ts';
 import type { PhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
 import type { PhotoCatalogRepositoryV2 } from '../catalog/photo-catalog-repository-v2.ts';
 import type { PhotoManagedImportPortsV1 } from './managed-import-ports-v1.ts';
@@ -19,6 +20,11 @@ export interface PhotoManagedImportPortsV2 extends Omit<PhotoManagedImportPortsV
 /** Pin every capability and its original receiver before any owning await.
  * Function proxies are callable without reading bind/name/length metadata. */
 export function capturePhotoManagedImportPortsV2(ports: PhotoManagedImportPortsV2): Readonly<PhotoManagedImportPortsV2> {
+	return capturePhotoManagedImportPortsForProfileV1(ports);
+}
+
+/** Fixed frontdoors share capability capture only, never document admission. */
+export function capturePhotoManagedImportPortsForProfileV1<Ports extends PhotoManagedImportPortsV2 | PhotoManagedImportPortsCurrentV1>(ports: Ports): Readonly<Ports> {
 	const catalog = ports.catalog, media = ports.media, custody = media.custody, journal = ports.journal;
 	const verify = ports.verifyResources, exclusive = ports.exclusive, allocate = ports.createImportId;
 	const cryptoOwner = globalThis.crypto, uuid = cryptoOwner.randomUUID;
@@ -33,7 +39,7 @@ export function capturePhotoManagedImportPortsV2(ports: PhotoManagedImportPortsV
 		...(verify === undefined ? {} : { verifyResources: pin(verify, ports) }),
 		exclusive: exclusive === undefined ? withPhotoCatalogWriteLockV1 : pin(exclusive, ports),
 		createImportId: allocate === undefined ? () => `import-${Reflect.apply(uuid, cryptoOwner, []) as string}` : pin(allocate, ports),
-	});
+	}) as unknown as Readonly<Ports>;
 }
 
 function pin<Method extends (...args: never[]) => unknown>(value: Method, receiver: unknown): Method {
