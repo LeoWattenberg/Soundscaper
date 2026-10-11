@@ -9,6 +9,7 @@ import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from './editor-capture-runtime.ts'
 import { assertFramescaperSuccessorEnvironment, type FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
 import { framescaperSuccessorPlaybackCanonicalProject } from './editor-project-successor-playback.ts';
 import { resolveFramescaperCompositionSource } from './editor-composition-link-source.ts';
+import { createFramescaperSuccessorScapeNativeRuntime } from './editor-scape-successor-native.ts';
 import { createFramescaperSequenceActionsSequence } from './editor-project-sequence-sequence-actions.ts';
 import { createFramescaperMulticameraActionsSequence } from './editor-project-sequence-multicam-actions.ts';
 import { createFramescaperVideoRetimeActionsRetime } from './editor-project-retime-retime-actions.ts';
@@ -25,6 +26,7 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		headless: true, productId: 'framescaper', framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
 		store: environment.controllerStore, sessionController: session,
 		projectRuntime: environment.runtime as unknown as ControllerOptions['projectRuntime'],
+		scapeProjectRuntime: createFramescaperSuccessorScapeNativeRuntime(environment),
 		acquireProjectLock: environment.runtime.acquireProjectLock, playbackProjectService: environment.playback,
 		createProjectIfAbsent: (project, options) => environment.controllerStore.createProjectIfAbsent(project, options),
 		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,

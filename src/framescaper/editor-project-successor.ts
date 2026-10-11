@@ -12,6 +12,7 @@ export const FRAMESCAPER_SUCCESSOR_STORAGE_PROFILE = createEditorProjectStorageP
 });
 export type FramescaperSuccessorProject = Omit<FramescaperProject, 'schemaVersion'> & {
 	readonly id: string; readonly title: string;
+	readonly sources: FramescaperProject['sources']; readonly clips: FramescaperProject['clips'];
 	readonly schemaVersion: 2; readonly compositionLinks: readonly FramescaperCompositionLink[];
 };
 export function migrateFramescaperSuccessorProject(value: unknown): FramescaperSuccessorProject {

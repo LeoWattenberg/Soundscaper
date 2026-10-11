@@ -12,6 +12,7 @@ import { canonicalMediaContentBlob } from '../common/editor/storage/media-conten
 import { validateVideoTimingAssetBytes } from '../common/editor/video-timing-asset.ts';
 import { framescaperSuccessorPortableAssets } from './editor-project-successor-portable-assets.ts';
 import { createFramescaperLinkedAssetDescriptor } from './editor-project-successor-link-assets.ts';
+import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 
 export interface FramescaperSuccessorPortableExportStore {
 	getMediaAssetMetadata(id: string): PromiseLike<unknown> | unknown;
@@ -22,17 +23,18 @@ export interface FramescaperSuccessorPortableExportOptions {
 	readonly readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>;
 	readonly signal?: AbortSignal; readonly maximumBlobBytes?: number; readonly writable?: WritableStream<Uint8Array>;
 	readonly createWritable?: (maximumBytes: number) => Promise<WritableStream<Uint8Array>>;
+	readonly assertCurrent?: () => void; readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 /** Assemble current schema2 intent directly. Neither a baseline archive nor synthetic virtual media is produced. */
 export async function exportFramescaperSuccessorPortableArchive(value: unknown, store: FramescaperSuccessorPortableExportStore, options: FramescaperSuccessorPortableExportOptions): Promise<Readonly<{ blob: Blob | null; manifest: ScapeManifest; byteLength: number }>> {
-	const { signal } = options; signal?.throwIfAborted();
+	const { signal } = options; signal?.throwIfAborted(); options.assertCurrent?.();
 	if (options.writable && options.createWritable) throw new TypeError('Choose one successor archive destination.');
 	const closure = framescaperSuccessorPortableAssets(value);
 	const metadataStore = { getMediaAssetMetadata: (id: string) => awaitScapeReadOperation(() => store.getMediaAssetMetadata(id), signal) };
 	const additionalAssets = await closure.extension.planExportAssets({ project: closure.baseline, store: metadataStore, signal }); signal?.throwIfAborted();
 	const ordinary = await prepareScapeExport(closure.ordinary, metadataStore, { output: 'stream', currentProjectSchemaFamily: 'framescaper', currentProjectSchemaVersion: 1, signal,
-		additionalSourceKinds: closure.extension.sourceKinds, additionalAssets });
+		additionalSourceKinds: closure.extension.sourceKinds, additionalAssets, assertCurrent: options.assertCurrent, confirmFileSizeWarning: options.confirmFileSizeWarning });
 	const byDigest = new Map(closure.linked.map(asset => [asset.sha256, asset]));
 	const linked: PlannedScapeExportAsset[] = closure.linked.map(asset => ({ ...createFramescaperLinkedAssetDescriptor(asset), source: {}, storageKey: asset.sha256, expectedSha256: asset.sha256, mimeType: 'application/octet-stream' }));
 	const assets = [...ordinary.assets]; const entries = new Set(assets.map(asset => asset.entry));
@@ -51,7 +53,7 @@ export async function exportFramescaperSuccessorPortableArchive(value: unknown, 
 	const maximumArchiveBytes = maximumScapeStoreArchiveBytes(inventory); const maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
 	if (!options.writable && !options.createWritable && maximumArchiveBytes > maximumBlobBytes) throw new RangeError('Successor archive exceeds Blob admission; choose a streaming destination.');
 	const plan: ScapeExportPlan = { ...ordinary, assets, projectBytes, projectDescriptor, manifestBytes, maximumArchiveBytes, maximumBlobBytes };
-	signal?.throwIfAborted(); const writable = options.createWritable ? await options.createWritable(maximumArchiveBytes) : options.writable;
+	signal?.throwIfAborted(); options.assertCurrent?.(); const writable = options.createWritable ? await options.createWritable(maximumArchiveBytes) : options.writable;
 	const destination = createScapeExportDestination(writable, 'application/vnd.framescaper.scape+zip', maximumArchiveBytes);
 	const writer = new ZipWriter(destination.target, { level: 0, zip64: true, dataDescriptor: true, dataDescriptorSignature: true, extendedTimestamp: true, useWebWorkers: false, signal });
 	try {
@@ -81,7 +83,7 @@ export async function exportFramescaperSuccessorPortableArchive(value: unknown, 
 			await writer.add(asset.entry, stream, { signal }); if (size !== asset.size) throw new RangeError('Successor body length changed.');
 			const hash = scapeHex(digest.digest()); if (asset.expectedSha256 && hash !== asset.expectedSha256) throw new RangeError('Successor body digest changed.'); completed.push(completeScapeExportAsset(asset, hash));
 		}
-		const manifest = serializeScapeExportManifest(plan, completed); await writer.add('manifest.json', new TextReader(manifest.text), { signal });
+		options.assertCurrent?.(); const manifest = serializeScapeExportManifest(plan, completed); await writer.add('manifest.json', new TextReader(manifest.text), { signal });
 		const blob = await destination.finish(writer, signal); if (blob) assertScapeExportBlob(plan, blob); return { blob, manifest: manifest.manifest, byteLength: destination.byteLength };
 	} catch (error) { return destination.abort(writer, error); }
 }

@@ -19,6 +19,7 @@ import { withFramescaperSuccessorPortableArchive } from './editor-project-succes
 import { hydrateFramescaperSuccessorPortableMedia } from './editor-project-successor-portable-hydration.ts';
 import { createFramescaperLinkOwnerRecord } from './editor-composition-link-owner-record.ts';
 import { createFramescaperLinkedAssetDescriptor } from './editor-project-successor-link-assets.ts';
+import { preflightScapeImportCapacity, type ScapeImportCapacityOptions } from '../common/editor/scape-import-capacity.ts';
 import { framescaperLinkRevisionKey, putFramescaperLinkState } from './editor-composition-link-records.ts';
 
 export interface FramescaperSuccessorPortableCustody {
@@ -27,6 +28,8 @@ export interface FramescaperSuccessorPortableCustody {
 }
 export interface FramescaperSuccessorPortableImportOptions {
 	readonly indexedDB?: IDBFactory; readonly line: unknown; readonly signal?: AbortSignal; readonly maximumArchiveBlobBytes?: number;
+	readonly assertCurrent?: () => void;
+	readonly estimateStorageForPreflight?: ScapeImportCapacityOptions['estimateStorageForPreflight'];
 }
 const STORES = ['owners', 'projects', 'pending', 'portableArchives', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'] as const;
 
@@ -46,6 +49,9 @@ export async function importFramescaperSuccessorPortableArchive(input: ScapeProj
 		const archiveDigest = await digestMediaContent(archive, { signal });
 		return await withFramescaperSuccessorPortableArchive(archive, signal, async (envelope, closure) => {
 			const owner = createFramescaperLinkOwnerRecord(closure.project); await transact(database, STORES, 'readonly', stores => assertAbsent(stores, owner.id));
+			await preflightScapeImportCapacity({ assets: [...envelope.manifest.assets, { size: archive.size }] }, {
+				signal, estimateStorageForPreflight: options.estimateStorageForPreflight, estimateStorage: () => media.estimateStorage(),
+			});
 			await hydrateFramescaperSuccessorPortableMedia(envelope, closure, media, signal);
 			for (const asset of closure.linked) {
 				signal?.throwIfAborted(); const stage = await assets.stage(asset); stages.push(stage);
@@ -58,7 +64,7 @@ export async function importFramescaperSuccessorPortableArchive(input: ScapeProj
 			}
 			const custody: FramescaperSuccessorPortableCustody = { kind: 'framescaper-successor-portable-v1', id: owner.id, archive, archiveDigest, project: closure.project };
 			await transact(database, STORES, 'readwrite', async stores => {
-				signal?.throwIfAborted(); await assertAbsent(stores, owner.id);
+				signal?.throwIfAborted(); options.assertCurrent?.(); await assertAbsent(stores, owner.id);
 				for (const stage of stages) await stage.publish(stores);
 				for (const link of owner.project.compositionLinks) {
 					for (const asset of link.snapshot.project.assets) await assets.assertAvailable(stores, asset);
@@ -66,7 +72,7 @@ export async function importFramescaperSuccessorPortableArchive(input: ScapeProj
 					await request(stores.linkRevisions.put({ key: framescaperLinkRevisionKey(link.projectId, link.acceptedDigest), snapshot: link.snapshot }));
 					await putFramescaperLinkState(stores, owner.id, link.sourceId, state);
 				}
-				await request(stores.portableArchives.add(custody)); await request(stores.owners.put(owner)); signal?.throwIfAborted();
+				await request(stores.portableArchives.add(custody)); await request(stores.owners.put(owner)); signal?.throwIfAborted(); options.assertCurrent?.();
 			});
 			return { project: owner.project, manifest: envelope.manifest, readOnly: false as const, reason: null, collision: null, publicationCommitted: true as const };
 		});
