@@ -96,7 +96,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		});
 	};
 	if (dialog === 'paths' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
-		<MotionPathsDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
+		<MotionPathsDialog clipboard={keyframeClipboard} onCopyKeys={setKeyframeClipboard} copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
 	</Suspense>;
 	if (dialog === 'properties' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>

@@ -10,7 +10,7 @@ import { createMotionscaperPropertyCommands } from '../../../../motionscaper/edi
 import { motionLayerProperties } from '../../motion-project-graph.ts';
 import { editMotionPath } from '../../motion-path-edit.ts';
 import { enableMotionSpatialBezier, setMotionSpatialHandle, setMotionSpatialKey } from '../../motion-spatial-edit.ts';
-import { editMotionKeyframes } from '../../motion-keyframe-edit.ts';
+import { editMotionKeyframes, type MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import { motionPropertyOfKind, type MotionVector2 } from '../../motion-property.ts';
 import { compileMotionProperty } from '../../motion-property-evaluation.ts';
 import type { Rational } from '../../timeline-time.ts';
@@ -18,9 +18,11 @@ import { motionPlaneGeometry, type MotionPlaneProperty } from './motion-plane-ge
 import { motionPropertyLabel } from './motion-property-ui.ts';
 import { parseMotionExactInput as exact, parseMotionNumberInput as number } from './motion-exact-input.ts';
 import MotionPlaneEditor from './MotionPlaneEditor.tsx';
+import MotionPathKeyframes from './MotionPathKeyframes.tsx';
 
-export default function MotionPathsDialog({ copy, project, busy, canUndo, canRedo, onEdit, onUndo, onRedo, onClose }: Readonly<{
+export default function MotionPathsDialog({ copy, project, busy, canUndo, canRedo, onEdit, onUndo, onRedo, onClose, clipboard, onCopyKeys }: Readonly<{
 	copy: Readonly<Record<string, string>>; project: MotionscaperProject; busy: boolean; canUndo: boolean; canRedo: boolean;
+	clipboard: MotionKeyframeClipboard | null; onCopyKeys: (value: MotionKeyframeClipboard) => void;
 	onEdit: (commands: readonly MotionscaperProjectCommand[]) => Promise<void>; onUndo: () => Promise<void>; onRedo: () => Promise<void>; onClose: () => void;
 }>) {
 	const [compositionId, setComposition] = useState(project.primaryCompositionId), [layerId, setLayer] = useState(''), [path, setPath] = useState('transform.position');
@@ -98,6 +100,7 @@ export default function MotionPathsDialog({ copy, project, busy, canUndo, canRed
 					<label><input type="checkbox" checked={property.value.closed} onChange={(event) => { const closed = event.currentTarget.checked; commit(() => editMotionPath(property, { type: 'closed', closed })); }} />{copy.motionscaperClosedPath}</label>
 				</>}
 			</fieldset>
+			{property.kind === 'path' && <MotionPathKeyframes key={`${composition.id}/${layer?.id}/${current?.path}`} copy={copy} property={property} frameRate={composition.frameRate} position={position} disabled={disabled} clipboard={clipboard} onCopy={onCopyKeys} onEdit={commit} onError={(failure) => setError(failure instanceof Error ? failure.message : copy.motionscaperFailed!)} />}
 		</> : <p>{copy.motionscaperNoLayers}</p>}
 		{error && <p role="alert">{copy.motionscaperEditFailed} {error}</p>}
 	</AudioEditorDialogShell>;

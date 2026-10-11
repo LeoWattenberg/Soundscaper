@@ -47,7 +47,15 @@ test('path topology and morph edits survive undo and save/reopen', async ({ page
 	await dialog.getByLabel('Local frame', { exact: true }).fill('30'); await dialog.locator('[data-motion-plane-point="vertex:1"]').click();
 	await dialog.getByLabel('Point X', { exact: true }).fill('140'); await dialog.getByRole('button', { name: 'Apply Point', exact: true }).click();
 	await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '140');
-	await dialog.getByLabel('Local frame', { exact: true }).fill('15'); await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '90');
+	await dialog.getByRole('checkbox', { name: 'Keyframe 0', exact: true }).check();
+	await dialog.getByRole('combobox', { name: 'Interpolation', exact: true }).selectOption('bezier');
+	await dialog.getByLabel('First control value', { exact: true }).fill('0'); await dialog.getByLabel('Second control value', { exact: true }).fill('1');
+	await dialog.getByRole('button', { name: 'Apply Interpolation', exact: true }).click();
+	await dialog.getByLabel('Local frame', { exact: true }).fill('15/2'); await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '55.625');
+	await dialog.getByRole('checkbox', { name: 'Keyframe 30', exact: true }).check(); await dialog.getByRole('button', { name: 'Copy Keyframes', exact: true }).click();
+	await dialog.getByLabel('Local frame', { exact: true }).fill('15'); await dialog.getByRole('button', { name: 'Paste Keyframes', exact: true }).click();
+	await expect(dialog.locator('[data-motion-path-keyframe]')).toHaveCount(4); await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(dialog.locator('[data-motion-path-keyframe]')).toHaveCount(2);
+	await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '90');
 	await expect(dialog.getByRole('button', { name: 'Close', exact: true }).last()).toBeEnabled(); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
 	await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); await page.reload();
 	await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Untitled Composition', exact: true }).click(); await menu(page, 'Layer', 'Paths and Motion');
