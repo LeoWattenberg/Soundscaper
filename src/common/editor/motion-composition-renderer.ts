@@ -109,6 +109,7 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer,
 		}
 		if (layer.state.kind !== 'null') for (const mask of layer.state.masks) assertMotionMaskParameters(mask);
 		if (layer.state.kind !== 'null') for (const effect of layer.state.effects) if (effect.enabled) motionEffectParameters(effect);
+		for (const effect of layer.state.effects) if (effect.enabled && effect.type === 'corner-pin' && !rasterizer.supportedEffectTypes?.includes(effect.type)) throw new Error(`Motion corner-pin ${effect.id} is unavailable in this renderer.`);
 		const matteSource = layer.state.matte ? layers.get(layer.state.matte.layerId) : null;
 		if (matteSource && ['null', 'camera', 'light', 'adjustment'].includes(matteSource.state.kind)) throw new Error(`Motion matte source ${matteSource.state.name} is a non-pixel layer.`);
 		if (layer.state.kind === 'adjustment' && motionAdjustmentApplies(layer, frame) && !compositor.supportsReplacement) throw new Error('Motion compositor cannot replace an adjustment backdrop; use the CPU compositor.');

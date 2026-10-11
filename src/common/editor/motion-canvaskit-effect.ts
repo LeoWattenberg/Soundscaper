@@ -11,9 +11,10 @@ import { createMotionSurface, validateMotionSurface, type MotionSurface } from '
 /** The same pinned native float filters serve CPU and GPU-composited Motion frames. */
 export function rasterMotionCanvasKitEffect(kit: CanvasKit, effect: MotionEvaluatedEffect, source: MotionLocalRaster, signal?: AbortSignal): MotionLocalRaster {
 	signal?.throwIfAborted(); validateMotionSurface(source.surface);
-	const plan = planMotionEffect(effect, source.surface.width, source.surface.height);
+	if (effect.type === 'corner-pin') throw new Error('Motion corner-pin requires its projective rasterizer.');
+	const plan = planMotionEffect(effect, source.surface.width, source.surface.height, source.origin);
 	if (motionEffectIsNoop(plan.type, plan.params)) return source;
-	assertMotionWorkingBudget(estimateMotionEffectWorkingBytes(source.surface.width, source.surface.height, [effect]), MOTION_DEFAULT_WORKING_BYTES);
+	assertMotionWorkingBudget(estimateMotionEffectWorkingBytes(source.surface.width, source.surface.height, [effect], source.origin), MOTION_DEFAULT_WORKING_BYTES);
 	let output: MotionSurface;
 	if (plan.type === 'gaussian-blur') output = blurMotionCanvasKitSurface(kit, source.surface, plan.params.sigma!, { width: plan.width, height: plan.height, x: -plan.left, y: -plan.top });
 	else if (['glow', 'outline', 'drop-shadow'].includes(plan.type)) output = renderMotionDecoration(kit, source.surface, plan);

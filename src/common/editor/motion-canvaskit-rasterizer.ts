@@ -11,7 +11,7 @@ import { estimateMotionMaskWorkingBytes, type MotionMaskRasterizer } from './mot
 import { rasterMotionCanvasKitMask } from './motion-canvaskit-mask.ts';
 import { motionCanvasKitPath } from './motion-canvaskit-path.ts';
 import { rasterMotionCanvasKitSurface } from './motion-canvaskit-surface.ts';
-import { estimateMotionEffectWorkingBytes, type MotionEffectRasterizer } from './motion-effect-rendering.ts';
+import { estimateMotionEffectWorkingBytes, MOTION_EFFECT_TYPES, type MotionEffectRasterizer } from './motion-effect-rendering.ts';
 import { rasterMotionCanvasKitEffect } from './motion-canvaskit-effect.ts';
 import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import type { Rational } from './timeline-time.ts';
@@ -20,6 +20,7 @@ import { withMotionCanvasKitPaint as paint } from './motion-canvaskit-paint.ts';
 import { motionTextAnimationBounds } from './motion-text-animation.ts';
 import { drawMotionAnimatedParagraph } from './motion-canvaskit-text-animation.ts';
 import { drawMotionCanvasKitShapes } from './motion-canvaskit-shape-operators.ts';
+import { rasterMotionCornerPinEffect } from './motion-corner-pin-raster.ts';
 import { planMotionShapeOperators } from './motion-shape-operator-plan.ts';
 import { assertMotion2DMatrix, createMotionSurface, motionSurfaceFromRgba8, motionSurfaceLength, transformMotionSurface, validateMotionSurface, type MotionSurface } from './motion-surface.ts';
 
@@ -58,8 +59,9 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 	}
 	const rasterizer: CanvasKitMotionRasterizer = {
 		supportedSourceOperations: ['text-animator', 'shape-operator'],
+		supportedEffectTypes: MOTION_EFFECT_TYPES,
 		estimateEffectWorkingBytes: estimateMotionEffectWorkingBytes,
-		async rasterizeEffect(effect, source, signal) { return rasterMotionCanvasKitEffect(kit, effect, source, signal); },
+		async rasterizeEffect(effect, source, signal) { return effect.type === 'corner-pin' ? rasterMotionCornerPinEffect(effect, source, signal) : rasterMotionCanvasKitEffect(kit, effect, source, signal); },
 		estimateMaskWorkingBytes: estimateMotionMaskWorkingBytes,
 		async rasterizeMask(mask, target, signal) { rasterMotionCanvasKitMask(kit, mask, target, signal); },
 		estimateSourceWorkingBytes(layer, target) {
@@ -67,7 +69,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 			const bounds = motionLocalSourceBounds(layer.state, assets);
 			return Math.max(rasterizer.estimateWorkingBytes!(layer, { ...target, width: bounds.width, height: bounds.height }),
 				layer.state.masks.length ? estimateMotionMaskWorkingBytes(bounds.width, bounds.height, layer.state.masks) : 0,
-				layer.state.effects.some((effect) => effect.enabled) ? estimateMotionEffectWorkingBytes(bounds.width, bounds.height, layer.state.effects) : 0);
+				layer.state.effects.some((effect) => effect.enabled) ? estimateMotionEffectWorkingBytes(bounds.width, bounds.height, layer.state.effects, bounds.origin) : 0);
 		},
 		async rasterizeSource(layer, target, signal) {
 			signal?.throwIfAborted();

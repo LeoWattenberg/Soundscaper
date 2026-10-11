@@ -2,7 +2,8 @@
 
 M07 tracking foundations provide point tracking, planar tracking, similarity
 stabilization, manual sample correction, and authored application commands.
-Menu integration and renderer qualification remain separate completion gates.
+Menu workflow qualification remains a separate completion gate. The projective
+corner-pin renderer now has focused Node and actual worker/CPU browser coverage.
 
 ## Source authority and analysis
 
@@ -67,16 +68,22 @@ It authors a Motion `corner-pin` effect with four vector2 parameters:
 `top-left`, `top-right`, `bottom-right`, and `bottom-left`, in that order. Values
 are target-layer local pixel coordinates. The renderer must account for the
 retained local raster origin after preceding effects when sampling the source
-rectangle. The Framescaper scalar effect registry is not extended.
+rectangle. The Framescaper scalar effect registry is not extended. The renderer
+admits convex, nondegenerate quadrilaterals and a bounded output surface before
+allocation. It resamples pixel centers in premultiplied linear light with
+bilinear filtering and transparent outside coverage, retaining negative local
+origins. Earlier expanded effects remain part of the input rectangle. The
+renderer yields every 16,384 output pixels and observes cancellation before
+publication; it does not claim After Effects pixel parity.
 
 ## Preview and export admission
 
 `motionTrackingReadiness(project)` returns read-only diagnostics;
-`requireMotionTrackingReady(project)` throws if any exist. Controllers should
-check the pinned project revision before preview/export work begins and cache
-the result for that revision, rather than hashing the document on each frame.
-These hooks do not mutate or discard stale intent. Renderer integration must
-call the hook before claiming tracking is qualified for delivery.
+`requireMotionTrackingReady(project)` throws if any exist. Compilation,
+preview-session project admission, and delivery admission check the pinned
+project before loading a runtime, assets, or opening an output sink. The
+compiled/preview generation retains that admission rather than checking on
+each frame. These hooks do not mutate or discard stale intent.
 
 Raw source freshness and applied geometry are distinct checks. Application
 digests bind exact authored property/effect fields, timing, parent, anchor, and

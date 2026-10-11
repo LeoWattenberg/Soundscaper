@@ -13,7 +13,7 @@ import type { MotionPreviewBackend } from '../../src/common/editor/controller/co
 import type { MotionscaperProject } from '../../src/common/editor/motion-project-types.ts';
 
 type Fixture = Readonly<{ createClient(options: MotionPreviewOptions): Promise<MotionPreviewClient>; createSession(options: MotionPreviewSessionOptions): MotionPreviewBackend;
-	project: MotionscaperProject; shapeProject: MotionscaperProject; loadAsset(): Promise<Uint8Array> }>;
+	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject; loadAsset(): Promise<Uint8Array> }>;
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const fixtureSource = () => `
@@ -36,7 +36,10 @@ const repeater = createMotionShapeOperator({ id: 'copies', kind: 'repeater' });
 const trim = createMotionShapeOperator({ id: 'trim', kind: 'trim-paths' });
 const shapes = createMotionLayer({ id: 'shape', name: 'Operators', durationFrames: 300, content: { kind: 'shapes', shapes: [{ id: 'rect', path: motionRectanglePath({ x: 4, y: 4, width: 8, height: 8 }), fill: null, stroke: { width: motionScalar(2), color: motionColor([0, 0, 1, 1]), lineCap: 'butt', lineJoin: 'miter' } }], operators: [{ ...repeater, copies: motionScalar(2), transform: { ...repeater.transform, position: motionVector([16, 0]) } }, { ...trim, mode: 'simultaneous', end: motionScalar(0.5) }, createMotionShapeOperator({ id: 'merge', kind: 'boolean' })] } });
 const shapeProject = { ...base, compositions: [{ ...base.compositions[0], layers: [shapes] }] };
-globalThis.motionFixture = { createClient, createSession, project, shapeProject, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
+const card = createMotionLayer({ id: 'card', name: 'Pinned card', durationFrames: 300, content: { kind: 'solid', color: motionColor([0, 0.5, 0, 0.5]), size: motionVector([8, 8]) } });
+const corners = [[-4, 0], [8, 0], [12, 12], [0, 12]];
+const pinProject = { ...base, compositions: [{ ...base.compositions[0], layers: [{ ...card, transform: { ...card.transform, position: motionVector([8, 4, 0]) }, effects: [{ id: 'pin', type: 'corner-pin', enabled: true, parameters: ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((id, index) => ({ id, value: motionVector(corners[index]) })) }] }] }] };
+globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
 `;
 
 test.beforeAll(async () => {
@@ -75,6 +78,24 @@ test('M06 ordered repeat, simultaneous trim and boolean geometry match worker an
 	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	expect(rendered.pixels[0]!.slice((4 * 64 + 8) * 4, (4 * 64 + 8) * 4 + 4)).toEqual([0, 0, 255, 255]);
 	expect(rendered.pixels[0]!.slice((4 * 64 + 24) * 4, (4 * 64 + 24) * 4 + 4)).toEqual([0, 0, 0, 0]);
+});
+
+test('M07 projective corner pin preserves fractional coverage and negative origin in worker and CPU previews', async ({ page }) => {
+	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
+	const rendered = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionFixture: Fixture }).motionFixture;
+		const pixels: number[][] = []; const backends: string[] = [];
+		for (const forceHost of [false, true]) {
+			let frame: MotionPreviewFrame | undefined;
+			const client = await fixture.createClient({ ...(forceHost ? { backendFactory: () => Promise.resolve(fixture.createSession({ backend: 'host-cpu', maximumAssetBytes: 64 * 1024 * 1024, maximumWorkingBytes: 64 * 1024 * 1024 })) } : {}), onFrame(value) { frame = value; }, onState() {} });
+			await client.setProject(fixture.pinProject, fixture.loadAsset); await client.seek({ compositionId: 'main', time: 0 });
+			pixels.push([...frame!.rgba]); backends.push(frame!.backend); client.dispose();
+		}
+		return { pixels, backends };
+	});
+	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	expect(rendered.pixels[0]!.slice((8 * 64 + 10) * 4, (8 * 64 + 10) * 4 + 4)).toEqual([0, 188, 0, 128]);
+	expect(rendered.pixels[0]!.slice((8 * 64 + 18) * 4, (8 * 64 + 18) * 4 + 4)).toEqual([0, 0, 0, 0]);
 });
 
 test('M05 bundled preview loads fonts and WASM lazily, animates shaped fallback glyphs and renders offline in a persistent worker', async ({ page, context }) => {
