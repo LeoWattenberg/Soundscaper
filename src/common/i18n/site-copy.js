@@ -5,6 +5,7 @@ import { SITE_SIDEBAR_COPY_BY_LOCALE } from './site-sidebar-copy.js';
 
 const SITE_COPY_ENTRIES = Object.freeze([
 	['motionscaperTitle', 'Motionscaper', 'Motionscaper'],
+	['motionscaperNavigation', 'Motionscaper navigation', 'Motionscaper-Navigation'],
 	['motionscaperMetaDescription', 'A local-first motion graphics and compositing editor for the web and desktop.', 'Ein lokaler Editor für Motion-Design und Compositing im Browser und auf dem Desktop.'],
 	['workspaceMotion', 'Motion Workspace', 'Motion-Arbeitsbereich'],
 	['motionscaperNewComposition', 'New Composition', 'Neue Komposition'],
