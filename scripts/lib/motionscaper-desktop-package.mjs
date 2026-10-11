@@ -31,7 +31,7 @@ export async function verifyMotionscaperDesktopStage(root, targetId) {
 		|| `${stage.target?.platform}-${stage.target?.arch}` !== targetId) {
 		throw new Error('Motionscaper shell stage identity, target, or native admission is invalid.');
 	}
-	if (stage.desktopCodecPolicy !== undefined && JSON.stringify(stage.desktopCodecPolicy) !== JSON.stringify(DESKTOP_CODEC_POLICY)) {
+	if (JSON.stringify(stage.desktopCodecPolicy) !== JSON.stringify(DESKTOP_CODEC_POLICY)) {
 		throw new Error('Motionscaper shell codec policy is invalid.');
 	}
 	const files = await createMotionscaperStageInventory(root);
@@ -52,7 +52,7 @@ export async function verifyMotionscaperPackagedResources(resourcesRoot, stage) 
 		files.push({ path: `app/${path}`, byteLength: bytes.byteLength, sha256: digest(bytes) });
 	}
 	for (const tree of ['renderer', 'runtime']) {
-		for (const path of await regularFiles(resourcesRoot, tree)) {
+		for (const path of await regularFiles(resourcesRoot, tree, tree === 'runtime')) {
 			const bytes = await readFile(join(resourcesRoot, path));
 			files.push({ path, byteLength: bytes.byteLength, sha256: digest(bytes) });
 		}
@@ -62,9 +62,13 @@ export async function verifyMotionscaperPackagedResources(resourcesRoot, stage) 
 	await auditDesktopFfmpegAbsence({ root: resourcesRoot, label: 'Motionscaper packaged resources' });
 }
 
-async function regularFiles(root, directory) {
+async function regularFiles(root, directory, allowMissing = false) {
 	const result = [];
-	const metadata = await lstat(join(root, directory));
+	const metadata = await lstat(join(root, directory)).catch((error) => {
+		if (allowMissing && error.code === 'ENOENT') return null;
+		throw error;
+	});
+	if (!metadata) return result;
 	if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error('Motionscaper package directory is not regular.');
 	for (const entry of await readdir(join(root, directory), { withFileTypes: true })) {
 		const path = `${directory}/${entry.name}`;

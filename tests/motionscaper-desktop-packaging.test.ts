@@ -2,10 +2,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createMotionscaperStageInventory, verifyMotionscaperDesktopStage } from '../scripts/lib/motionscaper-desktop-package.mjs';
+import { createMotionscaperStageInventory, verifyMotionscaperDesktopStage, verifyMotionscaperPackagedResources } from '../scripts/lib/motionscaper-desktop-package.mjs';
+
+import { createPackage } from '@electron/asar';
+import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 
 interface BuilderConfiguration {
 	appId: string; productName: string; beforePack: string; fileAssociations: { ext: string | string[] }[];
@@ -33,8 +36,17 @@ test('Motionscaper shell stage authenticates bytes and rejects undeclared native
 			await writeFile(join(root, file), file);
 		}
 		const files = await createMotionscaperStageInventory(root);
-		const stage = { schemaVersion: 1, productId: 'motionscaper', nativeServiceProfile: 'motionscaper-shell-v1', target: { platform: 'linux', arch: 'x64' }, nativeCapabilities: [], files };
+		const stage = { schemaVersion: 1, productId: 'motionscaper', nativeServiceProfile: 'motionscaper-shell-v1', target: { platform: 'linux', arch: 'x64' }, nativeCapabilities: [], desktopCodecPolicy: DESKTOP_CODEC_POLICY, files };
 		await writeFile(join(root, 'stage-manifest.json'), JSON.stringify(stage));
+		const resources = join(root, 'resources');
+		await mkdir(resources);
+		await createPackage(join(root, 'app'), join(resources, 'app.asar'));
+		await cp(join(root, 'renderer'), join(resources, 'renderer'), { recursive: true });
+		await verifyMotionscaperPackagedResources(resources, stage);
+		await mkdir(join(resources, 'runtime'));
+		await writeFile(join(resources, 'runtime/foreign.node'), 'unadmitted');
+		await assert.rejects(verifyMotionscaperPackagedResources(resources, stage), /inventory/u);
+		await rm(join(resources, 'runtime'), { recursive: true });
 		assert.equal((await verifyMotionscaperDesktopStage(root, 'linux-x64')).productId, 'motionscaper');
 		await assert.rejects(verifyMotionscaperDesktopStage(root, 'win-x64'), /target/u);
 		await writeFile(join(root, 'runtime/foreign.node'), 'unadmitted');
