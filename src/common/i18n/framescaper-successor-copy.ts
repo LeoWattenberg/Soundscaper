@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 export const FRAMESCAPER_SUCCESSOR_ENGLISH_COPY = Object.freeze({
+	nativeDeliveryMenu: 'Export sequence as ProRes 4444…',
 	menu: 'Upgrade archive for Framescaper 1.1 development…',
 	title: 'Framescaper 1.1 development — archive upgrade',
 	description: 'Upgrade a complete Framescaper 1.0 archive into a separate library. Your project identity and original archive are retained. Open the upgraded project in this successor editor. Upgraded archives use schema v2.',
@@ -23,6 +24,7 @@ export const FRAMESCAPER_SUCCESSOR_ENGLISH_COPY = Object.freeze({
 });
 const EN = FRAMESCAPER_SUCCESSOR_ENGLISH_COPY;
 const DE: Readonly<Record<keyof typeof EN, string>> = Object.freeze({
+	nativeDeliveryMenu: 'Sequenz als ProRes 4444 exportieren…',
 	menu: 'Archiv für Framescaper 1.1 Entwicklung aktualisieren…',
 	title: 'Framescaper 1.1 Entwicklung — Archiv aktualisieren',
 	description: 'Ein vollständiges Framescaper-1.0-Archiv wird in eine separate Bibliothek übernommen. Projektidentität und Originalarchiv bleiben erhalten. Das aktualisierte Projekt kann in diesem Nachfolgeeditor geöffnet werden. Aktualisierte Archive verwenden Schema v2.',

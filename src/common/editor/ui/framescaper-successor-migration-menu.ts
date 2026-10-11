@@ -7,7 +7,7 @@ declare const __SCAPE_FRAMESCAPER_LINE__: 'baseline' | 'successor';
 export function createFramescaperSuccessorMigrationMenuItems(productId: string, runtime?: FramescaperSuccessorMenuRuntime | null) {
 	if (productId !== 'framescaper' || typeof __SCAPE_FRAMESCAPER_LINE__ === 'undefined' || __SCAPE_FRAMESCAPER_LINE__ !== 'successor') return [];
 	const copy = framescaperSuccessorCopy(typeof document === 'undefined' ? 'en' : document.documentElement.lang);
-	return [...(runtime ? [{ id: 'framescaper-composition-links', label: copy.linksMenu, preserveLabel: true, onClick: () => runtime.openLinks() }] : []), { id: 'framescaper-successor-migration', label: framescaperSuccessorCopy(typeof document === 'undefined' ? 'en' : document.documentElement.lang).menu, preserveLabel: true,
+	return [...(runtime?.openNativeDelivery ? [{ id: 'framescaper-native-delivery', label: copy.nativeDeliveryMenu, preserveLabel: true, onClick: () => runtime.openNativeDelivery!() }] : []), ...(runtime ? [{ id: 'framescaper-composition-links', label: copy.linksMenu, preserveLabel: true, onClick: () => runtime.openLinks() }] : []), { id: 'framescaper-successor-migration', label: framescaperSuccessorCopy(typeof document === 'undefined' ? 'en' : document.documentElement.lang).menu, preserveLabel: true,
 		onClick: () => runtime ? runtime.openMigration() : import('./framescaper-successor-migration-dialog.tsx').then(({ openFramescaperSuccessorMigrationDialog }) => openFramescaperSuccessorMigrationDialog()),
 	}];
 }

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { ProductVideoExportStrategy, ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoKeyframeVideoEncoderRequest } from '../common/editor/video-keyframe-video-encoder.ts';
-export type FramescaperVideoFrameConsumer = (request: VideoKeyframeVideoEncoderRequest) => Promise<void>;
+export interface FramescaperVideoRgbaOutput { readonly encoding: 'srgb' | 'rec709'; readonly alphaMode: 'straight'; readonly precision: 'unorm8' }
+export type FramescaperVideoFrameConsumer = (request: VideoKeyframeVideoEncoderRequest, output?: FramescaperVideoRgbaOutput) => Promise<void>;
 type Consume = (request: ProductVideoExportStrategyEncodeRequest, consumer: FramescaperVideoFrameConsumer) => Promise<void>;
 const CONSUMERS = new WeakMap<object, Consume>();
 /** An owned raw-frame route carries the same projection and finishing authority as encoded delivery. */

@@ -207,7 +207,7 @@ export async function consumeVideoKeyframeOfflineFrames(
 	dependencies: VideoKeyframeOfflineVideoExportDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<void> {
 	if (typeof consume !== 'function') throw new TypeError('An exact frame consumer is required.');
-	await executeOfflineVideo(request, dependencies, () => consume);
+	await executeOfflineVideo(request, dependencies, () => consume, true);
 }
 
 async function executeOfflineVideo<Result>(
@@ -217,8 +217,9 @@ async function executeOfflineVideo<Result>(
 		dependencies: VideoKeyframeOfflineVideoExportDependencies,
 		request: NormalizedRequest,
 	) => (encoderRequest: VideoKeyframeVideoEncoderRequest) => Promise<Result>,
+	rawFrames = false,
 ): Promise<Result> {
-	const request = normalizeRequest(requestValue);
+	const request = normalizeRequest(requestValue, rawFrames);
 	const dependencies = normalizeDependencies(dependenciesValue);
 	const encode = createEncoder(dependencies, request);
 	assertReady(request);
@@ -289,7 +290,7 @@ async function executeOfflineVideo<Result>(
 	return result;
 }
 
-function normalizeRequest(value: unknown): NormalizedRequest {
+function normalizeRequest(value: unknown, rawFrames = false): NormalizedRequest {
 	const request = closedRecord(value, 'offline video export request', REQUEST_FIELDS);
 	if (request.format !== 'mp4' && request.format !== 'webm') {
 		throw new RangeError('Offline video export format must be mp4 or webm.');
@@ -339,10 +340,10 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		&& (request.audioRingCapacityBytes !== undefined || request.maximumAudioBytes !== undefined)) {
 		throw new TypeError('Offline video export audio options require audioMix.');
 	}
-	const webCodecs = request.webCodecs === undefined
+	const webCodecs = rawFrames || request.webCodecs === undefined
 		? undefined
 		: snapshotWebCodecs(request.webCodecs);
-	const editorFfmpeg = webCodecs === undefined
+	const editorFfmpeg = !rawFrames && webCodecs === undefined
 		? snapshotEditorFfmpeg(request.editorFfmpeg)
 		: undefined;
 	return Object.freeze({
@@ -355,7 +356,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(endFrame === undefined ? {} : { endFrame }),
 		format: request.format,
 		quality: normalizeVideoDeliveryQuality(request.quality, 'offline video export quality'),
-		...(webCodecs === undefined ? { editorFfmpeg } : { webCodecs }),
+		...(rawFrames ? {} : webCodecs === undefined ? { editorFfmpeg } : { webCodecs }),
 		...(request.audioMix === undefined ? {} : {
 			audioMix: canonicalMediaContentBlob(request.audioMix),
 		}),

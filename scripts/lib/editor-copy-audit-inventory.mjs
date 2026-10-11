@@ -2,6 +2,7 @@
 
 import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { FREESOUND_ATTRIBUTION_ENGLISH_COPY } from '../../src/common/i18n/freesound-attribution-copy.js';
+import { FRAMESCAPER_NATIVE_DELIVERY_ENGLISH_COPY } from '../../src/common/i18n/framescaper-native-delivery-copy.ts';
 import { FRAMESCAPER_SUCCESSOR_ENGLISH_COPY } from '../../src/common/i18n/framescaper-successor-copy.ts';
 
 const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBUTION_ENGLISH_COPY)
@@ -14,4 +15,5 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...EDITOR_ENGLISH_COPY,
 	...freesoundAttribution,
 	...framescaperSuccessor,
+	...Object.fromEntries(Object.entries(FRAMESCAPER_NATIVE_DELIVERY_ENGLISH_COPY).map(([key, value]) => [`ui.framescaperNativeDelivery.${key}`, value])),
 });

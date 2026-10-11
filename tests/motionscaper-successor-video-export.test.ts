@@ -60,9 +60,10 @@ for (const mode of ['encoded', 'raw-native'] as const) test(`successor ${mode} d
 	const plan = strategy.createPlan({ canonicalProject, exportProject, format: 'mp4', range: 'project', includeAudio: false, canvas: { width: 4, height: 2, frameRate: { num: 30, den: 1 } } }); assert.ok(plan);
 	const view = { kind: 'vfr' as const, reference: linked.timing.reference, index: linked.timing.index }; const views = new Map([['linked', view]]);
 	const request: ProductVideoExportStrategyEncodeRequest = { canonicalProject, exportProject, plan, timingBySourceId: new Map([['linked', bindVideoSourceTimingView(views, linked.source)]]), timingViewsBySourceId: views,
-		videoBlobs: new Map(), audioMix: null, editorFfmpeg: { runVideoKeyframeEncoderOperation() { throw new Error('Injected compression only'); } }, webCodecs: null, signal: new AbortController().signal, assertCurrent() {}, maximumOutputBytes: undefined };
+		videoBlobs: new Map(), audioMix: null, editorFfmpeg: mode === 'raw-native' ? null : { runVideoKeyframeEncoderOperation() { throw new Error('Injected compression only'); } }, webCodecs: null, signal: new AbortController().signal, assertCurrent() {}, maximumOutputBytes: undefined };
 	if (mode === 'encoded') { const result = await strategy.encode(request); assert.equal(result.byteLength, 3); }
-	else await consumeFramescaperVideoFrames(strategy, request, async request => {
+	else await consumeFramescaperVideoFrames(strategy, request, async (request, output) => {
+		assert.deepEqual(output, { encoding: 'rec709', alphaMode: 'straight', precision: 'unorm8' });
 		for (const index of [2, 0, 1]) { const rgba = new Uint8Array(request.producer.byteLength); await request.producer.produce(request.frameSource.frame(index), rgba, { signal: request.signal! }); pictures[index] = rgba; }
 	});
 	assert.ok(pictures[0]![0]! > 100); assert.equal(pictures[0]![3], 255); assert.equal(pictures[2]![0], 0); assert.notDeepEqual(pictures[0], pictures[2]);

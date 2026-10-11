@@ -32,3 +32,10 @@ test('successor model and controller modules keep explicit owners after portable
 	const { chunkGroupForModulePath } = await import('../scripts/lib/build-chunk-groups.mjs');
 	assert.equal(chunkGroupForModulePath('src/framescaper/editor-project-commands.ts'), 'framescaper-project-commands');
 });
+
+test('successor native export stays behind its File menu boundary with its own dialog and Frame adapters', async () => {
+	const { chunkGroupForModulePath } = await import('../scripts/lib/build-chunk-groups.mjs');
+	for (const path of ['src/common/editor/ui/FramescaperNativeDeliveryDialog.tsx', 'src/common/i18n/framescaper-native-delivery-copy.ts',
+		'src/framescaper/editor-successor-native-export.ts', 'src/framescaper/editor-successor-native-picture.ts', 'src/framescaper/editor-successor-native-audio.ts',
+		'src/framescaper/editor-successor-native-delivery-adapter.ts', 'src/framescaper/editor-successor-native-delivery-contract.ts']) assert.equal(chunkGroupForModulePath(path), 'framescaper-successor-native-delivery', path);
+});

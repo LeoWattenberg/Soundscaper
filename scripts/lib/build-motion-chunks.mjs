@@ -46,6 +46,8 @@ const successorRuntimeModules = [
 	'editor-composition-link-placement',
 ];
 export const motionChunkGroups = [
+	{ name: 'framescaper-successor-native-delivery', priority: 119, minSize: 0, maxSize: 400_000, includeDependenciesRecursively: false,
+		test: /src[\\/](?:framescaper[\\/]editor-successor-native-(?:export|picture|audio|delivery-(?:adapter|contract))\.ts|common[\\/](?:editor[\\/]ui[\\/]FramescaperNativeDeliveryDialog\.tsx|i18n[\\/]framescaper-native-delivery-copy\.ts))$/ },
 	{ name: 'framescaper-successor-foundations', priority: 118, minSize: 0, maxSize: 400_000, includeDependenciesRecursively: false,
 		test: /src[\\/]framescaper[\\/](?:editor-project-successor(?:-(?:link|database|commands))?|editor-composition-link-(?:source|conform-core))\.ts$/ },
 	{ name: 'framescaper-composition-links-dialog', priority: 117, minSize: 0, maxSize: 400_000, includeDependenciesRecursively: false,

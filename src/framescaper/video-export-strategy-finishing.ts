@@ -203,11 +203,11 @@ export function createFramescaperVideoExportStrategyFinishing(
 		const authority = ownedPlanAuthority(profile, request, exports, plans);
 		if (isFramescaperVideoVisualPlanFinishing(request.plan)) {
 			const execution = await createVisualExecution(profile, authority, request, assetStore, exactDependencies);
-			await runFramescaperFinishingEncode(async () => { await consume(execution.encoderRequest); DISPOSITIONS.set(request.plan, execution.exact.disposition()); }, () => execution.exact.dispose());
+			await runFramescaperFinishingEncode(async () => { await consume(execution.encoderRequest, execution.exact.rgbaOutput); DISPOSITIONS.set(request.plan, execution.exact.disposition()); }, () => execution.exact.dispose());
 		} else {
 			const execution = await createKeyedExecution(profile, authority, request, assetStore, exactDependencies);
 			await runFramescaperFinishingEncode(async () => {
-				await consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.retimeProject, exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor }, consume);
+				await consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.retimeProject, exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor }, value => consume(value, execution.rgbaOutput));
 				DISPOSITIONS.set(request.plan, execution.disposition());
 			}, () => execution.dispose());
 		}

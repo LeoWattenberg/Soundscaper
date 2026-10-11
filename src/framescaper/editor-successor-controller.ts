@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createProductNativeRenderInputAuthorityBinding, type ProductNativeRenderInputAuthorityBinding } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
 import { createFramescaperCompositionLinkSession } from './editor-composition-link-session.ts';
@@ -15,15 +16,15 @@ import { createFramescaperMulticameraActionsSequence } from './editor-project-se
 import { createFramescaperVideoRetimeActionsRetime } from './editor-project-retime-retime-actions.ts';
 import type { FramescaperProjectCommand } from './editor-project-commands.ts';
 import type { FramescaperAudioEditorControllerPresentation } from './editor-controller.ts';
-const CONTEXTS = new WeakMap<object, Readonly<{ environment: FramescaperSuccessorEnvironment; session: ReturnType<FramescaperSuccessorEnvironment['runtime']['createSessionController']>; links: ReturnType<typeof createFramescaperCompositionLinkSession> }>>();
+const CONTEXTS = new WeakMap<object, Readonly<{ environment: FramescaperSuccessorEnvironment; nativeInput: ProductNativeRenderInputAuthorityBinding; session: ReturnType<FramescaperSuccessorEnvironment['runtime']['createSessionController']>; links: ReturnType<typeof createFramescaperCompositionLinkSession> }>>();
 /** Own the successor session, store and project runtime explicitly; the common editor supplies timeline interaction. */
 export function createFramescaperSuccessorController(value: unknown, presentation: FramescaperAudioEditorControllerPresentation = {}) {
 	const environment = assertFramescaperSuccessorEnvironment(value); const session = environment.runtime.createSessionController();
 	let controller: ReturnType<typeof createAudioEditorController> | null = null;
 	const execute = (command: FramescaperProjectCommand) => { if (!controller) throw new Error('Successor controller is not ready.'); return controller.actions.edit.commit(command as never); };
-	const retime = createFramescaperVideoRetimeActionsRetime(execute);
+	const retime = createFramescaperVideoRetimeActionsRetime(execute); const nativeInput = createProductNativeRenderInputAuthorityBinding();
 	controller = createAudioEditorController(null, {
-		headless: true, productId: 'framescaper', framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
+		productNativeRenderInputAuthority: nativeInput, headless: true, productId: 'framescaper', framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
 		store: environment.controllerStore, sessionController: session,
 		projectRuntime: environment.runtime as unknown as ControllerOptions['projectRuntime'],
 		scapeProjectRuntime: createFramescaperSuccessorScapeNativeRuntime(environment),
@@ -58,7 +59,7 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		undo: () => links.history('undo'), redo: () => links.history('redo'),
 		execute: (action: string) => action === 'undo' || action === 'redo' ? links.history(action) : original.edit.execute(action),
 	}) });
-	CONTEXTS.set(controller, Object.freeze({ environment, session, links })); return controller;
+	CONTEXTS.set(controller, Object.freeze({ environment, nativeInput, session, links })); return controller;
 }
 export function framescaperSuccessorControllerContext(controller: object) {
 	const context = CONTEXTS.get(controller); if (!context) throw new TypeError('An exact successor controller is required.'); return context;
