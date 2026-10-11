@@ -47,6 +47,8 @@ const NARRATIVE_CODE_ID_TOKENS = Object.freeze([
 ]);
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
+	Object.freeze({ marker: 'isolated-motion-composition-bridge', register: 'config/production-security-matrix.json', riskId: 'cross-origin-project-transfer', developmentControlId: 'isolated-motion-composition-bridge',
+		field: 'summary', document: 'docs/policies/security.md', intro: null, wrap: 80 }),
 	...[
 		['desktop-write-path-capabilities', 'exact-direct-compressed-mix-save'],
 		['desktop-write-path-capabilities', 'aggregate-save-capacity-and-disk-admission'],
@@ -494,8 +496,8 @@ export async function loadPolicyNarratives(repositoryRoot) {
 		} else {
 			const risk = register.risks.find(({ id }) => id === binding.riskId);
 			assert(risk, `${binding.marker}: risk ${binding.riskId} is missing from ${binding.register}`);
-			const sourceId = binding.residualRiskId ?? binding.controlId;
-			const entries = binding.residualRiskId ? risk.residualRisks : risk.currentControls;
+			const sourceId = binding.residualRiskId ?? binding.developmentControlId ?? binding.controlId;
+			const entries = binding.residualRiskId ? risk.residualRisks : binding.developmentControlId ? risk.developmentControls : risk.currentControls;
 			carrier = entries?.find(({ id }) => id === sourceId);
 			assert(carrier, `${binding.marker}: ${binding.residualRiskId ? 'residual risk' : 'control'} ${sourceId} is missing from ${binding.register}`);
 		}

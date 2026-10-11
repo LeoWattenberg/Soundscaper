@@ -740,6 +740,38 @@ The receiver's persistent write is separately registered as
 Reference-scale aggregate memory and elapsed-time evidence, abrupt browser and
 power loss, and cross-tab concurrent reservation remain unqualified.
 
+### Motionscaper composition links in the successor development line
+
+<!-- policy-narrative:isolated-motion-composition-bridge -->
+The Motionscaper composition-link bridge is a qualified development foundation
+for the explicit Framescaper successor line; the connected editor workflow
+remains unfinished. Only the exact Motionscaper /composition-link/send/ path
+replaces Cross-Origin-Opener-Policy with same-origin-allow-popups, and only
+successor Framescaper /composition-link/receive/ replaces it with unsafe-none.
+The isolated editor routes retain same-origin opener policy. Both bridges
+inherit Cross-Origin-Embedder-Policy: credentialless and the existing CSP,
+referrer and nosniff policies, seal microphone, speaker selection, screen
+capture, camera and geolocation permissions, and refuse editor service-worker
+fallback. A nonce-bound same-origin BroadcastChannel relay crosses the isolated
+editor agent cluster; exact configured peer origins, exact bridge window
+identity and a random session bind the cross-origin MessagePort handshake.
+Closed wire packets enforce monotonic request/acknowledgement state, at most 32
+MiB of metadata, one outstanding asset pull and at most 4 MiB per transferred
+chunk. Both transport and private receiver staging independently verify each
+declared digest and length. The default retained closure budget is 8 GiB with an
+explicit 64 GiB maximum. Atomic receiver publication binds the accepted
+snapshot, historical closure and exact owning project/history to storage digest
+and session write fences. The currently qualified helper transfers one offer per
+paired session; persistent saved-update sessions, complete editor/archive/native
+delivery integration and startup-budget integration remain unfinished. Actual
+cross-origin Chromium fixtures retain isolation, transfer complete original
+bytes, reopen after sender windows close, and cancel stalled transfer on
+receiver bridge close. These bounded fixtures do not qualify abrupt process or
+power loss, supported-browser popup lifecycle parity, maximum-scale
+heap/RSS/elapsed time, concurrent storage reservation or publisher
+authentication.
+<!-- /policy-narrative:isolated-motion-composition-bridge -->
+
 ### Desktop download release lookup
 
 The public `/download/desktop/` Pages Function reads the request host to select

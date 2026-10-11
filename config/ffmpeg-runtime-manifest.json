@@ -64,8 +64,8 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 91143,
-			"sha256": "4a1733a02c2f9b2642554e3fd0006cef8e76b38a3df9c0bf0269cfc9fdd843ea"
+			"byteLength": 91957,
+			"sha256": "35c07aa90033f099c31e7c0fed92994bdcecbe7966cda4b3fa1fc7b329f05018"
 		},
 		"licensingPolicy": {
 			"path": "docs/policies/licensing.md",
@@ -79,13 +79,13 @@
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 868783,
-			"sha256": "4e7ca93de4588ea57f3a1d26a95cd7b96fc55d2c6b5f4f6585a747a9d85d7247"
+			"byteLength": 874537,
+			"sha256": "623ebc6bac726d7cad38c77093ecb405c683d53aa672fc5045d1bf9fc7a73ae9"
 		},
 		"threatModel": {
 			"path": "docs/policies/security.md",
-			"byteLength": 338095,
-			"sha256": "4773957034f63fb1381df740e8fed0bbb77840cc29830289a7b10fdda06134e8"
+			"byteLength": 340291,
+			"sha256": "767dddfd163ef9e6d83bf72df915c65d6f2f464caa903c70915d40fdc9055a8f"
 		}
 	},
 	"security": {
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "890f6c574d9c52415a46ae442a7b3d5f4065c1e576b92c05c743f01e0bc9da7b"
+		"payloadSha256": "361ee0e5557c34d3108898e1a881c7d740aad75568fd70d71d62da93fe839983"
 	}
 }

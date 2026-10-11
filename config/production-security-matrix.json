@@ -2587,6 +2587,70 @@
 					"path": "tests/desktop-asar-integrity.test.js"
 				}
 			]
+		},
+		{
+			"id": "browser-motion-link-to-successor-owner",
+			"from": "Motionscaper composition-link bridge and the explicit Framescaper successor bridge",
+			"to": "The isolated successor editor and its dedicated owner, revision and original-media stores",
+			"data": "Nonce-bound relay messages, origin/window/session-authenticated MessagePort packets, immutable composition snapshots and independently verified original asset chunks",
+			"entryPoints": [
+				"scripts/lib/motion-link-web-routing.mjs",
+				"scripts/lib/product-web-routing.mjs",
+				"src/common/editor/controller/composition/motion-link-window-bridge.ts",
+				"src/common/editor/controller/composition/internal/motion-link-broadcast-relay.ts",
+				"src/common/editor/controller/composition/motion-link-port.ts",
+				"src/framescaper/editor-composition-link-owner-repository.ts"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "scripts/lib/motion-link-web-routing.mjs"
+				},
+				{
+					"kind": "implementation",
+					"path": "scripts/lib/product-web-routing.mjs"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/controller/composition/motion-link-window-bridge.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/controller/composition/internal/motion-link-broadcast-relay.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/controller/composition/motion-link-port.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/framescaper/editor-composition-link-owner-repository.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/motionscaper-link-routing.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/motionscaper-link-connection.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/motionscaper-link-port.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/browser/motionscaper-link-bridge.spec.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/browser/motionscaper-link-storage.spec.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/motionscaper-link-security-register.test.ts"
+				}
+			]
 		}
 	],
 	"risks": [
@@ -5252,7 +5316,8 @@
 			"id": "cross-origin-project-transfer",
 			"title": "Cross-origin project transfer admits forged, oversized, or partially published archives",
 			"boundaryIds": [
-				"browser-origin-to-peer-project-store"
+				"browser-origin-to-peer-project-store",
+				"browser-motion-link-to-successor-owner"
 			],
 			"assets": [
 				"same-origin project confidentiality",
@@ -5331,6 +5396,63 @@
 					"acceptanceCriteria": [
 						"Reference-scale dual-origin evidence measures aggregate heap and storage amplification, proves bounded cancellation and concurrent admission, and reopens only complete projects after abrupt sender, receiver, worker, browser, and power-loss faults."
 					]
+				}
+			],
+			"developmentControls": [
+				{
+					"id": "isolated-motion-composition-bridge",
+					"summary": "The Motionscaper composition-link bridge is a qualified development foundation for the explicit Framescaper successor line; the connected editor workflow remains unfinished. Only the exact Motionscaper /composition-link/send/ path replaces Cross-Origin-Opener-Policy with same-origin-allow-popups, and only successor Framescaper /composition-link/receive/ replaces it with unsafe-none. The isolated editor routes retain same-origin opener policy. Both bridges inherit Cross-Origin-Embedder-Policy: credentialless and the existing CSP, referrer and nosniff policies, seal microphone, speaker selection, screen capture, camera and geolocation permissions, and refuse editor service-worker fallback. A nonce-bound same-origin BroadcastChannel relay crosses the isolated editor agent cluster; exact configured peer origins, exact bridge window identity and a random session bind the cross-origin MessagePort handshake. Closed wire packets enforce monotonic request/acknowledgement state, at most 32 MiB of metadata, one outstanding asset pull and at most 4 MiB per transferred chunk. Both transport and private receiver staging independently verify each declared digest and length. The default retained closure budget is 8 GiB with an explicit 64 GiB maximum. Atomic receiver publication binds the accepted snapshot, historical closure and exact owning project/history to storage digest and session write fences. The currently qualified helper transfers one offer per paired session; persistent saved-update sessions, complete editor/archive/native delivery integration and startup-budget integration remain unfinished. Actual cross-origin Chromium fixtures retain isolation, transfer complete original bytes, reopen after sender windows close, and cancel stalled transfer on receiver bridge close. These bounded fixtures do not qualify abrupt process or power loss, supported-browser popup lifecycle parity, maximum-scale heap/RSS/elapsed time, concurrent storage reservation or publisher authentication.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/motion-link-web-routing.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/product-web-routing.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/composition/motion-link-window-bridge.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/composition/internal/motion-link-broadcast-relay.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/composition/motion-link-port.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/editor-composition-link-owner-repository.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/motionscaper-link-routing.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/motionscaper-link-connection.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/motionscaper-link-port.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/motionscaper-link-bridge.spec.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/motionscaper-link-storage.spec.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/motionscaper-link-security-register.test.ts"
+						}
+					],
+					"policyAuthority": "motionscaper-framescaper-successor-development"
 				}
 			]
 		},
