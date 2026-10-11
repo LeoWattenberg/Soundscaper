@@ -4,6 +4,7 @@ import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeRepo
 import { motionAeRenderedSequence } from '../common/editor/motion-ae-render-sequence.ts';
 import { motionAeBoundedClock } from '../common/editor/motion-ae-property-conversion.ts';
 import { convertMotionAeTransform } from '../common/editor/motion-ae-transform-conversion.ts';
+import { convertMotionAeSceneLayer, type MotionAeSceneConversion, type MotionAeSceneReview } from '../common/editor/motion-ae-scene-conversion.ts';
 import { convertMotionAeShapes } from '../common/editor/motion-ae-shape-conversion.ts';
 import { convertMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
 import { convertMotionAeTextLayer, rebaseMotionAeTextLayer, type MotionAeProjectTextImport } from '../common/editor/motion-ae-text-layer.ts';
@@ -25,7 +26,7 @@ export interface MotionscaperAeConversion {
 /** Pure draft preparation. The import controller must verify every retained body before publication. */
 export function convertMotionscaperAeExchange(input: unknown, options: Readonly<{
 	projectId: string; allocateId: () => string; bindings: readonly MotionAeMediaBinding[]; primaryCompositionId?: string;
-} & MotionAeProjectTextImport & MotionAeExpressionReview>): MotionscaperAeConversion {
+} & MotionAeProjectTextImport & MotionAeExpressionReview & MotionAeSceneReview>): MotionscaperAeConversion {
 	const exchange = normalizeMotionAeExchange(input), projectId = motionId(options.projectId);
 	if (!exchange.compositions.length) throw new Error('The AE exchange contains no compositions.');
 	const report: MotionAeReportEntry[] = [...exchange.report];
@@ -45,6 +46,7 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		if (used.has(binding.asset.id)) throw new Error('AE font destination identity is duplicated.');
 		used.add(binding.asset.id); assets.push(binding.asset);
 	}
+	const sceneLayers = new Map<string, MotionAeSceneConversion>();
 	const textOffsets = new Map<string, readonly [number, number]>();
 	for (const composition of exchange.compositions) for (const source of [composition, ...composition.layers]) {
 		const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.');
@@ -56,6 +58,9 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		return converted.value;
 	};
 	function content(layer: MotionAeLayer, siblings: readonly MotionAeLayer[], frameRate: MotionComposition['frameRate']): MotionLayerContent {
+		if (layer.kind === 'camera' || layer.kind === 'light') {
+			const scene = convertMotionAeSceneLayer(layer, frameRate, options, report); if (scene) { sceneLayers.set(layer.id, scene); return scene.content; } return { kind: 'null' };
+		}
 		if (layer.threeD || layer.adjustment) { issue(layer.id, 'layer-kind', 'AE 3D, camera/light and adjustment intent requires a qualified mapping or a complete AE-rendered composition. A named null placeholder preserves hierarchy.'); return { kind: 'null' }; }
 		if (layer.kind === 'shape') return convertMotionAeShapes(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report) ?? { kind: 'null' };
 		if (layer.kind === 'text') {
@@ -100,11 +105,12 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 			const blendMode = MOTION_BLEND_MODES.find((value) => value === layer.blendMode) ?? 'normal';
 			if (blendMode !== layer.blendMode) issue(layer.id, 'blend-mode', 'This AE blend mode is not mapped; normal blending is used in the partial draft.');
 			const timeScale = 100 / layer.stretch;
-			const mapped: MotionLayer = { ...base, enabled: layer.enabled, parentId: layer.parentId === null ? null : ids.get(layer.parentId)!,
+			const scene = sceneLayers.get(layer.id);
+			const mapped: MotionLayer = { ...base, is3D: Boolean(scene), enabled: layer.enabled, parentId: layer.parentId === null ? null : ids.get(layer.parentId)!,
 				inFrame: clock(layer.inPoint * frequency, layer.id), outFrame: clock(layer.outPoint * frequency, layer.id),
 				// All imported property keys use composition frames. Rebase source timing explicitly to the same origin.
 				sourceStart: clock(-layer.startTime * timeScale, layer.id), timeScale: clock(timeScale, layer.id),
-				transform: convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames, options), blendMode,
+				transform: scene?.transform ?? convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames, options), blendMode,
 				masks: convertMotionAeMasks(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report),
 				matte: layer.matte === null ? null : { layerId: ids.get(layer.matte.layerId)!, mode: layer.matte.type } };
 			const offset = textOffsets.get(layer.id);
