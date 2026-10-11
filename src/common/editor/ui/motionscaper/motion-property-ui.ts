@@ -15,5 +15,9 @@ export function motionPropertyLabel(path: string, copy: Readonly<Record<string, 
 	const key = path.split('.').at(-1)!;
 	const label = copy[`motionscaperProperty_${key}`] ?? key;
 	const index = path.match(/\.(\d+)\./u)?.[1];
+	if (index && key === 'path') {
+		const owner = path.startsWith('masks.') ? copy.motionscaperMaskPath : path.startsWith('shapes.') ? copy.motionscaperShapePath : null;
+		if (owner) return `${owner} ${Number(index) + 1}: ${label}`;
+	}
 	return index ? `${label} ${Number(index) + 1}` : label;
 }

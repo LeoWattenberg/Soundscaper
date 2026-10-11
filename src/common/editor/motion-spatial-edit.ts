@@ -2,7 +2,7 @@
 
 import { editMotionKeyframes } from './motion-keyframe-edit.ts';
 import { motionPropertyOfKind, type MotionVector2, type MotionVector2Property, type MotionVector3Property } from './motion-property.ts';
-import { addRationals, compareRationals, multiplyRationals, subtractRationals, type Rational } from './timeline-time.ts';
+import { addRationals, compareRationals, multiplyRationals, divideRationals, subtractRationals, type Rational } from './timeline-time.ts';
 export type MotionSpatialProperty = MotionVector2Property | MotionVector3Property;
 
 /** A single replacement retains independent Z animation and all expression bindings. */
@@ -15,12 +15,20 @@ export function setMotionSpatialKey(property: MotionSpatialProperty, position: R
 export function enableMotionSpatialBezier(property: MotionSpatialProperty, from: Rational): MotionSpatialProperty {
 	const channels = aligned(property, from); const firstShape = channels[0]!.shape, secondShape = channels[1]!.shape;
 	if (firstShape.kind === 'bezier' && secondShape.kind === 'bezier' && compareRationals(firstShape.control1.position, secondShape.control1.position) === 0 && compareRationals(firstShape.control2.position, secondShape.control2.position) === 0) return property;
+	if (firstShape.kind === 'hold' || secondShape.kind === 'hold') throw new RangeError('Hold segments cannot become continuous spatial handles without changing motion.');
+	if (firstShape.kind === 'bezier' && secondShape.kind === 'bezier') throw new RangeError('Spatial handles require matching existing Bezier control times.');
+	const span = subtractRationals(channels[0]!.last.position, from);
+	const linearFirst = addRationals(from, multiplyRationals(span, { num: 1, den: 3 })), linearSecond = addRationals(from, multiplyRationals(span, { num: 2, den: 3 }));
+	const existing = firstShape.kind === 'bezier' ? firstShape : secondShape.kind === 'bezier' ? secondShape : null;
+	const firstTime = existing?.control1.position ?? linearFirst, secondTime = existing?.control2.position ?? linearSecond;
+	if (channels.some(({ shape }) => shape.kind === 'eased') && (compareRationals(firstTime, linearFirst) !== 0 || compareRationals(secondTime, linearSecond) !== 0)) throw new RangeError('Existing eased motion requires matching linear Bezier control times.');
+	const firstFraction = divideRationals(subtractRationals(firstTime, from), span), secondFraction = divideRationals(subtractRationals(secondTime, from), span);
 	let changed = property;
-	for (const [channel, { first, last }] of channels.entries()) {
-		const span = subtractRationals(last.position, first.position);
+	for (const [channel, { first, last, shape }] of channels.entries()) {
+		if (shape.kind === 'bezier') continue;
 		changed = typed(property, editMotionKeyframes(changed, { type: 'interpolation', fromPosition: from, channels: [channel], shape: { kind: 'bezier',
-			control1: { position: addRationals(first.position, multiplyRationals(span, { num: 1, den: 3 })), value: first.value + (last.value - first.value) / 3 },
-			control2: { position: addRationals(first.position, multiplyRationals(span, { num: 2, den: 3 })), value: first.value + (last.value - first.value) * 2 / 3 },
+			control1: { position: firstTime, value: shape.kind === 'eased' ? first.value : first.value + (last.value - first.value) * firstFraction.num / firstFraction.den },
+			control2: { position: secondTime, value: shape.kind === 'eased' ? last.value : first.value + (last.value - first.value) * secondFraction.num / secondFraction.den },
 		} }));
 	}
 	return changed;

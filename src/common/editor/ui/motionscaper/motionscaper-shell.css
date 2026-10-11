@@ -66,3 +66,4 @@
 .motionscaper-graph-handle { fill: #e5a348; }
 .motionscaper-graph-key:focus-visible, .motionscaper-graph-handle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 .audio-editor-controlled-dialog__body.motionscaper-property-body { display: block; }
+.motionscaper-plane { display: block; width: 100%; touch-action: none; }
