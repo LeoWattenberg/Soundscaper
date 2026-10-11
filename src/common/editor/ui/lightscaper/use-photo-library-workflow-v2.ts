@@ -20,7 +20,7 @@ import type { ExecutePhotoSavedFiltersV1 } from './use-photo-saved-filters.ts';
 import { capturePhotoLibraryDevelopPortV2, type ExecutePhotoDevelopCurrent } from './photo-library-workflow-develop.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-port-v1.ts';
-import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
+import { createPhotoLibraryCullingWorkflowV1 } from '../../controller/shared/photo-library-culling-workflow-v1.ts';
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
 import { readPhotoLibrarySelectionIdsV1 } from '../../controller/shared/photo-library-selection-v1.ts';
@@ -29,7 +29,7 @@ import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../.
 import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1 } from '../../photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1,
 	PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../photo-library-organization-port-v1.ts';
-import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPageV1, PhotoLibraryRowV1 } from '../../photo-library-session-port-v1.ts';
+import type { PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPageV1 } from '../../photo-library-session-port-v1.ts';
 
 export { DEFAULT_PHOTO_LIBRARY_QUERY_V1, DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from '../../controller/shared/photo-library-query-navigation.ts';
 
@@ -435,36 +435,9 @@ export function usePhotoLibraryWorkflowV2(createSession?: CreatePhotoLibrarySess
 		if (publication.generation?.live && slot.current === publication.generation && publication.generation.factory === factory.current) setImportReceipt(receipt);
 		return receipt ?? Object.freeze({ outcome: status === 'completed' ? 'failed' : status });
 	}, [createSession, createDevelopProxyRuntime, perform, publishPage, controller, originalRecovery]);
-	const refreshQuery = async (owner: PhotoLibrarySessionPortV2, signal: AbortSignal, current: SessionSlot) => {
-		if (!current.query && !current.stackCollapsed && current.savedCollectionId === null) return current.live ? current.page : null;
-		const next = await readVisiblePage(owner, current, null, signal);
-		return publishPage(current, next);
-	};
-	const updateRow = (updated: PhotoLibraryRowV1, current: SessionSlot) => {
-		const previous = current.page;
-		return publishPage(current, previous ? Object.freeze({ ...previous, cursor: null,
-			rows: Object.freeze(previous.rows.map(row => row.id === updated.id ? updated : row)) }) : null);
-	};
-	const editAttributes = async (save: (owner: PhotoLibrarySessionPortV2, signal: AbortSignal) => Promise<PhotoLibraryRowV1>,
-		options: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryCullReceiptV1> => {
-		let receipt: PhotoLibraryCullReceiptV1 | null = null;
-		const status = await perform(async (owner, signal, current) => {
-			const updated = await save(owner, signal);
-			// The durable acknowledgement remains saved even if refresh or cancellation follows.
-			receipt = Object.freeze({ outcome: 'saved', photoId: updated.id, page: null, notice: 'refresh-failed' });
-			try {
-				// A successful query publishes one final page; an intermediate page would
-				// invalidate the culling observer's captured page identity while awaiting it.
-				const next = current.query || current.stackCollapsed || current.savedCollectionId !== null ? await refreshQuery(owner, signal, current) : updateRow(updated, current);
-				if (next) receipt = Object.freeze({ outcome: 'saved', photoId: updated.id, page: next, notice: null });
-			} catch (failure) { updateRow(updated, current); throw failure; }
-		}, options.signal);
-		return receipt ?? Object.freeze({ outcome: status === 'completed' ? 'failed' : status });
-	};
-	const setRating = (photoId: string, rating: number, options: Readonly<{ signal?: AbortSignal }> = {}) =>
-		editAttributes((owner, signal) => owner.setRating(photoId, rating, { signal }), options);
-	const applyAttributes = (photoId: string, changes: PhotoLibraryAttributePatchV1, options: Readonly<{ signal?: AbortSignal }> = {}) =>
-		editAttributes((owner, signal) => owner.applyAttributes(photoId, changes, { signal }), options);
+	const { refreshQuery, updateRow, setRating, applyAttributes } = createPhotoLibraryCullingWorkflowV1({ perform, publishPage,
+		getCurrent: () => slot.current, isCurrent: current => current.live && slot.current === current && current.factory === factory.current
+			&& current.backupLoader === loader.current && current.proxyFactory === renderer.current });
 	const readMetadata = useCallback((photoId: string) => run(async (owner, signal, current) => {
 		setMetadata(null);
 		const next = await owner.readMetadata(photoId, { signal });

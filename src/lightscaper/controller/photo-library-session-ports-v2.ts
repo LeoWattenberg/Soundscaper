@@ -12,7 +12,7 @@ import type { PhotoDevelopPresetSettingsPortV1 } from '../storage/photo-develop-
 export type PhotoLibraryPreviewSchedulerPortV2 = Pick<PhotoPreviewSchedulerV2, 'request' | 'close'>;
 export interface PhotoLibrarySessionPortsV2 extends Omit<PhotoLibrarySessionPortsV1, 'catalog' | 'importPhotos' | 'createPreviewScheduler'> {
 	readonly catalog: Pick<PhotoCatalogRepositoryV2, 'loadCatalog' | 'loadPhoto' | 'publishPhotos' | 'savePhoto' | 'saveCatalog' | 'readSummaryPage' | 'readQueryPage' | 'rebuildQueryIndexPage'>
-		& Partial<Pick<PhotoCatalogRepositoryV2, 'readQueryPageV2' | 'rebuildQueryIndexPageV2'>>;
+		& Partial<Pick<PhotoCatalogRepositoryV2, 'readQueryPageV2' | 'rebuildQueryIndexPageV2' | 'readCullingDestinationPage'>>;
 	readonly createPreviewScheduler?: (catalogId: string) => Promise<PhotoLibraryPreviewSchedulerPortV2>;
 	readonly importPhotos?: typeof importManagedPhotosV2;
 	readonly cubeLutResources?: () => Promise<Readonly<PhotoMediaCubeLutResourcesV1>>;

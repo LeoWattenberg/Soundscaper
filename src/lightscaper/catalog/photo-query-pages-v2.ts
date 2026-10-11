@@ -17,7 +17,7 @@ export async function readPhotoQueryPageV2(database: IDBDatabase, catalogId: str
 	const { query, continuation } = admitted;
 	return withPhotoStackQuerySignalV1(admitted.signal, signal => catalogTransaction(database,
 		['catalogs', 'catalogStates', 'photoQueryRowsV2', 'photoQueryBuildStatesV2'], 'readonly', async stores => {
-			const { root, state } = await readContext(stores, catalog);
+			const { root, state } = await readPhotoQueryContextV2(stores, catalog);
 			if (continuation && (continuation.catalogRevision !== root.revision || continuation.indexRevision !== state.indexRevision)) {
 				throw new PhotoCatalogRevisionConflictError('catalog');
 			}
@@ -26,7 +26,7 @@ export async function readPhotoQueryPageV2(database: IDBDatabase, catalogId: str
 }
 
 /** Queue independent point reads together, but release neither borrowed request on failure. */
-async function readContext(stores: Readonly<Record<string, IDBObjectStore>>, catalog: string) {
+export async function readPhotoQueryContextV2(stores: Readonly<Record<string, IDBObjectStore>>, catalog: string) {
 	const stateRead: Promise<unknown> = request(stores.catalogStates.get(catalog));
 	// A synchronous root request refusal still owns the already queued state callback.
 	void stateRead.catch(() => undefined);

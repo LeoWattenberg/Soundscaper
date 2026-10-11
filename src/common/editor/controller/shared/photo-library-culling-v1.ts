@@ -3,12 +3,13 @@
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../closed-domain-value.ts';
 import type { PhotoLibraryPageV1 } from '../../photo-library-session-port-v1.ts';
 import { PhotoLibrarySelectionV1, readPhotoLibrarySelectionIdV1, readPhotoLibrarySelectionIdsV1 } from './photo-library-selection-v1.ts';
+import { createPhotoLibraryCullAdvanceV1, type PhotoLibraryCullAdvanceRequestV1 } from './photo-library-cull-advance-v1.ts';
 
 /** Saved means durable acknowledgement, independently of the subsequent query refresh. */
 export type PhotoLibraryCullReceiptV1 =
 	| Readonly<{ outcome: 'saved'; photoId: string; page: Readonly<PhotoLibraryPageV1> | null; notice: 'refresh-failed' | null }>
 	| Readonly<{ outcome: 'failed' | 'cancelled' | 'busy' }>;
-export type PhotoLibraryCullSaveV1 = (signal: AbortSignal) => Promise<PhotoLibraryCullReceiptV1>;
+export type PhotoLibraryCullSaveV1 = (signal: AbortSignal, advance?: Readonly<PhotoLibraryCullAdvanceRequestV1>) => Promise<PhotoLibraryCullReceiptV1>;
 export interface PhotoLibraryCullingSnapshotV1 {
 	readonly pendingPhotoId: string | null;
 	readonly notice: 'refresh-failed' | null;
@@ -33,23 +34,32 @@ export class PhotoLibraryCullingV1 {
 		this.#selection = selection;
 	}
 
-	execute(photoId: string, save: PhotoLibraryCullSaveV1, options: Readonly<{ autoAdvance: boolean }>): Promise<PhotoLibraryCullReceiptV1> {
-		const id = readPhotoLibrarySelectionIdV1(photoId), input = record(options, 'culling options', ['autoAdvance']);
+	execute(photoId: string, save: PhotoLibraryCullSaveV1, options: Readonly<{ autoAdvance: boolean; isCurrent?: () => boolean }>): Promise<PhotoLibraryCullReceiptV1> {
+		const id = readPhotoLibrarySelectionIdV1(photoId), input = record(options, 'culling options', ['autoAdvance', 'isCurrent'], ['autoAdvance']);
 		const autoAdvance = field(input, 'autoAdvance', 'culling options');
+		const current = Object.hasOwn(input, 'isCurrent') ? field(input, 'isCurrent', 'culling options') : undefined;
+		if (current !== undefined && typeof current !== 'function') throw new TypeError('Culling currentness requires a synchronous callback.');
+		const isCurrent = (): boolean => {
+			try { return current === undefined || Reflect.apply(current, options, []) === true; }
+			catch { return false; } // A presentation observer cannot replace a saved acknowledgement.
+		};
 		if (typeof autoAdvance !== 'boolean' || typeof save !== 'function') throw new TypeError('Culling requires an explicit advance choice and save port.');
 		if (this.#pending) return Promise.resolve(BUSY);
 		const context = this.#selection.capture(), selected = this.#selection.snapshot();
 		if (!context.photoIds.includes(id)) throw new RangeError('Culling must target a visible photo.');
 		const mayAdvance = autoAdvance && context.singleSelectedId === id && selected.focusedId === id;
 		const successors = context.photoIds.slice(context.photoIds.indexOf(id) + 1), controller = new AbortController(), epoch = this.#epoch;
+		const advance = mayAdvance ? createPhotoLibraryCullAdvanceV1(successors, () => epoch === this.#epoch
+			&& !aborted(controller.signal) && this.#selection.isCurrent(context) && isCurrent(), context.photoIds) : null;
 		const job = Object.freeze({ photoId: id, controller }); this.#active = job; this.#notice = null;
 		const pending = Promise.resolve().then(async (): Promise<PhotoLibraryCullReceiptV1> => {
 			if (aborted(controller.signal)) return CANCELLED;
 			let result: PhotoLibraryCullReceiptV1;
-			try { result = await save(controller.signal); }
+			try { result = await save(controller.signal, advance?.request); }
 			catch { return aborted(controller.signal) ? CANCELLED : FAILED; }
+			finally { advance?.seal(); }
 			const { receipt, ids } = readReceipt(result, id);
-			if (receipt.outcome !== 'saved' || epoch !== this.#epoch || aborted(controller.signal)) return receipt;
+			if (receipt.outcome !== 'saved' || epoch !== this.#epoch || aborted(controller.signal) || !isCurrent()) return receipt;
 			if (receipt.page === null) {
 				// The workflow may already have published its acknowledged fallback row.
 				if (this.#selection.isSameInteraction(context) && this.#selection.snapshot().photoIds.includes(id)) this.#notice = receipt.notice;
@@ -58,8 +68,8 @@ export class PhotoLibraryCullingV1 {
 			if (!this.#selection.isCurrent(context, receipt.page)) return receipt;
 			this.#notice = null;
 			this.#selection.setPage(ids!, { generation: context.generation, pageIdentity: receipt.page });
-			if (mayAdvance && epoch === this.#epoch && !aborted(controller.signal) && this.#selection.isCurrent(context, receipt.page)) {
-				const next = successors.find(candidate => ids!.includes(candidate));
+			if (mayAdvance && epoch === this.#epoch && !aborted(controller.signal) && this.#selection.isCurrent(context, receipt.page) && isCurrent()) {
+				const next = advance!.successors().find(candidate => ids!.includes(candidate));
 				if (next) this.#selection.select(next);
 			}
 			return receipt;

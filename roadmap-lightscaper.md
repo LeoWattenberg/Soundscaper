@@ -293,6 +293,10 @@ real-library scale.
   ratings, flags, and labels with auto-advance culling; stacks; sort orders;
   a filter bar over text, attributes, and metadata columns; and collections
   with live smart collections.
+  Current culling captures bounded pre-edit successors across page boundaries
+  and refreshes the destination through current catalog/query indexes, including
+  saved filters and collapsed stacks. Existing page and interaction fences
+  preserve durable edits when navigation is retired or refresh fails.
 - **Web Core — In progress:** a metadata panel over the L2 read model,
   capture-time edit, batch rename, missing-media detection and relink through
   the existing relink path, and catalog snapshot/backup through Scape

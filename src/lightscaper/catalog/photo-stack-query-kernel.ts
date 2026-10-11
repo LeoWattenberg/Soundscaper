@@ -13,9 +13,18 @@ import type { PhotoCatalogQueryV1 } from './photo-query-types-v1.ts';
 import type { PhotoCatalogRootV1 } from './types.ts';
 import { auditPhotoStackQueryCountV1 } from './photo-stack-query-audit-v1.ts';
 import { PHOTO_STACK_QUERY_LIMITS_V1 as LIMITS, type PhotoStackQueryContinuationV1 } from './photo-stack-query-types-v1.ts';
+import type { PhotoQueryInclusivePosition } from './photo-query-position.ts';
 
 interface QueryRowIdentity { readonly key: string; readonly catalogId: string; readonly photoId: string; readonly captureBucket: 0 | 1 }
 export type PhotoStackQueryKernelProgress = Omit<PhotoStackQueryContinuationV1, 'schemaVersion' | 'kind' | 'querySha256' | 'progressSha256'>;
+
+/** Private per-read state, retained only while fresh destination audit phases join. */
+export interface PhotoStackQueryDestinationStart {
+	readonly position: PhotoQueryInclusivePosition;
+	inclusivePending: boolean;
+	auditComplete: boolean;
+	stateRevision: number | null;
+}
 
 /** Internal constants supplied by the two closed protocol adapters, never caller-owned profiles. */
 export interface PhotoStackQueryKernelProfile<Row extends QueryRowIdentity, Query extends PhotoCatalogQueryV1, Continuation extends PhotoStackQueryKernelProgress> {
@@ -48,7 +57,7 @@ export async function readPhotoStackQueryKernel<Row extends QueryRowIdentity, Qu
 export async function readPhotoStackQueryInTransaction<Row extends QueryRowIdentity, Query extends PhotoCatalogQueryV1, Continuation extends PhotoStackQueryKernelProgress>(
 	stores: Readonly<Record<string, IDBObjectStore>>, root: PhotoCatalogRootV1, index: PhotoCatalogIndexStateV1,
 	catalogId: string, query: Query, continuation: Continuation | null,
-	profile: PhotoStackQueryKernelProfile<Row, Query, Continuation>, privateSignal?: AbortSignal,
+	profile: PhotoStackQueryKernelProfile<Row, Query, Continuation>, privateSignal?: AbortSignal, destination?: PhotoStackQueryDestinationStart,
 ) {
 	const rawState: unknown = await request(stores.photoStackStates.get(catalogId));
 	const state = normalizePhotoStackStateV1(rawState === undefined ? { schemaVersion: 1, kind: 'photo-stack-state', catalogId, revision: 0, stackCount: 0 } : rawState);
@@ -57,6 +66,10 @@ export async function readPhotoStackQueryInTransaction<Row extends QueryRowIdent
 		|| await hasKey(stores.photoStackMemberships.index('catalogId'), catalogId))) throw new TypeError('Empty grouping state retains stack rows.');
 	if (continuation && (continuation.catalogRevision !== root.revision || continuation.indexRevision !== index.indexRevision
 		|| continuation.stateRevision !== state.revision)) throw new PhotoCatalogRevisionConflictError('catalog');
+	if (destination) {
+		if (destination.stateRevision !== null && destination.stateRevision !== state.revision) throw new PhotoCatalogRevisionConflictError('catalog');
+		destination.stateRevision = state.revision;
+	}
 	const buildRaw: unknown = await request(stores[profile.buildStore].get(catalogId));
 	if (buildRaw === undefined) throw new PhotoQueryIndexNotReadyError();
 	const build = profile.readBuild(buildRaw, catalogId);
@@ -66,14 +79,19 @@ export async function readPhotoStackQueryInTransaction<Row extends QueryRowIdent
 	let scanned = 0, captureBucket: 0 | 1 = continuation?.captureBucket ?? 0;
 	let afterKey: readonly (string | number)[] | null = continuation?.afterKey ?? null, pending = continuation?.pending ?? null;
 	let stackAudit = continuation?.stackAudit ?? null;
-	if (state.stackCount > 0 && (!continuation || stackAudit)) {
+	if (state.stackCount > 0 && (!continuation || stackAudit) && !destination?.auditComplete) {
 		const audit = await auditPhotoStackQueryCountV1(stores.photoStacks, catalogId, state.stackCount, stackAudit);
 		scanned = audit.scanned; stackAudit = audit.continuation;
+	}
+	if (destination && stackAudit === null) {
+		destination.auditComplete = true;
+		if (destination.inclusivePending) { captureBucket = destination.position.captureBucket; afterKey = destination.position.key; }
 	}
 	let exhausted = false;
 	while (stackAudit === null && scanned < LIMITS.candidates) {
 		privateSignal?.throwIfAborted();
-		const row = pending ? await pointRow(pending.photoId) : await nextRow(stores[profile.rowStore].index(query.sort.field), catalogId, query, captureBucket, afterKey, profile.readRow, profile.rowKey);
+		const row = pending ? await pointRow(pending.photoId) : await nextRow(stores[profile.rowStore].index(query.sort.field), catalogId, query, captureBucket, afterKey, profile.readRow, profile.rowKey, destination?.inclusivePending === true);
+		if (destination) destination.inclusivePending = false;
 		if (row === null) {
 			if (query.sort.field === 'capture-time' && captureBucket === 0) { captureBucket = 1; afterKey = null; continue; }
 			exhausted = true; break;
@@ -151,10 +169,10 @@ export async function readPhotoStackQueryInTransaction<Row extends QueryRowIdent
 
 async function nextRow<Row extends QueryRowIdentity>(index: IDBIndex, catalogId: string, query: PhotoCatalogQueryV1, bucket: 0 | 1,
 	afterKey: readonly (string | number)[] | null, readRow: (value: unknown) => Row,
-	rowKey: (row: Row, sort: PhotoCatalogQueryV1['sort']['field']) => (string | number)[]): Promise<Row | null> {
+	rowKey: (row: Row, sort: PhotoCatalogQueryV1['sort']['field']) => (string | number)[], inclusive = false): Promise<Row | null> {
 	const prefix: IDBValidKey[] = query.sort.field === 'capture-time' ? [catalogId, bucket] : [catalogId], maximum: IDBValidKey[] = [...prefix, []];
 	const after = afterKey ? [...afterKey] : null, descending = query.sort.direction === 'descending';
-	const range = descending ? IDBKeyRange.bound(prefix, after ?? maximum, false, true) : IDBKeyRange.bound(after ?? prefix, maximum, after !== null, true);
+	const range = descending ? IDBKeyRange.bound(prefix, after ?? maximum, false, !inclusive) : IDBKeyRange.bound(after ?? prefix, maximum, after !== null && !inclusive, true);
 	return new Promise((resolve, reject) => {
 		const cursor = index.openCursor(range, descending ? 'prev' : 'next');
 		cursor.onerror = () => reject(cursor.error ?? new Error('Could not read collapsed query cursor.'));

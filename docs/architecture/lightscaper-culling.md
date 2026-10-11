@@ -30,13 +30,35 @@ Observer exceptions cannot revoke published scalar state or hide the joined
 durable save receipt.
 
 Auto advance applies only to one selected photo. It captures successor IDs from
-the pre-edit page order, then chooses the first surviving successor in the
-acknowledged page. It never advances by a post-sort array offset. Manual
-selection/focus changes, an unrelated page identity, or a replaced session fence
-the old edit's presentation effect. At the last row, or when none of the captured
-successors survives, it stops. It does not reuse a revision-stale continuation
-cursor, restart at the first row, or silently select a row from a different page.
-Page navigation remains explicit in this bounded slice.
+the pre-edit page order. At the last row, the current workflow reads the next
+nonempty page through its still-valid cursor before saving, retaining at most
+64 detached successor IDs. After acknowledgement it chooses the first surviving
+captured successor in an authenticated fresh page. It never advances by a
+post-sort array offset or admits new arrivals as old successors. Manual
+selection/focus changes, an unrelated page, a changed query or a replaced
+session fence the old edit's presentation effect. At the end of the query, or
+when none of the captured successors survives, advance stops without wrapping.
+
+The current selected Session has a separate indexed destination capability.
+Within native read transactions it authenticates the current Photo, summary,
+derived query row, catalog/index state and query membership, then derives the
+destination's inclusive sort key. Saved queries additionally authenticate their
+definition and state; collapsed queries retain their grouping audit and current
+representative proof. The ordinary scanners issue fresh continuations. Existing
+external cursor shapes and revision checks stay unchanged: an old continuation
+cannot gain authority by having its revision replaced. Sparse matches and large
+stack audits yield between bounded phases and join cancellation; seeking does
+not collect a resident catalog or search again from page one.
+
+The workflow pins its displayed page, query, selected saved definition and
+collapsed mode before awaiting. Saved-definition, root-smart-definition and
+grouping state fences are checked across the acknowledged edit. It publishes
+one final page, preserving the current visible window when the successor still
+fits there. At a page boundary it publishes a fresh window containing the
+captured destination. Ordinary ratings with advance disabled also refresh the
+plain page's continuation, so a prior edit cannot strand later auto-advance.
+Lookahead or refresh failure preserves the durable save and pauses navigation.
+Compare and Survey continue to review only their captured selected subsets.
 
 Pause aborts the injected edit observer and joins its pending work. The workflow
 continues to own database writes, the existing session, its lifetime and busy
@@ -136,8 +158,14 @@ each culling acknowledgement, temporary removal through zero survivors,
 restoration, eviction regeneration, reopen and original custody. Its focused
 Node tests exercise temporary removal, zero/one survivors, monotonic query survivors,
 observer reentry, saved receipt ordering, stale callbacks and exclusive review
-menu admission. Library stacks remain separate L3 work.
-Library stacks need an explicit grouping contract, indexed
-membership and archive/migration rules; per-photo develop versions are not
-library groups. The full L3 keyboard loop and large-library CI budgets remain
-open until their separate integration gates pass.
+menu admission.
+
+The maintained pagination qualification imports 80 actual originals in 64 + 16
+batches and checks plain and filename-ordered boundary advance in English and
+German, continuation after an earlier manual rating, within-page selection,
+subsequent ratings and immutable original digests. Focused current-V2 workflow
+tests cover saved and collapsed contexts, changed definitions, held readers,
+manual interaction and retirement without losing the acknowledged save.
+Library stacks have their separate grouping and archive owners; per-photo
+develop versions are not library groups. The full L3 keyboard loop remains
+open until its remaining integration gates pass.

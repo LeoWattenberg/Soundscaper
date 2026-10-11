@@ -3,6 +3,12 @@
 import { array, field, id, integer, localTimestamp, record, text } from './value-validation.ts';
 import type { PhotoCatalogQueryV1 } from './photo-query-types-v1.ts';
 
+/** Internal seek derived from an admitted point row in the current native transaction. */
+export interface PhotoQueryInclusivePosition {
+	readonly captureBucket: 0 | 1;
+	readonly key: readonly (string | number)[];
+}
+
 /** Shared physical seek grammar; callers own their separate protocol identities. */
 export function readPhotoQueryPosition(value: unknown, catalog: string, sort: PhotoCatalogQueryV1['sort']['field']) {
 	const input = record(value, 'photo query position', ['captureBucket', 'afterKey']);

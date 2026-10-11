@@ -306,7 +306,11 @@
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-compare-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in comparison owns a bounded selected subset and distinct reference/candidate IDs, borrows one existing catalog save, and reconciles exact page receipts while preserving durable acknowledgement through joined retirement." }
 		,
+		{"path": "src/common/editor/controller/shared/photo-library-cull-advance-v1.ts", "kind": "helper-contract", "justification": "Version 1 ephemeral culling lookahead captures at most 64 inert successor IDs under one joined save callback and original selection, page, query and lifetime fences without widening stored cursors or receipts."}
+		,
 		{"path": "src/common/editor/controller/shared/photo-library-culling-v1.ts", "kind": "helper-contract", "justification": "Version1 durable culling receipts fence one pending scalar edit observer and identity-based auto advance."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-culling-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 current culling coordination borrows one selected Session operation, captures bounded pre-edit successors and semantic query context, and preserves durable saves while freshly reading and publishing an authenticated destination page."}
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-develop-command-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Develop transport detaches full strict process1/process2 recipes and pins scalar authoring capabilities without resource or Session ownership."}
 		,
@@ -547,6 +551,8 @@
 		{ "path": "src/common/editor/photo-library-collection-handoff-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-collection handoff authenticates the selected manual, root-smart or saved Query2 definition, complete ordered active Photo versions and unique original and disabled LUT bodies under one joined selected Session operation without archive or publication authority." }
 		,
 		{"path": "src/common/editor/photo-library-cube-lut-port-v1.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/common/editor/photo-library-culling-navigation-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 body-free indexed culling navigation selects plain, transient query or saved-query scope and reads a bounded fresh page inclusively from a current matching destination without external continuation authority."}
 		,
 		{ "path": "src/common/editor/photo-library-develop-full-resolution-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed full-resolution profile bounds admitted original frames and natural geometry output independently of the unchanged derivative proxy limits." }
 		,
@@ -974,6 +980,8 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-cube-lut-reachability-v1.ts", "kind": "helper-contract", "justification": "Version 1 complete per-record LUT traversal first admits owning Photo1/2 and shared preset1/2 records, then retains all versions, history including redo, snapshots and disabled references in an atomic bounded scalar ledger. Callers retain complete catalog enumeration and independent immutable body authentication responsibilities; no raw documents or resource bodies are retained." }
 		,
+		{"path": "src/lightscaper/catalog/photo-culling-navigation-v1.ts", "kind": "helper-contract", "justification": "Version 1 transaction-local destination seeking authenticates current root, query indexes, saved definitions and stack representatives, derives the actual inclusive index key and issues ordinary fresh continuations through existing bounded scanners."}
+		,
 		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v1.ts", "kind": "persisted-contract", "justification": "Version 1 per-photo-version develop workspace retains bounded ordered history and immutable named snapshots, explicit process versions and a selected-state cursor independently of virtual copies and original identity." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 develop workspaces retain mixed strict process-1 and resource-bearing process-2 history and snapshots under unchanged byte and count limits. The closed dispatcher preserves V1 reads; explicit successor edits alone upgrade the workspace envelope without dropping redo, disabled LUT references or named snapshots." }
@@ -1143,6 +1151,8 @@
 		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-batch-rename-v2.ts", "kind": "helper-contract", "justification": "Current bounded batch rename borrows one selected writer and current photo owner, pins callable receivers before acquisition and retains each native acknowledgement and exact scalar inverse."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-culling-navigation-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected culling navigation detaches closed scalar context and destination before readiness, captures callable receivers and borrows the existing Session lifetime and operation so cancellation and Close join native readers."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
 		,

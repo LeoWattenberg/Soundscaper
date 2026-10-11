@@ -35,6 +35,8 @@ import { loadPhotoSmartCollectionV1, readPhotoSmartCollectionStateV1, savePhotoS
 	deletePhotoSmartCollectionV1, withPhotoSmartCollectionWriteSignalV1 } from './photo-smart-collection-repository-v1.ts';
 import { readPhotoSmartCollectionPageV1 } from './photo-smart-collection-pages-v1.ts';
 import { readPhotoStackQueryPageV1 } from './photo-stack-query-pages-v1.ts';
+import { admitPhotoCullingNavigationV1, readPhotoCullingDestinationPageV1 } from './photo-culling-navigation-v1.ts';
+import type { PhotoLibraryCullingNavigationContextV1, PhotoLibraryCullingNavigationRequestV1 } from '../../common/editor/photo-library-culling-navigation-port-v1.ts';
 import { admitPhotoStackQueryPageRequestV1, type PhotoStackQueryPageRequestV1 } from './photo-stack-query-types-v1.ts';
 import { admitPhotoStackSaveV1, admitPhotoStackMemberIdsV1, readPhotoStackWriteOptionsV1, readPhotoStackPageOptionsV1, readPhotoStackSignalOptionsV1,
 	loadPhotoStackV1, readPhotoStackStateV1, readPhotoStackPageV1, readPhotoStackMembershipPageV1, readPhotoStackMemberPageV1, savePhotoStackV1, dissolvePhotoStackV1,
@@ -236,6 +238,14 @@ export class PhotoCatalogRepositoryV2 {
 	async readQueryPage(catalogId: string, options: PhotoQueryPageRequestV1 = {}): Promise<PhotoQueryPageV1> {
 		return this.#run(async () => {
 			return readPhotoQueryPageV1(await this.#open(), catalogId, options);
+		});
+	}
+	async readCullingDestinationPage(catalogId: string, context: PhotoLibraryCullingNavigationContextV1, options: PhotoLibraryCullingNavigationRequestV1) {
+		return this.#run(async () => {
+			const catalog = id(catalogId, 'culling catalog ID'), admitted = admitPhotoCullingNavigationV1(context, options);
+			const signal = Reflect.apply(ANY_SIGNAL, AbortSignal, [admitted.signal ? [admitted.signal, this.#lifetime.signal] : [this.#lifetime.signal]]) as AbortSignal;
+			return withPhotoStackQuerySignalV1(signal, async joined => readPhotoCullingDestinationPageV1(await this.#open(), catalog,
+				admitted.context, { photoId: admitted.photoId, signal: joined }));
 		});
 	}
 

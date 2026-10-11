@@ -9,6 +9,7 @@ export interface PhotoLibrarySelectionOptionsV1 {
 	readonly generation: unknown;
 	readonly pageIdentity: unknown;
 	readonly autoAdvance: boolean;
+	readonly queryIdentity?: unknown;
 }
 
 /** Scalar selection observation and <=64 borrowed button targets; no second session. */
@@ -19,6 +20,8 @@ export function usePhotoLibrarySelection(options: PhotoLibrarySelectionOptionsV1
 	const culling = cullOwner.current;
 	const targets = useRef(new Map<string, HTMLButtonElement>()), requestedFocus = useRef<string | null>(null);
 	const lastFocused = useRef<string | null>(null), alive = useRef(false), autoAdvance = useRef(false);
+	const queryIdentity = useRef(options.queryIdentity), generation = useRef(options.generation);
+	queryIdentity.current = options.queryIdentity; generation.current = options.generation;
 	const [snapshot, setSnapshot] = useState(() => selection.snapshot());
 	const [cullSnapshot, setCullSnapshot] = useState(() => culling.snapshot());
 	const deliverFocus = useCallback(() => {
@@ -61,9 +64,12 @@ export function usePhotoLibrarySelection(options: PhotoLibrarySelectionOptionsV1
 	const navigate = useCallback((id: string, key: string, modifiers?: PhotoLibrarySelectionModifiersV1) => selection.navigate(id, key, modifiers), [selection]);
 	const selectAll = useCallback(() => { selection.selectAll(); }, [selection]);
 	const clear = useCallback(() => { selection.clear(); }, [selection]);
-	const cull = useCallback((id: string, save: PhotoLibraryCullSaveV1) => alive.current
-		? culling.execute(id, save, { autoAdvance: autoAdvance.current })
-		: Promise.resolve(Object.freeze({ outcome: 'cancelled' as const })), [culling]);
+	const cull = useCallback((id: string, save: PhotoLibraryCullSaveV1) => {
+		const capturedQuery = queryIdentity.current, capturedGeneration = generation.current;
+		return alive.current ? culling.execute(id, save, { autoAdvance: autoAdvance.current,
+			isCurrent: () => alive.current && Object.is(queryIdentity.current, capturedQuery) && Object.is(generation.current, capturedGeneration) })
+			: Promise.resolve(Object.freeze({ outcome: 'cancelled' as const }));
+	}, [culling]);
 	return { snapshot, pendingPhotoId: cullSnapshot.pendingPhotoId, notice: cullSnapshot.notice,
 		select, focus, navigate, selectAll, clear, cull, attach };
 }

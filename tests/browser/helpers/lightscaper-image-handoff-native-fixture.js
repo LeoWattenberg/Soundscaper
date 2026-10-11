@@ -142,6 +142,20 @@ export async function observeNativePhotoRasterBatchGraphicJournal(page) {
 	return page.evaluate(async () => (await import(new URL('/__batch_graphic_journal.js', location.href).href)).readPhotoRasterBatchGraphicJournalFixture());
 }
 
+/** Publish 64 + 16 actual managed originals, then release both native owners. */
+export async function seedNativePhotoCullingLibrary(page) {
+	const script = await mappedBundle('culling-query-fixture.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-photo-query-native-fixture.ts'));
+	register(page, '/__culling_query_fixture.js', script);
+	await page.route('**/__culling_query_fixture.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	const facts = await page.evaluate(async () => (await import(new URL('/__culling_query_fixture.js', location.href).href)).seedPhotoLibraryQueryNativeV1());
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
+export async function observeNativePhotoCullingOriginals(page, ids) {
+	const facts = await page.evaluate(async ids => (await import(new URL('/__culling_query_fixture.js', location.href).href)).readPhotoLibraryQueryOriginalsNativeV1(ids), ids);
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');

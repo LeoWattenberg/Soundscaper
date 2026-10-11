@@ -151,7 +151,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 		return saveBackup({ catalogName: backupName, fileTypeDescription: copy.photoBackupFileType });
 	}, [factory, generation, saveBackup, backupName, copy.photoBackupFileType]);
 	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
-		generation, pageIdentity: library.page, autoAdvance });
+		generation, queryIdentity: library.queryIdentity, pageIdentity: library.page, autoAdvance });
 	const panelSelection = { ...photoSelection,
 		select: (...args: Parameters<typeof photoSelection.select>) => { if (isCurrent()) photoSelection.select(...args); }, focus: (id: string) => { if (isCurrent()) photoSelection.focus(id); },
 		navigate: (...args: Parameters<typeof photoSelection.navigate>) => isCurrent() ? photoSelection.navigate(...args) : null,
@@ -304,7 +304,7 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 			cullingNotice={photoSelection.notice === 'refresh-failed' ? copy.photoCullRefreshFailed : null}
 			renderPreview={preview ? row => preview.renderThumbnail(row.id, row.fileName) : undefined}
 			onSelect={panelSelection.select} onRate={(photoId, rating) => {
-				if (isCurrent()) void photoSelection.cull(photoId, signal => library.setRating(photoId, rating, { signal }));
+				if (isCurrent()) void photoSelection.cull(photoId, (signal, advance) => library.setRating(photoId, rating, { signal, advance }));
 			}} />
 		{loupeVisible && selection && preview && <section data-photo-loupe="true" className="lightscaper-library" aria-label={copy.photoLoupe}>
 			<h3>{selection.fileName}</h3>{preview.renderLoupe(selection.fileName)}
@@ -394,15 +394,15 @@ export default function LightscaperAppV2(props: LightscaperAppPropsV2) {
 									|| stacks.visible || reviewing || photoSelection.pendingPhotoId !== null}
 									onClick={event => { openStack('edit', event); }}>{copy.photoStackEdit}</button>
 								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={restore.busy || !selection || library.busy}
-									onClick={event => { if (!closeMenu(event)) return; if (selection) void photoSelection.cull(selection.id, signal => library.setRating(selection.id, rating, { signal })); }}>
+									onClick={event => { if (!closeMenu(event)) return; if (selection) void photoSelection.cull(selection.id, (signal, advance) => library.setRating(selection.id, rating, { signal, advance })); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
 								</button>)}
 								{(['unflagged', 'pick', 'reject'] as const).map(flag => <button key={flag} type="button" disabled={restore.busy || !selection || library.busy}
-									aria-pressed={selection?.flag === flag} onClick={event => { if (!closeMenu(event)) return; if (selection) void photoSelection.cull(selection.id, signal => library.applyAttributes(selection.id, { flag }, { signal })); }}>
+									aria-pressed={selection?.flag === flag} onClick={event => { if (!closeMenu(event)) return; if (selection) void photoSelection.cull(selection.id, (signal, advance) => library.applyAttributes(selection.id, { flag }, { signal, advance })); }}>
 									{copy.photoFlag}: {flags[flag]}
 								</button>)}
 								{(['none', 'red', 'yellow', 'green', 'blue', 'purple'] as const).map(colorLabel => <button key={colorLabel} type="button" disabled={restore.busy || !selection || library.busy}
-									aria-pressed={selection?.colorLabel === colorLabel} onClick={event => { if (!closeMenu(event)) return; if (selection) void photoSelection.cull(selection.id, signal => library.applyAttributes(selection.id, { colorLabel }, { signal })); }}>
+									aria-pressed={selection?.colorLabel === colorLabel} onClick={event => { if (!closeMenu(event)) return; if (selection) void photoSelection.cull(selection.id, (signal, advance) => library.applyAttributes(selection.id, { colorLabel }, { signal, advance })); }}>
 									{copy.photoColorLabel}: {colorLabels[colorLabel]}
 								</button>)}
 							</div>

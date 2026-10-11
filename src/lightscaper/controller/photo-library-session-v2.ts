@@ -44,6 +44,7 @@ import { admitPhotoLibraryStackCommandV1, admitPhotoLibraryStackReadV1, admitPho
 import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository-v1.ts';
 import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../../common/editor/photo-library-query-port-v2.ts';
 import { createPhotoLibraryDevelopSessionV2 } from './photo-library-develop-session-v2.ts';
+import { createPhotoLibraryCullingNavigationSessionV1 } from './photo-library-culling-navigation-session-v1.ts';
 
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
 import type { PhotoLibraryExportSidecarRequest, PhotoLibrarySessionPortV2, PhotoLibraryExportJournalPort } from '../../common/editor/photo-library-session-port-v2.ts';
@@ -77,6 +78,7 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	readonly imageReceive: ReturnType<typeof createPhotoLibraryImageReceiveSessionV1>;
 	readonly imageHandoff: Readonly<PhotoLibraryImageHandoffPortV1>;
 	readonly collectionHandoff: Readonly<PhotoLibraryCollectionHandoffPortV1>;
+	readonly cullingNavigation?: PhotoLibrarySessionPortV2['cullingNavigation'];
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
 	#catalog: Promise<string> | null = null;
@@ -88,6 +90,8 @@ export class PhotoLibrarySessionV2 implements PhotoLibrarySessionPortV2 {
 	constructor(ports: PhotoLibrarySessionPortsV2) {
 		ports = capturePhotoLibrarySessionPorts(ports);
 		this.#ports = ports;
+		if (ports.catalog.readCullingDestinationPage) this.cullingNavigation = createPhotoLibraryCullingNavigationSessionV1({
+			repository: { readCullingDestinationPage: ports.catalog.readCullingDestinationPage }, ready: () => this.#ready(), operation: (run, signal) => this.#operation(run, signal) });
 		this.imageReceive = createPhotoLibraryImageReceiveSessionV1({ ports, managed: this.#managedPorts(),
 			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 		this.imageHandoff = Object.freeze({ withCapture: async <Result>(value: Readonly<PhotoLibraryImageHandoffRequestV1>,

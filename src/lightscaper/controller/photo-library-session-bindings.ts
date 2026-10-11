@@ -18,7 +18,7 @@ export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV
 		catalog: Object.freeze({ ...managed.catalog, savePhoto: pin(catalog.savePhoto, catalog), saveCatalog: pin(catalog.saveCatalog, catalog),
 			readSummaryPage: pin(catalog.readSummaryPage, catalog), readQueryPage: pin(catalog.readQueryPage, catalog),
 			rebuildQueryIndexPage: pin(catalog.rebuildQueryIndexPage, catalog),
-			...optional(catalog, 'readQueryPageV2'), ...optional(catalog, 'rebuildQueryIndexPageV2'),
+			...optional(catalog, 'readQueryPageV2'), ...optional(catalog, 'rebuildQueryIndexPageV2'), ...optional(catalog, 'readCullingDestinationPage'),
 		}), media: managed.media, journal: managed.journal, exclusive: managed.exclusive,
 		...(managed.verifyResources === undefined ? {} : { verifyResources: managed.verifyResources }),
 		initialize: pin(initialize, ports), closeResources: pin(closeResources, ports),
