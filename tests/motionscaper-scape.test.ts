@@ -63,7 +63,7 @@ test('streamed archive output verifies every asset and imports after completion'
 	});
 	assert.equal(result, null);
 	const target = transaction();
-	await importMotionscaperArchive(new Blob(output), () => target.port);
+	await importMotionscaperArchive(new Blob(output.map((chunk) => chunk.slice().buffer)), () => target.port);
 	assert.equal(target.state.committed, true);
 });
 
@@ -86,7 +86,7 @@ async function customArchive(document: unknown, body?: Uint8Array) {
 	const projectBytes = new TextEncoder().encode(projectText);
 	const writer = new ZipWriter(new BlobWriter(), { level: 0, zip64: true, useWebWorkers: false });
 	await writer.add('project.json', new TextReader(projectText), { level: 0 });
-	if (body) await writer.add('media/image-1/original', new BlobReader(new Blob([body])), { level: 0 });
+	if (body) await writer.add('media/image-1/original', new BlobReader(new Blob([body.slice().buffer])), { level: 0 });
 	await writer.add('manifest.json', new TextReader(JSON.stringify({
 		format: 'scape-project', formatVersion: 1,
 		project: { entry: 'project.json', size: projectBytes.byteLength, sha256: digestScapeBytes(projectBytes),

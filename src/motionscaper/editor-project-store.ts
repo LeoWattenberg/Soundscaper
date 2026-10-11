@@ -1,0 +1,217 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { MotionAsset } from '../common/editor/motion-asset.ts';
+import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
+import { openMotionProjectDatabase } from '../common/editor/storage/motion-project-database.ts';
+import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor/storage/motion-asset-repository.ts';
+import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
+import { editorProjectStorageProfileNames } from '../common/editor/storage/project-storage-profile.ts';
+import { bindEditorProjectStoreProfile } from '../common/editor/storage/project-store-profile-binding.ts';
+import { MOTIONSCAPER_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile.ts';
+import { createMotionscaperRevision, verifyMotionscaperRevision, type MotionscaperRevision } from './editor-project-revision.ts';
+import { normalizeMotionscaperProject } from './editor-project-validation.ts';
+import type { MotionscaperProject } from './editor-project-types.ts';
+import type { MotionArchiveImportTransaction } from './editor-scape.ts';
+
+interface ProjectPointer {
+	readonly id: string; readonly savedDigest: string | null;
+	readonly recovery: MotionscaperProject | null;
+	readonly savedTitle: string | null;
+	readonly savedRevision: number | null;
+}
+interface StoredRevision { readonly key: string; readonly projectId: string; readonly snapshot: MotionscaperRevision }
+export interface MotionscaperProjectStoreOptions { readonly indexedDB?: IDBFactory }
+export interface MotionProjectSummary {
+	readonly id: string; readonly title: string; readonly revision: number;
+	readonly savedDigest: string | null; readonly hasRecovery: boolean;
+}
+
+export class MotionProjectConflictError extends Error {
+	constructor() { super('The saved motion project changed in another session; reopen before saving.'); this.name = 'MotionProjectConflictError'; }
+}
+
+export function createMotionscaperProjectStore(options: MotionscaperProjectStoreOptions = {}): MotionscaperProjectStore {
+	return new MotionscaperProjectStore(options);
+}
+
+/** Durable scene snapshots; recovery writes do not publish saved revisions. */
+export class MotionscaperProjectStore {
+	readonly #databasePromise: Promise<IDBDatabase>;
+	readonly #assets: MotionAssetRepository;
+	readonly #listeners = new Set<(revision: MotionscaperRevision) => void>();
+	#closed = false;
+
+	constructor(options: MotionscaperProjectStoreOptions) {
+		const indexedDB = options.indexedDB ?? globalThis.indexedDB;
+		if (!indexedDB) throw new Error('Motionscaper requires durable browser storage.');
+		bindEditorProjectStoreProfile(this, MOTIONSCAPER_PROJECT_STORAGE_PROFILE);
+		this.#databasePromise = openMotionProjectDatabase(indexedDB,
+			editorProjectStorageProfileNames(MOTIONSCAPER_PROJECT_STORAGE_PROFILE).databaseName);
+		this.#assets = new MotionAssetRepository(() => this.#database());
+	}
+
+	async #database(): Promise<IDBDatabase> {
+		if (this.#closed) throw new Error('Motion project store is closed.');
+		return this.#databasePromise;
+	}
+
+	async close(): Promise<void> {
+		this.#closed = true;
+		this.#listeners.clear();
+		(await this.#databasePromise).close();
+	}
+
+	subscribeSaved(listener: (revision: MotionscaperRevision) => void): () => void {
+		this.#listeners.add(listener);
+		return () => { this.#listeners.delete(listener); };
+	}
+
+	async save(value: unknown, expectedDigest: string | null): Promise<MotionscaperRevision> {
+		const snapshot = createMotionscaperRevision(value);
+		await this.#publish(snapshot, expectedDigest, []);
+		this.#notify(snapshot);
+		return snapshot;
+	}
+
+	async #publish(snapshot: MotionscaperRevision, expectedDigest: string | null, staging: readonly MotionAssetStaging[]): Promise<void> {
+		const database = await this.#database();
+		await transact(database, ['projects', 'revisions', 'assets', 'chunks', 'staging'], 'readwrite', async (stores) => {
+			const prior: unknown = await request(stores.projects.get(snapshot.projectId));
+			const pointer = prior === undefined ? null : readPointer(prior);
+			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
+			if (pointer?.savedDigest) {
+				const previous = readRevision(await request(stores.revisions.get(revisionKey(snapshot.projectId, pointer.savedDigest))));
+				if (snapshot.digest !== previous.digest && snapshot.revision <= previous.revision) {
+					throw new RangeError('Saved motion revisions must increase after an edit.');
+				}
+			}
+			for (const stage of staging) await stage.publish(stores);
+			for (const asset of snapshot.project.assets) await this.#assets.assertAvailable(stores, asset);
+			await request(stores.revisions.put({ key: revisionKey(snapshot.projectId, snapshot.digest),
+				projectId: snapshot.projectId, snapshot } satisfies StoredRevision));
+			await request(stores.projects.put({ id: snapshot.projectId, savedDigest: snapshot.digest,
+				savedTitle: snapshot.project.title, savedRevision: snapshot.revision, recovery: null } satisfies ProjectPointer));
+		});
+	}
+
+	#notify(snapshot: MotionscaperRevision): void {
+		for (const listener of this.#listeners) {
+			// A listener cannot turn an already durable save into a failed publication.
+			try { listener(snapshot); } catch { /* Subscriber diagnostics belong to its owning workflow. */ }
+		}
+	}
+
+	async saveRecovery(value: unknown, expectedDigest: string | null): Promise<void> {
+		const project = normalizeMotionscaperProject(value);
+		const database = await this.#database();
+		await transact(database, ['projects', 'assets'], 'readwrite', async (stores) => {
+			const stored: unknown = await request(stores.projects.get(project.id));
+			const pointer = stored === undefined ? null : readPointer(stored);
+			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
+			for (const asset of project.assets) await this.#assets.assertAvailable(stores, asset);
+			await request(stores.projects.put({ id: project.id, savedDigest: expectedDigest,
+				savedTitle: pointer?.savedTitle ?? null, savedRevision: pointer?.savedRevision ?? null,
+				recovery: project } satisfies ProjectPointer));
+		});
+	}
+
+	async load(id: string): Promise<MotionscaperRevision | null> {
+		const database = await this.#database();
+		return transact(database, ['projects', 'revisions'], 'readonly', async (stores) => {
+			const value: unknown = await request(stores.projects.get(id));
+			if (value === undefined) return null;
+			const pointer = readPointer(value);
+			return pointer.savedDigest ? readRevision(await request(stores.revisions.get(revisionKey(id, pointer.savedDigest)))) : null;
+		});
+	}
+
+	async loadRevision(id: string, digest: string): Promise<MotionscaperRevision | null> {
+		const database = await this.#database();
+		return transact(database, ['revisions'], 'readonly', async (stores) => {
+			const value: unknown = await request(stores.revisions.get(revisionKey(id, digest)));
+			return value === undefined ? null : readRevision(value);
+		});
+	}
+
+	async loadRecovery(id: string): Promise<MotionscaperProject | null> {
+		const database = await this.#database();
+		return transact(database, ['projects'], 'readonly', async (stores) => {
+			const value: unknown = await request(stores.projects.get(id));
+			return value === undefined ? null : readPointer(value).recovery;
+		});
+	}
+
+	async list(): Promise<readonly MotionProjectSummary[]> {
+		const database = await this.#database();
+		return transact(database, ['projects'], 'readonly', (stores) => new Promise<MotionProjectSummary[]>((resolve, reject) => {
+			const summaries: MotionProjectSummary[] = [];
+			const cursorRequest = stores.projects.openCursor();
+			cursorRequest.onerror = () => reject(cursorRequest.error);
+			cursorRequest.onsuccess = () => {
+				const cursor = cursorRequest.result;
+				if (!cursor) { resolve(summaries); return; }
+				try {
+					const pointer = readPointer(cursor.value);
+					summaries.push(Object.freeze({ id: pointer.id,
+						title: pointer.savedTitle ?? pointer.recovery?.title ?? pointer.id,
+						revision: pointer.savedRevision ?? pointer.recovery?.revision ?? 0,
+						savedDigest: pointer.savedDigest, hasRecovery: pointer.recovery !== null }));
+					cursor.continue();
+				} catch (error) { reject(error); }
+			};
+		}));
+	}
+
+	putAsset(asset: unknown, body: Blob, signal?: AbortSignal): Promise<void> { return this.#assets.put(asset, body, signal); }
+	loadAsset(asset: unknown): Promise<Blob | null> { return this.#assets.load(asset); }
+	readAsset(asset: unknown): Promise<MotionAssetBody | null> { return this.#assets.read(asset); }
+
+	async beginImport(projectInput: unknown): Promise<MotionArchiveImportTransaction> {
+		const project = normalizeMotionscaperProject(projectInput);
+		const stages = new Map<string, MotionAssetStaging>();
+		let settled = false;
+		const find = async (asset: MotionAsset): Promise<MotionAssetStaging> => {
+			if (settled) throw new Error('Motion import transaction is closed.');
+			const owned = project.assets.find((entry) => entry.id === asset.id);
+			if (!owned || JSON.stringify(asset) !== JSON.stringify(owned)) throw new Error('Motion import asset is outside its project closure.');
+			let stage = stages.get(asset.id);
+			if (!stage) { stage = await this.#assets.stage(asset); stages.set(asset.id, stage); }
+			return stage;
+		};
+		return {
+			writeAssetChunk: async (asset, bytes) => { await (await find(asset)).write(bytes); },
+			finishAsset: async (asset) => { await (await find(asset)).finish(); },
+			commit: async (value) => {
+				if (settled) throw new Error('Motion import transaction is closed.');
+				const snapshot = createMotionscaperRevision(value);
+				if (snapshot.digest !== createMotionscaperRevision(project).digest) throw new Error('Motion project changed during import.');
+				await this.#publish(snapshot, null, [...stages.values()]);
+				settled = true;
+				this.#notify(snapshot);
+			},
+			rollback: async () => {
+				if (settled) return;
+				for (const stage of stages.values()) await stage.rollback();
+				settled = true;
+			},
+		};
+	}
+}
+
+function revisionKey(id: string, digest: string): string { return `${id}:${digest}`; }
+function readRevision(value: unknown): MotionscaperRevision {
+	if (!value || typeof value !== 'object' || !('snapshot' in value)) throw new Error('Stored motion revision is missing or corrupt.');
+	return verifyMotionscaperRevision(value.snapshot);
+}
+function readPointer(value: unknown): ProjectPointer {
+	const pointer = value as Partial<ProjectPointer> | null;
+	if (!pointer || typeof pointer.id !== 'string' || (pointer.savedDigest !== null
+		&& (typeof pointer.savedDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(pointer.savedDigest)))
+		|| (pointer.savedTitle !== null && typeof pointer.savedTitle !== 'string')
+		|| (pointer.savedRevision !== null && (!Number.isSafeInteger(pointer.savedRevision) || Number(pointer.savedRevision) < 0))) {
+		throw new Error('Stored motion project pointer is corrupt.');
+	}
+	return { id: pointer.id, savedDigest: pointer.savedDigest,
+		savedTitle: pointer.savedTitle ?? null, savedRevision: pointer.savedRevision ?? null,
+		recovery: pointer.recovery == null ? null : normalizeMotionscaperProject(pointer.recovery) };
+}

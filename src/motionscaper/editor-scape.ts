@@ -2,6 +2,7 @@
 
 import { TextReader, ZipWriter } from '@zip.js/zip.js/index-native.js';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
+import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import {
 	aggregateScapeErrors, throwIfScapeAborted,
 } from '../common/editor/scape-abort.ts';
@@ -43,7 +44,7 @@ export type MotionArchiveOpenResult =
 	| Readonly<{ kind: 'current'; project: MotionscaperProject }>
 	| Readonly<{ kind: 'opaque'; identity: Readonly<ProjectSchemaIdentity>; archive: ScapeProjectInput }>;
 
-type ReadAsset = (asset: MotionAsset, signal?: AbortSignal) => PromiseLike<Blob | null> | Blob | null;
+type ReadAsset = (asset: MotionAsset, signal?: AbortSignal) => PromiseLike<MotionAssetBody | null> | MotionAssetBody | null;
 
 /** Write the owned scene unchanged into Scape format 1, with its entire declared asset closure. */
 export async function exportMotionscaperArchive(
@@ -93,11 +94,23 @@ export async function exportMotionscaperArchive(
 			throwIfScapeAborted(signal);
 			const body = await readAsset(asset, signal);
 			throwIfScapeAborted(signal);
-			if (!(body instanceof Blob)) throw new Error(`Motion asset ${asset.id} is unavailable.`);
+			if (!body || typeof body.stream !== 'function') throw new Error(`Motion asset ${asset.id} is unavailable.`);
 			if (body.size !== asset.byteLength) throw new RangeError(`Motion asset ${asset.id} byte length changed.`);
 			const digest = createScapeDigest();
-			await writer.add(assetEntry(asset), scapeHashingStream(body.stream(), digest, signal), { level: 0, zip64: true, signal });
-			if (scapeHex(digest.digest()) !== asset.sha256) throw new RangeError(`Motion asset ${asset.id} digest changed.`);
+			let size = 0;
+			const bounded = body.stream().pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+				transform(chunk, controller) {
+					if (!(chunk instanceof Uint8Array) || chunk.byteLength > asset.byteLength - size) {
+						throw new RangeError(`Motion asset ${asset.id} emitted more bytes than declared.`);
+					}
+					size += chunk.byteLength;
+					controller.enqueue(chunk);
+				},
+			}));
+			await writer.add(assetEntry(asset), scapeHashingStream(bounded, digest, signal), { level: 0, zip64: true, signal });
+			if (size !== asset.byteLength || scapeHex(digest.digest()) !== asset.sha256) {
+				throw new RangeError(`Motion asset ${asset.id} digest or byte length changed.`);
+			}
 		}
 		await writer.add(SCAPE_MANIFEST_ENTRY, new TextReader(manifestText), { level: 0, zip64: true, signal });
 		return await destination.finish(writer, signal);
