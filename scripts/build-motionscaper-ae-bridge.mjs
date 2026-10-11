@@ -9,6 +9,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const directory = resolve(root, 'src/motionscaper/ae-bridge');
 const modules = [
 	{ name: 'motion-ae-host-json', global: 'MotionAeHostJson', exports: ['parseMotionAeHostJson', 'stringifyMotionAeHostJson'] },
+	{ name: 'motion-ae-host-text', global: 'MotionAeHostText', exports: ['captureMotionAeTextStyle', 'applyMotionAeHostText', 'verifyMotionAeHostFont'] },
+	{ name: 'motion-ae-installed-text', global: 'MotionAeInstalledText', exports: ['readMotionAeInstalledText', 'applyMotionAeInstalledText', 'verifyMotionAeInstalledTextFont'] },
 	{ name: 'motion-ae-host-sampling', global: 'MotionAeHostSampling', exports: ['sampleMotionAeNumericProperty'] },
 	{ name: 'motion-ae-host-property', global: 'MotionAeHostProperty', exports: ['readMotionAeHostProperty'] },
 	{ name: 'motion-ae-host-render', global: 'MotionAeHostRender', exports: ['renderMotionAeHostComposition'] },
@@ -16,6 +18,7 @@ const modules = [
 	{ name: 'motion-ae-host-export', global: 'MotionAeHostExport', exports: ['exportMotionAeHostProject'] },
 	{ name: 'motion-ae-installed-export', global: 'MotionAeInstalledExport', exports: ['runMotionAeInstalledExport'] },
 	{ name: 'motion-ae-host-sha256', global: 'MotionAeHostSha256', exports: ['createMotionAeHostSha256'] },
+	{ name: 'motion-ae-host-import-text', global: 'MotionAeHostImportText', exports: ['readMotionAeImportText'] },
 	{ name: 'motion-ae-host-import-mask', global: 'MotionAeHostImportMask', exports: ['readMotionAeImportMasks'] },
 	{ name: 'motion-ae-host-import-plan', global: 'MotionAeHostImportPlan', exports: ['prepareMotionAeHostImport'] },
 	{ name: 'motion-ae-host-import', global: 'MotionAeHostImport', exports: ['importMotionAeHostPlan'] },
@@ -60,10 +63,10 @@ for (const module of modules) {
 	try { parse(output, { ecmaVersion: 3 }); } catch (error) { throw new Error(`${module.name}: ${error.message}; ${output.split('\n')[error.loc.line - 1]}`, { cause: error }); }
 	await publish(`${module.name}.jsxinc`, output);
 }
-await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, 7), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
-await publish('Motionscaper-Export-Sampled.jsx.txt', entry(modules.slice(0, 7), 'MotionAeInstalledExport.runMotionAeInstalledExport(true);'));
-await publish('Motionscaper-Export-Rendered.jsx.txt', entry(modules.slice(0, 7), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, true);'));
-await publish('Motionscaper-Import.jsx.txt', entry([modules[0], ...modules.slice(7)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
+await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, 9), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
+await publish('Motionscaper-Export-Sampled.jsx.txt', entry(modules.slice(0, 9), 'MotionAeInstalledExport.runMotionAeInstalledExport(true);'));
+await publish('Motionscaper-Export-Rendered.jsx.txt', entry(modules.slice(0, 9), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, true);'));
+await publish('Motionscaper-Import.jsx.txt', entry([...modules.slice(0, 3), ...modules.slice(9)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
 if (stale) process.exitCode = 1;
 
 function entry(includes, call) {

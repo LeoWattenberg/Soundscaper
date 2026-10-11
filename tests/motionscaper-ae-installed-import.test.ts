@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { motionAeTextFixture } from './helpers/motionscaper-ae-text-fixture.ts';
 import { createHash } from 'node:crypto';
 async function script(): Promise<string> {
 	const root = new URL('../src/motionscaper/ae-bridge/', import.meta.url), entry = await readFile(new URL('Motionscaper-Import.jsx.txt', root), 'utf8'), parts: string[] = [];
@@ -41,13 +42,18 @@ function host(source: string, failLayer = false) {
 		name = ''; maskMode: unknown; inverted = false; rotoBezier = true; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
 		fields = new Map<string, Property>(); property(name: string) { let field = this.fields.get(name); if (!field) { field = new Property(); this.fields.set(name, field); } return field; }
 	}
+	class TextDocument {
+		text = ''; fontObject: unknown = null; autoLeading = true; private spacing = 0;
+		get leading() { return this.spacing; } set leading(value: number) { this.spacing = value; this.autoLeading = true; }
+		resetCharStyle() {} resetParagraphStyle() {}
+	}
 	class Layer {
 		name = ''; enabled = true; audioEnabled = true; threeDLayer = false; startTime = 0; inPoint = 0; outPoint = 2; stretch = 100; parent: Layer | null = null; position = new Property();
-		masks: Mask[] = [];
+		masks: Mask[] = []; sourceText = new Property();
 		matte: { source: Layer; type: unknown } | null = null;
 		setTrackMatte(source: Layer, type: unknown) { this.matte = { source, type }; source.enabled = true; calls.push('matte'); }
 		setParentWithJump(parent: Layer) { this.parent = parent; }
-		property(name: string) { return name === 'ADBE Mask Parade' ? { addProperty: (matchName: string) => { assert.equal(matchName, 'ADBE Mask Atom'); const mask = new Mask(); this.masks.push(mask); return mask; } } : { property: () => this.position }; }
+		property(name: string) { return name === 'ADBE Text Properties' ? { property: () => this.sourceText } : name === 'ADBE Mask Parade' ? { addProperty: (matchName: string) => { assert.equal(matchName, 'ADBE Mask Atom'); const mask = new Mask(); this.masks.push(mask); return mask; } } : { property: () => this.position }; }
 	}
 	class Item {
 		name: string; parentFolder: Item | null = null; constructor(name: string) { this.name = name; }
@@ -55,7 +61,7 @@ function host(source: string, failLayer = false) {
 	}
 	class Composition extends Item {
 		displayStartTime = 0; bgColor: readonly number[] = [0, 0, 0]; authored: Layer[] = [];
-		layers = { addNull: () => this.add(), add: (_item: Item) => this.add() };
+		layers = { addBoxText: (_size: readonly number[], text: string) => { const layer = this.add(); const document = new TextDocument(); document.text = text; layer.sourceText.value = document; return layer; }, addNull: () => this.add(), add: (_item: Item) => this.add() };
 		add() { if (failLayer && this.authored.length) throw new Error('layer creation failed'); const layer = new Layer(); this.authored.unshift(layer); return layer; }
 	}
 	const existing = new Item('Existing original item'), items: Item[] = [existing];
@@ -65,9 +71,13 @@ function host(source: string, failLayer = false) {
 		importFile: () => { const item = new Item('Imported footage'); items.push(item); return item; },
 	};
 	class ImportOptions { file: File; sequence = true; importAs: unknown; constructor(file: File) { this.file = file; } }
-	return { items, existing, files, alerts, calls, project, Composition, Layer, sandbox: { app: { version: '23.0 synthetic host', project, beginUndoGroup: () => calls.push('begin'), endUndoGroup: () => calls.push('end') }, File, Folder, ImportOptions,
+	return { items, existing, files, alerts, calls, project, Composition, Layer, sandbox: { app: { version: '23.0 synthetic host', fonts: { getFontsByPostScriptName: (name: string) => [{ postScriptName: name, isSubstitute: false, hasDesignAxes: false }] }, project, beginUndoGroup: () => calls.push('begin'), endUndoGroup: () => calls.push('end') }, File, Folder, ImportOptions,
 		ImportAsType: { FOOTAGE: 'footage' }, KeyframeInterpolationType: { HOLD: 'hold', LINEAR: 'linear', BEZIER: 'bezier' }, KeyframeEase: class {},
 		Shape: class {}, MaskMode: { ADD: 'add', SUBTRACT: 'subtract' }, MaskFeatherFalloff: { FFO_LINEAR: 'linear', FFO_SMOOTH: 'smooth' }, MaskMotionBlur: { SAME_AS_LAYER: 'same', OFF: 'off' },
+		ParagraphJustification: { LEFT_JUSTIFY: 'left', CENTER_JUSTIFY: 'center', RIGHT_JUSTIFY: 'right' }, LineOrientation: { HORIZONTAL: 'horizontal', VERTICAL_RIGHT_TO_LEFT: 'vertical-right', VERTICAL_LEFT_TO_RIGHT: 'vertical-left' },
+		AutoKernType: { METRIC_KERN: 'metric' }, BaselineDirection: { BASELINE_WITH_STREAM: 'baseline' }, FontCapsOption: { FONT_NORMAL_CAPS: 'caps' }, FontBaselineOption: { FONT_NORMAL_BASELINE: 'normal-baseline' },
+		ParagraphDirection: { DIRECTION_LEFT_TO_RIGHT: 'ltr' }, DigitSet: { DEFAULT_DIGITS: 'digits' }, LeadingType: { ROMAN_LEADING_TYPE: 'roman' },
+		BoxAutoFitPolicy: { NONE: 'none' }, BoxVerticalAlignment: { TOP: 'top' }, BoxFirstBaselineAlignment: { ASCENT: 'ascent' },
 		TrackMatteType: { ALPHA: 'alpha', ALPHA_INVERTED: 'alpha-inverted', LUMA: 'luma', LUMA_INVERTED: 'luma-inverted' },
 		alert: (message: string) => alerts.push(message), confirm: () => true, JSON: undefined } };
 }
@@ -131,4 +141,21 @@ test('generated AE importer mutes the Motion-authored video-only subset without 
 	const legacy = host(manifest(true)); vm.runInNewContext(await script(), legacy.sandbox, { timeout: 5000 });
 	const original = legacy.items.find(item => item instanceof legacy.Composition)! as InstanceType<typeof legacy.Composition>;
 	assert.ok(original.authored.every(layer => layer.audioEnabled));
+});
+
+test('generated AE importer preflights real font identity and creates reviewed paragraph text through addBoxText', async () => {
+	const source = motionAeTextFixture(); const fixture = host(JSON.stringify({ ...source, color: { workingSpace: '', linearBlending: false, bitsPerChannel: 8 } }));
+	fixture.sandbox.app.version = '24.6 synthetic host'; vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange imported/u);
+	const comp = fixture.items.find(item => item instanceof fixture.Composition)! as InstanceType<typeof fixture.Composition>;
+	const text = comp.authored[0]!.sourceText.value as Record<string, unknown>;
+	assert.equal(text.text, 'Retained\rtext'); assert.equal(text.fontSize, 40); assert.equal(text.leading, 48); assert.equal(text.autoLeading, false);
+	assert.equal((text.fontObject as { postScriptName: string }).postScriptName, 'ExactFace-Regular');
+	assert.deepEqual(Array.from(text.boxTextPos as number[]), [-10, -30]);
+	for (const reason of ['old', 'missing', 'substitute', 'variable']) {
+		const refused = host(JSON.stringify({ ...source, color: { workingSpace: '', linearBlending: false, bitsPerChannel: 8 } })); refused.sandbox.app.version = reason === 'old' ? '24.5' : '24.6';
+		refused.sandbox.app.fonts.getFontsByPostScriptName = name => reason === 'missing' ? [] : [{ postScriptName: name, isSubstitute: reason === 'substitute', hasDesignAxes: reason === 'variable' }];
+		vm.runInNewContext(await script(), refused.sandbox, { timeout: 5000 });
+		assert.match(refused.alerts[0]!, /font|24.6/iu); assert.deepEqual(refused.calls, []); assert.deepEqual(refused.items, [refused.existing]);
+	}
 });

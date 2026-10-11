@@ -18,7 +18,7 @@ export function convertMotionAeTextLayer(layer: MotionAeLayer, options: MotionAe
 	let refusal = false;
 	for (const child of group.children) {
 		if (child === property || (child.kind === 'group' && child.children.length === 0)) continue;
-		if (child.matchName === 'ADBE Text Animators' || child.matchName === 'ADBE Text Path Options') refusal = true;
+		if (child.matchName === 'ADBE Text Animators') refusal = true;
 		issue('This text-layer control has no editable mapping. Original controls remain in custody; compare the AE reference before using the partial text draft.', 'text-layer-control', child.matchName);
 	}
 	if (refusal) return null;

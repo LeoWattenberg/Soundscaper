@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeInstalledExport = (function () {
+var readMotionAeInstalledText = MotionAeInstalledText.readMotionAeInstalledText;
 var renderMotionAeInstalledComposition = MotionAeInstalledRender.renderMotionAeInstalledComposition;
 var exportMotionAeHostProject = MotionAeHostExport.exportMotionAeHostProject;
 var readMotionAeHostProperty = MotionAeHostProperty.readMotionAeHostProperty;
@@ -39,14 +40,7 @@ function propertyHost(sampling) {
             return { mode: mode, inverted: mask.inverted, rotoBezier: mask.rotoBezier, featherFalloff: mask.maskFeatherFalloff === MaskFeatherFalloff.FFO_LINEAR ? 'linear' : 'smooth',
                 motionBlur: mask.maskMotionBlur === MaskMotionBlur.ON ? 'on' : mask.maskMotionBlur === MaskMotionBlur.OFF ? 'off' : 'same-as-layer' };
         },
-        text: function (value) {
-            var text = value;
-            if (text.justification !== ParagraphJustification.LEFT_JUSTIFY && text.justification !== ParagraphJustification.CENTER_JUSTIFY && text.justification !== ParagraphJustification.RIGHT_JUSTIFY)
-                throw new Error('This paragraph alignment needs an explicit text mapping.');
-            return { text: text.text, font: text.font, fontSize: text.fontSize, fillColor: [text.fillColor[0], text.fillColor[1], text.fillColor[2]], applyFill: text.applyFill,
-                applyStroke: text.applyStroke, strokeColor: [text.strokeColor[0], text.strokeColor[1], text.strokeColor[2]], strokeWidth: text.strokeWidth, tracking: text.tracking,
-                leading: text.leading, autoLeading: text.autoLeading, justification: text.justification === ParagraphJustification.CENTER_JUSTIFY ? 'center' : text.justification === ParagraphJustification.RIGHT_JUSTIFY ? 'right' : 'left' };
-        }
+        text: readMotionAeInstalledText
     };
 }
 function layerKind(layer) {

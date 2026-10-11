@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { applyMotionAeInstalledText, verifyMotionAeInstalledTextFont } from './motion-ae-installed-text.ts';
 import { prepareMotionAeHostImport, type MotionAeImportFootage, type MotionAeImportNumeric, type MotionAeImportPlan } from './motion-ae-host-import-plan.ts';
 import { importMotionAeHostPlan, type MotionAeImportHost, type MotionAeImportTransaction } from './motion-ae-host-import.ts';
 import { createMotionAeHostSha256 } from './motion-ae-host-sha256.ts';
@@ -7,9 +8,9 @@ interface AeFolder { readonly fsName: string; readonly alias: boolean }
 interface AeFile { readonly exists: boolean; readonly length: number; readonly alias: boolean; readonly fsName: string; readonly parent: AeFolder; encoding: string; open(mode: string): boolean; read(count?: number): string; close(): boolean }
 interface AeItem { name: string; parentFolder: AeItem; remove(): void }
 interface AeProperty {
-	readonly numKeys: number; property(name: string): AeProperty;
+	readonly value: unknown; readonly numKeys: number; property(name: string): AeProperty;
 	name: string; addProperty(name: string): AeProperty; maskMode: unknown; inverted: boolean; rotoBezier: boolean; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
-	setValue(value: number | readonly number[] | MotionAeShape): void; setValueAtTime(time: number, value: number | readonly number[] | MotionAeShape): void;
+	setValue(value: unknown): void; setValueAtTime(time: number, value: number | readonly number[] | MotionAeShape): void;
 	setInterpolationTypeAtKey(index: number, incoming: unknown, outgoing: unknown): void;
 	setTemporalEaseAtKey(index: number, incoming: readonly unknown[], outgoing: readonly unknown[]): void;
 	setTemporalAutoBezierAtKey(index: number, value: boolean): void; setTemporalContinuousAtKey(index: number, value: boolean): void;
@@ -21,7 +22,7 @@ interface AeLayer {
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
 	setTrackMatte?(source: AeLayer, type: unknown): void;
 }
-interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { add(item: AeItem): AeLayer; addNull(duration: number): AeLayer } }
+interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { add(item: AeItem): AeLayer; addNull(duration: number): AeLayer; addBoxText(size: readonly number[], text: string): AeLayer } }
 interface AeProject {
 	readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: number;
 	readonly items: { addFolder(name: string): AeItem; addComp(name: string, width: number, height: number, aspect: number, duration: number, frameRate: number): AeComposition };
@@ -99,12 +100,13 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 			comp.displayStartTime = item.displayStartTime; comp.bgColor = item.background; comps[item.id] = comp; items[item.id] = comp;
 		},
 		layer: (comp, item) => {
-			const target = comps[comp.id]!, layer = item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
+			const target = comps[comp.id]!, layer = item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId!]!);
 			layers[item.id] = layer; layer.name = item.name; layer.threeDLayer = item.threeD; layer.stretch = item.stretch; layer.startTime = item.startTime;
 			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled; if (plan.muteAudio) layer.audioEnabled = false;
 		},
 		parent: (item) => { layers[item.id]!.setParentWithJump(layers[item.parentId!]!); },
 		properties: (item) => {
+			if (item.text) applyMotionAeInstalledText(layers[item.id]!.property('ADBE Text Properties').property('ADBE Text Document'), item.text);
 			if (item.matte) {
 				const target = layers[item.id]!, source = layers[item.matte.layerId]!;
 				if (!target.setTrackMatte) throw new Error('This AE host does not provide setTrackMatte. Use AE 23 or newer or render the original composition.');
@@ -151,6 +153,7 @@ export function runMotionAeInstalledImport(): void {
 		try { json = file.read(); } catch (error) { closeOnError(file, error); } if (!file.close()) throw new Error('Cannot close exchange manifest.');
 		const plan = prepareMotionAeHostImport(json);
 		for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
+			const text = plan.compositions[comp]!.layers[index]!.text; if (text) verifyMotionAeInstalledTextFont(text.font);
 			if (plan.compositions[comp]!.layers[index]!.matte && !(parseFloat(app.version) >= 23)) throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
 		}
 		if (project.workingSpace !== plan.color.workingSpace || project.linearBlending !== plan.color.linearBlending || project.bitsPerChannel !== plan.color.bitsPerChannel) throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');

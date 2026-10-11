@@ -4,9 +4,9 @@ import type { MotionAeFontBinding } from '../../src/common/editor/motion-ae-text
 export const motionAeTextFont: MotionAeFontBinding = { postScriptName: 'ExactFace-Regular', asset: { kind: 'font', id: 'retained-font', name: 'Original face.otf', family: 'Exact Face', style: 'Regular',
 	mimeType: 'font/otf', byteLength: 4, sha256: 'a'.repeat(64), storageKey: `motion-sha256:${'a'.repeat(64)}` } };
 export const motionAeTextOptions = { layoutPolicy: 'review-reflow', colorSpace: 'srgb', lineHeight: 1.2 } as const;
-export function motionAeTextFixture(): MotionAeExchange {
+export function motionAeTextFixture(font = motionAeTextFont.postScriptName): MotionAeExchange {
 	const text: MotionAeProperty = { kind: 'text', name: 'Source Text', matchName: 'ADBE Text Document', keys: [], expression: null, value: {
-		text: 'Retained\rtext', font: motionAeTextFont.postScriptName, fontSize: 40, fillColor: [0.5, 0.25, 1], applyFill: true, applyStroke: false,
+		text: 'Retained\rtext', font, fontSize: 40, fillColor: [0.5, 0.25, 1], applyFill: true, applyStroke: false,
 		strokeColor: [0, 0, 0], strokeWidth: 0, tracking: 50, leading: 48, autoLeading: false, justification: 'left', styleScope: 'uniform', styleSupport: 'basic',
 		layout: { kind: 'box', orientation: 'horizontal', size: [200, 100], position: [-10, -30] },
 	} };

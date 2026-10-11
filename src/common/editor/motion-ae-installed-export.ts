@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readMotionAeInstalledText } from './motion-ae-installed-text.ts';
 import { renderMotionAeInstalledComposition, type MotionAeOwnedRenderEntry } from './motion-ae-installed-render.ts';
 import { exportMotionAeHostProject, type MotionAeExportHost, type MotionAeExportTransaction } from './motion-ae-host-export.ts';
 import { readMotionAeHostProperty, type MotionAePropertyHost, type MotionAePropertyReadHost } from './motion-ae-host-property.ts';
-import type { MotionAeComposition, MotionAeFootage, MotionAeLayer, MotionAeMaskMetadata, MotionAeProperty, MotionAeReportEntry, MotionAeText } from './motion-ae-exchange-types.ts';
+import type { MotionAeComposition, MotionAeFootage, MotionAeLayer, MotionAeMaskMetadata, MotionAeProperty, MotionAeReportEntry } from './motion-ae-exchange-types.ts';
 
 interface AeFile {
 	readonly name: string; readonly fsName: string; readonly exists: boolean; readonly length: number;
@@ -29,7 +30,6 @@ interface AeProject {
 	readonly activeItem?: AeItem | null; readonly numItems: number; readonly file: AeFile | null; readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: 8 | 16 | 32;
 	item(index: number): AeItem;
 }
-interface AeTextDocument extends MotionAeText { readonly justification: never }
 declare const app: { readonly version: string; readonly project: AeProject | null };
 declare const File: { new(path: string): AeFile };
 declare const Folder: { new(path: string): AeFolder; selectDialog(prompt: string): AeFolder | null };
@@ -42,7 +42,6 @@ declare const ShapeLayer: { new(): AeLayer & { readonly shapeLayerBrand: true } 
 declare const PropertyType: { PROPERTY: unknown };
 declare const PropertyValueType: { OneD: unknown; TwoD: unknown; ThreeD: unknown; TwoD_SPATIAL: unknown; ThreeD_SPATIAL: unknown; COLOR: unknown; SHAPE: unknown; TEXT_DOCUMENT: unknown };
 declare const KeyframeInterpolationType: { HOLD: unknown; LINEAR: unknown; BEZIER: unknown };
-declare const ParagraphJustification: { LEFT_JUSTIFY: unknown; CENTER_JUSTIFY: unknown; RIGHT_JUSTIFY: unknown };
 declare const BlendingMode: Record<string, unknown>;
 declare const TrackMatteType: { NO_TRACK_MATTE: unknown; ALPHA: unknown; ALPHA_INVERTED: unknown; LUMA: unknown; LUMA_INVERTED: unknown };
 declare const MaskMode: Record<string, unknown>;
@@ -73,13 +72,7 @@ function propertyHost(sampling?: Readonly<{ frameRate: number; duration: number 
 			return { mode, inverted: mask.inverted, rotoBezier: mask.rotoBezier, featherFalloff: mask.maskFeatherFalloff === MaskFeatherFalloff.FFO_LINEAR ? 'linear' : 'smooth',
 				motionBlur: mask.maskMotionBlur === MaskMotionBlur.ON ? 'on' : mask.maskMotionBlur === MaskMotionBlur.OFF ? 'off' : 'same-as-layer' };
 		},
-		text: (value) => {
-			const text = value as AeTextDocument;
-			if (text.justification !== ParagraphJustification.LEFT_JUSTIFY && text.justification !== ParagraphJustification.CENTER_JUSTIFY && text.justification !== ParagraphJustification.RIGHT_JUSTIFY) throw new Error('This paragraph alignment needs an explicit text mapping.');
-			return { text: text.text, font: text.font, fontSize: text.fontSize, fillColor: [text.fillColor[0], text.fillColor[1], text.fillColor[2]], applyFill: text.applyFill,
-				applyStroke: text.applyStroke, strokeColor: [text.strokeColor[0], text.strokeColor[1], text.strokeColor[2]], strokeWidth: text.strokeWidth, tracking: text.tracking,
-				leading: text.leading, autoLeading: text.autoLeading, justification: text.justification === ParagraphJustification.CENTER_JUSTIFY ? 'center' : text.justification === ParagraphJustification.RIGHT_JUSTIFY ? 'right' : 'left' };
-		},
+		text: readMotionAeInstalledText,
 	};
 }
 function layerKind(layer: AeLayer): MotionAeLayer['kind'] {

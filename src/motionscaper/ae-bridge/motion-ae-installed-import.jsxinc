@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeInstalledImport = (function () {
+var applyMotionAeInstalledText = MotionAeInstalledText.applyMotionAeInstalledText;
+var verifyMotionAeInstalledTextFont = MotionAeInstalledText.verifyMotionAeInstalledTextFont;
 var prepareMotionAeHostImport = MotionAeHostImportPlan.prepareMotionAeHostImport;
 var importMotionAeHostPlan = MotionAeHostImport.importMotionAeHostPlan;
 var createMotionAeHostSha256 = MotionAeHostSha256.createMotionAeHostSha256;
@@ -117,7 +119,7 @@ function beginImport(project, root, plan) {
             items[item.id] = comp;
         },
         layer: function (comp, item) {
-            var target = comps[comp.id], layer = item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId]);
+            var target = comps[comp.id], layer = item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId]);
             layers[item.id] = layer;
             layer.name = item.name;
             layer.threeDLayer = item.threeD;
@@ -131,6 +133,8 @@ function beginImport(project, root, plan) {
         },
         parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
         properties: function (item) {
+            if (item.text)
+                applyMotionAeInstalledText(layers[item.id].property('ADBE Text Properties').property('ADBE Text Document'), item.text);
             if (item.matte) {
                 var target = layers[item.id], source = layers[item.matte.layerId];
                 if (!target.setTrackMatte)
@@ -224,6 +228,9 @@ function runMotionAeInstalledImport() {
         var plan = prepareMotionAeHostImport(json);
         for (var comp = 0; comp < plan.compositions.length; comp++)
             for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
+                var text = plan.compositions[comp].layers[index].text;
+                if (text)
+                    verifyMotionAeInstalledTextFont(text.font);
                 if (plan.compositions[comp].layers[index].matte && !(parseFloat(app.version) >= 23))
                     throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
             }

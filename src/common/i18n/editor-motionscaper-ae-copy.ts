@@ -2,6 +2,22 @@
 import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 const ENTRIES = [
+	['motionscaperAeTextImportOptions', 'Editable Text Import Options', 'Optionen für bearbeitbaren Textimport'],
+	['motionscaperAeTextExportOptions', 'Editable Text Export Options', 'Optionen für bearbeitbaren Textexport'],
+	['motionscaperAeTextReviewHint', 'Text is reflowed. Baselines, shaping, kerning, wrapping and clipping can differ. Choose destination spacing and color interpretation, then compare a rendered reference. Mixed styles, text animation, stroke and vertical or point text need fallback.', 'Text wird neu umbrochen. Grundlinien, Formung, Unterschneidung, Umbruch und Beschnitt können abweichen. Wähle Zielabstand und Farbinterpretation und vergleiche eine gerenderte Referenz. Gemischte Stile, Textanimation, Konturen sowie vertikaler oder Punkttext benötigen einen Ersatz.'],
+	['motionscaperAeTextEnableImport', 'Enable reviewed editable text import', 'Geprüften bearbeitbaren Textimport aktivieren'],
+	['motionscaperAeTextEnableExport', 'Enable reviewed editable text export', 'Geprüften bearbeitbaren Textexport aktivieren'],
+	['motionscaperAeTextLineHeight', 'Reviewed Motion line-height ratio', 'Geprüfter Motion-Zeilenhöhenfaktor'],
+	['motionscaperAeTextLeading', 'Reviewed AE leading in pixels', 'Geprüfter AE-Zeilenabstand in Pixeln'],
+	['motionscaperAeTextColor', 'Text color interpretation', 'Farbinterpretation des Textes'],
+	['motionscaperAeTextSrgb', 'sRGB encoded values', 'sRGB-kodierte Werte'],
+	['motionscaperAeTextLinear', 'Linear Rec.709 values', 'Lineare Rec.709-Werte'],
+	['motionscaperAeTextPostScript', 'Exact PostScript font name', 'Exakter PostScript-Schriftname'],
+	['motionscaperAeTextFontFile', 'Original font face file', 'Datei des Originalschriftschnitts'],
+	['motionscaperAeTextBindFont', 'Add Font Binding', 'Schriftzuordnung hinzufügen'],
+	['motionscaperAeTextRemoveFont', 'Remove Font Binding', 'Schriftzuordnung entfernen'],
+	['motionscaperAeTextFontHint', 'Bind each captured PostScript name to the exact font face you supply. Family names do not identify a face. Font files are limited to 16 MiB each and count toward the transfer limit; retained bytes and associations survive Save.', 'Ordne jeden erfassten PostScript-Namen dem exakten bereitgestellten Schriftschnitt zu. Familiennamen bestimmen keinen Schnitt. Schriftdateien sind auf je 16 MiB begrenzt und zählen zum Übertragungslimit; Bytes und Zuordnungen bleiben beim Speichern erhalten.'],
+	['motionscaperAeTextHostHint', 'The AE importer requires version 24.6 or newer and one real non-variable installed font for each PostScript name. It refuses missing, substitute or ambiguous faces and never installs fonts. Retained font bytes remain in original.mscape.', 'Der AE-Importer benötigt Version 24.6 oder neuer und je PostScript-Name genau eine echte installierte, nicht variable Schrift. Fehlende, ersetzte oder mehrdeutige Schnitte werden abgelehnt; Schriften werden nie installiert. Schriftbytes bleiben in original.mscape.'],
 	['motionscaperAfterEffectsBridge', 'After Effects Bridge', 'After-Effects-Austausch'],
 	['motionscaperAeQualification', 'Development bridge. No installed After Effects version is qualified yet. Preserve your original project and compare the result with After Effects.', 'Austausch in Entwicklung. Bisher ist keine installierte After-Effects-Version qualifiziert. Bewahre dein Originalprojekt auf und vergleiche das Ergebnis mit After Effects.'],
 	['motionscaperAeInstructions', 'Extract the downloaded scripts into one folder. In installed After Effects, open your source project, then choose File > Scripts > Run Script File and run Motionscaper-Export.jsx. Select motionae.json and every file in its media folder here.', 'Entpacke die heruntergeladenen Skripte in einen Ordner. Öffne dein Quellprojekt im installierten After Effects und führe über Datei > Skripten > Skriptdatei ausführen Motionscaper-Export.jsx aus. Wähle hier motionae.json und alle Dateien aus dessen Medienordner.'],

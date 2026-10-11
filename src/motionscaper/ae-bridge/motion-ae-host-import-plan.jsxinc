@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeHostImportPlan = (function () {
+var readMotionAeImportText = MotionAeHostImportText.readMotionAeImportText;
 var parseMotionAeHostJson = MotionAeHostJson.parseMotionAeHostJson;
 var readMotionAeImportMasks = MotionAeHostImportMask.readMotionAeImportMasks;
 "use strict";
@@ -90,7 +91,7 @@ function properties(input, warnings, budget) {
         if (++budget.properties > 65536)
             throw new Error('AE import property budget exceeded.');
         var root = record(roots[rootIndex]);
-        if (root.matchName === 'ADBE Mask Parade')
+        if (root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties')
             continue;
         if (root.kind !== 'group' || root.matchName !== 'ADBE Transform Group') {
             warnings.push('An unmapped property group is omitted; retain the source package and render its composition for visual fidelity.');
@@ -142,7 +143,7 @@ function verifyGraph(plan) {
         }
         for (var j = 0; j < comp.layers.length; j++) {
             var layer = comp.layers[j];
-            if (layer.kind === 'null' ? layer.sourceId !== null : layer.sourceId === null || !own(layer.kind === 'footage' ? footage : comps, layer.sourceId))
+            if ((layer.kind === 'null' || layer.kind === 'text') ? layer.sourceId !== null : layer.sourceId === null || !own(layer.kind === 'footage' ? footage : comps, layer.sourceId))
                 throw new Error('AE import layer source is unresolved.');
             var parent = layer.parentId, visited = 0;
             while (parent !== null) {
@@ -219,14 +220,17 @@ function prepareMotionAeHostImport(json) {
             throw new Error('AE import layer budget exceeded.');
         for (var j = 0; j < rawLayers.length; j++) {
             var layer = record(rawLayers[j]);
-            if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null')
+            if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null' && layer.kind !== 'text')
                 throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
             if (layer.adjustment !== false || layer.blendMode !== 'normal')
                 warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
             var inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
             if (outPoint < inPoint || Math.abs(stretch) < 1)
                 throw new Error('AE import layer timing is invalid.');
-            layers.push({ id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
+            var textDocument = layer.kind === 'text' ? readMotionAeImportText(layer.properties, warnings, budget) : null;
+            if (layer.kind === 'text' && !textDocument)
+                throw new Error('AE text layer requires reviewed Source Text; render the original composition when it cannot be captured.');
+            layers.push({ text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
                 startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
         }
         var width = number(comp.width, 4, 30000), height = number(comp.height, 4, 30000);
