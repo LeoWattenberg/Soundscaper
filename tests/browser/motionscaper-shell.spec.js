@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { motionOfflineTest } from './helpers/motionscaper-offline-fixture.ts';
 
 test('Motionscaper boots its own shell and opens its workspace only from the menu', async ({ page }) => {
 	const errors = [];
@@ -49,10 +50,10 @@ test('Motionscaper keeps peer editors inside the Other editors menu', async ({ p
 	await expect(peers.getByRole('link', { name: 'Video editor', exact: true })).toHaveAttribute('href', 'https://framescaper.org/en/');
 });
 
-test.describe('Motionscaper offline shell', () => {
-	test.use({ serviceWorkers: 'allow' });
-	test('reopens the product and its previously opened workspace offline', async ({ page, context }) => {
-		await page.goto('/en/');
+motionOfflineTest.describe('Motionscaper offline shell', () => {
+	motionOfflineTest.use({ serviceWorkers: 'allow' });
+	motionOfflineTest('reopens the product and its previously opened workspace offline', async ({ page, offlineSite }) => {
+		await page.goto(`${offlineSite.baseURL}/en/`);
 		await expect(page.locator('[data-motion-editor-bound]')).toBeVisible();
 		await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-motionscaper.webmanifest');
 		await page.evaluate(async () => {
@@ -66,7 +67,7 @@ test.describe('Motionscaper offline shell', () => {
 		await expect.poll(() => page.evaluate(async () => (
 			(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v2-motionscaper-'))
 		))).toHaveLength(1);
-		await context.setOffline(true);
+		await offlineSite.close();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.locator('[data-motion-editor-bound]')).toBeVisible();
 		await expect(page.locator('html')).toHaveAttribute('data-product', 'motionscaper');

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { BufferSource, EncodedPacketSink, Input, WEBM } from 'mediabunny';
 import type { BrowserContext, Page, TestInfo } from '@playwright/test';
 import { importMotionscaperArchive } from '../../src/motionscaper/editor-scape.ts';
-import { createMotionscaperOfflineSite } from './helpers/motionscaper-offline-site.ts';
+import { motionOfflineTest } from './helpers/motionscaper-offline-fixture.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { assertMotionPngDeliveryMatchesPreview, digest, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 
@@ -116,19 +116,9 @@ test('platform either delivers real VP9 packets or visibly refuses unsupported e
 	await receipt(context, info, { vp9: capability.supported ? 'actual two-packet WebM delivery' : 'explicit unsupported encoder refusal without download', refusedBeforeProbe: capability.refusedBeforeProbe, pngAfterAttempt: 'exact preview pixels' });
 });
 
-const offlineTest = test.extend<{ offlineSite: Awaited<ReturnType<typeof createMotionscaperOfflineSite>> }>({
-	// eslint-disable-next-line no-empty-pattern -- Playwright requires fixture argument destructuring.
-	offlineSite: async ({}, use) => {
-		const site = await createMotionscaperOfflineSite();
-		try { await use(site); } finally { await site.dispose(); }
-	},
-	// The context depends on this fixture; its collector finishes before the
-	// authenticated clone and sibling maps are removed. Only this product is served.
-	browserCoverageSites: async ({ offlineSite }, use) => { await use([offlineSite.descriptor]); },
-});
-offlineTest.describe('platform offline authoring', () => {
-	offlineTest.use({ serviceWorkers: 'allow' });
-	offlineTest('platform reopens a retained-font composition and its warmed CanvasKit preview offline', async ({ page, context, offlineSite: site }, info: TestInfo) => {
+motionOfflineTest.describe('platform offline authoring', () => {
+	motionOfflineTest.use({ serviceWorkers: 'allow' });
+	motionOfflineTest('platform reopens a retained-font composition and its warmed CanvasKit preview offline', async ({ page, context, offlineSite: site }, info: TestInfo) => {
 		test.setTimeout(60_000); const failures: string[] = [];
 		page.on('requestfailed', request => failures.push(`${request.url()}: ${request.failure()?.errorText ?? 'failed'}`));
 		page.on('pageerror', error => failures.push(error.message));
