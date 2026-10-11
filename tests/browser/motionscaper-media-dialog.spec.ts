@@ -81,3 +81,20 @@ test('German media admission and invalid-file feedback remain reachable from the
 	await expect(page.getByRole('alert')).toContainText('Medium konnte nicht importiert werden');
 	await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+
+test('unavailable audio output stays inside the preview error and retry workflow', async ({ page }: { page: Page }) => {
+	const failures: string[] = []; page.on('pageerror', (error) => failures.push(error.message));
+	await page.addInitScript(() => { Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: class {
+		constructor() { throw new Error('Audio output unavailable'); }
+	} }); });
+	await page.goto('/embed/en/'); await menu(page, 'File', 'New Composition');
+	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'File', 'Import Media');
+	await page.getByLabel('Media file', { exact: true }).setInputFiles({ name: 'Tone.wav', mimeType: 'audio/wav', buffer: Buffer.from(motionWavFixture()) });
+	await expect(page.getByRole('dialog')).toHaveCount(0); await menu(page, 'View', 'Composition Preview');
+	await expect(page.getByRole('alert')).toContainText('Audio output unavailable');
+	await page.getByRole('button', { name: 'Retry', exact: true }).click();
+	await expect(page.getByRole('alert')).toContainText('Audio output unavailable'); expect(failures).toEqual([]);
+	await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
+});

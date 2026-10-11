@@ -29,14 +29,16 @@ export default function MotionPreviewDialog({ copy, project, store, onClose }: R
 		const loadAsset = (asset: Parameters<typeof loadMotionscaperAssetBytes>[0], signal?: AbortSignal) => loadMotionscaperAssetBytes(asset, store, signal);
 		const provider = createMotionMediaProvider({ loadAsset });
 		const hasAudio = motionCompositionHasAudio(project, composition.id);
-		const mixer = hasAudio ? createMotionAudioMixer({ project, provider }) : null;
-		const sound = mixer ? createMotionAudioPreview({ mixer, onError: (failure) => {
-			active?.pause(); if (!disposed) { setBuffering(false); setError(failure.message); }
-		} }) : null;
-		audio.current = sound;
+		let mixer: ReturnType<typeof createMotionAudioMixer> | null = null;
+		let sound: ReturnType<typeof createMotionAudioPreview> | null = null;
 		setError(null); setState(null);
 		void (async () => {
 			try {
+				mixer = hasAudio ? createMotionAudioMixer({ project, provider }) : null;
+				sound = mixer ? createMotionAudioPreview({ mixer, onError: (failure) => {
+					active?.pause(); if (!disposed) { setBuffering(false); setError(failure.message); }
+				} }) : null;
+				audio.current = sound;
 				active = await createMotionPreviewClient({
 					...(sound ? { clock: sound.clock } : {}),
 					onState: (next) => { if (!disposed) { setState(next); if (next.status === 'error') sound?.pause(); } },
