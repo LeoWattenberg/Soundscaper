@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PhotoRasterExportBatchQueue, type PhotoRasterExportBatchReceipt } from '../../../../lightscaper/controller/photo-raster-export-batch-queue.ts';
 import { capturePhotoRasterExportBatchV1 } from '../../../../lightscaper/controller/photo-raster-export-batch-v1.ts';
 import type { PhotoRasterBatchSelection } from '../../../../lightscaper/controller/photo-raster-export-batch-selection.ts';
@@ -13,10 +13,14 @@ import { encodePixelFrameJpegV1 } from '../../imaging/pixel-frame-jpeg-v1.ts';
 import { photoPngExportCopy } from '../../../i18n/lightscaper-photo-png-export-copy.ts';
 import { photoJpegExportCopy } from '../../../i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoBatchExportCopy } from '../../../i18n/lightscaper-photo-batch-export-copy.ts';
+import { imageExportGraphicCopy } from '../../../i18n/image-export-graphic-copy.ts';
 import type { PhotoRasterExportDialogProps } from './PhotoRasterExportDialog.tsx';
 import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, rasterExportText, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PhotoRasterExportPresets from './PhotoRasterExportPresets.tsx';
+import GraphicWatermarkFields from '../GraphicWatermarkFields.tsx';
+import { takeSelectedFile } from '../file-input-selection.ts';
+import { usePhotoRasterBatchGraphic } from './use-photo-raster-batch-graphic.ts';
 import './photo-catalog-backup.css';
 
 type Ports = Omit<PhotoRasterExportDialogProps, 'format' | 'encode' | 'copy' | 'photoId' | 'fileName' | 'onClose' | 'withTextFrame'>;
@@ -27,6 +31,7 @@ export interface PhotoRasterBatchExportDialogProps extends Ports {
 }
 interface Lifetime {
 	readonly stop: AbortController; live: boolean; closed: boolean;
+	readonly cancelGraphic: () => Promise<void>;
 	preparing: Promise<void> | null; active: Promise<void> | null; retirement: Promise<void> | null;
 	readSidecar: ReadPhotoExportSidecar | null; queue: PhotoRasterExportBatchQueue | null; persisted: PhotoRasterPersistedBatch | null; unsubscribe: (() => void) | null;
 }
@@ -44,16 +49,28 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 	const [discardReview, setDiscardReview] = useState(false), [discarding, setDiscarding] = useState(false), [discardFailed, setDiscardFailed] = useState(false);
 	const [settings, setSettings] = useState({ ...DEFAULT_RASTER_EXPORT_SETTINGS, filenameTemplate: '{index:2}-{name}' });
 	const copy = photoBatchExportCopy(props.locale), settingsCopy = format === 'png' ? photoPngExportCopy(props.locale) : photoJpegExportCopy(props.locale);
+	const graphicCopy = imageExportGraphicCopy(props.locale);
+	const journal = target?.owner.journal, recovery = target?.owner.recovery ?? [];
+	const replaceable = !!journal && journal.members.every(isPhotoRasterExportMemberCompleteV1) && target?.owner.prepared !== null;
+	const graphic = usePhotoRasterBatchGraphic(useMemo(() => ({ execute: props.execute, selection: props.selection, register: props.registerDestination }),
+		[props.execute, props.selection, props.registerDestination]), props.registerDestination, !replaceable ? journal?.graphicWatermark : undefined);
 	const retire = useCallback((current: Lifetime): Promise<void> => {
 		if (current.retirement) return current.retirement;
 		current.closed = true; current.stop.abort();
-		current.retirement = Promise.all([current.queue?.cancelAndJoin(), current.preparing, current.active]).then(async () => { await current.persisted?.closeAndJoin(); });
+		current.retirement = (async () => {
+			const results = await Promise.allSettled([current.queue?.cancelAndJoin(), current.preparing, current.active, current.cancelGraphic()]);
+			const failures = results.flatMap(result => result.status === 'rejected' ? [result.reason as unknown] : []);
+			try { await current.persisted?.closeAndJoin(); } catch (cause) { failures.push(cause); }
+			if (failures.length === 1) throw failures[0];
+			if (failures.length) throw new AggregateError(failures, 'Batch export retirement failed.');
+		})();
 		retiring.current = current.retirement; return current.retirement;
 	}, []);
 	const { execute, selection, registerDestination, captureSidecarReader, captureJournal } = props;
+	const captureGraphicRetirement = graphic.captureRetirement;
 	useLayoutEffect(() => {
 		const previous = retiring.current;
-		const current: Lifetime = { stop: new AbortController(), live: true, closed: false, preparing: null, active: null, retirement: null, readSidecar: null, queue: null, persisted: null, unsubscribe: null };
+		const current: Lifetime = { stop: new AbortController(), cancelGraphic: captureGraphicRetirement(), live: true, closed: false, preparing: null, active: null, retirement: null, readSidecar: null, queue: null, persisted: null, unsubscribe: null };
 		scope.current = current;
 		const unregister = registerDestination(() => retire(current));
 		current.preparing = (async () => {
@@ -71,16 +88,17 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 			}
 		})().catch(() => { if (current.live && !current.closed) { setFailed(true); latest.current.onSettled(); } });
 		return () => { current.live = false; current.unsubscribe?.(); unregister(); };
-	}, [execute, selection, registerDestination, retire, captureSidecarReader, captureJournal]);
+	}, [execute, selection, registerDestination, retire, captureSidecarReader, captureJournal, captureGraphicRetirement]);
 	const ready = target?.lifetime === scope.current && props.saveRuntime !== null && !failed && !props.preparationFailed && !scope.current?.closed && !discarding;
 	const started = receipt !== null, busy = started && receipt.phase !== 'settled';
-	const journal = target?.owner.journal, recovery = target?.owner.recovery ?? [];
 	const jobs = recovery.filter(row => row.disposition === 'eligible' || (row.disposition === 'needs-review' && row.currentMatches && reviewed.includes(row.member.jobId))).map(row => row.member.jobId);
-	const replaceable = !!journal && journal.members.every(isPhotoRasterExportMemberCompleteV1) && target?.owner.prepared !== null;
 	const canStart = journal ? jobs.length > 0 : !!target?.owner.prepared;
+	const graphicNeeded = journal && !replaceable ? !!journal.graphicWatermark && journal.members.some(member => jobs.includes(member.jobId) && member.state !== 'committed') : graphic.value.enabled;
+	const retainedRasterPending = journal?.members.some(member => member.state !== 'committed');
+	const graphicReady = !graphic.pending && (!graphicNeeded || graphic.prepared !== null);
 	const start = (replaceCompleted = false) => {
 		const current = latest.current, lifetime = scope.current, runtime = current.saveRuntime;
-		if (!lifetime?.live || lifetime.closed || lifetime.queue || lifetime.active || !target || target.lifetime !== lifetime || !runtime || !ready) return;
+		if (!lifetime?.live || lifetime.closed || lifetime.queue || lifetime.active || !target || target.lifetime !== lifetime || !runtime || !ready || !graphicReady) return;
 		let plan: ReturnType<typeof capturePhotoRasterExportBatchV1>;
 		const recovering = !!journal && !replaceCompleted;
 		if (recovering && !jobs.length || replaceCompleted && !replaceable) return;
@@ -88,7 +106,7 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 		try {
 			const output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
 				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
-			plan = recovering ? journal! : capturePhotoRasterExportBatchV1({ ...value, output, ...(sidecarEnabled ? { sidecarEnabled: true } : {}) });
+			plan = recovering ? journal! : capturePhotoRasterExportBatchV1({ ...value, output, ...(sidecarEnabled ? { sidecarEnabled: true } : {}), ...(graphic.value.enabled && graphic.prepared ? { graphicWatermark: graphic.prepared.intent } : {}) });
 		} catch { setInvalid(true); return; }
 		setInvalid(false);
 		const queue = new PhotoRasterExportBatchQueue({ fileTypeDescription: plan.format === 'png' ? photoPngExportCopy(current.locale).fileType : photoJpegExportCopy(current.locale).fileType,
@@ -97,11 +115,12 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 			...(plan.sidecarEnabled ? { readSidecar: lifetime.readSidecar! } : {}),
 			execute: current.execute, withOriginalFrame: current.withOriginalFrame, loadRenderer: current.loadRenderer,
 			...(current.readMetadata ? { readMetadata: current.readMetadata } : {}),
+			...(graphicNeeded && graphic.prepared ? { graphicWatermark: graphic.prepared } : {}), ...(current.withGraphicFrame ? { withGraphicFrame: current.withGraphicFrame } : {}),
 			encode: (kind, frame, options) => kind === 'png' ? encodePixelFramePngV1(frame, options) : encodePixelFrameJpegV1(frame, { ...options, quality: 0.9 }) });
 		lifetime.queue = queue;
 		lifetime.unsubscribe = queue.subscribe(snapshot => { if (lifetime.live) setReceipt(snapshot); });
 		// The synchronous start captures every explicit target in this gesture.
-		const work = recovering ? queue.startRecovery(journal, jobs) : queue.start({ ...value, output: plan.output, ...(plan.sidecarEnabled ? { sidecarEnabled: true } : {}) });
+		const work = recovering ? queue.startRecovery(journal, jobs) : queue.start({ ...value, output: plan.output, ...(plan.sidecarEnabled ? { sidecarEnabled: true } : {}), ...(plan.graphicWatermark ? { graphicWatermark: plan.graphicWatermark } : {}) });
 		lifetime.active = work.then(snapshot => { if (lifetime.live) setReceipt(snapshot); }, () => { if (lifetime.live) setFailed(true); })
 			.finally(() => { if (lifetime.live) latest.current.onSettled(); });
 	};
@@ -138,11 +157,25 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 			</select></label>
 			<PhotoRasterExportSettings value={settings} copy={settingsCopy} locale={props.locale} disabled={started || !ready || !!journal && !replaceable}
 				onChange={value => { setSettings(value); setInvalid(false); }} />
-			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} batch disabled={started || !ready || !!journal && !replaceable}
+			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} batch disabled={started || !ready || graphic.pending || !!journal && !replaceable}
 				captureCurrent={(id, name) => ({ schemaVersion: 1, id, name, format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
 					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
 						...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) })}
-				onApply={preset => { setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setFormat(preset.format); setSidecarEnabled(preset.sidecarEnabled); setInvalid(false); }} />
+				onApply={async preset => { const lifetime = scope.current; await graphic.reset(); if (!lifetime?.live || lifetime.closed || scope.current !== lifetime) return;
+					setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setFormat(preset.format); setSidecarEnabled(preset.sidecarEnabled); setInvalid(false); }} />
+			{journal?.graphicWatermark && !replaceable ? <fieldset disabled={started || !ready || graphic.pending} data-photo-batch-graphic-recovery>
+				<p>{retainedRasterPending ? copy.graphicRecovery : copy.graphicSidecarOnly}</p>
+				<dl data-photo-batch-graphic-placement>
+					<dt>{graphicCopy.anchor}</dt><dd>{graphicCopy[journal.graphicWatermark.anchor]}</dd>
+					<dt>{graphicCopy.width}</dt><dd>{journal.graphicWatermark.widthFraction * 100}%</dd>
+					<dt>{graphicCopy.margin}</dt><dd>{journal.graphicWatermark.marginFraction * 100}%</dd>
+					<dt>{graphicCopy.opacity}</dt><dd>{journal.graphicWatermark.opacity * 100}%</dd>
+				</dl>
+				{retainedRasterPending && <label>{copy.graphicReselect}<input type="file" data-photo-batch-graphic-reselect accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
+					onChange={event => { graphic.reselect(takeSelectedFile(event.currentTarget)); }} /></label>}
+			</fieldset> : <GraphicWatermarkFields value={graphic.value} onChange={graphic.onChange} disabled={started || !ready || graphic.pending} locale={props.locale} />}
+			{graphic.pending && <p role="status" data-photo-batch-graphic-preparing>{copy.graphicPreparing}</p>}
+			{graphic.failed && <p role="alert" data-photo-batch-graphic-invalid>{copy.graphicInvalid}</p>}
 			<label>{settingsCopy.sidecar}<input type="checkbox" data-photo-batch-export-sidecar checked={sidecarEnabled} disabled={started || !ready || !!journal && !replaceable}
 				onChange={event => { setSidecarEnabled(event.target.checked); }} /></label><p>{settingsCopy.sidecarHelp}</p>
 			{invalid && <p role="alert">{settingsCopy.invalidSettings}</p>}
@@ -172,8 +205,8 @@ export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExpo
 				</li>)}</ol>
 			</div>}
 			<div className="lightscaper-catalog-backup-actions">
-				<button type="button" data-photo-batch-export-start disabled={!ready || started || !canStart} onClick={() => { start(); }}>{journal ? copy.continue : copy.start}</button>
-				{replaceable && <button type="button" data-photo-batch-export-replace disabled={!ready || started} onClick={() => { start(true); }}>{copy.replaceCompleted}</button>}
+				<button type="button" data-photo-batch-export-start disabled={!ready || started || !canStart || !graphicReady} onClick={() => { start(); }}>{journal ? copy.continue : copy.start}</button>
+				{replaceable && <button type="button" data-photo-batch-export-replace disabled={!ready || started || !graphicReady} onClick={() => { start(true); }}>{copy.replaceCompleted}</button>}
 				{busy && <><button type="button" data-photo-batch-export-pause onClick={() => { const queue = scope.current?.queue; if (receipt.paused) queue?.resume(); else queue?.pause(); }}>{receipt.paused ? copy.resume : copy.pause}</button>
 					<button type="button" data-photo-batch-export-cancel onClick={cancel}>{copy.cancel}</button></>}
 				<button type="button" data-photo-batch-export-hide onClick={props.onHide}>{copy.hide}</button>

@@ -6,6 +6,7 @@ import { openPhotoLibraryExportJournalSession } from '../src/lightscaper/control
 import { PhotoLibrarySessionLifetime } from '../src/lightscaper/controller/photo-library-session-lifetime.ts';
 import { PhotoRasterExportBatchQueue } from '../src/lightscaper/controller/photo-raster-export-batch-queue.ts';
 import { capturePhotoRasterExportBatchV1 } from '../src/lightscaper/controller/photo-raster-export-batch-v1.ts';
+import { preparePhotoRasterBatchGraphicV1, type PreparedPhotoRasterBatchGraphicV1 } from '../src/lightscaper/controller/photo-raster-export-batch-graphic-v1.ts';
 import { normalizePhotoRasterExportJournalV1 } from '../src/lightscaper/storage/photo-raster-export-journal-v1.ts';
 import { createPhotoMediaCubeLutResourcesV1 } from '../src/lightscaper/storage/photo-media-cube-lut-resources-v1.ts';
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../src/lightscaper/catalog/photo-export-sidecar-v1.ts';
@@ -17,6 +18,7 @@ import { KeyValueRepository } from '../src/common/editor/storage/key-value-repos
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { createPhotoDevelopRenderRuntimeV2 } from '../src/lightscaper/photo-develop-render-runtime-v2.ts';
 import { encodePixelFramePngV1 } from '../src/common/editor/imaging/pixel-frame-png-v1.ts';
+import type { PixelFrameV1 } from '../src/common/editor/imaging/pixel-frame-contract-v1.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../src/common/editor/browser-file-save-service.ts';
 import type { ExecutePhotoDevelopV2 } from '../src/common/editor/controller/shared/photo-library-develop-workflow-v2.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
@@ -212,8 +214,14 @@ test('composition captures own callback receivers before opening and refuses acc
 	} finally { await f.close(); }
 });
 
-function queueFor(f: Awaited<ReturnType<typeof fixture>>, owner: PhotoRasterPersistedBatch, recovery = false, reviewed: readonly string[] = []) {
+function queueFor(f: Awaited<ReturnType<typeof fixture>>, owner: PhotoRasterPersistedBatch, recovery = false, reviewed: readonly string[] = [], graphic?: Readonly<PreparedPhotoRasterBatchGraphicV1>) {
 	return new PhotoRasterExportBatchQueue({ fileTypeDescription: 'PNG', execute: f.execute, readSidecar: f.readSidecar,
+		...(graphic ? { graphicWatermark: graphic, withGraphicFrame: async <Result>(_request: unknown, consume: (frame: Readonly<PixelFrameV1>, provenance: { orientation: number; runtimeVersion: string }) => Result | Promise<Result>) => {
+			assert.equal(recovery, false, 'JSON-only recovery must not decode a graphic'); f.events.push('graphic');
+			const pixels = Uint8Array.of(255, 0, 0, 255);
+			try { return await consume({ descriptor: { schemaVersion: 1, width: 1, height: 1, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels }, { orientation: 1, runtimeVersion: 'unit-borrow' }); }
+			finally { pixels.fill(0); }
+		} } : {}),
 		prepareDestinations: plan => recovery ? owner.prepareRecoveryDestinations(plan, f.runtime, reviewed) : owner.prepareFreshDestinations(plan, f.runtime, '{index:2}-{name}'),
 		withOriginalFrame: async (request, consume) => {
 			assert.equal(recovery, false, 'JSON-only recovery must never borrow image pixels'); f.events.push('render-original');
@@ -232,6 +240,40 @@ test('paired batch delivers independently acknowledged image and exact canonical
 		assert.deepEqual(bodies.map(body => body.name), ['01-Photo 1.png', '01-Photo 1.png.lightscaper.json', '02-Photo 1.png', '02-Photo 1.png.lightscaper.json']);
 		assert.deepEqual(await Promise.all(bodies.filter(body => body.type === 'application/json').map(body => body.text)), await Promise.all(owner.prepared!.members.map(member => f.readSidecar({ catalogId: owner.prepared!.catalogId, photoId: member.photoId, versionId: member.versionId, expectedRevision: member.expectedRevision }))));
 		assert.deepEqual(owner.journal!.members.map(member => [member.state, member.sidecar!.state]), [['committed', 'committed'], ['committed', 'committed']]);
+	} finally { await owner.closeAndJoin(); await f.close(); }
+});
+
+test('reopened pending graphic work retains exact scalar intent and refuses a dropped plan before native port capture', async () => {
+	const f = await fixture(), owner = await f.prepare(), graphic = await preparePhotoRasterBatchGraphicV1({ body: new Blob(['selected graphic']),
+		anchor: 'bottom-right', widthFraction: 0.5, marginFraction: 0, opacity: 1 });
+	try {
+		const plan = { ...f.plan(owner), graphicWatermark: graphic.intent }, destinations = await owner.prepareFreshDestinations(plan, f.runtime, '{index:2}-{name}');
+		const stored = JSON.stringify(owner.journal); await destinations.retireAndJoin(); const reopened = await f.prepare([]);
+		assert.deepEqual(reopened.journal!.graphicWatermark, graphic.intent); assert.equal(reopened.recovery[0]!.disposition, 'eligible');
+		let reads = 0; const native = Object.defineProperty({}, 'prepareSave', { enumerable: true, get() { reads++; assert.fail('Graphic mismatch acquired native port'); } });
+		assert.throws(() => reopened.prepareRecoveryDestinations(f.plan(owner), native, []));
+		assert.throws(() => reopened.prepareRecoveryDestinations({ ...plan, graphicWatermark: { ...graphic.intent, opacity: 0.1 } }, native, []));
+		assert.equal(reads, 0);
+		const queue = queueFor(f, reopened, true); await assert.rejects(queue.startRecovery(reopened.journal, ['batch:1']));
+		assert.equal(JSON.stringify(reopened.journal), stored); assert.equal(f.events.length, 0); await reopened.closeAndJoin();
+	} finally { await owner.closeAndJoin(); await f.close(); }
+});
+
+test('graphic image ACK survives JSON refusal and reopens to JSON-only retry with no graphic reselection', async () => {
+	const f = await fixture(1, true), owner = await f.prepare(), save = f.runtime.saveFile, primary = Symbol('JSON refusal after graphic ACK');
+	const graphic = await preparePhotoRasterBatchGraphicV1({ body: new Blob(['selected graphic']), anchor: 'bottom-right', widthFraction: 0.5, marginFraction: 0, opacity: 1 });
+	f.runtime.saveFile = request => { if (request.mimeType === 'application/json') throw primary; return save.call(f.runtime, request); };
+	try {
+		const queue = queueFor(f, owner, false, [], graphic);
+		await assert.rejects(queue.start({ schemaVersion: 1, batchId: 'batch', format: 'png', filenameTemplate: '{index:2}-{name}', members: owner.prepared!.members,
+			sidecarEnabled: true, graphicWatermark: graphic.intent }));
+		assert.equal(owner.journal!.members[0]!.state, 'committed'); assert.equal(owner.journal!.members[0]!.sidecar!.state, 'started');
+		const ack = owner.journal!.members[0]!.delivery; assert.deepEqual(owner.journal!.graphicWatermark, graphic.intent);
+		f.runtime.saveFile = save; const reopened = await f.prepare([]), retry = queueFor(f, reopened, true, ['batch:1']);
+		assert.deepEqual(reopened.journal!.graphicWatermark, graphic.intent); await retry.startRecovery(reopened.journal, ['batch:1']);
+		assert.deepEqual(reopened.journal!.members[0]!.delivery, ack); assert.equal(reopened.journal!.members[0]!.sidecar!.state, 'committed');
+		assert.equal(f.events.filter(event => event === 'graphic').length, 1); assert.equal(f.events.filter(event => event === 'encode').length, 1);
+		assert.deepEqual(f.events.filter(event => event.startsWith('native:')), ['native:01-Photo 1.png', 'native:01-Photo 1.png.lightscaper.json']); await reopened.closeAndJoin();
 	} finally { await owner.closeAndJoin(); await f.close(); }
 });
 

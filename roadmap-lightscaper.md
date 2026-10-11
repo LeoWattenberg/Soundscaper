@@ -376,7 +376,10 @@ photo work moves between products without loss.
   percentage; resample quality; output sharpening; text and graphic
   watermarks; filename templates; metadata include/strip scopes; and export
   presets — bounded, abortable, progress-reporting, and background-queued
-  like the other delivery paths.
+  like the other delivery paths. Menu-owned batch graphic watermarks now retain
+  placement and file identity for explicit reselection during recovery, while
+  preserving completed image and JSON acknowledgments; see the
+  [batch graphic export contract](docs/architecture/lightscaper-batch-graphic-export.md).
 - **Shared — In progress:** sidecar write: the current menu-owned PNG/JPEG and
   batch export dialogs offer default-off JSON containing the saved Develop
   recipe and metadata in Lightscaper's documented sidecar schema, with no

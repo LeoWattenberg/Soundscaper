@@ -2,6 +2,7 @@
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile } from '../../common/editor/browser-file-save-service.ts';
 import { capturePhotoRasterExportOutput } from './photo-raster-export.ts';
+import { normalizePhotoRasterBatchGraphicIntentV1 } from './photo-raster-export-batch-graphic-v1.ts';
 import type { PhotoRasterExportBatchMemberV1, PhotoRasterExportBatchV1 } from './photo-raster-export-batch-v1.ts';
 import type { PhotoRasterExportBatchDestinations } from './photo-raster-export-batch-queue.ts';
 import { PHOTO_RASTER_EXPORT_SIDECAR_MAXIMUM_BYTES_V1, normalizePhotoRasterExportDownloadAckV1, normalizePhotoRasterExportSidecarAckV1, isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportSidecarAckV1, type PhotoRasterExportDownloadAckV1 } from '../storage/photo-raster-export-journal-v1.ts';
@@ -138,14 +139,20 @@ async function captureAuthority(runtime: PhotoRasterExportBatchDestinations, mem
 		},
 	}); return result;
 }
+/** Before acquiring native authority, recovery retains the complete journal plan. */
+export function assertPhotoRasterJournalPlanV1(plan: Readonly<PhotoRasterExportBatchV1>, owner: PhotoRasterExportJournalOwnerV1): void {
+	captureMembers(plan, owner);
+}
 function captureMembers(planValue: Readonly<PhotoRasterExportBatchV1>, owner: PhotoRasterExportJournalOwnerV1): ReadonlyMap<Readonly<PhotoRasterExportBatchMemberV1>, string> {
 	const journal = owner.current; if (!journal) throw new TypeError('Photo export destinations require a durable journal.');
-	const plan = record(planValue, 'Photo export destination plan', ['schemaVersion', 'batchId', 'format', 'members', 'output', 'sidecarEnabled'], ['schemaVersion', 'batchId', 'format', 'members']);
+	const plan = record(planValue, 'Photo export destination plan', ['schemaVersion', 'batchId', 'format', 'members', 'output', 'sidecarEnabled', 'graphicWatermark'], ['schemaVersion', 'batchId', 'format', 'members']);
 	if (field(plan, 'schemaVersion', 'plan') !== 1 || field(plan, 'batchId', 'plan') !== journal.batchId || field(plan, 'format', 'plan') !== journal.format) throw new TypeError('Photo export destinations differ from their journal.');
 	const output = Object.hasOwn(plan, 'output') ? capturePhotoRasterExportOutput(field(plan, 'output', 'plan')) : undefined;
 	const sidecarEnabled = Object.hasOwn(plan, 'sidecarEnabled') ? field(plan, 'sidecarEnabled', 'plan') : false;
 	if (typeof sidecarEnabled !== 'boolean' || sidecarEnabled !== Boolean(journal.sidecarEnabled)) throw new TypeError('Photo companion selection differs from its journal.');
 	if (JSON.stringify(output) !== JSON.stringify(journal.output)) throw new TypeError('Photo export settings differ from their journal.');
+	const graphicWatermark = Object.hasOwn(plan, 'graphicWatermark') ? normalizePhotoRasterBatchGraphicIntentV1(field(plan, 'graphicWatermark', 'plan')) : undefined;
+	if (JSON.stringify(graphicWatermark) !== JSON.stringify(journal.graphicWatermark)) throw new TypeError('Photo export graphic differs from its journal.');
 	const seen = new Set<string>();
 	return new Map(array(field(plan, 'members', 'plan'), 'Photo export destination members', 1, journal.members.length).map(value => {
 		const keys = ['jobId', 'index', 'photoId', 'versionId', 'expectedRevision', 'sourceFileName', 'fileName'] as const;

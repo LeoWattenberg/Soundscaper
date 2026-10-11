@@ -3,6 +3,7 @@
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import { formatImageExportFilenameV1 } from '../../common/editor/image-export-filename-v1.ts';
 import { capturePhotoRasterExportOutput, type PhotoRasterExportOutput } from './photo-raster-export.ts';
+import { normalizePhotoRasterBatchGraphicIntentV1, type PhotoRasterBatchGraphicIntentV1 } from './photo-raster-export-batch-graphic-v1.ts';
 
 export const PHOTO_RASTER_EXPORT_BATCH_MAXIMUM_MEMBERS_V1 = 256;
 export interface PhotoRasterExportBatchMemberV1 {
@@ -21,13 +22,14 @@ export interface PhotoRasterExportBatchV1 {
 	readonly members: readonly Readonly<PhotoRasterExportBatchMemberV1>[];
 	readonly output?: Readonly<PhotoRasterExportOutput>;
 	readonly sidecarEnabled?: true;
+	readonly graphicWatermark?: Readonly<PhotoRasterBatchGraphicIntentV1>;
 }
 
 /** Bounded, detached in-session work description. It grants no destination,
  * original or LUT authority and declares no persisted recovery protocol. */
 export function capturePhotoRasterExportBatchV1(value: unknown): Readonly<PhotoRasterExportBatchV1> {
 	const name = 'Photo raster batch', input = record(value, name,
-		['schemaVersion', 'batchId', 'format', 'filenameTemplate', 'members', 'output', 'sidecarEnabled'],
+		['schemaVersion', 'batchId', 'format', 'filenameTemplate', 'members', 'output', 'sidecarEnabled', 'graphicWatermark'],
 		['schemaVersion', 'batchId', 'format', 'filenameTemplate', 'members']);
 	if (field(input, 'schemaVersion', name) !== 1) throw new RangeError('Unsupported photo raster batch version.');
 	const batchId = text(field(input, 'batchId', name), 64), format = field(input, 'format', name);
@@ -36,6 +38,7 @@ export function capturePhotoRasterExportBatchV1(value: unknown): Readonly<PhotoR
 	const sidecar = Object.hasOwn(input, 'sidecarEnabled') ? field(input, 'sidecarEnabled', name) : false;
 	if (typeof sidecar !== 'boolean') throw new TypeError('Photo raster batch sidecar selection must be explicit.');
 	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
+	const graphicWatermark = Object.hasOwn(input, 'graphicWatermark') ? normalizePhotoRasterBatchGraphicIntentV1(field(input, 'graphicWatermark', name)) : undefined;
 	const identities = new Set<string>(), names = new Set<string>();
 	const members = array(field(input, 'members', name), name, 1, PHOTO_RASTER_EXPORT_BATCH_MAXIMUM_MEMBERS_V1).map((value, offset) => {
 		const member = record(value, 'Photo raster batch member', ['photoId', 'versionId', 'expectedRevision', 'sourceFileName']);
@@ -52,7 +55,7 @@ export function capturePhotoRasterExportBatchV1(value: unknown): Readonly<PhotoR
 		names.add(key);
 		return Object.freeze({ jobId: `${batchId}:${index}`, index, photoId, versionId, expectedRevision: revision, sourceFileName, fileName });
 	});
-	return Object.freeze({ schemaVersion: 1, batchId, format, members: Object.freeze(members), ...(output ? { output } : {}), ...(sidecar ? { sidecarEnabled: true } : {}) });
+	return Object.freeze({ schemaVersion: 1, batchId, format, members: Object.freeze(members), ...(output ? { output } : {}), ...(sidecar ? { sidecarEnabled: true } : {}), ...(graphicWatermark ? { graphicWatermark } : {}) });
 }
 
 function text(value: unknown, maximum: number): string {

@@ -1170,6 +1170,10 @@
 		,
 		{"path": "src/lightscaper/controller/photo-library-develop-settings-session-v2.ts", "kind": "helper-contract", "justification": "Current serial settings batches detach the complete mixed recipe and target plan before acquisition and preserve native photo acknowledgements through cancellation and independent cleanup."}
 		,
+		{ "path": "src/lightscaper/controller/photo-library-image-handoff-resources-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected handoff resource scope authenticates the exact active and disabled LUT closure, pins native receivers before original acquisition and lends one bounded reader with independently joined callback delivery and opaque failure preservation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-import-keywords-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected import keyword planning preserves legacy notice-and-skip behavior and provides strict complete keyword admission before receive catalog writes under the existing caller-owned lease." }
+		,
 		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-memberships-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before bounded scalar membership reads and durable current command acknowledgements; legacy named V1 remains strict."}
@@ -1177,10 +1181,6 @@
 		{"path": "src/lightscaper/controller/photo-library-metadata-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 full-document admission before the unchanged bounded descriptive metadata presentation; named V1 readers remain strict."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
-		,
-		{ "path": "src/lightscaper/controller/photo-library-image-handoff-resources-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected handoff resource scope authenticates the exact active and disabled LUT closure, pins native receivers before original acquisition and lends one bounded reader with independently joined callback delivery and opaque failure preservation." }
-		,
-		{ "path": "src/lightscaper/controller/photo-library-import-keywords-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected import keyword planning preserves legacy notice-and-skip behavior and provides strict complete keyword admission before receive catalog writes under the existing caller-owned lease." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-original-inspection-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in pre-recovery inspection enumerates bounded published-photo and retained-original bindings under the existing Session writer, preserving strict startup recovery and rejecting custody conflicts without mutating photo documents." }
 		,
@@ -1217,6 +1217,8 @@
 		{"path": "src/lightscaper/controller/photo-library-stacks-v1.ts", "kind": "helper-contract", "justification": "Version 1 stack Session commands borrow the existing writer and publish durable grouping acknowledgements independently of cleanup."}
 		,
 		{ "path": "src/lightscaper/controller/photo-png-export-v1.ts", "kind": "helper-contract", "justification": "Version 1 single-photo PNG delivery owns a gesture-prepared destination, joins current full-resolution render and original settlement, revalidates exact photo version/revision and generation before commit, and wipes independent output after joined delivery or cancellation." }
+		,
+		{"path": "src/lightscaper/controller/photo-raster-export-batch-graphic-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 batch graphic intent retains bounded placement, byte length and SHA-256 without resource bodies; joined native hashing issues an ephemeral owner identity, and recovery requires exact file reselection before raster work while existing image decoding owns format admission."}
 		,
 		{"path": "src/lightscaper/controller/photo-raster-export-batch-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure photo export recovery retains original member indices, classifies committed initiation separately from uncertain started work, and compares fresh catalog, version, revision and original/recipe/LUT scalar fingerprints without scheduling or granting native resource authority."}
 		,

@@ -133,6 +133,15 @@ export async function inspectCollectionFramescaperArchive(page, archive) {
 	await assertNativeOpfsWorkerExecution(page); return result;
 }
 
+/** Read the retained native queue; this observer neither rewrites intent nor
+ * simulates an interruption or destination acknowledgment. */
+export async function observeNativePhotoRasterBatchGraphicJournal(page) {
+	const script = await mappedBundle('batch-graphic-journal.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-photo-raster-batch-graphic-observer.ts'));
+	register(page, '/__batch_graphic_journal.js', script);
+	await page.route('**/__batch_graphic_journal.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	return page.evaluate(async () => (await import(new URL('/__batch_graphic_journal.js', location.href).href)).readPhotoRasterBatchGraphicJournalFixture());
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');

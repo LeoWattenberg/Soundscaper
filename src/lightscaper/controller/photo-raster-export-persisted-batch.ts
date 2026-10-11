@@ -10,7 +10,7 @@ import { capturePhotoRasterBatchSelection, preparePhotoRasterBatchSelection, typ
 import type { PhotoRasterExportBatchDestinations } from './photo-raster-export-batch-queue.ts';
 import type { PhotoRasterExportBatchV1 } from './photo-raster-export-batch-v1.ts';
 import { createPhotoRasterBatchDownloadDestinations } from './photo-raster-export-batch-download-destinations.ts';
-import { createPhotoRasterJournalDestinationsV1, PhotoRasterJournalDestinationErrorV1 } from './photo-raster-export-journal-destinations-v1.ts';
+import { assertPhotoRasterJournalPlanV1, createPhotoRasterJournalDestinationsV1, PhotoRasterJournalDestinationErrorV1 } from './photo-raster-export-journal-destinations-v1.ts';
 import { reconcilePhotoRasterExportBatchRecoveryV1, type PhotoRasterExportRecoveryEntryV1 } from './photo-raster-export-batch-recovery-v1.ts';
 import { readClosedDomainRecord as record, readClosedDomainField as field, readClosedDomainArray as array } from '../../common/editor/closed-domain-value.ts';
 
@@ -97,6 +97,7 @@ export class PhotoRasterPersistedBatch {
 	}
 	prepareRecoveryDestinations(plan: Readonly<PhotoRasterExportBatchV1>, runtime: unknown, reviewedRetryJobIds: readonly string[]): Promise<Readonly<PhotoRasterExportBatchDestinations>> {
 		this.#options.signal.throwIfAborted();
+		assertPhotoRasterJournalPlanV1(plan, this.#journal);
 		for (const member of plan.members) {
 			const entry = this.recovery.find(entry => entry.member.jobId === member.jobId);
 			if (!entry?.currentMatches || entry.disposition === 'already-committed' || entry.disposition === 'stale' || (entry.disposition === 'needs-review' && !reviewedRetryJobIds.includes(member.jobId))) throw new TypeError('Photo export recovery requires current facts and explicit uncertainty review.');
