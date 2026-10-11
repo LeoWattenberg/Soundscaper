@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import MotionscaperShell from '../common/editor/ui/motionscaper/MotionscaperShell.tsx';
-import { bundledSiteCopyForLocale } from '../common/i18n/site-copy.js';
+import { motionscaperCopy } from '../common/editor/ui/motionscaper/motionscaper-copy.ts';
 
 export interface MotionscaperBootstrapProps {
 	readonly locale: string;
@@ -10,6 +10,6 @@ export interface MotionscaperBootstrapProps {
 
 /** Independent product shell; M02 supplies its own project runtime. */
 export default function MotionscaperBootstrap({ locale, fallbackCopy }: MotionscaperBootstrapProps) {
-	const copy = { ...bundledSiteCopyForLocale(locale), ...fallbackCopy };
+	const copy = { ...fallbackCopy, ...motionscaperCopy(locale) };
 	return <MotionscaperShell locale={locale} copy={copy} />;
 }

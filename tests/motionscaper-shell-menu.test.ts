@@ -2,13 +2,13 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bundledSiteCopyForLocale } from '../src/common/i18n/site-copy.js';
+import { motionscaperCopy } from '../src/common/editor/ui/motionscaper/motionscaper-copy.ts';
 import { createMotionscaperShellMenus } from '../src/common/editor/ui/motionscaper/shell-menu.ts';
 
 test('Motionscaper starts with only menu-reached motion surfaces and refuses unavailable authoring', () => {
 	let opened = 0;
 	const menus = createMotionscaperShellMenus({
-		copy: bundledSiteCopyForLocale('en'), workspaceOpen: false,
+		copy: motionscaperCopy('en'), workspaceOpen: false,
 		onToggleWorkspace: () => { opened += 1; },
 	});
 	const create = menus.find(({ id }) => id === 'file')?.items[0];
@@ -25,7 +25,7 @@ test('Motionscaper starts with only menu-reached motion surfaces and refuses una
 test('a supplied composition action becomes reachable only through the File menu', () => {
 	let created = 0;
 	const menus = createMotionscaperShellMenus({
-		copy: bundledSiteCopyForLocale('de'), workspaceOpen: true,
+		copy: motionscaperCopy('de'), workspaceOpen: true,
 		onToggleWorkspace: () => undefined, onNewComposition: () => { created += 1; },
 	});
 	const create = menus.find(({ id }) => id === 'file')?.items[0];
