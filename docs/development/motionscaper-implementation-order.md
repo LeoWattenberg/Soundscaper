@@ -154,6 +154,11 @@ drives real native file dialogs and the unchanged encoder, with authored camera,
 light, shadow, shutter and lens quality. Software preview and decoded ProRes agree
 within declared color/alpha bounds and retain exact rational frame timestamps.
 Hardware GPU and remaining native platform qualification remain open.
+The [Linux package CI gate](motionscaper-linux-ci-qualification.md) now requires
+real native launch, this authored scene and offline successor picture/PCM
+delivery for candidate/nightly Linux artifacts. A complete local x64 aggregate
+produced all four source-bound receipts. ARM64 execution and other targets
+still need actual receipts; configuring those jobs does not qualify them.
 M10 has versioned composition
 offers, bounded streamed closure verification, compatible/pending update and
 Undo/Resume rules, and atomic receiver-owned successor storage with retained
@@ -202,6 +207,12 @@ Editable path geometry and hard-edge masks have bidirectional conversion,
 closed host metadata, readable ES3 scripts, and a real Chromium bridge
 import/pixel/save/reverse-package workflow. Unsupported temporal/path topology,
 feathering and expansion remain explicitly reported.
+Normal, Multiply, Screen, Overlay, Darken, Lighten and Difference have closed
+bidirectional blend mappings with readable host preflight and readback. Chromium
+verifies import pixels, Save/reopen and reverse packages. Non-neutral compositing
+switches, adjustment/3D semantics and other blends remain inert report items
+with original custody. These structural checks do not establish installed-AE
+blend or color/alpha parity.
 Reviewed editable paragraph text includes retained font bytes, explicit PostScript
 bindings, source custody and a real Chromium import/save/reopen/reverse-package
 workflow. The readable host importer preflights fonts before mutation and requires

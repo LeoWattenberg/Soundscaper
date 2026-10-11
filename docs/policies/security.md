@@ -791,8 +791,16 @@ through an actual Save dialog. Subsequent focused Chromium checks qualify
 complete CPU finishing preview for linked scenes when WebGL is unavailable or
 loses its context, GPU restoration, receiver reload and clearing a new document;
 preview converts declared Rec.709 output to sRGB without changing native
-delivery bytes. This CPU fixture does not qualify mixed timeline-image layers or
-maximum workloads.
+delivery bytes. Actual Chromium additionally disables WebGL2 globally and
+verifies animated timeline-image layers mixed with linked scenes, offline reopen
+and project replacement. Exact NTSC seeks match delivered pixels in both painter
+orders through the authenticated supplemental-picture executor. GPU-only
+inherited Frame adjustment effects refuse visibly when WebGL2 is unavailable.
+These fixtures do not qualify maximum workloads. Candidate and internal Linux
+packages now require the verified-source launch, authored 2.5D and offline
+linked picture/PCM workflows through a separate test-only reference artifact. A
+complete local Linux x64 aggregate produced all four required receipts;
+configured ARM64 execution and other target receipts remain unfinished.
 <!-- /policy-narrative:isolated-motion-composition-bridge -->
 
 ### Motionscaper native capabilities in the development line

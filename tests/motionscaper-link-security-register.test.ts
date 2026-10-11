@@ -20,8 +20,10 @@ test('Motion bridge header exceptions have explicit development authority and de
 	assert.match(control.summary, /serialized saved updates/u); assert.match(control.summary, /unqualified|unfinished/u);
 	assert.match(control.summary, /paired picture\/PCM/u); assert.match(control.summary, /Conform/u);
 	assert.match(control.summary, /decoded MP4/u); assert.match(control.summary, /packaged Linux x64/u);
+	assert.match(control.summary, /animated timeline-image/u); assert.doesNotMatch(control.summary, /does not qualify mixed timeline-image/u);
 	for (const path of ['tests/browser/motionscaper-linked-editors.spec.ts', 'desktop/motionscaper-successor-native-qualification.ts',
-		'src/framescaper/editor-project-successor-portable-publication.ts', 'src/framescaper/editor-composition-link-conform-core.ts']) {
+		'src/framescaper/editor-project-successor-portable-publication.ts', 'src/framescaper/editor-composition-link-conform-core.ts',
+		'tests/browser/motionscaper-linked-mixed-preview.spec.ts', '.github/actions/motionscaper-linux-qualification/action.yml']) {
 		assert.ok(control.evidence.some(evidence => evidence.path === path), path);
 	}
 	for (const evidence of control.evidence) {
