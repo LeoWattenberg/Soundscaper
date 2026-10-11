@@ -1,8 +1,8 @@
 # Motionscaper After Effects bridge
 
-M11 is in development. The versioned exchange contract and readable exporter
-are implemented; the importer, editor menu workflow, editable conversion, and
-reference qualification are still being built. No After Effects version has
+M11 is in development. The versioned exchange contract, readable exporter and
+limited importer are implemented; the editor menu workflow, broad editable
+conversion, and reference qualification are still being built. No After Effects version has
 been qualified. Synthetic host tests must not populate that qualification matrix.
 
 The intended workflow uses readable `.jsx` scripts through **File > Scripts >
@@ -38,6 +38,34 @@ copy, source-byte preservation, pre-expression reads, manifest publication and
 rollback. They are synthetic host evidence, not an AE execution result. Escape
 handling and filesystem behavior require actual installed-AE qualification;
 media copying uses AE's per-file operation.
+
+## Limited importer
+
+`Motionscaper-Import.jsx` parses inert bounded JSON before opening an undo group.
+Its current admitted subset is compositions, retained footage, null layers,
+parent links, layer timing and transforms, temporal interpolation/ease, spatial
+tangents and roving keys. Unsupported layer kinds produce an actionable request
+to render the complete composition; unsupported property groups, expressions,
+masks, mattes and blend intent produce a preflight warning requiring an explicit
+choice before creating partial imported content. Imported expressions are never
+activated. Text, shapes, solid sources, cameras, lights, effect mappings and
+Motionscaper model conversion remain incomplete.
+
+The destination project must already have matching working space, linear blend
+and bit depth settings; the script never changes those project-wide settings.
+It checks all retained file lengths and any declared SHA-256 before mutation,
+rejects aliases and unsafe paths, and then creates new items under a new folder.
+The ES3 binary-string hash implementation uses bounded 1 MiB reads and follows
+[FIPS 180-4](https://csrc.nist.gov/pubs/fips/180-4/upd1/final). A null digest at the
+capture boundary remains explicitly unverified beyond byte length. Failure
+removes only created objects and closes their undo group; cleanup failure stays
+visible with the primary failure. Existing items, project files and media files
+are not overwritten or saved. Successful import does add new unsaved items to
+the open destination project.
+
+Generated-script host tests cover separate item creation, ordering, parent
+binding, temporal ease and spatial tangents, media hash mismatch, color mismatch,
+and rollback. These tests do not establish actual AE re-import or pixel parity.
 
 ## Exchange contract
 

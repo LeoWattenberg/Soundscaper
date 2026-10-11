@@ -1,0 +1,205 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeInstalledImport = (function () {
+var prepareMotionAeHostImport = MotionAeHostImportPlan.prepareMotionAeHostImport;
+var importMotionAeHostPlan = MotionAeHostImport.importMotionAeHostPlan;
+var createMotionAeHostSha256 = MotionAeHostSha256.createMotionAeHostSha256;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+function closeOnError(file, error) {
+    if (!file.close()) {
+        var failure = new Error('AE read failed and its file could not close: ' + String(error), { cause: error });
+        failure.cause = error;
+        throw failure;
+    }
+    throw error;
+}
+function mediaFile(root, item) {
+    var file = new File(root.fsName + '/' + item.path), media = new Folder(root.fsName + '/media');
+    if (root.alias || media.alias || file.alias || !file.exists || file.length !== item.byteLength)
+        throw new Error('Media is missing, aliased, or its byte length changed: ' + item.name);
+    return file;
+}
+function verifyMedia(root, items) {
+    for (var index = 0; index < items.length; index++) {
+        var item = items[index], file = mediaFile(root, item);
+        if (item.sha256 === null)
+            continue;
+        file.encoding = 'BINARY';
+        if (!file.open('r'))
+            throw new Error('Cannot read retained media: ' + item.name);
+        var digest = createMotionAeHostSha256();
+        var read = 0;
+        try {
+            while (read < item.byteLength) {
+                var bytes = file.read(Math.min(1048576, item.byteLength - read));
+                if (!bytes.length)
+                    throw new Error('Media ended before its declared length.');
+                digest.update(bytes);
+                read += bytes.length;
+            }
+            if (read !== item.byteLength || file.length !== item.byteLength || digest.finish() !== item.sha256)
+                throw new Error('Media SHA-256 changed: ' + item.name);
+        }
+        catch (error) {
+            closeOnError(file, error);
+        }
+        if (!file.close())
+            throw new Error('Cannot close retained media: ' + item.name);
+    }
+}
+function applyProperty(target, property) {
+    if (target.numKeys !== 0)
+        throw new Error('New AE layer unexpectedly contains authored keys.');
+    var value = function (input) { return input.length === 1 ? input[0] : input; };
+    if (!property.keys.length) {
+        target.setValue(value(property.value));
+        return;
+    }
+    for (var index = 0; index < property.keys.length; index++) {
+        var key = property.keys[index];
+        target.setValueAtTime(key.time, value(key.value));
+    }
+    var interpolation = function (mode) { return mode === 'hold' ? KeyframeInterpolationType.HOLD : mode === 'linear' ? KeyframeInterpolationType.LINEAR : KeyframeInterpolationType.BEZIER; };
+    for (var index = 0; index < property.keys.length; index++) {
+        var key = property.keys[index], position = index + 1;
+        target.setInterpolationTypeAtKey(position, interpolation(key.inInterpolation), interpolation(key.outInterpolation));
+        if (key.inInterpolation === 'bezier' || key.outInterpolation === 'bezier') {
+            target.setTemporalAutoBezierAtKey(position, false);
+            target.setTemporalContinuousAtKey(position, false);
+            var incoming = [], outgoing = [];
+            for (var component = 0; component < key.inEase.length; component++)
+                incoming.push(new KeyframeEase(key.inEase[component].speed, key.inEase[component].influence));
+            for (var component = 0; component < key.outEase.length; component++)
+                outgoing.push(new KeyframeEase(key.outEase[component].speed, key.outEase[component].influence));
+            target.setTemporalEaseAtKey(position, incoming, outgoing);
+        }
+        if (property.spatial) {
+            target.setSpatialAutoBezierAtKey(position, false);
+            target.setSpatialContinuousAtKey(position, false);
+            target.setSpatialTangentsAtKey(position, key.inSpatialTangent, key.outSpatialTangent);
+        }
+    }
+    if (property.spatial)
+        for (var index = 1; index < property.keys.length - 1; index++)
+            target.setRovingAtKey(index + 1, property.keys[index].roving);
+}
+function beginImport(project, root, plan) {
+    app.beginUndoGroup('Import Motionscaper exchange');
+    var folder;
+    try {
+        folder = project.items.addFolder('Motionscaper ' + plan.transferId);
+    }
+    catch (error) {
+        app.endUndoGroup();
+        throw error;
+    }
+    var created = [folder], items = {}, comps = {}, layers = {};
+    var ended = false;
+    return {
+        footage: function (item) {
+            var options = new ImportOptions(mediaFile(root, item));
+            options.sequence = false;
+            options.importAs = ImportAsType.FOOTAGE;
+            var imported = project.importFile(options);
+            created.push(imported);
+            imported.parentFolder = folder;
+            imported.name = item.name;
+            items[item.id] = imported;
+        },
+        composition: function (item) {
+            var comp = project.items.addComp(item.name, item.width, item.height, item.pixelAspect, item.duration, item.frameRate);
+            created.push(comp);
+            comp.parentFolder = folder;
+            comp.displayStartTime = item.displayStartTime;
+            comp.bgColor = item.background;
+            comps[item.id] = comp;
+            items[item.id] = comp;
+        },
+        layer: function (comp, item) {
+            var target = comps[comp.id], layer = item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId]);
+            layers[item.id] = layer;
+            layer.name = item.name;
+            layer.threeDLayer = item.threeD;
+            layer.stretch = item.stretch;
+            layer.startTime = item.startTime;
+            layer.inPoint = item.inPoint;
+            layer.outPoint = item.outPoint;
+            layer.enabled = item.enabled;
+        },
+        parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
+        properties: function (item) {
+            var transform = layers[item.id].property('ADBE Transform Group');
+            for (var index = 0; index < item.properties.length; index++) {
+                var property = item.properties[index];
+                applyProperty(transform.property(property.matchName), property);
+            }
+        },
+        finish: function () { app.endUndoGroup(); ended = true; },
+        rollback: function () {
+            var failures = [];
+            for (var index = created.length - 1; index >= 0; index--)
+                try {
+                    created[index].remove();
+                }
+                catch (error) {
+                    failures.push(String(error));
+                }
+            if (!ended) {
+                try {
+                    app.endUndoGroup();
+                }
+                catch (error) {
+                    failures.push(String(error));
+                }
+                ended = true;
+            }
+            if (failures.length)
+                throw new Error('Created-object cleanup failed: ' + failures.join('; '));
+        }
+    };
+}
+/** Import into new AE items. The original project file, existing objects and media are never saved or overwritten. */
+function runMotionAeInstalledImport() {
+    try {
+        var project_1 = app.project;
+        if (!project_1)
+            throw new Error('Open a destination project in After Effects first.');
+        var file_1 = File.openDialog('Choose motionae.json from a Motionscaper exchange package.');
+        if (!file_1)
+            return;
+        if (file_1.alias || file_1.length > 16777216)
+            throw new Error('Exchange manifest is aliased or exceeds its byte budget.');
+        file_1.encoding = 'UTF-8';
+        if (!file_1.open('r'))
+            throw new Error('Cannot read the exchange manifest.');
+        var json = void 0;
+        try {
+            json = file_1.read();
+        }
+        catch (error) {
+            closeOnError(file_1, error);
+        }
+        if (!file_1.close())
+            throw new Error('Cannot close exchange manifest.');
+        var plan = prepareMotionAeHostImport(json);
+        if (project_1.workingSpace !== plan.color.workingSpace || project_1.linearBlending !== plan.color.linearBlending || project_1.bitsPerChannel !== plan.color.bitsPerChannel)
+            throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
+        var warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';
+        for (var index = 0; index < Math.min(plan.warnings.length, 8); index++)
+            warning += '\n\n' + plan.warnings[index];
+        if (plan.warnings.length > 8)
+            warning += '\n\nAdditional warnings: ' + String(plan.warnings.length - 8);
+        if (!confirm(warning + '\n\nCreate this separate imported folder?'))
+            return;
+        var host = { checkCancelled: function () { }, verifyMedia: function (items) { return verifyMedia(file_1.parent, items); }, begin: function (input) { return beginImport(project_1, file_1.parent, input); } };
+        importMotionAeHostPlan(plan, host);
+        alert('Exchange imported into a new Motionscaper folder. Original files were not saved. Review unsupported content and compare reference frames; actual AE qualification remains pending.');
+    }
+    catch (error) {
+        alert('Motionscaper import did not complete: ' + String(error));
+    }
+}
+
+return { runMotionAeInstalledImport: runMotionAeInstalledImport };
+}());

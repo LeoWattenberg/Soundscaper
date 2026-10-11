@@ -12,6 +12,10 @@ const modules = [
 	{ name: 'motion-ae-host-property', global: 'MotionAeHostProperty', exports: ['readMotionAeHostProperty'] },
 	{ name: 'motion-ae-host-export', global: 'MotionAeHostExport', exports: ['exportMotionAeHostProject'] },
 	{ name: 'motion-ae-installed-export', global: 'MotionAeInstalledExport', exports: ['runMotionAeInstalledExport'] },
+	{ name: 'motion-ae-host-sha256', global: 'MotionAeHostSha256', exports: ['createMotionAeHostSha256'] },
+	{ name: 'motion-ae-host-import-plan', global: 'MotionAeHostImportPlan', exports: ['prepareMotionAeHostImport'] },
+	{ name: 'motion-ae-host-import', global: 'MotionAeHostImport', exports: ['importMotionAeHostPlan'] },
+	{ name: 'motion-ae-installed-import', global: 'MotionAeInstalledImport', exports: ['runMotionAeInstalledImport'] },
 ];
 const check = process.argv.includes('--check');
 let stale = false;
@@ -52,8 +56,13 @@ for (const module of modules) {
 	try { parse(output, { ecmaVersion: 3 }); } catch (error) { throw new Error(`${module.name}: ${error.message}; ${output.split('\n')[error.loc.line - 1]}`, { cause: error }); }
 	await publish(`${module.name}.jsxinc`, output);
 }
-await publish('Motionscaper-Export.jsx.txt', `/* SPDX-License-Identifier: AGPL-3.0-only */\n/* Development bridge: installed-AE qualification is still required. */\n#target aftereffects\n${modules.map((module) => `#include "${module.name}.jsxinc"`).join('\n')}\nMotionAeInstalledExport.runMotionAeInstalledExport();\n`);
+await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, 4), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
+await publish('Motionscaper-Import.jsx.txt', entry([modules[0], ...modules.slice(4)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
 if (stale) process.exitCode = 1;
+
+function entry(includes, call) {
+	return `/* SPDX-License-Identifier: AGPL-3.0-only */\n/* Development bridge: installed-AE qualification is still required. */\n#target aftereffects\n${includes.map((module) => `#include "${module.name}.jsxinc"`).join('\n')}\n${call}\n`;
+}
 
 async function publish(name, output) {
 	const path = resolve(directory, name);

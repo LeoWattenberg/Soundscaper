@@ -2,7 +2,8 @@
 import type { MotionAeComposition, MotionAeExchange, MotionAeFootage, MotionAeLayer, MotionAeProperty, MotionAeReportEntry } from './motion-ae-exchange-types.ts';
 import { MOTION_AE_EXCHANGE_LIMITS as limits } from './motion-ae-exchange-types.ts';
 import { motionAeVector, normalizeMotionAeProperties, type MotionAeCustodyBudget } from './motion-ae-property-custody.ts';
-import { freezeMotionValue, motionArray, motionBoolean, motionDigest, motionEnum, motionId, motionInteger, motionNumber, motionRecord, motionString, uniqueMotionIds } from './motion-values.ts';
+import { freezeMotionValue, motionArray, motionBoolean, motionDigest, motionEnum, motionId, motionInteger, motionNumber, motionRecord, uniqueMotionIds } from './motion-values.ts';
+import { motionAeCustodyString as motionString } from './motion-ae-custody-string.ts';
 
 /** Portable package paths never contain source-machine paths or platform aliases. */
 export function motionAeMediaPath(value: unknown): string {

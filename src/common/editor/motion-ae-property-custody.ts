@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { MotionAeExpression, MotionAeKey, MotionAeProperty, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
 import { MOTION_AE_EXCHANGE_LIMITS as limits } from './motion-ae-exchange-types.ts';
-import { motionArray, motionBoolean, motionEnum, motionNumber, motionRecord, motionString } from './motion-values.ts';
+import { motionArray, motionBoolean, motionEnum, motionNumber, motionRecord } from './motion-values.ts';
+import { motionAeCustodyString as motionString } from './motion-ae-custody-string.ts';
 
 export interface MotionAeCustodyBudget { properties: number; keys: number }
 export function motionAeVector(value: unknown, name: string, length?: number, color = false): readonly number[] {

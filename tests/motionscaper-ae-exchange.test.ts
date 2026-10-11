@@ -17,6 +17,7 @@ test('AE exchange round trips bounded immutable data without claiming an install
 	assert.deepEqual(parseMotionAeExchange(serializeMotionAeExchange(value)), value);
 	assert.throws(() => normalizeMotionAeExchange({ ...source, version: 2 }), /version/u);
 	assert.throws(() => normalizeMotionAeExchange({ ...source, importedScript: 'execute()' }), /unknown|unsupported/u);
+	assert.equal(normalizeMotionAeExchange({ ...source, source: { name: 'Cafe\u0301.aep', revisionDigest: null } }).source.name, 'Cafe\u0301.aep');
 });
 test('AE package media paths remain relative, closed and unique before any filesystem operation', () => {
 	const source = fixture();
