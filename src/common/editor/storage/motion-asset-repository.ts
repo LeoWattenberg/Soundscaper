@@ -154,7 +154,8 @@ function assetStream(database: IDBDatabase, record: AssetBodyRecord, asset: Moti
 				return;
 			}
 			const chunk: unknown = await transact(database, ['chunks'], 'readonly', (stores) => request(stores.chunks.get(chunkKey(record.token, index))));
-			if (!isChunk(chunk) || chunk.token !== record.token || chunk.bytes.byteLength > MOTION_ASSET_CHUNK_BYTES
+			if (!isChunk(chunk) || chunk.key !== chunkKey(record.token, index) || chunk.token !== record.token
+				|| chunk.bytes.byteLength === 0 || chunk.bytes.byteLength > MOTION_ASSET_CHUNK_BYTES
 				|| chunk.bytes.byteLength > asset.byteLength - size) throw new Error('Motion asset has a corrupt or missing storage chunk.');
 			digest.update(chunk.bytes);
 			size += chunk.bytes.byteLength;
@@ -170,7 +171,9 @@ function assertBodyRecord(value: unknown, asset: MotionAsset): asserts value is 
 	const record = value as Partial<AssetBodyRecord> | null;
 	if (!record || record.key !== asset.storageKey || record.sha256 !== asset.sha256
 		|| record.byteLength !== asset.byteLength || typeof record.token !== 'string'
-		|| !Number.isSafeInteger(record.chunkCount) || Number(record.chunkCount) < 1) {
+		|| !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(record.token)
+		|| !Number.isSafeInteger(record.chunkCount) || Number(record.chunkCount) < 1
+		|| Number(record.chunkCount) > asset.byteLength) {
 		throw new RangeError('Stored motion asset does not match its contract.');
 	}
 }

@@ -8,6 +8,8 @@ import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { createMotionscaperProjectStore, MotionProjectConflictError } from '../src/motionscaper/editor-project-store.ts';
 import { exportMotionscaperArchive, importMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
+import { openMotionProjectDatabase } from '../src/common/editor/storage/motion-project-database.ts';
+import { request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 
 function fixture() {
 	const indexedDB = createInstrumentedIndexedDB();
@@ -98,4 +100,38 @@ test('asset chunks remain bounded and storage failure leaves the prior saved rev
 		assert.ok(chunks.length >= 3);
 		assert.ok(chunks.every((chunk) => chunk.bytes.byteLength <= 4 * 1024 * 1024));
 	} finally { await store.close(); }
+});
+
+test('stored revision and recovery identities must match the requested project', async () => {
+	const { indexedDB, store, project } = fixture();
+	const database = await openMotionProjectDatabase(indexedDB as unknown as IDBFactory, 'kw-media-motionscaper-editor-v1');
+	try {
+		const first = await store.save(project, null);
+		const second = await store.save({ ...project, id: 'project-2', title: 'Other' }, null);
+		await transact(database, ['revisions'], 'readwrite', async (stores) => {
+			await request(stores.revisions.put({ key: `${project.id}:${first.digest}`, projectId: project.id, snapshot: second }));
+		});
+		await assert.rejects(store.load(project.id), /identity/u);
+		await assert.rejects(store.loadRevision(project.id, first.digest), /identity/u);
+		await assert.rejects(store.save({ ...project, revision: 1 }, first.digest), /identity/u);
+		await transact(database, ['projects'], 'readwrite', async (stores) => {
+			await request(stores.projects.put({ id: project.id, savedDigest: first.digest,
+				savedTitle: project.title, savedRevision: project.revision, recovery: second.project }));
+		});
+		await assert.rejects(store.loadRecovery(project.id), /identity/u);
+		await assert.rejects(store.list(), /identity/u);
+	} finally { database.close(); await store.close(); }
+});
+
+test('stored asset records cannot amplify chunk reads beyond their declared byte length', async () => {
+	const { indexedDB, store } = fixture();
+	const database = await openMotionProjectDatabase(indexedDB as unknown as IDBFactory, 'kw-media-motionscaper-editor-v1');
+	try {
+		await store.putAsset(asset, new Blob([bytes]));
+		await transact(database, ['assets'], 'readwrite', async (stores) => {
+			const original = await request(stores.assets.get(asset.storageKey)) as Record<string, unknown>;
+			await request(stores.assets.put({ ...original, chunkCount: 1000000 }));
+		});
+		await assert.rejects(store.readAsset(asset), /contract/u);
+	} finally { database.close(); await store.close(); }
 });

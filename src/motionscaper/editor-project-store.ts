@@ -2,6 +2,7 @@
 
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
+import { motionDigest, motionId, motionInteger, motionRecord, motionString } from '../common/editor/motion-values.ts';
 import { openMotionProjectDatabase } from '../common/editor/storage/motion-project-database.ts';
 import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor/storage/motion-asset-repository.ts';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
@@ -74,13 +75,15 @@ export class MotionscaperProjectStore {
 	}
 
 	async #publish(snapshot: MotionscaperRevision, expectedDigest: string | null, staging: readonly MotionAssetStaging[]): Promise<void> {
+		if (expectedDigest !== null) motionDigest(expectedDigest);
 		const database = await this.#database();
 		await transact(database, ['projects', 'revisions', 'assets', 'chunks', 'staging'], 'readwrite', async (stores) => {
 			const prior: unknown = await request(stores.projects.get(snapshot.projectId));
-			const pointer = prior === undefined ? null : readPointer(prior);
+			const pointer = prior === undefined ? null : readPointer(prior, snapshot.projectId);
 			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
 			if (pointer?.savedDigest) {
-				const previous = readRevision(await request(stores.revisions.get(revisionKey(snapshot.projectId, pointer.savedDigest))));
+				const previous = readRevision(await request(stores.revisions.get(revisionKey(snapshot.projectId, pointer.savedDigest))), snapshot.projectId, pointer.savedDigest);
+				assertSavedPointer(pointer, previous);
 				if (snapshot.digest !== previous.digest && snapshot.revision <= previous.revision) {
 					throw new RangeError('Saved motion revisions must increase after an edit.');
 				}
@@ -103,10 +106,11 @@ export class MotionscaperProjectStore {
 
 	async saveRecovery(value: unknown, expectedDigest: string | null): Promise<void> {
 		const project = normalizeMotionscaperProject(value);
+		if (expectedDigest !== null) motionDigest(expectedDigest);
 		const database = await this.#database();
 		await transact(database, ['projects', 'assets'], 'readwrite', async (stores) => {
 			const stored: unknown = await request(stores.projects.get(project.id));
-			const pointer = stored === undefined ? null : readPointer(stored);
+			const pointer = stored === undefined ? null : readPointer(stored, project.id);
 			if ((pointer?.savedDigest ?? null) !== expectedDigest) throw new MotionProjectConflictError();
 			for (const asset of project.assets) await this.#assets.assertAvailable(stores, asset);
 			await request(stores.projects.put({ id: project.id, savedDigest: expectedDigest,
@@ -116,28 +120,34 @@ export class MotionscaperProjectStore {
 	}
 
 	async load(id: string): Promise<MotionscaperRevision | null> {
+		motionId(id);
 		const database = await this.#database();
 		return transact(database, ['projects', 'revisions'], 'readonly', async (stores) => {
 			const value: unknown = await request(stores.projects.get(id));
 			if (value === undefined) return null;
-			const pointer = readPointer(value);
-			return pointer.savedDigest ? readRevision(await request(stores.revisions.get(revisionKey(id, pointer.savedDigest)))) : null;
+			const pointer = readPointer(value, id);
+			if (!pointer.savedDigest) return null;
+			const snapshot = readRevision(await request(stores.revisions.get(revisionKey(id, pointer.savedDigest))), id, pointer.savedDigest);
+			assertSavedPointer(pointer, snapshot);
+			return snapshot;
 		});
 	}
 
 	async loadRevision(id: string, digest: string): Promise<MotionscaperRevision | null> {
+		motionId(id); motionDigest(digest);
 		const database = await this.#database();
 		return transact(database, ['revisions'], 'readonly', async (stores) => {
 			const value: unknown = await request(stores.revisions.get(revisionKey(id, digest)));
-			return value === undefined ? null : readRevision(value);
+			return value === undefined ? null : readRevision(value, id, digest);
 		});
 	}
 
 	async loadRecovery(id: string): Promise<MotionscaperProject | null> {
+		motionId(id);
 		const database = await this.#database();
 		return transact(database, ['projects'], 'readonly', async (stores) => {
 			const value: unknown = await request(stores.projects.get(id));
-			return value === undefined ? null : readPointer(value).recovery;
+			return value === undefined ? null : readPointer(value, id).recovery;
 		});
 	}
 
@@ -151,7 +161,7 @@ export class MotionscaperProjectStore {
 				const cursor = cursorRequest.result;
 				if (!cursor) { resolve(summaries); return; }
 				try {
-					const pointer = readPointer(cursor.value);
+					const pointer = readPointer(cursor.value, motionId(cursor.primaryKey));
 					summaries.push(Object.freeze({ id: pointer.id,
 						title: pointer.savedTitle ?? pointer.recovery?.title ?? pointer.id,
 						revision: pointer.savedRevision ?? pointer.recovery?.revision ?? 0,
@@ -199,19 +209,29 @@ export class MotionscaperProjectStore {
 }
 
 function revisionKey(id: string, digest: string): string { return `${id}:${digest}`; }
-function readRevision(value: unknown): MotionscaperRevision {
-	if (!value || typeof value !== 'object' || !('snapshot' in value)) throw new Error('Stored motion revision is missing or corrupt.');
-	return verifyMotionscaperRevision(value.snapshot);
-}
-function readPointer(value: unknown): ProjectPointer {
-	const pointer = value as Partial<ProjectPointer> | null;
-	if (!pointer || typeof pointer.id !== 'string' || (pointer.savedDigest !== null
-		&& (typeof pointer.savedDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(pointer.savedDigest)))
-		|| (pointer.savedTitle !== null && typeof pointer.savedTitle !== 'string')
-		|| (pointer.savedRevision !== null && (!Number.isSafeInteger(pointer.savedRevision) || Number(pointer.savedRevision) < 0))) {
-		throw new Error('Stored motion project pointer is corrupt.');
+function readRevision(value: unknown, id: string, digest: string): MotionscaperRevision {
+	const record = motionRecord(value, ['key', 'projectId', 'snapshot'], 'stored motion revision');
+	const snapshot = verifyMotionscaperRevision(record.snapshot);
+	if (record.key !== revisionKey(id, digest) || record.projectId !== id || snapshot.projectId !== id || snapshot.digest !== digest) {
+		throw new Error('Stored motion revision identity does not match its requested project.');
 	}
-	return { id: pointer.id, savedDigest: pointer.savedDigest,
-		savedTitle: pointer.savedTitle ?? null, savedRevision: pointer.savedRevision ?? null,
-		recovery: pointer.recovery == null ? null : normalizeMotionscaperProject(pointer.recovery) };
+	return snapshot;
+}
+function readPointer(value: unknown, id: string): ProjectPointer {
+	const record = motionRecord(value, ['id', 'savedDigest', 'savedTitle', 'savedRevision', 'recovery'], 'stored motion project pointer');
+	const recovery = record.recovery === null ? null : normalizeMotionscaperProject(record.recovery);
+	if (record.id !== id || (recovery && recovery.id !== id)) {
+		throw new Error('Stored motion recovery or pointer identity does not match its project.');
+	}
+	if ((record.savedDigest === null) !== (record.savedTitle === null) || (record.savedDigest === null) !== (record.savedRevision === null)) {
+		throw new Error('Stored motion project pointer has inconsistent saved metadata.');
+	}
+	return { id: motionId(id), savedDigest: record.savedDigest === null ? null : motionDigest(record.savedDigest),
+		savedTitle: record.savedTitle === null ? null : motionString(record.savedTitle, 'saved title'),
+		savedRevision: record.savedRevision === null ? null : motionInteger(record.savedRevision, 'saved revision'), recovery };
+}
+function assertSavedPointer(pointer: ProjectPointer, snapshot: MotionscaperRevision): void {
+	if (pointer.savedTitle !== snapshot.project.title || pointer.savedRevision !== snapshot.revision) {
+		throw new Error('Stored motion project pointer disagrees with its saved revision.');
+	}
 }
