@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	classifyProjectSchemaIdentity,
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	MOTIONSCAPER_PROJECT_SCHEMA_FAMILY,
 	PROJECT_SCHEMA_FAMILIES,
 	PROJECT_SCHEMA_VERSION,
 	ProjectReimportRequiredError,
@@ -17,7 +18,8 @@ test('the 1.0 project identity is family-qualified and exact', () => {
 	assert.equal(PROJECT_SCHEMA_VERSION, 1);
 	assert.equal(SOUNDSCAPER_PROJECT_SCHEMA_FAMILY, 'soundscaper');
 	assert.equal(FRAMESCAPER_PROJECT_SCHEMA_FAMILY, 'framescaper');
-	assert.deepEqual(PROJECT_SCHEMA_FAMILIES, ['soundscaper', 'framescaper']);
+	assert.equal(MOTIONSCAPER_PROJECT_SCHEMA_FAMILY, 'motionscaper');
+	assert.deepEqual(PROJECT_SCHEMA_FAMILIES, ['soundscaper', 'framescaper', 'motionscaper']);
 	assert.equal(Object.isFrozen(PROJECT_SCHEMA_FAMILIES), true);
 
 	for (const schemaFamily of PROJECT_SCHEMA_FAMILIES) {
@@ -68,15 +70,17 @@ test('numeric-only pre-baseline documents require re-import', () => {
 });
 
 test('known foreign and future identities are classified without domain traversal', () => {
-	const foreign = classifyProjectSchemaIdentity({
-		schemaFamily: 'framescaper',
-		schemaVersion: 1,
-		get tracks(): never { throw new Error('foreign domain was traversed'); },
-	}, 'soundscaper');
-	assert.deepEqual(foreign, {
-		identity: { schemaFamily: 'framescaper', schemaVersion: 1 },
-		disposition: 'foreign',
-	});
+	for (const schemaFamily of ['framescaper', 'motionscaper']) {
+		const foreign = classifyProjectSchemaIdentity({
+			schemaFamily,
+			schemaVersion: 1,
+			get tracks(): never { throw new Error('foreign domain was traversed'); },
+		}, 'soundscaper');
+		assert.deepEqual(foreign, {
+			identity: { schemaFamily, schemaVersion: 1 },
+			disposition: 'foreign',
+		});
+	}
 
 	const future = classifyProjectSchemaIdentity({
 		schemaFamily: 'soundscaper',
@@ -91,9 +95,9 @@ test('known foreign and future identities are classified without domain traversa
 	assert.deepEqual(classifyProjectSchemaIdentity({
 		schemaFamily: 'soundscaper', schemaVersion: 1,
 	}, 'soundscaper').disposition, 'current');
-	assert.throws(() => readProjectSchemaIdentity({
-		schemaFamily: 'unknown', schemaVersion: 1,
-	}), /schema family/iu);
+	for (const schemaFamily of ['unknown', 'lightscaper']) {
+		assert.throws(() => readProjectSchemaIdentity({ schemaFamily, schemaVersion: 1 }), /schema family/iu);
+	}
 	for (const schemaVersion of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '1']) {
 		assert.throws(() => readProjectSchemaIdentity({
 			schemaFamily: 'soundscaper', schemaVersion,
