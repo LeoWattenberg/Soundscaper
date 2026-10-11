@@ -9,8 +9,8 @@ void main() {
 /** Same separable source-over formula as motion-surface.ts; no implicit browser color conversion. */
 export const motionCompositeFragmentShader = `#version 300 es
 precision highp float;
-uniform sampler2D uSource;
-uniform sampler2D uBackdrop;
+uniform highp sampler2D uSource;
+uniform highp sampler2D uBackdrop;
 uniform int uMode;
 uniform float uOpacity;
 out vec4 result;
