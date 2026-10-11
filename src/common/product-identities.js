@@ -4,26 +4,14 @@ export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motions
 
 const PRODUCT_ID_SET = new Set(PRODUCT_IDS);
 
-export const PRODUCT_IDENTITIES = deepFreeze({
-	soundscaper: {
-		id: 'soundscaper',
-		name: 'Soundscaper',
-		basePath: '',
-		defaultWorkspace: 'modern',
-	},
-	framescaper: {
-		id: 'framescaper',
-		name: 'Framescaper',
-		basePath: '/framescaper',
-		defaultWorkspace: 'video-editor',
-	},
-	motionscaper: {
-		id: 'motionscaper',
-		name: 'Motionscaper',
-		basePath: '/motionscaper',
-		defaultWorkspace: 'motion',
-	},
-});
+const PRODUCT_WORKSPACES = { soundscaper: 'modern', framescaper: 'video-editor', motionscaper: 'motion' };
+
+export const PRODUCT_IDENTITIES = Object.freeze(Object.fromEntries(PRODUCT_IDS.map((id) => [id, Object.freeze({
+	id,
+	name: id[0].toUpperCase() + id.slice(1),
+	basePath: id === 'soundscaper' ? '' : `/${id}`,
+	defaultWorkspace: PRODUCT_WORKSPACES[id],
+})])));
 
 export function normalizeProductId(value = 'soundscaper') {
 	const productId = String(value || 'soundscaper').toLowerCase();
@@ -59,8 +47,3 @@ export function otherProductId(product, destination) {
 	return selected === 'framescaper' ? 'soundscaper' : 'framescaper';
 }
 
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const child of Object.values(value)) deepFreeze(child);
-	return Object.freeze(value);
-}
