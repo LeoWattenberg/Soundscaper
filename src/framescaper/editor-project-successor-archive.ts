@@ -3,6 +3,7 @@ import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js/index-native.j
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { withScapeArchiveReader } from '../common/editor/scape-archive-reader.ts';
+import { copyScapeArchiveEntry } from '../common/editor/scape-archive-entry-copy.ts';
 import { readScapeArchiveEnvelope, type ScapeArchiveEntry, type ScapeDescriptor } from '../common/editor/scape-archive-envelope.ts';
 import { EXTERNAL_MEDIA_ENCODING } from '../common/editor/desktop-external-media.ts';
 import { verifyScapeAssetBytes } from '../common/editor/scape-archive-media.ts';
@@ -63,7 +64,7 @@ export async function exportFramescaperSuccessorArchive(record: FramescaperMigra
 			await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { signal });
 			for (const asset of manifest.assets) {
 				const entry = envelope.entryByName.get(asset.entry)!;
-				await copyEntry(writer, entry, signal);
+				await copyScapeArchiveEntry(writer, entry, signal);
 			}
 			return await writer.close();
 		} catch (error) {
@@ -84,15 +85,3 @@ async function verifyEntry(entry: ScapeArchiveEntry, descriptor: ScapeDescriptor
 	if (size !== descriptor.size || bytesToHex(digest.digest()) !== descriptor.sha256) throw new RangeError('Migration archive asset digest or size is invalid.');
 }
 
-async function copyEntry(writer: ZipWriter<Blob>, entry: ScapeArchiveEntry, signal?: AbortSignal): Promise<void> {
-	const abort = new AbortController();
-	const sharedSignal = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
-	const stream = new TransformStream<Uint8Array, Uint8Array>();
-	const operations = [entry.getData!(stream.writable, { signal: sharedSignal, strictness: 'strict' }), writer.add(entry.filename, stream.readable, { signal: sharedSignal })];
-	try { await Promise.all(operations); }
-	catch (error) {
-		abort.abort(error);
-		await Promise.allSettled(operations);
-		throw error;
-	}
-}
