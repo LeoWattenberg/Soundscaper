@@ -6,7 +6,7 @@ import type { MotionCompositionLinkRasterLease } from '../common/editor/motion-l
 import type { MotionCompositionLinkAudioLease } from '../common/editor/motion-link-audio-rendering.ts';
 import { createMotionMediaProvider } from '../common/editor/motion-media-provider.ts';
 import { createMotionExpressionAudioPreparation, motionProjectUsesAudioAmplitude } from '../common/editor/motion-expression-audio-preparation.ts';
-import { loadMotionscaperAssetBytes } from '../motionscaper/editor-render-resources.ts';
+import { loadMotionscaperAssetBytes } from '../common/editor/motion-render-resources.ts';
 
 export type FramescaperCompositionAssetReader = (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>;
 /** These providers can read only the saved composition's receiver-owned, digest-addressed originals. */
