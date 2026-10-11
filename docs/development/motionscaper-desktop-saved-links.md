@@ -55,17 +55,33 @@ SCAPE_FRAMESCAPER_DESKTOP_PROFILE=framescaper-successor-v2 \
 npx electron-builder --config electron-builder.framescaper-successor.cjs --linux --x64 --dir
 
 xvfb-run -a node scripts/framescaper-successor-desktop-smoke.mjs
+xvfb-run -a node scripts/motionscaper-successor-native-smoke.mjs
 ```
 
 The stage/package checks authenticate every application and renderer byte,
 refuse undeclared runtime files, verify Electron's pinned alternate codec
 library and apply the existing hardened Electron fuse policy. Linux x64 shell
 qualification mounts the actual editor and confirms its databases, origin,
-capability surface and unissued-token refusal. Windows, macOS, other Linux
-architectures and the complete interactive native link/update workflow still
-need platform qualification. Node tests exercise real atomic replacement,
-pinned old/new bytes, corruption, transfer cancellation and cleanup retry; they
-do not replace that interactive qualification.
+capability surface and unissued-token refusal. The second smoke uses the actual
+packaged application, GTK chooser and native watch. Python 3, X11, libX11 and
+libXtst are required; it launches the application in the C.UTF-8 locale and
+selects its own temporary archive through GTK's Open action. It does not replace
+the chooser, preload, IPC or saved-file provider with a test implementation.
+
+Linux x64 interactive qualification passed at source
+`1f5fdb43f4828951c7b177221a6d676fbe1cdc65`. It verifies automatic receipt of an
+atomic saved revision while the dialog is closed, refusal of a corrupt
+replacement without losing the accepted revision, receipt of the next valid
+save, and Disconnect retaining that revision and the exact original PNG bytes
+in the v2 owner store. Kernel inotify inspection confirms the directory watch
+count changes from zero to one after selection and returns to zero on
+Disconnect. The receipt records the authenticated package source revision,
+accepted digests and database names; temporary archives and profile are removed.
+
+Windows, macOS, other Linux architectures, Wayland and other native chooser
+configurations still need platform qualification. Node tests additionally cover
+pinned old/new bytes, transfer cancellation and retryable cleanup failures;
+they do not replace interactive platform qualification.
 
 This work changes no assistance runtime closure and requires no manual
 **Update AI assets** run.
