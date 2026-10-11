@@ -80,9 +80,18 @@ history, deterministic evaluation, streamed `.mscape` archives, durable
 saved/recovery storage, paragraph/vector rasterization, and linear-light CPU
 and WebGL2 compositing have focused Motionscaper coverage. Menu-driven document
 workflows, offline reopen, successor archive custody, and GPU context loss pass
-in Chromium. M05 has a revision-pinned, cancellable render queue, menu-opened
+in Chromium. Motion DB2 appends storage-only write leases; saved pointers and
+recovery drafts are atomically fenced, and competing windows retain one authoring
+owner. Motion File Open preserves foreign/future archives as private read-only
+custody, with exact Save Copy and the previous document/history unchanged.
+English/German Help-menu destinations open the Motion handbook through bounded
+browser/native adapters. Retained imported Arabic and CJK fonts have shaping,
+wrapping, pixel, portable-archive and offline-seek qualification.
+M05 has a revision-pinned, cancellable render queue, menu-opened
 worker preview and delivery, transparent PNG sequences, and browser MP4/WebM
-round trips. Shared bounded PCM mixing, an audio sample clock, retained-media
+round trips. The queue survives dialog closure and project switches, serializes
+one renderer, and bounds retained intent and downloads. Retry retains the original
+revision and obtains a fresh destination. Shared bounded PCM mixing, an audio sample clock, retained-media
 decoding, and audio/video muxing pass a menu-driven media import, save/reopen,
 preview, export, and re-import workflow. WebM declares its millisecond container
 timing resolution. The separate float-carrier native helper and own-origin
@@ -134,11 +143,20 @@ retain original archives, rebind conflicting ordinary media and fence atomic
 owner publication; focused tests cover complete cache recovery and prior-v1
 custody. The dedicated real-editor browser gate covers saved sender updates,
 Undo/Resume, width Conform, portable File Save/Open and offline reopen. Actual
-video delivery, duration/FPS Conform review and complete platform qualification
-remain unfinished. M11 has a bounded
+video delivery now passes fresh portable reopen and decoded MP4 pixels matching
+the blue preview. Duration/FPS Conform has an exact fit-window review, unchanged
+intent on Cancel, stale-review refusal, atomic Apply and one-step Undo. The
+packaged Linux x64 GTK/X11 saved-file link passes actual chooser, watch-generation,
+closed-dialog update, corruption refusal and Disconnect custody checks. Native
+generated-source delivery and the remaining platform matrix remain unfinished.
+M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
 limited importer scripts with media digest verification, a bounded script
 download, explicit numeric sampling and limited editable exchange conversion.
+Editable path geometry and hard-edge masks have bidirectional conversion,
+closed host metadata, readable ES3 scripts, and a real Chromium bridge
+import/pixel/save/reverse-package workflow. Unsupported temporal/path topology,
+feathering and expansion remain explicitly reported.
 Atomic import retains original exchange/report custody and every media file
 through normal Save/reopen and portable archives, including unsupported null
 placeholders. The opt-in File bridge workflow passes actual Chromium import,

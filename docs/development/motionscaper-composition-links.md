@@ -3,10 +3,13 @@
 M10 is in progress. Versioned offers, streamed verification, receiver storage,
 atomic owner/history updates, saved-revision picture/PCM adapters and bounded
 portable archive assembly/import are implemented foundations. The explicit
-successor browser shell now exposes File-menu connections and paired placement,
-with lazy exact preview and delivery. Complete connected-editor qualification,
-generated thumbnails and desktop transports remain unfinished; these results do
-not claim a shipping connected-editor workflow.
+successor browser shell exposes File-menu connections and paired placement,
+with lazy exact preview and delivery. Real connected-editor Chromium workflows
+cover saved updates, Undo/Resume, reviewed Conform, portable reopen and decoded
+MP4 pixels matching preview. Generated thumbnails, filmstrips and source-monitor
+playback use retained scene bytes. The isolated Linux x64 desktop's native chooser
+and saved-file watcher have interactive qualification. Native delivery and the
+remaining desktop platforms still need release qualification.
 
 ## Revision and closure authority
 
@@ -47,6 +50,16 @@ Undo restores a retained historical snapshot and pauses automatic acceptance.
 Resume accepts a compatible pending snapshot; incompatible output still needs
 Conform. Conform preserves an existing pause until Resume. Accepted, pending and
 paused intent round-trip through storage without retaining a transport session.
+
+Conform first shows a review without changing accepted intent. The fit-window
+policy maps each retained source window in seconds onto the new frame grid,
+showing exact before/after bounds, rates, rounding and clamping. Timeline starts,
+durations, fades and animation stay fixed. Reverse, freeze, ramp and warp
+ordinates are rebased with the source window; native audio rates stay aligned.
+Apply verifies the reviewed owning project and pending digest, then publishes
+all affected timeline, nested and bin occurrences as one undo action. Changed
+intent requires a new review; cancellation and failed publication leave the
+accepted revision unchanged.
 
 ## Receiver storage and rendering
 
@@ -114,7 +127,8 @@ the existing layered painter order, materializing Motion pictures before the
 shared compositor. Virtual sources also request asynchronous frames during
 playback. Focused actual CanvasKit/Frame tests cover seek/reseek, transparency
 and mixed image order. The connected sender/receiver menu browser workflow
-remains unfinished.
+also saves a portable archive, opens it in a fresh receiver, exports real MP4
+and verifies presented pixels after decoding, then reopens the project offline.
 
 The engine companion adapter presents 4,096-frame stereo Float32 storage chunks
 on the saved Motion project's native sample rate, including a short terminal
@@ -125,6 +139,12 @@ Its deferred export strategy authenticates the owning project snapshot and
 injects only its linked generated sources into the shared offline exporter.
 Real Frame finishing tests cover random seek order, changed pixels, cleanup and
 forged/stale authority refusal. Native delivery remains unqualified.
+
+Reopened export resolves virtual timing tables from retained canonical owner
+history without installing encoded proxy assets in the ordinary media cache.
+Generated-only video plans require no encoded decoder. A silent reserved audio
+companion does not request an audio encoder; actual authored linked or ordinary
+audio keeps the normal codec admission and muxing path.
 
 ## Portable archive foundations
 
@@ -163,7 +183,10 @@ cancellation, reopening, pending updates, Undo/Resume, Conform, portable import
 rollback and atomic owner/history publication. Actual
 CanvasKit tests qualify saved-revision rendering, arbitrary seeks and retained
 image bytes after receiver reopen; PCM tests read retained WAV bytes after
-reopen. These foundations do not close M10's connected editor, native delivery
-or cross-origin isolation gates.
+reopen. The dedicated connected-editor gate serves the production-shaped sender,
+receiver and bridge headers and exercises actual File-menu pairing. Interactive
+native watcher evidence is recorded in
+[desktop saved links](motionscaper-desktop-saved-links.md). Native generated-source
+delivery and the remaining platform matrix remain incomplete release gates.
 
 No **Update AI assets** run is required; the assistance runtime closure is unchanged.
