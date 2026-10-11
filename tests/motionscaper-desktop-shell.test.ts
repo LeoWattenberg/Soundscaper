@@ -15,7 +15,7 @@ test('Motionscaper desktop identity and advertised native capabilities are isola
 	assert.equal(MOTIONSCAPER_DESKTOP.updateTagPrefix, 'motionscaper-v');
 	const environment = motionscaperDesktopEnvironment('0.1.0-alpha.1', 'linux');
 	assert.equal(environment.productId, 'motionscaper');
-	assert.deepEqual(environment.nativeCapabilities, []);
+	assert.deepEqual(environment.nativeCapabilities, ['project-files-v1']);
 	assert.equal(motionscaperDesktopDocumentUrl('motionscaper-app://bundle/de/index.html'), true);
 	for (const url of ['soundscaper-app://bundle/', 'framescaper-app://bundle/', 'https://motionscaper.org/', 'motionscaper-app://bundle/assets/index.html', 'motionscaper-app://other/']) {
 		assert.equal(motionscaperDesktopDocumentUrl(url), false, url);

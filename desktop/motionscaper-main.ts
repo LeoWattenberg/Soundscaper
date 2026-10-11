@@ -7,6 +7,9 @@ import {
 	MOTIONSCAPER_DESKTOP as identity, MOTIONSCAPER_DESKTOP_CHANNELS as channels,
 	motionscaperDesktopDocumentUrl, motionscaperDesktopEnvironment,
 } from './motionscaper-desktop-contract.ts';
+import { MOTIONSCAPER_FILE_METHODS } from '../src/motionscaper/desktop-file-contract.ts';
+import { createMotionscaperFileAuthority } from './motionscaper-file-authority.ts';
+import { dispatchMotionscaperFileCall } from './motionscaper-file-ipc.ts';
 import { createMotionscaperProtocolHandler } from './motionscaper-protocol.ts';
 
 interface ProductMetadata {
@@ -52,6 +55,24 @@ async function start(): Promise<void> {
 			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper caller.');
 		return motionscaperDesktopEnvironment(metadata.applicationVersion, process.platform);
 	});
+	const files = createMotionscaperFileAuthority({
+		chooseOpen: async () => {
+			if (!window) throw new Error('Motionscaper has no active document window.');
+			const selection = await dialog.showOpenDialog(window, { title: 'Open Motionscaper project', properties: ['openFile'], filters: [{ name: 'Scape project', extensions: ['mscape', 'scape', 'fscape', 'sscape'] }] });
+			return selection.canceled ? null : selection.filePaths[0] ?? null;
+		},
+		chooseSave: async ({ suggestedName, defaultPath }) => {
+			if (!window) throw new Error('Motionscaper has no active document window.');
+			const selection = await dialog.showSaveDialog(window, { title: 'Save Motionscaper project', defaultPath: defaultPath ?? suggestedName, filters: [{ name: 'Motionscaper project', extensions: ['mscape'] }] });
+			return selection.canceled ? null : selection.filePath ?? null;
+		},
+	});
+	ipcMain.handle(channels.projectFiles, (event: Electron.IpcMainInvokeEvent, method: unknown, request: unknown) => {
+		if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
+			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper file caller.');
+		return dispatchMotionscaperFileCall(files, method, request);
+	});
+	app.on('before-quit', () => { void files.dispose().catch((error: unknown) => { console.error(error); }); });
 	Menu.setApplicationMenu(Menu.buildFromTemplate([
 		...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
 		{ label: 'File', submenu: [{ role: 'close' }] },
@@ -97,12 +118,14 @@ async function smokeShell(target: BrowserWindow): Promise<void> {
 			if (Date.now() >= deadline) throw new Error('Motionscaper shell did not mount.');
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
-		return { environment: await window.scapeDesktop.v1.getEnvironment(),
+		const fileRejection = await window.scapeDesktop.v1.motionFiles.read({ token: 'unadmitted', offset: 0, length: 1 }).then(() => '', (error) => String(error));
+		return { fileRejection, environment: await window.scapeDesktop.v1.getEnvironment(),
 			foreignBridge: !!(window.soundscaperDesktop || window.framescaperDesktop),
+			fileBridge: ${JSON.stringify(MOTIONSCAPER_FILE_METHODS)}.every((method) => typeof window.scapeDesktop.v1.motionFiles[method] === 'function'),
 			origin: location.protocol + '//' + location.host };
 	})()`);
 	if (!evidence || typeof evidence !== 'object' || !('foreignBridge' in evidence)
-		|| evidence.foreignBridge !== false || !('origin' in evidence) || evidence.origin !== identity.origin) {
+		|| evidence.foreignBridge !== false || !('fileRejection' in evidence) || !String(evidence.fileRejection).includes('read capability') || !('fileBridge' in evidence) || evidence.fileBridge !== true || !('origin' in evidence) || evidence.origin !== identity.origin) {
 		throw new Error('Motionscaper shell native isolation smoke failed.');
 	}
 	console.log(`MOTIONSCAPER_SHELL_SMOKE ${JSON.stringify(evidence)}`);

@@ -26,8 +26,8 @@ export async function createMotionscaperStageInventory(root) {
 export async function verifyMotionscaperDesktopStage(root, targetId) {
 	const stage = JSON.parse(await readFile(join(root, 'stage-manifest.json'), 'utf8'));
 	if (stage?.schemaVersion !== 1 || stage.productId !== 'motionscaper'
-		|| stage.nativeServiceProfile !== 'motionscaper-shell-v1'
-		|| JSON.stringify(stage.nativeCapabilities) !== '[]'
+		|| stage.nativeServiceProfile !== 'motionscaper-desktop-v1'
+		|| JSON.stringify(stage.nativeCapabilities) !== '["project-files-v1"]'
 		|| `${stage.target?.platform}-${stage.target?.arch}` !== targetId) {
 		throw new Error('Motionscaper shell stage identity, target, or native admission is invalid.');
 	}

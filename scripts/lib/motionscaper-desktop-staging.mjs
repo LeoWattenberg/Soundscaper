@@ -42,10 +42,10 @@ export async function prepareMotionscaperDesktop({ repositoryRoot, buildRoot, pr
 	});
 	const [platform, arch] = target.id.split('-');
 	await writeJson(join(buildRoot, 'stage-manifest.json'), {
-		schemaVersion: 1, productId: 'motionscaper', nativeServiceProfile: 'motionscaper-shell-v1',
+		schemaVersion: 1, productId: 'motionscaper', nativeServiceProfile: 'motionscaper-desktop-v1',
 		applicationVersion: productMetadata.applicationVersion,
 		applicationVersionChannel: productMetadata.applicationVersionChannel, releaseChannel: productMetadata.releaseChannel,
-		sourceRevision, target: { platform, arch }, nativeCapabilities: [], desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		sourceRevision, target: { platform, arch }, nativeCapabilities: ['project-files-v1'], desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		files: await createMotionscaperStageInventory(buildRoot),
 	});
 	await verifyMotionscaperDesktopStage(buildRoot, target.id);
