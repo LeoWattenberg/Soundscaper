@@ -9,11 +9,17 @@ import { fileURLToPath } from 'node:url';
 import type { FramescaperCompositionLinkRepository } from '../../src/framescaper/editor-composition-link-repository.ts';
 import type { MotionCompositionOffer } from '../../src/common/editor/motion-link-protocol.ts';
 import type { MotionAsset } from '../../src/common/editor/motion-asset.ts';
+import type { FramescaperCompositionLinkOwnerRepository } from '../../src/framescaper/editor-composition-link-owner-repository.ts';
+import type { FramescaperSuccessorHistory } from '../../src/framescaper/editor-project-successor-history.ts';
+import type { MotionCompositionLinkState } from '../../src/common/editor/motion-link-state.ts';
 
 interface Fixture {
 	open(): Promise<FramescaperCompositionLinkRepository>; offer(revision: number, width?: number): MotionCompositionOffer;
 	bytes: Uint8Array<ArrayBuffer>; asset: MotionAsset; database(): Promise<IDBDatabase>;
 	archive(): Promise<{ archive: Blob; projectId: string; sourceId: string; digest: string }>;
+	owner(): Promise<FramescaperCompositionLinkOwnerRepository>;
+	accept(history: FramescaperSuccessorHistory, state: MotionCompositionLinkState, sourceId: string): FramescaperSuccessorHistory;
+	undo(history: FramescaperSuccessorHistory): FramescaperSuccessorHistory;
 }
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -37,6 +43,8 @@ import { migrateFramescaperSuccessorProject } from ${source('src/framescaper/edi
 import { createFramescaperCompositionLink } from ${source('src/framescaper/editor-project-successor-link.ts')};
 import { digestFramescaperMigrationArchive } from ${source('src/framescaper/editor-project-successor-archive.ts')};
 import { exportFramescaperLinkedSuccessorArchive } from ${source('src/framescaper/editor-project-successor-linked-archive.ts')};
+import { openFramescaperCompositionLinkOwnerRepository } from ${source('src/framescaper/editor-composition-link-owner-repository.ts')};
+import { executeFramescaperSuccessorHistory, undoFramescaperSuccessorHistory } from ${source('src/framescaper/editor-project-successor-history.ts')};
 const bytes = new Uint8Array([1,2,3,4]); const sha256 = digestScapeBytes(bytes);
 const asset = { id: 'image', kind: 'image', name: 'Image', mimeType: 'image/png', width: 1, height: 1, hasAlpha: true, sha256, byteLength: bytes.length, storageKey: 'motion-sha256:' + sha256 };
 async function archive() {
@@ -51,7 +59,8 @@ async function archive() {
  const archive = await exportFramescaperLinkedSuccessorArchive({id:frame.id,project,originalArchive,archiveDigest:await digestFramescaperMigrationArchive(originalArchive)},{readAsset:async()=>({size:bytes.length,stream:()=>new Blob([bytes]).stream()})});
  return {archive,projectId:frame.id,sourceId:image.source.id,digest:snapshot.digest};
 }
-globalThis.motionLinkFixture = { bytes, asset, archive, open: () => openFramescaperCompositionLinkRepository({line:'successor'}), database: () => openFramescaperSuccessorDatabase(indexedDB,'successor'),
+function accept(history,state,sourceId) { return executeFramescaperSuccessorHistory(history,{type:'composition-link/replace',sourceId,expectedDigest:history.present.compositionLinks.find(link=>link.sourceId===sourceId)?.acceptedDigest??null,link:createFramescaperCompositionLink(sourceId,state.accepted.compositionId,state.accepted.revision),commands:[]},{now:'2026-10-11T00:00:00.000Z'}); }
+globalThis.motionLinkFixture = { bytes, asset, archive, accept, undo: history=>undoFramescaperSuccessorHistory(history,{now:'2026-10-11T00:00:00.000Z'}), owner:()=>openFramescaperCompositionLinkOwnerRepository({line:'successor'}), open: () => openFramescaperCompositionLinkRepository({line:'successor'}), database: () => openFramescaperSuccessorDatabase(indexedDB,'successor'),
  offer: (revision, width = 1920) => createMotionCompositionOffer('main', createMotionscaperRevision({...createMotionscaperProject({id:'motion',compositionId:'main',title:'Revision ' + revision,width}),revision,assets:[asset]})) };
 `);
 	await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', build: { outDir: output, emptyOutDir: true, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
@@ -127,4 +136,22 @@ test('M10 real storage imports a portable linked project atomically and recovers
 		return { failure, before, id: imported.id, expectedId: portable.projectId, digest: loaded?.accepted.revision.digest, expectedDigest: portable.digest, bytes };
 	});
 	expect(result.failure).toBe('QuotaExceededError'); expect(result.before).toEqual([0, 0, 0, 0, 0, 0]); expect(result.id).toBe(result.expectedId); expect(result.digest).toBe(result.expectedDigest); expect(result.bytes).toEqual([1, 2, 3, 4]);
+});
+
+test('M10 real owner transactions keep history and accepted links together through failure, Undo and offline reopen', async ({ page }) => {
+	const result = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionLinkFixture: Fixture }).motionLinkFixture; const portable = await fixture.archive(); const receiver = await fixture.open(); await receiver.importArchive(portable.archive); await receiver.close();
+		const owner = await fixture.owner(); const initial = await owner.loadOwner(portable.projectId); if (!initial) throw new Error('Imported owner is unavailable.');
+		const options = { readAsset: async () => ({ size: 4, stream: () => new Blob([fixture.bytes]).stream() }) };
+		const prepared = await owner.prepareReceive(portable.projectId, portable.sourceId, fixture.offer(1), options); const history = fixture.accept(initial.history, prepared.state, portable.sourceId);
+		const original = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<typeof original>) { if (this.name === 'owners') throw new DOMException('Owner write failed', 'QuotaExceededError'); return original.apply(this, args); };
+		let failure = '';
+		try { await prepared.commit({ expectedOwnerDigest: initial.ownerDigest, project: history.present, history }); } catch (error) { failure = error instanceof Error ? error.name : 'failure'; } finally { IDBObjectStore.prototype.put = original; }
+		const preserved = await owner.loadOwner(portable.projectId); const retry = await owner.prepareReceive(portable.projectId, portable.sourceId, fixture.offer(1), options); const retried = fixture.accept(initial.history, retry.state, portable.sourceId);
+		const accepted = await retry.commit({ expectedOwnerDigest: initial.ownerDigest, project: retried.present, history: retried });
+		const undone = fixture.undo(accepted.history); const previous = initial.linkStates[0]!.state.accepted; const restore = await owner.prepareTransition(portable.projectId, portable.sourceId, { type: 'restore', offer: previous });
+		const paused = await restore.commit({ expectedOwnerDigest: accepted.ownerDigest, project: undone.present, history: undone }); await owner.close(); const reopened = await fixture.owner(); const loaded = await reopened.loadOwner(portable.projectId); await reopened.close();
+		return { failure, initial: initial.ownerDigest, preserved: preserved?.ownerDigest, history: accepted.history.undoStack.length, accepted: accepted.project.compositionLinks[0]?.acceptedRevision, paused: paused.linkStates[0]?.state.paused, restored: loaded?.project.compositionLinks[0]?.acceptedDigest, expected: portable.digest, same: loaded?.ownerDigest === paused.ownerDigest };
+	});
+	expect(result.failure).toBe('QuotaExceededError'); expect(result.preserved).toBe(result.initial); expect(result.history).toBe(1); expect(result.accepted).toBe(1); expect(result.paused).toBe(true); expect(result.restored).toBe(result.expected); expect(result.same).toBe(true);
 });

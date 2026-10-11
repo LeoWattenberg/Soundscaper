@@ -16,6 +16,8 @@ import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js
 import { createFramescaperCompositionLink, normalizeFramescaperCompositionLink } from '../src/framescaper/editor-project-successor-link.ts';
 import { openFramescaperSuccessorRepository } from '../src/framescaper/editor-project-successor-repository.ts';
 import { inspectFramescaperMigrationArchive, exportFramescaperSuccessorArchive } from '../src/framescaper/editor-project-successor-archive.ts';
+import { openFramescaperCompositionLinkOwnerRepository } from '../src/framescaper/editor-composition-link-owner-repository.ts';
+import { migrateFramescaperSuccessorProject } from '../src/framescaper/editor-project-successor.ts';
 
 async function archive(value: unknown, assets: readonly { descriptor: ScapeAssetDescriptor; body: Uint8Array }[] = []): Promise<Blob> {
 	const json = JSON.stringify(value);
@@ -115,4 +117,18 @@ test('successor migration verifies and exports complete image bytes with unchang
 	const damaged = fixture.bytes.slice(); damaged[damaged.length - 1] ^= 1;
 	await assert.rejects(repository.stage(await archive(project, [{ descriptor, body: damaged }])), /digest/iu);
 	repository.close();
+});
+
+test('successor migration and fresh owner creation cannot claim each other’s pending or active identity', async () => {
+	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory; const project = createFramescaperProject();
+	const migration = await openFramescaperSuccessorRepository({ indexedDB, line: 'successor' }); const owner = await openFramescaperCompositionLinkOwnerRepository({ indexedDB, line: 'successor' });
+	try {
+		await migration.stage(await archive(project));
+		await assert.rejects(owner.saveOwner(migrateFramescaperSuccessorProject(project), null), /pending/u);
+		await migration.complete(project.id); const retained = await owner.loadOwner(project.id); assert.ok(retained);
+		assert.equal(retained.project.id, project.id); await assert.rejects(owner.saveOwner(retained.project, null), /changed/u);
+		const fresh = createFramescaperProject(); const receipt = await owner.saveOwner(migrateFramescaperSuccessorProject(fresh), null);
+		await assert.rejects(migration.stage(await archive(fresh)), /another active owner/u); assert.deepEqual(await owner.loadOwner(fresh.id), receipt);
+		assert.equal(await migration.load(fresh.id), null);
+	} finally { migration.close(); await owner.close(); }
 });

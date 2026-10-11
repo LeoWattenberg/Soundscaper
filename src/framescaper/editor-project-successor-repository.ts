@@ -19,7 +19,7 @@ export async function openFramescaperSuccessorRepository(options: { readonly ind
 	if (!factory) throw new Error('Durable IndexedDB storage is required for successor migration.');
 	const database = await openFramescaperSuccessorDatabase(factory, options.line);
 	async function run<T>(mode: IDBTransactionMode, action: (transaction: IDBTransaction) => Promise<T>): Promise<T> {
-		const transaction = database.transaction(['pending', 'projects'], mode);
+		const transaction = database.transaction(['pending', 'projects', 'owners'], mode);
 		const settled = new Promise<void>((resolve, reject) => {
 			transaction.oncomplete = () => resolve();
 			transaction.onabort = () => reject(transaction.error ?? new Error('Successor migration transaction aborted.'));
@@ -38,6 +38,7 @@ export async function openFramescaperSuccessorRepository(options: { readonly ind
 					const existing = await request(transaction.objectStore(name).get(record.id)) as FramescaperMigrationRecord | undefined;
 					if (existing) { assertSameArchive(existing, record); return existing; }
 				}
+				if (await request(transaction.objectStore('owners').get(record.id)) !== undefined) throw new RangeError('Successor migration identity already belongs to another active owner.');
 				await request(transaction.objectStore('pending').add(record)); return record;
 			});
 		},
@@ -47,6 +48,7 @@ export async function openFramescaperSuccessorRepository(options: { readonly ind
 				const pending = await request(transaction.objectStore('pending').get(id)) as FramescaperMigrationRecord | undefined;
 				if (committed) { if (pending) assertSameArchive(committed, pending); return committed; }
 				if (!pending) throw new RangeError('Successor migration has no prepared original archive.');
+				if (await request(transaction.objectStore('owners').get(id)) !== undefined) throw new RangeError('Successor migration identity changed before publication.');
 				const record = { ...pending, project: normalizeFramescaperSuccessorProject(pending.project) };
 				await request(transaction.objectStore('projects').add(record));
 				await request(transaction.objectStore('pending').delete(id)); return record;

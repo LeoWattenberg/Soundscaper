@@ -12,8 +12,8 @@ export type FramescaperLinkedArchiveReceiveOptions = Omit<FramescaperLinkedArchi
 export async function persistFramescaperLinkedSuccessorArchive(database: IDBDatabase, assets: MotionAssetRepository, archive: Blob, options: FramescaperLinkedArchiveReceiveOptions): Promise<FramescaperMigrationRecord> {
 	const stages = new Map<string, MotionAssetStaging>();
 	return importFramescaperLinkedSuccessorArchive(archive, { ...options, async begin(project) {
-		await transact(database, ['projects', 'pending'], 'readonly', async (stores) => {
-			if (await request(stores.projects.get(project.id)) !== undefined || await request(stores.pending.get(project.id)) !== undefined) throw new RangeError('Linked archive owner already exists; import cannot replace retained intent.');
+		await transact(database, ['owners', 'projects', 'pending'], 'readonly', async (stores) => {
+			if (await request(stores.owners.get(project.id)) !== undefined || await request(stores.projects.get(project.id)) !== undefined || await request(stores.pending.get(project.id)) !== undefined) throw new RangeError('Linked archive owner already exists; import cannot replace retained intent.');
 		});
 		return {
 			async write(asset, bytes) {
@@ -22,9 +22,9 @@ export async function persistFramescaperLinkedSuccessorArchive(database: IDBData
 			},
 			async finish(asset) { const stage = stages.get(asset.sha256); if (!stage) throw new Error('Linked archive staging is unavailable.'); await stage.finish(); },
 			async commit(record) {
-				await transact(database, ['projects', 'pending', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'], 'readwrite', async (stores) => {
+				await transact(database, ['owners', 'projects', 'pending', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'], 'readwrite', async (stores) => {
 					options.signal?.throwIfAborted();
-					if (await request(stores.projects.get(record.id)) !== undefined || await request(stores.pending.get(record.id)) !== undefined) throw new RangeError('Linked archive owner changed during import.');
+					if (await request(stores.owners.get(record.id)) !== undefined || await request(stores.projects.get(record.id)) !== undefined || await request(stores.pending.get(record.id)) !== undefined) throw new RangeError('Linked archive owner changed during import.');
 					for (const stage of stages.values()) await stage.publish(stores);
 					for (const link of record.project.compositionLinks) {
 						for (const asset of link.snapshot.project.assets) await assets.assertAvailable(stores, asset);

@@ -3,9 +3,8 @@ import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import { normalizeMotionCompositionOffer, type MotionCompositionOffer } from '../common/editor/motion-link-protocol.ts';
 import { transferMotionCompositionOffer } from '../common/editor/motion-link-transfer.ts';
-import { createMotionCompositionLinkState, normalizeMotionCompositionLinkState, receiveMotionCompositionUpdate, conformMotionCompositionLink, restoreMotionCompositionLink, resumeMotionCompositionLink, type MotionCompositionLinkState } from '../common/editor/motion-link-state.ts';
-import { verifyMotionscaperRevision, type MotionscaperRevision } from '../common/editor/motion-project-revision.ts';
-import { motionDigest, motionId, motionRecord } from '../common/editor/motion-values.ts';
+import { createMotionCompositionLinkState, receiveMotionCompositionUpdate, conformMotionCompositionLink, restoreMotionCompositionLink, resumeMotionCompositionLink, type MotionCompositionLinkState } from '../common/editor/motion-link-state.ts';
+import type { MotionscaperRevision } from '../common/editor/motion-project-revision.ts';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor/storage/motion-asset-repository.ts';
 import { reclaimExpiredMotionStaging } from '../common/editor/storage/motion-asset-staging.ts';
@@ -13,10 +12,11 @@ import { assertFramescaperSuccessorLine } from './editor-project-successor.ts';
 import { openFramescaperSuccessorDatabase } from './editor-project-successor-database.ts';
 import { persistFramescaperLinkedSuccessorArchive, type FramescaperLinkedArchiveReceiveOptions } from './editor-project-successor-linked-import-repository.ts';
 import type { FramescaperMigrationRecord } from './editor-project-successor-archive.ts';
+import { assertFramescaperLinkClosure, loadFramescaperLinkState, putFramescaperLinkState as putState, loadFramescaperLinkRevision, framescaperLinkStateKey as stateKey, framescaperLinkRevisionKey as revisionKey } from './editor-composition-link-records.ts';
 
 type Stores = Readonly<Record<string, IDBObjectStore>>;
 type ReceiveOptions = Readonly<{ readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>; signal?: AbortSignal; maximumBytes?: number }>;
-const CUSTODY_STORES = ['linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'] as const;
+const CUSTODY_STORES = ['owners', 'projects', 'linkStates', 'linkRevisions', 'assets', 'chunks', 'staging'] as const;
 export interface FramescaperCompositionLinkRepository {
 	importArchive(archive: Blob, options?: FramescaperLinkedArchiveReceiveOptions): Promise<FramescaperMigrationRecord>;
 	receive(ownerProjectId: string, sourceId: string, value: unknown, options: ReceiveOptions): Promise<MotionCompositionLinkState>;
@@ -38,30 +38,13 @@ export async function openFramescaperCompositionLinkRepository(options: Readonly
 	let closed = false;
 	const getDatabase = () => { if (closed) throw new Error('Framescaper composition link repository is closed.'); return database; };
 	const assets = new MotionAssetRepository(() => Promise.resolve(getDatabase()));
-	async function assertClosure(stores: Stores, offer: MotionCompositionOffer): Promise<void> {
-		for (const asset of offer.revision.project.assets) await assets.assertAvailable(stores, asset);
-	}
-	async function loadState(stores: Stores, ownerProjectId: string, sourceId: string): Promise<MotionCompositionLinkState | null> {
-		const value: unknown = await request(stores.linkStates.get(stateKey(ownerProjectId, sourceId)));
-		if (value === undefined) return null;
-		const record = motionRecord(value, ['key', 'ownerProjectId', 'sourceId', 'state'], 'stored composition link');
-		if (record.key !== stateKey(ownerProjectId, sourceId) || record.ownerProjectId !== ownerProjectId || record.sourceId !== sourceId) throw new RangeError('Stored composition link ownership differs from its requested identity.');
-		const state = normalizeMotionCompositionLinkState(record.state); await assertClosure(stores, state.accepted);
-		if (state.pending) await assertClosure(stores, state.pending); return state;
-	}
-	async function putState(stores: Stores, ownerProjectId: string, sourceId: string, state: MotionCompositionLinkState): Promise<void> {
-		await request(stores.linkStates.put({ key: stateKey(ownerProjectId, sourceId), ownerProjectId, sourceId, state }));
-	}
-	async function loadRevision(stores: Stores, projectId: string, digest: string): Promise<MotionscaperRevision | null> {
-		const value: unknown = await request(stores.linkRevisions.get(revisionKey(projectId, digest)));
-		if (value === undefined) return null;
-		const record = motionRecord(value, ['key', 'snapshot'], 'stored linked revision'); const snapshot = verifyMotionscaperRevision(record.snapshot);
-		if (record.key !== revisionKey(projectId, digest) || snapshot.projectId !== projectId || snapshot.digest !== digest) throw new RangeError('Stored linked revision identity differs from its requested identity.');
-		for (const asset of snapshot.project.assets) await assets.assertAvailable(stores, asset); return snapshot;
-	}
+	const assertClosure = (stores: Stores, offer: MotionCompositionOffer) => assertFramescaperLinkClosure(stores, assets, offer);
+	const loadState = (stores: Stores, ownerProjectId: string, sourceId: string) => loadFramescaperLinkState(stores, assets, ownerProjectId, sourceId);
+	const loadRevision = (stores: Stores, projectId: string, digest: string) => loadFramescaperLinkRevision(stores, assets, projectId, digest);
 	async function transition(ownerProjectId: string, sourceId: string, apply: (state: MotionCompositionLinkState, stores: Stores) => MotionCompositionLinkState | Promise<MotionCompositionLinkState>): Promise<MotionCompositionLinkState> {
 		stateKey(ownerProjectId, sourceId);
 		return transact(getDatabase(), CUSTODY_STORES, 'readwrite', async (stores) => {
+			await assertStandaloneOwner(stores, ownerProjectId);
 			const prior = await loadState(stores, ownerProjectId, sourceId); if (!prior) throw new RangeError('Composition link is unavailable.');
 			const next = await apply(prior, stores); if (next !== prior) await putState(stores, ownerProjectId, sourceId, next); return next;
 		});
@@ -73,6 +56,7 @@ export async function openFramescaperCompositionLinkRepository(options: Readonly
 			let result: MotionCompositionLinkState | undefined;
 			await transferMotionCompositionOffer(offer, { ...receiveOptions, async begin() {
 				await transact(getDatabase(), CUSTODY_STORES, 'readonly', async (stores) => {
+					await assertStandaloneOwner(stores, ownerProjectId);
 					const prior = await loadState(stores, ownerProjectId, sourceId); if (prior) receiveMotionCompositionUpdate(prior, offer);
 				});
 				return {
@@ -83,6 +67,7 @@ export async function openFramescaperCompositionLinkRepository(options: Readonly
 					async finish(asset) { const stage = stages.get(asset.sha256); if (!stage) throw new Error('Linked asset staging is unavailable.'); await stage.finish(); },
 					async commit() {
 						result = await transact(getDatabase(), CUSTODY_STORES, 'readwrite', async (stores) => {
+							await assertStandaloneOwner(stores, ownerProjectId);
 							receiveOptions.signal?.throwIfAborted();
 							const prior = await loadState(stores, ownerProjectId, sourceId);
 							const next = prior ? receiveMotionCompositionUpdate(prior, offer) : createMotionCompositionLinkState(offer);
@@ -113,5 +98,6 @@ export async function openFramescaperCompositionLinkRepository(options: Readonly
 		async close() { if (!closed) { closed = true; database.close(); } },
 	} satisfies FramescaperCompositionLinkRepository);
 }
-function stateKey(ownerProjectId: string, sourceId: string): string { return JSON.stringify([motionId(ownerProjectId), motionId(sourceId)]); }
-function revisionKey(projectId: string, digest: string): string { return JSON.stringify([motionId(projectId), motionDigest(digest)]); }
+async function assertStandaloneOwner(stores: Stores, id: string): Promise<void> {
+	if (await request(stores.owners.get(id)) !== undefined || await request(stores.projects.get(id)) !== undefined) throw new Error('An active composition link owner requires atomic owner/history publication.');
+}
