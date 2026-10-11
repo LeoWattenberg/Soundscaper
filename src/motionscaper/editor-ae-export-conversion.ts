@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { exportMotionAeGaussianEffects } from '../common/editor/motion-ae-gaussian-conversion.ts';
+import { normalizeMotionAeGaussianProfile, type MotionAeGaussianReview } from '../common/editor/motion-ae-gaussian-profile.ts';
 import { motionAeLayerBlend } from '../common/editor/motion-ae-layer-blend.ts';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionComposition, MotionLayer } from '../common/editor/motion-composition.ts';
@@ -50,7 +52,8 @@ function transform(layer: MotionLayer, id: string, comp: MotionComposition, repo
 	}) }];
 }
 /** Immutable, deterministic partial transfer. The companion archive must retain this exact source revision. */
-export function prepareMotionscaperAeExport(input: unknown, options: MotionAeProjectTextExport & MotionAeExpressionReview & MotionAeSceneReview = {}): PreparedMotionscaperAeExport {
+export function prepareMotionscaperAeExport(input: unknown, options: MotionAeProjectTextExport & MotionAeExpressionReview & MotionAeSceneReview & MotionAeGaussianReview = {}): PreparedMotionscaperAeExport {
+	const gaussianProfile = options.gaussianProfile ? normalizeMotionAeGaussianProfile(options.gaussianProfile) : null;
 	const revision = createMotionscaperRevision(input), project = revision.project, transferId = `motion-${revision.digest}`;
 	for (const binding of normalizeMotionAeFontBindings(options.fonts ?? [])) {
 		const retained = project.assets.find(asset => asset.id === binding.asset.id);
@@ -110,7 +113,7 @@ export function prepareMotionscaperAeExport(input: unknown, options: MotionAePro
 				sourceId = mediaIds.get(layer.assetId) ?? null;
 				if (sourceId) kind = 'footage'; else { enabled = false; add(layerId, 'media-mapping', 'The layer media is retained in original.mscape and is not admitted by this AE import subset.'); }
 			} else if (layer.kind !== 'null') { enabled = false; add(layerId, 'layer-kind', `Layer kind “${layer.kind}” becomes a disabled named null. Its full authored content remains in original.mscape.`); }
-			if (layer.effects.some(effect => effect.enabled)) add(layerId, 'compositing', 'Enabled effects are not mapped by this subset. Render the original composition to preserve their appearance.');
+			const effects = exportMotionAeGaussianEffects({ ...layer, id: layerId }, comp.frameRate, gaussianProfile, report);
 			const compositing = { preserveTransparency: false, collapseTransformation: false };
 			const blendMode = motionAeLayerBlend({ blendMode: layer.blendMode, threeD: layer.is3D, adjustment: false, compositing });
 			if (layer.blendMode !== 'normal') report.push({ scopeId: layerId, propertyPath: 'blendMode', status: blendMode ? 'editable' : 'unsupported', code: 'blend-mode', message: blendMode ? 'Named SDK blend mode is structurally mapped. Installed AE color, alpha and blend-space parity remain unqualified; use the complete rendered fallback when appearance must be retained.' : 'This blend mode or layer geometry is outside the reviewed subset. Normal blending is used in the partial exchange; exact authored intent remains in original.mscape and complete rendered fallback is available.' });
@@ -119,13 +122,13 @@ export function prepareMotionscaperAeExport(input: unknown, options: MotionAePro
 			if ([startTime, inPoint, outPoint].some(time => Math.abs(time) > 10800)) throw new RangeError('AE layer timing exceeds its documented ±three-hour range. Retain original.mscape or prepare timing within that host range.');
 			return { id: layerId, name: layer.name, kind, sourceId, parentId: layer.parentId === null ? null : layerIds.get(layer.parentId)!, matte: null,
 				startTime, inPoint, outPoint, stretch: validTiming ? 100 / scale : 100,
-				enabled, threeD: Boolean(sceneMapping), adjustment: false, blendMode: blendMode ?? 'normal', ...(!sceneMapping ? { compositing } : {}), ...(sceneMapping ? { scene: sceneMapping.scene } : {}), properties: sceneMapping?.properties ?? [...transform(layer, layerId, comp, report, options), ...(contentProperty ? [contentProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
+				enabled, threeD: Boolean(sceneMapping), adjustment: false, blendMode: blendMode ?? 'normal', ...(!sceneMapping ? { compositing, ...(effects.length ? { effectsActive: true } : {}) } : {}), ...(sceneMapping ? { scene: sceneMapping.scene } : {}), properties: sceneMapping?.properties ?? [...transform(layer, layerId, comp, report, options), ...(contentProperty ? [contentProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report), ...effects] };
 		});
 		return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: 1, frameRate: number(comp.frameRate),
 			duration: comp.durationFrames / number(comp.frameRate), displayStartTime: 0, background: comp.background.slice(0, 3) as [number, number, number], layers: exportMotionAeMattes(comp.layers, layers, report) };
 	});
 	const exchange = normalizeMotionAeExchange({ format: 'org.motionscaper.ae-exchange', version: 1, transferId,
 		producer: { application: 'motionscaper', version: '0.1.0-alpha.1', bridgeVersion: '0.1.0' }, source: { name: project.title, revisionDigest: revision.digest },
-		color: { workingSpace: '', linearBlending: true, bitsPerChannel: 32 }, footage, compositions, report });
+		...(gaussianProfile ? { gaussianProfile } : {}), color: { workingSpace: '', linearBlending: true, bitsPerChannel: 32 }, footage, compositions, report });
 	const prepared = freezeMotionValue({ revision, exchange, media }); preparedExports.add(prepared); return prepared;
 }

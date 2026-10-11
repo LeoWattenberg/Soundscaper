@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { convertMotionAeGaussianEffects } from '../common/editor/motion-ae-gaussian-conversion.ts';
+import { normalizeMotionAeGaussianProfile, type MotionAeGaussianReview } from '../common/editor/motion-ae-gaussian-profile.ts';
 import { motionAeLayerBlend } from '../common/editor/motion-ae-layer-blend.ts';
 import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
 import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeReportEntry } from '../common/editor/motion-ae-exchange-types.ts';
@@ -27,8 +29,10 @@ export interface MotionscaperAeConversion {
 /** Pure draft preparation. The import controller must verify every retained body before publication. */
 export function convertMotionscaperAeExchange(input: unknown, options: Readonly<{
 	projectId: string; allocateId: () => string; bindings: readonly MotionAeMediaBinding[]; primaryCompositionId?: string;
-} & MotionAeProjectTextImport & MotionAeExpressionReview & MotionAeSceneReview>): MotionscaperAeConversion {
+} & MotionAeProjectTextImport & MotionAeExpressionReview & MotionAeSceneReview & MotionAeGaussianReview>): MotionscaperAeConversion {
 	const exchange = normalizeMotionAeExchange(input), projectId = motionId(options.projectId);
+	const gaussianProfile = options.gaussianProfile ? normalizeMotionAeGaussianProfile(options.gaussianProfile) : null;
+	if (gaussianProfile && JSON.stringify(gaussianProfile) !== JSON.stringify(exchange.gaussianProfile)) throw new Error('Selected Gaussian profile must match the exact profile retained in this exchange.');
 	if (!exchange.compositions.length) throw new Error('The AE exchange contains no compositions.');
 	const report: MotionAeReportEntry[] = [...exchange.report];
 	const issue = (scopeId: string, code: string, message: string) => { report.push({ scopeId, propertyPath: '', status: 'unsupported', code, message }); };
@@ -113,6 +117,7 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 				// All imported property keys use composition frames. Rebase source timing explicitly to the same origin.
 				sourceStart: clock(-layer.startTime * timeScale, layer.id), timeScale: clock(timeScale, layer.id),
 				transform: scene?.transform ?? convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames, options), blendMode,
+				effects: convertMotionAeGaussianEffects(layer, frameRate, gaussianProfile, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report),
 				masks: convertMotionAeMasks(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report),
 				matte: layer.matte === null ? null : { layerId: ids.get(layer.matte.layerId)!, mode: layer.matte.type } };
 			const offset = textOffsets.get(layer.id);

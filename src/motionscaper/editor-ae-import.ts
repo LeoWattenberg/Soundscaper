@@ -5,6 +5,7 @@ import { MOTION_MEDIA_IMPORT_MAXIMUM_BYTES } from '../common/editor/motion-media
 import { admitMotionAeSelectedFonts, type MotionAeSelectedFont, type MotionAeFontDecoder } from '../common/editor/motion-ae-font-import.ts';
 import type { MotionAeTextImportOptions } from '../common/editor/motion-ae-text-conversion.ts';
 import type { MotionAeSceneReview } from '../common/editor/motion-ae-scene-conversion.ts';
+import type { MotionAeGaussianReview } from '../common/editor/motion-ae-gaussian-profile.ts';
 import type { MotionAeExpressionReview } from '../common/editor/motion-ae-expression-conversion.ts';
 import type { MotionAeFontBinding } from '../common/editor/motion-ae-text-fonts.ts';
 import type { MotionImportedMedia, prepareMotionMedia } from '../common/editor/motion-media-import.ts';
@@ -18,7 +19,7 @@ import { normalizeMotionscaperProject } from './editor-project-validation.ts';
 
 export const MOTION_AE_IMPORT_MAXIMUM_SELECTED_BYTES = 256 * 1024 * 1024;
 export interface MotionAeSelectedFile { readonly path: string; readonly file: Blob }
-export interface MotionscaperAeImportOptions extends MotionAeExpressionReview, MotionAeSceneReview {
+export interface MotionscaperAeImportOptions extends MotionAeExpressionReview, MotionAeSceneReview, MotionAeGaussianReview {
 	readonly projectId?: string; readonly allocateId?: () => string; readonly primaryCompositionId?: string;
 	/** Narrow metadata decoder seam; publication independently verifies returned body hashes. */
 	readonly prepareMedia?: typeof prepareMotionMedia;
@@ -69,7 +70,7 @@ export async function prepareMotionscaperAeImport(manifest: Blob, files: readonl
 		if (!(imported.body instanceof Blob) || imported.body.size !== file.size || imported.asset.byteLength !== file.size) throw new Error('AE media decoder returned inconsistent retained bytes.');
 		bindings.push({ footageId: source.id, asset: imported.asset }); media.push(imported);
 	}
-	const conversion = convertMotionscaperAeExchange(exchange, { projectId, allocateId, bindings, fonts, text: options.text, primaryCompositionId: options.primaryCompositionId, translateScalarExpressions: options.translateScalarExpressions, scene: options.scene });
+	const conversion = convertMotionscaperAeExchange(exchange, { projectId, allocateId, bindings, fonts, text: options.text, primaryCompositionId: options.primaryCompositionId, translateScalarExpressions: options.translateScalarExpressions, scene: options.scene, gaussianProfile: options.gaussianProfile });
 	const project = normalizeMotionscaperProject({ ...conversion.project, interchangeCustody: {
 		format: 'org.motionscaper.ae-project-custody', version: 1, exchange, report: conversion.report,
 		...(fonts.length ? { fonts: fonts.map(binding => ({ postScriptName: binding.postScriptName, assetId: binding.asset.id, sha256: binding.asset.sha256, byteLength: binding.asset.byteLength })) } : {}),
