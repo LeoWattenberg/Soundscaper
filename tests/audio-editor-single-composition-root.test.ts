@@ -62,6 +62,8 @@ test('only the product editor controllers construct the shared controller', () =
 		.sort();
 	assert.deepEqual(constructors, [
 		'src/framescaper/editor-controller.ts',
+		// The explicitly selected successor line owns its v2 environment and session.
+		'src/framescaper/editor-successor-controller.ts',
 		'src/soundscaper/editor-controller.ts',
 	]);
 });

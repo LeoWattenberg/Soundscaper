@@ -86,6 +86,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.SCAPE_MAC_SIGNING == 'true' && 'true' || 'false' }}
       - name: Install the Linux virtual display
         if: runner.os == 'Linux'
+        timeout-minutes: 10
         run: bash scripts/ci-apt-install.sh xvfb
       - name: Preserve the packaged Linux sandbox
         if: runner.os == 'Linux'
