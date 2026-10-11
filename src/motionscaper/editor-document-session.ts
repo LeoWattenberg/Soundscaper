@@ -93,10 +93,12 @@ export class MotionscaperDocumentSession {
 		});
 	}
 	async #edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[]): Promise<void> {
-		applyMotionscaperCommands(this.#requireProject(), commands);
+		const candidate = applyMotionscaperCommands(this.#requireProject(), commands);
 		for (const { asset, body } of assets) await this.#store.putAsset(asset, body);
+		// Retain the complete descriptor closure before any observer can see the edit.
+		await this.#store.saveRecovery(candidate, this.#snapshot.savedDigest);
 		this.#history!.commit(commands);
-		await this.#recover();
+		this.#update({ dirty: true });
 	}
 	edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[] = []): Promise<void> {
 		return this.#run(() => this.#edit(commands, assets));
