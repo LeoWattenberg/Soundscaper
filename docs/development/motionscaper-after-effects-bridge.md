@@ -13,6 +13,12 @@ That page designates the [After Effects Scripting Guide](https://ae-scripting.do
 for the API. The bridge will not change those application preferences, parse
 binary `.aep` projects, or claim native AE plug-in compatibility.
 
+A [pinned review of Storytold and the external AEP format candidates](motionscaper-aep-native-format-research.md)
+records the unmerged EffectCraft importer, py-aep's experimental binary writer,
+and a bounded Rust reader. Direct native-format support remains separate
+follow-on feasibility work; those projects are not adopted dependencies or
+Motionscaper compatibility evidence.
+
 ## Editor workflow
 
 **File > After Effects Bridge** opens the lazy bridge dialog, including before

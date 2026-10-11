@@ -97,6 +97,7 @@ belong in Git history, not in the maintained documentation set.
 - [Motionscaper AE editable shape staging](development/motionscaper-ae-shape-qualification.md).
 - [Motionscaper AE editable text staging](development/motionscaper-ae-text-qualification.md).
 - [Motionscaper After Effects bridge](development/motionscaper-after-effects-bridge.md).
+- [Direct After Effects format research](development/motionscaper-aep-native-format-research.md).
 - [Motionscaper composition link foundations](development/motionscaper-composition-links.md).
 - [Desktop saved Motionscaper links](development/motionscaper-desktop-saved-links.md).
 - [Linux packaged qualification gate](development/motionscaper-linux-ci-qualification.md).
