@@ -19,9 +19,11 @@ import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-por
 import type { PhotoLibraryDevelopMaskRasterPortV1 } from '../../photo-library-develop-mask-raster-port-v1.ts';
 import { capturePhotoDevelopExecutionContextV2, capturePhotoLibraryDevelopPortV2 } from '../../controller/shared/photo-library-develop-command-v2.ts';
 import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-brush-mask-copy.ts';
+import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
 import './photo-develop.css';
 
 const PhotoDevelopBrushMaskDialogV1 = lazy(() => import('./PhotoDevelopBrushMaskDialogV1.tsx'));
+const PhotoDevelopMaskManagerV1 = lazy(() => import('./PhotoDevelopMaskManagerV1.tsx'));
 
 export interface PhotoDevelopWorkspacePropsV2 extends Omit<PhotoDevelopPreviewPropsV2, 'develop' | 'messages' | 'maskOverlay' | 'isCurrent'> {
 	readonly generation: unknown;
@@ -123,7 +125,7 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const importing = tasks.importing || (importState.tasks === tasks && importState.pending);
 	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !props.settings?.snapshot.busy && !importing) void action(); };
 	const document = snapshot.document, draft = snapshot.draft, busy = snapshot.busy || props.settings?.snapshot.busy === true || importing, disabled = busy || !document;
-	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush';
+	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush' | 'masks';
 	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
 	const [localEntry, setLocalEntry] = useState<LocalEntry | null>(null);
 	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
@@ -131,16 +133,18 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const [brushFailed, setBrushFailed] = useState<LocalEntry | null>(null);
 	const [overlay, setOverlay] = useState<Readonly<{ entry: LocalEntry; recipe: string; selection: Readonly<PhotoDevelopMaskOverlaySelectionV1> }> | null>(null);
 	const localCurrent = () => current() && !busy && localEntry !== null && activeLocal.current === localEntry
-		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
+		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
+		&& owner.snapshot().document === document && owner.snapshot().draft === draft;
 	const brushCurrent = localEntry?.kind === 'brush' && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
 	const openLocal = (kind: LocalKind) => { if (current() && !busy && document && draft) setLocalEntry({ kind, owner, document, draft }); };
 	const applyLocal: PhotoDevelopRangeMaskDialogPropsV1['onApply'] = (value, selection) => {
 		if (!localCurrent() || !localEntry || !document) return; owner.edit(value);
+		activeLocal.current = null;
 		const next = owner.snapshot().draft;
 		if (next && selection) setOverlay({ entry: { kind: localEntry.kind, owner, document, draft: next }, recipe: JSON.stringify(next), selection }); else setOverlay(null);
 		setLocalEntry(null);
 	};
-	const closeLocal = () => { if (mounted() && activeLocal.current === localEntry) setLocalEntry(null); };
+	const closeLocal = () => { if (mounted() && activeLocal.current === localEntry) { activeLocal.current = null; setLocalEntry(null); } };
 	useEffect(() => {
 		if (localEntry?.kind !== 'brush') return;
 		const entry = localEntry, stop = new AbortController(); let liveEntry = true;
@@ -189,7 +193,8 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 				{!props.settings && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale).menu}</summary>
 					{(['linear-gradient', 'radial-gradient', 'luminance-range', 'color-range'] as const).map(kind => <button key={kind} type="button" disabled={busy}
 						onClick={() => { openLocal(kind); }}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}
-					<button type="button" disabled={busy} onClick={() => { openLocal('brush'); }}>{photoDevelopBrushMaskCopy(props.locale).menu}</button></details>}
+					<button type="button" disabled={busy} onClick={() => { openLocal('brush'); }}>{photoDevelopBrushMaskCopy(props.locale).menu}</button>
+					<button type="button" disabled={busy} onClick={() => { openLocal('masks'); }}>{photoDevelopMaskManagementCopy(props.locale).menu}</button></details>}
 				<label>{messages.version}<select value={document.versionId} disabled={busy || snapshot.dirty} onChange={event => {
 					const id = event.currentTarget.value; run(() => owner.open(props.photoId, id));
 				}}>{document.versions.map(version => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label>
@@ -230,6 +235,9 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 						? <Suspense fallback={<p role="status">{photoDevelopBrushMaskCopy(props.locale).working}</p>}><PhotoDevelopBrushMaskDialogV1 port={brushPort.port}
 							develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={applyLocal} onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
 						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{photoDevelopBrushMaskCopy(props.locale)[brushFailed === localEntry ? 'failed' : 'working']}</p>
+					: localEntry.kind === 'masks'
+					? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopMaskManagerV1 develop={draft} locale={props.locale} disabled={busy}
+						isCurrent={localCurrent} onApply={applyLocal} onClose={closeLocal} /></Suspense>
 					: localEntry.kind === 'luminance-range' || localEntry.kind === 'color-range'
 					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
 						onApply={applyLocal} onClose={closeLocal} />

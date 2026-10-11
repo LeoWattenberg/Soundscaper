@@ -473,8 +473,23 @@ in Chromium and remains skipped in Firefox, where that capability is absent.
 Archives 1–5 remain readable; direct schema 5 and pack 2 paths still refuse
 brush references before consuming their originals and join provisional rollback.
 Editable Frame handoff and preset transport retain their brush refusal guards.
-Frame integration, full mask management, composition authoring, and healing
-remain open; these brush slices do not close L6.
+Develop's Settings menu now opens an opt-in general mask manager, listing all
+retained graphs, including composed mattes and disabled or unbound brush masks.
+Duplicate creates a fresh graph identity while preserving every node, input,
+output, and immutable source reference; the copy starts unbound. Remove prunes
+only that graph's bindings and supports removing the final graph. Binding
+checkboxes can transfer multiple existing adjustments from other graphs without
+changing their enabled states, order, or parameters. Changes stay local until
+Apply edits the current draft; Save uses the existing revision check and history.
+These management commands do not acquire, install, or delete brush bodies.
+An explicit bound adjustment selects the temporary overlay, which starts off.
+English/German native Chromium and Firefox workflows cover keyboard duplication,
+binding, removal, history restoration, reload, full preview, and PNG export,
+checking independent pixels and unchanged originals and immutable brush bodies.
+Focused mounted tests also fence retained actions after local edits, Close,
+owner replacement, same-event draft replacement, and React effect replay.
+Persisted mask names, further overlay modes, composition authoring, Frame
+integration, and healing remain open; these slices do not close L6.
 
 ### Exit gate
 
