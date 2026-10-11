@@ -219,6 +219,14 @@ verifies import pixels, Save/reopen and reverse packages. Non-neutral compositin
 switches, adjustment/3D semantics and other blends remain inert report items
 with original custody. These structural checks do not establish installed-AE
 blend or color/alpha parity.
+Gaussian Blur 2 exchange requires an explicitly selected reviewed profile for
+the exact AE version, build and language, with a complete bounded neutral control
+tree and a declared blurriness-to-sigma scale. Readable calibration/export/import
+scripts verify fresh AV switches, effect controls, authored hold/linear keys and
+readback, rolling back failed writes. The File workflow verifies mismatch refusal,
+review invalidation, Save/reopen custody and reverse-package values. This is a
+structural editable subset; installed-AE kernel, bounds, color and alpha parity
+remain unqualified, with complete rendered fallback available.
 Reviewed editable paragraph text includes retained font bytes, explicit PostScript
 bindings, source custody and a real Chromium import/save/reopen/reverse-package
 workflow. The readable host importer preflights fonts before mutation and requires
