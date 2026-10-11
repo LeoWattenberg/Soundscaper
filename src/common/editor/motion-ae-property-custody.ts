@@ -3,6 +3,7 @@ import type { MotionAeExpression, MotionAeKey, MotionAeMaskMetadata, MotionAePro
 import { MOTION_AE_EXCHANGE_LIMITS as limits } from './motion-ae-exchange-types.ts';
 import { motionArray, motionBoolean, motionEnum, motionNumber, motionRecord } from './motion-values.ts';
 import { motionAeCustodyString as motionString } from './motion-ae-custody-string.ts';
+import { normalizeMotionAeTextLayout } from './motion-ae-text-layout.ts';
 
 export interface MotionAeCustodyBudget { properties: number; keys: number }
 function mask(value: unknown): MotionAeMaskMetadata {
@@ -29,12 +30,16 @@ function shape(value: unknown): MotionAeShape {
 	return { closed: motionBoolean(r.closed, 'AE shape closed'), vertices, inTangents: tangents(r.inTangents), outTangents: tangents(r.outTangents), ...(feather === undefined ? {} : { feather }) };
 }
 function text(value: unknown): MotionAeText {
-	const r = motionRecord(value, ['text', 'font', 'fontSize', 'fillColor', 'applyFill', 'applyStroke', 'strokeColor', 'strokeWidth', 'tracking', 'leading', 'autoLeading', 'justification'], 'AE text');
+	const fields = ['text', 'font', 'fontSize', 'fillColor', 'applyFill', 'applyStroke', 'strokeColor', 'strokeWidth', 'tracking', 'leading', 'autoLeading', 'justification'];
+	const r = motionRecord(value, [...fields, 'styleScope', 'styleSupport', 'layout'], 'AE text', fields);
 	return { text: motionString(r.text, 'AE text', 262_144, true), font: motionString(r.font, 'AE font', 512), fontSize: motionNumber(r.fontSize, 'AE font size', 0.01, 1e6),
 		fillColor: motionAeVector(r.fillColor, 'AE fill color', 3, true) as readonly [number, number, number], applyFill: motionBoolean(r.applyFill, 'AE apply fill'),
 		applyStroke: motionBoolean(r.applyStroke, 'AE apply stroke'), strokeColor: motionAeVector(r.strokeColor, 'AE stroke color', 3, true) as readonly [number, number, number],
 		strokeWidth: motionNumber(r.strokeWidth, 'AE stroke width', 0, 1e6), tracking: motionNumber(r.tracking, 'AE tracking'), leading: motionNumber(r.leading, 'AE leading', 0, 1e6),
-		autoLeading: motionBoolean(r.autoLeading, 'AE auto leading'), justification: motionEnum(r.justification, ['left', 'center', 'right'], 'AE text justification') };
+		autoLeading: motionBoolean(r.autoLeading, 'AE auto leading'), justification: motionEnum(r.justification, ['left', 'center', 'right'], 'AE text justification'),
+		...(r.styleScope === undefined ? {} : { styleScope: motionEnum(r.styleScope, ['uniform', 'mixed', 'unavailable'], 'AE text style scope') }),
+		...(r.styleSupport === undefined ? {} : { styleSupport: motionEnum(r.styleSupport, ['basic', 'unsupported', 'unavailable'], 'AE text style support') }),
+		...(r.layout === undefined ? {} : { layout: normalizeMotionAeTextLayout(r.layout) }) };
 }
 function expression(value: unknown): MotionAeExpression | null {
 	if (value === null) return null;

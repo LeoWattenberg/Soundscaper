@@ -19,10 +19,22 @@ export interface MotionAeShape {
 	readonly feather?: { readonly segmentLocations: readonly number[]; readonly relativeLocations: readonly number[]; readonly radii: readonly number[];
 		readonly interpolations: readonly number[]; readonly tensions: readonly number[]; readonly types: readonly number[]; readonly cornerAngles: readonly number[] };
 }
+export type MotionAeTextOrientation = 'horizontal' | 'vertical-right-to-left' | 'vertical-left-to-right';
+export type MotionAeTextLayout =
+	| { readonly kind: 'point'; readonly orientation: MotionAeTextOrientation }
+	| { readonly kind: 'box'; readonly orientation: MotionAeTextOrientation; readonly size: readonly [number, number]; readonly position: readonly [number, number] };
 export interface MotionAeText {
 	readonly text: string; readonly font: string; readonly fontSize: number; readonly fillColor: readonly [number, number, number];
 	readonly applyFill: boolean; readonly applyStroke: boolean; readonly strokeColor: readonly [number, number, number]; readonly strokeWidth: number;
 	readonly tracking: number; readonly leading: number; readonly autoLeading: boolean; readonly justification: 'left' | 'center' | 'right';
+	/** Full-range style capture, never inferred from the first character. Absent legacy metadata is unavailable. */
+	readonly styleScope?: 'uniform' | 'mixed' | 'unavailable';
+	/** Basic requires neutral unmapped controls: no faux/caps/baseline alterations, custom kerning,
+	 * character scaling, paragraph indents/spacing, box inset/auto-fit/alignment, CJK or forced-direction overrides.
+	 * Hosts unable to inspect those controls must say unavailable. This does not promise matching shaping.
+	 */
+	readonly styleSupport?: 'basic' | 'unsupported' | 'unavailable';
+	readonly layout?: MotionAeTextLayout;
 }
 interface MotionAePropertyBase { readonly matchName: string; readonly name: string }
 export interface MotionAeMaskMetadata {
