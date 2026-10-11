@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MotionExpressionAudioPreparation } from './motion-expression-audio-preparation.ts';
 import type { MotionAsset } from './motion-asset.ts';
 import type { MotionscaperRevision } from './motion-project-revision.ts';
 import { normalizeRational, type Rational, type RationalInput } from './timeline-time.ts';
@@ -23,6 +24,8 @@ export interface MotionAudioMixBlock extends Omit<MotionAudioBlockRequest, 'star
 }
 export interface MotionAudioMixerOptions {
 	readonly project: unknown; readonly provider: MotionAudioSampleProvider;
+	/** A shared preparation lease remains owned by the caller; omitted leases are created/disposed by the mixer. */
+	readonly expressionAudio?: MotionExpressionAudioPreparation;
 	readonly maximumCacheBytes?: number; readonly maximumBlockSamples?: number;
 	readonly maximumEvaluatedOccurrences?: number;
 }

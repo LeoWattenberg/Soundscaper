@@ -65,7 +65,7 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 				const loadAsset = (asset: Parameters<typeof loadMotionscaperAssetBytes>[0], readSignal?: AbortSignal) => loadMotionscaperAssetBytes(asset, options.store, readSignal);
 				const provider = createMotionMediaProvider({ loadAsset });
 				const expressionAudio = motionProjectUsesAudioAmplitude(revision.project) ? createMotionExpressionAudioPreparation({ project: revision.project, provider }) : undefined;
-				const audioMixer = hasAudio ? createMotionAudioMixer({ project: revision.project, provider }) : undefined;
+				const audioMixer = hasAudio ? createMotionAudioMixer({ project: revision.project, provider, ...(expressionAudio ? { expressionAudio } : {}) }) : undefined;
 				try {
 					const rasterizer = await createMotionBrowserRasterizer({ assets: revision.project.assets, loadAsset, decodeFootage: provider.decodeFootage }, signal);
 					return { rasterizer, audioMixer, expressionAudio, release: () => { expressionAudio?.dispose(); audioMixer?.dispose(); provider.dispose(); return Promise.resolve(); } };
