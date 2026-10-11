@@ -10,6 +10,22 @@ import { resolveControllerProjectRuntime } from '../src/common/editor/controller
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { createFramescaperSuccessorHistory } from '../src/framescaper/editor-project-successor-history.ts';
 
+test('successor queued snapshots retain their exact history across later edits and durable reopen', () => {
+	const runtime = createFramescaperSuccessorRuntime({ line: 'successor' });
+	let history = runtime.createHistory(runtime.createProject({ id: 'queued' }));
+	history = runtime.executeCommand(history, { type: 'project/rename', title: 'Queued' });
+	const queued = runtime.cloneProject(history.present);
+	history = runtime.executeCommand(history, { type: 'project/rename', title: 'Later' });
+	assert.equal(runtime.historyForSnapshot(queued).present.title, 'Queued'); assert.equal(runtime.historyForSnapshot(queued).undoStack.length, 1);
+	const reopened = runtime.retainStoredHistory(structuredClone(history));
+	assert.deepEqual(runtime.createHistory(reopened), history); assert.equal(runtime.historyForSnapshot(reopened).present.title, 'Later');
+	const loaded = runtime.loadProject(reopened); assert.deepEqual(runtime.createHistory(loaded.project), history);
+	const session = runtime.createSessionController(); session.openProject(reopened, { history });
+	const captured = session.captureProjectHistory(reopened.id); assert.deepEqual(runtime.historyForSnapshot(runtime.cloneProject(captured.history.present)), history);
+	assert.deepEqual(runtime.historyForSnapshot(runtime.compactProjectSourceMetadata(captured.history.present, { preserveSourceIds: [] })), history);
+	assert.throws(() => runtime.historyForSnapshot({ ...queued, title: 'Unauthenticated candidate' }), /history|snapshot/iu);
+});
+
 test('successor runtime is explicitly selected and keeps canonical v2 separate from baseline consumers and media storage', () => {
 	assert.throws(() => createFramescaperSuccessorRuntime({ line: 'baseline' }), /successor/iu);
 	const runtime = createFramescaperSuccessorRuntime({ line: 'successor' }); const admitted = resolveControllerProjectRuntime(runtime);

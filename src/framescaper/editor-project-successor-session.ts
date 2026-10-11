@@ -12,7 +12,7 @@ export interface FramescaperSuccessorPublicationFence {
 	release(): void;
 }
 /** The fence protects all product mutations while an asynchronous owner/link transaction is publishing. */
-export function createFramescaperSuccessorSessionAuthority() {
+export function createFramescaperSuccessorSessionAuthority(retainHistory: (history: FramescaperSuccessorHistory) => FramescaperSuccessorHistory = (history) => history) {
 	let active: object | null = null; const sessions = new WeakMap<FramescaperSuccessorSession, Delegate>();
 	const assertEditable = () => { if (active) throw new Error('Wait for the current successor publication to finish.'); };
 	return Object.freeze({ assertEditable, createSessionController, beginPublication });
@@ -27,8 +27,8 @@ export function createFramescaperSuccessorSessionAuthority() {
 				assertEditable(); return delegate.updateProject(projectId, (previous: unknown) => normalizeFramescaperSuccessorProject(typeof update === 'function' ? (update as (value: unknown) => unknown)(previous) : update), options);
 			},
 			updateProjectHistory(projectId: string, history: unknown, options: Record<string, unknown> = {}) { assertEditable(); return delegate.updateProjectHistory(projectId, normalizeFramescaperSuccessorHistory(history), options); },
-			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: unknown }; return Object.freeze({ history: normalizeFramescaperSuccessorHistory(capture.history), token: capture.token }); },
-			getProjectHistory(projectId: string) { return normalizeFramescaperSuccessorHistory(delegate.getProjectHistory(projectId)); },
+			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: unknown }; return Object.freeze({ history: retainHistory(normalizeFramescaperSuccessorHistory(capture.history)), token: capture.token }); },
+			getProjectHistory(projectId: string) { return retainHistory(normalizeFramescaperSuccessorHistory(delegate.getProjectHistory(projectId))); },
 		});
 		sessions.set(session, delegate); return session;
 	}
