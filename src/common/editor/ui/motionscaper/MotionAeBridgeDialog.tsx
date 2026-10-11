@@ -7,6 +7,8 @@ import { MotionAeTextImportOptions, type MotionAeTextReview } from './MotionAeTe
 import type { MotionAeSelectedFont } from '../../motion-ae-font-import.ts';
 import MotionAeExportPanel from './MotionAeExportPanel.tsx';
 import MotionAeSceneOptions, { type MotionAeSceneSelection } from './MotionAeSceneOptions.tsx';
+import MotionAeGaussianOptions from './MotionAeGaussianOptions.tsx';
+import type { MotionAeGaussianProfile } from '../../motion-ae-gaussian-profile.ts';
 import MotionAeExpressionOptions from './MotionAeExpressionOptions.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
@@ -29,6 +31,7 @@ export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpe
 	const id = useId(), alive = useRef(true), active = useRef<AbortController | null>(null);
 	const [textReview, setTextReview] = useState<MotionAeTextReview>({ enabled: false, spacing: 1.2, colorSpace: 'srgb' }), [fonts, setFonts] = useState<readonly MotionAeSelectedFont[]>([]);
 	const [sceneReview, setSceneReview] = useState<MotionAeSceneSelection>({ enabled: false, colorSpace: 'srgb' });
+	const [gaussianProfile, setGaussianProfile] = useState<MotionAeGaussianProfile | null>(null);
 	const [translateExpressions, setTranslateExpressions] = useState(false);
 	const [manifest, setManifest] = useState<File | null>(initialFile ?? null), [media, setMedia] = useState<readonly File[]>([]);
 	const [prepared, setPrepared] = useState<PreparedMotionscaperAeImport | null>(null), [acknowledged, setAcknowledged] = useState(false);
@@ -63,7 +66,7 @@ export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpe
 	const review = () => run(async signal => {
 		if (!manifest || adobeProject) return;
 		setPrepared(null); setAcknowledged(false); setPage(0);
-		const result = await prepareMotionscaperAeImport(manifest, media.map(file => ({ path: `media/${file.name}`, file })), { ...(sceneReview.enabled ? { scene: { colorSpace: sceneReview.colorSpace } } : {}), translateScalarExpressions: translateExpressions, ...(textReview.enabled ? { fonts, text: { layoutPolicy: 'review-reflow' as const, lineHeight: textReview.spacing, colorSpace: textReview.colorSpace } } : {}) }, signal);
+		const result = await prepareMotionscaperAeImport(manifest, media.map(file => ({ path: `media/${file.name}`, file })), { ...(gaussianProfile ? { gaussianProfile } : {}), ...(sceneReview.enabled ? { scene: { colorSpace: sceneReview.colorSpace } } : {}), translateScalarExpressions: translateExpressions, ...(textReview.enabled ? { fonts, text: { layoutPolicy: 'review-reflow' as const, lineHeight: textReview.spacing, colorSpace: textReview.colorSpace } } : {}) }, signal);
 		signal.throwIfAborted(); if (alive.current) setPrepared(result);
 	});
 	const publish = () => run(async signal => {
@@ -91,6 +94,7 @@ export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpe
 			<label htmlFor={`${id}-media`}>{copy.motionscaperAeMedia}</label><input id={`${id}-media`} type="file" multiple disabled={adobeProject} onChange={event => { resetReview(); setMedia(Array.from(event.currentTarget.files ?? [])); }} />
 			<p>{copy.motionscaperAeLimits}</p>
 			<MotionAeSceneOptions copy={copy} disabled={disabled || adobeProject} value={sceneReview} onChange={value => { resetReview(); setSceneReview(value); }} mode="import" />
+			<MotionAeGaussianOptions copy={copy} disabled={disabled || adobeProject} profile={gaussianProfile} onChange={value => { resetReview(); setGaussianProfile(value); }} run={run} mode="import" />
 			<MotionAeExpressionOptions copy={copy} disabled={disabled || adobeProject} enabled={translateExpressions} onChange={value => { resetReview(); setTranslateExpressions(value); }} mode="import" />
 			<MotionAeTextImportOptions copy={copy} disabled={disabled || adobeProject} value={textReview} onChange={value => { resetReview(); setTextReview(value); }} fonts={fonts} onFonts={value => { resetReview(); setFonts(value); }} />
 			<Button variant="secondary" disabled={!manifest || adobeProject} onClick={() => { void review(); }}>{copy.motionscaperAeReview}</Button>

@@ -3,6 +3,8 @@ import { useState } from 'react';
 import MotionAeRenderedExportPanel from './MotionAeRenderedExportPanel.tsx';
 import { MotionAeTextExportOptions, type MotionAeTextReview } from './MotionAeTextOptions.tsx';
 import MotionAeSceneOptions, { type MotionAeSceneSelection } from './MotionAeSceneOptions.tsx';
+import MotionAeGaussianOptions from './MotionAeGaussianOptions.tsx';
+import type { MotionAeGaussianProfile } from '../../motion-ae-gaussian-profile.ts';
 import MotionAeExpressionOptions from './MotionAeExpressionOptions.tsx';
 import { Button } from '@soundscaper/design-system/Button';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
@@ -15,6 +17,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 }>) {
 	const [textReview, setTextReview] = useState<MotionAeTextReview>({ enabled: false, spacing: 48, colorSpace: 'linear-rec709-d65' });
 	const [sceneReview, setSceneReview] = useState<MotionAeSceneSelection>({ enabled: false, colorSpace: 'linear-rec709-d65' });
+	const [gaussianProfile, setGaussianProfile] = useState<MotionAeGaussianProfile | null>(null);
 	const [translateExpressions, setTranslateExpressions] = useState(false);
 	const [fontNames, setFontNames] = useState<Readonly<Record<string, string>>>({});
 	const fonts = project?.assets.filter(asset => asset.kind === 'font') ?? [];
@@ -26,7 +29,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 		if (!project) return;
 		setReview(null); setAcknowledged(false); setPage(0); setComplete(false);
 		const module = await import('../../../../motionscaper/editor-ae-export-conversion.ts'); signal.throwIfAborted();
-		const prepared = module.prepareMotionscaperAeExport(project, { ...(sceneReview.enabled ? { scene: { colorSpace: sceneReview.colorSpace } } : {}), translateScalarExpressions: translateExpressions, ...(textReview.enabled ? { fonts: fonts.filter(font => names[font.id]).map(asset => ({ asset, postScriptName: names[asset.id]! })), text: { layoutPolicy: 'review-reflow' as const, leading: textReview.spacing, colorSpace: textReview.colorSpace } } : {}) }); signal.throwIfAborted(); setReview({ source: project, prepared });
+		const prepared = module.prepareMotionscaperAeExport(project, { ...(gaussianProfile ? { gaussianProfile } : {}), ...(sceneReview.enabled ? { scene: { colorSpace: sceneReview.colorSpace } } : {}), translateScalarExpressions: translateExpressions, ...(textReview.enabled ? { fonts: fonts.filter(font => names[font.id]).map(asset => ({ asset, postScriptName: names[asset.id]! })), text: { layoutPolicy: 'review-reflow' as const, leading: textReview.spacing, colorSpace: textReview.colorSpace } } : {}) }); signal.throwIfAborted(); setReview({ source: project, prepared });
 	});
 	const publish = () => run(async signal => {
 		if (!prepared || !acknowledged) return;
@@ -38,6 +41,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 	return <><MotionAeRenderedExportPanel project={project} store={store} copy={copy} disabled={disabled} run={run} download={download} /><section aria-label={copy.motionscaperAeExport}>
 		<h3>{copy.motionscaperAeExport}</h3><p>{copy.motionscaperAeExportInstructions}</p><p>{copy.motionscaperAeExportLimits}</p>
 		<MotionAeSceneOptions copy={copy} disabled={disabled || !project} value={sceneReview} onChange={value => { setReview(null); setAcknowledged(false); setComplete(false); setSceneReview(value); }} mode="export" />
+		<MotionAeGaussianOptions copy={copy} disabled={disabled || !project} profile={gaussianProfile} onChange={value => { setReview(null); setAcknowledged(false); setComplete(false); setGaussianProfile(value); }} run={run} mode="export" />
 		<MotionAeExpressionOptions copy={copy} disabled={disabled || !project} enabled={translateExpressions} onChange={value => { setReview(null); setAcknowledged(false); setComplete(false); setTranslateExpressions(value); }} mode="export" />
 		<MotionAeTextExportOptions copy={copy} disabled={disabled || !project} value={textReview} onChange={value => { setReview(null); setAcknowledged(false); setTextReview(value); }} fonts={fonts} names={names} onName={(id, value) => { setReview(null); setAcknowledged(false); setFontNames(current => ({ ...current, [id]: value })); }} />
 		<Button variant="secondary" disabled={disabled || !project} onClick={() => { void prepare(); }}>{copy.motionscaperAeReviewExport}</Button>

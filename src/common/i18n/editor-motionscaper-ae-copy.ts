@@ -2,6 +2,14 @@
 import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 const ENTRIES = [
+	['motionscaperAeGaussianReview', 'Reviewed Gaussian Blur mapping', 'Geprüfte Zuordnung für Gaußschen Weichzeichner'],
+	['motionscaperAeGaussianHint', 'Optional: select a Gaussian profile you reviewed in your exact AE version, build and language. The profile declares your blurriness-to-sigma scale; no kernel, bounds, color or alpha equivalence is qualified. Only neutral 2D compositing, Both Dimensions, Repeat Edge Pixels off, Effect Opacity 100%, no effect masks and hold/linear blur keys are admitted. Import requires the exact profile retained in the source exchange. Use complete rendered fallback for other effects or fidelity requirements.', 'Optional: Wähle ein Gauß-Profil, das du in deiner genauen AE-Version, deinem Build und deiner Sprache geprüft hast. Das Profil legt deinen Faktor von Weichzeichnung zu Sigma fest; Gleichwertigkeit von Filterkern, Grenzen, Farbe oder Alpha ist nicht qualifiziert. Zugelassen sind nur neutrales 2D-Compositing, beide Dimensionen, ausgeschaltetes Wiederholen der Kantenpixel, Effektdeckkraft 100 %, keine Effektmasken und konstante oder lineare Weichzeichnerschlüssel. Der Import benötigt das genaue im Quellaustausch enthaltene Profil. Verwende vollständigen gerenderten Austausch für andere Effekte oder Anforderungen an die Wiedergabetreue.'],
+	['motionscaperAeGaussianImportProfile', 'Reviewed Gaussian profile for import', 'Geprüftes Gauß-Profil für den Import'],
+	['motionscaperAeGaussianExportProfile', 'Reviewed Gaussian profile for export', 'Geprüftes Gauß-Profil für den Export'],
+	['motionscaperAeGaussianSelected', 'Selected AE host', 'Gewählter AE-Host'],
+	['motionscaperAeGaussianScale', 'Declared blurriness per sigma', 'Festgelegte Weichzeichnung pro Sigma'],
+	['motionscaperAeGaussianRemove', 'Remove Gaussian Profile', 'Gauß-Profil entfernen'],
+	['motionscaperAeGaussianLimit', 'Choose a nonempty reviewed Gaussian JSON profile of at most 32 KiB.', 'Wähle ein nicht leeres geprüftes Gauß-JSON-Profil mit höchstens 32 KiB.'],
 	['motionscaperAeCleanupRequired', 'Output cleanup failed. Retry cleanup before closing the dialog or starting another transfer.', 'Die Ausgabebereinigung ist fehlgeschlagen. Wiederhole die Bereinigung, bevor du den Dialog schließt oder einen weiteren Austausch startest.'],
 	['motionscaperAeRetryCleanup', 'Retry Output Cleanup', 'Ausgabebereinigung wiederholen'],
 	['motionscaperAeRenderedExport', 'Rendered composition export', 'Export gerenderter Kompositionen'],
