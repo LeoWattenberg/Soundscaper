@@ -61,3 +61,13 @@ test('AE conversion admits complete retained samples and reports partial sample 
 	assert.deepEqual(partial.project.compositions[0]!.layers[0]!.transform.position.value, [0, 0, 0]);
 	assert.ok(partial.report.some((entry) => entry.status === 'unsupported' && /do not cover/u.test(entry.message)));
 });
+
+test('AE conversion recognizes the official spaced rotation match name', () => {
+	const source = fixture(), comp = source.compositions[0]!, original = layer('rotated');
+	const result = convertMotionscaperAeExchange({ ...source, compositions: [{ ...comp, layers: [{ ...original,
+		properties: [{ kind: 'group', name: 'Transform', matchName: 'ADBE Transform Group', children: [
+			{ kind: 'numeric', name: 'Rotation', matchName: 'ADBE Rotate Z', value: [37], spatial: false, keys: [], expression: null },
+		] }],
+	}] }] }, options());
+	assert.deepEqual(result.project.compositions[0]!.layers[0]!.transform.rotation.value, [0, 0, 37]);
+});

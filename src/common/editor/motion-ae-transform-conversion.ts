@@ -28,9 +28,9 @@ export function convertMotionAeTransform(layer: MotionAeLayer, frameRate: Ration
 					reportUnsupported(path, 'AE samples do not cover this layer’s active composition range. Export a complete sampled composition before mapping this property.'); continue;
 				}
 			}
-			if (['ADBE Orientation', 'ADBE RotateX', 'ADBE RotateY'].includes(name) && property.keys.length === 0 && !property.expression?.enabled && !property.samples && property.value.every((value) => value === 0)) continue;
+			if (['ADBE Orientation', 'ADBE Rotate X', 'ADBE Rotate Y'].includes(name) && property.keys.length === 0 && !property.expression?.enabled && !property.samples && property.value.every((value) => value === 0)) continue;
 			const field = name === 'ADBE Anchor Point' ? 'anchor' : name === 'ADBE Position' ? 'position' : name === 'ADBE Scale' ? 'scale'
-				: name === 'ADBE RotateZ' ? 'rotation' : name === 'ADBE Opacity' ? 'opacity' : null;
+				: name === 'ADBE Rotate Z' ? 'rotation' : name === 'ADBE Opacity' ? 'opacity' : null;
 			if (!field) { reportUnsupported(path, 'This transform or separated channel needs an explicit mapping; sample or render in AE.'); continue; }
 			const options = field === 'opacity' ? { axes: [0], defaults: [1], scale: 0.01 }
 				: field === 'rotation' ? { axes: [null, null, 0], defaults: [0, 0, 0], scale: 1 }
