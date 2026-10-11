@@ -234,6 +234,7 @@
 		"track-audio/mix-render-model.ts",
 		"track-audio/mix-render-options.ts",
 		"track-audio/mix-render-output-layout.ts",
+		"track-audio/motion-audio-preview.ts",
 		"track-audio/split-into-new-track-plan.ts",
 		"track-audio/take-comp-action-facade.ts",
 		"track-audio/track-audio-composition-types.ts",
