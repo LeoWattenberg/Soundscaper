@@ -19,6 +19,10 @@ animation, compositing, tracking, expression, and 3D scene tools. **View →
 Composition Preview** opens playback; new editing surfaces appear when you
 choose them from a menu.
 
+Choose **View → Composition Canvas** to select, move, scale or rotate layers with
+static 2D transforms. Animated transforms remain editable through the property
+and timeline tools.
+
 Follow [your first motion project](/motionscaper/first-project/) to create,
 animate, save, and render a composition.
 

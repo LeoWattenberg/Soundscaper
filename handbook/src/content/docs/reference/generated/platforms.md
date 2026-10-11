@@ -32,7 +32,7 @@ The editor runs in a browser and as a desktop application. This page lists what 
 
 ## Motionscaper development qualification
 
-Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, the remaining native targets, signing/updating and installed After Effects interchange remain unqualified for the first Motionscaper release.
+Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. An actual software-rendered 2.5D scene agrees with decoded native output within declared color/alpha bounds and retains exact rational timing. Manual update-check tests verify bounded own-tag selection and explicit release links. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, hardware GPU and the remaining native targets, signing/release-update qualification and installed After Effects interchange remain unqualified for the first Motionscaper release.
 
 ## Where a capability can run
 

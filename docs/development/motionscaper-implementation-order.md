@@ -86,7 +86,9 @@ recovery drafts are atomically fenced, and competing windows retain one authorin
 owner. Motion File Open preserves foreign/future archives as private read-only
 custody, with exact Save Copy and the previous document/history unchanged.
 English/German Help-menu destinations open the Motion handbook through bounded
-browser/native adapters. Retained imported Arabic and CJK fonts have shaping,
+browser/native adapters. The desktop Help menu also offers a manual, bounded
+own-tag release check with a verified repository link; release installation and
+cross-platform updater qualification remain open. Retained imported Arabic and CJK fonts have shaping,
 wrapping, pixel, portable-archive and offline-seek qualification.
 M05 has a revision-pinned, cancellable render queue, menu-opened
 worker preview and delivery, transparent PNG sequences, and browser MP4/WebM
@@ -106,8 +108,12 @@ undo, and save/reopen. Ordered shape operators and shaped text animators have
 actual CanvasKit and worker/CPU preview coverage and menu-opened operator editing.
 Exact work areas, composition selection, retained cross-project clipboard, and
 source timing/remapping pass browser editing, history and reopen workflows.
-Typography/fill authoring is menu-accessible and awaits final workflow integration
-qualification. M07 includes bounded local masks, ordered effects,
+The opt-in Composition Canvas has direct selection, move/scale/rotate handles,
+parent-coordinate conversion, keyboard controls and one-step Undo for static 2D
+transforms. A maintained title-and-shape browser workflow combines retained fonts,
+fill editing, canvas manipulation, eased curves, null parenting and nesting, then
+saves/reopens and exports PNG pixels matching preview within one channel code.
+M07 includes bounded local masks, ordered effects,
 alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
 projective corner pins. Tracking freshness stops preview/export before resource
 acquisition; point analysis/correction, planar pins, stabilization, cancellation,
@@ -127,8 +133,13 @@ planes, linear-SDR materials/lights, transparent shadow casters and deterministi
 thin-lens sampling. Actual worker/WebGL and host/CPU preview fixtures agree;
 matching-quality shutter/lens preview and final export agree, including exact
 nested quality and arbitrary seeks. Menu-driven camera, lighting, material and
-quality authoring pass actual Chromium preview, undo/redo and save/reopen;
-desktop reference qualification remains unfinished. M10 has versioned composition
+quality authoring pass actual Chromium preview, undo/redo and save/reopen.
+The [packaged Linux scene qualification](motionscaper-native-scene-qualification.md)
+drives real native file dialogs and the unchanged encoder, with authored camera,
+light, shadow, shutter and lens quality. Software preview and decoded ProRes agree
+within declared color/alpha bounds and retain exact rational frame timestamps.
+Hardware GPU and remaining native platform qualification remain open.
+M10 has versioned composition
 offers, bounded streamed closure verification, compatible/pending update and
 Undo/Resume rules, and atomic receiver-owned successor storage with retained
 historical revisions, with atomic owning-project/history CAS and private
@@ -161,6 +172,12 @@ Editable path geometry and hard-edge masks have bidirectional conversion,
 closed host metadata, readable ES3 scripts, and a real Chromium bridge
 import/pixel/save/reverse-package workflow. Unsupported temporal/path topology,
 feathering and expansion remain explicitly reported.
+Reviewed editable paragraph text includes retained font bytes, explicit PostScript
+bindings, source custody and a real Chromium import/save/reopen/reverse-package
+workflow. The readable host importer preflights fonts before mutation and requires
+AE 24.6 or newer for text. Ordered shape project conversion is wired in both
+directions; installed-host shape styling still requires the reviewed calibration
+profile being implemented. These structural checks do not qualify installed AE.
 Atomic import retains original exchange/report custody and every media file
 through normal Save/reopen and portable archives, including unsupported null
 placeholders. The opt-in File bridge workflow passes actual Chromium import,

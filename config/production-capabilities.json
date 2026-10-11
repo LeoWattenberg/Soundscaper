@@ -785,6 +785,8 @@
 						"desktop/motionscaper-file-authority.ts",
 						"desktop/motionscaper-packaged-smoke.ts",
 						"desktop/motionscaper-successor-native-qualification.ts",
+						"desktop/motionscaper-update-check.ts",
+						"tests/motionscaper-update-check.test.ts",
 						"tests/motionscaper-document-desktop.test.ts",
 						"docs/development/motionscaper-desktop-saved-links.md"
 					]
@@ -795,6 +797,8 @@
 						"desktop/motionscaper-delivery-authority.ts",
 						"desktop/motionscaper-native-executor.ts",
 						"desktop/motionscaper-native-smoke.ts",
+						"desktop/motionscaper-scene-native-qualification.ts",
+						"docs/development/motionscaper-native-scene-qualification.md",
 						"native/motionscaper-media-host/source-manifest.json",
 						"tests/motionscaper-native-pcm-carrier.test.ts",
 						"docs/development/motionscaper-native-delivery.md"
@@ -875,13 +879,18 @@
 			"development": {
 				"status": "in-progress",
 				"summary": "Motionscaper develops a separate motion workspace reached through menus. It owns layered compositions, property animation, imported font and vector rendering, linear-SDR compositing, masks and mattes, tracking, bounded expressions, 2.5D scenes, retained media, and revision-pinned preview and delivery. The shared Soundscaper/Framescaper capability flags below do not grant authority to this workspace.",
-				"qualificationSummary": "Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, the remaining native targets, signing/updating and installed After Effects interchange remain unqualified for the first Motionscaper release.",
+				"qualificationSummary": "Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. An actual software-rendered 2.5D scene agrees with decoded native output within declared color/alpha bounds and retains exact rational timing. Manual update-check tests verify bounded own-tag selection and explicit release links. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, hardware GPU and the remaining native targets, signing/release-update qualification and installed After Effects interchange remain unqualified for the first Motionscaper release.",
 				"evidence": [
 					"docs/development/motionscaper-implementation-order.md",
 					"docs/development/motionscaper-after-effects-bridge.md",
 					"tests/motionscaper-capability-register.test.ts",
 					"tests/browser/motionscaper-script-fonts.spec.ts",
 					"tests/browser/motionscaper-scene.spec.ts",
+					"tests/browser/motionscaper-authoring-workflow.spec.ts",
+					"tests/browser/motionscaper-ae-editable-text.spec.ts",
+					"tests/browser/motionscaper-updates.spec.ts",
+					"docs/development/motionscaper-ae-text-qualification.md",
+					"docs/development/motionscaper-native-scene-qualification.md",
 					"tests/browser/motionscaper-compositing-delivery.spec.ts",
 					"tests/browser/motionscaper-linked-editors.spec.ts"
 				]
