@@ -11,6 +11,7 @@ import MotionProjectLibraryDialog from './MotionProjectLibraryDialog.tsx';
 import type { MotionAuthoredLayerKind } from '../../../../motionscaper/editor-layer-authoring.ts';
 import type { MotionscaperLayerClipboard } from '../../../../motionscaper/editor-layer-clipboard.ts';
 import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
+import type { MotionscaperDeliveryQueue } from '../../../../motionscaper/editor-delivery-queue.ts';
 import type { MotionscaperLinkSender } from '../../../../motionscaper/editor-link-sender.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 import type { MotionscaperOpaqueArchive } from '../../../../motionscaper/editor-opaque-archive.ts';
@@ -29,6 +30,7 @@ const MotionOperatorsDialog = lazy(() => import('./MotionOperatorsDialog.tsx'));
 const MotionPathsDialog = lazy(() => import('./MotionPathsDialog.tsx'));
 const MotionPropertyDialog = lazy(() => import('./MotionPropertyDialog.tsx'));
 const MotionTimelineDialog = lazy(() => import('./MotionTimelineDialog.tsx'));
+const MotionRenderQueueDialog = lazy(() => import('./MotionRenderQueueDialog.tsx'));
 const MotionRenderDialog = lazy(() => import('./MotionRenderDialog.tsx'));
 const MotionPreviewDialog = lazy(() => import('./MotionPreviewDialog.tsx'));
 const MotionLayerDialog = lazy(() => import('./MotionLayerDialog.tsx'));
@@ -44,7 +46,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send' | MotionAuthoredLayerKind | null>(null);
 	const [targetCompositionId, setTargetCompositionId] = useState('');
 	const [bridgeFile, setBridgeFile] = useState<File | undefined>();
 	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
@@ -56,13 +58,17 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const retainedArchive = useRef<MotionscaperOpaqueArchive | null>(null);
 	const lastRequest = useRef(0);
 	const linkSender = useRef<MotionscaperLinkSender | null>(null);
+	const renderQueue = useRef<MotionscaperDeliveryQueue | null>(null);
+	const runtimeMounted = useRef(true);
 	const busy = pending || snapshot.busy;
 	useEffect(() => { onChange({ ...snapshot, busy: busy || opaqueArchive !== null }); }, [snapshot, busy, opaqueArchive, onChange]);
-	useEffect(() => () => { void (async () => {
-		try { await linkSender.current?.dispose(); } finally {
-			try { await retainedArchive.current?.close(); } finally { try { await session.dispose(); } finally { await store.close(); } }
+	useEffect(() => { runtimeMounted.current = true; return () => { runtimeMounted.current = false; void (async () => {
+		try { await renderQueue.current?.dispose(); } finally {
+			try { await linkSender.current?.dispose(); } finally {
+				try { await retainedArchive.current?.close(); } finally { try { await session.dispose(); } finally { await store.close(); } }
+			}
 		}
-	})().catch(() => undefined); }, [session, store]);
+	})().catch(() => undefined); }; }, [session, store]);
 	const retainOpaque = useCallback(async (archive: MotionscaperOpaqueArchive) => {
 		await retainedArchive.current?.close(); retainedArchive.current = archive; setOpaqueArchive(archive); setDialog(null);
 	}, []);
@@ -83,7 +89,14 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		setBridgeFile(undefined);
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene' || command === 'after-effects') { setDialog(command); return; }
+		if (command === 'render' || command === 'render-queue') {
+			void run(async () => {
+				const { createMotionscaperDeliveryQueue } = await import('../../../../motionscaper/editor-delivery-queue.ts');
+				if (!runtimeMounted.current) return;
+				renderQueue.current ??= createMotionscaperDeliveryQueue({ store }); setDialog(command);
+			}); return;
+		}
+		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene' || command === 'after-effects') { setDialog(command); return; }
 		if (command === 'send') {
 			void run(async () => {
 				if (!linkSender.current) {
@@ -184,8 +197,11 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	if (dialog === 'send' && snapshot.project && linkSender.current) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionSendCompositionDialog sender={linkSender.current} project={snapshot.project} copy={copy} onClose={close} />
 	</Suspense>;
-	if (dialog === 'render' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
-		<MotionRenderDialog copy={copy} project={snapshot.project} store={store} onClose={close} />
+	if (dialog === 'render-queue' && renderQueue.current) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionRenderQueueDialog copy={copy} queue={renderQueue.current} onClose={close} />
+	</Suspense>;
+	if (dialog === 'render' && snapshot.project && renderQueue.current) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionRenderDialog copy={copy} project={snapshot.project} queue={renderQueue.current} onClose={close} />
 	</Suspense>;
 	if (dialog === 'preview' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionPreviewDialog copy={copy} project={snapshot.project} store={store} onClose={close} />

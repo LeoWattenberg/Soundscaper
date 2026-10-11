@@ -33,7 +33,11 @@ Library** opens projects retained on this device.
 opaque MP4 or WebM video, and ProRes 4444 when the desktop encoder is available.
 PNG sequences exclude audio. Browser video retains authored audio when its
 encoder supports the requested format. Native ProRes reports its effective
-color and alpha precision in the render dialog.
+color and alpha precision in the render dialog. **File → Render Queue** keeps
+jobs available across dialog closes and project switches. It retains up to eight
+jobs and 128 MiB of browser downloads; each download admits up to 64 MiB. Choose
+a streaming file destination for larger output and remove finished jobs to
+release retained downloads.
 
 ## Link to Framescaper {#link-to-framescaper}
 

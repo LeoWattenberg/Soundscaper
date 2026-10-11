@@ -47,6 +47,9 @@ an area with no output samples must be changed before rendering.
 Use **Transparent PNG sequence (.tar)** for alpha. Extract the TAR archive to
 obtain normal PNG images and timing metadata. MP4 and WebM use the background
 color selected in the dialog. Rendering pins the submitted revision so later
-edits do not alter an output already in progress.
+edits do not alter an output already in progress. Closing the render dialog
+keeps its job running. **File → Render Queue** shows progress, cancellation,
+retry of the submitted revision, and completed downloads. Closing the editor
+cancels unfinished jobs.
 
 Return to the [Motionscaper handbook](/motionscaper/).

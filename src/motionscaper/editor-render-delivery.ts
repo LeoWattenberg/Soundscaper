@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createMotionRenderQueue, normalizeMotionRenderPlan, type MotionRenderSink } from '../common/editor/controller/export/motion-render-pipeline.ts';
+import { createMotionRenderQueue, normalizeMotionRenderPlan, type MotionRenderSink, type MotionRenderQueue } from '../common/editor/controller/export/motion-render-pipeline.ts';
 import { createMotionscaperRenderRequest } from './editor-render-task.ts';
 import { motionDocumentFileName } from './editor-document-file-name.ts';
 import { createMotionscaperRevision } from './editor-project-revision.ts';
@@ -21,11 +21,12 @@ export interface MotionDeliveryOptions {
 	readonly firstFrame: number; readonly endFrame: number; readonly format: 'png' | 'mp4' | 'webm' | 'prores'; readonly excludeAudio?: boolean;
 	readonly background?: MotionVideoBackground; readonly writable?: WritableStream<Uint8Array>; readonly signal: AbortSignal;
 	readonly onProgress: (completed: number, total: number) => void;
+	readonly queue?: MotionRenderQueue; readonly maximumBlobBytes?: number;
 }
 
 /** Pin intent and its retained asset closure before a bounded renderer publishes any complete output. */
 export async function renderMotionscaperDelivery(options: MotionDeliveryOptions): Promise<Blob | MotionDesktopDeliveryReceipt | null> {
-	const queue = createMotionRenderQueue(); let sink: MotionRenderSink<Blob | MotionDesktopDeliveryReceipt | null> | null = null;
+	const queue = options.queue ?? createMotionRenderQueue(); let sink: MotionRenderSink<Blob | MotionDesktopDeliveryReceipt | null> | null = null;
 	try {
 		const snapshot = createMotionscaperRevision(options.project);
 		requireMotionTrackingReady(snapshot.project);
@@ -51,11 +52,11 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 			const runtime = await loadMotionRasterRuntime(options.signal);
 			const { createMotionPngSequenceSink } = await import('../common/editor/controller/export/motion-png-sequence.ts');
 			const { encodeMotionPng } = await import('../common/editor/motion-png.ts');
-			sink = createMotionPngSequenceSink({ plan, writable: options.writable,
+			sink = createMotionPngSequenceSink({ plan, writable: options.writable, maximumBlobBytes: options.maximumBlobBytes,
 				encode: (surface) => Promise.resolve(encodeMotionPng(runtime.kit, surface)) });
 		} else {
 			const { createMotionBrowserVideoSink } = await import('../common/editor/controller/export/motion-browser-video.ts');
-			sink = await createMotionBrowserVideoSink({ plan, format: options.format, writable: options.writable, background: options.background, signal: options.signal,
+			sink = await createMotionBrowserVideoSink({ plan, format: options.format, writable: options.writable, maximumBlobBytes: options.maximumBlobBytes, background: options.background, signal: options.signal,
 				...(hasAudio ? { audio: { sampleRate: 48000, channels: 2 } as const } : {}) });
 		}
 		const request = createMotionscaperRenderRequest({ ...options, project: snapshot.project, sink,
@@ -83,5 +84,5 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 			else if (options.writable && !options.writable.locked) await options.writable.abort(error);
 		} catch (failure) { cleanup.push(failure); }
 		throw aggregateScapeErrors(error, cleanup, 'Motion delivery and output cleanup both failed.');
-	} finally { await queue.close(); }
+	} finally { if (!options.queue) await queue.close(); }
 }

@@ -136,3 +136,10 @@ test('Help remains available without a document and while document work is busy'
 	for (const item of help?.items ?? []) item.onClick?.();
 	assert.deepEqual(destinations, ['manual', 'tutorials']);
 });
+
+test('Render Queue opens from File without requiring an active project', () => {
+	const calls: string[] = [];
+	const menus = createMotionscaperShellMenus({ copy: motionscaperCopy('de'), workspaceOpen: false, hasProject: false, onToggleWorkspace: () => undefined, onCommand: command => { calls.push(command); } });
+	const queue = menus.find(menu => menu.id === 'file')?.items.find(item => item.id === 'motion-render-queue');
+	assert.equal(queue?.label, 'Render-Warteschlange'); assert.equal(queue?.disabled, false); queue?.onClick?.(); assert.deepEqual(calls, ['render-queue']);
+});

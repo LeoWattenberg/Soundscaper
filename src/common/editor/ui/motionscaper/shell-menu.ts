@@ -26,8 +26,8 @@ export interface MotionscaperShellMenuOptions {
 	readonly onDocumentation?: (destination: 'manual' | 'tutorials') => void;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
-export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
+export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand; readonly file?: File; readonly onComplete?: (readOnly: boolean) => void }
 
 /** The shell admits only actions its product runtime has actually supplied. */
 export function createMotionscaperShellMenus(
@@ -54,7 +54,8 @@ export function createMotionscaperShellMenus(
 			item('motion-library', copy.motionscaperLibrary, 'library'),
 			item('motion-send', copy.motionscaperSendComposition, 'send', options.hasProject),
 			item('motion-after-effects', copy.motionscaperAfterEffectsBridge, 'after-effects'),
-			item('motion-render', copy.motionscaperRender, 'render', options.hasProject)]),
+			item('motion-render', copy.motionscaperRender, 'render', options.hasProject),
+			item('motion-render-queue', copy.motionscaperRenderQueue, 'render-queue')]),
 		}),
 		Object.freeze({
 			id: 'edit' as const, label: copy.motionscaperEditMenu,

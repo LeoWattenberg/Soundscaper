@@ -1,24 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { motionWorkAreaOutputFrames } from '../../motion-work-area-output.ts';
 import { decodeMotionChannel } from '../../motion-surface.ts';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
-import type { MotionAssetReader } from '../../../../motionscaper/editor-render-resources.ts';
-import { renderMotionscaperDelivery } from '../../../../motionscaper/editor-render-delivery.ts';
+import type { MotionscaperDeliveryQueue } from '../../../../motionscaper/editor-delivery-queue.ts';
+import { chooseMotionRenderDestination, downloadMotionRender } from './motion-render-download.ts';
 import { motionCompositionHasAudio } from '../../motion-composition-audio.ts';
 import { motionscaperDesktopDelivery } from '../../../../motionscaper/desktop-delivery-adapter.ts';
 import type { MOTION_PRORES_DELIVERY_PROFILE } from '../../../../motionscaper/desktop-delivery-contract.ts';
-import { motionDocumentFileName } from '../../../../motionscaper/editor-document-file-name.ts';
 
 type Format = 'png' | 'mp4' | 'webm' | 'prores';
-interface StreamingPicker { showSaveFilePicker?(options: { suggestedName: string; types: readonly { description: string; accept: Record<string, string[]> }[] }): Promise<FileSystemFileHandle> }
 
-export default function MotionRenderDialog({ copy, project, store, onClose }: Readonly<{
-	copy: Readonly<Record<string, string>>; project: MotionscaperProject; store: MotionAssetReader; onClose: () => void;
+export default function MotionRenderDialog({ copy, project, queue, onClose }: Readonly<{
+	copy: Readonly<Record<string, string>>; project: MotionscaperProject; queue: MotionscaperDeliveryQueue; onClose: () => void;
 }>) {
 	const [compositionId, setCompositionId] = useState(project.primaryCompositionId);
 	const composition = project.compositions.find((entry) => entry.id === compositionId)!;
@@ -29,7 +27,9 @@ export default function MotionRenderDialog({ copy, project, store, onClose }: Re
 	const [excludeAudio, setExcludeAudio] = useState(false);
 	const authoredAudio = motionCompositionHasAudio(project, composition.id);
 	const [background, setBackground] = useState('#000000'); const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null); const [progress, setProgress] = useState<readonly [number, number] | null>(null); const [complete, setComplete] = useState(false);
+	const [error, setError] = useState<string | null>(null); const [complete, setComplete] = useState(false);
+	const [jobId, setJobId] = useState<string | null>(null); const jobs = useSyncExternalStore(queue.subscribe, queue.snapshot, queue.snapshot);
+	const job = jobs.find(entry => entry.id === jobId);
 	useEffect(() => {
 		let cancelled = false;
 		void (async () => {
@@ -41,28 +41,21 @@ export default function MotionRenderDialog({ copy, project, store, onClose }: Re
 	useEffect(() => { mounted.current = true; return () => { mounted.current = false; cancellation.current?.abort(); }; }, []);
 	const render = async () => {
 		const controller = new AbortController(); cancellation.current = controller;
-		setBusy(true); setError(null); setComplete(false); setProgress(null);
+		setBusy(true); setError(null); setComplete(false); setJobId(null);
+		let writable: WritableStream<Uint8Array> | undefined;
 		try {
 			if (!Number.isSafeInteger(firstFrame) || !Number.isSafeInteger(endFrame) || firstFrame < 0 || endFrame <= firstFrame || endFrame > composition.durationFrames) throw new Error(copy.motionscaperRenderRangeInvalid);
-			const extension = format === 'png' ? 'tar' : format === 'prores' ? 'mov' : format;
-			const fileName = motionDocumentFileName(project.title).replace(/\.mscape$/u, `.${extension}`);
-			const picker = globalThis as StreamingPicker;
-			let writable: WritableStream<Uint8Array> | undefined;
-			if (format !== 'prores' && picker.showSaveFilePicker) {
-				const handle = await picker.showSaveFilePicker({ suggestedName: fileName, types: [{ description: copy.motionscaperRender!,
-					accept: { [format === 'png' ? 'application/x-tar' : `video/${format}`]: [`.${extension}`] } }] });
-				controller.signal.throwIfAborted(); writable = await handle.createWritable();
-			}
+			writable = await chooseMotionRenderDestination(project.title, format, copy.motionscaperRender);
+			controller.signal.throwIfAborted();
 			const channel = (offset: number) => decodeMotionChannel(Number.parseInt(background.slice(offset, offset + 2), 16) / 255, 'srgb');
-			const output = await renderMotionscaperDelivery({ project, store, compositionId: composition.id, firstFrame, endFrame, format, excludeAudio,
-				background: [channel(1), channel(3), channel(5)], writable, signal: controller.signal,
-				onProgress: (completed, total) => { if (mounted.current) setProgress([completed, total]); } });
-			if (output instanceof Blob) {
-				const url = URL.createObjectURL(output); const link = document.createElement('a'); link.href = url; link.download = fileName;
-				document.body.append(link); link.click(); link.remove(); globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000);
-			}
+			const handle = queue.enqueue({ project, compositionId: composition.id, firstFrame, endFrame, format, excludeAudio,
+				background: [channel(1), channel(3), channel(5)], writable });
+			writable = undefined; cancellation.current = null; setJobId(handle.id);
+			const output = await handle.completion;
+			if (output instanceof Blob) downloadMotionRender(output, project.title, format);
 			if (mounted.current) setComplete(true);
 		} catch (failure) {
+			if (writable) { try { await writable.abort(failure); } catch (cleanup) { if (mounted.current) setError(cleanup instanceof Error ? cleanup.message : copy.motionscaperFailed); } }
 			if (mounted.current && !(failure instanceof DOMException && failure.name === 'AbortError')) setError(failure instanceof Error ? failure.message : copy.motionscaperFailed!);
 		} finally { cancellation.current = null; if (mounted.current) setBusy(false); }
 	};
@@ -74,7 +67,8 @@ export default function MotionRenderDialog({ copy, project, store, onClose }: Re
 	const submit = (event: FormEvent) => { event.preventDefault(); void render(); };
 	return <AudioEditorDialogShell title={copy.motionscaperRenderTitle} onClose={onClose} width={480} initialFocus="[data-motion-render-format]"
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>
-			<Button variant="secondary" onClick={() => { if (busy) cancellation.current?.abort(); else onClose(); }}>{busy ? copy.motionscaperCancel : copy.motionscaperClose}</Button>
+			<Button variant="secondary" onClick={onClose}>{copy.motionscaperClose}</Button>
+			{busy && <Button variant="secondary" onClick={() => { cancellation.current?.abort(); if (jobId) void queue.cancel(jobId).catch(failure => setError(failure instanceof Error ? failure.message : copy.motionscaperFailed)); }}>{copy.motionscaperCancel}</Button>}
 			<Button variant="primary" disabled={busy || empty || (format === 'prores' && authoredAudio && nativeProfile?.audio !== 'pcm-s24le' && !excludeAudio)} type="submit" form={id}>{copy.motionscaperRender}</Button>
 		</>} />}>
 		<form id={id} onSubmit={submit} className="motionscaper-settings-form"><fieldset disabled={busy}>
@@ -96,6 +90,7 @@ export default function MotionRenderDialog({ copy, project, store, onClose }: Re
 		</fieldset></form>
 		{error && <p role="alert">{error}</p>}
 		<p role="status">{complete ? copy.motionscaperRenderComplete : busy ? copy.motionscaperWorking : ''}</p>
-		{progress && busy && <progress value={progress[0]} max={progress[1]} aria-label={copy.motionscaperRenderProgress} />}
+		<p>{copy.motionscaperQueueContinues}</p><p>{copy.motionscaperQueueLimits}</p>
+		{job && busy && <progress value={job.completed} max={job.total} aria-label={copy.motionscaperRenderProgress} />}
 	</AudioEditorDialogShell>;
 }
