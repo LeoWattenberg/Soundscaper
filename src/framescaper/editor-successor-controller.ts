@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createAudioEditorController } from '../common/editor/app.js';
 import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
+import { createFramescaperCompositionLinkSession } from './editor-composition-link-session.ts';
+import { createFramescaperCompositionPcmSource } from './editor-composition-link-pcm-source.ts';
 import { bindFramescaperSuccessorCompositionPreview } from './editor-composition-link-preview-controller.ts';
 import { createVideoRetimeProgramOrdinalBridge } from '../common/editor/video-retime-program-ordinal-bridge.ts';
 import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from './editor-capture-runtime.ts';
@@ -12,7 +14,7 @@ import { createFramescaperMulticameraActionsSequence } from './editor-project-se
 import { createFramescaperVideoRetimeActionsRetime } from './editor-project-retime-retime-actions.ts';
 import type { FramescaperProjectCommand } from './editor-project-commands.ts';
 import type { FramescaperAudioEditorControllerPresentation } from './editor-controller.ts';
-const CONTEXTS = new WeakMap<object, Readonly<{ environment: FramescaperSuccessorEnvironment; session: ReturnType<FramescaperSuccessorEnvironment['runtime']['createSessionController']> }>>();
+const CONTEXTS = new WeakMap<object, Readonly<{ environment: FramescaperSuccessorEnvironment; session: ReturnType<FramescaperSuccessorEnvironment['runtime']['createSessionController']>; links: ReturnType<typeof createFramescaperCompositionLinkSession> }>>();
 /** Own the successor session, store and project runtime explicitly; the common editor supplies timeline interaction. */
 export function createFramescaperSuccessorController(value: unknown, presentation: FramescaperAudioEditorControllerPresentation = {}) {
 	const environment = assertFramescaperSuccessorEnvironment(value); const session = environment.runtime.createSessionController();
@@ -28,6 +30,12 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
 		productSequenceActions: { ...createFramescaperSequenceActionsSequence(execute), ...createFramescaperMulticameraActionsSequence(execute),
 			retimeSet: retime.set, retimeReset: retime.reset, retimeConstant: retime.constant, retimeReverse: retime.reverse, retimeFreeze: retime.freeze, retimeRamp: retime.ramp },
+		resolveProductAudioSource: async request => {
+			request.assertCurrent(); request.signal?.throwIfAborted();
+			const provider = createFramescaperCompositionPcmSource({ project: framescaperSuccessorPlaybackCanonicalProject(request.project) ?? request.project,
+				source: request.source, readAsset: asset => environment.owners.readAsset(asset) });
+			return provider ? { ...provider, readStorageChunk: (index, context = {}) => provider.readStorageChunk(index, { signal: context.signal instanceof AbortSignal ? context.signal : undefined }) } : null;
+		},
 		resolveProductVideoSource: async request => {
 			request.assertCurrent(); const resolved = resolveFramescaperCompositionSource(framescaperSuccessorPlaybackCanonicalProject(request.project) ?? request.project, request.source); request.signal?.throwIfAborted(); request.assertCurrent();
 			return resolved ? { mediaKind: 'composition', timingIndex: resolved.timing.index } : null;
@@ -36,7 +44,13 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		confirmMonoConversion: presentation.confirmMonoConversion, confirmFileSizeWarning: presentation.confirmFileSizeWarning,
 	});
 	bindFramescaperSuccessorCompositionPreview({ controller, store: environment.controllerStore, readAsset: asset => environment.owners.readAsset(asset) });
-	CONTEXTS.set(controller, Object.freeze({ environment, session })); return controller;
+	const links = createFramescaperCompositionLinkSession({ controller, environment, session });
+	const original = controller.actions;
+	controller.actions = Object.freeze({ ...original, edit: Object.freeze({ ...original.edit,
+		undo: () => links.history('undo'), redo: () => links.history('redo'),
+		execute: (action: string) => action === 'undo' || action === 'redo' ? links.history(action) : original.edit.execute(action),
+	}) });
+	CONTEXTS.set(controller, Object.freeze({ environment, session, links })); return controller;
 }
 export function framescaperSuccessorControllerContext(controller: object) {
 	const context = CONTEXTS.get(controller); if (!context) throw new TypeError('An exact successor controller is required.'); return context;

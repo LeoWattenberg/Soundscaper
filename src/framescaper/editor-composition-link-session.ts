@@ -12,15 +12,16 @@ import { retainFramescaperSuccessorMediaHistory } from './editor-project-success
 import type { FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
 import type { FramescaperSuccessorSession } from './editor-project-successor-session.ts';
 import type { PreparedFramescaperCompositionLinkOwner, FramescaperCompositionLinkOwnerReceipt } from './editor-composition-link-owner-repository.ts';
+type PreparedPublication = Pick<PreparedFramescaperCompositionLinkOwner, 'commit' | 'rollback'>;
 interface ReceiveOptions { readonly readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>; readonly signal?: AbortSignal; readonly sourceId?: string }
 /** Receive and history publication share the owner CAS. Live editor intent is adopted only after durable success. */
 export function createFramescaperCompositionLinkSession(options: Readonly<{
 	controller: ReturnType<typeof createAudioEditorController>; environment: FramescaperSuccessorEnvironment; session: FramescaperSuccessorSession;
 }>) {
 	const { controller, environment: env, session } = options; let busy = false;
-	async function publish(build: (history: FramescaperSuccessorHistory) => Promise<{ history: FramescaperSuccessorHistory; prepared?: PreparedFramescaperCompositionLinkOwner }>) {
+	async function publish(build: (history: FramescaperSuccessorHistory) => Promise<{ history: FramescaperSuccessorHistory; prepared?: PreparedPublication }>) {
 		if (busy) throw new Error('Wait for the current composition publication.'); busy = true;
-		let prepared: PreparedFramescaperCompositionLinkOwner | undefined;
+		let prepared: PreparedPublication | undefined;
 		let fence: ReturnType<typeof env.runtime.beginPublication> | null = null;
 		try {
 			await controller.actions.project.flush();
@@ -35,7 +36,7 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 			prepared = undefined; env.controllerStore.acceptOwnerReceipt(receipt); fence.acceptHistory(receipt.history); fence.release(); fence = null;
 			await controller.actions.project.openById(current.id, { adoptSessionRevision: true }); return receipt;
 		} catch (error) {
-			if (prepared) { try { await prepared.rollback(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition publication and cleanup failed.', { cause: error }); } }
+			if (prepared) { try { await prepared.rollback(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition publication and cleanup failed.', { cause: cleanup }); } }
 			throw error;
 		} finally { fence?.release(); busy = false; }
 	}
@@ -78,13 +79,11 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 			return publish(async current => {
 				const history = direction === 'undo' ? undoFramescaperSuccessorHistory(current) : redoFramescaperSuccessorHistory(current);
 				const changed = history.present.compositionLinks.filter(link => current.present.compositionLinks.find(entry => entry.sourceId === link.sourceId)?.acceptedDigest !== link.acceptedDigest);
-				if (changed.length > 1) throw new Error('This history step requires atomic multiple-link restoration.');
-				const link = changed[0];
-				return { history, ...(link ? { prepared: await env.owners.prepareTransition(history.present.id, link.sourceId, { type: 'restore', offer: createMotionCompositionOffer(link.compositionId, link.snapshot) }) } : {}) };
+				return { history, ...(changed.length ? { prepared: await env.owners.prepareTransitions(history.present.id, changed.map(link => ({ sourceId: link.sourceId, transition: { type: 'restore', offer: createMotionCompositionOffer(link.compositionId, link.snapshot) } }))) } : {}) };
 			});
 		},
 	});
 }
 async function rollback(prepared: PreparedFramescaperCompositionLinkOwner, error: unknown): Promise<never> {
-	try { await prepared.rollback(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition preparation and cleanup failed.', { cause: error }); } throw error;
+	try { await prepared.rollback(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition preparation and cleanup failed.', { cause: cleanup }); } throw error;
 }

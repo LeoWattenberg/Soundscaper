@@ -40,7 +40,11 @@ test('successor session receives one saved update, atomically undoes its revisio
 		assert.equal((await env.owners.loadOwner(received.project.id))?.project.compositionLinks[0]?.acceptedDigest, first.revision.digest);
 		assert.equal(framescaperSuccessorControllerContext(controller).session.getProjectHistory(received.project.id).undoStack.length, 1);
 		const updated = await service.receive(next, { readAsset: async () => null }); assert.equal(updated.project.compositionLinks[0]?.acceptedDigest, next.revision.digest);
-		const undone = await service.history('undo'); assert.equal(undone.project.compositionLinks[0]?.acceptedDigest, first.revision.digest); assert.equal(undone.linkStates[0]?.state.paused, true);
+		factory.failNextPutForStore('owners', new Error('history publication failed'));
+		await assert.rejects(Promise.resolve(controller.actions.edit.undo()), /publication|transaction/iu);
+		assert.equal((await env.owners.loadOwner(received.project.id))?.project.compositionLinks[0]?.acceptedDigest, next.revision.digest);
+		assert.equal(framescaperSuccessorControllerContext(controller).session.getProjectHistory(received.project.id).present.compositionLinks[0]?.acceptedDigest, next.revision.digest);
+		await controller.actions.edit.undo(); const undone = (await env.owners.loadOwner(received.project.id))!; assert.equal(undone.project.compositionLinks[0]?.acceptedDigest, first.revision.digest); assert.equal(undone.linkStates[0]?.state.paused, true);
 		const resumed = await service.transition(undone.project.compositionLinks[0]!.sourceId, 'resume'); assert.equal(resumed.project.compositionLinks[0]?.acceptedDigest, next.revision.digest); assert.equal(resumed.linkStates[0]?.state.paused, false);
 		assert.equal(controller.project?.schemaVersion, 2);
 	} finally { await controller.dispose(); await env.close(); }
