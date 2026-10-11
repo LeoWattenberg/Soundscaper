@@ -1,12 +1,12 @@
 # Engineering documentation
 
 This directory documents the contracts a maintainer needs to understand,
-change, test, or release Soundscaper and Framescaper. It is organized by task
-and subject rather than by the order in which the software was implemented.
+change, test, or release Soundscaper, Framescaper, and Motionscaper. It is
+organized by task and subject rather than by implementation order.
 
 For product scope, status, and sequencing, use the
 [Soundscaper and Framescaper roadmap](../roadmap.md) or the
-[Lightscaper roadmap](../roadmap-lightscaper.md). The planned motion-graphics
+[Lightscaper roadmap](../roadmap-lightscaper.md). The motion-graphics
 program has its own [Motionscaper implementation order](development/motionscaper-implementation-order.md).
 For end-user instructions, use the [handbook](../handbook/src/content/docs/index.md).
 Completed work
@@ -86,6 +86,28 @@ belong in Git history, not in the maintained documentation set.
   desktop guest and its cropped capture path.
 - [Framescaper image media](features/framescaper-images.md) defines current
   image import behavior and the remaining format boundary.
+
+### Motion graphics
+
+- [Motionscaper 2.5D rendering contract](development/motionscaper-2-5d-rendering.md).
+- [Motionscaper → After Effects development exchange](development/motionscaper-ae-export.md).
+- [Motionscaper AE scalar expression mapping](development/motionscaper-ae-expressions.md).
+- [Motion to After Effects complete rendered transfer](development/motionscaper-ae-render-transfer-qualification.md).
+- [Motionscaper AE scene transfer qualification](development/motionscaper-ae-scene-qualification.md).
+- [Motionscaper AE editable shape staging](development/motionscaper-ae-shape-qualification.md).
+- [Motionscaper AE editable text staging](development/motionscaper-ae-text-qualification.md).
+- [Motionscaper After Effects bridge](development/motionscaper-after-effects-bridge.md).
+- [Motionscaper composition link foundations](development/motionscaper-composition-links.md).
+- [Desktop saved Motionscaper links](development/motionscaper-desktop-saved-links.md).
+- [Linux packaged qualification gate](development/motionscaper-linux-ci-qualification.md).
+- [Motionscaper native delivery](development/motionscaper-native-delivery.md).
+- [Packaged Motionscaper file launch qualification](development/motionscaper-native-launch-qualification.md).
+- [Packaged Motionscaper scene qualification](development/motionscaper-native-scene-qualification.md).
+- [Motionscaper platform qualification](development/motionscaper-platform-qualification.md).
+- [Motionscaper candidate package route](development/motionscaper-preview-release.md).
+- [Framescaper successor native composition delivery](development/motionscaper-successor-native-delivery.md).
+- [Motionscaper sustained CPU workload](development/motionscaper-sustained-workload.md).
+- [Motionscaper tracking contracts](development/motionscaper-tracking.md).
 
 ## Look up evidence and reference material
 

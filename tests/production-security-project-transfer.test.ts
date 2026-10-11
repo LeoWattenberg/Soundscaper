@@ -46,7 +46,7 @@ test('cross-origin project transfer owns a bounded authenticated security bounda
 		await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)));
 	}
 	assert.ok(risk);
-	assert.deepEqual(risk.boundaryIds, [BOUNDARY_ID]);
+	assert.deepEqual(risk.boundaryIds, [BOUNDARY_ID, 'browser-motion-link-to-successor-owner']);
 	assert.equal(risk.status, 'partial');
 	assert.equal(risk.surfaceDisposition, 'conditional');
 	assert.ok(control);
