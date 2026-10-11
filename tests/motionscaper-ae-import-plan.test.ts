@@ -29,3 +29,9 @@ test('AE import preflight refuses unsupported layer kinds with a rendered-compos
 	const value = fixture(); value.compositions[0]!.layers[0]!.kind = 'text';
 	assert.throws(() => prepareMotionAeHostImport(JSON.stringify(value)), /render.*composition/iu);
 });
+test('AE host plan refuses constructor and timing values that the documented host rejects or clamps', () => {
+	for (const frameRate of [0.5, 100]) { const input = fixture(); input.compositions[0]!.frameRate = frameRate; assert.throws(() => prepareMotionAeHostImport(JSON.stringify(input)), /range/iu); }
+	for (const width of [2, 30001]) { const input = fixture(); input.compositions[0]!.width = width; assert.throws(() => prepareMotionAeHostImport(JSON.stringify(input)), /range/iu); }
+	for (const stretch of [0.5, -0.5]) { const input = fixture(); input.compositions[0]!.layers[0]!.stretch = stretch; assert.throws(() => prepareMotionAeHostImport(JSON.stringify(input)), /timing/iu); }
+	const input = fixture(); input.compositions[0]!.layers[0]!.startTime = -10801; assert.throws(() => prepareMotionAeHostImport(JSON.stringify(input)), /range/iu);
+});

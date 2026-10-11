@@ -15,7 +15,7 @@ issued by export.
 
 The initial reverse subset includes 2D image/footage, nested compositions, null
 layers, layer order, parent references, source timing with positive finite
-stretch, static transforms, hold/linear curves with aligned axis clocks and
+stretch from 1 through 9900 percent, static transforms, hold/linear curves with aligned axis clocks and
 scalar/nonspatial temporal Bezier curves that fit AE ease limits. Position and
 anchor spatial Bezier curves, independently timed vector axes and vertical or
 out-of-range temporal handles receive an unsupported report; the mapped base
@@ -35,6 +35,11 @@ Motionscaper producer with bridge version `0.1.0` and sets `audioEnabled=false`
 for every new layer, including precomposition layers. This prevents automatic
 AE audio defaults from inventing unrequested sound. Earlier Adobe-produced
 exchanges retain their existing importer behavior.
+
+The documented AE constructor range is enforced before host mutation: 4–30000
+pixels per dimension, 1–99 frames per second and at most three hours. Layer
+start/in/out times must remain within ±three hours. Sub-one-percent stretch is
+reported as unsupported because the documented host clamps it.
 
 The separate destination project must use Working Space None, linear blending
 and 32 bits per channel. These are explicit staging settings, not qualified
@@ -56,6 +61,9 @@ Published API references used for the structural mapping:
 
 - [Adobe AV layer property match names](https://ae-scripting.docsforadobe.dev/matchnames/layer/avlayer/)
   specify `ADBE Rotate X`, `ADBE Rotate Y` and `ADBE Rotate Z` with spaces.
+- [ItemCollection.addComp](https://ae-scripting.docsforadobe.dev/item/itemcollection/#itemcollectionaddcomp)
+  and [Layer timing](https://ae-scripting.docsforadobe.dev/layer/layer/#layerstretch)
+  define the constructor limits and stretch clamping behavior.
 - [KeyframeEase](https://ae-scripting.docsforadobe.dev/other/keyframeease/)
   defines speed and influence; actual interpolation is still a reference gate.
 - [AVLayer audioEnabled](https://ae-scripting.docsforadobe.dev/layer/avlayer/#avlayeraudioenabled)

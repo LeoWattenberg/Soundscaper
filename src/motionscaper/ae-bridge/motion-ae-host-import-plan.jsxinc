@@ -202,20 +202,20 @@ function prepareMotionAeHostImport(json) {
                 throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
             if (layer.matte !== null || layer.adjustment !== false || layer.blendMode !== 'normal')
                 warnings.push('Matte, adjustment, or blend intent is not mapped; render the complete original composition for visual fidelity.');
-            var inPoint = number(layer.inPoint, -1e6, 1e6), outPoint = number(layer.outPoint, -1e6, 1e6), stretch = number(layer.stretch, -9900, 9900);
-            if (outPoint < inPoint || stretch === 0)
+            var inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
+            if (outPoint < inPoint || Math.abs(stretch) < 1)
                 throw new Error('AE import layer timing is invalid.');
             layers.push({ id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
-                startTime: number(layer.startTime, -1e6, 1e6), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget) });
+                startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget) });
         }
-        var width = number(comp.width, 1, 32768), height = number(comp.height, 1, 32768);
+        var width = number(comp.width, 4, 30000), height = number(comp.height, 4, 30000);
         if (width !== Math.floor(width) || height !== Math.floor(height))
             throw new Error('AE import dimensions must be integral.');
         var background = vector(comp.background, 3);
         for (var channel = 0; channel < 3; channel++)
             number(background[channel], 0, 1);
-        compositions.push({ id: id(comp.id), name: text(comp.name), width: width, height: height, pixelAspect: number(comp.pixelAspect, 0.01, 100), frameRate: number(comp.frameRate, 1, 1000),
-            duration: number(comp.duration, 0.000001, 1e6), displayStartTime: number(comp.displayStartTime, -1e6, 1e6), background: background, layers: layers });
+        compositions.push({ id: id(comp.id), name: text(comp.name), width: width, height: height, pixelAspect: number(comp.pixelAspect, 0.01, 100), frameRate: number(comp.frameRate, 1, 99),
+            duration: number(comp.duration, 0.000001, 10800), displayStartTime: number(comp.displayStartTime, -1e6, 1e6), background: background, layers: layers });
     }
     if (!compositions.length)
         throw new Error('AE import has no compositions.');

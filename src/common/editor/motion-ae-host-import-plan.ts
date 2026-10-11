@@ -123,16 +123,16 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 		for (let j = 0; j < rawLayers.length; j++) {
 			const layer = record(rawLayers[j]); if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null') throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
 			if (layer.matte !== null || layer.adjustment !== false || layer.blendMode !== 'normal') warnings.push('Matte, adjustment, or blend intent is not mapped; render the complete original composition for visual fidelity.');
-			const inPoint = number(layer.inPoint, -1e6, 1e6), outPoint = number(layer.outPoint, -1e6, 1e6), stretch = number(layer.stretch, -9900, 9900);
-			if (outPoint < inPoint || stretch === 0) throw new Error('AE import layer timing is invalid.');
+			const inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
+			if (outPoint < inPoint || Math.abs(stretch) < 1) throw new Error('AE import layer timing is invalid.');
 			layers.push({ id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
-				startTime: number(layer.startTime, -1e6, 1e6), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget) });
+				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget) });
 		}
-		const width = number(comp.width, 1, 32_768), height = number(comp.height, 1, 32_768);
+		const width = number(comp.width, 4, 30_000), height = number(comp.height, 4, 30_000);
 		if (width !== Math.floor(width) || height !== Math.floor(height)) throw new Error('AE import dimensions must be integral.');
 		const background = vector(comp.background, 3); for (let channel = 0; channel < 3; channel++) number(background[channel], 0, 1);
-		compositions.push({ id: id(comp.id), name: text(comp.name), width, height, pixelAspect: number(comp.pixelAspect, 0.01, 100), frameRate: number(comp.frameRate, 1, 1000),
-			duration: number(comp.duration, 0.000001, 1e6), displayStartTime: number(comp.displayStartTime, -1e6, 1e6), background, layers });
+		compositions.push({ id: id(comp.id), name: text(comp.name), width, height, pixelAspect: number(comp.pixelAspect, 0.01, 100), frameRate: number(comp.frameRate, 1, 99),
+			duration: number(comp.duration, 0.000001, 10800), displayStartTime: number(comp.displayStartTime, -1e6, 1e6), background, layers });
 	}
 	if (!compositions.length) throw new Error('AE import has no compositions.');
 	const color = record(input.color), bits = number(color.bitsPerChannel, 8, 32); if (bits !== 8 && bits !== 16 && bits !== 32) throw new Error('AE color depth is unsupported.');

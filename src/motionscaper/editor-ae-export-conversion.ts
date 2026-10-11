@@ -44,6 +44,12 @@ function transform(layer: MotionLayer, id: string, comp: MotionComposition, repo
 /** Immutable, deterministic partial transfer. The companion archive must retain this exact source revision. */
 export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscaperAeExport {
 	const revision = createMotionscaperRevision(input), project = revision.project, transferId = `motion-${revision.digest}`;
+	for (const comp of project.compositions) {
+		const rate = number(comp.frameRate);
+		if (comp.width < 4 || comp.height < 4 || comp.width > 30000 || comp.height > 30000 || rate < 1 || rate > 99 || comp.durationFrames / rate > 10800) {
+			throw new RangeError('AE editable composition export requires dimensions 4–30000, frame rate 1–99 and duration at most three hours. Keep a full .mscape copy or prepare a composition within these documented host limits.');
+		}
+	}
 	const report: MotionAeReportEntry[] = [];
 	const add = (scopeId: string, code: string, message: string, propertyPath = '') => report.push({ scopeId, propertyPath, status: 'unsupported', code, message });
 	add(transferId, 'qualification', 'Development bridge: installed After Effects reimport, color/alpha, source interpretation and reference-frame qualification remain unverified. Inspect every transferred composition before use.');
@@ -71,7 +77,7 @@ export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscape
 		if (comp.tracking?.length || comp.trackingApplications?.length) add(id, 'tracking-custody', 'Tracking analysis and application authority stay in original.mscape; mapped transform curves do not carry analysis authority.');
 		const layers: MotionAeLayer[] = comp.layers.map(layer => {
 			const layerId = layerIds.get(layer.id)!; let kind: MotionAeLayer['kind'] = 'null', sourceId: string | null = null, enabled = layer.enabled;
-			const scale = number(layer.timeScale), validTiming = scale > 0 && 100 / scale <= 9900 && !layer.timeRemap;
+			const scale = number(layer.timeScale), validTiming = scale > 0 && 100 / scale >= 1 && 100 / scale <= 9900 && !layer.timeRemap;
 			if (!flat(layer)) { enabled = false; add(layerId, '3d', 'This layer uses 3D or nonplanar transform channels and becomes a disabled named null. Original geometry remains in original.mscape.'); }
 			else if (!validTiming) { enabled = false; add(layerId, 'source-timing', 'Held, reversed, remapped or out-of-range source timing becomes a disabled named null. Render the original composition to preserve playback.'); }
 			else if (layer.kind === 'precomp') { kind = 'composition'; sourceId = compIds.get(layer.compositionId)!; }
@@ -80,9 +86,11 @@ export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscape
 				if (sourceId) kind = 'footage'; else { enabled = false; add(layerId, 'media-mapping', 'The layer media is retained in original.mscape and is not admitted by this AE import subset.'); }
 			} else if (layer.kind !== 'null') { enabled = false; add(layerId, 'layer-kind', `Layer kind “${layer.kind}” becomes a disabled named null. Its full authored content remains in original.mscape.`); }
 			if (layer.masks.length || layer.matte || layer.effects.some(effect => effect.enabled) || layer.blendMode !== 'normal') add(layerId, 'compositing', 'Masks, mattes, enabled effects and non-normal blend modes are not mapped by this subset. Render the original composition to preserve their appearance.');
+			const startTime = number(layer.startFrame) / number(comp.frameRate) - (validTiming ? number(layer.sourceStart) / scale : 0);
+			const inPoint = number(layer.inFrame) / number(comp.frameRate), outPoint = number(layer.outFrame) / number(comp.frameRate);
+			if ([startTime, inPoint, outPoint].some(time => Math.abs(time) > 10800)) throw new RangeError('AE layer timing exceeds its documented ±three-hour range. Retain original.mscape or prepare timing within that host range.');
 			return { id: layerId, name: layer.name, kind, sourceId, parentId: layer.parentId === null ? null : layerIds.get(layer.parentId)!, matte: null,
-				startTime: number(layer.startFrame) / number(comp.frameRate) - (validTiming ? number(layer.sourceStart) / scale : 0),
-				inPoint: number(layer.inFrame) / number(comp.frameRate), outPoint: number(layer.outFrame) / number(comp.frameRate), stretch: validTiming ? 100 / scale : 100,
+				startTime, inPoint, outPoint, stretch: validTiming ? 100 / scale : 100,
 				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: transform(layer, layerId, comp, report) };
 		});
 		return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: 1, frameRate: number(comp.frameRate),

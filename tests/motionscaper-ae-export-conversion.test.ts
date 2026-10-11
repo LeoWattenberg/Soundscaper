@@ -80,3 +80,11 @@ test('Motion AE scalar Bezier conversion preserves handle slope in seconds and r
 	const rejected = convert(0); assert.deepEqual(numeric(rejected.exchange.compositions[0]!.layers[0]!.properties, 'ADBE Opacity').keys, []);
 	assert.ok(rejected.exchange.report.some(entry => /without changing its curve/u.test(entry.message)));
 });
+test('Motion AE export refuses host-clamped stretch and documented composition constructor limits', () => {
+	const project = trackingProject(), comp = project.compositions[0]!;
+	assert.throws(() => prepareMotionscaperAeExport({ ...project, compositions: [{ ...comp, frameRate: { num: 100, den: 1 } }] }), /AE.*frame rate|AE.*composition/iu);
+	assert.throws(() => prepareMotionscaperAeExport({ ...project, compositions: [{ ...comp, width: 2 }] }), /AE.*composition/iu);
+	const fast = prepareMotionscaperAeExport({ ...project, compositions: [{ ...comp, layers: comp.layers.map(layer => ({ ...layer, timeScale: { num: 200, den: 1 } })) }] });
+	assert.ok(fast.exchange.compositions[0]!.layers.every(layer => layer.kind === 'null' && !layer.enabled));
+	assert.ok(fast.exchange.report.some(entry => entry.code === 'source-timing'));
+});
