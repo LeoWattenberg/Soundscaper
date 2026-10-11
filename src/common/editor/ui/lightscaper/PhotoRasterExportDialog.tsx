@@ -11,6 +11,7 @@ import type { ExecutePhotoDevelopCurrent } from './photo-library-workflow-develo
 import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
+import { photoBatchExportCopy } from '../../../i18n/lightscaper-photo-batch-export-copy.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import GraphicWatermarkFields, { useGraphicWatermarkSelection } from '../GraphicWatermarkFields.tsx';
 import './photo-catalog-backup.css';
@@ -35,6 +36,8 @@ export interface PhotoRasterExportDialogProps {
 	readonly capturePresets?: () => PhotoLibraryExportPresetsPortV1['open'];
 	readonly initialPreset?: PhotoRasterExportPresetV1;
 	readonly onApplyPreset?: (preset: PhotoRasterExportPresetV1) => void;
+	readonly visible?: boolean;
+	readonly onHide?: () => void;
 	readonly onClose: () => void;
 }
 export interface PhotoRasterExportCopy {
@@ -59,6 +62,7 @@ interface Scope {
 /** Opt-in presentation; destination preparation is invoked directly in the original Save gesture. */
 export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogProps) {
 	const latest = useRef(props); latest.current = props;
+	const rendered = {}, presentation = useRef(rendered); presentation.current = rendered;
 	const owner = useRef<PhotoRasterExport | null>(null); owner.current ??= new PhotoRasterExport(props.format);
 	const scope = useRef<Scope | null>(null), retiring = useRef<Promise<void> | null>(null);
 	const [target, setTarget] = useState<Target | null>(null), [receipt, setReceipt] = useState<PhotoRasterExportReceipt | null>(null);
@@ -66,7 +70,7 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 	const [settings, setSettings] = useState(() => props.initialPreset ? restoreRasterExportSettings(props.initialPreset.output, props.initialPreset.filenameTemplate) : DEFAULT_RASTER_EXPORT_SETTINGS), [invalidSettings, setInvalidSettings] = useState(false);
 	const [metadataFailed, setMetadataFailed] = useState(false), [sidecarEnabled, setSidecarEnabled] = useState(props.initialPreset?.sidecarEnabled ?? false);
 	const saveButton = useRef<HTMLButtonElement>(null), focused = useRef(false);
-	const controller = owner.current, copy = props.copy;
+	const controller = owner.current, copy = props.copy, queueCopy = photoBatchExportCopy(props.locale);
 	const graphic = useGraphicWatermarkSelection(useMemo(() => ({ execute: props.execute, photoId: props.photoId, registerDestination: props.registerDestination }),
 		[props.execute, props.photoId, props.registerDestination]));
 	const retire = useCallback((current: Scope) => {
@@ -99,15 +103,20 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 		return () => { current.live = false; unregister(); };
 	}, [execute, photoId, registerDestination, retire]);
 	const ready = target !== null && target.scope === scope.current && props.saveRuntime !== null && !failed && !props.preparationFailed && !scope.current?.closed;
+	const isCurrentPresentation = () => latest.current === props && presentation.current === rendered && props.visible !== false;
+	const actionScope = () => {
+		const current = scope.current;
+		return isCurrentPresentation() && current?.live && !current.closed && (!target || target.scope === current) ? current : null;
+	};
 	useLayoutEffect(() => {
 		const button = saveButton.current;
-		if (!focused.current && ready && !saving && button && !button.disabled) {
+		if (props.visible !== false && !focused.current && ready && !saving && button && !button.disabled) {
 			button.focus({ preventScroll: true }); focused.current = button.ownerDocument.activeElement === button;
 		}
-	}, [ready, saving]);
+	}, [ready, saving, props.visible]);
 	const save = () => {
 		const current = latest.current, runtime = current.saveRuntime;
-		const lifetime = scope.current;
+		const lifetime = actionScope();
 		if (!lifetime?.live || lifetime.closed || lifetime.active || !target || target.scope !== lifetime || !runtime || failed || current.preparationFailed) return;
 		let sidecar: PhotoRasterExportRequest['sidecar'];
 		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>, graphicWatermark: PhotoRasterExportRequest['graphicWatermark'];
@@ -137,45 +146,53 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 	};
 	const partialSidecar = receipt?.status !== 'cancelled' && receipt?.sidecar && receipt.sidecar.status !== 'download-started';
 	const applyPreset = async (preset: PhotoRasterExportPresetV1, signal: AbortSignal) => {
-		const current = scope.current, input = latest.current;
+		const current = actionScope(), input = props;
 		if (!current?.live || current.closed || current.active || !ready || closing || partialSidecar) throw new Error('Export settings are currently protected.');
 		if (input.onApplyPreset) {
 			setClosing(true); await retire(current); signal.throwIfAborted();
-			if (current.live) input.onApplyPreset(preset); return;
+			if (latest.current !== input || input.visible === false || scope.current !== current || !current.live) throw new Error('Export presentation changed.');
+			input.onApplyPreset(preset); return;
 		}
 		if (preset.format !== input.format) throw new Error('This export surface cannot change format.');
 		setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setSidecarEnabled(preset.sidecarEnabled); setReceipt(null);
 		graphic.onChange({ ...graphic.value, enabled: false, body: null });
 	};
 	const retrySidecar = () => {
-		const lifetime = scope.current;
-		if (!lifetime?.live || lifetime.closed || lifetime.active || !partialSidecar) return;
+		const lifetime = actionScope();
+		if (!lifetime?.live || lifetime.closed || lifetime.active || !ready || closing || !partialSidecar) return;
 		setSaving(true);
 		const joined = controller.retrySidecar().then(result => { if (lifetime.live) setReceipt(result); }, () => { if (lifetime.live) setFailed(true); })
 			.finally(() => { if (lifetime.active === joined) lifetime.active = null; if (lifetime.live) setSaving(false); });
 		lifetime.active = joined;
 	};
 	const close = () => {
-		const current = scope.current;
+		const current = actionScope();
 		if (!current?.live || current.closed || closing) return;
 		setClosing(true);
 		void retire(current).then(() => { if (current.live) latest.current.onClose(); }, () => { if (current.live) { setFailed(true); setClosing(false); } });
 	};
+	const hide = () => {
+		if (actionScope() && !closing) props.onHide?.();
+	};
+	if (props.visible === false) return null;
 	const number = new Intl.NumberFormat(props.locale);
-	return <AudioEditorDialogShell title={copy.title} onClose={close} initialFocus={`[data-photo-${props.format}-export-save]`}
+	return <AudioEditorDialogShell title={copy.title} onClose={props.onHide ? hide : close} initialFocus={`[data-photo-${props.format}-export-save]`}
 		className="lightscaper-dialog" overlayClassName="lightscaper-dialog-backdrop" closeOnOutside={false}>
 		<div {...{ [`data-photo-${props.format}-export-dialog`]: true }} className="lightscaper-catalog-backup">
 			<p>{copy.description}</p>
 			<PhotoRasterExportSettings value={settings} copy={copy} locale={props.locale} disabled={!ready || saving || closing}
-				onChange={value => { setSettings(value); setInvalidSettings(false); setMetadataFailed(false); }} />
+				onChange={value => { if (actionScope() && ready && !saving && !closing) { setSettings(value); setInvalidSettings(false); setMetadataFailed(false); } }} />
 			<label><input type="checkbox" data-photo-raster-export-sidecar checked={sidecarEnabled} disabled={!ready || saving || closing || !!partialSidecar || !props.captureSidecarReader}
-				onChange={event => { setSidecarEnabled(event.target.checked); setInvalidSettings(false); }} />{copy.sidecar}</label>
+				onChange={event => { if (actionScope() && ready && !saving && !closing && !partialSidecar) { setSidecarEnabled(event.target.checked); setInvalidSettings(false); } }} />{copy.sidecar}</label>
 			<p data-photo-raster-export-sidecar-help>{copy.sidecarHelp}</p>
-			<GraphicWatermarkFields {...graphic} locale={props.locale} disabled={!ready || saving || closing} />
+			<GraphicWatermarkFields {...graphic} onChange={value => { if (actionScope() && ready && !saving && !closing) graphic.onChange(value); }} locale={props.locale} disabled={!ready || saving || closing} />
 			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} disabled={!ready || saving || closing || !!partialSidecar}
-				captureCurrent={(id, name) => ({ schemaVersion: 1, id, name, format: props.format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
-					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
-						...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) })} onApply={applyPreset} />
+				captureCurrent={(id, name) => {
+					if (!actionScope() || !ready || saving || closing || partialSidecar) throw new Error('Export settings are currently protected.');
+					return { schemaVersion: 1, id, name, format: props.format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
+						output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
+							...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) };
+				}} onApply={applyPreset} />
 			{invalidSettings && <p role="alert">{copy.invalidSettings}</p>}
 			{metadataFailed && <p role="alert" data-photo-raster-export-metadata-error>{copy.metadataFailed}</p>}
 			{!ready && !failed && !props.preparationFailed && !saving && !closing && <p role="status">{copy.preparing}</p>}
@@ -189,7 +206,8 @@ export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogPr
 			<div className="lightscaper-catalog-backup-actions">
 				{partialSidecar && <button type="button" data-photo-raster-export-sidecar-retry disabled={!ready || saving || closing} onClick={retrySidecar}>{copy.sidecarRetry}</button>}
 				<button type="button" ref={saveButton} {...{ [`data-photo-${props.format}-export-save`]: true }} disabled={!ready || saving || closing || !!partialSidecar} onClick={save}>{copy.save}</button>
-				<button type="button" {...{ [`data-photo-${props.format}-export-close`]: true }} disabled={closing} onClick={close}>{copy.close}</button>
+				{props.onHide && <button type="button" {...{ [`data-photo-${props.format}-export-hide`]: true }} disabled={closing} onClick={hide}>{queueCopy.hide}</button>}
+				<button type="button" {...{ [`data-photo-${props.format}-export-close`]: true }} disabled={closing} onClick={close}>{props.onHide && saving ? queueCopy.cancel : copy.close}</button>
 			</div>
 		</div>
 	</AudioEditorDialogShell>;
