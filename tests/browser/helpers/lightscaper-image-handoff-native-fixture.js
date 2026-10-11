@@ -182,6 +182,20 @@ export async function qualifyNativePhotoRestoredPreviewSessionClose(page, cut) {
 	await assertNativeOpfsWorkerExecution(page); return facts;
 }
 
+/** Observe genuine restored import transactions, then join Close and recovery. */
+export async function qualifyNativePhotoRestoredImportSessionClose(page, cut) {
+	const script = await mappedBundle('restored-import-session-close.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-restored-import-session-close-native-v1.ts'));
+	register(page, '/__restored_import_session_close_native.js', script);
+	await page.route('**/__restored_import_session_close_native.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	const facts = await page.evaluate(async cut => (await import(new URL('/__restored_import_session_close_native.js', location.href).href))
+		.qualifyPhotoRestoredImportSessionCloseNativeV1(cut), cut);
+	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
 /** Full canvas comparison happens after the measured current-ready paint. */
 export async function validateNativePhotoDevelopProxyCanvas(page, selector, stage) {
 	const script = await mappedBundle('develop-proxy-reference.js', resolve(repositoryRoot, 'tests/browser/helpers/lightscaper-develop-proxy-reference.ts'));

@@ -37,3 +37,33 @@ The intent is retired only after all its roots have settled. An interruption
 may leave a valid partial import and a protected provisional original; reopening
 under a new writer settles that state before another import begins. No cleanup
 infers abandonment from elapsed time or from an unlocked catalog-absence read.
+
+## Restored-library interruption qualification
+
+The restored import Close tests export a real V5 backup, restore it through the
+private restore owner, and open the committed allocated library with the current
+Session runtime. The current import uses the ordinary shared browser decoder and
+the selected library's preset and disabled LUT resources. The allocated profile
+stores original Blobs in IndexedDB; its qualification does not claim an OPFS
+original write. The unchanged default donor uses the ordinary native worker path.
+
+Chromium and Firefox observe mutation success and completed acknowledgement at
+each of the six durable phases: intent, original, provisional custody, Photo,
+permanent custody and intent retirement. The fixture forwards actual requests
+and cancellation. It holds only delivery of an already settled owner outcome
+to verify that Close joins admitted work before closing selected resources.
+
+The expected ledger follows each owner's cancellation contract. Journal and
+original transactions can finish after cancellation, leaving a recoverable
+intent or an immutable unrooted body. Catalog and custody transactions abort
+when their active signal is cancelled before completion. An import whose final
+intent retirement has completed can return its already known receipt. Reopening
+through the actual Session retires recoverable intent, releases staged roots for
+an absent Photo, and promotes custody for a published Photo. A second reopen
+checks idempotence. Full retained Photos, private content tokens, original bytes,
+presets, LUT bodies and the default donor are compared throughout.
+
+The strict Node tests separately qualify selected owner outcome joining with a
+scoped bitmap/canvas platform fixture. They do not qualify native decoding or
+native transaction timing. These bounded interruption tests do not establish
+the complete L3 exit criteria or WebKit support.
