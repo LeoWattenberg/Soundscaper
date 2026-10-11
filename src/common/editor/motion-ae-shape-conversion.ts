@@ -4,7 +4,7 @@ import type { MotionAeLayer, MotionAeReportEntry } from './motion-ae-exchange-ty
 import { normalizeMotionAeProperties } from './motion-ae-property-custody.ts';
 import { convertMotionAePath, exportMotionAePath } from './motion-ae-path-conversion.ts';
 import { assertNormalAeVector, convertAeShapePaint, exportAeShapePaint } from './motion-ae-shape-paint.ts';
-import { convertAeShapeTransform, identityAeShapeTransform, shapeFields, shapeGroup, shapeGroupRecord, UnsupportedAeShape, type ShapeGroup } from './motion-ae-shape-transform.ts';
+import { convertAeShapeTransform, identityAeShapeTransform, shapeFields, shapeGroup, shapeGroupRecord, shapeStatic, UnsupportedAeShape, type ShapeGroup } from './motion-ae-shape-transform.ts';
 import { normalizeMotionLayerContent } from './motion-layer-content.ts';
 import { freezeMotionValue } from './motion-values.ts';
 import { normalizeRational, type Rational } from './timeline-time.ts';
@@ -47,7 +47,11 @@ export function convertMotionAeShapes(layer: MotionAeLayer, rate: Rational, allo
 			if (!active.length || (active.length === 1 && [pathName, ...paints].includes(active[0]!.matchName))) continue;
 			if (active.length !== 2 || active[0]!.matchName !== pathName || !paints.includes(active[1]!.matchName)) throw new UnsupportedAeShape('Each editable group requires one path followed by one solid fill or stroke. Multiple paints, compound paths and operators need explicit group semantics.');
 			const pathGroup = shapeGroup(active[0], pathName), pathFields = shapeFields(pathGroup, ['ADBE Vector Shape', 'ADBE Vector Shape Direction']);
-			if (pathFields.has('ADBE Vector Shape Direction')) throw new UnsupportedAeShape('Path direction overrides require an explicit winding mapping.');
+			if (pathFields.has('ADBE Vector Shape Direction')) {
+				shapeStatic(pathFields, 'ADBE Vector Shape Direction');
+				if (pathGroup.vectorStyle?.pathDirection !== 'forward') throw new UnsupportedAeShape('A reviewed profile must establish forward path direction; reversed or unavailable direction needs rendered fallback.');
+			}
+			if (pathGroup.vectorStyle?.pathDirection === 'reversed') throw new UnsupportedAeShape('Reversed path direction requires an explicit winding mapping.');
 			const path = pathFields.get('ADBE Vector Shape'); if (path?.kind !== 'shape') throw new UnsupportedAeShape('Captured Bézier geometry is required; parametric shapes need an explicit path bake.');
 			const converted = convertMotionAePath(path, rate); if (!converted.property) throw new UnsupportedAeShape(converted.message);
 			const paint = convertAeShapePaint(shapeGroup(active[1], active[1]!.matchName), rate, transform.scale);
@@ -68,7 +72,7 @@ export function convertMotionAeShapes(layer: MotionAeLayer, rate: Rational, allo
 function exportPaintGroup(layer: Shapes, shape: MotionShape, paint: ShapeGroup, rate: number): ShapeGroup {
 	const converted = exportMotionAePath(shape.path, { matchName: 'ADBE Vector Shape', name: 'Path', rate, startFrame: layer.startFrame });
 	if (converted.unsupported) throw new UnsupportedAeShape(converted.unsupported);
-	return { ...shapeGroupRecord(vectorName, [shapeGroupRecord('ADBE Vectors Group', [shapeGroupRecord(pathName, [converted.property], true), paint]), identityAeShapeTransform()], true),
+	return { ...shapeGroupRecord(vectorName, [shapeGroupRecord('ADBE Vectors Group', [{ ...shapeGroupRecord(pathName, [converted.property], true), vectorStyle: { blendMode: 'unavailable', pathDirection: 'forward' } }, paint]), identityAeShapeTransform()], true),
 		name: shape.id, vectorStyle: { blendMode: 'normal' } };
 }
 export function exportMotionAeShapes(layer: MotionLayer, rate: Rational, report: MotionAeReportEntry[]): ShapeGroup | null {

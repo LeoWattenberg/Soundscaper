@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { chooseMotionAeShapeProfile } from './motion-ae-installed-shape-profile.ts';
+import { motionAeShapeStyle, type MotionAeShapeProfile } from './motion-ae-host-shape-profile.ts';
+import { stringifyMotionAeHostJson } from './motion-ae-host-json.ts';
 import { readMotionAeInstalledText } from './motion-ae-installed-text.ts';
 import { renderMotionAeInstalledComposition, type MotionAeOwnedRenderEntry } from './motion-ae-installed-render.ts';
 import { exportMotionAeHostProject, type MotionAeExportHost, type MotionAeExportTransaction } from './motion-ae-host-export.ts';
@@ -50,7 +53,7 @@ declare const MaskMotionBlur: { SAME_AS_LAYER: unknown; ON: unknown; OFF: unknow
 declare function alert(message: string): void;
 declare function confirm(message: string): boolean;
 
-function propertyHost(sampling?: Readonly<{ frameRate: number; duration: number }>): MotionAePropertyReadHost {
+function propertyHost(profile: MotionAeShapeProfile | null, sampling?: Readonly<{ frameRate: number; duration: number }>): MotionAePropertyReadHost {
 	return {
 		sampling,
 		checkCancelled: () => {}, // AE's Escape interruption unwinds the running script; no event-pump globals are modified.
@@ -72,6 +75,14 @@ function propertyHost(sampling?: Readonly<{ frameRate: number; duration: number 
 			return { mode, inverted: mask.inverted, rotoBezier: mask.rotoBezier, featherFalloff: mask.maskFeatherFalloff === MaskFeatherFalloff.FFO_LINEAR ? 'linear' : 'smooth',
 				motionBlur: mask.maskMotionBlur === MaskMotionBlur.ON ? 'on' : mask.maskMotionBlur === MaskMotionBlur.OFF ? 'off' : 'same-as-layer' };
 		},
+		vector: (group) => motionAeShapeStyle(group.matchName, (name) => {
+			const count = group.numProperties ?? 0;
+			for (let index = 1; index <= count; index++) {
+				const property = group.property(index); if (property.matchName !== name) continue;
+				if (property.numKeys !== 0 || property.expressionEnabled) return null; const value = property.valueAtTime(0, true);
+				return typeof value === 'number' && isFinite(value) ? value : null;
+			} return null;
+		}, profile),
 		text: readMotionAeInstalledText,
 	};
 }
@@ -84,8 +95,8 @@ function blendMode(value: unknown): string {
 	const names = ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'ADD', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION'];
 	for (let i = 0; i < names.length; i++) if (BlendingMode[names[i]!] === value) return names[i]!.toLowerCase(); return 'unsupported';
 }
-function readComposition(comp: AeComposition, report: MotionAeReportEntry[], budget: { properties: number; keys: number; layers: number }, sampled: boolean): MotionAeComposition {
-	const id = 'comp-' + String(comp.id), layers: MotionAeLayer[] = [], reader = propertyHost(sampled ? { frameRate: comp.frameRate, duration: comp.duration } : undefined);
+function readComposition(comp: AeComposition, report: MotionAeReportEntry[], budget: { properties: number; keys: number; layers: number }, sampled: boolean, profile: MotionAeShapeProfile | null): MotionAeComposition {
+	const id = 'comp-' + String(comp.id), layers: MotionAeLayer[] = [], reader = propertyHost(profile, sampled ? { frameRate: comp.frameRate, duration: comp.duration } : undefined);
 	const roots = ['ADBE Transform Group', 'ADBE Mask Parade', 'ADBE Effect Parade', 'ADBE Root Vectors Group', 'ADBE Text Properties', 'ADBE Camera Options Group', 'ADBE Light Options Group', 'ADBE Material Options Group', 'ADBE Audio Group', 'ADBE Time Remapping'];
 	budget.layers += comp.numLayers; if (budget.layers > 4096) throw new Error('AE bridge layer budget exceeded.');
 	for (let index = 1; index <= comp.numLayers; index++) {
@@ -113,6 +124,7 @@ function readComposition(comp: AeComposition, report: MotionAeReportEntry[], bud
 			startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch,
 			enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true,
 			blendMode: source.blendingMode === undefined ? 'normal' : blendMode(source.blendingMode), properties });
+		if (kind === 'shape' && !profile) report.push({ scopeId: layerId, propertyPath: 'ADBE Root Vectors Group', status: 'unsupported', code: 'shape-style-profile', message: 'Shape style metadata is unavailable without a separately selected, user-reviewed profile for this exact AE version/build/language. Use the calibration scripts then Export-Shapes, or rendered fallback. Ordinary export does not mutate source layers.' });
 		report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'mapping', message: 'Captured authored data requires feature mapping and reference comparison; plug-ins, text runs, mask attributes, solids, footage interpretation and expressions may require an AE-rendered composition.' });
 	}
 	return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: comp.pixelAspect, frameRate: comp.frameRate,
@@ -157,7 +169,7 @@ function transaction(parent: AeFolder, transferId: string, sourceFiles: Record<s
 	};
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-export function runMotionAeInstalledExport(sampled = false, rendered = false): void {
+export function runMotionAeInstalledExport(sampled = false, rendered = false, reviewedShapes = false): void {
 	try {
 		const project = app.project; if (!project) throw new Error('Open the source project in After Effects first.');
 		if (sampled && rendered) throw new Error('Choose numeric sampling or whole-composition rendering separately.');
@@ -165,6 +177,7 @@ export function runMotionAeInstalledExport(sampled = false, rendered = false): v
 		if (rendered && !(active instanceof CompItem)) throw new Error('Select the complete composition to render in After Effects first.');
 		if (rendered && !confirm('Render the complete active composition into a new 8-bit PNG sequence? Choose your installed full-size RGB+Alpha PNG template. This staged carrier accepts at most 256 frames and no audio. Alpha/color and installed-AE behavior remain unqualified. The native render call blocks; use AE cancellation controls, whose Escape behavior is unqualified. Existing queue items must be removed by you first. Original project and media files are never overwritten.')) return;
 		if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.')) return;
+		const shapeProfile = reviewedShapes ? chooseMotionAeShapeProfile() : null; if (reviewedShapes && !shapeProfile) return;
 		const parent = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.'); if (!parent) return;
 		const transferId = 'motion-transfer-' + String(new Date().getTime()), sourceFiles: Record<string, AeFile> = {}, budget = { properties: 0, keys: 0, layers: 0 };
 		const host: MotionAeExportHost = { version: app.version, projectName: project.file?.name ?? 'Untitled.aep',
@@ -172,9 +185,10 @@ export function runMotionAeInstalledExport(sampled = false, rendered = false): v
 			begin: (id) => transaction(parent, id, sourceFiles, active instanceof CompItem ? active : undefined),
 			compositions: (report) => {
 				const result: MotionAeComposition[] = [];
+				if (shapeProfile) report.push({ scopeId: transferId, propertyPath: '', status: 'editable', code: 'shape-style-profile', message: 'User-reviewed dropdown calibration; this is not installed-host visual qualification. ' + stringifyMotionAeHostJson(shapeProfile) });
 				if (project.numItems > 8192) throw new Error('AE project item budget exceeded.');
 				for (let index = 1; index <= project.numItems; index++) {
-					const item = project.item(index); if (item instanceof CompItem) { if (result.length >= 256) throw new Error('AE composition budget exceeded.'); result.push(readComposition(item, report, budget, sampled)); }
+					const item = project.item(index); if (item instanceof CompItem) { if (result.length >= 256) throw new Error('AE composition budget exceeded.'); result.push(readComposition(item, report, budget, sampled, shapeProfile)); }
 				}
 				if (!result.length) throw new Error('The project has no compositions.'); return result;
 			},

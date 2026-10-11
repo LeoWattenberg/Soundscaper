@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import shapeProfile from './ae-bridge/motion-ae-host-shape-profile.jsxinc?raw';
+import shapeCalibration from './ae-bridge/motion-ae-host-shape-calibration.jsxinc?raw';
+import installedShapeProfile from './ae-bridge/motion-ae-installed-shape-profile.jsxinc?raw';
+import shapeExporter from './ae-bridge/Motionscaper-Export-Shapes.jsx.txt?raw';
+import prepareShapes from './ae-bridge/Motionscaper-Prepare-Shape-Profile.jsx.txt?raw';
+import captureShapes from './ae-bridge/Motionscaper-Capture-Shape-Profile.jsx.txt?raw';
 import hostText from './ae-bridge/motion-ae-host-text.jsxinc?raw';
 import installedText from './ae-bridge/motion-ae-installed-text.jsxinc?raw';
 import importText from './ae-bridge/motion-ae-host-import-text.jsxinc?raw';
@@ -27,6 +33,12 @@ export const MOTIONSCAPER_AE_BRIDGE_PROFILE = Object.freeze({ version: '0.1.0', 
 export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promise<Blob> {
 	return createMotionAeBridgeArchive({
 		'Motionscaper-Export.jsx': exporter,
+		'Motionscaper-Export-Shapes.jsx': shapeExporter,
+		'Motionscaper-Prepare-Shape-Profile.jsx': prepareShapes,
+		'Motionscaper-Capture-Shape-Profile.jsx': captureShapes,
+		'motion-ae-host-shape-profile.jsxinc': shapeProfile,
+		'motion-ae-host-shape-calibration.jsxinc': shapeCalibration,
+		'motion-ae-installed-shape-profile.jsxinc': installedShapeProfile,
 		'Motionscaper-Export-Sampled.jsx': sampledExporter,
 		'Motionscaper-Export-Rendered.jsx': renderedExporter,
 		'motion-ae-host-render.jsxinc': rendering,
@@ -55,6 +67,7 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'The original project and media are not saved or overwritten. Keep all .jsxinc files beside the .jsx script.\n'
 			+ 'The standard exporter captures authored values and inert expression text. Motionscaper supports a limited, explicitly reviewed 2D conversion; whole-composition rendered fallback is available through an unqualified explicit entry.\n'
 			+ 'Choose motionae.json and all package media through the Motionscaper bridge menu. Original exchange intent, conversion reports and every retained media body survive normal Save and .mscape export. Unsupported original media types must be converted or carried by a future inert binary format before import.\n'
+			+ 'For editable shape capture, separately run Motionscaper-Prepare-Shape-Profile.jsx. It adds only a new five-group sample composition. Manually review/set its named Normal blend, fill rules, cap/join choices and path directions, then run Motionscaper-Capture-Shape-Profile.jsx to save a NEW profile. This is explicit user calibration, not visual qualification. Select that profile with Motionscaper-Export-Shapes.jsx; source export remains read-only. Profiles are bound to exact AE version, build and UI language. Missing or mismatched profiles require rendered fallback. Never substitute guessed popup integers.\n'
 			+ 'For explicit numeric expression/animation sampling, run Motionscaper-Export-Sampled.jsx and confirm evaluation. It adds separate samples at each composition frame, retaining original keys and expression text.\n'
 			+ 'Sampling is limited to 4096 values per property and 262144 total keys/samples. It does not preserve subframe motion or motion blur. Native expression calls may block; installed-AE cancellation behavior is unqualified.\n'
 			+ 'For a complete active-composition PNG sequence, run Motionscaper-Export-Rendered.jsx and explicitly confirm. The existing render queue must be empty. Enter the exact name of your own installed full-size 8-bit RGB+Alpha PNG sequence template. The bridge owns one temporary queue item and fresh output folder.\n'

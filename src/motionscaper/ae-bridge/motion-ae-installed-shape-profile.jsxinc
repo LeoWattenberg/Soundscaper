@@ -1,0 +1,99 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeInstalledShapeProfile = (function () {
+var parseMotionAeShapeProfile = MotionAeHostShapeProfile.parseMotionAeShapeProfile;
+var prepareMotionAeShapeCalibration = MotionAeHostShapeCalibration.prepareMotionAeShapeCalibration;
+var captureMotionAeShapeCalibration = MotionAeHostShapeCalibration.captureMotionAeShapeCalibration;
+var MOTION_AE_SHAPE_REVIEW = MotionAeHostShapeCalibration.MOTION_AE_SHAPE_REVIEW;
+var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+function identity() { return { version: app.version, buildNumber: app.buildNumber, locale: app.isoLanguage }; }
+/** Optional, read-only selection. A cancelled chooser grants no mapping authority. */
+function chooseMotionAeShapeProfile() {
+    var file = File.openDialog('Choose your reviewed shape-style profile for this exact AE version, build and language. Cancel to stop and use rendered fallback.');
+    if (!file)
+        return null;
+    if (!file.exists || file.alias || file.length > 8192)
+        throw new Error('Shape profile is missing, aliased or exceeds its byte budget.');
+    file.encoding = 'UTF-8';
+    if (!file.open('r'))
+        throw new Error('Cannot read shape profile.');
+    var text;
+    try {
+        text = file.read();
+    }
+    catch (error) {
+        if (!file.close()) {
+            var failure = new Error('Shape profile read failed: ' + String(error) + '; close also failed.', { cause: error });
+            failure.cause = error;
+            throw failure;
+        }
+        throw error;
+    }
+    if (!file.close())
+        throw new Error('Cannot close shape profile.');
+    return parseMotionAeShapeProfile(text, identity());
+}
+function runMotionAeShapeCalibration(capture) {
+    if (capture === void 0) { capture = false; }
+    try {
+        var project_1 = app.project;
+        if (!project_1)
+            throw new Error('Open an AE project first. Calibration adds only its own sample composition.');
+        if (!capture) {
+            if (!confirm('Create one new sample composition for manual shape-style label review? Existing items and files are not changed or saved.\n\n' + MOTION_AE_SHAPE_REVIEW))
+                return;
+            prepareMotionAeShapeCalibration({ identity: identity(), begin: function () { return app.beginUndoGroup('Prepare Motionscaper shape style review'); }, end: function () { return app.endUndoGroup(); },
+                create: function () { return project_1.items.addComp('Motionscaper Shape Style Review', 512, 512, 1, 1, 24); }, shape: function () {
+                    var shape = new Shape();
+                    shape.closed = true;
+                    shape.vertices = [[32, 32], [160, 32], [96, 160]];
+                    shape.inTangents = [[0, 0], [0, 0], [0, 0]];
+                    shape.outTangents = [[0, 0], [0, 0], [0, 0]];
+                    return shape;
+                } });
+            alert(MOTION_AE_SHAPE_REVIEW);
+            return;
+        }
+        var comp = project_1.activeItem;
+        if (!(comp instanceof CompItem))
+            throw new Error('Select the prepared calibration composition first.');
+        if (!confirm(MOTION_AE_SHAPE_REVIEW + '\n\nHave you personally reviewed every named UI label and both path directions?'))
+            return;
+        var profile = captureMotionAeShapeCalibration(comp, identity(), true), text = stringifyMotionAeHostJson(profile);
+        var file = File.saveDialog('Save a NEW Motionscaper shape-style profile JSON file. Existing files are refused.');
+        if (!file)
+            return;
+        if (file.exists || file.alias)
+            throw new Error('Choose a new non-aliased profile file; existing files are never overwritten.');
+        file.encoding = 'UTF-8';
+        if (!file.open('w'))
+            throw new Error('Cannot create shape profile file.');
+        var closed = false;
+        try {
+            if (!file.write(text))
+                throw new Error('Cannot write shape profile.');
+            if (!file.close())
+                throw new Error('Cannot close shape profile.');
+            closed = true;
+        }
+        catch (error) {
+            var failures = [];
+            if (!closed && !file.close())
+                failures.push('close failed');
+            if (!file.remove())
+                failures.push('new file removal failed');
+            var failure = new Error('Shape profile write failed: ' + String(error) + (failures.length ? '; cleanup: ' + failures.join('; ') : ''), { cause: error });
+            failure.cause = error;
+            throw failure;
+        }
+        alert('Reviewed shape-style profile saved. Select it only for this exact AE version/build/language. It is user calibration, not installed-AE visual qualification. The sample composition remains available for review; no project was saved.');
+    }
+    catch (error) {
+        alert('Motionscaper shape calibration did not complete: ' + String(error));
+    }
+}
+
+return { chooseMotionAeShapeProfile: chooseMotionAeShapeProfile, runMotionAeShapeCalibration: runMotionAeShapeCalibration };
+}());

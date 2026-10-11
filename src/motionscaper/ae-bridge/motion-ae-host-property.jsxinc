@@ -4,9 +4,20 @@ var MotionAeHostProperty = (function () {
 var sampleMotionAeNumericProperty = MotionAeHostSampling.sampleMotionAeNumericProperty;
 "use strict";
 /* SPDX-License-Identifier: AGPL-3.0-only */
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 /** Reads authored values only. Enabled expressions remain inert, unsupported custody until an explicit sampling operation. */
 function readMotionAeHostProperty(property, host, layerId, path, report, budget, depth) {
-    var _a, _b;
+    var _a, _b, _c;
     if (depth === void 0) { depth = 0; }
     host.checkCancelled();
     if (++budget.properties > 65536 || depth > 16)
@@ -23,6 +34,10 @@ function readMotionAeHostProperty(property, host, layerId, path, report, budget,
         }
         if (matchName === 'ADBE Mask Atom' && host.mask)
             return { kind: kind, name: name, matchName: matchName, children: children, mask: host.mask(property) };
+        if (matchName.indexOf('ADBE Vector ') === 0) {
+            var style = (_b = host.vector) === null || _b === void 0 ? void 0 : _b.call(host, property);
+            return __assign(__assign({ kind: kind, name: name, matchName: matchName, children: children }, (property.canSetEnabled === true && typeof property.enabled === 'boolean' ? { enabled: property.enabled } : {})), (style ? { vectorStyle: style } : {}));
+        }
         return { kind: kind, name: name, matchName: matchName, children: children };
     }
     function unsupported(reason) {
@@ -31,7 +46,7 @@ function readMotionAeHostProperty(property, host, layerId, path, report, budget,
     }
     if (kind === 'unsupported')
         return unsupported('This AE property value needs an explicit mapping or an AE-rendered composition.');
-    var count = (_b = property.numKeys) !== null && _b !== void 0 ? _b : 0;
+    var count = (_c = property.numKeys) !== null && _c !== void 0 ? _c : 0;
     budget.keys += count;
     if (count > 4096 || budget.keys > 262144)
         throw new Error('AE bridge key budget exceeded.');

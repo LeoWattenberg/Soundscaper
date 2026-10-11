@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import type { MotionAeEase, MotionAeExpression, MotionAeKey, MotionAeMaskMetadata, MotionAeProperty, MotionAeReportEntry, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
+import type { MotionAeEase, MotionAeExpression, MotionAeKey, MotionAeMaskMetadata, MotionAeProperty, MotionAeReportEntry, MotionAeShape, MotionAeText, MotionAeVectorStyle } from './motion-ae-exchange-types.ts';
 import { sampleMotionAeNumericProperty } from './motion-ae-host-sampling.ts';
 export interface MotionAePropertyHost {
 	readonly name: string; readonly matchName: string; readonly numProperties?: number; readonly numKeys?: number;
+	readonly canSetEnabled?: boolean; readonly enabled?: boolean;
 	readonly isSpatial?: boolean; readonly expressionEnabled?: boolean; readonly expression?: string;
 	readonly propertyValueType: unknown; readonly propertyType: unknown;
 	property(index: number): MotionAePropertyHost;
@@ -18,6 +19,7 @@ export interface MotionAePropertyReadHost {
 	interpolation(value: unknown): 'hold' | 'linear' | 'bezier';
 	text(value: unknown): MotionAeText;
 	mask?(property: MotionAePropertyHost): MotionAeMaskMetadata;
+	vector?(property: MotionAePropertyHost): MotionAeVectorStyle | undefined;
 	checkCancelled(): void;
 }
 export interface MotionAeHostPropertyBudget { properties: number; keys: number }
@@ -36,6 +38,10 @@ export function readMotionAeHostProperty(
 			children.push(readMotionAeHostProperty(child, host, layerId, path + '/' + String(index - 1) + ':' + child.matchName, report, budget, depth + 1));
 		}
 		if (matchName === 'ADBE Mask Atom' && host.mask) return { kind, name, matchName, children, mask: host.mask(property) };
+		if (matchName.indexOf('ADBE Vector ') === 0) {
+			const style = host.vector?.(property);
+			return { kind, name, matchName, children, ...(property.canSetEnabled === true && typeof property.enabled === 'boolean' ? { enabled: property.enabled } : {}), ...(style ? { vectorStyle: style } : {}) };
+		}
 		return { kind, name, matchName, children };
 	}
 	function unsupported(reason: string): MotionAeProperty {

@@ -9,6 +9,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const directory = resolve(root, 'src/motionscaper/ae-bridge');
 const modules = [
 	{ name: 'motion-ae-host-json', global: 'MotionAeHostJson', exports: ['parseMotionAeHostJson', 'stringifyMotionAeHostJson'] },
+	{ name: 'motion-ae-host-shape-profile', global: 'MotionAeHostShapeProfile', exports: ['parseMotionAeShapeProfile', 'motionAeShapeStyle'] },
+	{ name: 'motion-ae-host-shape-calibration', global: 'MotionAeHostShapeCalibration', exports: ['prepareMotionAeShapeCalibration', 'captureMotionAeShapeCalibration', 'MOTION_AE_SHAPE_REVIEW'] },
+	{ name: 'motion-ae-installed-shape-profile', global: 'MotionAeInstalledShapeProfile', exports: ['chooseMotionAeShapeProfile', 'runMotionAeShapeCalibration'] },
 	{ name: 'motion-ae-host-text', global: 'MotionAeHostText', exports: ['captureMotionAeTextStyle', 'applyMotionAeHostText', 'verifyMotionAeHostFont'] },
 	{ name: 'motion-ae-installed-text', global: 'MotionAeInstalledText', exports: ['readMotionAeInstalledText', 'applyMotionAeInstalledText', 'verifyMotionAeInstalledTextFont'] },
 	{ name: 'motion-ae-host-sampling', global: 'MotionAeHostSampling', exports: ['sampleMotionAeNumericProperty'] },
@@ -63,10 +66,15 @@ for (const module of modules) {
 	try { parse(output, { ecmaVersion: 3 }); } catch (error) { throw new Error(`${module.name}: ${error.message}; ${output.split('\n')[error.loc.line - 1]}`, { cause: error }); }
 	await publish(`${module.name}.jsxinc`, output);
 }
-await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, 9), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
-await publish('Motionscaper-Export-Sampled.jsx.txt', entry(modules.slice(0, 9), 'MotionAeInstalledExport.runMotionAeInstalledExport(true);'));
-await publish('Motionscaper-Export-Rendered.jsx.txt', entry(modules.slice(0, 9), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, true);'));
-await publish('Motionscaper-Import.jsx.txt', entry([...modules.slice(0, 3), ...modules.slice(9)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
+const exportEnd = modules.findIndex((module) => module.name === 'motion-ae-installed-export') + 1;
+const sharedEnd = modules.findIndex((module) => module.name === 'motion-ae-installed-text') + 1;
+await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
+await publish('Motionscaper-Export-Sampled.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport(true);'));
+await publish('Motionscaper-Export-Rendered.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, true);'));
+await publish('Motionscaper-Import.jsx.txt', entry([...modules.slice(0, sharedEnd), ...modules.slice(exportEnd)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
+await publish('Motionscaper-Export-Shapes.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, false, true);'));
+await publish('Motionscaper-Prepare-Shape-Profile.jsx.txt', entry(modules.slice(0, 4), 'MotionAeInstalledShapeProfile.runMotionAeShapeCalibration();'));
+await publish('Motionscaper-Capture-Shape-Profile.jsx.txt', entry(modules.slice(0, 4), 'MotionAeInstalledShapeProfile.runMotionAeShapeCalibration(true);'));
 if (stale) process.exitCode = 1;
 
 function entry(includes, call) {

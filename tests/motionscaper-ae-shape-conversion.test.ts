@@ -108,3 +108,15 @@ test('Motion AE shape transforms refuse nonuniform scale, group opacity and skew
 		const result = convert({ ...root, children: [modified] }); assert.equal(result.result, null); assert.ok(result.report.some(entry => entry.status === 'unsupported'));
 	}
 });
+
+test('Motion AE path direction requires captured forward semantics when a raw popup is present', () => {
+	const root = exportRoot();
+	const direction = (meaning: 'forward' | 'reversed' | 'unavailable', animated = false): MotionAeProperty => {
+		const walk = (item: MotionAeProperty): MotionAeProperty => item.kind !== 'group' ? item : { ...item,
+			...(item.matchName === 'ADBE Vector Shape - Group' ? { vectorStyle: { blendMode: 'unavailable' as const, pathDirection: meaning } } : {}),
+			children: [...item.children.map(walk), ...(item.matchName === 'ADBE Vector Shape - Group' ? [{ ...num('ADBE Vector Shape Direction', [618]), ...(animated ? { expression: { enabled: true, source: '618', disposition: 'unsupported' as const } } : {}) }] : [])] };
+		return walk(root);
+	};
+	assert.ok(convert(direction('forward')).result);
+	for (const candidate of [direction('reversed'), direction('unavailable'), direction('forward', true)]) assert.equal(convert(candidate).result, null);
+});

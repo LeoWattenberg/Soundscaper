@@ -1,0 +1,85 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostShapeProfile = (function () {
+var parseMotionAeHostJson = MotionAeHostJson.parseMotionAeHostJson;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+var fields = ['groupNormal', 'fillNormal', 'strokeNormal', 'fillNonzero', 'fillEvenodd',
+    'capButt', 'capRound', 'capSquare', 'joinMiter', 'joinRound', 'joinBevel', 'pathForward', 'pathReversed'];
+function record(value, keys) {
+    if (!value || typeof value !== 'object' || Object.prototype.toString.call(value) === '[object Array]')
+        throw new Error('Shape profile requires a record.');
+    var input = value;
+    var count = 0;
+    for (var key in input)
+        if (Object.prototype.hasOwnProperty.call(input, key)) {
+            var admitted = false;
+            for (var index = 0; index < keys.length; index++)
+                if (keys[index] === key)
+                    admitted = true;
+            if (!admitted)
+                throw new Error('Shape profile contains an unsupported field.');
+            count++;
+        }
+    if (count !== keys.length)
+        throw new Error('Shape profile is incomplete.');
+    return input;
+}
+function text(value) { if (typeof value !== 'string' || !value.length || value.length > 128)
+    throw new Error('Shape profile host identity is invalid.'); for (var index = 0; index < value.length; index++)
+    if (value.charCodeAt(index) < 32)
+        throw new Error('Shape profile host identity contains controls.'); return value; }
+function integer(value) { if (typeof value !== 'number' || !isFinite(value) || value < 0 || value > 1000000000 || Math.floor(value) !== value)
+    throw new Error('Shape profile integer is invalid.'); return value; }
+/** User-reviewed calibration is evidence of selected UI labels, not an installed-AE renderer qualification. */
+function parseMotionAeShapeProfile(json, expected) {
+    if (json.length > 8192)
+        throw new Error('Shape profile byte budget exceeded.');
+    var r = record(parseMotionAeHostJson(json), ['format', 'version', 'host', 'reviewed', 'mapping']);
+    if (r.format !== 'org.motionscaper.ae-shape-profile' || r.version !== 1 || r.reviewed !== true)
+        throw new Error('Shape profile format or explicit review is missing.');
+    var h = record(r.host, ['version', 'buildNumber', 'locale']), host = { version: text(h.version), buildNumber: integer(h.buildNumber), locale: text(h.locale) };
+    if (host.version !== expected.version || host.buildNumber !== expected.buildNumber || host.locale !== expected.locale)
+        throw new Error('Shape profile belongs to a different AE version, build or UI language. Calibrate this installed host or use rendered fallback.');
+    var m = record(r.mapping, fields), mapping = {};
+    for (var index = 0; index < fields.length; index++) {
+        var key = fields[index];
+        mapping[key] = integer(m[key]);
+    }
+    var distinct = function (keys) {
+        for (var i = 0; i < keys.length; i++)
+            for (var j = 0; j < i; j++)
+                if (mapping[keys[i]] === mapping[keys[j]])
+                    throw new Error('Shape profile labels were not set to distinct reviewed choices.');
+    };
+    distinct(['fillNonzero', 'fillEvenodd']);
+    distinct(['capButt', 'capRound', 'capSquare']);
+    distinct(['joinMiter', 'joinRound', 'joinBevel']);
+    distinct(['pathForward', 'pathReversed']);
+    return { format: 'org.motionscaper.ae-shape-profile', version: 1, host: host, reviewed: true, mapping: mapping };
+}
+/** The caller returns null for absent, animated or expression-driven popup controls. No source mutation. */
+function motionAeShapeStyle(matchName, read, profile) {
+    if (matchName !== 'ADBE Vector Group' && matchName !== 'ADBE Vector Graphic - Fill' && matchName !== 'ADBE Vector Graphic - Stroke' && matchName !== 'ADBE Vector Shape - Group')
+        return undefined;
+    var m = profile === null || profile === void 0 ? void 0 : profile.mapping, rawBlend = read('ADBE Vector Blend Mode');
+    var normal = matchName === 'ADBE Vector Group' ? m === null || m === void 0 ? void 0 : m.groupNormal : matchName === 'ADBE Vector Graphic - Fill' ? m === null || m === void 0 ? void 0 : m.fillNormal : m === null || m === void 0 ? void 0 : m.strokeNormal;
+    var blendMode = matchName === 'ADBE Vector Shape - Group' || !m || rawBlend === null ? 'unavailable' : rawBlend === normal ? 'normal' : 'unsupported';
+    if (matchName === 'ADBE Vector Graphic - Fill') {
+        var value = read('ADBE Vector Fill Rule');
+        return { blendMode: blendMode, fillRule: !m || value === null ? 'unavailable' : value === m.fillNonzero ? 'nonzero' : value === m.fillEvenodd ? 'evenodd' : 'unavailable' };
+    }
+    if (matchName === 'ADBE Vector Graphic - Stroke') {
+        var cap = read('ADBE Vector Stroke Line Cap'), join = read('ADBE Vector Stroke Line Join');
+        return { blendMode: blendMode, lineCap: !m || cap === null ? 'unavailable' : cap === m.capButt ? 'butt' : cap === m.capRound ? 'round' : cap === m.capSquare ? 'square' : 'unavailable',
+            lineJoin: !m || join === null ? 'unavailable' : join === m.joinMiter ? 'miter' : join === m.joinRound ? 'round' : join === m.joinBevel ? 'bevel' : 'unavailable' };
+    }
+    if (matchName === 'ADBE Vector Shape - Group') {
+        var value = read('ADBE Vector Shape Direction');
+        return { blendMode: blendMode, pathDirection: !m || value === null ? 'unavailable' : value === m.pathForward ? 'forward' : value === m.pathReversed ? 'reversed' : 'unavailable' };
+    }
+    return { blendMode: blendMode };
+}
+
+return { parseMotionAeShapeProfile: parseMotionAeShapeProfile, motionAeShapeStyle: motionAeShapeStyle };
+}());

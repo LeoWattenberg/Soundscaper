@@ -47,6 +47,7 @@ export interface MotionAeVectorStyle {
 	readonly fillRule?: 'nonzero' | 'evenodd' | 'unavailable';
 	readonly lineCap?: 'butt' | 'round' | 'square' | 'unavailable';
 	readonly lineJoin?: 'miter' | 'round' | 'bevel' | 'unavailable';
+	readonly pathDirection?: 'forward' | 'reversed' | 'unavailable';
 }
 export type MotionAeProperty =
 	| (MotionAePropertyBase & { readonly kind: 'group'; readonly children: readonly MotionAeProperty[]; readonly mask?: MotionAeMaskMetadata; readonly enabled?: boolean; readonly vectorStyle?: MotionAeVectorStyle })
