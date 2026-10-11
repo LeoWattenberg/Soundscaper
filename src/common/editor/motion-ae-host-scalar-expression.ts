@@ -1,0 +1,58 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+type ScalarType = 'number' | 'boolean';
+const scalarMathArity: { readonly [name: string]: readonly [number, number] | undefined } = {
+	sin: [1, 1], cos: [1, 1], tan: [1, 1], asin: [1, 1], acos: [1, 1], atan: [1, 1], atan2: [2, 2], abs: [1, 1],
+	min: [2, 4], max: [2, 4], floor: [1, 1], ceil: [1, 1], round: [1, 1], sqrt: [1, 1], pow: [2, 2], exp: [1, 1], log: [1, 1]
+};
+/** ES3-compatible admission for canonical scalar source, independent of untrusted disposition labels.
+ * No eval or host access: full parentheses remove operator-precedence ambiguity, and every callable is a closed Math intrinsic.
+ */
+export function readMotionAeHostScalarExpression(input: unknown): string {
+	function fail(): never { throw new Error('This scalar expression requires explicit sampling or complete rendering; its source remains in custody.'); }
+	if (typeof input !== 'string' || input.length > 16384) fail();
+	const source = input.replace(/^\s+|\s+$/g, ''); let position = 0, nodes = 0;
+	function space(): void { while (position < source.length && /\s/.test(source.charAt(position))) position++; }
+	function next(): string { space(); return source.charAt(position); }
+	function take(token: string): void { space(); if (source.substr(position, token.length) !== token) fail(); position += token.length; }
+	function numeric(type: ScalarType): void { if (type !== 'number') fail(); }
+	function expression(depth: number): ScalarType {
+		if (depth > 64 || ++nodes > 2048) fail(); space();
+		const character = source.charAt(position);
+		if (character === '(') {
+			take('('); const prefix = next();
+			if (prefix === '!' || prefix === '+' || prefix === '-') {
+				take(prefix); const operand = expression(depth + 1); if (prefix !== '!') numeric(operand); take(')'); return prefix === '!' ? 'boolean' : 'number';
+			}
+			const left = expression(depth + 1); const after = next();
+			if (after === ')') { take(')'); return left; }
+			if (after === '?') {
+				take('?'); const consequent = expression(depth + 1); take(':'); const alternate = expression(depth + 1); take(')');
+				if (consequent !== alternate) fail(); return consequent;
+			}
+			const operators = ['===', '!==', '<=', '>=', '&&', '||', '+', '-', '*', '/', '%', '<', '>']; let operator = '';
+			for (let i = 0; i < operators.length; i++) if (source.substr(position, operators[i]!.length) === operators[i]) { operator = operators[i]!; break; }
+			if (!operator) fail(); take(operator); const right = expression(depth + 1); take(')');
+			if (operator === '&&' || operator === '||') { if (left !== right) fail(); return left; }
+			if (operator === '===' || operator === '!==') { if (left !== right) fail(); return 'boolean'; }
+			numeric(left); numeric(right); return operator === '<' || operator === '<=' || operator === '>' || operator === '>=' ? 'boolean' : 'number';
+		}
+		const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/.exec(source.substr(position));
+		if (number) {
+			if (/^0\d/.test(number[0]) || !isFinite(Number(number[0]))) fail(); position += number[0].length; return 'number';
+		}
+		const identifier = /^[A-Za-z][A-Za-z0-9]*/.exec(source.substr(position)); if (!identifier) return fail();
+		position += identifier[0].length;
+		if (identifier[0] === 'time' || identifier[0] === 'value') return 'number';
+		if (identifier[0] === 'true' || identifier[0] === 'false') return 'boolean';
+		if (identifier[0] !== 'Math') return fail(); take('.');
+		const member = /^[A-Za-z][A-Za-z0-9]*/.exec(source.substr(position)); if (!member) return fail(); position += member[0].length;
+		if (member[0] === 'PI' || member[0] === 'E') return 'number';
+		const arity = Object.prototype.hasOwnProperty.call(scalarMathArity, member[0]) ? scalarMathArity[member[0]] : undefined; if (!arity) return fail();
+		take('('); let argumentsCount = 0;
+		if (next() !== ')') for (;;) {
+			numeric(expression(depth + 1)); if (++argumentsCount > arity[1]) fail(); if (next() !== ',') break; take(',');
+		}
+		take(')'); if (argumentsCount < arity[0]) fail(); return 'number';
+	}
+	if (expression(1) !== 'number') fail(); space(); if (position !== source.length) fail(); return source;
+}
