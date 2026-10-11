@@ -1,21 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { MotionCamera } from './motion-camera.ts';
 import type { MotionDepthPlanePlan } from './motion-depth-plan.ts';
-import { MOTION_DEPTH_SCRATCH_BYTES, MOTION_MAXIMUM_DEPTH_PLANES, MOTION_MAXIMUM_DEPTH_RAYS } from './motion-depth-plan.ts';
+import { MOTION_MAXIMUM_DEPTH_PLANES, MOTION_MAXIMUM_DEPTH_RAYS } from './motion-depth-plan.ts';
 import type { MotionLocalRaster } from './motion-local-raster.ts';
 import { createMotionSurface, motionBlendChannel, validateMotionSurface, type MotionSurface } from './motion-surface.ts';
-import { motionLinearLuma } from './motion-effect-pixels.ts';
-import type { MotionLayerBase } from './motion-composition.ts';
+import { motionPlaneMatteWeight, sampleMotionPlaneSurface, type MotionPlaneMatte } from './motion-plane-sampling.ts';
+import type { MotionLighting } from './motion-lighting-plan.ts';
+import { shadeMotionPlaneFragment } from './motion-plane-lighting.ts';
 
 export interface MotionDepthPlane extends MotionDepthPlanePlan {
 	readonly local: MotionLocalRaster;
-	readonly matte?: Readonly<{ surface: MotionSurface | null; opacity: number; mode: NonNullable<MotionLayerBase['matte']>['mode'] }>;
+	readonly matte?: MotionPlaneMatte;
 	/** A matte is projected without its own composite opacity, which its consumer applies. */
 	readonly opacity?: number;
 }
 
 /** Independent planes intersect each pixel ray; far-to-near translucent fragments blend over the actual backdrop. */
-export async function compositeMotionDepthPlanes(backdrop: MotionSurface, camera: MotionCamera, planes: readonly MotionDepthPlane[], signal?: AbortSignal): Promise<MotionSurface> {
+export async function compositeMotionDepthPlanes(backdrop: MotionSurface, camera: MotionCamera, planes: readonly MotionDepthPlane[], signal?: AbortSignal, lighting: MotionLighting = { lights: [] }): Promise<MotionSurface> {
 	signal?.throwIfAborted(); validateMotionSurface(backdrop);
 	if (camera.width !== backdrop.width || camera.height !== backdrop.height || planes.length > MOTION_MAXIMUM_DEPTH_PLANES || backdrop.width * backdrop.height * planes.length > MOTION_MAXIMUM_DEPTH_RAYS) throw new RangeError('Motion depth ray workload exceeds its dimensions/plane/ray budget.');
 	for (const plane of planes) {
@@ -25,7 +26,8 @@ export async function compositeMotionDepthPlanes(backdrop: MotionSurface, camera
 		if (!Number.isFinite(plane.opacity ?? plane.layer.state.transform.opacity) || !Number.isFinite(plane.matte?.opacity ?? 1)) throw new RangeError('Motion depth opacity must be finite.');
 	}
 	const output = createMotionSurface(backdrop.width, backdrop.height); output.pixels.set(backdrop.pixels);
-	const fragments = new Float64Array(MOTION_DEPTH_SCRATCH_BYTES / Float64Array.BYTES_PER_ELEMENT);
+	const fragments = new Float64Array(MOTION_MAXIMUM_DEPTH_PLANES * 6);
+	const lightingScratch = new Float64Array(4);
 	const scale = camera.zoom / Math.max(camera.width, camera.height);
 	const chunkPixels = Math.max(1024, Math.min(16384, Math.floor(131072 / Math.max(1, planes.length))));
 	for (let start = 0; start < backdrop.width * backdrop.height; start += chunkPixels) {
@@ -41,16 +43,16 @@ export async function compositeMotionDepthPlanes(backdrop: MotionSurface, camera
 				const dx = m[8] + (perspective ? m[0] * rx + m[4] * ry : 0); const dy = m[9] + (perspective ? m[1] * rx + m[5] * ry : 0); const dz = m[10] + (perspective ? m[2] * rx + m[6] * ry : 0);
 				if (Math.abs(dz) <= 1e-12 * Math.hypot(dx, dy, dz)) continue;
 				const depth = -oz / dz; if (depth < camera.near || depth > camera.far || !Number.isFinite(depth)) continue;
-				const sx = ox + dx * depth - plane.local.origin[0] - 0.5; const sy = oy + dy * depth - plane.local.origin[1] - 0.5;
+				const localX = ox + dx * depth; const localY = oy + dy * depth; const sx = localX - plane.local.origin[0] - 0.5; const sy = localY - plane.local.origin[1] - 0.5;
 				const slot = count * 6; fragments[slot] = depth; fragments[slot + 1] = p;
-				fragments.fill(0, slot + 2, slot + 6); samplePlane(plane.local.surface, sx, sy, fragments, slot + 2);
+				sampleMotionPlaneSurface(plane.local.surface, sx, sy, fragments, slot + 2);
 				let weight = Math.max(0, Math.min(1, plane.opacity ?? plane.layer.state.transform.opacity));
 				if (plane.matte) {
-					const mode = plane.matte.mode; const i = index * 4; const pixels = plane.matte.surface?.pixels;
-					const coverage = !pixels ? 0 : Math.max(0, Math.min(1, plane.matte.opacity)) * (mode.startsWith('luma') ? motionLinearLuma(pixels[i]!, pixels[i + 1]!, pixels[i + 2]!) : pixels[i + 3]!);
-					weight *= Math.max(0, Math.min(1, mode.endsWith('inverted') ? 1 - coverage : coverage));
+					const i = index * 4; const pixels = plane.matte.surface?.pixels;
+					weight *= motionPlaneMatteWeight(plane.matte, pixels?.[i] ?? 0, pixels?.[i + 1] ?? 0, pixels?.[i + 2] ?? 0, pixels?.[i + 3] ?? 0);
 				}
 				if (fragments[slot + 5]! * weight <= 0) continue;
+				shadeMotionPlaneFragment(lighting, camera, plane, planes, localX, localY, fragments, slot + 2, lightingScratch);
 				for (let c = 2; c < 6; c++) fragments[slot + c]! *= weight;
 				// The input is bottommost first: insertion is stable for equal depths.
 				let at = count; while (at && fragments[(at - 1) * 6]! < depth) { for (let c = 0; c < 6; c++) { const v = fragments[(at - 1) * 6 + c]!; fragments[(at - 1) * 6 + c] = fragments[at * 6 + c]!; fragments[at * 6 + c] = v; } at--; }
@@ -66,13 +68,4 @@ export async function compositeMotionDepthPlanes(backdrop: MotionSurface, camera
 		}
 	}
 	signal?.throwIfAborted(); validateMotionSurface(output); return output;
-}
-
-function samplePlane(source: MotionSurface, sx: number, sy: number, output: Float64Array, slot: number): void {
-	const ix = Math.floor(sx); const iy = Math.floor(sy); const fx = sx - ix; const fy = sy - iy;
-	for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-		if (ix + dx < 0 || ix + dx >= source.width || iy + dy < 0 || iy + dy >= source.height) continue;
-		const weight = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy); const i = ((iy + dy) * source.width + ix + dx) * 4;
-		for (let c = 0; c < 4; c++) output[slot + c]! += source.pixels[i + c]! * weight;
-	}
 }

@@ -13,6 +13,7 @@ import { renderMotionLayerSource, renderMotionLayerLocalSource } from './motion-
 import { motionAdjustmentApplies, renderMotionAdjustment } from './motion-adjustment-rendering.ts';
 import { isMotionPixelLayer, planMotionDepth } from './motion-depth-plan.ts';
 import { compositeMotionDepthPlanes, type MotionDepthPlane } from './motion-depth-compositing.ts';
+import { planMotionLighting } from './motion-lighting-plan.ts';
 
 export interface MotionRasterizer extends Partial<MotionMaskRasterizer>, Partial<MotionEffectRasterizer> {
 	readonly supportedSourceOperations?: readonly ('shape-operator' | 'text-animator')[];
@@ -57,13 +58,14 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 		const matteCache = new Map<string, MotionSurface>();
 		const processed = new Set<string>();
 		const depth = planMotionDepth(current); const depthPlans = new Map(depth.planes.map((plane) => [plane.layer.state.id, plane]));
+		const lighting = planMotionLighting(current, depth);
 		consumed.push(current.requiredOperationIds[0]!);
 		const mark = (layer: MotionEvaluatedLayer) => { if (!processed.has(layer.state.id)) { processed.add(layer.state.id); consumed.push(...layer.operations.map((operation) => operation.id)); } };
 		const sourceFor = async (layer: MotionEvaluatedLayer): Promise<MotionSurface> => {
 			const cached = matteCache.get(layer.state.id); if (cached) return cached;
 			const plane = depthPlans.get(layer.state.id);
 			let source = plane ? await compositeMotionDepthPlanes(createMotionSurface(current.width, current.height), depth.camera,
-				[{ ...plane, local: await renderMotionLayerLocalSource(layer, current, { ...options, renderPrecomposition: render }), opacity: 1 }], options.signal)
+				[{ ...plane, local: await renderMotionLayerLocalSource(layer, current, { ...options, renderPrecomposition: render }), opacity: 1 }], options.signal, lighting)
 				: await renderMotionLayerSource(layer, current, { ...options, renderPrecomposition: render });
 			if (layer.state.matte) {
 				const matte = layers.get(layer.state.matte.layerId);
@@ -76,7 +78,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 		let group: MotionDepthPlane[] = [];
 		const flushDepth = async () => {
 			if (!group.length) return;
-			const replacement = await compositeMotionDepthPlanes(target.finish(), depth.camera, group, options.signal);
+			const replacement = await compositeMotionDepthPlanes(target.finish(), depth.camera, group, options.signal, lighting);
 			if (!target.replace) throw new Error('Motion compositor omitted its admitted 3D replacement method.'); target.replace(replacement); group = [];
 		};
 		try {
@@ -114,6 +116,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 
 function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer, compositor: MotionCompositor): void {
 	const depth = planMotionDepth(frame);
+	planMotionLighting(frame, depth);
 	if (depth.planes.length && !compositor.supportsReplacement) throw new Error('Motion compositor cannot replace a 3D backdrop; use the CPU compositor.');
 	const layers = new Map(frame.layers.map((layer) => [layer.state.id, layer]));
 	assertMotionAcyclic(new Map(frame.layers.map((layer) => [layer.state.id, layer.state.matte ? [layer.state.matte.layerId] : []])), 'matte', 128);
@@ -123,7 +126,7 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer,
 		if (layer.state.is3D && isMotionPixelLayer(layer) && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes)) throw new Error(`Motion 3D layer ${layer.state.name} requires a local-source renderer.`);
 		if (!layer.state.is3D && !['camera', 'light', 'null'].includes(layer.state.kind)) assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
-			if (operation.kind === 'light' || (operation.kind === 'shape-operator' || operation.kind === 'text-animator') && !rasterizer.supportedSourceOperations?.includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if ((operation.kind === 'shape-operator' || operation.kind === 'text-animator') && !rasterizer.supportedSourceOperations?.includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
 			if (operation.kind === 'effect' && (!rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes || layer.state.kind !== 'adjustment' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes))) {
 				throw new Error(`Unsupported motion effect ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}
