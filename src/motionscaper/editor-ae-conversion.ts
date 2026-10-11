@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
 import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeReportEntry } from '../common/editor/motion-ae-exchange-types.ts';
+import { motionAeRenderedSequence } from '../common/editor/motion-ae-render-sequence.ts';
 import { motionAeBoundedClock } from '../common/editor/motion-ae-property-conversion.ts';
 import { convertMotionAeTransform } from '../common/editor/motion-ae-transform-conversion.ts';
 import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-asset.ts';
@@ -30,7 +31,7 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 	for (const binding of options.bindings) {
 		const source = exchange.footage.find((item) => item.id === binding.footageId), asset = normalizeMotionAsset(binding.asset);
 		if (!source || source.path === null || source.byteLength !== asset.byteLength || (source.sha256 !== null && source.sha256 !== asset.sha256) || asset.kind === 'font'
-			|| media.has(binding.footageId) || (source.hasVideo && (asset.kind === 'audio' || asset.width !== source.width || asset.height !== source.height))) throw new Error('AE media binding does not match retained source metadata.');
+			|| (source.hasVideo && source.still !== (asset.kind === 'image')) || media.has(binding.footageId) || (source.hasVideo && (asset.kind === 'audio' || asset.width !== source.width || asset.height !== source.height))) throw new Error('AE media binding does not match retained source metadata.');
 		if (used.has(asset.id)) throw new Error('AE media destination identity is duplicated.'); used.add(asset.id);
 		media.set(binding.footageId, asset); assets.push(asset);
 	}
@@ -68,7 +69,13 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		if (durationFrames !== source.duration * frequency) report.push({ scopeId: source.id, propertyPath: '', status: 'sampled', code: 'duration-rounding', message: 'Composition duration was rounded outward to a whole Motion frame.' });
 		if (source.displayStartTime !== 0) issue(source.id, 'display-time', 'AE display start time remains in the exchange; the Motion timeline starts at zero.');
 		if (source.background.some((value) => value !== 0)) issue(source.id, 'viewer-background', 'AE composition viewer background is retained in the exchange. The Motion document keeps transparent composition output.');
-		const layers: MotionLayer[] = source.layers.map((layer) => {
+		const sequence = motionAeRenderedSequence(exchange, source, media);
+		if (sequence) issue(source.id, 'render-sequence-audio', 'The complete AE-rendered image sequence replaces the authored layer appearance. It carries no audio; original layer intent and media remain in custody. Alpha/color reference fidelity is unqualified.');
+		const layers: MotionLayer[] = sequence ? sequence.map((asset, frame) => {
+			const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id);
+			const layer = createMotionLayer({ id, name: name(asset.name, 'Rendered frame'), durationFrames, content: { kind: 'image', assetId: asset.id } });
+			return { ...layer, inFrame: { num: frame, den: 1 }, outFrame: { num: frame + 1, den: 1 } };
+		}) : source.layers.map((layer) => {
 			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer) });
 			const blendMode = MOTION_BLEND_MODES.find((value) => value === layer.blendMode) ?? 'normal';
 			if (blendMode !== layer.blendMode) issue(layer.id, 'blend-mode', 'This AE blend mode is not mapped; normal blending is used in the partial draft.');
@@ -83,7 +90,8 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		return { id: ids.get(source.id)!, name: name(source.name, 'Composition'), width: source.width, height: source.height, frameRate, durationFrames,
 			background: [0, 0, 0, 0], color: { workingSpace: 'linear-rec709-d65', outputSpace: 'srgb', alphaMode: 'premultiplied' }, layers, audio: [] };
 	}
-	const primary = options.primaryCompositionId ?? exchange.compositions[0]!.id;
+	const renderedPrimary = exchange.report.find(entry => entry.code === 'composition-render-frame' && entry.status === 'rendered')?.scopeId;
+	const primary = options.primaryCompositionId ?? renderedPrimary ?? exchange.compositions[0]!.id;
 	if (!exchange.compositions.some((entry) => entry.id === primary)) throw new Error('Choose a composition present in this AE exchange.');
 	const project = normalizeMotionscaperProject({ schemaFamily: 'motionscaper', schemaVersion: 1, id: projectId, title: name(exchange.source.name, 'AE import'),
 		revision: 0, sampleRate: 48000, primaryCompositionId: ids.get(primary), compositions: exchange.compositions.map(composition), assets });

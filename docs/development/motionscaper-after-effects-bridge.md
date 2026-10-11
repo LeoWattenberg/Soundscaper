@@ -23,11 +23,11 @@ be downloaded alongside its untouched source exchange. Choosing `.aep` or
 `.aepx` through **File > Open** routes to installed-AE instructions without
 trying to parse the source project.
 
-Three actual Chromium workflows cover script ZIP download, AEP/AEPX routing,
+Four actual Chromium workflows cover script ZIP download, AEP/AEPX routing,
 real encoded PNG import and alpha pixels in the preview, report acknowledgement,
 Save/reopen and `.mscape` custody, unused original media byte preservation,
-missing files, digest mismatch, and closing a prepared review without changing
-the open document. These browser checks do not establish installed-AE behavior.
+missing files, digest mismatch, closing a prepared review without changing
+the open document, and seeking distinct retained rendered PNG frames. These browser checks do not establish installed-AE behavior.
 
 ## Readable exporter
 
@@ -47,7 +47,7 @@ permissions. The JSON codec requires neither a host `JSON` global nor `eval`.
 
 Enabled expression text is retained but not run by this exporter; it reads
 pre-expression values. A separate confirmed entry supports numeric sampling as
-described below; rendered fallback remains pending.
+described below; the separate rendered entry is described under qualification.
 Unmapped features receive explicit unsupported reports, including layers whose
 text runs, mask attributes, solid sources, footage interpretation, or plug-ins
 need further mapping. The host API tests exercise the generated entry, media
@@ -145,16 +145,41 @@ expressions inactive; consuming sampled values is a separate conversion step.
 The bounded full-composition render host controller has focused synthetic
 tests for exact frame count/order, existing-queue refusal, selected template,
 8-bit PNG carrier dimensions/alpha-channel admission, frame/byte budgets and
-primary-plus-cleanup errors. Its installed-AE adapter, packaged entry and
-sequence consumption are still pending; this is not an available or qualified
-rendered fallback yet. No template alpha/color fidelity follows from checking
-PNG channel metadata alone.
+primary-plus-cleanup errors. The readable `Motionscaper-Export-Rendered.jsx`
+entry now requires explicit confirmation, an active composition, an empty
+render queue, and an exact user-selected installed PNG output template. It
+creates one owned queue item and a fresh output folder, requests the full span
+from zero at the composition frame rate with no skipped frames, reads the
+settings back, disables post-render project actions, and removes its queue
+item. Original project settings and files remain untouched. Native rendering
+blocks until AE returns; cancellation/Escape requires installed-host evidence.
+
+The current installed adapter and Motion image-layer carrier accept at most
+256 frames. Every full-size 8-bit PNG must contain alpha channels, match the
+canvas and frame grid, and survive byte verification. The complete sequence
+becomes one exact one-frame image layer per frame; no first-frame flattening is
+allowed. Original authored exchange and every original media body remain in
+custody. Original AE image-sequence footage cannot be represented by copying
+its first source file: the exporter reports missing custody and import refuses
+until all originals have an admitted carrier. The fallback sequence carries no
+audio. Existing 64 MiB/file, 256 MiB/transfer and overall project traversal
+limits still apply. Larger compositions require splitting or a future carrier.
+
+Synthetic generated-entry tests verify confirmation, empty-queue refusal,
+full-span settings, all frame copies, original file preservation, and cleanup.
+A browser test decodes two actual PNGs and verifies distinct pixels when seeking
+between frames. The actual AE setting names/values, installed output templates,
+file naming, cancellation, and alpha/color/reference fidelity remain
+unqualified. A PNG channel header cannot establish alpha/color parity. The
+[render item](https://ae-scripting.docsforadobe.dev/renderqueue/renderqueueitem/)
+and [output module](https://ae-scripting.docsforadobe.dev/renderqueue/outputmodule/)
+APIs define the adapter seam; their actual host behavior remains a release gate.
 
 The pure exchange-to-Motion draft converter now maps 2D retained images/footage,
 precompositions, nulls, ordering, parenting, known blend/matte intent, and
 numeric transforms. Static, hold and linear values retain editable keys;
 explicit AE samples become linear frame-grid keys. Percent scale/opacity become
-Motion factors. Spatial tangents, roving and temporal Bezier speed require
+Motion factors. Animated or sequence footage cannot bind a single decoded still. Spatial tangents, roving and temporal Bezier speed require
 samples rather than an inferred curve. Imported expressions never execute.
 The new document uses fresh identities and retains the original exchange as
 separate custody. Unsupported layer kinds become named null placeholders, and

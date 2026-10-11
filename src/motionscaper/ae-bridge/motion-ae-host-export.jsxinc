@@ -5,7 +5,7 @@ var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
 "use strict";
 /* SPDX-License-Identifier: AGPL-3.0-only */
 function exportMotionAeHostProject(host, transferId) {
-    var _a;
+    var _a, _b;
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(transferId))
         throw new Error('AE transfer identity is invalid.');
     host.checkCancelled();
@@ -13,7 +13,8 @@ function exportMotionAeHostProject(host, transferId) {
             message: 'This development bridge has not been qualified in installed After Effects. Review the transfer report and compare the result before using it.' }];
     var transaction = host.begin(transferId);
     try {
-        var compositions = host.compositions(report), footage = host.footage(report);
+        var compositions = host.compositions(report);
+        var footage = host.footage(report);
         if (compositions.length > 256 || footage.length > 4096 || report.length > 65536)
             throw new Error('AE bridge item/report budget exceeded.');
         var totalBytes = 0, totalLayers = 0;
@@ -31,6 +32,17 @@ function exportMotionAeHostProject(host, transferId) {
             if (totalBytes > 274877906944)
                 throw new Error('AE bridge media byte budget exceeded.');
             transaction.copyMedia(item);
+        }
+        if (transaction.render) {
+            host.checkCancelled();
+            var rendered = transaction.render(compositions);
+            footage = footage.concat(rendered.footage);
+            for (var index = 0; index < rendered.report.length; index++)
+                report.push(rendered.report[index]);
+            for (var index = 0; index < rendered.footage.length; index++)
+                totalBytes += (_b = rendered.footage[index].byteLength) !== null && _b !== void 0 ? _b : 0;
+            if (footage.length > 4096 || report.length > 65536 || totalBytes > 274877906944)
+                throw new Error('AE rendered package item/report/media budget exceeded.');
         }
         var exchange = { format: 'org.motionscaper.ae-exchange', version: 1, transferId: transferId, producer: { application: 'after-effects', version: host.version, bridgeVersion: '0.1.0' }, source: { name: host.projectName, revisionDigest: null },
             color: host.color, compositions: compositions, footage: footage, report: report };

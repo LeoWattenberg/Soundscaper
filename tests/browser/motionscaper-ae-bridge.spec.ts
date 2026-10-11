@@ -115,3 +115,21 @@ test('missing originals and digest mismatches refuse AE publication while closin
 	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click(); await expect(page.locator('[data-motion-project-title]')).toHaveText('Prior project');
 	await menu(page, 'Project Library'); await expect(page.getByRole('button', { name: 'Original Café.aep', exact: true })).toHaveCount(0);
 });
+
+test('AE rendered fallback imports and seeks every retained PNG frame without flattening the sequence', async ({ page }: { page: Page }) => {
+	await page.goto('/embed/en/'); const source = await fixture(page);
+	const exchange: MotionAeExchange = { ...source.exchange, footage: source.exchange.footage.map(item => ({ ...item, frameRate: 24 })),
+		compositions: source.exchange.compositions.map(item => ({ ...item, duration: 2 / 24 })), report: [
+			...source.exchange.report, ...source.exchange.footage.map((item, index) => ({ scopeId: 'original-composition', propertyPath: `frame/${index}`, status: 'rendered' as const, code: 'composition-render-frame', mediaId: item.id, message: 'Whole composition reference, unqualified AE host.' })),
+		] };
+	await menu(page, 'After Effects Bridge'); const dialog = page.getByRole('dialog', { name: 'After Effects Bridge', exact: true });
+	await dialog.getByLabel('AE exchange manifest', { exact: true }).setInputFiles({ ...source.manifest, buffer: Buffer.from(JSON.stringify(exchange)) });
+	await dialog.getByLabel('Package media files', { exact: true }).setInputFiles(source.files); await dialog.getByRole('button', { name: 'Review Import', exact: true }).click();
+	await expect(dialog.getByRole('region', { name: 'Conversion report', exact: true })).toContainText('Rendered: 2');
+	await dialog.getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Import New Project', exact: true }).click(); await expect(dialog).toHaveCount(0);
+	await menu(page, 'Composition Preview', 'View'); const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true }), canvas = preview.locator('canvas');
+	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
+	const pixel = () => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(8, 8, 1, 1).data));
+	expect(await pixel()).toEqual([255, 0, 0, 128]); await preview.getByLabel('Frame', { exact: true }).fill('1');
+	await expect(canvas).toHaveAttribute('data-motion-frame', '1'); expect(await pixel()).toEqual([0, 0, 255, 255]);
+});

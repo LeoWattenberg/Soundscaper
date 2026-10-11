@@ -45,6 +45,9 @@ test('AE conversion refuses forged media bindings and duplicate destination iden
 	assert.throws(() => convertMotionscaperAeExchange(fixture(), { ...options(), allocateId: () => 'duplicate' }), /identity/iu);
 	assert.throws(() => convertMotionscaperAeExchange(fixture(), { ...options(), bindings: [{ footageId: 'absent', asset }] }), /media.*binding/iu);
 });
+test('AE conversion refuses animated or sequence footage represented by a single decoded still', () => {
+	const source = fixture(); assert.throws(() => convertMotionscaperAeExchange({ ...source, footage: source.footage.map(item => ({ ...item, still: false, duration: 2, frameRate: 24 })) }, options()), /media.*binding/iu);
+});
 test('AE conversion admits complete retained samples and reports partial sample ranges before property mapping', () => {
 	const source = fixture(), comp = source.compositions[0]!, original = layer('sampled');
 	const group = original.properties[0]!; if (group.kind !== 'group') throw new Error('Expected group');

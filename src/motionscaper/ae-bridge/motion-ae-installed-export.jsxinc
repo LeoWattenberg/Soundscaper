@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeInstalledExport = (function () {
+var renderMotionAeInstalledComposition = MotionAeInstalledRender.renderMotionAeInstalledComposition;
 var exportMotionAeHostProject = MotionAeHostExport.exportMotionAeHostProject;
 var readMotionAeHostProperty = MotionAeHostProperty.readMotionAeHostProperty;
 "use strict";
@@ -101,7 +102,7 @@ function readComposition(comp, report, budget, sampled) {
     return { id: id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: comp.pixelAspect, frameRate: comp.frameRate,
         duration: comp.duration, displayStartTime: comp.displayStartTime, background: [comp.bgColor[0], comp.bgColor[1], comp.bgColor[2]], layers: layers };
 }
-function transaction(parent, transferId, sourceFiles) {
+function transaction(parent, transferId, sourceFiles, renderedComposition) {
     var directory = new Folder(parent.fsName + '/' + transferId), media = new Folder(directory.fsName + '/media'), created = [];
     if (directory.exists)
         throw new Error('The transfer folder already exists. Choose another destination.');
@@ -113,6 +114,15 @@ function transaction(parent, transferId, sourceFiles) {
         throw new Error('Could not create media folder.');
     }
     return {
+        render: renderedComposition ? function (compositions) {
+            var source;
+            for (var index = 0; index < compositions.length; index++)
+                if (compositions[index].id === 'comp-' + String(renderedComposition.id))
+                    source = compositions[index];
+            if (!source)
+                throw new Error('The active composition is absent from the captured exchange.');
+            return renderMotionAeInstalledComposition(source, renderedComposition, media.fsName, function (entry) { created.push(entry); });
+        } : undefined,
         copyMedia: function (item) {
             if (!item.path || !/^media\/[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,12}$/.test(item.path))
                 throw new Error('Unsafe bridge media path.');
@@ -163,13 +173,21 @@ function transaction(parent, transferId, sourceFiles) {
     };
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-function runMotionAeInstalledExport(sampled) {
+function runMotionAeInstalledExport(sampled, rendered) {
     var _a, _b;
     if (sampled === void 0) { sampled = false; }
+    if (rendered === void 0) { rendered = false; }
     try {
         var project_1 = app.project;
         if (!project_1)
             throw new Error('Open the source project in After Effects first.');
+        if (sampled && rendered)
+            throw new Error('Choose numeric sampling or whole-composition rendering separately.');
+        var active_1 = rendered ? project_1.activeItem : undefined;
+        if (rendered && !(active_1 instanceof CompItem))
+            throw new Error('Select the complete composition to render in After Effects first.');
+        if (rendered && !confirm('Render the complete active composition into a new 8-bit PNG sequence? Choose your installed full-size RGB+Alpha PNG template. This staged carrier accepts at most 256 frames and no audio. Alpha/color and installed-AE behavior remain unqualified. The native render call blocks; use AE cancellation controls, whose Escape behavior is unqualified. Existing queue items must be removed by you first. Original project and media files are never overwritten.'))
+            return;
         if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.'))
             return;
         var parent_1 = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.');
@@ -178,7 +196,7 @@ function runMotionAeInstalledExport(sampled) {
         var transferId = 'motion-transfer-' + String(new Date().getTime()), sourceFiles_1 = {}, budget_1 = { properties: 0, keys: 0, layers: 0 };
         var host = { version: app.version, projectName: (_b = (_a = project_1.file) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : 'Untitled.aep',
             color: { workingSpace: project_1.workingSpace, linearBlending: project_1.linearBlending, bitsPerChannel: project_1.bitsPerChannel }, checkCancelled: function () { },
-            begin: function (id) { return transaction(parent_1, id, sourceFiles_1); },
+            begin: function (id) { return transaction(parent_1, id, sourceFiles_1, active_1 instanceof CompItem ? active_1 : undefined); },
             compositions: function (report) {
                 var result = [];
                 if (project_1.numItems > 8192)
@@ -196,7 +214,7 @@ function runMotionAeInstalledExport(sampled) {
                 return result;
             },
             footage: function (report) {
-                var _a;
+                var _a, _b;
                 var result = [];
                 for (var index = 1; index <= project_1.numItems; index++) {
                     var item = project_1.item(index);
@@ -204,13 +222,15 @@ function runMotionAeInstalledExport(sampled) {
                         continue;
                     if (result.length >= 4096)
                         throw new Error('AE footage budget exceeded.');
-                    var id = 'footage-' + String(item.id), extension = /\.([A-Za-z0-9]{1,12})$/.exec(item.file.name), exists = item.file.exists && extension !== null;
+                    var id = 'footage-' + String(item.id), extension = /\.([A-Za-z0-9]{1,12})$/.exec(item.file.name);
+                    var sequence = ((_a = item.mainSource) === null || _a === void 0 ? void 0 : _a.isStill) !== true && extension !== null && /^(png|jpe?g|tiff?|bmp|dpx|exr|psd|tga)$/i.test(extension[1]);
+                    var exists = item.file.exists && extension !== null && !sequence;
                     if (exists)
                         sourceFiles_1[id] = item.file;
                     else
-                        report.push({ scopeId: id, propertyPath: '', status: 'unsupported', code: 'missing-media', message: 'Relink this source or give it a portable file extension, then export again.' });
+                        report.push({ scopeId: id, propertyPath: '', status: 'unsupported', code: 'missing-media', message: sequence ? 'Original image-sequence footage requires collection of every source frame. This bridge cannot preserve it by copying only its first image. Retain and explicitly convert the original sequence before transferring.' : 'Relink this source or give it a portable file extension, then export again.' });
                     result.push({ id: id, name: item.name, path: exists ? 'media/' + id + '.' + extension[1].toLowerCase() : null, byteLength: exists ? item.file.length : null, sha256: null,
-                        width: item.width, height: item.height, pixelAspect: item.pixelAspect, frameRate: item.frameRate, duration: item.duration, hasVideo: item.hasVideo, hasAudio: item.hasAudio, still: ((_a = item.mainSource) === null || _a === void 0 ? void 0 : _a.isStill) === true });
+                        width: item.width, height: item.height, pixelAspect: item.pixelAspect, frameRate: item.frameRate, duration: item.duration, hasVideo: item.hasVideo, hasAudio: item.hasAudio, still: ((_b = item.mainSource) === null || _b === void 0 ? void 0 : _b.isStill) === true });
                 }
                 return result;
             }

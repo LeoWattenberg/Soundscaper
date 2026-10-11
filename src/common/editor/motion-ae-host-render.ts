@@ -34,6 +34,7 @@ export function renderMotionAeHostComposition(composition: MotionAeRenderComposi
 	const transaction = host.begin(composition); let failed = false, primary: unknown, result: MotionAeRenderedComposition | undefined;
 	try {
 		if (transaction.templates.length > 128) throw new Error('AE output template budget exceeded.');
+		for (let index = 0; index < transaction.templates.length; index++) if (transaction.templates[index]!.length > 256) throw new Error('AE template name budget exceeded.');
 		const template = transaction.chooseTemplate(); if (template === null) throw new Error('AE fallback cancelled.');
 		let found = false; for (let index = 0; index < transaction.templates.length; index++) {
 			if (transaction.templates[index]!.length > 256) throw new Error('AE template name budget exceeded.');

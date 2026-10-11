@@ -4,6 +4,8 @@
 #include "motion-ae-host-json.jsxinc"
 #include "motion-ae-host-sampling.jsxinc"
 #include "motion-ae-host-property.jsxinc"
+#include "motion-ae-host-render.jsxinc"
+#include "motion-ae-installed-render.jsxinc"
 #include "motion-ae-host-export.jsxinc"
 #include "motion-ae-installed-export.jsxinc"
 MotionAeInstalledExport.runMotionAeInstalledExport(true);

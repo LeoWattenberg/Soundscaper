@@ -131,8 +131,11 @@ Atomic import retains original exchange/report custody and every media file
 through normal Save/reopen and portable archives, including unsupported null
 placeholders. The opt-in File bridge workflow passes actual Chromium import,
 preview-pixel, save/reopen, original-media custody and refusal checks; AEP/AEPX
-selection routes to installed-AE guidance. Render fallback and real-AE
-qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
+selection routes to installed-AE guidance. The explicit whole-composition PNG
+fallback has a bounded installed-host adapter, generated entry and complete
+256-frame image-layer carrier with distinct-frame Chromium pixel checks.
+Installed-AE settings/cancellation/color/alpha and actual export/re-import
+reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
 The Motionscaper Node shard passes 471 tests at this integration

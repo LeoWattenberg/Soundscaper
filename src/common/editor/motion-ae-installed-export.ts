@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { renderMotionAeInstalledComposition, type MotionAeOwnedRenderEntry } from './motion-ae-installed-render.ts';
 import { exportMotionAeHostProject, type MotionAeExportHost, type MotionAeExportTransaction } from './motion-ae-host-export.ts';
 import { readMotionAeHostProperty, type MotionAePropertyHost, type MotionAePropertyReadHost } from './motion-ae-host-property.ts';
 import type { MotionAeComposition, MotionAeFootage, MotionAeLayer, MotionAeProperty, MotionAeReportEntry, MotionAeText } from './motion-ae-exchange-types.ts';
@@ -25,7 +26,7 @@ interface AeComposition extends AeItem {
 	readonly numLayers: number; readonly displayStartTime: number; readonly bgColor: readonly [number, number, number]; layer(index: number): AeLayer;
 }
 interface AeProject {
-	readonly numItems: number; readonly file: AeFile | null; readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: 8 | 16 | 32;
+	readonly activeItem?: AeItem | null; readonly numItems: number; readonly file: AeFile | null; readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: 8 | 16 | 32;
 	item(index: number): AeItem;
 }
 interface AeTextDocument extends MotionAeText { readonly justification: never }
@@ -110,12 +111,18 @@ function readComposition(comp: AeComposition, report: MotionAeReportEntry[], bud
 	return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: comp.pixelAspect, frameRate: comp.frameRate,
 		duration: comp.duration, displayStartTime: comp.displayStartTime, background: [comp.bgColor[0], comp.bgColor[1], comp.bgColor[2]], layers };
 }
-function transaction(parent: AeFolder, transferId: string, sourceFiles: Record<string, AeFile>): MotionAeExportTransaction {
-	const directory = new Folder(parent.fsName + '/' + transferId), media = new Folder(directory.fsName + '/media'), created: AeFile[] = [];
+function transaction(parent: AeFolder, transferId: string, sourceFiles: Record<string, AeFile>, renderedComposition?: AeComposition): MotionAeExportTransaction {
+	const directory = new Folder(parent.fsName + '/' + transferId), media = new Folder(directory.fsName + '/media'), created: MotionAeOwnedRenderEntry[] = [];
 	if (directory.exists) throw new Error('The transfer folder already exists. Choose another destination.');
 	if (!directory.create()) throw new Error('The transfer folder could not be created. Enable script file access in AE preferences if needed.');
 	if (!media.create()) { if (!directory.remove()) throw new Error('Could not create media folder or remove the empty transfer folder.'); throw new Error('Could not create media folder.'); }
 	return {
+		render: renderedComposition ? (compositions) => {
+			let source: MotionAeComposition | undefined;
+			for (let index = 0; index < compositions.length; index++) if (compositions[index]!.id === 'comp-' + String(renderedComposition.id)) source = compositions[index];
+			if (!source) throw new Error('The active composition is absent from the captured exchange.');
+			return renderMotionAeInstalledComposition(source, renderedComposition, media.fsName, (entry) => { created.push(entry); });
+		} : undefined,
 		copyMedia: (item) => {
 			if (!item.path || !/^media\/[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,12}$/.test(item.path)) throw new Error('Unsafe bridge media path.');
 			const source = sourceFiles[item.id], destination = new File(directory.fsName + '/' + item.path);
@@ -143,15 +150,19 @@ function transaction(parent: AeFolder, transferId: string, sourceFiles: Record<s
 	};
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-export function runMotionAeInstalledExport(sampled = false): void {
+export function runMotionAeInstalledExport(sampled = false, rendered = false): void {
 	try {
 		const project = app.project; if (!project) throw new Error('Open the source project in After Effects first.');
+		if (sampled && rendered) throw new Error('Choose numeric sampling or whole-composition rendering separately.');
+		const active = rendered ? project.activeItem : undefined;
+		if (rendered && !(active instanceof CompItem)) throw new Error('Select the complete composition to render in After Effects first.');
+		if (rendered && !confirm('Render the complete active composition into a new 8-bit PNG sequence? Choose your installed full-size RGB+Alpha PNG template. This staged carrier accepts at most 256 frames and no audio. Alpha/color and installed-AE behavior remain unqualified. The native render call blocks; use AE cancellation controls, whose Escape behavior is unqualified. Existing queue items must be removed by you first. Original project and media files are never overwritten.')) return;
 		if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.')) return;
 		const parent = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.'); if (!parent) return;
 		const transferId = 'motion-transfer-' + String(new Date().getTime()), sourceFiles: Record<string, AeFile> = {}, budget = { properties: 0, keys: 0, layers: 0 };
 		const host: MotionAeExportHost = { version: app.version, projectName: project.file?.name ?? 'Untitled.aep',
 			color: { workingSpace: project.workingSpace, linearBlending: project.linearBlending, bitsPerChannel: project.bitsPerChannel }, checkCancelled: () => {},
-			begin: (id) => transaction(parent, id, sourceFiles),
+			begin: (id) => transaction(parent, id, sourceFiles, active instanceof CompItem ? active : undefined),
 			compositions: (report) => {
 				const result: MotionAeComposition[] = [];
 				if (project.numItems > 8192) throw new Error('AE project item budget exceeded.');
@@ -165,8 +176,10 @@ export function runMotionAeInstalledExport(sampled = false): void {
 				for (let index = 1; index <= project.numItems; index++) {
 					const item = project.item(index); if (!(item instanceof FootageItem) || !item.file) continue;
 					if (result.length >= 4096) throw new Error('AE footage budget exceeded.');
-					const id = 'footage-' + String(item.id), extension = /\.([A-Za-z0-9]{1,12})$/.exec(item.file.name), exists = item.file.exists && extension !== null;
-					if (exists) sourceFiles[id] = item.file; else report.push({ scopeId: id, propertyPath: '', status: 'unsupported', code: 'missing-media', message: 'Relink this source or give it a portable file extension, then export again.' });
+					const id = 'footage-' + String(item.id), extension = /\.([A-Za-z0-9]{1,12})$/.exec(item.file.name);
+					const sequence = item.mainSource?.isStill !== true && extension !== null && /^(png|jpe?g|tiff?|bmp|dpx|exr|psd|tga)$/i.test(extension[1]!);
+					const exists = item.file.exists && extension !== null && !sequence;
+					if (exists) sourceFiles[id] = item.file; else report.push({ scopeId: id, propertyPath: '', status: 'unsupported', code: 'missing-media', message: sequence ? 'Original image-sequence footage requires collection of every source frame. This bridge cannot preserve it by copying only its first image. Retain and explicitly convert the original sequence before transferring.' : 'Relink this source or give it a portable file extension, then export again.' });
 					result.push({ id, name: item.name, path: exists ? 'media/' + id + '.' + extension![1]!.toLowerCase() : null, byteLength: exists ? item.file.length : null, sha256: null,
 						width: item.width, height: item.height, pixelAspect: item.pixelAspect, frameRate: item.frameRate, duration: item.duration, hasVideo: item.hasVideo, hasAudio: item.hasAudio, still: item.mainSource?.isStill === true });
 				} return result;
