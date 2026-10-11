@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url';
 import type * as Video from '../../src/common/editor/controller/export/motion-browser-video.ts';
 import type * as Surface from '../../src/common/editor/motion-surface.ts';
 import type * as Bunny from 'mediabunny';
+import type * as Delivery from '../../src/common/editor/motion-video-delivery.ts';
 
 const bundle = (): string => buildSync({ stdin: { contents: `
 	export { createMotionBrowserVideoSink } from '../../src/common/editor/controller/export/motion-browser-video.ts';
 	export { createMotionSurface } from '../../src/common/editor/motion-surface.ts';
+	export { MOTION_WEBM_TIMECODE_QUANTUM_SECONDS } from '../../src/common/editor/motion-video-delivery.ts';
 	export { Input, BufferSource, MP4, WEBM, VideoSampleSink } from 'mediabunny';`,
 	resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'ts' }, bundle: true, write: false, format: 'iife',
 	globalName: 'motionVideoFixture', target: 'es2022' }).outputFiles[0]!.text;
@@ -56,3 +58,29 @@ for (const format of ['mp4', 'webm'] as const) {
 		expect(result.largestChunk).toBeLessThanOrEqual(4 * 1024 * 1024);
 	});
 }
+
+test('M05 two-frame 30 fps WebM uses its declared millisecond resolution without changing authoring time', async ({ page }) => {
+	await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
+	const result = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionVideoFixture: typeof Video & typeof Surface & typeof Bunny & typeof Delivery }).motionVideoFixture;
+		const plan = { identity: { projectId: 'browser-motion', compositionId: 'comp', revisionDigest: 'a'.repeat(64) },
+			width: 32, height: 32, frameRate: { num: 30, den: 1 }, firstFrame: 7, frameCount: 2 };
+		const sink = await fixture.createMotionBrowserVideoSink({ plan, format: 'webm' });
+		for (let index = 0; index < 2; index++) await sink.write({ index, time: { num: 7 + index, den: 30 }, duration: { num: 1, den: 30 },
+			surface: { ...fixture.createMotionSurface(32, 32, [1, 0, 0, 1]), consumedOperationIds: [] } });
+		const blob = await sink.finish(); if (!blob) throw new Error('Expected completed Blob output.');
+		const input = new fixture.Input({ source: new fixture.BufferSource(await blob.arrayBuffer()), formats: [fixture.WEBM] });
+		try {
+			const track = await input.getPrimaryVideoTrack(); if (!track) throw new Error('Missing video track.');
+			const timestamps: number[] = []; const durations: number[] = [];
+			for await (const sample of new fixture.VideoSampleSink(track).samples()) {
+				try { timestamps.push(sample.timestamp); durations.push(sample.duration); } finally { sample.close(); }
+			}
+			return { timestamps, durations, duration: await input.computeDuration(), quantum: fixture.MOTION_WEBM_TIMECODE_QUANTUM_SECONDS };
+		} finally { input.dispose(); }
+	});
+	expect(result.quantum).toBe(0.001);
+	expect(result.timestamps).toEqual([0, 0.033]); expect(result.durations).toEqual([0.033, 0.033]);
+	expect(result.duration).toBe(0.066);
+	expect(Math.abs(result.duration - 2 / 30)).toBeLessThanOrEqual(result.quantum);
+});

@@ -5,6 +5,10 @@ import { normalizeMotionRenderPlan, type MotionRenderPlan } from './controller/e
 
 export type MotionVideoFormat = 'mp4' | 'webm';
 export type MotionVideoBackground = readonly [number, number, number];
+/** Mediabunny 1.55.3 writes WebM TimecodeScale=1 ms. It rounds each absolute
+ * timestamp and packet duration independently, so endpoint error is bounded
+ * by one quantum without accumulating across the authored frame range. */
+export const MOTION_WEBM_TIMECODE_QUANTUM_SECONDS = 0.001;
 export interface MotionVideoDelivery {
 	readonly plan: MotionRenderPlan; readonly format: MotionVideoFormat;
 	readonly bitrate: number; readonly background: MotionVideoBackground;

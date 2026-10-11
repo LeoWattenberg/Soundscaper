@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMotionSurface } from '../src/common/editor/motion-surface.ts';
-import { motionVideoFrameTimestamp, motionVideoPixels, normalizeMotionVideoDelivery } from '../src/common/editor/motion-video-delivery.ts';
+import { MOTION_WEBM_TIMECODE_QUANTUM_SECONDS, motionVideoFrameTimestamp, motionVideoPixels, normalizeMotionVideoDelivery } from '../src/common/editor/motion-video-delivery.ts';
 import { createMotionBrowserVideoSink, type MotionVideoHost } from '../src/common/editor/controller/export/motion-browser-video.ts';
 import type { MotionRenderFrame, MotionRenderPlan } from '../src/common/editor/controller/export/motion-render-pipeline.ts';
 
@@ -36,6 +36,7 @@ test('M05 opaque video composites its selected background in linear light before
 	assert.deepEqual([...motionVideoPixels(createMotionSurface(1, 1), [0, 1, 0])], [0, 255, 0, 255]);
 });
 test('M05 video timestamp rounding uses exact rational arithmetic and rejects unrepresentable time', () => {
+	assert.equal(MOTION_WEBM_TIMECODE_QUANTUM_SECONDS, 0.001);
 	assert.equal(motionVideoFrameTimestamp(1, plan.frameRate), 33367);
 	assert.equal(motionVideoFrameTimestamp(2, plan.frameRate), 66733);
 	assert.equal(motionVideoFrameTimestamp(100_000_000, { num: 24000, den: 1001 }), 4170833333333);
