@@ -14,7 +14,7 @@ function fixture() {
 test('AE import preflight creates only whitelisted transform intent and leaves expressions inert', () => {
 	const value = fixture(), plan = prepareMotionAeHostImport(JSON.stringify(value));
 	assert.equal(plan.compositions[0]!.layers[0]!.properties[0]!.matchName, 'ADBE Position');
-	assert.ok(plan.warnings.some((warning) => /expression/iu.test(warning))); assert.ok(!('expression' in plan.compositions[0]!.layers[0]!.properties[0]!));
+	assert.ok(plan.warnings.some((warning) => /expression/iu.test(warning))); assert.equal(plan.compositions[0]!.layers[0]!.properties[0]!.expression, null);
 	assert.throws(() => prepareMotionAeHostImport(JSON.stringify({ ...value, version: 2 })), /version/u);
 	value.compositions[0]!.layers[0]!.parentId = 'layer';
 	assert.throws(() => prepareMotionAeHostImport(JSON.stringify(value)), /cycle/u);

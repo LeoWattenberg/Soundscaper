@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readMotionAeHostScalarExpression } from './motion-ae-host-scalar-expression.ts';
 import { readMotionAeImportShapes, type MotionAeImportShapeGroup } from './motion-ae-host-import-shape.ts';
 import { readMotionAeImportText, type MotionAeImportText } from './motion-ae-host-import-text.ts';
 import { parseMotionAeHostJson } from './motion-ae-host-json.ts';
 import type { MotionAeKey, MotionAeLayer } from './motion-ae-exchange-types.ts';
 import { readMotionAeImportMasks, type MotionAeImportMask } from './motion-ae-host-import-mask.ts';
 export interface MotionAeImportNumeric {
-	readonly matchName: string; readonly value: readonly number[]; readonly spatial: boolean; readonly keys: readonly MotionAeKey<readonly number[]>[];
+	readonly matchName: string; readonly expression: string | null; readonly value: readonly number[]; readonly spatial: boolean; readonly keys: readonly MotionAeKey<readonly number[]>[];
 }
 export interface MotionAeImportLayer {
 	readonly id: string; readonly name: string; readonly kind: 'footage' | 'composition' | 'null' | 'text' | 'shape'; readonly sourceId: string | null; readonly parentId: string | null;
@@ -68,8 +69,17 @@ function numericProperty(property: Record<string, unknown>, warnings: string[], 
 			inEase: ease(key.inEase), outEase: ease(key.outEase), inSpatialTangent: spatial ? vector(key.inSpatialTangent, value.length) : null,
 			outSpatialTangent: spatial ? vector(key.outSpatialTangent, value.length) : null, roving });
 	}
-	if (property.expression !== null && boolean(record(property.expression).enabled)) warnings.push('Expression source is preserved in the package but is not activated in AE. Review sampled keys or render the original composition.');
-	return { matchName: text(property.matchName, 256), value, spatial, keys };
+	let expression: string | null = null;
+	if (property.expression !== null) {
+		const authored = record(property.expression);
+		if (boolean(authored.enabled)) {
+			if (authored.disposition === 'translated') {
+				if (value.length !== 1 || spatial) throw new Error('Translated expressions require a nonspatial scalar target. Use explicit sampling for vectors.');
+				expression = readMotionAeHostScalarExpression(authored.source);
+			} else warnings.push('Expression source is preserved in the package but is not activated in AE. Review sampled keys or render the original composition.');
+		}
+	}
+	return { matchName: text(property.matchName, 256), value, spatial, keys, expression };
 }
 function properties(input: unknown, warnings: string[], budget: { properties: number; keys: number }): readonly MotionAeImportNumeric[] {
 	const roots = array(input, 65_536), result: MotionAeImportNumeric[] = [];

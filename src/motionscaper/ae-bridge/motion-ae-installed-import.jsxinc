@@ -52,12 +52,26 @@ function verifyMedia(root, items) {
             throw new Error('Cannot close retained media: ' + item.name);
     }
 }
-function applyProperty(target, property) {
+function applyExpression(target, source, probeTime) {
+    if (source === null)
+        return;
+    if (!target.canSetExpression)
+        throw new Error('This AE target cannot accept the reviewed scalar expression.');
+    target.expression = source;
+    target.expressionEnabled = true;
+    if (!target.expressionEnabled || target.expressionError)
+        throw new Error('AE rejected the reviewed scalar expression: ' + target.expressionError);
+    var value = target.valueAtTime(probeTime, false);
+    if (target.expressionError || typeof value !== 'number' || !isFinite(value))
+        throw new Error('AE scalar expression probe failed or returned a nonfinite value: ' + target.expressionError);
+}
+function applyProperty(target, property, probeTime) {
     if (target.numKeys !== 0)
         throw new Error('New AE layer unexpectedly contains authored keys.');
     var value = function (input) { return input.length === 1 ? input[0] : input; };
     if (!property.keys.length) {
         target.setValue(value(property.value));
+        applyExpression(target, property.expression, probeTime);
         return;
     }
     for (var index = 0; index < property.keys.length; index++) {
@@ -87,6 +101,7 @@ function applyProperty(target, property) {
     if (property.spatial)
         for (var index = 1; index < property.keys.length - 1; index++)
             target.setRovingAtKey(index + 1, property.keys[index].roving);
+    applyExpression(target, property.expression, probeTime);
 }
 function beginImport(project, root, plan, shapeProfile) {
     app.beginUndoGroup('Import Motionscaper exchange');
@@ -159,7 +174,7 @@ function beginImport(project, root, plan, shapeProfile) {
             var transform = layers[item.id].property('ADBE Transform Group');
             for (var index = 0; index < item.properties.length; index++) {
                 var property = item.properties[index];
-                applyProperty(transform.property(property.matchName), property);
+                applyProperty(transform.property(property.matchName), property, item.inPoint);
             }
             for (var index = 0; index < item.masks.length; index++) {
                 var mask = item.masks[index], target = layers[item.id].property('ADBE Mask Parade').addProperty('ADBE Mask Atom');
@@ -178,7 +193,7 @@ function beginImport(project, root, plan, shapeProfile) {
                     path.setValueAtTime(mask.path.keys[key].time, value(mask.path.keys[key].value));
                 for (var key = 0; key < mask.path.keys.length; key++)
                     path.setInterpolationTypeAtKey(key + 1, mask.path.keys[key].inInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR, mask.path.keys[key].outInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR);
-                applyProperty(target.property('ADBE Mask Opacity'), mask.opacity);
+                applyProperty(target.property('ADBE Mask Opacity'), mask.opacity, item.inPoint);
                 target.property('ADBE Mask Feather').setValue([0, 0]);
                 target.property('ADBE Mask Offset').setValue(0);
             }
@@ -240,9 +255,16 @@ function runMotionAeInstalledImport() {
         if (!file_1.close())
             throw new Error('Cannot close exchange manifest.');
         var plan = prepareMotionAeHostImport(json);
-        var needsShapes = false;
+        var needsShapes = false, hasExpressions = false;
         for (var comp = 0; comp < plan.compositions.length; comp++)
             for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
+                var layer = plan.compositions[comp].layers[index];
+                for (var property = 0; property < layer.properties.length; property++)
+                    if (layer.properties[property].expression !== null)
+                        hasExpressions = true;
+                for (var mask = 0; mask < layer.masks.length; mask++)
+                    if (layer.masks[mask].opacity.expression !== null)
+                        hasExpressions = true;
                 if (plan.compositions[comp].layers[index].shapes)
                     needsShapes = true;
                 var text = plan.compositions[comp].layers[index].text;
@@ -257,6 +279,8 @@ function runMotionAeInstalledImport() {
         if (project_1.workingSpace !== plan.color.workingSpace || project_1.linearBlending !== plan.color.linearBlending || project_1.bitsPerChannel !== plan.color.bitsPerChannel)
             throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
         var warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';
+        if (hasExpressions)
+            warning += '\n\nThis package activates validated scalar Math/time/value expressions. Each target receives one evaluation probe at its layer in-point. This is not proof for every frame or subframe; compare the animation and retain the original.';
         for (var index = 0; index < Math.min(plan.warnings.length, 8); index++)
             warning += '\n\n' + plan.warnings[index];
         if (plan.warnings.length > 8)

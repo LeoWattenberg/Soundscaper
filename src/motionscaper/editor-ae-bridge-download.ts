@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import scalarExpression from './ae-bridge/motion-ae-host-scalar-expression.jsxinc?raw';
 import importPath from './ae-bridge/motion-ae-host-import-path.jsxinc?raw';
 import importShape from './ae-bridge/motion-ae-host-import-shape.jsxinc?raw';
 import applyShape from './ae-bridge/motion-ae-host-apply-shape.jsxinc?raw';
@@ -41,6 +42,7 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 		'Motionscaper-Capture-Shape-Profile.jsx': captureShapes,
 		'motion-ae-host-shape-profile.jsxinc': shapeProfile,
 		'motion-ae-host-import-path.jsxinc': importPath,
+		'motion-ae-host-scalar-expression.jsxinc': scalarExpression,
 		'motion-ae-host-import-shape.jsxinc': importShape,
 		'motion-ae-host-apply-shape.jsxinc': applyShape,
 		'motion-ae-host-shape-calibration.jsxinc': shapeCalibration,
@@ -84,7 +86,7 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'Solid sources, cameras and lights are not yet admitted by this importer. Render complete compositions in AE when unsupported content is required.\n'
 			+ 'Editable shapes require a separately selected reviewed profile for this exact AE host before any items are created. Each path plus one solid fill/stroke becomes an ordered group. Named blend/fill/cap/join/direction semantics use only that profile; no numeric popup values are inferred. Animated paths/opacity/width admit hold/linear keys. Gradients, operators, non-neutral taper/waves, dashes, compound paths and unsupported transforms require fallback.\n'
 			+ 'Editable paragraph text requires AE 24.6+, explicit reviewed reflow and one real non-variable installed font for each selected PostScript name. Mixed styles, text animation, stroke, point/vertical text and unavailable style metadata require fallback. Font bytes remain in original.mscape; this script never installs fonts.\n'
-			+ 'Captured hard-edge masks preserve editable paths, opacity, inversion and supported operations. Feather, expansion, RotoBezier, variable feather and path easing require rendered fallback. Track mattes use source IDs and require AE 23 or newer; unsupported source-visibility spans need rendered fallback. Expressions are never activated. Unmapped effects/blends produce warnings. The importer requires matching destination color settings and verifies declared media byte lengths and SHA-256 digests.\n'
+			+ 'Captured hard-edge masks preserve editable paths, opacity, inversion and supported operations. Feather, expansion, RotoBezier, variable feather and path easing require rendered fallback. Track mattes use source IDs and require AE 23 or newer; unsupported source-visibility spans need rendered fallback. Only enabled expressions explicitly marked translated and admitted by the closed scalar Math/time/value validator are activated after authored keys; the importer explains this before mutation, rejects host expression errors and probes one layer-in-point value. That probe does not qualify every frame/subframe. Other expressions remain inert. Unmapped effects/blends produce warnings. The importer requires matching destination color settings and verifies declared media byte lengths and SHA-256 digests.\n'
 			+ 'Read all unsupported reports in motionae.json. Text runs, mask attributes, solids, footage interpretation and plug-ins need further mapping.\n'
 			+ 'AEP and AEPX are not parsed natively by Motionscaper. Use the installed-After-Effects bridge workflow.\n'
 			+ 'Source and generated scripts are AGPL-3.0-only; SPDX notices are retained in every script.\n',

@@ -26,6 +26,7 @@ const modules = [
 	{ name: 'motion-ae-host-import-shape', global: 'MotionAeHostImportShape', exports: ['readMotionAeImportShapes'] },
 	{ name: 'motion-ae-host-apply-shape', global: 'MotionAeHostApplyShape', exports: ['applyMotionAeHostShapes'] },
 	{ name: 'motion-ae-host-import-mask', global: 'MotionAeHostImportMask', exports: ['readMotionAeImportMasks'] },
+	{ name: 'motion-ae-host-scalar-expression', global: 'MotionAeHostScalarExpression', exports: ['readMotionAeHostScalarExpression'] },
 	{ name: 'motion-ae-host-import-plan', global: 'MotionAeHostImportPlan', exports: ['prepareMotionAeHostImport'] },
 	{ name: 'motion-ae-host-import', global: 'MotionAeHostImport', exports: ['importMotionAeHostPlan'] },
 	{ name: 'motion-ae-installed-import', global: 'MotionAeInstalledImport', exports: ['runMotionAeInstalledImport'] },

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeHostImportPlan = (function () {
+var readMotionAeHostScalarExpression = MotionAeHostScalarExpression.readMotionAeHostScalarExpression;
 var readMotionAeImportShapes = MotionAeHostImportShape.readMotionAeImportShapes;
 var readMotionAeImportText = MotionAeHostImportText.readMotionAeImportText;
 var parseMotionAeHostJson = MotionAeHostJson.parseMotionAeHostJson;
@@ -81,9 +82,20 @@ function numericProperty(property, warnings, budget) {
             inEase: ease(key.inEase), outEase: ease(key.outEase), inSpatialTangent: spatial ? vector(key.inSpatialTangent, value.length) : null,
             outSpatialTangent: spatial ? vector(key.outSpatialTangent, value.length) : null, roving: roving });
     }
-    if (property.expression !== null && boolean(record(property.expression).enabled))
-        warnings.push('Expression source is preserved in the package but is not activated in AE. Review sampled keys or render the original composition.');
-    return { matchName: text(property.matchName, 256), value: value, spatial: spatial, keys: keys };
+    var expression = null;
+    if (property.expression !== null) {
+        var authored = record(property.expression);
+        if (boolean(authored.enabled)) {
+            if (authored.disposition === 'translated') {
+                if (value.length !== 1 || spatial)
+                    throw new Error('Translated expressions require a nonspatial scalar target. Use explicit sampling for vectors.');
+                expression = readMotionAeHostScalarExpression(authored.source);
+            }
+            else
+                warnings.push('Expression source is preserved in the package but is not activated in AE. Review sampled keys or render the original composition.');
+        }
+    }
+    return { matchName: text(property.matchName, 256), value: value, spatial: spatial, keys: keys, expression: expression };
 }
 function properties(input, warnings, budget) {
     var roots = array(input, 65536), result = [];

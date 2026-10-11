@@ -11,6 +11,7 @@ interface AeFolder { readonly fsName: string; readonly alias: boolean }
 interface AeFile { readonly exists: boolean; readonly length: number; readonly alias: boolean; readonly fsName: string; readonly parent: AeFolder; encoding: string; open(mode: string): boolean; read(count?: number): string; close(): boolean }
 interface AeItem { name: string; parentFolder: AeItem; remove(): void }
 interface AeProperty {
+	readonly canSetExpression: boolean; expression: string; expressionEnabled: boolean; readonly expressionError: string; valueAtTime(time: number, preExpression: boolean): unknown;
 	readonly value: unknown; readonly numKeys: number; readonly numProperties: number; readonly propertyIndex: number; readonly canSetEnabled: boolean; enabled: boolean; property(name: string | number): AeProperty;
 	name: string; addProperty(name: string): AeProperty; maskMode: unknown; inverted: boolean; rotoBezier: boolean; maskFeatherFalloff: unknown; maskMotionBlur: unknown;
 	setValue(value: unknown): void; setValueAtTime(time: number, value: unknown): void;
@@ -66,10 +67,17 @@ function verifyMedia(root: AeFolder, items: readonly MotionAeImportFootage[]): v
 		if (!file.close()) throw new Error('Cannot close retained media: ' + item.name);
 	}
 }
-function applyProperty(target: AeProperty, property: MotionAeImportNumeric): void {
+function applyExpression(target: AeProperty, source: string | null, probeTime: number): void {
+	if (source === null) return; if (!target.canSetExpression) throw new Error('This AE target cannot accept the reviewed scalar expression.');
+	target.expression = source; target.expressionEnabled = true;
+	if (!target.expressionEnabled || target.expressionError) throw new Error('AE rejected the reviewed scalar expression: ' + target.expressionError);
+	const value = target.valueAtTime(probeTime, false);
+	if (target.expressionError || typeof value !== 'number' || !isFinite(value)) throw new Error('AE scalar expression probe failed or returned a nonfinite value: ' + target.expressionError);
+}
+function applyProperty(target: AeProperty, property: MotionAeImportNumeric, probeTime: number): void {
 	if (target.numKeys !== 0) throw new Error('New AE layer unexpectedly contains authored keys.');
 	const value = (input: readonly number[]) => input.length === 1 ? input[0]! : input;
-	if (!property.keys.length) { target.setValue(value(property.value)); return; }
+	if (!property.keys.length) { target.setValue(value(property.value)); applyExpression(target, property.expression, probeTime); return; }
 	for (let index = 0; index < property.keys.length; index++) { const key = property.keys[index]!; target.setValueAtTime(key.time, value(key.value)); }
 	const interpolation = (mode: string) => mode === 'hold' ? KeyframeInterpolationType.HOLD : mode === 'linear' ? KeyframeInterpolationType.LINEAR : KeyframeInterpolationType.BEZIER;
 	for (let index = 0; index < property.keys.length; index++) {
@@ -88,6 +96,7 @@ function applyProperty(target: AeProperty, property: MotionAeImportNumeric): voi
 		}
 	}
 	if (property.spatial) for (let index = 1; index < property.keys.length - 1; index++) target.setRovingAtKey(index + 1, property.keys[index]!.roving);
+	applyExpression(target, property.expression, probeTime);
 }
 function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPlan, shapeProfile: MotionAeShapeProfile | null): MotionAeImportTransaction {
 	app.beginUndoGroup('Import Motionscaper exchange'); let folder: AeItem;
@@ -123,7 +132,7 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 				target.setTrackMatte(source, type);
 			}
 			const transform = layers[item.id]!.property('ADBE Transform Group');
-			for (let index = 0; index < item.properties.length; index++) { const property = item.properties[index]!; applyProperty(transform.property(property.matchName), property); }
+			for (let index = 0; index < item.properties.length; index++) { const property = item.properties[index]!; applyProperty(transform.property(property.matchName), property, item.inPoint); }
 			for (let index = 0; index < item.masks.length; index++) {
 				const mask = item.masks[index]!, target = layers[item.id]!.property('ADBE Mask Parade').addProperty('ADBE Mask Atom');
 				target.name = mask.name; target.maskMode = MaskMode[mask.metadata.mode.toUpperCase()]; target.inverted = mask.metadata.inverted; target.rotoBezier = false;
@@ -134,7 +143,7 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 				if (!mask.path.keys.length) path.setValue(value(mask.path.value));
 				for (let key = 0; key < mask.path.keys.length; key++) path.setValueAtTime(mask.path.keys[key]!.time, value(mask.path.keys[key]!.value));
 				for (let key = 0; key < mask.path.keys.length; key++) path.setInterpolationTypeAtKey(key + 1, mask.path.keys[key]!.inInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR, mask.path.keys[key]!.outInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR);
-				applyProperty(target.property('ADBE Mask Opacity'), mask.opacity); target.property('ADBE Mask Feather').setValue([0, 0]); target.property('ADBE Mask Offset').setValue(0);
+				applyProperty(target.property('ADBE Mask Opacity'), mask.opacity, item.inPoint); target.property('ADBE Mask Feather').setValue([0, 0]); target.property('ADBE Mask Offset').setValue(0);
 			}
 		},
 		finish: () => {
@@ -160,8 +169,11 @@ export function runMotionAeInstalledImport(): void {
 		if (file.alias || file.length > 16_777_216) throw new Error('Exchange manifest is aliased or exceeds its byte budget.');
 		file.encoding = 'UTF-8'; if (!file.open('r')) throw new Error('Cannot read the exchange manifest.'); let json: string;
 		try { json = file.read(); } catch (error) { closeOnError(file, error); } if (!file.close()) throw new Error('Cannot close exchange manifest.');
-		const plan = prepareMotionAeHostImport(json); let needsShapes = false;
+		const plan = prepareMotionAeHostImport(json); let needsShapes = false, hasExpressions = false;
 		for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
+			const layer = plan.compositions[comp]!.layers[index]!;
+			for (let property = 0; property < layer.properties.length; property++) if (layer.properties[property]!.expression !== null) hasExpressions = true;
+			for (let mask = 0; mask < layer.masks.length; mask++) if (layer.masks[mask]!.opacity.expression !== null) hasExpressions = true;
 			if (plan.compositions[comp]!.layers[index]!.shapes) needsShapes = true;
 			const text = plan.compositions[comp]!.layers[index]!.text; if (text) verifyMotionAeInstalledTextFont(text.font);
 			if (plan.compositions[comp]!.layers[index]!.matte && !(parseFloat(app.version) >= 23)) throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
@@ -169,6 +181,7 @@ export function runMotionAeInstalledImport(): void {
 		const shapeProfile = needsShapes ? chooseMotionAeShapeProfile() : null; if (needsShapes && !shapeProfile) return;
 		if (project.workingSpace !== plan.color.workingSpace || project.linearBlending !== plan.color.linearBlending || project.bitsPerChannel !== plan.color.bitsPerChannel) throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
 		let warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';
+		if (hasExpressions) warning += '\n\nThis package activates validated scalar Math/time/value expressions. Each target receives one evaluation probe at its layer in-point. This is not proof for every frame or subframe; compare the animation and retain the original.';
 		for (let index = 0; index < Math.min(plan.warnings.length, 8); index++) warning += '\n\n' + plan.warnings[index];
 		if (plan.warnings.length > 8) warning += '\n\nAdditional warnings: ' + String(plan.warnings.length - 8);
 		if (!confirm(warning + '\n\nCreate this separate imported folder?')) return;
