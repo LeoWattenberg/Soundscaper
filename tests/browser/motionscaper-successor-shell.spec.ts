@@ -9,7 +9,7 @@ test('successor opens the real editor with its own durable owner and menu-only u
 	await page.getByRole('menuitem', { name: 'File', exact: true }).click();
 	await page.getByRole('menuitem', { name: /Upgrade archive for Framescaper/u }).click();
 	await expect(page.locator('[data-framescaper-successor-migration]')).toBeVisible();
-	await page.getByRole('button', { name: 'Close', exact: true }).click();
+	await page.locator('dialog[data-framescaper-successor-migration]').getByRole('button', { name: 'Close', exact: true }).click();
 	await page.reload(); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
 	expect(errors).toEqual([]);
 });
