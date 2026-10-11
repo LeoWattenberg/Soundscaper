@@ -2,9 +2,11 @@
 
 M10 is in progress. Versioned offers, streamed verification, receiver storage,
 atomic owner/history updates, saved-revision picture/PCM adapters and bounded
-portable archive assembly/import are implemented foundations. Framescaper
-successor editor integration, complete save/delivery and desktop transports remain unfinished.
-There is no shipping connected-editor workflow yet.
+portable archive assembly/import are implemented foundations. The explicit
+successor browser shell now exposes File-menu connections and paired placement,
+with lazy exact preview and delivery. Complete connected-editor qualification,
+generated thumbnails and desktop transports remain unfinished; these results do
+not claim a shipping connected-editor workflow.
 
 ## Revision and closure authority
 
@@ -49,9 +51,11 @@ paused intent round-trip through storage without retaining a transport session.
 ## Receiver storage and rendering
 
 Explicit successor admission opens `kw-media-framescaper-editor-v2` database
-version 3. Version 2 appended asset, chunk, staging, linked-revision and
+version 4. Version 2 appended asset, chunk, staging, linked-revision and
 link-state stores; version 3 appends a separate owner/history store while
-preserving the original migration journal and linked bytes. Neither
+preserving the original migration journal and linked bytes. Version 4 adds a
+separate portable-archive custody store; immutable original family-v1 migration
+records remain separate. Neither
 Framescaper family-v1 storage nor Motionscaper storage is opened by this receiver.
 
 Verified bodies, revision retention and state publication share one IndexedDB
@@ -109,37 +113,49 @@ pictures with its color/alpha pipeline. Projects with timeline images retain
 the existing layered painter order, materializing Motion pictures before the
 shared compositor. Virtual sources also request asynchronous frames during
 playback. Focused actual CanvasKit/Frame tests cover seek/reseek, transparency
-and mixed image order; the connected menu browser workflow remains unfinished.
+and mixed image order. The connected sender/receiver menu browser workflow
+remains unfinished.
 
 The engine companion adapter presents 4,096-frame stereo Float32 storage chunks
 on the saved Motion project's native sample rate, including a short terminal
 chunk and silent scenes. The engine retains ownership of trim, reverse,
-resampling and pitch policy. Both adapters still need complete successor menu
-integration and native delivery qualification.
+resampling and pitch policy. The actual successor controller resolves this
+source before encoded metadata and buffer acquisition, including short scenes.
+Its deferred export strategy authenticates the owning project snapshot and
+injects only its linked generated sources into the shared offline exporter.
+Real Frame finishing tests cover random seek order, changed pixels, cleanup and
+forged/stale authority refusal. Native delivery remains unqualified.
 
 ## Portable archive foundations
 
-The current exporter accepts unchanged baseline intent and retained v1 original
-custody, then streams each unique linked digest once alongside original Frame
-assets. Metadata, entry, expanded-byte and Blob budgets are admitted before
+The exporter accepts fresh and edited family-v2 intent and preserves retained
+v1 originals when present, then streams each unique linked digest once alongside
+ordinary Frame assets. Virtual picture/PCM descriptors are regenerated from the
+accepted revision; they never request encoded media bodies. Metadata, entry,
+expanded-byte and Blob budgets are admitted before
 linked body acquisition; a streaming destination observes backpressure. Every
 linked body is independently hashed before the final manifest is written.
 
 Import validates the typed snapshots and exact physical dependency inventory,
-reconstructs and authenticates baseline custody, then stages linked bodies. One
+authenticates retained archive custody, then stages linked bodies. One
 receiver transaction retains the owner project, its states and revisions, and
 all linked bytes. Corrupt media, cancellation, publication failure and identity
-conflicts leave no imported owner visible. Baseline reconstruction currently has
-a default 512 MiB Blob admission limit. Edited ordinary Frame intent and newly
-inserted virtual linked sources still need a complete successor asset assembler;
-these foundation archives are not yet the shipping editor save workflow.
+conflicts leave no imported owner visible. Portable custody currently has a
+default 512 MiB Blob admission limit. Ordinary-media candidates are retained
+conservatively before publication; a failed owner transaction exposes no owner.
+On reopen, missing ordinary-media cache entries are recovered from verified
+portable custody before activation. Chromium qualifies publication failure,
+retry, page closure, deliberate deletion of the separate ordinary-media cache,
+reopen and re-export. Existing owner identities refuse import until an explicit
+copy workflow is available. Shared live validation limits aggregate linked
+output to 2,000,000 frames before any timing-table allocation.
 
 Focused Node and real Chromium IndexedDB fixtures qualify private staging,
 cancellation, reopening, pending updates, Undo/Resume, Conform, portable import
 rollback and atomic owner/history publication. Actual
 CanvasKit tests qualify saved-revision rendering, arbitrary seeks and retained
 image bytes after receiver reopen; PCM tests read retained WAV bytes after
-reopen. These foundations do not close M10's connected editor, native delivery,
-complete save/archive or cross-origin isolation gates.
+reopen. These foundations do not close M10's connected editor, native delivery
+or cross-origin isolation gates.
 
 No **Update AI assets** run is required; the assistance runtime closure is unchanged.

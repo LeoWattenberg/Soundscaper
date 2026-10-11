@@ -120,10 +120,16 @@ offers, bounded streamed closure verification, compatible/pending update and
 Undo/Resume rules, and atomic receiver-owned successor storage with retained
 historical revisions, with atomic owning-project/history CAS and private
 preparations. Saved-revision picture and PCM adapters use the shared scene and
-retained bytes after offline receiver reopen. Bounded portable linked archive
-export/import passes durable rollback fixtures for unchanged baseline intent.
-Browser/desktop transports, Framescaper editor/render integration and complete
-successor save/archive assembly remain unfinished. M11 has a bounded
+retained bytes after offline receiver reopen. The explicit successor browser
+shell exposes composition connections through File, with paired picture/PCM
+placement, atomic editing and Undo/Redo, and lazy exact preview/delivery.
+Authenticated generated video sources pass the actual Frame finishing exporter
+without encoded proxy bodies. Fresh and edited family-v2 archives export and
+import with retained ordinary media and linked closure; Chromium covers failed
+publication, retry, reopen, deliberate media-cache loss and portable re-export.
+The successor site builds within unchanged startup and chunk limits. Connected
+sender/receiver menu qualification, generated thumbnails, desktop transport and
+native delivery remain unfinished. M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
 limited importer scripts with media digest verification, a bounded script
 download, explicit numeric sampling and limited editable exchange conversion.
@@ -138,7 +144,7 @@ Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-The Motionscaper Node shard passes 471 tests at this integration
+The Motionscaper Node shard passes 520 tests at this integration
 point. These results do not close a package's completion gate.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
@@ -146,8 +152,8 @@ M09's camera, depth-group, lighting and quality semantics. It does not claim
 After Effects pixel parity.
 
 The current [composition link foundations](motionscaper-composition-links.md)
-declare M10's revision, closure, history and rendering authority. Transport and
-Framescaper successor editor integration remain open.
+declare M10's revision, closure, history and rendering authority. Complete
+connected-editor and desktop qualification remain open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
