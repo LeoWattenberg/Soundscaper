@@ -2,8 +2,9 @@
 
 M09 remains in progress. The renderer has focused native CanvasKit fixtures and
 actual worker/WebGL and host/CPU preview coverage for translucent intersections,
-lighting, transparent shadows and depth of field. Authoring menus, temporal
-preview/export integration and desktop reference qualification remain open.
+lighting, transparent shadows, depth of field and combined shutter/lens samples.
+Matching-quality worker/CPU preview and final export agree. Authoring menus
+and desktop reference qualification remain open.
 These are Motionscaper semantics; After Effects pixel parity is unqualified.
 
 ## Cameras and geometry

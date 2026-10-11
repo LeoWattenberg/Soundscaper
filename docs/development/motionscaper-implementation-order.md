@@ -73,7 +73,7 @@ package complete.
 
 ### Implementation status
 
-M01–M09 and M11 are **In progress**; M10 and M12 remain **Planned**. The isolated browser
+M01–M11 are **In progress**; M12 remains **Planned**. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
 origin with bounded project-file capabilities. Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
@@ -101,18 +101,27 @@ alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
 projective corner pins. Tracking freshness stops preview/export before resource
 acquisition; point analysis/correction, planar pins, stabilization, cancellation,
 history and reopen pass menu-driven workflows using actual encoded footage.
-Compositing authoring menus remain unfinished. M08
+Menu-opened masks, effects, blend modes, mattes and adjustments pass browser
+editing and property-animation workflows. M08
 includes a closed expression parser/interpreter, shared exact scene/audio
 clocks, stable references, bounded queries, and atomic source/baking commands;
 bounded native-PCM amplitude now drives preview/export pixels and mixed gain,
-with asynchronous baking and expression asset custody. Expression menus remain
-unfinished. M09 has perspective/orthographic cameras, depth-sorted translucent
+with asynchronous baking and expression asset custody. Menu-driven source
+editing, diagnostics, evaluation and baking pass browser preview, history and
+reopen workflows, including retained PCM amplitude and cancellation. M09 has perspective/orthographic cameras, depth-sorted translucent
 planes, linear-SDR materials/lights, transparent shadow casters and deterministic
 thin-lens sampling. Actual worker/WebGL and host/CPU preview fixtures agree;
-shutter adapters and camera/lighting authoring remain under construction.
-M11 has a bounded exchange schema and custody/report validation; installed-AE
-scripts, editable conversion and real-AE qualification remain unfinished.
-The Motionscaper Node shard passes 364 tests at this integration
+matching-quality shutter/lens preview and final export agree, including exact
+nested quality and arbitrary seeks. Camera/lighting authoring and desktop
+reference qualification remain unfinished. M10 has versioned composition
+offers, bounded streamed closure verification, compatible/pending update and
+Undo/Resume rules, and atomic receiver-owned successor storage with retained
+historical revisions. Browser/desktop transports, Framescaper editor/render
+integration, and portable linked archives remain unfinished. M11 has a bounded
+exchange schema, custody/report validation, readable installed-AE exporter
+scripts and a bounded script download. Editable conversion, import scripts,
+sampling/render fallback and real-AE qualification remain unfinished.
+The Motionscaper Node shard passes 426 tests at this integration
 point. These results do not close a package's completion gate.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
