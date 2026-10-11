@@ -8,6 +8,9 @@ import { motionScalar } from '../src/common/editor/motion-property.ts';
 import { createFramescaperCompositionSource } from '../src/framescaper/editor-composition-link-source.ts';
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { createFramescaperCompositionPcmSource } from '../src/framescaper/editor-composition-link-pcm-source.ts';
+import { createFramescaperVideoExportStrategySuccessor } from '../src/framescaper/video-export-strategy-successor.ts';
+import { framescaperSuccessorBaselineProject } from '../src/framescaper/editor-project-successor-commands.ts';
+import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 
 function fixture(audio = true) {
 	const motion = createMotionscaperProject({ id: 'sound', title: 'Scene', compositionId: 'main', sampleRate: 8000, frameRate: { num: 30, den: 1 }, durationFrames: 17 });
@@ -17,6 +20,21 @@ function fixture(audio = true) {
 	const project = { ...createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ sources: [linked.source, linked.audioSource!] }), compositionLinks: [linked.link] };
 	return { project, source: linked.audioSource! };
 }
+test('successor export omits only authenticated silent Motion companions and retains authored or ordinary audio', () => {
+	for (const audible of [false, true]) {
+		const { project, source } = fixture(audible);
+		const createDeliveryProject = (sources: typeof project.sources, clips: ReturnType<typeof createAudioClip>[]) => ({ ...createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ sources, clips, tracks: [createAudioTrack({ id: 'audio-track', clipIds: clips.map(clip => clip.id) })] }), compositionLinks: project.compositionLinks });
+		const projectWithClip = createDeliveryProject(project.sources, [createAudioClip({ id: 'audio-clip', sourceId: source.id, trackId: 'audio-track', durationFrames: 100, sourceDurationFrames: 100 })]);
+		const strategy = createFramescaperVideoExportStrategySuccessor({ store: {} as never, readAsset: async () => null });
+		const exportProject = strategy.createExportProject({ canonicalProject: projectWithClip, delivery: { project: framescaperSuccessorBaselineProject(projectWithClip), audioRenderedFallback: null, videoRenderedFallback: null, requiredAudioSourceIds: [], requiredVideoSourceIds: [] } });
+		assert.equal(strategy.hasAudio!(exportProject), audible);
+		assert.throws(() => strategy.hasAudio!({ ...exportProject }), /owned|canonical/iu);
+		const ordinarySource = createAudioSource({ id: 'ordinary', frameCount: 100, channelCount: 1, sampleRate: 48000 });
+		const ordinary = createDeliveryProject([...project.sources, ordinarySource], [...projectWithClip.clips as ReturnType<typeof createAudioClip>[], createAudioClip({ id: 'ordinary-clip', sourceId: ordinarySource.id, trackId: 'audio-track', durationFrames: 100, sourceDurationFrames: 100 })]);
+		const ordinaryExport = strategy.createExportProject({ canonicalProject: ordinary, delivery: { project: framescaperSuccessorBaselineProject(ordinary), audioRenderedFallback: null, videoRenderedFallback: null, requiredAudioSourceIds: [], requiredVideoSourceIds: [] } });
+		assert.equal(strategy.hasAudio!(ordinaryExport), true);
+	}
+});
 test('successor companion chunks keep the native grid, stereo identity and short terminal extent for random engine reads', async () => {
 	const { project, source } = fixture(); let releases = 0;
 	const pcm = createFramescaperCompositionPcmSource({ project, source, acquire: async () => ({ provider: {

@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planVideoKeyframeOfflineVideoSources } from '../src/common/editor/ui/video-keyframe-offline-video-export-sources.ts';
 import { snapshotVideoExportGeneratedSources } from '../src/common/editor/video-export-generated-sources.ts';
-import { loadProductVideoExportStrategyOptions } from '../src/common/editor/controller/export/product-video-export-strategy.ts';
+import { loadProductVideoExportStrategyOptions, resolveProductVideoExportStrategy } from '../src/common/editor/controller/export/product-video-export-strategy.ts';
 import { exportFixture, SOURCE_ID, CLIP_ID } from './helpers/video-keyframe-offline-export-harness.ts';
 
 test('Motion generated video admission keeps encoded-body authority for every ordinary source', async () => {
@@ -43,4 +43,10 @@ test('Motion generated export capabilities are closed data and do not silently w
 	assert.throws(() => snapshotVideoExportGeneratedSources({ sourceIds: ['one', 'one'], resolveSource }), /duplicate/iu);
 	assert.throws(() => snapshotVideoExportGeneratedSources({ sourceIds: ['one'], resolveSource, ignored: true }), /closed/iu);
 	assert.throws(() => snapshotVideoExportGeneratedSources({ get sourceIds() { throw new Error('Getter must not execute'); }, resolveSource }), /data/iu);
+});
+test('Motion generated audio presence requires an own data method and a boolean result', () => {
+	const base = { createExportProject() { return {}; }, createPlan() { return null; }, async encode() { throw new Error('Not encoded'); }, async encodeToSink() { throw new Error('Not encoded'); } };
+	for (const present of [false, true]) assert.equal(resolveProductVideoExportStrategy({ productVideoExportStrategy: { ...base, hasAudio: () => present } })?.hasAudio?.({}), present);
+	assert.throws(() => resolveProductVideoExportStrategy({ productVideoExportStrategy: { ...base, hasAudio: () => 'yes' } })?.hasAudio?.({}), /boolean/u);
+	assert.throws(() => resolveProductVideoExportStrategy({ productVideoExportStrategy: { ...base, get hasAudio() { throw new Error('Getter must not run'); } } }), /data function/u);
 });

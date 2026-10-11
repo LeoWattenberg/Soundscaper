@@ -104,6 +104,8 @@ export interface ProductVideoExportStrategy {
 	createExportProject(request: ProductVideoExportProjectRequest): Readonly<Record<string, unknown>>;
 	/** Product-owned picture kinds such as stills and generators on visible tracks. */
 	hasPicture?(exportProject: Readonly<Record<string, unknown>>): boolean;
+	/** Authenticated generated companions may carry placement without audible scene content. */
+	hasAudio?(exportProject: Readonly<Record<string, unknown>>): boolean;
 	createPlan(request: ProductVideoExportStrategyPlanRequest): ProductVideoExportPlan | null;
 	encode(request: ProductVideoExportStrategyEncodeRequest): Promise<ProductVideoExportEncodedOutput>;
 	encodeToSink<Output>(
@@ -127,6 +129,7 @@ export function resolveProductVideoExportStrategy(options: unknown): ProductVide
 	const createExportProject = dataMethod(strategy, 'createExportProject');
 	const hasPicture = Object.hasOwn(strategy, 'hasPicture')
 		? dataMethod(strategy, 'hasPicture') : undefined;
+	const hasAudio = Object.hasOwn(strategy, 'hasAudio') ? dataMethod(strategy, 'hasAudio') : undefined;
 	const createPlan = dataMethod(strategy, 'createPlan');
 	const encode = dataMethod(strategy, 'encode');
 	const encodeToSink = dataMethod(strategy, 'encodeToSink');
@@ -146,6 +149,11 @@ export function resolveProductVideoExportStrategy(options: unknown): ProductVide
 				return result;
 			},
 		} : {}),
+		...(hasAudio ? { hasAudio(exportProject: Readonly<Record<string, unknown>>): boolean {
+			const result = Reflect.apply(hasAudio, strategy, [exportProject]);
+			if (typeof result !== 'boolean') throw new TypeError('Product video export strategy.hasAudio must return boolean.');
+			return result;
+		} } : {}),
 		createPlan(request: ProductVideoExportStrategyPlanRequest) {
 			return Reflect.apply(createPlan, strategy, [request]) as ProductVideoExportPlan | null;
 		},
@@ -277,7 +285,7 @@ function captureSourceIdArray(value: unknown, name: string): readonly string[] {
 
 function dataMethod(
 	value: unknown,
-	key: 'createExportProject' | 'hasPicture' | 'createPlan' | 'encode' | 'encodeToSink'
+	key: 'createExportProject' | 'hasPicture' | 'hasAudio' | 'createPlan' | 'encode' | 'encodeToSink'
 		| 'captureTimingSourceIds' | 'captureGeneratedSources',
 ): (...arguments_: never[]) => unknown {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {

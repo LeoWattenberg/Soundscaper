@@ -4,6 +4,7 @@ import type { ProductVideoExportPlan, ProductVideoExportStrategy, ProductVideoEx
 import type { VideoExportGeneratedSources } from '../common/editor/video-export-generated-sources.ts';
 import type { VideoKeyframeOfflineSourcePresentation } from '../common/editor/ui/video-keyframe-offline-rgba-source.ts';
 import { motionSurfaceLength } from '../common/editor/motion-surface.ts';
+import { motionCompositionHasAudio } from '../common/editor/motion-composition-audio.ts';
 import { planVideoPreviewCapture } from '../common/editor/video-preview-capture-admission.ts';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import { encodeVideoKeyframeOfflineVideo, encodeVideoKeyframeOfflineVideoToSink } from '../common/editor/ui/video-keyframe-offline-video-export.ts';
@@ -54,6 +55,14 @@ export function createFramescaperVideoExportStrategySuccessor(options: Options):
 			exports.set(exportProject, { canonical: request.canonicalProject, project, inherited, delegate }); return exportProject;
 		},
 		hasPicture(exportProject) { const authority = ownedExport(exportProject); return authority.delegate.hasPicture?.(exportProject) ?? false; },
+		hasAudio(exportProject) {
+			const project = ownedExport(exportProject).project;
+			return (exportProject.clips as typeof project.clips).some(clip => {
+				if (clip.kind !== 'audio') return false;
+				const link = project.compositionLinks.find(link => link.audioSourceId === clip.sourceId);
+				return !link || motionCompositionHasAudio(link.snapshot.project, link.compositionId);
+			});
+		},
 		createPlan(request) {
 			const authority = ownedExport(request.exportProject, request.canonicalProject);
 			const plan = authority.delegate.createPlan({ ...request, canonicalProject: authority.inherited });
