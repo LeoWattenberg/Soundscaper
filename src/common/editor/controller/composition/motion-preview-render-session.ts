@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createMotionSceneEvaluator, type MotionSceneEvaluator } from '../../motion-composition-evaluation.ts';
+import { admitMotionTemporalWork, planMotionTemporalSamples } from '../../motion-temporal-sampling.ts';
+import { renderMotionTemporalSamples } from '../../motion-temporal-rendering.ts';
 import { renderMotionCompositionFrame, motionCpuCompositor } from '../../motion-composition-renderer.ts';
 import { createCanvasKitMotionRasterizer } from '../../motion-canvaskit-rasterizer.ts';
 import type { MotionRasterRuntime } from '../../motion-canvaskit-browser.ts';
@@ -51,20 +53,23 @@ export function createMotionPreviewRenderSession(options: MotionPreviewSessionOp
 			const signal = AbortSignal.any([externalSignal, disposal.signal]); assertActive(signal);
 			if (!project || !evaluator) throw new Error('Load a motion project before rendering preview.');
 			const retained = project; const compiled = evaluator;
-			const frame = expressionAudio ? await expressionAudio.evaluate((query) => compiled.evaluate(request, query), signal) : compiled.evaluate(request, { signal });
+			const composition = retained.compositions.find(value => value.id === request.compositionId); if (!composition) throw new ReferenceError('Motion preview composition is missing.');
+			admitMotionTemporalWork(retained, composition.id, request.quality); const plan = planMotionTemporalSamples(composition, request.time, request.quality);
 			const runtime = await (options.loadRuntime ? options.loadRuntime() : loadMotionRasterRuntime(signal)); assertActive(signal);
 			const rasterizer = createCanvasKitMotionRasterizer(runtime.kit, { assets: retained.assets, fallbackFonts: runtime.fallbackFonts, loadAsset: bytesFor,
 				...(decodeFootage ? { decodeFootage } : {}) });
+			const render = () => renderMotionTemporalSamples({ evaluator: compiled, plan, expressionAudio: expressionAudio ?? undefined, signal, maximumWorkingBytes: options.maximumWorkingBytes,
+				render: (frame, quality) => renderMotionCompositionFrame(frame, { rasterizer, compositor: gpu ?? motionCpuCompositor, signal, ...quality }) });
 			let rendered;
-			try { rendered = await renderMotionCompositionFrame(frame, { rasterizer, compositor: gpu ?? motionCpuCompositor, signal, maximumWorkingBytes: options.maximumWorkingBytes }); }
+			try { rendered = await render(); }
 			catch (error) {
 				if (!gpu || !(error instanceof Error) || !/^Motion (?:WebGL2|working surfaces)/u.test(error.message)) throw error;
 				gpu.dispose(); gpu = null; name = options.backend; assertActive(signal);
-				rendered = await renderMotionCompositionFrame(frame, { rasterizer, compositor: motionCpuCompositor, signal, maximumWorkingBytes: options.maximumWorkingBytes });
+				rendered = await render();
 			}
 			assertActive(signal);
-			return { width: frame.width, height: frame.height, rgba: motionSurfaceToRgba8(rendered, 'srgb'),
-				time: frame.time, compositionId: frame.compositionId, revision: retained.revision, generation: request.generation, backend: name };
+			return { width: plan.width, height: plan.height, rgba: motionSurfaceToRgba8(rendered, 'srgb'),
+				time: plan.time, compositionId: plan.compositionId, revision: retained.revision, generation: request.generation, backend: name };
 		},
 		dispose() { if (!disposed) { disposed = true; disposal.abort(); expressionAudio?.dispose(); expressionAudio = null; media?.dispose(); media = null; gpu?.dispose(); gpu = null; cache.clear(); cacheBytes = 0; project = null; evaluator = null; loadAsset = null; decodeFootage = undefined; } },
 	};

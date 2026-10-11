@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { planMotionTemporalSamples, type MotionPreviewQuality } from '../../motion-temporal-sampling.ts';
 import { normalizeMotionscaperProject } from '../../motion-project-validation.ts';
 import type { MotionscaperProject } from '../../motion-project-types.ts';
 import { addRationals, compareRationals, divideRationals, normalizeRational, type Rational } from '../../timeline-time.ts';
 import { createMotionPreviewCache } from './internal/motion-preview-cache.ts';
 import type { MotionPreviewClient, MotionPreviewFrame, MotionPreviewOptions, MotionPreviewState } from './motion-preview-types.ts';
 
-interface PreviewJob { readonly compositionId: string; readonly time: Rational; readonly generation: number; resolve(): void; reject(error: unknown): void }
-interface Playback { readonly compositionId: string; readonly start: Rational; readonly end: Rational; readonly rate: Rational; readonly startedMs: number; index: number }
+interface PreviewJob { readonly compositionId: string; readonly time: Rational; readonly generation: number; readonly quality: MotionPreviewQuality; resolve(): void; reject(error: unknown): void }
+interface Playback { readonly compositionId: string; readonly start: Rational; readonly end: Rational; readonly rate: Rational; readonly startedMs: number; readonly quality: MotionPreviewQuality; index: number }
 
 /** One in-flight render and one replaceable pending seek; superseded work cannot publish pixels. */
 export async function createMotionPreviewClient(options: MotionPreviewOptions): Promise<MotionPreviewClient> {
@@ -35,16 +36,18 @@ export async function createMotionPreviewClient(options: MotionPreviewOptions): 
 			finally { if (loadingAbort === cancellation) loadingAbort = null; }
 		},
 		async seek(request) {
-			assertProject(request.compositionId); const time = normalizeRational(request.time, { maximumDenominator: Number.MAX_SAFE_INTEGER });
+			const composition = assertProject(request.compositionId); const time = normalizeRational(request.time, { maximumDenominator: Number.MAX_SAFE_INTEGER });
+			const quality = qualityFor(composition, time, request.quality);
 			invalidate(); update({ status: 'rendering', error: null });
-			return enqueue(request.compositionId, time);
+			return enqueue(request.compositionId, time, quality);
 		},
 		play(request) {
 			const composition = assertProject(request.compositionId);
 			const start = normalizeRational(request.startTime, { maximumDenominator: Number.MAX_SAFE_INTEGER });
 			const end = normalizeRational(request.endTime, { maximumDenominator: Number.MAX_SAFE_INTEGER });
 			if (start.num < 0 || compareRationals(start, end) >= 0 || compareRationals(end, divideRationals(composition.durationFrames, composition.frameRate)) > 0) throw new RangeError('Motion preview playback range must fit the composition.');
-			invalidate(); playback = { compositionId: request.compositionId, start, end, rate: composition.frameRate, startedMs: clock.now(), index: -1 };
+			const quality = qualityFor(composition, start, request.quality);
+			invalidate(); playback = { quality, compositionId: request.compositionId, start, end, rate: composition.frameRate, startedMs: clock.now(), index: -1 };
 			update({ status: 'playing', error: null }); schedulePlayback();
 		},
 		pause() { if (!disposed) { invalidate(); update({ status: project ? 'paused' : 'idle' }); } },
@@ -67,8 +70,11 @@ export async function createMotionPreviewClient(options: MotionPreviewOptions): 
 		if (timer !== null) { clock.cancel(timer); timer = null; }
 		loadingAbort?.abort(); renderAbort?.abort(); pending?.resolve(); pending = null;
 	}
-	function enqueue(compositionId: string, time: Rational): Promise<void> {
-		return new Promise((resolve, reject) => { pending?.resolve(); pending = { compositionId, time, generation, resolve, reject }; pump(); });
+	function qualityFor(composition: ReturnType<typeof assertProject>, time: Rational, quality?: MotionPreviewQuality): MotionPreviewQuality {
+		const plan = planMotionTemporalSamples(composition, time, quality); return Object.freeze({ temporalSamples: plan.samples.length, ...(plan.depthOfFieldSampleLimit === undefined ? {} : { depthOfFieldSamples: plan.depthOfFieldSampleLimit }) });
+	}
+	function enqueue(compositionId: string, time: Rational, quality: MotionPreviewQuality): Promise<void> {
+		return new Promise((resolve, reject) => { pending?.resolve(); pending = { compositionId, time, quality, generation, resolve, reject }; pump(); });
 	}
 	function pump(): void {
 		if (flight || !pending || disposed) return;
@@ -77,11 +83,11 @@ export async function createMotionPreviewClient(options: MotionPreviewOptions): 
 	}
 	async function run(job: PreviewJob): Promise<void> {
 		const cancellation = new AbortController(); renderAbort = cancellation;
-		const key = `${job.compositionId}:${job.time.num}/${job.time.den}`;
+		const key = `${job.compositionId}:${job.time.num}/${job.time.den}:${job.quality.temporalSamples}:${job.quality.depthOfFieldSamples}`;
 		try {
 			let frame = cache.get(key, job.generation);
 			if (!frame) {
-				frame = await backend.render({ compositionId: job.compositionId, time: job.time, generation: job.generation }, cancellation.signal);
+				frame = await backend.render({ compositionId: job.compositionId, time: job.time, generation: job.generation, quality: job.quality }, cancellation.signal);
 				if (job.generation !== generation || disposed) { job.resolve(); return; }
 				validateFrame(frame, job); cache.put(key, frame);
 			}
@@ -112,6 +118,6 @@ export async function createMotionPreviewClient(options: MotionPreviewOptions): 
 		}
 		const time = addRationals(current.start, divideRationals(index, current.rate));
 		if (compareRationals(time, current.end) >= 0) { playback = null; update({ status: 'paused' }); return; }
-		current.index = index; void enqueue(current.compositionId, time).catch(() => { /* The current render already reported its diagnostic. */ });
+		current.index = index; void enqueue(current.compositionId, time, current.quality).catch(() => { /* The current render already reported its diagnostic. */ });
 	}
 }

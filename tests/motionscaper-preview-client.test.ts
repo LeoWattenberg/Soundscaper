@@ -82,3 +82,21 @@ test('M05 a new revision clears old frames and render failures can be corrected 
 	await client.seek({ compositionId: 'main', time: 0 }); assert.equal(states.at(-1)!.status, 'paused');
 	client.dispose();
 });
+
+test('M09 preview cache separates explicit temporal and lens quality and validates reductions before rendering', async () => {
+	const requested: unknown[] = []; const red: number[] = [];
+	const backend: MotionPreviewBackend = { setProject: () => Promise.resolve('host-cpu'), dispose() {}, render: request => {
+		requested.push(request.quality); const frame = pixels(request); frame.rgba[0] = request.quality?.temporalSamples ?? 4; return Promise.resolve(frame);
+	} };
+	const client = await createMotionPreviewClient({ backendFactory: () => Promise.resolve(backend), onState() {}, onFrame: frame => { red.push(frame.rgba[0]!); } });
+	const base = project(); await client.setProject({ ...base, compositions: [{ ...base.compositions[0]!, temporal: { shutterOpenFrames: { num: -1, den: 2 }, shutterCloseFrames: { num: 1, den: 2 }, samples: 4 }, depthOfFieldSamples: 8 }] }, assets);
+	try {
+		await client.seek({ compositionId: 'main', time: 0 });
+		await client.seek({ compositionId: 'main', time: 0, quality: { temporalSamples: 1 } });
+		await client.seek({ compositionId: 'main', time: 0, quality: { temporalSamples: 4 } });
+		assert.deepEqual(red, [4, 1, 4]); assert.equal(requested.length, 2);
+		// An explicit root-equivalent lens cap can still change nested compositions, so it has a distinct cache key.
+		await client.seek({ compositionId: 'main', time: 0, quality: { depthOfFieldSamples: 8 } }); assert.equal(requested.length, 3);
+		await assert.rejects(client.seek({ compositionId: 'main', time: 0, quality: { temporalSamples: 5 } }), /quality|samples/iu); assert.equal(requested.length, 3);
+	} finally { client.dispose(); }
+});

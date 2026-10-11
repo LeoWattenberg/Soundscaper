@@ -21,7 +21,7 @@ export async function visitMotionTemporalSamples(options: Readonly<{
 		options.signal?.throwIfAborted(); const request = { compositionId: options.plan.compositionId, time: sample.time };
 		const frame = options.expressionAudio ? await options.expressionAudio.evaluate(query => options.evaluator.evaluate(request, { ...query, expressionBudget, sceneWork }), options.signal, nativeBudget)
 			: options.evaluator.evaluate(request, { expressionBudget, sceneWork, ...(options.signal ? { signal: options.signal } : {}) });
-		if (frame.compositionId !== request.compositionId || compareRationals(frame.time, request.time) !== 0 || frame.width !== options.plan.width || frame.height !== options.plan.height) throw new Error('Temporal evaluator returned a different composition, time or geometry.');
+		if (frame.compositionId !== request.compositionId || compareRationals(frame.time, request.time) !== 0 || frame.width !== options.plan.width || frame.height !== options.plan.height) throw new Error('Temporal evaluator returned a different composition, time or dimensions.');
 		await options.visit(sample, frame); options.signal?.throwIfAborted();
 		// CPU-only visitors must still service cancellation between expensive subframes.
 		if (options.plan.samples.length > 1) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); options.signal?.throwIfAborted(); }

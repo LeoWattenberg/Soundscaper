@@ -8,11 +8,11 @@ export interface MotionPreviewQuality { readonly temporalSamples?: number; reado
 export interface MotionTemporalSample { readonly index: number; readonly time: Rational; readonly weight: Rational }
 export interface MotionTemporalSamplePlan {
 	readonly compositionId: string; readonly time: Rational; readonly frameRate: Rational; readonly width: number; readonly height: number;
-	readonly depthOfFieldSamples: number; readonly samples: readonly MotionTemporalSample[];
+	readonly depthOfFieldSamples: number; readonly depthOfFieldSampleLimit?: number; readonly samples: readonly MotionTemporalSample[];
 }
 const PLANS = new WeakSet<MotionTemporalSamplePlan>();
 /** Exact deterministic strata; only the requested composition's shutter samples its whole nested scene. */
-export function planMotionTemporalSamples(composition: MotionComposition, timeValue: RationalInput, quality: MotionPreviewQuality = {}): MotionTemporalSamplePlan {
+export function planMotionTemporalSamples(composition: Pick<MotionComposition, 'id' | 'width' | 'height' | 'frameRate' | 'temporal' | 'depthOfFieldSamples'>, timeValue: RationalInput, quality: MotionPreviewQuality = {}): MotionTemporalSamplePlan {
 	const time = normalizeRational(timeValue, { maximumDenominator: Number.MAX_SAFE_INTEGER });
 	const temporal = composition.temporal === undefined ? null : normalizeMotionTemporalSettings(composition.temporal);
 	const count = reduced(quality.temporalSamples, temporal?.samples ?? 1, 'temporal samples');
@@ -22,7 +22,7 @@ export function planMotionTemporalSamples(composition: MotionComposition, timeVa
 		const offset = temporal ? addRationals(temporal.shutterOpenFrames, multiplyRationals(subtractRationals(temporal.shutterCloseFrames, temporal.shutterOpenFrames), { num: 2 * index + 1, den: 2 * count })) : { num: 0, den: 1 };
 		return { index, time: addRationals(time, divideRationals(offset, frameRate)), weight: { num: 1, den: count } };
 	});
-	const plan = freezeMotionValue({ compositionId: motionId(composition.id), time, frameRate, width: motionInteger(composition.width, 'temporal width', 1, 65536), height: motionInteger(composition.height, 'temporal height', 1, 65536), depthOfFieldSamples, samples });
+	const plan = freezeMotionValue({ compositionId: motionId(composition.id), time, frameRate, width: motionInteger(composition.width, 'temporal width', 1, 65536), height: motionInteger(composition.height, 'temporal height', 1, 65536), depthOfFieldSamples, ...(quality.depthOfFieldSamples === undefined ? {} : { depthOfFieldSampleLimit: depthOfFieldSamples }), samples });
 	PLANS.add(plan); return plan;
 }
 export function assertMotionTemporalSamplePlan(value: MotionTemporalSamplePlan): void {
@@ -48,10 +48,14 @@ export function admitMotionTemporalWork(project: Readonly<{ compositions: readon
 	const visit = (composition: MotionComposition, depth: number): void => {
 		if (depth > 32 || ++occurrences > 16384) throw new RangeError('Temporal composition occurrence/depth budget exceeded.');
 		sceneWork += temporalSamples * (1 + composition.layers.length * 3 + composition.audio.length);
-		const planes = composition.layers.filter(layer => layer.enabled && layer.is3D && !['null', 'camera', 'light', 'adjustment'].includes(layer.kind)).length;
+		const planes = composition.layers.filter(layer => layer.enabled && layer.is3D && !['null', 'camera', 'light', 'adjustment'].includes(layer.kind));
+		const lights = composition.layers.filter(layer => layer.enabled && layer.kind === 'light');
+		const shadows = lights.filter(layer => layer.kind === 'light' && layer.castsShadows && layer.lightType !== 'ambient').length;
+		const casters = planes.filter(layer => layer.material.castsShadows).length;
+		const response = 1 + lights.length + shadows * casters;
 		const authoredLens = motionDepthOfFieldSamples(composition.depthOfFieldSamples ?? 16);
 		const lens = composition.layers.some(possibleAperture) ? Math.min(quality.depthOfFieldSamples ?? authoredLens, authoredLens) : 1;
-		pixelSamples += composition.width * composition.height * temporalSamples * (Math.max(1, planes) * lens + composition.layers.length);
+		pixelSamples += composition.width * composition.height * temporalSamples * (Math.max(1, planes.length) * lens * response + composition.layers.length);
 		if (!Number.isSafeInteger(pixelSamples) || pixelSamples > maximumPixels) throw new RangeError('Temporal pixel/lens work budget exceeded before asset acquisition.');
 		if (sceneWork > maximumScene) throw new RangeError('Temporal scene work budget exceeded before asset acquisition.');
 		for (const layer of composition.layers) if (layer.enabled && layer.kind === 'precomp') {

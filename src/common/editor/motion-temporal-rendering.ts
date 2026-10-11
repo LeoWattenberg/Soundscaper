@@ -6,7 +6,7 @@ import { createMotionSurface, motionSurfaceLength, validateMotionSurface } from 
 import { assertMotionTemporalSamplePlan } from './motion-temporal-sampling.ts';
 import { visitMotionTemporalSamples } from './motion-temporal-evaluation.ts';
 
-export interface MotionTemporalRasterOptions { readonly maximumWorkingBytes: number; readonly depthOfFieldSamples: number }
+export interface MotionTemporalRasterOptions { readonly maximumWorkingBytes: number; readonly depthOfFieldSamples?: number }
 /** One Float64 shutter accumulator, one transient renderer result, and a separately admitted final Float32 store. */
 export async function renderMotionTemporalSamples(options: Omit<Parameters<typeof visitMotionTemporalSamples>[0], 'visit'> & Readonly<{
 	maximumWorkingBytes?: number;
@@ -20,7 +20,7 @@ export async function renderMotionTemporalSamples(options: Omit<Parameters<typeo
 	const sum = multiple ? new Float64Array(length) : null;
 	let single: MotionRenderResult | null = null; const consumed: string[] = []; let ledgerBytes = 0;
 	await visitMotionTemporalSamples({ ...options, visit: async (sample, frame) => {
-		const rendered = await options.render(frame, { maximumWorkingBytes: maximum - accumulationBytes, depthOfFieldSamples: plan.depthOfFieldSamples });
+		const rendered = await options.render(frame, { maximumWorkingBytes: maximum - accumulationBytes, ...(plan.depthOfFieldSampleLimit === undefined ? {} : { depthOfFieldSamples: plan.depthOfFieldSampleLimit }) });
 		options.signal?.throwIfAborted(); validateMotionSurface(rendered);
 		if (rendered.width !== plan.width || rendered.height !== plan.height) throw new Error('Temporal renderer returned a different surface geometry.');
 		assertMotionFrameConsumed(frame, rendered.consumedOperationIds);

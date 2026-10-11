@@ -9,7 +9,7 @@ import { compileMotionscaperProject } from '../src/motionscaper/editor-project-e
 import { planMotionTemporalSamples, admitMotionTemporalWork } from '../src/common/editor/motion-temporal-sampling.ts';
 import { visitMotionTemporalSamples } from '../src/common/editor/motion-temporal-evaluation.ts';
 import { createMotionSceneWorkBudget } from '../src/common/editor/motion-scene-work-budget.ts';
-import { motionScalar, motionVector } from '../src/common/editor/motion-property.ts';
+import { motionColor, motionScalar, motionVector } from '../src/common/editor/motion-property.ts';
 import { multiplyRationals } from '../src/common/editor/timeline-time.ts';
 const r = (num: number, den = 1) => ({ num, den });
 const project = createMotionscaperProject({ id: 'p', title: 'Temporal', compositionId: 'main', width: 16, height: 16, frameRate: r(30000, 1001) });
@@ -23,9 +23,10 @@ test('M09 exact shutter midpoint planning and independent lens quality preserve 
 	const h = createMotionscaperHistory(project); const changed = h.commit(createMotionscaperRenderQualityCommands({ project, compositionId: 'main', temporal, depthOfFieldSamples: 8 }));
 	const authored = changed.compositions[0]!; const plan = planMotionTemporalSamples(authored, time);
 	assert.deepEqual(plan.samples.map(sample => multiplyRationals(sample.time, composition.frameRate)), [r(157, 16), r(159, 16), r(161, 16), r(163, 16)]);
-	assert.ok(plan.samples.every(sample => sample.weight.num === 1 && sample.weight.den === 4)); assert.equal(plan.depthOfFieldSamples, 8);
+	assert.ok(plan.samples.every(sample => sample.weight.num === 1 && sample.weight.den === 4)); assert.equal(plan.depthOfFieldSamples, 8); assert.equal(Object.hasOwn(plan, 'depthOfFieldSampleLimit'), false);
 	assert.deepEqual(planMotionTemporalSamples(authored, time, { temporalSamples: 1 }).samples[0]!.time, time);
 	assert.equal(planMotionTemporalSamples(authored, time, { depthOfFieldSamples: 2 }).depthOfFieldSamples, 2);
+	assert.equal(planMotionTemporalSamples(authored, time, { depthOfFieldSamples: 2 }).depthOfFieldSampleLimit, 2);
 	assert.equal(compileMotionscaperProject(changed).evaluate({ compositionId: 'main', time }).depthOfFieldSamples, 8);
 	assert.deepEqual(normalizeMotionscaperProject(JSON.parse(JSON.stringify(changed))).compositions, changed.compositions);
 	assert.equal(h.undo(), true); assert.deepEqual(h.snapshot().project.compositions, project.compositions);
@@ -82,4 +83,15 @@ test('M09 fractional samples outside composition bounds stay transparent and len
 	assert.throws(() => admitMotionTemporalWork(high, 'main', {}, { maximumPixelSamples: reduced.pixelSamples }), /work|budget/iu);
 	const history = createMotionscaperHistory(high); const reset = history.commit(createMotionscaperRenderQualityCommands({ project: high, compositionId: 'main', temporal: null, depthOfFieldSamples: null }));
 	assert.equal(Object.hasOwn(reset.compositions[0]!, 'temporal'), false); assert.equal(Object.hasOwn(reset.compositions[0]!, 'depthOfFieldSamples'), false);
+});
+
+test('M09 source-independent work admission includes per-lens lighting and each shadow caster', () => {
+	const plane = createMotionLayer({ id: 'plane', name: 'Plane', durationFrames: 300, content: { kind: 'solid', color: motionColor([1, 1, 1, 1]), size: motionVector([8, 8]) } });
+	const caster = { ...plane, is3D: true, material: { ...plane.material, castsShadows: true } };
+	const light = createMotionLayer({ id: 'light', name: 'Light', durationFrames: 300, content: { kind: 'light', lightType: 'point', color: motionColor([1, 1, 1, 1]), intensity: motionScalar(1), coneAngle: motionScalar(45), coneFeather: motionScalar(0), castsShadows: true } });
+	const lit = { ...project, compositions: [{ ...project.compositions[0]!, temporal, layers: [caster, light] }] };
+	const unlit = { ...project, compositions: [{ ...project.compositions[0]!, temporal, layers: [caster] }] };
+	const before = admitMotionTemporalWork(unlit, 'main'); const after = admitMotionTemporalWork(lit, 'main');
+	assert.ok(after.pixelSamples > before.pixelSamples * 2);
+	assert.throws(() => admitMotionTemporalWork(lit, 'main', {}, { maximumPixelSamples: before.pixelSamples * 2 }), /pixel.*budget/iu);
 });

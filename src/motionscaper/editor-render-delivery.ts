@@ -13,6 +13,7 @@ import { createMotionAudioMixer } from '../common/editor/motion-audio-mixer.ts';
 import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
 import type { MotionDesktopDeliveryReceipt } from './desktop-delivery-contract.ts';
 import type { MotionVideoBackground } from '../common/editor/motion-video-delivery.ts';
+import { admitMotionTemporalWork } from '../common/editor/motion-temporal-sampling.ts';
 import { requireMotionTrackingReady } from '../common/editor/motion-tracking-admission.ts';
 
 export interface MotionDeliveryOptions {
@@ -30,10 +31,12 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 		requireMotionTrackingReady(snapshot.project);
 		const composition = snapshot.project.compositions.find((entry) => entry.id === options.compositionId);
 		if (!composition) throw new Error('The composition to render is unavailable.');
+		admitMotionTemporalWork(snapshot.project, composition.id);
 		const hasAudio = (options.format === 'mp4' || options.format === 'webm' || (options.format === 'prores' && !options.excludeAudio)) && motionCompositionHasAudio(snapshot.project, composition.id);
 		const plan = normalizeMotionRenderPlan({ identity: { projectId: snapshot.projectId, revisionDigest: snapshot.digest, compositionId: composition.id },
 			width: composition.width, height: composition.height, frameRate: composition.frameRate,
-			firstFrame: options.firstFrame, frameCount: options.endFrame - options.firstFrame });
+			firstFrame: options.firstFrame, frameCount: options.endFrame - options.firstFrame,
+			...(composition.temporal ? { temporal: composition.temporal } : {}), ...(composition.depthOfFieldSamples === undefined ? {} : { depthOfFieldSamples: composition.depthOfFieldSamples }) });
 		const { loadMotionRasterRuntime, createMotionBrowserRasterizer } = await import('../common/editor/controller/composition/motion-raster-runtime.ts');
 		if (options.format === 'prores') {
 			const { motionscaperDesktopDelivery, createMotionscaperDesktopProresSink } = await import('./desktop-delivery-adapter.ts');

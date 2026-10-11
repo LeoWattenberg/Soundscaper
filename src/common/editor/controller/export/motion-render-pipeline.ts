@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { assertMotionFrameConsumed, type MotionCompositionFrame, type MotionSceneEvaluator } from '../../motion-composition-evaluation.ts';
+import { type MotionCompositionFrame, type MotionSceneEvaluator } from '../../motion-composition-evaluation.ts';
+import { planMotionTemporalSamples } from '../../motion-temporal-sampling.ts';
+import { normalizeMotionTemporalSettings, motionDepthOfFieldSamples, type MotionTemporalSettings } from '../../motion-temporal-settings.ts';
+import { renderMotionTemporalSamples } from '../../motion-temporal-rendering.ts';
 import { renderMotionCompositionFrame, type MotionCompositor, type MotionRasterizer, type MotionRenderResult } from '../../motion-composition-renderer.ts';
 import { motionSurfaceLength } from '../../motion-surface.ts';
 import { freezeMotionValue, motionDigest, motionId, motionInteger, motionRational, motionRecord } from '../../motion-values.ts';
 import { aggregateScapeErrors, throwIfScapeAborted } from '../../scape-abort.ts';
-import { compareRationals, divideRationals, type Rational } from '../../timeline-time.ts';
+import { divideRationals, type Rational } from '../../timeline-time.ts';
 import type { MotionAudioMixBlock, MotionAudioMixer } from '../../motion-audio-contract.ts';
 import type { MotionExpressionAudioPreparation } from '../../motion-expression-audio-preparation.ts';
 import { createMotionRenderAudio } from './internal/motion-render-audio.ts';
@@ -16,6 +19,7 @@ export interface MotionRenderIdentity {
 export interface MotionRenderPlan {
 	readonly identity: MotionRenderIdentity; readonly width: number; readonly height: number;
 	readonly frameRate: Rational; readonly firstFrame: number; readonly frameCount: number;
+	readonly temporal?: MotionTemporalSettings; readonly depthOfFieldSamples?: number;
 }
 export interface MotionRenderFrame {
 	readonly index: number; readonly time: Rational; readonly duration: Rational; readonly surface: MotionRenderResult;
@@ -52,7 +56,8 @@ export interface MotionRenderReceipt<Result> {
 }
 
 export function normalizeMotionRenderPlan(value: unknown): MotionRenderPlan {
-	const record = motionRecord(value, ['identity', 'width', 'height', 'frameRate', 'firstFrame', 'frameCount'], 'motion render plan');
+	const fields = ['identity', 'width', 'height', 'frameRate', 'firstFrame', 'frameCount'];
+	const record = motionRecord(value, [...fields, 'temporal', 'depthOfFieldSamples'], 'motion render plan', fields);
 	const identity = motionRecord(record.identity, ['projectId', 'revisionDigest', 'compositionId'], 'motion render identity');
 	const width = motionInteger(record.width, 'render width', 1);
 	const height = motionInteger(record.height, 'render height', 1);
@@ -61,7 +66,9 @@ export function normalizeMotionRenderPlan(value: unknown): MotionRenderPlan {
 	const frameCount = motionInteger(record.frameCount, 'render frame count', 1, 100_000_000);
 	if (!Number.isSafeInteger(firstFrame + frameCount)) throw new RangeError('Motion render range exceeds exact frame coordinates.');
 	return freezeMotionValue({ identity: { projectId: motionId(identity.projectId), revisionDigest: motionDigest(identity.revisionDigest), compositionId: motionId(identity.compositionId) },
-		width, height, frameRate: motionRational(record.frameRate, 'render frame rate', true), firstFrame, frameCount });
+		width, height, frameRate: motionRational(record.frameRate, 'render frame rate', true), firstFrame, frameCount,
+		...(Object.hasOwn(record, 'temporal') ? { temporal: normalizeMotionTemporalSettings(record.temporal) } : {}),
+		...(Object.hasOwn(record, 'depthOfFieldSamples') ? { depthOfFieldSamples: motionDepthOfFieldSamples(record.depthOfFieldSamples) } : {}) });
 }
 
 /** One rendered frame at a time, with sink backpressure; duration never determines resident memory. */
@@ -79,14 +86,12 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 		for (let index = 0; index < plan.frameCount; index += 1) {
 			throwIfScapeAborted(request.signal);
 			const time = Object.freeze(divideRationals({ num: plan.firstFrame + index, den: 1 }, plan.frameRate));
-			const evaluator = lease.evaluator; const query = { compositionId: plan.identity.compositionId, time };
-			const frame = lease.expressionAudio ? await lease.expressionAudio.evaluate((options) => evaluator.evaluate(query, options), request.signal)
-				: evaluator.evaluate(query, request.signal ? { signal: request.signal } : {});
-			if (frame.compositionId !== plan.identity.compositionId || compareRationals(frame.time, time) !== 0) throw new Error('Motion evaluator returned a different composition/time identity.');
-			if (frame.width !== plan.width || frame.height !== plan.height) throw new Error('Motion evaluator dimensions changed during rendering.');
-			if (!audio && request.sink.audioPolicy !== 'exclude' && motionFrameHasAudio(frame)) throw new Error('This video renderer cannot deliver composition audio. Choose an image sequence or an audio-capable video encoder.');
-			const surface = await renderMotionCompositionFrame(frame, { rasterizer: lease.rasterizer, compositor: lease.compositor, signal: request.signal, maximumWorkingBytes: lease.maximumWorkingBytes });
-			assertMotionFrameConsumed(frame, surface.consumedOperationIds);
+			const retainedLease = lease; const sampling = planMotionTemporalSamples({ ...plan, id: plan.identity.compositionId }, time);
+			const surface = await renderMotionTemporalSamples({ evaluator: lease.evaluator, plan: sampling, expressionAudio: lease.expressionAudio, signal: request.signal, maximumWorkingBytes: lease.maximumWorkingBytes,
+				render: (frame, quality) => {
+					if (!audio && request.sink.audioPolicy !== 'exclude' && motionFrameHasAudio(frame)) throw new Error('This video renderer cannot deliver composition audio. Choose an image sequence or an audio-capable video encoder.');
+					return renderMotionCompositionFrame(frame, { rasterizer: retainedLease.rasterizer, compositor: retainedLease.compositor, signal: request.signal, ...quality });
+				} });
 			await audio?.writeThroughFrame(index + 1, request.signal);
 			await request.sink.write(Object.freeze({ index, time, duration, surface }), request.signal);
 			throwIfScapeAborted(request.signal);

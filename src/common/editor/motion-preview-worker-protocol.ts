@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MotionPreviewQuality } from './motion-temporal-sampling.ts';
 import type { MotionscaperProject } from './motion-project-types.ts';
 import type { MotionSurface } from './motion-surface.ts';
 import type { Rational } from './timeline-time.ts';
@@ -7,7 +8,7 @@ import type { MotionPreviewBackendName, MotionPreviewFrame } from './controller/
 
 export type MotionPreviewWorkerRequest =
 	| { readonly type: 'project'; readonly requestId: number; readonly project: MotionscaperProject; readonly maximumAssetBytes: number; readonly maximumWorkingBytes: number; readonly hasFootageDecoder: boolean }
-	| { readonly type: 'render'; readonly requestId: number; readonly compositionId: string; readonly time: Rational; readonly generation: number }
+	| { readonly type: 'render'; readonly requestId: number; readonly compositionId: string; readonly time: Rational; readonly generation: number; readonly quality?: MotionPreviewQuality }
 	| { readonly type: 'cancel'; readonly requestId: number }
 	| { readonly type: 'asset-result'; readonly resourceId: number; readonly bytes: Uint8Array }
 	| { readonly type: 'footage-result'; readonly resourceId: number; readonly surface: MotionSurface }

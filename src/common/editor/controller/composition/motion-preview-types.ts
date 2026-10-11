@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MotionPreviewQuality } from '../../motion-temporal-sampling.ts';
 import type { MotionAsset } from '../../motion-asset.ts';
 import type { MotionscaperProject } from '../../motion-project-types.ts';
 import type { Rational, RationalInput } from '../../timeline-time.ts';
@@ -19,11 +20,11 @@ export interface MotionPreviewState {
 }
 export type MotionPreviewAssetLoader = (asset: MotionAsset, signal?: AbortSignal) => Promise<Uint8Array>;
 export type MotionPreviewFootageDecoder = (asset: Extract<MotionAsset, { kind: 'footage' }>, sourceTime: Rational, signal?: AbortSignal) => Promise<MotionSurface>;
-export interface MotionPreviewRequest { readonly compositionId: string; readonly time: RationalInput }
-export interface MotionPreviewPlayRequest { readonly compositionId: string; readonly startTime: RationalInput; readonly endTime: RationalInput }
+export interface MotionPreviewRequest { readonly compositionId: string; readonly time: RationalInput; readonly quality?: MotionPreviewQuality }
+export interface MotionPreviewPlayRequest { readonly compositionId: string; readonly startTime: RationalInput; readonly endTime: RationalInput; readonly quality?: MotionPreviewQuality }
 export interface MotionPreviewBackend {
 	setProject(project: MotionscaperProject, loadAsset: MotionPreviewAssetLoader, signal: AbortSignal, decodeFootage?: MotionPreviewFootageDecoder): Promise<MotionPreviewBackendName>;
-	render(request: Readonly<{ compositionId: string; time: Rational; generation: number }>, signal: AbortSignal): Promise<MotionPreviewFrame>;
+	render(request: Readonly<{ compositionId: string; time: Rational; generation: number; quality?: MotionPreviewQuality }>, signal: AbortSignal): Promise<MotionPreviewFrame>;
 	dispose(): void;
 }
 export interface MotionPreviewClient {

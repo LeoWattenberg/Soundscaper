@@ -14,7 +14,7 @@ const evaluator = compileMotionscaperProject({ ...project, compositions: [compos
 test('M09 temporal rasterization averages premultiplied linear samples and verifies every subframe ledger', async () => {
 	const plan = planMotionTemporalSamples(composition, r(1)); const times: unknown[] = []; const budgets: number[] = [];
 	const result = await renderMotionTemporalSamples({ evaluator, plan, maximumWorkingBytes: 1024, render: async (frame, options) => {
-		times.push(frame.time); budgets.push(options.maximumWorkingBytes);
+		times.push(frame.time); budgets.push(options.maximumWorkingBytes); assert.equal(Object.hasOwn(options, 'depthOfFieldSamples'), false);
 		return { ...createMotionSurface(1, 1, times.length <= 2 ? [1, 0, 0, 1] : [0, 0, 1, 0.5]), consumedOperationIds: frame.requiredOperationIds };
 	} });
 	assert.deepEqual(times, plan.samples.map(sample => sample.time)); assert.deepEqual(budgets, [992, 992, 992, 992]);
