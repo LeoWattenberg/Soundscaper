@@ -13,7 +13,7 @@ import type { MotionPreviewBackend } from '../../src/common/editor/controller/co
 import type { MotionscaperProject } from '../../src/common/editor/motion-project-types.ts';
 
 type Fixture = Readonly<{ createClient(options: MotionPreviewOptions): Promise<MotionPreviewClient>; createSession(options: MotionPreviewSessionOptions): MotionPreviewBackend;
-	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject; depthProject: MotionscaperProject; lightProject: MotionscaperProject; focusProject: MotionscaperProject;
+	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject; depthProject: MotionscaperProject; lightProject: MotionscaperProject; focusProject: MotionscaperProject; shutterProject: MotionscaperProject; exportPixels(project: MotionscaperProject, frame: number): Promise<number[]>;
 	audioFixture(): Promise<{ project: MotionscaperProject; bytes: Uint8Array }>; loadAsset(): Promise<Uint8Array> }>;
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -51,12 +51,22 @@ const receiver = createMotionLayer({ id: 'receiver', name: 'Receiver', durationF
 const point = createMotionLayer({ id: 'light', name: 'Point', durationFrames: 300, content: { kind: 'light', lightType: 'point', color: motionColor([1, 1, 1, 1]), intensity: motionScalar(1), coneAngle: motionScalar(90), coneFeather: motionScalar(0), castsShadows: true } });
 const lightProject = { ...base, compositions: [{ ...base.compositions[0], layers: [{ ...caster, is3D: true, material: { ...caster.material, castsShadows: true }, transform: { ...caster.transform, position: motionVector([8, 0, 0]) } }, { ...receiver, is3D: true, transform: { ...receiver.transform, position: motionVector([0, 0, 32]) } }, { ...point, transform: { ...point.transform, position: motionVector([0, 16.5, -32]) } }, { ...camera, transform: { ...camera.transform, position: motionVector([32, 16, -100]) } }] }] };
 const focusProject = { ...base, compositions: [{ ...base.compositions[0], depthOfFieldSamples: 16, layers: [{ ...card, is3D: true, color: motionColor([1, 1, 1, 1]), transform: { ...card.transform, position: motionVector([28, 12, 64]) } }, { ...camera, projection: 'perspective', focusDistance: motionScalar(64), aperture: motionScalar(32), transform: { ...camera.transform, position: motionVector([32, 16, -64]) } }] }] };
+const shutterProject = { ...focusProject, compositions: [{ ...focusProject.compositions[0], temporal: { shutterOpenFrames: { num: -1, den: 2 }, shutterCloseFrames: { num: 1, den: 2 }, samples: 4 }, layers: focusProject.compositions[0].layers.map(layer => layer.kind === 'solid' ? { ...layer, transform: { ...layer.transform, position: { ...layer.transform.position, expression: { source: '[28 + frame * 8, 12, 64]', enabled: true, references: [] } } } } : layer) }] };
+const exportPixels = async (project, frame) => {
+ const [{ createMotionscaperRenderRequest }, { renderMotionFrameSequence }, { createMotionBrowserRasterizer }, { motionSurfaceToRgba8 }] = await Promise.all([
+  import(${JSON.stringify(join(repository, 'src/motionscaper/editor-render-task.ts'))}), import(${JSON.stringify(join(repository, 'src/common/editor/controller/export/motion-render-pipeline.ts'))}),
+  import(${JSON.stringify(join(repository, 'src/common/editor/controller/composition/motion-raster-runtime.ts'))}), import(${JSON.stringify(join(repository, 'src/common/editor/motion-surface.ts'))})]);
+ let pixels = []; const request = createMotionscaperRenderRequest({ project, compositionId: 'main', firstFrame: frame, endFrame: frame + 1,
+  acquire: async () => ({ rasterizer: await createMotionBrowserRasterizer({ assets: [], loadAsset: async () => { throw new Error('No source expected'); } }), release: async () => {} }),
+  sink: { write: async output => { pixels = [...motionSurfaceToRgba8(output.surface, 'srgb')]; }, finish: async () => true, abort: async () => {} } });
+ await renderMotionFrameSequence(request); return pixels;
+};
 const audioFixture = async () => {
  const bytes = motionWavFixture(2); const { asset } = await prepareMotionMedia(new Blob([bytes]), { id: 'sound', name: 'Sound.wav' });
  const audioSolid = { ...solid, transform: { ...solid.transform, opacity: { ...motionScalar(1), expression: { source: 'audioAmplitude("sound", time, 0.02)', enabled: true, references: [] } } } };
  return { bytes, project: { ...base, assets: [asset], compositions: [{ ...base.compositions[0], layers: [audioSolid] }] } };
 };
-globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, depthProject, lightProject, focusProject, audioFixture, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
+globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, depthProject, lightProject, focusProject, shutterProject, exportPixels, audioFixture, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
 `;
 
 test.beforeAll(async () => {
@@ -254,4 +264,24 @@ test('M08 native PCM-driven pixels match worker WebGL and host CPU after arbitra
 		const result = { alpha: scope.audioFrame.rgba[3], bytes: scope.audioBytes.length }; scope.audioPreview.dispose(); return result;
 	});
 	expect(next).toEqual({ alpha: initial.alpha, bytes: initial.bytes });
+});
+
+
+test('M09 authored shutter and lens sampling agree across actual worker, host and export after arbitrary seeks', async ({ page }) => {
+	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
+	const rendered = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionFixture: Fixture }).motionFixture;
+		const pixels: number[][] = []; const backends: string[] = []; let reduced: number[] = [];
+		for (const forceHost of [false, true]) {
+			let frame: MotionPreviewFrame | undefined;
+			const client = await fixture.createClient({ ...(forceHost ? { backendFactory: () => Promise.resolve(fixture.createSession({ backend: 'host-cpu', maximumAssetBytes: 1024 * 1024, maximumWorkingBytes: 8 * 1024 * 1024 })) } : {}), onFrame(value) { frame = value; }, onState() {} });
+			await client.setProject(fixture.shutterProject, fixture.loadAsset);
+			for (const num of [1, 0, 2, 1]) await client.seek({ compositionId: 'main', time: { num, den: 30 } });
+			pixels.push([...frame!.rgba]); backends.push(frame!.backend);
+			await client.seek({ compositionId: 'main', time: { num: 1, den: 30 }, quality: { temporalSamples: 1, depthOfFieldSamples: 1 } }); reduced = [...frame!.rgba]; client.dispose();
+		}
+		pixels.push(await fixture.exportPixels(fixture.shutterProject, 1)); return { pixels, backends, reduced };
+	});
+	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]); expect(rendered.pixels[0]).toEqual(rendered.pixels[2]);
+	expect(rendered.pixels[0]).not.toEqual(rendered.reduced); expect(rendered.pixels[0]!.some((value, index) => index % 4 === 3 && value > 0 && value < 255)).toBe(true);
 });

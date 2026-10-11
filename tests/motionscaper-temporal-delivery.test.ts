@@ -8,7 +8,7 @@ import { createMotionscaperRenderRequest } from '../src/motionscaper/editor-rend
 import { renderMotionFrameSequence } from '../src/common/editor/controller/export/motion-render-pipeline.ts';
 import { createCanvasKitMotionRasterizer } from '../src/common/editor/motion-canvaskit-rasterizer.ts';
 import { motionSurfaceToRgba8 } from '../src/common/editor/motion-surface.ts';
-import { motionColor, motionVector } from '../src/common/editor/motion-property.ts';
+import { motionColor, motionScalar, motionVector } from '../src/common/editor/motion-property.ts';
 const r = (num: number, den = 1) => ({ num, den });
 const signal = () => new AbortController().signal;
 const runtime = CanvasKitInit().then(kit => ({ kit, fallbackFonts: [] }));
@@ -44,5 +44,25 @@ test('M09 excessive temporal pixel work refuses preview and export before runtim
 		assert.throws(() => createMotionscaperRenderRequest({ project, compositionId: 'main', firstFrame: 0, endFrame: 1,
 			acquire: async () => { acquired++; throw new Error('No acquire expected'); }, sink: { write: () => Promise.resolve(), finish: () => Promise.resolve('done'), abort: () => Promise.resolve() },
 		}), /temporal.*budget|pixel.*budget/iu); assert.equal(acquired, 0);
+	} finally { preview.dispose(); }
+});
+
+test('M09 nested authored lens quality survives a lower root setting in preview and final export', async () => {
+	const loaded = await runtime; const base = createMotionscaperProject({ id: 'nested-focus', title: 'Nested focus', compositionId: 'main', width: 32, height: 32 });
+	const card = createMotionLayer({ id: 'card', name: 'Card', durationFrames: 300, content: { kind: 'solid', size: motionVector([8, 8]), color: motionColor([1, 1, 1, 1]) } });
+	const camera = createMotionLayer({ id: 'camera', name: 'Camera', durationFrames: 300, content: { kind: 'camera', projection: 'perspective', zoom: motionScalar(32), near: 1, far: 1000, focusDistance: motionScalar(32), aperture: motionScalar(16) } });
+	const nested = { ...base.compositions[0]!, id: 'nested', depthOfFieldSamples: 16, layers: [{ ...card, is3D: true, transform: { ...card.transform, position: motionVector([12, 12, 32]) } }, { ...camera, transform: { ...camera.transform, position: motionVector([16, 16, -32]) } }] };
+	const precomp = createMotionLayer({ id: 'precomp', name: 'Precomp', durationFrames: 300, content: { kind: 'precomp', compositionId: 'nested' } });
+	const project = { ...base, compositions: [{ ...base.compositions[0]!, depthOfFieldSamples: 1, layers: [precomp] }, nested] };
+	const preview = createMotionPreviewRenderSession({ backend: 'host-cpu', maximumAssetBytes: 1024, maximumWorkingBytes: 1024 * 1024, loadRuntime: () => runtime });
+	try {
+		await preview.setProject(project, noAsset, signal());
+		const full = await preview.render({ compositionId: 'main', time: r(0), generation: 1 }, signal());
+		const reduced = await preview.render({ compositionId: 'main', time: r(0), generation: 2, quality: { depthOfFieldSamples: 1 } }, signal());
+		assert.notDeepEqual(full.rgba, reduced.rgba); let exported: Uint8ClampedArray | null = null;
+		await renderMotionFrameSequence(createMotionscaperRenderRequest({ project, compositionId: 'main', firstFrame: 0, endFrame: 1,
+			acquire: async () => ({ rasterizer: createCanvasKitMotionRasterizer(loaded.kit, { assets: [], fallbackFonts: [], loadAsset: noAsset }), release: () => Promise.resolve() }),
+			sink: { write: output => { exported = motionSurfaceToRgba8(output.surface, 'srgb'); return Promise.resolve(); }, finish: () => Promise.resolve('done'), abort: () => Promise.resolve() },
+		})); assert.deepEqual(exported, full.rgba);
 	} finally { preview.dispose(); }
 });
