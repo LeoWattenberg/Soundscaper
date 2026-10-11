@@ -879,7 +879,7 @@
 			"development": {
 				"status": "in-progress",
 				"summary": "Motionscaper develops a separate motion workspace reached through menus. It owns layered compositions, property animation, imported font and vector rendering, linear-SDR compositing, masks and mattes, tracking, bounded expressions, 2.5D scenes, retained media, and revision-pinned preview and delivery. The shared Soundscaper/Framescaper capability flags below do not grant authority to this workspace.",
-				"qualificationSummary": "Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. An actual software-rendered 2.5D scene agrees with decoded native output within declared color/alpha bounds and retains exact rational timing. Manual update-check tests verify bounded own-tag selection and explicit release links. These bounded fixtures do not establish behavior at maximum workload limits. Firefox, WebKit, hardware GPU and the remaining native targets, signing/release-update qualification and installed After Effects interchange remain unqualified for the first Motionscaper release.",
+				"qualificationSummary": "Focused Chromium workflows cover editing, history, portable save/reopen, offline assets, preview and delivery. A bounded Chromium, Firefox and Linux WebKit fixture additionally verifies retained fonts, authored keys, same-engine PNG pixels and offline reopen after origin shutdown; Chromium and Firefox produce actual VP9 WebM, while Linux WebKit refuses its independently reproduced native encoder crash. Whole-frame hashes are not claimed identical between engines. Packaged Linux x64 checks cover the own-origin shell, bounded native project files, saved-file composition updates and ProRes 4444 with PCM24 audio. Actual software-rendered 2.5D and offline linked-composition scenes agree with decoded native output within declared color/alpha bounds and retain exact timing. GPU-disabled linked preview reports omissions explicitly. Manual update-check tests verify bounded own-tag selection and explicit release links. These bounded fixtures do not establish behavior at maximum workload limits. Full regression, hardware GPU, macOS Safari, the remaining native targets, signing/release-update qualification and installed After Effects interchange remain unqualified for the first Motionscaper release.",
 				"evidence": [
 					"docs/development/motionscaper-implementation-order.md",
 					"docs/development/motionscaper-after-effects-bridge.md",
@@ -891,6 +891,11 @@
 					"tests/browser/motionscaper-updates.spec.ts",
 					"docs/development/motionscaper-ae-text-qualification.md",
 					"docs/development/motionscaper-native-scene-qualification.md",
+					"docs/development/motionscaper-successor-native-delivery.md",
+					"docs/development/motionscaper-platform-qualification.md",
+					"docs/development/motionscaper-ae-expressions.md",
+					"tests/browser/motionscaper-platform.spec.ts",
+					"tests/browser/motionscaper-ae-expressions.spec.ts",
 					"tests/browser/motionscaper-compositing-delivery.spec.ts",
 					"tests/browser/motionscaper-linked-editors.spec.ts"
 				]

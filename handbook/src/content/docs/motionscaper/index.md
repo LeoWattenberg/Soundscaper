@@ -72,6 +72,13 @@ installed copy of After Effects and the bridge scripts. The development bridge
 has not yet been qualified against installed After Effects. Review its report;
 unsupported scene intent and original media remain preserved in project custody.
 
+The dialog offers separate import and export options for supported scalar
+opacity expressions using arithmetic, composition time, the value before the
+expression and standard Math functions. Both options start off. Review the new
+report after changing an option; other expression forms require explicit
+sampling or rendering. Original expression source remains in the retained
+exchange or `original.mscape` archive.
+
 The renderer supports SDR color and alpha with 2.5D layers, cameras, lights,
 shutter sampling, and depth of field. It does not claim HDR, full 3D meshes,
 advanced AI masking, or arbitrary After Effects plug-in compatibility.

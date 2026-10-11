@@ -73,8 +73,9 @@ package complete.
 
 ### Implementation status
 
-M01–M12 are **In progress**. M12 has begun release-register and reference
-preparation; its complete release gate still depends on M01–M11. The isolated browser
+M01–M12 are **In progress**. M12 has release-register and reference preparation
+and a bounded three-engine browser qualification; its complete release gate
+still depends on M01–M11. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
 origin with bounded project-file capabilities. Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
@@ -163,7 +164,12 @@ the blue preview. Duration/FPS Conform has an exact fit-window review, unchanged
 intent on Cancel, stale-review refusal, atomic Apply and one-step Undo. The
 packaged Linux x64 GTK/X11 saved-file link passes actual chooser, watch-generation,
 closed-dialog update, corruption refusal and Disconnect custody checks. Native
-generated-source delivery and the remaining platform matrix remain unfinished.
+generated-source delivery now has a real [Linux package qualification](motionscaper-successor-native-delivery.md):
+offline owner reopen after removing the original source, actual GTK Save,
+authenticated ProRes pictures and mixed PCM, exact timing and decoded pixels
+matching the software WebGL preview within one display code. GPU-disabled preview
+reports omitted compositions explicitly; it does not qualify CPU-only preview.
+The remaining native platform matrix remains unfinished.
 M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
 limited importer scripts with media digest verification, a bounded script
@@ -176,8 +182,15 @@ Reviewed editable paragraph text includes retained font bytes, explicit PostScri
 bindings, source custody and a real Chromium import/save/reopen/reverse-package
 workflow. The readable host importer preflights fonts before mutation and requires
 AE 24.6 or newer for text. Ordered shape project conversion is wired in both
-directions; installed-host shape styling still requires the reviewed calibration
-profile being implemented. These structural checks do not qualify installed AE.
+directions; readable installed-host shape creation preflights an exact reviewed
+version/build/language style profile, ordered path/paint operations and admitted
+keys before mutation. Named style readback failures roll back new objects.
+Separate menu-dialog expression opt-ins translate closed scalar opacity syntax
+with explicit percentage units and preserved keys/source custody. Independent
+ES3 validation precedes host activation, with error/nonfinite checks at one
+bounded sample and owned-object rollback. Chromium exchange and Save/reopen
+reproduce the authored opacity pixels. These structural checks do not qualify
+installed AE expression, style, color or subframe fidelity.
 Atomic import retains original exchange/report custody and every media file
 through normal Save/reopen and portable archives, including unsupported null
 placeholders. The opt-in File bridge workflow passes actual Chromium import,
@@ -192,6 +205,14 @@ Chromium pixel/history workflows.
 The latest run of all Motion-named TypeScript tests, including cross-product
 link tests, passes 736 tests. Subsequent feature changes receive focused qualification.
 These results do not close a package's completion gate.
+The [platform fixture](motionscaper-platform-qualification.md) passes twelve
+actual Chromium, Firefox and Linux WebKit workflows covering keyboard menus,
+retained fonts, authored keys, Save/reopen, same-engine PNG/preview and offline
+reopen with the origin shut down. Chromium and Firefox produce actual VP9 WebM;
+Linux WebKit refuses before an independently reproduced native encoder crash.
+Different engines' whole-frame hashes are not claimed identical. Maximum
+workloads, full existing-product regression, hardware GPU, macOS Safari and
+credentialed native distribution still require their own gates.
 The capability register and generated references describe the independent Motion
 workspace and partial platform qualification. They preserve the frozen family-v1
 baselines and exclude inherited Audacity/Nyquist/shared-layout authoring claims.

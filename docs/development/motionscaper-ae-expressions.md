@@ -33,8 +33,13 @@ Import preserves admitted hold/linear keys and refuses expression activation
 when the underlying interpolation is unsupported. Explicit AE frame samples
 take priority over translation. Export retains the exact authored source in
 `original.mscape`; import retains the exact original exchange alongside the
-translated expression through Save and reopening. Installed-side application
-integration and real AE qualification remain separate gates.
+translated expression through Save and reopening. The installed importer requires
+an enabled, translated, nonspatial scalar expression and independently validates
+its canonical source before mutation. It applies base values and keys first,
+activates the expression, checks `expressionError`, and probes `valueAtTime` once
+at the layer's in point. A nonfinite value or activation error rolls back only
+newly created objects. This single probe cannot prove finite values at all times;
+real AE frame/subframe qualification remains a separate gate.
 
 Focused tests compare Motion evaluation with standard JavaScript evaluation
 across times, base values, percentage conversions and reverse transfers. They
