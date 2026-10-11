@@ -5,6 +5,8 @@ import { motionAeRenderedSequence } from '../common/editor/motion-ae-render-sequ
 import { motionAeBoundedClock } from '../common/editor/motion-ae-property-conversion.ts';
 import { convertMotionAeTransform } from '../common/editor/motion-ae-transform-conversion.ts';
 import { convertMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
+import { convertMotionAeTextLayer, rebaseMotionAeTextLayer, type MotionAeProjectTextImport } from '../common/editor/motion-ae-text-layer.ts';
+import { normalizeMotionAeFontBindings } from '../common/editor/motion-ae-text-fonts.ts';
 import { convertMotionAeMattes } from '../common/editor/motion-ae-matte-conversion.ts';
 import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-asset.ts';
 import { MOTION_BLEND_MODES, type MotionComposition, type MotionLayer, type MotionLayerContent } from '../common/editor/motion-composition.ts';
@@ -21,7 +23,7 @@ export interface MotionscaperAeConversion {
 /** Pure draft preparation. The import controller must verify every retained body before publication. */
 export function convertMotionscaperAeExchange(input: unknown, options: Readonly<{
 	projectId: string; allocateId: () => string; bindings: readonly MotionAeMediaBinding[]; primaryCompositionId?: string;
-}>): MotionscaperAeConversion {
+} & MotionAeProjectTextImport>): MotionscaperAeConversion {
 	const exchange = normalizeMotionAeExchange(input), projectId = motionId(options.projectId);
 	if (!exchange.compositions.length) throw new Error('The AE exchange contains no compositions.');
 	const report: MotionAeReportEntry[] = [...exchange.report];
@@ -37,6 +39,11 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		if (used.has(asset.id)) throw new Error('AE media destination identity is duplicated.'); used.add(asset.id);
 		media.set(binding.footageId, asset); assets.push(asset);
 	}
+	for (const binding of normalizeMotionAeFontBindings(options.fonts ?? [])) {
+		if (used.has(binding.asset.id)) throw new Error('AE font destination identity is duplicated.');
+		used.add(binding.asset.id); assets.push(binding.asset);
+	}
+	const textOffsets = new Map<string, readonly [number, number]>();
 	for (const composition of exchange.compositions) for (const source of [composition, ...composition.layers]) {
 		const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.');
 		used.add(id); ids.set(source.id, id);
@@ -46,8 +53,16 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		if (converted.quantized) report.push({ scopeId: scope, propertyPath: '', status: 'sampled', code: 'clock-quantization', message: 'AE floating timing was rounded to the bounded one-millionth clock. Original timing remains in the exchange.' });
 		return converted.value;
 	};
-	function content(layer: MotionAeLayer): MotionLayerContent {
+	function content(layer: MotionAeLayer, siblings: readonly MotionAeLayer[]): MotionLayerContent {
 		if (layer.threeD || layer.adjustment) { issue(layer.id, 'layer-kind', 'AE 3D, camera/light and adjustment intent requires a qualified mapping or a complete AE-rendered composition. A named null placeholder preserves hierarchy.'); return { kind: 'null' }; }
+		if (layer.kind === 'text') {
+			const text = convertMotionAeTextLayer(layer, options, report);
+			if (!text) return { kind: 'null' };
+			if (text.offset.some(value => value !== 0) && siblings.some(child => child.parentId === layer.id)) {
+				issue(layer.id, 'text-parent-origin', 'This paragraph box needs a local origin rebase, but the layer has children. Child coordinate compensation needs an explicit mapping; retain the original or render a reference.'); return { kind: 'null' };
+			}
+			textOffsets.set(layer.id, text.offset); return { kind: 'text', document: text.document };
+		}
 		if (layer.kind === 'null') return { kind: 'null' };
 		if (layer.kind === 'composition') return { kind: 'precomp', compositionId: ids.get(layer.sourceId!)! };
 		if (layer.kind === 'footage') {
@@ -78,17 +93,19 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 			const layer = createMotionLayer({ id, name: name(asset.name, 'Rendered frame'), durationFrames, content: { kind: 'image', assetId: asset.id } });
 			return { ...layer, inFrame: { num: frame, den: 1 }, outFrame: { num: frame + 1, den: 1 } };
 		}) : source.layers.map((layer) => {
-			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer) });
+			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer, source.layers) });
 			const blendMode = MOTION_BLEND_MODES.find((value) => value === layer.blendMode) ?? 'normal';
 			if (blendMode !== layer.blendMode) issue(layer.id, 'blend-mode', 'This AE blend mode is not mapped; normal blending is used in the partial draft.');
 			const timeScale = 100 / layer.stretch;
-			return { ...base, enabled: layer.enabled, parentId: layer.parentId === null ? null : ids.get(layer.parentId)!,
+			const mapped: MotionLayer = { ...base, enabled: layer.enabled, parentId: layer.parentId === null ? null : ids.get(layer.parentId)!,
 				inFrame: clock(layer.inPoint * frequency, layer.id), outFrame: clock(layer.outPoint * frequency, layer.id),
 				// All imported property keys use composition frames. Rebase source timing explicitly to the same origin.
 				sourceStart: clock(-layer.startTime * timeScale, layer.id), timeScale: clock(timeScale, layer.id),
 				transform: convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames), blendMode,
 				masks: convertMotionAeMasks(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report),
 				matte: layer.matte === null ? null : { layerId: ids.get(layer.matte.layerId)!, mode: layer.matte.type } };
+			const offset = textOffsets.get(layer.id);
+			return offset ? rebaseMotionAeTextLayer(mapped, offset, layer.id, report) : mapped;
 		});
 		return { id: ids.get(source.id)!, name: name(source.name, 'Composition'), width: source.width, height: source.height, frameRate, durationFrames,
 			background: [0, 0, 0, 0], color: { workingSpace: 'linear-rec709-d65', outputSpace: 'srgb', alphaMode: 'premultiplied' },

@@ -5,6 +5,8 @@ import type { MotionAeExchange, MotionAeLayer, MotionAeProperty, MotionAeReportE
 import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
 import { exportMotionAeNumeric } from '../common/editor/motion-ae-export-property.ts';
 import { exportMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
+import { exportMotionAeTextLayer, type MotionAeProjectTextExport } from '../common/editor/motion-ae-text-layer.ts';
+import { normalizeMotionAeFontBindings } from '../common/editor/motion-ae-text-fonts.ts';
 import { exportMotionAeMattes } from '../common/editor/motion-ae-matte-conversion.ts';
 import { freezeMotionValue } from '../common/editor/motion-values.ts';
 import { createMotionscaperRevision, type MotionscaperRevision } from './editor-project-revision.ts';
@@ -44,8 +46,12 @@ function transform(layer: MotionLayer, id: string, comp: MotionComposition, repo
 	}) }];
 }
 /** Immutable, deterministic partial transfer. The companion archive must retain this exact source revision. */
-export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscaperAeExport {
+export function prepareMotionscaperAeExport(input: unknown, options: MotionAeProjectTextExport = {}): PreparedMotionscaperAeExport {
 	const revision = createMotionscaperRevision(input), project = revision.project, transferId = `motion-${revision.digest}`;
+	for (const binding of normalizeMotionAeFontBindings(options.fonts ?? [])) {
+		const retained = project.assets.find(asset => asset.id === binding.asset.id);
+		if (!retained || JSON.stringify(retained) !== JSON.stringify(binding.asset)) throw new Error('AE font binding must match the exact retained project descriptor.');
+	}
 	for (const comp of project.compositions) {
 		const rate = number(comp.frameRate);
 		if (comp.width < 4 || comp.height < 4 || comp.width > 30000 || comp.height > 30000 || rate < 1 || rate > 99 || comp.durationFrames / rate > 10800) {
@@ -79,9 +85,14 @@ export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscape
 		if (comp.tracking?.length || comp.trackingApplications?.length) add(id, 'tracking-custody', 'Tracking analysis and application authority stay in original.mscape; mapped transform curves do not carry analysis authority.');
 		const layers: MotionAeLayer[] = comp.layers.map(layer => {
 			const layerId = layerIds.get(layer.id)!; let kind: MotionAeLayer['kind'] = 'null', sourceId: string | null = null, enabled = layer.enabled;
+			let textProperty: MotionAeProperty | null = null;
 			const scale = number(layer.timeScale), validTiming = scale > 0 && 100 / scale >= 1 && 100 / scale <= 9900 && !layer.timeRemap;
 			if (!flat(layer)) { enabled = false; add(layerId, '3d', 'This layer uses 3D or nonplanar transform channels and becomes a disabled named null. Original geometry remains in original.mscape.'); }
 			else if (!validTiming) { enabled = false; add(layerId, 'source-timing', 'Held, reversed, remapped or out-of-range source timing becomes a disabled named null. Render the original composition to preserve playback.'); }
+			else if (layer.kind === 'text') {
+				textProperty = exportMotionAeTextLayer(layer.document, layerId, options, report);
+				if (textProperty) kind = 'text'; else enabled = false;
+			}
 			else if (layer.kind === 'precomp') { kind = 'composition'; sourceId = compIds.get(layer.compositionId)!; }
 			else if (layer.kind === 'footage' || layer.kind === 'image') {
 				sourceId = mediaIds.get(layer.assetId) ?? null;
@@ -93,7 +104,7 @@ export function prepareMotionscaperAeExport(input: unknown): PreparedMotionscape
 			if ([startTime, inPoint, outPoint].some(time => Math.abs(time) > 10800)) throw new RangeError('AE layer timing exceeds its documented ±three-hour range. Retain original.mscape or prepare timing within that host range.');
 			return { id: layerId, name: layer.name, kind, sourceId, parentId: layer.parentId === null ? null : layerIds.get(layer.parentId)!, matte: null,
 				startTime, inPoint, outPoint, stretch: validTiming ? 100 / scale : 100,
-				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
+				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report), ...(textProperty ? [textProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
 		});
 		return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: 1, frameRate: number(comp.frameRate),
 			duration: comp.durationFrames / number(comp.frameRate), displayStartTime: 0, background: comp.background.slice(0, 3) as [number, number, number], layers: exportMotionAeMattes(comp.layers, layers, report) };

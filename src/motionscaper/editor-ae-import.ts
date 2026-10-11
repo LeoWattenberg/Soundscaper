@@ -2,6 +2,9 @@
 import { parseMotionAeExchange, motionAeMediaPath } from '../common/editor/motion-ae-exchange.ts';
 import { MOTION_AE_EXCHANGE_LIMITS } from '../common/editor/motion-ae-exchange-types.ts';
 import { MOTION_MEDIA_IMPORT_MAXIMUM_BYTES } from '../common/editor/motion-media-limits.ts';
+import { admitMotionAeSelectedFonts, type MotionAeSelectedFont, type MotionAeFontDecoder } from '../common/editor/motion-ae-font-import.ts';
+import type { MotionAeTextImportOptions } from '../common/editor/motion-ae-text-conversion.ts';
+import type { MotionAeFontBinding } from '../common/editor/motion-ae-text-fonts.ts';
 import type { MotionImportedMedia, prepareMotionMedia } from '../common/editor/motion-media-import.ts';
 import { createScapeDigest, scapeHex } from '../common/editor/scape-archive-media.ts';
 import { aggregateScapeErrors, throwIfScapeAborted } from '../common/editor/scape-abort.ts';
@@ -17,6 +20,8 @@ export interface MotionscaperAeImportOptions {
 	readonly projectId?: string; readonly allocateId?: () => string; readonly primaryCompositionId?: string;
 	/** Narrow metadata decoder seam; publication independently verifies returned body hashes. */
 	readonly prepareMedia?: typeof prepareMotionMedia;
+	readonly fonts?: readonly MotionAeSelectedFont[]; readonly text?: MotionAeTextImportOptions;
+	readonly prepareFont?: MotionAeFontDecoder;
 }
 export type PreparedMotionscaperAeImport = MotionscaperAeConversion;
 interface PrivatePreparation { readonly media: readonly MotionImportedMedia[]; state: 'prepared' | 'publishing' | 'committed' | 'cleanup-failed' }
@@ -28,7 +33,8 @@ export async function prepareMotionscaperAeImport(manifest: Blob, files: readonl
 	if (!(manifest instanceof Blob) || manifest.size < 1 || manifest.size > MOTION_AE_EXCHANGE_LIMITS.jsonBytes) throw new RangeError('AE exchange manifest exceeds its 16 MiB admission.');
 	if (files.length > MOTION_AE_EXCHANGE_LIMITS.footage) throw new RangeError('Too many AE media selections.');
 	const exchange = parseMotionAeExchange(await manifest.text()); throwIfScapeAborted(signal);
-	const selected = new Map<string, Blob>(), aliases = new Set<string>(); let total = 0;
+	const selected = new Map<string, Blob>(), aliases = new Set<string>(); let total = admitMotionAeSelectedFonts(options.fonts ?? [], exchange);
+	if (total > MOTION_AE_IMPORT_MAXIMUM_SELECTED_BYTES) throw new RangeError('AE selected font/media bytes exceed the 256 MiB transfer budget.');
 	const referenced = new Set(exchange.footage.map((entry) => entry.path));
 	for (const entry of files) {
 		const path = motionAeMediaPath(entry.path), alias = path.toLowerCase();
@@ -41,7 +47,16 @@ export async function prepareMotionscaperAeImport(manifest: Blob, files: readonl
 	}
 	const allocateId = options.allocateId ?? (() => crypto.randomUUID()), projectId = options.projectId ?? allocateId();
 	const prepare = options.prepareMedia ?? (await import('../common/editor/motion-media-import.ts')).prepareMotionMedia;
-	const bindings = [], media: MotionImportedMedia[] = [];
+	const bindings = [], media: MotionImportedMedia[] = [], fonts: MotionAeFontBinding[] = [];
+	if (options.fonts?.length) {
+		const prepareFont = options.prepareFont ?? (await import('../common/editor/motion-ae-font-import.ts')).prepareMotionAeSelectedFont;
+		for (const font of options.fonts) {
+			throwIfScapeAborted(signal);
+			const imported = await prepareFont(font.file, { id: allocateId(), name: font.name, style: font.style }, signal); throwIfScapeAborted(signal);
+			if (!(imported.body instanceof Blob) || imported.body.size !== font.file.size || imported.asset.byteLength !== font.file.size) throw new Error('AE font decoder returned inconsistent retained bytes.');
+			fonts.push({ postScriptName: font.postScriptName, asset: imported.asset }); media.push(imported);
+		}
+	}
 	for (const source of exchange.footage) {
 		throwIfScapeAborted(signal); const file = source.path === null ? undefined : selected.get(source.path);
 		if (!file) {
@@ -52,9 +67,10 @@ export async function prepareMotionscaperAeImport(manifest: Blob, files: readonl
 		if (!(imported.body instanceof Blob) || imported.body.size !== file.size || imported.asset.byteLength !== file.size) throw new Error('AE media decoder returned inconsistent retained bytes.');
 		bindings.push({ footageId: source.id, asset: imported.asset }); media.push(imported);
 	}
-	const conversion = convertMotionscaperAeExchange(exchange, { projectId, allocateId, bindings, primaryCompositionId: options.primaryCompositionId });
+	const conversion = convertMotionscaperAeExchange(exchange, { projectId, allocateId, bindings, fonts, text: options.text, primaryCompositionId: options.primaryCompositionId });
 	const project = normalizeMotionscaperProject({ ...conversion.project, interchangeCustody: {
 		format: 'org.motionscaper.ae-project-custody', version: 1, exchange, report: conversion.report,
+		...(fonts.length ? { fonts: fonts.map(binding => ({ postScriptName: binding.postScriptName, assetId: binding.asset.id, sha256: binding.asset.sha256, byteLength: binding.asset.byteLength })) } : {}),
 		media: bindings.map((binding) => ({ sourceId: binding.footageId, assetId: binding.asset.id, sha256: binding.asset.sha256, byteLength: binding.asset.byteLength })),
 	} });
 	const prepared = freezeMotionValue({ ...conversion, project });
