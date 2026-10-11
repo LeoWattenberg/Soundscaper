@@ -15,6 +15,7 @@ export function rasterMotionCanvasKitMask(kit: CanvasKit, mask: MotionEvaluatedM
 	const brush = new kit.Paint(); const layerBrush = new kit.Paint();
 	const blur = mask.feather.some((sigma) => sigma > 0) ? kit.ImageFilter.MakeBlur(...mask.feather, kit.TileMode.Decal, null) : null;
 	try {
+		if (mask.feather.some((sigma) => sigma > 0) && !blur) throw new Error('CanvasKit Gaussian mask feathering is unavailable.');
 		brush.setAntiAlias(true); brush.setColor(kit.WHITE, kit.ColorSpace.SRGB);
 		if (blur) layerBrush.setImageFilter(blur);
 		const surface = rasterMotionCanvasKitSurface(kit, window.width, window.height, (canvas) => {

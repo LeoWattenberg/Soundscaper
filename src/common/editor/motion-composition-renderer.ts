@@ -6,13 +6,14 @@ import type { MotionColor } from './motion-property.ts';
 import { assertMotionWorkingBudget, estimateMotionFrameWorkingBytes, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
 import { motionSourceWorldMatrix, type MotionLocalRaster } from './motion-local-raster.ts';
 import { applyMotionMasks, assertMotionMaskParameters, type MotionMaskRasterizer } from './motion-mask-rendering.ts';
+import { applyMotionEffects, motionEffectParameters, type MotionEffectRasterizer } from './motion-effect-rendering.ts';
 
-export interface MotionRasterizer extends Partial<MotionMaskRasterizer> {
+export interface MotionRasterizer extends Partial<MotionMaskRasterizer>, Partial<MotionEffectRasterizer> {
 	/** Peak scratch plus returned pixels; the default assumes two composition-sized float surfaces. */
 	estimateWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	/** Rasterize source plus its world transform into the target composition's pixel grid. */
 	rasterize(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionSurface>;
-	/** Peak source rasterization AND local masks, including returned pixels, before the world transform. */
+	/** Peak source rasterization, masks AND local effects, including returned pixels, before transform. */
 	estimateSourceWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	rasterizeSource?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionLocalRaster>;
 }
@@ -47,11 +48,12 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 				options.signal?.throwIfAborted();
 				if (layer.state.kind !== 'null') {
 					let source: MotionSurface;
-					if (layer.state.masks.length && layer.sourceAvailable) {
-						const local = layer.precomposition !== null ? { surface: await render(layer.precomposition), origin: [0, 0] as const }
+					if ((layer.state.masks.length || layer.state.effects.some((effect) => effect.enabled)) && layer.sourceAvailable) {
+						let local = layer.precomposition !== null ? { surface: await render(layer.precomposition), origin: [0, 0] as const }
 							: await options.rasterizer.rasterizeSource!(layer, current, options.signal);
-						const masked = await applyMotionMasks(local, layer.state.masks, options.rasterizer as MotionMaskRasterizer, options.signal);
-						source = transformMotionSurface(masked.surface, current.width, current.height, motionSourceWorldMatrix(layer.worldMatrix, masked.origin));
+						if (layer.state.masks.length) local = await applyMotionMasks(local, layer.state.masks, options.rasterizer as MotionMaskRasterizer, options.signal);
+						if (layer.state.effects.some((effect) => effect.enabled)) local = await applyMotionEffects(local, layer.state.effects, options.rasterizer as MotionEffectRasterizer, options.signal);
+						source = transformMotionSurface(local.surface, current.width, current.height, motionSourceWorldMatrix(layer.worldMatrix, local.origin));
 					} else if (layer.precomposition !== null) source = transformMotionSurface(await render(layer.precomposition), current.width, current.height, layer.worldMatrix);
 					else if (!layer.sourceAvailable) source = createMotionSurface(current.width, current.height);
 					else source = await options.rasterizer.rasterize(layer, current, options.signal);
@@ -75,12 +77,16 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer)
 		if (layer.state.is3D) throw new Error(`Unsupported 3D motion layer ${layer.state.name}.`);
 		assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
-			if (['effect', 'matte', 'camera', 'light'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (['matte', 'camera', 'light'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (operation.kind === 'effect' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes || !rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes)) {
+				throw new Error(`Unsupported motion effect ${operation.sourceId}; its local-source renderer is unavailable.`);
+			}
 			if (operation.kind === 'mask' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes || !rasterizer.rasterizeMask || !rasterizer.estimateMaskWorkingBytes)) {
 				throw new Error(`Unsupported motion mask ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}
 		}
 		if (layer.state.kind !== 'null') for (const mask of layer.state.masks) assertMotionMaskParameters(mask);
+		if (layer.state.kind !== 'null') for (const effect of layer.state.effects) if (effect.enabled) motionEffectParameters(effect);
 		if (layer.state.kind === 'adjustment') throw new Error(`Unsupported motion adjustment layer ${layer.state.name}.`);
 		if (layer.precomposition !== null) admitFrame(layer.precomposition, rasterizer);
 	}

@@ -11,6 +11,8 @@ import { estimateMotionMaskWorkingBytes, type MotionMaskRasterizer } from './mot
 import { rasterMotionCanvasKitMask } from './motion-canvaskit-mask.ts';
 import { motionCanvasKitPath } from './motion-canvaskit-path.ts';
 import { rasterMotionCanvasKitSurface } from './motion-canvaskit-surface.ts';
+import { estimateMotionEffectWorkingBytes, type MotionEffectRasterizer } from './motion-effect-rendering.ts';
+import { rasterMotionCanvasKitEffect } from './motion-canvaskit-effect.ts';
 import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import type { Rational } from './timeline-time.ts';
 import { createMotionParagraph, type MotionFontBytes, type MotionShapedText } from './motion-canvaskit-text.ts';
@@ -28,6 +30,8 @@ export interface CanvasKitMotionRasterizer extends MotionRasterizer {
 	rasterizeSource(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionLocalRaster>;
 	estimateMaskWorkingBytes: MotionMaskRasterizer['estimateMaskWorkingBytes'];
 	rasterizeMask: MotionMaskRasterizer['rasterizeMask'];
+	estimateEffectWorkingBytes: MotionEffectRasterizer['estimateEffectWorkingBytes'];
+	rasterizeEffect: MotionEffectRasterizer['rasterizeEffect'];
 }
 
 /** CanvasKit supplies coverage and paragraph shaping; float channels remain in the document's linear working space. */
@@ -49,12 +53,15 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		return bytes;
 	}
 	const rasterizer: CanvasKitMotionRasterizer = {
+		estimateEffectWorkingBytes: estimateMotionEffectWorkingBytes,
+		async rasterizeEffect(effect, source, signal) { return rasterMotionCanvasKitEffect(kit, effect, source, signal); },
 		estimateMaskWorkingBytes: estimateMotionMaskWorkingBytes,
 		async rasterizeMask(mask, target, signal) { rasterMotionCanvasKitMask(kit, mask, target, signal); },
 		estimateSourceWorkingBytes(layer, target) {
 			const bounds = motionLocalSourceBounds(layer.state, assets);
 			return Math.max(rasterizer.estimateWorkingBytes!(layer, { ...target, width: bounds.width, height: bounds.height }),
-				layer.state.masks.length ? estimateMotionMaskWorkingBytes(bounds.width, bounds.height, layer.state.masks) : 0);
+				layer.state.masks.length ? estimateMotionMaskWorkingBytes(bounds.width, bounds.height, layer.state.masks) : 0,
+				layer.state.effects.some((effect) => effect.enabled) ? estimateMotionEffectWorkingBytes(bounds.width, bounds.height, layer.state.effects) : 0);
 		},
 		async rasterizeSource(layer, target, signal) {
 			signal?.throwIfAborted();
