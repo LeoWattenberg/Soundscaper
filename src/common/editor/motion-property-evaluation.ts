@@ -5,6 +5,7 @@ import { compareRationals, type Rational } from './timeline-time.ts';
 import { normalizeMotionProperty, type MotionPath, type MotionPathProperty, type MotionProperty, type MotionScalarProperty, type MotionVector2, type MotionVector3, type MotionColor } from './motion-property.ts';
 import { freezeMotionValue } from './motion-values.ts';
 
+export type MotionStatePropertyResolver = (property: MotionProperty, path: string, position: Rational, base: (position: Rational) => MotionPropertyValue) => MotionPropertyValue;
 export type MotionPropertyValue = number | MotionVector2 | MotionVector3 | MotionColor | MotionPath;
 export type EvaluatedMotionState<T> = T extends MotionScalarProperty ? number
 	: T extends { readonly kind: 'vector2' } ? MotionVector2
@@ -30,21 +31,25 @@ export function compileMotionProperty(value: unknown): (position: Rational) => M
 }
 
 /** Compile normalized intent once; every consumer receives the same renderer-neutral values. */
-export function compileMotionState<T>(value: T): (position: Rational) => EvaluatedMotionState<T> {
-	const evaluate = compileValue(value);
-	return (position) => freezeMotionValue(evaluate(position)) as EvaluatedMotionState<T>;
+export function compileMotionState<T>(value: T): (position: Rational, resolver?: MotionStatePropertyResolver) => EvaluatedMotionState<T> {
+	const evaluate = compileValue(value, '');
+	return (position, resolver) => freezeMotionValue(evaluate(position, resolver)) as EvaluatedMotionState<T>;
 }
 
-function compileValue(value: unknown): (position: Rational) => unknown {
+function compileValue(value: unknown, path: string): (position: Rational, resolver?: MotionStatePropertyResolver) => unknown {
 	if (!value || typeof value !== 'object') return () => value;
 	if (Array.isArray(value)) {
-		const children = value.map((item: unknown) => compileValue(item));
-		return (position) => children.map((child) => child(position));
+		const children = value.map((item: unknown, index: number) => compileValue(item, path ? `${path}.${index}` : String(index)));
+		return (position, resolver) => children.map((child) => child(position, resolver));
 	}
 	const record = value as Readonly<Record<string, unknown>>;
-	if (isProperty(record)) return compileMotionProperty(record);
-	const children = Object.entries(record).map(([key, item]) => ({ key, evaluate: compileValue(item) }));
-	return (position) => Object.fromEntries(children.map(({ key, evaluate }) => [key, evaluate(position)]));
+	if (isProperty(record)) {
+		const evaluate = compileMotionProperty(record);
+		const base = record.expression?.enabled ? compileMotionProperty({ ...record, expression: null }) : evaluate;
+		return (position, resolver) => record.expression?.enabled && resolver ? resolver(record, path, position, base) : evaluate(position);
+	}
+	const children = Object.entries(record).map(([key, item]) => ({ key, evaluate: compileValue(item, path ? `${path}.${key}` : key) }));
+	return (position, resolver) => Object.fromEntries(children.map(({ key, evaluate }) => [key, evaluate(position, resolver)]));
 }
 
 function isProperty(value: Readonly<Record<string, unknown>>): value is MotionProperty & Readonly<Record<string, unknown>> {

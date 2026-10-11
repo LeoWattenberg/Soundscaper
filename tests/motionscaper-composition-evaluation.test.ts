@@ -81,10 +81,10 @@ test('M03 renderer consumption must account for ordered effects and every author
 test('M03 unfinished expressions fail explicitly without mutating their saved source', () => {
 	const project = empty();
 	const visual = layer('visual');
-	const opacity = { ...motionScalar(1), expression: { source: 'wiggle(2, 1)', enabled: true, references: [] } };
+	const opacity = { ...motionScalar(1), expression: { source: 'wiggle(', enabled: true, references: [] } };
 	const compiled = compileMotionscaperProject({ ...project, compositions: [{ ...project.compositions[0], layers: [{ ...visual, transform: { ...visual.transform, opacity } }] }] });
-	assert.throws(() => compiled.evaluate({ compositionId: 'main', time: r(0) }), /expression.*unavailable/iu);
-	assert.equal(opacity.expression.source, 'wiggle(2, 1)');
+	assert.throws(() => compiled.evaluate({ compositionId: 'main', time: r(0) }), /motion expression/iu);
+	assert.equal(opacity.expression.source, 'wiggle(');
 });
 
 test('M03 outside a composition range is transparent and media availability is explicit', () => {

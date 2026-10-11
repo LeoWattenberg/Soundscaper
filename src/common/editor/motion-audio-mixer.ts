@@ -6,6 +6,7 @@ import { addRationals, divideRationals, multiplyRationals, subtractRationals } f
 import { motionInteger } from './motion-values.ts';
 import { MOTION_AUDIO_MAX_BLOCK_SAMPLES, normalizeMotionAudioBlockRequest, type MotionAudioAsset, type MotionAudioMixer, type MotionAudioMixerOptions } from './motion-audio-contract.ts';
 import { createMotionAudioWindowCache } from './motion-audio-window-cache.ts';
+import { createMotionExpressionBudget } from './motion-expression-evaluator.ts';
 import { createMotionAudioSampler } from './motion-audio-sampling.ts';
 
 /** Sample-addressable, revision-pinned mixing. All timing comes from the same scene evaluator as video. */
@@ -25,7 +26,8 @@ export function createMotionAudioMixer(options: MotionAudioMixerOptions): Motion
 			const maximumOccurrences = Math.min(16384, Math.floor(maximumEvaluated / (request.sampleCount + 2)));
 			if (maximumOccurrences < 1) throw new RangeError('Motion audio block exceeds its evaluation work budget.');
 			const interleaved = new Float32Array(request.sampleCount * request.channels); rendering = true;
-			const at = (index: number) => new Map(evaluator.evaluateAudio({ compositionId: request.compositionId, time: divideRationals(addRationals(request.startSample, index), request.sampleRate) }, maximumOccurrences).map((placement) => [placement.occurrenceId, placement]));
+			const expressionBudget = createMotionExpressionBudget({ maximumOperations: 1_000_000, signal });
+			const at = (index: number) => new Map(evaluator.evaluateAudio({ compositionId: request.compositionId, time: divideRationals(addRationals(request.startSample, index), request.sampleRate) }, maximumOccurrences, { expressionBudget, signal }).map((placement) => [placement.occurrenceId, placement]));
 			try {
 				let previous = at(-1); let current = at(0);
 				for (let index = 0; index < request.sampleCount; index++) {

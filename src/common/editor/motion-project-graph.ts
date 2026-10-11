@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { MotionAsset } from './motion-asset.ts';
-import type { MotionLayer } from './motion-composition.ts';
+import type { MotionLayer, MotionAudioPlacement } from './motion-composition.ts';
 import type { MotionProperty } from './motion-property.ts';
 import { uniqueMotionIds } from './motion-values.ts';
 import type { MotionscaperProject } from './motion-project-types.ts';
@@ -41,7 +41,7 @@ export function validateMotionscaperProjectGraph(project: MotionscaperProject): 
 		}
 		for (const audio of composition.audio) requireAsset(assets, audio.assetId, 'audio');
 		assertMotionAcyclic(edges, 'parent/matte', 128);
-		validatePropertyLinks(layers);
+		validatePropertyLinks([...layers.values(), ...composition.audio]);
 		compositionEdges.set(composition.id, precomps);
 	}
 	assertMotionAcyclic(compositionEdges, 'precomposition', 32);
@@ -55,7 +55,7 @@ function requireAsset(assets: ReadonlyMap<string, MotionAsset>, id: string, kind
 
 /** This traverses only already-normalized inert intent. */
 export interface MotionPropertyAddress { readonly path: string; readonly stablePath: string; readonly property: MotionProperty }
-export function motionLayerProperties(layer: MotionLayer): readonly MotionPropertyAddress[] {
+export function motionLayerProperties(layer: MotionLayer | MotionAudioPlacement): readonly MotionPropertyAddress[] {
 	const result: MotionPropertyAddress[] = [];
 	const walk = (value: unknown, path: string, stablePath: string): void => {
 		if (!value || typeof value !== 'object') return;
@@ -75,8 +75,8 @@ export function motionLayerProperties(layer: MotionLayer): readonly MotionProper
 	return Object.freeze(result.map((entry) => Object.freeze(entry)));
 }
 
-function validatePropertyLinks(layers: ReadonlyMap<string, MotionLayer>): void {
-	const properties = [...layers.values()].flatMap((layer) => motionLayerProperties(layer).map((entry) => ({ ...entry, layerId: layer.id })));
+function validatePropertyLinks(layers: readonly (MotionLayer | MotionAudioPlacement)[]): void {
+	const properties = layers.flatMap((layer) => motionLayerProperties(layer).map((entry) => ({ ...entry, layerId: layer.id })));
 	const aliases = new Map<string, string>();
 	for (const entry of properties) {
 		const canonical = `${entry.layerId}/${entry.stablePath}`;

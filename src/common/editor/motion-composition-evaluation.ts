@@ -4,8 +4,9 @@ import { approximateBoundedFraction, publicFraction } from './interpolation-curv
 import { addRationals, compareRationals, divideRationals, multiplyRationals, normalizeRational, subtractRationals, type Rational, type RationalInput } from './timeline-time.ts';
 import type { MotionAsset } from './motion-asset.ts';
 import type { MotionAudioPlacement, MotionComposition, MotionLayer } from './motion-composition.ts';
-import { compileMotionState, type EvaluatedMotionState } from './motion-property-evaluation.ts';
+import { compileMotionState, type EvaluatedMotionState, type MotionStatePropertyResolver } from './motion-property-evaluation.ts';
 import { motionTransformMatrix, multiplyMotionMatrices, type MotionMatrix4 } from './motion-transform.ts';
+import { createMotionExpressionRuntime, type MotionExpressionQueryOptions, type MotionExpressionSession } from './motion-expression-runtime.ts';
 import { freezeMotionValue } from './motion-values.ts';
 
 export type MotionOperationKind = 'background' | 'source' | 'shape-operator' | 'text-animator' | 'mask' | 'effect' | 'transform' | 'matte' | 'opacity' | 'composite' | 'precomposition' | 'camera' | 'light';
@@ -26,13 +27,13 @@ export interface MotionCompositionFrame {
 	readonly requiredOperationIds: readonly string[];
 }
 export interface MotionFrameRequest { readonly compositionId: string; readonly time: RationalInput }
-export interface MotionSceneEvaluator { evaluate(request: MotionFrameRequest): MotionCompositionFrame; evaluateAudio(request: MotionFrameRequest, maximumOccurrences?: number): readonly MotionEvaluatedAudio[] }
+export interface MotionSceneEvaluator { evaluate(request: MotionFrameRequest, options?: MotionExpressionQueryOptions): MotionCompositionFrame; evaluateAudio(request: MotionFrameRequest, maximumOccurrences?: number, options?: MotionExpressionQueryOptions): readonly MotionEvaluatedAudio[] }
 interface AudioTiming { readonly sourceStart: Rational; readonly timeScale: Rational; readonly timeRemap: number | null; readonly gain: number | null }
 interface PreparedComposition {
 	readonly composition: MotionComposition;
-	readonly layers: ReadonlyMap<string, { readonly layer: MotionLayer; readonly evaluate: (position: Rational) => EvaluatedMotionState<MotionLayer> }>;
-	readonly audioLayers: readonly { readonly layer: Extract<MotionLayer, { kind: 'precomp' | 'footage' }>; readonly evaluate: (position: Rational) => AudioTiming }[];
-	readonly audio: readonly { readonly placement: MotionAudioPlacement; readonly evaluate: (position: Rational) => EvaluatedMotionState<MotionAudioPlacement> }[];
+	readonly layers: ReadonlyMap<string, { readonly layer: MotionLayer; readonly evaluate: (position: Rational, resolver?: MotionStatePropertyResolver) => EvaluatedMotionState<MotionLayer> }>;
+	readonly audioLayers: readonly { readonly layer: Extract<MotionLayer, { kind: 'precomp' | 'footage' }>; readonly evaluate: (position: Rational, resolver?: MotionStatePropertyResolver) => AudioTiming }[];
+	readonly audio: readonly { readonly placement: MotionAudioPlacement; readonly evaluate: (position: Rational, resolver?: MotionStatePropertyResolver) => EvaluatedMotionState<MotionAudioPlacement> }[];
 }
 
 /** Compile already-validated immutable intent supplied by a product's project boundary. */
@@ -44,19 +45,20 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 		audio: composition.audio.map((placement) => ({ placement, evaluate: compileMotionState(placement) })),
 	}]));
 	const assets = new Map(input.assets.map((asset) => [asset.id, asset]));
-	const sampleRate = input.sampleRate;
-	return Object.freeze({ evaluate(request: MotionFrameRequest): MotionCompositionFrame {
+	const sampleRate = input.sampleRate; const expressions = createMotionExpressionRuntime(input.compositions);
+	return Object.freeze({ evaluate(request: MotionFrameRequest, options?: MotionExpressionQueryOptions): MotionCompositionFrame {
+		options?.signal?.throwIfAborted();
 		const time = normalizeRational(request.time, { maximumDenominator: Number.MAX_SAFE_INTEGER });
-		return evaluateComposition(request.compositionId, time, request.compositionId, { remaining: 16384 }, 0);
-	}, evaluateAudio(request: MotionFrameRequest, maximumOccurrences = 16384): readonly MotionEvaluatedAudio[] {
+		return evaluateComposition(request.compositionId, time, request.compositionId, { remaining: 16384 }, 0, expressions.createSession(options));
+	}, evaluateAudio(request: MotionFrameRequest, maximumOccurrences = 16384, options?: MotionExpressionQueryOptions): readonly MotionEvaluatedAudio[] {
 		if (!Number.isSafeInteger(maximumOccurrences) || maximumOccurrences < 1 || maximumOccurrences > 16384) throw new RangeError('Motion audio occurrence budget is invalid.');
 		const time = normalizeRational(request.time, { maximumDenominator: Number.MAX_SAFE_INTEGER });
-		const output: MotionEvaluatedAudio[] = [];
-		evaluateAudioComposition(request.compositionId, time, request.compositionId, { remaining: maximumOccurrences }, 0, { num: 1, den: 1 }, output);
+		options?.signal?.throwIfAborted(); const output: MotionEvaluatedAudio[] = [];
+		evaluateAudioComposition(request.compositionId, time, request.compositionId, { remaining: maximumOccurrences }, 0, { num: 1, den: 1 }, output, expressions.createSession(options));
 		return Object.freeze(output);
 	} });
 
-	function evaluateAudioComposition(id: string, time: Rational, path: string, budget: { remaining: number }, depth: number, rate: Rational | null, output: MotionEvaluatedAudio[]): void {
+	function evaluateAudioComposition(id: string, time: Rational, path: string, budget: { remaining: number }, depth: number, rate: Rational | null, output: MotionEvaluatedAudio[], session: MotionExpressionSession): void {
 		if (depth > 32 || --budget.remaining < 0) throw new RangeError('Motion audio evaluation exceeds its occurrence/depth budget.');
 		const prepared = compositions.get(id); if (!prepared) throw new ReferenceError(`Motion composition ${id} is missing.`);
 		const composition = prepared.composition; const frame = multiplyRationals(time, composition.frameRate);
@@ -64,10 +66,10 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 		for (const { layer, evaluate } of prepared.audioLayers) {
 			if (--budget.remaining < 0) throw new RangeError('Motion audio evaluation exceeds its occurrence budget.');
 			if (!active(layer, frame)) continue;
-			const localFrame = subtractRationals(frame, layer.startFrame); const state = evaluate(localFrame);
+			const localFrame = subtractRationals(frame, layer.startFrame); const state = evaluate(localFrame, session.resolver(id, layer.id, { gain: 'audioGain' }));
 			const sourceTime = mapSourceTime(state, localFrame, composition.frameRate); const occurrenceId = `${path}/${layer.id}`;
 			const playbackRate = rate !== null && state.timeRemap === null ? multiplyRationals(rate, state.timeScale) : null;
-			if (layer.kind === 'precomp') evaluateAudioComposition(layer.compositionId, sourceTime, occurrenceId, budget, depth + 1, playbackRate, output);
+			if (layer.kind === 'precomp') evaluateAudioComposition(layer.compositionId, sourceTime, occurrenceId, budget, depth + 1, playbackRate, output, session);
 			else {
 				const asset = assets.get(layer.assetId);
 				if (layer.audioEnabled && asset?.kind === 'footage' && asset.hasAudio && mediaTimeActive(asset, sourceTime)) output.push({ occurrenceId, assetId: layer.assetId, sourceTime, gain: state.gain!, playbackRate });
@@ -76,14 +78,14 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 		for (const { placement, evaluate } of prepared.audio) {
 			if (--budget.remaining < 0) throw new RangeError('Motion audio evaluation exceeds its occurrence budget.');
 			if (!active(placement, frame)) continue;
-			const localFrame = subtractRationals(frame, placement.startFrame); const state = evaluate(localFrame);
+			const localFrame = subtractRationals(frame, placement.startFrame); const state = evaluate(localFrame, session.resolver(id, placement.id));
 			const sourceTime = mapSourceTime({ ...state, timeRemap: null }, localFrame, composition.frameRate);
 			if (mediaTimeActive(assets.get(placement.assetId), sourceTime)) output.push({ occurrenceId: `${path}/${placement.id}`, assetId: placement.assetId, sourceTime, gain: state.gain,
 				playbackRate: rate === null ? null : multiplyRationals(rate, state.timeScale) });
 		}
 	}
 
-	function evaluateComposition(id: string, time: Rational, path: string, budget: { remaining: number }, depth: number): MotionCompositionFrame {
+	function evaluateComposition(id: string, time: Rational, path: string, budget: { remaining: number }, depth: number, session: MotionExpressionSession): MotionCompositionFrame {
 		if (depth > 32 || --budget.remaining < 0) throw new RangeError('Motion scene evaluation exceeds its occurrence/depth budget.');
 		const prepared = compositions.get(id);
 		if (!prepared) throw new ReferenceError(`Motion composition ${id} is missing.`);
@@ -99,7 +101,7 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 			if (cached) return cached;
 			const item = prepared.layers.get(layerId);
 			if (!item) throw new ReferenceError(`Missing motion parent ${layerId}.`);
-			const state = item.evaluate(subtractRationals(frame, item.layer.startFrame));
+			const state = item.evaluate(subtractRationals(frame, item.layer.startFrame), session.resolver(id, item.layer.id));
 			states.set(layerId, state);
 			return state;
 		};
@@ -122,7 +124,7 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 				const localFrame = subtractRationals(frame, layer.startFrame);
 				const sourceTime = mapSourceTime(state, localFrame, composition.frameRate);
 				const occurrenceId = `${path}/${layer.id}`;
-				const precomposition = state.kind === 'precomp' ? evaluateComposition(state.compositionId, sourceTime, occurrenceId, budget, depth + 1) : null;
+				const precomposition = state.kind === 'precomp' ? evaluateComposition(state.compositionId, sourceTime, occurrenceId, budget, depth + 1, session) : null;
 				const operations = layerOperations(state, occurrenceId);
 				const sourceAvailable = state.kind === 'footage' ? mediaTimeActive(assets.get(state.assetId), sourceTime)
 					: precomposition === null || (precomposition.frame.num >= 0 && compareRationals(precomposition.frame, compositions.get(precomposition.compositionId)!.composition.durationFrames) < 0);
@@ -136,7 +138,7 @@ export function createMotionSceneEvaluator(input: Readonly<{ compositions: reado
 			for (const { placement, evaluate } of prepared.audio) {
 				if (!active(placement, frame)) continue;
 				const localFrame = subtractRationals(frame, placement.startFrame);
-				const state = evaluate(localFrame);
+				const state = evaluate(localFrame, session.resolver(id, placement.id));
 				const sourceTime = mapSourceTime({ ...state, timeRemap: null }, localFrame, composition.frameRate);
 				if (mediaTimeActive(assets.get(placement.assetId), sourceTime)) audio.push({ occurrenceId: `${path}/${placement.id}`,
 					assetId: placement.assetId, sourceTime, gain: state.gain, playbackRate: state.timeScale });

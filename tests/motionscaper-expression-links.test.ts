@@ -55,3 +55,13 @@ test('M08 references owned by reordered operators follow both stable owner and t
 	const renamed = history.commit([{ type: 'layer/replace', compositionId: 'main', layer: { ...target, name: 'Renamed shape' } }]);
 	assert.equal(renamed.compositions[0]!.layers[1]!.transform.opacity.expression!.references[0]!.layerId, 'shape');
 });
+
+test('M08 standalone gain references keep ordered visual targets stable through history edits', () => {
+	const before = project(); const sha256 = 'a'.repeat(64);
+	const asset = { kind: 'audio', id: 'sound', name: 'Sound', sha256, storageKey: `motion-sha256:${sha256}`, byteLength: 1, mimeType: 'audio/wav', sampleRate: 48000, channels: 1, duration: { num: 10, den: 1 } };
+	const placement = { id: 'voice', assetId: 'sound', enabled: true, startFrame: { num: 0, den: 1 }, inFrame: { num: 0, den: 1 }, outFrame: { num: 300, den: 1 }, sourceStart: { num: 0, den: 1 }, timeScale: { num: 1, den: 1 }, gain: { ...motionScalar(1), expression: { source: 'reference("trim")', enabled: true, references: [{ id: 'trim', layerId: 'shape', propertyPath: 'operators.0.end' }] } } };
+	const source = normalizeMotionscaperProject({ ...before, assets: [asset], compositions: [{ ...before.compositions[0]!, audio: [placement] }] });
+	const history = createMotionscaperHistory(source); const after = history.commit(createMotionscaperOperatorCommands({ project: source, compositionId: 'main', layerId: 'shape', target: 'shape', edit: { type: 'reorder', ids: ['second', 'first.part'] } }));
+	assert.equal(after.compositions[0]!.audio[0]!.gain.expression!.references[0]!.propertyPath, 'operators.@first%2Epart.end');
+	assert.equal(history.undo(), true); assert.equal(history.snapshot().project.compositions[0]!.audio[0]!.gain.expression!.references[0]!.propertyPath, 'operators.0.end');
+});
