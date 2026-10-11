@@ -6,6 +6,7 @@ export const FRAMESCAPER_NATIVE_DELIVERY_ENGLISH_COPY = Object.freeze({
 	unavailable: 'This desktop package has no authenticated ProRes helper. Use the regular video export menu or install a package that includes this capability.',
 	width: 'Width', height: 'Height', transparent: 'Transparent background', export: 'Choose destination and export', cancel: 'Cancel export', close: 'Close',
 	preparing: 'Preparing retained picture and audio…', progress: 'Picture frames: {completed} / {total}', saved: 'Saved {name}', cancelled: 'Export cancelled.',
+	cleanupRequired: 'Native output cleanup is incomplete. Retry cleanup before closing this dialog or starting another export.', retryCleanup: 'Retry Output Cleanup',
 	failed: 'Native export failed:', identity: 'Pinned Frame project digest',
 });
 const EN = FRAMESCAPER_NATIVE_DELIVERY_ENGLISH_COPY;
@@ -16,6 +17,7 @@ const DE: Readonly<Record<keyof typeof EN, string>> = Object.freeze({
 	unavailable: 'Dieses Desktop-Paket enthält keinen authentifizierten ProRes-Helfer. Den normalen Videoexport verwenden oder ein Paket mit dieser Funktion installieren.',
 	width: 'Breite', height: 'Höhe', transparent: 'Transparenter Hintergrund', export: 'Ziel auswählen und exportieren', cancel: 'Export abbrechen', close: 'Schließen',
 	preparing: 'Gespeicherte Bilder und Audio vorbereiten…', progress: 'Bilder: {completed} / {total}', saved: '{name} gespeichert', cancelled: 'Export abgebrochen.',
+	cleanupRequired: 'Die Bereinigung der nativen Ausgabe ist unvollständig. Wiederhole die Bereinigung, bevor du diesen Dialog schließt oder einen weiteren Export startest.', retryCleanup: 'Ausgabebereinigung wiederholen',
 	failed: 'Nativer Export fehlgeschlagen:', identity: 'Festgehaltener Frame-Projektdigest',
 });
 export function framescaperNativeDeliveryCopy(locale: string): Readonly<Record<keyof typeof EN, string>> { return locale.toLowerCase().startsWith('de') ? DE : EN; }
