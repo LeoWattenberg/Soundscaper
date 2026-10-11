@@ -10,6 +10,7 @@ import { expect, type Page } from '@playwright/test';
 import { encodeMotionChannel, decodeMotionChannel } from '../src/common/editor/motion-surface.ts';
 import { motionscaperSuccessorNativeExpectedSample } from '../tests/helpers/motionscaper-successor-native-fixture.ts';
 import { prepareMotionNativeReferenceDecoder, decodeMotionNativeReference } from './motionscaper-native-reference.ts';
+import { motionNativePreviewMattePixel } from './motionscaper-preview-reference.ts';
 export async function qualifyFramescaperSuccessorNativeDelivery(page: Page, options: { root: string; temporary: string; sourceRevision: string; acceptedDigest: string; previewBackend: 'software-webgl2' | 'unavailable' }): Promise<void> {
 	const menu = async (item: string) => { await page.getByRole('menuitem', { name: 'File', exact: true }).click(); await page.getByRole('menuitem', { name: item, exact: true }).click(); };
 	const preview = async () => {
@@ -58,9 +59,10 @@ export async function qualifyFramescaperSuccessorNativeDelivery(page: Page, opti
 	for (let index = 0; index < decoded.pcm.length / 2; index++) for (let channel = 0; channel < 2; channel++) maximumPcmError = Math.max(maximumPcmError, Math.abs(decoded.pcm[index * 2 + channel]! - motionscaperSuccessorNativeExpectedSample(index, channel)));
 	assert.ok(maximumColorError <= 8 / 1023, `Native RGB error ${String(maximumColorError)}`); assert.ok(maximumAlphaError <= 2 / 1023, `Native alpha error ${String(maximumAlphaError)}`); assert.ok(maximumPcmError <= 2 ** -23, `Native PCM error ${String(maximumPcmError)}`);
 	const center = (64 * 32 + 16 * 64 + 32) * 4;
-	const maximumPreviewMatteCodeError = before ? Math.max(...[0, 1, 2].map(channel => Math.abs(before[channel]! - Math.round(encodeMotionChannel(decodeMotionChannel(decoded.rgba[center + channel]!, 'rec709') * decoded.rgba[center + 3]!, 'rec709') * 255)))) : null;
+	const displayed = motionNativePreviewMattePixel([...decoded.rgba.subarray(center, center + 4)], 'rec709');
+	const maximumPreviewMatteCodeError = before ? Math.max(...[0, 1, 2].map(channel => Math.abs(before[channel]! - displayed[channel]!))) : null;
 	assert.ok(maximumPreviewMatteCodeError === null || maximumPreviewMatteCodeError <= 3, `Native decoded picture differs from retained Frame preview: ${String(maximumPreviewMatteCodeError)}`);
 	console.log(`FRAMESCAPER_SUCCESSOR_NATIVE_DELIVERY_QUALIFIED ${JSON.stringify({ sourceRevision: options.sourceRevision, acceptedMotionDigest: options.acceptedDigest, frameProjectId: projectId, frameProjectDigest: frameDigest,
-		actualNativeSaveChooser: true, previewBackend: options.previewBackend, offlineRetainedOriginals: true, previewBeforeAndAfterOfflineReopen: before, maximumPreviewMatteCodeError, inputPrecision: 'Frame managed SDR unorm8 straight alpha', maximumRec709ColorError: maximumColorError, maximumAlphaError, maximumPcmError,
+		actualNativeSaveChooser: true, displayEncoding: 'srgb', nativeOutputEncoding: 'rec709', previewBackend: options.previewBackend, offlineRetainedOriginals: true, previewBeforeAndAfterOfflineReopen: before, maximumPreviewMatteCodeError, inputPrecision: 'Frame managed SDR unorm8 straight alpha', maximumRec709ColorError: maximumColorError, maximumAlphaError, maximumPcmError,
 		metadata: decoded.metadata, movieSha256: createHash('sha256').update(await readFile(movie)).digest('hex') })}`);
 }
