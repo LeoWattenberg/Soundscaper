@@ -1,0 +1,70 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import type { Page } from '@playwright/test';
+import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { readFile } from 'node:fs/promises';
+const motionOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_MOTION_PORT || 4346}`;
+const frameOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_FRAME_PORT || 4345}`;
+test.use({ serviceWorkers: 'allow' });
+async function menu(page: Page, top: string, item: string | RegExp): Promise<void> {
+	await page.getByRole('menuitem', { name: top, exact: true }).click();
+	await page.getByRole('menuitem', { name: item, exact: typeof item === 'string' }).click();
+}
+async function close(page: Page): Promise<void> { await page.getByRole('button', { name: 'Close', exact: true }).last().click(); await expect(page.getByRole('dialog')).toHaveCount(0); }
+async function solid(page: Page, color: string): Promise<void> {
+	await menu(page, 'Layer', 'New Solid'); await page.locator('input[type=color]').fill(color);
+	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+async function save(page: Page): Promise<void> { await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); }
+async function previewColor(page: Page): Promise<number[]> {
+	await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-visual-error', '');
+	const png = await page.locator('[data-video-preview-canvas]').screenshot();
+	return page.evaluate(async bytes => {
+		const image = await createImageBitmap(new Blob([Uint8Array.from(atob(bytes), value => value.charCodeAt(0))], { type: 'image/png' }));
+		try { const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height; const context = canvas.getContext('2d')!; context.drawImage(image, 0, 0); return [...context.getImageData(Math.floor(image.width / 2), Math.floor(image.height / 2), 1, 1).data]; }
+		finally { image.close(); }
+	}, png.toString('base64'));
+}
+test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser }) => {
+	test.setTimeout(120_000);
+	const errors: string[] = []; frame.on('pageerror', error => errors.push(error.message));
+	await frame.addInitScript(() => Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined }));
+	await frame.goto('/en/'); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	await menu(frame, 'File', 'Linked compositions…'); const links = frame.getByRole('dialog', { name: 'Linked Motionscaper compositions' });
+	await links.getByRole('button', { name: 'Create pairing URL', exact: true }).click(); const pairing = await links.getByRole('textbox', { name: 'Pairing URL', exact: true }).inputValue();
+	const motion = await context.newPage(); motion.on('pageerror', error => errors.push(error.message)); await motion.goto(`${motionOrigin}/embed/en/`);
+	await menu(motion, 'File', 'New Composition');
+	for (const [label, value] of [['Project title', 'Linked title'], ['Width', '64'], ['Height', '64'], ['Duration in frames', '30']] as const) await motion.getByLabel(label, { exact: true }).fill(value);
+	await motion.getByRole('button', { name: 'Create', exact: true }).click(); await expect(motion.getByRole('dialog')).toHaveCount(0);
+	await solid(motion, '#ff0000'); await save(motion); await menu(motion, 'File', 'Send Composition to Framescaper');
+	await motion.getByRole('textbox', { name: 'Framescaper pairing URL', exact: true }).fill(pairing);
+	const opened = context.waitForEvent('page'); await motion.getByRole('button', { name: 'Connect and Send Saved Revision', exact: true }).click(); const bridge = await opened;
+	await bridge.getByRole('button', { name: 'Connect to Framescaper', exact: true }).click();
+	await expect(links.locator('code')).toHaveText(/^[a-f0-9]{64}$/u); const first = await links.locator('code').textContent();
+	await close(frame); await expect.poll(() => previewColor(frame)).toEqual([255, 0, 0, 255]); await menu(frame, 'File', 'Linked compositions…');
+	await expect(motion.getByRole('dialog').getByRole('status')).toContainText('saved revisions update automatically'); await close(motion);
+	await solid(motion, '#00ff00'); const downloaded = motion.waitForEvent('download'); await menu(motion, 'File', 'Save Copy'); await downloaded;
+	await expect(links.locator('code')).toHaveText(first!); await save(motion); await expect(links.locator('code')).not.toHaveText(first!); const second = await links.locator('code').textContent();
+	await close(frame); await menu(frame, 'Edit', /^Undo/u); await menu(frame, 'File', 'Linked compositions…');
+	await expect(links.locator('code')).toHaveText(first!); await expect(links.getByText('Updates pinned by history', { exact: true })).toBeVisible();
+	await solid(motion, '#0000ff'); await save(motion); await expect(links.getByText('Pending output change', { exact: true })).toBeVisible(); await expect(links.locator('code')).toHaveText(first!);
+	await links.getByRole('button', { name: 'Resume automatic updates', exact: true }).click(); await expect(links.locator('code')).not.toHaveText(first!); await expect(links.locator('code')).not.toHaveText(second!);
+	const third = await links.locator('code').textContent();
+	await menu(motion, 'View', 'Composition Settings'); await motion.getByLabel('Width', { exact: true }).fill('96'); await motion.getByRole('button', { name: 'Apply', exact: true }).click(); await expect(motion.getByRole('dialog')).toHaveCount(0); await save(motion);
+	await expect(links.getByText('Pending output change', { exact: true })).toBeVisible(); await expect(links.locator('code')).toHaveText(third!);
+	await links.getByRole('button', { name: 'Conform pending revision', exact: true }).click(); await expect(links.locator('code')).not.toHaveText(third!); const conformed = await links.locator('code').textContent();
+	await links.getByRole('button', { name: 'Disconnect', exact: true }).click(); await close(frame); const projectId = await frame.locator('[data-project-id]').getAttribute('data-project-id');
+	const download = frame.waitForEvent('download'); await menu(frame, 'File', 'Export project file (.fscape)'); const archive = await download;
+	const path = await archive.path(); if (!path) throw new Error('The successor archive download is absent.'); const bytes = await readFile(path);
+	const fresh = await browser.newContext({ baseURL: frameOrigin, serviceWorkers: 'block' });
+	try {
+		const imported = await fresh.newPage(); imported.on('pageerror', error => errors.push(error.message)); await imported.goto('/embed/en/'); await expect(imported.locator('[data-audio-editor-bound="true"]')).toBeVisible(); await expect(imported.locator('[data-editor-ready]')).toHaveAttribute('data-editor-ready', 'true'); await expect(imported.locator('[data-project-id]')).not.toHaveAttribute('data-project-activation-pending', 'true'); await expect(imported.locator('[data-project-id]')).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+		const chooser = imported.waitForEvent('filechooser'); await menu(imported, 'File', /^Open\s+Ctrl\+O$/u); await (await chooser).setFiles({ name: archive.suggestedFilename(), mimeType: 'application/zip', buffer: bytes });
+		await expect(imported.locator('[data-project-id]')).toHaveAttribute('data-project-id', projectId!);
+		await menu(imported, 'File', 'Linked compositions…'); await expect(imported.getByRole('dialog').locator('code')).toHaveText(conformed!); await close(imported);
+		await expect.poll(() => previewColor(imported)).toEqual([0, 0, 255, 255]);
+	} finally { await fresh.close(); }
+	await frame.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })); });
+	await context.setOffline(true); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	await expect.poll(() => previewColor(frame)).toEqual([0, 0, 255, 255]); await menu(frame, 'File', 'Linked compositions…'); await expect(links.locator('code')).toHaveText(conformed!);
+	expect(errors).toEqual([]);
+});

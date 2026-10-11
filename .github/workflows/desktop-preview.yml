@@ -382,6 +382,10 @@ jobs:
         if: matrix.project == 'chromium' && matrix.shard == 1
         run: npm run test:browser:dual-origin
 
+      - name: Run saved composition links between real editors
+        if: matrix.project == 'chromium' && matrix.shard == 1
+        run: npm run test:browser:motion-links
+
       - name: Run handbook browser workflows
         # The handbook suite is its own config and half a minute long, so it
         # rides one shard rather than earning a job or running three times.

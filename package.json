@@ -105,6 +105,8 @@
 		"test:browser:built": "playwright test",
 		"pretest:browser:dual-origin": "node scripts/build-dual-origin-browser-sites.mjs",
 		"test:browser:dual-origin": "playwright test --config playwright.dual-origin.config.mjs",
+		"pretest:browser:motion-links": "node scripts/build-motionscaper-link-test-sites.mjs",
+		"test:browser:motion-links": "playwright test --config playwright.motionscaper-links.config.mjs",
 		"test:desktop": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-*.test.js tests/desktop-*.test.ts tests/audio-editor-file-service.test.js",
 		"desktop:icons": "node scripts/desktop-icons.mjs",
 		"desktop:prepare": "node scripts/desktop-prepare.mjs",
