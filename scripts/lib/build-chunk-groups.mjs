@@ -486,10 +486,10 @@ export const chunkGroups = [
 		maxSize: 400_000,
 	},
 	{
-		// Own only the HTML/main/site entry role. Editor and product modules retain
-		// their semantic owners even when they sit in the selected startup graph.
+		// $initial marks every input; keep the separate composition-link entry in its explicit semantic owners.
 		name: 'site-entry',
 		tags: ['$initial'],
+		test: (id) => !motionChunkGroups.some((group) => group.test.test(id)),
 		priority: 120,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
