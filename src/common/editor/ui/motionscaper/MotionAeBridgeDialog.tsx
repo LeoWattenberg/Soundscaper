@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
 import type { MotionscaperProjectStore } from '../../../../motionscaper/editor-project-store.ts';
 import { commitMotionscaperAeImport, createMotionscaperAeImportCustody, prepareMotionscaperAeImport, type PreparedMotionscaperAeImport } from '../../../../motionscaper/editor-ae-import.ts';
 
@@ -16,7 +17,7 @@ function failureText(failure: unknown): string {
 	return failure instanceof Error ? failure.message : String(failure);
 }
 export default function MotionAeBridgeDialog({ store, copy, busy, onOpen, onClose, initialFile }: Readonly<{
-	store: MotionscaperProjectStore; copy: Readonly<Record<string, string>>; busy: boolean;
+	store: MotionscaperProjectStore; project?: MotionscaperProject; copy: Readonly<Record<string, string>>; busy: boolean;
 	onOpen: (id: string) => Promise<void>; onClose: () => void; initialFile?: File;
 }>) {
 	const id = useId(), alive = useRef(true), active = useRef<AbortController | null>(null);
