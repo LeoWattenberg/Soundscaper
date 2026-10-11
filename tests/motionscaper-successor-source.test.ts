@@ -8,7 +8,7 @@ import { createFramescaperCompositionSource, resolveFramescaperCompositionSource
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { validateFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
-import { framescaperSuccessorBaselineProject } from '../src/framescaper/editor-project-successor-commands.ts';
+import { framescaperSuccessorBaselineProject, applyFramescaperSuccessorCommand } from '../src/framescaper/editor-project-successor-commands.ts';
 import { framescaperSuccessorMediaRootDocument } from '../src/framescaper/editor-project-successor-media-roots.ts';
 import { createFramescaperSuccessorHistory } from '../src/framescaper/editor-project-successor-history.ts';
 import { createProjectVisualService, type ProjectVisualServiceDependencies } from '../src/common/editor/controller/document/project-visual-service.ts';
@@ -72,4 +72,17 @@ test('composition audio companion retains its native sample grid and refuses des
 	assert.equal(resolveFramescaperCompositionAudioSource(project, linked.source), null);
 	assert.equal(createFramescaperCompositionSource({ sourceId: 'legacy', offer, sampleRate: 48000 }).audioSource, undefined);
 	assert.throws(() => createFramescaperCompositionSource({ sourceId: 'same', audioSourceId: 'same', offer, sampleRate: 48000 }), /distinct/iu);
+});
+
+test('accepted scene replacement derives both source descriptors without pretending to rewrite encoded media', () => {
+	const { offer } = fixture(); const first = createFramescaperCompositionSource({ sourceId: 'picture', audioSourceId: 'sound', offer, sampleRate: 48000 });
+	const runtime = createFramescaperSuccessorRuntime({ line: 'successor' });
+	const project = { ...runtime.createProject({ id: 'frame', sources: [first.source, first.audioSource!] }), compositionLinks: [first.link] };
+	const revision = createMotionscaperRevision({ ...offer.revision.project, revision: 1, title: 'New saved title' });
+	const next = createFramescaperCompositionSource({ sourceId: 'picture', audioSourceId: 'sound', offer: createMotionCompositionOffer('title', revision), sampleRate: 48000 });
+	const updated = applyFramescaperSuccessorCommand(project, { type: 'composition-link/replace', sourceId: 'picture', expectedDigest: first.link.acceptedDigest, link: next.link, commands: [] });
+	const sources = framescaperSuccessorBaselineProject(updated).sources;
+	assert.equal(resolveFramescaperCompositionSource(updated, sources.find(source => source.id === 'picture')!)?.offer.revision.digest, revision.digest);
+	assert.equal(resolveFramescaperCompositionAudioSource(updated, sources.find(source => source.id === 'sound')!)?.offer.revision.digest, revision.digest);
+	assert.throws(() => applyFramescaperSuccessorCommand(updated, { type: 'source/update', sourceId: 'sound', changes: { mimeType: 'audio/wav' } }), /conform|detach/iu);
 });
