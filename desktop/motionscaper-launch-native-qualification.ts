@@ -10,7 +10,7 @@ import { chromium, expect, type Browser } from '@playwright/test';
 import { verifyMotionscaperDesktopStage, verifyMotionscaperPackagedResources } from '../scripts/lib/motionscaper-desktop-package.mjs';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { exportMotionscaperArchive, importMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
-import { createMotionscaperOpaqueArchive } from '../tests/helpers/motionscaper-opaque-archive.ts';
+import { createMotionscaperOpaqueArchive } from '../scripts/lib/motionscaper-qualification-opaque-archive.ts';
 import { resolveMotionQualificationPaths } from './motionscaper-native-qualification-paths.ts';
 
 /** External packaged-app qualification: OS arguments and public UI only. No injected bridge. */

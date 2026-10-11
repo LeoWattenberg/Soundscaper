@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect, type Page } from '@playwright/test';
 import { encodeMotionChannel, decodeMotionChannel } from '../src/common/editor/motion-surface.ts';
-import { motionscaperSuccessorNativeExpectedSample } from '../tests/helpers/motionscaper-successor-native-fixture.ts';
+import { motionscaperSuccessorNativeExpectedSample } from '../scripts/lib/motionscaper-successor-qualification-fixture.ts';
 import { prepareMotionNativeReferenceDecoder, decodeMotionNativeReference } from './motionscaper-native-reference.ts';
 import { motionNativePreviewMattePixel } from './motionscaper-preview-reference.ts';
 export async function qualifyFramescaperSuccessorNativeDelivery(page: Page, options: { root: string; temporary: string; sourceRevision: string; acceptedDigest: string; previewBackend: 'software-webgl2' | 'unavailable' }): Promise<void> {

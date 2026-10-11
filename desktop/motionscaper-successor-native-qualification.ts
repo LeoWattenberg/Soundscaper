@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium, expect, type Browser } from '@playwright/test';
-import { motionscaperSuccessorNativeFixture } from '../tests/helpers/motionscaper-successor-native-fixture.ts';
+import { motionscaperSuccessorNativeFixture } from '../scripts/lib/motionscaper-successor-qualification-fixture.ts';
 import { qualifyFramescaperSuccessorNativeDelivery } from './motionscaper-successor-delivery-qualification.ts';
 import { createMotionscaperRevision } from '../src/motionscaper/editor-project-revision.ts';
 import { exportMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
