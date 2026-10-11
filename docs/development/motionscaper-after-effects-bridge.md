@@ -1,8 +1,8 @@
 # Motionscaper After Effects bridge
 
 M11 is in development. The versioned exchange contract, readable exporter and
-limited importer are implemented; the editor menu workflow, broad editable
-conversion, and reference qualification are still being built. No After Effects version has
+limited importer, and opt-in editor workflow are implemented; broad editable
+conversion and installed-AE reference qualification remain incomplete. No After Effects version has
 been qualified. Synthetic host tests must not populate that qualification matrix.
 
 The intended workflow uses readable `.jsx` scripts through **File > Scripts >
@@ -12,6 +12,22 @@ its [Scripts help](https://helpx.adobe.com/ca/after-effects/desktop/automate-in-
 That page designates the [After Effects Scripting Guide](https://ae-scripting.docsforadobe.dev/)
 for the API. The bridge will not change those application preferences, parse
 binary `.aep` projects, or claim native AE plug-in compatibility.
+
+## Editor workflow
+
+**File > After Effects Bridge** opens the lazy bridge dialog, including before
+a document is open. It downloads the readable script ZIP, accepts a manifest
+and all package media files, prepares a read-only report, and requires explicit
+acknowledgement before atomically importing a new document. The report can also
+be downloaded alongside its untouched source exchange. Choosing `.aep` or
+`.aepx` through **File > Open** routes to installed-AE instructions without
+trying to parse the source project.
+
+Three actual Chromium workflows cover script ZIP download, AEP/AEPX routing,
+real encoded PNG import and alpha pixels in the preview, report acknowledgement,
+Save/reopen and `.mscape` custody, unused original media byte preservation,
+missing files, digest mismatch, and closing a prepared review without changing
+the open document. These browser checks do not establish installed-AE behavior.
 
 ## Readable exporter
 
