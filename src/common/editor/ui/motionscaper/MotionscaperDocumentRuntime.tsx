@@ -11,8 +11,10 @@ import MotionProjectLibraryDialog from './MotionProjectLibraryDialog.tsx';
 import type { MotionAuthoredLayerKind } from '../../../../motionscaper/editor-layer-authoring.ts';
 import type { MotionscaperLayerClipboard } from '../../../../motionscaper/editor-layer-clipboard.ts';
 import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
+import type { MotionscaperLinkSender } from '../../../../motionscaper/editor-link-sender.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
+const MotionSendCompositionDialog = lazy(() => import('./MotionSendCompositionDialog.tsx'));
 const MotionCompositionsDialog = lazy(() => import('./MotionCompositionsDialog.tsx'));
 const MotionAeBridgeDialog = lazy(() => import('./MotionAeBridgeDialog.tsx'));
 const MotionSceneDialog = lazy(() => import('./MotionSceneDialog.tsx'));
@@ -39,7 +41,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send' | MotionAuthoredLayerKind | null>(null);
 	const [targetCompositionId, setTargetCompositionId] = useState('');
 	const [bridgeFile, setBridgeFile] = useState<File | undefined>();
 	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
@@ -48,9 +50,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
 	const lastRequest = useRef(0);
+	const linkSender = useRef<MotionscaperLinkSender | null>(null);
 	const busy = pending || snapshot.busy;
 	useEffect(() => { onChange({ ...snapshot, busy }); }, [snapshot, busy, onChange]);
-	useEffect(() => () => { void store.close().catch(() => undefined); }, [store]);
+	useEffect(() => () => { void (async () => { try { await linkSender.current?.dispose(); } finally { await store.close(); } })().catch(() => undefined); }, [store]);
 	const run = useCallback(async (operation: () => Promise<void>, failureCopy?: string) => {
 		setError(null); setPending(true);
 		try { await operation(); }
@@ -69,7 +72,15 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
 		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene' || command === 'after-effects') { setDialog(command); return; }
-		if (command === 'open') {
+		if (command === 'send') {
+			void run(async () => {
+				if (!linkSender.current) {
+					const [{ createMotionscaperLinkSender }, { resolveMotionLinkOrigins }] = await Promise.all([import('../../../../motionscaper/editor-link-sender.ts'), import('../../motion-link-connection-urls.ts')]);
+					linkSender.current = createMotionscaperLinkSender({ session, store, ...resolveMotionLinkOrigins('motionscaper', location.origin, import.meta.env.PUBLIC_MOTION_LINK_PEER_ORIGIN), locale: document.documentElement.lang.startsWith('de') ? 'de' : 'en' });
+				}
+				setDialog('send');
+			});
+		} else if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
 				const result = await openMotionscaperDesktopProject(session);
@@ -152,6 +163,9 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	if (dialog === 'timeline' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionTimelineDialog clipboard={layerClipboard} onCopyLayers={setLayerClipboard} copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
+	</Suspense>;
+	if (dialog === 'send' && snapshot.project && linkSender.current) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionSendCompositionDialog sender={linkSender.current} project={snapshot.project} copy={copy} onClose={close} />
 	</Suspense>;
 	if (dialog === 'render' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionRenderDialog copy={copy} project={snapshot.project} store={store} onClose={close} />

@@ -25,7 +25,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -51,6 +51,7 @@ export function createMotionscaperShellMenus(
 			item('motion-save', copy.motionscaperSave, 'save', options.hasProject),
 			item('motion-copy', copy.motionscaperSaveCopy, 'copy', options.hasProject),
 			item('motion-library', copy.motionscaperLibrary, 'library'),
+			item('motion-send', copy.motionscaperSendComposition, 'send', options.hasProject),
 			item('motion-after-effects', copy.motionscaperAfterEffectsBridge, 'after-effects'),
 			item('motion-render', copy.motionscaperRender, 'render', options.hasProject)]),
 		}),
