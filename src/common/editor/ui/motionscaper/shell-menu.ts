@@ -26,7 +26,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly onDocumentation?: (destination: 'manual' | 'tutorials') => void;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'canvas' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand; readonly file?: File; readonly onComplete?: (readOnly: boolean) => void }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -68,6 +68,7 @@ export function createMotionscaperShellMenus(
 				id: 'motion-workspace', label: copy.workspaceMotion,
 				checked: workspaceOpen, onClick: onToggleWorkspace,
 			}), item('motion-settings', copy.motionscaperSettings, 'settings', options.hasProject),
+			item('motion-canvas', copy.motionscaperCanvas, 'canvas', options.hasProject),
 			item('motion-preview', copy.motionscaperPreview, 'preview', options.hasProject),
 			item('motion-timeline', copy.motionscaperTimeline, 'timeline', options.hasProject)]),
 		}),

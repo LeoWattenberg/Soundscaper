@@ -143,3 +143,13 @@ test('Render Queue opens from File without requiring an active project', () => {
 	const queue = menus.find(menu => menu.id === 'file')?.items.find(item => item.id === 'motion-render-queue');
 	assert.equal(queue?.label, 'Render-Warteschlange'); assert.equal(queue?.disabled, false); queue?.onClick?.(); assert.deepEqual(calls, ['render-queue']);
 });
+
+test('Composition Canvas is a localized opt-in View command requiring an idle project', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('en'), workspaceOpen: false, onToggleWorkspace: () => undefined, onCommand: (command: string) => { commands.push(command); }, hasProject: true };
+	const find = (menus: ReturnType<typeof createMotionscaperShellMenus>) => menus.find(({ id }) => id === 'view')?.items.find(({ id }) => id === 'motion-canvas');
+	const item = find(createMotionscaperShellMenus(options)); assert.equal(item?.label, 'Composition Canvas'); item?.onClick?.(); assert.deepEqual(commands, ['canvas']);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Kompositions-Canvas');
+});

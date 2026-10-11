@@ -25,6 +25,11 @@ keys at exact frame positions. Curve controls change interpolation; spatial
 editing changes position paths. **View → Timeline** opens layer timing,
 ordering, grouping, and work-area controls.
 
+Open **View → Composition Canvas** to select and move a static 2D layer. The
+square scales it and the circle rotates it around its authored anchor. Each
+completed drag is one undo step; Escape cancels a drag. Animated and
+expression-driven transforms stay in Properties and Keyframes.
+
 Open **View → Composition Preview** to seek or play the composition. Preview
 uses retained source media. Unsupported or invalid scene settings produce an
 error instead of a substitute image. Close the preview to release its active

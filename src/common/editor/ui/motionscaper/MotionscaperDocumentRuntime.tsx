@@ -27,6 +27,7 @@ const MotionExpressionDialog = lazy(() => import('./MotionExpressionDialog.tsx')
 const MotionCompositingDialog = lazy(() => import('./MotionCompositingDialog.tsx'));
 const MotionTrackingDialog = lazy(() => import('./MotionTrackingDialog.tsx'));
 const MotionOperatorsDialog = lazy(() => import('./MotionOperatorsDialog.tsx'));
+const MotionCanvasDialog = lazy(() => import('./MotionCanvasDialog.tsx'));
 const MotionPathsDialog = lazy(() => import('./MotionPathsDialog.tsx'));
 const MotionPropertyDialog = lazy(() => import('./MotionPropertyDialog.tsx'));
 const MotionTimelineDialog = lazy(() => import('./MotionTimelineDialog.tsx'));
@@ -46,7 +47,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'canvas' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send' | MotionAuthoredLayerKind | null>(null);
 	const [targetCompositionId, setTargetCompositionId] = useState('');
 	const [bridgeFile, setBridgeFile] = useState<File | undefined>();
 	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
@@ -102,7 +103,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 				renderQueue.current ??= createMotionscaperDeliveryQueue({ store }); setDialog(command);
 			}); return;
 		}
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene' || command === 'after-effects') { setDialog(command); return; }
+		if (command === 'canvas' || command === 'new' || command === 'settings' || command === 'preview' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene' || command === 'after-effects') { setDialog(command); return; }
 		if (command === 'send') {
 			void run(async () => {
 				if (!linkSender.current) {
@@ -190,6 +191,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	</Suspense>;
 	if (dialog === 'operators' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionOperatorsDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
+			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
+	</Suspense>;
+	if (dialog === 'canvas' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionCanvasDialog copy={copy} project={snapshot.project} store={store} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
 	</Suspense>;
 	if (dialog === 'paths' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
