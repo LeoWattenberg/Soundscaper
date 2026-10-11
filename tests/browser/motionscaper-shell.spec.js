@@ -76,3 +76,23 @@ test.describe('Motionscaper offline shell', () => {
 		await expect(page.locator('[data-motion-workspace]')).toBeVisible();
 	});
 });
+
+
+test('Help opens the Motion handbook through keyboard menus without initializing a project', async ({ page, context }) => {
+	await context.route('https://motionscaper.org/docs/**', route => route.fulfill({ contentType: 'text/html', body: '<h1>Motionscaper handbook</h1>' }));
+	await page.goto('/embed/de/');
+	await expect(page.locator('[data-motion-editor-bound]')).toBeVisible();
+	const help = page.getByRole('menuitem', { name: 'Hilfe', exact: true });
+	await help.focus(); await page.keyboard.press('Enter');
+	await expect(page.getByRole('menuitem', { name: 'Motionscaper-Handbuch', exact: true })).toBeFocused();
+	await page.keyboard.press('ArrowDown');
+	await expect(page.getByRole('menuitem', { name: 'Dein erstes Motion-Projekt', exact: true })).toBeFocused();
+	const opened = context.waitForEvent('page');
+	await page.keyboard.press('Enter');
+	const handbook = await opened;
+	await expect(handbook).toHaveURL('https://motionscaper.org/docs/de/first-project/');
+	await expect(handbook.getByRole('heading')).toHaveText('Motionscaper handbook');
+	expect(await page.evaluate(async () => (await indexedDB.databases()).some(({ name }) => name?.includes('motionscaper')))).toBe(false);
+	await expect(page.locator('[data-motion-workspace]')).toHaveCount(0);
+	await handbook.close();
+});

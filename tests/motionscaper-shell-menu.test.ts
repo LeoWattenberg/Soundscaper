@@ -122,3 +122,17 @@ test('3D scene authoring remains a localized idle-document Layer command', () =>
 	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
 	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, '3D-Szene und Qualität');
 });
+
+
+test('Help remains available without a document and while document work is busy', () => {
+	const destinations: string[] = [];
+	const options = { copy: motionscaperCopy('de'), workspaceOpen: false, onToggleWorkspace: () => undefined, hasProject: false, busy: true,
+		onDocumentation: (destination: 'manual' | 'tutorials') => { destinations.push(destination); } };
+	const help = createMotionscaperShellMenus(options).find(({ id }) => id === 'help');
+	assert.equal(help?.label, 'Hilfe');
+	assert.deepEqual(help?.items.map(({ label, disabled }) => ({ label, disabled })), [
+		{ label: 'Motionscaper-Handbuch', disabled: false }, { label: 'Dein erstes Motion-Projekt', disabled: false },
+	]);
+	for (const item of help?.items ?? []) item.onClick?.();
+	assert.deepEqual(destinations, ['manual', 'tutorials']);
+});

@@ -5,6 +5,7 @@ import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
 import { DesignSystemProviders } from '../DesignSystemRuntime.jsx';
 import { createMotionscaperShellMenus, type MotionDocumentCommand, type MotionDocumentRequest } from './shell-menu.ts';
+import { openMotionscaperDocumentation } from './motionscaper-documentation.ts';
 import type { MotionscaperDocumentSnapshot } from '../../../../motionscaper/editor-document-session.ts';
 import '../audio-editor-design-system.css';
 import './motionscaper-shell.css';
@@ -23,6 +24,7 @@ export interface MotionscaperShellProps {
 export default function MotionscaperShell({ locale, copy, onNewComposition }: MotionscaperShellProps) {
 	const [workspaceOpen, setWorkspaceOpen] = useState(false);
 	const [request, setRequest] = useState<MotionDocumentRequest | null>(null);
+	const [helpError, setHelpError] = useState(false);
 	const [documentState, setDocumentState] = useState<MotionscaperDocumentSnapshot>({
 		project: null, savedDigest: null, dirty: false, busy: false, canUndo: false, canRedo: false,
 	});
@@ -36,6 +38,7 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 		copy, workspaceOpen, onToggleWorkspace: () => setWorkspaceOpen((open) => !open),
 		onCommand, hasProject: documentState.project !== null, busy: documentState.busy,
 		canUndo: documentState.canUndo, canRedo: documentState.canRedo,
+		onDocumentation: destination => { setHelpError(false); void openMotionscaperDocumentation(destination, locale).catch(() => setHelpError(true)); },
 		...(onNewComposition ? { onNewComposition: () => { onNewComposition(); setWorkspaceOpen(true); } } : {}),
 	});
 	const toggleFullscreen = () => {
@@ -48,6 +51,7 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 				copy={menuCopy} menus={menus} projectName={documentState.project?.title ?? 'Motionscaper'} projectTabs={null}
 				searchEnabled={false} saveState={documentState.dirty ? 'dirty' : 'saved'} saveText="" onAssistanceSearchClose={noAction}
 				onSearchActivate={noAction} onFullscreen={toggleFullscreen} />
+			{helpError && <p role="alert">{copy.motionscaperHelpFailed}</p>}
 			{workspaceOpen && <Suspense fallback={<p role="status">{copy.loading}</p>}>
 				<MotionWorkspace copy={copy} document={documentState} />
 			</Suspense>}

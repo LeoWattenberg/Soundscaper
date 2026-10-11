@@ -10,7 +10,7 @@ export interface MotionscaperShellMenuItem {
 }
 
 export interface MotionscaperShellMenu {
-	readonly id: 'file' | 'edit' | 'view' | 'tracks';
+	readonly id: 'file' | 'edit' | 'view' | 'tracks' | 'help';
 	readonly label: string;
 	readonly items: readonly MotionscaperShellMenuItem[];
 }
@@ -23,6 +23,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly onCommand?: (command: MotionDocumentCommand) => void;
 	readonly hasProject?: boolean; readonly busy?: boolean;
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
+	readonly onDocumentation?: (destination: 'manual' | 'tutorials') => void;
 }
 
 export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
@@ -86,6 +87,12 @@ export function createMotionscaperShellMenus(
 				item('motion-ellipse', copy.motionscaperEllipse, 'ellipse', options.hasProject),
 				item('motion-star', copy.motionscaperStar, 'star', options.hasProject),
 			]),
+		}),
+		Object.freeze({ id: 'help' as const, label: copy.motionscaperHelpMenu,
+			items: Object.freeze((['manual', 'tutorials'] as const).map(destination => Object.freeze({
+				id: `motion-help-${destination}`, label: destination === 'manual' ? copy.motionscaperManual : copy.motionscaperFirstProject,
+				disabled: !options.onDocumentation, ...(options.onDocumentation ? { onClick: () => options.onDocumentation?.(destination) } : {}),
+			}))),
 		}),
 	]);
 }

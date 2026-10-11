@@ -4,6 +4,10 @@ import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 
 const ENTRIES = [
+	['motionscaperHelpMenu', 'Help', 'Hilfe'],
+	['motionscaperManual', 'Motionscaper Handbook', 'Motionscaper-Handbuch'],
+	['motionscaperFirstProject', 'Your First Motion Project', 'Dein erstes Motion-Projekt'],
+	['motionscaperHelpFailed', 'The handbook could not be opened. Try Help again.', 'Das Handbuch konnte nicht geöffnet werden. Versuche es erneut über Hilfe.'],
 	["motionscaperCompositions", "Compositions", "Kompositionen"],
 	["motionscaperCompositionName", "Composition name", "Kompositionsname"],
 	["motionscaperTargetComposition", "Target composition", "Zielkomposition"],

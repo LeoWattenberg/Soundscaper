@@ -2,7 +2,8 @@
 
 import { handbookLocaleForSegment } from './handbook-locales.mjs';
 
-const PRODUCTS = new Set(['soundscaper', 'framescaper']);
+const PRODUCTS = new Set(['soundscaper', 'framescaper', 'motionscaper']);
+const NESTED_PRODUCTS = ['framescaper', 'motionscaper'];
 const DOCUMENT_EXTENSIONS = '{markdown,mdown,mkdn,mkd,mdwn,md,mdx}';
 
 function assertProduct(productId) {
@@ -17,9 +18,9 @@ function productSegmentIndex(segments) {
 	return handbookLocaleForSegment(segments[0]) ? 1 : 0;
 }
 
-function isFramescaperEntry(entry) {
+function isProductEntry(entry, productId) {
 	const segments = normalizedSegments(entry);
-	return segments[productSegmentIndex(segments)] === 'framescaper';
+	return segments[productSegmentIndex(segments)] === productId;
 }
 
 function isSharedEditorChooser(entry) {
@@ -33,9 +34,9 @@ export function handbookProductEntryId(entry, productId) {
 	assertProduct(productId);
 	const segments = normalizedSegments(entry);
 	const productIndex = productSegmentIndex(segments);
-	if (productId === 'framescaper') {
-		if (segments[productIndex] !== 'framescaper') {
-			throw new Error(`${entry} does not belong to the Framescaper handbook.`);
+	if (NESTED_PRODUCTS.includes(productId)) {
+		if (segments[productIndex] !== productId) {
+			throw new Error(`${entry} does not belong to the ${productId[0].toUpperCase()}${productId.slice(1)} handbook.`);
 		}
 		segments.splice(productIndex, 1);
 	}
@@ -47,25 +48,25 @@ export function handbookProductEntryId(entry, productId) {
 /** The source boundary and loader options for one product handbook build. */
 export function handbookContentPlan(productId) {
 	assertProduct(productId);
-	const includes = productId === 'framescaper'
-		? isFramescaperEntry
-		: (entry) => !isFramescaperEntry(entry) && !isSharedEditorChooser(entry);
-	const patterns = productId === 'framescaper'
+	const nested = NESTED_PRODUCTS.includes(productId);
+	const includes = nested
+		? (entry) => isProductEntry(entry, productId)
+		: (entry) => !NESTED_PRODUCTS.some(product => isProductEntry(entry, product)) && !isSharedEditorChooser(entry);
+	const patterns = nested
 		? [
-			`framescaper/**/[^_]*.${DOCUMENT_EXTENSIONS}`,
-			`*/framescaper/**/[^_]*.${DOCUMENT_EXTENSIONS}`,
+			`${productId}/**/[^_]*.${DOCUMENT_EXTENSIONS}`,
+			`*/${productId}/**/[^_]*.${DOCUMENT_EXTENSIONS}`,
 		]
 		: [
 			`**/[^_]*.${DOCUMENT_EXTENSIONS}`,
-			'!framescaper/**',
-			'!*/framescaper/**',
+			...NESTED_PRODUCTS.flatMap(product => [`!${product}/**`, `!*/${product}/**`]),
 			`!start/choose-an-editor.${DOCUMENT_EXTENSIONS}`,
 			`!*/start/choose-an-editor.${DOCUMENT_EXTENSIONS}`,
 		];
 	return Object.freeze({
 		includes,
 		patterns: Object.freeze(patterns),
-		generateId: productId === 'framescaper'
+		generateId: nested
 			? ({ entry }) => handbookProductEntryId(entry, productId)
 			: undefined,
 	});
