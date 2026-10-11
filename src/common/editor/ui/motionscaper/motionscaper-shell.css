@@ -51,3 +51,5 @@
 .motionscaper-timeline-track { position: relative; height: 2rem; background: #80808020; overflow: hidden; }
 .motionscaper-timeline-bar { position: absolute; min-width: .5rem; height: 100%; background: #4a80ff55; color: inherit; border: 1px solid #4a80ff; touch-action: none; overflow: hidden; cursor: grab; }
 .motionscaper-timeline-bar:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+.motionscaper-keyframe-list { list-style: none; padding: 0; max-height: 25vh; overflow: auto; }
+.motionscaper-keyframe-list li { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: .4rem; gap: .75rem; }
