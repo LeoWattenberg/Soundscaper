@@ -8,9 +8,10 @@ import type { MotionscaperProject } from './editor-project-types.ts';
 import type { MotionscaperProjectCommand } from './editor-project-commands.ts';
 
 /** Place media at composition time zero; trim to its exact source duration without changing the frame grid. */
-export function createMotionscaperMediaCommands(project: MotionscaperProject, asset: MotionAsset, placementId: string): readonly MotionscaperProjectCommand[] {
+export function createMotionscaperMediaCommands(project: MotionscaperProject, asset: MotionAsset, placementId: string, compositionId = project.primaryCompositionId): readonly MotionscaperProjectCommand[] {
 	if (asset.kind === 'font') throw new TypeError('A font is not a media placement.');
-	const composition = project.compositions.find((entry) => entry.id === project.primaryCompositionId)!;
+	const composition = project.compositions.find((entry) => entry.id === compositionId);
+	if (!composition) throw new ReferenceError('The target media composition is missing.');
 	const retained = project.assets.find((entry) => entry.kind === asset.kind && entry.sha256 === asset.sha256);
 	const assetId = retained?.id ?? asset.id;
 	const commands: MotionscaperProjectCommand[] = retained ? [] : [{ type: 'asset/add', asset }];

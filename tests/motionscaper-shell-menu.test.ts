@@ -93,3 +93,13 @@ test('text and appearance editing opens only from its localized idle-document la
 	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
 	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Text und Aussehen');
 });
+
+test('composition management is a localized File command that requires an idle project', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('en'), workspaceOpen: false, onToggleWorkspace: () => undefined, onCommand: (command: string) => { commands.push(command); }, hasProject: true };
+	const find = (menus: ReturnType<typeof createMotionscaperShellMenus>) => menus.find(({ id }) => id === 'file')?.items.find(({ id }) => id === 'motion-compositions');
+	const item = find(createMotionscaperShellMenus(options)); assert.equal(item?.label, 'Compositions'); item?.onClick?.(); assert.deepEqual(commands, ['compositions']);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Kompositionen');
+});

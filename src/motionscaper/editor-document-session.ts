@@ -98,10 +98,11 @@ export class MotionscaperDocumentSession {
 	edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[] = []): Promise<void> {
 		return this.#run(() => this.#edit(commands, assets));
 	}
-	addLayer(draft: MotionLayerDraft): Promise<void> {
+	addLayer(draft: MotionLayerDraft, compositionId?: string): Promise<void> {
 		return this.#run(async () => {
 			const project = this.#requireProject();
-			const composition = project.compositions.find((entry) => entry.id === project.primaryCompositionId)!;
+			const composition = project.compositions.find((entry) => entry.id === (compositionId ?? project.primaryCompositionId));
+			if (!composition) throw new Error('The target composition is unavailable.');
 			const { createAuthoredMotionLayer } = await import('./editor-layer-authoring.ts');
 			const assets: { asset: MotionAsset; body: Blob }[] = [];
 			const commands: MotionscaperProjectCommand[] = [];
@@ -122,12 +123,14 @@ export class MotionscaperDocumentSession {
 			await this.#edit(commands, assets);
 		});
 	}
-	importMedia(file: Blob, name: string): Promise<void> {
+	importMedia(file: Blob, name: string, compositionId?: string): Promise<void> {
 		return this.#run(async () => {
+			const project = this.#requireProject(); const targetId = compositionId ?? project.primaryCompositionId;
+			if (!project.compositions.some(({ id }) => id === targetId)) throw new Error('The target composition is unavailable.');
 			const { prepareMotionMedia } = await import('../common/editor/motion-media-import.ts');
 			const { createMotionscaperMediaCommands } = await import('./editor-media-authoring.ts');
 			const imported = await prepareMotionMedia(file, { id: this.#randomId(), name });
-			const commands = createMotionscaperMediaCommands(this.#requireProject(), imported.asset, this.#randomId());
+			const commands = createMotionscaperMediaCommands(project, imported.asset, this.#randomId(), targetId);
 			await this.#edit(commands, [imported]);
 		});
 	}

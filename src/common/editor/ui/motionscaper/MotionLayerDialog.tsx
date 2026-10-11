@@ -7,8 +7,9 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import type { MotionComposition } from '../../motion-composition.ts';
 import { createAuthoredMotionLayer, type MotionAuthoredLayerKind, type MotionLayerDraft } from '../../../../motionscaper/editor-layer-authoring.ts';
 
-export default function MotionLayerDialog({ copy, kind, composition, busy, error, onSubmit, onClose }: Readonly<{
+export default function MotionLayerDialog({ copy, kind, composition, compositionChoices, onCompositionChange, busy, error, onSubmit, onClose }: Readonly<{
 	copy: Readonly<Record<string, string>>; kind: MotionAuthoredLayerKind; composition: MotionComposition;
+	compositionChoices?: readonly MotionComposition[]; onCompositionChange?: (id: string) => void;
 	busy: boolean; error: string | null; onSubmit: (draft: MotionLayerDraft) => void; onClose: () => void;
 }>) {
 	const id = useId();
@@ -34,6 +35,7 @@ export default function MotionLayerDialog({ copy, kind, composition, busy, error
 			<Button variant="secondary" disabled={busy} onClick={onClose}>{copy.motionscaperCancel}</Button>
 			<Button variant="primary" disabled={busy} type="submit" form={id}>{copy.motionscaperCreate}</Button>
 		</>} />}>
+		{compositionChoices && compositionChoices.length > 1 && <label>{copy.motionscaperTargetComposition}<select value={composition.id} disabled={busy} onChange={(event) => onCompositionChange?.(event.currentTarget.value)}>{compositionChoices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>}
 		<form id={id} onSubmit={submit} className="motionscaper-settings-form"><fieldset disabled={busy}>
 			<label>{copy.motionscaperLayerName}<input data-motion-layer-name value={draft.name} maxLength={512} required
 				onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} /></label>

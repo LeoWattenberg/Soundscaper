@@ -13,6 +13,7 @@ import type { MotionscaperLayerClipboard } from '../../../../motionscaper/editor
 import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
+const MotionCompositionsDialog = lazy(() => import('./MotionCompositionsDialog.tsx'));
 const MotionAppearanceDialog = lazy(() => import('./MotionAppearanceDialog.tsx'));
 const MotionExpressionDialog = lazy(() => import('./MotionExpressionDialog.tsx'));
 const MotionCompositingDialog = lazy(() => import('./MotionCompositingDialog.tsx'));
@@ -36,7 +37,8 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | MotionAuthoredLayerKind | null>(null);
+	const [targetCompositionId, setTargetCompositionId] = useState('');
 	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
 	const [keyframeClipboard, setKeyframeClipboard] = useState<MotionKeyframeClipboard | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
@@ -59,9 +61,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		lastRequest.current = request.id;
 		setError(null);
 		const command = request.command;
+		setTargetCompositionId('');
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance') { setDialog(command); return; }
+		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions') { setDialog(command); return; }
 		if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
@@ -102,6 +105,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			opened();
 		});
 	};
+	if (dialog === 'compositions' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionCompositionsDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
+			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
+	</Suspense>;
 	if (dialog === 'appearance' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionAppearanceDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands, assets) => session.edit(commands, assets)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
@@ -142,9 +149,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	</Suspense>;
 	const layerKind = layerKinds.find((entry) => entry === dialog);
 	const primary = snapshot.project?.compositions.find((entry) => entry.id === snapshot.project?.primaryCompositionId);
-	if (layerKind && primary) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
-		<MotionLayerDialog key={request.id} copy={copy} kind={layerKind} composition={primary} busy={busy} error={error} onClose={close}
-			onSubmit={(draft) => { void run(async () => { await session.addLayer(draft); opened(); }); }} />
+	const targetComposition = snapshot.project?.compositions.find((entry) => entry.id === targetCompositionId) ?? primary;
+	if (layerKind && targetComposition) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionLayerDialog key={`${request.id}/${targetComposition.id}`} copy={copy} kind={layerKind} composition={targetComposition} compositionChoices={snapshot.project!.compositions} onCompositionChange={setTargetCompositionId} busy={busy} error={error} onClose={close}
+			onSubmit={(draft) => { void run(async () => { await session.addLayer(draft, targetComposition.id); opened(); }); }} />
 	</Suspense>;
 	if (dialog === 'new' || dialog === 'settings') {
 		const composition = snapshot.project?.compositions.find((item) => item.id === snapshot.project?.primaryCompositionId);
@@ -158,10 +166,11 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		onClose={close} onOpen={(id, recover) => { void run(async () => { await session.open(id, recover); opened(); }); }} />;
 	if (dialog === 'import') return <AudioEditorDialogShell title={copy.motionscaperImportMedia} onClose={busy ? undefined : close} width={460}
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={busy} onClick={close}>{copy.motionscaperCancel}</Button>} />}>
+		{snapshot.project && snapshot.project.compositions.length > 1 && <label>{copy.motionscaperTargetComposition}<select value={targetComposition?.id ?? ''} disabled={busy} onChange={(event) => setTargetCompositionId(event.currentTarget.value)}>{snapshot.project.compositions.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>}
 		<p>{copy.motionscaperMediaAdmission}</p>
 		<label>{copy.motionscaperMediaFile}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/*,audio/*" disabled={busy} onChange={(event) => {
 			const file = event.currentTarget.files?.[0];
-			if (file) void run(async () => { await session.importMedia(file, file.name); opened(); }, copy.motionscaperMediaFailed);
+			if (file) void run(async () => { await session.importMedia(file, file.name, targetComposition?.id); opened(); }, copy.motionscaperMediaFailed);
 		}} /></label>
 		{busy && <p role="status">{copy.motionscaperWorking}</p>}
 		{error && <p role="alert">{error}</p>}

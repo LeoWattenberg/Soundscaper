@@ -4,6 +4,17 @@ import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 
 const ENTRIES = [
+	["motionscaperCompositions", "Compositions", "Kompositionen"],
+	["motionscaperCompositionName", "Composition name", "Kompositionsname"],
+	["motionscaperTargetComposition", "Target composition", "Zielkomposition"],
+	["motionscaperCreateEmptyComposition", "Create Empty Composition", "Leere Komposition erstellen"],
+	["motionscaperApplyCompositionSettings", "Apply Composition Settings", "Kompositionseinstellungen anwenden"],
+	["motionscaperSetPrimaryComposition", "Set as Primary Composition", "Als Hauptkomposition festlegen"],
+	["motionscaperRemoveComposition", "Remove Composition", "Komposition entfernen"],
+	["motionscaperNestComposition", "Add Precomposition Layer", "Unterkompositionsebene hinzufügen"],
+	["motionscaperCompositionIdentityHint", "Composition names are independent of the project title. The primary composition opens by default. Remove nested references before removing a composition.", "Kompositionsnamen sind vom Projekttitel unabhängig. Die Hauptkomposition wird standardmäßig geöffnet. Entferne verschachtelte Verweise vor dem Entfernen einer Komposition."],
+	["motionscaperCompositionSettingsHint", "Existing layers, animation and work areas keep their frame coordinates. A shorter duration must still contain the saved work area. New empty compositions use these settings and start transparent.", "Vorhandene Ebenen, Animationen und Arbeitsbereiche behalten ihre Bildkoordinaten. Eine kürzere Dauer muss den gespeicherten Arbeitsbereich enthalten. Neue leere Kompositionen verwenden diese Einstellungen und beginnen transparent."],
+	["motionscaperNestCompositionHint", "Place the selected composition into the target at time zero. Source seconds remain exact across frame rates; cyclic nesting is refused.", "Platziere die gewählte Komposition zum Zeitpunkt null im Ziel. Quellsekunden bleiben über Bildraten hinweg exakt; zyklische Verschachtelung wird abgelehnt."],
 	['motionscaperExpressionEvaluate', 'Evaluate Expression', 'Ausdruck auswerten'],
 	['motionscaperExpressionEvaluateFrame', 'Evaluation frame', 'Auswertungsbild'],
 	['motionscaperExpressionPathVertices', 'Path vertices:', 'Pfadpunkte:'],
