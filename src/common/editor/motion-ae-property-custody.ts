@@ -4,6 +4,7 @@ import { MOTION_AE_EXCHANGE_LIMITS as limits } from './motion-ae-exchange-types.
 import { motionArray, motionBoolean, motionEnum, motionNumber, motionRecord } from './motion-values.ts';
 import { motionAeCustodyString as motionString } from './motion-ae-custody-string.ts';
 import { normalizeMotionAeTextLayout } from './motion-ae-text-layout.ts';
+import { normalizeMotionAeVectorStyle } from './motion-ae-shape-custody.ts';
 
 export interface MotionAeCustodyBudget { properties: number; keys: number }
 function mask(value: unknown): MotionAeMaskMetadata {
@@ -69,15 +70,17 @@ export function normalizeMotionAeProperties(input: unknown, budget: MotionAeCust
 	if (depth > limits.propertyDepth) throw new RangeError('AE property depth budget exceeded.');
 	return motionArray(input, limits.properties, 'AE properties').map((value): MotionAeProperty => {
 		budget.properties++; if (budget.properties > limits.properties) throw new RangeError('AE property budget exceeded.');
-		const d = motionRecord(value, ['kind', 'matchName', 'name', 'children', 'value', 'keys', 'expression', 'spatial', 'reason', 'samples', 'mask'], 'AE property', ['kind']);
+		const d = motionRecord(value, ['kind', 'matchName', 'name', 'children', 'value', 'keys', 'expression', 'spatial', 'reason', 'samples', 'mask', 'enabled', 'vectorStyle'], 'AE property', ['kind']);
 		const kind = motionEnum(d.kind, ['group', 'numeric', 'shape', 'text', 'unsupported'], 'AE property kind');
 		const fields = kind === 'group' ? ['children'] : kind === 'unsupported' ? ['reason'] : kind === 'numeric' ? ['value', 'keys', 'expression', 'spatial'] : ['value', 'keys', 'expression'];
 		const required = ['kind', 'matchName', 'name', ...fields];
-		const r = motionRecord(value, kind === 'numeric' ? [...required, 'samples'] : kind === 'group' ? [...required, 'mask'] : required, 'AE property', required);
+		const r = motionRecord(value, kind === 'numeric' ? [...required, 'samples'] : kind === 'group' ? [...required, 'mask', 'enabled', 'vectorStyle'] : required, 'AE property', required);
 		const base = { matchName: motionString(r.matchName, 'AE match name', 256), name: motionString(r.name, 'AE property name', 1024, true) };
 		if (kind === 'group') {
+			if ((r.enabled !== undefined || r.vectorStyle !== undefined) && !base.matchName.startsWith('ADBE Vector ')) throw new TypeError('AE enabled metadata requires a vector group.');
 			if (r.mask !== undefined && base.matchName !== 'ADBE Mask Atom') throw new TypeError('AE mask metadata requires a mask atom group.');
-			return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1), ...(r.mask === undefined ? {} : { mask: mask(r.mask) }) };
+			return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1), ...(r.mask === undefined ? {} : { mask: mask(r.mask) }), ...(r.enabled === undefined ? {} : { enabled: motionBoolean(r.enabled, 'AE vector enabled') }),
+				...(r.vectorStyle === undefined ? {} : { vectorStyle: normalizeMotionAeVectorStyle(r.vectorStyle) }) };
 		}
 		if (kind === 'unsupported') return { ...base, kind, reason: motionString(r.reason, 'AE unsupported reason', 2048) };
 		const expr = expression(r.expression);

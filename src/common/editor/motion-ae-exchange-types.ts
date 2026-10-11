@@ -42,8 +42,14 @@ export interface MotionAeMaskMetadata {
 	readonly inverted: boolean; readonly rotoBezier: boolean; readonly featherFalloff: 'linear' | 'smooth';
 	readonly motionBlur: 'same-as-layer' | 'on' | 'off';
 }
+export interface MotionAeVectorStyle {
+	readonly blendMode: 'normal' | 'unsupported' | 'unavailable';
+	readonly fillRule?: 'nonzero' | 'evenodd' | 'unavailable';
+	readonly lineCap?: 'butt' | 'round' | 'square' | 'unavailable';
+	readonly lineJoin?: 'miter' | 'round' | 'bevel' | 'unavailable';
+}
 export type MotionAeProperty =
-	| (MotionAePropertyBase & { readonly kind: 'group'; readonly children: readonly MotionAeProperty[]; readonly mask?: MotionAeMaskMetadata })
+	| (MotionAePropertyBase & { readonly kind: 'group'; readonly children: readonly MotionAeProperty[]; readonly mask?: MotionAeMaskMetadata; readonly enabled?: boolean; readonly vectorStyle?: MotionAeVectorStyle })
 	| (MotionAePropertyBase & { readonly kind: 'numeric'; readonly value: readonly number[]; readonly spatial: boolean;
 		readonly keys: readonly MotionAeKey<readonly number[]>[]; readonly expression: MotionAeExpression | null; readonly samples?: MotionAeNumericSamples })
 	| (MotionAePropertyBase & { readonly kind: 'shape'; readonly value: MotionAeShape;
