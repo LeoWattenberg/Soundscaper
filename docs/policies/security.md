@@ -761,13 +761,16 @@ chunk. Both transport and private receiver staging independently verify each
 declared digest and length. The default retained closure budget is 8 GiB with an
 explicit 64 GiB maximum. Atomic receiver publication binds the accepted
 snapshot, historical closure and exact owning project/history to storage digest
-and session write fences. The currently qualified helper transfers one offer per
-paired session; persistent saved-update sessions, complete editor/archive/native
-delivery integration and startup-budget integration remain unfinished. Actual
+and session write fences. The qualified helper supports serialized saved updates
+over one connected session pinned to one project/composition identity, with
+explicit Disconnect, a 60-second pending pairing limit, 30-second active RPC
+limit and a 120-second peer-presence expiry for throttled tabs. Complete
+editor/archive/native delivery integration remains unfinished. Actual
 cross-origin Chromium fixtures retain isolation, transfer complete original
-bytes, reopen after sender windows close, and cancel stalled transfer on
-receiver bridge close. These bounded fixtures do not qualify abrupt process or
-power loss, supported-browser popup lifecycle parity, maximum-scale
+bytes, reopen after sender windows close, receive later saved revisions in the
+same windows, explicitly disconnect, and cancel stalled transfer on receiver
+bridge or isolated editor closure. These bounded fixtures do not qualify abrupt
+process or power loss, supported-browser popup lifecycle parity, maximum-scale
 heap/RSS/elapsed time, concurrent storage reservation or publisher
 authentication.
 <!-- /policy-narrative:isolated-motion-composition-bridge -->

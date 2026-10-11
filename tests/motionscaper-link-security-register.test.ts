@@ -17,7 +17,7 @@ test('Motion bridge header exceptions have explicit development authority and de
 	assert.equal(risk.currentControls.some(control => control.id === 'isolated-motion-composition-bridge'), false);
 	assert.match(control.summary, /\/composition-link\/send\//u); assert.match(control.summary, /\/composition-link\/receive\//u);
 	assert.match(control.summary, /same-origin-allow-popups/u); assert.match(control.summary, /unsafe-none/u); assert.match(control.summary, /credentialless/u);
-	assert.match(control.summary, /one-off|one offer/u); assert.match(control.summary, /unqualified|unfinished/u);
+	assert.match(control.summary, /serialized saved updates/u); assert.match(control.summary, /unqualified|unfinished/u);
 	for (const evidence of control.evidence) await access(new URL(`../${evidence.path}`, import.meta.url));
 	const narratives = await loadPolicyNarratives(fileURLToPath(new URL('../', import.meta.url))) as readonly { binding: { marker: string }; rendered: string }[];
 	const narrative = narratives.find(narrative => narrative.binding.marker === control.id); assert.ok(narrative);
