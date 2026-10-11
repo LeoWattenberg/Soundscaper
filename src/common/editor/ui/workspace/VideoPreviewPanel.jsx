@@ -223,7 +223,9 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			const visualSession = visualSessionRef.current;
 			if (!visualSession) return;
 			try {
-				updateVisualPreviewFrame(visualSession.resolve(timelineFrame));
+				const frame = visualSession.resolve(timelineFrame);
+				updateVisualPreviewFrame(frame);
+				updateRenderIssue(createVideoPreviewCompositorFallbackReport(frame.layers));
 			} catch (error) {
 				updateVisualPreviewFrame(null, error instanceof Error ? error.message : String(error));
 			}

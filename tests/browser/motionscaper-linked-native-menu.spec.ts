@@ -34,12 +34,13 @@ test('native selected-file controls keep the controller connection after dialog 
 	expect(await page.evaluate(() => (globalThis as unknown as { nativeMotionFixture: { cancelled(): number } }).nativeMotionFixture.cancelled())).toBe(1);
 });
 
-test('native successor File export streams real retained partial-alpha picture and mixed PCM without encoded proxy assets', async ({ page }) => {
+for (const unavailablePreview of [false, true]) test(`native successor File export streams real retained partial-alpha picture and mixed PCM without encoded proxy assets (preview unavailable=${String(unavailablePreview)})`, async ({ page }) => {
 	const { motionscaperSuccessorNativeFixture, motionscaperSuccessorNativeExpectedSample } = await import('../helpers/motionscaper-successor-native-fixture.ts');
 	const { createBlobScapeArchiveByteSource } = await import('../../src/common/editor/scape-archive-byte-source.ts');
 	const { openMotionNativeFrameReader } = await import('../../src/common/editor/motion-native-frame-carrier-v1.ts');
 	const { openMotionNativePcmReader, motionNativePcmPlan } = await import('../../src/common/editor/motion-native-pcm-carrier-v1.ts');
 	const { FRAMESCAPER_SUCCESSOR_DELIVERY_PROFILE } = await import('../../src/framescaper/editor-successor-native-delivery-contract.ts');
+	if (unavailablePreview) await page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) { return args[0] === 'webgl2' && this.hasAttribute('data-video-preview-canvas') ? null : Reflect.apply(original, this, args); } as typeof original; });
 	const fixture = motionscaperSuccessorNativeFixture(); const archive = await exportMotionscaperArchive(fixture.revision.project, () => new Blob([fixture.bytes])); if (!archive) throw new Error('Missing native test archive');
 	await page.addInitScript(({ archive, profile }) => {
 		const bytes = new Uint8Array(archive), picture: number[] = [], audio: number[] = [];
@@ -56,6 +57,7 @@ test('native successor File export streams real retained partial-alpha picture a
 	await expect(page.locator('[data-frame-native-delivery]')).toHaveCount(0); await menu(page, 'File', 'Linked compositions…');
 	await page.getByRole('button', { name: 'Choose saved .mscape file', exact: true }).click(); await expect(page.getByText('Native revision 0', { exact: true }).first()).toBeVisible();
 	await page.getByRole('button', { name: 'Disconnect', exact: true }).click(); await close(page);
+	if (unavailablePreview) { await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'fallback'); await expect(page.locator('[data-video-preview-renderer-warning]')).toContainText('Affected clips are hidden in the preview'); await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-omitted-composition-clip-ids', /clip-/u); }
 	await menu(page, 'File', 'Export sequence as ProRes 4444…'); const dialog = page.locator('[data-frame-native-delivery]');
 	await dialog.getByRole('button', { name: 'Choose destination and export', exact: true }).click();
 	await expect(dialog.getByRole('status')).toContainText('Saved Native.mov', { timeout: 30000 }); await expect(dialog.getByRole('alert')).toHaveCount(0);

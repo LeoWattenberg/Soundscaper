@@ -11,6 +11,8 @@ import { createVideoTrack } from '../src/common/editor/project-media-factory.ts'
 import { createFramescaperCompositionSource } from '../src/framescaper/editor-composition-link-source.ts';
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { createFramescaperSuccessorCompositionPreview } from '../src/framescaper/editor-composition-link-preview.ts';
+import { createVideoPreviewCompositorFallbackReport } from '../src/common/editor/ui/video-preview-compositor.js';
+import { resolveVideoPreviewRenderIssue } from '../src/common/editor/ui/workspace/video-preview-fallback.ts';
 import { shouldRenderExactProductVideoPreview } from '../src/common/editor/ui/workspace/video-preview-exact-render-policy.ts';
 import { imageFixture, imageClip, assetStore, drawableFactory, type RecordedDrawableTimelineImage } from './helpers/framescaper-timeline-image-preview-fixture.ts';
 
@@ -35,6 +37,8 @@ test('successor preview renders the actual Frame exact composition graph at save
 	} as never, acquire: async () => ({ rasterizer, async release() { releases++; } }), createOutput: () => ({ drawable: {}, write(pixels) { written = pixels.slice(); }, dispose() {} }) });
 	assert.ok(session?.renderExact); assert.equal(shouldRenderExactProductVideoPreview(session, 'playing'), true);
 	try {
+		const fallback = resolveVideoPreviewRenderIssue(createVideoPreviewCompositorFallbackReport(session.resolve(0).layers));
+		assert.equal(fallback.requestedCompositionCount, 1); assert.deepEqual(fallback.omittedCompositionClipIds, ['clip']);
 		const first = await session.renderExact({ timelineSample: 0, mediaLayers: [] }); const firstPixels = written.slice();
 		assert.equal(first.frame.layers.flatMap(layer => layer.entries).some(entry => entry.sourceId === 'linked'), true);
 		assert.ok(firstPixels[0]! > 100); assert.equal(firstPixels[3], 255);
