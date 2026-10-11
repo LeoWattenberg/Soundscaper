@@ -58,6 +58,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		estimateMaskWorkingBytes: estimateMotionMaskWorkingBytes,
 		async rasterizeMask(mask, target, signal) { rasterMotionCanvasKitMask(kit, mask, target, signal); },
 		estimateSourceWorkingBytes(layer, target) {
+			assertSourceAuthoringReady(layer.state);
 			const bounds = motionLocalSourceBounds(layer.state, assets);
 			return Math.max(rasterizer.estimateWorkingBytes!(layer, { ...target, width: bounds.width, height: bounds.height }),
 				layer.state.masks.length ? estimateMotionMaskWorkingBytes(bounds.width, bounds.height, layer.state.masks) : 0,
@@ -90,6 +91,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		async rasterize(layer, target, signal) {
 			signal?.throwIfAborted(); assertMotion2DMatrix(layer.worldMatrix);
 			const state = layer.state;
+			assertSourceAuthoringReady(state);
 			if (state.kind === 'image' || state.kind === 'footage') {
 				const asset = assets.get(state.assetId);
 				if (!asset || asset.kind !== state.kind) throw new Error(`Missing motion ${state.kind} asset ${state.assetId}.`);
@@ -137,6 +139,11 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		},
 	};
 	return rasterizer;
+}
+
+function assertSourceAuthoringReady(state: MotionEvaluatedLayer['state']): void {
+	if (state.kind === 'shapes' && state.operators?.some((operator) => operator.enabled)) throw new Error('Motion shape-operator rasterization is unavailable.');
+	if (state.kind === 'text' && state.document.animators?.some((animator) => animator.enabled)) throw new Error('Motion text-animator rasterization is unavailable.');
 }
 
 function decodeImage(kit: CanvasKit, bytes: Uint8Array, asset: Extract<MotionAsset, { kind: 'image' }>): MotionSurface {

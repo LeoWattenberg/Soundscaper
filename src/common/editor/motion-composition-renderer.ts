@@ -84,7 +84,7 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer)
 		if (layer.state.is3D) throw new Error(`Unsupported 3D motion layer ${layer.state.name}.`);
 		assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
-			if (['camera', 'light'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (['camera', 'light', 'shape-operator', 'text-animator'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
 			if (operation.kind === 'effect' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes || !rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes)) {
 				throw new Error(`Unsupported motion effect ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}
