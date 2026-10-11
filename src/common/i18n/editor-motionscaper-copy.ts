@@ -152,6 +152,7 @@ const ENTRIES = [
 	['motionscaperOpaqueIdentity', 'Project family / version', 'Projektfamilie / Version'],
 	['motionscaperOpaqueCopied', 'Original archive copied unchanged.', 'Originalarchiv unverändert kopiert.'],
 	['motionscaperLeaseLost', 'This project is open in another window or its write access expired. Your composition remains open. Use Project Library to reopen its saved version.', 'Dieses Projekt ist in einem anderen Fenster geöffnet oder sein Schreibzugriff ist abgelaufen. Deine Komposition bleibt geöffnet. Öffne ihre gespeicherte Version über die Projektbibliothek erneut.'],
+	['motionscaperLaunchFailed', 'This file launch could not be opened. Close the current dialog, then use File → Open to choose one Scape project.', 'Diese Datei konnte nicht beim Start geöffnet werden. Schließe den aktuellen Dialog und wähle dann über Datei → Öffnen ein Scape-Projekt aus.'],
 	['motionscaperLibraryEmpty', 'No saved compositions on this device.', 'Auf diesem Gerät sind keine Kompositionen gespeichert.'],
 	['motionscaperRecover', 'Recover unsaved changes', 'Ungespeicherte Änderungen wiederherstellen'],
 	['motionscaperRecoveryAvailable', 'Unsaved changes are available for recovery.', 'Ungespeicherte Änderungen können wiederhergestellt werden.'],

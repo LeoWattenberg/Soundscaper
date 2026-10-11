@@ -46,7 +46,10 @@ test('Motionscaper shell install metadata advertises its identity without unimpl
 	assert.equal(manifest.start_url, '/en/');
 	assert.ok(manifest.icons.every(({ src }: { src: string }) => src.includes('motionscaper')));
 	assert.deepEqual(manifest.screenshots, []);
-	assert.deepEqual(manifest.file_handlers, []);
-	assert.deepEqual(manifest.shortcuts, []);
+	assert.equal(manifest.file_handlers.length, 1);
+	assert.ok(manifest.file_handlers[0].accept['application/vnd.soundscaper.scape+zip'].includes('.mscape'));
+	assert.ok(manifest.file_handlers[0].icons.every(({ src }: { src: string }) => src.includes('motionscaper')));
+	assert.equal(manifest.shortcuts.length, 2);
+	assert.ok(manifest.shortcuts.every(({ url }: { url: string }) => url.startsWith(manifest.start_url)));
 	assert.equal(Object.hasOwn(manifest, 'share_target'), false);
 });

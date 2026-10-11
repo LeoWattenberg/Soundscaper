@@ -177,9 +177,9 @@ export function productWebManifest(product) {
 		],
 		screenshots: productInstallScreenshots(product.id),
 		launch_handler: { client_mode: ['navigate-existing', 'auto'] },
-		file_handlers: product.id === 'motionscaper' ? [] : productFileHandlers(product),
+		file_handlers: product.id === 'motionscaper' ? productFileHandlers(product).slice(0, 1) : productFileHandlers(product),
 		...(product.id === 'motionscaper' ? {} : { share_target: productShareTarget(product) }),
-		shortcuts: product.id === 'motionscaper' ? [] : productShortcuts(product),
+		shortcuts: productShortcuts(product),
 	};
 }
 

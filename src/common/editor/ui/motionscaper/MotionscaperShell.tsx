@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { Suspense, useCallback, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
 import { DesignSystemProviders } from '../DesignSystemRuntime.jsx';
@@ -25,10 +25,43 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 	const [workspaceOpen, setWorkspaceOpen] = useState(false);
 	const [request, setRequest] = useState<MotionDocumentRequest | null>(null);
 	const [helpError, setHelpError] = useState(false);
+	const [launchError, setLaunchError] = useState(false);
 	const [documentState, setDocumentState] = useState<MotionscaperDocumentSnapshot>({
 		project: null, savedDigest: null, dirty: false, busy: false, canUndo: false, canRedo: false,
 	});
+	const documentRef = useRef(documentState);
+	const readonlyLaunch = useRef(false);
+	const documentChanged = useCallback((snapshot: MotionscaperDocumentSnapshot) => {
+		documentRef.current = snapshot;
+		if (!snapshot.busy) readonlyLaunch.current = false;
+		setDocumentState(snapshot);
+	}, []);
 	const onCommand = (command: MotionDocumentCommand) => setRequest((previous) => ({ id: (previous?.id ?? 0) + 1, command }));
+	useEffect(() => {
+		if (Reflect.get(globalThis, 'scapeDesktop') !== undefined) return;
+		let disposed = false; let installation: { release(): void } | undefined; let finish: (() => void) | undefined;
+		void import('../../../../motionscaper/editor-file-launch.ts').then(({ installMotionscaperFileLaunch, takeMotionscaperShortcut }) => {
+			if (disposed) return;
+			const url = new URL(location.href); const command = takeMotionscaperShortcut(url);
+			if (command) { history.replaceState(history.state, '', url.href); setRequest(previous => ({ id: (previous?.id ?? 0) + 1, command })); }
+			installation = installMotionscaperFileLaunch({ desktop: false, onError: () => setLaunchError(true), onOpen: async file => {
+				if (disposed) return;
+				if (documentRef.current.busy || readonlyLaunch.current || document.querySelector('[role="dialog"]')) throw new Error('Close the current Motionscaper dialog before opening a launched file.');
+				setLaunchError(false);
+				await new Promise<void>(resolve => {
+					finish = resolve;
+					setRequest(previous => {
+						const id = (previous?.id ?? 0) + 1;
+						return { id, command: 'open', file, onComplete: (readOnly: boolean) => {
+							readonlyLaunch.current = readOnly; documentRef.current = { ...documentRef.current, busy: readOnly }; finish = undefined; resolve();
+							setRequest(current => current?.id === id ? { id, command: 'open' } : current);
+						} };
+					});
+				});
+			} });
+		}).catch(() => { if (!disposed) setLaunchError(true); });
+		return () => { disposed = true; installation?.release(); finish?.(); };
+	}, []);
 	const projectOpened = useCallback(() => setWorkspaceOpen(true), []);
 	const menuCopy = useMemo(() => ({
 		...copy, applicationMenu: copy.motionscaperApplicationMenu,
@@ -52,11 +85,12 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 				searchEnabled={false} saveState={documentState.dirty ? 'dirty' : 'saved'} saveText="" onAssistanceSearchClose={noAction}
 				onSearchActivate={noAction} onFullscreen={toggleFullscreen} />
 			{helpError && <p role="alert">{copy.motionscaperHelpFailed}</p>}
+			{launchError && <p role="alert">{copy.motionscaperLaunchFailed}</p>}
 			{workspaceOpen && <Suspense fallback={<p role="status">{copy.loading}</p>}>
 				<MotionWorkspace copy={copy} document={documentState} />
 			</Suspense>}
 			{request && <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
-				<DocumentRuntime copy={copy} request={request} onChange={setDocumentState} onProjectOpened={projectOpened} />
+				<DocumentRuntime copy={copy} request={request} onChange={documentChanged} onProjectOpened={projectOpened} />
 			</Suspense>}
 		</div>
 	</DesignSystemProviders>;
