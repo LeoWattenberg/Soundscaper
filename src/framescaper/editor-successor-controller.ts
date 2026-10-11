@@ -28,16 +28,22 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		acquireProjectLock: environment.runtime.acquireProjectLock, playbackProjectService: environment.playback,
 		createProjectIfAbsent: (project, options) => environment.controllerStore.createProjectIfAbsent(project, options),
 		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
+		loadProductVideoExportStrategy: async () => {
+			const { createFramescaperVideoExportStrategySuccessor } = await import('./video-export-strategy-successor.ts');
+			return createFramescaperVideoExportStrategySuccessor({ store: environment.controllerStore, readAsset: asset => environment.owners.readAsset(asset) });
+		},
 		productSequenceActions: { ...createFramescaperSequenceActionsSequence(execute), ...createFramescaperMulticameraActionsSequence(execute),
 			retimeSet: retime.set, retimeReset: retime.reset, retimeConstant: retime.constant, retimeReverse: retime.reverse, retimeFreeze: retime.freeze, retimeRamp: retime.ramp },
 		resolveProductAudioSource: async request => {
 			request.assertCurrent(); request.signal?.throwIfAborted();
-			const provider = createFramescaperCompositionPcmSource({ project: framescaperSuccessorPlaybackCanonicalProject(request.project) ?? request.project,
+			const project = canonicalSourceProject(request.project, request.source); if (!project) return null;
+			const provider = createFramescaperCompositionPcmSource({ project,
 				source: request.source, readAsset: asset => environment.owners.readAsset(asset) });
 			return provider ? { ...provider, readStorageChunk: (index, context = {}) => provider.readStorageChunk(index, { signal: context.signal instanceof AbortSignal ? context.signal : undefined }) } : null;
 		},
 		resolveProductVideoSource: async request => {
-			request.assertCurrent(); const resolved = resolveFramescaperCompositionSource(framescaperSuccessorPlaybackCanonicalProject(request.project) ?? request.project, request.source); request.signal?.throwIfAborted(); request.assertCurrent();
+			request.assertCurrent(); const project = canonicalSourceProject(request.project, request.source); if (!project) return null;
+			const resolved = resolveFramescaperCompositionSource(project, request.source); request.signal?.throwIfAborted(); request.assertCurrent();
 			return resolved ? { mediaKind: 'composition', timingIndex: resolved.timing.index } : null;
 		},
 		locale: presentation.locale, copy: presentation.copy, fileService: presentation.fileService,
@@ -54,4 +60,11 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 }
 export function framescaperSuccessorControllerContext(controller: object) {
 	const context = CONTEXTS.get(controller); if (!context) throw new TypeError('An exact successor controller is required.'); return context;
+}
+function canonicalSourceProject(project: object, source: object): object | null {
+	const associated = framescaperSuccessorPlaybackCanonicalProject(project); if (associated) return associated;
+	if (Object.getOwnPropertyDescriptor(project, 'schemaVersion')?.value === 2) return project;
+	const mime = Object.getOwnPropertyDescriptor(source, 'mimeType')?.value;
+	if (mime === 'application/vnd.motionscaper.composition' || mime === 'application/vnd.motionscaper.composition-audio') throw new TypeError('A linked composition requires its captured canonical successor project.');
+	return null;
 }
