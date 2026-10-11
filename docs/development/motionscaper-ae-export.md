@@ -20,12 +20,17 @@ scalar/nonspatial temporal Bezier curves that fit AE ease limits. Position and
 anchor spatial Bezier curves, independently timed vector axes and vertical or
 out-of-range temporal handles receive an unsupported report; the mapped base
 value does not masquerade as a sampled animation. Keys use composition seconds
-and percentages are converted explicitly. Expression text stays inert.
+and percentages are converted explicitly. The explicitly reviewed closed scalar expression subset is activated only after independent host admission; other expression text stays inert.
 
 Unsupported layer kinds and nonplanar transforms become disabled named nulls.
-Text, shapes, solids, cameras, lights, audio placement, time remapping, held or
-reversed sources, masks, mattes, effects, non-normal blends and advanced render
-quality require further mapping or an explicit whole-composition render.
+Reviewed uniform text/font bindings, flat solid shapes, hard-edge masks, track
+mattes, one-node cameras and ambient lights now have bounded editable mappings.
+Normal, Multiply, Screen, Overlay, Darken, Lighten and Difference use named
+SDK layer blend enums when captured AV switches are neutral. Missing or enabled
+Preserve Transparency/Collapse Transformations, adjustment/3D blends, other
+blend modes, solids, unsupported scene/text/shape intent, audio placement, time
+remapping, held/reversed sources, effects and advanced render quality require
+further mapping or explicit whole-composition rendered fallback.
 Tracking authority stays in the original project even when a derived transform
 curve maps. Effects on supported layers are reported omissions. The transferred
 scene is therefore a partial editing draft and may differ visually.
@@ -57,8 +62,23 @@ and SHA-256 digests. Source archive memory admission is 128 MiB; final package
 admission is 256 MiB, with bounded streaming chunks and cancellation. Larger
 transfers require a future streaming package capability or a smaller source.
 
+Blend conversion preserves source switches in the inert exchange and admits no
+raw enum integers. The importer checks enum availability before creating objects,
+sets admitted modes on newly owned layers, verifies readback and rolls back its
+owned objects on failure. A neutral read-only collapse switch is not written; a
+non-neutral switch that cannot be changed refuses the transfer with fallback
+guidance. Legacy metadata remains absent and cannot authorize a
+non-normal mode. This is structural editing support: installed-host blend-space,
+color and alpha parity remain unqualified. The File bridge report and complete
+rendered package remain the appearance-preservation alternatives.
+
 Published API references used for the structural mapping:
 
+- [Adobe blend mode documentation](https://helpx.adobe.com/after-effects/using/blending-modes-layer-styles.html)
+  describes the supported channel operations and dependence on project blending settings.
+- [AVLayer.blendingMode](https://ae-scripting.docsforadobe.dev/layer/avlayer/#avlayerblendingmode)
+  supplies the named SDK enums; its adjacent Preserve Transparency and Collapse
+  Transformations attributes supply the explicitly captured switches.
 - [Adobe AV layer property match names](https://ae-scripting.docsforadobe.dev/matchnames/layer/avlayer/)
   specify `ADBE Rotate X`, `ADBE Rotate Y` and `ADBE Rotate Z` with spaces.
 - [ItemCollection.addComp](https://ae-scripting.docsforadobe.dev/item/itemcollection/#itemcollectionaddcomp)

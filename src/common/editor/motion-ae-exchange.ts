@@ -21,7 +21,8 @@ function footage(value: unknown): MotionAeFootage {
 		hasVideo: motionBoolean(r.hasVideo, 'AE has video'), hasAudio: motionBoolean(r.hasAudio, 'AE has audio'), still: motionBoolean(r.still, 'AE still footage') };
 }
 function layer(value: unknown, budget: MotionAeCustodyBudget): MotionAeLayer {
-	const r = motionRecord(value, ['id', 'name', 'kind', 'sourceId', 'parentId', 'matte', 'startTime', 'inPoint', 'outPoint', 'stretch', 'enabled', 'threeD', 'adjustment', 'blendMode', 'properties', 'scene'], 'AE layer', ['id', 'name', 'kind', 'sourceId', 'parentId', 'matte', 'startTime', 'inPoint', 'outPoint', 'stretch', 'enabled', 'threeD', 'adjustment', 'blendMode', 'properties']);
+	const r = motionRecord(value, ['id', 'name', 'kind', 'sourceId', 'parentId', 'matte', 'startTime', 'inPoint', 'outPoint', 'stretch', 'enabled', 'threeD', 'adjustment', 'blendMode', 'properties', 'scene', 'compositing'], 'AE layer', ['id', 'name', 'kind', 'sourceId', 'parentId', 'matte', 'startTime', 'inPoint', 'outPoint', 'stretch', 'enabled', 'threeD', 'adjustment', 'blendMode', 'properties']);
+	const compositing = r.compositing === undefined ? undefined : motionRecord(r.compositing, ['preserveTransparency', 'collapseTransformation'], 'AE compositing');
 	const scene = r.scene === undefined ? undefined : motionRecord(r.scene, ['autoOrient', 'lightType'], 'AE scene metadata', ['autoOrient']);
 	if (scene && (r.kind !== 'camera' && r.kind !== 'light' || (r.kind === 'camera' && scene.lightType !== undefined))) throw new TypeError('AE scene metadata must match its camera/light owner.');
 	const matte = r.matte === null ? null : motionRecord(r.matte, ['layerId', 'type'], 'AE matte');
@@ -33,6 +34,7 @@ function layer(value: unknown, budget: MotionAeCustodyBudget): MotionAeLayer {
 		startTime: motionNumber(r.startTime, 'AE layer start time', -1e6, 1e6), inPoint, outPoint, stretch,
 		enabled: motionBoolean(r.enabled, 'AE layer enabled'), threeD: motionBoolean(r.threeD, 'AE layer 3D'), adjustment: motionBoolean(r.adjustment, 'AE layer adjustment'),
 		blendMode: motionString(r.blendMode, 'AE blend mode', 128), properties: normalizeMotionAeProperties(r.properties, budget),
+		...(compositing ? { compositing: { preserveTransparency: motionBoolean(compositing.preserveTransparency, 'AE preserve transparency'), collapseTransformation: motionBoolean(compositing.collapseTransformation, 'AE collapse transformation') } } : {}),
 		...(scene ? { scene: { autoOrient: motionEnum(scene.autoOrient, ['none', 'point-of-interest', 'along-path', 'characters', 'unavailable'], 'AE automatic orientation'),
 			...(scene.lightType === undefined ? {} : { lightType: motionEnum(scene.lightType, ['ambient', 'point', 'spot', 'parallel', 'environment', 'unavailable'], 'AE light type') }) } } : {}) };
 }

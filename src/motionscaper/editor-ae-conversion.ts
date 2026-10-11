@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { motionAeLayerBlend } from '../common/editor/motion-ae-layer-blend.ts';
 import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
 import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeReportEntry } from '../common/editor/motion-ae-exchange-types.ts';
 import { motionAeRenderedSequence } from '../common/editor/motion-ae-render-sequence.ts';
@@ -11,7 +12,7 @@ import { convertMotionAeTextLayer, rebaseMotionAeTextLayer, type MotionAeProject
 import { normalizeMotionAeFontBindings } from '../common/editor/motion-ae-text-fonts.ts';
 import { convertMotionAeMattes } from '../common/editor/motion-ae-matte-conversion.ts';
 import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-asset.ts';
-import { MOTION_BLEND_MODES, type MotionComposition, type MotionLayer, type MotionLayerContent } from '../common/editor/motion-composition.ts';
+import { type MotionComposition, type MotionLayer, type MotionLayerContent } from '../common/editor/motion-composition.ts';
 import { freezeMotionValue, motionId } from '../common/editor/motion-values.ts';
 import { motionScalar } from '../common/editor/motion-property.ts';
 import type { MotionAeExpressionReview } from '../common/editor/motion-ae-expression-conversion.ts';
@@ -102,8 +103,9 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 			return { ...layer, inFrame: { num: frame, den: 1 }, outFrame: { num: frame + 1, den: 1 } };
 		}) : source.layers.map((layer) => {
 			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer, source.layers, frameRate) });
-			const blendMode = MOTION_BLEND_MODES.find((value) => value === layer.blendMode) ?? 'normal';
-			if (blendMode !== layer.blendMode) issue(layer.id, 'blend-mode', 'This AE blend mode is not mapped; normal blending is used in the partial draft.');
+			const admittedBlend = motionAeLayerBlend(layer), blendMode = admittedBlend ?? 'normal';
+			if (admittedBlend === null) issue(layer.id, 'blend-mode', 'This blend mode, source compositing switches or layer geometry are not admitted; normal blending is used in the partial draft. Original intent remains in custody; use a complete rendered fallback.');
+			if (admittedBlend && admittedBlend !== 'normal') report.push({ scopeId: layer.id, propertyPath: 'blendMode', status: 'editable', code: 'blend-mode', message: 'Named blend mode is structurally mapped with captured neutral AV switches. Installed AE color, alpha and blend-space parity remain unqualified.' });
 			const timeScale = 100 / layer.stretch;
 			const scene = sceneLayers.get(layer.id);
 			const mapped: MotionLayer = { ...base, is3D: Boolean(scene), enabled: layer.enabled, parentId: layer.parentId === null ? null : ids.get(layer.parentId)!,

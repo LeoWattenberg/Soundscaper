@@ -35,6 +35,7 @@ export function shapeHostFixture(manifest: string, profile: MotionAeShapeProfile
 		setTemporalAutoBezierAtKey() {} setTemporalContinuousAtKey() {} setTemporalEaseAtKey() {} setSpatialAutoBezierAtKey() {} setSpatialContinuousAtKey() {} setSpatialTangentsAtKey() {} setRovingAtKey() {}
 	}
 	class Layer {
+		collapseTransformation = false; readonly canSetCollapseTransformation = false; preserveTransparency = false;
 		autoOrient: unknown = null; lightType: unknown = null; kind = 'ordinary';
 		name = ''; enabled = true; audioEnabled = true; threeDLayer = false; startTime = 0; inPoint = 0; outPoint = 1; stretch = 100;
 		root = new Property('ADBE Root Vectors Group'); transform = new Property('ADBE Transform Group');

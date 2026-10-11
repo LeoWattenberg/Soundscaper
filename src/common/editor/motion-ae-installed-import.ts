@@ -22,7 +22,7 @@ interface AeProperty {
 	setSpatialTangentsAtKey(index: number, incoming: readonly number[], outgoing: readonly number[]): void; setRovingAtKey(index: number, value: boolean): void;
 }
 interface AeLayer {
-	autoOrient: unknown; lightType: unknown; name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
+	readonly canSetCollapseTransformation: boolean; blendingMode: unknown; preserveTransparency: boolean; collapseTransformation: boolean; autoOrient: unknown; lightType: unknown; name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
 	setTrackMatte?(source: AeLayer, type: unknown): void;
 }
@@ -37,6 +37,7 @@ declare const File: { new(path: string): AeFile; openDialog(prompt: string): AeF
 declare const Folder: { new(path: string): AeFolder };
 declare const ImportOptions: { new(file: AeFile): { file: AeFile; sequence: boolean; importAs: unknown } };
 declare const ImportAsType: { FOOTAGE: unknown };
+declare const BlendingMode: Record<string, unknown>;
 declare const AutoOrientType: { NO_AUTO_ORIENT: unknown };
 declare const LightType: { AMBIENT: unknown };
 declare const KeyframeInterpolationType: { HOLD: unknown; LINEAR: unknown; BEZIER: unknown };
@@ -128,7 +129,18 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 			if (item.scene) {
 				layer.autoOrient = AutoOrientType.NO_AUTO_ORIENT; if (layer.autoOrient !== AutoOrientType.NO_AUTO_ORIENT) throw new Error('AE did not apply the reviewed scene orientation.');
 				if (item.scene.kind === 'ambient') { layer.lightType = LightType.AMBIENT; if (layer.lightType !== LightType.AMBIENT) throw new Error('AE did not create the reviewed ambient light type.'); }
-			} else layer.threeDLayer = item.threeD;
+			} else {
+				layer.threeDLayer = item.threeD;
+				if (item.blendMode !== 'normal') {
+					const mode = BlendingMode[item.blendMode.toUpperCase()];
+					if (layer.collapseTransformation !== false) {
+						if (layer.canSetCollapseTransformation !== true) throw new Error('This AE layer cannot disable collapse transformations for the admitted blend. Use the complete rendered fallback.');
+						layer.collapseTransformation = false;
+					}
+					layer.preserveTransparency = false; layer.blendingMode = mode;
+					if (layer.blendingMode !== mode || layer.preserveTransparency !== false || layer.collapseTransformation !== false) throw new Error('AE changed the admitted named blend mode or compositing switches.');
+				}
+			}
 			layer.stretch = item.stretch; layer.startTime = item.startTime;
 			layer.inPoint = item.inPoint; layer.outPoint = item.outPoint; layer.enabled = item.enabled; if (plan.muteAudio && !item.scene) layer.audioEnabled = false;
 		},
@@ -193,6 +205,7 @@ export function runMotionAeInstalledImport(): void {
 		const plan = prepareMotionAeHostImport(json); let needsShapes = false, hasExpressions = false;
 		for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
 			const layer = plan.compositions[comp]!.layers[index]!;
+			if (layer.blendMode !== 'normal' && (typeof BlendingMode === 'undefined' || BlendingMode[layer.blendMode.toUpperCase()] === undefined)) throw new Error('This AE host lacks the admitted named blend enum. Use the complete rendered fallback.');
 			for (let property = 0; property < layer.properties.length; property++) if (layer.properties[property]!.expression !== null) hasExpressions = true;
 			for (let mask = 0; mask < layer.masks.length; mask++) if (layer.masks[mask]!.opacity.expression !== null) hasExpressions = true;
 			if (plan.compositions[comp]!.layers[index]!.shapes) needsShapes = true;

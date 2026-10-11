@@ -69,7 +69,7 @@ function host(writeFailure = false, evaluate = false, confirmed = true, includeM
 		for (let frame = 0; frame < 24; frame++) files.set(output.file.fsName.replace('[#####]', String(frame)), bytes.toString('latin1'));
 	} };
 	const project = { activeItem: comp, renderQueue, numItems: 2, file: new HostFile('/source/Original.aep'), workingSpace: '', linearBlending: false, bitsPerChannel: 8, item: (index: number) => items[index - 1] };
-	return { files, folders, alerts, preExpression, project, sandbox: { app: { version: 'synthetic-host-not-AE', project }, File: HostFile, Folder: HostFolder, CompItem, FootageItem,
+	return { layer, files, folders, alerts, preExpression, project, sandbox: { app: { version: 'synthetic-host-not-AE', project }, File: HostFile, Folder: HostFolder, CompItem, FootageItem,
 		CameraLayer, LightLayer, AutoOrientType: { NO_AUTO_ORIENT: 71, CAMERA_OR_POINT_OF_INTEREST: 72 }, LightType: { AMBIENT: 91, POINT: 92 }, TextLayer: class {}, ShapeLayer: class {},
 		PropertyType: { PROPERTY: 'property' }, PropertyValueType: { OneD: 'oneD', TwoD: 'twoD', ThreeD: 'threeD', TwoD_SPATIAL: 'twoDSpatial', ThreeD_SPATIAL: 'threeDSpatial', COLOR: 'color', SHAPE: 'shape', TEXT_DOCUMENT: 'text' },
 		BlendingMode: { NORMAL: 'normal' }, TrackMatteType: { NO_TRACK_MATTE: 'none' }, alert: (message: string) => alerts.push(message),
@@ -144,4 +144,15 @@ test('Motion AE installed exporter captures SDK scene names read-only without as
 	assert.deepEqual(layers.map(layer => layer.scene), [{ autoOrient: 'none' }, { autoOrient: 'none', lightType: 'ambient' }]);
 	assert.ok(layers.every(layer => layer.threeD && layer.blendMode === 'normal')); assert.equal(fixture.project.numItems, 2);
 	assert.equal(fixture.files.get('/source/Original.aep'), 'original-project-bytes');
+});
+
+test('Motion AE exporter captures named layer blends and exact AV switches without mutating the source', async () => {
+	const fixture = host(); fixture.layer.blendingMode = 'native-multiply'; Object.assign(fixture.sandbox.BlendingMode, { MULTIPLY: 'native-multiply' });
+	Object.assign(fixture.layer, { preserveTransparency: true, collapseTransformation: false });
+	vm.runInNewContext(await script(), fixture.sandbox, { timeout: 2000 });
+	const exchange = parseMotionAeExchange([...fixture.files].find(([path]) => path.endsWith('/motionae.json'))![1]);
+	assert.equal(exchange.compositions[0]!.layers[0]!.blendMode, 'multiply'); assert.deepEqual(exchange.compositions[0]!.layers[0]!.compositing, { preserveTransparency: true, collapseTransformation: false });
+	assert.equal(fixture.layer.blendingMode, 'native-multiply'); assert.equal(Reflect.get(fixture.layer, 'preserveTransparency'), true);
+	const legacy = host(); vm.runInNewContext(await script(), legacy.sandbox, { timeout: 2000 });
+	assert.equal(Object.hasOwn(parseMotionAeExchange([...legacy.files].find(([path]) => path.endsWith('/motionae.json'))![1]).compositions[0]!.layers[0]!, 'compositing'), false);
 });

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { motionAeLayerBlend, type MotionAeLayerBlend } from './motion-ae-layer-blend.ts';
 import { readMotionAeImportScene, type MotionAeImportScene } from './motion-ae-host-import-scene.ts';
 import { readMotionAeHostScalarExpression } from './motion-ae-host-scalar-expression.ts';
 import { readMotionAeImportShapes, type MotionAeImportShapeGroup } from './motion-ae-host-import-shape.ts';
@@ -12,7 +13,7 @@ export interface MotionAeImportNumeric {
 export interface MotionAeImportLayer {
 	readonly id: string; readonly name: string; readonly kind: 'footage' | 'composition' | 'null' | 'text' | 'shape' | 'camera' | 'light'; readonly sourceId: string | null; readonly parentId: string | null;
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
-	readonly enabled: boolean; readonly threeD: boolean; readonly properties: readonly MotionAeImportNumeric[];
+	readonly blendMode: MotionAeLayerBlend; readonly enabled: boolean; readonly threeD: boolean; readonly properties: readonly MotionAeImportNumeric[];
 	readonly text: MotionAeImportText | null; readonly shapes: readonly MotionAeImportShapeGroup[] | null;
 	readonly masks: readonly MotionAeImportMask[]; readonly scene?: MotionAeImportScene;
 	readonly matte: MotionAeLayer['matte'];
@@ -150,13 +151,15 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 		totalLayers += rawLayers.length; if (totalLayers > 4096) throw new Error('AE import layer budget exceeded.');
 		for (let j = 0; j < rawLayers.length; j++) {
 			const layer = record(rawLayers[j]); if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null' && layer.kind !== 'text' && layer.kind !== 'shape' && layer.kind !== 'camera' && layer.kind !== 'light') throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
-			if (layer.adjustment !== false || layer.blendMode !== 'normal') warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
+			const admittedBlend = motionAeLayerBlend({ blendMode: layer.blendMode, adjustment: layer.adjustment, threeD: layer.threeD, compositing: layer.compositing });
+			if (layer.adjustment !== false || admittedBlend === null) warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
+			else if (admittedBlend !== 'normal') warnings.push('Named blend mode is mapped, but installed-host color, alpha and blend-space parity remain unqualified. Compare a complete rendered reference.');
 			const inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
 			if (outPoint < inPoint || Math.abs(stretch) < 1) throw new Error('AE import layer timing is invalid.');
 			const textDocument = layer.kind === 'text' ? readMotionAeImportText(layer.properties, warnings, budget) : null;
 			if (layer.kind === 'text' && !textDocument) throw new Error('AE text layer requires reviewed Source Text; render the original composition when it cannot be captured.');
 			const transform = properties(layer.properties, warnings, budget), scene = readMotionAeImportScene(layer, transform, warnings, budget, numericProperty);
-			layers.push({ ...(scene ? { scene } : {}), shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
+			layers.push({ blendMode: admittedBlend ?? 'normal', ...(scene ? { scene } : {}), shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
 				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
 		}
 		const width = number(comp.width, 4, 30_000), height = number(comp.height, 4, 30_000);

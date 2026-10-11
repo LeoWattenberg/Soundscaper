@@ -23,7 +23,7 @@ interface AeLayer {
 	readonly index: number; readonly name: string; readonly parent: AeLayer | null; readonly source?: AeItem;
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
 	readonly autoOrient?: unknown; readonly lightType?: unknown; readonly enabled: boolean; readonly threeDLayer?: boolean; readonly adjustmentLayer?: boolean; readonly nullLayer?: boolean;
-	readonly blendingMode?: unknown; readonly trackMatteType?: unknown; readonly trackMatteLayer?: AeLayer | null;
+	readonly preserveTransparency?: boolean; readonly collapseTransformation?: boolean; readonly blendingMode?: unknown; readonly trackMatteType?: unknown; readonly trackMatteLayer?: AeLayer | null;
 	property(name: string): MotionAePropertyHost | null;
 }
 interface AeComposition extends AeItem {
@@ -106,7 +106,7 @@ function sceneMetadata(layer: AeLayer, kind: MotionAeLayer['kind']): MotionAeLay
 }
 function blendMode(value: unknown): string {
 	const names = ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'ADD', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION'];
-	for (let i = 0; i < names.length; i++) if (BlendingMode[names[i]!] === value) return names[i]!.toLowerCase(); return 'unsupported';
+	for (let i = 0; i < names.length; i++) if (BlendingMode[names[i]!] !== undefined && BlendingMode[names[i]!] === value) return names[i]!.toLowerCase(); return 'unsupported';
 }
 function readComposition(comp: AeComposition, report: MotionAeReportEntry[], budget: { properties: number; keys: number; layers: number }, sampled: boolean, profile: MotionAeShapeProfile | null): MotionAeComposition {
 	const id = 'comp-' + String(comp.id), layers: MotionAeLayer[] = [], reader = propertyHost(profile, sampled ? { frameRate: comp.frameRate, duration: comp.duration } : undefined);
@@ -133,7 +133,8 @@ function readComposition(comp: AeComposition, report: MotionAeReportEntry[], bud
 			else report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'matte', message: 'This AE version does not expose a supported matte source/type. Use AE 23 or newer, or render the composition.' });
 		}
 		const scene = sceneMetadata(source, kind);
-		layers.push({ ...(scene ? { scene } : {}), id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
+		const compositing = !scene && typeof source.preserveTransparency === 'boolean' && typeof source.collapseTransformation === 'boolean' ? { preserveTransparency: source.preserveTransparency, collapseTransformation: source.collapseTransformation } : undefined;
+		layers.push({ ...(compositing ? { compositing } : {}), ...(scene ? { scene } : {}), id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
 			parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte,
 			startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch,
 			enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true,

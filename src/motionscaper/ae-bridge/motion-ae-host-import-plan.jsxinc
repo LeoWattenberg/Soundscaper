@@ -1,6 +1,45 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeLayerBlend = (function () {
+
+"use strict";
+/** Closed named SDK subset. This admits structural intent, never color/alpha equivalence. */
+function motionAeLayerBlend(layer) {
+    var capture = layer.compositing;
+    var neutral = false;
+    if (capture !== undefined) {
+        if (capture === null || typeof capture !== 'object' || Object.prototype.toString.call(capture) === '[object Array]')
+            throw new Error('AE compositing metadata requires an object.');
+        var fields = capture;
+        var count = 0;
+        for (var key in fields)
+            if (Object.prototype.hasOwnProperty.call(fields, key)) {
+                if (++count > 2 || key !== 'preserveTransparency' && key !== 'collapseTransformation')
+                    throw new Error('AE compositing metadata contains unsupported fields.');
+            }
+        if (count !== 2 || typeof fields.preserveTransparency !== 'boolean' || typeof fields.collapseTransformation !== 'boolean')
+            throw new Error('AE compositing switches require booleans.');
+        neutral = fields.preserveTransparency === false && fields.collapseTransformation === false;
+    }
+    if (capture !== undefined && !neutral)
+        return null;
+    if (layer.blendMode === 'normal')
+        return 'normal';
+    if (!neutral || layer.adjustment !== false || layer.threeD !== false)
+        return null;
+    var modes = ['multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference'];
+    for (var index = 0; index < modes.length; index++)
+        if (layer.blendMode === modes[index])
+            return modes[index];
+    return null;
+}
+
+return { motionAeLayerBlend: motionAeLayerBlend };
+}());
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeHostImportPlan = (function () {
+var motionAeLayerBlend = MotionAeLayerBlend.motionAeLayerBlend;
 var readMotionAeImportScene = MotionAeHostImportScene.readMotionAeImportScene;
 var readMotionAeHostScalarExpression = MotionAeHostScalarExpression.readMotionAeHostScalarExpression;
 var readMotionAeImportShapes = MotionAeHostImportShape.readMotionAeImportShapes;
@@ -247,8 +286,11 @@ function prepareMotionAeHostImport(json) {
             var layer = record(rawLayers[j]);
             if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null' && layer.kind !== 'text' && layer.kind !== 'shape' && layer.kind !== 'camera' && layer.kind !== 'light')
                 throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
-            if (layer.adjustment !== false || layer.blendMode !== 'normal')
+            var admittedBlend = motionAeLayerBlend({ blendMode: layer.blendMode, adjustment: layer.adjustment, threeD: layer.threeD, compositing: layer.compositing });
+            if (layer.adjustment !== false || admittedBlend === null)
                 warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
+            else if (admittedBlend !== 'normal')
+                warnings.push('Named blend mode is mapped, but installed-host color, alpha and blend-space parity remain unqualified. Compare a complete rendered reference.');
             var inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
             if (outPoint < inPoint || Math.abs(stretch) < 1)
                 throw new Error('AE import layer timing is invalid.');
@@ -256,7 +298,7 @@ function prepareMotionAeHostImport(json) {
             if (layer.kind === 'text' && !textDocument)
                 throw new Error('AE text layer requires reviewed Source Text; render the original composition when it cannot be captured.');
             var transform = properties(layer.properties, warnings, budget), scene = readMotionAeImportScene(layer, transform, warnings, budget, numericProperty);
-            layers.push(__assign(__assign({}, (scene ? { scene: scene } : {})), { shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId), startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) }));
+            layers.push(__assign(__assign({ blendMode: admittedBlend !== null && admittedBlend !== void 0 ? admittedBlend : 'normal' }, (scene ? { scene: scene } : {})), { shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId), startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) }));
         }
         var width = number(comp.width, 4, 30000), height = number(comp.height, 4, 30000);
         if (width !== Math.floor(width) || height !== Math.floor(height))

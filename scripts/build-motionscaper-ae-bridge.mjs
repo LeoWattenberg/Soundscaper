@@ -28,6 +28,7 @@ const modules = [
 	{ name: 'motion-ae-host-import-mask', global: 'MotionAeHostImportMask', exports: ['readMotionAeImportMasks'] },
 	{ name: 'motion-ae-host-scalar-expression', global: 'MotionAeHostScalarExpression', exports: ['readMotionAeHostScalarExpression'] },
 	{ name: 'motion-ae-host-import-scene', global: 'MotionAeHostImportScene', exports: ['readMotionAeImportScene'] },
+	{ name: 'motion-ae-layer-blend', global: 'MotionAeLayerBlend', exports: ['motionAeLayerBlend'], bundle: 'motion-ae-host-import-plan' },
 	{ name: 'motion-ae-host-import-plan', global: 'MotionAeHostImportPlan', exports: ['prepareMotionAeHostImport'] },
 	{ name: 'motion-ae-host-import', global: 'MotionAeHostImport', exports: ['importMotionAeHostPlan'] },
 	{ name: 'motion-ae-installed-import', global: 'MotionAeInstalledImport', exports: ['runMotionAeInstalledImport'] },
@@ -35,6 +36,7 @@ const modules = [
 const check = process.argv.includes('--check');
 let stale = false;
 await mkdir(directory, { recursive: true });
+const outputs = new Map();
 for (const module of modules) {
 	const source = await readFile(resolve(root, 'src/common/editor', `${module.name}.ts`), 'utf8');
 	const tree = ts.createSourceFile(`${module.name}.ts`, source, ts.ScriptTarget.Latest, true);
@@ -69,8 +71,10 @@ for (const module of modules) {
 	}).outputText;
 	const output = `/* SPDX-License-Identifier: AGPL-3.0-only */\n/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */\nvar ${module.global} = (function () {\n${bindings.join('\n')}\n${compiled}\nreturn { ${module.exports.map((name) => `${name}: ${name}`).join(', ')} };\n}());\n`;
 	try { parse(output, { ecmaVersion: 3 }); } catch (error) { throw new Error(`${module.name}: ${error.message}; ${output.split('\n')[error.loc.line - 1]}`, { cause: error }); }
-	await publish(`${module.name}.jsxinc`, output);
+	const destination = module.bundle ?? module.name;
+	outputs.set(destination, (outputs.get(destination) ?? '') + output);
 }
+for (const [name, output] of outputs) await publish(`${name}.jsxinc`, output);
 const exportEnd = modules.findIndex((module) => module.name === 'motion-ae-installed-export') + 1;
 const sharedEnd = modules.findIndex((module) => module.name === 'motion-ae-installed-text') + 1;
 await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
@@ -83,7 +87,7 @@ await publish('Motionscaper-Capture-Shape-Profile.jsx.txt', entry(modules.slice(
 if (stale) process.exitCode = 1;
 
 function entry(includes, call) {
-	return `/* SPDX-License-Identifier: AGPL-3.0-only */\n/* Development bridge: installed-AE qualification is still required. */\n#target aftereffects\n${includes.map((module) => `#include "${module.name}.jsxinc"`).join('\n')}\n${call}\n`;
+	return `/* SPDX-License-Identifier: AGPL-3.0-only */\n/* Development bridge: installed-AE qualification is still required. */\n#target aftereffects\n${includes.filter((module) => !module.bundle).map((module) => `#include "${module.name}.jsxinc"`).join('\n')}\n${call}\n`;
 }
 
 async function publish(name, output) {

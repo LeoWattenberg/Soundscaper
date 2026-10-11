@@ -109,7 +109,7 @@ function sceneMetadata(layer, kind) {
 function blendMode(value) {
     var names = ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'ADD', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION'];
     for (var i = 0; i < names.length; i++)
-        if (BlendingMode[names[i]] === value)
+        if (BlendingMode[names[i]] !== undefined && BlendingMode[names[i]] === value)
             return names[i].toLowerCase();
     return 'unsupported';
 }
@@ -147,7 +147,8 @@ function readComposition(comp, report, budget, sampled, profile) {
                 report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'matte', message: 'This AE version does not expose a supported matte source/type. Use AE 23 or newer, or render the composition.' });
         }
         var scene = sceneMetadata(source, kind);
-        layers.push(__assign(__assign({}, (scene ? { scene: scene } : {})), { id: layerId, name: source.name, kind: kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source.id) : kind === 'footage' ? 'footage-' + String(source.source.id) : null, parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte: matte, startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch, enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true, blendMode: source.blendingMode === undefined ? 'normal' : blendMode(source.blendingMode), properties: properties }));
+        var compositing = !scene && typeof source.preserveTransparency === 'boolean' && typeof source.collapseTransformation === 'boolean' ? { preserveTransparency: source.preserveTransparency, collapseTransformation: source.collapseTransformation } : undefined;
+        layers.push(__assign(__assign(__assign({}, (compositing ? { compositing: compositing } : {})), (scene ? { scene: scene } : {})), { id: layerId, name: source.name, kind: kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source.id) : kind === 'footage' ? 'footage-' + String(source.source.id) : null, parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte: matte, startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch, enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true, blendMode: source.blendingMode === undefined ? 'normal' : blendMode(source.blendingMode), properties: properties }));
         if (kind === 'shape' && !profile)
             report.push({ scopeId: layerId, propertyPath: 'ADBE Root Vectors Group', status: 'unsupported', code: 'shape-style-profile', message: 'Shape style metadata is unavailable without a separately selected, user-reviewed profile for this exact AE version/build/language. Use the calibration scripts then Export-Shapes, or rendered fallback. Ordinary export does not mutate source layers.' });
         report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'mapping', message: 'Captured authored data requires feature mapping and reference comparison; plug-ins, text runs, mask attributes, solids, footage interpretation and expressions may require an AE-rendered composition.' });
