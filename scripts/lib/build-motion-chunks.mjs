@@ -19,6 +19,7 @@ const successorRuntimeModules = [
 	'editor-composition-link-owner-repository',
 	'editor-project-successor-media-roots',
 	'editor-project-successor-store-adapter',
+	'editor-project-successor-linked-timing',
 	'editor-project-successor-hydration-media',
 	'editor-project-successor-hydration',
 	'editor-project-playback-projection',

@@ -31,7 +31,7 @@ async function exportVideoColor(page: Page): Promise<number[]> {
 	await dialog.locator('[data-export-field="canvasFrameRate"] input').fill('2'); await dialog.locator('[data-export-action="start"] button').click();
 	const link = dialog.locator('[data-export-download]');
 	try { await expect(link).toHaveAttribute('download', /\.mp4$/u, { timeout: 15_000 }); }
-	catch (cause) { throw new Error(`Linked export failed: ${await dialog.innerText()} / ${await page.locator('[data-editor-status]').innerText()}`, { cause }); }
+	catch (cause) { throw new Error(`Linked export failed: ${await dialog.innerText()} / ${await page.locator('[data-editor-status]').innerText()} / dialogs ${JSON.stringify(await page.getByRole('dialog').allTextContents())}`, { cause }); }
 	const downloading = page.waitForEvent('download'); await link.click(); const file = await downloading; const path = await file.path(); if (!path) throw new Error('Linked video download is absent.');
 	const bytes = await readFile(path); expect(bytes.subarray(4, 8).toString()).toBe('ftyp');
 	return page.evaluate(async encoded => {
@@ -76,7 +76,7 @@ test('actual editor menus connect saved compositions, update automatically, and 
 	const path = await archive.path(); if (!path) throw new Error('The successor archive download is absent.'); const bytes = await readFile(path);
 	const fresh = await browser.newContext({ baseURL: frameOrigin, serviceWorkers: 'block' });
 	try {
-		const imported = await fresh.newPage(); imported.on('pageerror', error => errors.push(error.message)); await imported.goto('/embed/en/'); await expect(imported.locator('[data-audio-editor-bound="true"]')).toBeVisible(); await expect(imported.locator('[data-editor-ready]')).toHaveAttribute('data-editor-ready', 'true'); await expect(imported.locator('[data-project-id]')).not.toHaveAttribute('data-project-activation-pending', 'true'); await expect(imported.locator('[data-project-id]')).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+		const imported = await fresh.newPage(); imported.on('pageerror', error => errors.push(error.message)); await imported.addInitScript(() => Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined })); await imported.goto('/embed/en/'); await expect(imported.locator('[data-audio-editor-bound="true"]')).toBeVisible(); await expect(imported.locator('[data-editor-ready]')).toHaveAttribute('data-editor-ready', 'true'); await expect(imported.locator('[data-project-id]')).not.toHaveAttribute('data-project-activation-pending', 'true'); await expect(imported.locator('[data-project-id]')).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 		const chooser = imported.waitForEvent('filechooser'); await menu(imported, 'File', /^Open\s+Ctrl\+O$/u); await (await chooser).setFiles({ name: archive.suggestedFilename(), mimeType: 'application/zip', buffer: bytes });
 		await expect(imported.locator('[data-project-id]')).toHaveAttribute('data-project-id', projectId!);
 		await menu(imported, 'File', 'Linked compositions…'); await expect(imported.getByRole('dialog').locator('code')).toHaveText(conformed!); await close(imported);

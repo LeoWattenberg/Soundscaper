@@ -9,6 +9,38 @@ import { createMotionCompositionOffer } from '../src/common/editor/motion-link-p
 import { createMotionscaperRevision } from '../src/common/editor/motion-project-revision.ts';
 import { createFramescaperSuccessorController, framescaperSuccessorControllerContext } from '../src/framescaper/editor-successor-controller.ts';
 import { COPY } from './helpers/audio-editor-controller-harness.js';
+import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/export/video-export-timing.ts';
+import { resolveFramescaperCompositionSource } from '../src/framescaper/editor-composition-link-source.ts';
+
+test('export reconstructs linked exact timing from canonical owner custody, including retained history after reopening', async () => {
+	const factory = createInstrumentedIndexedDB(); const settings = { indexedDB: factory as unknown as IDBFactory, preferOpfs: false };
+	let env = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: settings });
+	let controller = createFramescaperSuccessorController(env, { locale: 'en', copy: COPY });
+	try {
+		await controller.ready; const project = createMotionscaperProject({ id: 'timing-sender', title: 'Scene', compositionId: 'main', width: 2, height: 2, durationFrames: 3 });
+		const links = framescaperSuccessorControllerContext(controller).links;
+		const first = await links.receive(createMotionCompositionOffer('main', createMotionscaperRevision(project)), { readAsset: async () => null });
+		const latest = await links.receive(createMotionCompositionOffer('main', createMotionscaperRevision({ ...project, title: 'Changed', revision: 1 })), { readAsset: async () => null });
+		await controller.dispose(); await env.close(); env = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: settings });
+		controller = createFramescaperSuccessorController(env, { locale: 'en', copy: COPY }); await controller.ready;
+		await controller.actions.project.openById(latest.project.id, { adoptSessionRevision: true });
+		for (const canonical of [first.project, latest.project]) {
+			const source = canonical.sources.find(entry => entry.id === canonical.compositionLinks[0]!.sourceId)!;
+			const linked = resolveFramescaperCompositionSource(canonical, source)!;
+			assert.equal(await env.store.loadMediaAsset(linked.timing.reference.storageKey), null);
+			const lease = await acquireVideoExportTimingIndexes(canonical, { async loadMediaAsset(key, options) {
+				const body = await env.controllerStore.loadMediaAsset(key, options); assert.ok(body === null || body instanceof Blob); return body;
+			} }, {
+				findClip: (value, id) => (value as typeof canonical).clips.find(entry => entry.id === id),
+				findSource: (value, id) => (value as typeof canonical).sources.find(entry => entry.id === id),
+			}, { requiredSourceIds: [source.id], allowInactiveRequiredSources: true, assertCurrent() {} });
+			assert.equal(lease.timingViewsBySourceId.get(source.id)?.kind, 'vfr'); lease.release();
+			const aborted = new AbortController(); aborted.abort(new Error('timing cancelled'));
+			await assert.rejects(env.controllerStore.loadMediaAsset(linked.timing.reference.storageKey, { signal: aborted.signal }), /timing cancelled/u);
+		}
+		assert.equal(await env.controllerStore.loadMediaAsset('unowned-timing'), null);
+	} finally { await controller.dispose(); await env.close(); }
+});
 test('successor controller creates and reopens an actual canonical owner in the shared timeline editor', async () => {
 	const factory = createInstrumentedIndexedDB();
 	const env = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: { indexedDB: factory as unknown as IDBFactory, preferOpfs: false } });

@@ -8,6 +8,7 @@ import { FramescaperCompositionLinkOwnerConflictError, type FramescaperCompositi
 import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject } from './editor-project-successor.ts';
 import type { createFramescaperSuccessorRuntime } from './editor-project-successor-runtime.ts';
 import { retainFramescaperSuccessorMediaHistory } from './editor-project-successor-media-roots.ts';
+import { createFramescaperSuccessorLinkedTimingStore } from './editor-project-successor-linked-timing.ts';
 
 type Runtime = ReturnType<typeof createFramescaperSuccessorRuntime>;
 export type FramescaperSuccessorStoreAdapter = AudioEditorProjectStore & Readonly<{
@@ -21,10 +22,11 @@ export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime,
 	prepareOpen?: (id: string, signal?: AbortSignal) => Promise<void>;
 }>): FramescaperSuccessorStoreAdapter {
 	const known = new Map<string, { ownerDigest: string; projectDigest: string }>(); const fences = new Map<string, string>();
+	const linkedTiming = createFramescaperSuccessorLinkedTimingStore();
 	const digest = (value: unknown) => digestScapeBytes(new TextEncoder().encode(JSON.stringify(normalizeFramescaperSuccessorProject(value))));
 	function acceptOwnerReceipt(receipt: FramescaperCompositionLinkOwnerReceipt) {
 		known.set(receipt.project.id, { ownerDigest: receipt.ownerDigest, projectDigest: digest(receipt.project) });
-		return runtime.retainStoredHistory(receipt.history);
+		const project = runtime.retainStoredHistory(receipt.history); linkedTiming.retain(receipt.history); return project;
 	}
 	function captureOwnerDigest(value: unknown): string {
 		const project = normalizeFramescaperSuccessorProject(value); const expected = known.get(project.id);
@@ -32,7 +34,7 @@ export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime,
 	}
 	async function load(projectId: string, options: ProjectLoadOptions = {}): Promise<FramescaperSuccessorProject | null> {
 		options.signal?.throwIfAborted(); const receipt = await owners.loadOwner(projectId); options.signal?.throwIfAborted();
-		if (!receipt) { known.delete(projectId); return null; }
+		if (!receipt) { known.delete(projectId); linkedTiming.forget(projectId); return null; }
 		await prepareOpen?.(projectId, options.signal); options.signal?.throwIfAborted();
 		if (options.revision !== undefined && options.revision !== receipt.project.revision) {
 			const found = [...receipt.history.undoStack, ...receipt.history.redoStack].find(entry => entry.project.revision === options.revision);
@@ -63,7 +65,7 @@ export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime,
 		return publish(value, expected.ownerDigest, fences.get(project.id), options);
 	}
 	async function remove(value: unknown) {
-		try { const project = normalizeFramescaperSuccessorProject(value); const removed = await owners.deleteOwner(project.id, captureOwnerDigest(project), { writeFence: fences.get(project.id) }); if (removed) known.delete(project.id); return removed; }
+		try { const project = normalizeFramescaperSuccessorProject(value); const removed = await owners.deleteOwner(project.id, captureOwnerDigest(project), { writeFence: fences.get(project.id) }); if (removed) { known.delete(project.id); linkedTiming.forget(project.id); } return removed; }
 		catch (error) { if (error instanceof FramescaperCompositionLinkOwnerConflictError) return false; throw error; }
 	}
 	const list = async () => (await owners.listOwners()).map(entry => entry.project);
@@ -85,6 +87,7 @@ export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime,
 		delete: async (id: string) => { const project = await load(id); if (project && !await remove(project)) throw new FramescaperCompositionLinkOwnerConflictError('Successor deletion lost write ownership.'); },
 	});
 	const overrides = Object.freeze({ projectRepository, acceptOwnerReceipt, captureOwnerDigest, ownerWriteFence: (id: string) => fences.get(id),
+		loadMediaAsset: async (key: string, options?: Readonly<{ signal?: AbortSignal }>) => linkedTiming.read(key, options?.signal) ?? await media.loadMediaAsset(key, options),
 		loadProject: load, listProjects: list, listProjectRevisions: revisions, createProjectIfAbsent: create,
 		createScapeProjectIfAbsent: unavailable, duplicateProject: unavailable, restoreProjectSnapshot: unavailable,
 		restoreProjectSnapshotIfCurrent: async () => false, restoreProjectSnapshotIfCurrentWithWriteFence: async () => false,
