@@ -7,11 +7,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { composeProductHeaders, matchedHeaders, parseHeaderRules, webBuildRouting } from '../../scripts/lib/product-web-routing.mjs';
+import { assertMotionLinkEditorIsolation, probeMotionLinkIsolation, readMotionLinkIsolation, type MotionLinkIsolationCapability } from './helpers/motion-link-isolation.ts';
 
 interface Fixture { receive(): string; send(url: string, stall?: boolean): void; connect(url: string): void; update(revision: number): Promise<void>; disconnect(): Promise<void>; state(): { received: string | null; sent: string | null; error: string | null; pulls: number; cancelled: number }; retained(): Promise<{ digest: string | null; bytes: number[] | null }> }
 let directory: string | undefined; const servers: Server[] = []; let motion: string; let frame: string;
+let isolation: MotionLinkIsolationCapability;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
+	isolation = await probeMotionLinkIsolation(browser);
+	test.info().annotations.push({ type: 'credentialless-isolation-capability', description: JSON.stringify(isolation) });
 	directory = await mkdtemp(join(tmpdir(), 'motion-bridge-'));
 	const template = await readFile(join(repository, 'public/_headers'), 'utf8');
 	const outputs = [join(directory, 'motion'), join(directory, 'frame')];
@@ -57,7 +61,7 @@ globalThis.fixture = {
  async retained() {const repository=await openFramescaperCompositionLinkRepository({line:'successor'});try{const state=await repository.load('frame','linked');const body=await repository.readAsset(asset);return{digest:state?.accepted.revision.digest??null,bytes:body?[...new Uint8Array(await new Response(body.stream()).arrayBuffer())]:null};}finally{await repository.close();}}
 };
 `);
-	for (const [index, product] of (['motionscaper', 'framescaper'] as const).entries()) await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', define: { __SCAPE_PRODUCT__: JSON.stringify(product), __SCAPE_FRAMESCAPER_LINE__: JSON.stringify(product === 'framescaper' ? 'successor' : 'baseline'), 'import.meta.env.PUBLIC_MOTION_LINK_PEER_ORIGIN': JSON.stringify(product === 'motionscaper' ? frame : motion) }, build: { target: 'esnext', outDir: outputs[index], emptyOutDir: true, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
+	for (const [index, product] of (['motionscaper', 'framescaper'] as const).entries()) await build({ root: repository, cacheDir: join(directory, 'cache', product), configFile: false, publicDir: false, logLevel: 'silent', define: { __SCAPE_PRODUCT__: JSON.stringify(product), __SCAPE_FRAMESCAPER_LINE__: JSON.stringify(product === 'framescaper' ? 'successor' : 'baseline'), 'import.meta.env.PUBLIC_MOTION_LINK_PEER_ORIGIN': JSON.stringify(product === 'motionscaper' ? frame : motion) }, build: { target: 'esnext', outDir: outputs[index], emptyOutDir: true, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
 });
 test.afterAll(async () => {
 	// A fully parallel worker may execute these hooks again for a later test group.
@@ -73,12 +77,16 @@ test.afterAll(async () => {
 	}
 	if (errors.length) throw new AggregateError(errors, 'Bridge fixture cleanup failed.');
 });
-async function ready(page: Page, origin: string) { await page.goto(`${origin}/en/`); await page.waitForFunction(() => 'fixture' in globalThis); }
+async function ready(page: Page, origin: string) {
+	const response = await page.goto(`${origin}/en/`); await page.waitForFunction(() => 'fixture' in globalThis);
+	expect(response).not.toBeNull();
+	assertMotionLinkEditorIsolation(await response!.headersArray(), await readMotionLinkIsolation(page), isolation);
+}
 function state(page: Page) { return page.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.state()); }
 
 test('M10 actual cross-origin bridge preserves editor isolation, pairs new tabs and reopens received closure offline', async ({ context }) => {
 	const sender = await context.newPage(); const receiver = await context.newPage(); await ready(sender, motion); await ready(receiver, frame);
-	expect(await sender.evaluate(() => crossOriginIsolated)).toBe(true); expect(await receiver.evaluate(() => crossOriginIsolated)).toBe(true);
+	expect(await sender.evaluate(() => crossOriginIsolated)).toBe(isolation.isolated); expect(await receiver.evaluate(() => crossOriginIsolated)).toBe(isolation.isolated);
 	const url = await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.receive());
 	const sendingBridgeEvent = context.waitForEvent('page'); await sender.evaluate((connection) => (globalThis as unknown as { fixture: Fixture }).fixture.send(connection), url); const sendingBridge = await sendingBridgeEvent;
 	await expect(sendingBridge.getByRole('button', { name: 'Connect to Framescaper', exact: true })).toBeVisible();
