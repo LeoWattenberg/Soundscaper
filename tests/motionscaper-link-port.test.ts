@@ -68,3 +68,19 @@ test('M10 port metadata allocation refuses declared excess before receiving chun
 	port1.postMessage({ protocol: 'motion-link-port', version: 1, session, type: 'request', id: 1, request: { kind: 'offer-start', byteLength: 32 * 1024 * 1024 + 1 } });
 	await assert.rejects(received, /offer|range/u); port1.close();
 });
+
+test('M10 established port session serializes saved updates, survives idle and pins project/composition identity', async () => {
+	const { createMotionCompositionPortSender } = await import('../src/common/editor/controller/composition/motion-link-port.ts');
+	const { port1, port2 } = new MessageChannel(); const received: string[] = [];
+	const receiving = receiveMotionCompositionPort({ port: port2, session, persistent: true, idleTimeoutMs: 20, async receive(value, options) {
+		await transferMotionCompositionOffer(value, { ...options, async begin() { return { async write() {}, async finish() {}, async commit() { received.push(value.revision.digest); }, async rollback() {} }; } });
+	} });
+	const sender = createMotionCompositionPortSender({ port: port1, session, idleTimeoutMs: 20, readAsset: async () => body() });
+	const first = offer(); assert.equal(await sender.send(first), first.revision.digest);
+	await new Promise((resolve) => setTimeout(resolve, 65));
+	const next = createMotionCompositionOffer('main', createMotionscaperRevision({ ...first.revision.project, revision: 2, title: 'Saved update' }));
+	const update = sender.send(next); await assert.rejects(sender.send(first), /one|flight/u); assert.equal(await update, next.revision.digest);
+	const other = createMotionCompositionOffer('main', createMotionscaperRevision({ ...first.revision.project, id: 'different-project' }));
+	await assert.rejects(sender.send(other), /identity|project/u); assert.deepEqual(received, [first.revision.digest, next.revision.digest]);
+	await sender.dispose(); assert.equal(await receiving, next.revision.digest); await sender.closed;
+});

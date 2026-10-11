@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { composeProductHeaders, matchedHeaders, parseHeaderRules, webBuildRouting } from '../../scripts/lib/product-web-routing.mjs';
 
-interface Fixture { receive(): string; send(url: string, stall?: boolean): void; state(): { received: string | null; sent: string | null; error: string | null; pulls: number; cancelled: number }; retained(): Promise<{ digest: string | null; bytes: number[] | null }> }
+interface Fixture { receive(): string; send(url: string, stall?: boolean): void; connect(url: string): void; update(revision: number): Promise<void>; disconnect(): Promise<void>; state(): { received: string | null; sent: string | null; error: string | null; pulls: number; cancelled: number }; retained(): Promise<{ digest: string | null; bytes: number[] | null }> }
 let directory: string; const servers: Server[] = []; let motion: string; let frame: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 test.beforeAll(async () => {
@@ -32,7 +32,7 @@ test.beforeAll(async () => {
 	}
 	const source = (path: string) => JSON.stringify(join(repository, path));
 	const entry = join(directory, 'fixture.ts'); await writeFile(entry, `
-import { createMotionLinkReceiverConnection, sendMotionLinkConnection } from ${source('src/common/editor/controller/composition/motion-link-connection.ts')};
+import { createMotionLinkReceiverConnection, sendMotionLinkConnection, openMotionLinkSenderConnection } from ${source('src/common/editor/controller/composition/motion-link-connection.ts')};
 import { openFramescaperCompositionLinkRepository } from ${source('src/framescaper/editor-composition-link-repository.ts')};
 import { createMotionscaperProject } from ${source('src/motionscaper/editor-project.ts')};
 import { createMotionscaperRevision } from ${source('src/common/editor/motion-project-revision.ts')};
@@ -43,10 +43,13 @@ const origins = {senderOrigin:${JSON.stringify(motion)},receiverOrigin:${JSON.st
 const bytes = Uint8Array.from({length:128},(_,i)=>i); const sha256 = digestScapeBytes(bytes);
 const asset = {id:'picture',kind:'image',name:'Retained',width:1,height:1,hasAlpha:true,mimeType:'image/png',byteLength:bytes.length,sha256,storageKey:'motion-sha256:'+sha256};
 const offer = createMotionCompositionOffer('main',createMotionscaperRevision({...createMotionscaperProject({id:'source',title:'Transferred',compositionId:'main'}),assets:[asset]}));
-let received = null, sent = null, error = null, pulls = 0, cancelled = 0;
+let received = null, sent = null, error = null, pulls = 0, cancelled = 0, persistent = null;
 globalThis.fixture = {
- receive() { const connection = createMotionLinkReceiverConnection({...origins,async receive(value,options) {const repository = await openFramescaperCompositionLinkRepository({line:'successor'});try {await repository.receive('frame','linked',value,options);}finally{await repository.close();}}}); connection.completion.then(digest=>received=digest,failure=>error=String(failure)); return connection.url; },
+ receive() { const connection = createMotionLinkReceiverConnection({...origins,async receive(value,options) {const repository = await openFramescaperCompositionLinkRepository({line:'successor'});try {await repository.receive('frame','linked',value,options);received=value.revision.digest;}finally{await repository.close();}}}); connection.completion.then(digest=>received=digest,failure=>error=String(failure)); return connection.url; },
  send(connectionUrl,stall=false) { void sendMotionLinkConnection({...origins,connectionUrl,offer,readAsset:async()=>({size:bytes.length,stream:()=>new ReadableStream({pull(controller){pulls++;if(!stall){controller.enqueue(bytes);controller.close();}},cancel(){cancelled++;}},{highWaterMark:0})})}).then(digest=>sent=digest,failure=>error=String(failure)); },
+ connect(connectionUrl) { void openMotionLinkSenderConnection({...origins,connectionUrl,readAsset:async()=>({size:bytes.length,stream:()=>new Blob([bytes]).stream()})}).then(async connection=>{persistent=connection;sent=await connection.send(offer);},failure=>error=String(failure)); },
+ async update(revision) {if(!persistent) throw new Error('Not connected.'); const updated = createMotionCompositionOffer('main',createMotionscaperRevision({...offer.revision.project,revision,title:'Saved '+revision}));sent=await persistent.send(updated);},
+ async disconnect() {await persistent?.dispose();persistent=null;},
  state:()=>({received,sent,error,pulls,cancelled}),
  async retained() {const repository=await openFramescaperCompositionLinkRepository({line:'successor'});try{const state=await repository.load('frame','linked');const body=await repository.readAsset(asset);return{digest:state?.accepted.revision.digest??null,bytes:body?[...new Uint8Array(await new Response(body.stream()).arrayBuffer())]:null};}finally{await repository.close();}}
 };
@@ -80,4 +83,29 @@ test('M10 closing a cross-origin receiving bridge cancels a stalled source and p
 	await expect.poll(async () => (await state(sender)).pulls).toBe(1); await receivingBridge.close();
 	await expect.poll(async () => (await state(sender)).cancelled).toBe(1); await expect.poll(async () => (await state(receiver)).error).not.toBeNull();
 	expect(await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.retained())).toEqual({ digest: null, bytes: null });
+});
+
+
+test('M10 established bridge sends later saved revisions through the same windows until Disconnect', async ({ context }) => {
+	const sender = await context.newPage(); const receiver = await context.newPage(); await ready(sender, motion); await ready(receiver, frame);
+	const url = await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.receive());
+	const bridgeEvent = context.waitForEvent('page'); await sender.evaluate((connection) => (globalThis as unknown as { fixture: Fixture }).fixture.connect(connection), url); const bridge = await bridgeEvent;
+	await bridge.getByRole('button', { name: 'Connect to Framescaper', exact: true }).click();
+	await expect.poll(async () => (await state(sender)).sent).toMatch(/^[a-f0-9]{64}$/u); const first = (await state(sender)).sent;
+	const windows = context.pages().length;
+	await sender.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.update(1)); const updated = (await state(sender)).sent;
+	expect(updated).not.toBe(first); await expect.poll(async () => (await state(receiver)).received).toBe(updated); expect(context.pages()).toHaveLength(windows);
+	await sender.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.disconnect());
+	await expect(bridge.getByRole('status')).toContainText('connection closed');
+	await context.setOffline(true); expect((await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.retained())).digest).toBe(updated);
+});
+
+test('M10 closing the isolated source editor cancels its pending bridge transfer', async ({ context }) => {
+	const sender = await context.newPage(); const receiver = await context.newPage(); await ready(sender, motion); await ready(receiver, frame);
+	const url = await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.receive());
+	const bridgeEvent = context.waitForEvent('page'); await sender.evaluate((connection) => (globalThis as unknown as { fixture: Fixture }).fixture.send(connection, true), url); const bridge = await bridgeEvent;
+	await bridge.getByRole('button', { name: 'Connect to Framescaper', exact: true }).click(); await expect.poll(async () => (await state(sender)).pulls).toBe(1);
+	await sender.close(); await expect.poll(async () => (await state(receiver)).error).not.toBeNull();
+	expect(await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.retained())).toEqual({ digest: null, bytes: null });
+	await expect(bridge.getByRole('status')).toContainText('connection closed');
 });

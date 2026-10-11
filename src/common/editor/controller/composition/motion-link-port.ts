@@ -17,20 +17,23 @@ export interface MotionLinkPortSenderOptions extends MotionLinkPortOptions {
 	readAsset(asset: MotionAsset, signal?: AbortSignal): Promise<MotionAssetBody | null>;
 }
 export interface MotionLinkPortReceiverOptions extends MotionLinkPortOptions {
+	readonly persistent?: boolean;
 	/** Resolve only after private digest-verified staging and atomic receiver publication have succeeded. */
 	receive(offer: MotionCompositionOffer, assets: MotionLinkRemoteAssets): Promise<void>;
 }
 function ack(response: MotionLinkResponse): void { if (response.kind !== 'ack') throw new Error('Motion link expected an acknowledgement.'); }
 
-/** Sender offers one saved revision, then serves only digest-addressed members of its immutable closure. */
-export async function sendMotionCompositionPort(options: MotionLinkPortSenderOptions): Promise<string> {
-	options.signal?.throwIfAborted(); const offer = normalizeMotionCompositionOffer(options.offer);
-	const assets = new Map(offer.revision.project.assets.map((asset) => [asset.sha256, asset]));
+export interface MotionCompositionPortSender { readonly closed: Promise<void>; send(offer: unknown): Promise<string>; dispose(): Promise<void> }
+/** One connected source identity, one update in flight, and no queue of saved revisions. */
+export function createMotionCompositionPortSender(options: Omit<MotionLinkPortSenderOptions, 'offer'>): MotionCompositionPortSender {
+	options.signal?.throwIfAborted(); let assets = new Map<string, MotionAsset>(); let identity: string | null = null; let sending = false;
+
 	let active: { reader: ReadableStreamDefaultReader<Uint8Array>; asset: MotionAsset; offset: number; ended: boolean } | null = null;
-	let publishing = false;
-	async function closeAsset() {
-		const current = active; active = null; if (!current) return;
-		try { if (!current.ended) await current.reader.cancel(); } finally { current.reader.releaseLock(); }
+	let publishing = false; let assetClosing: Promise<void> | null = null; let disposal: Promise<void> | null = null;
+	function closeAsset(): Promise<void> {
+		const current = active; active = null; if (!current) return assetClosing ?? Promise.resolve();
+		assetClosing = (async () => { try { if (!current.ended) await current.reader.cancel(); } finally { current.reader.releaseLock(); } })().finally(() => { assetClosing = null; });
+		return assetClosing;
 	}
 	const rpc = createMotionLinkRpc(options.port, options.session, async (request, signal) => {
 		signal.throwIfAborted(); if (!publishing) throw new Error('Motion link requested assets before an offer.');
@@ -52,26 +55,45 @@ export async function sendMotionCompositionPort(options: MotionLinkPortSenderOpt
 		}
 		if (request.kind === 'asset-close') { await closeAsset(); return { kind: 'ack' }; }
 		throw new Error('Motion link sender received an invalid request.');
-	}, options);
+	}, { ...options, allowIdle: () => !sending });
 	const cancel = () => { void closeAsset().catch(() => undefined); }; rpc.signal.addEventListener('abort', cancel, { once: true });
-	try {
-		const bytes = new TextEncoder().encode(JSON.stringify(offer)); ack(await rpc.request({ kind: 'offer-start', byteLength: bytes.length }));
-		for (let offset = 0; offset < bytes.length; offset += MOTION_LINK_WIRE_CHUNK_BYTES) ack(await rpc.request({ kind: 'offer-chunk', offset, bytes: bytes.slice(offset, offset + MOTION_LINK_WIRE_CHUNK_BYTES).buffer }));
-		publishing = true; const result = await rpc.request({ kind: 'publish' });
-		if (result.kind !== 'published' || result.digest !== offer.revision.digest) throw new Error('Motion link receiver acknowledged a different revision.'); return result.digest;
-	} finally { rpc.signal.removeEventListener('abort', cancel); await closeAsset(); await rpc.dispose(); }
+	const closed = new Promise<void>((resolve) => { rpc.signal.addEventListener('abort', () => resolve(), { once: true }); if (rpc.signal.aborted) resolve(); });
+	return {
+		closed,
+		async send(value) {
+			rpc.signal.throwIfAborted(); if (sending) throw new Error('Motion link permits one saved update in flight.');
+			const offer = normalizeMotionCompositionOffer(value); const key = `${offer.revision.projectId}/${offer.compositionId}`;
+			if (identity && identity !== key) throw new Error('Motion link source project/composition identity changed.'); identity = key;
+			assets = new Map(offer.revision.project.assets.map((asset) => [asset.sha256, asset])); sending = true; publishing = false;
+			try {
+				const bytes = new TextEncoder().encode(JSON.stringify(offer)); ack(await rpc.request({ kind: 'offer-start', byteLength: bytes.length }));
+				for (let offset = 0; offset < bytes.length; offset += MOTION_LINK_WIRE_CHUNK_BYTES) ack(await rpc.request({ kind: 'offer-chunk', offset, bytes: bytes.slice(offset, offset + MOTION_LINK_WIRE_CHUNK_BYTES).buffer }));
+				publishing = true; const result = await rpc.request({ kind: 'publish' });
+				if (result.kind !== 'published' || result.digest !== offer.revision.digest) throw new Error('Motion link receiver acknowledged a different revision.'); return result.digest;
+			} catch (error) { rpc.fail(error); throw error; }
+			finally { publishing = false; sending = false; await closeAsset(); }
+		},
+		dispose() {
+			if (disposal) return disposal; rpc.fail(new DOMException('Motion link disconnected.', 'AbortError')); rpc.signal.removeEventListener('abort', cancel);
+			disposal = (async () => { try { await closeAsset(); } finally { await rpc.dispose(); } })(); return disposal;
+		},
+	};
+}
+/** Convenience for a single saved offer; connected editors use the reusable sender above. */
+export async function sendMotionCompositionPort(options: MotionLinkPortSenderOptions): Promise<string> {
+	const sender = createMotionCompositionPortSender(options); try { return await sender.send(options.offer); } finally { await sender.dispose(); }
 }
 
 /** Receiver allocates bounded metadata, then pulls each next chunk only after the caller retained the previous one. */
 export async function receiveMotionCompositionPort(options: MotionLinkPortReceiverOptions): Promise<string> {
 	let metadata: Uint8Array | null = null; let offset = 0; let started = false; let publishing = false;
-	let published: string | null = null; let complete!: (digest: string) => void; let failed!: (error: unknown) => void;
+	let identity: string | null = null; let published: string | null = null; let complete!: (digest: string) => void; let failed!: (error: unknown) => void;
 	const completion = new Promise<string>((resolve, reject) => { complete = resolve; failed = reject; });
 	const rpc = createMotionLinkRpc(options.port, options.session, async (request, signal) => {
 		signal.throwIfAborted();
 		if (request.kind === 'offer-start') {
-			if (started) throw new Error('Motion link accepts one offer per session.'); started = true;
-			metadata = new Uint8Array(request.byteLength); return { kind: 'ack' };
+			if (started) throw new Error('Motion link accepts one offer in flight.'); started = true;
+			published = null; offset = 0; metadata = new Uint8Array(request.byteLength); return { kind: 'ack' };
 		}
 		if (request.kind === 'offer-chunk') {
 			if (!metadata || publishing || request.offset !== offset || request.bytes.byteLength > metadata.length - offset) throw new Error('Motion link metadata chunk changed its sequence or length.');
@@ -80,6 +102,8 @@ export async function receiveMotionCompositionPort(options: MotionLinkPortReceiv
 		if (request.kind !== 'publish' || publishing || !metadata || offset !== metadata.length) throw new Error('Motion link cannot publish an incomplete offer.');
 		publishing = true;
 		const offer = normalizeMotionCompositionOffer(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(metadata)) as unknown); metadata = null;
+		const key = `${offer.revision.projectId}/${offer.compositionId}`;
+		if (identity && identity !== key) throw new Error('Motion link receiver source identity changed.'); identity = key;
 		const assets = new Map(offer.revision.project.assets.map((asset) => [asset.sha256, asset])); const finished = new Set<string>(); let reading = false;
 		await options.receive(offer, { signal, async readAsset(asset, suppliedSignal) {
 			signal.throwIfAborted(); suppliedSignal?.throwIfAborted();
@@ -106,7 +130,7 @@ export async function receiveMotionCompositionPort(options: MotionLinkPortReceiv
 		} });
 		signal.throwIfAborted(); if (finished.size !== assets.size || reading) throw new Error('Motion link receiver did not retain the complete asset closure.');
 		return { kind: 'published', digest: offer.revision.digest };
-	}, { ...options, onHandled(response) { if (response.kind === 'published') published = response.digest; }, onPeerClose() { if (published) complete(published); } });
+	}, { ...options, allowIdle: () => Boolean(options.persistent && !started), onHandled(response) { if (response.kind === 'published') { published = response.digest; if (options.persistent) { started = false; publishing = false; } } }, onPeerClose() { if (published) complete(published); } });
 	const cancelled = () => { failed(rpc.signal.reason as unknown); }; rpc.signal.addEventListener('abort', cancelled, { once: true }); if (rpc.signal.aborted) cancelled();
 	try { return await completion; } finally { metadata = null; rpc.signal.removeEventListener('abort', cancelled); await rpc.dispose(); }
 }

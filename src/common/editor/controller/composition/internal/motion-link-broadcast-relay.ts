@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { normalizeMotionLinkPacket, motionLinkPacketTransfers, type MotionLinkPacket } from '../../../motion-link-wire.ts';
 
-/** Two bounded RPC directions. BroadcastChannel copies at most one admitted chunk per direction; it never queues a second request before its ACK. */
+/** Heartbeats tolerate throttled background tabs; pagehide/cancel closes immediately.
+ * Two bounded RPC directions. BroadcastChannel copies at most one admitted chunk per direction; it never queues a second request before its ACK. */
 export function relayMotionLinkBroadcast(port: MessagePort, channel: BroadcastChannel, session: string, signal?: AbortSignal, onClosed?: () => void): () => void {
 	let disposed = false; let lastPeer = performance.now();
 	let toPeer = 0; let fromPeer = 0; let toPeerPending: number | null = null; let fromPeerPending: number | null = null;
@@ -36,7 +37,7 @@ export function relayMotionLinkBroadcast(port: MessagePort, channel: BroadcastCh
 		try { const packet = normalizeMotionLinkPacket(event.data, session); admit(packet, true); channel.postMessage({ kind: 'packet', packet }); if (packet.type === 'close') dispose(); }
 		catch { dispose(); }
 	}
-	const heartbeat = setInterval(() => { if (performance.now() - lastPeer > 10_000) dispose(); else channel.postMessage({ kind: 'heartbeat', session }); }, 1000);
+	const heartbeat = setInterval(() => { if (performance.now() - lastPeer > 120_000) dispose(); else channel.postMessage({ kind: 'heartbeat', session }); }, 5_000);
 	channel.addEventListener('message', incoming); channel.addEventListener('messageerror', dispose);
 	port.addEventListener('message', outgoing); port.addEventListener('messageerror', dispose); port.start();
 	signal?.addEventListener('abort', dispose, { once: true }); if (signal?.aborted) dispose();
