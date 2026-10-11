@@ -9,7 +9,7 @@ class StartupSocket extends EventTarget {
 	static latest: StartupSocket;
 	static rejectRootAttach = false;
 	readonly sent: Request[] = []; readonly contexts = new Map<string, Context>();
-	readonly scripts = new Map<string, string>(); readonly deferred = new Map<string, Request>();
+	readonly scripts = new Map<string, string>(); readonly enabledPages = new Set<string>(); readonly deferred = new Map<string, Request>();
 	closed = false; closeCalls = 0; wrongSession = false; failScript = false;
 	constructor() { super(); StartupSocket.latest = this; queueMicrotask(() => this.dispatchEvent(new Event('open'))); }
 	message(value: unknown): void { this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(value) })); }
@@ -21,6 +21,7 @@ class StartupSocket extends EventTarget {
 		assert.equal(this.closed, false); const request = JSON.parse(data) as Request; this.sent.push(request);
 		if (StartupSocket.rejectRootAttach && !request.sessionId) { this.reply(request, {}, 'Root attachment refused'); return; }
 		const session = request.sessionId;
+		if (request.method === 'Page.enable' && session) this.enabledPages.add(session);
 		if (request.method === 'Runtime.enable' && session?.startsWith('page')) { this.deferred.set(session, request); return; }
 		if (request.method === 'Page.addScriptToEvaluateOnNewDocument' && session) {
 			if (this.failScript) { this.reply(request, {}, 'Init script rejected'); return; }
@@ -34,7 +35,7 @@ class StartupSocket extends EventTarget {
 		if (request.method === 'Runtime.runIfWaitingForDebugger' && session) {
 			const context = this.contexts.get(session)!;
 			if (session.startsWith('page')) {
-				const source = this.scripts.get(session); if (source) runInContext(source, context);
+				const source = this.scripts.get(session); if (source && this.enabledPages.has(session)) runInContext(source, context);
 				const enable = this.deferred.get(session); if (enable) { this.deferred.delete(session); this.reply(enable); }
 			}
 			// The first application statement allocates memory. Later injection cannot recover it.
@@ -48,6 +49,14 @@ class StartupSocket extends EventTarget {
 		this.message({ method: 'Target.attachedToTarget', params: { sessionId: session, waitingForDebugger: true,
 			targetInfo: { targetId: `${type}-target`, type, url: type === 'page' ? '' : 'http://127.0.0.1/motion-worker.js' } } });
 		return session;
+	}
+	navigate(session: string): void {
+		assert.ok(session.startsWith('page')); const context = createContext({ name: '' }); this.contexts.set(session, context);
+		const source = this.scripts.get(session);
+		// Blink dispatches DidCreateMainWorldContext to enabled Page agents only. Registration
+		// can acknowledge while disabled; that does not make the next document observed.
+		if (source && this.enabledPages.has(session)) runInContext(source, context);
+		runInContext('globalThis.firstMemory = new WebAssembly.Memory({initial: 2});', context);
 	}
 	remoteClose(): void { if (!this.closed) { this.closed = true; this.dispatchEvent(new Event('close')); } }
 	close(): void { this.closeCalls++; queueMicrotask(() => this.remoteClose()); }
@@ -70,8 +79,8 @@ test('Motion sustained observer captures first page WASM allocation without awai
 	install(t); const observer = await MotionSustainedCdp.connect(endpoint), socket = StartupSocket.latest;
 	socket.attach('page'); const samples = await bounded(observer.sample());
 	assert.equal(samples.length, 1); assert.deepEqual(samples[0]!.wasmCapacityBytes, [65536]);
-	assert.deepEqual(socket.sent.filter(request => request.sessionId).slice(0, 4).map(request => request.method), [
-		'Page.addScriptToEvaluateOnNewDocument', 'Target.setAutoAttach', 'Runtime.enable', 'Runtime.runIfWaitingForDebugger',
+	assert.deepEqual(socket.sent.filter(request => request.sessionId).slice(0, 5).map(request => request.method), [
+		'Page.enable', 'Page.addScriptToEvaluateOnNewDocument', 'Target.setAutoAttach', 'Runtime.enable', 'Runtime.runIfWaitingForDebugger',
 	]);
 	assert.equal(observer.identities()[0]!.ready, true); await observer.close();
 });
@@ -111,4 +120,15 @@ test('Motion sustained observer rejects a missing page init script while still d
 	await assert.rejects(bounded(observer.ready()), /Init script rejected/u);
 	assert.equal(observer.identities()[0]!.ready, false);
 	await assert.rejects(observer.close(), /Init script rejected/u); assert.equal(socket.closed, true);
+});
+
+// Mirrors the real packaged page navigation after its initial empty context.
+test('Motion sustained page registration observes the first WASM allocation in each new document', async t => {
+	install(t); const observer = await MotionSustainedCdp.connect(endpoint), socket = StartupSocket.latest;
+	const session = socket.attach('page'); await bounded(observer.ready());
+	socket.navigate(session); const samples = await observer.sample();
+	assert.deepEqual(samples[0]!.wasmCapacityBytes, [131072]);
+	assert.equal(socket.sent.filter(request => request.method === 'Page.addScriptToEvaluateOnNewDocument').length, 1);
+	assert.equal(socket.sent.filter(request => request.method === 'Runtime.evaluate').length, 1, 'Only the snapshot evaluates after navigation; never late observer installation.');
+	await observer.close();
 });

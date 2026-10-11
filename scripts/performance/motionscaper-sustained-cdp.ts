@@ -88,6 +88,7 @@ export class MotionSustainedCdp {
 			// hook and child attachment first on this ordered session, then resume and await all
 			// acknowledgements. runImmediately also covers an existing page context.
 			await Promise.all([
+				this.#send('Page.enable', {}, target.sessionId),
 				this.#send('Page.addScriptToEvaluateOnNewDocument', { source: motionWasmObservationSource(), runImmediately: true }, target.sessionId),
 				this.#attach(target.sessionId), this.#send('Runtime.enable', {}, target.sessionId),
 				this.#send('Runtime.runIfWaitingForDebugger', {}, target.sessionId),
