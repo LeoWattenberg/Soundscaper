@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { freezeMotionValue, motionArray, motionRecord } from '../common/editor/motion-values.ts';
 import { createEditorProjectStorageProfile } from '../common/editor/storage/project-storage-profile.ts';
+import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from '../common/editor/video-timing-asset-reference.ts';
 import { cloneFramescaperProject, FRAMESCAPER_PROJECT_FIELDS, type FramescaperProject } from './editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile.ts';
 import { normalizeFramescaperCompositionLink, type FramescaperCompositionLink } from './editor-project-successor-link.ts';
@@ -23,6 +24,8 @@ export function normalizeFramescaperSuccessorProject(value: unknown): Framescape
 	const { compositionLinks, ...baseline } = record;
 	const project = cloneFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, { ...baseline, schemaVersion: 1 });
 	const links = motionArray(compositionLinks, 16384, 'composition links').map(normalizeFramescaperCompositionLink);
+	// Live activation and portable planning retain all generated linked timing tables together.
+	if (links.reduce((sum, link) => sum + BigInt(link.output.durationFrames), 0n) > BigInt(VIDEO_TIMING_ASSET_MAXIMUM_FRAMES)) throw new RangeError('Successor project exceeds its aggregate generated timing-frame budget.');
 	const sourceIds = new Set(project.sources.map((source) => source.id));
 	const linked = new Set<string>();
 	for (const link of links) {

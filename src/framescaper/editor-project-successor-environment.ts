@@ -26,8 +26,15 @@ export async function createFramescaperSuccessorEnvironment(options: Readonly<{ 
 		const archiveRepository = custody; const ownerRepository = owners;
 		const hydrated = new Map<string, string>();
 		const controllerStore = createFramescaperSuccessorStoreAdapter({ media, owners, runtime, prepareOpen: async (id, signal) => {
-			const record = await archiveRepository.load(id); if (!record || hydrated.get(id) === record.archiveDigest) return;
-			await hydrateFramescaperSuccessorArchive(record, media, signal); hydrated.set(id, record.archiveDigest);
+			const record = await archiveRepository.load(id);
+			if (record) {
+				if (hydrated.get(id) === record.archiveDigest) return;
+				await hydrateFramescaperSuccessorArchive(record, media, signal); hydrated.set(id, record.archiveDigest);
+			} else if (!hydrated.has(id)) {
+				const { restoreFramescaperSuccessorPortableCustody } = await import('./editor-project-successor-portable-import.ts');
+				const digest = await restoreFramescaperSuccessorPortableCustody(id, media, { line: options.line, signal, ...(settings.indexedDB ? { indexedDB: settings.indexedDB } : {}) });
+				if (digest) hydrated.set(id, digest);
+			}
 		} });
 		let closed = false;
 		const environment = Object.freeze({ runtime, store: media, controllerStore, owners, custody, playback: createFramescaperSuccessorPlayback(media),

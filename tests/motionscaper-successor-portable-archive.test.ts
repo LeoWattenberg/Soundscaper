@@ -6,6 +6,8 @@ import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts
 import { createMotionscaperRevision } from '../src/common/editor/motion-project-revision.ts';
 import { createMotionCompositionOffer } from '../src/common/editor/motion-link-protocol.ts';
 import { createFramescaperCompositionSource } from '../src/framescaper/editor-composition-link-source.ts';
+import { createFramescaperCompositionLink } from '../src/framescaper/editor-project-successor-link.ts';
+import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from '../src/common/editor/video-timing-asset-reference.ts';
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { normalizeFramescaperSuccessorProject } from '../src/framescaper/editor-project-successor.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
@@ -69,4 +71,16 @@ test('M10 successor portable export cancels a stalled retained-original provider
 	const started = new Promise<void>(resolve => { ready = resolve; });
 	const pending = exportFramescaperSuccessorPortableArchive(project, store, { signal: abort.signal, readAsset: () => { ready(); return new Promise(() => {}); } });
 	const rejected = assert.rejects(pending, (error: unknown) => error instanceof Error && error.name === 'AbortError'); await started; abort.abort(); await rejected;
+});
+
+
+test('M10 successor validation admits total generated timing work before constructing any linked table', async () => {
+	const { store, reads, options, linked } = fixture();
+	const large = createMotionscaperRevision(createMotionscaperProject({ id: 'large', title: 'Too much timing', compositionId: 'main', durationFrames: VIDEO_TIMING_ASSET_MAXIMUM_FRAMES / 2 + 1 }));
+	const base = createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ sources: [linked.source, linked.audioSource!, { ...linked.source, id: 'linked-second' }] });
+	const candidate = { ...base, compositionLinks: [
+		createFramescaperCompositionLink(linked.source.id, 'main', large, { audioSourceId: linked.audioSource!.id }), createFramescaperCompositionLink('linked-second', 'main', large),
+	] };
+	assert.throws(() => normalizeFramescaperSuccessorProject(candidate), /aggregate generated timing-frame budget/u);
+	await assert.rejects(exportFramescaperSuccessorPortableArchive(candidate, store, options), /aggregate generated timing-frame budget/u); assert.deepEqual(reads, []);
 });
