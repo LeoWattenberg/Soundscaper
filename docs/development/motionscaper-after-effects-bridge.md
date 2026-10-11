@@ -126,6 +126,14 @@ expressions inactive; consuming sampled values is a separate conversion step.
 
 ## Required qualification
 
+The bounded full-composition render host controller has focused synthetic
+tests for exact frame count/order, existing-queue refusal, selected template,
+8-bit PNG carrier dimensions/alpha-channel admission, frame/byte budgets and
+primary-plus-cleanup errors. Its installed-AE adapter, packaged entry and
+sequence consumption are still pending; this is not an available or qualified
+rendered fallback yet. No template alpha/color fidelity follows from checking
+PNG channel metadata alone.
+
 The pure exchange-to-Motion draft converter now maps 2D retained images/footage,
 precompositions, nulls, ordering, parenting, known blend/matte intent, and
 numeric transforms. Static, hold and linear values retain editable keys;
