@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { assertMotionFrameConsumed, type MotionSceneEvaluator } from '../../motion-composition-evaluation.ts';
+import { assertMotionFrameConsumed, type MotionCompositionFrame, type MotionSceneEvaluator } from '../../motion-composition-evaluation.ts';
 import { renderMotionCompositionFrame, type MotionCompositor, type MotionRasterizer, type MotionRenderResult } from '../../motion-composition-renderer.ts';
 import { motionSurfaceLength } from '../../motion-surface.ts';
 import { freezeMotionValue, motionDigest, motionId, motionInteger, motionRational, motionRecord } from '../../motion-values.ts';
@@ -19,9 +19,12 @@ export interface MotionRenderFrame {
 }
 export interface MotionRenderLease {
 	readonly evaluator: MotionSceneEvaluator; readonly rasterizer: MotionRasterizer; readonly compositor?: MotionCompositor;
+	readonly maximumWorkingBytes?: number;
 	release(): Promise<void>;
 }
 export interface MotionRenderSink<Result> {
+	/** Image-only delivery may explicitly omit audio; video must consume it or refuse it. */
+	readonly audioPolicy?: 'exclude';
 	/** Resolves only after consuming this frame; the producer will then release its reference. */
 	write(frame: MotionRenderFrame, signal?: AbortSignal): Promise<void>;
 	/** Atomically publish completed output; honour cancellation before committing it. */
@@ -67,7 +70,8 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 			const frame = lease.evaluator.evaluate({ compositionId: plan.identity.compositionId, time });
 			if (frame.compositionId !== plan.identity.compositionId || compareRationals(frame.time, time) !== 0) throw new Error('Motion evaluator returned a different composition/time identity.');
 			if (frame.width !== plan.width || frame.height !== plan.height) throw new Error('Motion evaluator dimensions changed during rendering.');
-			const surface = await renderMotionCompositionFrame(frame, { rasterizer: lease.rasterizer, compositor: lease.compositor, signal: request.signal });
+			if (request.sink.audioPolicy !== 'exclude' && motionFrameHasAudio(frame)) throw new Error('This video renderer cannot yet deliver composition audio. Choose an image sequence or remove the audio from the selected range.');
+			const surface = await renderMotionCompositionFrame(frame, { rasterizer: lease.rasterizer, compositor: lease.compositor, signal: request.signal, maximumWorkingBytes: lease.maximumWorkingBytes });
 			assertMotionFrameConsumed(frame, surface.consumedOperationIds);
 			await request.sink.write(Object.freeze({ index, time, duration, surface }), request.signal);
 			throwIfScapeAborted(request.signal);
@@ -87,6 +91,10 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 		try { await request.sink.abort(error); } catch (failure) { cleanup.push(failure); }
 		throw aggregateScapeErrors(error, cleanup, 'Motion render and cleanup failed.');
 	}
+}
+
+function motionFrameHasAudio(frame: MotionCompositionFrame): boolean {
+	return frame.audio.length > 0 || frame.layers.some((layer) => layer.precomposition !== null && motionFrameHasAudio(layer.precomposition));
 }
 
 export interface MotionRenderHandle<Result> {

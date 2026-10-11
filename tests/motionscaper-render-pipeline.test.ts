@@ -107,3 +107,23 @@ test('M05 invalid ranges and mismatched evaluator frames fail before output publ
 	await assert.rejects(renderMotionFrameSequence({ ...request, plan: { ...request.plan, width: 3 } }), /dimensions/u);
 	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
 });
+
+test('M05 retained render leases forward their working-memory admission before any output frame', async () => {
+	const { request, events } = fixture();
+	await assert.rejects(renderMotionFrameSequence({ ...request, acquire: async (signal) => ({ ...await request.acquire(signal), maximumWorkingBytes: 1 }) }), /budget/u);
+	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
+});
+
+test('M05 video cannot silently discard authored audio, while image sequences may explicitly exclude it', async () => {
+	const { request, events } = fixture();
+	const acquire = async (signal?: AbortSignal) => {
+		const lease = await request.acquire(signal);
+		return { ...lease, evaluator: { evaluate(input: Parameters<typeof lease.evaluator.evaluate>[0]) {
+			return { ...lease.evaluator.evaluate(input), audio: [{ occurrenceId: 'comp/audio', assetId: 'audio', sourceTime: { num: 0, den: 1 }, gain: 1, playbackRate: { num: 1, den: 1 } }] };
+		} } };
+	};
+	await assert.rejects(renderMotionFrameSequence({ ...request, acquire }), /audio/u);
+	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
+	const excluded = await renderMotionFrameSequence({ ...request, acquire, sink: { ...request.sink, audioPolicy: 'exclude' } });
+	assert.equal(excluded.renderedFrames, 3);
+});

@@ -28,6 +28,7 @@ export function createMotionPngSequenceSink(options: MotionPngSequenceOptions): 
 		throwIfScapeAborted(signal);
 	};
 	return {
+		audioPolicy: 'exclude',
 		async write(frame: MotionRenderFrame, signal?: AbortSignal) {
 			assertOpen(); throwIfScapeAborted(signal);
 			if (writing || frame.index !== written || written >= plan.frameCount) throw new Error('Motion PNG frames must arrive in declared sequential order.');
