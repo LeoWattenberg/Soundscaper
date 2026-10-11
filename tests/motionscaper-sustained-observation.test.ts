@@ -82,3 +82,16 @@ test('Motion external observation failure never replaces a native promise or rej
 		assert.match(observation.snapshot().errors.join(' '), /observation count/u);
 	} finally { observation.restore(); WebAssembly.instantiate = original; }
 });
+
+test('Motion external observation preserves native rejection and synchronous constructor exceptions', async () => {
+	const original = WebAssembly.instantiate, failure = new Error('native failure'), pending = Promise.reject(failure);
+	void pending.catch(() => undefined);
+	Object.defineProperty(WebAssembly, 'instantiate', { value: () => pending, configurable: true, writable: true });
+	const observation = installMotionWasmObservation();
+	try {
+		const result = WebAssembly.instantiate(new Uint8Array()); assert.equal(result, pending);
+		await assert.rejects(result, error => error === failure);
+		assert.throws(() => new WebAssembly.Memory({ initial: 2, maximum: 1 }), RangeError);
+		assert.deepEqual(observation.snapshot().errors, []);
+	} finally { observation.restore(); WebAssembly.instantiate = original; }
+});

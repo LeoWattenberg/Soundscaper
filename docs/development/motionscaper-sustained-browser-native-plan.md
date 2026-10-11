@@ -88,7 +88,11 @@ The 64 MiB PSS delta would detect retaining roughly one third of those extra
 frames. It does not prove absence of every small per-frame leak.
 
 CDP records actual JS used/total heap and externally observed WASM
-`Memory.buffer.byteLength` at one-second cadence. Weak references and passive
+`Memory.buffer.byteLength` at an attempted 100-ms cadence. Actual per-target
+monotonic timestamps and target/session identities are retained. Repeated cached
+values do not count as new measurements; tails need three independent captures.
+Observation work and scheduling overhead are included in the declared workload.
+Weak references and passive
 constructor/instantiation observation must not keep native objects alive.
 WASM capacity is not live allocation size; JS used heap is not a count of live
 application objects. Neither forced GC nor a heap snapshot is used. Missing
@@ -118,14 +122,60 @@ alpha allows two 10-bit codes, preserving exact zero/one endpoints.
 WebM verification checks every picture timestamp with the existing one-ms
 container quantum, frame count and geometry, selected decoded pixels, 48 kHz
 stereo metadata and complete audio coverage. Opus is lossy: decoded amplitudes
-are **not** labeled exact PCM. Any decoded audio tolerance/priming allowance
-must be fixed in the verifier and reviewed before execution. Native PCM and the
-retained source provide the exact sample-value proof. No unknown or unsupported
-codec may be counted as a passing encoded workflow.
+are **not** labeled exact PCM. The following are new, pre-run qualification
+criteria, not existing product guarantees or observations:
+
+| WebM reference guard | Fixed admission |
+| --- | --- |
+| Selected full-image RGB RMS | ≤12 eight-bit code values |
+| RGB error inside a constant-color 5×5 reference neighborhood | ≤18 codes |
+| Decoded alpha | exactly 255 (opaque delivery) |
+| Opus decoded window | ≤8,192 stereo frames |
+| Header preSkip / total extra decoded frames | ≤1,920 samples (40 ms) |
+| First audio timestamp | −40 ms through +1 ms |
+| Final audio coverage | authored end through +40 ms |
+| Consecutive packet timestamp gap/overlap | ≤1 ms |
+| One-time source alignment candidates | 0 or OpusHead preSkip, each ±48 samples |
+| Calibration window | 4,096 samples after the first 1,920 decoded samples |
+| Each signed channel against retained source | correlation ≥0.90 and normalized RMS error ≤0.40 |
+| Opposite-channel correlation | ≤−0.98 |
+| Each channel RMS / peak | 0.24–0.33 / ≤0.65 |
+
+The fixed input is flattened over linear black using premultiplied linear RGB,
+then encoded with the Rec.709 transfer for the video reference. Production uses
+explicit BT.709 limited-range I420, including 2×2 chroma subsampling; decoded
+WebM RGB is compared at that nonlinear boundary. It is not compared to the
+transparent straight-sRGB preview/PNG. The 12-code whole-image RMS admits edge
+chroma loss while the 18-code interior check retains local color authority.
+The existing Motion video browser regression already uses an 18-code uniform
+color check and admits less than 40 ms output padding; 12-code whole-image RMS is
+an additional qualification criterion. These finite bounds do not imply lossless
+video or the precision of the native ProRes boundary.
+
+The Opus header must be the 19-byte stereo, mapping-family 0, zero-gain OpusHead.
+The pinned muxer reads preSkip into SeekPreRoll and writes CodecDelay 0; the
+encoder output path snaps timestamps to the 48 kHz grid, while WebM stores 1 ms
+timestamps. The fixed alignment search therefore covers either already-trimmed
+or header-delayed output with one container quantum around each. Once selected,
+it never changes across packets. All later valid samples are compared with the
+signed retained source; at most 40 ms at each unmatched boundary is excluded,
+and at least authored-count−1,920 samples must be compared. Arbitrary opposite
+tones, swapped/inverted channels and later drift are refused. The periodic
+127-sample waveform cannot disambiguate a shift by a whole period, so absolute
+latency beyond the independently checked timestamps/count is not claimed.
+Native PCM retains the exact every-sample value/channel proof.
+
+Source authority for those boundary descriptions is
+`motion-browser-video.ts`, `motion-browser-audio-writer.ts`, the pinned
+Mediabunny `media-source.ts`, `codec-data.ts`, and
+`matroska/matroska-muxer.ts`. WebM reads use an explicit custom source with
+64 KiB pulls and 64 KiB cache; a browser-selected Blob stream chunk size is not
+treated as a read-window guarantee. No unavailable codec qualifies.
 
 Cancellation must publish no complete destination, retain the same submitted
-revision for retry, close or abort the physical destination, terminate the
-actual worker/helper owner, and remove temporary carriers after cleanup.
+revision for retry, close or abort the physical destination, release the render
+lease, terminate any active native helper, and remove temporary carriers after
+cleanup. Preview worker termination is verified separately by its target identity.
 Completed output is streamed to a hash and bounded verifiers; the receipt
 includes bytes/digest, selected-picture results, audio/timestamp counts,
 backend/codec identity, PID/start-time sample logs, cancellation/retry outcomes
@@ -137,6 +187,70 @@ unchanged. A separate test-only sustained decoder uses the same authenticated
 libav installation, streams timestamps/PCM and emits only three picture bodies.
 Its binary/source/compile invocation are separately pinned and excluded from
 the production runtime inventory.
+
+Before compilation, an independently prepared and reviewed inventory binds the
+complete approved FFmpeg include/lib trees and every external codec library
+directory referenced by pkg-config. Its SHA is supplied in the reviewed run
+manifest. Every file and exact tree membership is rechecked before and after
+compilation. `PKG_CONFIG_PATH`, `PKG_CONFIG_SYSROOT_DIR` and compiler include/link
+search overrides are cleared; include/library flags outside the approved trees
+are refused. The verified native build receipt binds the existing helper/source
+closure; merely hashing an arbitrary newly supplied prefix is insufficient.
+
+The reference decoder's custom AVIO read window is 64 KiB. Separately, each
+demuxed compressed packet must be at most 1 MiB before decoding (over nine times
+the 115,200-byte RGBA16 representation of this 160×90 picture). The largest
+observed read and packet are recorded. These are different bounds: libav may
+allocate a demuxed packet before its size can be checked. Input file admission
+is 512 MiB, and this external verification process is not application-memory
+evidence. Decoded geometry and planar, little-endian 10–16-bit alpha layout are
+validated before reading the alpha plane; conversion scratch holds one frame.
+
+## Execution and retained evidence
+
+The sole entrypoint is `scripts/performance/motionscaper-sustained-run.ts`.
+It requires a closed approved JSON manifest and its independently supplied
+SHA-256. The manifest pins schemaVersion 1, mode (browser/native), exact clean
+sourceRevision, planSha256, fresh absolute outputDirectory, and exactly one
+platform record. Browser fields are url and siteDirectory; native fields are
+stage, package, ffmpegPrefix, nativeResult, prefixAuthority and
+prefixAuthoritySha256. Unknown fields, an existing output directory, another
+HEAD, dirty source, coverage flags or a mismatched build/package are refused.
+No historical source/package identity may be silently repinned.
+
+After review, the concrete invocations are:
+
+```sh
+taskset -c0-3 node --import tsx scripts/performance/motionscaper-sustained-run.ts /tmp/<approved-browser-run>.json <approved-json-sha256>
+taskset -c0-3 xvfb-run -a node --import tsx scripts/performance/motionscaper-sustained-run.ts /tmp/<approved-native-run>.json <approved-json-sha256>
+```
+
+Placeholders must be replaced and reviewed before execution. The browser origin
+must already be served by the owned canonical preview server; this driver does
+not start a server or rebuild production. Native requires the real configured
+GTK/X11 chooser and sandboxed package. Browser uses declared SwiftShader software
+rendering; the packaged fixture uses `--disable-gpu` as prior native references.
+The small WebM verifier bundle and separate C++ decoder are test-only artifacts
+created by the approved run, never installed in the app.
+
+Each preview phase binds the exact actual worker target/session, revision and
+backend, observes WASM there, and requires monotonic delivered-frame progress
+covering every distinct seek. It then proves detach and a different target/session
+after reopen. Selected first/middle/last reference, preview and decoded-output
+digests must all differ, independently of their pixel-comparison results.
+Native encoding requires at least three actual PID/start-bound memory samples;
+a too-short helper lifetime remains unqualified. Upload cancellation additionally
+requires partial frame progress, existing carrier files and no encoder at the
+boundary; encoding cancellation requires the same live encoder PID/start identity.
+Both retries preserve the submitted revision and their actual output is decoded
+under the same reference checks. A missed cancellation boundary is a failure,
+not an inferred pass. Only owned process identities are terminated; remaining
+owned descendants receive a bounded KILL fallback and cleanup still refuses
+unexplained exits or survivors. Profiles are removed only after successful process cleanup; failed cleanup retains
+them for custody. OPFS custody is removed after production cleanup settles. Encoded
+outputs, streamed PCM/reference files, raw timestamped memory logs and receipts
+remain in the fresh output directory for review. No complete qualification
+receipt is written unless both durations, every phase and cleanup pass.
 
 These gates qualify only this Chromium/Linux software-rendered project at these
 two durations. Maximum geometry, maximum duration, concurrent jobs, macOS,

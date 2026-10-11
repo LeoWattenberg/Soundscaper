@@ -8,6 +8,7 @@ import { MotionSustainedPcmOracle, inspectMotionSustainedNativeMetadata } from '
 const mib = 1024 * 1024;
 const sample = (frame: number, bytes: number, time = frame * 100): MotionSustainedMemorySample => ({
 	elapsedMs: time, completedFrames: frame, rssBytes: bytes + 10 * mib, pssBytes: bytes,
+	telemetrySequence: frame + 1, telemetryElapsedMs: time,
 	isolateUsedHeapBytes: [12 * mib], isolateTotalHeapBytes: [24 * mib], wasmCapacityBytes: [32 * mib],
 });
 const observations = (frames: number, bytes = 100 * mib) => Array.from({ length: frames + 1 }, (_, frame) => sample(frame, bytes));
@@ -34,6 +35,8 @@ test('Motion sustained evidence refuses missing completion, sparse sampling and 
 	assert.throws(() => assessMotionSustainedMemory(short, long.map(value => ({ ...value, pssBytes: NaN }))), /finite/u);
 	assert.throws(() => assessMotionSustainedMemory(short, long.map(value => ({ ...value, wasmCapacityBytes: [] }))), /WASM observation/u);
 	assert.throws(() => assessMotionSustainedMemory(short, long.map(value => ({ ...value, isolateTotalHeapBytes: [1] }))), /heap capacity/u);
+	assert.throws(() => assessMotionSustainedMemory(short, long.map(value => ({ ...value, telemetrySequence: 1 }))), /independent telemetry/u);
+	assert.throws(() => assessMotionSustainedMemory(short, long.map(value => ({ ...value, telemetryElapsedMs: 0 }))), /stale telemetry/u);
 });
 
 function stat(pid: number, parent: number, start: number, name = 'motion (worker)') {
@@ -74,6 +77,7 @@ test('Motion sustained native metadata requires all frame timestamps, full exact
 	const metadata = { width: 160, height: 90, frameCount: 300, selectedFrames: [0, 150, 299],
 		firstTimestamp: { num: 0, den: 30 }, lastTimestamp: { num: 299, den: 30 }, contiguousFrameTimes: true,
 		profile: 4, colorDepth: 12, alphaDepth: 16, colorPrimaries: 1, colorTransfer: 1, colorSpace: 1,
+		maximumReadBytes: 65536, maximumPacketBytes: 48000,
 		audio: { sampleRate: 48000, channels: 2, sampleCount: 480000, contiguous: true } };
 	assert.deepEqual(inspectMotionSustainedNativeMetadata(metadata, 300, 3 * 160 * 90 * 16, 480000 * 8), metadata);
 	assert.throws(() => inspectMotionSustainedNativeMetadata({ ...metadata, contiguousFrameTimes: false }, 300, 3 * 160 * 90 * 16, 480000 * 8), /timestamps/u);

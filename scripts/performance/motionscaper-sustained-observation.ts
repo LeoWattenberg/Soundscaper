@@ -38,7 +38,8 @@ export async function sampleMotionOwnedProcesses(root: MotionProcessIdentity, pr
 		rssBytes: processes.reduce((total, value) => total + value.rssBytes, 0), pssBytes: processes.reduce((total, value) => total + value.pssBytes, 0) };
 }
 /** Hashing never materializes the duration-sized file. File identity is checked around the read. */
-export async function hashMotionSustainedFile(path: string, maximumBytes = plan.maximumOutputBytes) {
+export async function hashMotionSustainedFile(path: string, maximumBytes = plan.maximumOutputBytes,
+	onBytes?: (bytes: Uint8Array) => void) {
 	const pathBefore = await lstat(path);
 	if (!pathBefore.isFile() || pathBefore.isSymbolicLink()) throw new Error('Qualification output must be a regular file, never a symbolic link.');
 	const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -52,6 +53,7 @@ export async function hashMotionSustainedFile(path: string, maximumBytes = plan.
 			byteLength += bytesRead; maximumReadBytes = Math.max(maximumReadBytes, bytesRead);
 			if (byteLength > maximumBytes) throw new Error('Qualification file grew beyond output admission.');
 			hash.update(buffer.subarray(0, bytesRead));
+			onBytes?.(buffer.subarray(0, bytesRead));
 		}
 		const [after, pathAfter] = await Promise.all([handle.stat(), lstat(path)]);
 		if (!pathAfter.isFile() || pathAfter.isSymbolicLink() || before.ino !== pathAfter.ino || before.dev !== pathAfter.dev

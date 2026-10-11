@@ -32,6 +32,7 @@ export interface MotionSustainedNativeMetadata {
 	readonly firstTimestamp: Readonly<{ num: number; den: number }>; readonly lastTimestamp: Readonly<{ num: number; den: number }>;
 	readonly contiguousFrameTimes: true; readonly profile: number; readonly colorDepth: number; readonly alphaDepth: number;
 	readonly colorPrimaries: number; readonly colorTransfer: number; readonly colorSpace: number;
+	readonly maximumReadBytes: number; readonly maximumPacketBytes: number;
 	readonly audio: Readonly<{ sampleRate: number; channels: number; sampleCount: number; contiguous: true }>;
 }
 function record(value: unknown): Record<string, unknown> {
@@ -53,6 +54,8 @@ export function inspectMotionSustainedNativeMetadata(value: unknown, frames: num
 	if (v.contiguousFrameTimes !== true || !time(v.firstTimestamp, 0) || !time(v.lastTimestamp, frames - 1)) throw new Error('Incomplete exact native frame timestamps.');
 	if (!Array.isArray(v.selectedFrames) || v.selectedFrames.length !== 3 || v.selectedFrames.some((frame, index) => frame !== [0, frames / 2, frames - 1][index])) throw new Error('Incorrect selected native pictures.');
 	if (pictureBytes !== 3 * 160 * 90 * 16) throw new Error('Unexpected sustained reference picture bytes.');
+	if (!Number.isSafeInteger(v.maximumReadBytes) || Number(v.maximumReadBytes) < 1 || Number(v.maximumReadBytes) > 65536
+		|| !Number.isSafeInteger(v.maximumPacketBytes) || Number(v.maximumPacketBytes) < 1 || Number(v.maximumPacketBytes) > 1024 * 1024) throw new Error('Native reference I/O/packet admission exceeded.');
 	if (audio.sampleRate !== 48000 || audio.channels !== 2 || audio.sampleCount !== frames * 1600 || audio.contiguous !== true || pcmBytes !== frames * 1600 * 8) throw new Error('Incomplete native PCM bytes/timestamps.');
 	return value as MotionSustainedNativeMetadata;
 }

@@ -4,7 +4,7 @@ const MIB = 1024 * 1024;
 export const MOTION_SUSTAINED_PLAN = Object.freeze({
 	id: 'motion-browser-linux-duration-v1', width: 160, height: 90, fps: 30,
 	runs: Object.freeze([300, 1200] as const), projectFrames: 1200, sampleRate: 48000, channels: 2,
-	samplePeriodMs: 100, maximumSampleGapMs: 1000, telemetryPeriodMs: 1000,
+	samplePeriodMs: 100, maximumSampleGapMs: 1000, telemetryPeriodMs: 100,
 	warmupFrames: 120, tailFrames: 60, maximumPhaseMs: 600000,
 	maximumReadBytes: 65536, maximumSamples: 12000,
 	maximumRssBytes: 2048 * MIB, maximumPssBytes: 1536 * MIB,
@@ -16,10 +16,16 @@ export const MOTION_SUSTAINED_PLAN = Object.freeze({
 	maximumOutputBytes: 512 * MIB, maximumOutstandingWrites: 1,
 	maximumPreviewPremultipliedError: 1, maximumNativeColorError: 8 / 1023,
 	maximumNativeAlphaError: 2 / 1023, maximumWebmTimestampErrorSeconds: 0.001,
+	webm: Object.freeze({ maximumPictureRmsCodes: 12, maximumInteriorCodeError: 18,
+		maximumAudioPaddingSamples: 1920, maximumAlignmentQuantumSamples: 48, calibrationSamples: 4096,
+		minimumSourceCorrelation: 0.90, maximumNormalizedSourceError: 0.40,
+		maximumOppositeChannelCorrelation: -0.98, minimumAudioRms: 0.24, maximumAudioRms: 0.33,
+		maximumAudioPeak: 0.65, maximumDecodedAudioWindow: 8192 }),
 });
 
 export interface MotionSustainedMemorySample {
 	readonly elapsedMs: number; readonly completedFrames: number;
+	readonly telemetrySequence: number; readonly telemetryElapsedMs: number;
 	readonly rssBytes: number; readonly pssBytes: number;
 	/** CDP reports used/total JS heap; neither field is a native allocation count. */
 	readonly isolateUsedHeapBytes: readonly number[]; readonly isolateTotalHeapBytes: readonly number[];
@@ -38,12 +44,15 @@ function validate(samples: readonly MotionSustainedMemorySample[], frames: numbe
 	const plan = MOTION_SUSTAINED_PLAN;
 	if (!samples.length || samples.length > plan.maximumSamples || samples[0]!.completedFrames !== 0
 		|| samples.at(-1)!.completedFrames !== frames) fail('missing exact phase start/completion');
-	let previousTime = 0, previousFrame = 0;
+	let previousTime = 0, previousFrame = 0, previousTelemetry = 0;
 	for (const sample of samples) {
 		for (const value of [sample.elapsedMs, sample.rssBytes, sample.pssBytes, ...sample.isolateUsedHeapBytes,
 			...sample.isolateTotalHeapBytes, ...sample.wasmCapacityBytes]) finite(value);
 		if (!Number.isSafeInteger(sample.completedFrames) || sample.completedFrames < previousFrame || sample.completedFrames > frames) fail('non-monotonic frame progress');
 		if (sample.elapsedMs < previousTime || sample.elapsedMs - previousTime > plan.maximumSampleGapMs) fail('sample cadence exceeded');
+		if (!Number.isSafeInteger(sample.telemetrySequence) || sample.telemetrySequence <= previousTelemetry) fail('missing independent telemetry observations');
+		finite(sample.telemetryElapsedMs);
+		if (sample.telemetryElapsedMs > sample.elapsedMs || sample.elapsedMs - sample.telemetryElapsedMs > plan.maximumSampleGapMs) fail('stale telemetry observation');
 		if (sample.elapsedMs > plan.maximumPhaseMs) fail('phase deadline exceeded');
 		if (sample.rssBytes > plan.maximumRssBytes || sample.pssBytes > plan.maximumPssBytes) fail('owned process memory ceiling exceeded');
 		if (sample.pssBytes > sample.rssBytes) fail('PSS exceeds RSS');
@@ -51,7 +60,7 @@ function validate(samples: readonly MotionSustainedMemorySample[], frames: numbe
 		if (sample.isolateUsedHeapBytes.some((value, index) => value > sample.isolateTotalHeapBytes[index]!)) fail('used JS heap exceeds heap capacity');
 		if (sample.isolateUsedHeapBytes.some(value => value > plan.maximumIsolateHeapBytes)) fail('JS heap ceiling exceeded');
 		if (sample.wasmCapacityBytes.length > plan.maximumTelemetryTargets || sample.wasmCapacityBytes.some(value => value > plan.maximumWasmCapacityBytes)) fail('WASM capacity ceiling exceeded');
-		previousTime = sample.elapsedMs; previousFrame = sample.completedFrames;
+		previousTime = sample.elapsedMs; previousFrame = sample.completedFrames; previousTelemetry = sample.telemetrySequence;
 	}
 	const tail = samples.filter(sample => sample.completedFrames >= frames - plan.tailFrames);
 	if (tail.length < 3) fail('sample cadence lacks three tail observations');
