@@ -14,6 +14,7 @@ import { assertNativeOpfsWorkerExecution, watchNativeOpfsWorkerExecution } from 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const scriptsByContext = new WeakMap(), collectors = new WeakMap(), installed = new WeakMap();
 const bundles = new Map(), writtenSourceMaps = new Set();
+const crashCollections = new WeakMap();
 
 // Keep the ordinary collector enabled, including navigation and native worker
 // checkpoints. These test-runtime programs use its supplied map seam.
@@ -208,6 +209,48 @@ export async function qualifyNativePhotoDefaultImportSessionClose(page, cut) {
 	const facts = await page.evaluate(async cut => (await import(new URL('/__default_import_session_close.js', location.href).href))
 		.qualifyPhotoDefaultImportSessionCloseNativeV1(cut), cut);
 	await assertNativeOpfsWorkerExecution(page); return facts;
+}
+
+/** A persistent profile is supplied by the process-crash spec itself. Install
+ * the unchanged native worker and mapped test program before any startup work. */
+export async function installNativePhotoOriginalProcessCrashRuntime(page) {
+	if (!scriptsByContext.has(page.context())) scriptsByContext.set(page.context(), {
+		scripts: new Map(), origin: browserOriginForOriginalProcessCrash(),
+	});
+	const browserName = page.context().browser()?.browserType().name();
+	if (!collectors.has(page.context()) && collectsBrowserCoverage(browserName)) {
+		const captured = scriptsByContext.get(page.context());
+		const origins = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS) : {};
+		const sites = ordinaryBrowserProductSitePlan().sites.map(site => ({ ...site, origin: origins[site.productId] ?? site.origin }));
+		const collector = createBrowserCoverageCollector({ browserName, scripts: captured.scripts, sites });
+		collectors.set(page.context(), collector); collector.attach(page.context());
+		await collector.settle();
+	}
+	await installNativeImageHandoffRuntime(page);
+	const script = await mappedBundle('original-process-crash.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-original-process-crash-native-v1.ts'));
+	const pathname = '/__original_process_crash_native.js';
+	register(page, pathname, script);
+	await page.route(`**${pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	return pathname;
+}
+
+/** Collect the still-live process before a crash, and each reopened owner
+ * before its graceful close. The crash profile does not use the base context. */
+export async function collectNativePhotoOriginalProcessCrashCoverage(page, label) {
+	const context = page.context(), prior = crashCollections.get(context);
+	if (prior) { await prior; return; }
+	const collector = collectors.get(context); if (!collector) return;
+	const ready = collector.collect(label, writtenSourceMaps); crashCollections.set(context, ready);
+	await ready;
+}
+
+function browserOriginForOriginalProcessCrash() {
+	const origins = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS) : {};
+	return origins.lightscaper ?? ordinaryBrowserProductSitePlan().sites.find(site => site.productId === 'lightscaper').origin;
 }
 
 /** Full canvas comparison happens after the measured current-ready paint. */

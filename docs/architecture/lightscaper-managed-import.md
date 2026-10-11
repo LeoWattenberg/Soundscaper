@@ -163,4 +163,27 @@ physical absence.
 The strict Node qualification uses controlled persisted-state replay and actual
 storage owners. The source writer is joined before its captured durable prefix is
 replayed into another storage context. This qualifies the recovery contract;
-native browser process-death timing remains a separate qualification.
+native process-death timing is covered separately by the focused browser check
+below.
+
+The native crash check uses a new persistent Chromium or Firefox profile on Linux
+at the actual Lightscaper origin. It imports a donor Photo and saves a separate
+unrooted original through the real storage owners. The interrupted import reaches
+the native worker's successful whole-Blob flush and close acknowledgement, then
+holds only the continuation before immutable media metadata publication. A
+read-only prefix inspection proves the exact original bytes, pending intent,
+path lease and native directory witness are durable, while the current Photo,
+media metadata and custody root are absent.
+
+The test authenticates its browser through the test worker's process ancestry,
+exact executable and native profile evidence, PID start identity and process-group
+leadership before sending SIGKILL. It joins actual browser disconnection and the
+absence of live native group members before reopening the same profile. No
+Session cancellation or graceful browser close produces the interruption.
+Another read-only inspection proves the prefix survived before startup recovery
+runs. Actual runtime-three readiness then removes only the orphan, consumes its
+lease and witness, and retires the import intent. The donor Photo, catalog
+projections, original digest, content token and custody remain unchanged; the
+committed unrooted original remains retained. A second process reopen verifies
+idempotence. This qualifies that persistence boundary; it does not extend the
+process-crash claim to every import or preview boundary.
