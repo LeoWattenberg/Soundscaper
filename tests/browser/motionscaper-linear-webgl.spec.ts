@@ -82,3 +82,27 @@ test('M04 nested targets retain isolated pixels and context loss invalidates all
 	expect(result.pixels).toEqual([0.375, 0.25, 0.875, 1]);
 	expect(result.failure).toMatch(/context was lost.*CPU/iu);
 });
+
+test('M07 whole-backdrop replacement preserves float alpha, source ownership and subsequent blends on WebGL2', async ({ page }) => {
+	await page.addScriptTag({ content: bundle() });
+	const result = await page.evaluate(() => {
+		const motion = (globalThis as unknown as { motionFixture: typeof Surface & typeof WebGl }).motionFixture;
+		const admitted = motion.createMotionWebGlCompositor(document.createElement('canvas'));
+		if (!admitted.compositor) throw new Error(admitted.fallbackReason);
+		const target = admitted.compositor.begin(5, 3, [1, 0, 0, 1]);
+		try {
+			const replacement = motion.createMotionSurface(5, 3, [0.2, 0.4, 0.6, 0.5]); const expected = motion.createMotionSurface(5, 3, [0.2, 0.4, 0.6, 0.5]);
+			target.replace!(replacement); const before = [...target.finish().pixels]; replacement.pixels.fill(0);
+			const above = motion.createMotionSurface(5, 3, [0.4, 0.5, 0.1, 0.75]);
+			target.composite(above, 'screen', 0.625); motion.compositeMotionSurfaces(expected, above, 'screen', 0.625);
+			const after = target.finish(); let difference = 0;
+			for (let i = 0; i < after.pixels.length; i++) difference = Math.max(difference, Math.abs(after.pixels[i]! - expected.pixels[i]!));
+			let mismatch = '';
+			try { target.replace!(motion.createMotionSurface(1, 1)); } catch (error) { mismatch = String(error); }
+			return { before: before.slice(0, 4), difference, mismatch };
+		} finally { target.dispose(); admitted.compositor.dispose(); }
+	});
+	expect(result.before[0]).toBeCloseTo(0.1, 6); expect(result.before[1]).toBeCloseTo(0.2, 6);
+	expect(result.before[2]).toBeCloseTo(0.3, 6); expect(result.before[3]).toBe(0.5);
+	expect(result.difference).toBeLessThanOrEqual(2e-6); expect(result.mismatch).toMatch(/dimensions/u);
+});

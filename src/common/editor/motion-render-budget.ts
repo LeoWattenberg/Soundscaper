@@ -3,6 +3,7 @@
 import type { MotionCompositionFrame } from './motion-composition-evaluation.ts';
 import type { MotionCompositor, MotionRasterizer } from './motion-composition-renderer.ts';
 import { motionSurfaceLength } from './motion-surface.ts';
+import { motionAdjustmentApplies } from './motion-adjustment-rendering.ts';
 
 export const MOTION_DEFAULT_WORKING_BYTES = 512 * 1024 * 1024;
 
@@ -15,6 +16,15 @@ export function estimateMotionFrameWorkingBytes(frame: MotionCompositionFrame, r
 	let peak = retained + pixels;
 	for (const layer of frame.layers) {
 		if (layer.state.kind === 'null') continue;
+		if (layer.state.kind === 'adjustment') {
+			if (motionAdjustmentApplies(layer, frame)) {
+				const processing = Math.max(pixels, layer.state.masks.length ? rasterizer.estimateMaskWorkingBytes!(frame.width, frame.height, layer.state.masks) : 0,
+					rasterizer.estimateEffectWorkingBytes!(frame.width, frame.height, layer.state.effects));
+				if (!Number.isSafeInteger(processing) || processing < pixels) throw new RangeError('Motion adjustment supplied an invalid working-memory estimate.');
+				peak = Math.max(peak, retained + pixels * 6 + processing);
+			}
+			continue;
+		}
 		const matteCopy = layer.state.matte ? pixels : 0;
 		if (layer.precomposition !== null) {
 			const child = layer.precomposition;

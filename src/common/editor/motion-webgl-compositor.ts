@@ -24,6 +24,7 @@ export function createMotionWebGlCompositor(canvas: HTMLCanvasElement | Offscree
 	const targets = new Set<MotionCompositeTarget>();
 	return { fallbackReason: null, compositor: {
 		retainedSurfaceCount: 3,
+		supportsReplacement: true,
 		begin(width: number, height: number, background: MotionColor): MotionCompositeTarget {
 			assertActive(); motionSurfaceLength(width, height);
 			const limit: unknown = gl.getParameter(gl.MAX_TEXTURE_SIZE);
@@ -48,6 +49,11 @@ export function createMotionWebGlCompositor(canvas: HTMLCanvasElement | Offscree
 				gl.bindTexture(gl.TEXTURE_2D, textures[0]!); upload(initial); assertHealthy();
 			} catch (error) { close(); throw error; }
 			const target: MotionCompositeTarget = {
+				replace(source) {
+					assertTarget(); validateMotionSurface(source);
+					if (source.width !== width || source.height !== height) throw new RangeError('Motion WebGL2 replacement dimensions are invalid.');
+					gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textures[front]!); upload(source); assertHealthy();
+				},
 				composite(source, mode, opacity) {
 					assertTarget(); validateMotionSurface(source);
 					if (source.width !== width || source.height !== height || !Number.isFinite(opacity)) throw new RangeError('Motion WebGL2 composite dimensions/opacity are invalid.');

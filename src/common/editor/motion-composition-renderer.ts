@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { assertMotionFrameConsumed, type MotionCompositionFrame, type MotionEvaluatedLayer } from './motion-composition-evaluation.ts';
-import { assertMotion2DMatrix, compositeMotionSurfaces, createMotionSurface, type MotionBlendMode, type MotionSurface } from './motion-surface.ts';
+import { assertMotion2DMatrix, compositeMotionSurfaces, createMotionSurface, validateMotionSurface, type MotionBlendMode, type MotionSurface } from './motion-surface.ts';
 import type { MotionColor } from './motion-property.ts';
 import { assertMotionWorkingBudget, estimateMotionFrameWorkingBytes, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
 import type { MotionLocalRaster } from './motion-local-raster.ts';
@@ -10,6 +10,7 @@ import { motionEffectParameters, type MotionEffectRasterizer } from './motion-ef
 import { assertMotionAcyclic } from './motion-project-graph.ts';
 import { applyMotionMatte } from './motion-matte-rendering.ts';
 import { renderMotionLayerSource } from './motion-render-layer-source.ts';
+import { motionAdjustmentApplies, renderMotionAdjustment } from './motion-adjustment-rendering.ts';
 
 export interface MotionRasterizer extends Partial<MotionMaskRasterizer>, Partial<MotionEffectRasterizer> {
 	/** Peak scratch plus returned pixels; the default assumes two composition-sized float surfaces. */
@@ -22,15 +23,18 @@ export interface MotionRasterizer extends Partial<MotionMaskRasterizer>, Partial
 }
 export interface MotionCompositeTarget {
 	composite(source: MotionSurface, mode: MotionBlendMode, opacity: number): void;
+	/** Replace a validated whole backdrop, without borrowing or mutating source pixels. */
+	replace?(source: MotionSurface): void;
 	finish(): MotionSurface;
 	dispose(): void;
 }
-export interface MotionCompositor { readonly retainedSurfaceCount?: 1 | 3; begin(width: number, height: number, background: MotionColor): MotionCompositeTarget }
+export interface MotionCompositor { readonly retainedSurfaceCount?: 1 | 3; readonly supportsReplacement?: boolean; begin(width: number, height: number, background: MotionColor): MotionCompositeTarget }
 export interface MotionRenderResult extends MotionSurface { readonly consumedOperationIds: readonly string[] }
 
-export const motionCpuCompositor: MotionCompositor = Object.freeze({ retainedSurfaceCount: 1, begin(width: number, height: number, background: MotionColor): MotionCompositeTarget {
+export const motionCpuCompositor: MotionCompositor = Object.freeze({ retainedSurfaceCount: 1, supportsReplacement: true, begin(width: number, height: number, background: MotionColor): MotionCompositeTarget {
 	let surface: MotionSurface | null = createMotionSurface(width, height, background);
 	return { composite(source, mode, opacity) { if (!surface) throw new Error('Motion composition target is disposed.'); compositeMotionSurfaces(surface, source, mode, opacity); },
+		replace(source) { if (!surface) throw new Error('Motion composition target is disposed.'); validateMotionSurface(source); if (source.width !== width || source.height !== height) throw new RangeError('Motion replacement dimensions do not match the backdrop.'); surface.pixels.set(source.pixels); },
 		finish() { if (!surface) throw new Error('Motion composition target is disposed.'); return surface; }, dispose() { surface = null; } };
 } });
 
@@ -39,7 +43,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 	rasterizer: MotionRasterizer; compositor?: MotionCompositor; signal?: AbortSignal; maximumWorkingBytes?: number;
 }>): Promise<MotionRenderResult> {
 	options.signal?.throwIfAborted();
-	admitFrame(frame, options.rasterizer);
+	admitFrame(frame, options.rasterizer, options.compositor ?? motionCpuCompositor);
 	assertMotionWorkingBudget(estimateMotionFrameWorkingBytes(frame, options.rasterizer, options.compositor ?? motionCpuCompositor), options.maximumWorkingBytes ?? MOTION_DEFAULT_WORKING_BYTES);
 	const consumed: string[] = [];
 	const render = async (current: MotionCompositionFrame): Promise<MotionSurface> => {
@@ -65,6 +69,16 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 			for (const layer of [...current.layers].reverse()) {
 				options.signal?.throwIfAborted();
 				if (layer.state.kind === 'null') { consumed.push(...layer.operations.map((operation) => operation.id)); continue; }
+				if (layer.state.kind === 'adjustment') {
+					if (motionAdjustmentApplies(layer, current)) {
+						const matte = layer.state.matte ? layers.get(layer.state.matte.layerId) : undefined;
+						const matteSurface = matte ? await sourceFor(matte) : null;
+						const replacement = await renderMotionAdjustment(layer, target.finish(), { ...options, matte: matteSurface, matteOpacity: matte?.state.transform.opacity });
+						if (!target.replace) throw new Error('Motion compositor omitted its admitted adjustment replacement method.');
+						target.replace(replacement);
+					}
+					consumed.push(...layer.operations.map((operation) => operation.id)); continue;
+				}
 				const source = await sourceFor(layer);
 				if (!matteIds.has(layer.state.id)) target.composite(source, layer.state.blendMode, layer.state.transform.opacity);
 			}
@@ -77,7 +91,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 	return Object.freeze({ ...surface, consumedOperationIds: Object.freeze(consumed) });
 }
 
-function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer): void {
+function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer, compositor: MotionCompositor): void {
 	const layers = new Map(frame.layers.map((layer) => [layer.state.id, layer]));
 	assertMotionAcyclic(new Map(frame.layers.map((layer) => [layer.state.id, layer.state.matte ? [layer.state.matte.layerId] : []])), 'matte', 128);
 	for (const layer of frame.layers) {
@@ -85,10 +99,10 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer)
 		assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
 			if (['camera', 'light', 'shape-operator', 'text-animator'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
-			if (operation.kind === 'effect' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes || !rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes)) {
+			if (operation.kind === 'effect' && (!rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes || layer.state.kind !== 'adjustment' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes))) {
 				throw new Error(`Unsupported motion effect ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}
-			if (operation.kind === 'mask' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes || !rasterizer.rasterizeMask || !rasterizer.estimateMaskWorkingBytes)) {
+			if (operation.kind === 'mask' && (!rasterizer.rasterizeMask || !rasterizer.estimateMaskWorkingBytes || layer.state.kind !== 'adjustment' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes))) {
 				throw new Error(`Unsupported motion mask ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}
 		}
@@ -96,7 +110,7 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer)
 		if (layer.state.kind !== 'null') for (const effect of layer.state.effects) if (effect.enabled) motionEffectParameters(effect);
 		const matteSource = layer.state.matte ? layers.get(layer.state.matte.layerId) : null;
 		if (matteSource && ['null', 'camera', 'light', 'adjustment'].includes(matteSource.state.kind)) throw new Error(`Motion matte source ${matteSource.state.name} is a non-pixel layer.`);
-		if (layer.state.kind === 'adjustment') throw new Error(`Unsupported motion adjustment layer ${layer.state.name}.`);
-		if (layer.precomposition !== null) admitFrame(layer.precomposition, rasterizer);
+		if (layer.state.kind === 'adjustment' && motionAdjustmentApplies(layer, frame) && !compositor.supportsReplacement) throw new Error('Motion compositor cannot replace an adjustment backdrop; use the CPU compositor.');
+		if (layer.precomposition !== null) admitFrame(layer.precomposition, rasterizer, compositor);
 	}
 }
