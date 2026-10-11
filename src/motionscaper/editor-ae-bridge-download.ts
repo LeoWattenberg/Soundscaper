@@ -19,7 +19,7 @@ import { createMotionAeBridgeArchive } from '../common/editor/motion-ae-bridge-a
 
 export const MOTIONSCAPER_AE_BRIDGE_DOWNLOAD_NAME = 'Motionscaper-AE-Bridge-0.1.0.zip';
 export const MOTIONSCAPER_AE_BRIDGE_PROFILE = Object.freeze({ version: '0.1.0', qualification: 'unqualified' as const,
-	exportFromAfterEffects: true, importIntoAfterEffects: true, importIntoMotionscaper: true, sampledExpressions: true, renderedFallback: true });
+	exportFromAfterEffects: true, exportFromMotionscaper: true, importIntoAfterEffects: true, importIntoMotionscaper: true, sampledExpressions: true, renderedFallback: true });
 export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promise<Blob> {
 	return createMotionAeBridgeArchive({
 		'Motionscaper-Export.jsx': exporter,
@@ -51,6 +51,7 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'Sampling is limited to 4096 values per property and 262144 total keys/samples. It does not preserve subframe motion or motion blur. Native expression calls may block; installed-AE cancellation behavior is unqualified.\n'
 			+ 'For a complete active-composition PNG sequence, run Motionscaper-Export-Rendered.jsx and explicitly confirm. The existing render queue must be empty. Enter the exact name of your own installed full-size 8-bit RGB+Alpha PNG sequence template. The bridge owns one temporary queue item and fresh output folder.\n'
 			+ 'The staged image-layer carrier accepts at most 256 frames; larger projects may hit the unchanged overall project budget. Every frame must be present. It carries no audio. Original authored exchange and media remain retained. PNG channel metadata is not alpha/color fidelity qualification. Native rendering blocks; AE cancellation/Escape and actual setting names remain unqualified.\n'
+			+ 'To export a Motion-authored project, open File > After Effects Bridge, review Export Current Project to AE and download the package. It contains original.mscape, every original asset, the partial editable manifest and its omission report. The source archive is limited to 128 MiB and the final package to 256 MiB. Motion-authored transfers are video-only: the importer mutes every new layer.\n'
 			+ 'For a limited AE re-import, use Run Script File with Motionscaper-Import.jsx and choose motionae.json.\n'
 			+ 'The importer creates a new folder with compositions, footage, null layers, parent links and transform keys/easing. Existing project items and files are not overwritten or saved.\n'
 			+ 'Text, shapes, solid sources, cameras and lights are not yet admitted by this importer. Render complete compositions in AE when unsupported content is required.\n'

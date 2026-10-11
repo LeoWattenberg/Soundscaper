@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
+import MotionAeExportPanel from './MotionAeExportPanel.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import type { MotionscaperProject } from '../../../../motionscaper/editor-project-types.ts';
 import type { MotionscaperProjectStore } from '../../../../motionscaper/editor-project-store.ts';
@@ -16,7 +17,7 @@ function failureText(failure: unknown): string {
 	if (failure instanceof AggregateError) return `${failure.message} ${failure.errors.map(failureText).join(' ')}`;
 	return failure instanceof Error ? failure.message : String(failure);
 }
-export default function MotionAeBridgeDialog({ store, copy, busy, onOpen, onClose, initialFile }: Readonly<{
+export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpen, onClose, initialFile }: Readonly<{
 	store: MotionscaperProjectStore; project?: MotionscaperProject; copy: Readonly<Record<string, string>>; busy: boolean;
 	onOpen: (id: string) => Promise<void>; onClose: () => void; initialFile?: File;
 }>) {
@@ -62,6 +63,7 @@ export default function MotionAeBridgeDialog({ store, copy, busy, onOpen, onClos
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>{working && <Button variant="secondary" onClick={() => active.current?.abort()}>{copy.motionscaperCancel}</Button>}<Button variant="secondary" disabled={disabled} onClick={onClose}>{copy.motionscaperClose}</Button></>} />}>
 		<p>{copy.motionscaperAeQualification}</p><p>{copy.motionscaperAeInstructions}</p><p>{copy.motionscaperAeSampling}</p><p>{copy.motionscaperAeRendered}</p>
 		<Button variant="secondary" disabled={disabled} onClick={() => { void scripts(); }}>{copy.motionscaperAeDownload}</Button>
+		<MotionAeExportPanel project={project} store={store} copy={copy} disabled={disabled} run={run} download={download} />
 		<fieldset disabled={disabled || Boolean(importedId)} className="motionscaper-timeline-actions"><legend>{copy.motionscaperAeReview}</legend>
 			<label htmlFor={`${id}-manifest`}>{copy.motionscaperAeManifest}</label><input id={`${id}-manifest`} type="file" accept=".json,.aep,.aepx" onChange={event => { resetReview(); setManifest(event.currentTarget.files?.[0] ?? null); }} />
 			{manifest && <p>{manifest.name}</p>}

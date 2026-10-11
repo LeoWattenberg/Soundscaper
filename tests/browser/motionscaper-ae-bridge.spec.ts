@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
+import { BlobReader, BlobWriter, TextWriter, ZipReader } from '@zip.js/zip.js';
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { ordinaryBrowserProductSitePlan } from '../../scripts/lib/browser-product-site-plan.mjs';
@@ -132,4 +132,40 @@ test('AE rendered fallback imports and seeks every retained PNG frame without fl
 	const pixel = () => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(8, 8, 1, 1).data));
 	expect(await pixel()).toEqual([255, 0, 0, 128]); await preview.getByLabel('Frame', { exact: true }).fill('1');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '1'); expect(await pixel()).toEqual([0, 0, 255, 255]);
+});
+
+test('Motion-authored AE export reviews omissions and downloads exact source custody without saving the document', async ({ page }: { page: Page }) => {
+	await page.goto('/embed/en/'); await menu(page, 'After Effects Bridge');
+	const dialog = page.getByRole('dialog', { name: 'After Effects Bridge', exact: true });
+	await expect(dialog.getByRole('button', { name: 'Review Export', exact: true })).toBeDisabled();
+	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await menu(page, 'New Composition'); await page.getByLabel('Project title', { exact: true }).fill('Motion original');
+	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(dialog).toHaveCount(0);
+	const source = await fixture(page); await menu(page, 'Import Media');
+	await page.getByLabel('Media file', { exact: true }).setInputFiles(source.files[0]!); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'New Rectangle', 'Layer'); await page.getByLabel('Layer name', { exact: true }).fill('Original shape intent');
+	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+	const before = await page.locator('[data-motion-save-status]').textContent();
+	await menu(page, 'After Effects Bridge'); await dialog.getByRole('button', { name: 'Review Export', exact: true }).click();
+	const report = dialog.getByRole('region', { name: 'Export conversion report', exact: true });
+	await expect(report).toContainText('Motion original'); await expect(report).toContainText('disabled named null');
+	await expect(report).toContainText('video-only'); await expect(report).toContainText('original.mscape');
+	const button = report.getByRole('button', { name: 'Download AE Exchange Package', exact: true }); await expect(button).toBeDisabled();
+	await report.getByRole('checkbox').check(); const pending = page.waitForEvent('download'); await button.click(); const result = await pending;
+	expect(result.suggestedFilename()).toBe('Motionscaper-AE-Export.zip'); await expect(report.getByRole('status')).toContainText('not changed or saved');
+	const reader = new ZipReader(new BlobReader(new Blob([new Uint8Array(await readFile((await result.path())!))])));
+	try {
+		const entries = await reader.getEntries(), manifest = entries.find(entry => entry.filename === 'motionae.json')!, original = entries.find(entry => entry.filename === 'original.mscape')!;
+		if (manifest.directory || original.directory) throw new Error('Expected preserved files');
+		const exchange = JSON.parse(await manifest.getData!(new TextWriter())) as MotionAeExchange;
+		expect(exchange.producer.application).toBe('motionscaper'); expect(exchange.report.some(entry => entry.code === 'layer-kind')).toBe(true);
+		const retained: Uint8Array[] = [], opened = await importMotionscaperArchive(await original.getData!(new BlobWriter()), () => ({
+			async writeAssetChunk(_asset, bytes) { retained.push(bytes.slice()); }, async finishAsset() {}, async commit() {}, async rollback() {},
+		}));
+		expect(opened.kind).toBe('current'); if (opened.kind !== 'current') throw new Error('Expected Motion source');
+		expect(opened.project.title).toBe('Motion original'); expect(opened.project.compositions[0]!.layers.some(layer => layer.kind === 'shapes' && layer.name === 'Original shape intent')).toBe(true);
+		expect(Buffer.concat(retained)).toEqual(source.files[0]!.buffer);
+	} finally { await reader.close(); }
+	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(page.locator('[data-motion-project-title]')).toHaveText('Motion original'); await expect(page.locator('[data-motion-save-status]')).toHaveText(before!);
 });

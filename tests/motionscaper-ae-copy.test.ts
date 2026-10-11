@@ -11,3 +11,11 @@ test('AE bridge copy is opt-in, owned and localized with explicit development qu
 	assert.equal(motionscaperCopy('de').motionscaperAfterEffectsBridge, 'After-Effects-Austausch');
 	assert.equal(motionscaperCopy('fr', { [key]: 'Échange After Effects' }).motionscaperAfterEffectsBridge, 'Échange After Effects');
 });
+
+test('reverse Adobe export copy keeps source custody and qualification explicit in English and German', () => {
+	for (const locale of ['en', 'de']) {
+		const copy = motionscaperCopy(locale);
+		assert.ok(copy.motionscaperAeReviewExport); assert.match(copy.motionscaperAeExportCustody!, /original\.mscape/u);
+		assert.match(copy.motionscaperAeExportInstructions!, /32/u); assert.match(copy.motionscaperAeExportLimits!, /128 MiB.*256 MiB/u);
+	}
+});
