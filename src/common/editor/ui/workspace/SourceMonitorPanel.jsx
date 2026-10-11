@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
 import ProductGeneratedSourceCanvas from './ProductGeneratedSourceCanvas.tsx';
+import { sourceMonitorIdentityIsCurrent } from './source-monitor-identity.ts';
 
 import '../audio-editor-design-system/23-source-monitor.css';
 
@@ -22,7 +23,12 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 	const generatedRuntime = productVideoVisualPreviewRuntimeFor(controller)?.generatedSources;
 	const generated = view.sourceId && generatedRuntime?.ownsSource(snapshot.project, view.sourceId) ? generatedRuntime : null;
 	const disabled = blocked || snapshot.readOnly;
-	const publishGenerated = useCallback(frame => { controller.actions.video.sourceMonitor.seek(frame); }, [controller]);
+	const generatedIsCurrent = useCallback(() => sourceMonitorIdentityIsCurrent(controller, {
+		sourceId: view.sourceId, openRevision: view.openRevision, project: snapshot.project,
+	}), [controller, view.sourceId, view.openRevision, snapshot.project]);
+	const publishGenerated = useCallback(frame => {
+		if (generatedIsCurrent()) controller.actions.video.sourceMonitor.seek(frame);
+	}, [controller, generatedIsCurrent]);
 
 	// Playing a source is a viewing action; stopping it is what makes the
 	// controller's frame authoritative again.
@@ -30,7 +36,8 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 		videoRef.current?.pause?.();
 		setPlayback(null);
 	}, []);
-	const generatedPlayingChanged = useCallback(value => { if (!value) stop(); }, [stop]);
+	const stopGenerated = useCallback(() => { if (generatedIsCurrent()) stop(); }, [generatedIsCurrent, stop]);
+	const generatedPlayingChanged = useCallback(value => { if (!value) stopGenerated(); }, [stopGenerated]);
 	useEffect(() => { stop(); }, [stop, view.sourceId, view.openRevision, snapshot.project]);
 	useEffect(() => {
 		const media = videoRef.current;
@@ -92,7 +99,7 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 	>
 		<div className="kw-audio-editor__source-monitor-picture">
 			{generated ? <ProductGeneratedSourceCanvas runtime={generated} project={snapshot.project} sourceId={view.sourceId} sourceFrame={view.positionFrame}
-				width={640} height={360} frameRate={view.frameRate} sourceFrameCount={view.sourceFrameCount} playing={playing} onPosition={publishGenerated} onPlayingChanged={generatedPlayingChanged} unavailable={copy.videoPreviewUnavailable} label={`${copy.panelSourceMonitor}: ${view.sourceName || copy.videoClip}`} onError={stop} /> : mediaUrl
+				width={640} height={360} frameRate={view.frameRate} sourceFrameCount={view.sourceFrameCount} playing={playing} onPosition={publishGenerated} onPlayingChanged={generatedPlayingChanged} unavailable={copy.videoPreviewUnavailable} label={`${copy.panelSourceMonitor}: ${view.sourceName || copy.videoClip}`} onError={stopGenerated} /> : mediaUrl
 				? <video
 					ref={videoRef}
 					data-source-monitor-video
