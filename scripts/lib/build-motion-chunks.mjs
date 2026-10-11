@@ -33,6 +33,7 @@ const successorRuntimeModules = [
 	'editor-project-successor-playback',
 	'editor-project-successor-environment',
 	'editor-composition-link-pcm-source',
+	'editor-composition-link-resources',
 	'editor-composition-link-preview-controller',
 	'editor-composition-link-preview-project',
 	'editor-capture-deferred-binding',

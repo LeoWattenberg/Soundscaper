@@ -31,6 +31,7 @@ test('successor composition roots have explicit chunk ownership outside their bo
 	const { chunkGroupForModulePath } = await import('../scripts/lib/build-chunk-groups.mjs');
 	assert.equal(chunkGroupForModulePath('/repo/src/common/editor/ui/FramescaperSuccessorBootstrap.tsx'), 'framescaper-successor-bootstrap');
 	assert.equal(chunkGroupForModulePath('/repo/src/framescaper/editor-successor-controller.ts'), 'framescaper-successor-runtime');
+	assert.equal(chunkGroupForModulePath('/repo/src/framescaper/editor-composition-link-resources.ts'), 'framescaper-successor-runtime');
 });
 
 test('successor offline activation targets the explicit successor bootstrap', async () => {
