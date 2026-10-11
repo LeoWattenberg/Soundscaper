@@ -19,3 +19,8 @@ test('reverse Adobe export copy keeps source custody and qualification explicit 
 		assert.match(copy.motionscaperAeExportInstructions!, /32/u); assert.match(copy.motionscaperAeExportLimits!, /128 MiB.*256 MiB/u);
 	}
 });
+
+test('Motion AE camera/light review is localized and states its structural scene limits', () => {
+	for (const locale of ['en', 'de']) { const copy = motionscaperCopy(locale); assert.ok(copy.motionscaperAeSceneImport); assert.ok(copy.motionscaperAeSceneExport); assert.ok(copy.motionscaperAeSceneImportColor); assert.ok(copy.motionscaperAeSceneExportColor); }
+	assert.match(motionscaperCopy('en').motionscaperAeSceneHint!, /depth of field off/u); assert.match(motionscaperCopy('en').motionscaperAeSceneHint!, /3D picture layers/u);
+});
