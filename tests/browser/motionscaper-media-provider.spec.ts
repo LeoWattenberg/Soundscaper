@@ -3,29 +3,21 @@
 import { expect, test } from '@playwright/test';
 import { buildSync } from 'esbuild';
 import { fileURLToPath } from 'node:url';
-import type * as Video from '../../src/common/editor/controller/export/motion-browser-video.ts';
-import type * as Surface from '../../src/common/editor/motion-surface.ts';
 import type * as Provider from '../../src/common/editor/motion-media-provider.ts';
+import { encodeMotionChannel } from '../../src/common/editor/motion-surface.ts';
 import type { MotionAsset } from '../../src/common/editor/motion-asset.ts';
+import { motionRetainedVideoFixture, MOTION_RETAINED_VIDEO_FIXTURES } from './helpers/motionscaper-tracking-source.ts';
 
 const bundle = () => buildSync({ stdin: { contents: `
-	export { createMotionBrowserVideoSink } from '../../src/common/editor/controller/export/motion-browser-video.ts';
-	export { createMotionSurface } from '../../src/common/editor/motion-surface.ts';
 	export { createMotionMediaProvider } from '../../src/common/editor/motion-media-provider.ts';`,
 	resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'ts' }, bundle: true, write: false, format: 'iife',
 	globalName: 'motionMediaFixture', target: 'es2022' }).outputFiles[0]!.text;
 
 test('retained footage provider decodes exact source PTS and reverse seeks without using a media element', async ({ page }) => {
 	await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
-	const result = await page.evaluate(async () => {
-		const fixture = (globalThis as unknown as { motionMediaFixture: typeof Video & typeof Surface & typeof Provider }).motionMediaFixture;
-		const plan = { identity: { projectId: 'source', compositionId: 'c', revisionDigest: 'a'.repeat(64) }, width: 32, height: 32,
-			frameRate: { num: 30, den: 1 }, firstFrame: 0, frameCount: 2 };
-		const sink = await fixture.createMotionBrowserVideoSink({ plan, format: 'mp4', background: [0, 0, 0] });
-		for (let index = 0; index < 2; index++) await sink.write({ index, time: { num: index, den: 30 }, duration: { num: 1, den: 30 },
-			surface: { ...fixture.createMotionSurface(32, 32, index === 0 ? [1, 0, 0, 1] : [0, 0, 1, 1]), consumedOperationIds: [] } });
-		const blob = await sink.finish(); if (!blob) throw new Error('A source file is required.');
-		const bytes = new Uint8Array(await blob.arrayBuffer());
+	const result = await page.evaluate(async encoded => {
+		const fixture = (globalThis as unknown as { motionMediaFixture: typeof Provider }).motionMediaFixture;
+		const bytes = new Uint8Array(encoded);
 		const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) => byte.toString(16).padStart(2, '0')).join('');
 		const asset: Extract<MotionAsset, { kind: 'footage' }> = { id: 'video', kind: 'footage', name: 'Source.mp4', width: 32, height: 32,
 			frameRate: { num: 30, den: 1 }, duration: { num: 1, den: 15 }, hasAlpha: false, hasAudio: false,
@@ -36,10 +28,55 @@ test('retained footage provider decodes exact source PTS and reverse seeks witho
 			for (const num of [0, 1, 0]) pixels.push(Array.from((await provider.decodeFootage(asset, { num, den: 30 })).pixels.subarray(0, 4)));
 			return { pixels, loads, mediaElements: document.querySelectorAll('video,audio').length };
 		} finally { provider.dispose(); }
-	});
+	}, Array.from(motionRetainedVideoFixture('swatches2')));
 	expect(result.loads).toBe(1); expect(result.mediaElements).toBe(0);
 	for (const [index, pixel] of result.pixels.entries()) {
-		expect(pixel[index === 1 ? 2 : 0]).toBeGreaterThan(0.95);
+		// The retained 4:2:0 H.264 primary can differ by up to 18 encoded codes.
+		expect(Math.abs(encodeMotionChannel(pixel[index === 1 ? 2 : 0]!, 'srgb') * 255 - 255)).toBeLessThan(18);
 		expect(pixel[index === 1 ? 0 : 2]).toBeLessThan(0.03); expect(pixel[1]).toBeLessThan(0.03); expect(pixel[3]).toBe(1);
 	}
+});
+
+for (const name of ['checker120', 'green6'] as const) test(`retained ${name} moving pattern decodes independently of browser encoding`, async ({ page }) => {
+	await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
+	const result = await page.evaluate(async ({ encoded, metadata }) => {
+		const fixture = (globalThis as unknown as { motionMediaFixture: typeof Provider }).motionMediaFixture;
+		const bytes = new Uint8Array(encoded);
+		const asset: Extract<MotionAsset, { kind: 'footage' }> = { id: 'moving', kind: 'footage', name: 'Moving.mp4', width: metadata.width, height: metadata.height,
+			frameRate: { num: metadata.frameRate, den: 1 }, duration: { num: metadata.frameCount, den: metadata.frameRate }, hasAlpha: false, hasAudio: false,
+			mimeType: 'video/mp4', byteLength: bytes.byteLength, sha256: metadata.sha256, storageKey: `motion-sha256:${metadata.sha256}` };
+		const provider = fixture.createMotionMediaProvider({ loadAsset: () => Promise.resolve(bytes) });
+		try {
+			const result = [];
+			for (const frame of [0, 5, 0]) {
+				const surface = await provider.decodeFootage(asset, { num: frame, den: metadata.frameRate });
+				const at = (x: number, y: number): number[] => Array.from(surface.pixels.subarray((y * metadata.width + x) * 4, (y * metadata.width + x) * 4 + 4));
+				result.push({ corner: at(0, 0), original: at(16, 16), translated: at(21, 21) });
+			}
+			return result;
+		} finally { provider.dispose(); }
+	}, { encoded: Array.from(motionRetainedVideoFixture(name)), metadata: MOTION_RETAINED_VIDEO_FIXTURES[name] });
+	expect(result[0]).toEqual(result[2]); expect(result[0]!.original[0]).toBeGreaterThan(0.9);
+	expect(result[1]!.original[0]).toBeLessThan(0.08); expect(result[1]!.translated[0]).toBeGreaterThan(0.9);
+	for (const frame of result) { expect(frame.corner[0]).toBeLessThan(0.02); expect(Math.abs(frame.corner[1]! - (name === 'green6' ? 1 : 0))).toBeLessThan(0.02); expect(frame.corner[3]).toBe(1); }
+});
+
+test('retained AV fixture exposes bounded native stereo PCM without requiring an encoder', async ({ page }) => {
+	await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
+	const result = await page.evaluate(async ({ encoded, metadata }) => {
+		const fixture = (globalThis as unknown as { motionMediaFixture: typeof Provider }).motionMediaFixture;
+		const bytes = new Uint8Array(encoded);
+		const asset: Extract<MotionAsset, { kind: 'footage' }> = { id: 'av', kind: 'footage', name: 'Retained.webm', width: 64, height: 64,
+			frameRate: { num: 30, den: 1 }, duration: { num: 1, den: 1 }, hasAlpha: false, hasAudio: true,
+			mimeType: 'video/webm', byteLength: bytes.byteLength, sha256: metadata.sha256, storageKey: `motion-sha256:${metadata.sha256}` };
+		const provider = fixture.createMotionMediaProvider({ loadAsset: () => Promise.resolve(bytes) });
+		try {
+			const format = await provider.describe(asset); const pcm = await provider.read({ asset, startSample: 1024, sampleCount: 4096 });
+			const energy = [0, 0]; for (let index = 0; index < pcm.length; index++) energy[index % 2] = energy[index % 2]! + pcm[index]! ** 2;
+			return { format, length: pcm.length, rms: energy.map(value => Math.sqrt(value / 4096)) };
+		} finally { provider.dispose(); }
+	}, { encoded: Array.from(motionRetainedVideoFixture('redAudio30')), metadata: MOTION_RETAINED_VIDEO_FIXTURES.redAudio30 });
+	expect(result.format).toEqual({ sampleRate: 48000, channels: 2, sampleCount: 48000 }); expect(result.length).toBe(8192);
+	expect(result.rms[0]).toBeGreaterThan(0.15); expect(result.rms[0]).toBeLessThan(0.20);
+	expect(result.rms[1]).toBeGreaterThan(0.075); expect(result.rms[1]).toBeLessThan(0.10);
 });

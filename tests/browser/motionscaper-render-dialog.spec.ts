@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { MOTION_WEBM_TIMECODE_QUANTUM_SECONDS } from '../../src/common/editor/motion-video-delivery.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { attemptMotionVideoDelivery, assertMotionPngDeliveryMatchesPreview, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 
 async function menu(page: Page, top: string, command: string): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click();
@@ -54,7 +55,7 @@ test('File Render exports a pinned transparent PNG sequence with exact frame met
 	await expect(page.locator('[data-motion-save-status]')).toHaveText('Unsaved changes');
 });
 
-for (const format of ['mp4', 'webm'] as const) test(`File Render delivers a ${format} file without publishing the draft`, async ({ page }: { page: Page }) => {
+for (const format of ['mp4', 'webm'] as const) test(`File Render attempts ${format} delivery or visibly refuses before PNG recovery without publishing the draft`, async ({ page }: { page: Page }) => {
 	await page.addInitScript(() => { Object.defineProperty(globalThis, 'showSaveFilePicker', { value: undefined, configurable: true }); });
 	await page.goto('/embed/en/'); await menu(page, 'File', 'New Composition');
 	await page.getByLabel('Width', { exact: true }).fill('64'); await page.getByLabel('Height', { exact: true }).fill('64');
@@ -63,8 +64,13 @@ for (const format of ['mp4', 'webm'] as const) test(`File Render delivers a ${fo
 	await menu(page, 'File', 'Render'); const dialog = page.getByRole('dialog', { name: 'Render Composition', exact: true });
 	await dialog.getByLabel('Output format', { exact: true }).selectOption(format);
 	await expect(dialog).toContainText('Video replaces transparent areas');
-	const pending = page.waitForEvent('download'); await dialog.getByRole('button', { name: 'Render', exact: true }).click();
-	const download = await pending; expect(download.suggestedFilename()).toMatch(new RegExp(`\\.${format}$`, 'u'));
+	const download = await attemptMotionVideoDelivery(page, dialog);
+	if (!download) {
+		await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+		await assertMotionPngDeliveryMatchesPreview(page, await snapshotMotionPreviewFrames(page, [0, 1]));
+		await expect(page.locator('[data-motion-save-status]')).toHaveText('Unsaved changes'); return;
+	}
+	expect(download.suggestedFilename()).toMatch(new RegExp(`\\.${format}$`, 'u'));
 	const path = await download.path(); if (!path) throw new Error('Video download is unavailable.');
 	const { Input, BufferSource, ALL_FORMATS } = await import('mediabunny');
 	const input = new Input({ source: new BufferSource(await readFile(path)), formats: ALL_FORMATS });
@@ -77,6 +83,7 @@ for (const format of ['mp4', 'webm'] as const) test(`File Render delivers a ${fo
 		else expect(duration).toBeCloseTo(2 / 30, 5);
 	} finally { input.dispose(); }
 	await expect(dialog.getByRole('status')).toHaveText('Render complete');
+	await expect(page.locator('[data-motion-save-status]')).toHaveText('Unsaved changes');
 });
 
 test('a running render can be cancelled and restarted without publishing partial output', async ({ page }: { page: Page }) => {

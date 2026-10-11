@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import type { Page } from '@playwright/test';
+import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './browser-coverage-fixture.js';
 
 async function menu(page: Page, top: string, label: string): Promise<void> {
@@ -45,4 +45,56 @@ function pngEntries(bytes: Uint8Array): Map<string, Uint8Array> {
 		entries.set(name, bytes.slice(offset + 512, offset + 512 + size)); offset += 512 + Math.ceil(size / 512) * 512;
 	}
 	return entries;
+}
+
+/** These callers author 64x64 at 30 fps, with the default 8 Mbps video/128 kbps stereo audio. */
+async function motionVideoRefusalWitness(page: Page, format: string, audio: boolean): Promise<string | null> {
+	if (format !== 'mp4' && format !== 'webm') throw new Error('A video delivery witness requires MP4 or WebM.');
+	return page.evaluate(async ({ format, audio }) => {
+		// Do not touch either encoder on this host: its native GStreamer probe can terminate the page.
+		if (/^Linux\b/u.test(navigator.platform) && /\bAppleWebKit\//u.test(navigator.userAgent)
+			&& !/\b(?:Chrome|Chromium|HeadlessChrome|Edg|OPR)\//u.test(navigator.userAgent)) {
+			return 'Video encoding is unavailable in Linux WebKit. Choose a PNG sequence or another qualified browser.';
+		}
+		const mp4 = format === 'mp4'; let videoSupported = false;
+		if (typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined') {
+			for (const codec of mp4 ? ['avc1.640034', 'avc1.64002a', 'avc1.42001f'] : ['vp09.00.10.08']) {
+				const config: VideoEncoderConfig = { codec, width: 64, height: 64, framerate: 30, bitrate: 8_000_000,
+					latencyMode: 'quality', alpha: 'discard', ...(mp4 ? { avc: { format: 'avc' as const } } : {}) };
+				try { if ((await VideoEncoder.isConfigSupported(config)).supported === true) { videoSupported = true; break; } } catch { /* Native refusal is a capability result. */ }
+			}
+		}
+		if (!videoSupported) return `No ${mp4 ? 'H.264' : 'VP9'} browser encoder supports this canvas and frame rate.`;
+		if (audio) {
+			let audioSupported = false;
+			if (typeof AudioEncoder !== 'undefined' && typeof AudioData !== 'undefined') {
+				const config = { codec: mp4 ? 'mp4a.40.2' : 'opus', sampleRate: 48000, numberOfChannels: 2, bitrate: 128000,
+					...(mp4 ? { aac: { format: 'aac' as const } } : { opus: { format: 'opus' as const } }) };
+				try { audioSupported = (await AudioEncoder.isConfigSupported(config)).supported === true; } catch { /* Native refusal is a capability result. */ }
+			}
+			if (!audioSupported) return `No ${mp4 ? 'AAC' : 'Opus'} browser audio encoder supports this sample rate and channel layout. Choose another container.`;
+		}
+		return null;
+	}, { format, audio });
+}
+
+/** Exercise actual product admission; capable hosts must produce a completed download. */
+export async function attemptMotionVideoDelivery(page: Page, dialog: Locator, { audio = false }: { audio?: boolean } = {}): Promise<Download | null> {
+	const downloads: Download[] = []; const received = (download: Download): void => { downloads.push(download); };
+	page.on('download', received);
+	try {
+		const expectedRefusal = await motionVideoRefusalWitness(page, await dialog.getByLabel('Output format', { exact: true }).inputValue(), audio);
+		await dialog.getByRole('button', { name: 'Render', exact: true }).click();
+		await expect.poll(async () => await dialog.getByRole('alert').count() > 0
+			|| await dialog.getByRole('status').textContent() === 'Render complete', { timeout: 30_000 }).toBe(true);
+		await expect(dialog.getByRole('button', { name: 'Render', exact: true })).toBeEnabled();
+		await expect(dialog.getByRole('progressbar')).toHaveCount(0);
+		if (await dialog.getByRole('alert').count()) {
+			expect(expectedRefusal, 'Native encoder support must independently justify product refusal').not.toBeNull();
+			await expect(dialog.getByRole('alert')).toHaveText(expectedRefusal!);
+			expect(downloads).toEqual([]); return null;
+		}
+		expect(expectedRefusal, 'Delivery must agree with native capability and the Linux WebKit pre-probe boundary').toBeNull();
+		await expect.poll(() => downloads.length).toBe(1); return downloads[0]!;
+	} finally { page.off('download', received); }
 }

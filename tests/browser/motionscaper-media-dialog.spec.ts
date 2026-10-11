@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { motionWavFixture } from '../helpers/motion-media-fixture.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { motionRetainedVideoFixture } from './helpers/motionscaper-tracking-source.ts';
+import { attemptMotionVideoDelivery, assertMotionPngDeliveryMatchesPreview, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 
 async function menu(page: Page, top: string, command: string): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click();
@@ -43,16 +45,21 @@ test('media is imported through File and retained for preview after saving and r
 	await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
 	await menu(page, 'File', 'Render'); const render = page.getByRole('dialog', { name: 'Render Composition', exact: true });
 	await render.getByLabel('Output format', { exact: true }).selectOption('webm');
-	const pending = page.waitForEvent('download'); await render.getByRole('button', { name: 'Render', exact: true }).click();
-	const download = await pending; const path = await download.path(); if (!path) throw new Error('Media render file is unavailable.');
-	const bytes = await readFile(path); const { Input, BufferSource, ALL_FORMATS } = await import('mediabunny');
-	const input = new Input({ source: new BufferSource(bytes), formats: ALL_FORMATS });
-	try {
-		const track = await input.getPrimaryAudioTrack(); expect(track).not.toBeNull();
-		expect(await track!.getSampleRate()).toBe(48000); expect(await track!.getNumberOfChannels()).toBe(2);
-		expect((await input.getPrimaryVideoTrack())?.codec).toBe('vp9');
-	} finally { input.dispose(); }
+	const download = await attemptMotionVideoDelivery(page, render, { audio: true });
+	if (download) {
+		const path = await download.path(); if (!path) throw new Error('Media render file is unavailable.');
+		const { Input, BufferSource, ALL_FORMATS } = await import('mediabunny');
+		const input = new Input({ source: new BufferSource(await readFile(path)), formats: ALL_FORMATS });
+		try {
+			const track = await input.getPrimaryAudioTrack(); expect(track).not.toBeNull();
+			expect(await track!.getSampleRate()).toBe(48000); expect(await track!.getNumberOfChannels()).toBe(2);
+			expect((await input.getPrimaryVideoTrack())?.codec).toBe('vp9');
+		} finally { input.dispose(); }
+	}
 	await page.keyboard.press('Escape'); await expect(render).toHaveCount(0);
+	if (!download) await assertMotionPngDeliveryMatchesPreview(page, await snapshotMotionPreviewFrames(page, [0]));
+	// Decode and edit the independent AV source on every engine, including when encoding is refused.
+	const bytes = motionRetainedVideoFixture('redAudio30');
 	await menu(page, 'File', 'New Composition');
 	await page.getByLabel('Width', { exact: true }).fill('64'); await page.getByLabel('Height', { exact: true }).fill('64');
 	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
