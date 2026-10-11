@@ -62,8 +62,13 @@ const CLAIMS: readonly ManifestClaim[] = Object.freeze([
 
 test('every path the desktop payload manifests name is backed by the repository', async () => {
 	const checked = CLAIMS.filter(({ path }) => !isGenerated(path));
-	assert.ok(
-		checked.length >= CLAIMS.length - 4,
+	assert.deepEqual(
+		CLAIMS.filter(({ path }) => isGenerated(path)).map(({ list, path, kind }) => ({ list, path, kind })),
+		['soundscaper', 'framescaper', 'motionscaper'].flatMap((productId) => ['', '-source-maps'].map((suffix) => ({
+			list: 'NIGHTLY_TEST_PAYLOAD_INPUTS',
+			path: `.wrangler/dual-origin-browser/${productId}${suffix}`,
+			kind: 'directory',
+		}))),
 		'only the built browser sites and their source maps may be generated',
 	);
 	const failures: string[] = [];
