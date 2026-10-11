@@ -29,7 +29,7 @@ export function createFramescaperCompositionResources(readAsset: FramescaperComp
 			try {
 				const { createMotionBrowserRasterizer } = await import('../common/editor/controller/composition/motion-raster-runtime.ts');
 				const rasterizer = await createMotionBrowserRasterizer({ assets: offer.revision.project.assets, loadAsset: resources.loadAsset, decodeFootage: resources.provider.decodeFootage }, signal);
-				return { rasterizer, expressionAudio: resources.expressionAudio, release: resources.release };
+				return { rasterizer, expressionAudio: resources.expressionAudio, async release() { rasterizer.dispose(); await resources.release(); } };
 			} catch (error) { await resources.release(); throw error; }
 		},
 	});

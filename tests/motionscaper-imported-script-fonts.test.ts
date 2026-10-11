@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import CanvasKitInit from 'canvaskit-wasm';
 import { prepareMotionFont } from '../src/common/editor/motion-font-import.ts';
+import { createMotionFontProviderOwner } from '../src/common/editor/motion-canvaskit-font-owner.ts';
 import { createCanvasKitMotionRasterizer } from '../src/common/editor/motion-canvaskit-rasterizer.ts';
 import { renderMotionCompositionFrame } from '../src/common/editor/motion-composition-renderer.ts';
 import { motionSurfaceToRgba8 } from '../src/common/editor/motion-surface.ts';
@@ -26,9 +27,12 @@ async function fixture(id: 'arabic' | 'cjk', text: string, width = 240) {
 	} } });
 	const frame = compileMotionscaperProject({ ...project, assets: [font.asset], compositions: [{ ...project.compositions[0]!, layers: [layer] }] }).evaluate({ compositionId: 'main', time: 0 });
 	const state = frame.layers[0]!.state; if (state.kind !== 'text') throw new Error('Expected text.');
-	const raster = createCanvasKitMotionRasterizer(kit, { assets: [font.asset], fallbackFonts: [], async loadAsset() { return font.bytes; } });
-	const shaped = await raster.shapeText(state.document), surface = await renderMotionCompositionFrame(frame, { rasterizer: raster });
-	return { shaped, pixels: motionSurfaceToRgba8(surface, 'srgb') };
+	const fontProviders = createMotionFontProviderOwner(kit);
+	const raster = createCanvasKitMotionRasterizer(kit, { fontProviders, assets: [font.asset], fallbackFonts: [], async loadAsset() { return font.bytes; } });
+	try {
+		const shaped = await raster.shapeText(state.document), surface = await renderMotionCompositionFrame(frame, { rasterizer: raster });
+		return { shaped, pixels: motionSurfaceToRgba8(surface, 'srgb') };
+	} finally { fontProviders.dispose(); }
 }
 test('M04 retained Arabic font shapes joined RTL clusters without a system font provider', async () => {
 	const joined = await fixture('arabic', 'سَلَام مرحبا');

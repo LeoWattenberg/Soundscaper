@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createMotionFontProviderOwner } from '../../motion-canvaskit-font-owner.ts';
 import type { MotionRasterRuntime } from '../../motion-canvaskit-browser.ts';
 import type { MotionRasterResources, CanvasKitMotionRasterizer } from '../../motion-canvaskit-rasterizer.ts';
 import { createCanvasKitMotionRasterizer } from '../../motion-canvaskit-rasterizer.ts';
@@ -18,7 +19,9 @@ export function createMotionRasterRuntimeLoader(initialize: () => Promise<Motion
 
 export const loadMotionRasterRuntime = createMotionRasterRuntimeLoader(() => import('../../motion-canvaskit-browser.ts').then((module) => module.initializeMotionRasterRuntime()));
 
-export async function createMotionBrowserRasterizer(resources: Omit<MotionRasterResources, 'fallbackFonts'>, signal?: AbortSignal): Promise<CanvasKitMotionRasterizer> {
+export async function createMotionBrowserRasterizer(resources: Omit<MotionRasterResources, 'fallbackFonts' | 'fontProviders'>, signal?: AbortSignal): Promise<CanvasKitMotionRasterizer & { dispose(): void }> {
 	const loaded = await loadMotionRasterRuntime(signal);
-	return createCanvasKitMotionRasterizer(loaded.kit, { ...resources, fallbackFonts: loaded.fallbackFonts });
+	const fontProviders = createMotionFontProviderOwner(loaded.kit);
+	try { return { ...createCanvasKitMotionRasterizer(loaded.kit, { ...resources, fallbackFonts: loaded.fallbackFonts, fontProviders }), dispose: () => fontProviders.dispose() }; }
+	catch (error) { fontProviders.dispose(); throw error; }
 }

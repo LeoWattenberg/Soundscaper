@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { CanvasKit } from 'canvaskit-wasm';
+import type { MotionFontProviderOwner } from './motion-canvaskit-font-owner.ts';
 import { verifyMotionAssetBody, type MotionAsset } from './motion-asset.ts';
 import type { MotionTextDocument } from './motion-composition.ts';
 import type { MotionCompositionFrame, MotionEvaluatedLayer } from './motion-composition-evaluation.ts';
@@ -25,6 +26,7 @@ import { planMotionShapeOperators } from './motion-shape-operator-plan.ts';
 import { assertMotion2DMatrix, createMotionSurface, motionSurfaceFromRgba8, motionSurfaceLength, transformMotionSurface, validateMotionSurface, type MotionSurface } from './motion-surface.ts';
 
 export interface MotionRasterResources {
+	readonly fontProviders?: MotionFontProviderOwner;
 	readonly assets: readonly MotionAsset[];
 	readonly loadAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<Uint8Array>;
 	readonly fallbackFonts: readonly MotionFontBytes[];
@@ -94,7 +96,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 			return output * (state.kind === 'text' ? 4 : 2) + fontBytes * 4 + textWorking + (state.kind === 'shapes' ? planMotionShapeOperators(state).workingBytes : 0);
 		},
 		async shapeText(document, signal) {
-			const paragraph = createMotionParagraph(kit, document, await fontsFor(document, signal), resources.fallbackFonts);
+			const paragraph = createMotionParagraph(kit, document, await fontsFor(document, signal), resources.fallbackFonts, resources.fontProviders);
 			try { signal?.throwIfAborted(); return paragraph.metrics; } finally { paragraph.dispose(); }
 		},
 		async rasterize(layer, target, signal) {
@@ -114,7 +116,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 				signal?.throwIfAborted(); return transformMotionSurface(source, target.width, target.height, layer.worldMatrix);
 			}
 			if (state.kind !== 'solid' && state.kind !== 'shapes' && state.kind !== 'text') throw new Error(`Unsupported motion raster source ${state.kind}.`);
-			const paragraph = state.kind === 'text' ? createMotionParagraph(kit, state.document, await fontsFor(state.document, signal), resources.fallbackFonts) : null;
+			const paragraph = state.kind === 'text' ? createMotionParagraph(kit, state.document, await fontsFor(state.document, signal), resources.fallbackFonts, resources.fontProviders) : null;
 			try {
 				return rasterMotionCanvasKitSurface(kit, target.width, target.height, (canvas) => {
 					const m = layer.worldMatrix;
