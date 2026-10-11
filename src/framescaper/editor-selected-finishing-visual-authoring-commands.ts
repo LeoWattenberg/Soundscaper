@@ -69,6 +69,7 @@ export interface FramescaperSelectedVisualAuthoringRequestFinishing {
 	readonly height?: number;
 	readonly startX?: number; readonly startY?: number; readonly endX?: number; readonly endY?: number;
 	readonly centerX?: number; readonly centerY?: number; readonly radiusX?: number; readonly radiusY?: number; readonly innerFraction?: number;
+	readonly lower?: number; readonly upper?: number; readonly falloff?: number;
 	readonly presetId?: string | null;
 	readonly name?: string;
 	readonly playheadSample?: number;
@@ -169,10 +170,10 @@ function maskCommand(project: Data, request: Data): unknown {
 	}
 	const maskId = requestedMaskId ?? createStableId('mask-matte');
 	const currentMask = requestedMaskId === null ? null : requireById(records(project.videoMaskMattes, 'video masks'), maskId, 'selected mask');
-	const nodeId = currentMask && Array.isArray(currentMask.nodes) ? stableId(record(currentMask.nodes[0], 'mask node').id, 'mask node ID')
+	const nodeId = currentMask ? stableId(currentMask.outputNodeId, 'mask node ID')
 		: createStableId('mask-node');
 	const node = createFramescaperMaskNodeFinishing(request, nodeId);
-	const mask = normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: maskId, kind: 'mask', inputs: [], nodes: [node], outputNodeId: nodeId });
+	const mask = normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: maskId, kind: currentMask?.kind ?? 'mask', inputs: [], nodes: [node], outputNodeId: nodeId });
 	const presentation = currentPresentation
 		? normalizeVideoVisualPresentationV1({ ...currentPresentation, maskMatteIds: [...new Set([...currentPresentation.maskMatteIds, maskId])] })
 		: defaultPresentation(stableId(clip.id, 'selected clip ID'), [maskId]);

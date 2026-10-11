@@ -11,6 +11,7 @@ import { readPixelFrameV1, type PixelFrameV1 } from '../../imaging/pixel-frame-c
 import { withPixelFrameBodyV1 } from '../../imaging/pixel-frame-body-v1.ts';
 import { paintPixelFrameCanvasV1, clearPixelFrameCanvasV1 } from '../../imaging/pixel-frame-canvas-presenter-v1.ts';
 import { createPixelFrameHistogramV1, type PixelFrameHistogramV1 } from '../../imaging/pixel-frame-histogram-v1.ts';
+import { prepareImageDevelopMaskOverlaySelectionV1, type ImageDevelopMaskOverlaySelectionV1 } from '../../imaging/image-develop-mask-overlay-v1.ts';
 
 export interface PhotoDevelopPresentationSnapshotV2 {
 	readonly status: 'idle' | 'pending' | 'ready' | 'missing' | 'failed';
@@ -26,6 +27,8 @@ export interface PhotoDevelopPresentationViewV2 {
 	readonly develop: PhotoLibraryDevelopSettingsV2;
 	readonly before: HTMLCanvasElement;
 	readonly after: HTMLCanvasElement;
+	readonly maskOverlay?: Readonly<ImageDevelopMaskOverlaySelectionV1>;
+	readonly overlay?: HTMLCanvasElement;
 }
 interface Ports {
 	readonly withOriginalFrame?: PhotoLibraryDevelopOriginalPortV1['withFrame'];
@@ -49,7 +52,7 @@ const PREPARED = new WeakSet<object>();
  * waits. Canvas references are borrowed targets, never serialized authority. */
 export function preparePhotoDevelopPresentationViewV2(value: unknown): Readonly<PhotoDevelopPresentationViewV2> {
 	if (value && typeof value === 'object' && PREPARED.has(value)) return value as Readonly<PhotoDevelopPresentationViewV2>;
-	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after'], ['photoId', 'develop', 'before', 'after']);
+	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after', 'maskOverlay', 'overlay'], ['photoId', 'develop', 'before', 'after']);
 	const id = field(input, 'photoId', 'develop presentation');
 	if (typeof id !== 'string' || id.length === 0 || id.length > 256 || [...id].some(character => character.charCodeAt(0) < 32)) throw new TypeError('Develop requires a bounded photo ID.');
 	const resolution = Object.hasOwn(input, 'resolution') ? field(input, 'resolution', 'develop presentation') : undefined;
@@ -61,7 +64,13 @@ export function preparePhotoDevelopPresentationViewV2(value: unknown): Readonly<
 	if (new TextEncoder().encode(JSON.stringify(develop)).byteLength > 2_097_152) throw new RangeError('Develop settings exceed their byte budget.');
 	const before = field(input, 'before', 'develop presentation'), after = field(input, 'after', 'develop presentation');
 	if (!before || typeof before !== 'object' || !after || typeof after !== 'object' || before === after) throw new TypeError('Develop requires two distinct canvas targets.');
-	const result = Object.freeze({ photoId: id, develop, resolution, revision: revision as number | undefined, before: before as HTMLCanvasElement, after: after as HTMLCanvasElement });
+	const rawSelection = Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'develop presentation') : undefined;
+	const overlay = Object.hasOwn(input, 'overlay') ? field(input, 'overlay', 'develop presentation') : undefined;
+	if ((rawSelection === undefined) !== (overlay === undefined)) throw new TypeError('Mask overlay requires both a selection and a canvas target.');
+	if (overlay !== undefined && (!overlay || typeof overlay !== 'object' || overlay === before || overlay === after)) throw new TypeError('Mask overlay requires a distinct canvas target.');
+	const maskOverlay = rawSelection === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawSelection);
+	const result = Object.freeze({ photoId: id, develop, resolution, revision: revision as number | undefined, before: before as HTMLCanvasElement, after: after as HTMLCanvasElement,
+		...(maskOverlay ? { maskOverlay, overlay: overlay as HTMLCanvasElement } : {}) });
 	PREPARED.add(result); return result;
 }
 
@@ -94,7 +103,7 @@ function captureRuntime(value: Readonly<PhotoLibraryDevelopProxyRuntimeV2>): Rea
 export class PhotoLibraryDevelopPresentationV2 {
 	readonly #ports: ReturnType<typeof ports>;
 	#view: Readonly<PhotoDevelopPresentationViewV2> | null = null;
-	#targets: Pick<PhotoDevelopPresentationViewV2, 'before' | 'after'> | null = null;
+	#targets: Pick<PhotoDevelopPresentationViewV2, 'before' | 'after' | 'overlay'> | null = null;
 	#pending: Promise<void> | null = null;
 	#active: AbortController | null = null;
 	#pausing: Promise<void> | null = null;
@@ -184,9 +193,25 @@ export class PhotoLibraryDevelopPresentationV2 {
 		const before = await createPixelFrameHistogramV1(frame, { limits: profile.source, signal }); check(signal);
 		this.#ports.paint(view.before, frame, { limits: profile.source, signal }); check(signal);
 		let completed: Rendered | null = null;
-		await Reflect.apply(render, runtime, [{ frame, develop: view.develop, signal }, (output: Parameters<Parameters<PhotoLibraryDevelopProxyRuntimeV2['withProxy']>[1]>[0]) => {
+		await Reflect.apply(render, runtime, [{ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, (output: Parameters<Parameters<PhotoLibraryDevelopProxyRuntimeV2['withProxy']>[1]>[0]) => {
 			check(signal); if (this.#view !== view) return;
 			this.#ports.paint(view.after, output.frame, { limits: profile.render, signal }); check(signal);
+			if (view.maskOverlay && view.overlay) {
+				const observed = output.maskOverlay, descriptor = readPixelFrameV1(output.frame, profile.render).descriptor;
+				if (!observed || observed.maskId !== view.maskOverlay.maskId || observed.effectId !== view.maskOverlay.effectId
+					|| observed.width !== descriptor.width || observed.height !== descriptor.height || observed.coverage.length !== descriptor.width * descriptor.height) {
+					throw new RangeError('Mask coverage does not match the requested After image.');
+				}
+				const pixels = new Uint8Array(observed.coverage.length * 4);
+				try {
+					for (let index = 0; index < observed.coverage.length; index++) {
+						if (index % 16_384 === 0) check(signal);
+						pixels[index * 4] = 255; pixels[index * 4 + 1] = 48; pixels[index * 4 + 2] = 48; pixels[index * 4 + 3] = observed.coverage[index]!;
+					}
+					this.#ports.paint(view.overlay, { descriptor: { schemaVersion: 1, width: descriptor.width, height: descriptor.height,
+						sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels }, { limits: profile.render, signal }); check(signal);
+				} finally { pixels.fill(0); }
+			}
 			const extent = Object.freeze({ before: Object.freeze({ width: frame.descriptor.width, height: frame.descriptor.height }), after: Object.freeze({ width: output.frame.descriptor.width, height: output.frame.descriptor.height }) });
 			completed = Object.freeze({ before, after: output.histogram, extent });
 		}]);
@@ -198,7 +223,7 @@ export class PhotoLibraryDevelopPresentationV2 {
 	}
 	#clear(primary?: unknown): void {
 		const targets = this.#targets; this.#targets = null; if (!targets) return;
-		for (const canvas of [targets.before, targets.after]) {
+		for (const canvas of [targets.before, targets.after, ...(targets.overlay ? [targets.overlay] : [])]) {
 			try { this.#ports.clear(canvas); } catch (error) { if (arguments.length !== 0) this.#remember(primary); this.#remember(error); }
 		}
 	}

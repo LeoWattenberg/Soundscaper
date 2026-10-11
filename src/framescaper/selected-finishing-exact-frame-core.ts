@@ -16,8 +16,6 @@ import {
 	backgroundLinear,
 	captureBrowserFrame,
 	checkedFrame,
-	combinedGraphs,
-	combinedMask,
 	mediaPresentation,
 	orderBucketEntries,
 	requiredFinishing,
@@ -25,6 +23,7 @@ import {
 	type TrackOrderBucketFinishing,
 } from './selected-finishing-exact-frame-support.ts';
 import { placeFramescaperManagedGradedVisualFrameV1, placeFramescaperManagedGradedAdjustmentFrameV1 } from './selected-finishing-managed-grade-frame.ts';
+import { selectedFinishingMaskGraphsV1, legacySelectedFinishingMaskV1, applySelectedFinishingLuminanceMaskV1, selectedFinishingCompositionRangeMaskV1, admitSelectedFinishingLuminanceMasksV1 } from './selected-finishing-luminance-mask-frame-v1.ts';
 import {
 	createUnifiedExactRenderFinishingPreviewConsumerV13,
 	type UnifiedExactRenderRgbaFrameV13,
@@ -355,6 +354,8 @@ async function createExecution(options: Options, resource: boolean): Promise<Fra
 				descriptor.drawableSourceFrame, 'Selected finishing drawable source frame',
 			);
 			const outerCell = nonNegativeInteger(descriptor.outerCell, 'Selected finishing outer cell');
+			const presentation = mediaPresentation(finishing, clipId, sourceId), graphs = selectedFinishingMaskGraphsV1(presentation.maskIds, masks);
+			admitSelectedFinishingLuminanceMasksV1(graphs, width, height);
 			const raw = captures?.get(entry) ?? await captureFrame(entry, signal);
 			let frame = copyFrame(raw, 'Selected finishing captured media frame');
 			if (effects.length > 0) {
@@ -380,9 +381,7 @@ async function createExecution(options: Options, resource: boolean): Promise<Fra
 				signal,
 			});
 			privateFrames?.retain(resolved);
-			const presentation = mediaPresentation(finishing, clipId, sourceId);
-			const mask = presentation.maskIds.length === 0 ? undefined
-				: combinedMask(presentation.maskIds, masks, width, height, maskInputs);
+			const mask = legacySelectedFinishingMaskV1(graphs, width, height, maskInputs);
 			for (const id of presentation.maskIds) consumed.add(requiredVisual(maskNodeIds, id));
 			const compositingOrder = authoredCompositingOrder(entry.renderDescription);
 			clipCompositingOrders.set(clipId, compositingOrder);
@@ -397,6 +396,7 @@ async function createExecution(options: Options, resource: boolean): Promise<Fra
 				opacity: presentation.opacity,
 				...(mask ? { mask } : {}),
 			});
+			placed = applySelectedFinishingLuminanceMaskV1(placed, graphs, maskInputs, signal);
 			if (openFx) placed = await openFx.clip(placed, clipId, sourceId);
 			if (!openFx?.omitsDefaultClip(clipId)) addUnifiedExactLinearDissolveEntryV13(
 				target, placed, presentation.blendMode ?? renderBlendMode(entry.renderDescription),
@@ -417,13 +417,13 @@ async function createExecution(options: Options, resource: boolean): Promise<Fra
 		const target = orderBucketEntries(trackFrames, trackId, 0);
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
-			const mask = entry.masks.length === 0 ? undefined
-				: combinedGraphs(entry.masks, width, height, maskInputs);
+			const mask = legacySelectedFinishingMaskV1(entry.masks, width, height, maskInputs);
 			let placed = await placeFramescaperManagedGradedVisualFrameV1({
 				finishing, entry, frame: raw, luts: finishingAssets.luts,
 				canvas: { width, height, fit: options.plan.output.canvas.fit }, signal,
 				...(mask ? { mask } : {}),
 			});
+			placed = applySelectedFinishingLuminanceMaskV1(placed, entry.masks, maskInputs, signal);
 			if (openFx && 'source' in entry.authoredState) {
 				placed = await openFx.visual(placed, entry.modelId, entry.authoredState.source.id);
 			}
@@ -458,23 +458,25 @@ async function createExecution(options: Options, resource: boolean): Promise<Fra
 				}
 				const preservedBlendMode = bucket.entries[0]!.blendMode;
 				const target = flattenUnifiedExactLinearCompositionV13(width, height, bucket.entries);
-				let adjusted = straightUnifiedExactLinearFrameV13(target);
-				privateFrames?.retain(adjusted);
-				if (adjustment.effectIds.length > 0) {
-					const effected = await applyEffects(adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), signal);
-					if (ownsEffectOutput) privateFrames?.retain(effected);
-					adjusted = copyFrame(effected, 'Selected finishing adjustment effect frame');
-				}
-				const mask = adjustment.masks.length === 0 ? undefined
-					: combinedGraphs(adjustment.masks, width, height, maskInputs);
-				let overlay = await placeFramescaperManagedGradedAdjustmentFrameV1({
-					frame: adjusted, grades, luts: finishingAssets.luts, width, height, signal,
-					blendMode: adjustment.blendMode,
-					opacity: adjustment.opacity, ...(mask ? { mask } : {}),
-				});
-				if (openFx) overlay = await openFx.adjustment(overlay, adjustment.modelId);
-				compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
-				bucket.entries = [Object.freeze({ frame: target, blendMode: preservedBlendMode })];
+				const rangeMask = selectedFinishingCompositionRangeMaskV1(adjustment.masks, target, maskInputs, signal);
+				try {
+					let adjusted = straightUnifiedExactLinearFrameV13(target);
+					privateFrames?.retain(adjusted);
+					if (adjustment.effectIds.length > 0) {
+						const effected = await applyEffects(adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), signal);
+						if (ownsEffectOutput) privateFrames?.retain(effected);
+						adjusted = copyFrame(effected, 'Selected finishing adjustment effect frame');
+					}
+					const mask = rangeMask ?? legacySelectedFinishingMaskV1(adjustment.masks, width, height, maskInputs);
+					let overlay = await placeFramescaperManagedGradedAdjustmentFrameV1({
+						frame: adjusted, grades, luts: finishingAssets.luts, width, height, signal,
+						blendMode: adjustment.blendMode,
+						opacity: adjustment.opacity, ...(mask ? { mask } : {}),
+					});
+					if (openFx) overlay = await openFx.adjustment(overlay, adjustment.modelId);
+					compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
+					bucket.entries = [Object.freeze({ frame: target, blendMode: preservedBlendMode })];
+				} finally { if (rangeMask) Reflect.apply(FILL, rangeMask, [0]); }
 			}
 		}
 	}

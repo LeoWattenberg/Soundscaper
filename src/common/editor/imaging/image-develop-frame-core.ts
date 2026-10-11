@@ -32,7 +32,8 @@ import { IMAGE_DEVELOP_LIMITS_V1, type ImageDevelopStateV1 } from './image-devel
 import type { ImageDevelopStateV2 } from './image-develop-state-v2.ts';
 import type { VideoEffectLeafV2 } from '../video-effect-leaf-v2.ts';
 import { normalizeImageDevelopEffectsV1 } from './image-develop-effects-v1.ts';
-import { admitImageDevelopMaskAuthorityV1, planImageDevelopMasksV1 } from './image-develop-mask-plan-v1.ts';
+import { admitImageDevelopMaskAuthorityV1, planImageDevelopMasksV1, IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1, type ImageDevelopMaskBindingPlanV1 } from './image-develop-mask-plan-v1.ts';
+import { prepareImageDevelopMaskOverlaySelectionV1, assertImageDevelopMaskOverlayBudgetV1, withProjectedImageDevelopMaskCoverageV1, type ImageDevelopMaskOverlayViewV1 } from './image-develop-mask-overlay-v1.ts';
 import { withVideoMaskMatteRgbaV1 } from '../video-mask-matte-rgba-v13.ts';
 import { blendImageDevelopMaskedAdjustmentV1 } from './pixel-frame-masked-adjustment-v1.ts';
 
@@ -46,6 +47,7 @@ export interface ImageDevelopFramePixels extends ImageDevelopFrameStageInput {
 export interface ImageDevelopFrameViewV1 {
 	readonly frame: Readonly<ImageDevelopFramePixels>;
 	readonly histogram: Readonly<PixelFrameHistogramV1>;
+	readonly maskOverlay?: Readonly<ImageDevelopMaskOverlayViewV1>;
 }
 const SIGNAL_PROTOTYPE = AbortSignal.prototype;
 const CHECK = SIGNAL_PROTOTYPE.throwIfAborted;
@@ -62,7 +64,7 @@ export interface ImageDevelopFramePolicy {
 }
 export async function withImageDevelopFrameCore<Result>(value: unknown,
 	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, profile: ImageDevelopFrameProfile, policy: ImageDevelopFramePolicy): Promise<Result> {
-	const input = record(value, 'photo develop proxy', ['frame', 'develop', 'signal'], ['frame', 'develop']);
+	const input = record(value, 'photo develop proxy', ['frame', 'develop', 'signal', 'maskOverlay'], ['frame', 'develop']);
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'photo develop proxy') : undefined;
 	if (signal !== undefined) assertImageDevelopSignal(signal);
 	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
@@ -72,6 +74,8 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		check();
 	}
 	const develop = admitImageDevelopMaskAuthorityV1(policy.normalizeDevelop(field(input, 'develop', 'photo develop proxy')));
+	const rawOverlay = Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'photo develop proxy') : undefined;
+	const selection = rawOverlay === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawOverlay);
 	const serialized = JSON.stringify(develop), maximum = IMAGE_DEVELOP_LIMITS_V1.maximumBytes;
 	if (serialized.length > maximum || new TextEncoder().encode(serialized).byteLength > maximum) throw new RangeError('Photo proxy settings exceed their byte budget.');
 	const prepared = develop.effects.map(candidate => {
@@ -88,16 +92,37 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 	const raw = record(field(input, 'frame', 'photo develop proxy'), 'photo proxy source', ['descriptor', 'pixels']);
 	const admitted = admitPixelFrameV1(field(raw, 'descriptor', 'photo proxy source'), { limits: profile.source });
 	const masks = planImageDevelopMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, profile.render);
+	const selectedBinding = selection && masks.bindings.find(binding => binding.maskId === selection.maskId && binding.effectId === selection.effectId);
+	if (selection && !selectedBinding) throw new RangeError('Mask overlay requires one retained mask/effect binding.');
+	if (selectedBinding) {
+		const retainedBytes = masks.width * masks.height;
+		if (Math.max(masks.maximumWorkingBytes + retainedBytes, retainedBytes * 5) > IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1) throw new RangeError('Retained mask overlay exceeds its working byte budget.');
+		assertImageDevelopMaskOverlayBudgetV1(selectedBinding, retainedBytes);
+	}
 	const source = readPixelFrameV1({ descriptor: admitted.descriptor, pixels: field(raw, 'pixels', 'photo proxy source') }, profile.source);
 	let current: ImageDevelopFramePixels = Object.freeze({ descriptor: source.descriptor, pixels: new Uint8Array(source.pixels) });
 	let owned = current.pixels.buffer;
+	let maskOverlay: Readonly<ImageDevelopMaskOverlayViewV1> | undefined;
 	const replace = (next: ImageDevelopFramePixels) => { wipe(owned); current = next; owned = next.pixels.buffer; };
+	const observe = async (binding: Readonly<ImageDevelopMaskBindingPlanV1>, coverage: Uint8Array<ArrayBuffer>) => {
+		if (binding !== selectedBinding) return;
+		await withProjectedImageDevelopMaskCoverageV1(binding, coverage, view => {
+			maskOverlay = Object.freeze({ ...view, coverage: new Uint8Array(view.coverage) });
+		}, profile, signal as AbortSignal | undefined);
+	};
+	const observeUnchanged = async (effectId: string) => {
+		if (selectedBinding?.effectId !== effectId) return;
+		await withVideoMaskMatteRgbaV1({ graph: selectedBinding.graph, width: selectedBinding.width, height: selectedBinding.height, currentFrame: current, signal },
+			coverage => observe(selectedBinding, coverage));
+	};
 	const adjust = async (effectId: string, render: () => Promise<ImageDevelopFramePixels>) => {
 		const next = await render();
 		try {
 			const binding = masks.bindings.find(candidate => candidate.effectId === effectId);
-			if (binding) await withVideoMaskMatteRgbaV1({ graph: binding.graph, width: binding.width, height: binding.height, signal },
-				coverage => blendImageDevelopMaskedAdjustmentV1(current, next, coverage, profile.render, signal as AbortSignal | undefined));
+			if (binding) await withVideoMaskMatteRgbaV1({ graph: binding.graph, width: binding.width, height: binding.height, currentFrame: current, signal }, async coverage => {
+				await blendImageDevelopMaskedAdjustmentV1(current, next, coverage, profile.render, signal as AbortSignal | undefined);
+				await observe(binding, coverage);
+			});
 			replace(next);
 		} catch (error) { wipe(next.pixels.buffer); throw error; }
 	};
@@ -111,9 +136,10 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 			if (step.kind === 'resource') {
 				const render = step.render;
 				if (step.enabled && render) await adjust(step.id, () => stage(accept => render(current, signal as AbortSignal | undefined, profile.render, accept)));
+				else await observeUnchanged(step.id);
 				continue;
 			}
-			const effect = step.effect; if (!effect.enabled) continue;
+			const effect = step.effect; if (!effect.enabled) { await observeUnchanged(effect.id); continue; }
 			if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) {
 				replace(await geometry(current, imageGeometryForVideoEffectV1(effect, current.descriptor.width, current.descriptor.height), signal as AbortSignal | undefined, profile.render));
 			} else if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) {
@@ -137,8 +163,8 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		}
 		check();
 		const histogram = await createPixelFrameHistogramV1(current, { limits: profile.render, ...(signal ? { signal } : {}) });
-		check(); const result = await consume(Object.freeze({ frame: current, histogram })); check(); return result;
-	} finally { wipe(owned); }
+		check(); const result = await consume(Object.freeze({ frame: current, histogram, ...(maskOverlay ? { maskOverlay } : {}) })); check(); return result;
+	} finally { wipe(owned); if (maskOverlay) wipe(maskOverlay.coverage.buffer); }
 }
 
 function geometry(frame: ImageDevelopFramePixels, geometry: Readonly<ImageGeometryV1>, signal: AbortSignal | undefined, limits: PixelFrameLimitsV1): Promise<ImageDevelopFramePixels> {

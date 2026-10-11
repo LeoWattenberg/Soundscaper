@@ -16,8 +16,10 @@ export function createPhotoDevelopRenderRuntimeV2(optionsValue: PhotoDevelopFram
 	const options = raw === undefined ? Object.freeze({}) : Object.freeze({ source: capturePhotoCubeLutSource(raw) });
 	return Object.freeze<PhotoLibraryDevelopProxyRuntimeV2>({
 		withProxy: (request, consume) => withPhotoDevelopProxyFrameV2(request,
-			view => consume({ frame: readPixelFrameV1(view.frame, PHOTO_DEVELOP_PROXY_LIMITS_V1.render), histogram: view.histogram }), options),
+			view => consume({ frame: readPixelFrameV1(view.frame, PHOTO_DEVELOP_PROXY_LIMITS_V1.render), histogram: view.histogram,
+				...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }), options),
 		withFullResolution: (request, consume) => withPhotoDevelopFullResolutionFrameV2(request,
-			view => consume({ frame: readPixelFrameV1(view.frame, PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.render), histogram: view.histogram }), options),
+			view => consume({ frame: readPixelFrameV1(view.frame, PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.render), histogram: view.histogram,
+				...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }), options),
 	});
 }

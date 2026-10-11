@@ -21,7 +21,8 @@ type Data = Readonly<Record<string, unknown>>;
 
 export type FramescaperSelectedMaskDraftFinishing = Readonly<{ id: string; shape: 'rectangle' | 'ellipse'; width: number; height: number }>
 	| Readonly<{ id: string; shape: 'linear-gradient'; startX: number; startY: number; endX: number; endY: number }>
-	| Readonly<{ id: string; shape: 'radial-gradient'; centerX: number; centerY: number; radiusX: number; radiusY: number; innerFraction: number }>;
+	| Readonly<{ id: string; shape: 'radial-gradient'; centerX: number; centerY: number; radiusX: number; radiusY: number; innerFraction: number }>
+	| Readonly<{ id: string; shape: 'luminance-range'; lower: number; upper: number; falloff: number }>;
 
 /** Only new gradient endpoint fields use closed own-data admission; legacy
  * selected shape authoring keeps its existing request semantics. */
@@ -44,6 +45,9 @@ export function createFramescaperMaskNodeFinishing(request: Data, nodeId: string
 		const field = (key: string) => readClosedDomainField(request, key, 'radial-gradient authoring');
 		node = { id: nodeId, kind: 'radial-gradient', center: { x: field('centerX'), y: field('centerY') },
 			radius: { x: field('radiusX'), y: field('radiusY') }, innerFraction: field('innerFraction') };
+	} else if (shape === 'luminance-range') {
+		const field = (key: string) => readClosedDomainField(request, key, 'luminance-range authoring');
+		node = { id: nodeId, kind: 'luminance-range', lower: field('lower'), upper: field('upper'), falloff: field('falloff') };
 	} else {
 		if (shape !== 'rectangle' && shape !== 'ellipse' && shape !== 'line') throw new RangeError('mask shape is unsupported.');
 		const width = maskSize(request.width, 'mask width'), height = maskSize(request.height, 'mask height');
@@ -160,6 +164,7 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 					startX: node.start.x, startY: node.start.y, endX: node.end.x, endY: node.end.y })];
 				if (node?.kind === 'radial-gradient') return [Object.freeze({ id: mask.id, shape: 'radial-gradient', centerX: node.center.x,
 					centerY: node.center.y, radiusX: node.radius.x, radiusY: node.radius.y, innerFraction: node.innerFraction })];
+				if (node?.kind === 'luminance-range') return [Object.freeze({ id: mask.id, shape: 'luminance-range', lower: node.lower, upper: node.upper, falloff: node.falloff })];
 				return node?.kind === 'vector-shape' ? [Object.freeze({ id: mask.id,
 					shape: node.shape, width: node.width, height: node.height })] : [];
 			})),

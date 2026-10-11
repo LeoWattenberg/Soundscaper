@@ -51,6 +51,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const legacyMask = savedMask?.shape === 'rectangle' || savedMask?.shape === 'ellipse' ? savedMask : null;
 	const gradientMask = savedMask?.shape === 'linear-gradient' ? savedMask : null;
 	const radialMask = savedMask?.shape === 'radial-gradient' ? savedMask : null;
+	const rangeMask = savedMask?.shape === 'luminance-range' ? savedMask : null;
 	const [maskWidth, setMaskWidth] = useState(String(legacyMask?.width ?? 0.75));
 	const [maskHeight, setMaskHeight] = useState(String(legacyMask?.height ?? 0.75));
 	const [startX, setStartX] = useState(String(gradientMask?.startX ?? 0)), [startY, setStartY] = useState(String(gradientMask?.startY ?? 0));
@@ -58,6 +59,8 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [centerX, setCenterX] = useState(String(radialMask?.centerX ?? 0.5)), [centerY, setCenterY] = useState(String(radialMask?.centerY ?? 0.5));
 	const [radiusX, setRadiusX] = useState(String(radialMask?.radiusX ?? 0.5)), [radiusY, setRadiusY] = useState(String(radialMask?.radiusY ?? 0.5));
 	const [innerFraction, setInnerFraction] = useState(String(radialMask?.innerFraction ?? 0));
+	const [lower, setLower] = useState(String(rangeMask?.lower ?? 0)), [upper, setUpper] = useState(String(rangeMask?.upper ?? 1));
+	const [falloff, setFalloff] = useState(String(rangeMask?.falloff ?? 0));
 	const [visualPresetId, setVisualPresetId] = useAvailableAuthoringPreset(model.visualPresets);
 	const [finishingPresetId, setFinishingPresetId] = useAvailableAuthoringPreset(model.finishingPresets);
 	const [presetName, setPresetName] = useState(() => publishedCopyFor(props.copy ?? {})['ui.selectedVisualAuthoring.presetDefaultName'] || SELECTED_VISUAL_AUTHORING_COPY.presetDefaultName);
@@ -73,8 +76,9 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		setEndX(String(gradientMask?.endX ?? 1)); setEndY(String(gradientMask?.endY ?? 0));
 		setCenterX(String(radialMask?.centerX ?? 0.5)); setCenterY(String(radialMask?.centerY ?? 0.5));
 		setRadiusX(String(radialMask?.radiusX ?? 0.5)); setRadiusY(String(radialMask?.radiusY ?? 0.5)); setInnerFraction(String(radialMask?.innerFraction ?? 0));
+		setLower(String(rangeMask?.lower ?? 0)); setUpper(String(rangeMask?.upper ?? 1)); setFalloff(String(rangeMask?.falloff ?? 0));
 	}, [maskId, savedMask?.shape, legacyMask?.width, legacyMask?.height, gradientMask?.startX, gradientMask?.startY, gradientMask?.endX, gradientMask?.endY,
-		radialMask?.centerX, radialMask?.centerY, radialMask?.radiusX, radialMask?.radiusY, radialMask?.innerFraction]);
+		radialMask?.centerX, radialMask?.centerY, radialMask?.radiusX, radialMask?.radiusY, radialMask?.innerFraction, rangeMask?.lower, rangeMask?.upper, rangeMask?.falloff]);
 	useEffect(() => {
 		setPairId(model.selectedPairId ?? '');
 		setDurationFrames(model.transitionPairs.find(({ id }) => id === model.selectedPairId)?.durationFrames ?? 12);
@@ -96,7 +100,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		if (blocked || !runtime) return;
 		const request = requestFor(operation, model, {
 			pairId, durationFrames, brightness, adjustmentLayerId,
-			maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY, centerX, centerY, radiusX, radiusY, innerFraction,
+			maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY, centerX, centerY, radiusX, radiusY, innerFraction, lower, upper, falloff,
 			visualPresetId, finishingPresetId, presetName, freezeDuration,
 		});
 		setPending(true);
@@ -125,11 +129,12 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 				frameRate={frameRate}
 				blocked={blocked}
 				values={{ pairId, durationFrames, brightness, adjustmentLayerId,
-					maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY, centerX, centerY, radiusX, radiusY, innerFraction, visualPresetId,
+					maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY, centerX, centerY, radiusX, radiusY, innerFraction, lower, upper, falloff, visualPresetId,
 					finishingPresetId, presetName, freezeDuration }}
 				setters={{ setPairId, setDurationFrames, setBrightness,
 					setMaskId, setShape, setMaskWidth, setMaskHeight, setStartX, setStartY, setEndX, setEndY,
 					setCenterX, setCenterY, setRadiusX, setRadiusY, setInnerFraction,
+					setLower, setUpper, setFalloff,
 					setVisualPresetId, setFinishingPresetId, setPresetName,
 					setFreezeDuration }}
 				onPerform={perform}
@@ -143,9 +148,10 @@ type Model = ReturnType<typeof createFramescaperSelectedVisualAuthoringModel>;
 interface Values {
 	readonly pairId: string; readonly durationFrames: number; readonly brightness: string;
 	readonly adjustmentLayerId: string | null; readonly maskId: string;
-	readonly shape: 'rectangle' | 'ellipse' | 'line' | 'linear-gradient' | 'radial-gradient'; readonly maskWidth: string;
+	readonly shape: 'rectangle' | 'ellipse' | 'line' | 'linear-gradient' | 'radial-gradient' | 'luminance-range'; readonly maskWidth: string;
 	readonly startX: string; readonly startY: string; readonly endX: string; readonly endY: string;
 	readonly centerX: string; readonly centerY: string; readonly radiusX: string; readonly radiusY: string; readonly innerFraction: string;
+	readonly lower: string; readonly upper: string; readonly falloff: string;
 	readonly maskHeight: string; readonly visualPresetId: string;
 	readonly finishingPresetId: string; readonly presetName: string; readonly freezeDuration: number;
 }
@@ -159,6 +165,7 @@ interface Setters {
 	readonly setEndX: (value: string) => void; readonly setEndY: (value: string) => void;
 	readonly setCenterX: (value: string) => void; readonly setCenterY: (value: string) => void;
 	readonly setRadiusX: (value: string) => void; readonly setRadiusY: (value: string) => void; readonly setInnerFraction: (value: string) => void;
+	readonly setLower: (value: string) => void; readonly setUpper: (value: string) => void; readonly setFalloff: (value: string) => void;
 	readonly setMaskWidth: (value: string) => void;
 	readonly setMaskHeight: (value: string) => void;
 	readonly setVisualPresetId: (value: string) => void;
@@ -239,8 +246,16 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 			onChange={(event) => setters.setShape(event.currentTarget.value as Values['shape'])}>
 			<option value="rectangle">{text.rectangle}</option><option value="ellipse">{text.ellipse}</option><option value="linear-gradient">{text.linearGradient}</option>
 			<option value="radial-gradient">{text.radialGradient}</option>
+			<option value="luminance-range">{text.luminanceRange}</option>
 		</select></label>
-		{values.shape === 'radial-gradient' ? <>
+		{values.shape === 'luminance-range' ? <>
+			<label><span>{text.lower}</span><input data-framescaper-authoring-mask-lower type="number" min={0} max={1} step="any" value={values.lower}
+				onChange={event => setters.setLower(event.currentTarget.value)} /></label>
+			<label><span>{text.upper}</span><input data-framescaper-authoring-mask-upper type="number" min={0} max={1} step="any" value={values.upper}
+				onChange={event => setters.setUpper(event.currentTarget.value)} /></label>
+			<label><span>{text.falloff}</span><input data-framescaper-authoring-mask-falloff type="number" min={0} max={1} step="any" value={values.falloff}
+				onChange={event => setters.setFalloff(event.currentTarget.value)} /></label>
+		</> : values.shape === 'radial-gradient' ? <>
 			<label><span>{text.centerX}</span><input data-framescaper-authoring-mask-center-x type="number" min={-1_000_000} max={1_000_000} step="any" value={values.centerX}
 				onChange={event => setters.setCenterX(event.currentTarget.value)} /></label>
 			<label><span>{text.centerY}</span><input data-framescaper-authoring-mask-center-y type="number" min={-1_000_000} max={1_000_000} step="any" value={values.centerY}
@@ -335,6 +350,7 @@ function requestFor(operation: string, model: Model, values: Values) {
 		if (values.shape === 'linear-gradient') return { ...mask, startX: numericDraft(values.startX), startY: numericDraft(values.startY), endX: numericDraft(values.endX), endY: numericDraft(values.endY) };
 		if (values.shape === 'radial-gradient') return { ...mask, centerX: numericDraft(values.centerX), centerY: numericDraft(values.centerY), radiusX: numericDraft(values.radiusX),
 			radiusY: numericDraft(values.radiusY), innerFraction: numericDraft(values.innerFraction) };
+		if (values.shape === 'luminance-range') return { ...mask, lower: numericDraft(values.lower), upper: numericDraft(values.upper), falloff: numericDraft(values.falloff) };
 		return { ...mask, width: numericDraft(values.maskWidth), height: numericDraft(values.maskHeight) };
 	}
 	if (model.surface === 'video-freeze') return { ...base,

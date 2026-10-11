@@ -8,6 +8,7 @@ import PhotoDevelopEffectsV2 from './PhotoDevelopEffectsV2.tsx';
 import PhotoDevelopPreviewV2, { type PhotoDevelopPreviewPropsV2 } from './PhotoDevelopPreviewV2.tsx';
 import PhotoDevelopSettingsMenuV2 from './PhotoDevelopSettingsMenuV2.tsx';
 import PhotoDevelopGradientDialogV1, { type PhotoDevelopGradientDialogPropsV1, type PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
+import PhotoDevelopRangeMaskDialogV1, { type PhotoDevelopRangeMaskDialogPropsV1 } from './PhotoDevelopRangeMaskDialogV1.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
 import type { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
 import { photoDevelopSettingsCopy } from '../../../i18n/lightscaper-develop-settings-copy.ts';
@@ -117,14 +118,21 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const importing = tasks.importing || (importState.tasks === tasks && importState.pending);
 	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !props.settings?.snapshot.busy && !importing) void action(); };
 	const document = snapshot.document, draft = snapshot.draft, busy = snapshot.busy || props.settings?.snapshot.busy === true || importing, disabled = busy || !document;
-	type GradientKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind']>;
-	type GradientEntry = Readonly<{ kind: GradientKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
-	const [gradientEntry, setGradientEntry] = useState<GradientEntry | null>(null);
-	const activeGradient = useRef(gradientEntry); activeGradient.current = gradientEntry;
-	const [overlay, setOverlay] = useState<Readonly<{ entry: GradientEntry; recipe: string; selection: Readonly<PhotoDevelopMaskOverlaySelectionV1> }> | null>(null);
-	const gradientCurrent = () => current() && !busy && gradientEntry !== null && activeGradient.current === gradientEntry
-		&& gradientEntry.owner === owner && gradientEntry.document === document && gradientEntry.draft === draft;
-	const openGradient = (kind: GradientKind) => { if (current() && !busy && document && draft) setGradientEntry({ kind, owner, document, draft }); };
+	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind']> | 'luminance-range';
+	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
+	const [localEntry, setLocalEntry] = useState<LocalEntry | null>(null);
+	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
+	const [overlay, setOverlay] = useState<Readonly<{ entry: LocalEntry; recipe: string; selection: Readonly<PhotoDevelopMaskOverlaySelectionV1> }> | null>(null);
+	const localCurrent = () => current() && !busy && localEntry !== null && activeLocal.current === localEntry
+		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
+	const openLocal = (kind: LocalKind) => { if (current() && !busy && document && draft) setLocalEntry({ kind, owner, document, draft }); };
+	const applyLocal: PhotoDevelopRangeMaskDialogPropsV1['onApply'] = (value, selection) => {
+		if (!localCurrent() || !localEntry || !document) return; owner.edit(value);
+		const next = owner.snapshot().draft;
+		if (next && selection) setOverlay({ entry: { kind: localEntry.kind, owner, document, draft: next }, recipe: JSON.stringify(next), selection }); else setOverlay(null);
+		setLocalEntry(null);
+	};
+	const closeLocal = () => { if (mounted() && activeLocal.current === localEntry) setLocalEntry(null); };
 	const recipe = useMemo(() => draft ? JSON.stringify(draft) : null, [draft]);
 	const selectedOverlay = overlay?.entry.owner === owner && overlay.entry.document.photoId === document?.photoId
 		&& overlay.entry.document.versionId === document?.versionId && overlay.recipe === recipe ? overlay.selection : undefined;
@@ -147,10 +155,10 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 					isCurrent={() => mounted() && owner.snapshot().document === document} onChanged={() => owner.reload()}
 					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
 						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
-					localAdjustments={{ onOpen: openGradient }} />}
+					localAdjustments={{ onOpen: openLocal }} />}
 				{!props.settings && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale).menu}</summary>
-					{(['linear-gradient', 'radial-gradient'] as const).map(kind => <button key={kind} type="button" disabled={busy}
-						onClick={() => { openGradient(kind); }}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}</details>}
+					{(['linear-gradient', 'radial-gradient', 'luminance-range'] as const).map(kind => <button key={kind} type="button" disabled={busy}
+						onClick={() => { openLocal(kind); }}>{photoDevelopLocalAdjustmentsCopy(props.locale, kind).menu}</button>)}</details>}
 				<label>{messages.version}<select value={document.versionId} disabled={busy || snapshot.dirty} onChange={event => {
 					const id = event.currentTarget.value; run(() => owner.open(props.photoId, id));
 				}}>{document.versions.map(version => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label>
@@ -185,14 +193,12 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 						onClick={() => { run(() => owner.apply({ type: 'delete-virtual-copy', versionId: document.versionId })); }}>{messages.deleteCopy}</button>
 				</section></div>
 			</>}
-			{gradientEntry && document && draft && gradientEntry.owner === owner && gradientEntry.document === document && gradientEntry.draft === draft
-				&& <PhotoDevelopGradientDialogV1 key={gradientEntry.kind} kind={gradientEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={gradientCurrent}
-					onApply={(value, selection) => {
-						if (!gradientCurrent()) return; owner.edit(value);
-						const next = owner.snapshot().draft;
-						if (next && selection) setOverlay({ entry: { kind: gradientEntry.kind, owner, document, draft: next }, recipe: JSON.stringify(next), selection }); else setOverlay(null);
-						setGradientEntry(null);
-					}} onClose={() => { if (mounted() && activeGradient.current === gradientEntry) setGradientEntry(null); }} />}
+			{localEntry && document && draft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
+				&& (localEntry.kind === 'luminance-range'
+					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
+						onApply={applyLocal} onClose={closeLocal} />
+					: <PhotoDevelopGradientDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
+						onApply={applyLocal} onClose={closeLocal} />)}
 			<div className="lightscaper-develop-actions"><button type="button" disabled={disabled || !snapshot.dirty} onClick={() => { run(async () => {
 				const receipt = await owner.save(messages.editLabel);
 				if (receipt && mounted() && catalogId) await settingsOwner?.syncAcknowledged({ schemaVersion: 2, catalogId,

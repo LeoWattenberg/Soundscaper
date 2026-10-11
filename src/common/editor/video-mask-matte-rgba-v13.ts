@@ -3,6 +3,8 @@
 import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
 import { normalizeVideoMaskMatteGraphV1, VIDEO_MASK_MATTE_LIMITS_V1, videoMaskMatteWorkingBytesV1,
 	type VideoMaskMatteGraphV1, type VideoMaskMatteNodeV1 } from './video-mask-matte-v24.ts';
+import { captureVideoMaskLuminanceFrameV1, videoMaskLuminanceRangeCoverageV1, videoMaskMatteUsesCurrentFrameV1,
+	type CapturedVideoMaskLuminanceFrameV1 } from './video-mask-luminance-range-v1.ts';
 
 export interface VideoMaskMatteRgbaInputV13 {
 	readonly width: number;
@@ -17,19 +19,23 @@ type Work = Generator<void, Plane, void>;
 
 /** Existing synchronous Frame entry retains its pixel cap and exact graph arithmetic. */
 export function evaluateVideoMaskMatteRgbaV13(graphValue: unknown, widthValue: number, heightValue: number,
-	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13> = new Map()): Plane {
+	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13> = new Map(), currentFrame?: unknown): Plane {
 	const graph = normalizeVideoMaskMatteGraphV1(graphValue), width = dimension(widthValue, 'mask width'), height = dimension(heightValue, 'mask height');
 	if (width * height > 33_554_432) throw new RangeError('A mask frame may contain at most 33554432 pixels.');
 	if (!(inputs instanceof Map)) throw new TypeError('Mask/matte inputs must be a ReadonlyMap.');
-	const work = evaluateGraph(graph, width, height, inputs, bytes => new Uint8Array(bytes));
-	let next = work.next(); while (!next.done) next = work.next(); return next.value;
+	let source: Readonly<CapturedVideoMaskLuminanceFrameV1> | undefined;
+	if (videoMaskMatteUsesCurrentFrameV1(graph)) { videoMaskMatteWorkingBytesV1(graph, width, height); source = captureVideoMaskLuminanceFrameV1(currentFrame, width, height); }
+	const owned: Plane[] = []; let delivered: Plane | undefined;
+	const work = evaluateGraph(graph, width, height, inputs, length => { const bytes = new Uint8Array(length); if (source) owned.push(bytes); return bytes; }, source);
+	try { let next = work.next(); while (!next.done) next = work.next(); delivered = next.value; return delivered; }
+	finally { work.return(new Uint8Array()); if (source) wipe(source.pixels); for (const bytes of owned) if (bytes !== delivered) wipe(bytes); }
 }
 
 /** One bounded self-contained graph; all cache planes are borrowed and retired
  * after delivery. Shared row spans keep legacy and async arithmetic identical. */
 export async function withVideoMaskMatteRgbaV1<Result>(value: unknown,
 	consume: (coverage: Plane) => Result | Promise<Result>): Promise<Result> {
-	const input = record(value, 'scoped mask request', ['graph', 'width', 'height', 'signal'], ['graph', 'width', 'height']);
+	const input = record(value, 'scoped mask request', ['graph', 'width', 'height', 'signal', 'currentFrame'], ['graph', 'width', 'height']);
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'scoped mask request') : undefined;
 	if (signal !== undefined) assertSignal(signal);
 	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
@@ -39,7 +45,9 @@ export async function withVideoMaskMatteRgbaV1<Result>(value: unknown,
 	const width = dimension(field(input, 'width', 'scoped mask request'), 'mask width'), height = dimension(field(input, 'height', 'scoped mask request'), 'mask height');
 	videoMaskMatteWorkingBytesV1(graph, width, height);
 	const owned: Plane[] = [];
-	const work = evaluateGraph(graph, width, height, new Map(), length => { const plane = new Uint8Array(length); owned.push(plane); return plane; });
+	const source = videoMaskMatteUsesCurrentFrameV1(graph) ? captureVideoMaskLuminanceFrameV1(field(input, 'currentFrame', 'scoped mask request'), width, height) : undefined;
+	if (source) owned.push(source.pixels);
+	const work = evaluateGraph(graph, width, height, new Map(), length => { const plane = new Uint8Array(length); owned.push(plane); return plane; }, source);
 	try {
 		check(); let next = work.next();
 		while (!next.done) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); check(); next = work.next(); }
@@ -48,18 +56,18 @@ export async function withVideoMaskMatteRgbaV1<Result>(value: unknown,
 }
 
 function* evaluateGraph(graph: VideoMaskMatteGraphV1, width: number, height: number,
-	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, allocate: (length: number) => Plane): Work {
+	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, allocate: (length: number) => Plane, currentFrame?: Readonly<CapturedVideoMaskLuminanceFrameV1>): Work {
 	const nodes = new Map(graph.nodes.map(node => [node.id, node])), cache = new Map<string, Plane>();
 	return yield* evaluate(graph.outputNodeId);
 	function* evaluate(id: string): Work {
 		const cached = cache.get(id); if (cached) return cached;
 		const node = nodes.get(id); if (!node) throw new ReferenceError(`Mask/matte node ${id} is unavailable.`);
-		const result = yield* evaluateNode(node, graph, width, height, inputs, evaluate, allocate); cache.set(id, result); return result;
+		const result = yield* evaluateNode(node, graph, width, height, inputs, evaluate, allocate, currentFrame); cache.set(id, result); return result;
 	}
 }
 
 function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1, width: number, height: number,
-	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, evaluate: (id: string) => Work, allocate: (length: number) => Plane): Work {
+	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, evaluate: (id: string) => Work, allocate: (length: number) => Plane, currentFrame?: Readonly<CapturedVideoMaskLuminanceFrameV1>): Work {
 	if (node.kind === 'feather') return yield* feather(yield* evaluate(node.inputNodeId), width, height, node.radius, allocate);
 	const operands: Plane[] = [];
 	if (node.kind === 'invert') operands.push(yield* evaluate(node.inputNodeId));
@@ -79,6 +87,7 @@ function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1,
 		for (let index = start; index < end; index++) {
 			const x = index % width, y = Math.floor(index / width), px = (x + 0.5) / width, py = (y + 0.5) / height;
 			if (node.kind === 'linear-gradient') output[index] = gradient(node, px, py);
+			else if (node.kind === 'luminance-range') output[index] = videoMaskLuminanceRangeCoverageV1(node, currentFrame!, index);
 			else if (node.kind === 'radial-gradient') output[index] = radialGradient(node, px, py);
 			else if (node.kind === 'vector-shape') {
 				const inside = node.shape === 'rectangle' ? px >= node.x && px < node.x + node.width && py >= node.y && py < node.y + node.height

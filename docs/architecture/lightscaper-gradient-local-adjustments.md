@@ -27,8 +27,10 @@ owned temporary pixels are cleared when their scoped consumer finishes.
 
 Saving uses the existing draft, revision checks and history writer. Overlay
 selection is temporary presentation state. This slice does not add persistent
-mask names, ordering or enablement fields. Range masks, brush resources,
-composition authoring, mask management and healing remain subsequent L6 work.
+mask names, ordering or enablement fields. Luminance ranges are described in
+[Range local adjustments](lightscaper-range-local-adjustments.md). Color ranges,
+brush resources, composition authoring, mask management and healing remain
+subsequent L6 work.
 
 Qualification uses Lightscaper tests only. The complete repository suite and
 cross-product cleanup are deferred until implementation finishes. This change

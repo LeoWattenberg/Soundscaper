@@ -46,9 +46,9 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 	const registrationRef = useRef({ method: registerRetirement, receiver: props });
 	if (registrationRef.current.method !== registerRetirement) registrationRef.current = { method: registerRetirement, receiver: props };
 	const registration = registrationRef.current;
-	const interaction = useMemo(() => ({ owner, photoId: props.photoId, develop: props.develop, revision: props.revision, resolution: props.resolution }), [owner, props.photoId, props.develop, props.revision, props.resolution]);
+	const interaction = useMemo(() => ({ owner, photoId: props.photoId, develop: props.develop, revision: props.revision, resolution: props.resolution, maskOverlay: props.maskOverlay }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay]);
 	const activeInteraction = useRef(interaction); activeInteraction.current = interaction;
-	const before = useRef<HTMLCanvasElement>(null), after = useRef<HTMLCanvasElement>(null);
+	const before = useRef<HTMLCanvasElement>(null), after = useRef<HTMLCanvasElement>(null), overlay = useRef<HTMLCanvasElement>(null);
 	const [view, setView] = useState(() => ({ owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 }));
 	const selected = view.owner === owner && view.photoId === props.photoId ? view : { owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 };
 	const rendered = useRef(selected); rendered.current = selected;
@@ -66,8 +66,10 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 		// before joining the predecessor or any externally supplied barrier.
 		try {
 			if (!before.current || !after.current) throw new Error('Develop targets are unavailable.');
+			if (props.maskOverlay && !overlay.current) throw new Error('Develop overlay target is unavailable.');
 			const prepared = preparePhotoDevelopPresentationViewV2({ photoId: props.photoId, develop: props.develop, revision: props.revision,
-				resolution: props.resolution, before: before.current, after: after.current });
+				resolution: props.resolution, before: before.current, after: after.current,
+				...(props.maskOverlay ? { maskOverlay: props.maskOverlay, overlay: overlay.current } : {}) });
 			void joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]).then(() => {
 				if (current) owner.setView(prepared);
 			}).catch(() => { if (current) setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' })); });
@@ -75,7 +77,7 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 			setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
 		}
 		return () => { current = false; void owner.pause().catch(() => undefined); };
-	}, [owner, props.photoId, props.develop, props.revision, props.resolution]);
+	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay]);
 	const { messages } = props, { mode, divider } = selected;
 	const current = () => lifetime.current && activeInteraction.current === interaction && rendered.current === selected;
 	const aspect = mode === 'split' && snapshot.extent ? `${snapshot.extent.after.width} / ${snapshot.extent.after.height}` : undefined;
@@ -97,9 +99,7 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 				<figcaption>{messages.before}</figcaption><canvas ref={before} width={0} height={0} role="img" aria-label={messages.before} data-photo-develop-before /></figure>
 			<figure hidden={mode === 'before'} style={{ clipPath: mode === 'split' ? `inset(0 0 0 ${divider}%)` : undefined }}>
 				<figcaption>{messages.after}</figcaption><div className="lightscaper-develop-image-plane"><canvas ref={after} width={0} height={0} role="img" aria-label={messages.after} data-photo-develop-after />
-					{props.maskOverlay && snapshot.status === 'ready' && snapshot.extent && <PhotoDevelopMaskOverlayV1 key={`${props.photoId}:${props.revision ?? ''}`} develop={props.develop} selection={props.maskOverlay}
-						source={snapshot.extent.before} extent={snapshot.extent.after} resolution={props.resolution ?? 'proxy'} locale={props.locale}
-						registerRetirement={registerRetirement} isCurrent={() => current() && (props.isCurrent?.() ?? true)} />}
+					{props.maskOverlay && <PhotoDevelopMaskOverlayV1 canvasRef={overlay} state={snapshot.status} locale={props.locale} />}
 				</div></figure>
 			{mode === 'split' && <div className="lightscaper-develop-divider" aria-hidden="true" style={{ left: `${divider}%` }} />}
 		</div></div>

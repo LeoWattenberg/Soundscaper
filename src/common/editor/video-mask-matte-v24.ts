@@ -68,6 +68,14 @@ export interface VideoRadialGradientMaskNodeV1 {
 	readonly innerFraction: number;
 }
 
+export interface VideoLuminanceRangeMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'luminance-range';
+	readonly lower: number;
+	readonly upper: number;
+	readonly falloff: number;
+}
+
 export interface VideoRasterMaskNodeV1 {
 	readonly id: string;
 	readonly kind: 'raster';
@@ -106,6 +114,7 @@ export type VideoMaskMatteNodeV1 =
 	| VideoVectorPathMaskNodeV1
 	| VideoLinearGradientMaskNodeV1
 	| VideoRadialGradientMaskNodeV1
+	| VideoLuminanceRangeMaskNodeV1
 	| VideoRasterMaskNodeV1
 	| VideoAlphaMaskNodeV1
 	| VideoFeatherMaskNodeV1
@@ -127,6 +136,7 @@ const SHAPE_FIELDS = Object.freeze(['id', 'kind', 'shape', 'x', 'y', 'width', 'h
 const PATH_NODE_FIELDS = Object.freeze(['id', 'kind', 'fillRule', 'paths']);
 const GRADIENT_FIELDS = Object.freeze(['id', 'kind', 'start', 'end']);
 const RADIAL_FIELDS = Object.freeze(['id', 'kind', 'center', 'radius', 'innerFraction']);
+const LUMINANCE_FIELDS = Object.freeze(['id', 'kind', 'lower', 'upper', 'falloff']);
 const PATH_FIELDS = Object.freeze(['id', 'closed', 'points']);
 const POINT_FIELDS = Object.freeze(['position', 'inHandle', 'outHandle']);
 const COORDINATE_FIELDS = Object.freeze(['x', 'y']);
@@ -137,7 +147,7 @@ const INVERT_FIELDS = Object.freeze(['id', 'kind', 'inputNodeId']);
 const BOOLEAN_FIELDS = Object.freeze(['id', 'kind', 'operation', 'inputNodeIds']);
 const ALL_NODE_FIELDS = Object.freeze([...new Set([
 	...SHAPE_FIELDS, ...PATH_NODE_FIELDS, ...RASTER_FIELDS, ...ALPHA_FIELDS,
-	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS, ...RADIAL_FIELDS,
+	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS, ...RADIAL_FIELDS, ...LUMINANCE_FIELDS,
 ])]);
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const INPUT_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
@@ -207,6 +217,7 @@ function normalizeNodes(value: unknown): readonly VideoMaskMatteNodeV1[] {
 		if (kind === 'vector-shape') return vectorShape(candidate, name, id);
 		if (kind === 'linear-gradient') return linearGradient(candidate, name, id);
 		if (kind === 'radial-gradient') return radialGradient(candidate, name, id);
+		if (kind === 'luminance-range') return luminanceRange(candidate, name, id);
 		if (kind === 'vector-path') {
 			const result = vectorPath(candidate, name, id, pathIds);
 			pointCount += result.pointCount;
@@ -307,20 +318,30 @@ function radialGradient(value: unknown, name: string, id: string): VideoRadialGr
 
 export const VIDEO_MASK_MATTE_WORKING_LIMIT_V1 = 64 * 1024 * 1024;
 
+function luminanceRange(value: unknown, name: string, id: string): VideoLuminanceRangeMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, LUMINANCE_FIELDS);
+	const lower = boundedFinite(field(record, 'lower', name), 0, 1, `${name}.lower`);
+	const upper = boundedFinite(field(record, 'upper', name), 0, 1, `${name}.upper`);
+	const falloff = boundedFinite(field(record, 'falloff', name), 0, 1, `${name}.falloff`);
+	if (lower > upper) throw new RangeError('Luminance range lower must not exceed upper.');
+	return Object.freeze({ id, kind: 'luminance-range', lower, upper, falloff });
+}
+
 /** A scoped evaluator caches only reachable coverage and one feather scratch span. */
 export function videoMaskMatteWorkingBytesV1(graph: Readonly<VideoMaskMatteGraphV1>, width: number, height: number): number {
 	const nodes = new Map(graph.nodes.map(node => [node.id, node]));
 	const reached = new Set<string>();
-	let feather = false;
+	let feather = false, currentFrame = false;
 	const visit = (id: string): void => {
 		if (reached.has(id)) return; reached.add(id);
 		const node = nodes.get(id)!;
+		currentFrame ||= node.kind === 'luminance-range';
 		if (node.kind === 'feather') { feather ||= node.radius > 0; visit(node.inputNodeId); }
 		else if (node.kind === 'invert') visit(node.inputNodeId);
 		else if (node.kind === 'boolean') for (const input of node.inputNodeIds) visit(input);
 	};
 	visit(graph.outputNodeId);
-	const bytes = BigInt(width) * BigInt(height) * BigInt(reached.size + (feather ? 8 : 0));
+	const bytes = BigInt(width) * BigInt(height) * BigInt(reached.size + (feather ? 8 : 0) + (currentFrame ? 4 : 0));
 	if (bytes > BigInt(VIDEO_MASK_MATTE_WORKING_LIMIT_V1)) throw new RangeError('Develop mask coverage exceeds its 64 MiB working budget.');
 	return Number(bytes);
 }
