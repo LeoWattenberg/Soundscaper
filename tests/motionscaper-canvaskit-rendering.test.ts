@@ -8,6 +8,8 @@ import CanvasKitInit from 'canvaskit-wasm';
 import { createCanvasKitMotionRasterizer } from '../src/common/editor/motion-canvaskit-rasterizer.ts';
 import { renderMotionCompositionFrame } from '../src/common/editor/motion-composition-renderer.ts';
 import { motionSurfaceToRgba8 } from '../src/common/editor/motion-surface.ts';
+import { createMotionSurface } from '../src/common/editor/motion-surface.ts';
+import { encodeMotionPng } from '../src/common/editor/motion-png.ts';
 import { motionColor, motionScalar, motionVector, normalizeMotionProperty } from '../src/common/editor/motion-property.ts';
 import { createMotionLayer, createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { compileMotionscaperProject } from '../src/motionscaper/editor-project-evaluation.ts';
@@ -27,6 +29,28 @@ const text = (value: string) => createMotionLayer({ id: 'text', name: 'Text', du
 	align: 'left', lineHeight: motionScalar(1.2), boxSize: motionVector([150, 96]),
 } } });
 const rasterizer = async () => createCanvasKitMotionRasterizer(await runtime, { assets: [font], loadAsset: () => Promise.resolve(new Uint8Array(fontBytes)), fallbackFonts });
+
+test('M04 image dimensions are checked before pixel readback and decoded image disposal survives refusal', async () => {
+	const kit = await runtime; const bytes = encodeMotionPng(kit, createMotionSurface(2, 2));
+	const sha256 = createHash('sha256').update(bytes).digest('hex');
+	const image: MotionAsset = { id: 'image', name: 'Image', kind: 'image', byteLength: bytes.length, sha256,
+		storageKey: `motion-sha256:${sha256}`, mimeType: 'image/png', width: 1, height: 1, hasAlpha: true };
+	let reads = 0; let deleted = 0;
+	const observedKit = { ...kit, MakeImageFromEncoded(data: Uint8Array) {
+		const decoded = kit.MakeImageFromEncoded(data);
+		if (decoded) {
+			const read = decoded.readPixels.bind(decoded); const dispose = decoded.delete.bind(decoded);
+			decoded.readPixels = (...args) => { reads += 1; return read(...args); };
+			decoded.delete = () => { deleted += 1; dispose(); };
+		}
+		return decoded;
+	} };
+	const raster = createCanvasKitMotionRasterizer(observedKit, { assets: [image], loadAsset: () => Promise.resolve(bytes), fallbackFonts: [] });
+	const layer = createMotionLayer({ id: 'image-layer', name: 'Image', durationFrames: 300, content: { kind: 'image', assetId: image.id } });
+	const evaluated = compileMotionscaperProject({ ...project, assets: [image], compositions: [{ ...project.compositions[0], layers: [layer] }] }).evaluate({ compositionId: 'main', time: 0 });
+	await assert.rejects(renderMotionCompositionFrame(evaluated, { rasterizer: raster }), /dimensions differ/u);
+	assert.equal(reads, 0); assert.equal(deleted, 1);
+});
 
 test('M04 lazy runtime initialization retries failures, shares one load and isolates cancelled consumers', async () => {
 	let calls = 0;

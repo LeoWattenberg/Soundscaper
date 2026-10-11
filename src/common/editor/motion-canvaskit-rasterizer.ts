@@ -64,7 +64,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 					if (!resources.decodeFootage) throw new Error('Motion footage decoding is unavailable.');
 					source = await resources.decodeFootage(asset, layer.sourceTime, signal);
 					validateMotionSurface(source);
-				} else source = decodeImage(kit, await verifiedBytes(asset, signal));
+				} else source = decodeImage(kit, await verifiedBytes(asset, signal), asset);
 				if (source.width !== asset.width || source.height !== asset.height) throw new Error(`Motion asset ${asset.id} decoded dimensions differ from its retained metadata.`);
 				signal?.throwIfAborted(); return transformMotionSurface(source, target.width, target.height, layer.worldMatrix);
 			}
@@ -125,10 +125,11 @@ function rasterSurface(kit: CanvasKit, width: number, height: number, draw: (can
 		const output = createMotionSurface(width, height); output.pixels.set(memory.toTypedArray()); return output;
 	} finally { surface.delete(); kit.Free(memory); }
 }
-function decodeImage(kit: CanvasKit, bytes: Uint8Array): MotionSurface {
+function decodeImage(kit: CanvasKit, bytes: Uint8Array, asset: Extract<MotionAsset, { kind: 'image' }>): MotionSurface {
 	const image = kit.MakeImageFromEncoded(bytes);
 	if (!image) throw new Error('Motion image format could not be decoded.');
 	try {
+		if (image.width() !== asset.width || image.height() !== asset.height) throw new Error(`Motion asset ${asset.id} decoded dimensions differ from its retained metadata.`);
 		motionSurfaceLength(image.width(), image.height());
 		const pixels = image.readPixels(0, 0, { width: image.width(), height: image.height(), colorType: kit.ColorType.RGBA_8888, alphaType: kit.AlphaType.Unpremul, colorSpace: kit.ColorSpace.SRGB });
 		if (!(pixels instanceof Uint8Array)) throw new Error('Motion image pixel decoding failed.');
