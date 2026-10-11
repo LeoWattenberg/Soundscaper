@@ -9,7 +9,7 @@ process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({ motionscaper: si
 
 export default defineConfig({
 	testDir: './tests/browser',
-	testMatch: '**/motionscaper*.spec.js',
+	testMatch: '**/motionscaper*.spec.{js,ts}',
 	fullyParallel: true,
 	forbidOnly: Boolean(process.env.CI),
 	workers: 2,
