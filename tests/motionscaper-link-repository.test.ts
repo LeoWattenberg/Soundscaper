@@ -95,7 +95,7 @@ test('M10 upgrading an existing successor migration journal preserves both commi
 	await transact(original, ['projects', 'pending'], 'readwrite', async (stores) => { await request(stores.projects.put(committed)); await request(stores.pending.put(pending)); }); original.close();
 	const upgraded = await openFramescaperSuccessorDatabase(indexedDB, 'successor');
 	try {
-		assert.equal(upgraded.version, 3); assert.ok(upgraded.objectStoreNames.contains('linkStates')); assert.ok(upgraded.objectStoreNames.contains('owners'));
+		assert.equal(upgraded.version, 4); assert.ok(upgraded.objectStoreNames.contains('linkStates')); assert.ok(upgraded.objectStoreNames.contains('owners')); assert.ok(upgraded.objectStoreNames.contains('portableArchives'));
 		await transact(upgraded, ['projects', 'pending'], 'readonly', async (stores) => {
 			const saved = await request(stores.projects.get('committed')) as typeof committed; const staged = await request(stores.pending.get('interrupted')) as typeof pending;
 			assert.equal(await saved.originalArchive.text(), 'original bytes'); assert.equal(await staged.originalArchive.text(), 'pending bytes');
