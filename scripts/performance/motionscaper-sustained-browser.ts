@@ -40,13 +40,13 @@ export async function renderMotionSustainedBrowser(application: Application, opt
 	} finally { if (!stopped) await sampler.stop(); }
 }
 /** Separate post-measurement decoder page uses the actual OPFS File with lazy bounded source reads. */
-export async function verifyMotionSustainedBrowserVideo(application: Application, options: Readonly<{
+export async function verifyMotionSustainedBrowserVideo(application: Pick<Application, 'context'>, options: Readonly<{
 	url: string; bundle: string; directoryName: string; fileName: string; frames: 300 | 1200; references: readonly MotionSustainedVideoReference[]; outputPath: string;
 	transfer: Readonly<{ sha256: string; byteLength: number }>;
 }>) {
 	const page = await application.context.newPage();
 	try {
-		await page.goto(options.url); await page.evaluate(options.bundle);
+		await page.goto(options.url); await page.addScriptTag({ content: options.bundle });
 		const result = await page.evaluate(async args => {
 			const value = Reflect.get(globalThis, 'MotionSustainedVerification') as { verifyMotionSustainedWebm: typeof verifyMotionSustainedWebm };
 			const root = await navigator.storage.getDirectory(), directory = await root.getDirectoryHandle(args.directoryName);
