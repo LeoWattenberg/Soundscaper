@@ -8,7 +8,11 @@ import { hashMotionSustainedFile } from './motionscaper-sustained-observation.ts
 import { parseMotionProcessStat, selectMotionOwnedProcesses, type MotionProcessIdentity } from './motionscaper-sustained-process.ts';
 
 interface ProcessState extends MotionProcessIdentity { readonly group: number; readonly session: number; readonly state: string }
-const missing = (error: unknown) => !!error && typeof error === 'object' && Reflect.get(error, 'code') === 'ENOENT';
+// A task may vanish after its /proc entry was opened, so Linux read can return ESRCH.
+const missing = (error: unknown) => {
+	const code: unknown = error && typeof error === 'object' ? Reflect.get(error, 'code') : null;
+	return code === 'ENOENT' || code === 'ESRCH';
+};
 const key = (value: MotionProcessIdentity) => `${value.pid}:${value.startTicks}`;
 const running = (value: ProcessState) => value.state !== 'Z' && value.state !== 'X';
 function parseState(text: string): ProcessState {

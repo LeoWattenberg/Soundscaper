@@ -5,7 +5,11 @@ import { lstat, open, readFile, readdir } from 'node:fs/promises';
 import { MOTION_SUSTAINED_PLAN as plan } from './motionscaper-sustained-plan.ts';
 import { parseMotionProcessStat, parseMotionProcessMemory, selectMotionOwnedProcesses, type MotionProcessIdentity } from './motionscaper-sustained-process.ts';
 
-function missing(error: unknown): boolean { return !!error && typeof error === 'object' && Reflect.get(error, 'code') === 'ENOENT'; }
+// These catches surround /proc reads only; a task can vanish after open but before read.
+function missing(error: unknown): boolean {
+	const code: unknown = error && typeof error === 'object' ? Reflect.get(error, 'code') : null;
+	return code === 'ENOENT' || code === 'ESRCH';
+}
 export async function readMotionProcessIdentity(pid: number): Promise<MotionProcessIdentity> {
 	if (!Number.isSafeInteger(pid) || pid <= 0) throw new Error('Invalid owned process PID.');
 	return parseMotionProcessStat(await readFile(`/proc/${pid}/stat`, 'utf8'));
