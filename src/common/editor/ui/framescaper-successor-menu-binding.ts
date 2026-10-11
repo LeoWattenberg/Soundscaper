@@ -17,5 +17,5 @@ export function createFramescaperSuccessorMenuBinding(controller: Controller) {
 			if (!disposed) module.openFramescaperSuccessorMigrationDialog(async id => { await controller.actions.project.openById(id, { adoptSessionRevision: true }); });
 		},
 	});
-	return { async dispose() { disposed = true; unbind(); (await loaded)?.disposeFramescaperCompositionLinks(controller); } };
+	return { async dispose() { disposed = true; unbind(); await (await loaded)?.disposeFramescaperCompositionLinks(controller); } };
 }

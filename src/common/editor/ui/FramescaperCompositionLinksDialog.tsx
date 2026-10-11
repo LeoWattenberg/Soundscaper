@@ -12,7 +12,11 @@ const nativeConnections = new WeakMap<object, NativeConnection>();
 const noSubscription = () => () => undefined;
 const noNativeState = () => null;
 let active: Readonly<{ owner: object; close(): void }> | null = null;
-export function disposeFramescaperCompositionLinks(controller: SuccessorController): void { if (active?.owner === controller) active.close(); connections.get(controller)?.dispose(); connections.delete(controller); void nativeConnections.get(controller)?.dispose().catch(() => undefined); nativeConnections.delete(controller); }
+export async function disposeFramescaperCompositionLinks(controller: SuccessorController): Promise<void> {
+	if (active?.owner === controller) active.close(); connections.get(controller)?.dispose(); connections.delete(controller);
+	const native = nativeConnections.get(controller); await native?.dispose();
+	if (nativeConnections.get(controller) === native) nativeConnections.delete(controller);
+}
 export function openFramescaperCompositionLinksDialog(controller: SuccessorController, context: SuccessorContext): void {
 	active?.close(); let connection = connections.get(controller); if (!connection) { connection = createFramescaperCompositionConnection(controller, context); connections.set(controller, connection); }
 	const files = framescaperNativeMotionFiles(); let native = nativeConnections.get(controller); if (!native && files) { native = createFramescaperNativeCompositionConnection(controller, context, files); nativeConnections.set(controller, native); }

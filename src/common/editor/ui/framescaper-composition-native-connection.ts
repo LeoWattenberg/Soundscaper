@@ -2,12 +2,18 @@
 import { createMotionSavedFileConnection, type MotionSavedFileConnectionState } from '../motion-saved-file-connection.ts';
 import type { MotionSavedFileCapabilities } from '../motion-saved-file-contract.ts';
 import type { SuccessorController, SuccessorContext } from './framescaper-composition-link-connection.ts';
+interface NativeController {
+	readonly project: Readonly<{ id: string }> | null;
+	getSnapshot(): Readonly<{ readOnly: boolean }>;
+	subscribe: SuccessorController['subscribe'];
+}
+interface NativeContext { readonly links: Readonly<{ receive(...args: Parameters<SuccessorContext['links']['receive']>): Promise<unknown> }> }
 export function framescaperNativeMotionFiles(): MotionSavedFileCapabilities | null {
 	const scope = globalThis as typeof globalThis & { framescaperSuccessorDesktop?: { v1?: { motionSavedFiles?: MotionSavedFileCapabilities } } };
 	return scope.framescaperSuccessorDesktop?.v1?.motionSavedFiles ?? null;
 }
 /** Selected native files remain connected while their menu dialog is closed. */
-export function createFramescaperNativeCompositionConnection(controller: SuccessorController, context: SuccessorContext, files: MotionSavedFileCapabilities) {
+export function createFramescaperNativeCompositionConnection(controller: NativeController, context: NativeContext, files: MotionSavedFileCapabilities) {
 	let owner: string | null = null; let source: Readonly<{ projectId: string; compositionId: string }> | null = null; let state: MotionSavedFileConnectionState;
 	const listeners = new Set<() => void>();
 	const connection = createMotionSavedFileConnection({ files, receive: async (offer, receive) => {
@@ -17,6 +23,7 @@ export function createFramescaperNativeCompositionConnection(controller: Success
 		source = Object.freeze({ projectId: offer.revision.projectId, compositionId: offer.compositionId });
 	}, onState(next) { state = next; for (const listener of listeners) listener(); } });
 	state = connection.state();
+	// The connection publishes cleanup failures in its state; keep the capability for explicit retry.
 	const unsubscribe = controller.subscribe(() => { if (owner && controller.project?.id !== owner) { owner = null; void connection.disconnect().catch(() => undefined); } });
 	return Object.freeze({ snapshot: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
 		async connect() {
@@ -25,6 +32,6 @@ export function createFramescaperNativeCompositionConnection(controller: Success
 		},
 		async disconnect() { owner = null; await connection.disconnect(); },
 		refresh: () => connection.refresh(),
-		async dispose() { owner = null; unsubscribe(); try { await connection.dispose(); } finally { listeners.clear(); } },
+		async dispose() { owner = null; unsubscribe(); await connection.dispose(); listeners.clear(); },
 	});
 }
