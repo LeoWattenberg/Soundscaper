@@ -23,6 +23,6 @@ test('successor carries independent 1.1 development identity and leaves frozen l
 test('successor renderer cannot be packaged behind baseline Framescaper desktop metadata', () => {
 	assert.throws(() => execFileSync(process.execPath, ['scripts/desktop-prepare.mjs'], {
 		cwd: new URL('../', import.meta.url), encoding: 'utf8', stdio: 'pipe',
-		env: { ...process.env, SCAPE_PRODUCT: 'framescaper', SCAPE_FRAMESCAPER_LINE: 'successor' },
-	}), /successor desktop runtime is not yet qualified/u);
+		env: { ...process.env, SCAPE_PRODUCT: 'framescaper', SCAPE_FRAMESCAPER_LINE: 'successor', SCAPE_FRAMESCAPER_DESKTOP_PROFILE: '' },
+	}), /baseline desktop runtime cannot load Framescaper successor projects/u);
 });
