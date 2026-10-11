@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 const motionOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_MOTION_PORT || 4346}`;
 const frameOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_FRAME_PORT || 4345}`;
 test.use({ serviceWorkers: 'allow' });
@@ -34,13 +34,17 @@ async function exportVideoColor(page: Page): Promise<number[]> {
 	catch (cause) { throw new Error(`Linked export failed: ${await dialog.innerText()} / ${await page.locator('[data-editor-status]').innerText()} / dialogs ${JSON.stringify(await page.getByRole('dialog').allTextContents())}`, { cause }); }
 	const downloading = page.waitForEvent('download'); await link.click(); const file = await downloading; const path = await file.path(); if (!path) throw new Error('Linked video download is absent.');
 	const bytes = await readFile(path); expect(bytes.subarray(4, 8).toString()).toBe('ftyp');
+	const outputPath = test.info().outputPath('linked-export.mp4'); await writeFile(outputPath, bytes); await test.info().attach('linked-export', { path: outputPath, contentType: 'video/mp4' });
 	return page.evaluate(async encoded => {
 		const url = URL.createObjectURL(new Blob([Uint8Array.from(atob(encoded), character => character.charCodeAt(0))], { type: 'video/mp4' })); const video = document.createElement('video');
+		Object.assign(video, { muted: true, playsInline: true, preload: 'auto' }); Object.assign(video.style, { position: 'fixed', left: '8px', top: '8px', width: '96px', height: '64px', zIndex: '2147483647' }); document.body.append(video);
+		let callback: number | undefined; let presentationTimeout: ReturnType<typeof setTimeout> | undefined;
 		try {
-			await new Promise<void>((resolve, reject) => { const timeout = setTimeout(() => reject(new Error('Linked video decode timed out.')), 15_000); video.onloadeddata = () => { clearTimeout(timeout); resolve(); }; video.onerror = () => { clearTimeout(timeout); reject(new Error('Linked video decode failed.')); }; video.muted = true; video.src = url; video.load(); });
+			const presented = new Promise<void>((resolve, reject) => { presentationTimeout = setTimeout(() => reject(new Error('Linked video presentation timed out.')), 15_000); callback = video.requestVideoFrameCallback(() => { clearTimeout(presentationTimeout); callback = undefined; resolve(); }); });
+			const loaded = new Promise<void>((resolve, reject) => { video.onloadeddata = () => resolve(); video.onerror = () => reject(new Error('Linked video decode failed.')); }); video.src = url; video.load(); await Promise.all([loaded, presented]);
 			if (video.videoWidth !== 96 || video.videoHeight !== 64) throw new Error('Linked video dimensions changed.');
 			const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 64; const context = canvas.getContext('2d')!; context.drawImage(video, 0, 0); return [...context.getImageData(48, 32, 1, 1).data];
-		} finally { video.removeAttribute('src'); video.load(); URL.revokeObjectURL(url); }
+		} finally { if (callback !== undefined) video.cancelVideoFrameCallback(callback); clearTimeout(presentationTimeout); video.removeAttribute('src'); video.load(); video.remove(); URL.revokeObjectURL(url); }
 	}, bytes.toString('base64'));
 }
 test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser }) => {
@@ -85,7 +89,7 @@ test('actual editor menus connect saved compositions, update automatically, and 
 		await expect(imported.locator('[data-project-id]')).toHaveAttribute('data-project-id', projectId!);
 		await menu(imported, 'File', 'Linked compositions…'); await expect(imported.getByRole('dialog').locator('code')).toHaveText(conformed!); await close(imported);
 		await expect.poll(() => previewColor(imported)).toEqual([0, 0, 255, 255]);
-		const encodedColor = await exportVideoColor(imported); for (const [index, expected] of [0, 0, 255, 255].entries()) expect(Math.abs(encodedColor[index]! - expected)).toBeLessThanOrEqual(12);
+		const encodedColor = await exportVideoColor(imported); for (const [index, expected] of [0, 0, 255, 255].entries()) expect(Math.abs(encodedColor[index]! - expected), JSON.stringify(encodedColor)).toBeLessThanOrEqual(12);
 	} finally { await fresh.close(); }
 	await frame.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })); });
 	await context.setOffline(true); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
