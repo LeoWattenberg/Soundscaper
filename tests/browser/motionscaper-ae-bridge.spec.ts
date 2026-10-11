@@ -148,7 +148,7 @@ test('Motion-authored AE export reviews omissions and downloads exact source cus
 	const before = await page.locator('[data-motion-save-status]').textContent();
 	await menu(page, 'After Effects Bridge'); await dialog.getByRole('button', { name: 'Review Export', exact: true }).click();
 	const report = dialog.getByRole('region', { name: 'Export conversion report', exact: true });
-	await expect(report).toContainText('Motion original'); await expect(report).toContainText('disabled named null');
+	await expect(report).toContainText('Motion original'); await expect(report).toContainText('editable copy of the path');
 	await expect(report).toContainText('video-only'); await expect(report).toContainText('original.mscape');
 	const button = report.getByRole('button', { name: 'Download AE Exchange Package', exact: true }); await expect(button).toBeDisabled();
 	await report.getByRole('checkbox').check(); const pending = page.waitForEvent('download'); await button.click(); const result = await pending;
@@ -158,12 +158,28 @@ test('Motion-authored AE export reviews omissions and downloads exact source cus
 		const entries = await reader.getEntries(), manifest = entries.find(entry => entry.filename === 'motionae.json')!, original = entries.find(entry => entry.filename === 'original.mscape')!;
 		if (manifest.directory || original.directory) throw new Error('Expected preserved files');
 		const exchange = JSON.parse(await manifest.getData!(new TextWriter())) as MotionAeExchange;
-		expect(exchange.producer.application).toBe('motionscaper'); expect(exchange.report.some(entry => entry.code === 'layer-kind')).toBe(true);
+		expect(exchange.producer.application).toBe('motionscaper');
+		const shape = exchange.compositions[0]!.layers.find(layer => layer.name === 'Original shape intent');
+		expect(shape?.kind).toBe('shape'); expect(shape?.enabled).toBe(true);
+		expect(exchange.report.some(entry => entry.scopeId === shape?.id && entry.code === 'shape-mapping' && entry.status === 'editable')).toBe(true);
+		const root = shape?.properties.find(property => property.matchName === 'ADBE Root Vectors Group');
+		if (root?.kind !== 'group') throw new Error('Expected editable vector root');
+		const group = root.children[0]; if (group?.kind !== 'group') throw new Error('Expected editable paint group');
+		const contents = group.children.find(property => property.matchName === 'ADBE Vectors Group');
+		if (contents?.kind !== 'group') throw new Error('Expected editable vector content');
+		const pathGroup = contents.children.find(property => property.matchName === 'ADBE Vector Shape - Group');
+		if (pathGroup?.kind !== 'group') throw new Error('Expected editable path group');
+		const path = pathGroup.children.find(property => property.matchName === 'ADBE Vector Shape');
+		if (path?.kind !== 'shape') throw new Error('Expected editable geometry');
 		const retained: Uint8Array[] = [], opened = await importMotionscaperArchive(await original.getData!(new BlobWriter()), () => ({
 			async writeAssetChunk(_asset, bytes) { retained.push(bytes.slice()); }, async finishAsset() {}, async commit() {}, async rollback() {},
 		}));
 		expect(opened.kind).toBe('current'); if (opened.kind !== 'current') throw new Error('Expected Motion source');
-		expect(opened.project.title).toBe('Motion original'); expect(opened.project.compositions[0]!.layers.some(layer => layer.kind === 'shapes' && layer.name === 'Original shape intent')).toBe(true);
+		expect(opened.project.title).toBe('Motion original');
+		const retainedShape = opened.project.compositions[0]!.layers.find(layer => layer.kind === 'shapes' && layer.name === 'Original shape intent');
+		if (retainedShape?.kind !== 'shapes') throw new Error('Expected preserved Motion geometry');
+		expect(path.value.closed).toBe(retainedShape.shapes[0]!.path.value.closed);
+		expect(path.value.vertices).toEqual(retainedShape.shapes[0]!.path.value.vertices.map(vertex => vertex.point));
 		expect(Buffer.concat(retained)).toEqual(source.files[0]!.buffer);
 	} finally { await reader.close(); }
 	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
