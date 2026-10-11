@@ -2,8 +2,10 @@
 
 M07 tracking foundations provide point tracking, planar tracking, similarity
 stabilization, manual sample correction, and authored application commands.
-Menu workflow qualification remains a separate completion gate. The projective
-corner-pin renderer now has focused Node and actual worker/CPU browser coverage.
+The opt-in **Layer > Tracking and Stabilization** dialog analyzes retained video,
+reviews and corrects samples, applies tracking, and exposes undo and detachment.
+The projective corner-pin renderer has focused Node and actual worker/CPU browser
+coverage.
 
 ## Source authority and analysis
 
@@ -97,8 +99,14 @@ Focused tests cover translated textured frames, cancellation and decoder
 custody, loss, degenerate planes and outliers, source/timing drift, manual
 correction, rename stability, intentional detachment, history, geometry
 projection, self-application, and portable archive reopening. These fixtures do
-not establish general tracking accuracy on arbitrary footage. Browser menu
-workflows and real-footage reference qualification remain required for M07.
+not establish general tracking accuracy on arbitrary footage. Four Chromium
+menu workflows use an actually encoded H.264 moving checker through the retained
+media decoder. They cover point selection, analysis, correction, application,
+undo/redo, project-library reopening, removal, detachment, cancellation, and
+actionable no-source guidance. Planar and stabilization applications are checked
+against actual preview pixels. The stabilization case also guards bilinear alpha
+rounding under a fractional inverse transform. Real-footage reference
+qualification remains required for M07.
 
 This work does not change assistance runtime assets and does not require a
 manual **Update AI assets** run.

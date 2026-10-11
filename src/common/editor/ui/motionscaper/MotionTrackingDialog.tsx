@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -23,6 +23,7 @@ export default function MotionTrackingDialog({ copy, project, store, busy, canUn
 	copy: Readonly<Record<string, string>>; project: MotionscaperProject; store: MotionAssetReader; busy: boolean; canUndo: boolean; canRedo: boolean;
 	onEdit: (commands: readonly MotionscaperProjectCommand[]) => Promise<void>; onUndo: () => Promise<void>; onRedo: () => Promise<void>; onClose: () => void; cornerPin?: boolean;
 }>) {
+	const id = useId();
 	const [compositionId, setCompositionId] = useState(project.primaryCompositionId), [sourceId, setSourceId] = useState(''), [analysisId, setAnalysisId] = useState('');
 	const [mode, setMode] = useState<Mode>('point'), [first, setFirst] = useState('0'), [count, setCount] = useState('30'), [levels, setLevels] = useState('3');
 	const [points, setPoints] = useState<readonly MotionVector2[]>([[0, 0]]), [frame, setFrame] = useState(0), [targetId, setTargetId] = useState('');
@@ -94,20 +95,20 @@ export default function MotionTrackingDialog({ copy, project, store, busy, canUn
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>{active.current && <Button variant="secondary" onClick={() => active.current?.abort()}>{copy.motionscaperCancel}</Button>}<Button variant="secondary" disabled={disabled} onClick={onClose}>{copy.motionscaperClose}</Button></>} />}>
 		<p>{copy.motionscaperTrackingHint}</p>
 		<fieldset disabled={disabled} className="motionscaper-timeline-actions"><legend>{copy.motionscaperTrackingAnalysis}</legend>
-			<label>{copy.motionscaperComposition}<select value={composition.id} onChange={event => { setCompositionId(event.currentTarget.value); setSourceId(''); setAnalysisId(''); }}>
+			<label htmlFor={`${id}-composition`}>{copy.motionscaperComposition}</label><select id={`${id}-composition`} value={composition.id} onChange={event => { setCompositionId(event.currentTarget.value); setSourceId(''); setAnalysisId(''); }}>
 				{project.compositions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-			</select></label>
-			<label>{copy.motionscaperTrackingAnalysis}<select value={result?.id ?? ''} onChange={event => setAnalysisId(event.currentTarget.value)}>
+			</select>
+			<label htmlFor={`${id}-analysis`}>{copy.motionscaperTrackingAnalysis}</label><select id={`${id}-analysis`} value={result?.id ?? ''} onChange={event => setAnalysisId(event.currentTarget.value)}>
 				<option value="">{copy.motionscaperTrackingNew}</option>{composition.tracking?.map(item => <option key={item.id} value={item.id}>{copy[`motionscaperTrackingMode_${item.settings.mode}`]} · {item.settings.firstFrame}–{item.settings.firstFrame + item.settings.frameCount - 1}</option>)}
-			</select></label>
-			<label>{copy.motionscaperTrackingSource}<select value={sourceLayer?.id ?? ''} disabled={Boolean(result)} onChange={event => setSourceId(event.currentTarget.value)}>
+			</select>
+			<label htmlFor={`${id}-source`}>{copy.motionscaperTrackingSource}</label><select id={`${id}-source`} value={sourceLayer?.id ?? ''} disabled={Boolean(result)} onChange={event => setSourceId(event.currentTarget.value)}>
 				{composition.layers.filter(item => item.kind === 'footage').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-			</select></label>
+			</select>
 			<Button variant="secondary" disabled={!canUndo} onClick={() => { void run(onUndo); }}>{copy.motionscaperUndo}</Button>
 			<Button variant="secondary" disabled={!canRedo} onClick={() => { void run(onRedo); }}>{copy.motionscaperRedo}</Button>
 		</fieldset>
 		{!result && <fieldset disabled={disabled} className="motionscaper-timeline-actions"><legend>{copy.motionscaperTrackingMode}</legend>
-			<label>{copy.motionscaperTrackingMode}<select value={mode} onChange={event => setMode(event.currentTarget.value as Mode)}>{(['point', 'planar', 'stabilize'] as const).map(value => <option key={value} value={value}>{copy[`motionscaperTrackingMode_${value}`]}</option>)}</select></label>
+			<label htmlFor={`${id}-mode`}>{copy.motionscaperTrackingMode}</label><select id={`${id}-mode`} value={mode} onChange={event => setMode(event.currentTarget.value as Mode)}>{(['point', 'planar', 'stabilize'] as const).map(value => <option key={value} value={value}>{copy[`motionscaperTrackingMode_${value}`]}</option>)}</select>
 			<label>{copy.motionscaperFirstFrame}<input type="number" min={0} step={1} value={first} onChange={event => setFirst(event.currentTarget.value)} /></label>
 			<label>{copy.motionscaperTrackingCount}<input type="number" min={1} max={4096} step={1} value={count} onChange={event => setCount(event.currentTarget.value)} /></label>
 			<label>{copy.motionscaperTrackingPyramid}<input type="number" min={1} max={4} step={1} value={levels} onChange={event => setLevels(event.currentTarget.value)} /></label>
@@ -130,7 +131,7 @@ export default function MotionTrackingDialog({ copy, project, store, busy, canUn
 			</fieldset>
 			<p>{copy.motionscaperTrackingUnresolved}: <span data-motion-tracking-lost>{result.samples.filter(item => item.status === 'lost').length}</span></p>
 			<fieldset disabled={disabled} className="motionscaper-timeline-actions"><legend>{copy.motionscaperTrackingApply}</legend>
-				<label>{copy.motionscaperTrackingTarget}<select value={target?.id ?? ''} onChange={event => setTargetId(event.currentTarget.value)}>{composition.layers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+				<label htmlFor={`${id}-target`}>{copy.motionscaperTrackingTarget}</label><select id={`${id}-target`} value={target?.id ?? ''} onChange={event => setTargetId(event.currentTarget.value)}>{composition.layers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
 				{activeMode === 'stabilize' && <label>{copy.motionscaperTrackingStrength}<input type="number" min={0} max={1} step={0.1} value={strength} onChange={event => setStrength(event.currentTarget.value)} /></label>}
 				<label><input type="checkbox" checked={replace} onChange={event => setReplace(event.currentTarget.checked)} />{copy.motionscaperTrackingReplace}</label>
 				<Button variant="secondary" disabled={!target} onClick={apply}>{copy.motionscaperTrackingApply}</Button>
