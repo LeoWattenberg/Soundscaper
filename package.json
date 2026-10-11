@@ -98,6 +98,7 @@
 		"graphs:generate": "node scripts/generate-source-graphs.mjs",
 		"qa:new": "node scripts/create-qa-run.mjs",
 		"build:browser:framescaper": "node scripts/build-browser-product-site.mjs framescaper",
+		"build:browser:motionscaper": "node scripts/build-browser-product-site.mjs motionscaper",
 		"prepare:browser:products": "node scripts/prepare-browser-product-sites.mjs",
 		"pretest:browser": "npm run build && npm run build:browser:framescaper && npm run prepare:browser:products",
 		"test:browser": "playwright test",
