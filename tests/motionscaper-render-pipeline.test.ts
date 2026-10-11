@@ -127,3 +127,11 @@ test('M05 video cannot silently discard authored audio, while image sequences ma
 	const excluded = await renderMotionFrameSequence({ ...request, acquire, sink: { ...request.sink, audioPolicy: 'exclude' } });
 	assert.equal(excluded.renderedFrames, 3);
 });
+
+test('M05 synchronous render and sink work yields to a host cancellation task before publication', async () => {
+	const { request, frames, events } = fixture(); const controller = new AbortController();
+	const cancelTask = setTimeout(() => { controller.abort(new DOMException('Cancelled from the host task', 'AbortError')); }, 0);
+	try { await assert.rejects(renderMotionFrameSequence({ ...request, signal: controller.signal }), /host task/u); }
+	finally { clearTimeout(cancelTask); }
+	assert.equal(frames.length, 1); assert.deepEqual(events, ['acquire:Render', 'write:0', 'release', 'abort']);
+});

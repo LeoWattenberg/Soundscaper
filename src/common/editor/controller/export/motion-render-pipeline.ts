@@ -76,6 +76,8 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 			await request.sink.write(Object.freeze({ index, time, duration, surface }), request.signal);
 			throwIfScapeAborted(request.signal);
 			try { request.onProgress?.(index + 1, plan.frameCount); } catch { /* Presentation observers cannot revoke a render. */ }
+			// A synchronous rasterizer/PNG sink must still let cancellation and presentation tasks run.
+			await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
 		}
 		released = true;
 		await lease.release();
