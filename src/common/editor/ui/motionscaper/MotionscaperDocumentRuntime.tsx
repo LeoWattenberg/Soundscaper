@@ -47,21 +47,38 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		const command = request.command;
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'open') { setDialog(command); return; }
-		if (command === 'library') {
+		if (command === 'new' || command === 'settings') { setDialog(command); return; }
+		if (command === 'open') {
+			void run(async () => {
+				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
+				const result = await openMotionscaperDesktopProject(session);
+				if (result === 'browser') setDialog('open');
+				else if (result === 'opened') { setDialog(null); onProjectOpened(); }
+			});
+		} else if (command === 'library') {
 			setDialog('library');
 			void run(async () => { setProjects(await store.list()); });
-		} else if (command === 'save') void run(() => session.save());
+		} else if (command === 'save') void run(() => session.save(async (project) => {
+			const { writeMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
+			return writeMotionscaperDesktopProject(project, store);
+		}));
 		else if (command === 'undo') void run(() => session.undo());
 		else if (command === 'redo') void run(() => session.redo());
 		else if (command === 'copy') void run(async () => {
+			const { motionscaperDesktopFiles } = await import('../../../../motionscaper/desktop-file-adapter.ts');
+			const files = motionscaperDesktopFiles();
+			if (files) {
+				const { writeMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
+				await session.exportSnapshot(async (project) => { await writeMotionscaperDesktopProject(project, store, files, true); });
+				return;
+			}
 			const { blob, fileName } = await session.saveCopy();
 			const url = URL.createObjectURL(blob);
 			const link = document.createElement('a'); link.href = url; link.download = fileName;
 			document.body.append(link); link.click(); link.remove();
 			globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000);
 		});
-	}, [request, run, session, store]);
+	}, [request, run, session, store, onProjectOpened]);
 	const close = () => { if (!busy) { setDialog(null); setError(null); } };
 	const opened = () => { setDialog(null); onProjectOpened(); };
 	const submit = (settings: MotionProjectSettings) => {

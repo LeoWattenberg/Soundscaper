@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';
+import { motionDocumentFileName } from './editor-document-file-name.ts';
 import type { MotionLayerDraft } from './editor-layer-authoring.ts';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { Rational } from '../common/editor/timeline-time.ts';
@@ -123,9 +125,11 @@ export class MotionscaperDocumentSession {
 			await this.#edit(commands, assets);
 		});
 	}
-	save(): Promise<void> {
+	save(writeSnapshot?: (project: MotionscaperProject) => Promise<boolean>): Promise<void> {
 		return this.#run(async () => {
-			const saved = await this.#store.save(this.#requireProject(), this.#snapshot.savedDigest);
+			const project = this.#requireProject();
+			if (writeSnapshot && !await writeSnapshot(project)) return;
+			const saved = await this.#store.save(project, this.#snapshot.savedDigest);
 			this.#update({ savedDigest: saved.digest, dirty: false });
 		});
 	}
@@ -135,19 +139,20 @@ export class MotionscaperDocumentSession {
 	redo(): Promise<void> {
 		return this.#run(async () => { if (this.#history?.redo()) await this.#recover(); });
 	}
+	exportSnapshot(writeSnapshot: (project: MotionscaperProject) => Promise<void>): Promise<void> {
+		return this.#run(() => writeSnapshot(this.#requireProject()));
+	}
 	saveCopy(): Promise<Readonly<{ blob: Blob; fileName: string }>> {
 		return this.#run(async () => {
 			const project = this.#requireProject();
 			const { exportMotionscaperArchive } = await import('./editor-scape.ts');
 			const blob = await exportMotionscaperArchive(project, (asset) => this.#store.readAsset(asset));
 			if (!blob) throw new Error('The motion archive did not produce a file.');
-			const safeTitle = Array.from(project.title, (character) => character.charCodeAt(0) < 32
-				|| /[\\/:*?"<>|]/u.test(character) ? '_' : character).join('').slice(0, 160);
-			const fileName = `${safeTitle || 'Motionscaper'}.mscape`;
+			const fileName = motionDocumentFileName(project.title);
 			return Object.freeze({ blob, fileName });
 		});
 	}
-	importArchive(file: Blob): Promise<void> {
+	importArchive(file: ScapeProjectInput): Promise<void> {
 		return this.#run(async () => {
 			const { importMotionscaperArchive } = await import('./editor-scape.ts');
 			const opened = await importMotionscaperArchive(file, (project) => this.#store.beginImport(project));

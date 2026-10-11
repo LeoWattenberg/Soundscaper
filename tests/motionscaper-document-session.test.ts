@@ -97,3 +97,23 @@ test('Motionscaper layers are one recoverable undo step and their assets survive
 		assert.equal(session.getSnapshot().project?.revision, revision);
 	} finally { await store.close(); await other.store.close(); }
 });
+
+test('Motionscaper publishes a native save only after completed file commit and keeps cancelled drafts recoverable', async () => {
+	const { store, session } = fixture();
+	try {
+		await session.create(settings); const initial = session.getSnapshot();
+		await session.changeSettings({ ...settings, title: 'Native draft' });
+		await session.save(() => Promise.resolve(false));
+		assert.equal(session.getSnapshot().dirty, true);
+		assert.equal((await store.load(initial.project!.id))?.digest, initial.savedDigest);
+		await assert.rejects(session.save(() => Promise.reject(new Error('File changed'))), /File changed/u);
+		assert.equal((await store.loadRecovery(initial.project!.id))?.title, 'Native draft');
+		await session.save(async (project) => {
+			assert.equal(project.title, 'Native draft'); assert.ok(Object.isFrozen(project));
+			assert.equal((await store.load(project.id))?.digest, initial.savedDigest);
+			return true;
+		});
+		assert.equal(session.getSnapshot().dirty, false);
+		assert.equal((await store.load(initial.project!.id))?.project.title, 'Native draft');
+	} finally { await store.close(); }
+});
