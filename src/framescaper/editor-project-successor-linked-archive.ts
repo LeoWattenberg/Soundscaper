@@ -4,7 +4,7 @@ import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import { createScapeDigest, digestScapeBytes, scapeHex } from '../common/editor/scape-archive-media.ts';
 import { readScapeArchiveEnvelope, SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts';
-import { withScapeArchiveReader } from '../common/editor/scape-archive-reader.ts';
+import { withScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import { copyScapeArchiveEntry } from '../common/editor/scape-archive-entry-copy.ts';
 import { createScapeExportDestination } from '../common/editor/scape-export-destination.ts';
 import { maximumScapeStoreArchiveBytes, resolveScapeBlobMaximumBytes } from '../common/editor/scape-export-estimate.ts';
@@ -29,7 +29,7 @@ export async function exportFramescaperLinkedSuccessorArchive(record: Framescape
 	if (JSON.stringify({ ...baseline, schemaVersion: 1 }) !== JSON.stringify(original.project)) throw new RangeError('Linked archive assembly requires unchanged baseline intent and original custody.');
 	const ordered = indexFramescaperLinkedAssets(project);
 	const descriptors = ordered.map(createFramescaperLinkedAssetDescriptor); const extension = createFramescaperScapeProjectAssetExtension(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
-	return withScapeArchiveReader(record.originalArchive, signal, async (entries) => {
+	return withScapeProjectInput(record.originalArchive, signal, async (entries) => {
 		const envelope = await readScapeArchiveEnvelope(entries, {}, signal, extension.assetKinds);
 		const projectText = JSON.stringify(project); const projectBytes = new TextEncoder().encode(projectText);
 		const manifest = { ...envelope.manifest, project: { ...envelope.manifest.project, schemaVersion: 2, size: projectBytes.length, sha256: digestScapeBytes(projectBytes) }, assets: [...envelope.manifest.assets, ...descriptors] };

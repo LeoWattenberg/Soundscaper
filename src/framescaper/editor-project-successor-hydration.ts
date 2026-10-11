@@ -6,7 +6,7 @@ import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-pr
 import { migrateFramescaperSuccessorProject } from './editor-project-successor.ts';
 import { createFramescaperSuccessorHistory } from './editor-project-successor-history.ts';
 import { framescaperSuccessorMediaRootDocument } from './editor-project-successor-media-roots.ts';
-import { withScapeArchiveReader } from '../common/editor/scape-archive-reader.ts';
+import { withScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import { readScapeArchiveEnvelope } from '../common/editor/scape-archive-envelope.ts';
 import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from '../common/editor/scape-project-assets.ts';
 import { ScapeImportTransaction } from '../common/editor/scape-import-transaction.ts';
@@ -24,7 +24,7 @@ export async function hydrateFramescaperSuccessorArchive(record: FramescaperMigr
 	const extension = createFramescaperScapeProjectAssetExtension(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
 	const store = successorHydrationStore(media); const transaction = new ScapeImportTransaction(store, signal);
 	try {
-		await withScapeArchiveReader(record.originalArchive, signal, async entries => {
+		await withScapeProjectInput(record.originalArchive, signal, async entries => {
 			const envelope = await readScapeArchiveEnvelope(entries, {}, signal, extension.assetKinds);
 			const request = { archiveProject: project, project, ...envelope, validation: extension.validateImportAssets(project, envelope.manifest),
 				sourceIdMap: new Map(project.sources.map(source => [source.id, source.id])), store, transaction, signal };

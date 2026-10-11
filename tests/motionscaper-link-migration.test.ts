@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { smallMotionscaperArchiveBytes } from './helpers/motionscaper-small-archive-bytes.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js/index-native.js';
@@ -17,6 +18,8 @@ import { createFramescaperCompositionLink, normalizeFramescaperCompositionLink }
 import { openFramescaperSuccessorRepository } from '../src/framescaper/editor-project-successor-repository.ts';
 import { inspectFramescaperMigrationArchive, exportFramescaperSuccessorArchive } from '../src/framescaper/editor-project-successor-archive.ts';
 import { openFramescaperCompositionLinkOwnerRepository } from '../src/framescaper/editor-composition-link-owner-repository.ts';
+import { openFramescaperSuccessorDatabase } from '../src/framescaper/editor-project-successor-database.ts';
+import { request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { migrateFramescaperSuccessorProject } from '../src/framescaper/editor-project-successor.ts';
 
 async function archive(value: unknown, assets: readonly { descriptor: ScapeAssetDescriptor; body: Uint8Array }[] = []): Promise<Blob> {
@@ -47,7 +50,7 @@ test('successor migration stages a complete original archive then recovers idemp
 	assert.equal(migrated.project.id, project.id);
 	assert.equal(migrated.archiveDigest, pending.archiveDigest);
 	assert.deepEqual(migrated.project.compositionLinks, []);
-	assert.deepEqual(await migrated.originalArchive.arrayBuffer(), await original.arrayBuffer());
+	assert.deepEqual(await smallMotionscaperArchiveBytes(migrated.originalArchive), new Uint8Array(await original.arrayBuffer()));
 	assert.equal((await reopened.stage(original)).archiveDigest, pending.archiveDigest);
 	assert.equal((await reopened.complete(project.id)).archiveDigest, pending.archiveDigest);
 	const output = await exportFramescaperSuccessorArchive(migrated);
@@ -132,4 +135,22 @@ test('successor migration and fresh owner creation cannot claim each other’s p
 		await assert.rejects(migration.stage(await archive(fresh)), /another active owner/u); assert.deepEqual(await owner.loadOwner(fresh.id), receipt);
 		assert.equal(await migration.load(fresh.id), null);
 	} finally { migration.close(); await owner.close(); }
+});
+
+test('M10 interrupted legacy Blob custody upgrades on completion and retains exact bytes after the connection closes', async () => {
+	const factory = createInstrumentedIndexedDB(); const indexedDB = factory as unknown as IDBFactory;
+	const project = createFramescaperProject(); const originalArchive = await archive(project);
+	const inspected = await inspectFramescaperMigrationArchive(originalArchive);
+	const database = await openFramescaperSuccessorDatabase(indexedDB, 'successor');
+	await transact(database, ['pending'], 'readwrite', stores => request(stores.pending.add({ id: project.id, archiveDigest: inspected.archiveDigest, originalArchive, project: migrateFramescaperSuccessorProject(project) })));
+	database.close(); const repository = await openFramescaperSuccessorRepository({ indexedDB, line: 'successor' });
+	try {
+		factory.failNextDeleteForStore('pending', new Error('legacy publication failure'));
+		await assert.rejects(repository.complete(project.id), /legacy publication failure/u);
+		assert.equal(factory.recordCount(database.name, 'archiveBodies'), 0); assert.equal(factory.recordCount(database.name, 'archiveChunks'), 0);
+		assert.deepEqual(await repository.recover(), [project.id]); const record = await repository.load(project.id); assert.ok(record);
+		assert.ok(!(record.originalArchive instanceof Blob)); repository.close();
+		assert.deepEqual(await smallMotionscaperArchiveBytes(record.originalArchive), new Uint8Array(await originalArchive.arrayBuffer()));
+		assert.equal(factory.recordCount(database.name, 'archiveBodies'), 1); assert.equal(factory.recordCount(database.name, 'archiveStages'), 0);
+	} finally { repository.close(); }
 });

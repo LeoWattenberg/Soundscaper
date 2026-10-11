@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { assertFramescaperArchiveCustody } from './editor-project-successor-archive-record.ts';
 import { assertBoundedJsonStructureV1 } from '../common/editor/bounded-json-structure-v1.ts';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
@@ -77,7 +78,7 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 		if (stored) return stored.deleted || stored.project === null ? null : stored as FramescaperCompositionLinkOwnerRecord;
 		const migration: unknown = await request(stores.projects.get(id)); if (migration === undefined) return null;
 		const retained = motionRecord(migration, ['id', 'archiveDigest', 'originalArchive', 'project'], 'retained successor custody');
-		if (motionId(retained.id) !== id || !(retained.originalArchive instanceof Blob)) throw new RangeError('Retained successor custody identity changed.'); motionDigest(retained.archiveDigest);
+		if (motionId(retained.id) !== id) throw new RangeError('Retained successor custody identity changed.'); assertFramescaperArchiveCustody(retained.originalArchive, motionDigest(retained.archiveDigest));
 		const record = createFramescaperLinkOwnerRecord(retained.project); if (record.id !== id) throw new RangeError('Retained successor owner identity changed.'); return record;
 	}
 	async function receipt(stores: FramescaperLinkStores, record: FramescaperCompositionLinkOwnerRecord): Promise<FramescaperCompositionLinkOwnerReceipt> {

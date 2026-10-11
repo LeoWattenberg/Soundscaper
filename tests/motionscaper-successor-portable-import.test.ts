@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createScapeArchiveByteSource, createBlobScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
+import { smallMotionscaperArchiveBytes } from './helpers/motionscaper-small-archive-bytes.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
@@ -10,6 +12,9 @@ import { createFramescaperCompositionSource } from '../src/framescaper/editor-co
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { createFramescaperSuccessorEnvironment } from '../src/framescaper/editor-project-successor-environment.ts';
 import { normalizeFramescaperSuccessorProject } from '../src/framescaper/editor-project-successor.ts';
+import { withScapeProjectInput } from '../src/common/editor/scape-project-input.ts';
+import { readScapeArchiveEnvelope } from '../src/common/editor/scape-archive-envelope.ts';
+import { scapeImportCapacityRequirement } from '../src/common/editor/scape-import-capacity.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { createAudioSource } from '../src/common/editor/project-media-factory.ts';
 import { exportFramescaperSuccessorPortableArchive } from '../src/framescaper/editor-project-successor-portable-export.ts';
@@ -59,6 +64,7 @@ test('M10 full import failure never publishes partial owner/link custody and pre
 		await assert.rejects(importFramescaperSuccessorPortableArchive(f.blob, f.environment.store, { indexedDB: f.indexedDB, line: 'successor' }), /portable owner failed/u);
 		assert.equal(await f.environment.owners.loadOwner(f.project.id), null); assert.equal(await f.environment.owners.readAsset(f.asset), null);
 		assert.equal(await loadFramescaperSuccessorPortableCustody(f.project.id, { indexedDB: f.indexedDB, line: 'successor' }), null);
+		for (const name of ['archiveStages', 'archiveChunks', 'archiveBodies']) assert.equal(f.factory.recordCount('kw-media-framescaper-editor-v2', name), 0);
 		assert.equal(f.factory.recordCount('kw-media-framescaper-editor-v2', 'staging'), 0); assert.equal(f.factory.recordCount('kw-media-framescaper-editor-v2', 'linkStates'), 0);
 		assert.ok(await f.environment.store.getMediaAssetMetadata(f.image.source.id)); assert.equal(await f.environment.store.loadProject(f.project.id), null);
 		await importFramescaperSuccessorPortableArchive(f.blob, f.environment.store, { indexedDB: f.indexedDB, line: 'successor' });
@@ -77,5 +83,37 @@ test('M10 portable import refuses wrong product media ownership and pre-cancelle
 		await assert.rejects(importFramescaperSuccessorPortableArchive(f.blob, f.environment.store, { indexedDB: f.indexedDB, line: 'baseline' }), /successor/u);
 		const abort = new AbortController(); abort.abort(); await assert.rejects(importFramescaperSuccessorPortableArchive(f.blob, f.environment.store, { indexedDB: f.indexedDB, line: 'successor', signal: abort.signal }), (error: unknown) => error instanceof Error && error.name === 'AbortError');
 		assert.equal(await f.environment.owners.loadOwner(f.project.id), null); assert.equal(await f.environment.store.getSourceMetadata(f.audio.id), null);
+	} finally { await f.environment.close(); }
+});
+
+test('M10 portable custody admits a bounded range source without materializing the original archive', async () => {
+	const f = await fixture(); const blobSource = createBlobScapeArchiveByteSource(f.blob); let largestRead = 0;
+	const input = createScapeArchiveByteSource({ size: f.blob.size, maximumReadBytes: 97, read(request) { largestRead = Math.max(largestRead, request.length); return blobSource.read(request); } });
+	try {
+		await importFramescaperSuccessorPortableArchive(input, f.environment.store, { indexedDB: f.indexedDB, line: 'successor' });
+		assert.equal(largestRead, 97); const custody = await loadFramescaperSuccessorPortableCustody(f.project.id, { indexedDB: f.indexedDB, line: 'successor' });
+		assert.ok(custody); assert.ok(!(custody.archive instanceof Blob));
+		assert.deepEqual(await smallMotionscaperArchiveBytes(custody.archive), new Uint8Array(await f.blob.arrayBuffer()));
+	} finally { await f.environment.close(); }
+});
+
+test('M10 portable preflight counts only remaining assets after exact archive chunks already consume live quota', async () => {
+	const f = await fixture();
+	const remaining = await withScapeProjectInput(f.blob, undefined, async entries => {
+		const { manifest } = await readScapeArchiveEnvelope(entries, {}, undefined, ['motion-linked-original', 'framescaper-image-asset']);
+		return scapeImportCapacityRequirement(manifest);
+	});
+	try {
+		const estimate = (short: boolean) => (assetBytes: number) => {
+			assert.ok(f.factory.recordCount('kw-media-framescaper-editor-v2', 'archiveChunks') > 0);
+			assert.equal(f.factory.recordCount('kw-media-framescaper-editor-v2', 'archiveBodies'), 0);
+			assert.equal(assetBytes, remaining.assetBytes);
+			const usage = f.blob.size + 4096;
+			return { usage, quota: usage + remaining.requiredFreeBytes - (short ? 1 : 0) };
+		};
+		await assert.rejects(importFramescaperSuccessorPortableArchive(f.blob, f.environment.store, { line: 'successor', estimateStorageForPreflight: estimate(true) }), /not enough storage/u);
+		for (const store of ['archiveBodies', 'archiveChunks', 'archiveStages', 'owners']) assert.equal(f.factory.recordCount('kw-media-framescaper-editor-v2', store), 0);
+		await importFramescaperSuccessorPortableArchive(f.blob, f.environment.store, { line: 'successor', estimateStorageForPreflight: estimate(false) });
+		assert.equal((await f.environment.owners.loadOwner(f.project.id))?.project.id, f.project.id);
 	} finally { await f.environment.close(); }
 });

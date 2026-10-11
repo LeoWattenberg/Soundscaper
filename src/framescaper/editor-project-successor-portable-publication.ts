@@ -3,6 +3,9 @@ import { canonicalJsonSha256 } from '../common/canonical-json-sha256.ts';
 import { request } from '../common/editor/storage/indexeddb-backend.ts';
 import { motionRecord } from '../common/editor/motion-values.ts';
 import type { ScapeReplaceWriteAuthority } from '../common/editor/scape-import-transaction.ts';
+import { assertFramescaperArchiveCustody } from './editor-project-successor-archive-record.ts';
+import type { FramescaperArchiveStage } from './editor-project-successor-archive-custody.ts';
+import { motionDigest } from '../common/editor/motion-values.ts';
 import { normalizeFramescaperLinkOwnerStoredRecord } from './editor-composition-link-owner-record.ts';
 
 type Stores = Record<string, IDBObjectStore>;
@@ -23,7 +26,7 @@ export async function captureFramescaperSuccessorPortableReplacement(stores: Sto
 	if (stored.deleted || stored.project === null || stored.writeFence !== authority.writeFence) throw new RangeError('Replacement lost its successor owner write authority.');
 	return stored;
 }
-export async function retainFramescaperSuccessorPreviousPortableArchive(stores: Stores, id: string): Promise<void> {
+export async function retainFramescaperSuccessorPreviousPortableArchive(stores: Stores, id: string, stage?: FramescaperArchiveStage): Promise<void> {
 	const value: unknown = await request(stores.portableArchives!.get(id)); if (value === undefined) return;
 	const prior = motionRecord(value, ['kind', 'id', 'archive', 'archiveDigest', 'project', 'binding'], 'previous portable custody', ['kind', 'id', 'archive', 'archiveDigest', 'project']);
 	const key = `retained-archive:${canonicalJsonSha256({ id, archiveDigest: prior.archiveDigest })}`;
@@ -34,5 +37,10 @@ export async function retainFramescaperSuccessorPreviousPortableArchive(stores: 
 		if (retained.kind !== 'framescaper-successor-portable-history-v1' || retained.ownerProjectId !== id || custody.archiveDigest !== prior.archiveDigest || canonicalJsonSha256(custody.project) !== canonicalJsonSha256(prior.project)) throw new RangeError('Portable archive history identity collides.');
 		return;
 	}
-	await request(stores.portableArchives!.add({ kind: 'framescaper-successor-portable-history-v1', id: key, ownerProjectId: id, custody: prior }));
+	let archive = prior.archive; const digest = motionDigest(prior.archiveDigest);
+	if (archive instanceof Blob) {
+		if (!stage || stage.reference.sha256 !== digest) throw new RangeError('Previous portable archive requires verified chunk custody before replacement.');
+		await stage.publish(stores); archive = stage.reference;
+	} else assertFramescaperArchiveCustody(archive, digest);
+	await request(stores.portableArchives!.add({ kind: 'framescaper-successor-portable-history-v1', id: key, ownerProjectId: id, custody: { ...prior, archive } }));
 }

@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { smallMotionscaperArchiveBytes } from './helpers/motionscaper-small-archive-bytes.ts';
+import { readFramescaperArchiveCustody } from '../src/framescaper/editor-project-successor-archive-custody.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
@@ -46,7 +48,7 @@ test('M10 File Copy owns a fresh project identity and retains exact source archi
 		assert.notEqual(copied.project.id, first.project.id); assert.equal(copied.project.title, `${first.project.title} copy`); assert.equal(copied.collision, 'copy');
 		assert.equal((await env.value.owners.loadOwner(first.project.id))?.ownerDigest, owner?.ownerDigest);
 		const custody = await loadFramescaperSuccessorPortableCustody(copied.project.id, { indexedDB: env.indexedDB, line: 'successor' });
-		assert.deepEqual(custody?.project, copied.project); assert.deepEqual(await custody?.archive.arrayBuffer(), await first.blob.arrayBuffer());
+		assert.deepEqual(custody?.project, copied.project); assert.deepEqual(await smallMotionscaperArchiveBytes(custody?.archive), new Uint8Array(await first.blob.arrayBuffer()));
 		await env.value.close(); await loseOrdinaryCache(env.indexedDB);
 		const reopened = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: { indexedDB: env.indexedDB, preferOpfs: false } });
 		try { assert.deepEqual(await reopened.controllerStore.loadProject(copied.project.id), copied.project); assert.ok(await reopened.store.loadMediaAsset(first.source.storageKey)); } finally { await reopened.close(); }
@@ -68,7 +70,7 @@ test('M10 replacing a migrated owner preserves its original v1 archive and recov
 		const reopened = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: { indexedDB: env.indexedDB, preferOpfs: false } });
 		try {
 			assert.deepEqual(await reopened.controllerStore.loadProject(first.project.id), replaced.project);
-			assert.deepEqual(await (await reopened.custody.load(first.project.id))?.originalArchive.arrayBuffer(), await original.arrayBuffer());
+			assert.deepEqual(await smallMotionscaperArchiveBytes((await reopened.custody.load(first.project.id))?.originalArchive), new Uint8Array(await original.arrayBuffer()));
 			assert.deepEqual(new Uint8Array(await (await reopened.store.loadMediaAsset(first.source.id))!.arrayBuffer()), first.bytes);
 			const source = replaced.project.sources.find(source => source.kind === 'image')!;
 			assert.deepEqual(new Uint8Array(await (await reopened.store.loadMediaAsset(String(source.storageKey)))!.arrayBuffer()), next.bytes);
@@ -89,14 +91,14 @@ test('M10 File Replace fences owner publication, preserves the previous archive 
 		assert.deepEqual(new Uint8Array(await (await env.value.store.loadMediaAsset(first.source.storageKey))!.arrayBuffer()), first.bytes);
 		assert.deepEqual(new Uint8Array(await (await env.value.store.loadMediaAsset(String(replacementSource.storageKey)))!.arrayBuffer()), next.bytes);
 		const custody = await loadFramescaperSuccessorPortableCustody(first.project.id, { indexedDB: env.indexedDB, line: 'successor' });
-		assert.notEqual(custody?.archiveDigest, previous?.archiveDigest); assert.deepEqual(await custody?.archive.arrayBuffer(), await next.blob.arrayBuffer());
+		assert.notEqual(custody?.archiveDigest, previous?.archiveDigest); assert.deepEqual(await smallMotionscaperArchiveBytes(custody?.archive), new Uint8Array(await next.blob.arrayBuffer()));
 		assert.equal(env.factory.recordCount('kw-media-framescaper-editor-v2', 'portableArchives'), 2);
 		const database = await openFramescaperSuccessorDatabase(env.indexedDB, 'successor');
 		try {
 			const rows: unknown[] = await transact(database, ['portableArchives'], 'readonly', stores => request(stores.portableArchives!.getAll()));
 			const retained = rows.find(row => row && typeof row === 'object' && Reflect.get(row, 'kind') === 'framescaper-successor-portable-history-v1'); assert.ok(retained && typeof retained === 'object');
 			const original: unknown = Reflect.get(retained, 'custody'); assert.ok(original && typeof original === 'object');
-			const archive: unknown = Reflect.get(original, 'archive'); assert.ok(archive instanceof Blob); assert.deepEqual(await archive.arrayBuffer(), await first.blob.arrayBuffer());
+			const archive: unknown = Reflect.get(original, 'archive'); assert.ok(!(archive instanceof Blob)); assert.deepEqual(await smallMotionscaperArchiveBytes(readFramescaperArchiveCustody(archive, String(Reflect.get(original, 'archiveDigest')), env.indexedDB)), new Uint8Array(await first.blob.arrayBuffer()));
 		} finally { database.close(); }
 		await env.value.close(); await loseOrdinaryCache(env.indexedDB);
 		const reopened = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: { indexedDB: env.indexedDB, preferOpfs: false } });
@@ -113,7 +115,7 @@ test('M10 File Replace refuses a superseded durable write fence after candidate 
 			estimateStorageForPreflight: async () => { await env.value.owners.claimOwnerWriteFence(first.project.id); return { usage: 0, quota: 1_000_000_000 }; },
 		}), /write authority/u);
 		assert.equal((await env.value.owners.loadOwner(first.project.id))?.ownerDigest, before?.ownerDigest);
-		const custody = await loadFramescaperSuccessorPortableCustody(first.project.id, { indexedDB: env.indexedDB, line: 'successor' }); assert.deepEqual(await custody?.archive.arrayBuffer(), await first.blob.arrayBuffer());
+		const custody = await loadFramescaperSuccessorPortableCustody(first.project.id, { indexedDB: env.indexedDB, line: 'successor' }); assert.deepEqual(await smallMotionscaperArchiveBytes(custody?.archive), new Uint8Array(await first.blob.arrayBuffer()));
 	} finally { await env.value.close(); }
 });
 
@@ -125,7 +127,29 @@ test('M10 failed File Replace leaves the previous accepted owner and archive unc
 		env.factory.failNextPutForStore('portableArchives', new Error('archive disk failure'));
 		await assert.rejects(importFramescaperSuccessorPortableArchive(next.blob, env.value.store, { line: 'successor', collision: 'replace', acquireReplaceProjectWriteAuthority: replaceAuthority(env.value) }), /archive disk failure/u);
 		assert.equal((await env.value.owners.loadOwner(first.project.id))?.ownerDigest, before?.ownerDigest);
-		const custody = await loadFramescaperSuccessorPortableCustody(first.project.id, { indexedDB: env.indexedDB, line: 'successor' }); assert.deepEqual(await custody?.archive.arrayBuffer(), await first.blob.arrayBuffer());
+		const custody = await loadFramescaperSuccessorPortableCustody(first.project.id, { indexedDB: env.indexedDB, line: 'successor' }); assert.deepEqual(await smallMotionscaperArchiveBytes(custody?.archive), new Uint8Array(await first.blob.arrayBuffer()));
 		assert.equal(env.factory.recordCount('kw-media-framescaper-editor-v2', 'portableArchives'), 1);
 	} finally { await env.value.close(); }
+});
+
+test('M10 replacing legacy portable Blob custody retains byte-exact chunk history and rolls back failed history publication', async () => {
+	const first = await fixture(); const next = await fixture('new revision'); const env = await environment();
+	const database = await openFramescaperSuccessorDatabase(env.indexedDB, 'successor');
+	try {
+		await importFramescaperSuccessorPortableArchive(first.blob, env.value.store, { line: 'successor' });
+		await transact(database, ['portableArchives'], 'readwrite', async stores => {
+			const prior = await request(stores.portableArchives.get(first.project.id)) as Record<string, unknown>;
+			await request(stores.portableArchives.put({ ...prior, archive: first.blob }));
+		});
+		const beforeBodies = env.factory.recordCount(database.name, 'archiveBodies');
+		env.factory.failNextPutForStore('owners', new Error('history owner failure'));
+		await assert.rejects(importFramescaperSuccessorPortableArchive(next.blob, env.value.store, { line: 'successor', collision: 'replace', acquireReplaceProjectWriteAuthority: replaceAuthority(env.value) }), /history owner failure/u);
+		assert.equal(env.factory.recordCount(database.name, 'portableArchives'), 1); assert.equal(env.factory.recordCount(database.name, 'archiveBodies'), beforeBodies);
+		assert.equal(env.factory.recordCount(database.name, 'archiveStages'), 0);
+		await importFramescaperSuccessorPortableArchive(next.blob, env.value.store, { line: 'successor', collision: 'replace', acquireReplaceProjectWriteAuthority: replaceAuthority(env.value) });
+		const rows = await transact(database, ['portableArchives'], 'readonly', stores => request(stores.portableArchives.getAll())) as Record<string, unknown>[];
+		const prior = rows.find(row => row.kind === 'framescaper-successor-portable-history-v1')?.custody as Record<string, unknown>;
+		assert.ok(prior); assert.ok(!(prior.archive instanceof Blob));
+		assert.deepEqual(await smallMotionscaperArchiveBytes(readFramescaperArchiveCustody(prior.archive, String(prior.archiveDigest), env.indexedDB)), new Uint8Array(await first.blob.arrayBuffer()));
+	} finally { database.close(); await env.value.close(); }
 });

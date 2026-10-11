@@ -2,7 +2,8 @@
 import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js/index-native.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { withScapeArchiveReader } from '../common/editor/scape-archive-reader.ts';
+import { withScapeProjectInput, type ScapeProjectInput } from '../common/editor/scape-project-input.ts';
+import { createBlobScapeArchiveByteSource, assertScapeArchiveByteSource, readScapeArchiveByteRange } from '../common/editor/scape-archive-byte-source.ts';
 import { copyScapeArchiveEntry } from '../common/editor/scape-archive-entry-copy.ts';
 import { readScapeArchiveEnvelope, type ScapeArchiveEntry, type ScapeDescriptor } from '../common/editor/scape-archive-envelope.ts';
 import { EXTERNAL_MEDIA_ENCODING } from '../common/editor/desktop-external-media.ts';
@@ -14,23 +15,24 @@ import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-pr
 import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject } from './editor-project-successor.ts';
 
 export interface FramescaperMigrationRecord {
-	readonly id: string; readonly archiveDigest: string; readonly originalArchive: Blob;
+	readonly id: string; readonly archiveDigest: string; readonly originalArchive: ScapeProjectInput;
 	readonly project: FramescaperSuccessorProject;
 }
-export async function digestFramescaperMigrationArchive(blob: Blob, signal?: AbortSignal): Promise<string> {
+export async function digestFramescaperMigrationArchive(blob: ScapeProjectInput, signal?: AbortSignal): Promise<string> {
 	const digest = sha256.create();
-	for (let offset = 0; offset < blob.size; offset += 1024 * 1024) {
+	const source = blob instanceof Blob ? createBlobScapeArchiveByteSource(blob) : blob; assertScapeArchiveByteSource(source);
+	for (let offset = 0; offset < source.size; offset += 1024 * 1024) {
 		signal?.throwIfAborted();
-		digest.update(new Uint8Array(await blob.slice(offset, offset + 1024 * 1024).arrayBuffer()));
+		digest.update(await readScapeArchiveByteRange(source, { offset, length: Math.min(1024 * 1024, source.size - offset), signal }));
 	}
 	signal?.throwIfAborted();
 	return bytesToHex(digest.digest());
 }
 
 /** Authenticate the full v1 archive before it becomes a recoverable migration source. */
-export async function inspectFramescaperMigrationArchive(blob: Blob, signal?: AbortSignal): Promise<{ project: FramescaperProject; archiveDigest: string }> {
+export async function inspectFramescaperMigrationArchive(blob: ScapeProjectInput, signal?: AbortSignal): Promise<{ project: FramescaperProject; archiveDigest: string }> {
 	const extension = createFramescaperScapeProjectAssetExtension(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
-	const project = await withScapeArchiveReader(blob, signal, async (entries) => {
+	const project = await withScapeProjectInput(blob, signal, async (entries) => {
 		const envelope = await readScapeArchiveEnvelope(entries, {}, signal, extension.assetKinds);
 		verifyScapeAssetBytes(new TextEncoder().encode(envelope.projectText), envelope.manifest.project, 'project document');
 		const project = cloneFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, JSON.parse(envelope.projectText) as unknown);
@@ -53,7 +55,7 @@ export async function exportFramescaperSuccessorArchive(record: FramescaperMigra
 	if (JSON.stringify({ ...baseline, schemaVersion: 1 }) !== JSON.stringify(original.project)) throw new RangeError('Migration archive export requires unchanged baseline intent and its full asset closure.');
 	if (project.compositionLinks.length) throw new RangeError('Linked composition export requires the M10 dependency assembler.');
 	const extension = createFramescaperScapeProjectAssetExtension(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
-	return withScapeArchiveReader(record.originalArchive, signal, async (entries) => {
+	return withScapeProjectInput(record.originalArchive, signal, async (entries) => {
 		const envelope = await readScapeArchiveEnvelope(entries, {}, signal, extension.assetKinds);
 		const projectText = JSON.stringify(project);
 		const bytes = new TextEncoder().encode(projectText);

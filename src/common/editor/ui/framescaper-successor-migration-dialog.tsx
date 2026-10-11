@@ -3,6 +3,8 @@ import { framescaperSuccessorCopy } from '../../i18n/framescaper-successor-copy.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { openFramescaperSuccessorRepository, type FramescaperSuccessorRepository } from '../../../framescaper/editor-project-successor-repository.ts';
+import { createAudioEditorFileService } from '../file-service.js';
+import { saveFramescaperRetainedOriginal } from '../../../framescaper/editor-project-successor-original-save.ts';
 import { exportFramescaperSuccessorArchive, type FramescaperMigrationRecord } from '../../../framescaper/editor-project-successor-archive.ts';
 
 let closeActiveDialog: (() => void) | null = null;
@@ -73,7 +75,13 @@ function MigrationDialog({ close, openProject }: { readonly close: () => void; r
 		<ul>{records.map((record) => <li key={record.id}>
 			{record.project.title}{' — '}{copy.schema}{' '}
 			{openProject && <button type="button" disabled={busy} onClick={() => run(async () => { await openProject(record.id); close(); })}>{copy.openProject}</button>}
-			<button type="button" onClick={() => download(record.originalArchive, `${record.project.title}-original.fscape`)}>{copy.original}</button>
+			<button type="button" disabled={busy} onClick={() => run(async () => {
+				const retained = await saveFramescaperRetainedOriginal(record.originalArchive, record.archiveDigest, `${record.project.title}-original.fscape`, createAudioEditorFileService({ bridge: null }), controller.current.signal);
+				if (retained) void retained.cleanup().catch((error: unknown) => {
+					console.error('Retained original download cleanup failed.', error);
+					if (!controller.current.signal.aborted) { setStatus(error instanceof Error ? error.message : String(error)); setFailed(true); }
+				});
+			})}>{copy.original}</button>
 			<button type="button" disabled={busy} onClick={() => run(async () => {
 				const archive = await exportFramescaperSuccessorArchive(record, controller.current.signal);
 				download(archive, `${record.project.title}-v2.fscape`);

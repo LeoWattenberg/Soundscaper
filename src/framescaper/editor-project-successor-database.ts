@@ -6,11 +6,14 @@ import { assertFramescaperSuccessorLine, FRAMESCAPER_SUCCESSOR_STORAGE_PROFILE }
 export function openFramescaperSuccessorDatabase(indexedDB: IDBFactory, line: unknown): Promise<IDBDatabase> {
 	assertFramescaperSuccessorLine(line);
 	return new Promise((resolve, reject) => {
-		const opening = indexedDB.open(editorProjectStorageProfileNames(FRAMESCAPER_SUCCESSOR_STORAGE_PROFILE).databaseName, 4);
+		const opening = indexedDB.open(editorProjectStorageProfileNames(FRAMESCAPER_SUCCESSOR_STORAGE_PROFILE).databaseName, 5);
 		let settled = false;
 		opening.onupgradeneeded = () => {
 			const database = opening.result;
 			for (const name of ['pending', 'projects', 'portableArchives']) if (!database.objectStoreNames.contains(name)) database.createObjectStore(name, { keyPath: 'id' });
+			if (!database.objectStoreNames.contains('archiveBodies')) database.createObjectStore('archiveBodies', { keyPath: 'token' });
+			if (!database.objectStoreNames.contains('archiveStages')) database.createObjectStore('archiveStages', { keyPath: 'key' });
+			if (!database.objectStoreNames.contains('archiveChunks')) { const chunks = database.createObjectStore('archiveChunks', { keyPath: 'key' }); chunks.createIndex('token', 'token', { unique: false }); }
 			if (!database.objectStoreNames.contains('owners')) database.createObjectStore('owners', { keyPath: 'id' });
 			if (!database.objectStoreNames.contains('linkRevisions')) database.createObjectStore('linkRevisions', { keyPath: 'key' });
 			if (!database.objectStoreNames.contains('linkStates')) {
