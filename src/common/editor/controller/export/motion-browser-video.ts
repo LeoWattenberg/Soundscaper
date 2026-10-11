@@ -54,6 +54,7 @@ export async function createMotionBrowserVideoSink(options: MotionBrowserVideoOp
 	const maximumPacketBytes = Math.min(32 * 1024 * 1024, plan.width * plan.height * 6 + 65536);
 	let encoder: MotionVideoEncoder | undefined;
 	try {
+		throwIfScapeAborted(options.signal);
 		encoder = host.createEncoder({ error(error) { encoderFailure = error; }, output(chunk, metadata) {
 			try {
 				if (encoded || chunk.timestamp !== expectedTimestamp || chunk.type !== 'key' || chunk.byteLength < 1 || chunk.byteLength > maximumPacketBytes) throw new Error('Motion encoder returned unexpected timing, packet count or excessive bytes.');
@@ -72,7 +73,7 @@ export async function createMotionBrowserVideoSink(options: MotionBrowserVideoOp
 	let encoderClosed = false; let written = 0; let busy = false; let state: 'open' | 'finished' | 'aborted' = 'open';
 	const admittedEncoder = encoder;
 	const closeEncoder = (): void => { if (!encoderClosed) { encoderClosed = true; admittedEncoder.close(); } };
-	const assertOpen = (): void => { if (state !== 'open') throw new Error('Motion video sink is closed.'); };
+	const assertOpen = (): void => { if (state !== 'open') throw new Error('Motion video sink is closed.'); throwIfScapeAborted(options.signal); };
 	return {
 		async write(frame, signal) {
 			assertOpen(); throwIfScapeAborted(signal);

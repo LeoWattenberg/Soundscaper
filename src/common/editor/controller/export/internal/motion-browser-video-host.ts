@@ -12,7 +12,7 @@ export const motionBrowserVideoHost: MotionVideoHost = {
 	createEncoder(callbacks) {
 		const encoder = new VideoEncoder(callbacks);
 		return { configure: (config) => encoder.configure(config), encode: (frame, options) => encoder.encode(frame as VideoFrame, options),
-			flush: () => encoder.flush(), close: () => encoder.close() };
+			flush: () => encoder.flush(), close() { if (encoder.state !== 'closed') encoder.close(); } };
 	},
 	async createMuxer(format, plan, writable) {
 		const { AppendOnlyStreamTarget, EncodedPacket, EncodedVideoPacketSource, Mp4OutputFormat, Output, WebMOutputFormat } = await import('mediabunny');

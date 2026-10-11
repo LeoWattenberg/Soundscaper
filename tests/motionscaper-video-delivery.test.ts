@@ -82,3 +82,28 @@ test('M05 muxer admission and encoder configuration failure release every acquir
 		createEncoder() { return { configure() { throw failure; }, encode() {}, async flush() {}, close() { encoderClosed = true; } }; } }), (error: unknown) => error === failure);
 	assert.equal(encoderClosed, true);
 });
+test('M05 cancellation during muxer admission closes output before creating an encoder', async () => {
+	const fixture = createFixture(); const controller = new AbortController(); let closed = false;
+	const reason = new DOMException('Cancelled during admission', 'AbortError');
+	const writable = new WritableStream<Uint8Array>({ abort() { closed = true; } });
+	await assert.rejects(createMotionBrowserVideoSink({ plan, format: 'webm', writable, signal: controller.signal }, {
+		...fixture.host, async createMuxer(...args) {
+			const muxer = await fixture.host.createMuxer(...args); controller.abort(reason); return muxer;
+		},
+	}), (error: unknown) => error === reason);
+	assert.equal(closed, true); assert.deepEqual(fixture.events, ['mux-cancel']);
+});
+test('M05 video destination backpressure retains one packet and cancellation cannot close output', async () => {
+	const fixture = createFixture(); const controller = new AbortController(); let closed = false;
+	let unblock!: () => void; let entered!: () => void;
+	const blocked = new Promise<void>((resolve) => { unblock = resolve; });
+	const started = new Promise<void>((resolve) => { entered = resolve; });
+	const writable = new WritableStream<Uint8Array>({ async write() { entered(); await blocked; }, close() { closed = true; } });
+	const sink = await createMotionBrowserVideoSink({ plan, format: 'webm', writable }, fixture.host);
+	const pending = sink.write(frame(0), controller.signal); await started;
+	await assert.rejects(sink.write(frame(1)), /order/u);
+	assert.equal(fixture.closed(), 1); assert.equal(fixture.timestamps.length, 1);
+	controller.abort(new DOMException('Cancelled under backpressure', 'AbortError')); unblock();
+	await assert.rejects(pending, /Cancelled/u); await sink.abort(controller.signal.reason);
+	assert.equal(closed, false); assert.equal(writable.locked, false);
+});
