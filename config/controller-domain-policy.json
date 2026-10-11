@@ -80,6 +80,7 @@
 		"composition/presentation-state.ts",
 		"composition/product-action-runtime.ts",
 		"composition/product-composition-policy.ts",
+		"composition/product-generated-source-playback.ts",
 		"composition/product-native-render-input-authority.ts",
 		"composition/project-bin-action-group.ts",
 		"composition/selection-action-group.ts",
