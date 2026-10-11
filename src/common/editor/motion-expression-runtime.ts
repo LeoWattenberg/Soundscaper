@@ -12,7 +12,10 @@ import { evaluateMotionExpressionLoop } from './motion-expression-loop.ts';
 import { expressionNumber, expressionVector } from './motion-expression-values.ts';
 
 export interface MotionExpressionQueryOptions { readonly expressionBudget?: MotionExpressionBudget; readonly signal?: AbortSignal }
-export interface MotionExpressionSession { resolver(compositionId: string, layerId: string, aliases?: Readonly<Record<string, string>>): MotionStatePropertyResolver }
+export interface MotionExpressionSession {
+	resolver(compositionId: string, layerId: string, aliases?: Readonly<Record<string, string>>): MotionStatePropertyResolver;
+	sample(request: Readonly<{ compositionId: string; layerId: string; propertyPath: string; frame: Rational }>): MotionPropertyValue;
+}
 interface Binding extends MotionPropertyAddress { readonly composition: MotionComposition; readonly layerId: string; readonly startFrame: Rational; readonly index: number }
 interface CompiledProgram { readonly program: MotionExpressionProgram | null; readonly error: MotionExpressionError | null }
 export class MotionExpressionPropertyError extends MotionExpressionError {
@@ -105,7 +108,11 @@ export function createMotionExpressionRuntime(compositions: readonly MotionCompo
 				} finally { active.delete(key); }
 			} catch (error) { if (error instanceof MotionExpressionError && !(error instanceof MotionExpressionPropertyError)) throw new MotionExpressionPropertyError(error, binding); throw error; }
 		}
-		return Object.freeze({ resolver(compositionId: string, layerId: string, aliases: Readonly<Record<string, string>> = {}): MotionStatePropertyResolver {
+		return Object.freeze({ sample(request: Readonly<{ compositionId: string; layerId: string; propertyPath: string; frame: Rational }>): MotionPropertyValue {
+			const binding = registry(request.compositionId).get(`${request.layerId}/${request.propertyPath}`);
+			if (!binding) throw new ReferenceError('The sampled expression property is missing.');
+			return evaluate(binding, request.frame);
+		}, resolver(compositionId: string, layerId: string, aliases: Readonly<Record<string, string>> = {}): MotionStatePropertyResolver {
 			return (_property, path, position) => {
 				const binding = registry(compositionId).get(`${layerId}/${aliases[path] ?? path}`);
 				if (!binding) throw new ReferenceError(`Expression property ${compositionId}/${layerId}/${path} is missing.`);
