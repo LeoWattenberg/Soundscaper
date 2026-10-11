@@ -7,11 +7,10 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium, expect, type Browser } from '@playwright/test';
-import { createPngFixture } from '../tests/helpers/png-fixture.mjs';
-import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
+import { motionscaperSuccessorNativeFixture } from '../tests/helpers/motionscaper-successor-native-fixture.ts';
+import { qualifyFramescaperSuccessorNativeDelivery } from './motionscaper-successor-delivery-qualification.ts';
 import { createMotionscaperRevision } from '../src/motionscaper/editor-project-revision.ts';
 import { exportMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
-import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { verifyFramescaperSuccessorDesktopStage, verifyFramescaperSuccessorPackagedResources } from '../scripts/lib/framescaper-successor-desktop-package.ts';
 
 export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
@@ -23,9 +22,7 @@ export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
 	const stageMetadata = JSON.parse(await readFile(join(stageRoot, 'stage-manifest.json'), 'utf8')) as { sourceRevision: string };
 	assert.match(stageMetadata.sourceRevision, /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u);
 	const temporary = await mkdtemp(join(tmpdir(), 'motionscaper-native-link-')), path = join(temporary, 'saved.mscape'), profile = join(temporary, 'profile');
-	const bytes = new Uint8Array(createPngFixture(2)), sha256 = digestScapeBytes(bytes);
-	const asset = { kind: 'image' as const, id: 'unused', name: 'Retained original bytes', mimeType: 'image/png', width: 2, height: 2, hasAlpha: true, sha256, byteLength: bytes.length, storageKey: `motion-sha256:${sha256}` };
-	const project = { ...createMotionscaperProject({ id: 'native-smoke', compositionId: 'main', title: 'Native first', width: 64, height: 64, durationFrames: 2 }), assets: [asset] };
+	const fixture = motionscaperSuccessorNativeFixture(); const { bytes } = fixture, sha256 = fixture.asset.sha256, project = fixture.revision.project;
 	async function save(revision: number) {
 		const snapshot = createMotionscaperRevision({ ...project, revision, title: revision === 0 ? 'Native first' : `Native revision ${String(revision)}` });
 		const archive = await exportMotionscaperArchive(snapshot.project, () => new Blob([bytes])); assert.ok(archive);
@@ -43,7 +40,7 @@ export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
 		const records = await Promise.all(files.map(file => readFile(join(directory, file), 'utf8').catch((error: unknown) => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''; throw error; })));
 		return records.flatMap(record => record.split('\n')).filter(line => /^inotify /u.test(line) && line.includes(`ino:${directoryInode} `)).length;
 	};
-	const deadline = setTimeout(() => child.kill('SIGKILL'), 120_000);
+	const deadline = setTimeout(() => child.kill('SIGKILL'), 180_000);
 	try {
 		const endpoint = await new Promise<string>((resolveEndpoint, reject) => {
 			let resolved = false;
@@ -85,6 +82,7 @@ export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
 		});
 		assert.ok(JSON.stringify(persisted.owners).includes(third.digest)); assert.ok(JSON.stringify(persisted.assets).includes(sha256)); assert.deepEqual(persisted.chunks, [[...bytes]]);
 		assert.ok(!persisted.databases.includes('kw-media-framescaper-editor-v1')); assert.ok(!persisted.databases.includes('kw-media-editor-v1'));
+		await qualifyFramescaperSuccessorNativeDelivery(page, { root, temporary, sourceRevision: stageMetadata.sourceRevision, acceptedDigest: third.digest });
 		console.log(`FRAMESCAPER_SUCCESSOR_NATIVE_LINK_QUALIFIED ${JSON.stringify({ platform: process.platform, arch: process.arch, sourceRevision: stageMetadata.sourceRevision,
 			actualNativeChooser: true, nativeWatchReleased: true, initialDigest: initial.digest, updatedDigest: third.digest, corruptReplacementRefused: true, disconnectedRetainedDigest: third.digest, assetSha256: sha256, databases: persisted.databases })}`);
 	} catch (error) { console.error(output); throw error; }
