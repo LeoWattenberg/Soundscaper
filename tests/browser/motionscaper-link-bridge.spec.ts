@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { composeProductHeaders, matchedHeaders, parseHeaderRules, webBuildRouting } from '../../scripts/lib/product-web-routing.mjs';
 
 interface Fixture { receive(): string; send(url: string, stall?: boolean): void; connect(url: string): void; update(revision: number): Promise<void>; disconnect(): Promise<void>; state(): { received: string | null; sent: string | null; error: string | null; pulls: number; cancelled: number }; retained(): Promise<{ digest: string | null; bytes: number[] | null }> }
-let directory: string; const servers: Server[] = []; let motion: string; let frame: string;
+let directory: string | undefined; const servers: Server[] = []; let motion: string; let frame: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 test.beforeAll(async () => {
 	directory = await mkdtemp(join(tmpdir(), 'motion-bridge-'));
@@ -26,7 +26,10 @@ test.beforeAll(async () => {
 			if (!/^\/[A-Za-z0-9._/-]+$/u.test(path) || path.includes('..')) { response.writeHead(404).end(); return; }
 			try { response.setHeader('Content-Type', path.endsWith('.css') ? 'text/css' : 'text/javascript'); response.end(await readFile(join(outputs[index], path.slice(1)))); } catch { response.writeHead(404).end(); }
 		})(); });
-		await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve)); servers.push(server);
+		await new Promise<void>((resolve, reject) => {
+			server.once('error', reject);
+			server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+		}); servers.push(server);
 		const address = server.address(); if (!address || typeof address === 'string') throw new Error('Cannot bind bridge fixture.');
 		if (index === 0) motion = `http://127.0.0.1:${address.port}`; else frame = `http://127.0.0.1:${address.port}`;
 	}
@@ -56,7 +59,20 @@ globalThis.fixture = {
 `);
 	for (const [index, product] of (['motionscaper', 'framescaper'] as const).entries()) await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', define: { __SCAPE_PRODUCT__: JSON.stringify(product), __SCAPE_FRAMESCAPER_LINE__: JSON.stringify(product === 'framescaper' ? 'successor' : 'baseline'), 'import.meta.env.PUBLIC_MOTION_LINK_PEER_ORIGIN': JSON.stringify(product === 'motionscaper' ? frame : motion) }, build: { target: 'esnext', outDir: outputs[index], emptyOutDir: true, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
 });
-test.afterAll(async () => { for (const server of servers) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); if (directory) await rm(directory, { recursive: true, force: true }); });
+test.afterAll(async () => {
+	// A fully parallel worker may execute these hooks again for a later test group.
+	// Transfer ownership before awaiting cleanup so closed servers cannot be reused.
+	const ownedServers = servers.splice(0); const ownedDirectory = directory; directory = undefined;
+	const results = await Promise.allSettled(ownedServers.map(server => new Promise<void>((resolve, reject) => {
+		server.close(error => error ? reject(error) : resolve());
+	})));
+	const errors: unknown[] = results.flatMap(result => result.status === 'rejected' ? [result.reason] : []);
+	if (ownedDirectory) {
+		try { await rm(ownedDirectory, { recursive: true, force: true }); }
+		catch (error) { errors.push(error); }
+	}
+	if (errors.length) throw new AggregateError(errors, 'Bridge fixture cleanup failed.');
+});
 async function ready(page: Page, origin: string) { await page.goto(`${origin}/en/`); await page.waitForFunction(() => 'fixture' in globalThis); }
 function state(page: Page) { return page.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.state()); }
 
