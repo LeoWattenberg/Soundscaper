@@ -123,7 +123,11 @@ Keyed footage with a corrected animated mask, a tracked overlay and a planar
 corner pin survive save/reopen and produce delivered PNG pixels identical to
 the matching preview frames.
 Menu-opened masks, effects, blend modes, mattes and adjustments pass browser
-editing and property-animation workflows. M08
+editing and property-animation workflows. Timeline layer lifecycle controls
+rename without rebinding expressions, enable/disable picture layers, mute
+retained footage audio and remove dependency-closed selections with atomic Undo.
+Chromium verifies referenced opacity pixels, removal refusal and Save/reopen.
+M08
 includes a closed expression parser/interpreter, shared exact scene/audio
 clocks, stable references, bounded queries, and atomic source/baking commands;
 bounded native-PCM amplitude now drives preview/export pixels and mixed gain,

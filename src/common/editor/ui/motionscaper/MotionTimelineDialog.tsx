@@ -14,6 +14,7 @@ import MotionWorkArea from './MotionWorkArea.tsx';
 import MotionTimelineAudio from './MotionTimelineAudio.tsx';
 import { parseMotionExactInput as frame, formatMotionExactInput as format } from './motion-exact-input.ts';
 import MotionTimelineLayerRow from './MotionTimelineLayerRow.tsx';
+import MotionTimelineLifecycle from './MotionTimelineLifecycle.tsx';
 
 
 export default function MotionTimelineDialog({ copy, project, busy, canUndo, canRedo, clipboard, onCopyLayers, onEdit, onUndo, onRedo, onClose }: Readonly<{
@@ -63,6 +64,7 @@ export default function MotionTimelineDialog({ copy, project, busy, canUndo, can
 			checked={selection.includes(layer.id)} busy={disabled} copy={copy} onSelect={(checked) => select(layer.id, checked)}
 			onMove={(amount) => edit(() => ({ type: 'move', layerIds: [layer.id], deltaFrames: { num: amount, den: 1 } }))} />)}</ul>
 		{composition.layers.length === 0 && <p>{copy.motionscaperNoLayers}</p>}
+		<MotionTimelineLifecycle key={`${composition.id}/${single?.id ?? ''}/${project.revision}`} copy={copy} selected={selected} assets={project.assets} disabled={disabled} onEdit={edit} />
 		<MotionTimelineClipboard copy={copy} project={project} compositionId={composition.id} selection={selectionIds} clipboard={clipboard} busy={disabled} onCopy={onCopyLayers} onSelect={setSelection} onEdit={onEdit} />
 		{single && (single.kind === 'footage' || single.kind === 'precomp') && <MotionTimelineSourceTiming key={`${single.id}/${project.revision}`} copy={copy} project={project} compositionId={composition.id} layer={single} busy={disabled} onEdit={onEdit} />}
 		<fieldset disabled={disabled} className="motionscaper-timeline-actions"><legend>{copy.motionscaperLayerActions}</legend>

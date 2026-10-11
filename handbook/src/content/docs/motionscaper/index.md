@@ -23,6 +23,12 @@ Choose **View → Composition Canvas** to select, move, scale or rotate layers w
 static 2D transforms. Animated transforms remain editable through the property
 and timeline tools.
 
+In **View → Timeline**, select existing layers to rename, enable, disable or
+remove them. Renaming preserves property references and animation. Removing a
+layer keeps its original media; include its dependent layers or detach their
+links first. **Undo** restores removed layers. A selected footage layer also
+offers an audio checkbox when its retained source contains audio.
+
 Follow [your first motion project](/motionscaper/first-project/) to create,
 animate, save, and render a composition.
 

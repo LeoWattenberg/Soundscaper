@@ -8,8 +8,9 @@ import { freezeMotionValue, motionId, motionRational } from '../common/editor/mo
 import { normalizeMotionscaperProject } from './editor-project-validation.ts';
 import { createMotionLayer } from './editor-project.ts';
 import { applyMotionscaperCommands, type MotionscaperProjectCommand } from './editor-project-commands.ts';
+import { motionLayerLifecycleCommands, type MotionscaperLayerLifecycleEdit } from './editor-layer-lifecycle.ts';
 
-export type MotionscaperLayerEdit =
+export type MotionscaperLayerEdit = MotionscaperLayerLifecycleEdit
 	| { readonly type: 'reorder'; readonly layerIds: readonly string[] }
 	| { readonly type: 'duplicate'; readonly copies: readonly { readonly layerId: string; readonly newLayerId: string; readonly name?: string }[]; readonly deltaFrames?: Rational }
 	| { readonly type: 'move'; readonly layerIds: readonly string[]; readonly deltaFrames: Rational }
@@ -25,6 +26,7 @@ export function createMotionscaperLayerCommands(options: Readonly<{ project: unk
 	const composition = project.compositions.find(({ id }) => id === compositionId); if (!composition) throw new ReferenceError(`Motion composition ${compositionId} is missing.`);
 	const edit = options.edit; let commands: readonly MotionscaperProjectCommand[];
 	switch (edit.type) {
+		case 'rename': case 'remove': case 'set-enabled': case 'set-footage-audio': commands = motionLayerLifecycleCommands(project, composition, select(composition, edit.type === 'rename' ? [edit.layerId] : edit.layerIds), edit); break;
 		case 'reorder': commands = [{ type: 'layer/reorder', compositionId, layerIds: edit.layerIds }]; break;
 		case 'trim': commands = [{ type: 'layer/trim', compositionId, layerId: edit.layerId, inFrame: edit.inFrame, outFrame: edit.outFrame }]; break;
 		case 'split': commands = [{ type: 'layer/split', compositionId, layerId: edit.layerId, atFrame: edit.atFrame, newLayerId: edit.newLayerId }]; break;

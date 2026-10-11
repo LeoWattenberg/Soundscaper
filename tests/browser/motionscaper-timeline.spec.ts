@@ -77,7 +77,7 @@ test('Timeline audio edits preserve independent gain, timing and undo', async ({
 	await expect(audio).toHaveAttribute('data-motion-gain', '0.5');
 	await audio.getByLabel('In frame', { exact: true }).fill('2'); await audio.getByLabel('Out frame', { exact: true }).fill('20');
 	await audio.getByRole('button', { name: 'Trim', exact: true }).click(); await expect(audio).toHaveAttribute('data-motion-in', '2/1');
-	await audio.getByLabel('Audio enabled', { exact: true }).uncheck(); await expect(audio).toHaveAttribute('data-motion-enabled', 'false');
+	await audio.getByLabel('Audio enabled', { exact: true }).click(); await expect(audio).toHaveAttribute('data-motion-enabled', 'false');
 	await audio.getByRole('button', { name: 'Remove Audio', exact: true }).click(); await expect(audio).toHaveCount(0);
 	await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(audio).toHaveCount(1);
 	await expect(audio).toHaveAttribute('data-motion-gain', '0.5'); await expect(audio).toHaveAttribute('data-motion-in', '2/1');

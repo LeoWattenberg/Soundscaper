@@ -59,6 +59,12 @@ test('media is imported through File and retained for preview after saving and r
 	await menu(page, 'File', 'Import Media');
 	await page.getByLabel('Media file', { exact: true }).setInputFiles({ name: 'Retained.webm', mimeType: 'video/webm', buffer: bytes });
 	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'View', 'Timeline'); const timeline = page.getByRole('dialog', { name: 'Timeline', exact: true });
+	await timeline.getByRole('checkbox', { name: 'Retained.webm', exact: true }).check();
+	const footageAudio = timeline.getByLabel('Footage audio enabled', { exact: true }); await expect(footageAudio).toBeChecked();
+	await footageAudio.click(); await expect(footageAudio).not.toBeChecked();
+	await timeline.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(footageAudio).toBeChecked();
+	await timeline.getByRole('button', { name: 'Close', exact: true }).last().click(); await expect(timeline).toHaveCount(0);
 	await menu(page, 'View', 'Composition Preview');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
 	const pixel = await canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(32, 32, 1, 1).data));
