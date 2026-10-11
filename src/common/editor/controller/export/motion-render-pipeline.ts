@@ -6,6 +6,8 @@ import { motionSurfaceLength } from '../../motion-surface.ts';
 import { freezeMotionValue, motionDigest, motionId, motionInteger, motionRational, motionRecord } from '../../motion-values.ts';
 import { aggregateScapeErrors, throwIfScapeAborted } from '../../scape-abort.ts';
 import { compareRationals, divideRationals, type Rational } from '../../timeline-time.ts';
+import type { MotionAudioMixBlock, MotionAudioMixer } from '../../motion-audio-contract.ts';
+import { createMotionRenderAudio } from './internal/motion-render-audio.ts';
 
 export interface MotionRenderIdentity {
 	readonly projectId: string; readonly revisionDigest: string; readonly compositionId: string;
@@ -20,11 +22,17 @@ export interface MotionRenderFrame {
 export interface MotionRenderLease {
 	readonly evaluator: MotionSceneEvaluator; readonly rasterizer: MotionRasterizer; readonly compositor?: MotionCompositor;
 	readonly maximumWorkingBytes?: number;
+	readonly audioMixer?: MotionAudioMixer;
 	release(): Promise<void>;
+}
+export interface MotionRenderAudioSink {
+	readonly sampleRate: number; readonly channels: 1 | 2;
+	write(block: MotionAudioMixBlock, signal?: AbortSignal): Promise<void>;
 }
 export interface MotionRenderSink<Result> {
 	/** Image-only delivery may explicitly omit audio; video must consume it or refuse it. */
 	readonly audioPolicy?: 'exclude';
+	readonly audio?: MotionRenderAudioSink;
 	/** Resolves only after consuming this frame; the producer will then release its reference. */
 	write(frame: MotionRenderFrame, signal?: AbortSignal): Promise<void>;
 	/** Atomically publish completed output; honour cancellation before committing it. */
@@ -63,6 +71,7 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 		throwIfScapeAborted(request.signal);
 		lease = await request.acquire(request.signal);
 		throwIfScapeAborted(request.signal);
+		const audio = createMotionRenderAudio(plan, lease, request.sink);
 		const duration = Object.freeze(divideRationals({ num: 1, den: 1 }, plan.frameRate));
 		for (let index = 0; index < plan.frameCount; index += 1) {
 			throwIfScapeAborted(request.signal);
@@ -70,9 +79,10 @@ export async function renderMotionFrameSequence<Result>(request: MotionRenderReq
 			const frame = lease.evaluator.evaluate({ compositionId: plan.identity.compositionId, time });
 			if (frame.compositionId !== plan.identity.compositionId || compareRationals(frame.time, time) !== 0) throw new Error('Motion evaluator returned a different composition/time identity.');
 			if (frame.width !== plan.width || frame.height !== plan.height) throw new Error('Motion evaluator dimensions changed during rendering.');
-			if (request.sink.audioPolicy !== 'exclude' && motionFrameHasAudio(frame)) throw new Error('This video renderer cannot yet deliver composition audio. Choose an image sequence or remove the audio from the selected range.');
+			if (!audio && request.sink.audioPolicy !== 'exclude' && motionFrameHasAudio(frame)) throw new Error('This video renderer cannot deliver composition audio. Choose an image sequence or an audio-capable video encoder.');
 			const surface = await renderMotionCompositionFrame(frame, { rasterizer: lease.rasterizer, compositor: lease.compositor, signal: request.signal, maximumWorkingBytes: lease.maximumWorkingBytes });
 			assertMotionFrameConsumed(frame, surface.consumedOperationIds);
+			await audio?.writeThroughFrame(index + 1, request.signal);
 			await request.sink.write(Object.freeze({ index, time, duration, surface }), request.signal);
 			throwIfScapeAborted(request.signal);
 			try { request.onProgress?.(index + 1, plan.frameCount); } catch { /* Presentation observers cannot revoke a render. */ }

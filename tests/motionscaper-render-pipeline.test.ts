@@ -5,6 +5,10 @@ import test from 'node:test';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { createMotionscaperRenderRequest } from '../src/motionscaper/editor-render-task.ts';
 import { createMotionRenderQueue, renderMotionFrameSequence, type MotionRenderFrame } from '../src/common/editor/controller/export/motion-render-pipeline.ts';
+import { createMotionAudioMixer } from '../src/common/editor/motion-audio-mixer.ts';
+import { addRationals, compareRationals } from '../src/common/editor/timeline-time.ts';
+import type { MotionAudioMixBlock } from '../src/common/editor/motion-audio-contract.ts';
+import { motionScalar } from '../src/common/editor/motion-property.ts';
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
@@ -118,7 +122,7 @@ test('M05 video cannot silently discard authored audio, while image sequences ma
 	const { request, events } = fixture();
 	const acquire = async (signal?: AbortSignal) => {
 		const lease = await request.acquire(signal);
-		return { ...lease, evaluator: { evaluate(input: Parameters<typeof lease.evaluator.evaluate>[0]) {
+		return { ...lease, evaluator: { ...lease.evaluator, evaluate(input: Parameters<typeof lease.evaluator.evaluate>[0]) {
 			return { ...lease.evaluator.evaluate(input), audio: [{ occurrenceId: 'comp/audio', assetId: 'audio', sourceTime: { num: 0, den: 1 }, gain: 1, playbackRate: { num: 1, den: 1 } }] };
 		} } };
 	};
@@ -126,6 +130,48 @@ test('M05 video cannot silently discard authored audio, while image sequences ma
 	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
 	const excluded = await renderMotionFrameSequence({ ...request, acquire, sink: { ...request.sink, audioPolicy: 'exclude' } });
 	assert.equal(excluded.renderedFrames, 3);
+});
+
+test('M05 video preflight detects subframe audio that falls between visual frame samples', () => {
+	const { project, request } = fixture();
+	const audio = { kind: 'audio' as const, id: 'audio', name: 'Audio', mimeType: 'audio/wav', byteLength: 1, sha256: 'a'.repeat(64),
+		storageKey: `motion-sha256:${'a'.repeat(64)}`, sampleRate: 48000, channels: 1, duration: { num: 1, den: 1 } };
+	const placement = { id: 'placement', assetId: audio.id, startFrame: { num: 1, den: 4 }, inFrame: { num: 0, den: 1 }, outFrame: { num: 1, den: 4 },
+		sourceStart: { num: 0, den: 1 }, timeScale: { num: 1, den: 1 }, gain: motionScalar(1), enabled: true };
+	const authored = { ...project, assets: [audio], compositions: [{ ...project.compositions[0], audio: [placement] }] };
+	assert.throws(() => createMotionscaperRenderRequest({ project: authored, compositionId: 'comp-1', sink: request.sink,
+		acquire: async () => ({ rasterizer: { async rasterize() { throw new Error('Empty'); } }, async release() {} }) }), /audio/u);
+});
+
+test('M05 audio delivery preserves fractional work-area starts and cumulative sample boundaries with one block in flight', async () => {
+	const { project, request, events } = fixture(); const blocks: MotionAudioMixBlock[] = [];
+	const sink = { ...request.sink, audio: { sampleRate: 48000, channels: 2 as const,
+		async write(block: MotionAudioMixBlock) { blocks.push(block); events.push(`audio:${block.sampleCount}`); } } };
+	const audioRequest = createMotionscaperRenderRequest({ project, compositionId: 'comp-1', firstFrame: 1, sink,
+		acquire: async (revision, signal) => {
+			const lease = await request.acquire(signal);
+			const audioMixer = createMotionAudioMixer({ project: revision.project, provider: {
+				async describe() { throw new Error('Empty audio has no decoded source.'); }, async read() { throw new Error('Empty audio has no decoded source.'); },
+			} });
+			return { ...lease, audioMixer, async release() { audioMixer.dispose(); await lease.release(); } };
+		} });
+	await renderMotionFrameSequence(audioRequest);
+	assert.deepEqual(blocks.map((block) => block.sampleCount), [1602, 1602]);
+	assert.deepEqual(blocks[0]!.startSample, { num: 8008, den: 5 });
+	assert.equal(compareRationals(blocks[1]!.startSample, addRationals(blocks[0]!.startSample, 1602)), 0);
+	assert.ok(blocks.every((block) => block.interleaved.length === block.sampleCount * 2 && block.interleaved.every((sample) => sample === 0)));
+	assert.deepEqual(events, ['acquire:Render', 'audio:1602', 'write:0', 'audio:1602', 'write:1', 'release', 'finish']);
+});
+
+test('M05 a PCM sink requires the pinned audio mixer and rejects stale returned revision bytes before writing them', async () => {
+	const { project, request, events } = fixture(); let written = false;
+	const sink = { ...request.sink, audio: { sampleRate: 48000, channels: 1 as const, async write() { written = true; } } };
+	await assert.rejects(renderMotionFrameSequence({ ...request, sink }), /audio mixer/u);
+	const mixer = createMotionAudioMixer({ project, provider: { async describe() { throw new Error('Empty'); }, async read() { throw new Error('Empty'); } } });
+	await assert.rejects(renderMotionFrameSequence({ ...request, sink, acquire: async (signal) => ({ ...await request.acquire(signal),
+		audioMixer: { ...mixer, async mixBlock(...args) { return { ...await mixer.mixBlock(...args), revisionDigest: 'b'.repeat(64) }; } },
+	}) }), /stale|malformed/u);
+	assert.equal(written, false); assert.equal(events.filter((value) => value === 'finish').length, 0); mixer.dispose();
 });
 
 test('M05 synchronous render and sink work yields to a host cancellation task before publication', async () => {

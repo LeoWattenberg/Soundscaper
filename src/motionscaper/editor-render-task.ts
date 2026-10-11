@@ -18,6 +18,7 @@ export function createMotionscaperRenderRequest<Result>(options: MotionscaperRen
 	const snapshot = createMotionscaperRevision(options.project);
 	const composition = snapshot.project.compositions.find((candidate) => candidate.id === options.compositionId);
 	if (!composition) throw new Error('The requested motion composition is missing.');
+	if (!options.sink.audio && options.sink.audioPolicy !== 'exclude' && hasAuthoredAudio(snapshot, composition.id)) throw new Error('This composition contains audio. Choose an audio-capable video encoder or an image sequence.');
 	const totalFrames = composition.durationFrames;
 	const firstFrame = motionInteger(options.firstFrame ?? 0, 'first render frame');
 	const endFrame = motionInteger(options.endFrame ?? totalFrames, 'end render frame', 1);
@@ -28,4 +29,14 @@ export function createMotionscaperRenderRequest<Result>(options: MotionscaperRen
 	return Object.freeze({ plan, sink: options.sink, signal: options.signal, onProgress: options.onProgress,
 		acquire: async (signal?: AbortSignal) => ({ ...await options.acquire(snapshot, signal), evaluator }),
 	});
+}
+
+/** Conservatively retain audio authority even when a placement falls between sampled video frames. */
+function hasAuthoredAudio(revision: MotionscaperRevision, compositionId: string, visited = new Set<string>()): boolean {
+	if (visited.has(compositionId)) return false; visited.add(compositionId);
+	const composition = revision.project.compositions.find((candidate) => candidate.id === compositionId);
+	return composition?.audio.some((placement) => placement.enabled) === true || composition?.layers.some((layer) => layer.enabled && (
+		layer.kind === 'precomp' ? hasAuthoredAudio(revision, layer.compositionId, visited)
+			: layer.kind === 'footage' && layer.audioEnabled && revision.project.assets.some((asset) => asset.id === layer.assetId && asset.kind === 'footage' && asset.hasAudio)
+	)) === true;
 }
