@@ -13,6 +13,7 @@ import { RetentionSessionGuard } from '../../common/editor/storage/retention-ses
 import type { StorageRepositoryPort } from '../../common/editor/storage/repository-port.ts';
 import { EditorStoreClosedError, EditorStoreVersionStaleError } from '../../common/editor/storage/status.ts';
 import type { PhotoOriginalV1 } from '../catalog/types.ts';
+import { PHOTO_CATALOG_DATABASE_VERSION, PHOTO_CATALOG_STORES } from '../catalog/repository-types.ts';
 import { PhotoPreviewCacheV1, PHOTO_PREVIEW_CACHE_PROFILE_V1, type PhotoPreviewCachePortV1 } from '../preview/photo-preview-cache-v1.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from './photo-library-location-v2.ts';
 import type { PhotoMediaCubeLutResourcesV1, PhotoMediaCubeLutResourceOwnerV1 } from './photo-media-cube-lut-resources-v1.ts';
@@ -46,6 +47,12 @@ const OPTIONS = ['indexedDB', 'locks', 'storageManager', 'opfsRoot', 'preferOpfs
 const ORIGINAL_FIELDS = ['schemaVersion', 'kind', 'id', 'name', 'mimeType', 'storageKey', 'contentSha256',
 	'width', 'height', 'hasAlpha', 'byteLength', 'retention'];
 const throwIfAborted = createAbortGuard('Photo original verification was cancelled.');
+const NON_BINARY_PROFILES = Object.freeze([Object.freeze({
+	version: PHOTO_CATALOG_DATABASE_VERSION,
+	stores: Object.freeze(Object.fromEntries(PHOTO_CATALOG_STORES.map(name => [name,
+		name === 'photoStackStates' || name === 'photoSmartCollectionStates' ? 'catalogId'
+			: name === 'catalogs' || name === 'catalogStates' || name === 'photoQueryBuildStates' || name === 'photoQueryBuildStatesV2' ? 'id' : 'key']))),
+})]);
 
 /** Product-owned durable media composition, independent of every timeline store. */
 export class PhotoMediaStoreV1 {
@@ -54,6 +61,7 @@ export class PhotoMediaStoreV1 {
 	readonly #media: MediaRepository;
 	readonly #factory: IDBFactory | null;
 	readonly #databaseName: string;
+	readonly #startupReconciliation: boolean;
 	readonly #opfs: OpfsRepository;
 	readonly #guard: RetentionSessionGuard;
 	readonly #guardedPort: StorageRepositoryPort;
@@ -62,6 +70,7 @@ export class PhotoMediaStoreV1 {
 	#cubeLutResources: Promise<Readonly<PhotoMediaCubeLutResourcesV1>> | null = null;
 	#cubeLutOwner: Readonly<PhotoMediaCubeLutResourceOwnerV1> | null = null;
 	#opening: Promise<IDBDatabase> | null = null;
+	#ready: Promise<this> | null = null;
 	#connection: IDBDatabase | null = null;
 	#closing: Promise<void> | null = null;
 	#closeRequested = false;
@@ -75,6 +84,9 @@ export class PhotoMediaStoreV1 {
 		if (options.preferOpfs !== undefined && typeof options.preferOpfs !== 'boolean') {
 			throw new TypeError('Photo media OPFS preference must be a boolean.');
 		}
+		// Relative leases have no authority over a different historical physical directory.
+		this.#startupReconciliation = this.#databaseName === PHOTO_MEDIA_NAMESPACES_V1.databaseName
+			&& opfsDirectoryName === PHOTO_MEDIA_NAMESPACES_V1.opfsDirectoryName && options.preferOpfs !== false;
 		this.#factory = options.indexedDB === undefined ? globalThis.indexedDB ?? null : options.indexedDB;
 		if (this.#factory !== null && typeof this.#factory.open !== 'function') {
 			throw new TypeError('Photo media storage requires an IndexedDB factory.');
@@ -120,7 +132,23 @@ export class PhotoMediaStoreV1 {
 	}
 
 	ready(): Promise<this> {
-		return this.#own(async () => { await this.#guard.database(); return this; });
+		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
+		if (this.#ready) return this.#ready;
+		const attempt = this.#own(async () => {
+			try {
+				await this.#guard.database();
+				const completed = !this.#startupReconciliation
+					|| this.#factory && await this.#media.reconcileOpfsStartup(this.#factory, NON_BINARY_PROFILES);
+				// Deferred proof and failed physical cleanup remain retryable on this owner.
+				if (!completed && this.#ready === attempt) this.#ready = null;
+				return this;
+			} catch (error) {
+				if (this.#ready === attempt) this.#ready = null;
+				throw error;
+			}
+		});
+		this.#ready = attempt;
+		return attempt;
 	}
 
 	getPreviewCache(): PhotoPreviewCachePortV1 {

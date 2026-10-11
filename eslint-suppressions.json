@@ -629,14 +629,6 @@
       "count": 1
     }
   },
-  "src/common/editor/storage/opfs-repository.ts": {
-    "no-control-regex": {
-      "count": 1
-    },
-    "preserve-caught-error": {
-      "count": 1
-    }
-  },
   "src/common/editor/storage/opfs-sync-repository-bridge.ts": {
     "preserve-caught-error": {
       "count": 1

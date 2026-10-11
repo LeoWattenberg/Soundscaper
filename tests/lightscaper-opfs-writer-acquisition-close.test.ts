@@ -12,6 +12,7 @@ import { PHOTO_LIBRARY_DEFAULT_CATALOG_DATABASE_NAME_V2 as CATALOG } from '../sr
 import { PhotoMediaStoreV1, PHOTO_MEDIA_NAMESPACES_V1 as MEDIA } from '../src/lightscaper/storage/photo-media-store.ts';
 import { remainsPending, settle } from './helpers/async-test-control.ts';
 import { mediaRestoreFixture } from './helpers/lightscaper-media-restore-fixture.ts';
+import { installDirectoryModel } from './helpers/lightscaper-opfs-original-staging-fixture.ts';
 import { controlledLocks, installAcquisitionPlatform, observed, WriterAcquisitionFixture, type AcquisitionCut } from './helpers/lightscaper-opfs-writer-acquisition-fixture.ts';
 
 const OPTIONS = { concurrency: false, timeout: 5_000 };
@@ -175,6 +176,7 @@ for (const terminal of ['worker-fault', 'client-close'] as const) test(`cancelle
 
 test('fresh default runtime3 public import Close drains actual repository worker acquisition and preserves its prior original', OPTIONS, async () => {
 	const fixture = new WriterAcquisitionFixture(), native = mediaRestoreFixture(), locks = controlledLocks(), reset = installAcquisitionPlatform(fixture, locks);
+	const model = installDirectoryModel(fixture);
 	const options = { name: 'Acquisition Close', indexedDB: native.factory, locks };
 	let session: Awaited<ReturnType<typeof createPhotoLibrarySessionV3>> | undefined;
 	let importing: ReturnType<typeof observed<readonly PhotoLibraryImportItemV1[]>> | undefined;
@@ -224,6 +226,6 @@ test('fresh default runtime3 public import Close drains actual repository worker
 	} finally {
 		fixture.releaseAll(); if (importing) await importing; if (session) await observed(closing ?? session.close());
 		for (const [owner, key, descriptor] of descriptors.reverse()) Object.defineProperty(owner, key, descriptor);
-		try { await fixture.dispose(); } finally { reset(); }
+		try { await fixture.dispose(); } finally { model.reset(); reset(); }
 	}
 });

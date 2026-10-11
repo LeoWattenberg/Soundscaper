@@ -74,6 +74,12 @@ export class MediaAssetLifecycleCoordinator {
 		};
 	}
 
+	/** Startup never aborts a legitimate operation, including one without an identity yet. */
+	tryBeginIdleMaintenance(): MediaAssetMaintenance | null {
+		if (this.#permanentlyClosed || this.#maintenanceCount || this.#active.size) return null;
+		return this.beginMaintenance();
+	}
+
 	activeMediaChunkTokens(): ReadonlySet<string> {
 		return identityValues(this.#active.values(), 'mediaChunkToken');
 	}

@@ -13,6 +13,8 @@ import {
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 } from './media-asset-chunk-schema.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import { readMediaAssetPathLeaseSnapshot } from './media-asset-path-staging.ts';
+import { readMediaAssetOpfsDirectoryBinding } from './media-asset-opfs-startup-namespace.ts';
 import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from './linked-original-provisional-root-schema.ts';
 import { LINKED_VIDEO_ORIGINAL_STORE_NAME } from './linked-video-original-schema.ts';
 import type {
@@ -247,10 +249,20 @@ export class RetentionRepository {
 						stores[MEDIA_ASSET_STAGING_STORE_NAME],
 					);
 					for (const path of invalidated.paths) stagedPaths.add(path);
+					const pathSnapshot = await readMediaAssetPathLeaseSnapshot(stores[MEDIA_ASSET_STAGING_STORE_NAME]);
+					const retainedBindings = [];
+					for (const lease of pathSnapshot.leases) {
+						const key = `audio-editor-opfs-directory-binding-v1:${lease.leaseId}`;
+						const present = await request(stores.settings.count(key));
+						const binding = await readMediaAssetOpfsDirectoryBinding(stores.settings, lease);
+						if (present !== (binding ? 1 : 0)) throw new Error('The staged OPFS directory witness is malformed.');
+						if (binding) retainedBindings.push(binding);
+					}
 					for (const [storeName, store] of Object.entries(stores)) {
 						if (storeName !== MEDIA_ASSET_STAGING_STORE_NAME) store.clear();
 					}
 					for (const retainedSession of retainedSessions) stores.settings.put(retainedSession);
+					for (const binding of retainedBindings) await request(stores.settings.add(binding));
 				});
 			}
 			onLocalCommit();
@@ -258,7 +270,9 @@ export class RetentionRepository {
 				if (record.sourceToken) await this.#options.sources.deleteStored(record);
 				else await this.#options.opfs.deleteBinaryRecords([record]);
 			}
-			for (const path of stagedPaths) await this.#options.opfs.deletePath(path);
+			// Native staged paths retain their paired evidence for bounded startup
+			// recovery, which proves the physical directory and every namespace owner.
+			if (!database) for (const path of stagedPaths) await this.#options.opfs.deletePath(path);
 		} finally {
 			maintenance.release();
 			sourceWriteMaintenance.release();

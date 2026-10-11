@@ -25,6 +25,7 @@ import { deferred, remainsPending, settle } from './helpers/async-test-control.t
 import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { LUT_BODY, LUT_REFERENCE } from './helpers/lightscaper-lut-archive-fixture.ts';
 import { mediaRestoreFixture } from './helpers/lightscaper-media-restore-fixture.ts';
+import { installDirectoryModel } from './helpers/lightscaper-opfs-original-staging-fixture.ts';
 import { qualifyPhotoDefaultImportSessionCloseNativeV1, type PhotoDefaultImportSessionCloseCutV1 } from './helpers/lightscaper-default-import-session-close-native-v1.ts';
 
 type Mode = 'original' | 'stage' | 'publish' | 'retire';
@@ -66,7 +67,7 @@ function fileSystemFixture() {
 		async removeEntry(path: string) { if (!files.delete(path)) throw new DOMException('Missing fixture file', 'NotFoundError'); events.push('remove'); },
 	};
 	const root = { async getDirectoryHandle(name: string) { assert.equal(name, NAMES.opfsDirectoryName); return directory; } };
-	return { files, events, root };
+	return { files, events, root, directory };
 }
 function platformFixture(fs: ReturnType<typeof fileSystemFixture>, lockPort: LockManager) {
 	const values = { IDBKeyRange: InstrumentedKeyRange, Worker: undefined, ImageDecoder: undefined,
@@ -79,7 +80,8 @@ function platformFixture(fs: ReturnType<typeof fileSystemFixture>, lockPort: Loc
 	};
 	const saved = Object.keys(values).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
 	for (const [key, value] of Object.entries(values)) Object.defineProperty(globalThis, key, { configurable: true, value });
-	return () => { for (const [key, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } };
+	const model = installDirectoryModel(fs);
+	return () => { model.reset(); for (const [key, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } };
 }
 
 async function fixture(native: ReturnType<typeof mediaRestoreFixture>, lockPort: LockManager, fs: ReturnType<typeof fileSystemFixture>) {

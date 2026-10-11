@@ -9,6 +9,11 @@ import {
 	type MediaAssetStagingStateRecord,
 } from './media-asset-staging-schema.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { normalizeOpfsWorkerPath } from './opfs-sync-worker-protocol.ts';
+import { acquireMediaAssetPathLeaseRecord, closedMediaAssetPathLease, MediaAssetStagingLeaseError,
+	readMediaAssetPathLeaseSnapshot, sourceStageRevocationKey } from './media-asset-path-staging.ts';
+
+export { MediaAssetStagingLeaseError } from './media-asset-path-staging.ts';
 
 export interface MediaAssetStagingIdentity {
 	readonly mediaChunkToken?: string;
@@ -18,14 +23,6 @@ export interface MediaAssetStagingIdentity {
 export interface ActiveMediaAssetStaging {
 	readonly mediaChunkTokens: ReadonlySet<string>;
 	readonly paths: ReadonlySet<string>;
-}
-
-/** Durable lease lost through expiry, clear, or another maintenance generation. */
-export class MediaAssetStagingLeaseError extends Error {
-	constructor() {
-		super('The media staging lease was invalidated by storage maintenance.');
-		this.name = 'MediaAssetStagingLeaseError';
-	}
 }
 
 /** One writer-owned lease, fenced by a database-wide maintenance generation. */
@@ -71,14 +68,16 @@ export class MediaAssetStagingLease {
 		store: IDBObjectStore,
 		{ renew = false }: Readonly<{ renew?: boolean }> = {},
 	): Promise<void> {
-		const [stateValue, leaseValue] = await Promise.all([
+		const [stateValue, leaseValue, revoked] = await Promise.all([
 			request(store.get(MEDIA_ASSET_STAGING_STATE_KEY)),
 			request(store.get(this.#record.key)),
+			request(store.get(sourceStageRevocationKey(this.#record.sourceId))),
 		]);
 		const state = stagingState(stateValue);
 		const lease = stagingLease(leaseValue);
 		const now = Date.now();
 		if (!state
+			|| revoked !== undefined
 			|| !lease
 			|| state.generation !== this.#record.generation
 			|| !sameLease(lease, this.#record)
@@ -98,6 +97,7 @@ export class MediaAssetStagingLease {
 		const lease = stagingLease(records.get(this.#record.key));
 		const now = Date.now();
 		if (!state
+			|| records.has(sourceStageRevocationKey(this.#record.sourceId))
 			|| !lease
 			|| state.generation !== this.#record.generation
 			|| !sameLease(lease, this.#record)
@@ -152,6 +152,23 @@ export class MediaAssetStagingRepository {
 		return new MediaAssetStagingLease(this.#port, database, record);
 	}
 
+	async acquirePath(sourceId: string, pathValue: string, database: IDBDatabase | null): Promise<MediaAssetStagingLease> {
+		const path = normalizeOpfsWorkerPath(pathValue);
+		if (!sourceId) throw new TypeError('A path lease requires a media source id.');
+		const now = Date.now();
+		const leaseId = createId('media-lease');
+		if (!database) {
+			let count = 0;
+			for (const value of this.#port.memory.mediaAssetStaging.values()) {
+				if (stagingLease(value)?.path && ++count >= 64) throw new RangeError('OPFS path staging exceeds its complete 64-entry inventory.');
+			}
+			return new MediaAssetStagingLease(this.#port, null, acquireMemoryLease(this.#port, sourceId, { path }, leaseId, now));
+		}
+		const record = await transact(database, MEDIA_ASSET_STAGING_STORE_NAME, 'readwrite', stores =>
+			acquireMediaAssetPathLeaseRecord(stores[MEDIA_ASSET_STAGING_STORE_NAME], sourceId, path, leaseId, now));
+		return new MediaAssetStagingLease(this.#port, database, record);
+	}
+
 	async activeIdentities(): Promise<ActiveMediaAssetStaging> {
 		const now = Date.now();
 		const database = await this.#port.database();
@@ -170,15 +187,24 @@ export class MediaAssetStagingRepository {
 
 	invalidateMemory(): ActiveMediaAssetStaging {
 		const records = this.#port.memory.mediaAssetStaging;
+		const paths: MediaAssetStagingLeaseRecord[] = [];
+		for (const value of records.values()) {
+			if (!stagingLease(value)?.path) continue;
+			if (paths.length === 64) throw new MediaAssetStagingLeaseError();
+			paths.push(closedMediaAssetPathLease(value));
+		}
 		const invalidated = identitiesFrom(records.values());
 		records.clear();
+		for (const lease of paths) records.set(lease.key, lease);
 		records.set(MEDIA_ASSET_STAGING_STATE_KEY, createState());
 		return invalidated;
 	}
 
 	async invalidateStore(store: IDBObjectStore): Promise<ActiveMediaAssetStaging> {
+		const paths = await readMediaAssetPathLeaseSnapshot(store);
 		const invalidated = identitiesFrom(await request(store.getAll()));
 		await request(store.clear());
+		for (const lease of paths.leases) await request(store.put(lease));
 		await request(store.put(createState()));
 		return invalidated;
 	}
@@ -187,7 +213,8 @@ export class MediaAssetStagingRepository {
 /** Consume a source-write receipt so an abandoned writer cannot publish afterward. */
 export function revokeSourceStageInMemory(records: Map<string, unknown>, sourceToken: string): void {
 	for (const [key, value] of records) {
-		if (stagingLease(value)?.sourceId === sourceToken) records.delete(key);
+		const lease = stagingLease(value);
+		if (lease?.sourceId === sourceToken && !lease.path) records.delete(key);
 	}
 	const key = sourceStageRevocationKey(sourceToken);
 	records.set(key, { key, kind: 'source-stage-revocation', sourceId: sourceToken });
@@ -197,14 +224,10 @@ export function revokeSourceStageInMemory(records: Map<string, unknown>, sourceT
 export async function revokeSourceStageInStore(store: IDBObjectStore, sourceToken: string): Promise<void> {
 	for (const value of await request(store.getAll())) {
 		const lease = stagingLease(value);
-		if (lease?.sourceId === sourceToken) await request(store.delete(lease.key));
+		if (lease?.sourceId === sourceToken && !lease.path) await request(store.delete(lease.key));
 	}
 	const key = sourceStageRevocationKey(sourceToken);
 	await request(store.put({ key, kind: 'source-stage-revocation', sourceId: sourceToken }));
-}
-
-function sourceStageRevocationKey(sourceToken: string): string {
-	return `source-stage-revoked:${sourceToken}`;
 }
 
 async function acquireStoreLease(
@@ -221,7 +244,7 @@ async function acquireStoreLease(
 	for (const value of await request(store.getAll())) {
 		const lease = stagingLease(value);
 		if (!lease) continue;
-		if (lease.generation !== state.generation || lease.expiresAt <= now) {
+		if (!lease.path && (lease.generation !== state.generation || lease.expiresAt <= now)) {
 			await request(store.delete(lease.key));
 			continue;
 		}
@@ -245,7 +268,7 @@ function acquireMemoryLease(
 	for (const [key, value] of records) {
 		const lease = stagingLease(value);
 		if (!lease) continue;
-		if (lease.generation !== state.generation || lease.expiresAt <= now) {
+		if (!lease.path && (lease.generation !== state.generation || lease.expiresAt <= now)) {
 			records.delete(key);
 			continue;
 		}
@@ -265,7 +288,7 @@ async function activeStoreIdentities(
 	for (const value of await request(store.getAll())) {
 		const lease = stagingLease(value);
 		if (!lease) continue;
-		if (lease.generation !== state.generation || lease.expiresAt <= now) {
+		if (!lease.path && (lease.generation !== state.generation || lease.expiresAt <= now)) {
 			await request(store.delete(lease.key));
 		} else active.push(lease);
 	}
@@ -279,7 +302,7 @@ function activeMemoryIdentities(port: StorageRepositoryPort, now: number): Activ
 	for (const [key, value] of records) {
 		const lease = stagingLease(value);
 		if (!lease) continue;
-		if (lease.generation !== state.generation || lease.expiresAt <= now) records.delete(key);
+		if (!lease.path && (lease.generation !== state.generation || lease.expiresAt <= now)) records.delete(key);
 		else active.push(lease);
 	}
 	return identitiesFrom(active);

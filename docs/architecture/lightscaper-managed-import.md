@@ -123,3 +123,44 @@ lifetime. The checks hold cleanup beyond the broker deadline, retain actual
 removal failures, and prove that Session resource cleanup waits
 for admitted reclamation. They do not establish native browser timing or recover
 files left by abrupt process death.
+
+## Durable OPFS staging and reopen
+
+Whole-Blob original writes plan their exact OPFS path and persist a source-owned
+staging lease and its paired native directory handle before creating the file.
+Both records are inserted atomically; unsupported native identity or a genuine
+directory-handle serialization refusal falls back to IndexedDB before creation.
+Immutable media metadata is added and both staging records consumed in one native
+transaction. Lost acknowledgement is reconciled
+against the actual matching immutable record. A committed original remains
+retained even when no Photo or catalog root has yet been published. Failed writes
+release their lease only after exact file absence has been verified.
+
+Selected media readiness owns bounded startup recovery, and Close joins that
+work. Recovery requires an idle local writer owner and the global retention
+registration Web Lock. It validates complete inventories of at most 64 databases,
+64 retained owners per database and 64 path leases, with an overflow witness
+before deleting any file. Native indexed references in every known media database
+protect the same physical path, including references in a closed foreign database.
+Known nonbinary catalogs are checked against their complete schema profile.
+The persisted handle must identify the actual current directory through the
+native `isSameEntry` intrinsic. Matching database or directory names cannot prove
+historical physical identity. Missing, malformed, unbranded or other-directory
+witnesses defer the whole bounded prefix, including legacy streamed writes.
+
+Live or lockless owners, unsupported database enumeration, unknown schemas and
+changed inventories defer recovery and retain the evidence. Neither lease expiry
+nor an old maintenance generation proves abandonment. Recovery removes only an
+exact, unreferenced leased path and then consumes only its unchanged lease and
+maintenance-state receipt. It never sweeps an OPFS directory. Failed removal keeps
+the lease and directory witness for a later readiness retry. Storage clear fences
+publication but preserves those paired records atomically. It leaves interrupted
+native staged files to startup recovery; malformed paired evidence aborts clear.
+Exact worker removal waits for its actual
+terminal response across broker deadlines; transport failure cannot certify
+physical absence.
+
+The strict Node qualification uses controlled persisted-state replay and actual
+storage owners. The source writer is joined before its captured durable prefix is
+replayed into another storage context. This qualifies the recovery contract;
+native browser process-death timing remains a separate qualification.

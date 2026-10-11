@@ -246,7 +246,7 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 	async remove(pathValue: string): Promise<void> {
 		const path = normalizeOpfsWorkerPath(pathValue);
 		this.#assertSupported();
-		await this.#request({ type: 'remove', path });
+		await this.#reclaimWriter(path, null);
 	}
 
 	close(): void {

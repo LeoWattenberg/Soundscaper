@@ -9,6 +9,7 @@ import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.
 import type { OpfsSyncStoragePort } from '../src/common/editor/storage/opfs-sync-worker-client.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+import { installDirectoryModel } from './helpers/lightscaper-opfs-original-staging-fixture.ts';
 
 function fixture({ holdSuccess = false } = {}) {
 	const backing = createInstrumentedIndexedDB();
@@ -356,22 +357,28 @@ test('close joins original deletion after it has captured the database and start
 	const root = { async getDirectoryHandle() { return directory; } };
 	const store = new PhotoMediaStoreV1({ indexedDB: setup.factory, databaseName: setup.databaseName,
 		locks: null, opfsRoot: root as unknown as FileSystemDirectoryHandle, syncWorkerClient: null });
-	await store.mediaRepository.writeAsset('original', new Blob(['bytes']));
-	const deleting = store.mediaRepository.deleteAsset('original');
-	await started;
-	const closing = store.close();
+	const model = installDirectoryModel({ directory });
 	try {
-		await new Promise<void>((resolve) => { setImmediate(resolve); });
-		while (setup.backing.stats.activeTransactions > 0) {
+		await store.mediaRepository.writeAsset('original', new Blob(['bytes']));
+		const deleting = store.mediaRepository.deleteAsset('original');
+		await started;
+		const closing = store.close();
+		try {
 			await new Promise<void>((resolve) => { setImmediate(resolve); });
+			while (setup.backing.stats.activeTransactions > 0) {
+				await new Promise<void>((resolve) => { setImmediate(resolve); });
+			}
+			assert.equal(setup.closed(), 0);
+			await assert.rejects(store.mediaRepository.getAssetMetadata('original'), { code: 'STORE_CLOSED' });
+		} finally {
+			resume();
+			await deleting;
+			await closing;
 		}
-		assert.equal(setup.closed(), 0);
-		await assert.rejects(store.mediaRepository.getAssetMetadata('original'), { code: 'STORE_CLOSED' });
+		assert.equal(setup.closed(), 1);
+		assert.equal(setup.backing.recordCount(setup.databaseName, 'mediaAssets'), 0);
 	} finally {
 		resume();
-		await deleting;
-		await closing;
+		try { await store.close(); } finally { model.reset(); }
 	}
-	assert.equal(setup.closed(), 1);
-	assert.equal(setup.backing.recordCount(setup.databaseName, 'mediaAssets'), 0);
 });

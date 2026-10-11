@@ -15,10 +15,14 @@ import {
 import { MediaAssetLoadRepository, type MediaAssetLoadOptions } from './media-asset-load-repository.ts';
 import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
 import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
+import { acquireMediaAssetPathLease, type MediaAssetPathLease } from './media-asset-path-staging.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import { reconcileMediaAssetOpfsStartup } from './media-asset-opfs-startup-reconciliation.ts';
+import type { MediaAssetNonBinaryDatabaseProfile } from './media-asset-opfs-startup-namespace.ts';
 import { MediaPublicationReconciliationError, sameMediaPayload } from './media-asset-owned-publication.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
-import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
+import { BrowserFileStorageError } from '../web-file-limit-failure.ts';
 import {
 	MediaAssetWriteRepository,
 	type MediaAssetWriteOptions,
@@ -113,6 +117,13 @@ export class MediaRepository {
 	hasBinaryPathReference(path: string): Promise<boolean> { return hasStoredBinaryPathReference(this.#port, path); }
 	invalidateAssetStagingMemory() { return this.#assetWrites.invalidateStagingMemory(); }
 	invalidateAssetStagingStore(store: IDBObjectStore) { return this.#assetWrites.invalidateStagingStore(store); }
+	async reconcileOpfsStartup(factory: IDBFactory, nonBinaryProfiles: readonly MediaAssetNonBinaryDatabaseProfile[]): Promise<boolean> {
+		return reconcileMediaAssetOpfsStartup({
+			database: await this.#port.database(), factory, opfs: this.#opfs,
+			sessionGuard: this.#sessionGuard, lifecycle: this.#assetLifecycle, nonBinaryProfiles,
+		});
+	}
+
 	async writeAsset(
 		sourceId: string,
 		input: unknown,
@@ -124,8 +135,9 @@ export class MediaRepository {
 		const blob = canonicalMediaContentBlob(input);
 		const admission = new MediaAssetWriteAdmission(this.#assetLifecycle, signal);
 		let storedFile: { path: string } | null = null;
+		let pathLease: MediaAssetPathLease | null = null;
+		let stagedPath: string | null = null;
 		let attemptedPublication: StorageRecord | null = null;
-		let published = false;
 		try {
 			const previous = await this.getAssetMetadata(id);
 			admission.throwIfCancelled();
@@ -133,12 +145,23 @@ export class MediaRepository {
 			const sha256 = (await digestMediaContent(blob, { signal: admission.signal })).toLowerCase();
 			admission.throwIfCancelled();
 			const provenance = freshVerifiedMediaContentDigest(sha256);
-			storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal: admission.signal })
-				.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media write', error); });
-			if (storedFile) admission.setIdentity({ path: storedFile.path });
-			admission.bindWriterAbort(async () => {
-				if (storedFile && !published && !attemptedPublication) await this.#opfs.deletePath(storedFile.path);
-			});
+			const database = await this.#port.database();
+			admission.throwIfCancelled();
+			const plan = database ? await this.#opfs.planBlobWrite(`media-${id}`, { signal: admission.signal }) : null;
+			admission.throwIfCancelled();
+			if (plan && database) {
+				admission.setIdentity({ path: plan.path });
+				pathLease = await acquireMediaAssetPathLease(database, id, plan.path, plan.directory);
+				if (pathLease) stagedPath = plan.path;
+				admission.throwIfCancelled();
+				if (pathLease) {
+					await plan.write(blob).catch((error: unknown) => {
+						if (admission.signal.aborted && Object.is(error, admission.signal.reason)) throw error;
+						throw new BrowserFileStorageError('OPFS media write', error);
+					});
+					storedFile = { path: plan.path };
+				}
+			}
 			admission.throwIfCancelled();
 			const record: StorageRecord = {
 				...binaryMetadata(metadata),
@@ -154,11 +177,9 @@ export class MediaRepository {
 				committedAt: new Date().toISOString(),
 				pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 			};
-			const database = await this.#port.database();
 			admission.throwIfCancelled();
 			attemptedPublication = record;
-			await publishImmutableMediaAsset(this.#port, record, database, admission.signal);
-			published = true;
+			await publishImmutableMediaAsset(this.#port, record, database, admission.signal, pathLease);
 			admission.complete();
 			return mediaAssetMetadata(record);
 		} catch (error) {
@@ -166,17 +187,14 @@ export class MediaRepository {
 				let current: StorageRecord | null;
 				try { current = await this.assetRecord(id); }
 				catch (reconciliationError) {
-					published = true;
 					admission.complete();
 					throw new MediaPublicationReconciliationError(error, reconciliationError);
 				}
 				if (sameWrittenMediaAsset(current, attemptedPublication)) {
-					published = true;
 					admission.complete();
 					return mediaAssetMetadata(attemptedPublication);
 				}
 				if (storedFile && current?.path === storedFile.path) {
-					published = true;
 					admission.complete();
 					throw new MediaPublicationReconciliationError(
 						error, new Error('The published media path has an unexpected record identity.'),
@@ -184,12 +202,17 @@ export class MediaRepository {
 				}
 			}
 			let cleanupError: unknown;
+			let cleanupFailed = false;
 			try {
-				if (storedFile) await this.#opfs.deletePath(storedFile.path);
+				if (stagedPath) {
+					await this.#opfs.deletePathExact(stagedPath);
+					await pathLease?.release();
+				}
 			} catch (failure) {
 				cleanupError = failure;
+				cleanupFailed = true;
 			}
-			if (cleanupError !== undefined) {
+			if (cleanupFailed) {
 				admission.failCleanup(cleanupError);
 				throw new AggregateError(
 					[error, cleanupError], 'Media asset write and cleanup both failed.', { cause: error },
@@ -343,6 +366,7 @@ async function publishImmutableMediaAsset(
 	record: StorageRecord,
 	database: IDBDatabase | null,
 	signal?: AbortSignal,
+	pathLease: MediaAssetPathLease | null = null,
 ): Promise<void> {
 	const sourceId = record.sourceId as string;
 	if (!database) {
@@ -352,13 +376,16 @@ async function publishImmutableMediaAsset(
 		return;
 	}
 	const created = await transact(database, [
-		'mediaAssets', CATALOG_ORIGINAL_ROOT_STORE_NAME,
+		'mediaAssets', CATALOG_ORIGINAL_ROOT_STORE_NAME, ...(pathLease ? ['settings', MEDIA_ASSET_STAGING_STORE_NAME] : []),
 	], 'readwrite', async (stores) => {
 		throwIfAborted(signal);
 		if (await request(stores.mediaAssets.get(sourceId))) return false;
 		await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], sourceId);
 		throwIfAborted(signal);
-		return addMediaAssetIfAbsent(stores.mediaAssets, record);
+		if (pathLease) await pathLease.assertInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], stores.settings);
+		const added = await addMediaAssetIfAbsent(stores.mediaAssets, record);
+		if (added && pathLease) await pathLease.completeInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], stores.settings);
+		return added;
 	});
 	if (!created) throw immutableMediaAssetError(sourceId);
 }
