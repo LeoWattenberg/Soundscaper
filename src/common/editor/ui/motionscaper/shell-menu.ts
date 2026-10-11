@@ -25,7 +25,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -72,6 +72,7 @@ export function createMotionscaperShellMenus(
 				item('motion-properties', copy.motionscaperProperties, 'properties', options.hasProject),
 				item('motion-paths', copy.motionscaperPaths, 'paths', options.hasProject),
 				item('motion-operators', copy.motionscaperOperators, 'operators', options.hasProject),
+				item('motion-tracking', copy.motionscaperTracking, 'tracking', options.hasProject),
 				item('motion-solid', copy.motionscaperSolid, 'solid', options.hasProject),
 				item('motion-text', copy.motionscaperText, 'text', options.hasProject),
 				item('motion-rectangle', copy.motionscaperRectangle, 'rectangle', options.hasProject),

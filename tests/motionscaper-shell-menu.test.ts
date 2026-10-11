@@ -50,3 +50,15 @@ test('document menus admit saves and history only for an available idle document
 	const busyMenus = createMotionscaperShellMenus({ ...options, busy: true });
 	assert.ok(busyMenus.find(({ id }) => id === 'file')?.items.every(({ disabled }) => disabled));
 });
+
+test('tracking is a localized opt-in layer command that requires an idle document', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('en'), workspaceOpen: true, onToggleWorkspace: () => undefined,
+		onCommand: (command: string) => { commands.push(command); }, hasProject: true, busy: false };
+	const tracking = (values: ReturnType<typeof createMotionscaperShellMenus>) => values.find(({ id }) => id === 'tracks')?.items.find(({ id }) => id === 'motion-tracking');
+	const item = tracking(createMotionscaperShellMenus(options)); assert.equal(item?.label, 'Tracking and Stabilization'); assert.equal(item?.disabled, false);
+	item?.onClick?.(); assert.deepEqual(commands, ['tracking']);
+	assert.equal(tracking(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(tracking(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+	assert.equal(tracking(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Tracking und Stabilisierung');
+});
