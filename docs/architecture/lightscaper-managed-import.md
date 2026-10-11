@@ -89,3 +89,22 @@ saved process-2 presets and disabled LUT resources stay exact throughout.
 These cases qualify completed ownership boundaries under Session Close. They do
 not qualify cancellation during unresolved native acquisition or abrupt process
 death before media publication. Both remain separate from this bounded packet.
+
+## Writer acquisition cancellation
+
+A cancelled synchronous writer open stays owned until the worker reports its
+actual result or error. Cancellation forwards immediately, and a late successful
+open joins writer abort and any required path removal before rejecting. An error
+response also joins path removal. A request deadline cannot end that cancelled
+ownership while the worker remains alive; cleanup likewise waits for its actual
+acknowledgement. The first caller reason stays exact after successful cleanup.
+At the client boundary, failed cleanup retains that reason as the cause of a
+distinct aggregate error.
+
+Controlled Node Worker and filesystem ports connect the actual client and worker
+runtime, including a default Session import and Close. They hold file and access
+acquisition, settled result delivery, and asynchronous removal across task turns
+and request deadlines. They do not establish native browser acquisition timing.
+Worker failure or explicit client termination retires pending requests as a
+failure and does not prove physical file removal. Abrupt process death before
+media publication remains a separate recovery requirement.

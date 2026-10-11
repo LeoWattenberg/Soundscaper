@@ -142,10 +142,10 @@ export class OpfsSyncWorkerRuntime {
 	async #openWriter(request: WorkerRequest, requestIdValue: string): Promise<Record<string, unknown>> {
 		const operationId = writeOperation(request.operationId);
 		const path = normalizeOpfsWorkerPath(request.path);
-		const fileHandle = await this.#fileHandle(path, true);
-		this.#throwIfCancelled(requestIdValue);
 		let access: SyncAccessHandleLike | null = null;
 		try {
+			const fileHandle = await this.#fileHandle(path, true);
+			this.#throwIfCancelled(requestIdValue);
 			access = await createSyncAccess(fileHandle, false);
 			this.#throwIfCancelled(requestIdValue);
 			access.truncate(0);
@@ -153,8 +153,12 @@ export class OpfsSyncWorkerRuntime {
 			this.#writers.set(id, { id, path, operationId, access, offset: 0 });
 			return Object.freeze({ writerId: id });
 		} catch (error) {
-			try { access?.close(); } catch { /* The failed handle may already be closed. */ }
-			try { await this.#directory?.removeEntry(path); } catch { /* Creation may not have reached disk. */ }
+			const failures: unknown[] = [];
+			try { access?.close(); } catch (failure) { failures.push(failure); }
+			try { await this.#directory?.removeEntry(path); } catch (failure) {
+				if (!isNativeNotFoundError(failure)) failures.push(failure);
+			}
+			if (failures.length) throw new AggregateError([error, ...failures], 'OPFS writer acquisition and cleanup failed.', { cause: error });
 			throw error;
 		}
 	}
@@ -311,4 +315,9 @@ function defaultSupportsSyncAccessHandles(): boolean {
 function isNotFoundError(error: unknown): boolean {
 	return Boolean(error && typeof error === 'object'
 		&& (error as { readonly name?: unknown }).name === 'NotFoundError');
+}
+
+const DOM_EXCEPTION_NAME = Object.getOwnPropertyDescriptor(DOMException.prototype, 'name')!.get!;
+function isNativeNotFoundError(error: unknown): boolean {
+	try { return Reflect.apply(DOM_EXCEPTION_NAME, error, []) === 'NotFoundError'; } catch { return false; }
 }
