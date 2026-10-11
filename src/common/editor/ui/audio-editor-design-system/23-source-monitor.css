@@ -18,7 +18,8 @@
 	overflow: hidden;
 }
 
-.kw-audio-editor__source-monitor-picture video {
+.kw-audio-editor__source-monitor-picture video,
+.kw-audio-editor__source-monitor-picture canvas {
 	height: 100%;
 	object-fit: contain;
 	width: 100%;

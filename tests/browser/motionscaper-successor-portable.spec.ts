@@ -69,19 +69,19 @@ test('M10 actual successor portable import rolls back owner failure and restores
 		const before = await environment.owners.loadOwner(project.id); const hidden = await environment.owners.readAsset(asset);
 		await f.importArchive(archive, environment.store, { line: 'successor' }); await environment.close();
 		await new Promise<void>((resolve, reject) => { const request = indexedDB.deleteDatabase('kw-media-framescaper-editor-v2-media'); request.onsuccess = () => resolve(); request.onerror = () => reject(request.error); request.onblocked = () => reject(new Error('Media cache deletion is blocked.')); });
-		return { project, asset, failure, before, hidden };
+		return { projectId: project.id, projectJson: JSON.stringify(project), asset, failure, before, hidden };
 	});
 	expect(saved.failure).toBe(true); expect(saved.before).toBeNull(); expect(saved.hidden).toBeNull(); await page.close();
 	const reopened = await context.newPage(); await reopened.goto(address); await reopened.waitForFunction(() => 'portableFixture' in globalThis);
-	const result = await reopened.evaluate(async ({ project, asset }) => {
+	const result = await reopened.evaluate(async ({ projectId, projectJson, asset }) => {
 		const f = (globalThis as unknown as { portableFixture: Fixture }).portableFixture; const environment = await f.open();
 		try {
-			const loaded = await environment.controllerStore.loadProject(project.id); const body = await environment.owners.readAsset(asset);
+			const loaded = await environment.controllerStore.loadProject(projectId); const body = await environment.owners.readAsset(asset);
 			const linked = body ? [...new Uint8Array(await new Response(body.stream()).arrayBuffer())] : null;
 			const pcm = []; for await (const chunk of environment.store.readSourceChunks('ordinary')) pcm.push(...chunk.channels[0]!);
 			const exported = await f.exportArchive(loaded, environment.store, { readAsset: (asset) => environment.owners.readAsset(asset) });
-			return { same: JSON.stringify(loaded) === JSON.stringify(project), linked, pcm, version: exported.manifest.project.schemaVersion, kinds: exported.manifest.assets.map(asset => asset.kind).sort(), catalog: (await environment.owners.listOwners()).length, nativeProject: await environment.store.loadProject(project.id) };
+			return { same: JSON.stringify(loaded) === projectJson, linked, pcm, version: exported.manifest.project.schemaVersion, kinds: exported.manifest.assets.map(asset => asset.kind).sort(), catalog: (await environment.owners.listOwners()).length, nativeProject: await environment.store.loadProject(projectId) };
 		} finally { await environment.close(); }
-	}, { project: saved.project, asset: saved.asset });
+	}, { projectId: saved.projectId, projectJson: saved.projectJson, asset: saved.asset });
 	expect(result).toEqual({ same: true, linked: [7, 8, 9], pcm: [0.25, 0.5, 0.75, 1], version: 2, kinds: ['audio', 'motion-linked-original', 'video-timing'], catalog: 1, nativeProject: null }); await reopened.close();
 });

@@ -15,6 +15,8 @@ import { resolveVideoSourceDisplaySize } from '../common/editor/video-source-pre
 import { resolveActiveVideoLayers } from '../common/editor/video-timeline.js';
 import { createFramescaperSelectedVisualPreviewSessionFinishing } from './editor-selected-finishing-visual-preview.ts';
 import type { CreateFramescaperOpenFxExactExecutionNativeMedia } from './video-export-exact-execution-finishing.ts';
+import type { FramescaperCompositionFrameSource } from './editor-composition-link-frame-source.ts';
+import type { FramescaperSelectedVisualPreviewOptionsFinishing } from './editor-selected-finishing-visual-preview.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -39,6 +41,8 @@ export interface FramescaperSelectedTimelineFilmstripOptionsFinishing
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
 	/** Test seam; selected production routes always use browser image decode. */
 	readonly decodeSource?: DecodeFilmstripSourceFinishing;
+	readonly compositionFrames?: FramescaperCompositionFrameSource;
+	readonly createOutput?: FramescaperSelectedVisualPreviewOptionsFinishing['createOutput'];
 }
 
 /** Render existing derivative cells through the selected exact V13 presentation session. */
@@ -49,6 +53,10 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 	const signal = options.signal ?? new AbortController().signal;
 	throwIfAborted(signal);
 	if (frames.length === 0) return Object.freeze([]);
+	for (const frame of frames) {
+		const generated = options.compositionFrames?.ownsSource(frame.sourceId) ?? false;
+		if ((frame.sourceAuthority === 'product-generated') !== generated) throw new RangeError('Generated filmstrip source requires exact URL-free composition authority.');
+	}
 	const width = evenDimension(options.width, 'timeline filmstrip width');
 	const height = evenDimension(options.height, 'timeline filmstrip height');
 	const runtimeProject = resolveRuntimeProjectProjection(options.project as RuntimeClipProject);
@@ -59,6 +67,8 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 		store: options.store,
 		width,
 		height,
+		...(options.compositionFrames ? { compositionFrames: options.compositionFrames } : {}),
+		...(options.createOutput ? { createOutput: options.createOutput } : {}),
 		...(options.createOpenFxExecution ? {
 			createOpenFxExecution: options.createOpenFxExecution,
 		} : {}),
@@ -70,13 +80,14 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 	}
 	const decode = options.decodeSource ?? decodeFilmstripSource;
 	const output: ProductVideoTimelineFilmstripFrame[] = [];
+	const cancel = () => session.dispose(); signal.addEventListener('abort', cancel, { once: true });
 	try {
 		for (const frame of frames) {
 			throwIfAborted(signal);
 			const active = activeFilmstripEntry(
 				runtimeProject, frame, { width, height }, keyframeState,
 			);
-			const decoded = await decode(frame.sourceUrl, width, height, signal);
+			const decoded = frame.sourceAuthority === 'product-generated' ? null : await decode(frame.sourceUrl, width, height, signal);
 			try {
 				throwIfAborted(signal);
 				const rendered = await session.renderExact({
@@ -92,11 +103,12 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 					pixels: pixels.pixels,
 				}));
 			} finally {
-				decoded.dispose();
+				decoded?.dispose();
 			}
 		}
 		return Object.freeze(output);
 	} finally {
+		signal.removeEventListener('abort', cancel);
 		session.dispose();
 	}
 }
@@ -128,12 +140,12 @@ function activeFilmstripEntry(
 
 function mediaLayer(
 	active: Readonly<{ layer: Data; clip: Data }>,
-	decoded: DecodedFilmstripSourceFinishing,
+	decoded: DecodedFilmstripSourceFinishing | null,
 ): Data {
 	const source = record(active.clip.source, 'timeline filmstrip source');
 	const size = resolveVideoSourceDisplaySize(source) ?? {
-		width: decoded.width,
-		height: decoded.height,
+		width: decoded?.width ?? positiveInteger(source.width, 'generated source width'),
+		height: decoded?.height ?? positiveInteger(source.height, 'generated source height'),
 	};
 	const effects = active.clip.videoEffects ?? record(active.clip.clip, 'timeline filmstrip clip').videoEffects ?? [];
 	if (!Array.isArray(effects)) throw new TypeError('Timeline filmstrip video effects must be an array.');
@@ -146,14 +158,14 @@ function mediaLayer(
 			clipId: stableId(active.clip.clipId, 'timeline filmstrip clip ID'),
 			sourceId: stableId(active.clip.sourceId, 'timeline filmstrip source ID'),
 			available: true,
-			video: Object.freeze({
+			...(decoded ? { video: Object.freeze({
 				drawable: decoded.drawable,
 				videoWidth: decoded.width,
 				videoHeight: decoded.height,
 				readyState: 4,
 				currentTime: 0,
 				pause() {},
-			}),
+			}) } : {}),
 			effects: Object.freeze([...effects]),
 			opacity: active.clip.opacity,
 			displayWidth: size.width,
@@ -270,7 +282,9 @@ function filmstripFrames(value: unknown): ProductVideoTimelineFilmstripRequest['
 			clipId: stableId(frame.clipId, 'timeline filmstrip clip ID'),
 			sourceId: stableId(frame.sourceId, 'timeline filmstrip source ID'),
 			timelineSample: nonNegativeInteger(frame.timelineSample, 'timeline filmstrip sample'),
-			sourceUrl: text(frame.sourceUrl, 'timeline filmstrip source URL', 1_048_576),
+			...(frame.sourceAuthority === 'product-generated'
+				? (() => { if (frame.sourceUrl !== undefined) throw new TypeError('Generated filmstrip requests must not contain a source URL.'); return { sourceAuthority: 'product-generated' as const }; })()
+				: { sourceUrl: text(frame.sourceUrl, 'timeline filmstrip source URL', 1_048_576) }),
 		});
 	}));
 }

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
+import ProductGeneratedSourceCanvas from './ProductGeneratedSourceCanvas.tsx';
 
 import '../audio-editor-design-system/23-source-monitor.css';
 
@@ -16,6 +18,8 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 	const view = controller.actions.video.sourceMonitor.view();
 	const visual = view.sourceId ? controller.actions.video.getSourceVisualData(view.sourceId) : null;
 	const mediaUrl = visual?.available === false ? null : visual?.mediaUrl || null;
+	const generatedRuntime = productVideoVisualPreviewRuntimeFor(controller)?.generatedSources;
+	const generated = view.sourceId && generatedRuntime?.ownsSource(snapshot.project, view.sourceId) ? generatedRuntime : null;
 	const disabled = blocked || snapshot.readOnly;
 
 	// Playing a source is a viewing action; stopping it is what makes the
@@ -80,7 +84,8 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 		data-source-monitor-mark-out={view.markOut == null ? '' : view.markOut}
 	>
 		<div className="kw-audio-editor__source-monitor-picture">
-			{mediaUrl
+			{generated ? <ProductGeneratedSourceCanvas runtime={generated} project={snapshot.project} sourceId={view.sourceId} sourceFrame={view.positionFrame}
+				width={640} height={360} unavailable={copy.videoPreviewUnavailable} label={`${copy.panelSourceMonitor}: ${view.sourceName || copy.videoClip}`} onError={stop} /> : mediaUrl
 				? <video
 					ref={videoRef}
 					data-source-monitor-video
