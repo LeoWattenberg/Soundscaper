@@ -121,7 +121,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		});
 	};
 	if (dialog === 'after-effects') return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
-		<MotionAeBridgeDialog copy={copy} store={store} busy={busy} initialFile={bridgeFile}
+		<MotionAeBridgeDialog copy={copy} store={store} busy={busy} initialFile={bridgeFile} project={snapshot.project ?? undefined}
 			onOpen={async (id) => { await session.open(id); opened(); }} onClose={close} />
 	</Suspense>;
 	if (dialog === 'compositions' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
