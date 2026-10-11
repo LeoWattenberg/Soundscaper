@@ -490,7 +490,7 @@ export const chunkGroups = [
 		// their semantic owners even when they sit in the selected startup graph.
 		name: 'site-entry',
 		tags: ['$initial'],
-		priority: 110,
+		priority: 120,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},

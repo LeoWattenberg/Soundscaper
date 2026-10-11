@@ -54,6 +54,10 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-storage-model',
 	'editor-timeline',
 	'framescaper-project-foundations',
+	// These named groups contain the shared baseline bootstrap runtime and its
+	// source-rebind composition, independently of successor-only project modules.
+	'framescaper-shared-runtime',
+	'framescaper-source-rebind',
 	// The four groups below are the rest of the two products' boot-time composition, split
 	// off their foundations for chunk size rather than to defer them. Each is reached
 	// statically from a product bootstrap while it builds its controller - the Framescaper
@@ -77,7 +81,9 @@ const WORKER_ENTRY_PATTERN = /new Worker\(\s*new URL\(\s*'(\.[^']+)'/gu;
 // Both quote styles: `nyquist/plugin-registry.js` writes its specifiers with double
 // quotes, and while this pattern read single quotes only, every dependency that
 // eagerly owned module declares was invisible here.
-const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)([\s\S]*?)from\s+(?:'(\.[^']+)'|"(\.[^"]+)")/gmu;
+// Bound the clause grammar: an external import must not continue past its own
+// specifier into a later relative import (especially an erased `import type`).
+const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)((?:[\p{ID_Start}$_][\p{ID_Continue}$]*\s*(?:,\s*)?)?(?:\*\s+as\s+[\p{ID_Start}$_][\p{ID_Continue}$]*|\{[^}]*\})?)\s*from\s+(?:'(\.[^']+)'|"(\.[^"]+)")/gmu;
 // A barrel's re-exports are static dependencies exactly like its imports: `export { X }
 // from './x.ts'` puts `./x.ts` in the importer's chunk graph. The pattern spells the whole
 // re-export grammar out rather than reusing the lazy `[\s\S]*?` clause above, because
@@ -108,6 +114,10 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 	[
 		'src/common/i18n/locale.js',
 		'Site copy leaf: `src/common/site/BrandSidebar.jsx` reads it, so an editor owner would put an editor chunk in the initial graph.',
+	],
+	[
+		'src/common/i18n/site-copy.js',
+		'Site copy is already imported by the initial App and startup indicator; product copy reuses that same site leaf without assigning an editor owner.',
 	],
 	[
 		'src/common/i18n/locales.js',
@@ -154,10 +164,6 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'Product capability profiles shared with the site routes and the transfer pages, which is why they stay outside every editor group.',
 	],
 	[
-		'src/common/project-file-extensions.ts',
-		'Dependency-free suffix table shared by the site profiles, the transfer pages, the desktop shell and both editors; any owner adds a chunk to the ten-request initial graph.',
-	],
-	[
 		'src/common/editor/aup4-profile.js',
 		'AUP4 archive implementation, deliberately unowned, reached from the page only through the `aup4-worker.js` worker entry and the lazy file-menu archive actions.',
 	],
@@ -199,20 +205,12 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 	// pins the property that makes their placement safe, so these reasons are measured
 	// rather than asserted.
 	[
-		'src/framescaper/editor-project-finishing-source-rebind.ts',
-		'Finishing half of the source rebind the timeline-image rebind extends, reached only from that eagerly composed module.',
-	],
-	[
 		'src/framescaper/editor-scape-asset-import-finishing.ts',
 		'Finishing asset import the eagerly composed timeline-image asset import extends, reached only from it and its finishing sibling.',
 	],
 	[
 		'src/framescaper/editor-scape-assets-finishing.ts',
 		'Finishing asset inventory the eagerly composed timeline-image asset inventory extends, reached only from it.',
-	],
-	[
-		'src/framescaper/selected-finishing-exact-frame-support.ts',
-		'Exact-frame support shared by the finishing execution and the eagerly composed timeline-image export execution; no dynamic import reaches it.',
 	],
 ]);
 
@@ -226,10 +224,8 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
  * a comment that used to be true.
  */
 export const FRAMESCAPER_BOOTSTRAP_COMPOSITION_LEAVES: readonly string[] = [
-	'src/framescaper/editor-project-finishing-source-rebind.ts',
 	'src/framescaper/editor-scape-asset-import-finishing.ts',
 	'src/framescaper/editor-scape-assets-finishing.ts',
-	'src/framescaper/selected-finishing-exact-frame-support.ts',
 ];
 
 /** The relative specifiers one module's source imports for value, in source order. */
