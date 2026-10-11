@@ -24,6 +24,25 @@ async function previewColor(page: Page): Promise<number[]> {
 		finally { image.close(); }
 	}, png.toString('base64'));
 }
+async function exportVideoColor(page: Page): Promise<number[]> {
+	await menu(page, 'File', /^Export video(?:\s|$)/u); const dialog = page.getByRole('dialog', { name: 'Export video', exact: true });
+	await dialog.getByRole('group', { name: 'Format', exact: true }).getByRole('button').click(); await page.getByRole('option', { name: 'MP4 video', exact: true }).click();
+	const size = dialog.locator('[data-export-field="canvasSize"] input'); await size.nth(0).fill('96'); await size.nth(1).fill('64');
+	await dialog.locator('[data-export-field="canvasFrameRate"] input').fill('2'); await dialog.locator('[data-export-action="start"] button').click();
+	const link = dialog.locator('[data-export-download]');
+	try { await expect(link).toHaveAttribute('download', /\.mp4$/u, { timeout: 15_000 }); }
+	catch (cause) { throw new Error(`Linked export failed: ${await dialog.innerText()} / ${await page.locator('[data-editor-status]').innerText()}`, { cause }); }
+	const downloading = page.waitForEvent('download'); await link.click(); const file = await downloading; const path = await file.path(); if (!path) throw new Error('Linked video download is absent.');
+	const bytes = await readFile(path); expect(bytes.subarray(4, 8).toString()).toBe('ftyp');
+	return page.evaluate(async encoded => {
+		const url = URL.createObjectURL(new Blob([Uint8Array.from(atob(encoded), character => character.charCodeAt(0))], { type: 'video/mp4' })); const video = document.createElement('video');
+		try {
+			await new Promise<void>((resolve, reject) => { const timeout = setTimeout(() => reject(new Error('Linked video decode timed out.')), 15_000); video.onloadeddata = () => { clearTimeout(timeout); resolve(); }; video.onerror = () => { clearTimeout(timeout); reject(new Error('Linked video decode failed.')); }; video.muted = true; video.src = url; video.load(); });
+			if (video.videoWidth !== 96 || video.videoHeight !== 64) throw new Error('Linked video dimensions changed.');
+			const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 64; const context = canvas.getContext('2d')!; context.drawImage(video, 0, 0); return [...context.getImageData(48, 32, 1, 1).data];
+		} finally { video.removeAttribute('src'); video.load(); URL.revokeObjectURL(url); }
+	}, bytes.toString('base64'));
+}
 test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser }) => {
 	test.setTimeout(120_000);
 	const errors: string[] = []; frame.on('pageerror', error => errors.push(error.message));
@@ -62,6 +81,7 @@ test('actual editor menus connect saved compositions, update automatically, and 
 		await expect(imported.locator('[data-project-id]')).toHaveAttribute('data-project-id', projectId!);
 		await menu(imported, 'File', 'Linked compositions…'); await expect(imported.getByRole('dialog').locator('code')).toHaveText(conformed!); await close(imported);
 		await expect.poll(() => previewColor(imported)).toEqual([0, 0, 255, 255]);
+		const encodedColor = await exportVideoColor(imported); for (const [index, expected] of [0, 0, 255, 255].entries()) expect(Math.abs(encodedColor[index]! - expected)).toBeLessThanOrEqual(12);
 	} finally { await fresh.close(); }
 	await frame.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })); });
 	await context.setOffline(true); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
