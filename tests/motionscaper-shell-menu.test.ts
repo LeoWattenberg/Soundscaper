@@ -74,3 +74,12 @@ test('compositing is localized, opt-in and available only for an idle document',
 	assert.equal(entry(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
 	assert.equal(options.copy.videoEffectGaussianBlur, 'Gaußscher Weichzeichner');
 });
+
+test('expression authoring remains an idle-document menu with German command copy', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('de'), workspaceOpen: false, onToggleWorkspace: () => undefined, onCommand: (command: string) => { commands.push(command); }, hasProject: true };
+	const find = (menus: ReturnType<typeof createMotionscaperShellMenus>) => menus.find(({ id }) => id === 'tracks')?.items.find(({ id }) => id === 'motion-expressions');
+	const item = find(createMotionscaperShellMenus(options)); assert.equal(item?.label, 'Ausdrücke'); item?.onClick?.(); assert.deepEqual(commands, ['expressions']);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+});
