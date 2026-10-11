@@ -118,6 +118,9 @@ export class MotionSustainedCdp {
 	async close(): Promise<void> {
 		if (this.#closed) return;
 		try { await this.ready(); }
-		finally { await new Promise<void>(resolve => { this.#socket.addEventListener('close', () => resolve(), { once: true }); this.#socket.close(); }); }
+		finally {
+			// Preparation may have failed because the socket already emitted its only close event.
+			if (!this.#closed) await new Promise<void>(resolve => { this.#socket.addEventListener('close', () => resolve(), { once: true }); this.#socket.close(); });
+		}
 	}
 }
