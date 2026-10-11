@@ -146,6 +146,7 @@ export function deriveNativeAddonPayloadManifest(sourceManifest) {
  * one CI stamps into the environment — always wins. Falling back to the build
  * host is only ever right for a local build of the machine you are sitting at,
  * so the fallback is recorded as such and release assembly refuses it.
+ * @param {{platform?: string | null, arch?: string | null, hostPlatform?: NodeJS.Platform, hostArch?: string}} options
  */
 export function resolveNativeAddonPayloadTarget({
 	platform = null,

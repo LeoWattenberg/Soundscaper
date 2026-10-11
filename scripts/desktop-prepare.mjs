@@ -102,7 +102,11 @@ export function resolveDesktopProductId(value) {
 }
 
 async function main() {
-	if (resolveFramescaperBuildLine(PRODUCT_ID, process.env.SCAPE_FRAMESCAPER_LINE) === 'successor') throw new Error('The Framescaper 1.1 successor desktop runtime is not yet qualified; use the explicit browser development build.');
+	if (resolveFramescaperBuildLine(PRODUCT_ID, process.env.SCAPE_FRAMESCAPER_LINE) === 'successor') {
+		if (process.env.SCAPE_FRAMESCAPER_DESKTOP_PROFILE !== 'framescaper-successor-v2') throw new Error('The baseline desktop runtime cannot load Framescaper successor projects; explicitly select framescaper-successor-v2.');
+		const { prepareFramescaperSuccessorDesktop } = await import('./lib/framescaper-successor-desktop-staging.ts');
+		return prepareFramescaperSuccessorDesktop({ repositoryRoot: ROOT, buildRoot: resolve(BUILD_ROOT, 'framescaper-successor'), sourceRevision: resolveDesktopSourceRevision(), buildRenderer });
+	}
 	const projectPackage = parseJson(await readFile(resolve(ROOT, 'package.json')), 'package.json');
 	assert(projectPackage.name === 'soundscaper', 'Run desktop preparation from the Soundscaper checkout.');
 	const releaseLines = await readProductReleaseLines(ROOT);
