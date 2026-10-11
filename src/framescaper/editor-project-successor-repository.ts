@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { editorProjectStorageProfileNames } from '../common/editor/storage/project-storage-profile.ts';
-import { assertFramescaperSuccessorLine, FRAMESCAPER_SUCCESSOR_STORAGE_PROFILE, migrateFramescaperSuccessorProject, normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
+import { assertFramescaperSuccessorLine, migrateFramescaperSuccessorProject, normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
+import { openFramescaperSuccessorDatabase } from './editor-project-successor-database.ts';
 import { inspectFramescaperMigrationArchive, type FramescaperMigrationRecord } from './editor-project-successor-archive.ts';
 
 export interface FramescaperSuccessorRepository {
@@ -17,12 +17,7 @@ export async function openFramescaperSuccessorRepository(options: { readonly ind
 	assertFramescaperSuccessorLine(options.line);
 	const factory = options.indexedDB ?? globalThis.indexedDB;
 	if (!factory) throw new Error('Durable IndexedDB storage is required for successor migration.');
-	const open = factory.open(editorProjectStorageProfileNames(FRAMESCAPER_SUCCESSOR_STORAGE_PROFILE).databaseName, 1);
-	open.onupgradeneeded = () => {
-		for (const name of ['pending', 'projects']) open.result.createObjectStore(name, { keyPath: 'id' });
-	};
-	const database = await request(open);
-	database.onversionchange = () => database.close();
+	const database = await openFramescaperSuccessorDatabase(factory, options.line);
 	async function run<T>(mode: IDBTransactionMode, action: (transaction: IDBTransaction) => Promise<T>): Promise<T> {
 		const transaction = database.transaction(['pending', 'projects'], mode);
 		const settled = new Promise<void>((resolve, reject) => {
