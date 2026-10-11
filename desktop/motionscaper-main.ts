@@ -128,6 +128,6 @@ async function smokeShell(target: BrowserWindow): Promise<void> {
 		|| evidence.foreignBridge !== false || !('fileRejection' in evidence) || !String(evidence.fileRejection).includes('read capability') || !('fileBridge' in evidence) || evidence.fileBridge !== true || !('origin' in evidence) || evidence.origin !== identity.origin) {
 		throw new Error('Motionscaper shell native isolation smoke failed.');
 	}
-	console.log(`MOTIONSCAPER_SHELL_SMOKE ${JSON.stringify(evidence)}`);
+	console.log(`MOTIONSCAPER_SHELL_SMOKE ${JSON.stringify({ ...evidence, arch: process.arch })}`);
 	app.exit(0);
 }

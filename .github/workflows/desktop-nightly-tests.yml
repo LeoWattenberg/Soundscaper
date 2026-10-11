@@ -145,6 +145,18 @@ jobs:
           sudo chown root:root -- "${sandboxes[@]}"
           sudo chmod 4755 -- "${sandboxes[@]}"
 
+      - name: Qualify the packaged Motionscaper launch on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/motionscaper-desktop-smoke.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+
+      - name: Qualify the packaged Motionscaper launch on Windows and macOS
+        if: runner.os != 'Linux'
+        run: node scripts/motionscaper-desktop-smoke.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+
       - name: Stage the nightly-with-tests application
         run: node scripts/desktop-nightly-tests-prepare.mjs
         env:
