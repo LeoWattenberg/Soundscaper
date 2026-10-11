@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createMotionNativeFrameWriter } from './motion-native-frame-carrier-v1.ts';
-import { createMotionNativePcmWriter, motionNativePcmPlan, type MotionNativePcmBlock, type MotionNativePcmOptions } from './motion-native-pcm-carrier-v1.ts';
+import { createMotionNativePcmWriter, motionNativePcmPlan, type MotionNativePcmOptions } from './motion-native-pcm-carrier-v1.ts';
+import type { MotionAudioMixBlock } from './motion-audio-contract.ts';
+/** The immutable digest identifies carrier samples; editor revision counters are not serialized. */
+export type MotionNativePcmBlock = Omit<MotionAudioMixBlock, 'revision'>;
 import type { MotionSurface } from './motion-surface.ts';
 import type { MotionRenderPlan, MotionRenderSink } from './controller/export/motion-render-pipeline.ts';
 import type { MotionDesktopDelivery, MotionDesktopDeliveryReceipt } from './motion-desktop-delivery-contract.ts';
@@ -44,7 +47,8 @@ export async function createMotionDesktopDeliverySink(delivery: MotionDesktopDel
 			async write(bytes) { if (terminal) throw new Error('Motionscaper native export is closed.'); options.signal?.throwIfAborted(); await delivery.write({ token: selected.token, offset: audioOffset, bytes, stream: 'audio' }); audioOffset += bytes.length; }, abort: cancel,
 		}), options.signal) : null;
 		return {
-			...(audio && pcmPlan ? { audio: { sampleRate: pcmPlan.sampleRate, channels: pcmPlan.channels, async write(block, signal) { signal?.throwIfAborted(); await audio.write(block); } } } satisfies Pick<MotionDesktopDeliverySink, 'audio'> : {}),
+			...(audio && pcmPlan ? { audio: { sampleRate: pcmPlan.sampleRate, channels: pcmPlan.channels, async write(block, signal) { signal?.throwIfAborted(); // The pinned carrier writer authenticates digest, sequence, geometry and samples; it never reads the editor-only revision counter.
+				await audio.write(block as MotionAudioMixBlock); } } } satisfies Pick<MotionDesktopDeliverySink, 'audio'> : {}),
 			async write(index, surface, signal) { signal?.throwIfAborted(); await writer.write(index, surface); },
 			async finish(signal) {
 				signal?.addEventListener('abort', onAbort, { once: true });

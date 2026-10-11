@@ -8,8 +8,6 @@ import type { MotionAudioMixBlock } from './motion-audio-contract.ts';
 import { readScapeArchiveByteRange, type ScapeArchiveByteSource } from './scape-archive-byte-source.ts';
 import type { Rational } from './timeline-time.ts';
 
-/** Carrier samples are identified by document digest and composition/sequence coordinate, independent of editor revision counters. */
-export type MotionNativePcmBlock = Omit<MotionAudioMixBlock, 'revision'>;
 const MAGIC = new TextEncoder().encode('motionscaper-interleaved-pcm-pack-v1\n');
 export const MOTION_NATIVE_PCM_PACKET_SAMPLES = 4096;
 export const MOTION_NATIVE_PCM_MAXIMUM_SAMPLES = 32768 * MOTION_NATIVE_PCM_PACKET_SAMPLES;
@@ -60,7 +58,7 @@ export async function createMotionNativePcmWriter(inputPlan: MotionNativePcmPlan
 	try { await writeBytes(prefix); } catch (error) { await abort(error); throw error; }
 	const start = multiplyRationals(divideRationals(plan.firstFrame, plan.frameRate), plan.sampleRate);
 	return { header: description, abort,
-		async write(block: MotionNativePcmBlock) {
+		async write(block: MotionAudioMixBlock) {
 			active(); if (busy) throw new Error('Native PCM writes must be sequential.');
 			if (block.projectId !== plan.identity.projectId || block.revisionDigest !== plan.identity.revisionDigest || block.compositionId !== plan.identity.compositionId
 				|| block.sampleRate !== plan.sampleRate || block.channels !== plan.channels) throw new Error('Native PCM block differs from its pinned plan.');
