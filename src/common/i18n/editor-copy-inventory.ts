@@ -45,6 +45,7 @@ import { ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE } from './editor-original-file-o
 import { BLENDER_COPY_BY_LOCALE } from './editor-blender-copy.ts';
 import { ID3_METADATA_COPY_BY_LOCALE } from './editor-id3-metadata-copy.ts';
 import { MOTIONSCAPER_COPY_BY_LOCALE } from './editor-motionscaper-copy.ts';
+import { MOTION_LINK_BRIDGE_COPY_BY_LOCALE } from './editor-motion-link-bridge-copy.ts';
 import { MOTIONSCAPER_SCENE_COPY_BY_LOCALE } from './editor-motionscaper-scene-copy.ts';
 import { MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE } from './editor-motionscaper-appearance-copy.ts';
 import { MOTIONSCAPER_AE_COPY_BY_LOCALE } from './editor-motionscaper-ae-copy.ts';
@@ -169,6 +170,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
 	{ owner: 'id3Metadata', ...ID3_METADATA_COPY_BY_LOCALE },
 	{ owner: 'motionscaper', ...MOTIONSCAPER_COPY_BY_LOCALE },
+	{ owner: 'motion-link-bridge', ...MOTION_LINK_BRIDGE_COPY_BY_LOCALE },
 	{ owner: 'motionscaper-scene', ...MOTIONSCAPER_SCENE_COPY_BY_LOCALE },
 	{ owner: 'motionscaper-appearance', ...MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE },
 	{ owner: 'motionscaper-ae', ...MOTIONSCAPER_AE_COPY_BY_LOCALE },

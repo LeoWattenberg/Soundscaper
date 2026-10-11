@@ -17,6 +17,7 @@ import {
 } from '../src/common/transfer/transfer-routes.js';
 
 import { assessTranslationCatalog, listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
+import { emitMotionLinkBridgeRoute } from './lib/motion-link-web-routing.mjs';
 import { productWebManifest } from './lib/product-web-manifest.mjs';
 import {
 	composeProductHeaders,
@@ -106,6 +107,8 @@ for (const route of transferRoutes) {
 		...transferAssets,
 	}), 'utf8');
 }
+
+await emitMotionLinkBridgeRoute(outputRoot, routing);
 
 console.log(
 	`Generated ${routeCount} localized ${routing.productId} routes canonical to ${site.origin}`

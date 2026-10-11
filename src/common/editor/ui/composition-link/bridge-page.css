@@ -1,0 +1,6 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0; }
+#composition-link-bridge { max-width: 38rem; margin: 3rem auto; padding: 1.5rem; line-height: 1.5; }
+#composition-link-bridge button { padding: .65rem 1rem; margin: .5rem .5rem .5rem 0; font: inherit; }
+#composition-link-bridge [role="status"] { min-height: 3em; }

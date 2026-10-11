@@ -65,7 +65,7 @@ export async function sendMotionCompositionPort(options: MotionLinkPortSenderOpt
 /** Receiver allocates bounded metadata, then pulls each next chunk only after the caller retained the previous one. */
 export async function receiveMotionCompositionPort(options: MotionLinkPortReceiverOptions): Promise<string> {
 	let metadata: Uint8Array | null = null; let offset = 0; let started = false; let publishing = false;
-	let complete!: (digest: string) => void; let failed!: (error: unknown) => void;
+	let published: string | null = null; let complete!: (digest: string) => void; let failed!: (error: unknown) => void;
 	const completion = new Promise<string>((resolve, reject) => { complete = resolve; failed = reject; });
 	const rpc = createMotionLinkRpc(options.port, options.session, async (request, signal) => {
 		signal.throwIfAborted();
@@ -106,7 +106,7 @@ export async function receiveMotionCompositionPort(options: MotionLinkPortReceiv
 		} });
 		signal.throwIfAborted(); if (finished.size !== assets.size || reading) throw new Error('Motion link receiver did not retain the complete asset closure.');
 		return { kind: 'published', digest: offer.revision.digest };
-	}, { ...options, onHandled(response) { if (response.kind === 'published') complete(response.digest); } });
+	}, { ...options, onHandled(response) { if (response.kind === 'published') published = response.digest; }, onPeerClose() { if (published) complete(published); } });
 	const cancelled = () => { failed(rpc.signal.reason as unknown); }; rpc.signal.addEventListener('abort', cancelled, { once: true }); if (rpc.signal.aborted) cancelled();
 	try { return await completion; } finally { metadata = null; rpc.signal.removeEventListener('abort', cancelled); await rpc.dispose(); }
 }

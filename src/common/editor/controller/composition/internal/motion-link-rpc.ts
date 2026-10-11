@@ -2,7 +2,7 @@
 import { motionLinkNonce, normalizeMotionLinkPacket, motionLinkPacketTransfers, type MotionLinkPacket, type MotionLinkRequest, type MotionLinkResponse } from '../../../motion-link-wire.ts';
 
 /** One request in each direction. A read request also acknowledges retention of the previous chunk. */
-export function createMotionLinkRpc(port: MessagePort, sessionValue: string, handle: (request: MotionLinkRequest, signal: AbortSignal) => Promise<MotionLinkResponse>, options: Readonly<{ signal?: AbortSignal; idleTimeoutMs?: number; onHandled?: (response: MotionLinkResponse) => void }> = {}) {
+export function createMotionLinkRpc(port: MessagePort, sessionValue: string, handle: (request: MotionLinkRequest, signal: AbortSignal) => Promise<MotionLinkResponse>, options: Readonly<{ signal?: AbortSignal; idleTimeoutMs?: number; onHandled?: (response: MotionLinkResponse) => void; onPeerClose?: () => void }> = {}) {
 	const session = motionLinkNonce(sessionValue); const idle = options.idleTimeoutMs ?? 30_000;
 	if (!Number.isSafeInteger(idle) || idle < 10 || idle > 120_000) throw new RangeError('Motion link idle timeout is outside its range.');
 	const lifetime = new AbortController(); let outgoing = 0; let incoming = 0; let busy = false; let disposed = false;
@@ -22,7 +22,7 @@ export function createMotionLinkRpc(port: MessagePort, sessionValue: string, han
 	function message(event: MessageEvent<unknown>) {
 		try {
 			const packet = normalizeMotionLinkPacket(event.data, session); touch();
-			if (packet.type === 'close') { fail(new Error('Motion link peer closed or refused the transfer.'), false); return; }
+			if (packet.type === 'close') { options.onPeerClose?.(); fail(new Error('Motion link peer closed or refused the transfer.'), false); return; }
 			if (packet.type === 'response') {
 				if (!pending || packet.id !== pending.id) throw new Error('Motion link response sequence changed.');
 				const waiting = pending; pending = null; waiting.resolve(packet.response); return;

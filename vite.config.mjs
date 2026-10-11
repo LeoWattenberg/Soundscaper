@@ -2,6 +2,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+import { MOTION_LINK_BRIDGE_ENTRY } from './scripts/lib/motion-link-web-routing.mjs';
 import { chunkGroups, workerChunkGroups } from './scripts/lib/build-chunk-groups.mjs';
 import {
 	buildSourceMapsRequested,
@@ -157,6 +158,8 @@ export default defineConfig({
 		assetsInlineLimit: 0,
 		sourcemap: buildSourceMaps ? 'hidden' : false,
 		rolldownOptions: {
+			...((!desktopCodecComposition && (productId === 'motionscaper' || framescaperLine === 'successor'))
+				? { input: { index: 'index.html', 'composition-link-bridge': MOTION_LINK_BRIDGE_ENTRY } } : {}),
 			output: {
 				codeSplitting: {
 					groups: chunkGroups,
