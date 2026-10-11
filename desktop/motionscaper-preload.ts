@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { contextBridge, ipcRenderer } from 'electron';
 import { MOTIONSCAPER_DESKTOP_CHANNELS as channels } from './motionscaper-desktop-contract.ts';
+import type { MotionDesktopDocumentation } from '../src/motionscaper/desktop-documentation-contract.ts';
 
 import type { MotionDesktopFiles, MotionDesktopFileMethod } from '../src/motionscaper/desktop-file-contract.ts';
 import { MOTIONSCAPER_FILE_CHUNK_BYTES } from '../src/motionscaper/desktop-file-contract.ts';
@@ -15,6 +16,7 @@ const motionDelivery: MotionDesktopDelivery = {
 	},
 };
 const invoke = <T>(method: MotionDesktopFileMethod, payload: unknown): Promise<T> => ipcRenderer.invoke(channels.projectFiles, method, payload) as Promise<T>;
+const documentation: MotionDesktopDocumentation = { open: (request) => ipcRenderer.invoke(channels.documentation, request) as Promise<void> };
 const motionFiles: MotionDesktopFiles = {
 	selectOpen: () => invoke('selectOpen', {}), read: (request) => invoke('read', request),
 	release: (request) => invoke('release', request), bindOpened: (request) => invoke('bindOpened', request),
@@ -25,5 +27,5 @@ const motionFiles: MotionDesktopFiles = {
 	},
 };
 contextBridge.exposeInMainWorld('scapeDesktop', Object.freeze({
-	v1: Object.freeze({ motionDelivery: Object.freeze(motionDelivery), motionFiles: Object.freeze(motionFiles), getEnvironment: (): Promise<unknown> => ipcRenderer.invoke(channels.environment) as Promise<unknown> }),
+	v1: Object.freeze({ documentation: Object.freeze(documentation), motionDelivery: Object.freeze(motionDelivery), motionFiles: Object.freeze(motionFiles), getEnvironment: (): Promise<unknown> => ipcRenderer.invoke(channels.environment) as Promise<unknown> }),
 }));

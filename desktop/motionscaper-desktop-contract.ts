@@ -11,6 +11,7 @@ export const MOTIONSCAPER_DESKTOP_CHANNELS = Object.freeze({
 	environment: 'motionscaper:v1:environment',
 	projectFiles: 'motionscaper:v1:project-files',
 	delivery: 'motionscaper:v1:delivery',
+	documentation: 'motionscaper:v1:documentation',
 	checkForUpdates: 'motionscaper:v1:updates:check',
 });
 

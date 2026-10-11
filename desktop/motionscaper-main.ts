@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import {
@@ -14,6 +14,7 @@ import { createMotionscaperNativeEncoder } from './motionscaper-native-executor.
 import { createMotionscaperDeliveryAuthority } from './motionscaper-delivery-authority.ts';
 import { dispatchMotionscaperDeliveryCall } from './motionscaper-delivery-ipc.ts';
 import { createMotionscaperProtocolHandler } from './motionscaper-protocol.ts';
+import { dispatchMotionscaperDocumentation } from './motionscaper-documentation.ts';
 
 interface ProductMetadata {
 	readonly schemaVersion: 1;
@@ -66,6 +67,11 @@ async function start(): Promise<void> {
 			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper caller.');
 		return motionscaperDesktopEnvironment(metadata.applicationVersion, process.platform, nativeEncoder !== null);
 	});
+	ipcMain.handle(channels.documentation, (event: Electron.IpcMainInvokeEvent, request: unknown) => dispatchMotionscaperDocumentation({
+		ownWindow: window !== null && event.sender === window.webContents,
+		mainFrame: window !== null && event.senderFrame === window.webContents.mainFrame,
+		url: event.senderFrame?.url ?? '',
+	}, request, url => shell.openExternal(url)));
 	const files = createMotionscaperFileAuthority({
 		chooseOpen: async () => {
 			if (!window) throw new Error('Motionscaper has no active document window.');
