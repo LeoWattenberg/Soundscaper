@@ -1,0 +1,109 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
+import { createMotionscaperRenderRequest } from '../src/motionscaper/editor-render-task.ts';
+import { createMotionRenderQueue, renderMotionFrameSequence, type MotionRenderFrame } from '../src/common/editor/controller/export/motion-render-pipeline.ts';
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((done) => { resolve = done; });
+	return { promise, resolve };
+}
+function fixture() {
+	const project = createMotionscaperProject({ id: 'motion-1', compositionId: 'comp-1', title: 'Render',
+		width: 2, height: 2, frameRate: { num: 30000, den: 1001 }, durationFrames: 3 });
+	const frames: MotionRenderFrame[] = [];
+	const events: string[] = [];
+	const request = createMotionscaperRenderRequest({ project, compositionId: 'comp-1',
+		acquire: async (revision) => {
+			events.push(`acquire:${revision.project.title}`);
+			return { rasterizer: { async rasterize() { throw new Error('Empty scenes have no source rasterization.'); } },
+				async release() { events.push('release'); } };
+		},
+		sink: { async write(frame) { frames.push(frame); events.push(`write:${frame.index}`); },
+			async finish() { events.push('finish'); return 'delivered'; }, async abort() { events.push('abort'); } },
+	});
+	return { project, request, frames, events };
+}
+
+test('M05 exports exact fractional-rate times and releases pinned resources before publication', async () => {
+	const { request, frames, events } = fixture();
+	const receipt = await renderMotionFrameSequence(request);
+	assert.equal(receipt.output, 'delivered');
+	assert.equal(receipt.renderedFrames, 3);
+	assert.deepEqual(frames.map((frame) => frame.time), [{ num: 0, den: 1 }, { num: 1001, den: 30000 }, { num: 1001, den: 15000 }]);
+	assert.deepEqual(frames.map((frame) => frame.duration), Array.from({ length: 3 }, () => ({ num: 1001, den: 30000 })));
+	assert.deepEqual(events, ['acquire:Render', 'write:0', 'write:1', 'write:2', 'release', 'finish']);
+	assert.equal(receipt.identity.revisionDigest, request.plan.identity.revisionDigest);
+});
+
+test('M05 a backpressured sink holds at most one frame and cancellation cannot publish output', async () => {
+	const { request, frames, events } = fixture();
+	const entered = deferred<void>(); const resume = deferred<void>();
+	const controller = new AbortController();
+	const running = renderMotionFrameSequence({ ...request, signal: controller.signal,
+		sink: { ...request.sink, async write(frame) { frames.push(frame); entered.resolve(); await resume.promise; } } });
+	await entered.promise;
+	assert.equal(frames.length, 1);
+	controller.abort(new DOMException('Cancelled render', 'AbortError'));
+	resume.resolve();
+	await assert.rejects(running, /Cancelled render/u);
+	assert.equal(frames.length, 1);
+	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
+});
+
+test('M05 starting revision stays immutable when authoring continues during queued rendering', async () => {
+	const { project } = fixture();
+	const draft = { ...project, title: 'Pinned' };
+	let acquiredTitle = '';
+	const request = createMotionscaperRenderRequest({ project: draft, compositionId: 'comp-1',
+		acquire: async (revision) => { acquiredTitle = revision.project.title; return {
+			rasterizer: { async rasterize() { throw new Error('Empty'); } }, async release() {} }; },
+		sink: { async write() {}, async finish() { return 'done'; }, async abort() {} } });
+	draft.title = 'Later edit';
+	await renderMotionFrameSequence(request);
+	assert.equal(acquiredTitle, 'Pinned');
+});
+
+test('M05 render failures preserve the primary error and report all cleanup failures', async () => {
+	const { request, events } = fixture();
+	await assert.rejects(renderMotionFrameSequence({ ...request,
+		acquire: async (signal) => ({ ...await request.acquire(signal), async release() { events.push('release'); throw new Error('release failed'); } }),
+		sink: { async write() { throw new Error('disk full'); }, async finish() { assert.fail('No publication'); }, async abort() { events.push('abort'); throw new Error('abort failed'); } },
+	}), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.message, /failed/u);
+		assert.match(String(error.errors), /disk full/u);
+		assert.match(String(error.errors), /release failed/u);
+		assert.match(String(error.errors), /abort failed/u);
+		return true;
+	});
+	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
+});
+
+test('M05 the queue caps pending jobs, cancels waiting jobs without acquiring assets, and closes idempotently', async () => {
+	const { request } = fixture();
+	const queue = createMotionRenderQueue({ maximumQueuedJobs: 1 });
+	const entered = deferred<void>(); const resume = deferred<void>();
+	const first = queue.enqueue({ ...request, sink: { ...request.sink, async write() { entered.resolve(); await resume.promise; } } });
+	await entered.promise;
+	const second = queue.enqueue(request);
+	const secondFailure = assert.rejects(second.completion, /Cancelled|closed/u);
+	assert.throws(() => queue.enqueue(request), /full/u);
+	second.cancel();
+	resume.resolve();
+	assert.equal((await first.completion).output, 'delivered');
+	await secondFailure;
+	await queue.close(); await queue.close();
+	assert.throws(() => queue.enqueue(request), /closed/u);
+});
+
+test('M05 invalid ranges and mismatched evaluator frames fail before output publication', async () => {
+	const { project, request, events } = fixture();
+	assert.throws(() => createMotionscaperRenderRequest({ project, compositionId: 'comp-1', firstFrame: 3,
+		acquire: async () => ({ rasterizer: { async rasterize() { throw new Error('Empty'); } }, async release() {} }), sink: request.sink }), /range/u);
+	await assert.rejects(renderMotionFrameSequence({ ...request, plan: { ...request.plan, width: 3 } }), /dimensions/u);
+	assert.deepEqual(events, ['acquire:Render', 'release', 'abort']);
+});
