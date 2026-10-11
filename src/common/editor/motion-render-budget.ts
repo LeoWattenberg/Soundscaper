@@ -9,26 +9,29 @@ export const MOTION_DEFAULT_WORKING_BYTES = 512 * 1024 * 1024;
 /** Conservative peak for retained ancestor targets, isolated children, raster scratch and readback. */
 export function estimateMotionFrameWorkingBytes(frame: MotionCompositionFrame, rasterizer: MotionRasterizer, compositor: MotionCompositor): number {
 	const pixels = motionSurfaceLength(frame.width, frame.height) * Float32Array.BYTES_PER_ELEMENT;
-	const retained = pixels * (compositor.retainedSurfaceCount ?? 3);
+	const layerIds = new Set(frame.layers.map((layer) => layer.state.id));
+	const matteIds = new Set(frame.layers.flatMap((layer) => layer.state.matte && layerIds.has(layer.state.matte.layerId) ? [layer.state.matte.layerId] : []));
+	const retained = pixels * ((compositor.retainedSurfaceCount ?? 3) + matteIds.size);
 	let peak = retained + pixels;
 	for (const layer of frame.layers) {
 		if (layer.state.kind === 'null') continue;
+		const matteCopy = layer.state.matte ? pixels : 0;
 		if (layer.precomposition !== null) {
 			const child = layer.precomposition;
 			const childPixels = motionSurfaceLength(child.width, child.height) * Float32Array.BYTES_PER_ELEMENT;
 			const processing = Math.max(childPixels, layer.state.masks.length ? rasterizer.estimateMaskWorkingBytes!(child.width, child.height, layer.state.masks) : 0,
 				layer.state.effects.some((effect) => effect.enabled) ? rasterizer.estimateEffectWorkingBytes!(child.width, child.height, layer.state.effects) : 0);
 			if (!Number.isSafeInteger(processing) || processing < childPixels) throw new RangeError('Motion mask rasterizer supplied an invalid working-memory estimate.');
-			const transform = processing + pixels;
+			const transform = processing + pixels + matteCopy;
 			peak = Math.max(peak, retained + Math.max(transform, estimateMotionFrameWorkingBytes(child, rasterizer, compositor)));
 		} else if (layer.sourceAvailable && (layer.state.masks.length || layer.state.effects.some((effect) => effect.enabled))) {
 			const processing = rasterizer.estimateSourceWorkingBytes!(layer, frame);
 			if (!Number.isSafeInteger(processing) || processing < 16) throw new RangeError('Motion local rasterizer supplied an invalid working-memory estimate.');
-			peak = Math.max(peak, retained + processing + pixels);
+			peak = Math.max(peak, retained + processing + pixels + matteCopy);
 		} else {
 			const sourceBytes = layer.sourceAvailable ? (rasterizer.estimateWorkingBytes?.(layer, frame) ?? pixels * 2) : pixels;
 			if (!Number.isSafeInteger(sourceBytes) || sourceBytes < pixels) throw new RangeError('Motion rasterizer supplied an invalid working-memory estimate.');
-			peak = Math.max(peak, retained + sourceBytes);
+			peak = Math.max(peak, retained + sourceBytes + matteCopy);
 		}
 	}
 	return peak;
