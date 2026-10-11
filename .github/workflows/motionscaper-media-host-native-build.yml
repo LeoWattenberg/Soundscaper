@@ -101,6 +101,12 @@ jobs:
             --external-source-root="$FRAMESCAPER_MEDIA_EXTERNAL_SOURCE_ROOT" \
             --work-root="$RUNNER_TEMP/motionscaper-media-work" \
             --output="$RUNNER_TEMP/motionscaper-media-build-result"
+      - name: Reverify committed source and exact artifact closure
+        shell: bash
+        run: >-
+          node scripts/verify-motionscaper-native-build-result.mjs
+          --target=${{ matrix.target }}
+          --result-root="$RUNNER_TEMP/motionscaper-media-build-result"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: motionscaper-media-host-build-result-${{ matrix.target }}
