@@ -37,6 +37,7 @@ protocol.registerSchemesAsPrivileged([{
 	privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, codeCache: true },
 }]);
 let window: BrowserWindow | null = null;
+let desktopReady = false;
 let nativeSmoke: unknown = null;
 let abortNativeDelivery: () => Promise<void> = () => Promise.resolve();
 let nativeFiles: MotionFileAuthority | null = null;
@@ -56,7 +57,7 @@ else {
 	app.on('open-file', (event, path) => { event.preventDefault(); queueLaunchArguments([path], process.cwd()); showLaunchWindow(); });
 	app.on('second-instance', (_event, argv, workingDirectory) => { queueLaunchArguments(argv.slice(1), workingDirectory); showLaunchWindow(); });
 	app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-	app.on('activate', () => { if (!window) void createWindow().catch(failStartup); });
+	app.on('activate', () => { if (!window && desktopReady) void createWindow().catch(failStartup); });
 	void start().catch(failStartup);
 }
 
@@ -142,7 +143,7 @@ async function start(): Promise<void> {
 		{ label: 'File', submenu: [{ role: 'close' }] },
 		{ role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },
 	]));
-	await createWindow();
+	desktopReady = true; await createWindow();
 }
 
 async function createWindow(): Promise<void> {
@@ -169,7 +170,7 @@ function queueLaunchArguments(argv: readonly string[], workingDirectory: string)
 }
 function showLaunchWindow(): void {
 	if (window) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
-	else if (app.isReady()) void createWindow().catch(failStartup);
+	else if (desktopReady) void createWindow().catch(failStartup);
 }
 function reportLaunchError(error: unknown): void {
 	dialog.showErrorBox('Motionscaper could not open the project', error instanceof Error ? error.message : 'The native file launch failed.');

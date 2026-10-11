@@ -22,7 +22,7 @@ async function fixture() {
 test('Motion native cold and warm launches retain paths in main and review one bounded file at a time', async () => {
 	const f = await fixture();
 	try {
-		assert.deepEqual(motionLaunchPaths(['motion', '--user-data-dir=private.mscape', 'first.mscape', f.second, 'other.fscape'], f.root), [f.first, f.second]);
+		assert.deepEqual(motionLaunchPaths(['motion', '--user-data-dir=private.mscape', 'first.mscape', f.second, 'compat.scape', 'other.fscape'], f.root), [f.first, f.second, join(f.root, 'compat.scape')]);
 		f.launch.enqueue(motionLaunchPaths(['first.mscape'], f.root)); f.launch.enqueue([f.first, f.second]);
 		const first = await f.launch.take(); assert.ok(first); assert.deepEqual(Object.keys(first).sort(), ['byteLength', 'name', 'token']);
 		assert.equal(first.name, 'first.mscape'); assert.equal(await f.launch.take(), null);
