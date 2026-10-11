@@ -60,7 +60,8 @@ export function createMotionscaperShellMenus(
 			items: Object.freeze([Object.freeze({
 				id: 'motion-workspace', label: copy.workspaceMotion,
 				checked: workspaceOpen, onClick: onToggleWorkspace,
-			}), item('motion-settings', copy.motionscaperSettings, 'settings', options.hasProject)]),
+			}), item('motion-settings', copy.motionscaperSettings, 'settings', options.hasProject),
+			item('motion-preview', copy.motionscaperPreview, 'preview', options.hasProject)]),
 		}),
 		Object.freeze({
 			id: 'tracks' as const, label: copy.motionscaperLayerMenu,

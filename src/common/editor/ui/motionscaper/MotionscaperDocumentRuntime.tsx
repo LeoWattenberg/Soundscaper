@@ -11,6 +11,7 @@ import MotionProjectLibraryDialog from './MotionProjectLibraryDialog.tsx';
 import type { MotionAuthoredLayerKind } from '../../../../motionscaper/editor-layer-authoring.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
+const MotionPreviewDialog = lazy(() => import('./MotionPreviewDialog.tsx'));
 const MotionLayerDialog = lazy(() => import('./MotionLayerDialog.tsx'));
 const layerKinds: readonly MotionAuthoredLayerKind[] = ['solid', 'text', 'rectangle', 'ellipse', 'star'];
 
@@ -24,7 +25,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | MotionAuthoredLayerKind | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
@@ -47,7 +48,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		const command = request.command;
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings') { setDialog(command); return; }
+		if (command === 'new' || command === 'settings' || command === 'preview') { setDialog(command); return; }
 		if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
@@ -88,6 +89,9 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			opened();
 		});
 	};
+	if (dialog === 'preview' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionPreviewDialog copy={copy} project={snapshot.project} store={store} onClose={close} />
+	</Suspense>;
 	const layerKind = layerKinds.find((entry) => entry === dialog);
 	const primary = snapshot.project?.compositions.find((entry) => entry.id === snapshot.project?.primaryCompositionId);
 	if (layerKind && primary) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>

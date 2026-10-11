@@ -32,3 +32,11 @@
 	display: grid;
 	gap: 1rem;
 }
+
+.motionscaper-preview-canvas {
+	display: block; width: 100%; max-height: 60vh; object-fit: contain;
+	background: repeating-conic-gradient(#d3d3d3 0% 25%, #f2f2f2 0% 50%) 50% / 20px 20px;
+}
+.motionscaper-preview-controls { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+.motionscaper-preview-controls label { display: flex; align-items: center; gap: .5rem; }
+.motionscaper-preview-controls input { width: 7rem; }
