@@ -25,6 +25,7 @@ import type { FramescaperOpenFxFrameDispositionNativeMedia } from './editor-open
 import { createSelectedFinishingPreviewSamplePresentation } from './selected-finishing-preview-sample-authority.ts';
 import type { FramescaperCompositionFrameSource } from './editor-composition-link-frame-source.ts';
 import { framescaperCompositionCapture, framescaperCompositionFrameAddress } from './editor-composition-link-finishing-port.ts';
+import { videoPreviewSrgbBytes } from '../common/editor/video-preview-output-encoding.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -41,6 +42,7 @@ export interface FramescaperSelectedExactPreviewFinishing {
 		readonly frame: ProductVideoVisualPreviewFrame;
 	}>): Promise<Readonly<{
 		readonly frame: ProductVideoVisualPreviewFrame;
+		readonly cpuFrame: Readonly<{ width: number; height: number; pixels: Uint8Array<ArrayBuffer>; encoding: 'srgb'; alphaMode: 'straight' }>;
 		readonly layers: readonly Data[];
 		readonly renderedEffectIds: readonly string[];
 		readonly openFxDispositions: readonly FramescaperOpenFxFrameDispositionNativeMedia[];
@@ -123,9 +125,13 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 					height: options.plan.output.canvas.height,
 					target, signal: options.signal,
 				});
-				output.write(target);
+				const finishing = options.plan.nodes.find(node => node.kind === 'finishing');
+				if (!finishing) throw new Error('Preview finishing output encoding is unavailable.');
+				const display = videoPreviewSrgbBytes(target, finishing.colorContext.outputSpace);
+				output.write(display);
 				return Object.freeze({
 					frame: exactFrameLedger(request.frame, result.consumedNodeIds),
+					cpuFrame: Object.freeze({ width: options.plan.output.canvas.width, height: options.plan.output.canvas.height, pixels: display, encoding: 'srgb' as const, alphaMode: 'straight' as const }),
 					layers: publishedLayers,
 					renderedEffectIds: collectProductVideoVisualPreviewEffectIds(layers, request.frame),
 					openFxDispositions: result.openFxDispositions,

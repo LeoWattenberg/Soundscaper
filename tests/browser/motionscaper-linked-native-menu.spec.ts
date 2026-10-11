@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { createMotionscaperProject } from '../../src/motionscaper/editor-project.ts';
 import { exportMotionscaperArchive } from '../../src/motionscaper/editor-scape.ts';
-async function menu(page: Page, top: string, item: string): Promise<void> { await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: item, exact: true }).click(); }
+async function menu(page: Page, top: string, item: string | RegExp): Promise<void> { await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: item, exact: typeof item === 'string' }).click(); }
 async function close(page: Page): Promise<void> { await page.getByRole('button', { name: 'Close', exact: true }).last().click(); await expect(page.getByRole('dialog')).toHaveCount(0); }
 test('native selected-file controls keep the controller connection after dialog close and disconnect explicitly', async ({ page }) => {
 	const project = createMotionscaperProject({ id: 'native-selected', title: 'Native first', compositionId: 'main', width: 2, height: 2, durationFrames: 2 });
@@ -57,7 +57,23 @@ for (const unavailablePreview of [false, true]) test(`native successor File expo
 	await expect(page.locator('[data-frame-native-delivery]')).toHaveCount(0); await menu(page, 'File', 'Linked compositions…');
 	await page.getByRole('button', { name: 'Choose saved .mscape file', exact: true }).click(); await expect(page.getByText('Native revision 0', { exact: true }).first()).toBeVisible();
 	await page.getByRole('button', { name: 'Disconnect', exact: true }).click(); await close(page);
-	if (unavailablePreview) { await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'fallback'); await expect(page.locator('[data-video-preview-renderer-warning]')).toContainText('Affected clips are hidden in the preview'); await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-omitted-composition-clip-ids', /clip-/u); }
+	if (unavailablePreview) {
+		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'cpu');
+		await expect(page.locator('[data-video-preview-renderer-warning]')).toHaveCount(0);
+		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-omitted-composition-clip-ids', '');
+		const color = await page.locator('[data-video-preview-cpu-canvas]').evaluate((canvas: HTMLCanvasElement) => [...canvas.getContext('2d')!.getImageData(16, 16, 1, 1).data]);
+		expect(color).toEqual([89, 45, 149, 255]);
+	} else {
+		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'ready');
+		await page.locator('[data-video-preview-gpu-canvas]').evaluate((canvas: HTMLCanvasElement) => {
+			const extension = canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context'); if (!extension) throw new Error('The actual context-loss capability is unavailable'); Object.defineProperty(globalThis, 'motionPreviewContextLossFixture', { value: extension }); extension.loseContext();
+		});
+		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'cpu');
+		await expect(page.locator('[data-video-preview-renderer-warning]')).toHaveCount(0);
+		const color = await page.locator('[data-video-preview-cpu-canvas]').evaluate((canvas: HTMLCanvasElement) => [...canvas.getContext('2d')!.getImageData(16, 16, 1, 1).data]); expect(color).toEqual([89, 45, 149, 255]);
+		await page.evaluate(() => (globalThis as unknown as { motionPreviewContextLossFixture: WEBGL_lose_context }).motionPreviewContextLossFixture.restoreContext());
+		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'ready');
+	}
 	await menu(page, 'File', 'Export sequence as ProRes 4444…'); const dialog = page.locator('[data-frame-native-delivery]');
 	await dialog.getByRole('button', { name: 'Choose destination and export', exact: true }).click();
 	await expect(dialog.getByRole('status')).toContainText('Saved Native.mov', { timeout: 30000 }); await expect(dialog.getByRole('alert')).toHaveCount(0);
@@ -68,4 +84,11 @@ for (const unavailablePreview of [false, true]) test(`native successor File expo
 	for (let index = 0; index < 3; index++) { const surface = await frames.read(index), pixel = (16 * 64 + 16) * 4; expect(surface.pixels[pixel + 3]).toBeCloseTo(128 / 255, 6); expect(surface.pixels[pixel]).toBeGreaterThan(0.09); expect(surface.pixels[3]).toBe(0); }
 	const audio = await openMotionNativePcmReader(createBlobScapeArchiveByteSource(new Blob([new Uint8Array(captured.audio)])), motionNativePcmPlan({ ...captured.plan, identity }, { sampleRate: 48000, channels: 2 }));
 	for (const offset of [0, 4096]) { const block = await audio.read(offset); for (let index = 0; index < block.length / 2; index++) for (let channel = 0; channel < 2; channel++) expect(block[index * 2 + channel]).toBeCloseTo(motionscaperSuccessorNativeExpectedSample(offset + index, channel), 6); }
+	if (unavailablePreview) {
+		await close(page); await page.reload(); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'cpu');
+		const color = await page.locator('[data-video-preview-cpu-canvas]').evaluate((canvas: HTMLCanvasElement) => [...canvas.getContext('2d')!.getImageData(16, 16, 1, 1).data]); expect(color).toEqual([89, 45, 149, 255]);
+		await menu(page, 'File', /^New\s+Ctrl\+N$/u); await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'fallback');
+		await expect(page.locator('[data-video-preview-cpu-canvas]')).toHaveJSProperty('width', 0);
+	}
 });

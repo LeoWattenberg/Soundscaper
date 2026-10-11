@@ -40,6 +40,10 @@ test('successor preview renders the actual Frame exact composition graph at save
 		const fallback = resolveVideoPreviewRenderIssue(createVideoPreviewCompositorFallbackReport(session.resolve(0).layers));
 		assert.equal(fallback.requestedCompositionCount, 1); assert.deepEqual(fallback.omittedCompositionClipIds, ['clip']);
 		const first = await session.renderExact({ timelineSample: 0, mediaLayers: [] }); const firstPixels = written.slice();
+		const cpuFrame = Reflect.get(first, 'cpuFrame') as { width: number; height: number; pixels: Uint8Array } | undefined;
+		assert.ok(cpuFrame, 'The exact finishing output must also be presentable without WebGL');
+		assert.equal(Reflect.get(cpuFrame, 'encoding'), 'srgb');
+		assert.equal(cpuFrame.width, 4); assert.equal(cpuFrame.height, 2); assert.deepEqual(cpuFrame.pixels, firstPixels);
 		assert.equal(first.frame.layers.flatMap(layer => layer.entries).some(entry => entry.sourceId === 'linked'), true);
 		assert.ok(firstPixels[0]! > 100); assert.equal(firstPixels[3], 255);
 		await session.renderExact({ timelineSample: 4000, mediaLayers: [] }); assert.notDeepEqual(written, firstPixels); assert.equal(written[0], 0);

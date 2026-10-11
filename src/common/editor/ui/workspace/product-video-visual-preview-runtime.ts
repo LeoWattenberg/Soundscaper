@@ -38,6 +38,8 @@ export interface ProductVideoVisualPreviewSession {
 		readonly mediaLayers: readonly unknown[];
 	}>): Promise<Readonly<{
 		readonly frame: ProductVideoVisualPreviewFrame;
+		/** A complete, already composited picture from the owned finishing executor. */
+		readonly cpuFrame?: Readonly<{ width: number; height: number; pixels: Uint8Array<ArrayBuffer>; encoding: 'srgb'; alphaMode: 'straight' }>;
 		readonly layers: readonly Readonly<Record<string, unknown>>[];
 		readonly renderedEffectIds: readonly string[];
 		readonly openFxDispositions?: readonly Readonly<{

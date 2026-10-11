@@ -175,8 +175,13 @@ closed-dialog update, corruption refusal and Disconnect custody checks. Native
 generated-source delivery now has a real [Linux package qualification](motionscaper-successor-native-delivery.md):
 offline owner reopen after removing the original source, actual GTK Save,
 authenticated ProRes pictures and mixed PCM, exact timing and decoded pixels
-matching the software WebGL preview within one display code. GPU-disabled preview
-reports omitted compositions explicitly; it does not qualify CPU-only preview.
+matching the software WebGL preview within one display code. A subsequent actual
+Chromium workflow verifies complete CPU finishing preview for retained linked
+compositions when WebGL is unavailable or loses its context, context restoration,
+offline receiver reload, and clearing the picture for a new document. Preview
+converts declared Rec.709 finishing bytes to sRGB without changing delivery bytes.
+This CPU qualification currently covers linked scenes with ordinary decoded
+media; mixed timeline-image layers still require complete finishing admission.
 The remaining native platform matrix remains unfinished.
 M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
