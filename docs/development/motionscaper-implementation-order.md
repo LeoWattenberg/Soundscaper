@@ -73,13 +73,17 @@ package complete.
 
 ### Implementation status
 
-M01–M04 are **In progress**; M05–M12 remain **Planned**. The isolated browser
+M01–M05 are **In progress**; M06–M12 remain **Planned**. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
-origin with no native capabilities admitted. Typed project contracts, atomic
-history, deterministic evaluation, streamed `.mscape` archives, and durable
-saved/recovery storage have focused Motionscaper test coverage. Menu workflows,
-successor migration, typography/rasterization, and platform qualification are
-still being completed. These results do not close a package's completion gate.
+origin with bounded project-file capabilities. Typed project contracts, atomic
+history, deterministic evaluation, streamed `.mscape` archives, durable
+saved/recovery storage, paragraph/vector rasterization, and linear-light CPU
+and WebGL2 compositing have focused Motionscaper coverage. Menu-driven document
+workflows, offline reopen, successor archive custody, and GPU context loss pass
+in Chromium. M05 now has a revision-pinned, cancellable render queue and
+streamed transparent PNG-sequence delivery. Preview/playback, remaining delivery
+formats, complete authoring, and platform qualification are still being
+completed. These results do not close a package's completion gate.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
