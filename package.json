@@ -54,7 +54,7 @@
 		"typecheck:sources": "npm run typecheck:workers-config && tsc -p tsconfig.json && tsc -p tsconfig.desktop-runtime.json --noEmit && npm run typecheck:javascript && npm run typecheck:products",
 		"typecheck:workers-config": "wrangler types functions/worker-configuration.d.ts --include-runtime false --check",
 		"typecheck:products": "node scripts/check-product-compositions.mjs",
-		"typecheck:tests": "tsc -p tsconfig.tests.json && tsc -p tsconfig.tooling.json",
+		"typecheck:tests": "tsc -p tsconfig.tests.json && tsc -p tsconfig.browser-tests.json && tsc -p tsconfig.tooling.json",
 		"typecheck:javascript": "node scripts/check-checked-javascript.mjs && tsc -p tsconfig.javascript.json",
 		"check:architecture": "dependency-cruiser src desktop native && node scripts/check-controller-domains.mjs && node scripts/check-file-size.mjs",
 		"check:controller-domains:tighten": "node scripts/check-controller-domains.mjs --tighten",
