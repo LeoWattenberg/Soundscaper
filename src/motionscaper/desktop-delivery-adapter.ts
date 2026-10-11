@@ -40,7 +40,9 @@ export async function createMotionscaperDesktopProresSink(delivery: MotionDeskto
 		}, abort: cancel,
 	});
 	try {
-		const writer = await createMotionNativeFrameWriter(options.plan, stream, options.signal);
+		// Shutter/lens intent is evaluated before delivery; the v1 wire only carries final float pictures.
+		const { identity, width, height, frameRate, firstFrame, frameCount } = options.plan;
+		const writer = await createMotionNativeFrameWriter({ identity, width, height, frameRate, firstFrame, frameCount }, stream, options.signal);
 		let audioOffset = 0;
 		const audio = pcmPlan ? await createMotionNativePcmWriter(pcmPlan, new WritableStream<Uint8Array>({
 			async write(bytes) { if (terminal) throw new Error('Motionscaper native export is closed.'); options.signal?.throwIfAborted(); await delivery.write({ token: selected.token, offset: audioOffset, bytes, stream: 'audio' }); audioOffset += bytes.length; }, abort: cancel,

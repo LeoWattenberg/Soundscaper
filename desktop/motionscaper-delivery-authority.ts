@@ -103,7 +103,8 @@ export function createMotionscaperDeliveryAuthority(options: {
 				const source = byteSource(job);
 				const reader = await openMotionNativeFrameReader(source, job.plan.identity, job.signal.signal);
 				const { identity, width, height, frameRate, firstFrame, frameCount } = reader.header;
-				if (JSON.stringify({ identity, width, height, frameRate, firstFrame, frameCount }) !== JSON.stringify(job.plan)) throw new Error('Motionscaper native carrier changed its pinned render plan.');
+				const pinned = job.plan;
+				if (JSON.stringify({ identity, width, height, frameRate, firstFrame, frameCount }) !== JSON.stringify({ identity: pinned.identity, width: pinned.width, height: pinned.height, frameRate: pinned.frameRate, firstFrame: pinned.firstFrame, frameCount: pinned.frameCount })) throw new Error('Motionscaper native carrier changed its pinned render plan.');
 				if (Boolean(audio) !== Boolean(job.audio)) throw new Error('Motionscaper PCM sidecar is missing or unadmitted.');
 				if (job.audio && audio) {
 					if (audio.byteLength !== job.audio.bytes || audio.sha256 !== job.audio.digest.copy().digest('hex') || audio.sampleCount !== job.audio.plan.sampleCount) throw new Error('Motionscaper PCM sidecar digest, length or sample count differs from its grant.');
