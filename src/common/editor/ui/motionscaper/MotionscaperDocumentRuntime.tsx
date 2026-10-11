@@ -34,8 +34,11 @@ const MotionTimelineDialog = lazy(() => import('./MotionTimelineDialog.tsx'));
 const MotionRenderQueueDialog = lazy(() => import('./MotionRenderQueueDialog.tsx'));
 const MotionRenderDialog = lazy(() => import('./MotionRenderDialog.tsx'));
 const MotionPreviewDialog = lazy(() => import('./MotionPreviewDialog.tsx'));
+const MotionArchiveReviewDialog = lazy(() => import('./MotionArchiveReviewDialog.tsx'));
 const MotionLayerDialog = lazy(() => import('./MotionLayerDialog.tsx'));
 const layerKinds: readonly MotionAuthoredLayerKind[] = ['solid', 'text', 'rectangle', 'ellipse', 'star'];
+
+import type { MotionscaperDocumentOpen } from '../../../../motionscaper/editor-document-open.ts';
 
 export interface MotionscaperDocumentRuntimeProps {
 	readonly copy: Readonly<Record<string, string>>; readonly request: MotionDocumentRequest;
@@ -56,17 +59,19 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
 	const [opaqueArchive, setOpaqueArchive] = useState<MotionscaperOpaqueArchive | null>(null);
+	const [archiveReview, setArchiveReview] = useState<MotionscaperDocumentOpen | null>(null);
+	const retainedOpen = useRef<MotionscaperDocumentOpen | null>(null);
 	const retainedArchive = useRef<MotionscaperOpaqueArchive | null>(null);
 	const lastRequest = useRef(0);
 	const linkSender = useRef<MotionscaperLinkSender | null>(null);
 	const renderQueue = useRef<MotionscaperDeliveryQueue | null>(null);
 	const runtimeMounted = useRef(true);
 	const busy = pending || snapshot.busy;
-	useEffect(() => { onChange({ ...snapshot, busy: busy || opaqueArchive !== null }); }, [snapshot, busy, opaqueArchive, onChange]);
+	useEffect(() => { onChange({ ...snapshot, busy: busy || opaqueArchive !== null || archiveReview !== null }); }, [snapshot, busy, opaqueArchive, archiveReview, onChange]);
 	useEffect(() => { runtimeMounted.current = true; return () => { runtimeMounted.current = false; void (async () => {
 		try { await renderQueue.current?.dispose(); } finally {
 			try { await linkSender.current?.dispose(); } finally {
-				try { await retainedArchive.current?.close(); } finally { try { await session.dispose(); } finally { await store.close(); } }
+				try { await retainedOpen.current?.close(); } finally { try { await retainedArchive.current?.close(); } finally { try { await session.dispose(); } finally { await store.close(); } } }
 			}
 		}
 	})().catch(() => undefined); }; }, [session, store]);
@@ -81,12 +86,21 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 				: failure instanceof UnsupportedMotionArchiveError ? copy.motionscaperUnsupported : failureCopy ?? copy.motionscaperFailed);
 		} finally { setPending(false); }
 	}, [copy]);
+	const reviewOpen = useCallback(async (pending: MotionscaperDocumentOpen) => {
+		retainedOpen.current = pending;
+		if (pending.review.existing) { setArchiveReview(pending); setDialog(null); return; }
+		try { await pending.open('import'); retainedOpen.current = null; setDialog(null); onProjectOpened(); }
+		catch (failure) { setArchiveReview(pending); setDialog(null); throw failure; }
+	}, [onProjectOpened]);
 	const openBrowserFile = useCallback(async (file: File) => {
 		if (/\.aepx?$/iu.test(file.name)) { setBridgeFile(file); setDialog('after-effects'); return; }
 		const { inspectMotionscaperOpaqueArchive } = await import('../../../../motionscaper/editor-opaque-archive.ts');
 		const opaque = await inspectMotionscaperOpaqueArchive(file, file.name);
-		if (opaque) await retainOpaque(opaque); else { await session.importArchive(file); setDialog(null); onProjectOpened(); }
-	}, [onProjectOpened, retainOpaque, session]);
+		if (opaque) await retainOpaque(opaque); else {
+			const { prepareMotionscaperDocumentOpen } = await import('../../../../motionscaper/editor-document-open.ts');
+			await reviewOpen(await prepareMotionscaperDocumentOpen(session, file, file.name));
+		}
+	}, [retainOpaque, session, reviewOpen]);
 	useEffect(() => {
 		if (request.id === lastRequest.current) return;
 		lastRequest.current = request.id;
@@ -115,11 +129,11 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		} else if (command === 'open') {
 			const file = request.file;
 			if (file) {
-				void run(() => openBrowserFile(file)).finally(() => request.onComplete?.(Boolean(retainedArchive.current))); return;
+				void run(() => openBrowserFile(file)).finally(() => request.onComplete?.(Boolean(retainedArchive.current || retainedOpen.current))); return;
 			}
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
-				const result = await openMotionscaperDesktopProject(session, undefined, retainOpaque);
+				const result = await openMotionscaperDesktopProject(session, undefined, retainOpaque, reviewOpen);
 				if (result === 'browser') setDialog('open');
 				else if (result === 'opened') { setDialog(null); onProjectOpened(); }
 			});
@@ -146,7 +160,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			document.body.append(link); link.click(); link.remove();
 			globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000);
 		});
-	}, [request, run, session, store, onProjectOpened, retainOpaque, openBrowserFile]);
+	}, [request, run, session, store, onProjectOpened, retainOpaque, openBrowserFile, reviewOpen]);
 	const close = () => { if (!busy) { setDialog(null); setError(null); } };
 	const opened = () => { setDialog(null); onProjectOpened(); };
 	const submit = (settings: MotionProjectSettings) => {
@@ -156,6 +170,11 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			opened();
 		});
 	};
+	if (archiveReview) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionArchiveReviewDialog pending={archiveReview} copy={copy} initialError={error} onOpened={() => {
+			retainedOpen.current = null; setArchiveReview(null); setError(null); opened();
+		}} onClose={async () => { await archiveReview.close(); retainedOpen.current = null; setArchiveReview(null); setError(null); setDialog(null); }} />
+	</Suspense>;
 	if (opaqueArchive) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionOpaqueArchiveDialog archive={opaqueArchive} copy={copy} onClose={async () => {
 			await opaqueArchive.close(); retainedArchive.current = null; setOpaqueArchive(null); setError(null);

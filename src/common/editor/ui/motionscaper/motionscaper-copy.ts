@@ -9,6 +9,7 @@ import { resolveMotionscaperSceneCopy } from '../../../i18n/editor-motionscaper-
 import { resolveMotionscaperAppearanceCopy } from '../../../i18n/editor-motionscaper-appearance-copy.ts';
 import { resolveMotionscaperCanvasCopy } from '../../../i18n/editor-motionscaper-canvas-copy.ts';
 import { resolveMotionscaperUpdatesCopy } from '../../../i18n/editor-motionscaper-updates-copy.ts';
+import { resolveMotionscaperImportCopy } from '../../../i18n/editor-motionscaper-import-copy.ts';
 import { resolveMotionscaperQueueCopy } from '../../../i18n/editor-motionscaper-queue-copy.ts';
 import { resolveMotionscaperLinkCopy } from '../../../i18n/editor-motionscaper-link-copy.ts';
 import { resolveMotionscaperAeCopy } from '../../../i18n/editor-motionscaper-ae-copy.ts';
@@ -16,5 +17,5 @@ import { resolveMotionscaperTrackingCopy } from '../../../i18n/editor-motionscap
 
 /** Product command copy loads with its editor, outside every initial site graph. */
 export function motionscaperCopy(locale: string, overrides: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, string>> {
-	return Object.freeze({ ...bundledSiteCopyForLocale(locale), ...resolveEditorCopyScope('editor', localeLanguage(locale) === 'de' ? VIDEO_EFFECT_COPY_BY_LOCALE.de : VIDEO_EFFECT_COPY_BY_LOCALE.en, overrides), ...resolveMotionscaperCopy(locale, overrides), ...resolveMotionscaperTrackingCopy(locale, overrides), ...resolveMotionscaperAppearanceCopy(locale, overrides), ...resolveMotionscaperSceneCopy(locale, overrides), ...resolveMotionscaperAeCopy(locale, overrides), ...resolveMotionscaperLinkCopy(locale, overrides), ...resolveMotionscaperQueueCopy(locale, overrides), ...resolveMotionscaperCanvasCopy(locale, overrides), ...resolveMotionscaperUpdatesCopy(locale, overrides) });
+	return Object.freeze({ ...bundledSiteCopyForLocale(locale), ...resolveEditorCopyScope('editor', localeLanguage(locale) === 'de' ? VIDEO_EFFECT_COPY_BY_LOCALE.de : VIDEO_EFFECT_COPY_BY_LOCALE.en, overrides), ...resolveMotionscaperCopy(locale, overrides), ...resolveMotionscaperTrackingCopy(locale, overrides), ...resolveMotionscaperAppearanceCopy(locale, overrides), ...resolveMotionscaperSceneCopy(locale, overrides), ...resolveMotionscaperAeCopy(locale, overrides), ...resolveMotionscaperLinkCopy(locale, overrides), ...resolveMotionscaperQueueCopy(locale, overrides), ...resolveMotionscaperImportCopy(locale, overrides), ...resolveMotionscaperCanvasCopy(locale, overrides), ...resolveMotionscaperUpdatesCopy(locale, overrides) });
 }

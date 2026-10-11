@@ -77,7 +77,8 @@ test('Motionscaper imports and saves a portable .mscape copy without changing it
 	await page.getByLabel('Scape project (.mscape, .fscape, .sscape)', { exact: true }).setInputFiles({
 		name: 'again.mscape', mimeType: 'application/octet-stream', buffer: bytes,
 	});
-	await expect(page.getByRole('alert')).toContainText('already exists');
+	await expect(page.getByRole('dialog', { name: 'Open Project Conflict', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Keep Current Document', exact: true }).click();
 	await expect(page.locator('[data-motion-project-title]')).toHaveText('Portable animation');
 });
 

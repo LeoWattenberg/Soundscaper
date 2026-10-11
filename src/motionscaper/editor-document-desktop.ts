@@ -6,6 +6,9 @@ import type { MotionscaperDocumentSession } from './editor-document-session.ts';
 import type { MotionscaperProjectStore } from './editor-project-store.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import { motionDocumentFileName } from './editor-document-file-name.ts';
+import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
+import { MotionProjectConflictError } from './editor-project-store.ts';
+import { prepareMotionscaperDocumentOpen, type MotionscaperDocumentOpen } from './editor-document-open.ts';
 import { exportMotionscaperArchive } from './editor-scape.ts';
 import { inspectMotionscaperOpaqueArchive, type MotionscaperOpaqueArchive } from './editor-opaque-archive.ts';
 
@@ -21,13 +24,17 @@ export async function writeMotionscaperDesktopProject(project: MotionscaperProje
 		await exportMotionscaperArchive(project, (asset) => store.readAsset(asset), { writable: output.writable });
 		await assertCurrent?.();
 		await output.commit(); return true;
-	} catch (error) { await output.abort(); throw error; }
+	} catch (error) {
+		try { await output.abort(); } catch (cleanup) { throw aggregateScapeErrors(error, [cleanup], 'Motion archive save and cleanup failed.'); }
+		throw error;
+	}
 }
 
 /** The open capability remains private and is bound only after a complete verified archive import. */
 export async function openMotionscaperDesktopProject(session: MotionscaperDocumentSession,
 	files: MotionDesktopFiles | null = motionscaperDesktopFiles(),
-	onOpaque?: (archive: MotionscaperOpaqueArchive) => void | Promise<void>): Promise<'browser' | 'cancelled' | 'opened' | 'opaque'> {
+	onOpaque?: (archive: MotionscaperOpaqueArchive) => void | Promise<void>,
+	onReview?: (pending: MotionscaperDocumentOpen) => void | Promise<void>): Promise<'browser' | 'cancelled' | 'opened' | 'opaque' | 'review'> {
 	if (!files) return 'browser';
 	const selected = await selectMotionscaperDesktopArchive(files);
 	if (!selected) return 'cancelled';
@@ -37,9 +44,9 @@ export async function openMotionscaperDesktopProject(session: MotionscaperDocume
 			const archive = await inspectMotionscaperOpaqueArchive(selected.input, selected.name, { release: selected.release });
 			if (archive) { await onOpaque(archive); retained = true; return 'opaque'; }
 		}
-		await session.importArchive(selected.input);
-		const project = session.getSnapshot().project;
-		if (!project) throw new Error('The imported motion document is unavailable.');
-		await selected.bind(project.id); return 'opened';
+		const pending = await prepareMotionscaperDocumentOpen(session, selected.input, selected.name, { bindOriginal: selected.bind, release: selected.release });
+		if (onReview) { retained = true; await onReview(pending); return 'review'; }
+		if (pending.review.existing) { await pending.close(); throw new MotionProjectConflictError(); }
+		await pending.open('import'); return 'opened';
 	} finally { if (!retained) await selected.release(); }
 }
