@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import { expect, type Page } from '@playwright/test';
 import { encodeMotionChannel, decodeMotionChannel } from '../src/common/editor/motion-surface.ts';
 import { motionscaperSuccessorNativeExpectedSample } from '../tests/helpers/motionscaper-successor-native-fixture.ts';
-import { buildMotionNativeReferenceDecoder, decodeMotionNativeReference } from './motionscaper-native-reference.ts';
+import { prepareMotionNativeReferenceDecoder, decodeMotionNativeReference } from './motionscaper-native-reference.ts';
 export async function qualifyFramescaperSuccessorNativeDelivery(page: Page, options: { root: string; temporary: string; sourceRevision: string; acceptedDigest: string; previewBackend: 'software-webgl2' | 'unavailable' }): Promise<void> {
 	const menu = async (item: string) => { await page.getByRole('menuitem', { name: 'File', exact: true }).click(); await page.getByRole('menuitem', { name: item, exact: true }).click(); };
 	const preview = async () => {
@@ -43,7 +43,7 @@ export async function qualifyFramescaperSuccessorNativeDelivery(page: Page, opti
 	assert.match(selected.stdout, /MOTIONSCAPER_NATIVE_FILE_CHOOSER_SELECTED/u);
 	await expect(dialog.getByRole('status')).toHaveText('Saved output.mov', { timeout: 30000 }); await expect(dialog.getByRole('alert')).toHaveCount(0);
 	const frameDigest = await dialog.locator('[data-frame-native-digest]').textContent(); assert.match(frameDigest ?? '', /^[a-f0-9]{64}$/u);
-	const decoder = await buildMotionNativeReferenceDecoder(options.temporary); const decoded = await decodeMotionNativeReference(decoder, movie, options.temporary);
+	const decoder = await prepareMotionNativeReferenceDecoder(options.temporary); const decoded = await decodeMotionNativeReference(decoder, movie, options.temporary);
 	assert.equal(decoded.metadata.width, 64); assert.equal(decoded.metadata.height, 32);
 	assert.equal(decoded.metadata.frames.length, 3); for (const [index, time] of decoded.metadata.frames.entries()) assert.equal(time.num * 30, index * time.den);
 	assert.deepEqual(decoded.metadata.audio, { sampleRate: 48000, channels: 2, sampleCount: 4800 });

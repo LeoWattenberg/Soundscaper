@@ -12,12 +12,13 @@ import { qualifyFramescaperSuccessorNativeDelivery } from './motionscaper-succes
 import { createMotionscaperRevision } from '../src/motionscaper/editor-project-revision.ts';
 import { exportMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
 import { verifyFramescaperSuccessorDesktopStage, verifyFramescaperSuccessorPackagedResources } from '../scripts/lib/framescaper-successor-desktop-package.ts';
+import { resolveMotionQualificationPaths } from './motionscaper-native-qualification-paths.ts';
 
 export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
 	if (process.argv.length !== 2 || process.platform !== 'linux' || !process.env.DISPLAY) throw new Error('This real GTK chooser qualification requires Linux, X11 and no arguments.');
-	const root = resolve(import.meta.dirname, '..'), executable = join(root, 'release/framescaper-successor', `linux${process.arch === 'x64' ? '' : `-${process.arch}`}-unpacked/framescaper-successor`);
+	const root = resolve(import.meta.dirname, '..'), selected = resolveMotionQualificationPaths(root, 'framescaper-successor', process.arch), executable = selected.executable;
 	await access(executable);
-	const stageRoot = join(root, '.desktop-build/framescaper-successor'), resources = join(resolve(executable, '..'), 'resources');
+	const stageRoot = selected.stage, resources = join(selected.package, 'resources');
 	const stage = await verifyFramescaperSuccessorDesktopStage(stageRoot, `linux-${process.arch}`); await verifyFramescaperSuccessorPackagedResources(resources, stage);
 	const stageMetadata = JSON.parse(await readFile(join(stageRoot, 'stage-manifest.json'), 'utf8')) as { sourceRevision: string };
 	assert.match(stageMetadata.sourceRevision, /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u);

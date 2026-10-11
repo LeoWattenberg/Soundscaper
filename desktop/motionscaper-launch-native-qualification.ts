@@ -11,15 +11,16 @@ import { verifyMotionscaperDesktopStage, verifyMotionscaperPackagedResources } f
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
 import { exportMotionscaperArchive, importMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
 import { createMotionscaperOpaqueArchive } from '../tests/helpers/motionscaper-opaque-archive.ts';
+import { resolveMotionQualificationPaths } from './motionscaper-native-qualification-paths.ts';
 
 /** External packaged-app qualification: OS arguments and public UI only. No injected bridge. */
 export async function qualifyMotionscaperNativeLaunch(): Promise<void> {
 	if (process.argv.length !== 2 || process.platform !== 'linux' || !process.env.DISPLAY) throw new Error('Packaged launch qualification requires Linux, X11 and no arguments.');
 	const root = resolve(import.meta.dirname, '..');
-	const packageRoot = join(root, 'release/desktop-nightly-products/motionscaper', `linux${process.arch === 'x64' ? '' : `-${process.arch}`}-unpacked`);
-	const executable = join(packageRoot, 'motionscaper'); await access(executable);
-	const stage = await verifyMotionscaperDesktopStage(join(root, '.desktop-build'), `linux-${process.arch}`);
-	await verifyMotionscaperPackagedResources(join(packageRoot, 'resources'), stage);
+	const selected = resolveMotionQualificationPaths(root, 'motionscaper', process.arch);
+	const executable = selected.executable; await access(executable);
+	const stage = await verifyMotionscaperDesktopStage(selected.stage, `linux-${process.arch}`);
+	await verifyMotionscaperPackagedResources(join(selected.package, 'resources'), stage);
 	const sourceRevision: unknown = stage.sourceRevision; assert.equal(typeof sourceRevision, 'string'); assert.match(String(sourceRevision), /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u);
 	const temporary = await mkdtemp(join(tmpdir(), 'motionscaper-native-launch-'));
 	const paths = { cold: join(temporary, 'cold.mscape'), warm: join(temporary, 'warm.scape'), future: join(temporary, 'future.scape'), last: join(temporary, 'last.mscape') };

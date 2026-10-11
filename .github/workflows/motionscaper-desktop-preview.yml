@@ -107,6 +107,14 @@ jobs:
           node scripts/motionscaper-release-target.ts --target=${{ matrix.target.id }}
           --native-result="${{ runner.temp }}/motionscaper-native-build-result"
           --product-root=release/motionscaper-preview --output=release/motionscaper-target
+      - name: Qualify complete Linux Motion workflows
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/motionscaper-linux-qualification
+        with:
+          target: ${{ matrix.target.id }}
+          arch: ${{ matrix.target.arch }}
+          native-result: ${{ runner.temp }}/motionscaper-native-build-result
+          motion-package: ${{ github.workspace }}/release/motionscaper-preview/motionscaper/${{ matrix.target.arch == 'x64' && 'linux-unpacked' || 'linux-arm64-unpacked' }}
       - name: Retain only the qualified target packages and exact receipts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

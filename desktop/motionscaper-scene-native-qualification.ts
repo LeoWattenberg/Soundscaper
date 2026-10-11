@@ -12,19 +12,20 @@ import { exportMotionscaperArchive } from '../src/motionscaper/editor-scape.ts';
 import { createMotionscaperRevision } from '../src/motionscaper/editor-project-revision.ts';
 import { encodeMotionChannel, motionSurfaceToRgba8 } from '../src/common/editor/motion-surface.ts';
 import { createMotionNativeScene, renderMotionNativeSceneReference } from './motionscaper-native-scene-reference.ts';
-import { buildMotionNativeReferenceDecoder, decodeMotionNativeReference } from './motionscaper-native-reference.ts';
+import { prepareMotionNativeReferenceDecoder, decodeMotionNativeReference } from './motionscaper-native-reference.ts';
+import { resolveMotionQualificationPaths } from './motionscaper-native-qualification-paths.ts';
 
 /** External qualification only: authenticates the package, then drives its unchanged public menus. */
 export async function qualifyMotionscaperNativeScene(): Promise<void> {
 	if (process.argv.length !== 2 || process.platform !== 'linux' || !process.env.DISPLAY) throw new Error('This packaged native scene qualification requires Linux, X11 and no arguments.');
-	const root = resolve(import.meta.dirname, '..'); const packageRoot = join(root, 'release/desktop-nightly-products/motionscaper', `linux${process.arch === 'x64' ? '' : `-${process.arch}`}-unpacked`);
-	const executable = join(packageRoot, 'motionscaper'); await access(executable);
-	const stage = await verifyMotionscaperDesktopStage(join(root, '.desktop-build'), `linux-${process.arch}`); await verifyMotionscaperPackagedResources(join(packageRoot, 'resources'), stage);
+	const root = resolve(import.meta.dirname, '..'); const paths = resolveMotionQualificationPaths(root, 'motionscaper', process.arch);
+	const executable = paths.executable; await access(executable);
+	const stage = await verifyMotionscaperDesktopStage(paths.stage, `linux-${process.arch}`); await verifyMotionscaperPackagedResources(join(paths.package, 'resources'), stage);
 	const sourceRevision: unknown = stage.sourceRevision; assert.equal(typeof sourceRevision, 'string'); assert.match(String(sourceRevision), /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u, 'Qualification requires a source-pinned desktop stage.');
 	const temporary = await mkdtemp(join(tmpdir(), 'motionscaper-native-scene-')); const archivePath = join(temporary, 'saved.mscape'), movie = join(temporary, 'output.mov');
 	const project = createMotionNativeScene(); const revision = createMotionscaperRevision(project);
 	const archive = await exportMotionscaperArchive(project, () => { throw new Error('No external scene assets.'); }); assert.ok(archive); await writeFile(archivePath, new Uint8Array(await archive.arrayBuffer()));
-	const references = await Promise.all([1, 2].map(frame => renderMotionNativeSceneReference(project, frame))); const decoder = await buildMotionNativeReferenceDecoder(temporary);
+	const references = await Promise.all([1, 2].map(frame => renderMotionNativeSceneReference(project, frame))); const decoder = await prepareMotionNativeReferenceDecoder(temporary);
 	const env: NodeJS.ProcessEnv = { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', SCAPE_PRODUCT: 'motionscaper' }; delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
 	const child = spawn(executable, ['--disable-gpu', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${join(temporary, 'profile')}`], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
 	let browser: Browser | undefined, output = ''; const exited = new Promise<void>((done, reject) => { child.once('error', reject); child.once('close', () => done()); });

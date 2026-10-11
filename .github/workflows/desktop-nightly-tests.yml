@@ -169,6 +169,15 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
 
+      - name: Qualify complete Linux Motion workflows
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/motionscaper-linux-qualification
+        with:
+          target: ${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          arch: ${{ matrix.target.arch }}
+          native-result: ${{ runner.temp }}/motionscaper-native-build-result
+          motion-package: ${{ github.workspace }}/release/desktop-nightly-products/motionscaper/${{ matrix.target.arch == 'x64' && 'linux-unpacked' || 'linux-arm64-unpacked' }}
+
       - name: Stage the nightly-with-tests application
         run: node scripts/desktop-nightly-tests-prepare.mjs
         env:

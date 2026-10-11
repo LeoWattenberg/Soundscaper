@@ -4,6 +4,8 @@ import { execFile } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { verifyMotionReferenceArtifact } from '../scripts/lib/motionscaper-reference-artifact.ts';
+import { MOTION_NATIVE_TARGETS } from '../scripts/lib/motionscaper-native-source.ts';
 export interface MotionNativeReference {
 	readonly width: number; readonly height: number; readonly profile: number; readonly colorDepth: number; readonly alphaDepth: number;
 	readonly colorPrimaries: number; readonly colorTransfer: number; readonly colorSpace: number;
@@ -21,6 +23,14 @@ export function inspectMotionNativeReference(value: unknown, rgbaBytes: number, 
 	if (v.audio !== null && (!v.audio || !integer(v.audio.sampleRate, 1, 192000) || !integer(v.audio.channels, 1, 2) || !integer(v.audio.sampleCount, 1, 192000))) throw new Error('Invalid bounded native PCM reference.');
 	if (pcmBytes !== (v.audio ? v.audio.channels * v.audio.sampleCount * 4 : 0)) throw new Error('Native PCM reference length differs.');
 	return v as MotionNativeReference;
+}
+export async function prepareMotionNativeReferenceDecoder(directory: string): Promise<string> {
+	const artifact = process.env.MOTIONSCAPER_REFERENCE_ARTIFACT;
+	if (!artifact) return buildMotionNativeReferenceDecoder(directory);
+	const nativeResult = process.env.MOTIONSCAPER_REFERENCE_NATIVE_RESULT;
+	const target = MOTION_NATIVE_TARGETS.find(value => value === `linux-${process.arch}`);
+	if (!nativeResult || !target) throw new Error('A matching native result is required with the reference artifact.');
+	return verifyMotionReferenceArtifact({ repositoryRoot: resolve(import.meta.dirname, '..'), nativeResult, artifact, target });
 }
 export async function buildMotionNativeReferenceDecoder(directory: string, prefix = process.env.MOTIONSCAPER_REFERENCE_FFMPEG_PREFIX): Promise<string> {
 	if (!prefix || !/^[A-Za-z0-9_./-]+$/u.test(prefix)) throw new Error('Set MOTIONSCAPER_REFERENCE_FFMPEG_PREFIX to the existing pinned native FFmpeg install directory.');
