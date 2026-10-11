@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useState } from 'react';
+import MotionAeRenderedExportPanel from './MotionAeRenderedExportPanel.tsx';
 import { MotionAeTextExportOptions, type MotionAeTextReview } from './MotionAeTextOptions.tsx';
 import MotionAeSceneOptions, { type MotionAeSceneSelection } from './MotionAeSceneOptions.tsx';
 import MotionAeExpressionOptions from './MotionAeExpressionOptions.tsx';
@@ -34,7 +35,7 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 		const blob = await module.createMotionscaperAeExportPackage(prepared, asset => store.readAsset(asset), { acknowledgeUnsupported: acknowledged, signal });
 		signal.throwIfAborted(); download(blob, 'Motionscaper-AE-Export.zip'); setComplete(true);
 	});
-	return <section aria-label={copy.motionscaperAeExport}>
+	return <><MotionAeRenderedExportPanel project={project} store={store} copy={copy} disabled={disabled} run={run} download={download} /><section aria-label={copy.motionscaperAeExport}>
 		<h3>{copy.motionscaperAeExport}</h3><p>{copy.motionscaperAeExportInstructions}</p><p>{copy.motionscaperAeExportLimits}</p>
 		<MotionAeSceneOptions copy={copy} disabled={disabled || !project} value={sceneReview} onChange={value => { setReview(null); setAcknowledged(false); setComplete(false); setSceneReview(value); }} mode="export" />
 		<MotionAeExpressionOptions copy={copy} disabled={disabled || !project} enabled={translateExpressions} onChange={value => { setReview(null); setAcknowledged(false); setComplete(false); setTranslateExpressions(value); }} mode="export" />
@@ -51,5 +52,5 @@ export default function MotionAeExportPanel({ project, store, copy, disabled, ru
 			<Button variant="secondary" disabled={disabled || !acknowledged} onClick={() => { void publish(); }}>{copy.motionscaperAeExportDownload}</Button>
 			{complete && <p role="status">{copy.motionscaperAeExportComplete}</p>}
 		</section>}
-	</section>;
+	</section></>;
 }

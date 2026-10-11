@@ -2,6 +2,21 @@
 import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 const ENTRIES = [
+	['motionscaperAeCleanupRequired', 'Output cleanup failed. Retry cleanup before closing the dialog or starting another transfer.', 'Die Ausgabebereinigung ist fehlgeschlagen. Wiederhole die Bereinigung, bevor du den Dialog schließt oder einen weiteren Austausch startest.'],
+	['motionscaperAeRetryCleanup', 'Retry Output Cleanup', 'Ausgabebereinigung wiederholen'],
+	['motionscaperAeRenderedExport', 'Rendered composition export', 'Export gerenderter Kompositionen'],
+	['motionscaperAeRenderedHint', 'Render a complete composition when editable mappings cannot preserve its appearance. Uses normal Motion PNG delivery with the authored shutter and depth-of-field quality. Work-area limits do not shorten this transfer.', 'Rendere eine vollständige Komposition, wenn bearbeitbare Zuordnungen ihr Aussehen nicht erhalten können. Verwendet die normale Motion-PNG-Ausgabe mit der eingestellten Verschlusszeit- und Schärfentiefenqualität. Arbeitsbereichsgrenzen verkürzen diesen Austausch nicht.'],
+	['motionscaperAeRenderedLimits', 'Every frame is required: at most 256 frames, 64 MiB per PNG, 128 MiB for the original archive and 256 MiB for the complete package. Longer compositions must be shortened explicitly; frames are never skipped.', 'Jedes Bild ist erforderlich: höchstens 256 Bilder, 64 MiB pro PNG, 128 MiB für das Originalarchiv und 256 MiB für das gesamte Paket. Längere Kompositionen müssen ausdrücklich gekürzt werden; Bilder werden nie übersprungen.'],
+	['motionscaperAeRenderedComposition', 'Composition to render for AE', 'Für AE zu rendernde Komposition'],
+	['motionscaperAeRenderedReview', 'Review Rendered Transfer', 'Gerenderten Austausch prüfen'],
+	['motionscaperAeRenderedReport', 'Complete rendered transfer', 'Vollständiger gerenderter Austausch'],
+	['motionscaperAeRenderedFps', 'frames per second', 'Bilder pro Sekunde'],
+	['motionscaperAeRenderedFrames', 'complete frames', 'vollständige Bilder'],
+	['motionscaperAeRenderedPolicy', 'Audio is omitted and all imported layers are muted. PNG uses straight alpha and 8-bit sRGB; HDR values are clipped or quantized. The selected composition is flattened into one still layer per frame. Its editable layers and subframe motion remain only in the original archive.', 'Audio wird ausgelassen und alle importierten Ebenen sind stumm. PNG verwendet unvormultipliziertes Alpha und 8-Bit-sRGB; HDR-Werte werden beschnitten oder quantisiert. Die gewählte Komposition wird in eine Bildebene pro Bild zusammengeführt. Bearbeitbare Ebenen und Bewegungen zwischen Bildern bleiben nur im Originalarchiv erhalten.'],
+	['motionscaperAeRenderedCustody', 'The package retains the exact pinned source snapshot, all compositions and all original media in original.mscape. sequence.json records the exact rational clock and render quality; the report lists every retained frame. Downloading does not save or change the open project.', 'Das Paket enthält den exakten fixierten Quellstand, alle Kompositionen und alle Originalmedien in original.mscape. sequence.json dokumentiert den exakten rationalen Zeittakt und die Renderqualität; der Bericht listet jedes erhaltene Bild auf. Der Download speichert oder verändert das geöffnete Projekt nicht.'],
+	['motionscaperAeRenderedAcknowledge', 'I accept the complete image-only transfer, omitted audio, flattened editability and PNG precision limits.', 'Ich akzeptiere den vollständigen Austausch nur als Bilder, ausgelassenes Audio, die reduzierte Bearbeitbarkeit und die PNG-Präzisionsgrenzen.'],
+	['motionscaperAeRenderedDownload', 'Render and Download AE Package', 'AE-Paket rendern und herunterladen'],
+	['motionscaperAeRenderedProgress', 'AE rendered transfer progress', 'Fortschritt des gerenderten AE-Austauschs'],
 	['motionscaperAeSceneReview', 'Editable camera and light review', 'Prüfung bearbeitbarer Kameras und Lichter'],
 	['motionscaperAeSceneImport', 'Review camera and ambient light import', 'Import von Kameras und Umgebungslichtern prüfen'],
 	['motionscaperAeSceneExport', 'Review camera and ambient light export', 'Export von Kameras und Umgebungslichtern prüfen'],

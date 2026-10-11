@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { pendingMotionDeliveryCleanup } from '../../motion-delivery-cleanup.ts';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -31,21 +32,33 @@ export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpe
 	const [translateExpressions, setTranslateExpressions] = useState(false);
 	const [manifest, setManifest] = useState<File | null>(initialFile ?? null), [media, setMedia] = useState<readonly File[]>([]);
 	const [prepared, setPrepared] = useState<PreparedMotionscaperAeImport | null>(null), [acknowledged, setAcknowledged] = useState(false);
+	const [cleanupFailure, setCleanupFailure] = useState<unknown>(null);
 	const [working, setWorking] = useState(false), [error, setError] = useState<string | null>(null), [status, setStatus] = useState<string | null>(null);
 	const [page, setPage] = useState(0), [importedId, setImportedId] = useState<string | null>(null);
 	useEffect(() => { alive.current = true; return () => { alive.current = false; active.current?.abort(); }; }, []);
-	const adobeProject = Boolean(manifest && /\.aepx?$/iu.test(manifest.name)), disabled = busy || working;
+	const adobeProject = Boolean(manifest && /\.aepx?$/iu.test(manifest.name)), disabled = busy || working || pendingMotionDeliveryCleanup(cleanupFailure).length > 0;
 	const resetReview = () => { setPrepared(null); setAcknowledged(false); setPage(0); setError(null); setStatus(null); setImportedId(null); };
 	const run = async (operation: (signal: AbortSignal) => Promise<void>) => {
 		if (disabled || active.current) return;
 		const abort = new AbortController(); active.current = abort; setWorking(true); setError(null); setStatus(null);
 		try { await operation(abort.signal); }
 		catch (failure) { if (alive.current) {
+			if (pendingMotionDeliveryCleanup(failure).length) setCleanupFailure(failure);
 			// A cleanup failure remains visible even when the initiating operation was cancelled.
 			if (abort.signal.aborted && failure instanceof DOMException && failure.name === 'AbortError') setStatus(copy.motionscaperAeCancelled!);
 			else setError(failureText(failure));
 		} }
 		finally { active.current = null; if (alive.current) setWorking(false); }
+	};
+	const retryCleanup = async () => {
+		if (working || active.current) return;
+		setWorking(true);
+		try {
+			const results = await Promise.allSettled(pendingMotionDeliveryCleanup(cleanupFailure).map(item => item.retryCleanup()));
+			const failures = results.filter((item): item is PromiseRejectedResult => item.status === 'rejected').map(item => item.reason as unknown);
+			if (failures.length) setError(failureText(new AggregateError([cleanupFailure, ...failures], copy.motionscaperAeCleanupRequired)));
+			else setCleanupFailure(null);
+		} finally { if (alive.current) setWorking(false); }
 	};
 	const review = () => run(async signal => {
 		if (!manifest || adobeProject) return;
@@ -67,7 +80,7 @@ export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpe
 	});
 	const rows = prepared?.report.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) ?? [];
 	return <AudioEditorDialogShell title={copy.motionscaperAfterEffectsBridge} width={860} onClose={disabled ? undefined : onClose}
-		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>{working && <Button variant="secondary" onClick={() => active.current?.abort()}>{copy.motionscaperCancel}</Button>}<Button variant="secondary" disabled={disabled} onClick={onClose}>{copy.motionscaperClose}</Button></>} />}>
+		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>{working && active.current !== null && <Button variant="secondary" onClick={() => active.current?.abort()}>{copy.motionscaperCancel}</Button>}<Button variant="secondary" disabled={disabled} onClick={onClose}>{copy.motionscaperClose}</Button></>} />}>
 		<p>{copy.motionscaperAeQualification}</p><p>{copy.motionscaperAeInstructions}</p><p>{copy.motionscaperAeShapes}</p><p>{copy.motionscaperAeSampling}</p><p>{copy.motionscaperAeRendered}</p>
 		<Button variant="secondary" disabled={disabled} onClick={() => { void scripts(); }}>{copy.motionscaperAeDownload}</Button>
 		<MotionAeExportPanel key={project?.id ?? ''} project={project} store={store} copy={copy} disabled={disabled} run={run} download={download} />
@@ -94,6 +107,7 @@ export default function MotionAeBridgeDialog({ store, project, copy, busy, onOpe
 			<Button variant="secondary" disabled={disabled || (!acknowledged && !importedId)} onClick={() => { void publish(); }}>{importedId ? copy.motionscaperAeOpenImported : copy.motionscaperAeImport}</Button>
 		</section>}
 		{working && <p role="status">{copy.motionscaperAeWorking}</p>}{status && <p role="status">{status}</p>}
+		{pendingMotionDeliveryCleanup(cleanupFailure).length > 0 && <><p>{copy.motionscaperAeCleanupRequired}</p><Button variant="secondary" disabled={working} onClick={() => { void retryCleanup(); }}>{copy.motionscaperAeRetryCleanup}</Button></>}
 		{error && <p role="alert">{copy.motionscaperAeFailed} {error}</p>}
 	</AudioEditorDialogShell>;
 }
