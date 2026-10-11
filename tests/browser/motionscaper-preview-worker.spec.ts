@@ -2,11 +2,14 @@
 
 import { expect, test } from '@playwright/test';
 import { build } from 'vite';
+import type { OutputChunk } from 'rolldown';
 import { createServer, type Server } from 'node:http';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workerChunkGroups } from '../../scripts/lib/build-worker-chunks.mjs';
+import { expectMotionWorkerBackend } from './helpers/motionscaper-worker-webgl.ts';
 import type { MotionPreviewClient, MotionPreviewFrame, MotionPreviewOptions } from '../../src/common/editor/controller/composition/motion-preview-types.ts';
 import type { MotionPreviewSessionOptions } from '../../src/common/editor/controller/composition/motion-preview-render-session.ts';
 import type { MotionPreviewBackend } from '../../src/common/editor/controller/composition/motion-preview-types.ts';
@@ -73,8 +76,16 @@ test.beforeAll(async () => {
 	directory = await mkdtemp(join(tmpdir(), 'motionscaper-worker-browser-'));
 	const entry = join(directory, 'fixture.ts'); await writeFile(entry, fixtureSource());
 	const output = join(directory, 'site');
-	await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', worker: { format: 'es' },
+	const workerChunks: OutputChunk[] = [];
+	await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', worker: { format: 'es',
+		plugins: () => [{ name: 'verify-motion-worker-fixture', generateBundle(_options, bundle) {
+			for (const item of Object.values(bundle)) if (item.type === 'chunk') workerChunks.push(item);
+		} }],
+		rolldownOptions: { output: { strictExecutionOrder: true, codeSplitting: { groups: workerChunkGroups, minSize: 20_000 } } } },
 		build: { outDir: output, emptyOutDir: true, assetsInlineLimit: 0, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
+	const registration = workerChunks.filter(chunk => chunk.facadeModuleId === join(repository, 'src/common/editor/motion-preview-worker.ts'));
+	expect(registration).toHaveLength(1); expect(registration[0]!.isEntry).toBe(true); expect(registration[0]!.exports).toEqual([]);
+	for (const chunk of workerChunks) expect([...chunk.imports, ...chunk.dynamicImports]).not.toContain(registration[0]!.fileName);
 	server = createServer((request, response) => { void (async () => {
 		try {
 			const pathname = new URL(request.url ?? '/', 'http://fixture').pathname;
@@ -102,7 +113,7 @@ test('M06 ordered repeat, simultaneous trim and boolean geometry match worker an
 		}
 		return { pixels, backends };
 	});
-	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	await expectMotionWorkerBackend(page, rendered.backends[0]); expect(rendered.backends[1]).toBe('host-cpu'); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	expect(rendered.pixels[0]!.slice((4 * 64 + 8) * 4, (4 * 64 + 8) * 4 + 4)).toEqual([0, 0, 255, 255]);
 	expect(rendered.pixels[0]!.slice((4 * 64 + 24) * 4, (4 * 64 + 24) * 4 + 4)).toEqual([0, 0, 0, 0]);
 });
@@ -120,7 +131,7 @@ test('M07 projective corner pin preserves fractional coverage and negative origi
 		}
 		return { pixels, backends };
 	});
-	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	await expectMotionWorkerBackend(page, rendered.backends[0]); expect(rendered.backends[1]).toBe('host-cpu'); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	expect(rendered.pixels[0]!.slice((8 * 64 + 10) * 4, (8 * 64 + 10) * 4 + 4)).toEqual([0, 188, 0, 128]);
 	expect(rendered.pixels[0]!.slice((8 * 64 + 18) * 4, (8 * 64 + 18) * 4 + 4)).toEqual([0, 0, 0, 0]);
 });
@@ -139,7 +150,7 @@ test('M09 intersecting translucent planes preserve per-pixel depth in worker Web
 		}
 		return { pixels, backends };
 	});
-	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	await expectMotionWorkerBackend(page, rendered.backends[0]); expect(rendered.backends[1]).toBe('host-cpu'); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	expect(rendered.pixels[0]!.slice((16 * 64 + 24) * 4, (16 * 64 + 24) * 4 + 4)).toEqual([156, 213, 0, 191]);
 	expect(rendered.pixels[0]!.slice((16 * 64 + 40) * 4, (16 * 64 + 40) * 4 + 4)).toEqual([213, 156, 0, 191]);
 });
@@ -157,7 +168,7 @@ test('M09 transparent shadow casters and point lighting match worker WebGL and h
 		}
 		return { pixels, backends };
 	});
-	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	await expectMotionWorkerBackend(page, rendered.backends[0]); expect(rendered.backends[1]).toBe('host-cpu'); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	const response = Math.round(255 * (1.055 * (0.5 * 64 / Math.hypot(20.5, 64)) ** (1 / 2.4) - 0.055));
 	expect(rendered.pixels[0]!.slice((16 * 64 + 20) * 4, (16 * 64 + 20) * 4 + 4)).toEqual([response, response, response, 255]);
 });
@@ -175,7 +186,7 @@ test('M09 deterministic depth-of-field lens samples preserve transparent coverag
 		}
 		return { pixels, backends };
 	});
-	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	await expectMotionWorkerBackend(page, rendered.backends[0]); expect(rendered.backends[1]).toBe('host-cpu'); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	const edge = rendered.pixels[0]!.slice((16 * 64 + 28) * 4, (16 * 64 + 28) * 4 + 4);
 	expect(edge.slice(0, 3)).toEqual([255, 255, 255]); expect(edge[3]).toBeGreaterThan(0); expect(edge[3]).toBeLessThan(255);
 });
@@ -190,7 +201,7 @@ test('M05 bundled preview loads fonts and WASM lazily, animates shaped fallback 
 		await scope.preview.setProject(scope.motionFixture.project, scope.motionFixture.loadAsset); await scope.preview.seek({ compositionId: 'main', time: 0 });
 		const frame = scope.frames[0]!; return { backend: frame.backend, pixels: [...frame.rgba], size: [frame.width, frame.height] };
 	});
-	expect(first.backend).toBe('worker-webgl2'); expect(first.size).toEqual([64, 32]);
+	await expectMotionWorkerBackend(page, first.backend); expect(first.size).toEqual([64, 32]);
 	expect(first.pixels.some((value, index) => index % 4 === 1 && value > 0)).toBe(true);
 	await context.setOffline(true);
 	const next = await page.evaluate(async () => {
@@ -256,7 +267,7 @@ test('M08 native PCM-driven pixels match worker WebGL and host CPU after arbitra
 		await scope.audioPreview.setProject(authored.project, () => Promise.resolve(authored.bytes)); await scope.audioPreview.seek({ compositionId: 'main', time: { num: 1, den: 25 } });
 		return { worker: scope.audioFrame.backend, same: scope.audioFrame.rgba.every((value, index) => value === host!.rgba[index]), alpha: scope.audioFrame.rgba[3], bytes: authored.bytes.length };
 	});
-	expect(initial.worker).toBe('worker-webgl2'); expect(initial.same).toBe(true); expect(initial.alpha).toBeGreaterThan(1); expect(initial.alpha).toBeLessThan(127);
+	await expectMotionWorkerBackend(page, initial.worker); expect(initial.same).toBe(true); expect(initial.alpha).toBeGreaterThan(1); expect(initial.alpha).toBeLessThan(127);
 	await context.setOffline(true);
 	const next = await page.evaluate(async () => {
 		const scope = globalThis as unknown as { audioPreview: MotionPreviewClient; audioFrame: MotionPreviewFrame; audioBytes: Uint8Array };
@@ -282,6 +293,6 @@ test('M09 authored shutter and lens sampling agree across actual worker, host an
 		}
 		pixels.push(await fixture.exportPixels(fixture.shutterProject, 1)); return { pixels, backends, reduced };
 	});
-	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]); expect(rendered.pixels[0]).toEqual(rendered.pixels[2]);
+	await expectMotionWorkerBackend(page, rendered.backends[0]); expect(rendered.backends[1]).toBe('host-cpu'); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]); expect(rendered.pixels[0]).toEqual(rendered.pixels[2]);
 	expect(rendered.pixels[0]).not.toEqual(rendered.reduced); expect(rendered.pixels[0]!.some((value, index) => index % 4 === 3 && value > 0 && value < 255)).toBe(true);
 });
