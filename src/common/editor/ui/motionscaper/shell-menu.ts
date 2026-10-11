@@ -25,7 +25,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -72,6 +72,7 @@ export function createMotionscaperShellMenus(
 				item('motion-properties', copy.motionscaperProperties, 'properties', options.hasProject),
 				item('motion-paths', copy.motionscaperPaths, 'paths', options.hasProject),
 				item('motion-operators', copy.motionscaperOperators, 'operators', options.hasProject),
+				item('motion-appearance', copy.motionscaperAppearance, 'appearance', options.hasProject),
 				item('motion-expressions', copy.motionscaperExpressions, 'expressions', options.hasProject),
 				item('motion-compositing', copy.motionscaperCompositing, 'compositing', options.hasProject),
 				item('motion-tracking', copy.motionscaperTracking, 'tracking', options.hasProject),

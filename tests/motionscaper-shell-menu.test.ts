@@ -83,3 +83,13 @@ test('expression authoring remains an idle-document menu with German command cop
 	assert.equal(find(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
 	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
 });
+
+test('text and appearance editing opens only from its localized idle-document layer menu', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('en'), workspaceOpen: false, onToggleWorkspace: () => undefined, onCommand: (command: string) => { commands.push(command); }, hasProject: true };
+	const find = (menus: ReturnType<typeof createMotionscaperShellMenus>) => menus.find(({ id }) => id === 'tracks')?.items.find(({ id }) => id === 'motion-appearance');
+	const item = find(createMotionscaperShellMenus(options)); assert.equal(item?.label, 'Text and Appearance'); item?.onClick?.(); assert.deepEqual(commands, ['appearance']);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Text und Aussehen');
+});
