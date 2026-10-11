@@ -54,3 +54,31 @@ test('M04 missing WebGL2 float support has an explicit CPU fallback reason', asy
 	expect(result.compositor).toBeNull();
 	expect(result.reason).toMatch(/WebGL2/iu);
 });
+
+test('M04 nested targets retain isolated pixels and context loss invalidates all unfinished frames', async ({ page }) => {
+	await page.addScriptTag({ content: bundle() });
+	const result = await page.evaluate(async () => {
+		const motion = (globalThis as unknown as { motionFixture: typeof Surface & typeof WebGl }).motionFixture;
+		const canvas = document.createElement('canvas');
+		const admitted = motion.createMotionWebGlCompositor(canvas);
+		if (!admitted.compositor) throw new Error(admitted.fallbackReason);
+		const parent = admitted.compositor.begin(2, 2, [0, 0, 1, 1]);
+		const child = admitted.compositor.begin(2, 2, [1, 0, 0, 0.5]);
+		child.composite(motion.createMotionSurface(2, 2, [1, 1, 1, 0.5]), 'normal', 1);
+		parent.composite(child.finish(), 'normal', 0.5); child.dispose();
+		const pixels = Array.from(parent.finish().pixels.slice(0, 4));
+		const lose = canvas.getContext('webgl2')!.getExtension('WEBGL_lose_context');
+		if (!lose) throw new Error('Context-loss testing extension is unavailable.');
+		await new Promise<void>((resolve, reject) => {
+			const timer = setTimeout(() => reject(new Error('Context loss was not delivered.')), 2000);
+			canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); clearTimeout(timer); resolve(); }, { once: true });
+			lose.loseContext();
+		});
+		let failure = '';
+		try { parent.finish(); } catch (error) { failure = String(error); }
+		admitted.compositor.dispose(); admitted.compositor.dispose(); parent.dispose();
+		return { pixels, failure };
+	});
+	expect(result.pixels).toEqual([0.375, 0.25, 0.875, 1]);
+	expect(result.failure).toMatch(/context was lost.*CPU/iu);
+});
