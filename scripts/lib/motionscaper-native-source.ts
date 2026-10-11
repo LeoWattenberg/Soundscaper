@@ -17,7 +17,7 @@ export interface MotionNativeSourceManifest {
 const SHARED = [
 	'native/common/sha256.cpp', 'native/common/sha256.hpp',
 	'native/framescaper-media-host/src/strict_json.cpp', 'native/framescaper-media-host/src/strict_json.hpp',
-	'src/common/editor/motion-native-frame-carrier-v1.ts',
+	'src/common/editor/motion-native-frame-carrier-v1.ts', 'src/common/editor/motion-native-pcm-carrier-v1.ts',
 	'scripts/lib/motionscaper-native-source.ts', 'scripts/lib/motionscaper-native-build.ts',
 	'scripts/lib/framescaper-media-host-toolchain.mjs',
 	'scripts/lib/soundscaper-native-binary-architecture.mjs',

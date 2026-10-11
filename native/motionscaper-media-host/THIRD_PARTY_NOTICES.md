@@ -24,3 +24,10 @@ precision, and the exact frame count.
 Flat MOV delivery admits at most 32,768 frames. This bounds the muxer's retained
 sample index independently of the one-frame working set and streamed carrier.
 Longer compositions require a different output strategy; the helper refuses them.
+
+Native audio delivery uses a separately versioned float32 interleaved PCM sidecar,
+then rounds/clamps once to signed 24-bit little-endian PCM in MOV. Mono and stereo
+at 8–192 kHz are admitted. Exact cumulative frame durations determine the sample
+count; audio starts at zero in the delivered range. At most 134217728 samples
+are admitted in 4096-sample packets (32768 retained MOV audio index entries).
+Packets are written in timestamp order without an interleaver queue.

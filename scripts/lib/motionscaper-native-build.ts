@@ -21,11 +21,11 @@ export interface MotionNativeBuildOptions {
 export const MOTION_NATIVE_PRECISION = Object.freeze({
 	carrierPixelFormat: 'rgba-f32le', carrierColorSpace: 'linear-rec709-d65', carrierAlphaMode: 'premultiplied',
 	encoderPixelFormat: 'yuva444p10', encoderInputBits: 10, alphaStorageBits: 16,
-	outputColorSpace: 'rec709', outputAlphaMode: 'straight',
+	outputColorSpace: 'rec709', outputAlphaMode: 'straight', audioCarrierFormat: 'f32le', audioCodec: 'pcm-s24le', audioOutputBits: 24,
 });
 export const MOTION_NATIVE_SELF_TEST = Object.freeze({ productId: 'motionscaper', helperContractVersion: 1,
 	carrierVersion: 1, operation: 'prores-4444', inputPixelFormat: 'rgba-f32le',
-	encoderPixelFormat: 'yuva444p10', colorSpace: 'rec709', alphaMode: 'straight', maximumFrames: 32_768 });
+	encoderPixelFormat: 'yuva444p10', colorSpace: 'rec709', alphaMode: 'straight', maximumFrames: 32_768, pcmCarrierVersion: 1, audioCodec: 'pcm-s24le', maximumAudioSamples: 134_217_728 });
 
 /** Reuses authenticated codec build inputs, never a foreign runtime capability or payload. */
 export async function buildMotionscaperNativeHost(options: MotionNativeBuildOptions): Promise<unknown> {

@@ -45,13 +45,13 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/CMakeLists.txt",
-			"byteLength": 2409,
-			"sha256": "fcf080aac3c8921e0076a31b0f0e4a5be995802cf0d959cde690b7578d27a5be"
+			"byteLength": 2769,
+			"sha256": "ebe4616e4ee5aaefa84b6308c5b2fcf7fa75946fc51e69e37d0c098f1853b5f4"
 		},
 		{
 			"path": "native/motionscaper-media-host/THIRD_PARTY_NOTICES.md",
-			"byteLength": 1529,
-			"sha256": "58577c3d906094faeb3a05e3614d63e89b601c3ad9bd8c327491b78fb33ea1f6"
+			"byteLength": 2004,
+			"sha256": "39bbbb60dfbe6bcac11383bb0b9dac4cf135c00a703fa8d0b7972565349f6797"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/frame_carrier.cpp",
@@ -65,18 +65,28 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/src/media_host.cpp",
-			"byteLength": 3659,
-			"sha256": "760a5767ad94d056acbbb5c6eef37e05bf11abe90ec2b94ff94e1de8cec8dd9a"
+			"byteLength": 4813,
+			"sha256": "b6cbd539138a2ce2913dea6f6c6441added1cfed45bfba9b51ec0bb2454c4705"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/pcm_carrier.cpp",
+			"byteLength": 4596,
+			"sha256": "c76d424597fe2aa20b5dadcce81b9bd1389e6805a42dfc1001d245f4775492ad"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/pcm_carrier.hpp",
+			"byteLength": 724,
+			"sha256": "000a284a133582bc006ff4b27ec609c92143565016dad649ae1b05ebb404bba9"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/prores_encoder.cpp",
-			"byteLength": 6582,
-			"sha256": "3465ccff3bb6dbdaad9a402619c260bbb04b13640cae24283d353ee3d70d0603"
+			"byteLength": 8961,
+			"sha256": "63f095b0670b6e1652c45b6479c14058548730379a19b082b623ffc68f9541c8"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/prores_encoder.hpp",
-			"byteLength": 315,
-			"sha256": "4c7bced93349f729d215a5168ccba37e1e60fdbad6551403334954660d1ae17d"
+			"byteLength": 372,
+			"sha256": "b7ec6766de9d0a62c2815dcc892524154d359bc1044b6f0913831cbc76f821da"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/windows.manifest",
@@ -92,6 +102,16 @@
 			"path": "native/motionscaper-media-host/tests/frame_fixture.hpp",
 			"byteLength": 1874,
 			"sha256": "d6bf1ee62d84320a50db00b382d2b71674053d94721b9e01ee012ba8dc9efeba"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/pcm_fixture.hpp",
+			"byteLength": 970,
+			"sha256": "d5c1002cb85dcfa5e06c8802a902186b5637b21a81d5519bdd1b68e12aae7fcd"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/pcm_roundtrip.cpp",
+			"byteLength": 4028,
+			"sha256": "5b9c415bccc4679cd33765d93e7a2f00936445ebd2919c7bd0bcb46e26fef50c"
 		},
 		{
 			"path": "native/motionscaper-media-host/tests/prores_roundtrip.cpp",
@@ -110,13 +130,13 @@
 		},
 		{
 			"path": "scripts/lib/motionscaper-native-build.ts",
-			"byteLength": 10201,
-			"sha256": "9b006c2e961abe55f0574867e94f1564d94cf3099802f4f1eb73a8f174264a45"
+			"byteLength": 10357,
+			"sha256": "8713159a932ac03ca948f7851812ca8dcee21f115fbf97e4f4909cb8e6dfa8b3"
 		},
 		{
 			"path": "scripts/lib/motionscaper-native-source.ts",
-			"byteLength": 4172,
-			"sha256": "5dd8d09877661d5aa90ebc7b02b66833a628fd6962e3ee752b742b7812dbbfea"
+			"byteLength": 4225,
+			"sha256": "533d688ce5713f6ad7494ee7f53024edd19cc3eef778a0d5d47f33b1f14072b0"
 		},
 		{
 			"path": "scripts/lib/soundscaper-native-binary-architecture.mjs",
@@ -142,6 +162,11 @@
 			"path": "src/common/editor/motion-native-frame-carrier-v1.ts",
 			"byteLength": 11275,
 			"sha256": "7d1c1473f0d99d25f343c79b79100ded277f2931d823aab62498508ab44d42d3"
+		},
+		{
+			"path": "src/common/editor/motion-native-pcm-carrier-v1.ts",
+			"byteLength": 9882,
+			"sha256": "e42e39df5c95a60b3f29924bcfc41cca731059ac3db76ac5b7c3c768ca5798ee"
 		}
 	]
 }
