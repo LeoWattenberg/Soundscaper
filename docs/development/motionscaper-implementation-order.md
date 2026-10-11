@@ -96,7 +96,8 @@ undo, and save/reopen. Ordered shape operators and shaped text animators have
 actual CanvasKit and worker/CPU preview coverage and menu-opened operator editing.
 Exact work areas, composition selection, retained cross-project clipboard, and
 source timing/remapping pass browser editing, history and reopen workflows.
-Typography/fill authoring remains unfinished. M07 includes bounded local masks, ordered effects,
+Typography/fill authoring is menu-accessible and awaits final workflow integration
+qualification. M07 includes bounded local masks, ordered effects,
 alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
 projective corner pins. Tracking freshness stops preview/export before resource
 acquisition; point analysis/correction, planar pins, stabilization, cancellation,
@@ -116,17 +117,22 @@ nested quality and arbitrary seeks. Camera/lighting authoring and desktop
 reference qualification remain unfinished. M10 has versioned composition
 offers, bounded streamed closure verification, compatible/pending update and
 Undo/Resume rules, and atomic receiver-owned successor storage with retained
-historical revisions. Browser/desktop transports, Framescaper editor/render
+historical revisions. Saved-revision frame rendering uses the shared scene and
+retained image bytes after offline receiver reopen. Browser/desktop transports, Framescaper editor/render
 integration, and portable linked archives remain unfinished. M11 has a bounded
-exchange schema, custody/report validation, readable installed-AE exporter
-scripts and a bounded script download. Editable conversion, import scripts,
+exchange schema, custody/report validation, readable installed-AE exporter and
+limited importer scripts with media digest verification, and a bounded script download. Editable conversion,
 sampling/render fallback and real-AE qualification remain unfinished.
-The Motionscaper Node shard passes 426 tests at this integration
+The Motionscaper Node shard passes 440 tests at this integration
 point. These results do not close a package's completion gate.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
 M09's camera, depth-group, lighting and quality semantics. It does not claim
 After Effects pixel parity.
+
+The current [composition link foundations](motionscaper-composition-links.md)
+declare M10's revision, closure, history and rendering authority. Transport and
+Framescaper successor editor integration remain open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
