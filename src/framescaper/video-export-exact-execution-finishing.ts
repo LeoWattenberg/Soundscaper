@@ -18,7 +18,7 @@ import {
 	type FramescaperVideoExportPictureDispositionFinishing,
 	type FramescaperVideoExportVisualAssetStoreFinishing,
 } from './video-export-visual-execution-finishing.ts';
-import { createFramescaperVideoFrameAddressFinishing } from './video-frame-address-finishing.ts';
+import { createFramescaperVideoFrameAddressFinishing, type FramescaperVideoFrameAddressFinishing } from './video-frame-address-finishing.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 
 export type CreateFramescaperOpenFxExactExecutionNativeMedia = (options: Readonly<{
@@ -54,6 +54,9 @@ export interface FramescaperVideoExportExactExecutionFinishing {
 	disposition(): FramescaperVideoExportPictureDispositionFinishing;
 	dispose(): Promise<void>;
 }
+export type CreateFramescaperVideoExportSourceFramesFinishing = (options: Readonly<{
+	canonicalProject: Readonly<Record<string, unknown>>; encoded: FramescaperVideoFrameAddressFinishing;
+}>) => PromiseLike<FramescaperVideoFrameAddressFinishing> | FramescaperVideoFrameAddressFinishing;
 
 /** Own the authenticated V13 source-layer route and all of its frame-addressed resources. */
 export async function createFramescaperVideoExportExactExecutionFinishing(options: Readonly<{
@@ -67,6 +70,7 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 	readonly outputFrameRate?: Readonly<{ readonly num: number; readonly den: number }>;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
 	readonly createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing;
+	readonly createSourceFrames?: CreateFramescaperVideoExportSourceFramesFinishing;
 }>): Promise<FramescaperVideoExportExactExecutionFinishing> {
 	const timingViewsBySourceId = rawTiming(options.request);
 	const visual = await createFramescaperVideoExportVisualExecutionFinishing({
@@ -74,11 +78,12 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 		timingViewsBySourceId,
 		signal: options.request.signal, assertCurrent: options.request.assertCurrent,
 	});
-	const sourceFrames = createFramescaperVideoFrameAddressFinishing({
+	let sourceFrames = createFramescaperVideoFrameAddressFinishing({
 		sources: options.request.videoBlobs, timingViewsBySourceId,
 	});
 	let exact: Awaited<ReturnType<typeof createFramescaperSelectedExactFrameExecutionFinishing>>;
 	try {
+		if (options.createSourceFrames) sourceFrames = await options.createSourceFrames({ canonicalProject: options.request.canonicalProject, encoded: sourceFrames });
 		exact = await createFramescaperSelectedExactFrameExecutionFinishing({
 			project: options.project, plan: visual.exactPlan, timingSidecars: visual.timingSidecars,
 			...(options.store ? { store: options.store } : {}),

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { snapshotExactExecutionDependencies, type ExactExecutionDependenciesFinishing, type FramescaperVideoExportExactDependencyOptionsFinishing } from './video-export-exact-dependencies-finishing.ts';
 
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
@@ -61,7 +62,6 @@ import {
 	isFramescaperVideoVisualPlanFinishing,
 	type FramescaperVideoVisualPlanFinishing,
 } from './video-export-visual-plan-finishing.ts';
-import type { CaptureFrameFinishing } from './selected-finishing-exact-frame-execution.ts';
 import {
 	framescaperPictureBrowserResultFinishing,
 	framescaperPictureSinkResultFinishing,
@@ -87,18 +87,9 @@ interface PictureEncodersFinishing {
 }
 
 export interface FramescaperVideoExportStrategyFinishingDependencies
-	extends FramescaperVideoExportStrategyRetimeDependencies {
+	extends FramescaperVideoExportStrategyRetimeDependencies, FramescaperVideoExportExactDependencyOptionsFinishing {
 	readonly encodePicture?: typeof encodeVideoKeyframeVideo;
 	readonly encodePictureToSink?: PictureSinkEncoderFinishing;
-	readonly captureExactFrame?: CaptureFrameFinishing;
-	readonly createExactAcceleratorCanvas?: () => unknown;
-}
-
-interface ExactExecutionDependenciesFinishing {
-	readonly captureFrame?: CaptureFrameFinishing;
-	readonly createAcceleratorCanvas?: () => unknown;
-	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
-	readonly createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing;
 }
 
 const DEFAULT_PICTURE_ENCODERS = Object.freeze({
@@ -404,40 +395,6 @@ function snapshotPictureEncoders(
 			));
 		},
 	});
-}
-
-function snapshotExactExecutionDependencies(
-	value: FramescaperVideoExportStrategyFinishingDependencies | undefined,
-	createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia,
-	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing,
-): ExactExecutionDependenciesFinishing {
-	if (!value) return Object.freeze({
-		...(createOpenFxExecution ? { createOpenFxExecution } : {}),
-		...(createSupplementalPictureExecution ? { createSupplementalPictureExecution } : {}),
-	});
-	const captureFrame = optionalExactFunction(value, 'captureExactFrame');
-	const createAcceleratorCanvas = optionalExactFunction(value, 'createExactAcceleratorCanvas');
-	return Object.freeze({
-		...(captureFrame ? { captureFrame: captureFrame as CaptureFrameFinishing } : {}),
-		...(createAcceleratorCanvas ? {
-			createAcceleratorCanvas: createAcceleratorCanvas as () => unknown,
-		} : {}),
-		...(createOpenFxExecution ? { createOpenFxExecution } : {}),
-		...(createSupplementalPictureExecution ? { createSupplementalPictureExecution } : {}),
-	});
-}
-
-function optionalExactFunction(
-	value: object,
-	key: 'captureExactFrame' | 'createExactAcceleratorCanvas',
-): ((...arguments_: never[]) => unknown) | undefined {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor) return undefined;
-	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')
-		|| typeof descriptor.value !== 'function') {
-		throw new TypeError(`finishing picture export dependencies.${key} must be an own function.`);
-	}
-	return descriptor.value as (...arguments_: never[]) => unknown;
 }
 
 function optionalPictureFunction(
