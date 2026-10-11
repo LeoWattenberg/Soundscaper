@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"purpose": "Test-only imported retained font fixtures; absent from shipped runtime assets.",
+	"fonts": [
+		{
+			"id": "arabic",
+			"package": "@fontsource/noto-sans-arabic",
+			"packageVersion": "5.2.10",
+			"upstream": "https://github.com/notofonts/arabic",
+			"fontDistributionVersion": "v33",
+			"archiveUrl": "https://registry.npmjs.org/@fontsource/noto-sans-arabic/-/noto-sans-arabic-5.2.10.tgz",
+			"archiveIntegrity": "sha512-Hgj3NwQJ0NquIADW3hFboFjsts4UvEOJQ8tOX0bhQZgpNKHsMawjv/1SZnq0QvRbP6efHTZM/A1k7tdy9S6sbA==",
+			"archiveSha256": "de32af55a655699c9907983cd0effc6c1ca1c1b7bc97412968d24bbbcab15ed9",
+			"sourceEntry": "package/files/noto-sans-arabic-arabic-400-normal.woff2",
+			"file": "arabic.woff2",
+			"byteLength": 48840,
+			"sha256": "4e2ca0745c908761dc5c5db951662873887c59366fa1a5693ad22c0864abf1bd",
+			"license": "arabic-OFL.txt",
+			"licenseSha256": "91053c23e8a0fe5fc9b5fdbe5ff74ceffd66f6f996c123f1a6ca4c23487c1fff",
+			"attribution": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/arabic)"
+		},
+		{
+			"id": "cjk",
+			"package": "@fontsource/noto-sans-sc",
+			"packageVersion": "5.2.8",
+			"upstream": "https://github.com/notofonts/noto-cjk",
+			"fontDistributionVersion": "v39",
+			"archiveUrl": "https://registry.npmjs.org/@fontsource/noto-sans-sc/-/noto-sans-sc-5.2.8.tgz",
+			"archiveIntegrity": "sha512-8T8HxIS3uAMCfaQawKRH/6yYZ1oRnJZB/CrGwfxGgJa+zAOBgx2lqZMiTY/WbQpLGlPRqX4zHXJYI09CI2q6tA==",
+			"archiveSha256": "77ee8e13f8cb2baae3c0f01271fb31899a9ad297717607aa8f00e542a7d76934",
+			"sourceEntry": "package/files/noto-sans-sc-chinese-simplified-400-normal.woff2",
+			"file": "cjk.woff2",
+			"byteLength": 1141536,
+			"sha256": "eb385eca10dd39caff881c38338aefccecfaec6b42cc016fbe81434e388d6c3a",
+			"license": "cjk-OFL.txt",
+			"licenseSha256": "18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3",
+			"attribution": "Google Inc."
+		}
+	]
+}
