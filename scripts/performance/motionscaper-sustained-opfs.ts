@@ -5,6 +5,7 @@ import type { Page } from '@playwright/test';
 
 export interface MotionSustainedDestinationSnapshot {
 	readonly name: string; readonly suggestedName: string | null; readonly bytes: number; readonly writes: number;
+	/** Awaited physical sink writes; this does not measure upstream WritableStream queue depth. */
 	readonly maxOutstandingWrites: number; readonly closed: boolean; readonly aborted: boolean; readonly removed: boolean;
 	readonly events: readonly string[];
 }
@@ -23,7 +24,7 @@ export function installMotionSustainedOpfs({ directoryName }: { directoryName: s
 	let directory: FileSystemDirectoryHandle | null = null;
 	let disk: FileSystemWritableFileStream | null = null;
 	let state: { name: string; suggestedName: string | null; bytes: number; writes: number; maxOutstandingWrites: number; closed: boolean; aborted: boolean; removed: boolean; events: string[] } | null = null;
-	let active = 0, picked = false, created = false, opening = false;
+	let active = 0, picked = false, created = false, opening = false, picking = false;
 	const snapshot = (): MotionSustainedDestinationSnapshot => {
 		if (!state) throw new Error('No sustained destination was prepared.');
 		return { ...state, events: [...state.events] };
@@ -57,6 +58,7 @@ export function installMotionSustainedOpfs({ directoryName }: { directoryName: s
 			return { bytes: Array.from(new Uint8Array(await file.slice(offset, offset + length).arrayBuffer())), size: file.size };
 		},
 		async cleanup() {
+			if (opening || picking) throw new Error('Sustained cleanup requires writer acquisition to settle.');
 			if (active) throw new Error('Sustained cleanup requires the outstanding disk write to settle.');
 			await abort();
 			if (directory) { await (await navigator.storage.getDirectory()).removeEntry(directoryName, { recursive: true }); directory = null; if (state) { state.removed = true; event('directory-remove'); } }
@@ -67,7 +69,8 @@ export function installMotionSustainedOpfs({ directoryName }: { directoryName: s
 	Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: async (options?: { suggestedName?: string }) => {
 		if (!state || !directory || picked || state.closed || state.aborted) throw new Error('No unclaimed sustained destination.');
 		picked = true; state.suggestedName = options?.suggestedName ?? null; event('picker');
-		const attempt = state; const handle = await directory.getFileHandle(state.name, { create: true }); created = true;
+		const attempt = state; let handle: FileSystemFileHandle; picking = true;
+		try { handle = await directory.getFileHandle(state.name, { create: true }); created = true; } finally { picking = false; }
 		return { kind: 'file', name: state.name, async createWritable() {
 			if (disk || opening || attempt !== state || attempt.closed || attempt.aborted) throw new Error('Sustained writer ownership changed.');
 			opening = true;

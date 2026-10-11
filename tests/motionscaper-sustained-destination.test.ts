@@ -101,10 +101,13 @@ test('Motion sustained TAR refuses corrupt nonselected PNGs, headers, order, ide
 test('Motion serialized OPFS adapter awaits one real file write, records close, and abort removes its owned file', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'motion-sustained-opfs-')); let active = 0, maximum = 0, directoryCreated = false;
 	const removed: string[] = [];
+	let releaseOpen!: () => void, startedOpen!: () => void;
+	const opening = new Promise<void>(resolve => { startedOpen = resolve; }), allowOpen = new Promise<void>(resolve => { releaseOpen = resolve; });
 	const directory = {
 		async getFileHandle(name: string, options?: { create?: boolean }) {
 			if (!options?.create) { try { const handle = await open(join(root, name)); await handle.close(); } catch { throw new DOMException('missing fixture file', 'NotFoundError'); } }
 			return { name, async createWritable() {
+				if (name === 'late-open.tar') { startedOpen(); await allowOpen; }
 				const handle = await open(join(root, name), 'w');
 				return { async write(bytes: Uint8Array) { if (name === 'failed.tar') throw new Error('fixture disk full'); active++; maximum = Math.max(maximum, active); await new Promise(resolve => setTimeout(resolve, 1)); await handle.write(bytes); active--; },
 					async close() { if (name === 'close-failed.tar') throw new Error('fixture close failed'); await handle.close(); }, async abort() { await handle.close(); } };
@@ -134,6 +137,16 @@ test('Motion serialized OPFS adapter awaits one real file write, records close, 
 		const closeFailed = runInContext('__motionSustainedDestination.snapshot()', context) as { closed: boolean; aborted: boolean; removed: boolean };
 		assert.equal(closeFailed.closed, false); assert.equal(closeFailed.aborted, true); assert.equal(closeFailed.removed, true);
 		await assert.rejects(readFile(join(root, 'close-failed.tar')), /ENOENT/u);
+		const late = runInContext(`(async()=>{await __motionSustainedDestination.prepare('late-open.tar'); const h=await showSaveFilePicker({}); return h.createWritable();})()`, context) as Promise<WritableStream<Uint8Array>>;
+		await opening;
+		try { await assert.rejects(runInContext('__motionSustainedDestination.cleanup()', context) as Promise<unknown>, /acquisition/u); }
+		finally { releaseOpen(); await late.catch(() => undefined); }
+		assert.ok(await late);
+		assert.equal(removed.includes('late-open.tar'), false);
+		await runInContext('__motionSustainedDestination.cleanup()', context);
+		assert.ok(removed.includes('late-open.tar'));
+		await assert.rejects(readFile(join(root, 'late-open.tar')), /ENOENT/u);
+		directoryCreated = false; await mkdir(root);
 		await runInContext(`__motionSustainedDestination.prepare('unopened.tar')`, context);
 		await runInContext(`__motionSustainedDestination.cleanup()`, context);
 		await assert.rejects(readFile(join(root, 'sequence.tar')), /ENOENT/u);
