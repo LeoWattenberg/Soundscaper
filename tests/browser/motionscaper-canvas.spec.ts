@@ -10,9 +10,12 @@ async function gesture(page: Page, overlay: Locator, from: readonly [number, num
 	await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 });
 	if (cancel) await page.keyboard.press('Escape'); await page.mouse.up();
 }
-async function anchor(selected: Locator, x: number, y?: number): Promise<void> {
-	await expect.poll(async () => Number(await selected.getAttribute('data-motion-anchor-x'))).toBeCloseTo(x, 8);
-	if (y !== undefined) await expect.poll(async () => Number(await selected.getAttribute('data-motion-anchor-y'))).toBeCloseTo(y, 8);
+async function anchor(selected: Locator, x: number, y?: number, precision = 8): Promise<void> {
+	await expect.poll(async () => Number(await selected.getAttribute('data-motion-anchor-x'))).toBeCloseTo(x, precision);
+	if (y !== undefined) await expect.poll(async () => Number(await selected.getAttribute('data-motion-anchor-y'))).toBeCloseTo(y, precision);
+}
+async function exactAnchor(selected: Locator, x: number, y: number): Promise<void> {
+	await expect.poll(() => Promise.all([selected.getAttribute('data-motion-anchor-x'), selected.getAttribute('data-motion-anchor-y')])).toEqual([String(x), String(y)]);
 }
 async function create(page: Page): Promise<void> {
 	await page.goto('/embed/en/'); await expect(page.locator('[data-motion-canvas-overlay]')).toHaveCount(0); await menu(page, 'File', 'New Composition');
@@ -25,22 +28,25 @@ test('Composition Canvas selects, moves, scales and rotates actual pixels with o
 	await create(page); await menu(page, 'View', 'Composition Canvas'); const dialog = page.getByRole('dialog', { name: 'Composition Canvas', exact: true });
 	const canvas = dialog.locator('canvas'), overlay = dialog.locator('svg'); const selected = dialog.locator('[data-motion-canvas-selected]');
 	await expect(canvas).toHaveAttribute('data-motion-rendered'); await expect(dialog.getByLabel('Canvas layer', { exact: true })).toBeFocused();
-	await gesture(page, overlay, [50, 70], [80, 90]); await anchor(selected, 70, 80);
+	// SVG screen matrices may expose float32 coefficients; bound only the pointer round trip to 0.00005 composition pixels.
+	await gesture(page, overlay, [50, 70], [80, 90]); await anchor(selected, 70, 80, 4);
+	const movedX = Number(await selected.getAttribute('data-motion-anchor-x')), movedY = Number(await selected.getAttribute('data-motion-anchor-y'));
 	await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(75, 85, 1, 1).data))).toEqual([74, 128, 255, 255]);
-	await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await anchor(selected, 40);
-	await dialog.getByRole('button', { name: 'Redo', exact: true }).click(); await anchor(selected, 70);
-	await gesture(page, overlay, [80, 90], [100, 100], true); await anchor(selected, 70);
+	await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await exactAnchor(selected, 40, 60);
+	await dialog.getByRole('button', { name: 'Redo', exact: true }).click(); await exactAnchor(selected, movedX, movedY);
+	await gesture(page, overlay, [80, 90], [100, 100], true); await exactAnchor(selected, movedX, movedY);
 	await gesture(page, overlay, [150, 120], [190, 140]);
 	await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(185, 135, 1, 1).data))).toEqual([74, 128, 255, 255]);
 	const rotate = dialog.getByRole('button', { name: 'Rotate selected layer', exact: true });
 	const rotatePoint = await rotate.locator('circle').evaluate(element => [Number(element.getAttribute('cx')), Number(element.getAttribute('cy'))] as const);
 	await gesture(page, overlay, rotatePoint, [70, 165]);
 	await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(20, 180, 1, 1).data))).toEqual([74, 128, 255, 255]);
-	await dialog.getByRole('button', { name: 'Move selected layer', exact: true }).focus(); await page.keyboard.press('ArrowRight'); await anchor(selected, 71);
+	await exactAnchor(selected, movedX, movedY);
+	await dialog.getByRole('button', { name: 'Move selected layer', exact: true }).focus(); await page.keyboard.press('ArrowRight'); await exactAnchor(selected, movedX + 1, movedY);
 	await expect(dialog.getByRole('button', { name: 'Close', exact: true }).last()).toBeEnabled(); await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
 	await expect(page.getByRole('menuitem', { name: 'View', exact: true })).toBeFocused(); await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device');
 	await page.reload(); await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Canvas study', exact: true }).click();
-	await menu(page, 'View', 'Composition Canvas'); await dialog.getByLabel('Canvas layer', { exact: true }).selectOption({ label: 'Card' }); await anchor(selected, 71);
+	await menu(page, 'View', 'Composition Canvas'); await dialog.getByLabel('Canvas layer', { exact: true }).selectOption({ label: 'Card' }); await exactAnchor(selected, movedX + 1, movedY);
 	await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => Array.from(element.getContext('2d')!.getImageData(20, 180, 1, 1).data))).toEqual([74, 128, 255, 255]);
 	await dialog.getByLabel('Frame', { exact: true }).fill('30'); await expect(dialog.getByRole('alert')).toContainText('Enter a frame'); await expect(dialog.getByLabel('Frame', { exact: true })).toHaveAttribute('aria-invalid', 'true');
 });
