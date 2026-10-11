@@ -78,3 +78,32 @@ hardware GPU equivalence. Linux ARM execution, other operating systems,
 credentialed signing, installed file-association dispatch, installed After
 Effects comparisons and broader codec/color profiles require their own actual
 receipts. Workflow inclusion alone does not establish those receipts.
+
+## Local Linux x64 receipt
+
+The complete runner passed against both actual packages from source revision
+`1b96f6b9d658d92d12555572043a89e192a703ff`. All three phases completed and all four
+required receipts were present. The aggregate record SHA-256 was
+`24d2bb7e2bfe65a3deeb0cb4b798660a599a8f1bceb956fb161adea558cca525`; the independent
+decoder receipt SHA-256 was
+`435acc3bcf35cc5134a1876a669baf888aee2ff651171f4e0aeff68d1f3a8248`.
+A separate real-artifact check also refused a one-byte decoder alteration before
+execution.
+
+Motion scene results retained the declared reference bounds: maximum preview
+premultiplied error `0.980392157` byte code, straight Rec.709 RGB error
+`0.005994711`, and alpha error `0.001403987`. Its two-frame movie digest remained
+`cf03af644b7e279bbdc9c43242ead9694bc3cb417e8aa7de63e48d67e20fec53`.
+
+The successor canvas midpoint was `[89, 45, 149, 255]` before and after offline
+reopen. Comparison explicitly converts decoded native Rec.709 values to the
+sRGB canvas boundary; the maximum difference was one display code, within the
+unchanged three-code tolerance. Native analytical checks remain in Rec.709:
+RGB error `0.005798446`, alpha error `0.000603348`, and PCM error zero across
+4,800 stereo frames at 48 kHz. The three-frame movie digest was
+`3c37b639b24c65dc7e60c59b7a055a2407700f02cc21044016446c4b9361f313`.
+
+This local receipt exercises the same source-bound runner used by CI with a
+software-rendered Motion app and software WebGL2 successor. It does not replace
+execution of the hosted Linux ARM job, signed installation qualification or
+hardware GPU receipts. No workflow was dispatched and no artifact was published.
