@@ -18,6 +18,7 @@ import {
 	productScreenshotNames,
 	productWebManifest,
 } from './product-web-manifest.mjs';
+import { resolveFramescaperBuildLine } from './product-build-line.mjs';
 import { webBuildRouting } from './product-web-routing.mjs';
 
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
@@ -42,6 +43,12 @@ const PRODUCT_ENTRIES = Object.freeze({
 	framescaper: 'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
 	soundscaper: 'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 });
+/** Offline activation uses the same explicit line as the selected application entry. */
+export function offlineProductBootstrapEntry(productId, environment = {}) {
+	return resolveFramescaperBuildLine(productId, environment.SCAPE_FRAMESCAPER_LINE) === 'successor'
+		? 'src/common/editor/ui/FramescaperSuccessorBootstrap.tsx' : PRODUCT_ENTRIES[productId];
+}
+
 const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	motionscaper: Object.freeze({
 		name: 'Motionscaper',
@@ -107,7 +114,7 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 	for (const worker of routing.workers) {
 		const productId = worker.productId;
 		const installUrls = buildManifest
-			? productInstallUrls({ assets, buildManifest, productId, worker })
+			? productInstallUrls({ assets, buildManifest, productId, worker, environment })
 			: previousInstallUrls({ assets, previousAudit, productId });
 		const installAssets = installUrls.map((url) => assets.find((asset) => asset.url === url));
 		validateInstallAssets(installAssets, productId);
@@ -165,7 +172,7 @@ async function removeUnservedProductArtifacts(outputRoot, routing) {
 	}
 }
 
-function productInstallUrls({ assets, buildManifest, productId, worker }) {
+function productInstallUrls({ assets, buildManifest, productId, worker, environment }) {
 	if (!plainObject(buildManifest)) throw new Error('Offline build manifest is invalid.');
 	const entryKey = Object.keys(buildManifest).find((key) => buildManifest[key]?.isEntry === true);
 	if (!entryKey) throw new Error('Offline build manifest has no application entry.');
@@ -186,7 +193,7 @@ function productInstallUrls({ assets, buildManifest, productId, worker }) {
 	]);
 	if (worker.root) urls.add('/');
 	for (const logo of PRODUCT_INSTALL_ARTIFACTS[productId].logos) urls.add(logo);
-	for (const key of [entryKey, PRODUCT_ENTRIES[productId]]) {
+	for (const key of [entryKey, offlineProductBootstrapEntry(productId, environment)]) {
 		for (const url of staticManifestClosure(buildManifest, key)) urls.add(url);
 	}
 	const assetUrls = new Set(assets.map(({ url }) => url));

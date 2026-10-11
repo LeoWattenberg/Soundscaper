@@ -29,3 +29,10 @@ test('successor composition roots have explicit chunk ownership outside their bo
 	assert.equal(chunkGroupForModulePath('/repo/src/common/editor/ui/FramescaperSuccessorBootstrap.tsx'), 'framescaper-successor-bootstrap');
 	assert.equal(chunkGroupForModulePath('/repo/src/framescaper/editor-successor-controller.ts'), 'framescaper-successor-runtime');
 });
+
+test('successor offline activation targets the explicit successor bootstrap', async () => {
+	const { offlineProductBootstrapEntry } = await import('../scripts/lib/offline-application-shell.mjs');
+	assert.equal(offlineProductBootstrapEntry('framescaper', { SCAPE_FRAMESCAPER_LINE: 'successor' }), successor.slice(1));
+	assert.equal(offlineProductBootstrapEntry('framescaper'), PRODUCT_BOOTSTRAPS.framescaper.slice(1));
+	assert.throws(() => offlineProductBootstrapEntry('motionscaper', { SCAPE_FRAMESCAPER_LINE: 'successor' }), /Framescaper|framescaper/u);
+});
