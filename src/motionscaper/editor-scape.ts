@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { TextReader, ZipWriter } from '@zip.js/zip.js/index-native.js';
+import { MOTION_ARCHIVE_ASSET_KINDS as ASSET_KINDS, motionArchiveAssetEntry as assetEntry, motionArchiveAssetDescriptor as assetDescriptor, validateMotionArchiveAssetClosure as validateAssetClosure } from '../common/editor/motion-archive-contract.ts';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import {
@@ -8,10 +9,10 @@ import {
 } from '../common/editor/scape-abort.ts';
 import {
 	readScapeArchiveEnvelope, SCAPE_ARCHIVE_LIMITS, SCAPE_FORMAT, SCAPE_FORMAT_VERSION,
-	SCAPE_MANIFEST_ENTRY, SCAPE_PROJECT_ENTRY, type ScapeAssetDescriptor, type ScapeManifest,
+	SCAPE_MANIFEST_ENTRY, SCAPE_PROJECT_ENTRY, type ScapeManifest,
 } from '../common/editor/scape-archive-envelope.ts';
 import {
-	createScapeDigest, digestScapeBytes, safeScapeEntryId, scapeBytesStream,
+	createScapeDigest, digestScapeBytes, scapeBytesStream,
 	scapeHashingStream, scapeHex, verifyScapeAssetBytes,
 } from '../common/editor/scape-archive-media.ts';
 import { createScapeExportDestination } from '../common/editor/scape-export-destination.ts';
@@ -22,7 +23,6 @@ import { classifyProjectSchemaIdentity, type ProjectSchemaIdentity } from '../co
 import type { MotionscaperProject } from './editor-project.ts';
 import { normalizeMotionscaperProject } from './editor-project-validation.ts';
 
-const ASSET_KINDS = ['motion-image', 'motion-footage', 'motion-audio', 'motion-font'] as const;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 const ENCODER = new TextEncoder();
 
@@ -186,29 +186,6 @@ export async function importMotionscaperArchive(
 			catch (cleanup) { throw aggregateScapeErrors(error, [cleanup], 'Motion import and rollback failed.'); }
 		}
 		throw error;
-	}
-}
-
-function assetEntry(asset: MotionAsset): string {
-	return `media/${safeScapeEntryId(asset.id)}/original`;
-}
-
-function assetDescriptor(asset: MotionAsset): ScapeAssetDescriptor {
-	return {
-		sourceId: asset.id, kind: `motion-${asset.kind}`, entry: assetEntry(asset),
-		encoding: 'motion-original-v1', size: asset.byteLength, sha256: asset.sha256, mimeType: asset.mimeType,
-	};
-}
-
-function validateAssetClosure(project: MotionscaperProject, descriptors: readonly ScapeAssetDescriptor[]): void {
-	if (project.assets.length !== descriptors.length) throw new RangeError('Motion archive has an incomplete asset closure.');
-	const byId = new Map(descriptors.map((asset) => [asset.sourceId, asset]));
-	for (const asset of project.assets) {
-		const actual = byId.get(asset.id);
-		const expected = assetDescriptor(asset);
-		if (!actual || Object.keys(expected).some((key) => actual[key] !== expected[key])) {
-			throw new RangeError(`Motion asset ${asset.id} descriptor does not match its closure contract.`);
-		}
 	}
 }
 

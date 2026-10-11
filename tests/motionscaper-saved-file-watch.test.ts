@@ -55,3 +55,15 @@ test('concurrent discoveries cannot exceed the finite pinned snapshot budget', a
 		assert.equal(results.filter(result => result.status === 'fulfilled').length, 1); assert.equal(results.filter(result => result.status === 'rejected').length, 1);
 	} finally { await f.dispose(); }
 });
+test('saved-file discovery wire refuses paths, accessors and invalid numeric or capability bounds', async () => {
+	const { normalizeMotionSavedFileSnapshot, normalizeMotionSavedFileDiscovery } = await import('../src/common/editor/motion-saved-file-contract.ts');
+	const good = { token: 'pinned', name: 'Saved.mscape', byteLength: 123, generation: 1 };
+	assert.deepEqual(normalizeMotionSavedFileDiscovery({ state: 'snapshot', snapshot: good }), { state: 'snapshot', snapshot: good });
+	assert.throws(() => normalizeMotionSavedFileSnapshot({ ...good, path: '/private/source.mscape' }), /fields/u);
+	assert.throws(() => normalizeMotionSavedFileSnapshot({ ...good, name: '../private/source.mscape' }), /name/u);
+	assert.throws(() => normalizeMotionSavedFileSnapshot({ ...good, byteLength: 64 * 1024 ** 3 + 1 }), /admission/u);
+	assert.throws(() => normalizeMotionSavedFileSnapshot({ ...good, token: 'x'.repeat(129) }), /identity/u);
+	assert.throws(() => normalizeMotionSavedFileDiscovery({ state: 'snapshot', generation: 1 }), /fields/u);
+	let invoked = false; const accessor = { ...good }; Object.defineProperty(accessor, 'name', { enumerable: true, get() { invoked = true; return 'Bad.mscape'; } });
+	assert.throws(() => normalizeMotionSavedFileSnapshot(accessor), /data fields/u); assert.equal(invoked, false);
+});
