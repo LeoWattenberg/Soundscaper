@@ -192,7 +192,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	const all = selectDesktopNightlyTestTargets('all');
 	assert.deepEqual(all, [
 		{ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' },
-		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'x64' },
+		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'arm64' },
 		{ runner: 'macos-15', platform: 'mac', arch: 'arm64', node_arch: 'arm64' },
 		{ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64', node_arch: 'x64' },
 		{ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64', node_arch: 'arm64' },

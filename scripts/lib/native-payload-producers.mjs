@@ -32,7 +32,7 @@ const NIGHTLY_TARGET_MATRIX_HELPER = 'scripts/lib/desktop-nightly-tests-target-m
 const NIGHTLY_TARGET_MATRIX_REFERENCE = 'target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}';
 const NIGHTLY_EXPECTED_ALL = Object.freeze([
 	Object.freeze({ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' }),
-	Object.freeze({ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'x64' }),
+	Object.freeze({ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'arm64' }),
 	Object.freeze({ runner: 'macos-15', platform: 'mac', arch: 'arm64', node_arch: 'arm64' }),
 	Object.freeze({ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64', node_arch: 'x64' }),
 	Object.freeze({ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64', node_arch: 'arm64' }),

@@ -213,7 +213,7 @@ test('pull-request quality compiles every supported Windows and macOS native tar
 	assert.match(compileJob,
 		/- runner: windows-2025\n\s+platform: win\n\s+arch: x64\n\s+node_arch: x64\n\s+cmake_arch: x64\n\s+native_target: win-x64/u);
 	assert.match(compileJob,
-		/- runner: windows-11-arm\n\s+platform: win\n\s+arch: arm64\n\s+node_arch: x64\n\s+cmake_arch: ARM64\n\s+native_target: win-arm64/u);
+		/- runner: windows-11-arm\n\s+platform: win\n\s+arch: arm64\n\s+node_arch: arm64\n\s+cmake_arch: ARM64\n\s+native_target: win-arm64/u);
 	assert.match(compileJob,
 		/- runner: macos-15\n\s+platform: mac\n\s+arch: arm64\n\s+node_arch: arm64\n\s+native_target: mac-arm64/u);
 	assert.doesNotMatch(compileJob, /runner: ubuntu|platform: linux/u);

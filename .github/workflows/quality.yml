@@ -307,7 +307,7 @@ jobs:
           - runner: windows-11-arm
             platform: win
             arch: arm64
-            node_arch: x64
+            node_arch: arm64
             cmake_arch: ARM64
             native_target: win-arm64
           - runner: macos-15
@@ -328,6 +328,9 @@ jobs:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
 
       - name: Pin npm
         run: npm install --global npm@12.0.1

@@ -54,6 +54,9 @@ jobs:
           node-version-file: .nvmrc
           architecture: ${{ matrix.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
       - run: npm install --global npm@12.0.1
       - run: npm ci
       - name: Activate the target-native MSVC environment
@@ -68,7 +71,7 @@ jobs:
           if (-not $installation) { throw 'Visual Studio C++ tools are unavailable.' }
           $devCmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
           $activation = Join-Path $env:RUNNER_TEMP 'framescaper-openfx-vs.cmd'
-          Set-Content -LiteralPath $activation -Encoding ascii -Value "@call `"$devCmd`" -no_logo -arch=$env:FRAMESCAPER_VS_ARCH`r`n@set"
+          Set-Content -LiteralPath $activation -Encoding ascii -Value "@call `"$devCmd`" -no_logo -arch=$env:FRAMESCAPER_VS_ARCH -host_arch=$env:FRAMESCAPER_VS_ARCH`r`n@set"
           $lines = & cmd.exe /d /c $activation
           foreach ($key in @('INCLUDE', 'LIB', 'LIBPATH', 'PATH', 'SYSTEMROOT')) {
             $line = $lines | Where-Object { $_ -like "$key=*" } | Select-Object -Last 1

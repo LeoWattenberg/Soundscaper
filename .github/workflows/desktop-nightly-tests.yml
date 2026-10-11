@@ -79,6 +79,9 @@ jobs:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
 
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
+
       - name: Pin npm
         run: npm install --global npm@12.0.1
 

@@ -485,7 +485,7 @@ jobs:
           - runner: windows-11-arm
             platform: win
             arch: arm64
-            node_arch: x64
+            node_arch: arm64
           - runner: macos-15
             platform: mac
             arch: arm64
@@ -512,6 +512,9 @@ jobs:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -676,7 +679,7 @@ jobs:
           - runner: windows-11-arm
             platform: win
             arch: arm64
-            node_arch: x64
+            node_arch: arm64
           - runner: macos-15
             platform: mac
             arch: arm64
@@ -721,6 +724,9 @@ jobs:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -1096,9 +1102,11 @@ jobs:
           - runner: ubuntu-24.04
             arch: x64
             flatpak_arch: x86_64
+            node_arch: x64
           - runner: ubuntu-24.04-arm
             arch: arm64
             flatpak_arch: aarch64
+            node_arch: arm64
     runs-on: ${{ matrix.target.runner }}
     env:
       SCAPE_PRODUCT: ${{ matrix.product }}
@@ -1112,7 +1120,11 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -1192,7 +1204,7 @@ jobs:
           - runner: windows-11-arm
             platform: win
             arch: arm64
-            node_arch: x64
+            node_arch: arm64
           - runner: macos-15
             platform: mac
             arch: arm64
@@ -1217,6 +1229,9 @@ jobs:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
