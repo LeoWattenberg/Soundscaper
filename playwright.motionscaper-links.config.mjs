@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { defineConfig, devices } from '@playwright/test';
+import { resolve } from 'node:path';
 const framePort = Number(process.env.PLAYWRIGHT_LINK_FRAME_PORT || 4345), motionPort = Number(process.env.PLAYWRIGHT_LINK_MOTION_PORT || 4346);
 const frameOrigin = `http://127.0.0.1:${framePort}`, motionOrigin = `http://127.0.0.1:${motionPort}`;
 export default defineConfig({
@@ -9,6 +10,9 @@ export default defineConfig({
 		command: `node scripts/serve-pages-site.mjs .wrangler/motionscaper-links/${product} --host 127.0.0.1 --port ${port}`,
 		url: `${origin}/en/`, reuseExistingServer: false, timeout: 120_000,
 	})),
-	use: { baseURL: frameOrigin, actionTimeout: 15_000, serviceWorkers: 'block', storageState: { cookies: [], origins: [] }, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
+	use: { browserCoverageSites: [
+		{ productId: 'framescaper', origin: frameOrigin, outputDirectory: resolve('.wrangler/motionscaper-links/framescaper') },
+		{ productId: 'motionscaper', origin: motionOrigin, outputDirectory: resolve('.wrangler/motionscaper-links/motionscaper') },
+	], baseURL: frameOrigin, actionTimeout: 15_000, serviceWorkers: 'block', storageState: { cookies: [], origins: [] }, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
 	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });

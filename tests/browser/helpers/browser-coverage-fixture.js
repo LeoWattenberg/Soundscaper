@@ -35,7 +35,9 @@ export const test = base.extend({
 	// slows a page, and a test that races a render clock is not the place to
 	// pay for it.
 	browserCoverage: [true, { option: true }],
-	context: async ({ context, browserName, browserCoverage }, use, testInfo) => {
+	// Custom product fixtures retain their own built roots and ordinary source URLs.
+	browserCoverageSites: [null, { option: true }],
+	context: async ({ context, browserName, browserCoverage, browserCoverageSites }, use, testInfo) => {
 		if (!browserCoverage || !collectsBrowserCoverage(browserName)) {
 			await use(context);
 			return;
@@ -43,7 +45,7 @@ export const test = base.extend({
 		const collector = createBrowserCoverageCollector({
 			browserName,
 			scripts,
-			sites: browserProductSites(),
+			sites: browserCoverageSites ?? browserProductSites(),
 		});
 		collectors.set(context, collector);
 		// Popups and reciprocal-origin windows open their own pages, so the whole

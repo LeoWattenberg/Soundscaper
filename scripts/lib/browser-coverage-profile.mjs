@@ -218,7 +218,7 @@ export function withoutRepeatedSourceMaps(profile, alreadyWritten) {
  * @param {{
  *   browserName: string,
  *   environment?: Record<string, string | undefined>,
- *   sites?: Array<{ origin: string, outputDirectory: string, productId: 'framescaper' | 'soundscaper' }>,
+ *   sites?: Array<{ origin: string, outputDirectory: string, productId: 'framescaper' | 'soundscaper' | 'motionscaper' }>,
  *   repositoryRoot?: string,
  *   coverageDirectory?: string,
  *   scripts?: Map<string, { path: string, coverageUrl?: string, sourceMap?: object, source?: string } | null>,
