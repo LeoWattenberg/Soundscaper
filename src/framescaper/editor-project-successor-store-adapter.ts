@@ -9,6 +9,7 @@ import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject 
 import type { createFramescaperSuccessorRuntime } from './editor-project-successor-runtime.ts';
 import { retainFramescaperSuccessorMediaHistory } from './editor-project-successor-media-roots.ts';
 import { createFramescaperSuccessorLinkedTimingStore } from './editor-project-successor-linked-timing.ts';
+import { normalizeFramescaperSuccessorHistory } from './editor-project-successor-history.ts';
 
 type Runtime = ReturnType<typeof createFramescaperSuccessorRuntime>;
 export type FramescaperSuccessorStoreAdapter = AudioEditorProjectStore & Readonly<{
@@ -44,7 +45,7 @@ export function createFramescaperSuccessorStoreAdapter({ media, owners, runtime,
 	}
 	async function publish(value: unknown, expectedDigest: string | null, writeFence: string | undefined, options: unknown = {}, initial = false) {
 		const project = normalizeFramescaperSuccessorProject(value);
-		const history = initial ? runtime.createHistory(value) : runtime.historyForSnapshot(value);
+		const history = initial ? normalizeFramescaperSuccessorHistory(runtime.createHistory(value)) : runtime.historyForSnapshot(value);
 		await admitProjectPublication(media, project, options); await retainFramescaperSuccessorMediaHistory(media, history);
 		const warnings = projectPublicationWarningOptions(options); warnings.signal?.throwIfAborted(); warnings.assertCurrent?.();
 		return acceptOwnerReceipt(await owners.saveOwner(project, expectedDigest, history, writeFence ? { writeFence } : {}));

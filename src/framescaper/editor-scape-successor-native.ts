@@ -13,6 +13,10 @@ export function createFramescaperSuccessorScapeNativeRuntime(value: unknown): No
 		async inspectScapeProject(input, store, options, retention) {
 			assertStore(store); options.signal.throwIfAborted();
 			const operation = (async () => {
+				const { inspectFramescaperSuccessorOpaqueArchive } = await import('./editor-scape-successor-opaque.ts');
+				const opaque = await inspectFramescaperSuccessorOpaqueArchive(input, options.signal);
+				if (opaque) return { ...opaque, id: opaque.project.id, title: opaque.project.title, schemaFamily: opaque.project.schemaFamily,
+					schemaVersion: opaque.project.schemaVersion, exists: false, featureRequirementsCompatibility: null };
 				const { inspectFramescaperSuccessorPortableArchive } = await import('./editor-project-successor-portable-inspect.ts');
 				const result = await inspectFramescaperSuccessorPortableArchive(input, { signal: options.signal });
 				const existing = await environment.owners.loadOwner(result.project.id); options.signal.throwIfAborted();
@@ -23,6 +27,9 @@ export function createFramescaperSuccessorScapeNativeRuntime(value: unknown): No
 		},
 		async importScapeProject(input, store, options) {
 			assertStore(store); options.assertCurrent?.(); options.signal.throwIfAborted();
+			const { inspectFramescaperSuccessorOpaqueArchive } = await import('./editor-scape-successor-opaque.ts');
+			const opaque = await inspectFramescaperSuccessorOpaqueArchive(input, options.signal);
+			options.assertCurrent?.(); options.signal.throwIfAborted(); if (opaque) return { ...opaque, project: environment.runtime.openOpaqueProject(opaque.project) };
 			const { importFramescaperSuccessorPortableArchive } = await import('./editor-project-successor-portable-import.ts');
 			const result = await importFramescaperSuccessorPortableArchive(input, environment.store, {
 				line: 'successor', signal: options.signal, assertCurrent: options.assertCurrent,
@@ -43,6 +50,10 @@ export function createFramescaperSuccessorScapeNativeRuntime(value: unknown): No
 				createWritable: options.createWritable, assertCurrent: options.assertCurrent,
 				confirmFileSizeWarning: options.confirmFileSizeWarning,
 			});
+		},
+		async copyScapeArchive(input, write, options) {
+			const { copyFutureScapeArchive } = await import('../common/editor/scape-archive-copy.ts');
+			return copyFutureScapeArchive(input, write, { ...options, currentProjectSchemaFamily: 'framescaper', releaseLine: 'successor', allowOpaqueAssetKinds: true });
 		},
 	});
 }

@@ -83,5 +83,20 @@ configurations still need platform qualification. Node tests additionally cover
 pinned old/new bytes, transfer cancellation and retryable cleanup failures;
 they do not replace interactive platform qualification.
 
+The successor's ordinary File Open also retains a format-1 archive carrying a
+foreign product or a future Framescaper schema as a read-only document. Archive
+structure and the project descriptor digest are checked; unknown asset kinds
+remain inert and their bodies are neither decoded nor installed in a media
+store. The view has an ephemeral session identity, so a foreign project ID
+cannot select an editable successor tab or claim its canonical owner fence.
+The source archive retains its original identity and bytes. File > Export
+project file copies those retained bytes exactly, including unknown fields and
+asset bodies. A selected byte-source capability is detached into temporary
+archive custody before its read lifetime ends. No canonical owner, portable
+project record or imported asset is written for the read-only view. Current
+schema 2 still uses the validated successor import/export workflow; legacy
+schema 1 still requires the explicit migration workflow. The baseline desktop
+and its schema admission are unchanged.
+
 This work changes no assistance runtime closure and requires no manual
 **Update AI assets** run.

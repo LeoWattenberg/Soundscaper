@@ -14,6 +14,7 @@ const successorRuntimeModules = [
 	'editor-project-successor-history-custody',
 	'editor-project-successor-session',
 	'editor-project-successor-runtime',
+	'editor-project-successor-opaque',
 	'editor-composition-link-owner-record',
 	'editor-composition-link-records',
 	'editor-composition-link-owner-repository',

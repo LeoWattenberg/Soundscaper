@@ -7,7 +7,7 @@ import { createStableId } from '../common/editor/stable-id.js';
 import { createFramescaperCompositionLink } from './editor-project-successor-link.ts';
 import { createFramescaperCompositionPlacement } from './editor-composition-link-placement.ts';
 import { normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
-import { executeFramescaperSuccessorHistory, undoFramescaperSuccessorHistory, redoFramescaperSuccessorHistory, type FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
+import { executeFramescaperSuccessorHistory, undoFramescaperSuccessorHistory, redoFramescaperSuccessorHistory, normalizeFramescaperSuccessorHistory, type FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
 import { retainFramescaperSuccessorMediaHistory } from './editor-project-successor-media-roots.ts';
 import type { FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
 import type { FramescaperSuccessorSession } from './editor-project-successor-session.ts';
@@ -39,7 +39,7 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 			if (controller.getSnapshot().readOnly) throw new Error('Claim write access before changing linked compositions.');
 			const capture = session.captureProjectHistory(current.id); const expectedOwnerDigest = env.controllerStore.captureOwnerDigest(current);
 			fence = env.runtime.beginPublication(session, current.id, capture.token);
-			const candidate = await build(capture.history); prepared = candidate.prepared;
+			const candidate = await build(normalizeFramescaperSuccessorHistory(capture.history)); prepared = candidate.prepared;
 			await retainFramescaperSuccessorMediaHistory(env.store, candidate.history);
 			const commit = { expectedOwnerDigest, project: candidate.history.present, history: candidate.history, writeFence: env.controllerStore.ownerWriteFence(current.id) };
 			const receipt = prepared ? await prepared.commit(commit) : await env.owners.saveOwner(commit.project, expectedOwnerDigest, commit.history, { writeFence: commit.writeFence });

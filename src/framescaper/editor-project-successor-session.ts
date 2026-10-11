@@ -2,10 +2,11 @@
 import { createAudioEditorSessionController } from '../common/editor/session.js';
 import { normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
 import { normalizeFramescaperSuccessorHistory, type FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
+import { framescaperSuccessorOpaqueProject, framescaperSuccessorOpaqueHistory, type FramescaperSuccessorOpaqueHistory } from './editor-project-successor-opaque.ts';
 type Delegate = ReturnType<typeof createAudioEditorSessionController>;
 export type FramescaperSuccessorSession = Omit<Delegate, 'captureProjectHistory' | 'getProjectHistory'> & Readonly<{
-	captureProjectHistory(projectId: string): Readonly<{ history: FramescaperSuccessorHistory; token: object }>;
-	getProjectHistory(projectId: string): FramescaperSuccessorHistory;
+	captureProjectHistory(projectId: string): Readonly<{ history: FramescaperSuccessorHistory | FramescaperSuccessorOpaqueHistory; token: object }>;
+	getProjectHistory(projectId: string): FramescaperSuccessorHistory | FramescaperSuccessorOpaqueHistory;
 }>;
 export interface FramescaperSuccessorPublicationFence {
 	acceptHistory(history: FramescaperSuccessorHistory): void;
@@ -18,17 +19,24 @@ export function createFramescaperSuccessorSessionAuthority(retainHistory: (histo
 	return Object.freeze({ assertEditable, createSessionController, beginPublication });
 	function createSessionController(): FramescaperSuccessorSession {
 		const delegate = createAudioEditorSessionController({ currentSchemaVersion: 2 });
+		const history = (value: unknown) => {
+			if (!value || typeof value !== 'object') throw new TypeError('A successor session history is required.');
+			const present: unknown = Reflect.get(value, 'present');
+			return framescaperSuccessorOpaqueHistory(present) ?? retainHistory(normalizeFramescaperSuccessorHistory(value));
+		};
 		const session = Object.freeze({ ...delegate,
 			openProject(value: unknown, options: Record<string, unknown> = {}) {
-				assertEditable(); const project = normalizeFramescaperSuccessorProject(value);
+				assertEditable(); const opaque = framescaperSuccessorOpaqueProject(value);
+				if (opaque) return delegate.openProject(opaque, { ...options, history: framescaperSuccessorOpaqueHistory(opaque), readOnly: true, readOnlyReason: 'opaque-project' });
+				const project = normalizeFramescaperSuccessorProject(value);
 				return delegate.openProject(project, { ...options, ...(options.history ? { history: normalizeFramescaperSuccessorHistory(options.history) } : {}) });
 			},
 			updateProject(projectId: string, update: unknown, options: Record<string, unknown> = {}) {
 				assertEditable(); return delegate.updateProject(projectId, (previous: unknown) => normalizeFramescaperSuccessorProject(typeof update === 'function' ? (update as (value: unknown) => unknown)(previous) : update), options);
 			},
 			updateProjectHistory(projectId: string, history: unknown, options: Record<string, unknown> = {}) { assertEditable(); return delegate.updateProjectHistory(projectId, normalizeFramescaperSuccessorHistory(history), options); },
-			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: object }; return Object.freeze({ history: retainHistory(normalizeFramescaperSuccessorHistory(capture.history)), token: capture.token }); },
-			getProjectHistory(projectId: string) { return retainHistory(normalizeFramescaperSuccessorHistory(delegate.getProjectHistory(projectId))); },
+			captureProjectHistory(projectId: string) { const capture = delegate.captureProjectHistory(projectId) as { history: unknown; token: object }; return Object.freeze({ history: history(capture.history), token: capture.token }); },
+			getProjectHistory(projectId: string) { return history(delegate.getProjectHistory(projectId)); },
 		});
 		sessions.set(session, delegate); return session;
 	}

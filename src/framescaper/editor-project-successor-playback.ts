@@ -7,6 +7,8 @@ import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-pr
 import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject } from './editor-project-successor.ts';
 import { framescaperSuccessorBaselineProject } from './editor-project-successor-commands.ts';
 import { resolveFramescaperCompositionSource } from './editor-composition-link-source.ts';
+import { framescaperSuccessorOpaqueProject } from './editor-project-successor-opaque.ts';
+import { opaqueFramescaperPlaybackProjection } from './editor-project-playback-projection.ts';
 const CANONICAL = new WeakMap<object, FramescaperSuccessorProject>();
 export function framescaperSuccessorPlaybackCanonicalProject(value: object): FramescaperSuccessorProject | null { return CANONICAL.get(value) ?? null; }
 function associated<T extends { readonly project: object }>(result: T, value: unknown): T {
@@ -16,8 +18,13 @@ function associated<T extends { readonly project: object }>(result: T, value: un
 export function createFramescaperSuccessorPlayback(media: AudioEditorProjectStore): PlaybackProjectService {
 	const ordinary = createFramescaperPlaybackProjectService(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, { timingStore: media });
 	const project = framescaperSuccessorBaselineProject;
+	const projected = <T extends { readonly project: object }>(value: object, action: () => T) => {
+		const opaque = framescaperSuccessorOpaqueProject(value);
+		return opaque ? opaqueFramescaperPlaybackProjection(opaque) : associated(action(), value);
+	};
 	return Object.freeze({
 		async prepareProjectForActivation(value: object, options: { signal?: AbortSignal } = {}) {
+			options.signal?.throwIfAborted(); if (framescaperSuccessorOpaqueProject(value)) return;
 			const canonical = normalizeFramescaperSuccessorProject(value); const baseline = project(canonical); const timing = new Map<string, Blob>();
 			for (const link of canonical.compositionLinks) {
 				options.signal?.throwIfAborted(); const source = baseline.sources.find(entry => entry.id === link.sourceId)!;
@@ -30,9 +37,9 @@ export function createFramescaperSuccessorPlayback(media: AudioEditorProjectStor
 			} });
 			await preparation.prepareProjectForActivation?.(baseline, options);
 		},
-		projectForActivationAdmission: (value: object) => associated(ordinary.projectForActivationAdmission!(project(value)), value),
-		projectForPlayback: (value: object) => associated(ordinary.projectForPlayback(project(value)), value),
-		projectForAudioRenderedFallbackDelivery: (value: object) => associated(ordinary.projectForAudioRenderedFallbackDelivery(project(value)), value),
-		projectForVideoRenderedFallbackDelivery: (value: object) => associated(ordinary.projectForVideoRenderedFallbackDelivery(project(value)), value),
+		projectForActivationAdmission: (value: object) => projected(value, () => ordinary.projectForActivationAdmission!(project(value))),
+		projectForPlayback: (value: object) => projected(value, () => ordinary.projectForPlayback(project(value))),
+		projectForAudioRenderedFallbackDelivery: (value: object) => projected(value, () => ordinary.projectForAudioRenderedFallbackDelivery(project(value))),
+		projectForVideoRenderedFallbackDelivery: (value: object) => projected(value, () => ordinary.projectForVideoRenderedFallbackDelivery(project(value))),
 	}) as PlaybackProjectService;
 }

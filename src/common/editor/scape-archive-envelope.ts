@@ -3,7 +3,9 @@
 import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
 import {
 	readProjectSchemaIdentity,
+	classifyProjectSchemaIdentity,
 	type ProjectSchemaFamily,
+	type ProjectSchemaReleaseLine,
 } from './project-schema-identity.ts';
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
@@ -81,6 +83,12 @@ export interface ScapeArchiveEnvelope {
 	projectText: string;
 }
 
+/** Unknown asset kinds remain inert only for a foreign/future document. */
+export interface ScapeOpaqueEnvelopeAdmission {
+	readonly family: ProjectSchemaFamily;
+	readonly line: ProjectSchemaReleaseLine;
+}
+
 /** A pre-baseline archive format is intentionally not a 1.0 migration source. */
 export class ScapeArchiveReimportRequiredError extends RangeError {
 	readonly code = 'REIMPORT_REQUIRED' as const;
@@ -102,6 +110,7 @@ export async function readScapeArchiveEnvelope(
 	additionalAssetKinds: readonly string[] = [],
 	desktopImport = false,
 	warningOptions: FileSizeWarningOptions = {},
+	opaqueAdmission?: ScapeOpaqueEnvelopeAdmission,
 ): Promise<ScapeArchiveEnvelope> {
 	throwIfScapeAborted(signal);
 	const limits = resolveLimits(limitOverrides, desktopImport);
@@ -126,7 +135,7 @@ export async function readScapeArchiveEnvelope(
 		signal,
 	);
 	throwIfScapeAborted(signal);
-	const manifest = parseScapeManifest(manifestText, additionalAssetKinds);
+	const manifest = parseScapeManifest(manifestText, additionalAssetKinds, opaqueAdmission);
 	const projectEntry = requiredFileEntry(entryByName, SCAPE_PROJECT_ENTRY);
 	if (warningOptions.confirmFileSizeWarning) limits.maximumProjectBytes = await confirmFileSizeWarning(
 		projectEntry.uncompressedSize, limits.maximumProjectBytes, SCAPE_PROJECT_ENTRY, confirmation);
@@ -273,7 +282,7 @@ async function readBoundedTextEntry(
 	return textChunks.join('');
 }
 
-function parseScapeManifest(text: string, additionalAssetKinds: readonly string[]): ScapeManifest {
+function parseScapeManifest(text: string, additionalAssetKinds: readonly string[], opaqueAdmission?: ScapeOpaqueEnvelopeAdmission): ScapeManifest {
 	let value: unknown;
 	try {
 		value = JSON.parse(text);
@@ -292,6 +301,8 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 	}
 	validateDescriptor(value.project);
 	readProjectSchemaIdentity(value.project);
+	const disposition = opaqueAdmission ? classifyProjectSchemaIdentity(value.project, opaqueAdmission.family, opaqueAdmission.line).disposition : 'current';
+	const opaque = disposition === 'foreign' || disposition === 'future';
 	const assetKinds = allowedAssetKinds(additionalAssetKinds);
 	for (const asset of value.assets) {
 		if (!isRecord(asset)) throw new TypeError('A Scape asset descriptor is invalid.');
@@ -299,7 +310,7 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 		if (typeof asset.sourceId !== 'string' || !asset.sourceId) {
 			throw new TypeError('A Scape asset has an invalid source ID.');
 		}
-		if (typeof asset.kind !== 'string' || !assetKinds.has(asset.kind)) {
+		if (typeof asset.kind !== 'string' || !(assetKinds.has(asset.kind) || opaque && /^[a-z][a-z0-9-]{0,63}$/u.test(asset.kind))) {
 			throw new TypeError(`A Scape asset has an invalid kind: ${String(asset.kind)}.`);
 		}
 		if (typeof asset.encoding !== 'string' || !asset.encoding) {
