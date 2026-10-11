@@ -43,6 +43,7 @@ bool prores_available() noexcept { return avcodec_find_encoder_by_name("prores_k
 
 void encode_prores4444(frame_carrier& carrier, const std::filesystem::path& destination) {
 	const auto& header = carrier.header();
+	if (header.frame_count > 32'768) throw std::runtime_error("Motionscaper flat MOV exceeds its bounded 32768-frame sample index.");
 	if (header.width > 16'384 || header.height > 16'384) throw std::runtime_error("Motionscaper ProRes dimensions exceed codec admission.");
 	if (std::filesystem::exists(destination)) throw std::runtime_error("Motionscaper helper output must be a fresh main-owned temporary path.");
 	const auto path_bytes = destination.u8string(); const std::string path{reinterpret_cast<const char*>(path_bytes.data()), path_bytes.size()};

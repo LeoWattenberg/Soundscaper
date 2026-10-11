@@ -56,6 +56,21 @@ int main(const int argc, char** argv) {
 		const std::filesystem::path directory{argv[1]}; std::filesystem::create_directories(directory);
 		output = directory / "motionscaper-roundtrip.mov";
 		require(!std::filesystem::exists(output), "Round-trip output already exists");
+		// A header claiming a long movie must fail before reading frames or opening output.
+		auto excessive = motionscaper::media::fixture::frames();
+		const auto count_offset = excessive.find("\"frameCount\":2") + std::string{"\"frameCount\":"}.size();
+		excessive.replace(count_offset, 1, "32769");
+		const auto header_offset = std::string{"motionscaper-linear-rgba-frame-pack-v1\n"}.size();
+		std::uint32_t header_length{};
+		for (std::size_t byte = 0; byte < 4; ++byte) header_length |= static_cast<std::uint32_t>(static_cast<unsigned char>(excessive[header_offset + byte])) << (8U * byte);
+		header_length += 4;
+		for (std::size_t byte = 0; byte < 4; ++byte) excessive[header_offset + byte] = static_cast<char>((header_length >> (8U * byte)) & 255U);
+		std::istringstream excessive_input{excessive};
+		motionscaper::media::frame_carrier excessive_carrier{excessive_input, excessive.size() + 32'767ULL * (48 + 32 * 16 * 16), {"p", std::string(64, 'a'), "c"}};
+		bool bound_rejected = false;
+		try { motionscaper::media::encode_prores4444(excessive_carrier, output); }
+		catch (const std::exception& error) { bound_rejected = std::string{error.what()}.find("32768-frame") != std::string::npos; }
+		require(bound_rejected && !std::filesystem::exists(output), "MOV sample index bound was not enforced before output");
 		const auto bytes = motionscaper::media::fixture::frames(); std::istringstream input{bytes};
 		motionscaper::media::frame_carrier carrier{input, bytes.size(), {"p", std::string(64, 'a'), "c"}};
 		motionscaper::media::encode_prores4444(carrier, output);

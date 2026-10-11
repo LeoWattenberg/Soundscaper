@@ -50,8 +50,8 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/THIRD_PARTY_NOTICES.md",
-			"byteLength": 1287,
-			"sha256": "2e1996f4f084149e895fafef087f3aa188d64cb557d96dbccac9a67c784a20f2"
+			"byteLength": 1529,
+			"sha256": "58577c3d906094faeb3a05e3614d63e89b601c3ad9bd8c327491b78fb33ea1f6"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/frame_carrier.cpp",
@@ -65,13 +65,13 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/src/media_host.cpp",
-			"byteLength": 3635,
-			"sha256": "569435c4d05c42d072a1a43701fc81bfb3cdeed3883223c2bc6855b69d521e97"
+			"byteLength": 3659,
+			"sha256": "760a5767ad94d056acbbb5c6eef37e05bf11abe90ec2b94ff94e1de8cec8dd9a"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/prores_encoder.cpp",
-			"byteLength": 6451,
-			"sha256": "e2da25e2f07167a972ed07e00c0a8f127a078841093995e163a8545a93aa6e07"
+			"byteLength": 6582,
+			"sha256": "3465ccff3bb6dbdaad9a402619c260bbb04b13640cae24283d353ee3d70d0603"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/prores_encoder.hpp",
@@ -95,8 +95,8 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/tests/prores_roundtrip.cpp",
-			"byteLength": 5740,
-			"sha256": "d9b7d96f0b2e0676a68d91f5e7171a1ad382e079521c510bf1c395c741e6aa1a"
+			"byteLength": 7055,
+			"sha256": "925e869213cd0b0a24ee480ab0ae942b229611e3a0b0af43f73f953b8a24bb78"
 		},
 		{
 			"path": "scripts/build-motionscaper-media-host.mjs",
@@ -110,8 +110,8 @@
 		},
 		{
 			"path": "scripts/lib/motionscaper-native-build.ts",
-			"byteLength": 10178,
-			"sha256": "b9013b68f9fa94c7ecd81686bd75329373f0bed5f9131a26f33bc26c96d99798"
+			"byteLength": 10201,
+			"sha256": "9b006c2e961abe55f0574867e94f1564d94cf3099802f4f1eb73a8f174264a45"
 		},
 		{
 			"path": "scripts/lib/motionscaper-native-source.ts",

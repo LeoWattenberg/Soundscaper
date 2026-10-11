@@ -25,7 +25,7 @@ export const MOTION_NATIVE_PRECISION = Object.freeze({
 });
 export const MOTION_NATIVE_SELF_TEST = Object.freeze({ productId: 'motionscaper', helperContractVersion: 1,
 	carrierVersion: 1, operation: 'prores-4444', inputPixelFormat: 'rgba-f32le',
-	encoderPixelFormat: 'yuva444p10', colorSpace: 'rec709', alphaMode: 'straight' });
+	encoderPixelFormat: 'yuva444p10', colorSpace: 'rec709', alphaMode: 'straight', maximumFrames: 32_768 });
 
 /** Reuses authenticated codec build inputs, never a foreign runtime capability or payload. */
 export async function buildMotionscaperNativeHost(options: MotionNativeBuildOptions): Promise<unknown> {

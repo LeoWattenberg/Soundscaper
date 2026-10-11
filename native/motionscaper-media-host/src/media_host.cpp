@@ -34,7 +34,7 @@ int main(const int argc, char** argv) {
 	try {
 		if (argc == 2 && std::string_view{argv[1]} == "--self-test") {
 			if (!motionscaper::media::prores_available()) throw std::runtime_error("Pinned ProRes encoder is unavailable.");
-			std::cout << "{\"productId\":\"motionscaper\",\"helperContractVersion\":1,\"carrierVersion\":1,\"operation\":\"prores-4444\",\"inputPixelFormat\":\"rgba-f32le\",\"encoderPixelFormat\":\"yuva444p10\",\"colorSpace\":\"rec709\",\"alphaMode\":\"straight\"}\n";
+			std::cout << "{\"productId\":\"motionscaper\",\"helperContractVersion\":1,\"carrierVersion\":1,\"operation\":\"prores-4444\",\"inputPixelFormat\":\"rgba-f32le\",\"encoderPixelFormat\":\"yuva444p10\",\"colorSpace\":\"rec709\",\"alphaMode\":\"straight\",\"maximumFrames\":32768}\n";
 			return 0;
 		}
 		if (argc != 9 || std::string_view{argv[1]} != "--encode-prores-4444-v1") throw std::runtime_error("Unsupported Motionscaper helper operation envelope.");

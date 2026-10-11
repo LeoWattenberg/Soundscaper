@@ -20,3 +20,7 @@ the Rec.709 transfer explicitly, and quantizes at that codec boundary. The MOV
 uses ProRes 4444 with 16-bit alpha storage; its input precision remains ten bits.
 The native round-trip test checks decoded colors, alpha endpoints, partial-alpha
 precision, and the exact frame count.
+
+Flat MOV delivery admits at most 32,768 frames. This bounds the muxer's retained
+sample index independently of the one-frame working set and streamed carrier.
+Longer compositions require a different output strategy; the helper refuses them.
