@@ -48,7 +48,15 @@ for (const script of [{ id: 'arabic', family: 'Noto Sans Arabic', text: 'سَل�
 		expect(Array.from(await load(retained.id))).toEqual(Array.from(await readFile(path)));
 		const kit = await CanvasKitInit(); const rasterizer = createCanvasKitMotionRasterizer(kit, { assets: opened.project.assets, fallbackFonts: [], loadAsset: asset => load(asset.id) });
 		const frame = compileMotionscaperProject(opened.project).evaluate({ compositionId: opened.project.primaryCompositionId, time: 0 });
-		expect(actual).toEqual(Array.from(motionSurfaceToRgba8(await renderMotionCompositionFrame(frame, { rasterizer }), 'srgb')));
+		const surface = await renderMotionCompositionFrame(frame, { rasterizer });
+		// Apply the same browser canvas presentation to the independent CPU reference.
+		const presented = await page.evaluate(({ width, height, rgba }) => {
+			const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+			const context = canvas.getContext('2d')!;
+			context.putImageData(new ImageData(Uint8ClampedArray.from(rgba), width, height), 0, 0);
+			return Array.from(context.getImageData(0, 0, width, height).data);
+		}, { width: surface.width, height: surface.height, rgba: Array.from(motionSurfaceToRgba8(surface, 'srgb')) });
+		expect(actual).toEqual(presented);
 		await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device');
 		await page.reload(); await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: `Retained ${script.id}`, exact: true }).click();
 		expect(await preview(page)).toEqual(actual); await context.setOffline(true);
