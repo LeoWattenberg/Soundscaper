@@ -189,6 +189,68 @@ export async function observeNativePhotoDevelopProxyCustody(page, photoId) {
 	await assertNativeOpfsWorkerExecution(page); return facts;
 }
 
+/** Compare the existing full-resolution presentation without transferring it. */
+export async function validateNativePhotoDevelopFullResolutionCanvas(page, selector, stage) {
+	const script = await mappedBundle('develop-full-resolution-reference.js', resolve(repositoryRoot, 'tests/browser/helpers/lightscaper-develop-full-resolution-reference.ts'));
+	register(page, '/__develop_full_resolution_reference.js', script);
+	await page.route('**/__develop_full_resolution_reference.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	return page.evaluate(async ({ selector, stage }) => {
+		const canvas = document.querySelector(selector);
+		if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Actual full-resolution Develop canvas missing.');
+		return (await import(new URL('/__develop_full_resolution_reference.js', location.href).href)).validateDevelopFullResolutionCanvasV1(canvas, stage);
+	}, { selector, stage });
+}
+
+export function inspectNativePhotoDevelopFullResolutionPng(page, bytes, stage) {
+	return inspectDevelopFullResolutionDownload(page, bytes, stage, 'inspectDevelopFullResolutionPngNativeV1', 'image/png', 64 * 1024 * 1024);
+}
+
+export function inspectNativePhotoDevelopFullResolutionFramescaper(page, bytes, stage) {
+	return inspectDevelopFullResolutionDownload(page, bytes, stage, 'inspectDevelopFullResolutionFramescaperNativeV1', 'application/zip', 256 * 1024 * 1024);
+}
+
+/** Serve the actual downloaded binary body; only scalar readback leaves the page. */
+async function inspectDevelopFullResolutionDownload(page, bytes, stage, method, contentType, maximumBytes) {
+	if (!Buffer.isBuffer(bytes) || bytes.byteLength === 0 || bytes.byteLength > maximumBytes) throw new RangeError('Downloaded binary body exceeds its native fixture bound.');
+	const script = await mappedBundle('develop-full-resolution-native.js', resolve(repositoryRoot, 'tests/helpers/lightscaper-develop-full-resolution-native.ts'));
+	register(page, '/__develop_full_resolution_native.js', script);
+	await page.route('**/__develop_full_resolution_native.js', route => route.fulfill({ contentType: 'text/javascript', body: script.source }));
+	for (const asset of script.assets) {
+		register(page, asset.pathname, asset);
+		await page.route(`**${asset.pathname}`, route => route.fulfill({ contentType: 'text/javascript', body: asset.source }));
+	}
+	const pathname = `/__develop_full_resolution_download_${crypto.randomUUID()}`, pattern = `**${pathname}`, serving = [];
+	const handler = route => {
+		const work = route.fulfill({ contentType, body: bytes });
+		serving.push(work.then(() => ({ failed: false }), error => ({ failed: true, error }))); return work;
+	};
+	await page.route(pattern, handler);
+	let result, failed = false, primary;
+	try {
+		result = await page.evaluate(async ({ pathname, stage, method }) => {
+			const response = await fetch(new URL(pathname, location.href), { cache: 'no-store' });
+			if (!response.ok) throw new Error('Actual downloaded binary body is unavailable.');
+			const runtime = await import(new URL('/__develop_full_resolution_native.js', location.href).href);
+			return runtime[method]({ body: await response.blob(), stage }, { beforeClose: () => globalThis.__assertNativeOpfsWorkerExecution() });
+		}, { pathname, stage, method });
+		if (serving.length !== 1) throw new Error('Expected one actual downloaded-body request.');
+		await assertNativeOpfsWorkerExecution(page);
+	} catch (error) { failed = true; primary = error; }
+	const cleanup = [];
+	try { await page.unroute(pattern, handler); } catch (error) { cleanup.push(error); }
+	for (const settled of await Promise.allSettled(serving)) {
+		if (settled.status === 'rejected') cleanup.push(settled.reason);
+		else if (settled.value.failed) cleanup.push(settled.value.error);
+	}
+	if (failed) {
+		const failures = [primary, ...cleanup.filter(error => !Object.is(error, primary))];
+		if (failures.length > 1) throw new AggregateError(failures, 'Downloaded native inspection and cleanup failed.', { cause: primary });
+		throw primary;
+	}
+	if (cleanup.length) throw new AggregateError(cleanup, 'Downloaded native inspection cleanup failed.');
+	return result;
+}
+
 function register(page, pathname, script) {
 	const captured = scriptsByContext.get(page.context());
 	if (!captured) throw new Error('The native image handoff must use its mapped coverage fixture.');

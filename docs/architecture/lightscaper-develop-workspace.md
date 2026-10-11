@@ -284,3 +284,45 @@ preview/export equivalence, raw and ICC corpora, generated settings/history
 properties, and total-memory qualification remain separate L4 work. The tests,
 diagnostic register and documentation keep the same assistance runtime closure;
 a manual **Update AI assets** run is not required.
+
+### Representative full-resolution preview and export parity
+
+The corresponding menu-driven full-resolution workload uses the same opaque
+4096 × 3072 PNG and saved process-1 recipe: Dehaze 37.125 followed by Detail
+sharpening 50 at threshold 0. It explicitly selects Full resolution (100%),
+exports an original-size PNG with metadata stripped and output sharpening,
+sidecar, graphic and text additions disabled, then downloads an editable
+Framescaper copy through the existing menu.
+
+An independent full-resolution reference enumerates the source's finite spatial
+classes, including corners and replicated borders. Separate BigInt tests check
+the neighborhood arithmetic, complete RGBA digests, histogram bins and clipping
+counts. The expected full-resolution reference is fixed before native output is
+observed. Production effect, resize and histogram kernels do not produce the
+expected pixels. Every channel in the actual full preview, native PNG readback
+and current Frame natural source render must match exactly.
+
+The fit-screen proxy is checked against its own reference. Spatial operations
+at proxy resolution can differ from full resolution, as the roadmap permits;
+their pixels are not used as the full-resolution export reference. Native PNG
+inspection records its real encoded digest and container facts and uses an
+explicit sRGB canvas. The editable copy is imported through current Frame
+Scape and storage owners, authenticates its retained pack and original, and
+renders the saved recipe at natural dimensions. This exercises Frame owners
+under the Lightscaper origin; a separate-origin Frame UI round trip remains
+outstanding.
+
+The workflow compares the complete sending photo, version, recipe, history,
+revision, namespace and original custody after each export, reopening and
+reload. Native readbacks are wiped, bitmap and canvas storage are retired, and
+Frame reader and store cleanup join before scalar inspection facts return.
+Binary downloads stay binary rather than becoming serialized pixel arrays.
+
+Each English/German Chromium and Firefox case has a finite 480-second harness
+deadline for eight sequential phases. Ordinary Chromium V8 coverage uses a
+960-second deadline. These are whole-case allowances, not per-phase or edit
+latency guarantees, and do not change the proxy latency register. This one
+opaque sRGB recipe does not close the all-operation, process, format, size,
+metadata, mask, raw, reverse-handoff or memory qualification matrices. The
+assistance runtime closure is unchanged; a manual **Update AI assets** run is
+not required.
