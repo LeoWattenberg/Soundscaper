@@ -180,7 +180,7 @@ Architectural constraints that still drive the sequence:
 | L3. Photo library | **In progress** | Import, browse, cull, and organize at real-library scale. |
 | L4. Develop: global adjustments | **In progress** | Deliver the parametric develop loop on shared effects. |
 | L5. Export and handoff | **In progress** | Close the import → develop → export loop and the cross-product paths. |
-| L6. Local adjustments and repair | **Planned** | Add masked adjustments and parametric healing. |
+| L6. Local adjustments and repair | **In progress** | Add masked adjustments and parametric healing. |
 | L7. Raw and deep color | **Planned** | Activate deep processing, raw decode, and wide-gamut output. |
 | L8. Desktop tier | **Planned** | Package the desktop product and add-in-place libraries. |
 | L9. Owner QA and diagnostics | **Planned** | Exercise the coherent product, improve diagnostics, and record optional observations without a certification gate. |
@@ -417,18 +417,24 @@ photo work moves between products without loss.
 **Goal:** make adjustments spatial — where in the frame, not only how much —
 on the shared mask graph.
 
-- **Shared — Planned:** mask-bound adjustment instances applying any subset of
+- **Shared — In progress:** mask-bound adjustment instances applying any subset of
   the global operations through a mask; linear-gradient, radial-gradient, and
   luminance/color range mask nodes added as shared node kinds beside the
   existing vector, raster, alpha, feather, invert, and boolean nodes; and
   brush masks over the raster node.
-- **Web Core — Planned:** mask management: list, rename, duplicate, overlay
+- **Web Core — In progress:** mask management: list, rename, duplicate, overlay
   visualization modes, add/subtract/intersect composition, and keyboard
   reachability.
 - **Shared — Planned:** parametric healing: clone and heal spots with
   repositionable sources, re-rendered from the original on every evaluation,
   with a visualize-spots view.
 - **Shared — Optional:** red-eye correction.
+
+Menu-authored linear gradients bind existing adjustments through the shared
+renderer, with a temporary overlay projected through later geometry. Saved
+recipes retain their masks through editable handoff. Radial and range masks,
+brush resources, full mask management, composition authoring, and healing remain
+open; this first local-adjustment slice does not close L6.
 
 ### Exit gate
 

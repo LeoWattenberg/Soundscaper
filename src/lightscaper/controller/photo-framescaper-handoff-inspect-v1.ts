@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { assertPhotoDevelopHandoffMasksV1 } from './photo-develop-handoff-masks-v1.ts';
+
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import { withScapeProjectInput } from '../../common/editor/scape-project-input.ts';
 import { readScapeArchiveEnvelope } from '../../common/editor/scape-archive-envelope.ts';
@@ -79,7 +81,9 @@ export async function inspectPhotoFramescaperHandoffSourcesV1(value: Readonly<{ 
 				}
 				const source = normalizeFramescaperImageSourceV2(candidate), origin = source.provenance.origin;
 				const lutBytes = framescaperImageSourceResourceReferencesV2(source).reduce((sum, reference) => sum + reference.byteLength, 0);
-				if (source.develop.masks.length || source.develop.maskBindings.length || source.original.byteLength > MAXIMUM_ORIGINAL
+				try { assertPhotoDevelopHandoffMasksV1(source.develop, source.canonical.width, source.canonical.height); }
+				catch { unsupportedImageCount++; continue; }
+				if (source.original.byteLength > MAXIMUM_ORIGINAL
 					|| source.assetByteLength + lutBytes > MAXIMUM_BODIES) { unsupportedImageCount++; continue; }
 				sources.push(Object.freeze({ sourceId: source.id, name: source.name, originalName: source.provenance.original.exactName,
 					processVersion: source.develop.processVersion, width: source.canonical.width, height: source.canonical.height,

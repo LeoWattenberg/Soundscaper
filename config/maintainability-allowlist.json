@@ -132,7 +132,6 @@
 		"src/framescaper/editor-project-sequence-multicam.ts": 599,
 		"src/framescaper/editor-project-sequence-nested-playback.ts": 551,
 		"src/framescaper/editor-project-unified-render-core.ts": 571,
-		"src/framescaper/editor-selected-finishing-visual-authoring-commands.ts": 559,
 		"src/framescaper/editor-timeline-image-publication-timeline-image.ts": 550,
 		"src/framescaper/selected-finishing-exact-frame-execution.ts": 580,
 		"src/framescaper/video-export-strategy-finishing.ts": 555,

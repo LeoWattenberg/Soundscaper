@@ -67,14 +67,14 @@ test('photo proxy owns source/settings before its first await and joins a cancel
 	assert.ok((retained as Uint8Array | null)?.every(value => value === 0));
 });
 
-test('proxy rejects enabled unsupported effects and bound masks before exposing pixels, while disabled known effects remain retained', async () => {
+test('proxy rejects enabled unsupported effects and mask-bound geometry before exposing pixels, while disabled known effects remain retained', async () => {
 	const frame = source([1, 2, 3, 255]); let consumed = 0;
 	const unsupported = effect('gaussian-blur');
 	await assert.rejects(withPhotoDevelopProxyV1({ frame, develop: { ...defaultPhotoDevelopV1(), effects: [unsupported] } }, () => { consumed++; }), /unsupported/iu);
 	const mask = { schemaVersion: 1, id: 'mask', kind: 'mask', inputs: [], outputNodeId: 'rectangle',
 		nodes: [{ id: 'rectangle', kind: 'vector-shape', shape: 'rectangle', x: 0, y: 0, width: 1, height: 1 }] };
-	await assert.rejects(withPhotoDevelopProxyV1({ frame, develop: { ...defaultPhotoDevelopV1(), effects: [effect('tone-ladder-v1')],
-		masks: [mask], maskBindings: [{ effectId: 'tone-ladder-v1', maskId: 'mask' }] } }, () => { consumed++; }), /mask/iu);
+	await assert.rejects(withPhotoDevelopProxyV1({ frame, develop: { ...defaultPhotoDevelopV1(), effects: [effect('develop-geometry-v1')],
+		masks: [mask], maskBindings: [{ effectId: 'develop-geometry-v1', maskId: 'mask' }] } }, () => { consumed++; }), /mask/iu);
 	assert.equal(consumed, 0);
 	const output = await withPhotoDevelopProxyV1({ frame, develop: { ...defaultPhotoDevelopV1(), effects: [{ ...unsupported, enabled: false }] } }, view => [...view.frame.pixels]);
 	assert.deepEqual(output, [1, 2, 3, 255]);

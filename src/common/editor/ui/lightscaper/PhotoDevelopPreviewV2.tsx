@@ -10,6 +10,8 @@ import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-
 import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
 import type { PixelFrameHistogramV1 } from '../../imaging/pixel-frame-histogram-v1.ts';
 import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.ts';
+import PhotoDevelopMaskOverlayV1 from './PhotoDevelopMaskOverlayV1.tsx';
+import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopLinearGradientDialogV1.tsx';
 
 export interface PhotoDevelopPreviewPropsV2 {
 	readonly photoId: string;
@@ -23,6 +25,8 @@ export interface PhotoDevelopPreviewPropsV2 {
 	readonly registerRetirement: (retire: () => Promise<void>) => () => void;
 	readonly messages: PhotoDevelopCopyV1;
 	readonly locale: string;
+	readonly maskOverlay?: Readonly<PhotoDevelopMaskOverlaySelectionV1>;
+	readonly isCurrent?: () => boolean;
 }
 const MODES = ['compare', 'before', 'after', 'split'] as const;
 type PreviewMode = typeof MODES[number];
@@ -92,7 +96,11 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 			<figure hidden={mode === 'after'} style={{ clipPath: mode === 'split' ? `inset(0 ${100 - divider}% 0 0)` : undefined }}>
 				<figcaption>{messages.before}</figcaption><canvas ref={before} width={0} height={0} role="img" aria-label={messages.before} data-photo-develop-before /></figure>
 			<figure hidden={mode === 'before'} style={{ clipPath: mode === 'split' ? `inset(0 0 0 ${divider}%)` : undefined }}>
-				<figcaption>{messages.after}</figcaption><canvas ref={after} width={0} height={0} role="img" aria-label={messages.after} data-photo-develop-after /></figure>
+				<figcaption>{messages.after}</figcaption><div className="lightscaper-develop-image-plane"><canvas ref={after} width={0} height={0} role="img" aria-label={messages.after} data-photo-develop-after />
+					{props.maskOverlay && snapshot.status === 'ready' && snapshot.extent && <PhotoDevelopMaskOverlayV1 key={`${props.photoId}:${props.revision ?? ''}`} develop={props.develop} selection={props.maskOverlay}
+						source={snapshot.extent.before} extent={snapshot.extent.after} resolution={props.resolution ?? 'proxy'} locale={props.locale}
+						registerRetirement={registerRetirement} isCurrent={() => current() && (props.isCurrent?.() ?? true)} />}
+				</div></figure>
 			{mode === 'split' && <div className="lightscaper-develop-divider" aria-hidden="true" style={{ left: `${divider}%` }} />}
 		</div></div>
 		{mode === 'split' && <label>{messages.divider}<input type="range" min={0} max={100} step={1} value={divider} aria-label={messages.divider}

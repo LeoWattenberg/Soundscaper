@@ -9,6 +9,7 @@ import { validatePhotoCatalogReferencesV1 } from '../catalog/photo-document.ts';
 import { normalizePhotoDocumentV1OrV2, type PhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
 import type { PhotoDocumentV1 } from '../catalog/types.ts';
 import { field, id, record, unique, utcTimestamp } from '../catalog/value-validation.ts';
+import { assertPhotoDevelopHandoffMasksV1 } from './photo-develop-handoff-masks-v1.ts';
 
 /** Pure destination record composition, without original/LUT body authority.
  * The publication allocator must also prove these identities are unused in its
@@ -47,7 +48,7 @@ export function createPhotoFramescaperHandoffPhotoV1(value: unknown): PhotoDocum
 
 function validateNaturalGeometry(source: Readonly<FramescaperImageSourceV2>): void {
 	const develop = source.develop;
-	if (develop.masks.length || develop.maskBindings.length) throw new RangeError('Editable photo handoff does not support bound masks.');
+	assertPhotoDevelopHandoffMasksV1(develop, source.canonical.width, source.canonical.height);
 	let plan = planImageGeometryV1({ schemaVersion: 1, ...develop.geometry, perspective: null }, source.canonical.width, source.canonical.height);
 	for (const effect of develop.effects) {
 		if (effect.enabled && effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) {

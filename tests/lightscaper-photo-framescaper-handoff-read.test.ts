@@ -238,7 +238,7 @@ test('Light reverse reader refuses input bounds, getters, inherited request and 
 });
 
 
-test('Light reverse reader explicitly refuses admitted masks rather than flattening the saved recipe', async () => {
+test('Light reverse reader preserves an admitted self-contained mask and its saved binding', async () => {
 	const f = await fixture(); let consumers = 0;
 	const archive = await projectEdit(f.archive, project => {
 		const source = (project.sources as Record<string, unknown>[])[0]!, develop = source.develop as Record<string, unknown>;
@@ -248,8 +248,11 @@ test('Light reverse reader explicitly refuses admitted masks rather than flatten
 		(source.provenance as Record<string, unknown>).developSha256 = imageDevelopHandoffRecipeSha256V1(develop);
 		project.sources = [normalizeFramescaperImageSourceV2(source)];
 	});
-	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId }, () => { consumers++; }), /masks.*not supported/iu);
-	assert.equal(consumers, 0);
+	await withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId }, view => {
+		consumers++; assert.deepEqual(view.source.develop.maskBindings, [{ effectId: 'saved-lut', maskId: 'mask' }]);
+		assert.equal(view.source.develop.masks[0]?.nodes[0]?.kind, 'vector-shape');
+	});
+	assert.equal(consumers, 1);
 });
 
 test('Light reverse reader captures LUT identity and refuses foreign lifetime without exposing bytes', async () => {

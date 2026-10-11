@@ -7,6 +7,7 @@ import { openFramescaperImageFramePackV1 } from '../common/editor/timeline-image
 import { withImageDevelopFrameV2, captureImageDevelopCubeLutSourceV2, type ImageDevelopFrameOptionsV2 } from '../common/editor/imaging/image-develop-frame-v2.ts';
 import { withCubeLutResourceV1 } from '../common/editor/imaging/cube-lut-resource-v1.ts';
 import type { ImageDevelopFrameViewV1 } from '../common/editor/imaging/image-develop-frame-core.ts';
+import { planImageDevelopMasksV1 } from '../common/editor/imaging/image-develop-mask-plan-v1.ts';
 
 const CHECK = AbortSignal.prototype.throwIfAborted;
 const SIGNAL_PROTOTYPE = AbortSignal.prototype;
@@ -27,7 +28,7 @@ export async function withFramescaperImageDevelopFrameV2<Result>(value: unknown,
 	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
 	check(); if (typeof consume !== 'function') throw new TypeError('Editable image delivery requires a scoped consumer.');
 	const source = normalizeFramescaperImageSourceV2(field(input, 'source', 'Frame editable image request'));
-	if (source.develop.maskBindings.length) throw new RangeError('Editable image handoff does not yet render bound masks.');
+	planImageDevelopMasksV1(source.develop, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	const rawRead = field(input, 'read', 'Frame editable image request');
 	if (typeof rawRead !== 'function') throw new TypeError('Editable image requires an authenticated range reader.');
 	const rawCurrent = Object.hasOwn(input, 'assertCurrent') ? field(input, 'assertCurrent', 'Frame editable image request') : undefined;

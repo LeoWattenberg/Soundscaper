@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
-import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
+import { normalizeVideoMaskMatteGraphV1, type VideoLinearGradientMaskNodeV1 } from '../common/editor/video-mask-matte-v24.ts';
+import { readClosedDomainField } from '../common/editor/closed-domain-value.ts';
 import {
 	normalizeVideoFinishingPresetV1,
 	normalizeVideoVisualPresentationV1,
@@ -17,6 +18,20 @@ export const createFramescaperSelectedVisualAuthoringModel =
 	createFramescaperSelectedVisualAuthoringModelFinishing;
 
 type Data = Readonly<Record<string, unknown>>;
+
+export type FramescaperSelectedMaskDraftFinishing = Readonly<{ id: string; shape: 'rectangle' | 'ellipse'; width: number; height: number }>
+	| Readonly<{ id: string; shape: 'linear-gradient'; startX: number; startY: number; endX: number; endY: number }>;
+
+/** Only new gradient endpoint fields use closed own-data admission; legacy
+ * selected shape authoring keeps its existing request semantics. */
+export function createFramescaperLinearGradientMaskNodeFinishing(request: Data, nodeId: string): Readonly<VideoLinearGradientMaskNodeV1> {
+	const field = (key: string) => readClosedDomainField(request, key, 'linear-gradient authoring');
+	const graph = normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: nodeId, kind: 'mask', inputs: [], outputNodeId: nodeId,
+		nodes: [{ id: nodeId, kind: 'linear-gradient', start: { x: field('startX'), y: field('startY') }, end: { x: field('endX'), y: field('endY') } }] });
+	const node = graph.nodes[0]!;
+	if (node.kind !== 'linear-gradient') throw new Error('Gradient authoring produced a different node.');
+	return node;
+}
 
 export const FRAMESCAPER_SELECTED_FINISHING_DIALOG_AUTHORING_SURFACES = Object.freeze([
 	'video-transition', 'video-transition-dissolve', 'video-adjustment-layer',
@@ -61,10 +76,7 @@ export interface FramescaperSelectedVisualAuthoringModelFinishing {
 	readonly adjustmentBrightness: number;
 	readonly attachedMaskIds: readonly string[];
 	readonly selectedMaskId: string | null;
-	readonly maskDrafts: readonly Readonly<{
-		readonly id: string; readonly shape: 'rectangle' | 'ellipse';
-		readonly width: number; readonly height: number;
-	}>[];
+	readonly maskDrafts: readonly FramescaperSelectedMaskDraftFinishing[];
 	readonly visualPresets: readonly Readonly<{
 		readonly id: string; readonly name: string; readonly modelKind: string;
 	}>[];
@@ -118,8 +130,10 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 		selectedMaskId: attachedMaskIds[0] ?? null,
 		maskDrafts: Object.freeze(records(project.videoMaskMattes, 'video masks')
 			.filter(({ id }) => attachedMaskIds.includes(String(id)))
-			.map(normalizeVideoMaskMatteGraphV1).flatMap((mask) => {
+			.map(normalizeVideoMaskMatteGraphV1).flatMap<FramescaperSelectedMaskDraftFinishing>((mask) => {
 				const node = mask.nodes.find(({ id }) => id === mask.outputNodeId);
+				if (node?.kind === 'linear-gradient') return [Object.freeze({ id: mask.id, shape: 'linear-gradient',
+					startX: node.start.x, startY: node.start.y, endX: node.end.x, endY: node.end.y })];
 				return node?.kind === 'vector-shape' ? [Object.freeze({ id: mask.id,
 					shape: node.shape, width: node.width, height: node.height })] : [];
 			})),

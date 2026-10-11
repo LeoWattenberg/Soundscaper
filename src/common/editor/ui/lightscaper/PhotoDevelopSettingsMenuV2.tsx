@@ -9,12 +9,14 @@ import type { PhotoLibraryDevelopSettingsWorkflowV2, PhotoDevelopSettingsSourceV
 import type { ImageDevelopSelectionV1 } from '../../imaging/image-develop-settings-contract-v1.ts';
 import PhotoDevelopSettingsPickerV2 from './PhotoDevelopSettingsPickerV2.tsx';
 import PhotoDevelopQuickSettings from './PhotoDevelopQuickSettings.tsx';
+import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
 
 export interface PhotoDevelopSettingsMenuPropsV2 {
 	readonly locale: string; readonly owner: PhotoLibraryDevelopSettingsWorkflowV2; readonly snapshot: PhotoDevelopSettingsWorkflowSnapshotV2;
 	readonly source: PhotoDevelopSettingsSourceV2; readonly selectedIds: readonly string[]; readonly disabled: boolean; readonly dirty: boolean;
 	readonly isCurrent: () => boolean; readonly onChanged: () => Promise<unknown>;
 	readonly resolution?: Readonly<{ value: PhotoDevelopResolutionV1; fullAvailable: boolean; onChange: (value: PhotoDevelopResolutionV1) => void }>;
+	readonly localAdjustments?: Readonly<{ onOpen: () => void }>;
 }
 type Mode = 'copy' | 'sync' | 'auto' | 'quick' | 'presets';
 
@@ -50,6 +52,9 @@ export default function PhotoDevelopSettingsMenuV2(props: PhotoDevelopSettingsMe
 				<button type="button" disabled={busy || !props.resolution.fullAvailable} aria-pressed={props.resolution.value === 'full'}
 					onClick={() => { if (current() && !busy && props.resolution?.fullAvailable) props.resolution.onChange('full'); }}>{previewMessages.fullResolution}</button>
 			</>}
+			{props.localAdjustments && <button type="button" disabled={busy} onClick={() => {
+				if (current() && !busy && !active.current) props.localAdjustments?.onOpen();
+			}}>{photoDevelopLocalAdjustmentsCopy(props.locale).menu}</button>}
 			<button type="button" disabled={busy} onClick={() => { open('copy'); }}>{messages.copy}</button>
 			<button type="button" disabled={busy || props.dirty || !snapshot.clipboard} onClick={() => { run(() => owner.paste(source, messages.pasteLabel), true); }}>{messages.paste}</button>
 			<button type="button" disabled={busy || props.dirty || props.selectedIds.filter(id => id !== source.photoId).length === 0} onClick={() => { open('sync'); }}>{messages.sync}</button>

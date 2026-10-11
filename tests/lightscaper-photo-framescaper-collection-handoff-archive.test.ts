@@ -176,14 +176,37 @@ test('Light collection archive refuses corrupt disabled LUT and empty collection
 	} finally { await f.session.close(); }
 });
 
-test('Light collection archive refuses admitted bound masks before flattening or decoding any photo', async () => {
+test('Light collection archive refuses external mask inputs before decoding any photo', async () => {
 	const f = await fixture(2), photo = f.photos[1]!, version = photo.versions[0]!;
 	f.change(normalizePhotoDocumentV1OrV2({ ...photo, versions: [{ ...version, develop: { ...version.develop,
-		masks: [{ schemaVersion: 1, id: 'mask', kind: 'mask', inputs: [], outputNodeId: 'rectangle',
-			nodes: [{ id: 'rectangle', kind: 'vector-shape', shape: 'rectangle', x: 0, y: 0, width: 1, height: 1 }] }],
+		masks: [{ schemaVersion: 1, id: 'mask', kind: 'mask', inputs: [{ name: 'Body', sourceRef: 'body', kind: 'raster' }], outputNodeId: 'raster',
+			nodes: [{ id: 'raster', kind: 'raster', inputName: 'Body', channel: 'luma' }] }],
 		maskBindings: [{ effectId: 'saved-lut', maskId: 'mask' }] } }] }));
-	try { await assert.rejects(exportPhotoFramescaperCollectionHandoffArchiveV1(f.request, f.deps), /masks/iu); assert.deepEqual(f.events, []); }
+	try { await assert.rejects(exportPhotoFramescaperCollectionHandoffArchiveV1(f.request, f.deps), /external|input/iu); assert.deepEqual(f.events, []); }
 	finally { await f.session.close(); }
+});
+
+test('Light collection archive retains a masked recipe and LUT and renders from the original after actual import', async () => {
+	const f = await fixture(2), photo = f.photos[1]!, version = photo.versions[0]!;
+	const changed = normalizePhotoDocumentV1OrV2({ ...photo, versions: [{ ...version, develop: { ...version.develop,
+		masks: [{ schemaVersion: 1, id: 'mask', kind: 'mask', inputs: [], outputNodeId: 'gradient',
+			nodes: [{ id: 'gradient', kind: 'linear-gradient', start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }] }],
+		maskBindings: [{ effectId: 'saved-curve', maskId: 'mask' }] } }] });
+	f.change(changed);
+	const recipient = createFramescaperProjectStore(PROFILE, { indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory, preferOpfs: false });
+	try {
+		const result = await exportPhotoFramescaperCollectionHandoffArchiveV1(f.request, f.deps);
+		const imported = await createFramescaperScapeNativeRuntime(PROFILE).importScapeProject(result.blob, recipient);
+		const project = cloneFramescaperProject(PROFILE, imported.project), source = normalizeFramescaperImageSourceV2(project.sources[1]);
+		assert.deepEqual(source.develop, changed.versions[0]!.develop);
+		const reader = await openFramescaperCurrentImageFrameSource(recipient, source, new AbortController().signal);
+		try {
+			const pixels = await reader.readFrame(0);
+			try { assert.deepEqual([...pixels], [188, 188, 188, 255]); } finally { pixels.fill(0); }
+		}
+		finally { await reader.closeAndJoin(); }
+		assert.equal(source.original.sha256, photo.original.contentSha256);
+	} finally { await recipient.close(); await f.session.close(); }
 });
 
 test('Light collection archive refuses own getter requests and mutated native signals before capture', async () => {

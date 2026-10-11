@@ -149,7 +149,7 @@ test('Light source inspection retains two distinct choices in project order with
 	assert.equal(Object.hasOwn(result, 'selectedSourceId'), false); assert.equal(result.unsupportedImageCount, 0);
 });
 
-test('Light source inspection reports masked editable images as unavailable without discarding their recipe', async () => {
+test('Light source inspection reports mask-bound geometry as unavailable without discarding its recipe', async () => {
 	const f = await fixture(), archive = await editProject(f.archive, project => {
 		const source = normalizeFramescaperImageSourceV2((project.sources as unknown[])[0]);
 		const develop = { ...source.develop, effects: [{ id: 'masked-crop', type: 'develop-geometry-v1', enabled: true, params: {} }],
@@ -161,7 +161,7 @@ test('Light source inspection reports masked editable images as unavailable with
 	});
 	const result = await inspectPhotoFramescaperHandoffSourcesV1({ archive });
 	assert.deepEqual(result.sources, []); assert.equal(result.unsupportedImageCount, 1);
-	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId }, () => undefined), /masks/iu);
+	await assert.rejects(withPhotoFramescaperHandoffReadV1({ archive, sourceId: f.sourceId }, () => undefined), /geometry/iu);
 });
 
 test('Light source inspection refuses future project and future source schemas', async () => {

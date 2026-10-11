@@ -136,12 +136,12 @@ test('source binding and native signal admission precede I/O, and original pack 
 	await assert.rejects(withFramescaperImageDevelopFrameV2(f.request, () => { throw Error('Tampered pack delivered'); }));
 });
 
-test('bound masks refuse before I/O while inactive definitions and old process1 recipes remain intact', async () => {
+test('disabled bound masks are neutral while inactive definitions and old process1 recipes remain intact', async () => {
 	const mask = { schemaVersion: 1, id: 'mask', kind: 'mask', inputs: [], nodes: [{ id: 'rectangle', kind: 'vector-shape', shape: 'rectangle', x: 0, y: 0, width: 1, height: 1 }], outputNodeId: 'rectangle' };
 	const develop = { ...defaultImageDevelopStateV2(), effects: [{ id: 'profile', type: 'cube-lut-profile-v1', enabled: false, params: { lut: null } }],
 		masks: [mask], maskBindings: [{ effectId: 'profile', maskId: 'mask' }] };
 	const bound = fixture(develop);
-	await assert.rejects(withFramescaperImageDevelopFrameV2(bound.request, () => assert.fail('Bound mask silently discarded')), /bound masks/u); assert.equal(bound.reads, 0);
+	assert.deepEqual(await withFramescaperImageDevelopFrameV2(bound.request, view => [...view.frame.pixels]), corners); assert.ok(bound.reads > 0);
 	const inactive = fixture({ ...develop, maskBindings: [] });
 	assert.deepEqual(await withFramescaperImageDevelopFrameV2(inactive.request, view => [...view.frame.pixels]), corners);
 	const legacy = fixture({ ...defaultImageDevelopStateV2(), processVersion: 1 });

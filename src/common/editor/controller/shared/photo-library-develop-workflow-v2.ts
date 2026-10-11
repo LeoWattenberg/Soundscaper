@@ -81,7 +81,15 @@ export class PhotoLibraryDevelopWorkflowV2 {
 		if (!this.#editable()) return;
 		const draft = this.#view.draft!, effects = normalizeVideoEffectsV2(readClosedDomainArray(value, 'Develop effects', 0, IMAGE_DEVELOP_LIMITS_V1.maximumEffects));
 		const processVersion = draft.processVersion === 2 || effects.some(effect => effect.type === CUBE_LUT_PROFILE_EFFECT_TYPE_V1) ? 2 : 1;
-		const next = detachPhotoLibraryDevelopSettingsV2({ ...draft, processVersion, effects });
+		const retained = new Set(effects.map(effect => effect.id));
+		const maskBindings = draft.maskBindings.filter(binding => retained.has(binding.effectId));
+		const next = detachPhotoLibraryDevelopSettingsV2({ ...draft, processVersion, effects, maskBindings });
+		if (this.#editable() && this.#view.draft === draft) { this.#gesture = null; this.#setDraft(next); }
+	}
+	/** Whole-recipe edits keep masks and bindings under the existing Save writer. */
+	edit(value: PhotoLibraryDevelopSettingsV2): void {
+		if (!this.#editable()) return;
+		const draft = this.#view.draft!, next = detachPhotoLibraryDevelopSettingsV2(value);
 		if (this.#editable() && this.#view.draft === draft) { this.#gesture = null; this.#setDraft(next); }
 	}
 	beginGesture(): void { if (this.#editable() && !this.#gesture) this.#gesture = this.#view.draft; }

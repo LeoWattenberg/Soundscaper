@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { assertPhotoDevelopHandoffMasksV1 } from './photo-develop-handoff-masks-v1.ts';
+
 import type { PhotoLibraryCollectionHandoffPortV1, PhotoLibraryCollectionHandoffRequestV1, PhotoLibraryCollectionHandoffViewV1 } from '../../common/editor/photo-library-collection-handoff-port-v1.ts';
 import type { OpenFramescaperBrowserNativeImageV1 } from '../../common/editor/timeline-image-native-decode-v1.ts';
 import type { PhotoImageHandoffSourceV1 } from './photo-image-handoff-source-v1.ts';
@@ -97,7 +99,6 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveV1(request: 
 			if (serializePhotoExportSidecarV1(facts) !== factsJson || catalogId !== binding.catalogId || facts.binding.catalogId !== catalogId || facts.binding.photoId !== photoId
 				|| facts.binding.revision !== revision || facts.binding.activeVersionId !== versionId || facts.version.id !== versionId || photoIds.has(photoId)) throw new Error('Collection archive saved photo binding changed.');
 			photoIds.add(photoId);
-			if (facts.version.develop.maskBindings.length) throw new RangeError('Collection editable archive does not support bound masks.');
 			const original = record(field(photo, 'original', label), label, ['exactName', 'contentSha256', 'byteLength', 'mimeType', 'width', 'height', 'hasAlpha']);
 			if (field(original, 'exactName', label) !== facts.original.fileName || field(original, 'contentSha256', label) !== facts.original.contentSha256
 				|| field(original, 'byteLength', label) !== facts.original.byteLength) throw new Error('Collection archive original binding changed.');
@@ -106,6 +107,7 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveV1(request: 
 				mimeType: oneOf(field(original, 'mimeType', label), ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'] as const, 'collection original MIME'),
 				width: integer(field(original, 'width', label), 1, 8192, 'original width'), height: integer(field(original, 'height', label), 1, 8192, 'original height'),
 				hasAlpha: boolean(field(original, 'hasAlpha', label), 'original alpha') });
+			assertPhotoDevelopHandoffMasksV1(facts.version.develop, detached.width, detached.height);
 			factsBytes += new TextEncoder().encode(JSON.stringify({ catalogId, photoId, versionId, revision, original: detached })).byteLength;
 			if (factsBytes > MAXIMUM_FACTS) throw new RangeError('Collection archive exceeds its fixed facts capacity.');
 			closure.addDevelop(facts.version.develop);

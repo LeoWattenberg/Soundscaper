@@ -1,0 +1,95 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
+import { withVideoMaskMatteRgbaV1 } from '../video-mask-matte-rgba-v13.ts';
+import { admitPixelFrameV1 } from './pixel-frame-admission-v1.ts';
+import type { ImageDevelopFrameProfile } from './image-develop-frame-core.ts';
+import { planImageGeometryV1 } from './image-geometry-plan-v1.ts';
+import { IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1, planImageDevelopMasksV1 } from './image-develop-mask-plan-v1.ts';
+import { withGeometryPixelFrameV1 } from './pixel-frame-geometry-v1.ts';
+import type { PixelFrameDescriptorV1 } from './pixel-frame-contract-v1.ts';
+
+export interface ImageDevelopMaskOverlayViewV1 {
+	readonly maskId: string;
+	readonly effectId: string;
+	readonly width: number;
+	readonly height: number;
+	readonly coverage: Uint8Array<ArrayBuffer>;
+}
+const CHECK = AbortSignal.prototype.throwIfAborted;
+const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
+const FILL = Uint8Array.prototype.fill;
+const CHUNK_PIXELS = 65_536;
+
+/** Evaluate at the explicitly selected effect's input extent, then project
+ * through its real geometry suffix. The geometry kernel filters alpha with
+ * bilinear sampling, crop-edge extension and transparent rotated apertures.
+ * Every coverage/RGBA plane is owned here and borrowed only until settlement. */
+export async function withImageDevelopMaskOverlayV1<Result>(value: unknown,
+	consume: (view: Readonly<ImageDevelopMaskOverlayViewV1>) => Result | Promise<Result>,
+	profile: ImageDevelopFrameProfile): Promise<Result> {
+	const request = record(value, 'Develop mask overlay', ['develop', 'source', 'maskId', 'effectId', 'signal'], ['develop', 'source', 'maskId', 'effectId']);
+	const signal = Object.hasOwn(request, 'signal') ? field(request, 'signal', 'Develop mask overlay') : undefined;
+	if (signal !== undefined) {
+		if (typeof signal !== 'object' || signal === null) throw new TypeError('Mask overlay requires a native cancellation signal.');
+		Reflect.apply(CHECK, signal, []);
+		if (Object.getPrototypeOf(signal) !== AbortSignal.prototype || ['aborted', 'reason', 'throwIfAborted', 'addEventListener', 'removeEventListener'].some(key => Object.hasOwn(signal, key))) {
+			throw new TypeError('Mask overlay requires native cancellation behavior without overrides.');
+		}
+	}
+	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
+	check(); if (typeof consume !== 'function') throw new TypeError('Mask overlay requires a scoped consumer.');
+	const source = record(field(request, 'source', 'Develop mask overlay'), 'mask overlay source extent', ['width', 'height']);
+	const original = admitPixelFrameV1({ schemaVersion: 1, width: field(source, 'width', 'mask overlay source extent'), height: field(source, 'height', 'mask overlay source extent'),
+		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, { limits: profile.source });
+	const plan = planImageDevelopMasksV1(field(request, 'develop', 'Develop mask overlay'), original.descriptor.width, original.descriptor.height, profile.render);
+	const maskId = field(request, 'maskId', 'Develop mask overlay'), effectId = field(request, 'effectId', 'Develop mask overlay');
+	const binding = plan.bindings.find(candidate => candidate.maskId === maskId && candidate.effectId === effectId);
+	if (!binding) throw new RangeError('Mask overlay requires one retained mask/effect binding.');
+	let width = binding.width, height = binding.height, largest = BigInt(width) * BigInt(height);
+	for (const geometry of binding.suffixGeometry) {
+		const next = planImageGeometryV1(geometry, width, height); width = next.width; height = next.height;
+		const count = BigInt(width) * BigInt(height); if (count > largest) largest = count;
+	}
+	// Serial projection can overlap previous RGBA, kernel output and staged
+	// RGBA plus the final byte coverage while graph planes remain borrowed.
+	if (binding.suffixGeometry.length && BigInt(binding.workingBytes) + largest * 13n > BigInt(IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1)) {
+		throw new RangeError('Mask overlay projection exceeds its working byte budget.');
+	}
+	return withVideoMaskMatteRgbaV1({ graph: binding.graph, width: binding.width, height: binding.height, signal }, async coverage => {
+		if (!binding.suffixGeometry.length) {
+			const result = await consume(Object.freeze({ maskId: binding.maskId, effectId: binding.effectId, width: binding.width, height: binding.height, coverage })); check(); return result;
+		}
+		let pixels = new Uint8Array(coverage.length * 4);
+		let descriptor: Readonly<PixelFrameDescriptorV1> = Object.freeze({ schemaVersion: 1, width: binding.width, height: binding.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' });
+		let projected: Uint8Array<ArrayBuffer> | undefined;
+		try {
+			await copyAlpha(coverage, pixels, false, check);
+			for (const geometry of binding.suffixGeometry) {
+				let staged: Uint8Array<ArrayBuffer> | undefined;
+				try {
+					await withGeometryPixelFrameV1({ frame: { descriptor, pixels }, geometry, signal }, frame => {
+						staged = new Uint8Array(frame.pixels); descriptor = frame.descriptor;
+					}, { limits: profile.render });
+					if (!staged) throw new Error('Mask overlay geometry produced no coverage.');
+					wipe(pixels); pixels = staged;
+				} catch (error) { if (staged) wipe(staged); throw error; }
+			}
+			projected = new Uint8Array(descriptor.width * descriptor.height);
+			await copyAlpha(pixels, projected, true, check); check();
+			const result = await consume(Object.freeze({ maskId: binding.maskId, effectId: binding.effectId, width: descriptor.width, height: descriptor.height, coverage: projected })); check(); return result;
+		} finally { wipe(pixels); if (projected) wipe(projected); }
+	});
+}
+
+async function copyAlpha(source: Uint8Array, target: Uint8Array, extract: boolean, check: () => void): Promise<void> {
+	const count = extract ? target.length : source.length;
+	for (let start = 0; start < count; start += CHUNK_PIXELS) {
+		check(); const end = Math.min(count, start + CHUNK_PIXELS);
+		for (let index = start; index < end; index++) {
+			if (extract) target[index] = source[index * 4 + 3]!; else target[index * 4 + 3] = source[index]!;
+		}
+		if (end < count) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); check(); }
+	}
+}
+function wipe(bytes: Uint8Array): void { if (Number(Reflect.apply(BUFFER_SIZE, bytes.buffer, []))) Reflect.apply(FILL, bytes, [0]); }

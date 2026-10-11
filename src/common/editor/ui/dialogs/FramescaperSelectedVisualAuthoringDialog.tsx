@@ -47,9 +47,13 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [adjustmentLayerId, setAdjustmentLayerId] = useState(model.adjustmentLayerId);
 	const [maskId, setMaskId] = useState(model.selectedMaskId ?? '');
 	const savedMask = model.maskDrafts.find(({ id }) => id === maskId);
-	const [shape, setShape] = useState<'rectangle' | 'ellipse' | 'line'>(savedMask?.shape ?? 'rectangle');
-	const [maskWidth, setMaskWidth] = useState(String(savedMask?.width ?? 0.75));
-	const [maskHeight, setMaskHeight] = useState(String(savedMask?.height ?? 0.75));
+	const [shape, setShape] = useState<Values['shape']>(savedMask?.shape ?? 'rectangle');
+	const legacyMask = savedMask?.shape === 'linear-gradient' ? null : savedMask;
+	const gradientMask = savedMask?.shape === 'linear-gradient' ? savedMask : null;
+	const [maskWidth, setMaskWidth] = useState(String(legacyMask?.width ?? 0.75));
+	const [maskHeight, setMaskHeight] = useState(String(legacyMask?.height ?? 0.75));
+	const [startX, setStartX] = useState(String(gradientMask?.startX ?? 0)), [startY, setStartY] = useState(String(gradientMask?.startY ?? 0));
+	const [endX, setEndX] = useState(String(gradientMask?.endX ?? 1)), [endY, setEndY] = useState(String(gradientMask?.endY ?? 0));
 	const [visualPresetId, setVisualPresetId] = useAvailableAuthoringPreset(model.visualPresets);
 	const [finishingPresetId, setFinishingPresetId] = useAvailableAuthoringPreset(model.finishingPresets);
 	const [presetName, setPresetName] = useState(() => publishedCopyFor(props.copy ?? {})['ui.selectedVisualAuthoring.presetDefaultName'] || SELECTED_VISUAL_AUTHORING_COPY.presetDefaultName);
@@ -59,9 +63,11 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [error, setError] = useState('');
 	useEffect(() => {
 		setShape(savedMask?.shape ?? 'rectangle');
-		setMaskWidth(String(savedMask?.width ?? 0.75));
-		setMaskHeight(String(savedMask?.height ?? 0.75));
-	}, [maskId, savedMask?.shape, savedMask?.width, savedMask?.height]);
+		setMaskWidth(String(legacyMask?.width ?? 0.75));
+		setMaskHeight(String(legacyMask?.height ?? 0.75));
+		setStartX(String(gradientMask?.startX ?? 0)); setStartY(String(gradientMask?.startY ?? 0));
+		setEndX(String(gradientMask?.endX ?? 1)); setEndY(String(gradientMask?.endY ?? 0));
+	}, [maskId, savedMask?.shape, legacyMask?.width, legacyMask?.height, gradientMask?.startX, gradientMask?.startY, gradientMask?.endX, gradientMask?.endY]);
 	useEffect(() => {
 		setPairId(model.selectedPairId ?? '');
 		setDurationFrames(model.transitionPairs.find(({ id }) => id === model.selectedPairId)?.durationFrames ?? 12);
@@ -83,7 +89,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		if (blocked || !runtime) return;
 		const request = requestFor(operation, model, {
 			pairId, durationFrames, brightness, adjustmentLayerId,
-			maskId, shape, maskWidth, maskHeight,
+			maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY,
 			visualPresetId, finishingPresetId, presetName, freezeDuration,
 		});
 		setPending(true);
@@ -112,10 +118,10 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 				frameRate={frameRate}
 				blocked={blocked}
 				values={{ pairId, durationFrames, brightness, adjustmentLayerId,
-					maskId, shape, maskWidth, maskHeight, visualPresetId,
+					maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY, visualPresetId,
 					finishingPresetId, presetName, freezeDuration }}
 				setters={{ setPairId, setDurationFrames, setBrightness,
-					setMaskId, setShape, setMaskWidth, setMaskHeight,
+					setMaskId, setShape, setMaskWidth, setMaskHeight, setStartX, setStartY, setEndX, setEndY,
 					setVisualPresetId, setFinishingPresetId, setPresetName,
 					setFreezeDuration }}
 				onPerform={perform}
@@ -129,7 +135,8 @@ type Model = ReturnType<typeof createFramescaperSelectedVisualAuthoringModel>;
 interface Values {
 	readonly pairId: string; readonly durationFrames: number; readonly brightness: string;
 	readonly adjustmentLayerId: string | null; readonly maskId: string;
-	readonly shape: 'rectangle' | 'ellipse' | 'line'; readonly maskWidth: string;
+	readonly shape: 'rectangle' | 'ellipse' | 'line' | 'linear-gradient'; readonly maskWidth: string;
+	readonly startX: string; readonly startY: string; readonly endX: string; readonly endY: string;
 	readonly maskHeight: string; readonly visualPresetId: string;
 	readonly finishingPresetId: string; readonly presetName: string; readonly freezeDuration: number;
 }
@@ -138,7 +145,9 @@ interface Setters {
 	readonly setDurationFrames: (value: number) => void;
 	readonly setBrightness: (value: string) => void;
 	readonly setMaskId: (value: string) => void;
-	readonly setShape: (value: 'rectangle' | 'ellipse' | 'line') => void;
+	readonly setShape: (value: Values['shape']) => void;
+	readonly setStartX: (value: string) => void; readonly setStartY: (value: string) => void;
+	readonly setEndX: (value: string) => void; readonly setEndY: (value: string) => void;
 	readonly setMaskWidth: (value: string) => void;
 	readonly setMaskHeight: (value: string) => void;
 	readonly setVisualPresetId: (value: string) => void;
@@ -217,14 +226,23 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 		</select></label>
 		<label><span>{text.shape}</span><select data-framescaper-authoring-mask-shape value={values.shape}
 			onChange={(event) => setters.setShape(event.currentTarget.value as Values['shape'])}>
-			<option value="rectangle">{text.rectangle}</option><option value="ellipse">{text.ellipse}</option>
+			<option value="rectangle">{text.rectangle}</option><option value="ellipse">{text.ellipse}</option><option value="linear-gradient">{text.linearGradient}</option>
 		</select></label>
-		<label><span>{text.width}</span><input data-framescaper-authoring-mask-width type="number" min="0.01"
+		{values.shape === 'linear-gradient' ? <>
+			<label><span>{text.startX}</span><input data-framescaper-authoring-mask-start-x type="number" min={-1_000_000} max={1_000_000} step="any" value={values.startX}
+				onChange={event => setters.setStartX(event.currentTarget.value)} /></label>
+			<label><span>{text.startY}</span><input data-framescaper-authoring-mask-start-y type="number" min={-1_000_000} max={1_000_000} step="any" value={values.startY}
+				onChange={event => setters.setStartY(event.currentTarget.value)} /></label>
+			<label><span>{text.endX}</span><input data-framescaper-authoring-mask-end-x type="number" min={-1_000_000} max={1_000_000} step="any" value={values.endX}
+				onChange={event => setters.setEndX(event.currentTarget.value)} /></label>
+			<label><span>{text.endY}</span><input data-framescaper-authoring-mask-end-y type="number" min={-1_000_000} max={1_000_000} step="any" value={values.endY}
+				onChange={event => setters.setEndY(event.currentTarget.value)} /></label>
+		</> : <><label><span>{text.width}</span><input data-framescaper-authoring-mask-width type="number" min="0.01"
 			max="1" step="0.01" value={values.maskWidth}
 			onChange={(event) => setters.setMaskWidth(event.currentTarget.value)} /></label>
 		<label><span>{text.height}</span><input data-framescaper-authoring-mask-height type="number" min="0.01"
 			max="1" step="0.01" value={values.maskHeight}
-			onChange={(event) => setters.setMaskHeight(event.currentTarget.value)} /></label>
+			onChange={(event) => setters.setMaskHeight(event.currentTarget.value)} /></label></>}
 		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>
 			{values.maskId ? text.updateMask : text.createMask}</button>
 		<button data-framescaper-authoring-remove type="button" disabled={!values.maskId}
@@ -289,9 +307,9 @@ function requestFor(operation: string, model: Model, values: Values) {
 	}
 	if (model.surface === 'video-adjustment-layer') return { ...base,
 		adjustmentLayerId: values.adjustmentLayerId, brightness: numericDraft(values.brightness) };
-	if (model.surface === 'video-mask-matte') return { ...base,
-		maskId: values.maskId || null, shape: values.shape,
-		width: numericDraft(values.maskWidth), height: numericDraft(values.maskHeight) };
+	if (model.surface === 'video-mask-matte') return values.shape === 'linear-gradient'
+		? { ...base, maskId: values.maskId || null, shape: values.shape, startX: numericDraft(values.startX), startY: numericDraft(values.startY), endX: numericDraft(values.endX), endY: numericDraft(values.endY) }
+		: { ...base, maskId: values.maskId || null, shape: values.shape, width: numericDraft(values.maskWidth), height: numericDraft(values.maskHeight) };
 	if (model.surface === 'video-freeze') return { ...base,
 		playheadSample: model.fence.playheadSample, durationFrames: values.freezeDuration };
 	const finishing = operation === 'apply-finishing' || operation === 'remove-finishing';

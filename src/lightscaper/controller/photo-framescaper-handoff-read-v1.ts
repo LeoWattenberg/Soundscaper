@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { assertPhotoDevelopHandoffMasksV1 } from './photo-develop-handoff-masks-v1.ts';
+
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
@@ -77,7 +79,7 @@ export async function withPhotoFramescaperHandoffReadV1<Result>(request: Readonl
 			const editable = ordinary ? null : normalizeFramescaperImageSourceV2(selected);
 			const sourceFacts = editable ?? normalizeFramescaperImageSourceV1(selected);
 			if (editable && imageClipId !== undefined) throw new TypeError('Editable Source2 does not accept an ordinary image clip selection.');
-			if (editable && (editable.develop.masks.length || editable.develop.maskBindings.length)) throw new RangeError('Editable archive masks are not supported.');
+			if (editable) assertPhotoDevelopHandoffMasksV1(editable.develop, editable.canonical.width, editable.canonical.height);
 			if (ordinary && (sourceFacts.canonical.frameCount !== 1 || !['png', 'jpeg', 'gif', 'webp', 'bmp'].includes(sourceFacts.original.recognizedFormat))) {
 				throw new RangeError('Ordinary image receive requires one admitted static image frame.');
 			}

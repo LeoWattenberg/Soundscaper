@@ -3,6 +3,8 @@ import { normalizeFramescaperImageSourceV1OrV2, framescaperImageSourceResourceRe
 import { openFramescaperImageFramePackV1, type FramescaperImageFramePackReaderV1 } from '../common/editor/timeline-image-frame-pack-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../common/editor/video-image-geometry-v1.ts';
 import { planImageGeometryV1 } from '../common/editor/imaging/image-geometry-plan-v1.ts';
+import { planImageDevelopMasksV1 } from '../common/editor/imaging/image-develop-mask-plan-v1.ts';
+import { FRAMESCAPER_IMAGE_MODEL_LIMITS_V1 as IMAGE_LIMITS } from '../common/editor/timeline-image-model.ts';
 import { withFramescaperImageDevelopFrameV2 } from './timeline-image-develop-frame-v2.ts';
 import { createFramescaperCubeLutSourceFinishing } from './cube-lut-source-finishing.ts';
 import { openFramescaperStoredImageFramePackTimelineImage, scaleFramescaperImageRgbaTimelineImage,
@@ -13,6 +15,7 @@ const CHECK = AbortSignal.prototype.throwIfAborted;
 const BLOB_SIZE = Object.getOwnPropertyDescriptor(Blob.prototype, 'size')!.get!;
 const READ = Blob.prototype.arrayBuffer;
 const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
+const PIXEL_LIMITS = Object.freeze({ maximumSidePixels: IMAGE_LIMITS.maximumDimension, maximumPixels: IMAGE_LIMITS.maximumPixelsPerFrame, maximumBytes: IMAGE_LIMITS.maximumPixelsPerFrame * 4 });
 export interface FramescaperCurrentImageFrameReader extends FramescaperImageFramePackReaderV1 { closeAndJoin(): Promise<void> }
 
 /** The current recipe owner has a transferred encoded snapshot, a canonical
@@ -20,7 +23,7 @@ export interface FramescaperCurrentImageFrameReader extends FramescaperImageFram
  * computation/native Blob storage remain owned by their existing owners. */
 export function framescaperEditableImageWorkingBytes(source: FramescaperCurrentImageSourceTimelineImage): bigint {
 	if (source.schemaVersion === 1) return 0n;
-	if (source.develop.maskBindings.length) throw new RangeError('Editable image handoff does not yet render bound masks.');
+	const masks = planImageDevelopMasksV1(source.develop, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	let width = source.canonical.width, height = source.canonical.height, maximum = BigInt(width) * BigInt(height) * 4n;
 	const geometry = (value: Parameters<typeof planImageGeometryV1>[0]) => {
 		const planned = planImageGeometryV1(value, width, height); width = planned.width; height = planned.height;
@@ -35,7 +38,7 @@ export function framescaperEditableImageWorkingBytes(source: FramescaperCurrentI
 		const bytes = BigInt(reference.byteLength) * 3n + BigInt(reference.size) ** 3n * 3n * 8n * 2n;
 		if (bytes > resourceBytes) resourceBytes = bytes;
 	}
-	return BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + maximum * 4n + resourceBytes + 4_096n;
+	return BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + maximum * 4n + resourceBytes + BigInt(masks.maximumWorkingBytes) + 4_096n;
 }
 
 /** Preserve the V1 pack/timing delegate; V2 retains that exact authenticated

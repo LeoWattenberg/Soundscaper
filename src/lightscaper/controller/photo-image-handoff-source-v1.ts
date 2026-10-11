@@ -8,6 +8,7 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import { planImageGeometryV1 } from '../../common/editor/imaging/image-geometry-plan-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../common/editor/video-image-geometry-v1.ts';
 import { parsePhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../catalog/photo-export-sidecar-v1.ts';
+import { assertPhotoDevelopHandoffMasksV1 } from './photo-develop-handoff-masks-v1.ts';
 
 export interface PhotoImageHandoffSourceRequestV1 {
 	readonly sourceId: string;
@@ -51,7 +52,6 @@ export async function createPhotoImageHandoffSourceV1(value: PhotoImageHandoffSo
 	if (read('width') !== field(original, 'width', 'Photo image original geometry') || read('height') !== field(original, 'height', 'Photo image original geometry')
 		|| read('hasAlpha') !== field(original, 'hasAlpha', 'Photo image original geometry')) throw new Error('Photo image decoded original geometry or alpha binding changed.');
 	const sourceId = field(input, 'sourceId', label), develop = facts.version.develop;
-	if (develop.maskBindings.length) throw new RangeError('Editable image handoff does not yet render bound masks.');
 	const provenance = createImageDevelopHandoffProvenanceV1({ develop,
 		original: { exactName: facts.original.fileName, sha256: facts.original.contentSha256, byteLength: facts.original.byteLength },
 		origin: { schemaFamily: 'lightscaper', schemaVersion: facts.photoSchemaVersion, catalogId: facts.binding.catalogId, photoId: facts.binding.photoId,
@@ -63,6 +63,7 @@ export async function createPhotoImageHandoffSourceV1(value: PhotoImageHandoffSo
 		original: { fileName: facts.original.fileName.normalize('NFC'), mimeType, recognizedFormat: format(mimeType), byteLength: facts.original.byteLength, sha256: facts.original.contentSha256 },
 		canonical: { width: read('width'), height: read('height'), hasAlpha: read('hasAlpha'), frameCount: read('frameCount'), durationTicks: read('durationTicks'), timingMode: read('timingMode') },
 		develop, developed: natural(develop, read('width'), read('height')), provenance });
+	assertPhotoDevelopHandoffMasksV1(develop, source.canonical.width, source.canonical.height);
 	framescaperImageSourceResourceReferencesV2(source); // Conflicting disabled resources must also refuse.
 	const bytes = read('bytes');
 	if (!(bytes instanceof Uint8Array) || Object.getPrototypeOf(bytes) !== Uint8Array.prototype) throw new TypeError('Photo image pack requires native bytes.');

@@ -32,6 +32,9 @@ import { IMAGE_DEVELOP_LIMITS_V1, type ImageDevelopStateV1 } from './image-devel
 import type { ImageDevelopStateV2 } from './image-develop-state-v2.ts';
 import type { VideoEffectLeafV2 } from '../video-effect-leaf-v2.ts';
 import { normalizeImageDevelopEffectsV1 } from './image-develop-effects-v1.ts';
+import { admitImageDevelopMaskAuthorityV1, planImageDevelopMasksV1 } from './image-develop-mask-plan-v1.ts';
+import { withVideoMaskMatteRgbaV1 } from '../video-mask-matte-rgba-v13.ts';
+import { blendImageDevelopMaskedAdjustmentV1 } from './pixel-frame-masked-adjustment-v1.ts';
 
 export interface ImageDevelopFrameStageInput {
 	readonly descriptor: Readonly<PixelFrameDescriptorV1>;
@@ -68,13 +71,12 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		try { policy.prepareRequestOptions(); } catch (error) { check(); throw error; }
 		check();
 	}
-	const develop = policy.normalizeDevelop(field(input, 'develop', 'photo develop proxy'));
+	const develop = admitImageDevelopMaskAuthorityV1(policy.normalizeDevelop(field(input, 'develop', 'photo develop proxy')));
 	const serialized = JSON.stringify(develop), maximum = IMAGE_DEVELOP_LIMITS_V1.maximumBytes;
 	if (serialized.length > maximum || new TextEncoder().encode(serialized).byteLength > maximum) throw new RangeError('Photo proxy settings exceed their byte budget.');
-	if (develop.maskBindings.length) throw new RangeError('Photo proxy mask-bound adjustments are unsupported.');
 	const prepared = develop.effects.map(candidate => {
 		const render = policy.prepareResourceStage?.(candidate);
-		if (render !== undefined) return Object.freeze({ kind: 'resource' as const, enabled: candidate.enabled, render });
+		if (render !== undefined) return Object.freeze({ kind: 'resource' as const, id: candidate.id, enabled: candidate.enabled, render });
 		const effect = normalizeImageDevelopEffectsV1([candidate])[0]!;
 		if (effect.enabled && effect.type !== DEHAZE_EFFECT_TYPE_V1 && effect.type !== TEXTURE_EFFECT_TYPE_V1 && effect.type !== GRAIN_EFFECT_TYPE_V1 && effect.type !== NOISE_REDUCTION_EFFECT_TYPE_V1 && effect.type !== POST_CROP_VIGNETTE_EFFECT_TYPE_V1 && effect.type !== CLARITY_EFFECT_TYPE_V1 && effect.type !== DETAIL_SHARPEN_EFFECT_TYPE_V1 && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== CHROMA_DEVELOP_EFFECT_TYPE_V1
 			&& effect.type !== BLACK_WHITE_MIX_EFFECT_TYPE_V1 && effect.type !== HSL_MIXER_EFFECT_TYPE_V1 && effect.type !== COLOR_WHEELS_EFFECT_TYPE_V1
@@ -85,10 +87,20 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 	});
 	const raw = record(field(input, 'frame', 'photo develop proxy'), 'photo proxy source', ['descriptor', 'pixels']);
 	const admitted = admitPixelFrameV1(field(raw, 'descriptor', 'photo proxy source'), { limits: profile.source });
+	const masks = planImageDevelopMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, profile.render);
 	const source = readPixelFrameV1({ descriptor: admitted.descriptor, pixels: field(raw, 'pixels', 'photo proxy source') }, profile.source);
 	let current: ImageDevelopFramePixels = Object.freeze({ descriptor: source.descriptor, pixels: new Uint8Array(source.pixels) });
 	let owned = current.pixels.buffer;
 	const replace = (next: ImageDevelopFramePixels) => { wipe(owned); current = next; owned = next.pixels.buffer; };
+	const adjust = async (effectId: string, render: () => Promise<ImageDevelopFramePixels>) => {
+		const next = await render();
+		try {
+			const binding = masks.bindings.find(candidate => candidate.effectId === effectId);
+			if (binding) await withVideoMaskMatteRgbaV1({ graph: binding.graph, width: binding.width, height: binding.height, signal },
+				coverage => blendImageDevelopMaskedAdjustmentV1(current, next, coverage, profile.render, signal as AbortSignal | undefined));
+			replace(next);
+		} catch (error) { wipe(next.pixels.buffer); throw error; }
+	};
 	try {
 		const legacy = develop.geometry;
 		if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) {
@@ -98,28 +110,28 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 			check();
 			if (step.kind === 'resource') {
 				const render = step.render;
-				if (step.enabled && render) replace(await stage(accept => render(current, signal as AbortSignal | undefined, profile.render, accept)));
+				if (step.enabled && render) await adjust(step.id, () => stage(accept => render(current, signal as AbortSignal | undefined, profile.render, accept)));
 				continue;
 			}
 			const effect = step.effect; if (!effect.enabled) continue;
 			if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) {
 				replace(await geometry(current, imageGeometryForVideoEffectV1(effect, current.descriptor.width, current.descriptor.height), signal as AbortSignal | undefined, profile.render));
 			} else if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withPostCropVignettePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withPostCropVignettePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === CLARITY_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withClarityPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withClarityPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === NOISE_REDUCTION_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withNoiseReductionPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withNoiseReductionPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === GRAIN_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withGrainPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withGrainPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === TEXTURE_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withTexturePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withTexturePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === DEHAZE_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withDehazePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withDehazePixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else if (effect.type === DETAIL_SHARPEN_EFFECT_TYPE_V1) {
-				replace(await stage(accept => withDetailSharpenPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
+				await adjust(effect.id, () => stage(accept => withDetailSharpenPixelFrameV1({ frame: current, effect, signal }, accept, { limits: profile.render })));
 			} else {
-				replace(await stage(accept => withGlobalDevelopPixelFrameV1({ frame: current, effects: [effect], signal }, accept,
+				await adjust(effect.id, () => stage(accept => withGlobalDevelopPixelFrameV1({ frame: current, effects: [effect], signal }, accept,
 					{ limits: profile.render, maximumEffects: 1 })));
 			}
 		}
