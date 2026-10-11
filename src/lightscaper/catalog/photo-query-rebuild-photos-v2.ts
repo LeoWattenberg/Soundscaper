@@ -5,6 +5,9 @@ import { assertNotAborted, catalogTransaction } from './catalog-transaction.ts';
 import { validateLightscaperDocumentV1 } from './documents.ts';
 import { serializePhotoDocumentV1OrV2 } from './photo-document-v2.ts';
 import { readStoredPhotoV1OrV2 } from './photo-catalog-records-v2.ts';
+import { readStoredPhotoCurrentV1 } from './photo-catalog-records-current-v1.ts';
+import { serializePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from './photo-document-current-v1.ts';
+import type { PhotoCatalogDocumentModeV2 } from './photo-catalog-writes-kernel-v2.ts';
 import { readIndexState } from './repository-records.ts';
 import { id } from './value-validation.ts';
 import { PHOTO_QUERY_LIMITS_V1 } from './photo-query-types-v1.ts';
@@ -13,15 +16,24 @@ import { photoQueryBuildProgressV1, projectPhotoQueryRowV1, publishPhotoQueryRow
 import { projectPhotoQueryRowV2 } from './photo-query-index-v2.ts';
 import { photoQueryBuildProgressV2, publishPhotoQueryRowV2, readPhotoQueryBuildStateV2 } from './photo-query-index-storage-v2.ts';
 
-/** Existing row profiles stay unchanged; this explicit source owner admits mixed Photo1/2. */
+/** Existing row profiles stay unchanged; this fixed owner admits Photo1/2. */
 export function rebuildPhotoQueryIndexPageForPhotosV2(database: IDBDatabase, catalogId: string, profile: 1, signal?: AbortSignal): ReturnType<typeof rebuildLegacy>;
 export function rebuildPhotoQueryIndexPageForPhotosV2(database: IDBDatabase, catalogId: string, profile: 2, signal?: AbortSignal): ReturnType<typeof rebuildCurrent>;
 export function rebuildPhotoQueryIndexPageForPhotosV2(database: IDBDatabase, catalogId: string, profile: 1 | 2, signal?: AbortSignal) {
+	return rebuild(database, catalogId, profile, 'legacy2', signal);
+}
+/** Explicit current full-document authority; projected wire schemas are stable. */
+export function rebuildPhotoQueryIndexPageForPhotosCurrentV1(database: IDBDatabase, catalogId: string, profile: 1, signal?: AbortSignal): ReturnType<typeof rebuildLegacy>;
+export function rebuildPhotoQueryIndexPageForPhotosCurrentV1(database: IDBDatabase, catalogId: string, profile: 2, signal?: AbortSignal): ReturnType<typeof rebuildCurrent>;
+export function rebuildPhotoQueryIndexPageForPhotosCurrentV1(database: IDBDatabase, catalogId: string, profile: 1 | 2, signal?: AbortSignal) {
+	return rebuild(database, catalogId, profile, 'current3', signal);
+}
+function rebuild(database: IDBDatabase, catalogId: string, profile: 1 | 2, mode: PhotoCatalogDocumentModeV2, signal?: AbortSignal) {
 	if (profile !== 1 && profile !== 2) throw new RangeError('Unsupported current photo query profile.');
-	return profile === 1 ? rebuildLegacy(database, catalogId, signal) : rebuildCurrent(database, catalogId, signal);
+	return profile === 1 ? rebuildLegacy(database, catalogId, mode, signal) : rebuildCurrent(database, catalogId, mode, signal);
 }
 
-async function rebuildLegacy(database: IDBDatabase, catalogId: string, signal?: AbortSignal) {
+async function rebuildLegacy(database: IDBDatabase, catalogId: string, mode: PhotoCatalogDocumentModeV2, signal?: AbortSignal) {
 	const catalog = id(catalogId, 'query rebuild catalog');
 	return catalogTransaction(database, ['catalogs', 'catalogStates', 'photos', 'photoQueryRows', 'photoQueryBuildStates'], 'readwrite', async (stores) => {
 		const stateValue: unknown = await request(stores.catalogStates.get(catalog));
@@ -44,7 +56,7 @@ async function rebuildLegacy(database: IDBDatabase, catalogId: string, signal?: 
 					assertNotAborted(signal);
 					const current = cursor.result;
 					if (!current) { resolve(true); return; }
-					const { row, length } = prepareRebuildRow(current.value as unknown, catalog, current.primaryKey);
+					const { row, length } = prepareRebuildRow(current.value as unknown, catalog, current.primaryKey, mode);
 					if (bytes + length > PHOTO_QUERY_LIMITS_V1.rebuildBytes) { resolve(false); return; }
 					void publishPhotoQueryRowV1(stores, row).then(() => {
 						processed++; bytes += length; afterKey = row.key;
@@ -63,15 +75,15 @@ async function rebuildLegacy(database: IDBDatabase, catalogId: string, signal?: 
 }
 
 /** Normalized source validation ends before the asynchronous write closure owns the derived row. */
-function prepareRebuildRow(value: unknown, catalog: string, primaryKey: IDBValidKey) {
-	const photo = readStoredPhotoV1OrV2(value);
+function prepareRebuildRow(value: unknown, catalog: string, primaryKey: IDBValidKey, mode: PhotoCatalogDocumentModeV2) {
+	const photo = mode === 'legacy2' ? readStoredPhotoV1OrV2(value) : readStoredPhotoCurrentV1(value);
 	if (photo.catalogId !== catalog || primaryKey !== `${catalog}|${photo.id}`) throw new TypeError('Query rebuild source belongs to another catalog.');
 	const row = projectPhotoQueryRowV1(photo);
-	const length = new TextEncoder().encode(serializePhotoDocumentV1OrV2(photo)).byteLength + new TextEncoder().encode(JSON.stringify(row)).byteLength;
+	const length = new TextEncoder().encode(serialize(photo, mode)).byteLength + new TextEncoder().encode(JSON.stringify(row)).byteLength;
 	return { row, length };
 }
 
-async function rebuildCurrent(database: IDBDatabase, catalogId: string, signal?: AbortSignal) {
+async function rebuildCurrent(database: IDBDatabase, catalogId: string, mode: PhotoCatalogDocumentModeV2, signal?: AbortSignal) {
 	const catalog = id(catalogId, 'query2 rebuild catalog');
 	return catalogTransaction(database, ['catalogs', 'catalogStates', 'photos', 'photoQueryRowsV2', 'photoQueryBuildStatesV2'], 'readwrite', async stores => {
 		const stateValue: unknown = await request(stores.catalogStates.get(catalog));
@@ -94,7 +106,7 @@ async function rebuildCurrent(database: IDBDatabase, catalogId: string, signal?:
 					assertNotAborted(signal);
 					const current = cursor.result;
 					if (!current) { resolve(true); return; }
-					const prepared = prepare(current.value as unknown, catalog, current.primaryKey);
+					const prepared = prepare(current.value as unknown, catalog, current.primaryKey, mode);
 					if (bytes + derivedBytes + prepared.bytes + prepared.derivedBytes > PHOTO_QUERY_LIMITS_V2.rebuildBytes) { resolve(false); return; }
 					void publishPhotoQueryRowV2(stores, prepared.row, 'rebuild').then(() => {
 						assertNotAborted(signal);
@@ -113,10 +125,14 @@ async function rebuildCurrent(database: IDBDatabase, catalogId: string, signal?:
 	}, signal);
 }
 
-function prepare(value: unknown, catalog: string, primaryKey: IDBValidKey) {
-	const photo = readStoredPhotoV1OrV2(value);
+function prepare(value: unknown, catalog: string, primaryKey: IDBValidKey, mode: PhotoCatalogDocumentModeV2) {
+	const photo = mode === 'legacy2' ? readStoredPhotoV1OrV2(value) : readStoredPhotoCurrentV1(value);
 	if (photo.catalogId !== catalog || primaryKey !== `${catalog}|${photo.id}`) throw new TypeError('Query2 rebuild source belongs to another catalog.');
-	const bytes = new TextEncoder().encode(serializePhotoDocumentV1OrV2(photo)).byteLength;
+	const bytes = new TextEncoder().encode(serialize(photo, mode)).byteLength;
 	const row = projectPhotoQueryRowV2(photo);
 	return { row, bytes, derivedBytes: new TextEncoder().encode(JSON.stringify(row)).byteLength };
+}
+
+function serialize(photo: PhotoDocumentCurrentV1, mode: PhotoCatalogDocumentModeV2): string {
+	return mode === 'legacy2' ? serializePhotoDocumentV1OrV2(photo) : serializePhotoDocumentCurrentV1(photo);
 }

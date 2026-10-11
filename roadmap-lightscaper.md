@@ -534,9 +534,20 @@ frame before borrowing brush bodies. Range masks sample the repaired input of
 each adjustment; existing strict process 1/2 readers still refuse repairs.
 Focused Lightscaper goldens cover Clone/Heal, moved sources, crop/flip/exposure,
 range/LUT ordering, authentic brush declarations, and joined native retirement.
-Selected Photo persistence, menu authoring,
-the visualize-spots view, authenticated-original preview/export routing, and
-editable Frame integration remain required before healing is usable in the product.
+Strict Photo3 and workspace3 documents now retain repairs throughout versions,
+redo history, and snapshots. Explicit current owners share the bounded history,
+command, and catalog transaction logic with permanently strict legacy readers.
+Whole-photo undo/redo keeps monotonic revisions and the highest retained aggregate
+version, and virtual copies retain repaired settings without a new original.
+The current catalog checks the complete retained LUT and brush closure before
+saving; its database, memberships, and scalar query profiles stay unchanged.
+Focused Lightscaper tests cover persistence/reopen, revision conflicts, atomic
+rollback, borrowed verification, cancellation, and save acknowledgement. These
+instrumented IndexedDB tests do not establish native browser qualification.
+Selected-session activation, process3 clipboard and portable archive formats,
+menu authoring, the visualize-spots view, authenticated-original preview/export
+routing, and editable Frame integration remain required before healing is usable
+in the product.
 Direct Frame mask-name authoring and healing remain open; these slices do not
 close L6.
 

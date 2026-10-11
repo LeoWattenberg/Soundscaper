@@ -7,6 +7,8 @@ import { catalogTransaction } from './catalog-transaction.ts';
 import { field, id, record } from './value-validation.ts';
 import { photoStorageKey, photoSummary, readPhotoSummary } from './repository-records.ts';
 import { readStoredPhotoV1OrV2 } from './photo-catalog-records-v2.ts';
+import { readStoredPhotoCurrentV1 } from './photo-catalog-records-current-v1.ts';
+import type { PhotoCatalogDocumentModeV2 } from './photo-catalog-writes-kernel-v2.ts';
 import { PhotoCatalogRevisionConflictError, type PhotoSummaryV1 } from './repository-types.ts';
 import { readPhotoQueryContextV2 } from './photo-query-pages-v2.ts';
 import { readPhotoQueryPageInTransactionV1 } from './photo-query-pages-v1.ts';
@@ -58,20 +60,29 @@ const CHECK = AbortSignal.prototype.throwIfAborted;
 /** Private bounded audit phases finish before one fresh projected page escapes. */
 export function readPhotoCullingDestinationPageV1(database: IDBDatabase, catalogId: string, context: PhotoLibraryCullingNavigationContextV1,
 	value: PhotoLibraryCullingNavigationRequestV1): Promise<Readonly<PhotoLibraryPageV1> | null> {
+	return readDestination(database, catalogId, context, value, 'legacy2');
+}
+/** Current point audits admit the complete Photo before scalar projection. */
+export function readPhotoCullingDestinationPageCurrentV1(database: IDBDatabase, catalogId: string, context: PhotoLibraryCullingNavigationContextV1,
+	value: PhotoLibraryCullingNavigationRequestV1): Promise<Readonly<PhotoLibraryPageV1> | null> {
+	return readDestination(database, catalogId, context, value, 'current3');
+}
+function readDestination(database: IDBDatabase, catalogId: string, context: PhotoLibraryCullingNavigationContextV1,
+	value: PhotoLibraryCullingNavigationRequestV1, mode: PhotoCatalogDocumentModeV2): Promise<Readonly<PhotoLibraryPageV1> | null> {
 	const catalog = id(catalogId, 'culling catalog ID'), admitted = admitPhotoCullingNavigationV1(context, value);
 	return withPhotoStackQuerySignalV1(admitted.signal, async caller => {
 		const signal = caller ?? new AbortController().signal;
 		const progress: Progress = { proof: null, start: null, pending: null };
 		while (true) {
 			Reflect.apply(CHECK, signal, []);
-			const result = await step(database, catalog, admitted, progress, signal); Reflect.apply(CHECK, signal, []);
+			const result = await step(database, catalog, admitted, progress, signal, mode); Reflect.apply(CHECK, signal, []);
 			if (result !== undefined) return result;
 			await new Promise<void>(resolve => { setTimeout(resolve, 0); }); Reflect.apply(CHECK, signal, []);
 		}
 	});
 }
 
-async function step(database: IDBDatabase, catalog: string, input: Admitted, progress: Progress, signal: AbortSignal) {
+async function step(database: IDBDatabase, catalog: string, input: Admitted, progress: Progress, signal: AbortSignal, mode: PhotoCatalogDocumentModeV2) {
 	const selected = input.context, saved = selected.kind === 'saved', plain = selected.kind === 'plain';
 	const metadata = saved || (!plain && 'schemaVersion' in selected.query);
 	const rowStore = metadata ? 'photoQueryRowsV2' : 'photoQueryRows', buildStore = metadata ? 'photoQueryBuildStatesV2' : 'photoQueryBuildStates';
@@ -101,7 +112,7 @@ async function step(database: IDBDatabase, catalog: string, input: Admitted, pro
 		}
 		const key = photoStorageKey(catalog, input.photoId), rawPhoto: unknown = await request(stores.photos.get(key));
 		if (rawPhoto === undefined) return null;
-		const photo = readStoredPhotoV1OrV2(rawPhoto, key);
+		const photo = mode === 'legacy2' ? readStoredPhotoV1OrV2(rawPhoto, key) : readStoredPhotoCurrentV1(rawPhoto, key);
 		const summary = readPhotoSummary(await request(stores.summaries.get(key)) as unknown);
 		if (JSON.stringify(summary) !== JSON.stringify(photoSummary(photo))) throw new TypeError('Culling summary differs from its current Photo.');
 		if (plain) {
