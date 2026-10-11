@@ -237,8 +237,12 @@ test('the authored clip presentation is carried into the cell the strip composit
 
 	assert.deepEqual(opaque, [255, 255, 255, 255], 'a white plate at full opacity fills the cell');
 	const rec709QuarterWhite = Math.round((1.099 * Math.pow(0.25, 0.45) - 0.099) * 255);
-	assert.deepEqual(faded, [rec709QuarterWhite, rec709QuarterWhite, rec709QuarterWhite, 255],
-		'a quarter-opacity white plate is encoded over opaque black in Rec.709');
+	assert.equal(rec709QuarterWhite, 125, 'quarter-linear white encodes as byte 125 in Rec.709');
+	const quantizedLinear = Math.pow((rec709QuarterWhite / 255 + 0.099) / 1.099, 1 / 0.45);
+	const srgbQuarterWhite = Math.round((1.055 * Math.pow(quantizedLinear, 1 / 2.4) - 0.055) * 255);
+	assert.equal(srgbQuarterWhite, 137, 'the independent transfer calculation gives the sRGB display byte');
+	assert.deepEqual(faded, [srgbQuarterWhite, srgbQuarterWhite, srgbQuarterWhite, 255],
+		'the filmstrip displays quarter-opacity white over opaque black in sRGB');
 });
 
 test('an odd or undersized filmstrip box is rounded down to the even dimensions the codec admits', async (t) => {
