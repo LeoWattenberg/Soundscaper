@@ -73,7 +73,7 @@ package complete.
 
 ### Implementation status
 
-M01–M07 are **In progress**; M08–M12 remain **Planned**. The isolated browser
+M01–M08 are **In progress**; M09–M12 remain **Planned**. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
 origin with bounded project-file capabilities. Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
@@ -86,15 +86,23 @@ round trips. Shared bounded PCM mixing, an audio sample clock, retained-media
 decoding, and audio/video muxing pass a menu-driven media import, save/reopen,
 preview, export, and re-import workflow. WebM declares its millisecond container
 timing resolution. The separate float-carrier native helper and own-origin
-desktop delivery pass a packaged Linux ProRes 4444 publication smoke test;
-native PCM delivery and other desktop targets remain unfinished. Flat MOV
+desktop delivery pass a packaged Linux ProRes 4444 publication smoke test with
+authenticated PCM24 audio. Other desktop targets remain unqualified. Flat MOV
 delivery admits at most 32,768 frames so its retained sample index is bounded.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
-clipboard commands, and exact source timing. Graphical curve/spatial editing,
-shape operators, and shaped text animation remain under construction. M07 has
-bounded local-space mask rendering and ordered registered-effect foundations;
-its authoring menus, mattes, adjustment layers, and tracking workflows remain
-unfinished. These results do not close a package's completion gate.
+clipboard commands, and exact source timing. Opt-in value/speed graphs and
+spatial/path editing pass actual browser workflows, including pixel preview,
+undo, and save/reopen. Ordered shape operators and shaped text animators have
+actual CanvasKit and worker/CPU preview coverage; their complete authoring menus
+remain under construction. M07 includes bounded local masks, ordered effects,
+alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
+projective corner pins. Tracking freshness stops preview/export before resource
+acquisition; tracking and compositing menu workflows remain unfinished. M08
+includes a closed expression parser/interpreter, shared exact scene/audio
+clocks, stable references, bounded queries, and atomic source/baking commands;
+prepared audio-amplitude integration and authoring workflows remain under
+construction. The Motionscaper Node shard passes 325 tests at this integration
+point. These results do not close a package's completion gate.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
