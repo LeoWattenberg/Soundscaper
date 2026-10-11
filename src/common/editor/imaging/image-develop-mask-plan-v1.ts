@@ -42,6 +42,14 @@ export function admitImageDevelopMaskAuthorityV1(developValue: unknown) {
 export function planImageDevelopMasksV1(developValue: unknown, sourceWidth: number, sourceHeight: number,
 	renderLimits: PixelFrameLimitsV1): Readonly<ImageDevelopMaskPlanV1> {
 	const develop = admitImageDevelopMaskAuthorityV1(developValue);
+	return planAdmittedImageDevelopMasksV1(develop, sourceWidth, sourceHeight, renderLimits);
+}
+
+/** Scalar stage planning creates no external-input or resource-body authority.
+ * Explicit resource hosts perform their own complete admission before using it. */
+export function planAdmittedImageDevelopMasksV1(developValue: unknown, sourceWidth: number, sourceHeight: number,
+	renderLimits: PixelFrameLimitsV1): Readonly<ImageDevelopMaskPlanV1> {
+	const develop = normalizeImageDevelopStateV1OrV2(developValue);
 	const serialized = JSON.stringify(develop);
 	if (serialized.length > IMAGE_DEVELOP_LIMITS_V1.maximumBytes || new TextEncoder().encode(serialized).byteLength > IMAGE_DEVELOP_LIMITS_V1.maximumBytes) {
 		throw new RangeError('Develop mask settings exceed their byte budget.');

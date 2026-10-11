@@ -34,8 +34,11 @@ import type { VideoEffectLeafV2 } from '../video-effect-leaf-v2.ts';
 import { normalizeImageDevelopEffectsV1 } from './image-develop-effects-v1.ts';
 import { admitImageDevelopMaskAuthorityV1, planImageDevelopMasksV1, IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1, type ImageDevelopMaskBindingPlanV1 } from './image-develop-mask-plan-v1.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1, assertImageDevelopMaskOverlayBudgetV1, withProjectedImageDevelopMaskCoverageV1, type ImageDevelopMaskOverlayViewV1 } from './image-develop-mask-overlay-v1.ts';
-import { withVideoMaskMatteRgbaV1 } from '../video-mask-matte-rgba-v13.ts';
+import { withVideoMaskMatteRgbaV1, withVideoMaskMatteBrushScopeV1 } from '../video-mask-matte-rgba-v13.ts';
 import { blendImageDevelopMaskedAdjustmentV1 } from './pixel-frame-masked-adjustment-v1.ts';
+import { admitImageDevelopBrushMaskAuthorityV1, prepareImageDevelopBrushMasksV1 } from './image-develop-brush-mask-v1.ts';
+import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
+import type { MaskRasterSourcePortV1 } from './mask-raster-source-port-v1.ts';
 
 export interface ImageDevelopFrameStageInput {
 	readonly descriptor: Readonly<PixelFrameDescriptorV1>;
@@ -59,6 +62,8 @@ export type ImageDevelopFrameStage = (frame: ImageDevelopFramePixels, signal: Ab
 export interface ImageDevelopFramePolicy {
 	readonly normalizeDevelop: (value: unknown) => ImageDevelopStateV1 | ImageDevelopStateV2;
 	readonly prepareRequestOptions?: () => void;
+	/** Hosts opt in with an independently captured immutable-body source. */
+	readonly prepareMaskSource?: (develop: ImageDevelopStateV1 | ImageDevelopStateV2) => Readonly<MaskRasterSourcePortV1> | undefined;
 	/** Undefined selects the strict legacy kernel; null is a retained neutral resource stage. */
 	readonly prepareResourceStage?: (effect: VideoEffectLeafV2) => ImageDevelopFrameStage | null | undefined;
 }
@@ -73,7 +78,11 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		try { policy.prepareRequestOptions(); } catch (error) { check(); throw error; }
 		check();
 	}
-	const develop = admitImageDevelopMaskAuthorityV1(policy.normalizeDevelop(field(input, 'develop', 'photo develop proxy')));
+	const normalized = policy.normalizeDevelop(field(input, 'develop', 'photo develop proxy'));
+	let maskSource: Readonly<MaskRasterSourcePortV1> | undefined;
+	try { maskSource = policy.prepareMaskSource?.(normalized); } catch (error) { check(); throw error; }
+	check();
+	const develop = maskSource ? admitImageDevelopBrushMaskAuthorityV1(normalized) : admitImageDevelopMaskAuthorityV1(normalized);
 	const rawOverlay = Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'photo develop proxy') : undefined;
 	const selection = rawOverlay === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawOverlay);
 	const serialized = JSON.stringify(develop), maximum = IMAGE_DEVELOP_LIMITS_V1.maximumBytes;
@@ -91,7 +100,8 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 	});
 	const raw = record(field(input, 'frame', 'photo develop proxy'), 'photo proxy source', ['descriptor', 'pixels']);
 	const admitted = admitPixelFrameV1(field(raw, 'descriptor', 'photo proxy source'), { limits: profile.source });
-	const masks = planImageDevelopMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, profile.render);
+	const brushPlan = maskSource ? prepareImageDevelopBrushMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, profile.render, selection) : undefined;
+	const masks = brushPlan?.plan ?? planImageDevelopMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, profile.render);
 	const selectedBinding = selection && masks.bindings.find(binding => binding.maskId === selection.maskId && binding.effectId === selection.effectId);
 	if (selection && !selectedBinding) throw new RangeError('Mask overlay requires one retained mask/effect binding.');
 	if (selectedBinding) {
@@ -103,30 +113,37 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 	let current: ImageDevelopFramePixels = Object.freeze({ descriptor: source.descriptor, pixels: new Uint8Array(source.pixels) });
 	let owned = current.pixels.buffer;
 	let maskOverlay: Readonly<ImageDevelopMaskOverlayViewV1> | undefined;
+	let maskOverlayBacking: ArrayBuffer | undefined;
+	let activeMaskScope: Readonly<MaskRasterSourceScopeV1> | undefined;
 	const replace = (next: ImageDevelopFramePixels) => { wipe(owned); current = next; owned = next.pixels.buffer; };
+	const evaluate = <Output>(binding: Readonly<ImageDevelopMaskBindingPlanV1>, accept: (coverage: Uint8Array<ArrayBuffer>) => Output | Promise<Output>) => {
+		const request = { graph: binding.graph, width: binding.width, height: binding.height, currentFrame: current, signal };
+		return activeMaskScope ? withVideoMaskMatteBrushScopeV1(request, accept, activeMaskScope) : withVideoMaskMatteRgbaV1(request, accept);
+	};
 	const observe = async (binding: Readonly<ImageDevelopMaskBindingPlanV1>, coverage: Uint8Array<ArrayBuffer>) => {
 		if (binding !== selectedBinding) return;
 		await withProjectedImageDevelopMaskCoverageV1(binding, coverage, view => {
-			maskOverlay = Object.freeze({ ...view, coverage: new Uint8Array(view.coverage) });
+			const retained = new Uint8Array(view.coverage); maskOverlayBacking = retained.buffer;
+			maskOverlay = Object.freeze({ ...view, coverage: retained });
 		}, profile, signal as AbortSignal | undefined);
 	};
 	const observeUnchanged = async (effectId: string) => {
 		if (selectedBinding?.effectId !== effectId) return;
-		await withVideoMaskMatteRgbaV1({ graph: selectedBinding.graph, width: selectedBinding.width, height: selectedBinding.height, currentFrame: current, signal },
-			coverage => observe(selectedBinding, coverage));
+		await evaluate(selectedBinding, coverage => observe(selectedBinding, coverage));
 	};
 	const adjust = async (effectId: string, render: () => Promise<ImageDevelopFramePixels>) => {
 		const next = await render();
 		try {
 			const binding = masks.bindings.find(candidate => candidate.effectId === effectId);
-			if (binding) await withVideoMaskMatteRgbaV1({ graph: binding.graph, width: binding.width, height: binding.height, currentFrame: current, signal }, async coverage => {
+			if (binding) await evaluate(binding, async coverage => {
 				await blendImageDevelopMaskedAdjustmentV1(current, next, coverage, profile.render, signal as AbortSignal | undefined);
 				await observe(binding, coverage);
 			});
 			replace(next);
 		} catch (error) { wipe(next.pixels.buffer); throw error; }
 	};
-	try {
+	const render = async (scope?: Readonly<MaskRasterSourceScopeV1>): Promise<Result> => {
+		activeMaskScope = scope;
 		const legacy = develop.geometry;
 		if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) {
 			replace(await geometry(current, { schemaVersion: 1, ...legacy, perspective: null }, signal as AbortSignal | undefined, profile.render));
@@ -164,7 +181,12 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		check();
 		const histogram = await createPixelFrameHistogramV1(current, { limits: profile.render, ...(signal ? { signal } : {}) });
 		check(); const result = await consume(Object.freeze({ frame: current, histogram, ...(maskOverlay ? { maskOverlay } : {}) })); check(); return result;
-	} finally { wipe(owned); if (maskOverlay) wipe(maskOverlay.coverage.buffer); }
+	};
+	try {
+		// Snapshot the host pixels before any selected resource source can yield.
+		return brushPlan && maskSource ? await withMaskRasterSourceScopeV1(brushPlan.references, brushPlan.retainedStorageKeys,
+			maskSource, render, signal as AbortSignal | undefined) : await render();
+	} finally { wipe(owned); if (maskOverlayBacking) wipe(maskOverlayBacking); }
 }
 
 function geometry(frame: ImageDevelopFramePixels, geometry: Readonly<ImageGeometryV1>, signal: AbortSignal | undefined, limits: PixelFrameLimitsV1): Promise<ImageDevelopFramePixels> {

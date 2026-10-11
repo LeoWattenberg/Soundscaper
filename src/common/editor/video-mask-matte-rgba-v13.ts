@@ -1,11 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
-import { normalizeVideoMaskMatteGraphV1, VIDEO_MASK_MATTE_LIMITS_V1, videoMaskMatteWorkingBytesV1,
+import { normalizeVideoMaskMatteGraphV1, VIDEO_MASK_MATTE_LIMITS_V1, VIDEO_MASK_MATTE_WORKING_LIMIT_V1, videoMaskMatteWorkingBytesV1,
 	type VideoMaskMatteGraphV1, type VideoMaskMatteNodeV1 } from './video-mask-matte-v24.ts';
 import { captureVideoMaskLuminanceFrameV1, videoMaskLuminanceRangeCoverageV1, videoMaskMatteUsesCurrentFrameV1,
 	type CapturedVideoMaskLuminanceFrameV1 } from './video-mask-luminance-range-v1.ts';
 import { prepareVideoMaskColorRangeCoverageV1 } from './video-mask-color-range-v1.ts';
+import { prepareVideoMaskMatteBrushInputsV1 } from './imaging/image-develop-brush-mask-v1.ts';
+import { captureMaskRasterSourceV1, withMaskRasterSourceScopeV1, scopedBrushMaskResourceV1,
+	assertMaskRasterSourceScopeV1, maskRasterSourceScopeWorkingBytesV1, withMaskRasterSourceScopeWorkV1 } from './imaging/mask-raster-source-scope-v1.ts';
+import type { MaskRasterSourcePortV1 } from './imaging/mask-raster-source-port-v1.ts';
+import type { BrushMaskResourceV1 } from './imaging/brush-mask-resource-v1.ts';
 
 export interface VideoMaskMatteRgbaInputV13 {
 	readonly width: number;
@@ -56,31 +61,104 @@ export async function withVideoMaskMatteRgbaV1<Result>(value: unknown,
 	} finally { work.return(new Uint8Array()); for (const bytes of owned) wipe(bytes); }
 }
 
+/** The explicit branch accepts only a current authenticated scope. All graph
+ * declarations must belong to its complete closure, including unused inputs. */
+export async function withVideoMaskMatteBrushScopeV1<Result>(value: unknown,
+	consume: (coverage: Plane) => Result | Promise<Result>, scope: unknown): Promise<Result> {
+	return await withMaskRasterSourceScopeWorkV1(scope, async () => {
+		const request = prepareBrushRequest(value, consume);
+		admitBrushScopeWorkingBytes(request, scope);
+		const source = captureBrushCurrentFrame(request), backing = source?.pixels.buffer;
+		try { return await runBrushGraph(request, consume, scope, source); }
+		finally { if (source && backing) wipeBacking(backing); }
+	});
+}
+
+/** Capture the actual range signal before the first resource await. This entry
+ * owns one complete serial source scope and releases it after graph delivery. */
+export async function withVideoMaskMatteBrushV1<Result>(value: unknown,
+	consume: (coverage: Plane) => Result | Promise<Result>, sourceValue: MaskRasterSourcePortV1): Promise<Result> {
+	const request = prepareBrushRequest(value, consume), source = captureBrushCurrentFrame(request);
+	const backing = source?.pixels.buffer;
+	try {
+		const sourcePort = captureMaskRasterSourceV1(sourceValue);
+		return await withMaskRasterSourceScopeV1(request.prepared.references, request.prepared.retainedStorageKeys, sourcePort,
+			scope => runBrushGraph(request, consume, scope, source), request.signal);
+	} finally { if (source && backing) wipeBacking(backing); }
+}
+
+function prepareBrushRequest(value: unknown, consume: unknown) {
+	const input = record(value, 'scoped brush mask request', ['graph', 'width', 'height', 'signal', 'currentFrame'], ['graph', 'width', 'height']);
+	const rawSignal = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'scoped brush mask request') : undefined;
+	if (rawSignal !== undefined) assertSignal(rawSignal);
+	const signal = rawSignal as AbortSignal | undefined;
+	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
+	check(); if (typeof consume !== 'function') throw new TypeError('Scoped brush masks require a consumer.');
+	const width = dimension(field(input, 'width', 'scoped brush mask request'), 'mask width');
+	const height = dimension(field(input, 'height', 'scoped brush mask request'), 'mask height');
+	const prepared = prepareVideoMaskMatteBrushInputsV1(field(input, 'graph', 'scoped brush mask request'), width, height);
+	return { input, prepared, width, height, signal, check };
+}
+function captureBrushCurrentFrame(request: ReturnType<typeof prepareBrushRequest>): Readonly<CapturedVideoMaskLuminanceFrameV1> | undefined {
+	return videoMaskMatteUsesCurrentFrameV1(request.prepared.graph)
+		? captureVideoMaskLuminanceFrameV1(field(request.input, 'currentFrame', 'scoped brush mask request'), request.width, request.height) : undefined;
+}
+async function runBrushGraph<Result>(request: ReturnType<typeof prepareBrushRequest>, consume: (coverage: Plane) => Result | Promise<Result>,
+	scope: unknown, source?: Readonly<CapturedVideoMaskLuminanceFrameV1>): Promise<Result> {
+	admitBrushScopeWorkingBytes(request, scope);
+	const brushInputs = new Map<string, Readonly<BrushMaskResourceV1>>();
+	for (const key of request.prepared.retainedStorageKeys) brushInputs.set(key, scopedBrushMaskResourceV1(scope, key));
+	const owned: ArrayBuffer[] = [];
+	const work = evaluateGraph(request.prepared.graph, request.width, request.height, new Map(), length => {
+		const plane = new Uint8Array(length); owned.push(plane.buffer); return plane;
+	}, source, brushInputs);
+	const check = () => { request.check(); assertMaskRasterSourceScopeV1(scope, []); };
+	try {
+		check(); let next = work.next();
+		while (!next.done) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); check(); next = work.next(); }
+		check(); const result = await consume(next.value); check(); return result;
+	} finally { work.return(new Uint8Array()); for (const backing of owned) wipeBacking(backing); }
+}
+function admitBrushScopeWorkingBytes(request: ReturnType<typeof prepareBrushRequest>, scope: unknown): void {
+	assertMaskRasterSourceScopeV1(scope, request.prepared.references);
+	const bytes = BigInt(videoMaskMatteWorkingBytesV1(request.prepared.graph, request.width, request.height))
+		+ BigInt(maskRasterSourceScopeWorkingBytesV1(scope));
+	if (bytes > BigInt(VIDEO_MASK_MATTE_WORKING_LIMIT_V1)) throw new RangeError('Brush mask coverage exceeds its 64 MiB working budget.');
+}
+
 function* evaluateGraph(graph: VideoMaskMatteGraphV1, width: number, height: number,
-	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, allocate: (length: number) => Plane, currentFrame?: Readonly<CapturedVideoMaskLuminanceFrameV1>): Work {
+	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, allocate: (length: number) => Plane, currentFrame?: Readonly<CapturedVideoMaskLuminanceFrameV1>,
+	brushInputs?: ReadonlyMap<string, Readonly<BrushMaskResourceV1>>): Work {
 	const nodes = new Map(graph.nodes.map(node => [node.id, node])), cache = new Map<string, Plane>();
 	return yield* evaluate(graph.outputNodeId);
 	function* evaluate(id: string): Work {
 		const cached = cache.get(id); if (cached) return cached;
 		const node = nodes.get(id); if (!node) throw new ReferenceError(`Mask/matte node ${id} is unavailable.`);
-		const result = yield* evaluateNode(node, graph, width, height, inputs, evaluate, allocate, currentFrame); cache.set(id, result); return result;
+		const result = yield* evaluateNode(node, graph, width, height, inputs, evaluate, allocate, currentFrame, brushInputs); cache.set(id, result); return result;
 	}
 }
 
 function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1, width: number, height: number,
-	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, evaluate: (id: string) => Work, allocate: (length: number) => Plane, currentFrame?: Readonly<CapturedVideoMaskLuminanceFrameV1>): Work {
+	inputs: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>, evaluate: (id: string) => Work, allocate: (length: number) => Plane, currentFrame?: Readonly<CapturedVideoMaskLuminanceFrameV1>,
+	brushInputs?: ReadonlyMap<string, Readonly<BrushMaskResourceV1>>): Work {
 	if (node.kind === 'feather') return yield* feather(yield* evaluate(node.inputNodeId), width, height, node.radius, allocate);
 	const operands: Plane[] = [];
 	if (node.kind === 'invert') operands.push(yield* evaluate(node.inputNodeId));
 	if (node.kind === 'boolean') for (const id of node.inputNodeIds) operands.push(yield* evaluate(id));
 	let frame: VideoMaskMatteRgbaInputV13 | undefined;
+	let brush: Readonly<BrushMaskResourceV1> | undefined;
 	if (node.kind === 'raster' || node.kind === 'alpha') {
 		const binding = graph.inputs.find(input => input.name === node.inputName);
 		if (!binding) throw new ReferenceError(`Mask/matte input ${node.inputName} is unavailable.`);
-		frame = inputs.get(binding.sourceRef);
-		if (!frame) throw new ReferenceError(`Mask/matte source ${binding.sourceRef} is unavailable.`);
-		dimension(frame.width, 'mask input width'); dimension(frame.height, 'mask input height');
-		if (!(frame.pixels instanceof Uint8Array) || frame.pixels.byteLength !== frame.width * frame.height * 4) throw new RangeError('Mask input RGBA length does not match its dimensions.');
+		if (brushInputs) {
+			brush = brushInputs.get(binding.sourceRef);
+			if (!brush) throw new ReferenceError(`Brush source ${binding.sourceRef} is unavailable.`);
+		} else {
+			frame = inputs.get(binding.sourceRef);
+			if (!frame) throw new ReferenceError(`Mask/matte source ${binding.sourceRef} is unavailable.`);
+			dimension(frame.width, 'mask input width'); dimension(frame.height, 'mask input height');
+			if (!(frame.pixels instanceof Uint8Array) || frame.pixels.byteLength !== frame.width * frame.height * 4) throw new RangeError('Mask input RGBA length does not match its dimensions.');
+		}
 	}
 	const colorCoverage = node.kind === 'color-range' ? prepareVideoMaskColorRangeCoverageV1(node, currentFrame!) : undefined;
 	const output = allocate(width * height);
@@ -99,6 +177,11 @@ function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1,
 				let winding = 0; for (const path of node.paths) winding += pathWinding(path.points, px, py);
 				output[index] = (node.fillRule === 'even-odd' ? Math.abs(winding) % 2 === 1 : winding !== 0) ? 255 : 0;
 			} else if (node.kind === 'raster' || node.kind === 'alpha') {
+				if (brush) {
+					const sx = Math.min(brush.reference.width - 1, Math.floor(x * brush.reference.width / width));
+					const sy = Math.min(brush.reference.height - 1, Math.floor(y * brush.reference.height / height));
+					output[index] = brush.alpha[sy * brush.reference.width + sx]!; continue;
+				}
 				const source = frame!, sourceX = Math.min(source.width - 1, Math.floor(x * source.width / width)), sourceY = Math.min(source.height - 1, Math.floor(y * source.height / height));
 				const offset = (sourceY * source.width + sourceX) * 4;
 				output[index] = node.kind === 'alpha' || node.channel === 'alpha' ? source.pixels[offset + 3]!
@@ -171,6 +254,7 @@ function dimension(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > 65_536) throw new RangeError(`${name} must be a positive bounded dimension.`); return Number(value);
 }
 function wipe(bytes: Plane): void { if (Number(Reflect.apply(BUFFER_SIZE, bytes.buffer, []))) Uint8Array.prototype.fill.call(bytes, 0); }
+function wipeBacking(backing: ArrayBuffer): void { if (Number(Reflect.apply(BUFFER_SIZE, backing, []))) Uint8Array.prototype.fill.call(new Uint8Array(backing), 0); }
 function assertSignal(value: unknown): asserts value is AbortSignal {
 	if (typeof value !== 'object' || value === null) throw new TypeError('Mask evaluation requires a native signal.');
 	Reflect.apply(CHECK, value, []);

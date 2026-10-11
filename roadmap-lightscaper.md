@@ -438,9 +438,12 @@ masks through editable handoff; Frame authors and renders the same range nodes.
 Brush masks have a bounded paint/erase replay kernel and immutable, authenticated
 resource storage. Catalog writes verify bodies reachable through retained
 versions, history, redo, snapshots, and disabled or unbound graphs in the
-selected media namespace. Brush rendering, menu authoring, portable body custody,
-full mask management, composition authoring, and healing remain open; this
-resource foundation does not close L6.
+selected media namespace. The shared renderer now accepts an explicit authenticated
+brush source, resamples linear alpha coverage at each adjustment's actual input,
+and projects the exact blended coverage into its temporary overlay. Photo proxy
+and full-resolution render runtimes forward this capability. Selected-session and
+Frame integration, menu authoring, portable body custody, full mask management,
+composition authoring, and healing remain open; this foundation does not close L6.
 
 Until portable brush body transport lands, backups and editable handoffs refuse
 brush references throughout the retained Photo. Catalog backup checks complete
