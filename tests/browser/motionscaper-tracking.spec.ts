@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { ordinaryBrowserProductSitePlan } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { motionTrackingVideo } from './helpers/motionscaper-tracking-source.ts';
+import { assertMotionPngDeliveryMatchesPreview, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 test.use({ baseURL: ordinaryBrowserProductSitePlan().sites[2]!.origin });
 async function menu(page: Page, top: string, command: string): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: command, exact: true }).click();
@@ -16,6 +17,7 @@ test('tracking stays opt-in and gives actionable retained-footage guidance', asy
 	await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
 });
 test('retained footage can be tracked, corrected, applied, undone and reopened from the menu', async ({ page }: { page: Page }) => {
+	test.setTimeout(60_000); await page.addInitScript(() => { Object.defineProperty(globalThis, 'showSaveFilePicker', { value: undefined, configurable: true }); });
 	await page.goto('/embed/en/'); const video = await motionTrackingVideo(page); await menu(page, 'File', 'New Composition');
 	await page.getByLabel('Project title', { exact: true }).fill('Tracked source');
 	for (const [name, value] of [['Width', '64'], ['Height', '64'], ['Frame rate numerator', '24'], ['Duration in frames', '120']] as const) await page.getByLabel(name, { exact: true }).fill(value);
@@ -44,6 +46,9 @@ test('retained footage can be tracked, corrected, applied, undone and reopened f
 	await menu(page, 'Layer', 'Tracking and Stabilization'); await dialog.getByLabel('Stored analysis', { exact: true }).selectOption({ index: 1 });
 	await dialog.getByLabel('Frame', { exact: true }).fill('5'); await expect(dialog.getByLabel('Tracking point 1 X', { exact: true })).toHaveValue('22');
 	await expect(dialog.locator('[data-motion-tracking-sample-status]')).toHaveAttribute('data-motion-tracking-sample-status', 'manual');
+	await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+	await assertMotionPngDeliveryMatchesPreview(page, await snapshotMotionPreviewFrames(page, [0, 2, 5]));
+	await menu(page, 'Layer', 'Tracking and Stabilization'); await dialog.getByLabel('Stored analysis', { exact: true }).selectOption({ index: 1 });
 	await dialog.getByRole('button', { name: 'Remove Analysis', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('missing');
 	await dialog.getByRole('button', { name: 'Detach Application: Tracked card', exact: true }).click(); await expect(dialog.getByRole('alert')).toHaveCount(0);
 	await dialog.getByLabel('Frames to analyze', { exact: true }).fill('120'); await dialog.getByLabel('Tracking pyramid levels', { exact: true }).fill('1');
@@ -51,6 +56,7 @@ test('retained footage can be tracked, corrected, applied, undone and reopened f
 	await expect(dialog).toContainText('Analysis cancelled'); await expect(dialog.getByLabel('Stored analysis', { exact: true }).locator('option')).toHaveCount(1);
 });
 test('a menu-analyzed plane authors a qualified corner pin consumed by actual preview pixels', async ({ page }: { page: Page }) => {
+	test.setTimeout(60_000); await page.addInitScript(() => { Object.defineProperty(globalThis, 'showSaveFilePicker', { value: undefined, configurable: true }); });
 	await page.goto('/embed/en/'); const video = await motionTrackingVideo(page); await menu(page, 'File', 'New Composition');
 	for (const [name, value] of [['Width', '64'], ['Height', '64'], ['Frame rate numerator', '24'], ['Duration in frames', '120']] as const) await page.getByLabel(name, { exact: true }).fill(value);
 	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -65,6 +71,10 @@ test('a menu-analyzed plane authors a qualified corner pin consumed by actual pr
 	const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true }), canvas = preview.locator('canvas');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
 	expect(await canvas.evaluate((element: HTMLCanvasElement) => { const context = element.getContext('2d')!; return [context.getImageData(8, 8, 1, 1).data[3], context.getImageData(32, 32, 1, 1).data[3]]; })).toEqual([0, 255]);
+	await page.keyboard.press('Escape'); await expect(preview).toHaveCount(0); const frames = await snapshotMotionPreviewFrames(page, [0, 2]);
+	await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); await page.reload();
+	await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Untitled Composition', exact: true }).click(); const reopened = await snapshotMotionPreviewFrames(page, [0, 2]);
+	for (const frame of [0, 2]) expect(reopened.get(frame)).toEqual(frames.get(frame)); await assertMotionPngDeliveryMatchesPreview(page, reopened);
 });
 test('menu stabilization counteracts decoded source motion in the actual preview', async ({ page }: { page: Page }) => {
 	await page.goto('/embed/en/'); const video = await motionTrackingVideo(page); await menu(page, 'File', 'New Composition');
