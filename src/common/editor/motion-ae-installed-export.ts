@@ -45,9 +45,11 @@ declare const ParagraphJustification: { LEFT_JUSTIFY: unknown; CENTER_JUSTIFY: u
 declare const BlendingMode: Record<string, unknown>;
 declare const TrackMatteType: { NO_TRACK_MATTE: unknown; ALPHA: unknown; ALPHA_INVERTED: unknown; LUMA: unknown; LUMA_INVERTED: unknown };
 declare function alert(message: string): void;
+declare function confirm(message: string): boolean;
 
-function propertyHost(): MotionAePropertyReadHost {
+function propertyHost(sampling?: Readonly<{ frameRate: number; duration: number }>): MotionAePropertyReadHost {
 	return {
+		sampling,
 		checkCancelled: () => {}, // AE's Escape interruption unwinds the running script; no event-pump globals are modified.
 		kind: (property) => {
 			if (property.propertyType !== PropertyType.PROPERTY) return 'group';
@@ -75,8 +77,8 @@ function blendMode(value: unknown): string {
 	const names = ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'ADD', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION'];
 	for (let i = 0; i < names.length; i++) if (BlendingMode[names[i]!] === value) return names[i]!.toLowerCase(); return 'unsupported';
 }
-function readComposition(comp: AeComposition, report: MotionAeReportEntry[], budget: { properties: number; keys: number; layers: number }): MotionAeComposition {
-	const id = 'comp-' + String(comp.id), layers: MotionAeLayer[] = [], reader = propertyHost();
+function readComposition(comp: AeComposition, report: MotionAeReportEntry[], budget: { properties: number; keys: number; layers: number }, sampled: boolean): MotionAeComposition {
+	const id = 'comp-' + String(comp.id), layers: MotionAeLayer[] = [], reader = propertyHost(sampled ? { frameRate: comp.frameRate, duration: comp.duration } : undefined);
 	const roots = ['ADBE Transform Group', 'ADBE Mask Parade', 'ADBE Effect Parade', 'ADBE Root Vectors Group', 'ADBE Text Properties', 'ADBE Camera Options Group', 'ADBE Light Options Group', 'ADBE Material Options Group', 'ADBE Audio Group', 'ADBE Time Remapping'];
 	budget.layers += comp.numLayers; if (budget.layers > 4096) throw new Error('AE bridge layer budget exceeded.');
 	for (let index = 1; index <= comp.numLayers; index++) {
@@ -141,9 +143,10 @@ function transaction(parent: AeFolder, transferId: string, sourceFiles: Record<s
 	};
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-export function runMotionAeInstalledExport(): void {
+export function runMotionAeInstalledExport(sampled = false): void {
 	try {
 		const project = app.project; if (!project) throw new Error('Open the source project in After Effects first.');
+		if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.')) return;
 		const parent = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.'); if (!parent) return;
 		const transferId = 'motion-transfer-' + String(new Date().getTime()), sourceFiles: Record<string, AeFile> = {}, budget = { properties: 0, keys: 0, layers: 0 };
 		const host: MotionAeExportHost = { version: app.version, projectName: project.file?.name ?? 'Untitled.aep',
@@ -153,7 +156,7 @@ export function runMotionAeInstalledExport(): void {
 				const result: MotionAeComposition[] = [];
 				if (project.numItems > 8192) throw new Error('AE project item budget exceeded.');
 				for (let index = 1; index <= project.numItems; index++) {
-					const item = project.item(index); if (item instanceof CompItem) { if (result.length >= 256) throw new Error('AE composition budget exceeded.'); result.push(readComposition(item, report, budget)); }
+					const item = project.item(index); if (item instanceof CompItem) { if (result.length >= 256) throw new Error('AE composition budget exceeded.'); result.push(readComposition(item, report, budget, sampled)); }
 				}
 				if (!result.length) throw new Error('The project has no compositions.'); return result;
 			},

@@ -9,6 +9,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const directory = resolve(root, 'src/motionscaper/ae-bridge');
 const modules = [
 	{ name: 'motion-ae-host-json', global: 'MotionAeHostJson', exports: ['parseMotionAeHostJson', 'stringifyMotionAeHostJson'] },
+	{ name: 'motion-ae-host-sampling', global: 'MotionAeHostSampling', exports: ['sampleMotionAeNumericProperty'] },
 	{ name: 'motion-ae-host-property', global: 'MotionAeHostProperty', exports: ['readMotionAeHostProperty'] },
 	{ name: 'motion-ae-host-export', global: 'MotionAeHostExport', exports: ['exportMotionAeHostProject'] },
 	{ name: 'motion-ae-installed-export', global: 'MotionAeInstalledExport', exports: ['runMotionAeInstalledExport'] },
@@ -56,8 +57,9 @@ for (const module of modules) {
 	try { parse(output, { ecmaVersion: 3 }); } catch (error) { throw new Error(`${module.name}: ${error.message}; ${output.split('\n')[error.loc.line - 1]}`, { cause: error }); }
 	await publish(`${module.name}.jsxinc`, output);
 }
-await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, 4), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
-await publish('Motionscaper-Import.jsx.txt', entry([modules[0], ...modules.slice(4)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
+await publish('Motionscaper-Export.jsx.txt', entry(modules.slice(0, 5), 'MotionAeInstalledExport.runMotionAeInstalledExport();'));
+await publish('Motionscaper-Export-Sampled.jsx.txt', entry(modules.slice(0, 5), 'MotionAeInstalledExport.runMotionAeInstalledExport(true);'));
+await publish('Motionscaper-Import.jsx.txt', entry([modules[0], ...modules.slice(5)], 'MotionAeInstalledImport.runMotionAeInstalledImport();'));
 if (stale) process.exitCode = 1;
 
 function entry(includes, call) {

@@ -50,10 +50,11 @@ export function normalizeMotionAeProperties(input: unknown, budget: MotionAeCust
 	if (depth > limits.propertyDepth) throw new RangeError('AE property depth budget exceeded.');
 	return motionArray(input, limits.properties, 'AE properties').map((value): MotionAeProperty => {
 		budget.properties++; if (budget.properties > limits.properties) throw new RangeError('AE property budget exceeded.');
-		const d = motionRecord(value, ['kind', 'matchName', 'name', 'children', 'value', 'keys', 'expression', 'spatial', 'reason'], 'AE property', ['kind']);
+		const d = motionRecord(value, ['kind', 'matchName', 'name', 'children', 'value', 'keys', 'expression', 'spatial', 'reason', 'samples'], 'AE property', ['kind']);
 		const kind = motionEnum(d.kind, ['group', 'numeric', 'shape', 'text', 'unsupported'], 'AE property kind');
 		const fields = kind === 'group' ? ['children'] : kind === 'unsupported' ? ['reason'] : kind === 'numeric' ? ['value', 'keys', 'expression', 'spatial'] : ['value', 'keys', 'expression'];
-		const r = motionRecord(value, ['kind', 'matchName', 'name', ...fields], 'AE property');
+		const required = ['kind', 'matchName', 'name', ...fields];
+		const r = motionRecord(value, kind === 'numeric' ? [...required, 'samples'] : required, 'AE property', required);
 		const base = { matchName: motionString(r.matchName, 'AE match name', 256), name: motionString(r.name, 'AE property name', 1024, true) };
 		if (kind === 'group') return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1) };
 		if (kind === 'unsupported') return { ...base, kind, reason: motionString(r.reason, 'AE unsupported reason', 2048) };
@@ -61,9 +62,20 @@ export function normalizeMotionAeProperties(input: unknown, budget: MotionAeCust
 		if (kind === 'numeric') {
 			const numeric = motionAeVector(r.value, 'AE numeric value'), spatial = motionBoolean(r.spatial, 'AE spatial');
 			if (spatial && numeric.length !== 2 && numeric.length !== 3) throw new TypeError('AE spatial value must have two or three dimensions.');
-			return { ...base, kind, value: numeric, spatial, keys: keys(r.keys, (v) => motionAeVector(v, 'AE key value', numeric.length), numeric.length, spatial, budget), expression: expr };
+			const authored = keys(r.keys, (v) => motionAeVector(v, 'AE key value', numeric.length), numeric.length, spatial, budget);
+			const samples = r.samples === undefined ? undefined : numericSamples(r.samples, numeric.length, budget);
+			return { ...base, kind, value: numeric, spatial, keys: authored, expression: expr, ...(samples === undefined ? {} : { samples }) };
 		}
 		if (kind === 'shape') return { ...base, kind, value: shape(r.value), keys: keys(r.keys, shape, 1, false, budget), expression: expr };
 		return { ...base, kind, value: text(r.value), keys: keys(r.keys, text, 1, false, budget), expression: expr };
 	});
+}
+function numericSamples(input: unknown, dimensions: number, budget: MotionAeCustodyBudget) {
+	const r = motionRecord(input, ['frameRate', 'firstFrame', 'values'], 'AE samples');
+	const frameRate = motionNumber(r.frameRate, 'AE sampling frame rate', 0.001, 1000);
+	const firstFrame = motionNumber(r.firstFrame, 'AE first sample frame', 0, 1e9);
+	if (!Number.isSafeInteger(firstFrame)) throw new RangeError('AE sample grid must start at an integer frame.');
+	const values = motionArray(r.values, limits.keysPerProperty, 'AE samples', 1).map((v) => motionAeVector(v, 'AE sample value', dimensions));
+	budget.keys += values.length; if (budget.keys > limits.keys) throw new RangeError('AE exchange sample/key budget exceeded.');
+	return { frameRate, firstFrame, values };
 }

@@ -6,16 +6,16 @@ import { execFileSync } from 'node:child_process';
 import vm from 'node:vm';
 import { parseMotionAeExchange } from '../src/common/editor/motion-ae-exchange.ts';
 
-async function script(): Promise<string> {
+async function script(sampled = false): Promise<string> {
 	const root = new URL('../src/motionscaper/ae-bridge/', import.meta.url);
-	const entry = await readFile(new URL('Motionscaper-Export.jsx.txt', root), 'utf8'), parts: string[] = [];
+	const entry = await readFile(new URL(sampled ? 'Motionscaper-Export-Sampled.jsx.txt' : 'Motionscaper-Export.jsx.txt', root), 'utf8'), parts: string[] = [];
 	for (const line of entry.split('\n')) {
 		const include = /^#include "([A-Za-z0-9.-]+)"$/.exec(line);
 		if (include) parts.push(await readFile(new URL(include[1]!, root), 'utf8')); else if (!line.startsWith('#target ')) parts.push(line);
 	}
 	return parts.join('\n');
 }
-function host(writeFailure = false) {
+function host(writeFailure = false, evaluate = false, confirmed = true) {
 	const files = new Map<string, string>([['/source/Original.aep', 'original-project-bytes'], ['/source/Clip.mp4', 'original-media-bytes']]);
 	const folders = new Set(['/destination']), alerts: string[] = [], preExpression: boolean[] = [];
 	class HostFile {
@@ -35,7 +35,7 @@ function host(writeFailure = false) {
 	}
 	const position = { name: 'Position', matchName: 'ADBE Position', propertyType: 'property', propertyValueType: 'twoDSpatial', numKeys: 0,
 		isSpatial: true, expression: 'throw new Error("do not execute")', expressionEnabled: true,
-		valueAtTime: (_time: number, before: boolean) => { preExpression.push(before); if (!before) throw new Error('Expression executed'); return [32, 32]; },
+		valueAtTime: (time: number, before: boolean) => { preExpression.push(before); if (!before && !evaluate) throw new Error('Expression executed'); return before ? [32, 32] : [32 + time, 32]; },
 	};
 	const transform = { name: 'Transform', matchName: 'ADBE Transform Group', propertyType: 'group', numProperties: 1, property: () => position };
 	class FootageItem {
@@ -55,6 +55,7 @@ function host(writeFailure = false) {
 		CameraLayer: class {}, LightLayer: class {}, TextLayer: class {}, ShapeLayer: class {},
 		PropertyType: { PROPERTY: 'property' }, PropertyValueType: { OneD: 'oneD', TwoD: 'twoD', ThreeD: 'threeD', TwoD_SPATIAL: 'twoDSpatial', ThreeD_SPATIAL: 'threeDSpatial', COLOR: 'color', SHAPE: 'shape', TEXT_DOCUMENT: 'text' },
 		BlendingMode: { NORMAL: 'normal' }, TrackMatteType: { NO_TRACK_MATTE: 'none' }, alert: (message: string) => alerts.push(message),
+		confirm: () => confirmed,
 		JSON: undefined,
 	} };
 }
@@ -71,4 +72,24 @@ test('readable AE exporter artifact preserves source files and captures authored
 test('readable AE exporter removes only its newly created package after a manifest write failure', async () => {
 	const fixture = host(true); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
 	assert.match(fixture.alerts[0]!, /did not complete/u); assert.equal(fixture.files.size, 2); assert.deepEqual([...fixture.folders], ['/destination']);
+});
+test('sampled JSX requires explicit confirmation and retains original expression data beside evaluated frame values', async () => {
+	const cancelled = host(false, true, false); vm.runInNewContext(await script(true), cancelled.sandbox, { timeout: 5000 });
+	assert.deepEqual(cancelled.preExpression, []); assert.deepEqual([...cancelled.folders], ['/destination']);
+	const fixture = host(false, true); vm.runInNewContext(await script(true), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange written/u); assert.equal(fixture.preExpression.filter((value) => !value).length, 25);
+	const manifest = [...fixture.files].find(([path]) => path.endsWith('/motionae.json'))!;
+	const exchange = parseMotionAeExchange(manifest[1]), group = exchange.compositions[0]!.layers[0]!.properties[0]!;
+	assert.equal(group.kind, 'group'); if (group.kind !== 'group') throw new Error('Expected transform group');
+	const position = group.children[0]!; assert.equal(position.kind, 'numeric'); if (position.kind !== 'numeric') throw new Error('Expected position');
+	assert.deepEqual(position.keys, []); assert.equal(position.expression?.source, 'throw new Error("do not execute")');
+	assert.equal(position.expression?.disposition, 'sampled'); assert.deepEqual(position.samples?.values.at(-1), [33, 32]);
+	assert.equal(fixture.files.get('/source/Original.aep'), 'original-project-bytes');
+});
+test('failed native expression evaluation preserves authored custody and reports the sampling failure', async () => {
+	const fixture = host(); vm.runInNewContext(await script(true), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange written/u);
+	const exchange = parseMotionAeExchange([...fixture.files].find(([path]) => path.endsWith('/motionae.json'))![1]);
+	assert.ok(exchange.report.some((entry) => entry.code === 'sampling-failed' && entry.status === 'unsupported'));
+	assert.ok(exchange.report.some((entry) => entry.code === 'expression' && entry.status === 'unsupported'));
 });

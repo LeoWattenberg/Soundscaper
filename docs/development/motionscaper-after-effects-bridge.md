@@ -30,7 +30,8 @@ never saves the original `.aep`, overwrites retained media, or changes script
 permissions. The JSON codec requires neither a host `JSON` global nor `eval`.
 
 Enabled expression text is retained but not run by this exporter; it reads
-pre-expression values. Sampling and rendered fallback are still pending.
+pre-expression values. A separate confirmed entry supports numeric sampling as
+described below; rendered fallback remains pending.
 Unmapped features receive explicit unsupported reports, including layers whose
 text runs, mask attributes, solid sources, footage interpretation, or plug-ins
 need further mapping. The host API tests exercise the generated entry, media
@@ -89,7 +90,7 @@ identities; it must not overwrite source projects or media.
 Expression source is inert custody data. It is never evaluated by parsing this
 format. Enabled expressions require an exact per-property report and a declared
 translated, sampled, or unsupported disposition; sampled expressions require
-retained keys. That declaration is input intent, not proof that an expression
+retained frame-grid samples beside the untouched authored keys. That declaration is input intent, not proof that an expression
 is supported by the Motionscaper evaluator. The conversion layer must validate
 its supported subset independently. Reports distinguish editable, sampled,
 rendered, and unsupported content. A rendered claim requires a retained media
@@ -102,6 +103,26 @@ property, 262,144 total keys, 4,096 vertices per shape, 65,536 report entries,
 and 256 GiB of referenced media. These are package admission limits, not
 promises that every admitted feature is editable or renderable. Direct object
 inputs are also checked for bounded inert data before normalization.
+
+## Explicit numeric sampling
+
+`Motionscaper-Export-Sampled.jsx` is a separate user-selected entry point. After
+confirmation it evaluates animated numeric properties and enabled numeric
+expressions with AE's documented [valueAtTime API](https://ae-scripting.docsforadobe.dev/property/property/#propertyvalueattime).
+Original
+authored keys and expression text remain in the exchange; optional `samples`
+retain a composition frame rate, first integer frame, and values on that grid.
+The terminal grid point is included. The standard exporter continues to read
+pre-expression values without evaluation.
+
+Sampling is limited to 4,096 values per property and the shared 262,144
+key/sample budget, checked before evaluation. Cancellation is checked between
+host calls. An individual native expression evaluation may block; installed-AE
+Escape interruption remains unqualified. Sampling failures retain authored
+data and add an unsupported report. Frame values do not preserve subframe
+motion, motion blur, or general spatial/temporal interpolation semantics.
+The initial AE importer still imports authored transform keys and keeps
+expressions inactive; consuming sampled values is a separate conversion step.
 
 ## Required qualification
 

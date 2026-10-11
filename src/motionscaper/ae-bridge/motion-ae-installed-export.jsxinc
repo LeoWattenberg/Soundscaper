@@ -5,8 +5,9 @@ var exportMotionAeHostProject = MotionAeHostExport.exportMotionAeHostProject;
 var readMotionAeHostProperty = MotionAeHostProperty.readMotionAeHostProperty;
 "use strict";
 /* SPDX-License-Identifier: AGPL-3.0-only */
-function propertyHost() {
+function propertyHost(sampling) {
     return {
+        sampling: sampling,
         checkCancelled: function () { }, // AE's Escape interruption unwinds the running script; no event-pump globals are modified.
         kind: function (property) {
             if (property.propertyType !== PropertyType.PROPERTY)
@@ -59,8 +60,8 @@ function blendMode(value) {
             return names[i].toLowerCase();
     return 'unsupported';
 }
-function readComposition(comp, report, budget) {
-    var id = 'comp-' + String(comp.id), layers = [], reader = propertyHost();
+function readComposition(comp, report, budget, sampled) {
+    var id = 'comp-' + String(comp.id), layers = [], reader = propertyHost(sampled ? { frameRate: comp.frameRate, duration: comp.duration } : undefined);
     var roots = ['ADBE Transform Group', 'ADBE Mask Parade', 'ADBE Effect Parade', 'ADBE Root Vectors Group', 'ADBE Text Properties', 'ADBE Camera Options Group', 'ADBE Light Options Group', 'ADBE Material Options Group', 'ADBE Audio Group', 'ADBE Time Remapping'];
     budget.layers += comp.numLayers;
     if (budget.layers > 4096)
@@ -162,12 +163,15 @@ function transaction(parent, transferId, sourceFiles) {
     };
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-function runMotionAeInstalledExport() {
+function runMotionAeInstalledExport(sampled) {
     var _a, _b;
+    if (sampled === void 0) { sampled = false; }
     try {
         var project_1 = app.project;
         if (!project_1)
             throw new Error('Open the source project in After Effects first.');
+        if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.'))
+            return;
         var parent_1 = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.');
         if (!parent_1)
             return;
@@ -184,7 +188,7 @@ function runMotionAeInstalledExport() {
                     if (item instanceof CompItem) {
                         if (result.length >= 256)
                             throw new Error('AE composition budget exceeded.');
-                        result.push(readComposition(item, report, budget_1));
+                        result.push(readComposition(item, report, budget_1, sampled));
                     }
                 }
                 if (!result.length)

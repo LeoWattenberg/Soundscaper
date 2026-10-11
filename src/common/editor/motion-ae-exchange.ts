@@ -95,9 +95,10 @@ function validatePropertyReports(properties: readonly MotionAeProperty[], layerI
 		}
 		if (property.expression?.enabled) {
 			const disposition = property.expression.disposition;
-			if (disposition === 'sampled' && property.keys.length === 0) throw new Error('AE sampled expression requires retained keys.');
+			if (disposition === 'sampled' && (property.kind !== 'numeric' || property.samples === undefined)) throw new Error('AE sampled expression requires retained frame-grid samples.');
 			if (!report.some((entry) => entry.scopeId === layerId && entry.propertyPath === path && entry.code === 'expression' && entry.status === (disposition === 'translated' ? 'editable' : disposition))) throw new Error('AE expression requires an explicit matching transfer report.');
 		}
+		if (property.kind === 'numeric' && property.samples !== undefined && !report.some((entry) => entry.scopeId === layerId && entry.propertyPath === path && entry.status === 'sampled')) throw new Error('AE samples require an explicit matching transfer report.');
 	}
 }
 export function normalizeMotionAeExchange(value: unknown): MotionAeExchange {

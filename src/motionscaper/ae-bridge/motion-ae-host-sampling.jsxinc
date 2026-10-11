@@ -1,0 +1,48 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostSampling = (function () {
+
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/** User-selected installed-AE operation. A native valueAtTime call cannot be preempted by this loop. */
+function sampleMotionAeNumericProperty(property, source, clock, checkCancelled, layerId, path, report, budget) {
+    if (!isFinite(clock.frameRate) || clock.frameRate <= 0 || clock.frameRate > 1000 || !isFinite(clock.duration) || clock.duration <= 0)
+        throw new Error('AE sampling clock is invalid.');
+    var count = Math.ceil(clock.duration * clock.frameRate) + 1;
+    if (count > 4096 || budget.keys + count > 262144)
+        throw new Error('AE sampling key budget exceeded. Shorten the composition or render it in AE.');
+    budget.keys += count;
+    var values = [];
+    for (var frame = 0; frame < count; frame++) {
+        checkCancelled();
+        var raw = source.valueAtTime(frame / clock.frameRate, false);
+        var value = typeof raw === 'number' ? [raw] : raw;
+        if (Object.prototype.toString.call(value) !== '[object Array]' || value.length !== property.value.length)
+            throw new Error('AE sampled dimension changed.');
+        var copy = [];
+        for (var axis = 0; axis < value.length; axis++) {
+            var channel = value[axis];
+            if (typeof channel !== 'number' || !isFinite(channel) || Math.abs(channel) > 1e12)
+                throw new Error('AE sampled value must be finite and within the exchange range.');
+            copy.push(channel);
+        }
+        values.push(copy);
+    }
+    checkCancelled();
+    var expression = property.expression === null ? null : { source: property.expression.source, enabled: property.expression.enabled,
+        disposition: property.expression.enabled ? 'sampled' : property.expression.disposition };
+    if (expression === null || expression === void 0 ? void 0 : expression.enabled) {
+        for (var index = report.length - 1; index >= 0; index--) {
+            var entry = report[index];
+            if (entry.scopeId === layerId && entry.propertyPath === path && entry.code === 'expression')
+                report.splice(index, 1);
+        }
+    }
+    report.push({ scopeId: layerId, propertyPath: path, status: 'sampled', code: (expression === null || expression === void 0 ? void 0 : expression.enabled) ? 'expression' : 'frame-sampling',
+        message: 'Evaluated explicitly in AE at ' + String(clock.frameRate) + ' frames per second, including the terminal grid point. Authored keys and expression text remain retained. Subframe motion and motion blur are not preserved by these samples.' });
+    return { kind: property.kind, name: property.name, matchName: property.matchName, value: property.value, spatial: property.spatial,
+        keys: property.keys, expression: expression, samples: { frameRate: clock.frameRate, firstFrame: 0, values: values } };
+}
+
+return { sampleMotionAeNumericProperty: sampleMotionAeNumericProperty };
+}());

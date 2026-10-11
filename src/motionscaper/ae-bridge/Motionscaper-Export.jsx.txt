@@ -2,6 +2,7 @@
 /* Development bridge: installed-AE qualification is still required. */
 #target aftereffects
 #include "motion-ae-host-json.jsxinc"
+#include "motion-ae-host-sampling.jsxinc"
 #include "motion-ae-host-property.jsxinc"
 #include "motion-ae-host-export.jsxinc"
 #include "motion-ae-installed-export.jsxinc"

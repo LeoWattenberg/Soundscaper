@@ -4,6 +4,10 @@ export interface MotionAeExpression {
 	readonly source: string; readonly enabled: boolean; readonly disposition: 'translated' | 'sampled' | 'unsupported';
 }
 export interface MotionAeEase { readonly speed: number; readonly influence: number }
+/** Explicit frame-grid evaluation, separate from the untouched authored keys. No subframe fidelity is implied. */
+export interface MotionAeNumericSamples {
+	readonly frameRate: number; readonly firstFrame: number; readonly values: readonly (readonly number[])[];
+}
 export interface MotionAeKey<Value> {
 	readonly time: number; readonly value: Value; readonly inInterpolation: 'hold' | 'linear' | 'bezier'; readonly outInterpolation: 'hold' | 'linear' | 'bezier';
 	readonly inEase: readonly MotionAeEase[]; readonly outEase: readonly MotionAeEase[];
@@ -22,7 +26,7 @@ interface MotionAePropertyBase { readonly matchName: string; readonly name: stri
 export type MotionAeProperty =
 	| (MotionAePropertyBase & { readonly kind: 'group'; readonly children: readonly MotionAeProperty[] })
 	| (MotionAePropertyBase & { readonly kind: 'numeric'; readonly value: readonly number[]; readonly spatial: boolean;
-		readonly keys: readonly MotionAeKey<readonly number[]>[]; readonly expression: MotionAeExpression | null })
+		readonly keys: readonly MotionAeKey<readonly number[]>[]; readonly expression: MotionAeExpression | null; readonly samples?: MotionAeNumericSamples })
 	| (MotionAePropertyBase & { readonly kind: 'shape'; readonly value: MotionAeShape;
 		readonly keys: readonly MotionAeKey<MotionAeShape>[]; readonly expression: MotionAeExpression | null })
 	| (MotionAePropertyBase & { readonly kind: 'text'; readonly value: MotionAeText;

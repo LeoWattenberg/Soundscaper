@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { MotionAeEase, MotionAeExpression, MotionAeKey, MotionAeProperty, MotionAeReportEntry, MotionAeShape, MotionAeText } from './motion-ae-exchange-types.ts';
+import { sampleMotionAeNumericProperty } from './motion-ae-host-sampling.ts';
 export interface MotionAePropertyHost {
 	readonly name: string; readonly matchName: string; readonly numProperties?: number; readonly numKeys?: number;
 	readonly isSpatial?: boolean; readonly expressionEnabled?: boolean; readonly expression?: string;
@@ -12,6 +13,7 @@ export interface MotionAePropertyHost {
 	keyInSpatialTangent(index: number): readonly number[]; keyOutSpatialTangent(index: number): readonly number[]; keyRoving(index: number): boolean;
 }
 export interface MotionAePropertyReadHost {
+	readonly sampling?: Readonly<{ frameRate: number; duration: number }>;
 	kind(property: MotionAePropertyHost): 'group' | 'numeric' | 'shape' | 'text' | 'unsupported';
 	interpolation(value: unknown): 'hold' | 'linear' | 'bezier';
 	text(value: unknown): MotionAeText;
@@ -59,7 +61,18 @@ export function readMotionAeHostProperty(
 		return keys;
 	}
 	const base = property.valueAtTime(0, true);
-	if (kind === 'numeric') return { kind, name, matchName, value: copyNumbers(base), spatial, keys: readKeys(copyNumbers), expression };
+	if (kind === 'numeric') {
+		const authored: Extract<MotionAeProperty, { kind: 'numeric' }> = { kind, name, matchName, value: copyNumbers(base), spatial, keys: readKeys(copyNumbers), expression };
+		if (host.sampling && (count > 0 || expression?.enabled)) {
+			try { return sampleMotionAeNumericProperty(authored, property, host.sampling, host.checkCancelled, layerId, path, report, budget); }
+			catch (error) {
+				if (String(error).indexOf('budget') >= 0) throw error;
+				host.checkCancelled();
+				report.push({ scopeId: layerId, propertyPath: path, status: 'unsupported', code: 'sampling-failed', message: 'AE sampling failed; original authored data is retained: ' + String(error) });
+			}
+		}
+		return authored;
+	}
 	if (kind === 'shape') return { kind, name, matchName, value: copyShape(base), keys: readKeys(copyShape), expression };
 	return { kind, name, matchName, value: host.text(base), keys: readKeys(host.text), expression };
 }

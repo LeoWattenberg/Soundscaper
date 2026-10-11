@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import exporter from './ae-bridge/Motionscaper-Export.jsx.txt?raw';
+import sampledExporter from './ae-bridge/Motionscaper-Export-Sampled.jsx.txt?raw';
+import sampling from './ae-bridge/motion-ae-host-sampling.jsxinc?raw';
 import json from './ae-bridge/motion-ae-host-json.jsxinc?raw';
 import property from './ae-bridge/motion-ae-host-property.jsxinc?raw';
 import hostExport from './ae-bridge/motion-ae-host-export.jsxinc?raw';
@@ -14,10 +16,12 @@ import { createMotionAeBridgeArchive } from '../common/editor/motion-ae-bridge-a
 
 export const MOTIONSCAPER_AE_BRIDGE_DOWNLOAD_NAME = 'Motionscaper-AE-Bridge-0.1.0.zip';
 export const MOTIONSCAPER_AE_BRIDGE_PROFILE = Object.freeze({ version: '0.1.0', qualification: 'unqualified' as const,
-	exportFromAfterEffects: true, importIntoAfterEffects: true, importIntoMotionscaper: false, sampledExpressions: false, renderedFallback: false });
+	exportFromAfterEffects: true, importIntoAfterEffects: true, importIntoMotionscaper: false, sampledExpressions: true, renderedFallback: false });
 export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promise<Blob> {
 	return createMotionAeBridgeArchive({
 		'Motionscaper-Export.jsx': exporter,
+		'Motionscaper-Export-Sampled.jsx': sampledExporter,
+		'motion-ae-host-sampling.jsxinc': sampling,
 		'motion-ae-host-json.jsxinc': json,
 		'motion-ae-host-property.jsxinc': property,
 		'motion-ae-host-export.jsxinc': hostExport,
@@ -35,7 +39,9 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'If needed, enable script file access yourself in After Effects preferences. The bridge never changes preferences.\n'
 			+ 'Choose a parent folder. The script creates a new motion-transfer-* folder, copies media and publishes motionae.json last.\n'
 			+ 'The original project and media are not saved or overwritten. Keep all .jsxinc files beside the .jsx script.\n'
-			+ 'This build captures authored values and inert expression text. Motionscaper conversion, expression sampling and rendered fallback are still in development.\n'
+			+ 'The standard exporter captures authored values and inert expression text. Motionscaper conversion and rendered fallback are still in development.\n'
+			+ 'For explicit numeric expression/animation sampling, run Motionscaper-Export-Sampled.jsx and confirm evaluation. It adds separate samples at each composition frame, retaining original keys and expression text.\n'
+			+ 'Sampling is limited to 4096 values per property and 262144 total keys/samples. It does not preserve subframe motion or motion blur. Native expression calls may block; installed-AE cancellation behavior is unqualified.\n'
 			+ 'For a limited AE re-import, use Run Script File with Motionscaper-Import.jsx and choose motionae.json.\n'
 			+ 'The importer creates a new folder with compositions, footage, null layers, parent links and transform keys/easing. Existing project items and files are not overwritten or saved.\n'
 			+ 'Text, shapes, solid sources, cameras and lights are not yet admitted by this importer. Render complete compositions in AE when unsupported content is required.\n'

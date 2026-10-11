@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeHostProperty = (function () {
-
+var sampleMotionAeNumericProperty = MotionAeHostSampling.sampleMotionAeNumericProperty;
 "use strict";
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /** Reads authored values only. Enabled expressions remain inert, unsupported custody until an explicit sampling operation. */
@@ -52,8 +52,21 @@ function readMotionAeHostProperty(property, host, layerId, path, report, budget,
         return keys;
     }
     var base = property.valueAtTime(0, true);
-    if (kind === 'numeric')
-        return { kind: kind, name: name, matchName: matchName, value: copyNumbers(base), spatial: spatial, keys: readKeys(copyNumbers), expression: expression };
+    if (kind === 'numeric') {
+        var authored = { kind: kind, name: name, matchName: matchName, value: copyNumbers(base), spatial: spatial, keys: readKeys(copyNumbers), expression: expression };
+        if (host.sampling && (count > 0 || (expression === null || expression === void 0 ? void 0 : expression.enabled))) {
+            try {
+                return sampleMotionAeNumericProperty(authored, property, host.sampling, host.checkCancelled, layerId, path, report, budget);
+            }
+            catch (error) {
+                if (String(error).indexOf('budget') >= 0)
+                    throw error;
+                host.checkCancelled();
+                report.push({ scopeId: layerId, propertyPath: path, status: 'unsupported', code: 'sampling-failed', message: 'AE sampling failed; original authored data is retained: ' + String(error) });
+            }
+        }
+        return authored;
+    }
     if (kind === 'shape')
         return { kind: kind, name: name, matchName: matchName, value: copyShape(base), keys: readKeys(copyShape), expression: expression };
     return { kind: kind, name: name, matchName: matchName, value: host.text(base), keys: readKeys(host.text), expression: expression };
