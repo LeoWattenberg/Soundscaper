@@ -30,7 +30,10 @@ export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
 	}
 	const initial = await save(0);
 	const env: NodeJS.ProcessEnv = { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', SCAPE_PRODUCT: 'framescaper', SCAPE_FRAMESCAPER_LINE: 'successor', SCAPE_FRAMESCAPER_DESKTOP_PROFILE: 'framescaper-successor-v2' }; delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
-	const child = spawn(executable, ['--disable-gpu', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${profile}`], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
+	const previewBackend = process.env.FRAMESCAPER_SUCCESSOR_PREVIEW_BACKEND ?? 'software-webgl2';
+	if (previewBackend !== 'software-webgl2' && previewBackend !== 'unavailable') throw new Error('Unsupported successor qualification preview backend.');
+	const previewFlags = previewBackend === 'unavailable' ? ['--disable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+	const child = spawn(executable, [...previewFlags, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${profile}`], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
 	let browser: Browser | undefined, output = '';
 	const exited = new Promise<void>((resolveExit, reject) => { child.once('error', reject); child.once('close', () => resolveExit()); });
 	const directoryInode = (await stat(temporary)).ino.toString(16);
@@ -82,7 +85,7 @@ export async function qualifyFramescaperSuccessorNativeLink(): Promise<void> {
 		});
 		assert.ok(JSON.stringify(persisted.owners).includes(third.digest)); assert.ok(JSON.stringify(persisted.assets).includes(sha256)); assert.deepEqual(persisted.chunks, [[...bytes]]);
 		assert.ok(!persisted.databases.includes('kw-media-framescaper-editor-v1')); assert.ok(!persisted.databases.includes('kw-media-editor-v1'));
-		await qualifyFramescaperSuccessorNativeDelivery(page, { root, temporary, sourceRevision: stageMetadata.sourceRevision, acceptedDigest: third.digest });
+		await qualifyFramescaperSuccessorNativeDelivery(page, { root, temporary, sourceRevision: stageMetadata.sourceRevision, acceptedDigest: third.digest, previewBackend });
 		console.log(`FRAMESCAPER_SUCCESSOR_NATIVE_LINK_QUALIFIED ${JSON.stringify({ platform: process.platform, arch: process.arch, sourceRevision: stageMetadata.sourceRevision,
 			actualNativeChooser: true, nativeWatchReleased: true, initialDigest: initial.digest, updatedDigest: third.digest, corruptReplacementRefused: true, disconnectedRetainedDigest: third.digest, assetSha256: sha256, databases: persisted.databases })}`);
 	} catch (error) { console.error(output); throw error; }
