@@ -69,6 +69,7 @@ export interface SourceRuntimeCompositionDependencies<
 	readonly playbackProjects: Pick<PlaybackProjectService, 'projectForPlayback'>;
 	readonly createProjectVisualService: (dependencies: ProjectVisualServiceDependencies) => Readonly<ProjectVisualService>;
 	readonly resolveProductVideoPreviewMedia?: ProjectVisualServiceDependencies['resolveProductVideoPreviewMedia'];
+	readonly resolveProductVideoSource?: ProjectVisualServiceDependencies['resolveProductVideoSource'];
 	readonly projectDurationFrames: ProjectVisualServiceDependencies['projectDurationFrames'];
 	readonly getProject: () => SourceRuntimeProject | null;
 	readonly publishDocumentSnapshot: () => void;

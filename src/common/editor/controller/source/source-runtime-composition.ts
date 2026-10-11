@@ -211,6 +211,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		sourceFrequencyWindows,
 		store,
 		resolveProductVideoPreviewMedia: dependencies.resolveProductVideoPreviewMedia,
+		resolveProductVideoSource: dependencies.resolveProductVideoSource,
 		projectDurationFrames: dependencies.projectDurationFrames,
 		url: {
 			createObjectURL: (blob) => globalThis.URL?.createObjectURL?.(blob) || null,

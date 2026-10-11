@@ -110,7 +110,7 @@ export interface VideoVisual {
 	readonly mediaUrl: string | null;
 	readonly posterUrl: string | null;
 	readonly thumbnails: readonly VideoThumbnail[];
-	readonly mediaKind?: 'proxy';
+	readonly mediaKind?: 'proxy' | 'composition';
 }
 
 export interface ProjectVideoPreviewMedia {
@@ -121,6 +121,10 @@ export interface ProjectVideoPreviewMediaRequest {
 	readonly sourceTimingIndex: VideoTimingIndex | null; readonly signal?: AbortSignal;
 	readonly assertCurrent: () => void;
 }
+export interface ProjectVideoSourceActivation {
+	readonly mediaKind: 'composition'; readonly timingIndex: VideoTimingIndex;
+}
+export type ProjectVideoSourceActivationRequest = Omit<ProjectVideoPreviewMediaRequest, 'sourceTimingIndex'>;
 
 export interface VideoVisualRecord {
 	readonly visual: Readonly<VideoVisual>;
@@ -140,7 +144,7 @@ export interface ClipVisualData {
 	readonly mediaUrl?: string | null;
 	readonly posterUrl?: string | null;
 	readonly thumbnails?: readonly VideoThumbnail[];
-	readonly mediaKind?: 'proxy';
+	readonly mediaKind?: 'proxy' | 'composition';
 	readonly pcmWindow?: unknown;
 	readonly peakWindow?: unknown;
 	readonly itemClips?: readonly ProjectVisualClip[];
@@ -153,7 +157,7 @@ export interface VideoSourceVisualData {
 	readonly mediaUrl: string | null;
 	readonly posterUrl: string | null;
 	readonly thumbnails: readonly VideoThumbnail[];
-	readonly mediaKind?: 'proxy';
+	readonly mediaKind?: 'proxy' | 'composition';
 }
 
 export interface ProjectVisualServiceDependencies {
@@ -168,6 +172,7 @@ export interface ProjectVisualServiceDependencies {
 	readonly sourceFrequencyAnalyses?: ReadonlyMap<string, unknown>;
 	readonly sourceFrequencyWindows?: ReadonlyMap<string, unknown>;
 	readonly store: ProjectVisualStore;
+	resolveProductVideoSource?(request: Readonly<ProjectVideoSourceActivationRequest>): Promise<Readonly<ProjectVideoSourceActivation> | null>;
 	resolveProductVideoPreviewMedia?(request: Readonly<ProjectVideoPreviewMediaRequest>):
 		Promise<Readonly<ProjectVideoPreviewMedia> | null>;
 	projectDurationFrames(project: ProjectVisualProject): number;
