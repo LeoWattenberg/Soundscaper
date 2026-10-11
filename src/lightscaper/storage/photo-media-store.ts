@@ -17,6 +17,7 @@ import { PHOTO_CATALOG_DATABASE_VERSION, PHOTO_CATALOG_STORES } from '../catalog
 import { PhotoPreviewCacheV1, PHOTO_PREVIEW_CACHE_PROFILE_V1, type PhotoPreviewCachePortV1 } from '../preview/photo-preview-cache-v1.ts';
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from './photo-library-location-v2.ts';
 import type { PhotoMediaCubeLutResourcesV1, PhotoMediaCubeLutResourceOwnerV1 } from './photo-media-cube-lut-resources-v1.ts';
+import type { PhotoMediaMaskRasterResourcesV1, PhotoMediaMaskRasterResourceOwnerV1 } from './photo-media-mask-raster-resources-v1.ts';
 
 export const PHOTO_MEDIA_NAMESPACES_V1 = Object.freeze({
 	databaseName: 'lightscaper-photo-media-v2',
@@ -69,6 +70,8 @@ export class PhotoMediaStoreV1 {
 	#previewCache: PhotoPreviewCachePortV1 | null = null;
 	#cubeLutResources: Promise<Readonly<PhotoMediaCubeLutResourcesV1>> | null = null;
 	#cubeLutOwner: Readonly<PhotoMediaCubeLutResourceOwnerV1> | null = null;
+	#maskRasterResources: Promise<Readonly<PhotoMediaMaskRasterResourcesV1>> | null = null;
+	#maskRasterOwner: Readonly<PhotoMediaMaskRasterResourceOwnerV1> | null = null;
 	#opening: Promise<IDBDatabase> | null = null;
 	#ready: Promise<this> | null = null;
 	#connection: IDBDatabase | null = null;
@@ -171,10 +174,23 @@ export class PhotoMediaStoreV1 {
 			const { createPhotoMediaCubeLutResourcesV1 } = await import('./photo-media-cube-lut-resources-v1.ts');
 			this.#assertAccepting();
 			this.#cubeLutOwner = createPhotoMediaCubeLutResourcesV1(this.#guardedPort,
-				operation => this.#ownCubeLut(operation), () => this.#assertAccepting());
+				operation => this.#ownScopedResource(operation), () => this.#assertAccepting());
 			return this.#cubeLutOwner.resources;
 		});
 		return this.#cubeLutResources;
+	}
+
+	/** Immutable brush bodies share this selected guard and complete Close join. */
+	getMaskRasterResources(): Promise<Readonly<PhotoMediaMaskRasterResourcesV1>> {
+		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
+		this.#maskRasterResources ??= this.#own(async () => {
+			const { createPhotoMediaMaskRasterResourcesV1 } = await import('./photo-media-mask-raster-resources-v1.ts');
+			this.#assertAccepting();
+			this.#maskRasterOwner = createPhotoMediaMaskRasterResourcesV1(this.#guardedPort,
+				operation => this.#ownScopedResource(operation), () => this.#assertAccepting());
+			return this.#maskRasterOwner.resources;
+		});
+		return this.#maskRasterResources;
 	}
 
 	readonly verifyOriginal = (original: PhotoOriginalV1, signal?: AbortSignal): Promise<void> => {
@@ -214,6 +230,7 @@ export class PhotoMediaStoreV1 {
 		try { await maintenance.abortActive(); } catch (error) { errors.push(error); }
 		await Promise.allSettled([...this.#owned]);
 		try { await this.#cubeLutOwner?.close(); } catch (error) { errors.push(error); }
+		try { await this.#maskRasterOwner?.close(); } catch (error) { errors.push(error); }
 		// A pending opening owns any late successful handle until this cleanup.
 		await this.#opening?.catch(() => undefined);
 		try { await this.#guard.release(this.#connection); } catch (error) { errors.push(error); }
@@ -238,7 +255,7 @@ export class PhotoMediaStoreV1 {
 		return pending;
 	}
 
-	#ownCubeLut<Result>(operation: () => Promise<Result>): Promise<Result> {
+	#ownScopedResource<Result>(operation: () => Promise<Result>): Promise<Result> {
 		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
 		let resolve!: (value: Result | PromiseLike<Result>) => void, reject!: (reason: unknown) => void;
 		const pending = new Promise<Result>((accept, refuse) => { resolve = accept; reject = refuse; });

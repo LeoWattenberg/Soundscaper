@@ -2,7 +2,9 @@
 
 import { readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
 import { assertNotAborted } from './catalog/catalog-transaction.ts';
-import { PhotoCatalogRepositoryV2 } from './catalog/photo-catalog-repository-v2.ts';
+import { PhotoCatalogRepositoryV2, type PhotoCatalogRepositoryOptionsV2 } from './catalog/photo-catalog-repository-v2.ts';
+import { normalizePhotoDocumentV1OrV2 } from './catalog/photo-document-v2.ts';
+import { createPhotoMaskRasterReachabilityV1 } from './catalog/photo-mask-raster-reachability-v1.ts';
 import { inspectPhotoCatalogRestoreNamespaceV1 } from './catalog/photo-catalog-restore-owner-v1.ts';
 import { withPhotoSmartCollectionWriteSignalV1 } from './catalog/photo-smart-collection-repository-v1.ts';
 import { name } from './catalog/value-validation.ts';
@@ -22,7 +24,7 @@ export interface PhotoLibrarySessionRuntimeOptionsV3 {
 	readonly recoverRestores?: (anchorSettings: PhotoMediaSettingsRepositoryV1, signal: AbortSignal) => Promise<void>;
 }
 
-/** Resolve the fixed location before composing current Photo1/2 ownership with selected immutable LUT resources. */
+/** Resolve the fixed location before composing current Photo1/2 ownership with selected immutable resources. */
 export async function createPhotoLibrarySessionV3(options: PhotoLibrarySessionRuntimeOptionsV3): Promise<PhotoLibrarySessionV2> {
 	const input = readClosedDomainRecord(options, 'photo library runtime', ['name', 'indexedDB', 'locks', 'signal', 'recoverRestores'], ['name']);
 	const field = (key: string) => readClosedDomainField(input, key, 'photo library runtime');
@@ -38,6 +40,14 @@ export async function createPhotoLibrarySessionV3(options: PhotoLibrarySessionRu
 		const anchor = new PhotoMediaStoreV1({ indexedDB: factory, locks });
 		let media: PhotoMediaStoreV1 | null = null, catalog: PhotoCatalogRepositoryV2 | null = null;
 		const selectedMediaResources = async () => { if (!media) throw new Error('Selected photo media is unavailable.'); return media.getCubeLutResources(); };
+		const verifyResources: NonNullable<PhotoCatalogRepositoryOptionsV2['verifyResources']> = async (value, signal) => {
+			const photo = normalizePhotoDocumentV1OrV2(value), masks = createPhotoMaskRasterReachabilityV1(); masks.addPhoto(photo);
+			await (await selectedMediaResources()).verifyPhoto(photo, signal);
+			if (masks.finish().length > 0) {
+				if (!media) throw new Error('Selected photo media is unavailable.');
+				await (await media.getMaskRasterResources()).verifyPhoto(photo, signal);
+			}
+		};
 		const closeResources = async () => {
 			const owners = new Set<PhotoMediaStoreV1 | PhotoCatalogRepositoryV2>([anchor]);
 			if (media) owners.add(media); if (catalog) owners.add(catalog);
@@ -64,7 +74,7 @@ export async function createPhotoLibrarySessionV3(options: PhotoLibrarySessionRu
 				media = selection.allocation ? new PhotoMediaStoreV1({ indexedDB: factory, locks,
 					databaseName: selection.location.mediaDatabaseName, preferOpfs: false }) : anchor;
 				catalog = new PhotoCatalogRepositoryV2({ indexedDB: factory, databaseName: selection.location.catalogDatabaseName, verifyOriginal: media.verifyOriginal,
-					verifyResources: async (photo, signal) => { await (await selectedMediaResources()).verifyPhoto(photo, signal); } });
+					verifyResources });
 				await media.ready(); assertNotAborted(admitted);
 				if (!await catalog.loadCatalog(selection.location.catalogId)) throw new ReferenceError('Selected photo library catalog is missing.');
 				assertNotAborted(admitted);
@@ -76,7 +86,7 @@ export async function createPhotoLibrarySessionV3(options: PhotoLibrarySessionRu
 				media: { writeAsset: selectedMedia.mediaRepository.writeAsset, custody: selectedMedia.mediaRepository.catalogOriginals },
 				journal: selectedMedia.settingsRepository, settings: anchor.settingsRepository,
 				developPresetSettings: selectedMedia.settingsRepository, exportJournalSettings: selectedMedia.settingsRepository, exportPresetSettings: selectedMedia.settingsRepository, exclusive,
-			cubeLutResources: selectedMediaResources, verifyResources: async (photo, signal) => { await (await selectedMediaResources()).verifyPhoto(photo, signal); },
+			cubeLutResources: selectedMediaResources, verifyResources,
 				initialize: async admitted => { assertNotAborted(admitted); const root = await selectedCatalog.loadCatalog(catalogId);
 					assertNotAborted(admitted); if (!root) throw new ReferenceError('Selected photo library catalog is missing.'); return root; },
 				originalInspection: { inspect: (binding, admitted) => selectedMedia.mediaRepository.inspectCatalogOriginalBody(binding, { signal: admitted }) },

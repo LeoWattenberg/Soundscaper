@@ -435,8 +435,12 @@ existing adjustments through the shared renderer. Range membership samples the
 actual input of the bound adjustment, and the temporary overlay observes coverage
 through later geometry in the joined preview owner. Saved recipes retain their
 masks through editable handoff; Frame authors and renders the same range nodes.
-Brush resources, full mask management, composition authoring, and healing remain
-open; these authoring slices do not close L6.
+Brush masks have a bounded paint/erase replay kernel and immutable, authenticated
+resource storage. Catalog writes verify bodies reachable through retained
+versions, history, redo, snapshots, and disabled or unbound graphs in the
+selected media namespace. Brush rendering, menu authoring, portable body custody,
+full mask management, composition authoring, and healing remain open; this
+resource foundation does not close L6.
 
 ### Exit gate
 

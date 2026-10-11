@@ -17,6 +17,7 @@ import { publishPhotosV2 as publishPhotos, savePhotoV2 as savePhoto } from './ph
 import { readStoredPhotoV1OrV2 } from './photo-catalog-records-v2.ts';
 import { normalizePhotoDocumentV1OrV2, serializePhotoDocumentV1OrV2, type PhotoDocumentV2 } from './photo-document-v2.ts';
 import { createPhotoCubeLutReachabilityV1 } from './photo-cube-lut-reachability-v1.ts';
+import { createPhotoMaskRasterReachabilityV1 } from './photo-mask-raster-reachability-v1.ts';
 import { rebuildPhotoQueryIndexPageForPhotosV2 } from './photo-query-rebuild-photos-v2.ts';
 import { PhotoCatalogClosedError, PHOTO_CATALOG_REPOSITORY_LIMITS as LIMITS, type PhotoCatalogRepositoryOptionsV1, type PhotoSummaryPageV1 } from './repository-types.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from './types.ts';
@@ -357,7 +358,8 @@ export class PhotoCatalogRepositoryV2 {
 	async #verifyResources(photo: CurrentPhoto, signal: AbortSignal | undefined): Promise<void> {
 		assertNotAborted(signal);
 		const reachability = createPhotoCubeLutReachabilityV1(); reachability.addPhoto(photo);
-		if (reachability.finish().length === 0) return;
+		const masks = createPhotoMaskRasterReachabilityV1(); masks.addPhoto(photo);
+		if (reachability.finish().length === 0 && masks.finish().length === 0) return;
 		const verify = this.#options.verifyResources;
 		if (!verify) throw new TypeError('Photo resources require selected-library verification.');
 		await verify(photo, signal); assertNotAborted(signal);
