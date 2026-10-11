@@ -4,12 +4,16 @@ import { assertMotionFrameConsumed, type MotionCompositionFrame, type MotionEval
 import { assertMotion2DMatrix, compositeMotionSurfaces, createMotionSurface, transformMotionSurface, validateMotionSurface, type MotionBlendMode, type MotionSurface } from './motion-surface.ts';
 import type { MotionColor } from './motion-property.ts';
 import { assertMotionWorkingBudget, estimateMotionFrameWorkingBytes, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
+import type { MotionLocalRaster } from './motion-local-raster.ts';
 
 export interface MotionRasterizer {
 	/** Peak scratch plus returned pixels; the default assumes two composition-sized float surfaces. */
 	estimateWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	/** Rasterize source plus its world transform into the target composition's pixel grid. */
 	rasterize(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionSurface>;
+	/** Optional local-source seam for operations whose order precedes the authored world transform. */
+	estimateSourceWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
+	rasterizeSource?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionLocalRaster>;
 }
 export interface MotionCompositeTarget {
 	composite(source: MotionSurface, mode: MotionBlendMode, opacity: number): void;

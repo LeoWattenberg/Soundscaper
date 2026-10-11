@@ -3,7 +3,10 @@
 import type { Canvas, CanvasKit, Path } from 'canvaskit-wasm';
 import { verifyMotionAssetBody, type MotionAsset } from './motion-asset.ts';
 import type { MotionTextDocument } from './motion-composition.ts';
+import type { MotionCompositionFrame, MotionEvaluatedLayer } from './motion-composition-evaluation.ts';
 import type { MotionRasterizer } from './motion-composition-renderer.ts';
+import { motionLocalSourceBounds, motionSourceRasterMatrix, type MotionLocalRaster } from './motion-local-raster.ts';
+import { assertMotionWorkingBudget, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
 import type { MotionPath } from './motion-property.ts';
 import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import type { Rational } from './timeline-time.ts';
@@ -17,7 +20,10 @@ export interface MotionRasterResources {
 	readonly fallbackFonts: readonly MotionFontBytes[];
 	readonly decodeFootage?: (asset: Extract<MotionAsset, { kind: 'footage' }>, sourceTime: Rational, signal?: AbortSignal) => Promise<MotionSurface>;
 }
-export interface CanvasKitMotionRasterizer extends MotionRasterizer { shapeText(document: EvaluatedMotionState<MotionTextDocument>, signal?: AbortSignal): Promise<MotionShapedText> }
+export interface CanvasKitMotionRasterizer extends MotionRasterizer {
+	shapeText(document: EvaluatedMotionState<MotionTextDocument>, signal?: AbortSignal): Promise<MotionShapedText>;
+	rasterizeSource(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionLocalRaster>;
+}
 
 /** CanvasKit supplies coverage and paragraph shaping; float channels remain in the document's linear working space. */
 export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: MotionRasterResources): CanvasKitMotionRasterizer {
@@ -37,7 +43,20 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		signal?.throwIfAborted(); verifyMotionAssetBody(asset, bytes);
 		return bytes;
 	}
-	return {
+	const rasterizer: CanvasKitMotionRasterizer = {
+		estimateSourceWorkingBytes(layer, target) {
+			const bounds = motionLocalSourceBounds(layer.state, assets);
+			return rasterizer.estimateWorkingBytes!(layer, { ...target, width: bounds.width, height: bounds.height });
+		},
+		async rasterizeSource(layer, target, signal) {
+			signal?.throwIfAborted();
+			const bounds = motionLocalSourceBounds(layer.state, assets);
+			assertMotionWorkingBudget(rasterizer.estimateSourceWorkingBytes!(layer, target), MOTION_DEFAULT_WORKING_BYTES);
+			const surface = bounds.empty ? createMotionSurface(1, 1) : await rasterizer.rasterize({ ...layer, worldMatrix: motionSourceRasterMatrix(bounds.origin) },
+				{ ...target, width: bounds.width, height: bounds.height }, signal);
+			signal?.throwIfAborted();
+			return { surface, origin: bounds.origin };
+		},
 		estimateWorkingBytes(layer, target) {
 			const output = motionSurfaceLength(target.width, target.height) * 4;
 			const state = layer.state;
@@ -89,7 +108,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 									const stroke = shape.stroke;
 									if (!Number.isFinite(stroke.width) || stroke.width < 0 || stroke.width > 32768) throw new RangeError('Motion stroke width is outside the rendering range.');
 									if (stroke.width > 0) paint(kit, stroke.color, (brush) => {
-										brush.setStyle(kit.PaintStyle.Stroke); brush.setStrokeWidth(stroke.width);
+										brush.setStyle(kit.PaintStyle.Stroke); brush.setStrokeWidth(stroke.width); brush.setStrokeMiter(4);
 										brush.setStrokeCap({ butt: kit.StrokeCap.Butt, round: kit.StrokeCap.Round, square: kit.StrokeCap.Square }[stroke.lineCap]);
 										brush.setStrokeJoin({ miter: kit.StrokeJoin.Miter, round: kit.StrokeJoin.Round, bevel: kit.StrokeJoin.Bevel }[stroke.lineJoin]);
 										canvas.drawPath(path, brush);
@@ -102,6 +121,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 			} finally { paragraph?.dispose(); }
 		},
 	};
+	return rasterizer;
 }
 
 export function motionCanvasKitPath(kit: CanvasKit, value: MotionPath): Path {
