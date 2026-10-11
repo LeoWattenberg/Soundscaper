@@ -1879,7 +1879,7 @@
 			"id": "current-product-native-project-file-suffix",
 			"status": "implemented",
 			"requiredOutcome": "Each product writes its own project-file suffix and opens every product's, so a project archive is never refused for carrying the suffix another product gave it, and a saved file never claims a product that did not write it.",
-			"currentBehavior": "Soundscaper writes .sscape, Framescaper writes .fscape, and the roadmap-only Lightscaper reserves .liscape. Those three and the legacy .scape are accepted case-insensitively by browser file inputs, drag and drop, the native open dialog, OS association and positional launch, and the desktop range-capability router, and each one takes the 65 GiB scape-range-v1 desktop read profile rather than bounded materialization. A suffix is a routing hint only: the manifest/root schema-family tuple, archive format, capability, and digest validation remain authoritative, and a disguised terminal name such as mix.sscape.zip is not a project. Saving replaces any recognized project suffix with the active product's and otherwise appends it, including for retained opaque custody, which is renamed but copied byte for byte. Save pickers and OS associations advertise only the active product's suffix plus legacy .scape; neither shipping app claims .liscape. The application/vnd.soundscaper.scape+zip media type, scape-project format, scape-range-v1 profile, and .scapefx plug-in suffix retain their independent protocol identities.",
+			"currentBehavior": "Soundscaper writes .sscape, Framescaper writes .fscape, Motionscaper writes .mscape, and the roadmap-only Lightscaper reserves .liscape. All five accepted suffixes, including legacy `.scape`, are case-insensitive routing hints in browser open inputs and native open or positional-launch admission. A suffix is a routing hint only: the manifest/root schema-family tuple, archive format, capability, and digest validation remain authoritative, and a disguised terminal name such as mix.sscape.zip is not a project. Soundscaper and Framescaper retain the 65 GiB scape-range-v1 desktop read profile for every accepted suffix. Motionscaper uses its independent pathless file authority with bounded 4 MiB chunks and fingerprint validation; suffix admission does not grant the other products' range profile. Saving replaces any recognized project suffix with the active product's and otherwise appends it: a Soundscaper `Mix.sscape` saved from Framescaper becomes `Mix.fscape`. Retained opaque custody follows the same naming rule and is copied byte for byte. Motionscaper saves through its .mscape-only picker when the opened archive has another suffix; its existing .mscape destination supports ordinary Save. Soundscaper and Framescaper save pickers offer their active suffix plus legacy .scape. Packaged OS association declarations advertise only the active product's suffix plus legacy .scape; no shipping product claims .liscape. Actual installed association qualification remains platform-specific. The application/vnd.soundscaper.scape+zip media type, scape-project format, scape-range-v1 profile, and .scapefx plug-in suffix retain their independent protocol identities.",
 			"evidence": [
 				"src/common/project-file-extensions.ts",
 				"src/common/product-profiles.js",
@@ -1898,7 +1898,12 @@
 				"tests/desktop-project-file-extensions.test.js",
 				"tests/desktop-project-file-associations.test.js",
 				"tests/desktop-read-profile-project-suffixes.test.ts",
-				"tests/browser/audio-editor-scape-product-roundtrip.spec.js"
+				"tests/browser/audio-editor-scape-product-roundtrip.spec.js",
+				"src/common/editor/ui/motionscaper/MotionscaperDocumentRuntime.tsx",
+				"desktop/motionscaper-main.ts",
+				"desktop/motionscaper-file-authority.ts",
+				"desktop/motionscaper-launch-authority.ts",
+				"tests/browser/motionscaper-opaque-archive.spec.ts"
 			],
 			"policyAuthority": "family-v1-active"
 		},

@@ -47,6 +47,8 @@ const NARRATIVE_CODE_ID_TOKENS = Object.freeze([
 ]);
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
+	Object.freeze({ marker: 'current-product-native-project-file-suffix', register: 'config/project-compatibility.json', ruleId: 'current-product-native-project-file-suffix',
+		field: 'currentBehavior', document: 'docs/policies/project-compatibility.md', intro: null, wrap: 80 }),
 	Object.freeze({ marker: 'isolated-motion-desktop-capabilities', register: 'config/production-security-matrix.json', riskId: 'electron-renderer-ipc-boundary', developmentControlId: 'isolated-motion-desktop-capabilities',
 		field: 'summary', document: 'docs/policies/security.md', intro: null, wrap: 80 }),
 	Object.freeze({ marker: 'isolated-motion-composition-bridge', register: 'config/production-security-matrix.json', riskId: 'cross-origin-project-transfer', developmentControlId: 'isolated-motion-composition-bridge',

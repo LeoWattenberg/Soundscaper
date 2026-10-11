@@ -85,10 +85,12 @@ async function createFixture(context, { summary, block }) {
 		}
 		let risk = register.risks.find(({ id }) => id === binding.riskId);
 		if (!risk) {
-			risk = { id: binding.riskId, currentControls: [], residualRisks: [] };
+			risk = { id: binding.riskId, currentControls: [], developmentControls: [], residualRisks: [] };
 			register.risks.push(risk);
 		}
-		if (binding.residualRiskId) {
+		if (binding.developmentControlId) {
+			risk.developmentControls.push({ id: binding.developmentControlId, [binding.field]: summary });
+		} else if (binding.residualRiskId) {
 			risk.residualRisks.push({ id: binding.residualRiskId, [binding.field]: summary });
 		} else {
 			risk.currentControls.push({ id: binding.controlId, [binding.field]: summary });
