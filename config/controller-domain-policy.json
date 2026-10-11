@@ -156,6 +156,7 @@
 		"export/export-snapshot-renderer.ts",
 		"export/export-state.ts",
 		"export/interchange-export-action.ts",
+		"export/motion-browser-video.ts",
 		"export/motion-png-sequence.ts",
 		"export/motion-render-pipeline.ts",
 		"export/product-video-export-strategy.ts",
