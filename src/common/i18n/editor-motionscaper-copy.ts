@@ -180,6 +180,13 @@ const ENTRIES = [
 	['motionscaperPreviewReady', 'Preview ready', 'Vorschau bereit'],
 	['motionscaperPreviewFailed', 'The composition could not be rendered.', 'Die Komposition konnte nicht gerendert werden.'],
 	['motionscaperRetry', 'Retry', 'Erneut versuchen'],
+	['motionscaperGraphView', 'Graph view', 'Diagrammansicht'],
+	['motionscaperValueGraph', 'Value graph', 'Wertdiagramm'],
+	['motionscaperSpeedGraph', 'Speed graph', 'Geschwindigkeitsdiagramm'],
+	['motionscaperValueGraphHint', 'Drag keys or Bézier handles. Arrow keys move one frame or value unit; Shift moves ten. Alt-drag allows fractional frames.', 'Ziehe Schlüsselbilder oder Bézier-Griffe. Pfeiltasten ändern ein Bild oder eine Werteinheit; Umschalt ändert zehn. Alt-Ziehen erlaubt Bruchteile von Bildern.'],
+	['motionscaperSpeedGraphHint', 'Speed is measured in value units per second. Select the first key of a Bézier segment to adjust its endpoint speed and influence with the handles. Gaps mark undefined speed.', 'Geschwindigkeit wird in Werteinheiten pro Sekunde gemessen. Wähle das erste Schlüsselbild eines Bézier-Segments, um Endgeschwindigkeit und Einfluss mit den Griffen zu ändern. Lücken zeigen undefinierte Geschwindigkeit.'],
+	['motionscaperGraphHandle', 'Bézier handle', 'Bézier-Griff'],
+	['motionscaperGraphNoKeys', 'Add a keyframe to edit the graph.', 'Füge ein Schlüsselbild hinzu, um das Diagramm zu bearbeiten.'],
 	['motionscaperLayers', 'Layers', 'Ebenen'],
 ] as const;
 

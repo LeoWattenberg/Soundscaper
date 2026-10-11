@@ -53,3 +53,16 @@
 .motionscaper-timeline-bar:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
 .motionscaper-keyframe-list { list-style: none; padding: 0; max-height: 25vh; overflow: auto; }
 .motionscaper-keyframe-list li { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: .4rem; gap: .75rem; }
+.motionscaper-property-graph { margin-top: 1rem; }
+.motionscaper-property-graph > label { margin-right: .75rem; }
+.motionscaper-property-graph svg { display: block; width: 100%; touch-action: none; }
+.motionscaper-graph-grid line { stroke: currentColor; opacity: .12; }
+.motionscaper-graph-grid text { fill: currentColor; font-size: 11px; }
+.motionscaper-graph-curve { stroke: #4a80ff; stroke-width: 2; fill: none; }
+.motionscaper-graph-tangent { stroke: #c78223; stroke-width: 1; stroke-dasharray: 4 3; }
+.motionscaper-graph-key, .motionscaper-graph-handle { cursor: grab; stroke: currentColor; stroke-width: 1; }
+.motionscaper-graph-key { fill: #4a80ff; }
+.motionscaper-graph-key[aria-pressed="true"] { stroke-width: 3; }
+.motionscaper-graph-handle { fill: #e5a348; }
+.motionscaper-graph-key:focus-visible, .motionscaper-graph-handle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.audio-editor-controlled-dialog__body.motionscaper-property-body { display: block; }

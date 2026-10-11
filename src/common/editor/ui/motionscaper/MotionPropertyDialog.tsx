@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import MotionPropertyGraph from './MotionPropertyGraph.tsx';
 import { motionLayerProperties } from '../../motion-project-graph.ts';
 import { copyMotionKeyframes, type MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import { addRationals, compareRationals, multiplyRationals, subtractRationals, type Rational } from '../../timeline-time.ts';
@@ -25,7 +26,7 @@ export default function MotionPropertyDialog({ copy, project, busy, canUndo, can
 	const [handles, setHandles] = useState<readonly string[]>(['', '', '', '']); const [error, setError] = useState<string | null>(null); const [working, setWorking] = useState(false);
 	const composition = project.compositions.find((entry) => entry.id === compositionId) ?? project.compositions[0]!;
 	const layer = composition.layers.find((entry) => entry.id === layerId) ?? composition.layers[0];
-	const properties = layer ? motionLayerProperties(layer).filter((entry): entry is { readonly path: string; readonly property: MotionNumericProperty } => entry.property.kind !== 'path') : [];
+	const properties = layer ? motionLayerProperties(layer).filter((entry): entry is typeof entry & { readonly property: MotionNumericProperty } => entry.property.kind !== 'path') : [];
 	const current = properties.find((entry) => entry.path === path) ?? properties[0]; const property = current?.property;
 	const count = property?.kind === 'scalar' ? 1 : property?.value.length ?? 1; const activeChannel = Math.min(channel, count - 1);
 	const channelLabels = property?.kind === 'color' ? ['r', 'g', 'b', 'a'] : count === 1 ? ['value'] : ['x', 'y', 'z'];
@@ -47,7 +48,7 @@ export default function MotionPropertyDialog({ copy, project, busy, canUndo, can
 		if (index % 2 === 0) return format(point?.position ?? addRationals(begin.position, multiplyRationals(subtractRationals(end.position, begin.position), { num: index < 2 ? 1 : 2, den: 3 })));
 		return String(point?.value ?? begin.value + (end.value - begin.value) * (index < 2 ? 1 : 2) / 3);
 	};
-	return <AudioEditorDialogShell title={copy.motionscaperProperties} onClose={disabled ? undefined : onClose} width={900} initialFocus="[data-motion-property]"
+	return <AudioEditorDialogShell title={copy.motionscaperProperties} onClose={disabled ? undefined : onClose} width={900} initialFocus="[data-motion-property]" bodyClassName="kw-audio-editor-dialog__body audio-editor-controlled-dialog__body motionscaper-property-body"
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={disabled} onClick={onClose}>{copy.motionscaperClose}</Button>} />}>
 		<fieldset disabled={disabled} className="motionscaper-timeline-actions"><legend>{copy.motionscaperPropertySelection}</legend>
 			<label htmlFor={`${id}-composition`}>{copy.motionscaperComposition}</label><select id={`${id}-composition`} value={composition.id} onChange={(event) => { setCompositionId(event.currentTarget.value); setLayerId(''); reset(); }}>
@@ -66,6 +67,7 @@ export default function MotionPropertyDialog({ copy, project, busy, canUndo, can
 			<Button variant="secondary" disabled={!canRedo} onClick={() => { void run(onRedo); }}>{copy.motionscaperRedo}</Button>
 		</fieldset>
 		{property && <>
+			<MotionPropertyGraph key={`${composition.id}/${layer?.id}/${current?.path}/${activeChannel}`} copy={copy} property={property} channel={activeChannel} duration={composition.durationFrames} frameRate={composition.frameRate} selected={chosen} disabled={disabled} onSelect={setSelected} onCommit={(create) => edit(() => ({ type: 'replace-property', property: create() }))} />
 			<p>{copy.motionscaperKeyframeHint}</p>
 			<fieldset disabled={disabled} className="motionscaper-timeline-actions"><legend>{copy.motionscaperKeyframes}</legend>
 				<label>{copy.motionscaperKeyFrame}<input value={at} onChange={(event) => setAt(event.currentTarget.value)} /></label>
