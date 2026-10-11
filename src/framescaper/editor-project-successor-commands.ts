@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { snapshotFramescaperCompositionConformCommand, applyFramescaperCompositionConform, type FramescaperCompositionConformCommand } from './editor-composition-link-conform-core.ts';
 import { canonicalJsonSha256 } from '../common/canonical-json-sha256.ts';
 import { motionArray, motionDigest, motionId, motionRecord, freezeMotionValue } from '../common/editor/motion-values.ts';
 import { applyFramescaperProjectCommand, snapshotFramescaperProjectCommand, type FramescaperProjectCommand, type FramescaperProjectCommandOptions } from './editor-project-commands.ts';
@@ -14,7 +15,7 @@ export interface FramescaperSuccessorLinkCommand {
 	/** Source insertion, exact placement or explicit conform shares this one validated history action. */
 	readonly commands: readonly FramescaperProjectCommand[];
 }
-export type FramescaperSuccessorCommand = FramescaperProjectCommand | FramescaperSuccessorLinkCommand;
+export type FramescaperSuccessorCommand = FramescaperProjectCommand | FramescaperSuccessorLinkCommand | FramescaperCompositionConformCommand;
 /** A transient authenticated timeline projection; never save this as the successor document. */
 export function framescaperSuccessorBaselineProject(value: unknown): FramescaperProject {
 	const { compositionLinks: _links, ...project } = normalizeFramescaperSuccessorProject(value);
@@ -22,6 +23,7 @@ export function framescaperSuccessorBaselineProject(value: unknown): Framescaper
 }
 export function snapshotFramescaperSuccessorCommand(value: unknown): FramescaperSuccessorCommand {
 	const type = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'type') : undefined;
+	if (type && Object.hasOwn(type, 'value') && type.value === 'composition-link/conform') return snapshotFramescaperCompositionConformCommand(value);
 	if (!type || !Object.hasOwn(type, 'value') || type.value !== 'composition-link/replace') return snapshotFramescaperProjectCommand(value);
 	const record = motionRecord(value, ['type', 'sourceId', 'expectedDigest', 'link', 'commands'], 'Framescaper successor link command');
 	const sourceId = motionId(record.sourceId); const link = record.link === null ? null : normalizeFramescaperCompositionLink(record.link);
@@ -32,6 +34,7 @@ export function snapshotFramescaperSuccessorCommand(value: unknown): Framescaper
 }
 export function applyFramescaperSuccessorCommand(value: unknown, commandValue: unknown, options: FramescaperProjectCommandOptions = {}): FramescaperSuccessorProject {
 	const project = normalizeFramescaperSuccessorProject(value); const command = snapshotFramescaperSuccessorCommand(commandValue);
+	if (isConformCommand(command)) return applyFramescaperCompositionConform(project, command, options.now);
 	const baseline = framescaperSuccessorBaselineProject(project);
 	if (isLinkCommand(command)) {
 		const prior = project.compositionLinks.find(({ sourceId }) => sourceId === command.sourceId);
@@ -64,3 +67,5 @@ export function applyFramescaperSuccessorCommand(value: unknown, commandValue: u
 	return normalizeFramescaperSuccessorProject({ ...applied, schemaVersion: 2, compositionLinks: links });
 }
 function isLinkCommand(command: FramescaperSuccessorCommand): command is FramescaperSuccessorLinkCommand { return command.type === 'composition-link/replace'; }
+
+function isConformCommand(command: FramescaperSuccessorCommand): command is FramescaperCompositionConformCommand { return command.type === 'composition-link/conform'; }
