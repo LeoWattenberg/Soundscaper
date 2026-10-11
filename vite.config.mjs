@@ -12,7 +12,7 @@ import {
 	enforceDesktopRendererProductIsolation,
 } from './scripts/lib/desktop-renderer-product-isolation.mjs';
 import { productResolveAliases, productSubstitutionPlugin } from './scripts/lib/product-aliases.mjs';
-import { resolveFramescaperBuildLine } from './scripts/lib/product-build-line.mjs';
+import { framescaperBuildApplicationVersion, resolveFramescaperBuildLine } from './scripts/lib/product-build-line.mjs';
 import {
 	readProductReleaseLinesSync,
 	resolveProductApplicationVersion,
@@ -31,9 +31,8 @@ import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities
 
 const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
 const framescaperLine = resolveFramescaperBuildLine(productId, process.env.SCAPE_FRAMESCAPER_LINE);
-const applicationVersion = resolveProductApplicationVersion(
-	productId, readProductReleaseLinesSync(import.meta.dirname),
-);
+const applicationVersion = framescaperBuildApplicationVersion(import.meta.dirname, framescaperLine,
+	resolveProductApplicationVersion(productId, readProductReleaseLinesSync(import.meta.dirname)));
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 // Off by default, and `hidden` when asked for: the emitted JavaScript never gains
 // a `sourceMappingURL` comment, and the plugin below moves the maps out of the

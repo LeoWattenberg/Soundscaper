@@ -1,0 +1,9 @@
+{
+	"schemaVersion": 1,
+	"productId": "framescaper",
+	"line": "successor",
+	"applicationVersion": "1.1.0-dev.1",
+	"projectSchemaVersion": 2,
+	"databaseName": "kw-media-framescaper-editor-v2",
+	"releaseEligible": false
+}

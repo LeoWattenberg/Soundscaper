@@ -13,6 +13,7 @@ import {
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { resolveFramescaperBuildLine } from './lib/product-build-line.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
 import { generateProductWindowIcon } from './lib/offline-application-shell.mjs';
 import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
@@ -101,6 +102,7 @@ export function resolveDesktopProductId(value) {
 }
 
 async function main() {
+	if (resolveFramescaperBuildLine(PRODUCT_ID, process.env.SCAPE_FRAMESCAPER_LINE) === 'successor') throw new Error('The Framescaper 1.1 successor desktop runtime is not yet qualified; use the explicit browser development build.');
 	const projectPackage = parseJson(await readFile(resolve(ROOT, 'package.json')), 'package.json');
 	assert(projectPackage.name === 'soundscaper', 'Run desktop preparation from the Soundscaper checkout.');
 	const releaseLines = await readProductReleaseLines(ROOT);
