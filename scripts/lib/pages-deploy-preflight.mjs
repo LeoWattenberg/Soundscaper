@@ -25,6 +25,7 @@ const PRODUCT_INSTALL_ARTWORK = Object.freeze({
 		'/offline-icons/framescaper-180.png',
 		'/manifest-framescaper.webmanifest',
 	]),
+	motionscaper: Object.freeze([]),
 });
 
 /**
@@ -62,6 +63,16 @@ const PRODUCT_PENDING_INSTALL_ARTWORK = Object.freeze({
 		'/install-screenshots/framescaper-narrow.png',
 		'/install-screenshots/framescaper-wide.png',
 	]),
+	motionscaper: Object.freeze([
+		'/manifest-motionscaper.webmanifest',
+		'/logo/motionscaper.svg',
+		'/logo/mindscaper.svg',
+		'/offline-icons/motionscaper-180.png',
+		'/offline-icons/motionscaper-192.png',
+		'/offline-icons/motionscaper-512.png',
+		'/offline-icons/motionscaper-maskable-192.png',
+		'/offline-icons/motionscaper-maskable-512.png',
+	]),
 });
 
 /**
@@ -78,6 +89,7 @@ const PRODUCT_PENDING_INSTALL_ARTWORK = Object.freeze({
 const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
 	soundscaper: Object.freeze({ framescaper: '/framescaper' }),
 	framescaper: Object.freeze({}),
+	motionscaper: Object.freeze({}),
 });
 
 /** The documents a retired base path kept, relative to that base path. */
