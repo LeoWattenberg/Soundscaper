@@ -14,6 +14,7 @@ import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
 const MotionCompositionsDialog = lazy(() => import('./MotionCompositionsDialog.tsx'));
+const MotionSceneDialog = lazy(() => import('./MotionSceneDialog.tsx'));
 const MotionAppearanceDialog = lazy(() => import('./MotionAppearanceDialog.tsx'));
 const MotionExpressionDialog = lazy(() => import('./MotionExpressionDialog.tsx'));
 const MotionCompositingDialog = lazy(() => import('./MotionCompositingDialog.tsx'));
@@ -37,7 +38,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | MotionAuthoredLayerKind | null>(null);
 	const [targetCompositionId, setTargetCompositionId] = useState('');
 	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
 	const [keyframeClipboard, setKeyframeClipboard] = useState<MotionKeyframeClipboard | null>(null);
@@ -64,7 +65,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		setTargetCompositionId('');
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions') { setDialog(command); return; }
+		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import' || command === 'timeline' || command === 'properties' || command === 'paths' || command === 'operators' || command === 'tracking' || command === 'compositing' || command === 'expressions' || command === 'appearance' || command === 'compositions' || command === 'scene') { setDialog(command); return; }
 		if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
@@ -107,6 +108,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	};
 	if (dialog === 'compositions' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionCompositionsDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
+			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
+	</Suspense>;
+	if (dialog === 'scene' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
+		<MotionSceneDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
 	</Suspense>;
 	if (dialog === 'appearance' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>

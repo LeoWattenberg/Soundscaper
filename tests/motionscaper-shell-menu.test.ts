@@ -103,3 +103,13 @@ test('composition management is a localized File command that requires an idle p
 	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
 	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, 'Kompositionen');
 });
+
+test('3D scene authoring remains a localized idle-document Layer command', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('en'), workspaceOpen: false, onToggleWorkspace: () => undefined, onCommand: (command: string) => { commands.push(command); }, hasProject: true };
+	const find = (menus: ReturnType<typeof createMotionscaperShellMenus>) => menus.find(({ id }) => id === 'tracks')?.items.find(({ id }) => id === 'motion-scene');
+	const item = find(createMotionscaperShellMenus(options)); assert.equal(item?.label, '3D Scene and Quality'); item?.onClick?.(); assert.deepEqual(commands, ['scene']);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, hasProject: false }))?.onClick, undefined);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, busy: true }))?.disabled, true);
+	assert.equal(find(createMotionscaperShellMenus({ ...options, copy: motionscaperCopy('de') }))?.label, '3D-Szene und Qualität');
+});
