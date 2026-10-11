@@ -73,7 +73,7 @@ package complete.
 
 ### Implementation status
 
-M01–M05 are **In progress**; M06–M12 remain **Planned**. The isolated browser
+M01–M07 are **In progress**; M08–M12 remain **Planned**. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
 origin with bounded project-file capabilities. Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
@@ -83,12 +83,18 @@ workflows, offline reopen, successor archive custody, and GPU context loss pass
 in Chromium. M05 has a revision-pinned, cancellable render queue, menu-opened
 worker preview and delivery, transparent PNG sequences, and browser MP4/WebM
 round trips. Shared bounded PCM mixing, an audio sample clock, retained-media
-decoding, and audio/video muxing have focused coverage; their complete menu
-workflow is still being connected. WebM declares its millisecond container
-timing resolution. The separate float-carrier native helper passes a Linux
-ProRes 4444 reference round trip; its desktop admission and packaging remain
-unfinished. Complete authoring and platform qualification are still being
-completed. These results do not close a package's completion gate.
+decoding, and audio/video muxing pass a menu-driven media import, save/reopen,
+preview, export, and re-import workflow. WebM declares its millisecond container
+timing resolution. The separate float-carrier native helper and own-origin
+desktop delivery pass a packaged Linux ProRes 4444 publication smoke test;
+native PCM delivery and other desktop targets remain unfinished. Flat MOV
+delivery admits at most 32,768 frames so its retained sample index is bounded.
+M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
+clipboard commands, and exact source timing. Graphical curve/spatial editing,
+shape operators, and shaped text animation remain under construction. M07 has
+bounded local-space mask rendering and ordered registered-effect foundations;
+its authoring menus, mattes, adjustment layers, and tracking workflows remain
+unfinished. These results do not close a package's completion gate.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
