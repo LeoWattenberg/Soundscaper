@@ -28,14 +28,15 @@ test('composition source retains exact rational timing without an encoded media 
 	assert.equal(linked.timing.index.endTicks, 3003n); assert.equal(linked.source.timingDecision.mode, 'exact');
 	assert.equal(validateFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, framescaperSuccessorBaselineProject(project)), true);
 	assert.equal(resolveFramescaperCompositionSource(project, linked.source)?.offer.revision.digest, offer.revision.digest);
-	assert.throws(() => resolveFramescaperCompositionSource(project, { ...linked.source, width: 123 }), /descriptor|contract/iu);
+	const changedGeometry = { ...linked.source, width: 123 };
+	assert.throws(() => resolveFramescaperCompositionSource(project, changedGeometry), /descriptor|contract/iu);
 	const ordinary = { ...project.sources[0]!, videoCodec: 'h264' }; assert.equal(resolveFramescaperCompositionSource({ ...project, sources: [ordinary], compositionLinks: [] }, ordinary), null);
 	assert.throws(() => resolveFramescaperCompositionSource({ ...project, compositionLinks: [] }, linked.source), /link|authority/iu);
 });
 test('composition activation precedes all timing, proxy, encoded body, and object URL access', async () => {
-	const { linked, project } = fixture(); let reads = 0;
+	const { linked, project } = fixture(); const visualProject = framescaperSuccessorBaselineProject(project); let reads = 0;
 	const service = createProjectVisualService({
-		getProject: () => project, captureProject: () => project, assertProject: token => assert.equal(token, project),
+		getProject: () => visualProject, captureProject: () => visualProject, assertProject: token => assert.equal(token, visualProject),
 		missingSourceIds: new Set(['linked']), sourceBuffers: new Map(), sourcePeaks: new Map(), waveformPcmWindows: new Map(),
 		store: { loadMediaAsset: async () => { reads++; throw new Error('Encoded bytes must not be requested.'); }, listVideoDerivatives: async () => { reads++; return []; }, loadVideoDerivative: async () => null },
 		resolveProductVideoPreviewMedia: async () => { reads++; throw new Error('Proxy must not be requested.'); },
@@ -46,8 +47,8 @@ test('composition activation precedes all timing, proxy, encoded body, and objec
 	assert.equal(service.getVideoSourceVisualData('linked')?.available, true); assert.equal(reads, 0); await service.dispose();
 });
 test('composition activation refuses stale results and preserves strict source refusal', async () => {
-	const { linked, project } = fixture(); let current = true; let refusal = false;
-	const service = createProjectVisualService({ getProject: () => project, captureProject: () => 1, assertProject: () => { if (!current) throw new Error('stale'); },
+	const { linked, project } = fixture(); const visualProject = framescaperSuccessorBaselineProject(project); let current = true; let refusal = false;
+	const service = createProjectVisualService({ getProject: () => visualProject, captureProject: () => 1, assertProject: () => { if (!current) throw new Error('stale'); },
 		missingSourceIds: new Set(), sourceBuffers: new Map(), sourcePeaks: new Map(), waveformPcmWindows: new Map(),
 		store: { loadMediaAsset: async () => { throw new Error('Wrong fallback'); }, listVideoDerivatives: async () => [], loadVideoDerivative: async () => null },
 		resolveProductVideoSource: async () => { if (refusal) throw new Error('Retained closure unavailable'); current = false; return { mediaKind: 'composition', timingIndex: linked.timing.index }; },
@@ -61,15 +62,16 @@ test('composition audio companion retains its native sample grid and refuses des
 	const { offer } = fixture();
 	const native = createMotionscaperProject({ id: 'native', title: 'Native', compositionId: 'title', sampleRate: 44100, frameRate: { num: 30000, den: 1001 }, durationFrames: 3 });
 	const linked = createFramescaperCompositionSource({ sourceId: 'picture', audioSourceId: 'sound', offer: createMotionCompositionOffer('title', createMotionscaperRevision(native)), sampleRate: 48000 });
-	assert.ok(linked.audioSource); assert.equal(linked.link.audioSourceId, 'sound');
-	assert.equal(linked.audioSource.sampleRate, 44100); assert.equal(linked.audioSource.originalSampleRate, 44100);
-	assert.equal(linked.audioSource.frameCount, 4415); assert.equal(linked.audioSource.channelCount, 2); assert.equal(linked.audioSource.chunkFrames, 4096);
+	const audioSource = linked.audioSource; assert.ok(audioSource); assert.equal(linked.link.audioSourceId, 'sound');
+	assert.equal(audioSource.sampleRate, 44100); assert.equal(audioSource.originalSampleRate, 44100);
+	assert.equal(audioSource.frameCount, 4415); assert.equal(audioSource.channelCount, 2); assert.equal(audioSource.chunkFrames, 4096);
 	assert.equal(linked.source.hasAudio, false); // The stable companion permits silence now and audio in a later saved revision.
-	const project = { ...createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ id: 'frame', sources: [linked.source, linked.audioSource] }), compositionLinks: [linked.link] };
+	const project = { ...createFramescaperSuccessorRuntime({ line: 'successor' }).createProject({ id: 'frame', sources: [linked.source, audioSource] }), compositionLinks: [linked.link] };
 	assert.deepEqual(framescaperSuccessorMediaRootDocument(createFramescaperSuccessorHistory(project)).sources, []);
-	assert.equal(resolveFramescaperCompositionAudioSource(project, linked.audioSource)?.offer.revision.digest, linked.offer.revision.digest);
-	assert.throws(() => resolveFramescaperCompositionAudioSource(project, { ...linked.audioSource, frameCount: 4414 }), /descriptor|contract/iu);
-	assert.throws(() => resolveFramescaperCompositionAudioSource({ ...project, compositionLinks: [] }, linked.audioSource), /link|authority/iu);
+	assert.equal(resolveFramescaperCompositionAudioSource(project, audioSource)?.offer.revision.digest, linked.offer.revision.digest);
+	const changedCount = { ...audioSource, frameCount: 4414 };
+	assert.throws(() => resolveFramescaperCompositionAudioSource(project, changedCount), /descriptor|contract/iu);
+	assert.throws(() => resolveFramescaperCompositionAudioSource({ ...project, compositionLinks: [] }, audioSource), /link|authority/iu);
 	assert.equal(resolveFramescaperCompositionAudioSource(project, linked.source), null);
 	assert.equal(createFramescaperCompositionSource({ sourceId: 'legacy', offer, sampleRate: 48000 }).audioSource, undefined);
 	assert.throws(() => createFramescaperCompositionSource({ sourceId: 'same', audioSourceId: 'same', offer, sampleRate: 48000 }), /distinct/iu);

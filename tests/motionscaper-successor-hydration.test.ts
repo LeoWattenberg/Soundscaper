@@ -58,6 +58,6 @@ test('successor hydration verifies reusable PCM bytes and retains unused origina
 		await hydrateFramescaperSuccessorArchive(f.record, f.media);
 		const chunks = []; for await (const chunk of f.media.readSourceChunks('audio')) chunks.push(chunk.channels[0]);
 		assert.deepEqual(chunks, [new Float32Array([0.25, 0.5, 0.75, 1])]);
-		assert.ok((await f.media.listProjects()).some((row: { sources?: readonly { storageKey: string }[] }) => row.sources?.some(source => source.storageKey === 'audio')));
+		assert.ok((await f.media.listProjects()).some(row => 'sources' in row && Array.isArray(row.sources) && row.sources.some((source: unknown) => source !== null && typeof source === 'object' && Reflect.get(source, 'storageKey') === 'audio')));
 	} finally { await f.close(); }
 });

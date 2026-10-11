@@ -6,6 +6,7 @@ import { createMotionscaperRevision } from '../src/common/editor/motion-project-
 import { createMotionCompositionOffer } from '../src/common/editor/motion-link-protocol.ts';
 import { reconcileFramescaperProjectFeatureRequirementsAssistance } from '../src/framescaper/editor-project-feature-requirements-assistance.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
+import { normalizeFramescaperSuccessorProject } from '../src/framescaper/editor-project-successor.ts';
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { createFramescaperCompositionSource } from '../src/framescaper/editor-composition-link-source.ts';
 import { createVideoTrack, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
@@ -52,7 +53,7 @@ test('M10 Conform review rejects stale project, changed pending offer and forged
 	const later = createMotionCompositionOffer('main', createMotionscaperRevision({ ...next.revision.project, revision: 2 }));
 	assert.throws(() => verifyFramescaperCompositionConformPlan(plan, { project, offer: later }), /changed|stale/iu);
 	assert.throws(() => verifyFramescaperCompositionConformPlan({ ...plan, changes: [] }, { project, offer: next }), /review|plan/iu);
-	assert.equal(project.compositionLinks[0]!.acceptedRevision, 0);
+	assert.equal(normalizeFramescaperSuccessorProject(project).compositionLinks[0]!.acceptedRevision, 0);
 });
 
 test('M10 Conform preserves ramp and freeze intent, affine audio warp, fades and envelope authority', () => {
@@ -77,11 +78,11 @@ test('M10 Conform exposes nearest integer rounding and refuses an illegal audio 
 	const plan = createFramescaperCompositionConformPlan({ project, sourceId: 'picture', offer: next }); const bin = plan.changes.find(change => change.clipId === 'bin')!;
 	assert.equal(plan.rounding, 'nearest-frame-ties-away-from-zero'); assert.equal(bin.after.start, 1); assert.equal(bin.after.count, 2); assert.equal(bin.after.speedRatio, 1.6);
 	const slow = runtime.cloneProject({ ...base, clips: base.clips.map(clip => clip.id === 'a' ? { ...clip, speedRatio: .001 } : clip) });
-	assert.throws(() => createFramescaperCompositionConformPlan({ project: slow, sourceId: 'picture', offer: next }), /legal playback rate.*a/iu); assert.equal(slow.compositionLinks[0]!.acceptedRevision, 0);
+	assert.throws(() => createFramescaperCompositionConformPlan({ project: slow, sourceId: 'picture', offer: next }), /legal playback rate.*a/iu); assert.equal(normalizeFramescaperSuccessorProject(slow).compositionLinks[0]!.acceptedRevision, 0);
 });
 test('M10 Conform refuses a review exceeding the occurrence budget before producing a candidate', () => {
 	const { project, next } = fixture(); const foundation = framescaperSuccessorBaselineProject(project);
 	const large = { ...project, projectBin: { ...foundation.projectBin, clips: Array.from({ length: 1025 }, (_, index) => ({ ...project.clips.find(clip => clip.id === 'a')!, avLinkId: null, id: `bin-${index}`, binItemId: `item-${index}` })) } };
 	assert.throws(() => createFramescaperCompositionConformPlan({ project: large, sourceId: 'picture', offer: next }), /1024-occurrence review budget/iu);
-	assert.equal(project.compositionLinks[0]!.acceptedRevision, 0);
+	assert.equal(normalizeFramescaperSuccessorProject(project).compositionLinks[0]!.acceptedRevision, 0);
 });

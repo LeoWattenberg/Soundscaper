@@ -1,16 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { OutputBundle, OutputChunk } from 'rollup';
+import type { OutputChunk } from 'rolldown';
 import { PRODUCT_BOOTSTRAPS, assertProductionStartupGraphs, assertTransferArchiveRuntimeDoesNotReachProductBootstrap } from '../scripts/lib/startup-graph-budget.mjs';
 const successor = '/src/common/editor/ui/FramescaperSuccessorBootstrap.tsx';
-function chunk(name: string, module: string, imports: string[] = []): OutputChunk {
-	return { type: 'chunk', fileName: name, name, code: 'export{}', modules: { [module]: {} }, imports, dynamicImports: [], isEntry: name === 'entry.js', facadeModuleId: module, exports: [], importedBindings: {}, referencedFiles: [], implicitlyLoadedBefore: [], isDynamicEntry: false, map: null, sourcemapFileName: null, preliminaryFileName: name, moduleIds: [module] } as OutputChunk;
+// The budget reader consumes public output fields; a fixture is not a native Rolldown handle.
+type StartupChunk = Pick<OutputChunk, 'type' | 'fileName' | 'name' | 'code' | 'modules' | 'imports' | 'dynamicImports' | 'isEntry' | 'facadeModuleId' | 'moduleIds'>;
+function chunk(name: string, module: string, imports: string[] = []): StartupChunk {
+	return { type: 'chunk', fileName: name, name, code: 'export{}', modules: { [module]: { code: null, renderedLength: 0, renderedExports: [] } }, imports, dynamicImports: [], isEntry: name === 'entry.js', facadeModuleId: module, moduleIds: [module] };
 }
-function bundle(path = successor): OutputBundle { return { 'entry.js': chunk('entry.js', '/repo/src/main.jsx'), 'bootstrap.js': chunk('bootstrap.js', path) }; }
+function bundle(path = successor): Record<string, StartupChunk> { return { 'entry.js': chunk('entry.js', '/repo/src/main.jsx'), 'bootstrap.js': chunk('bootstrap.js', path) }; }
 test('Motionscaper links use the explicitly selected successor bootstrap with the unchanged Framescaper budget', () => {
 	const value = bundle();
-	assert.ok(assertProductionStartupGraphs(value, 'framescaper', { framescaperLine: 'successor' }).framescaper);
+	const graphs = assertProductionStartupGraphs(value, 'framescaper', { framescaperLine: 'successor' });
+	assert.ok('framescaper' in graphs && graphs.framescaper);
 	assert.throws(() => assertProductionStartupGraphs(value, 'framescaper'), /bootstrap|successor/u);
 	assert.throws(() => assertProductionStartupGraphs(bundle(PRODUCT_BOOTSTRAPS.framescaper), 'framescaper', { framescaperLine: 'successor' }), /bootstrap/u);
 	assert.throws(() => assertProductionStartupGraphs(value, 'motionscaper', { framescaperLine: 'successor' }), /Framescaper|framescaper/u);

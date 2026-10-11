@@ -23,6 +23,7 @@ test('audio admission follows enabled reachable precompositions and conservative
 
 test('audio admission requires both footage audio intent and an audio-bearing retained asset', () => {
 	const footage = createMotionLayer({ id: 'video', name: 'Video', durationFrames: 300, content: { kind: 'footage', assetId: 'asset', audioEnabled: true, audioGain: motionScalar(1) } });
+	assert.ok(footage.kind === 'footage');
 	const asset = { id: 'asset', name: 'Video', kind: 'footage' as const, byteLength: 1, sha256: 'a'.repeat(64), storageKey: `motion-sha256:${'a'.repeat(64)}`, mimeType: 'video/mp4', width: 1, height: 1, hasAlpha: false, frameRate: { num: 30, den: 1 }, duration: { num: 10, den: 1 }, hasAudio: true };
 	const candidate = { ...project, assets: [asset], compositions: [{ ...base, layers: [footage] }] };
 	assert.equal(motionCompositionHasAudio(candidate, 'main'), true);

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { normalizeFramescaperSuccessorProject } from '../src/framescaper/editor-project-successor.ts';
 import { createFramescaperSuccessorEnvironment } from '../src/framescaper/editor-project-successor-environment.ts';
 import { createFramescaperCompositionLinkSession } from '../src/framescaper/editor-composition-link-session.ts';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
@@ -75,7 +76,7 @@ test('successor session receives one saved update, atomically undoes its revisio
 		factory.failNextPutForStore('owners', new Error('history publication failed'));
 		await assert.rejects(Promise.resolve(controller.actions.edit.undo()), /publication|transaction/iu);
 		assert.equal((await env.owners.loadOwner(received.project.id))?.project.compositionLinks[0]?.acceptedDigest, next.revision.digest);
-		assert.equal(framescaperSuccessorControllerContext(controller).session.getProjectHistory(received.project.id).present.compositionLinks[0]?.acceptedDigest, next.revision.digest);
+		assert.equal(normalizeFramescaperSuccessorProject(framescaperSuccessorControllerContext(controller).session.getProjectHistory(received.project.id).present).compositionLinks[0]?.acceptedDigest, next.revision.digest);
 		await controller.actions.edit.undo(); const undone = (await env.owners.loadOwner(received.project.id))!; assert.equal(undone.project.compositionLinks[0]?.acceptedDigest, first.revision.digest); assert.equal(undone.linkStates[0]?.state.paused, true);
 		const resumed = await service.transition(undone.project.compositionLinks[0]!.sourceId, 'resume'); assert.equal(resumed.project.compositionLinks[0]?.acceptedDigest, next.revision.digest); assert.equal(resumed.linkStates[0]?.state.paused, false);
 		assert.equal(controller.project?.schemaVersion, 2);
