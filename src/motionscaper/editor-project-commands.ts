@@ -113,10 +113,16 @@ function requireIdentity<T extends { readonly id: string }>(values: readonly T[]
 export interface MotionscaperHistorySnapshot {
 	readonly project: MotionscaperProject; readonly canUndo: boolean; readonly canRedo: boolean;
 }
+export interface MotionscaperHistoryTransition {
+	readonly project: MotionscaperProject;
+	/** Accept only after external retention succeeds; any intervening history edit invalidates this transition. */
+	accept(): MotionscaperProject;
+}
 export interface MotionscaperHistory {
 	snapshot(): MotionscaperHistorySnapshot;
 	commit(commands: unknown): MotionscaperProject;
 	undo(): boolean; redo(): boolean;
+	prepareUndo(): MotionscaperHistoryTransition | null; prepareRedo(): MotionscaperHistoryTransition | null;
 	retainedAssetDigests(): readonly string[];
 }
 
@@ -130,6 +136,14 @@ export function createMotionscaperHistory(initial: unknown, options: Readonly<{ 
 		if (destination.length > maximumEntries) destination.shift();
 		project = next;
 	};
+	const prepare = (source: MotionscaperProject[], destination: MotionscaperProject[]): MotionscaperHistoryTransition | null => {
+		const target = source.at(-1); if (!target) return null;
+		const original = project; const candidate = normalizeMotionscaperProject({ ...target, revision: project.revision + 1 });
+		return Object.freeze({ project: candidate, accept() {
+			if (project !== original) throw new Error('The prepared history transition is stale because history changed.');
+			source.pop(); publish(candidate, destination); return project;
+		} });
+	};
 	return Object.freeze({
 		snapshot: () => Object.freeze({ project, canUndo: past.length > 0, canRedo: future.length > 0 }),
 		commit(commands: unknown) {
@@ -137,18 +151,9 @@ export function createMotionscaperHistory(initial: unknown, options: Readonly<{ 
 			publish(next, past); future.length = 0;
 			return project;
 		},
-		undo() {
-			const previous = past.at(-1);
-			if (!previous) return false;
-			const next = normalizeMotionscaperProject({ ...previous, revision: project.revision + 1 });
-			past.pop(); publish(next, future); return true;
-		},
-		redo() {
-			const next = future.at(-1);
-			if (!next) return false;
-			const revised = normalizeMotionscaperProject({ ...next, revision: project.revision + 1 });
-			future.pop(); publish(revised, past); return true;
-		},
+		prepareUndo: () => prepare(past, future), prepareRedo: () => prepare(future, past),
+		undo() { const transition = prepare(past, future); if (!transition) return false; transition.accept(); return true; },
+		redo() { const transition = prepare(future, past); if (!transition) return false; transition.accept(); return true; },
 		retainedAssetDigests() {
 			return freezeMotionValue([...new Set([project, ...past, ...future].flatMap((snapshot) => snapshot.assets.map((asset) => asset.sha256)))].sort());
 		},

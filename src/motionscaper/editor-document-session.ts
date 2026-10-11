@@ -60,10 +60,6 @@ export class MotionscaperDocumentSession {
 		this.#history = createMotionscaperHistory(project);
 		this.#update({ savedDigest, dirty });
 	}
-	async #recover(): Promise<void> {
-		this.#update({ dirty: true });
-		await this.#store.saveRecovery(this.#requireProject(), this.#snapshot.savedDigest);
-	}
 	create(settings: MotionProjectSettings): Promise<void> {
 		return this.#run(async () => {
 			const project = createMotionscaperProject({ ...settings, id: this.#randomId(), compositionId: this.#randomId() });
@@ -84,12 +80,11 @@ export class MotionscaperDocumentSession {
 			const project = this.#requireProject();
 			const composition = project.compositions.find((entry) => entry.id === project.primaryCompositionId);
 			if (!composition) throw new Error('The primary composition is unavailable.');
-			this.#history!.commit([
+			await this.#edit([
 				{ type: 'project/rename', title: settings.title },
 				{ type: 'composition/replace', composition: { ...composition, name: settings.title,
 					width: settings.width, height: settings.height, frameRate: settings.frameRate, durationFrames: settings.durationFrames } },
-			]);
-			await this.#recover();
+			], []);
 		});
 	}
 	async #edit(commands: readonly MotionscaperProjectCommand[], assets: readonly Readonly<{ asset: MotionAsset; body: Blob }>[]): Promise<void> {
@@ -144,12 +139,17 @@ export class MotionscaperDocumentSession {
 			this.#update({ savedDigest: saved.digest, dirty: false });
 		});
 	}
-	undo(): Promise<void> {
-		return this.#run(async () => { if (this.#history?.undo()) await this.#recover(); });
+	#navigateHistory(direction: 'undo' | 'redo'): Promise<void> {
+		return this.#run(async () => {
+			const transition = direction === 'undo' ? this.#history?.prepareUndo() : this.#history?.prepareRedo();
+			if (!transition) return;
+			await this.#store.saveRecovery(transition.project, this.#snapshot.savedDigest);
+			transition.accept(); this.#update({ dirty: true });
+		});
 	}
-	redo(): Promise<void> {
-		return this.#run(async () => { if (this.#history?.redo()) await this.#recover(); });
-	}
+	undo(): Promise<void> { return this.#navigateHistory('undo'); }
+	redo(): Promise<void> { return this.#navigateHistory('redo'); }
+
 	exportSnapshot(writeSnapshot: (project: MotionscaperProject) => Promise<void>): Promise<void> {
 		return this.#run(() => writeSnapshot(this.#requireProject()));
 	}
