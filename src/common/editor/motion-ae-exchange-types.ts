@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { MotionAeGaussianProfile } from './motion-ae-gaussian-profile.ts';
 /** Data custody is distinct from renderer compatibility. Expressions here are inert text. */
 export interface MotionAeExpression {
 	readonly source: string; readonly enabled: boolean; readonly disposition: 'translated' | 'sampled' | 'unsupported';
@@ -91,6 +92,8 @@ export interface MotionAeReportEntry {
 	readonly code: string; readonly message: string; readonly mediaId?: string;
 }
 export interface MotionAeExchange {
+	/** Inert exact host calibration; callers must explicitly select the matching profile before conversion. */
+	readonly gaussianProfile?: MotionAeGaussianProfile;
 	readonly format: 'org.motionscaper.ae-exchange'; readonly version: 1; readonly transferId: string;
 	readonly producer: { readonly application: 'after-effects' | 'motionscaper'; readonly version: string; readonly bridgeVersion: string };
 	readonly source: { readonly name: string; readonly revisionDigest: string | null };

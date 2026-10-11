@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { motionAeGaussianProfileFixture } from './helpers/motionscaper-ae-gaussian-fixture.ts';
 import { normalizeMotionAeExchange, parseMotionAeExchange, serializeMotionAeExchange } from '../src/common/editor/motion-ae-exchange.ts';
 
 function fixture(): Record<string, unknown> {
@@ -62,4 +63,13 @@ test('AE color keys retain the single temporal ease documented for non-vector va
 	const layer = { id: 'shape', name: 'Shape', kind: 'shape', sourceId: null, parentId: null, matte: null, startTime: 0, inPoint: 0, outPoint: 2, stretch: 100,
 		enabled: true, threeD: false, adjustment: false, blendMode: 'normal', properties: [property] };
 	assert.equal(normalizeMotionAeExchange({ ...source, compositions: [{ ...comp, layers: [layer] }] }).compositions[0]!.layers[0]!.properties[0]!.kind, 'numeric');
+});
+
+test('Motion AE Gaussian profile custody preserves optional absence and exact inert reviewed control closure', () => {
+	const source = fixture(), gaussianProfile = motionAeGaussianProfileFixture();
+	assert.equal(Object.hasOwn(normalizeMotionAeExchange(source), 'gaussianProfile'), false);
+	const value = normalizeMotionAeExchange({ ...source, gaussianProfile });
+	assert.deepEqual(parseMotionAeExchange(serializeMotionAeExchange(value)).gaussianProfile, gaussianProfile);
+	assert.ok(Object.isFrozen(value.gaussianProfile?.controls));
+	assert.throws(() => normalizeMotionAeExchange({ ...source, gaussianProfile: { ...gaussianProfile, reviewed: false } }), /review/iu);
 });

@@ -93,3 +93,6 @@ export function parseMotionAeGaussianProfile(json: string, expected?: MotionAeSh
 	if (json.length > 32768) throw new Error('Gaussian profile JSON budget exceeded.');
 	return normalizeMotionAeGaussianProfile(parseMotionAeHostJson(json), expected);
 }
+
+/** Explicit local profile selection grants structural conversion authority, never visual equivalence. */
+export interface MotionAeGaussianReview { readonly gaussianProfile?: MotionAeGaussianProfile }

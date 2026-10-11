@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeMotionAeGaussianProfile } from './motion-ae-gaussian-profile.ts';
 import type { MotionAeComposition, MotionAeExchange, MotionAeFootage, MotionAeLayer, MotionAeProperty, MotionAeReportEntry } from './motion-ae-exchange-types.ts';
 import { MOTION_AE_EXCHANGE_LIMITS as limits } from './motion-ae-exchange-types.ts';
 import { motionAeVector, normalizeMotionAeProperties, type MotionAeCustodyBudget } from './motion-ae-property-custody.ts';
@@ -110,7 +111,7 @@ function validatePropertyReports(properties: readonly MotionAeProperty[], layerI
 }
 export function normalizeMotionAeExchange(value: unknown): MotionAeExchange {
 	admitMotionAeCustodyInput(value);
-	const r = motionRecord(value, ['format', 'version', 'transferId', 'producer', 'source', 'color', 'footage', 'compositions', 'report'], 'AE exchange');
+	const r = motionRecord(value, ['format', 'version', 'transferId', 'producer', 'source', 'color', 'footage', 'compositions', 'report', 'gaussianProfile'], 'AE exchange', ['format', 'version', 'transferId', 'producer', 'source', 'color', 'footage', 'compositions', 'report']);
 	if (r.format !== 'org.motionscaper.ae-exchange' || r.version !== 1) throw new Error('AE exchange format/version is unsupported.');
 	const producer = motionRecord(r.producer, ['application', 'version', 'bridgeVersion'], 'AE producer'), source = motionRecord(r.source, ['name', 'revisionDigest'], 'AE source');
 	const color = motionRecord(r.color, ['workingSpace', 'linearBlending', 'bitsPerChannel'], 'AE color');
@@ -121,7 +122,8 @@ export function normalizeMotionAeExchange(value: unknown): MotionAeExchange {
 		source: { name: motionString(source.name, 'AE source project name', 1024), revisionDigest: source.revisionDigest === null ? null : motionDigest(source.revisionDigest) },
 		color: { workingSpace: motionString(color.workingSpace, 'AE working space', 256, true), linearBlending: motionBoolean(color.linearBlending, 'AE linear blending'), bitsPerChannel: color.bitsPerChannel },
 		footage: motionArray(r.footage, limits.footage, 'AE footage').map(footage), compositions: motionArray(r.compositions, limits.compositions, 'AE compositions', 1).map((v) => composition(v, budget)),
-		report: motionArray(r.report, limits.reportEntries, 'AE report').map(report) };
+		report: motionArray(r.report, limits.reportEntries, 'AE report').map(report),
+		...(r.gaussianProfile === undefined ? {} : { gaussianProfile: normalizeMotionAeGaussianProfile(r.gaussianProfile) }) };
 	validateClosure(result); requireByteBudget(JSON.stringify(result)); return freezeMotionValue(result);
 }
 /** Bound direct unknown-object callers too, before copying property values or serializing them. */
