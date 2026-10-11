@@ -111,6 +111,7 @@ belong in Git history, not in the maintained documentation set.
 - [Motionscaper candidate package route](development/motionscaper-preview-release.md).
 - [Framescaper successor native composition delivery](development/motionscaper-successor-native-delivery.md).
 - [Motionscaper sustained CPU workload](development/motionscaper-sustained-workload.md).
+- [Motionscaper sustained browser and native qualification](development/motionscaper-sustained-browser-native-qualification.md).
 - [Motionscaper tracking contracts](development/motionscaper-tracking.md).
 
 ## Look up evidence and reference material
