@@ -425,7 +425,7 @@ on the shared mask graph.
 - **Web Core — In progress:** mask management: list, rename, duplicate, overlay
   visualization modes, add/subtract/intersect composition, and keyboard
   reachability.
-- **Shared — Planned:** parametric healing: clone and heal spots with
+- **Shared — In progress:** parametric healing: clone and heal spots with
   repositionable sources, re-rendered from the original on every evaluation,
   with a visualize-spots view.
 - **Shared — Optional:** red-eye correction.
@@ -515,6 +515,18 @@ The choice is temporary, resets when reopening the manager, and changes neither
 the saved recipe nor After pixels, histograms, or exported output. Presentation
 keeps it separate from the renderer's strict mask/effect IDs and wipes its
 borrowed display plane before retirement completes.
+An internal repair foundation now defines ordered Clone and Heal spots in
+original coordinates, including movable sources, radius, feather, and opacity.
+Clone samples premultiplied linear-sRGB donors; Heal reconstructs source
+gradients against original target boundaries with a bounded screened-Poisson
+profile. Every donor and boundary reads one immutable captured frame, while
+overlapping spots blend destinations in authored order. The shared byte kernel
+preflights complete work and memory bounds before reading pixels, joins native
+cancellation and consumers, and retires its owned frames and serial patch scratch.
+This explicit pixel-frame API does not establish original provenance or admit
+repairs into existing process 1/2 recipes. Process 3 persistence, menu authoring,
+the visualize-spots view, authenticated-original preview/export routing, and
+editable Frame integration remain required before healing is usable in the product.
 Direct Frame mask-name authoring and healing remain open; these slices do not
 close L6.
 
