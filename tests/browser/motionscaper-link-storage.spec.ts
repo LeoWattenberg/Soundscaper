@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import type { FramescaperCompositionLinkRepository } from '../../src/framescaper/editor-composition-link-repository.ts';
 import type { MotionCompositionOffer } from '../../src/common/editor/motion-link-protocol.ts';
 import type { MotionAsset } from '../../src/common/editor/motion-asset.ts';
-import type { FramescaperCompositionLinkOwnerRepository } from '../../src/framescaper/editor-composition-link-owner-repository.ts';
+import type { FramescaperCompositionLinkOwnerRepository, FramescaperCompositionLinkOwnerReceipt } from '../../src/framescaper/editor-composition-link-owner-repository.ts';
 import type { FramescaperSuccessorHistory } from '../../src/framescaper/editor-project-successor-history.ts';
 import type { MotionCompositionLinkState } from '../../src/common/editor/motion-link-state.ts';
 
@@ -18,6 +18,7 @@ interface Fixture {
 	bytes: Uint8Array<ArrayBuffer>; asset: MotionAsset; database(): Promise<IDBDatabase>;
 	archive(): Promise<{ archive: Blob; projectId: string; sourceId: string; digest: string }>;
 	owner(): Promise<FramescaperCompositionLinkOwnerRepository>;
+	pair(): Promise<{ current: FramescaperCompositionLinkOwnerReceipt; undone: FramescaperSuccessorHistory }>;
 	accept(history: FramescaperSuccessorHistory, state: MotionCompositionLinkState, sourceId: string): FramescaperSuccessorHistory;
 	undo(history: FramescaperSuccessorHistory): FramescaperSuccessorHistory;
 }
@@ -44,7 +45,7 @@ import { createFramescaperCompositionLink } from ${source('src/framescaper/edito
 import { digestFramescaperMigrationArchive } from ${source('src/framescaper/editor-project-successor-archive.ts')};
 import { exportFramescaperLinkedSuccessorArchive } from ${source('src/framescaper/editor-project-successor-linked-archive.ts')};
 import { openFramescaperCompositionLinkOwnerRepository } from ${source('src/framescaper/editor-composition-link-owner-repository.ts')};
-import { executeFramescaperSuccessorHistory, undoFramescaperSuccessorHistory } from ${source('src/framescaper/editor-project-successor-history.ts')};
+import { createFramescaperSuccessorHistory, executeFramescaperSuccessorHistory, undoFramescaperSuccessorHistory } from ${source('src/framescaper/editor-project-successor-history.ts')};
 const bytes = new Uint8Array([1,2,3,4]); const sha256 = digestScapeBytes(bytes);
 const asset = { id: 'image', kind: 'image', name: 'Image', mimeType: 'image/png', width: 1, height: 1, hasAlpha: true, sha256, byteLength: bytes.length, storageKey: 'motion-sha256:' + sha256 };
 async function archive() {
@@ -60,7 +61,21 @@ async function archive() {
  return {archive,projectId:frame.id,sourceId:image.source.id,digest:snapshot.digest};
 }
 function accept(history,state,sourceId) { return executeFramescaperSuccessorHistory(history,{type:'composition-link/replace',sourceId,expectedDigest:history.present.compositionLinks.find(link=>link.sourceId===sourceId)?.acceptedDigest??null,link:createFramescaperCompositionLink(sourceId,state.accepted.compositionId,state.accepted.revision),commands:[]},{now:'2026-10-11T00:00:00.000Z'}); }
-globalThis.motionLinkFixture = { bytes, asset, archive, accept, undo: history=>undoFramescaperSuccessorHistory(history,{now:'2026-10-11T00:00:00.000Z'}), owner:()=>openFramescaperCompositionLinkOwnerRepository({line:'successor'}), open: () => openFramescaperCompositionLinkRepository({line:'successor'}), database: () => openFramescaperSuccessorDatabase(indexedDB,'successor'),
+async function pair() {
+ const image=createFramescaperBaselineImageFixture({imageOnly:true}); const ids=[image.source.id,'image-source-2'];
+ const project=migrateFramescaperSuccessorProject({...image.project,sources:[...image.project.sources,{...image.source,id:ids[1],storageKey:ids[1]}]});
+ const owner=await openFramescaperCompositionLinkOwnerRepository({line:'successor'});
+ try {
+  let current=await owner.saveOwner(project,null,createFramescaperSuccessorHistory(project));
+  for(const revision of [1,2]) for(const sourceId of ids) {
+   const offer=createMotionCompositionOffer('main',createMotionscaperRevision({...createMotionscaperProject({id:'motion-'+sourceId,compositionId:'main',title:'Revision '+revision}),revision}));
+   const prepared=await owner.prepareReceive(project.id,sourceId,offer,{readAsset:async()=>null}); const history=accept(current.history,prepared.state,sourceId);
+   current=await prepared.commit({expectedOwnerDigest:current.ownerDigest,project:history.present,history});
+  }
+  const undone=undoFramescaperSuccessorHistory(undoFramescaperSuccessorHistory(current.history)); return {current,undone};
+ } finally {await owner.close();}
+}
+globalThis.motionLinkFixture = { bytes, asset, archive, accept, pair, undo: history=>undoFramescaperSuccessorHistory(history,{now:'2026-10-11T00:00:00.000Z'}), owner:()=>openFramescaperCompositionLinkOwnerRepository({line:'successor'}), open: () => openFramescaperCompositionLinkRepository({line:'successor'}), database: () => openFramescaperSuccessorDatabase(indexedDB,'successor'),
  offer: (revision, width = 1920) => createMotionCompositionOffer('main', createMotionscaperRevision({...createMotionscaperProject({id:'motion',compositionId:'main',title:'Revision ' + revision,width}),revision,assets:[asset]})) };
 `);
 	await build({ root: repository, configFile: false, publicDir: false, logLevel: 'silent', build: { outDir: output, emptyOutDir: true, rolldownOptions: { input: entry, output: { entryFileNames: 'fixture.js' } } } });
@@ -185,4 +200,30 @@ test('M10 a second real tab fences an unchanged owner against late link publicat
 		return { rejected, sameIntent: before?.ownerDigest === initial.ownerDigest, staleDelete, deleted, after, catalog };
 	}, newFence);
 	await second.close(); expect(result).toEqual({ rejected: true, sameIntent: true, staleDelete: false, deleted: true, after: null, catalog: [] });
+});
+
+
+test('M10 real batch restores both links with one fenced owner/history publication and rolls back a second-link failure', async ({ page }) => {
+	const result = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionLinkFixture: Fixture }).motionLinkFixture;
+		const { current, undone } = await fixture.pair(); const owner = await fixture.owner(); const writeFence = await owner.claimOwnerWriteFence(current.project.id);
+		const transitions = undone.present.compositionLinks.map(link => ({ sourceId: link.sourceId, transition: { type: 'restore' as const, offer: { ...current.linkStates.find(entry => entry.sourceId === link.sourceId)!.state.accepted, revision: link.snapshot } } }));
+		const prepared = await owner.prepareTransitions(current.project.id, transitions);
+		const original = IDBObjectStore.prototype.put; let stateWrites = 0; let ownerWrites = 0;
+		IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<typeof original>) {
+			if (this.name === 'linkStates' && ++stateWrites === 2) throw new DOMException('Second link write failed', 'QuotaExceededError');
+			return original.apply(this, args);
+		};
+		let failed = false;
+		try { await prepared.commit({ expectedOwnerDigest: current.ownerDigest, project: undone.present, history: undone, writeFence }); }
+		catch (error) { failed = error instanceof DOMException && error.name === 'QuotaExceededError'; } finally { IDBObjectStore.prototype.put = original; }
+		const preserved = await owner.loadOwner(current.project.id); const retry = await owner.prepareTransitions(current.project.id, transitions);
+		IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<typeof original>) { if (this.name === 'owners') ownerWrites++; return original.apply(this, args); };
+		let accepted: FramescaperCompositionLinkOwnerReceipt;
+		try { accepted = await retry.commit({ expectedOwnerDigest: current.ownerDigest, project: undone.present, history: undone, writeFence }); } finally { IDBObjectStore.prototype.put = original; }
+		await owner.close(); const reopened = await fixture.owner(); const loaded = await reopened.loadOwner(current.project.id); await reopened.close();
+		return { failed, stateWrites, preserved: JSON.stringify(preserved) === JSON.stringify(current), ownerWrites, same: JSON.stringify(loaded) === JSON.stringify(accepted),
+			states: loaded?.linkStates.map(({ state }) => [state.accepted.revision.revision, state.pending?.revision.revision, state.paused]), history: JSON.stringify(loaded?.history) === JSON.stringify(undone) };
+	});
+	expect(result).toEqual({ failed: true, stateWrites: 2, preserved: true, ownerWrites: 1, same: true, states: [[1, 2, true], [1, 2, true]], history: true });
 });

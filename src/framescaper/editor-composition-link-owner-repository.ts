@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { assertBoundedJsonStructureV1 } from '../common/editor/bounded-json-structure-v1.ts';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
 import { normalizeMotionCompositionOffer, type MotionCompositionOffer } from '../common/editor/motion-link-protocol.ts';
 import { transferMotionCompositionOffer } from '../common/editor/motion-link-transfer.ts';
 import { createMotionCompositionLinkState, receiveMotionCompositionUpdate, conformMotionCompositionLink, resumeMotionCompositionLink, restoreMotionCompositionLink, type MotionCompositionLinkState } from '../common/editor/motion-link-state.ts';
-import { freezeMotionValue, motionDigest, motionId, motionRecord } from '../common/editor/motion-values.ts';
+import { freezeMotionValue, motionArray, motionDigest, motionId, motionRecord } from '../common/editor/motion-values.ts';
 import { readCursorPage, request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MotionAssetRepository, type MotionAssetStaging } from '../common/editor/storage/motion-asset-repository.ts';
 import { reclaimExpiredMotionStaging } from '../common/editor/storage/motion-asset-staging.ts';
@@ -33,6 +34,12 @@ export interface PreparedFramescaperCompositionLinkOwner {
 	commit(value: FramescaperCompositionLinkOwnerCommit): Promise<FramescaperCompositionLinkOwnerReceipt>;
 	rollback(): Promise<void>;
 }
+export interface PreparedFramescaperCompositionLinkOwnerTransitions {
+	readonly states: readonly Readonly<{ sourceId: string; state: MotionCompositionLinkState }>[];
+	commit(value: FramescaperCompositionLinkOwnerCommit): Promise<FramescaperCompositionLinkOwnerReceipt>;
+	rollback(): Promise<void>;
+}
+interface PreparedLinkChange { readonly sourceId: string; readonly prior: MotionCompositionLinkState | null; readonly state: MotionCompositionLinkState }
 export type FramescaperCompositionLinkOwnerTransition = Readonly<{ type: 'conform' | 'resume' }> | Readonly<{ type: 'restore'; offer: unknown }>;
 export interface FramescaperCompositionLinkOwnerRepository {
 	loadOwner(id: string): Promise<FramescaperCompositionLinkOwnerReceipt | null>;
@@ -42,6 +49,7 @@ export interface FramescaperCompositionLinkOwnerRepository {
 	saveOwner(project: FramescaperSuccessorProject, expectedOwnerDigest: string | null, history?: FramescaperSuccessorHistory, options?: FramescaperCompositionLinkOwnerWriteOptions): Promise<FramescaperCompositionLinkOwnerReceipt>;
 	prepareReceive(ownerProjectId: string, sourceId: string, offer: unknown, options: Readonly<{ readAsset: (asset: MotionAsset, signal?: AbortSignal) => Promise<MotionAssetBody | null>; signal?: AbortSignal; maximumBytes?: number }>): Promise<PreparedFramescaperCompositionLinkOwner>;
 	prepareTransition(ownerProjectId: string, sourceId: string, transition: FramescaperCompositionLinkOwnerTransition): Promise<PreparedFramescaperCompositionLinkOwner>;
+	prepareTransitions(ownerProjectId: string, transitions: readonly Readonly<{ sourceId: string; transition: FramescaperCompositionLinkOwnerTransition }>[]): Promise<PreparedFramescaperCompositionLinkOwnerTransitions>;
 	readAsset(asset: unknown): Promise<MotionAssetBody | null>;
 	close(): Promise<void>;
 }
@@ -53,7 +61,7 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 	const database = await openFramescaperSuccessorDatabase(factory, options.line);
 	try { await reclaimExpiredMotionStaging(database); } catch (error) { database.close(); throw error; }
 	let closed = false; let closing: Promise<void> | null = null; const lifetime = new AbortController();
-	const tasks = new Set<Promise<unknown>>(); const preparations = new Set<PreparedFramescaperCompositionLinkOwner>();
+	const tasks = new Set<Promise<unknown>>(); const preparations = new Set<PreparedFramescaperCompositionLinkOwnerTransitions>();
 	const assets = new MotionAssetRepository(() => { if (closed) return Promise.reject(new Error('Composition link owner repository is closed.')); return Promise.resolve(database); });
 	function start<T>(operation: () => Promise<T>): Promise<T> {
 		if (closed || closing) return Promise.reject(new Error('Composition link owner repository is closed.'));
@@ -104,9 +112,10 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 		const failures: unknown[] = []; for (const stage of stages.values()) { try { await stage.rollback(); } catch (error) { failures.push(error); } }
 		if (failures.length) throw new AggregateError(failures, 'Composition link owner staging cleanup failed.');
 	}
-	function prepare(ownerProjectId: string, sourceId: string, prior: MotionCompositionLinkState | null, state: MotionCompositionLinkState, stages: ReadonlyMap<string, MotionAssetStaging>, offer?: MotionCompositionOffer, signal?: AbortSignal): PreparedFramescaperCompositionLinkOwner {
-		let consumed = false; const priorText = JSON.stringify(prior);
-		const prepared: PreparedFramescaperCompositionLinkOwner = Object.freeze({ state,
+	function prepare(ownerProjectId: string, changes: readonly PreparedLinkChange[], stages: ReadonlyMap<string, MotionAssetStaging>, offer?: MotionCompositionOffer, signal?: AbortSignal): PreparedFramescaperCompositionLinkOwnerTransitions {
+		let consumed = false; const expectedStates = changes.map(({ sourceId, prior }) => ({ sourceId, text: JSON.stringify(prior) }));
+		const states = freezeMotionValue(changes.map(({ sourceId, state }) => ({ sourceId, state })));
+		const prepared: PreparedFramescaperCompositionLinkOwnerTransitions = Object.freeze({ states,
 			commit(value: FramescaperCompositionLinkOwnerCommit) {
 				if (consumed || closed || closing) return Promise.reject(new Error('Prepared composition link owner is consumed or closed.'));
 				consumed = true;
@@ -114,14 +123,17 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 					try {
 						const command = motionRecord(value, ['expectedOwnerDigest', 'project', 'history', 'writeFence'], 'prepared owner commit', ['expectedOwnerDigest', 'project']);
 						const record = createFramescaperLinkOwnerRecord(command.project, command.history);
-						if (record.id !== ownerProjectId || !record.project.compositionLinks.some((link) => link.sourceId === sourceId)) throw new RangeError('Prepared accepted link must belong to its exact owner project.');
+						if (record.id !== ownerProjectId || changes.some(({ sourceId }) => !record.project.compositionLinks.some((link) => link.sourceId === sourceId))) throw new RangeError('Prepared accepted link must belong to its exact owner project.');
 						return await transact(database, STORES, 'readwrite', async (stores) => {
 							signal?.throwIfAborted(); lifetime.signal.throwIfAborted(); await assertOwnerCAS(stores, record.id, command.expectedOwnerDigest === null ? null : motionDigest(command.expectedOwnerDigest), command.writeFence === undefined ? undefined : motionId(command.writeFence));
-							const current = await loadFramescaperLinkState(stores, assets, ownerProjectId, sourceId);
-							if (JSON.stringify(current) !== priorText) throw new FramescaperCompositionLinkOwnerConflictError('Prepared composition link state changed; retry its owner transaction.');
+							for (const { sourceId, text } of expectedStates) {
+								const current = await loadFramescaperLinkState(stores, assets, ownerProjectId, sourceId);
+								if (JSON.stringify(current) !== text) throw new FramescaperCompositionLinkOwnerConflictError('Prepared composition link state changed; retry its owner transaction.');
+							}
 							for (const stage of stages.values()) await stage.publish(stores);
 							if (offer) await request(stores.linkRevisions.put({ key: framescaperLinkRevisionKey(offer.revision.projectId, offer.revision.digest), snapshot: offer.revision }));
-							await putFramescaperLinkState(stores, ownerProjectId, sourceId, state); const result = await receipt(stores, record);
+							for (const { sourceId, state } of changes) await putFramescaperLinkState(stores, ownerProjectId, sourceId, state);
+							const result = await receipt(stores, record);
 							await writeOwner(stores, record); signal?.throwIfAborted(); lifetime.signal.throwIfAborted(); return result;
 						});
 					} catch (error) {
@@ -131,6 +143,40 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 			},
 			async rollback() { if (consumed) return; consumed = true; try { await rollbackStages(stages); } finally { preparations.delete(prepared); } },
 		}); preparations.add(prepared); return prepared;
+	}
+	function single(prepared: PreparedFramescaperCompositionLinkOwnerTransitions): PreparedFramescaperCompositionLinkOwner {
+		return Object.freeze({ state: prepared.states[0]!.state, commit: prepared.commit, rollback: prepared.rollback });
+	}
+	function prepareTransitions(ownerProjectId: string, transitions: readonly Readonly<{ sourceId: string; transition: FramescaperCompositionLinkOwnerTransition }>[]): Promise<PreparedFramescaperCompositionLinkOwnerTransitions> {
+		return start(async () => {
+			motionId(ownerProjectId); const ids = new Set<string>();
+			const entries = motionArray(transitions, 16384, 'owner link transitions', 1);
+			assertBoundedJsonStructureV1(entries, { maximumDepth: 128, maximumNodes: 2_000_000, maximumStringBytes: 64 * 1024 * 1024 });
+			const actions = entries.map(value => {
+				const entry = motionRecord(value, ['sourceId', 'transition'], 'owner link transition entry'); const sourceId = motionId(entry.sourceId);
+				if (ids.has(sourceId)) throw new RangeError('Owner link transitions require unique sources.'); ids.add(sourceId);
+				const action = motionRecord(entry.transition, ['type', 'offer'], 'owner link transition', ['type']);
+				if (action.type === 'restore') return { sourceId, type: action.type, offer: normalizeMotionCompositionOffer(action.offer) } as const;
+				if (action.type !== 'conform' && action.type !== 'resume') throw new RangeError('Unsupported owner link transition.');
+				if (Object.hasOwn(action, 'offer')) throw new RangeError('Only restore admits a historical offer.');
+				return { sourceId, type: action.type } as const;
+			});
+			return transact(database, STORES, 'readonly', async (stores) => {
+				const owner = await readOwner(stores, ownerProjectId); if (owner) await receipt(stores, owner);
+				const changes: PreparedLinkChange[] = [];
+				for (const action of actions) {
+					lifetime.signal.throwIfAborted(); const prior = await loadFramescaperLinkState(stores, assets, ownerProjectId, action.sourceId);
+					if (!prior) throw new RangeError('Composition link is unavailable.');
+					let state: MotionCompositionLinkState;
+					if (action.type === 'restore') {
+						if (!await loadFramescaperLinkRevision(stores, assets, action.offer.revision.projectId, action.offer.revision.digest)) throw new RangeError('Composition link history revision is not retained.');
+						state = restoreMotionCompositionLink(prior, action.offer);
+					} else state = action.type === 'conform' ? conformMotionCompositionLink(prior) : resumeMotionCompositionLink(prior);
+					changes.push({ sourceId: action.sourceId, prior, state });
+				}
+				lifetime.signal.throwIfAborted(); return prepare(ownerProjectId, changes, new Map());
+			});
+		});
 	}
 	return Object.freeze({
 		loadOwner(id) { return start(async () => transact(database, STORES, 'readonly', async (stores) => { const record = await readOwner(stores, id); return record ? receipt(stores, record) : null; })); },
@@ -189,30 +235,12 @@ export async function openFramescaperCompositionLinkOwnerRepository(options: Rea
 						async finish(asset) { const stage = stages.get(asset.sha256); if (!stage) throw new Error('Prepared linked staging is unavailable.'); await stage.finish(); },
 						async commit() {}, async rollback() { await rollbackStages(stages); },
 					}; } });
-					signal.throwIfAborted(); return prepare(ownerProjectId, sourceId, prior, state, stages, offer, signal);
+					signal.throwIfAborted(); return single(prepare(ownerProjectId, [{ sourceId, prior, state }], stages, offer, signal));
 				} catch (error) { try { await rollbackStages(stages); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition link owner preparation and cleanup both failed.', { cause: cleanup }); } throw error; }
 			});
 		},
-		prepareTransition(ownerProjectId, sourceId, transition) {
-			return start(async () => {
-				framescaperLinkStateKey(ownerProjectId, sourceId);
-				const action = motionRecord(transition, ['type', 'offer'], 'owner link transition', ['type']);
-				if (action.type !== 'restore' && Object.hasOwn(action, 'offer')) throw new RangeError('Only restore admits a historical offer.');
-				return transact(database, STORES, 'readonly', async (stores) => {
-					const owner = await readOwner(stores, ownerProjectId); if (owner) await receipt(stores, owner);
-					const prior = await loadFramescaperLinkState(stores, assets, ownerProjectId, sourceId); if (!prior) throw new RangeError('Composition link is unavailable.');
-					let state: MotionCompositionLinkState;
-					if (action.type === 'conform') state = conformMotionCompositionLink(prior);
-					else if (action.type === 'resume') state = resumeMotionCompositionLink(prior);
-					else if (action.type === 'restore') {
-						const offer = normalizeMotionCompositionOffer(action.offer);
-						if (!await loadFramescaperLinkRevision(stores, assets, offer.revision.projectId, offer.revision.digest)) throw new RangeError('Composition link history revision is not retained.');
-						state = restoreMotionCompositionLink(prior, offer);
-					} else throw new RangeError('Unsupported owner link transition.');
-					lifetime.signal.throwIfAborted(); return prepare(ownerProjectId, sourceId, prior, state, new Map());
-				});
-			});
-		},
+		async prepareTransition(ownerProjectId, sourceId, transition) { return single(await prepareTransitions(ownerProjectId, [{ sourceId, transition }])); },
+		prepareTransitions,
 		readAsset(asset) { return start(() => assets.read(asset)); },
 		close() {
 			if (closing) return closing; if (closed) return Promise.resolve(); lifetime.abort();
