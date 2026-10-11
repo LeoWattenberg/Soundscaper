@@ -15,8 +15,15 @@ export function estimateMotionFrameWorkingBytes(frame: MotionCompositionFrame, r
 		if (layer.state.kind === 'null') continue;
 		if (layer.precomposition !== null) {
 			const child = layer.precomposition;
-			const transform = motionSurfaceLength(child.width, child.height) * Float32Array.BYTES_PER_ELEMENT + pixels;
+			const childPixels = motionSurfaceLength(child.width, child.height) * Float32Array.BYTES_PER_ELEMENT;
+			const processing = layer.state.masks.length ? rasterizer.estimateMaskWorkingBytes!(child.width, child.height, layer.state.masks) : childPixels;
+			if (!Number.isSafeInteger(processing) || processing < childPixels) throw new RangeError('Motion mask rasterizer supplied an invalid working-memory estimate.');
+			const transform = processing + pixels;
 			peak = Math.max(peak, retained + Math.max(transform, estimateMotionFrameWorkingBytes(child, rasterizer, compositor)));
+		} else if (layer.sourceAvailable && layer.state.masks.length) {
+			const processing = rasterizer.estimateSourceWorkingBytes!(layer, frame);
+			if (!Number.isSafeInteger(processing) || processing < 16) throw new RangeError('Motion local rasterizer supplied an invalid working-memory estimate.');
+			peak = Math.max(peak, retained + processing + pixels);
 		} else {
 			const sourceBytes = layer.sourceAvailable ? (rasterizer.estimateWorkingBytes?.(layer, frame) ?? pixels * 2) : pixels;
 			if (!Number.isSafeInteger(sourceBytes) || sourceBytes < pixels) throw new RangeError('Motion rasterizer supplied an invalid working-memory estimate.');

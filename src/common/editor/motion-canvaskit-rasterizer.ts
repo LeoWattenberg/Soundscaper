@@ -1,13 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { Canvas, CanvasKit, Path } from 'canvaskit-wasm';
+import type { CanvasKit } from 'canvaskit-wasm';
 import { verifyMotionAssetBody, type MotionAsset } from './motion-asset.ts';
 import type { MotionTextDocument } from './motion-composition.ts';
 import type { MotionCompositionFrame, MotionEvaluatedLayer } from './motion-composition-evaluation.ts';
 import type { MotionRasterizer } from './motion-composition-renderer.ts';
 import { motionLocalSourceBounds, motionSourceRasterMatrix, type MotionLocalRaster } from './motion-local-raster.ts';
 import { assertMotionWorkingBudget, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
-import type { MotionPath } from './motion-property.ts';
+import { estimateMotionMaskWorkingBytes, type MotionMaskRasterizer } from './motion-mask-rendering.ts';
+import { rasterMotionCanvasKitMask } from './motion-canvaskit-mask.ts';
+import { motionCanvasKitPath } from './motion-canvaskit-path.ts';
+import { rasterMotionCanvasKitSurface } from './motion-canvaskit-surface.ts';
 import type { EvaluatedMotionState } from './motion-property-evaluation.ts';
 import type { Rational } from './timeline-time.ts';
 import { createMotionParagraph, type MotionFontBytes, type MotionShapedText } from './motion-canvaskit-text.ts';
@@ -23,6 +26,8 @@ export interface MotionRasterResources {
 export interface CanvasKitMotionRasterizer extends MotionRasterizer {
 	shapeText(document: EvaluatedMotionState<MotionTextDocument>, signal?: AbortSignal): Promise<MotionShapedText>;
 	rasterizeSource(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionLocalRaster>;
+	estimateMaskWorkingBytes: MotionMaskRasterizer['estimateMaskWorkingBytes'];
+	rasterizeMask: MotionMaskRasterizer['rasterizeMask'];
 }
 
 /** CanvasKit supplies coverage and paragraph shaping; float channels remain in the document's linear working space. */
@@ -44,9 +49,12 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		return bytes;
 	}
 	const rasterizer: CanvasKitMotionRasterizer = {
+		estimateMaskWorkingBytes: estimateMotionMaskWorkingBytes,
+		async rasterizeMask(mask, target, signal) { rasterMotionCanvasKitMask(kit, mask, target, signal); },
 		estimateSourceWorkingBytes(layer, target) {
 			const bounds = motionLocalSourceBounds(layer.state, assets);
-			return rasterizer.estimateWorkingBytes!(layer, { ...target, width: bounds.width, height: bounds.height });
+			return Math.max(rasterizer.estimateWorkingBytes!(layer, { ...target, width: bounds.width, height: bounds.height }),
+				layer.state.masks.length ? estimateMotionMaskWorkingBytes(bounds.width, bounds.height, layer.state.masks) : 0);
 		},
 		async rasterizeSource(layer, target, signal) {
 			signal?.throwIfAborted();
@@ -90,7 +98,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 			if (state.kind !== 'solid' && state.kind !== 'shapes' && state.kind !== 'text') throw new Error(`Unsupported motion raster source ${state.kind}.`);
 			const paragraph = state.kind === 'text' ? createMotionParagraph(kit, state.document, await fontsFor(state.document, signal), resources.fallbackFonts) : null;
 			try {
-				return rasterSurface(kit, target.width, target.height, (canvas) => {
+				return rasterMotionCanvasKitSurface(kit, target.width, target.height, (canvas) => {
 					const m = layer.worldMatrix;
 					canvas.concat([m[0], m[4], m[12], m[1], m[5], m[13], 0, 0, 1]);
 					if (state.kind === 'text' && paragraph) {
@@ -124,27 +132,6 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 	return rasterizer;
 }
 
-export function motionCanvasKitPath(kit: CanvasKit, value: MotionPath): Path {
-	const path = new kit.PathBuilder(); const first = value.vertices[0]!;
-	path.moveTo(...first.point);
-	for (let i = 1; i < value.vertices.length + (value.closed ? 1 : 0); i++) {
-		const prior = value.vertices[i - 1]!; const next = value.vertices[i % value.vertices.length]!;
-		path.cubicTo(prior.point[0] + prior.outTangent[0], prior.point[1] + prior.outTangent[1], next.point[0] + next.inTangent[0], next.point[1] + next.inTangent[1], ...next.point);
-	}
-	if (value.closed) path.close(); return path.detachAndDelete();
-}
-function rasterSurface(kit: CanvasKit, width: number, height: number, draw: (canvas: Canvas) => void): MotionSurface {
-	const memory = kit.Malloc(Float32Array, motionSurfaceLength(width, height));
-	// This pinned build exposes no linear color-space factory. Identical SRGB tags on every
-	// paint and surface prevent conversion; the unencoded float channel values remain linear.
-	// Never draw decoded images here: their transfer function is explicitly removed above.
-	const surface = kit.MakeRasterDirectSurface({ width, height, colorType: kit.ColorType.RGBA_F32, alphaType: kit.AlphaType.Premul, colorSpace: kit.ColorSpace.SRGB }, memory, width * 16);
-	if (!surface) { kit.Free(memory); throw new Error('CanvasKit could not allocate a floating-point motion surface.'); }
-	try {
-		const canvas = surface.getCanvas(); canvas.clear(kit.TRANSPARENT); draw(canvas); surface.flush();
-		const output = createMotionSurface(width, height); output.pixels.set(memory.toTypedArray()); return output;
-	} finally { surface.delete(); kit.Free(memory); }
-}
 function decodeImage(kit: CanvasKit, bytes: Uint8Array, asset: Extract<MotionAsset, { kind: 'image' }>): MotionSurface {
 	const image = kit.MakeImageFromEncoded(bytes);
 	if (!image) throw new Error('Motion image format could not be decoded.');

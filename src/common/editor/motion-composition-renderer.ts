@@ -4,14 +4,15 @@ import { assertMotionFrameConsumed, type MotionCompositionFrame, type MotionEval
 import { assertMotion2DMatrix, compositeMotionSurfaces, createMotionSurface, transformMotionSurface, validateMotionSurface, type MotionBlendMode, type MotionSurface } from './motion-surface.ts';
 import type { MotionColor } from './motion-property.ts';
 import { assertMotionWorkingBudget, estimateMotionFrameWorkingBytes, MOTION_DEFAULT_WORKING_BYTES } from './motion-render-budget.ts';
-import type { MotionLocalRaster } from './motion-local-raster.ts';
+import { motionSourceWorldMatrix, type MotionLocalRaster } from './motion-local-raster.ts';
+import { applyMotionMasks, assertMotionMaskParameters, type MotionMaskRasterizer } from './motion-mask-rendering.ts';
 
-export interface MotionRasterizer {
+export interface MotionRasterizer extends Partial<MotionMaskRasterizer> {
 	/** Peak scratch plus returned pixels; the default assumes two composition-sized float surfaces. */
 	estimateWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	/** Rasterize source plus its world transform into the target composition's pixel grid. */
 	rasterize(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionSurface>;
-	/** Optional local-source seam for operations whose order precedes the authored world transform. */
+	/** Peak source rasterization AND local masks, including returned pixels, before the world transform. */
 	estimateSourceWorkingBytes?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame): number;
 	rasterizeSource?(layer: MotionEvaluatedLayer, target: MotionCompositionFrame, signal?: AbortSignal): Promise<MotionLocalRaster>;
 }
@@ -34,7 +35,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 	rasterizer: MotionRasterizer; compositor?: MotionCompositor; signal?: AbortSignal; maximumWorkingBytes?: number;
 }>): Promise<MotionRenderResult> {
 	options.signal?.throwIfAborted();
-	admitFrame(frame);
+	admitFrame(frame, options.rasterizer);
 	assertMotionWorkingBudget(estimateMotionFrameWorkingBytes(frame, options.rasterizer, options.compositor ?? motionCpuCompositor), options.maximumWorkingBytes ?? MOTION_DEFAULT_WORKING_BYTES);
 	const consumed: string[] = [];
 	const render = async (current: MotionCompositionFrame): Promise<MotionSurface> => {
@@ -46,7 +47,12 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 				options.signal?.throwIfAborted();
 				if (layer.state.kind !== 'null') {
 					let source: MotionSurface;
-					if (layer.precomposition !== null) source = transformMotionSurface(await render(layer.precomposition), current.width, current.height, layer.worldMatrix);
+					if (layer.state.masks.length && layer.sourceAvailable) {
+						const local = layer.precomposition !== null ? { surface: await render(layer.precomposition), origin: [0, 0] as const }
+							: await options.rasterizer.rasterizeSource!(layer, current, options.signal);
+						const masked = await applyMotionMasks(local, layer.state.masks, options.rasterizer as MotionMaskRasterizer, options.signal);
+						source = transformMotionSurface(masked.surface, current.width, current.height, motionSourceWorldMatrix(layer.worldMatrix, masked.origin));
+					} else if (layer.precomposition !== null) source = transformMotionSurface(await render(layer.precomposition), current.width, current.height, layer.worldMatrix);
 					else if (!layer.sourceAvailable) source = createMotionSurface(current.width, current.height);
 					else source = await options.rasterizer.rasterize(layer, current, options.signal);
 					options.signal?.throwIfAborted();
@@ -64,14 +70,18 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 	return Object.freeze({ ...surface, consumedOperationIds: Object.freeze(consumed) });
 }
 
-function admitFrame(frame: MotionCompositionFrame): void {
+function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer): void {
 	for (const layer of frame.layers) {
 		if (layer.state.is3D) throw new Error(`Unsupported 3D motion layer ${layer.state.name}.`);
 		assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
-			if (['effect', 'mask', 'matte', 'camera', 'light'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (['effect', 'matte', 'camera', 'light'].includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (operation.kind === 'mask' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes || !rasterizer.rasterizeMask || !rasterizer.estimateMaskWorkingBytes)) {
+				throw new Error(`Unsupported motion mask ${operation.sourceId}; its local-source renderer is unavailable.`);
+			}
 		}
+		if (layer.state.kind !== 'null') for (const mask of layer.state.masks) assertMotionMaskParameters(mask);
 		if (layer.state.kind === 'adjustment') throw new Error(`Unsupported motion adjustment layer ${layer.state.name}.`);
-		if (layer.precomposition !== null) admitFrame(layer.precomposition);
+		if (layer.precomposition !== null) admitFrame(layer.precomposition, rasterizer);
 	}
 }
