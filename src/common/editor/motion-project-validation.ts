@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { admitAudioEditorProjectValidationStructure, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS } from './project-validation-budget.ts';
+import { normalizeMotionWorkArea } from './motion-composition-work-area.ts';
 import { normalizeMotionAsset } from './motion-asset.ts';
 import type { MotionComposition } from './motion-composition.ts';
 import { normalizeMotionAudioPlacement, normalizeMotionLayer } from './motion-layer-validation.ts';
@@ -31,7 +32,9 @@ export function normalizeMotionscaperProject(value: unknown): MotionscaperProjec
 }
 
 export function normalizeMotionComposition(value: unknown): MotionComposition {
-	const record = motionRecord(value, ['id', 'name', 'width', 'height', 'frameRate', 'durationFrames', 'background', 'color', 'layers', 'audio'], 'motion composition');
+	const fields = ['id', 'name', 'width', 'height', 'frameRate', 'durationFrames', 'background', 'color', 'layers', 'audio'];
+	const record = motionRecord(value, [...fields, 'workArea'], 'motion composition', fields);
+	const durationFrames = motionInteger(record.durationFrames, 'composition duration', 1, 100_000_000);
 	const color = motionRecord(record.color, ['workingSpace', 'outputSpace', 'alphaMode'], 'composition color');
 	const layers = motionArray(record.layers, 4096, 'composition layers').map(normalizeMotionLayer);
 	const audio = motionArray(record.audio, 4096, 'composition audio').map(normalizeMotionAudioPlacement);
@@ -39,10 +42,10 @@ export function normalizeMotionComposition(value: unknown): MotionComposition {
 	return freezeMotionValue({
 		id: motionId(record.id), name: motionString(record.name, 'composition name'), width: motionInteger(record.width, 'composition width', 1, 65536),
 		height: motionInteger(record.height, 'composition height', 1, 65536), frameRate: motionRational(record.frameRate, 'composition frame rate', true),
-		durationFrames: motionInteger(record.durationFrames, 'composition duration', 1, 100_000_000),
+		durationFrames,
 		background: motionColor(record.background as Parameters<typeof motionColor>[0]).value,
 		color: { workingSpace: motionEnum(color.workingSpace, ['linear-rec709-d65'], 'working space'),
 			outputSpace: motionEnum(color.outputSpace, ['srgb', 'rec709'], 'output space'), alphaMode: motionEnum(color.alphaMode, ['premultiplied'], 'working alpha') },
-		layers, audio,
+		layers, audio, ...(Object.hasOwn(record, 'workArea') ? { workArea: normalizeMotionWorkArea(record.workArea, durationFrames) } : {}),
 	});
 }

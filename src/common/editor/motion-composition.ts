@@ -2,6 +2,7 @@
 
 import type { Rational } from './timeline-time.ts';
 import type { MotionColor, MotionColorProperty, MotionPathProperty, MotionProperty, MotionScalarProperty, MotionVector2Property, MotionVector3Property } from './motion-property.ts';
+import type { MotionWorkArea } from './motion-composition-work-area.ts';
 import type { MotionFill } from './motion-fill.ts';
 import type { MotionShapeOperator, MotionTextAnimator } from './motion-authoring-operators.ts';
 
@@ -70,7 +71,7 @@ export interface MotionAudioPlacement {
 }
 export interface MotionComposition {
 	readonly id: string; readonly name: string; readonly width: number; readonly height: number;
-	readonly frameRate: Rational; readonly durationFrames: number; readonly background: MotionColor;
+	readonly frameRate: Rational; readonly durationFrames: number; readonly background: MotionColor; readonly workArea?: MotionWorkArea;
 	readonly color: { readonly workingSpace: 'linear-rec709-d65'; readonly outputSpace: 'srgb' | 'rec709'; readonly alphaMode: 'premultiplied' };
 	/** Topmost layer first; the order is authored and must survive normalization. */
 	readonly layers: readonly MotionLayer[];
