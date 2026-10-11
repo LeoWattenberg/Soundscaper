@@ -10,6 +10,7 @@ import { verifyMotionAssetBody, type MotionAsset } from '../../motion-asset.ts';
 import { motionSurfaceToRgba8 } from '../../motion-surface.ts';
 import { createMotionWebGlCompositor, type MotionWebGlCompositor } from '../../motion-webgl-compositor.ts';
 import { loadMotionRasterRuntime } from './motion-raster-runtime.ts';
+import { requireMotionTrackingReady } from '../../motion-tracking-admission.ts';
 import type { MotionPreviewAssetLoader, MotionPreviewBackend, MotionPreviewBackendName, MotionPreviewFootageDecoder } from './motion-preview-types.ts';
 
 export interface MotionPreviewSessionOptions {
@@ -29,6 +30,7 @@ export function createMotionPreviewRenderSession(options: MotionPreviewSessionOp
 	return {
 		setProject(value, provider, signal, decoder) {
 			assertActive(signal); const normalized = normalizeMotionscaperProject(value);
+			requireMotionTrackingReady(normalized);
 			project = normalized; evaluator = createMotionSceneEvaluator(normalized); loadAsset = provider; decodeFootage = decoder;
 			cache.clear(); cacheBytes = 0; gpu?.dispose(); gpu = null; name = options.backend;
 			if (options.createCanvas) {

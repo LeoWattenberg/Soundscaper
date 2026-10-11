@@ -12,6 +12,7 @@ import { createMotionAudioMixer } from '../common/editor/motion-audio-mixer.ts';
 import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
 import type { MotionDesktopDeliveryReceipt } from './desktop-delivery-contract.ts';
 import type { MotionVideoBackground } from '../common/editor/motion-video-delivery.ts';
+import { requireMotionTrackingReady } from '../common/editor/motion-tracking-admission.ts';
 
 export interface MotionDeliveryOptions {
 	readonly project: MotionscaperProject; readonly store: MotionAssetReader; readonly compositionId: string;
@@ -25,6 +26,7 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 	const queue = createMotionRenderQueue(); let sink: MotionRenderSink<Blob | MotionDesktopDeliveryReceipt | null> | null = null;
 	try {
 		const snapshot = createMotionscaperRevision(options.project);
+		requireMotionTrackingReady(snapshot.project);
 		const composition = snapshot.project.compositions.find((entry) => entry.id === options.compositionId);
 		if (!composition) throw new Error('The composition to render is unavailable.');
 		const hasAudio = (options.format === 'mp4' || options.format === 'webm' || (options.format === 'prores' && !options.excludeAudio)) && motionCompositionHasAudio(snapshot.project, composition.id);
