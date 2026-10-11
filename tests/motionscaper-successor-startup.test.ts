@@ -21,4 +21,5 @@ test('successor startup copy and archive filename helpers retain focused chunk o
 	assert.equal(owner('/repo/src/common/editor/ui/composition-link/bridge-page-entry.tsx'), 'motion-link-page');
 	assert.equal(owner('/repo/src/common/editor/motion-link-wire.ts'), 'motion-link-bridge');
 	assert.equal(PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST.test('/repo/src/common/project-file-extensions.ts'), true);
+	assert.equal(PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST.test('/repo/src/common/canonical-json-sha256.ts'), true);
 });

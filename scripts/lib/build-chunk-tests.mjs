@@ -398,12 +398,13 @@ export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
  * `editor-domain` chunk, and through that chunk's own imports the transfer
  * documents carried 62 modulepreloads totalling 5.29 MiB of editor code onto a
  * page that mounts no editor. Owning the leaf here emits it as its own small
- * chunk that both worlds can import without dragging the other's graph. The
- * archive facade adds only erased type imports and dynamic implementation
+ * chunk that both worlds can import without dragging the other's graph.
+ * Canonical document identity belongs to these shared interchange foundations.
+ * The archive facade adds only erased type imports and dynamic implementation
  * imports, so sharing this owner does not grow the mounted transfer graph.
  */
 export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/](?:document[\\\\/]deferred-archive-runtime|shared[\\\\/]file-size-warning(?:-confirmation)?))|src[\\\\/]common[\\\\/](?:cross-product-handoff-intent|project-file-extensions))\\.ts$`,
+	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/](?:document[\\\\/]deferred-archive-runtime|shared[\\\\/]file-size-warning(?:-confirmation)?))|src[\\\\/]common[\\\\/](?:canonical-json-sha256|cross-product-handoff-intent|project-file-extensions))\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
