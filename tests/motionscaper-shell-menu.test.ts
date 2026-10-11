@@ -35,3 +35,18 @@ test('a supplied composition action becomes reachable only through the File menu
 	assert.equal(created, 1);
 	assert.equal(menus.find(({ id }) => id === 'view')?.items[0]?.checked, true);
 });
+
+test('document menus admit saves and history only for an available idle document', () => {
+	const commands: string[] = [];
+	const options = { copy: motionscaperCopy('en'), workspaceOpen: true, onToggleWorkspace: () => undefined,
+		onCommand: (command: string) => { commands.push(command); }, hasProject: true, busy: false, canUndo: true, canRedo: false };
+	const menus = createMotionscaperShellMenus(options);
+	const save = menus.find(({ id }) => id === 'file')?.items.find(({ id }) => id === 'motion-save');
+	assert.equal(save?.disabled, false);
+	save?.onClick?.();
+	assert.deepEqual(commands, ['save']);
+	assert.equal(menus.find(({ id }) => id === 'edit')?.items[0]?.disabled, false);
+	assert.equal(menus.find(({ id }) => id === 'edit')?.items[1]?.disabled, true);
+	const busyMenus = createMotionscaperShellMenus({ ...options, busy: true });
+	assert.ok(busyMenus.find(({ id }) => id === 'file')?.items.every(({ disabled }) => disabled));
+});

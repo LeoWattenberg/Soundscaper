@@ -11,6 +11,8 @@ test('Motionscaper boots its own shell and opens its workspace only from the men
 	await expect(page).toHaveTitle('Motionscaper');
 	await expect(page.locator('[data-audio-editor], [data-frame-editor]')).toHaveCount(0);
 	await expect(page.locator('[data-motion-workspace]')).toHaveCount(0);
+	await expect(page.getByRole('combobox', { name: /Search commands/u })).toHaveCount(0);
+	expect(await page.evaluate(async () => (await indexedDB.databases()).some(({ name }) => name?.includes('motionscaper')))).toBe(false);
 	await page.getByRole('menuitem', { name: 'View', exact: true }).click();
 	await page.getByRole('menuitemcheckbox', { name: 'Motion Workspace', exact: true }).click();
 	await expect(page.locator('[data-motion-workspace]')).toBeVisible();

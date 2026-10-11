@@ -11,15 +11,16 @@ import {
 import { resolveWebRoute } from '../src/common/site/route.js';
 import { resolveOfflineApplicationShellTarget } from '../src/common/offline/application-shell.ts';
 
-test('Motionscaper owns a third independent identity with no premature authoring capabilities', () => {
+test('Motionscaper owns independent project commands without inheriting media authoring capabilities', () => {
 	assert.deepEqual(PRODUCT_IDS, ['soundscaper', 'framescaper', 'motionscaper']);
 	assert.equal(productIdentity('motionscaper').name, 'Motionscaper');
 	const profile = productProfile('motionscaper');
 	assert.equal(profile.desktop.appId, 'org.motionscaper.desktop');
 	assert.equal(profile.desktop.sessionPartition, 'persist:motionscaper-production');
 	assert.deepEqual(profile.panels, []);
-	assert.deepEqual(profile.importChoices, []);
-	assert.deepEqual(profile.exportChoices, []);
+	assert.deepEqual(profile.importChoices, ['scape']);
+	assert.deepEqual(profile.exportChoices, ['scape']);
+	assert.ok(profile.enabledCommands.includes('project'));
 	assert.ok(Object.values(profile.capabilities).every((enabled) => enabled === false));
 	assert.ok(Object.isFrozen(profile));
 });

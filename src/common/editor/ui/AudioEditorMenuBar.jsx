@@ -45,6 +45,7 @@ export default function AudioEditorMenuBar({
 	saveState,
 	saveText,
 	searchEntries = [],
+	searchEnabled = true,
 }) {
 	const { theme } = useTheme();
 	const { activeProfile } = useAccessibilityProfile();
@@ -255,7 +256,7 @@ export default function AudioEditorMenuBar({
 	};
 	const currentMenu = openMenu?.menu || null;
 	const drawer = compact && chromeDrawer ? chromeDrawer : null;
-	const search = (
+	const search = searchEnabled && (
 		<AudioEditorSearch
 			assistanceSearch={assistanceSearch}
 			copy={copy}
