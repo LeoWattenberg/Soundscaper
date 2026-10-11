@@ -131,6 +131,13 @@ function beginImport(project, root, plan) {
         },
         parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
         properties: function (item) {
+            if (item.matte) {
+                var target = layers[item.id], source = layers[item.matte.layerId];
+                if (!target.setTrackMatte)
+                    throw new Error('This AE host does not provide setTrackMatte. Use AE 23 or newer or render the original composition.');
+                var type = item.matte.type === 'alpha' ? TrackMatteType.ALPHA : item.matte.type === 'alpha-inverted' ? TrackMatteType.ALPHA_INVERTED : item.matte.type === 'luma' ? TrackMatteType.LUMA : TrackMatteType.LUMA_INVERTED;
+                target.setTrackMatte(source, type);
+            }
             var transform = layers[item.id].property('ADBE Transform Group');
             for (var index = 0; index < item.properties.length; index++) {
                 var property = item.properties[index];
@@ -158,7 +165,16 @@ function beginImport(project, root, plan) {
                 target.property('ADBE Mask Offset').setValue(0);
             }
         },
-        finish: function () { app.endUndoGroup(); ended = true; },
+        finish: function () {
+            // Host matte assignment can change source switches. Restore the explicit exchange visibility after all bindings.
+            for (var comp = 0; comp < plan.compositions.length; comp++)
+                for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
+                    var item = plan.compositions[comp].layers[index];
+                    layers[item.id].enabled = item.enabled;
+                }
+            app.endUndoGroup();
+            ended = true;
+        },
         rollback: function () {
             var failures = [];
             for (var index = created.length - 1; index >= 0; index--)
@@ -206,6 +222,11 @@ function runMotionAeInstalledImport() {
         if (!file_1.close())
             throw new Error('Cannot close exchange manifest.');
         var plan = prepareMotionAeHostImport(json);
+        for (var comp = 0; comp < plan.compositions.length; comp++)
+            for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
+                if (plan.compositions[comp].layers[index].matte && !(parseFloat(app.version) >= 23))
+                    throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
+            }
         if (project_1.workingSpace !== plan.color.workingSpace || project_1.linearBlending !== plan.color.linearBlending || project_1.bitsPerChannel !== plan.color.bitsPerChannel)
             throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
         var warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';

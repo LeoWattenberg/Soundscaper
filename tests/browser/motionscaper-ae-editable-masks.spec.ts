@@ -13,7 +13,7 @@ test.use({ baseURL: ordinaryBrowserProductSitePlan().sites[2]!.origin });
 async function menu(page: Page, command: string, top = 'File'): Promise<void> {
 	await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: command, exact: true }).click();
 }
-test('AE menu imports editable hard-edge masks, renders their pixels, and exports their retained geometry', async ({ page }: { page: Page }) => {
+test('AE menu imports hard-edge masks and a disabled matte source, renders their pixels, and exports retained geometry', async ({ page }: { page: Page }) => {
 	await page.goto('/embed/en/');
 	const bytes = Buffer.from(await page.evaluate(async () => {
 		const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64; const context = canvas.getContext('2d')!;
@@ -29,11 +29,16 @@ test('AE menu imports editable hard-edge masks, renders their pixels, and export
 	const prepared = prepareMotionscaperAeExport({ ...project, assets: [asset], compositions: [{ ...project.compositions[0]!, layers: [{ ...layer,
 		masks: [{ id: 'half', path, opacity: motionScalar(1), feather: motionVector([0, 0]), expansion: motionScalar(0), inverted: false, operation: 'add' }],
 	}] }] });
+	const composition = prepared.exchange.compositions[0]!, source = composition.layers[0]!;
+	const exchangeInput: MotionAeExchange = { ...prepared.exchange, compositions: [{ ...composition, layers: [{ ...source, enabled: false }, { ...source,
+		id: 'matte-consumer', name: 'Matte consumer', matte: { layerId: source.id, type: 'alpha' }, properties: source.properties.filter(property => property.matchName !== 'ADBE Mask Parade'),
+	}] }] };
 	await menu(page, 'After Effects Bridge'); const dialog = page.getByRole('dialog', { name: 'After Effects Bridge', exact: true });
-	await dialog.getByLabel('AE exchange manifest', { exact: true }).setInputFiles({ name: 'motionae.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(prepared.exchange)) });
+	await dialog.getByLabel('AE exchange manifest', { exact: true }).setInputFiles({ name: 'motionae.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exchangeInput)) });
 	await dialog.getByLabel('Package media files', { exact: true }).setInputFiles({ name: 'media-0.png', mimeType: 'image/png', buffer: bytes });
 	await dialog.getByRole('button', { name: 'Review Import', exact: true }).click();
 	await expect(dialog.getByRole('region', { name: 'Conversion report', exact: true })).toContainText('Mask path, opacity, inversion and operation remain editable');
+	await expect(dialog.getByRole('region', { name: 'Conversion report', exact: true })).toContainText('original source visibility is retained');
 	await dialog.getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Import New Project', exact: true }).click(); await expect(dialog).toHaveCount(0);
 	await menu(page, 'Composition Preview', 'View'); const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true }), canvas = preview.locator('canvas');
 	await expect(canvas).toHaveAttribute('data-motion-frame', '0');
@@ -47,6 +52,8 @@ test('AE menu imports editable hard-edge masks, renders their pixels, and export
 	try {
 		const entry = (await reader.getEntries()).find(item => item.filename === 'motionae.json')!; if (entry.directory) throw new Error('Expected manifest');
 		const exchange = JSON.parse(await entry.getData!(new TextWriter())) as MotionAeExchange;
+		const consumer = exchange.compositions[0]!.layers.find(item => item.name === 'Matte consumer')!;
+		expect(consumer.matte?.type).toBe('alpha'); expect(exchange.compositions[0]!.layers.find(item => item.id === consumer.matte?.layerId)?.enabled).toBe(false);
 		const masks = exchange.compositions[0]!.layers[0]!.properties.find(property => property.matchName === 'ADBE Mask Parade')!;
 		expect(masks.kind).toBe('group'); if (masks.kind !== 'group') throw new Error('Expected mask group');
 		expect(masks.children[0]!.kind).toBe('group'); const mask = masks.children[0]!; if (mask.kind !== 'group') throw new Error('Expected mask');

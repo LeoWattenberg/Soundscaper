@@ -65,7 +65,7 @@ Its current admitted subset is compositions, retained footage, null layers,
 parent links, layer timing and transforms, temporal interpolation/ease, spatial
 tangents and roving keys, plus the explicit hard-edge mask subset below. Unsupported layer kinds produce an actionable request
 to render the complete composition; unsupported property groups, expressions,
-mattes and blend intent produce a preflight warning requiring an explicit
+blend intent produce a preflight warning requiring an explicit
 choice before creating partial imported content. Imported expressions are never
 activated. Text, shapes, solid sources, cameras, lights, effect mappings and
 Motionscaper model conversion remain incomplete.
@@ -112,6 +112,24 @@ objects, creates new masks with explicit attributes and applies admitted keys.
 Its generated-script tests cover those calls and refusal before mutation. Actual
 AE edge pixels, compositing modes and interpolation still need host/reference
 qualification.
+
+Matte import preserves the original source visibility and creates independent
+editable source copies clipped to each consumer's imported active span. Nested
+copies share the unchanged 256-layer and 32-level limits; importing beyond them
+refuses with a rendered-fallback action. Retiming or changing visibility after
+import requires reviewing the copy as well as its consumer; no live AE source
+relationship is implied. A disabled AE source can therefore provide matte
+pixels without becoming an ordinary visible Motion layer.
+
+Reverse export maps source IDs and all four alpha/luma modes when enabled
+consumer spans cover the source's complete active range. It refuses disabled,
+unmapped or intermittently visible Motion sources instead of changing their
+ordinary visibility silently. The installed importer uses Adobe's
+[setTrackMatte API](https://ae-scripting.docsforadobe.dev/layer/avlayer/#avlayersettrackmatte),
+requires AE 23 or newer before mutation, preserves layer order and restores
+explicit source visibility after host binding. Missing APIs roll back newly
+created objects. Structural host tests and actual browser matte pixels cover
+these paths; actual AE alpha/luma/color/reference qualification remains open.
 
 ## Exchange contract
 

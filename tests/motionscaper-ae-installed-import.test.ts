@@ -44,6 +44,8 @@ function host(source: string, failLayer = false) {
 	class Layer {
 		name = ''; enabled = true; audioEnabled = true; threeDLayer = false; startTime = 0; inPoint = 0; outPoint = 2; stretch = 100; parent: Layer | null = null; position = new Property();
 		masks: Mask[] = [];
+		matte: { source: Layer; type: unknown } | null = null;
+		setTrackMatte(source: Layer, type: unknown) { this.matte = { source, type }; source.enabled = true; calls.push('matte'); }
 		setParentWithJump(parent: Layer) { this.parent = parent; }
 		property(name: string) { return name === 'ADBE Mask Parade' ? { addProperty: (matchName: string) => { assert.equal(matchName, 'ADBE Mask Atom'); const mask = new Mask(); this.masks.push(mask); return mask; } } : { property: () => this.position }; }
 	}
@@ -63,9 +65,10 @@ function host(source: string, failLayer = false) {
 		importFile: () => { const item = new Item('Imported footage'); items.push(item); return item; },
 	};
 	class ImportOptions { file: File; sequence = true; importAs: unknown; constructor(file: File) { this.file = file; } }
-	return { items, existing, files, alerts, calls, project, Composition, sandbox: { app: { project, beginUndoGroup: () => calls.push('begin'), endUndoGroup: () => calls.push('end') }, File, Folder, ImportOptions,
+	return { items, existing, files, alerts, calls, project, Composition, Layer, sandbox: { app: { version: '23.0 synthetic host', project, beginUndoGroup: () => calls.push('begin'), endUndoGroup: () => calls.push('end') }, File, Folder, ImportOptions,
 		ImportAsType: { FOOTAGE: 'footage' }, KeyframeInterpolationType: { HOLD: 'hold', LINEAR: 'linear', BEZIER: 'bezier' }, KeyframeEase: class {},
 		Shape: class {}, MaskMode: { ADD: 'add', SUBTRACT: 'subtract' }, MaskFeatherFalloff: { FFO_LINEAR: 'linear', FFO_SMOOTH: 'smooth' }, MaskMotionBlur: { SAME_AS_LAYER: 'same', OFF: 'off' },
+		TrackMatteType: { ALPHA: 'alpha', ALPHA_INVERTED: 'alpha-inverted', LUMA: 'luma', LUMA_INVERTED: 'luma-inverted' },
 		alert: (message: string) => alerts.push(message), confirm: () => true, JSON: undefined } };
 }
 test('generated AE importer creates separate compositions, parent links and spatial keys while preserving existing items', async () => {
@@ -76,6 +79,18 @@ test('generated AE importer creates separate compositions, parent links and spat
 	assert.deepEqual([...comp.authored[0]!.position.keys].map(([time, values]) => [time, Array.from(values)]), [[0, [2, 3]], [1, [10, 11]]]);
 	assert.equal(fixture.calls.filter((call) => call === 'ease').length, 2); assert.equal(fixture.calls.filter((call) => call === 'tangents').length, 2);
 	assert.equal(fixture.files.get('/package/media/asset.png'), 'abc'); assert.equal(fixture.calls.at(-1), 'end');
+});
+test('generated AE importer binds matte IDs with AE23 API and restores source visibility without reordering layers', async () => {
+	const input = JSON.parse(manifest()) as { compositions: { layers: { id: string; enabled: boolean; matte: null | { layerId: string; type: string } }[] }[] };
+	const layers = input.compositions[0]!.layers; layers[0]!.matte = { layerId: layers[1]!.id, type: 'luma-inverted' }; layers[1]!.enabled = false;
+	const fixture = host(JSON.stringify(input)); vm.runInNewContext(await script(), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts[0]!, /Exchange imported/u); const comp = fixture.items.find(item => item instanceof fixture.Composition)! as InstanceType<typeof fixture.Composition>;
+	assert.deepEqual(comp.authored.map(layer => layer.name), ['Child', 'Parent']); assert.equal(comp.authored[0]!.matte!.source, comp.authored[1]);
+	assert.equal(comp.authored[0]!.matte!.type, 'luma-inverted'); assert.equal(comp.authored[1]!.enabled, false);
+	const older = host(JSON.stringify(input)); older.sandbox.app.version = '22.6'; vm.runInNewContext(await script(), older.sandbox, { timeout: 5000 });
+	assert.match(older.alerts[0]!, /23 or newer/u); assert.deepEqual(older.calls, []); assert.deepEqual(older.items, [older.existing]);
+	const missing = host(JSON.stringify(input)); Object.defineProperty(missing.Layer.prototype, 'setTrackMatte', { value: undefined }); vm.runInNewContext(await script(), missing.sandbox, { timeout: 5000 });
+	assert.match(missing.alerts[0]!, /setTrackMatte/u); assert.deepEqual(missing.items, [missing.existing]);
 });
 test('generated AE importer creates real Shape values and explicit hard-edge mask attributes from its admitted plan', async () => {
 	const input = JSON.parse(manifest()) as { compositions: { layers: { properties: unknown[] }[] }[] };

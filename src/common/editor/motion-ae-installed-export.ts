@@ -111,8 +111,9 @@ function readComposition(comp: AeComposition, report: MotionAeReportEntry[], bud
 		let matte: MotionAeLayer['matte'] = null;
 		if (source.trackMatteType !== undefined && source.trackMatteType !== TrackMatteType.NO_TRACK_MATTE) {
 			const target = source.trackMatteLayer;
-			if (target) matte = { layerId: id + '-layer-' + String(target.index), type: source.trackMatteType === TrackMatteType.ALPHA ? 'alpha' : source.trackMatteType === TrackMatteType.ALPHA_INVERTED ? 'alpha-inverted' : source.trackMatteType === TrackMatteType.LUMA ? 'luma' : 'luma-inverted' };
-			else report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'matte', message: 'This AE version does not expose the matte source. Use AE 23 or newer, or render the composition.' });
+			const supported = source.trackMatteType === TrackMatteType.ALPHA || source.trackMatteType === TrackMatteType.ALPHA_INVERTED || source.trackMatteType === TrackMatteType.LUMA || source.trackMatteType === TrackMatteType.LUMA_INVERTED;
+			if (target && supported) matte = { layerId: id + '-layer-' + String(target.index), type: source.trackMatteType === TrackMatteType.ALPHA ? 'alpha' : source.trackMatteType === TrackMatteType.ALPHA_INVERTED ? 'alpha-inverted' : source.trackMatteType === TrackMatteType.LUMA ? 'luma' : 'luma-inverted' };
+			else report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'matte', message: 'This AE version does not expose a supported matte source/type. Use AE 23 or newer, or render the composition.' });
 		}
 		layers.push({ id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
 			parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte,

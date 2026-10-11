@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { parseMotionAeHostJson } from './motion-ae-host-json.ts';
-import type { MotionAeKey } from './motion-ae-exchange-types.ts';
+import type { MotionAeKey, MotionAeLayer } from './motion-ae-exchange-types.ts';
 import { readMotionAeImportMasks, type MotionAeImportMask } from './motion-ae-host-import-mask.ts';
 export interface MotionAeImportNumeric {
 	readonly matchName: string; readonly value: readonly number[]; readonly spatial: boolean; readonly keys: readonly MotionAeKey<readonly number[]>[];
@@ -10,6 +10,7 @@ export interface MotionAeImportLayer {
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
 	readonly enabled: boolean; readonly threeD: boolean; readonly properties: readonly MotionAeImportNumeric[];
 	readonly masks: readonly MotionAeImportMask[];
+	readonly matte: MotionAeLayer['matte'];
 }
 export interface MotionAeImportComposition {
 	readonly id: string; readonly name: string; readonly width: number; readonly height: number; readonly pixelAspect: number;
@@ -40,6 +41,11 @@ function vector(value: unknown, dimensions?: number): readonly number[] {
 }
 function interpolation(value: unknown): 'hold' | 'linear' | 'bezier' {
 	if (value !== 'hold' && value !== 'linear' && value !== 'bezier') throw new Error('AE interpolation is unsupported.'); return value;
+}
+function matte(input: unknown): MotionAeLayer['matte'] {
+	if (input === null) return null; const value = record(input), mode = value.type;
+	if (mode !== 'alpha' && mode !== 'alpha-inverted' && mode !== 'luma' && mode !== 'luma-inverted') throw new Error('AE matte mode is invalid.');
+	return { layerId: id(value.layerId), type: mode };
 }
 function numericProperty(property: Record<string, unknown>, warnings: string[], budget: { properties: number; keys: number }): MotionAeImportNumeric {
 	const value = vector(property.value), spatial = boolean(property.spatial), rawKeys = array(property.keys, 4096), keys: MotionAeKey<readonly number[]>[] = [];
@@ -96,6 +102,8 @@ function verifyGraph(plan: MotionAeImportPlan): void {
 			if (layer.kind === 'null' ? layer.sourceId !== null : layer.sourceId === null || !own(layer.kind === 'footage' ? footage : comps, layer.sourceId)) throw new Error('AE import layer source is unresolved.');
 			let parent = layer.parentId, visited = 0;
 			while (parent !== null) { if (!own(layers, parent)) throw new Error('AE import parent is unresolved.'); if (++visited > comp.layers.length) throw new Error('AE import parent cycle.'); parent = layers[parent]!.parentId; }
+			let matteId = layer.matte?.layerId ?? null; visited = 0;
+			while (matteId !== null) { if (!own(layers, matteId)) throw new Error('AE import matte source is unresolved.'); if (++visited > comp.layers.length) throw new Error('AE import matte cycle.'); matteId = layers[matteId]!.matte?.layerId ?? null; }
 		}
 	}
 	const active: Record<string, boolean> = {}, done: Record<string, boolean> = {};
@@ -128,11 +136,11 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 		totalLayers += rawLayers.length; if (totalLayers > 4096) throw new Error('AE import layer budget exceeded.');
 		for (let j = 0; j < rawLayers.length; j++) {
 			const layer = record(rawLayers[j]); if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null') throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
-			if (layer.matte !== null || layer.adjustment !== false || layer.blendMode !== 'normal') warnings.push('Matte, adjustment, or blend intent is not mapped; render the complete original composition for visual fidelity.');
+			if (layer.adjustment !== false || layer.blendMode !== 'normal') warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
 			const inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
 			if (outPoint < inPoint || Math.abs(stretch) < 1) throw new Error('AE import layer timing is invalid.');
 			layers.push({ id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
-				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
+				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
 		}
 		const width = number(comp.width, 4, 30_000), height = number(comp.height, 4, 30_000);
 		if (width !== Math.floor(width) || height !== Math.floor(height)) throw new Error('AE import dimensions must be integral.');

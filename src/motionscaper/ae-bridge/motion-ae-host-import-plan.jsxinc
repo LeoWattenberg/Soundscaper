@@ -43,6 +43,14 @@ function interpolation(value) {
         throw new Error('AE interpolation is unsupported.');
     return value;
 }
+function matte(input) {
+    if (input === null)
+        return null;
+    var value = record(input), mode = value.type;
+    if (mode !== 'alpha' && mode !== 'alpha-inverted' && mode !== 'luma' && mode !== 'luma-inverted')
+        throw new Error('AE matte mode is invalid.');
+    return { layerId: id(value.layerId), type: mode };
+}
 function numericProperty(property, warnings, budget) {
     var value = vector(property.value), spatial = boolean(property.spatial), rawKeys = array(property.keys, 4096), keys = [];
     budget.keys += rawKeys.length;
@@ -110,6 +118,7 @@ function properties(input, warnings, budget) {
     return result;
 }
 function verifyGraph(plan) {
+    var _a, _b, _c, _d;
     var all = {}, comps = {}, footage = {};
     var own = function (map, key) { return Object.prototype.hasOwnProperty.call(map, key); };
     function register(value) { if (own(all, value))
@@ -142,6 +151,15 @@ function verifyGraph(plan) {
                 if (++visited > comp.layers.length)
                     throw new Error('AE import parent cycle.');
                 parent = layers[parent].parentId;
+            }
+            var matteId = (_b = (_a = layer.matte) === null || _a === void 0 ? void 0 : _a.layerId) !== null && _b !== void 0 ? _b : null;
+            visited = 0;
+            while (matteId !== null) {
+                if (!own(layers, matteId))
+                    throw new Error('AE import matte source is unresolved.');
+                if (++visited > comp.layers.length)
+                    throw new Error('AE import matte cycle.');
+                matteId = (_d = (_c = layers[matteId].matte) === null || _c === void 0 ? void 0 : _c.layerId) !== null && _d !== void 0 ? _d : null;
             }
         }
     }
@@ -203,13 +221,13 @@ function prepareMotionAeHostImport(json) {
             var layer = record(rawLayers[j]);
             if (layer.kind !== 'footage' && layer.kind !== 'composition' && layer.kind !== 'null')
                 throw new Error('This layer kind is not yet mapped. Render its complete composition in AE before transferring it.');
-            if (layer.matte !== null || layer.adjustment !== false || layer.blendMode !== 'normal')
-                warnings.push('Matte, adjustment, or blend intent is not mapped; render the complete original composition for visual fidelity.');
+            if (layer.adjustment !== false || layer.blendMode !== 'normal')
+                warnings.push('Adjustment or blend intent is not mapped; render the complete original composition for visual fidelity.');
             var inPoint = number(layer.inPoint, -10800, 10800), outPoint = number(layer.outPoint, -10800, 10800), stretch = number(layer.stretch, -9900, 9900);
             if (outPoint < inPoint || Math.abs(stretch) < 1)
                 throw new Error('AE import layer timing is invalid.');
             layers.push({ id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
-                startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
+                startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: properties(layer.properties, warnings, budget), masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
         }
         var width = number(comp.width, 4, 30000), height = number(comp.height, 4, 30000);
         if (width !== Math.floor(width) || height !== Math.floor(height))

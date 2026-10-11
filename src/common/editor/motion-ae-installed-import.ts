@@ -19,6 +19,7 @@ interface AeProperty {
 interface AeLayer {
 	name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
+	setTrackMatte?(source: AeLayer, type: unknown): void;
 }
 interface AeComposition extends AeItem { displayStartTime: number; bgColor: readonly number[]; readonly layers: { add(item: AeItem): AeLayer; addNull(duration: number): AeLayer } }
 interface AeProject {
@@ -26,7 +27,7 @@ interface AeProject {
 	readonly items: { addFolder(name: string): AeItem; addComp(name: string, width: number, height: number, aspect: number, duration: number, frameRate: number): AeComposition };
 	importFile(options: { file: AeFile; sequence: boolean; importAs: unknown }): AeItem;
 }
-declare const app: { readonly project: AeProject | null; beginUndoGroup(name: string): void; endUndoGroup(): void };
+declare const app: { readonly version: string; readonly project: AeProject | null; beginUndoGroup(name: string): void; endUndoGroup(): void };
 declare const File: { new(path: string): AeFile; openDialog(prompt: string): AeFile | null };
 declare const Folder: { new(path: string): AeFolder };
 declare const ImportOptions: { new(file: AeFile): { file: AeFile; sequence: boolean; importAs: unknown } };
@@ -37,6 +38,7 @@ declare const Shape: { new(): { closed: boolean; vertices: MotionAeShape['vertic
 declare const MaskMode: Record<string, unknown>;
 declare const MaskFeatherFalloff: { FFO_LINEAR: unknown; FFO_SMOOTH: unknown };
 declare const MaskMotionBlur: { SAME_AS_LAYER: unknown; OFF: unknown };
+declare const TrackMatteType: { ALPHA: unknown; ALPHA_INVERTED: unknown; LUMA: unknown; LUMA_INVERTED: unknown };
 declare function alert(message: string): void;
 declare function confirm(message: string): boolean;
 
@@ -103,6 +105,12 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 		},
 		parent: (item) => { layers[item.id]!.setParentWithJump(layers[item.parentId!]!); },
 		properties: (item) => {
+			if (item.matte) {
+				const target = layers[item.id]!, source = layers[item.matte.layerId]!;
+				if (!target.setTrackMatte) throw new Error('This AE host does not provide setTrackMatte. Use AE 23 or newer or render the original composition.');
+				const type = item.matte.type === 'alpha' ? TrackMatteType.ALPHA : item.matte.type === 'alpha-inverted' ? TrackMatteType.ALPHA_INVERTED : item.matte.type === 'luma' ? TrackMatteType.LUMA : TrackMatteType.LUMA_INVERTED;
+				target.setTrackMatte(source, type);
+			}
 			const transform = layers[item.id]!.property('ADBE Transform Group');
 			for (let index = 0; index < item.properties.length; index++) { const property = item.properties[index]!; applyProperty(transform.property(property.matchName), property); }
 			for (let index = 0; index < item.masks.length; index++) {
@@ -118,7 +126,13 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 				applyProperty(target.property('ADBE Mask Opacity'), mask.opacity); target.property('ADBE Mask Feather').setValue([0, 0]); target.property('ADBE Mask Offset').setValue(0);
 			}
 		},
-		finish: () => { app.endUndoGroup(); ended = true; },
+		finish: () => {
+			// Host matte assignment can change source switches. Restore the explicit exchange visibility after all bindings.
+			for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
+				const item = plan.compositions[comp]!.layers[index]!; layers[item.id]!.enabled = item.enabled;
+			}
+			app.endUndoGroup(); ended = true;
+		},
 		rollback: () => {
 			const failures: string[] = [];
 			for (let index = created.length - 1; index >= 0; index--) try { created[index]!.remove(); } catch (error) { failures.push(String(error)); }
@@ -136,6 +150,9 @@ export function runMotionAeInstalledImport(): void {
 		file.encoding = 'UTF-8'; if (!file.open('r')) throw new Error('Cannot read the exchange manifest.'); let json: string;
 		try { json = file.read(); } catch (error) { closeOnError(file, error); } if (!file.close()) throw new Error('Cannot close exchange manifest.');
 		const plan = prepareMotionAeHostImport(json);
+		for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
+			if (plan.compositions[comp]!.layers[index]!.matte && !(parseFloat(app.version) >= 23)) throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
+		}
 		if (project.workingSpace !== plan.color.workingSpace || project.linearBlending !== plan.color.linearBlending || project.bitsPerChannel !== plan.color.bitsPerChannel) throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
 		let warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';
 		for (let index = 0; index < Math.min(plan.warnings.length, 8); index++) warning += '\n\n' + plan.warnings[index];
