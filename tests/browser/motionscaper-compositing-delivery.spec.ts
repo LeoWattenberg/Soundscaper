@@ -35,7 +35,8 @@ test('M07 keyed footage and animated mask correction survive history/reopen with
 	await paths.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(paths.locator('[data-motion-plane-point="vertex:2"]')).toHaveAttribute('data-motion-point-x', '44');
 	await paths.getByRole('button', { name: 'Redo', exact: true }).click(); await expect(paths.locator('[data-motion-plane-point="vertex:2"]')).toHaveAttribute('data-motion-point-x', '35'); await close(page);
 	const frames = [0, 2, 5] as const; const before = await snapshotMotionPreviewFrames(page, frames);
-	expect(alpha(before.get(0)!, 0, 0)).toBe(0); expect(alpha(before.get(0)!, 14, 14)).toBe(255); expect(alpha(before.get(5)!, 34, 34)).toBe(255); expect(alpha(before.get(5)!, 36, 36)).toBe(0);
+	// Use an opaque checker interior: native 4:2:0 chroma reconstruction bleeds green at (14,14).
+	expect(alpha(before.get(0)!, 0, 0)).toBe(0); expect(alpha(before.get(0)!, 16, 16)).toBe(255); expect(alpha(before.get(5)!, 34, 34)).toBe(255); expect(alpha(before.get(5)!, 36, 36)).toBe(0);
 	expect(digest(before.get(0)!)).not.toBe(digest(before.get(5)!));
 	await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); await page.reload();
 	await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Keyed mask correction', exact: true }).click(); const reopened = await snapshotMotionPreviewFrames(page, frames);

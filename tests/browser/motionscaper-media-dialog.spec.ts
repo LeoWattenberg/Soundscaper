@@ -64,10 +64,10 @@ test('media is imported through File and retained for preview after saving and r
 	await page.getByLabel('Width', { exact: true }).fill('64'); await page.getByLabel('Height', { exact: true }).fill('64');
 	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
 	await menu(page, 'File', 'Import Media');
-	await page.getByLabel('Media file', { exact: true }).setInputFiles({ name: 'Retained.webm', mimeType: 'video/webm', buffer: bytes });
+	await page.getByLabel('Media file', { exact: true }).setInputFiles({ name: 'Retained.mp4', mimeType: 'video/mp4', buffer: bytes });
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 	await menu(page, 'View', 'Timeline'); const timeline = page.getByRole('dialog', { name: 'Timeline', exact: true });
-	await timeline.getByRole('checkbox', { name: 'Retained.webm', exact: true }).check();
+	await timeline.getByRole('checkbox', { name: 'Retained.mp4', exact: true }).check();
 	const footageAudio = timeline.getByLabel('Footage audio enabled', { exact: true }); await expect(footageAudio).toBeChecked();
 	await footageAudio.click(); await expect(footageAudio).not.toBeChecked();
 	await timeline.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(footageAudio).toBeChecked();

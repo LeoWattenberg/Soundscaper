@@ -54,19 +54,23 @@ for (const name of Object.keys(MOTION_RETAINED_VIDEO_FIXTURES) as MotionRetained
 		const timestamps: number[] = [];
 		for await (const packet of new EncodedPacketSink(video).packets()) {
 			assert.ok(packet.data.byteLength > 0); timestamps.push(packet.timestamp);
-			// WebM's packet default duration retains nanoseconds; block PTS uses milliseconds.
 			const expected = 1 / metadata.frameRate;
 			assert.ok(Math.abs(packet.duration - expected) < 1e-9);
 		}
 		assert.equal(timestamps.length, metadata.frameCount);
-		timestamps.forEach((timestamp, index) => assert.ok(Math.abs(timestamp - (metadata.format === 'webm'
-			? Math.round(index * 1000 / metadata.frameRate) / 1000 : index / metadata.frameRate)) < 1e-9));
+		timestamps.forEach((timestamp, index) => assert.ok(Math.abs(timestamp - index / metadata.frameRate) < 1e-9));
 		const audio = await input.getPrimaryAudioTrack();
 		if (metadata.audio) {
-			assert.ok(audio); assert.deepEqual([audio.codec, audio.sampleRate, audio.numberOfChannels], ['opus', 48000, 2]);
+			assert.ok(audio); assert.deepEqual([audio.codec, audio.sampleRate, audio.numberOfChannels], ['aac', 48000, 2]);
 			assert.equal((await audio.computePacketStats()).packetCount, metadata.audio.packetCount);
-			assert.ok(await input.computeDuration() >= 1 && await input.computeDuration() < 1.04);
-			assert.equal(metadata.audio.authoredSamples, 48000); assert.equal(metadata.audio.decodedSamples, 48648);
+			assert.equal(await input.computeDuration(), 1);
+			assert.equal(metadata.audio.authoredSamples, 48000); assert.equal(metadata.audio.nativeSamples, 48000);
+			const audioPackets = []; for await (const packet of new EncodedPacketSink(audio).packets()) audioPackets.push(packet);
+			audioPackets.forEach((packet, index) => {
+				assert.ok(packet.data.byteLength > 0); assert.equal(packet.timestamp, (index - 1) * 1024 / 48000);
+				assert.equal(packet.duration, (index === audioPackets.length - 1 ? 896 : 1024) / 48000);
+			});
+			assert.equal(audioPackets[0]!.timestamp, -metadata.audio.primingSamples / 48000);
 		} else { assert.equal(audio, null); assert.ok(Math.abs(await input.computeDuration() - metadata.frameCount / metadata.frameRate) < 1e-9); }
 	} finally { input.dispose(); }
 	bytes[0] ^= 1; assert.notEqual(createHash('sha256').update(bytes).digest('hex'), metadata.sha256);

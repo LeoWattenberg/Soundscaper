@@ -61,6 +61,9 @@ for (const format of ['mp4', 'webm'] as const) test(`File Render attempts ${form
 	await page.getByLabel('Width', { exact: true }).fill('64'); await page.getByLabel('Height', { exact: true }).fill('64');
 	await page.getByLabel('Duration in frames', { exact: true }).fill('2');
 	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'Layer', 'New Solid'); await page.getByRole('button', { name: 'Create', exact: true }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(page.locator('[data-motion-save-status]')).toHaveText('Unsaved changes');
 	await menu(page, 'File', 'Render'); const dialog = page.getByRole('dialog', { name: 'Render Composition', exact: true });
 	await dialog.getByLabel('Output format', { exact: true }).selectOption(format);
 	await expect(dialog).toContainText('Video replaces transparent areas');
