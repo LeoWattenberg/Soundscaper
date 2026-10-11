@@ -23,6 +23,8 @@ import {
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import type { FramescaperOpenFxFrameDispositionNativeMedia } from './editor-openfx-frame-graph-native-media.ts';
 import { createSelectedFinishingPreviewSamplePresentation } from './selected-finishing-preview-sample-authority.ts';
+import type { FramescaperCompositionFrameSource } from './editor-composition-link-frame-source.ts';
+import { framescaperCompositionCapture, framescaperCompositionFrameAddress } from './editor-composition-link-finishing-port.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -58,6 +60,7 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly captureFrame?: CaptureFrameFinishing;
+	readonly compositionFrames?: FramescaperCompositionFrameSource;
 	readonly openFx?: FramescaperSelectedOpenFxExecutionNativeMedia;
 	readonly createOutput?: (width: number, height: number) => PreviewOutputFinishing;
 }>): Promise<FramescaperSelectedExactPreviewFinishing> {
@@ -72,7 +75,7 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 			project: options.project, plan: options.plan, store: options.store,
 			timingSidecars: options.boundTimingViews,
 			...(sourceFrames ? { sourceFrames } : {}),
-			...(options.captureFrame ? { captureFrame: options.captureFrame } : {}),
+			...(options.compositionFrames ? { captureFrame: framescaperCompositionCapture(options.compositionFrames, options.captureFrame) } : options.captureFrame ? { captureFrame: options.captureFrame } : {}),
 			...(options.openFx ? { openFx: options.openFx } : {}),
 			signal: options.signal, assertCurrent: options.assertCurrent,
 		});
@@ -190,6 +193,7 @@ async function createTemporalSourceFrames(options: Readonly<{
 	signal: AbortSignal;
 	assertCurrent: () => void;
 	openFx?: FramescaperSelectedOpenFxExecutionNativeMedia;
+	compositionFrames?: FramescaperCompositionFrameSource;
 }>): Promise<FramescaperVideoFrameAddressFinishing | undefined> {
 	const requiredTemporal = temporalSourceIds(options.project, options.plan);
 	const sourceIds = new Set(requiredTemporal);
@@ -198,7 +202,7 @@ async function createTemporalSourceFrames(options: Readonly<{
 			sourceIds.add(node.state.frozenFallback.externalMediaSourceId);
 		}
 	}
-	if (sourceIds.size === 0) return undefined;
+	if (sourceIds.size === 0) return options.compositionFrames ? framescaperCompositionFrameAddress(options.compositionFrames) : undefined;
 	const project = options.project as unknown as Data;
 	const byId = new Map(records(project.sources, 'Selected finishing preview temporal sources')
 		.map((source) => [String(source.id), source]));
@@ -206,6 +210,7 @@ async function createTemporalSourceFrames(options: Readonly<{
 	for (const sourceId of [...sourceIds].sort(compareText)) {
 		options.assertCurrent();
 		throwIfAborted(options.signal);
+		if (options.compositionFrames?.ownsSource(sourceId)) continue;
 		const source = required(byId, sourceId, 'temporal source');
 		try {
 			const original = await authenticatedBody(
@@ -227,9 +232,10 @@ async function createTemporalSourceFrames(options: Readonly<{
 			if (requiredTemporal.has(sourceId) || options.signal.aborted) throw error;
 		}
 	}
-	return createFramescaperVideoFrameAddressFinishing({
+	const encoded = createFramescaperVideoFrameAddressFinishing({
 		sources: bodies, timingViewsBySourceId: options.timingViews,
 	});
+	return options.compositionFrames ? framescaperCompositionFrameAddress(options.compositionFrames, encoded) : encoded;
 }
 
 function temporalSourceIds(

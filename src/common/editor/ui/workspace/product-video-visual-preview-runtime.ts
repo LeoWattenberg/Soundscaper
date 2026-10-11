@@ -29,6 +29,8 @@ export interface ProductVideoVisualPreviewFrame {
 }
 
 export interface ProductVideoVisualPreviewSession {
+	/** Virtual source pixels must be materialized asynchronously during playback too. */
+	readonly requiresAsyncFrames?: boolean;
 	resolve(timelineSample: number): ProductVideoVisualPreviewFrame;
 	resolveTransitionWeight(clipId: string, timelineSample: number): number | null;
 	renderExact?(request: Readonly<{

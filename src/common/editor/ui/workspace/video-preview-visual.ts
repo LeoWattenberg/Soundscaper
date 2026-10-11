@@ -5,7 +5,7 @@ export interface VideoPreviewVisual {
 	readonly mediaUrl?: string | null;
 	readonly url?: string | null;
 	readonly available?: boolean;
-	readonly mediaKind?: 'proxy';
+	readonly mediaKind?: 'proxy' | 'composition';
 }
 
 interface VideoPreviewVisualActions {

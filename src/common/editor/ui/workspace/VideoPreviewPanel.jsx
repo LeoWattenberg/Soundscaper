@@ -20,7 +20,7 @@ import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts
 import { useFramescaperVideoProxyPreviewPressure } from './framescaper-video-proxy-pressure.ts';
 import VideoPreviewClip from './VideoPreviewClip.jsx';
 import { composeProductVideoVisualPreviewLayers } from './product-video-visual-preview-composition.ts';
-import { resolveVideoPreviewVisual } from './video-preview-visual.ts';
+import { resolveVideoPreviewMediaLayers } from './video-preview-media-layers.ts';
 import { useProductVideoVisualPreviewSession } from './use-product-video-visual-preview-session.ts';
 import { createVideoPreviewTimelineState } from './video-preview-timeline-state.js';
 import {
@@ -171,24 +171,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	);
 	const resolvedLayers = useMemo(() => {
 		void mediaErrorRevision;
-		return layers.map((layer) => ({
-			...layer,
-			clips: (layer.clips || []).map((entry) => {
-				const visual = resolveVideoPreviewVisual(controller, entry.clipId, entry.sourceId);
-				const sourceUrl = visual?.mediaUrl || visual?.url || null;
-				return {
-					...entry,
-					sourceUrl,
-					available: Boolean(
-						entry.source
-						&& sourceUrl
-						&& visual?.available !== false
-						&& (visual?.mediaKind === 'proxy' || !missingSourceIds.has(entry.sourceId))
-						&& failedVideoSourcesRef.current.get(entry.clipId) !== sourceUrl,
-					),
-				};
-			}),
-		}));
+		return resolveVideoPreviewMediaLayers({ layers, controller, missingSourceIds,
+			failedSources: failedVideoSourcesRef.current });
 	}, [controller, layers, mediaErrorRevision, missingSourceIds]);
 	const activeEntries = resolvedLayers.flatMap((layer) => layer.clips);
 	useFramescaperVideoProxyPreviewPressure({ reporter: controller.actions.video?.reportPreviewPressure || null, entries: activeEntries, elements: videoElementsRef, canvas: canvasRef, referenceWidth: referenceCanvas.width, referenceHeight: referenceCanvas.height, playing: transportState === 'playing', run });

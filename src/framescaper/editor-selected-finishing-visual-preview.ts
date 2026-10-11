@@ -55,6 +55,7 @@ import { createFramescaperSoundVisualizerWindowReader } from './sound-visualizer
 import { createSelectedFinishingSoundVisualizerPreview } from './selected-finishing-sound-visualizer-preview.ts';
 import { createSelectedFinishingNoisePreview } from './selected-finishing-noise-preview.ts';
 import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
+import type { FramescaperCompositionFrameSource } from './editor-composition-link-frame-source.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -63,6 +64,8 @@ export interface FramescaperSelectedVisualPreviewOptionsFinishing
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
+	readonly compositionFrames?: FramescaperCompositionFrameSource;
+	readonly createOutput?: Parameters<typeof createFramescaperSelectedExactPreviewFinishing>[0]['createOutput'];
 }
 
 export interface FramescaperSelectedProjectBinThumbnailOptionsFinishing
@@ -104,6 +107,8 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 		project: options.project as never, plan, store: options.store, timingViews,
 		boundTimingViews: previewTimingSidecars(project, timingViews), signal: abort.signal,
 		assertCurrent() { if (abort.signal.aborted) throw abort.signal.reason; },
+		...(options.compositionFrames ? { compositionFrames: options.compositionFrames } : {}),
+		...(options.createOutput ? { createOutput: options.createOutput } : {}),
 		...(options.createOpenFxExecution ? { openFx: options.createOpenFxExecution({
 			foundationPlan: plan, timingViews,
 		}) } : {}),
