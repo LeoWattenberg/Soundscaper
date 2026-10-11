@@ -226,7 +226,7 @@ test('the ceilings are read from the maintained budget configuration with their 
 		new URL('../config/startup-graph-budgets.json', import.meta.url),
 		'utf8',
 	));
-	assert.deepEqual(Object.keys(configuration).sort(), ['framescaper', 'initial', 'soundscaper']);
+	assert.deepEqual(Object.keys(configuration).sort(), ['framescaper', 'initial', 'motionscaper', 'soundscaper']);
 	for (const [graph, budget] of Object.entries(STARTUP_GRAPH_BUDGETS)) {
 		assert.deepEqual(budget, configuration[graph].ceilings, graph);
 	}
