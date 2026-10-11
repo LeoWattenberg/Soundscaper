@@ -39,6 +39,7 @@ const successorRuntimeModules = [
 	'editor-project-sequence-multicam-actions',
 	'editor-project-retime-retime-actions',
 	'editor-successor-controller',
+	'editor-scape-successor-native',
 	'editor-composition-link-session',
 	'editor-composition-link-placement',
 ];
