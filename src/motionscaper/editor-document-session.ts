@@ -38,6 +38,8 @@ export class MotionscaperDocumentSession {
 	#lease: MotionProjectWriteLease | null = null;
 	#disposed = false;
 	readonly #archiveReviews = new WeakMap<MotionArchiveReview, { input: ScapeProjectInput; project: MotionscaperProject | null; savedDigest: string | null }>();
+	readonly #acceptedReviews = new WeakMap<MotionArchiveReview, { receipt: MotionArchiveOpenReceipt; prior: MotionProjectWriteLease | null }>();
+	readonly #retiringLeases = new Set<MotionProjectWriteLease>();
 
 	constructor(store: MotionscaperProjectStore, randomId: () => string = () => crypto.randomUUID()) {
 		this.#store = store; this.#randomId = randomId;
@@ -63,12 +65,14 @@ export class MotionscaperDocumentSession {
 		if (!project) throw new Error('Open a motion composition first.');
 		return project;
 	}
-	async #adopt(project: MotionscaperProject, savedDigest: string | null, dirty: boolean, lease: MotionProjectWriteLease): Promise<void> {
+	async #adopt(project: MotionscaperProject, savedDigest: string | null, dirty: boolean, lease: MotionProjectWriteLease,
+		onAdopted?: (prior: MotionProjectWriteLease | null) => Promise<void>): Promise<void> {
 		if (this.#disposed) throw new MotionProjectLeaseError();
 		const prior = this.#lease; this.#lease = lease;
 		this.#history = createMotionscaperHistory(project);
 		this.#update({ savedDigest, dirty });
-		if (prior && prior !== lease) await this.#store.releaseWriteAccess(prior);
+		if (onAdopted) await onAdopted(prior === lease ? null : prior);
+		else if (prior && prior !== lease) await this.#store.releaseWriteAccess(prior);
 	}
 	#requireLease(): MotionProjectWriteLease { if (this.#disposed || !this.#lease) throw new MotionProjectLeaseError(); return this.#lease; }
 	async #withLease<T>(id: string, operation: (lease: MotionProjectWriteLease) => Promise<T>): Promise<T> {
@@ -86,7 +90,8 @@ export class MotionscaperDocumentSession {
 	async dispose(): Promise<void> {
 		if (this.#disposed) return; this.#disposed = true; this.#listeners.clear();
 		const lease = this.#lease; this.#lease = null;
-		if (lease) await this.#store.releaseWriteAccess(lease);
+		if (lease) this.#retiringLeases.add(lease);
+		for (const retiring of this.#retiringLeases) { await this.#store.releaseWriteAccess(retiring); this.#retiringLeases.delete(retiring); }
 	}
 	create(settings: MotionProjectSettings): Promise<void> {
 		return this.#run(async () => {
@@ -233,8 +238,8 @@ export class MotionscaperDocumentSession {
 				if (action === 'saved' || action === 'recover') {
 					const selected = action === 'saved' ? existing?.saved?.project : existing?.recovery;
 					if (!selected) throw new Error('The reviewed local revision is unavailable.');
-					await this.#adopt(selected, existing!.savedDigest, action === 'recover', lease); this.#archiveReviews.delete(review);
-					return Object.freeze({ projectId: target.id, action, bindOriginal: action === 'saved' && review.incomingDigest === existing!.savedDigest });
+					const receipt = Object.freeze({ projectId: target.id, action, bindOriginal: action === 'saved' && review.incomingDigest === existing!.savedDigest });
+					await this.#adopt(selected, existing!.savedDigest, action === 'recover', lease, prior => this.#acceptArchive(review, receipt, prior)); return receipt;
 				}
 				const history = action === 'replace' ? existing?.active ? this.#history! : createMotionscaperHistory(existing!.recovery ?? existing!.saved!.project) : null;
 				const transition = history?.prepareReplacement(target), candidate = transition?.project ?? target;
@@ -245,14 +250,23 @@ export class MotionscaperDocumentSession {
 					return { ...staging, commit: () => staging.commit(candidate) };
 				});
 				if (imported.kind !== 'current') throw new UnsupportedMotionArchiveError();
-				this.#archiveReviews.delete(review);
+				const receipt = Object.freeze({ projectId: candidate.id, action, bindOriginal: action === 'import' });
 				if (transition && history) {
 					transition.accept(); const prior = this.#lease; this.#lease = lease; this.#history = history;
-					this.#update({ savedDigest: existing!.savedDigest, dirty: true }); if (prior && prior !== lease) await this.#store.releaseWriteAccess(prior);
-				} else await this.#adopt(candidate, createMotionscaperRevision(candidate).digest, false, lease);
-				return Object.freeze({ projectId: candidate.id, action, bindOriginal: action === 'import' });
+					this.#update({ savedDigest: existing!.savedDigest, dirty: true }); await this.#acceptArchive(review, receipt, prior === lease ? null : prior);
+				} else await this.#adopt(candidate, createMotionscaperRevision(candidate).digest, false, lease, prior => this.#acceptArchive(review, receipt, prior));
+				return receipt;
 			});
 		});
+	}
+	async #acceptArchive(review: MotionArchiveReview, receipt: MotionArchiveOpenReceipt, prior: MotionProjectWriteLease | null): Promise<void> {
+		this.#archiveReviews.delete(review); this.#acceptedReviews.set(review, { receipt, prior });
+		if (prior) this.#retiringLeases.add(prior); await this.completeArchiveOpen(review);
+	}
+	acceptedArchive(review: MotionArchiveReview): MotionArchiveOpenReceipt | null { return this.#acceptedReviews.get(review)?.receipt ?? null; }
+	async completeArchiveOpen(review: MotionArchiveReview): Promise<void> {
+		const accepted = this.#acceptedReviews.get(review);
+		if (accepted?.prior) { await this.#store.releaseWriteAccess(accepted.prior); this.#retiringLeases.delete(accepted.prior); accepted.prior = null; }
 	}
 	closeArchiveReview(review: MotionArchiveReview): void { this.#archiveReviews.delete(review); }
 

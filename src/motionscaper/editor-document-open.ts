@@ -34,8 +34,10 @@ export async function prepareMotionscaperDocumentOpen(session: MotionscaperDocum
 			if (active) return Promise.reject(new Error('The archive review is still opening.'));
 			if (accepted && action !== accepted.action) return Promise.reject(new Error('This archive action was already accepted; retry its completion.'));
 			active = (async () => {
-				accepted ??= await session.openArchive(review, action);
+				try { accepted ??= await session.openArchive(review, action); }
+				catch (error) { accepted = session.acceptedArchive(review); if (accepted) throw new MotionArchiveAdoptionError(accepted, error); throw error; }
 				try {
+					await session.completeArchiveOpen(review);
 					if (accepted.bindOriginal && !bound) { await options.bindOriginal?.(accepted.projectId); bound = true; }
 					await release(); closed = true; return accepted;
 				} catch (error) { throw new MotionArchiveAdoptionError(accepted, error); }
@@ -43,7 +45,7 @@ export async function prepareMotionscaperDocumentOpen(session: MotionscaperDocum
 		},
 		close() {
 			if (closing) return closing; closed = true; session.closeArchiveReview(review);
-			closing = (async () => { await active?.catch(() => undefined); await release(); })().finally(() => { closing = null; }); return closing;
+			closing = (async () => { await active?.catch(() => undefined); await session.completeArchiveOpen(review); await release(); })().finally(() => { closing = null; }); return closing;
 		},
 	});
 }

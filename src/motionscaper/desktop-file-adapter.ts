@@ -52,16 +52,17 @@ export async function beginMotionscaperDesktopSave(files: MotionDesktopFiles, op
 	const selected = await files.beginSave({ projectId: options.projectId, suggestedName: options.suggestedName,
 		saveAs: options.saveAs ?? false, ...(options.saveCopy === undefined ? {} : { saveCopy: options.saveCopy }) });
 	if (!selected) return null;
-	let offset = 0; let closed = false; let terminal = false;
+	let offset = 0; let closed = false; let terminal = false; let aborting = false; let cancellation: Promise<void> | null = null;
 	let pending: Promise<void> = Promise.resolve();
 	const abort = async () => {
-		if (terminal) return; terminal = true;
-		await pending.catch(() => undefined); await files.cancel({ token: selected.token });
+		if (terminal) return; aborting = true;
+		cancellation ??= (async () => { await pending.catch(() => undefined); await files.cancel({ token: selected.token }); terminal = true; })();
+		try { await cancellation; } finally { cancellation = null; }
 	};
 	if (options.signal?.aborted) { await abort(); options.signal.throwIfAborted(); }
 	const writable = new WritableStream<Uint8Array>({
 		write(chunk) {
-			if (terminal) throw new Error('Motionscaper archive save is closed.');
+			if (terminal || aborting) throw new Error('Motionscaper archive save is closed.');
 			if (!(chunk instanceof Uint8Array)) throw new TypeError('Motionscaper archive output requires byte chunks.');
 			const snapshot = new Uint8Array(chunk);
 			pending = (async () => {
@@ -77,7 +78,7 @@ export async function beginMotionscaperDesktopSave(files: MotionDesktopFiles, op
 	});
 	return Object.freeze({ writable, abort,
 		async commit() {
-			if (!closed || terminal) throw new Error('Motionscaper archive must finish streaming before file commit.');
+			if (!closed || terminal || aborting) throw new Error('Motionscaper archive must finish streaming before file commit.');
 			options.signal?.throwIfAborted();
 			const receipt = await files.commit({ token: selected.token, byteLength: offset });
 			terminal = true; return receipt;
