@@ -5,6 +5,8 @@ import type { MotionColor, MotionColorProperty, MotionPathProperty, MotionProper
 import type { MotionWorkArea } from './motion-composition-work-area.ts';
 import type { MotionFill } from './motion-fill.ts';
 import type { MotionShapeOperator, MotionTextAnimator } from './motion-authoring-operators.ts';
+import type { MotionTrackingResult } from './motion-tracking-contract.ts';
+import type { MotionTrackingApplication } from './motion-tracking-application-contract.ts';
 
 export interface MotionTransform {
 	readonly anchor: MotionVector3Property; readonly position: MotionVector3Property;
@@ -76,4 +78,6 @@ export interface MotionComposition {
 	/** Topmost layer first; the order is authored and must survive normalization. */
 	readonly layers: readonly MotionLayer[];
 	readonly audio: readonly MotionAudioPlacement[];
+	readonly tracking?: readonly MotionTrackingResult[];
+	readonly trackingApplications?: readonly MotionTrackingApplication[];
 }

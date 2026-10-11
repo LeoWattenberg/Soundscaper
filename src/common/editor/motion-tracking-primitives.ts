@@ -57,7 +57,7 @@ export function motionTrackingSimilarityPoint(point: MotionVector2, transform: V
 	const mapped = applySimilarityTransformV1({ x: point[0], y: point[1] }, transform); return [mapped.x, mapped.y];
 }
 export function motionTrackingStabilization(matches: readonly MotionTrackingMatch[], strength: number): VideoSimilarityTransformV1 {
-	return resolveStabilizationTransformV1(motionTrackingSimilarity(matches, 2, 0.001), strength);
+	return resolveStabilizationTransformV1(motionTrackingSimilarity(matches, matches.length, 0.001), strength);
 }
 function inside(point: MotionVector2, polygon: readonly MotionVector2[]): boolean {
 	let sign = 0;

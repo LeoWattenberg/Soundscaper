@@ -2,6 +2,8 @@
 
 import { admitAudioEditorProjectValidationStructure, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS } from './project-validation-budget.ts';
 import { normalizeMotionWorkArea } from './motion-composition-work-area.ts';
+import { MOTION_TRACKING_LIMITS, normalizeMotionTrackingResult } from './motion-tracking-contract.ts';
+import { normalizeMotionTrackingApplication } from './motion-tracking-application-contract.ts';
 import { normalizeMotionAsset } from './motion-asset.ts';
 import type { MotionComposition } from './motion-composition.ts';
 import { normalizeMotionAudioPlacement, normalizeMotionLayer } from './motion-layer-validation.ts';
@@ -28,17 +30,27 @@ export function normalizeMotionscaperProject(value: unknown): MotionscaperProjec
 		primaryCompositionId: motionId(record.primaryCompositionId), compositions, assets,
 	};
 	validateMotionscaperProjectGraph(project);
+	let analyses = 0; let samples = 0;
+	for (const composition of compositions) for (const result of composition.tracking ?? []) {
+		if (result.binding.projectId !== project.id || result.binding.compositionId !== composition.id) throw new Error('Tracking analysis belongs to a different project or composition.');
+		analyses++; samples += result.samples.length;
+	}
+	if (analyses > MOTION_TRACKING_LIMITS.maximumAnalyses || samples > MOTION_TRACKING_LIMITS.maximumProjectSamples) throw new RangeError('Project tracking analysis exceeds its finite result budget; remove unused analyses.');
 	return freezeMotionValue(project);
 }
 
 export function normalizeMotionComposition(value: unknown): MotionComposition {
 	const fields = ['id', 'name', 'width', 'height', 'frameRate', 'durationFrames', 'background', 'color', 'layers', 'audio'];
-	const record = motionRecord(value, [...fields, 'workArea'], 'motion composition', fields);
+	const record = motionRecord(value, [...fields, 'workArea', 'tracking', 'trackingApplications'], 'motion composition', fields);
 	const durationFrames = motionInteger(record.durationFrames, 'composition duration', 1, 100_000_000);
 	const color = motionRecord(record.color, ['workingSpace', 'outputSpace', 'alphaMode'], 'composition color');
 	const layers = motionArray(record.layers, 4096, 'composition layers').map(normalizeMotionLayer);
 	const audio = motionArray(record.audio, 4096, 'composition audio').map(normalizeMotionAudioPlacement);
 	uniqueMotionIds([...layers, ...audio], 'composition layers and audio');
+	const tracking = Object.hasOwn(record, 'tracking') ? motionArray(record.tracking, MOTION_TRACKING_LIMITS.maximumAnalyses, 'composition tracking').map(normalizeMotionTrackingResult) : undefined;
+	if (tracking) uniqueMotionIds(tracking, 'composition tracking analyses');
+	const applications = Object.hasOwn(record, 'trackingApplications') ? motionArray(record.trackingApplications, 256, 'tracking applications').map(normalizeMotionTrackingApplication) : undefined;
+	if (applications && new Set(applications.map(value => `${value.targetLayerId}/${value.kind}/${value.effectId ?? ''}`)).size !== applications.length) throw new Error('Tracking applications target the same property or effect more than once.');
 	return freezeMotionValue({
 		id: motionId(record.id), name: motionString(record.name, 'composition name'), width: motionInteger(record.width, 'composition width', 1, 65536),
 		height: motionInteger(record.height, 'composition height', 1, 65536), frameRate: motionRational(record.frameRate, 'composition frame rate', true),
@@ -47,5 +59,6 @@ export function normalizeMotionComposition(value: unknown): MotionComposition {
 		color: { workingSpace: motionEnum(color.workingSpace, ['linear-rec709-d65'], 'working space'),
 			outputSpace: motionEnum(color.outputSpace, ['srgb', 'rec709'], 'output space'), alphaMode: motionEnum(color.alphaMode, ['premultiplied'], 'working alpha') },
 		layers, audio, ...(Object.hasOwn(record, 'workArea') ? { workArea: normalizeMotionWorkArea(record.workArea, durationFrames) } : {}),
+		...(tracking ? { tracking } : {}), ...(applications ? { trackingApplications: applications } : {}),
 	});
 }
