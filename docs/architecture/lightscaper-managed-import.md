@@ -108,3 +108,18 @@ and request deadlines. They do not establish native browser acquisition timing.
 Worker failure or explicit client termination retires pending requests as a
 failure and does not prove physical file removal. Abrupt process death before
 media publication remains a separate recovery requirement.
+
+## Admitted writer reclamation
+
+Once a writer has opened, its abort owns the actual worker reclamation through
+file removal. Once abort starts, subsequent calls share its promise, including
+after failure. A broker deadline cannot settle that promise while cleanup is still
+pending. If a cancelled close already removed the worker's writer identity, abort
+joins the separate path-removal acknowledgement. Aborting a successfully closed
+writer without an earlier abort remains a no-op and retains the original.
+
+Controlled Node ports exercise the actual client, worker runtime and Session
+lifetime. The checks hold cleanup beyond the broker deadline, retain actual
+removal failures, and prove that Session resource cleanup waits
+for admitted reclamation. They do not establish native browser timing or recover
+files left by abrupt process death.

@@ -198,6 +198,7 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 			if (signal) Reflect.apply(REMOVE_LISTENER, signal, ['abort', cancel]);
 		}
 		let state: 'open' | 'closed' | 'aborted' = 'open';
+		let aborting: Promise<void> | null = null;
 		return Object.freeze({
 			write: async (bytes: Uint8Array, writeSignal?: AbortSignal): Promise<void> => {
 				if (state !== 'open') throw new Error('The OPFS synchronous writer is closed.');
@@ -209,13 +210,13 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 				await this.#request({ type: 'close-writer', writerId }, closeSignal);
 				state = 'closed';
 			},
-			abort: async (): Promise<void> => {
-				if (state !== 'open') return;
+			abort: (): Promise<void> => {
+				if (aborting) return aborting;
+				if (state !== 'open') return Promise.resolve();
 				state = 'aborted';
-				const result = await this.#request<WorkerAbortResult>({ type: 'abort-writer', writerId });
-				// A cancelled close may have completed in the worker after its caller
-				// received AbortError. The writer is gone, but its staged file remains.
-				if (result?.removed === false) await this.remove(path);
+				// Cache before dispatch so reentry joins the same physical cleanup.
+				aborting = Promise.resolve().then(() => this.#reclaimWriter(path, writerId));
+				return aborting;
 			},
 		});
 	}
@@ -336,22 +337,23 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 		for (const id of this.#ownedWriterRequests.keys()) this.#settleWriterRequest(id, { ok: false, error, nativeTerminal: false });
 	}
 
+	async #reclaimWriter(path: string, writerId: string | null): Promise<void> {
+		if (writerId !== null) {
+			const aborted = await this.#ownedWriterRequest({ type: 'abort-writer', writerId }).terminal;
+			if (!aborted.ok) throw aborted.error;
+			const result = aborted.value as WorkerAbortResult | null;
+			if (result?.removed === true) return;
+			// A cancelled close can finish in the worker before caller delivery.
+			if (result?.removed !== false) throw new Error('OPFS worker returned an invalid reclamation result.');
+		}
+		const removed = await this.#ownedWriterRequest({ type: 'remove', path }).terminal;
+		if (!removed.ok) throw removed.error;
+		if ((removed.value as WorkerAbortResult | null)?.removed !== true) throw new Error('OPFS worker did not acknowledge path removal.');
+	}
+
 	async #reclaimCancelledWriter(path: string, writerId: string | null, reason: unknown): Promise<void> {
 		let failure: { readonly error: unknown } | null = null;
-		try {
-			if (writerId !== null) {
-				const aborted = await this.#ownedWriterRequest({ type: 'abort-writer', writerId }).terminal;
-				if (!aborted.ok) throw aborted.error;
-				const result = aborted.value as WorkerAbortResult | null;
-				if (result?.removed === true) return;
-				if (result?.removed !== false) throw new Error('OPFS worker returned an invalid reclamation result.');
-			}
-			const removed = await this.#ownedWriterRequest({ type: 'remove', path }).terminal;
-			if (!removed.ok) throw removed.error;
-			if ((removed.value as WorkerAbortResult | null)?.removed !== true) throw new Error('OPFS worker did not acknowledge path removal.');
-		} catch (error) {
-			failure = { error };
-		}
+		try { await this.#reclaimWriter(path, writerId); } catch (error) { failure = { error }; }
 		// Native cancellation remains primary; cleanup is a distinct retained member.
 		if (failure) throw new AggregateError([reason, failure.error], 'Cancelled OPFS writer reclamation failed.', { cause: reason });
 	}
