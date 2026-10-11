@@ -2,35 +2,46 @@
 
 import { createMotionRenderQueue, normalizeMotionRenderPlan, type MotionRenderSink } from '../common/editor/controller/export/motion-render-pipeline.ts';
 import { createMotionscaperRenderRequest } from './editor-render-task.ts';
+import { motionDocumentFileName } from './editor-document-file-name.ts';
 import { createMotionscaperRevision } from './editor-project-revision.ts';
 import type { MotionscaperProject } from './editor-project-types.ts';
 import { loadMotionscaperAssetBytes, type MotionAssetReader } from './editor-render-resources.ts';
 import { motionCompositionHasAudio } from '../common/editor/motion-composition-audio.ts';
 import { createMotionMediaProvider } from '../common/editor/motion-media-provider.ts';
 import { createMotionAudioMixer } from '../common/editor/motion-audio-mixer.ts';
+import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
+import type { MotionDesktopDeliveryReceipt } from './desktop-delivery-contract.ts';
 import type { MotionVideoBackground } from '../common/editor/motion-video-delivery.ts';
 
 export interface MotionDeliveryOptions {
 	readonly project: MotionscaperProject; readonly store: MotionAssetReader; readonly compositionId: string;
-	readonly firstFrame: number; readonly endFrame: number; readonly format: 'png' | 'mp4' | 'webm';
+	readonly firstFrame: number; readonly endFrame: number; readonly format: 'png' | 'mp4' | 'webm' | 'prores'; readonly excludeAudio?: boolean;
 	readonly background?: MotionVideoBackground; readonly writable?: WritableStream<Uint8Array>; readonly signal: AbortSignal;
 	readonly onProgress: (completed: number, total: number) => void;
 }
 
 /** Pin intent and its retained asset closure before a bounded renderer publishes any complete output. */
-export async function renderMotionscaperDelivery(options: MotionDeliveryOptions): Promise<Blob | null> {
-	const queue = createMotionRenderQueue(); let sink: MotionRenderSink<Blob | null> | null = null;
+export async function renderMotionscaperDelivery(options: MotionDeliveryOptions): Promise<Blob | MotionDesktopDeliveryReceipt | null> {
+	const queue = createMotionRenderQueue(); let sink: MotionRenderSink<Blob | MotionDesktopDeliveryReceipt | null> | null = null;
 	try {
 		const snapshot = createMotionscaperRevision(options.project);
 		const composition = snapshot.project.compositions.find((entry) => entry.id === options.compositionId);
 		if (!composition) throw new Error('The composition to render is unavailable.');
-		const hasAudio = options.format !== 'png' && motionCompositionHasAudio(snapshot.project, composition.id);
+		const hasAudio = (options.format === 'mp4' || options.format === 'webm') && motionCompositionHasAudio(snapshot.project, composition.id);
 		const plan = normalizeMotionRenderPlan({ identity: { projectId: snapshot.projectId, revisionDigest: snapshot.digest, compositionId: composition.id },
 			width: composition.width, height: composition.height, frameRate: composition.frameRate,
 			firstFrame: options.firstFrame, frameCount: options.endFrame - options.firstFrame });
 		const { loadMotionRasterRuntime, createMotionBrowserRasterizer } = await import('../common/editor/controller/composition/motion-raster-runtime.ts');
-		const runtime = await loadMotionRasterRuntime(options.signal);
-		if (options.format === 'png') {
+		if (options.format === 'prores') {
+			if (motionCompositionHasAudio(snapshot.project, composition.id) && !options.excludeAudio) throw new Error('Native ProRes requires an explicit choice to exclude composition audio.');
+			const { motionscaperDesktopDelivery, createMotionscaperDesktopProresSink } = await import('./desktop-delivery-adapter.ts');
+			const delivery = motionscaperDesktopDelivery();
+			if (!delivery || !(await delivery.getProfile())) throw new Error('Native ProRes export is unavailable.');
+			const native = await createMotionscaperDesktopProresSink(delivery, { plan, suggestedName: motionDocumentFileName(snapshot.project.title).replace(/\.mscape$/u, '.mov'), signal: options.signal });
+			if (!native) throw new DOMException('Native export was cancelled.', 'AbortError');
+			sink = { ...native, audioPolicy: 'exclude' };
+		} else if (options.format === 'png') {
+			const runtime = await loadMotionRasterRuntime(options.signal);
 			const { createMotionPngSequenceSink } = await import('../common/editor/controller/export/motion-png-sequence.ts');
 			const { encodeMotionPng } = await import('../common/editor/motion-png.ts');
 			sink = createMotionPngSequenceSink({ plan, writable: options.writable,
@@ -58,8 +69,11 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 		});
 		return (await queue.enqueue(request).completion).output;
 	} catch (error) {
-		if (sink) await sink.abort(error);
-		else if (options.writable && !options.writable.locked) await options.writable.abort(error);
-		throw error;
+		const cleanup: unknown[] = [];
+		try {
+			if (sink) await sink.abort(error);
+			else if (options.writable && !options.writable.locked) await options.writable.abort(error);
+		} catch (failure) { cleanup.push(failure); }
+		throw aggregateScapeErrors(error, cleanup, 'Motion delivery and output cleanup both failed.');
 	} finally { await queue.close(); }
 }
