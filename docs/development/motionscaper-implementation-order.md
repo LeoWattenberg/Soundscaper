@@ -1,8 +1,8 @@
 # Motionscaper implementation order
 
-Status: **Planned**. This document owns the agreed Motionscaper scope,
-implementation order, dependencies, and completion gates. It describes future
-work, not capabilities already shipped. All packages below are required for the
+Status: **In progress** on `feat/motionscaper`. This document owns the agreed
+Motionscaper scope, implementation order, dependencies, and completion gates.
+It describes the release target, not capabilities already shipped. All packages below are required for the
 first public release; internal milestones do not reduce that release scope.
 
 Motionscaper is a new local-first motion-graphics and compositing program for
@@ -70,6 +70,21 @@ controls. Keyboard shortcuts may supplement the menu entry.
 The table is the default execution order. Its prerequisites identify the
 minimum dependency closure; a later package does not make an unfinished earlier
 package complete.
+
+### Implementation status
+
+M01–M04 are **In progress**; M05–M12 remain **Planned**. The isolated browser
+shell builds, and the packaged Linux x64 desktop shell boots under its own
+origin with no native capabilities admitted. Typed project contracts, atomic
+history, deterministic evaluation, streamed `.mscape` archives, and durable
+saved/recovery storage have focused Motionscaper test coverage. Menu workflows,
+successor migration, typography/rasterization, and platform qualification are
+still being completed. These results do not close a package's completion gate.
+
+During implementation, run only Motionscaper-specific tests. Run the complete
+repository and existing-product regression gates at M12. Keep at most ten
+task worktrees active and remove each after its work is integrated and it is
+no longer needed. The integration worktree is `Soundscaper-motionscaper`.
 
 ## M01. Product registration and platform seams
 
