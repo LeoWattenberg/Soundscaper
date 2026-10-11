@@ -13,7 +13,7 @@ import type { MotionPreviewBackend } from '../../src/common/editor/controller/co
 import type { MotionscaperProject } from '../../src/common/editor/motion-project-types.ts';
 
 type Fixture = Readonly<{ createClient(options: MotionPreviewOptions): Promise<MotionPreviewClient>; createSession(options: MotionPreviewSessionOptions): MotionPreviewBackend;
-	project: MotionscaperProject; loadAsset(): Promise<Uint8Array> }>;
+	project: MotionscaperProject; shapeProject: MotionscaperProject; loadAsset(): Promise<Uint8Array> }>;
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const fixtureSource = () => `
@@ -21,7 +21,8 @@ import { createMotionPreviewClient as createClient } from ${JSON.stringify(join(
 import { createMotionPreviewRenderSession as createSession } from ${JSON.stringify(join(repository, 'src/common/editor/controller/composition/motion-preview-render-session.ts'))};
 import { createMotionscaperProject, createMotionLayer } from ${JSON.stringify(join(repository, 'src/motionscaper/editor-project.ts'))};
 import { motionColor, motionScalar, motionVector } from ${JSON.stringify(join(repository, 'src/common/editor/motion-property.ts'))};
-import { createMotionTextAnimator } from ${JSON.stringify(join(repository, 'src/common/editor/motion-authoring-operators.ts'))};
+import { createMotionShapeOperator, createMotionTextAnimator } from ${JSON.stringify(join(repository, 'src/common/editor/motion-authoring-operators.ts'))};
+import { motionRectanglePath } from ${JSON.stringify(join(repository, 'src/common/editor/motion-shape-primitives.ts'))};
 import manifest from ${JSON.stringify(join(repository, 'config/motionscaper-raster-runtime.json'))};
 import fontUrl from ${JSON.stringify(join(repository, 'node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2?url'))};
 const pin = manifest.assets.find(asset => asset.id === 'inter-latin');
@@ -31,7 +32,11 @@ const solid = createMotionLayer({ id: 'solid', name: 'Solid', durationFrames: 30
 const animator = createMotionTextAnimator('shift');
 const text = createMotionLayer({ id: 'text', name: 'Text', durationFrames: 300, content: { kind: 'text', document: { runs: [{ text: 'A Ω', fontAssetId: 'font', fontSize: motionScalar(24), color: motionColor([1, 1, 1, 1]), tracking: motionScalar(0) }], align: 'left', lineHeight: motionScalar(1), boxSize: motionVector([64, 32]), animators: [{ ...animator, selector: { ...animator.selector, unit: 'line' }, position: motionVector([5, 0]) }] } } });
 const project = { ...base, assets: [font], compositions: [{ ...base.compositions[0], layers: [text, solid] }] };
-globalThis.motionFixture = { createClient, createSession, project, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
+const repeater = createMotionShapeOperator({ id: 'copies', kind: 'repeater' });
+const trim = createMotionShapeOperator({ id: 'trim', kind: 'trim-paths' });
+const shapes = createMotionLayer({ id: 'shape', name: 'Operators', durationFrames: 300, content: { kind: 'shapes', shapes: [{ id: 'rect', path: motionRectanglePath({ x: 4, y: 4, width: 8, height: 8 }), fill: null, stroke: { width: motionScalar(2), color: motionColor([0, 0, 1, 1]), lineCap: 'butt', lineJoin: 'miter' } }], operators: [{ ...repeater, copies: motionScalar(2), transform: { ...repeater.transform, position: motionVector([16, 0]) } }, { ...trim, mode: 'simultaneous', end: motionScalar(0.5) }, createMotionShapeOperator({ id: 'merge', kind: 'boolean' })] } });
+const shapeProject = { ...base, compositions: [{ ...base.compositions[0], layers: [shapes] }] };
+globalThis.motionFixture = { createClient, createSession, project, shapeProject, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
 `;
 
 test.beforeAll(async () => {
@@ -53,6 +58,24 @@ test.beforeAll(async () => {
 	const bound = server.address(); if (!bound || typeof bound === 'string') throw new Error('Motion browser fixture did not bind.'); address = `http://127.0.0.1:${bound.port}`;
 });
 test.afterAll(async () => { if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); if (directory) await rm(directory, { recursive: true, force: true }); });
+
+test('M06 ordered repeat, simultaneous trim and boolean geometry match worker and CPU preview pixels', async ({ page }) => {
+	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
+	const rendered = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionFixture: Fixture }).motionFixture;
+		const pixels: number[][] = []; const backends: string[] = [];
+		for (const forceHost of [false, true]) {
+			let frame: MotionPreviewFrame | undefined;
+			const client = await fixture.createClient({ ...(forceHost ? { backendFactory: () => Promise.resolve(fixture.createSession({ backend: 'host-cpu', maximumAssetBytes: 64 * 1024 * 1024, maximumWorkingBytes: 64 * 1024 * 1024 })) } : {}), onFrame(value) { frame = value; }, onState() {} });
+			await client.setProject(fixture.shapeProject, fixture.loadAsset); await client.seek({ compositionId: 'main', time: 0 });
+			pixels.push([...frame!.rgba]); backends.push(frame!.backend); client.dispose();
+		}
+		return { pixels, backends };
+	});
+	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	expect(rendered.pixels[0]!.slice((4 * 64 + 8) * 4, (4 * 64 + 8) * 4 + 4)).toEqual([0, 0, 255, 255]);
+	expect(rendered.pixels[0]!.slice((4 * 64 + 24) * 4, (4 * 64 + 24) * 4 + 4)).toEqual([0, 0, 0, 0]);
+});
 
 test('M05 bundled preview loads fonts and WASM lazily, animates shaped fallback glyphs and renders offline in a persistent worker', async ({ page, context }) => {
 	const requests: string[] = []; page.on('request', (request) => requests.push(request.url()));

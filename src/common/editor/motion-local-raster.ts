@@ -6,6 +6,7 @@ import type { MotionSurface } from './motion-surface.ts';
 import { motionSurfaceLength } from './motion-surface.ts';
 import { multiplyMotionMatrices, type MotionMatrix4 } from './motion-transform.ts';
 import { motionTextAnimationBounds } from './motion-text-animation.ts';
+import { planMotionShapeOperators } from './motion-shape-operator-plan.ts';
 
 export type MotionSourceOrigin = readonly [number, number];
 export interface MotionLocalRaster { readonly surface: MotionSurface; readonly origin: MotionSourceOrigin }
@@ -29,6 +30,7 @@ export function motionLocalSourceBounds(state: EvaluatedMotionState<MotionLayer>
 	if (state.kind === 'solid') return dimensions(state.size);
 	if (state.kind === 'text') return state.document.animators?.some((item) => item.enabled) ? motionTextAnimationBounds(state.document) : dimensions(state.document.boxSize);
 	if (state.kind !== 'shapes') throw new Error(`Motion ${state.kind} has no local raster source.`);
+	if (state.operators?.some((item) => item.enabled)) return planMotionShapeOperators(state).bounds;
 	let left = Infinity; let top = Infinity; let right = -Infinity; let bottom = -Infinity;
 	for (const shape of state.shapes) {
 		if (shape.stroke && (!Number.isFinite(shape.stroke.width) || shape.stroke.width < 0 || shape.stroke.width > 32768)) throw new RangeError('Motion stroke width is outside the rendering range.');

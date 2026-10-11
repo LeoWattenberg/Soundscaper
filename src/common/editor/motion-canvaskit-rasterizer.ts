@@ -19,6 +19,8 @@ import { createMotionParagraph, type MotionFontBytes, type MotionShapedText } fr
 import { withMotionCanvasKitPaint as paint } from './motion-canvaskit-paint.ts';
 import { motionTextAnimationBounds } from './motion-text-animation.ts';
 import { drawMotionAnimatedParagraph } from './motion-canvaskit-text-animation.ts';
+import { drawMotionCanvasKitShapes } from './motion-canvaskit-shape-operators.ts';
+import { planMotionShapeOperators } from './motion-shape-operator-plan.ts';
 import { assertMotion2DMatrix, createMotionSurface, motionSurfaceFromRgba8, motionSurfaceLength, transformMotionSurface, validateMotionSurface, type MotionSurface } from './motion-surface.ts';
 
 export interface MotionRasterResources {
@@ -55,7 +57,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 		return bytes;
 	}
 	const rasterizer: CanvasKitMotionRasterizer = {
-		supportedSourceOperations: ['text-animator'],
+		supportedSourceOperations: ['text-animator', 'shape-operator'],
 		estimateEffectWorkingBytes: estimateMotionEffectWorkingBytes,
 		async rasterizeEffect(effect, source, signal) { return rasterMotionCanvasKitEffect(kit, effect, source, signal); },
 		estimateMaskWorkingBytes: estimateMotionMaskWorkingBytes,
@@ -87,7 +89,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 			const fontBytes = state.kind === 'text' ? [...new Set(state.document.runs.map((run) => run.fontAssetId))].reduce((sum, id) => sum + (assets.get(id)?.byteLength ?? 0), 0)
 				+ resources.fallbackFonts.reduce((sum, font) => sum + font.bytes.length, 0) : 0;
 			const textWorking = state.kind === 'text' ? state.document.runs.reduce((sum, run) => sum + run.text.length, 0) * (1 + (state.document.animators?.filter((item) => item.enabled).length ?? 0)) * 256 : 0;
-			return output * (state.kind === 'text' ? 4 : 2) + fontBytes * 4 + textWorking;
+			return output * (state.kind === 'text' ? 4 : 2) + fontBytes * 4 + textWorking + (state.kind === 'shapes' ? planMotionShapeOperators(state).workingBytes : 0);
 		},
 		async shapeText(document, signal) {
 			const paragraph = createMotionParagraph(kit, document, await fontsFor(document, signal), resources.fallbackFonts);
@@ -121,6 +123,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 						if (state.size.some((value) => !Number.isFinite(value) || value < 0 || value > 32768)) throw new RangeError('Motion solid dimensions are outside the rendering range.');
 						paint(kit, state.color, (brush) => canvas.drawRect(kit.XYWHRect(0, 0, ...state.size), brush));
 					} else if (state.kind === 'shapes') {
+						if (state.operators?.some((operator) => operator.enabled)) { drawMotionCanvasKitShapes(kit, canvas, state, signal); return; }
 						for (const shape of state.shapes) {
 							const path = motionCanvasKitPath(kit, shape.path);
 							try {
@@ -146,7 +149,7 @@ export function createCanvasKitMotionRasterizer(kit: CanvasKit, resources: Motio
 }
 
 function assertSourceAuthoringReady(state: MotionEvaluatedLayer['state']): void {
-	if (state.kind === 'shapes' && state.operators?.some((operator) => operator.enabled)) throw new Error('Motion shape-operator rasterization is unavailable.');
+	if (state.kind === 'shapes') planMotionShapeOperators(state);
 	if (state.kind === 'text' && state.document.animators?.some((animator) => animator.enabled)) motionTextAnimationBounds(state.document);
 }
 

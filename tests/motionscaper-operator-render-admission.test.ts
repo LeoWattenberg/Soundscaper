@@ -14,15 +14,16 @@ const kit = await CanvasKitInit();
 const project = createMotionscaperProject({ id: 'operator-admission', compositionId: 'main', title: 'Admission', width: 32, height: 32 });
 const raster = createCanvasKitMotionRasterizer(kit, { assets: [], fallbackFonts: [], async loadAsset() { throw new Error('Must not load.'); } });
 
-test('unimplemented shape operators refuse before allocation through renderer and direct local-raster entries', async () => {
+test('backends without shape operators refuse before allocation and invalid parameters fail through direct local-raster entries', async () => {
 	const layer = createMotionLayer({ id: 'shape', name: 'Shape', durationFrames: 300, content: { kind: 'shapes', shapes: [{ id: 'rect',
 		path: motionRectanglePath({ x: 0, y: 0, width: 16, height: 16 }), fill: motionColor([1, 0, 0, 1]), stroke: null }],
 		operators: [createMotionShapeOperator({ id: 'trim', kind: 'trim-paths' })] } });
 	const evaluate = (enabled: boolean) => compileMotionscaperProject({ ...project, compositions: [{ ...project.compositions[0], layers: [{ ...layer,
 		operators: layer.kind === 'shapes' ? layer.operators!.map((operator) => ({ ...operator, enabled })) : [] }] }] }).evaluate({ compositionId: 'main', time: 0 });
 	const frame = evaluate(true); let allocations = 0;
-	await assert.rejects(renderMotionCompositionFrame(frame, { rasterizer: raster, compositor: { begin() { allocations++; throw new Error('Must not allocate.'); } } }), /shape-operator/u);
-	await assert.rejects(raster.rasterizeSource(frame.layers[0]!, frame), /shape-operator/u);
+	await assert.rejects(renderMotionCompositionFrame(frame, { rasterizer: { ...raster, supportedSourceOperations: [] }, compositor: { begin() { allocations++; throw new Error('Must not allocate.'); } } }), /shape-operator/u);
+	const own = frame.layers[0]!; if (own.state.kind !== 'shapes') throw new Error('Unexpected fixture.');
+	await assert.rejects(raster.rasterizeSource({ ...own, state: { ...own.state, operators: [{ id: 'trim', enabled: true, kind: 'trim-paths', start: 0, end: 2, offset: 0, mode: 'individual' }] } }, frame), /unit range/u);
 	assert.equal(allocations, 0);
 	const result = await renderMotionCompositionFrame(evaluate(false), { rasterizer: raster }); assert.equal(result.pixels[(8 * 32 + 8) * 4 + 3], 1);
 });
