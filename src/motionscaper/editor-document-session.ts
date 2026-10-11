@@ -125,6 +125,15 @@ export class MotionscaperDocumentSession {
 			await this.#edit(commands, assets);
 		});
 	}
+	importMedia(file: Blob, name: string): Promise<void> {
+		return this.#run(async () => {
+			const { prepareMotionMedia } = await import('../common/editor/motion-media-import.ts');
+			const { createMotionscaperMediaCommands } = await import('./editor-media-authoring.ts');
+			const imported = await prepareMotionMedia(file, { id: this.#randomId(), name });
+			const commands = createMotionscaperMediaCommands(this.#requireProject(), imported.asset, this.#randomId());
+			await this.#edit(commands, [imported]);
+		});
+	}
 	save(writeSnapshot?: (project: MotionscaperProject) => Promise<boolean>): Promise<void> {
 		return this.#run(async () => {
 			const project = this.#requireProject();

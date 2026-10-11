@@ -25,7 +25,7 @@ export interface MotionscaperShellMenuOptions {
 	readonly canUndo?: boolean; readonly canRedo?: boolean;
 }
 
-export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render';
+export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'import';
 export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand }
 
 /** The shell admits only actions its product runtime has actually supplied. */
@@ -46,6 +46,7 @@ export function createMotionscaperShellMenus(
 				disabled: onNewComposition === undefined || Boolean(options.busy),
 				...(onNewComposition ? { onClick: onNewComposition } : { disabledReason: copy.motionscaperUnavailable }),
 			}), item('motion-open', copy.motionscaperOpen, 'open'),
+			item('motion-import', copy.motionscaperImportMedia, 'import', options.hasProject),
 			item('motion-save', copy.motionscaperSave, 'save', options.hasProject),
 			item('motion-copy', copy.motionscaperSaveCopy, 'copy', options.hasProject),
 			item('motion-library', copy.motionscaperLibrary, 'library'),

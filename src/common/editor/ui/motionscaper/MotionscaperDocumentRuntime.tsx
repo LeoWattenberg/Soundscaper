@@ -26,7 +26,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [store] = useState(() => createMotionscaperProjectStore());
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | MotionAuthoredLayerKind | null>(null);
+	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | MotionAuthoredLayerKind | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
@@ -34,12 +34,12 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const busy = pending || snapshot.busy;
 	useEffect(() => { onChange({ ...snapshot, busy }); }, [snapshot, busy, onChange]);
 	useEffect(() => () => { void store.close().catch(() => undefined); }, [store]);
-	const run = useCallback(async (operation: () => Promise<void>) => {
+	const run = useCallback(async (operation: () => Promise<void>, failureCopy?: string) => {
 		setError(null); setPending(true);
 		try { await operation(); }
 		catch (failure) {
 			setError(failure instanceof MotionProjectConflictError ? copy.motionscaperConflict
-				: failure instanceof UnsupportedMotionArchiveError ? copy.motionscaperUnsupported : copy.motionscaperFailed);
+				: failure instanceof UnsupportedMotionArchiveError ? copy.motionscaperUnsupported : failureCopy ?? copy.motionscaperFailed);
 		} finally { setPending(false); }
 	}, [copy]);
 	useEffect(() => {
@@ -49,7 +49,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		const command = request.command;
 		const kind = layerKinds.find((entry) => entry === command);
 		if (kind) { setDialog(kind); return; }
-		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render') { setDialog(command); return; }
+		if (command === 'new' || command === 'settings' || command === 'preview' || command === 'render' || command === 'import') { setDialog(command); return; }
 		if (command === 'open') {
 			void run(async () => {
 				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
@@ -112,6 +112,16 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	}
 	if (dialog === 'library') return <MotionProjectLibraryDialog copy={copy} projects={projects} busy={busy} error={error}
 		onClose={close} onOpen={(id, recover) => { void run(async () => { await session.open(id, recover); opened(); }); }} />;
+	if (dialog === 'import') return <AudioEditorDialogShell title={copy.motionscaperImportMedia} onClose={busy ? undefined : close} width={460}
+		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={busy} onClick={close}>{copy.motionscaperCancel}</Button>} />}>
+		<p>{copy.motionscaperMediaAdmission}</p>
+		<label>{copy.motionscaperMediaFile}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/*,audio/*" disabled={busy} onChange={(event) => {
+			const file = event.currentTarget.files?.[0];
+			if (file) void run(async () => { await session.importMedia(file, file.name); opened(); }, copy.motionscaperMediaFailed);
+		}} /></label>
+		{busy && <p role="status">{copy.motionscaperWorking}</p>}
+		{error && <p role="alert">{error}</p>}
+	</AudioEditorDialogShell>;
 	if (dialog === 'open') return <AudioEditorDialogShell title={copy.motionscaperOpen} onClose={busy ? undefined : close} width={460}
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="secondary" disabled={busy} onClick={close}>{copy.motionscaperCancel}</Button>} />}>
 		<label>{copy.motionscaperOpenFile}<input type="file" accept=".mscape" disabled={busy} onChange={(event) => {
