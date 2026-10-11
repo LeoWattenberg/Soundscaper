@@ -49,3 +49,23 @@ test('successor session receives one saved update, atomically undoes its revisio
 		assert.equal(controller.project?.schemaVersion, 2);
 	} finally { await controller.dispose(); await env.close(); }
 });
+
+test('receiver updates serialize with explicit Resume and recover after failed owner publication', async () => {
+	const factory = createInstrumentedIndexedDB(); const env = await createFramescaperSuccessorEnvironment({ line: 'successor', storeOptions: { indexedDB: factory as unknown as IDBFactory, preferOpfs: false } });
+	const controller = createFramescaperSuccessorController(env, { locale: 'en', copy: COPY });
+	try {
+		await controller.ready; const service = framescaperSuccessorControllerContext(controller).links;
+		const project = createMotionscaperProject({ id: 'sender', title: 'Sender', compositionId: 'main', width: 2, height: 2, durationFrames: 2 });
+		const offer = (revision: number) => createMotionCompositionOffer('main', createMotionscaperRevision({ ...project, revision, title: `Saved ${revision}` }));
+		await service.receive(offer(0), { readAsset: async () => null }); const updated = await service.receive(offer(1), { readAsset: async () => null });
+		await controller.actions.edit.undo(); const sourceId = updated.project.compositionLinks[0]!.sourceId;
+		const [resumed, received] = await Promise.all([service.transition(sourceId, 'resume'), service.receive(offer(2), { readAsset: async () => null })]);
+		assert.equal(resumed.project.compositionLinks[0]!.acceptedDigest, offer(1).revision.digest);
+		assert.equal(received.project.compositionLinks[0]!.acceptedDigest, offer(2).revision.digest); assert.equal(service.busy, false);
+		factory.failNextPutForStore('owners', new Error('queued owner failure'));
+		const failed = service.receive(offer(3), { readAsset: async () => null }); const recovered = service.receive(offer(4), { readAsset: async () => null });
+		const results = await Promise.allSettled([failed, recovered]);
+		assert.equal(results[0]!.status, 'rejected'); assert.equal(results[1]!.status, 'fulfilled');
+		if (results[1]!.status === 'fulfilled') assert.equal(results[1]!.value.project.compositionLinks[0]!.acceptedDigest, offer(4).revision.digest);
+	} finally { await controller.dispose(); await env.close(); }
+});

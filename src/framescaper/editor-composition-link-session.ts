@@ -18,9 +18,18 @@ interface ReceiveOptions { readonly readAsset: (asset: MotionAsset, signal?: Abo
 export function createFramescaperCompositionLinkSession(options: Readonly<{
 	controller: ReturnType<typeof createAudioEditorController>; environment: FramescaperSuccessorEnvironment; session: FramescaperSuccessorSession;
 }>) {
-	const { controller, environment: env, session } = options; let busy = false;
-	async function publish(build: (history: FramescaperSuccessorHistory) => Promise<{ history: FramescaperSuccessorHistory; prepared?: PreparedPublication }>) {
-		if (busy) throw new Error('Wait for the current composition publication.'); busy = true;
+	const { controller, environment: env, session } = options; let pending = 0; let tail = Promise.resolve();
+	type Build = (history: FramescaperSuccessorHistory) => Promise<{ history: FramescaperSuccessorHistory; prepared?: PreparedPublication }>;
+	function publish(build: Build): Promise<FramescaperCompositionLinkOwnerReceipt> {
+		if (pending >= 16) return Promise.reject(new Error('Wait for the queued composition changes before adding another.'));
+		const ownerId = controller.project?.id; pending++;
+		const result = tail.then(() => {
+			if (controller.project?.id !== ownerId) throw new Error('The receiving project changed before publication. Try the action in the current project.');
+			return publishNow(build);
+		}).finally(() => { pending--; });
+		tail = result.then(() => undefined, () => undefined); return result;
+	}
+	async function publishNow(build: Build) {
 		let prepared: PreparedPublication | undefined;
 		let fence: ReturnType<typeof env.runtime.beginPublication> | null = null;
 		try {
@@ -38,10 +47,10 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 		} catch (error) {
 			if (prepared) { try { await prepared.rollback(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition publication and cleanup failed.', { cause: cleanup }); } }
 			throw error;
-		} finally { fence?.release(); busy = false; }
+		} finally { fence?.release(); }
 	}
 	return Object.freeze({
-		get busy() { return busy; },
+		get busy() { return pending > 0; },
 		async receive(value: unknown, receive: ReceiveOptions): Promise<FramescaperCompositionLinkOwnerReceipt> {
 			const offer = normalizeMotionCompositionOffer(value);
 			return publish(async history => {
