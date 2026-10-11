@@ -163,6 +163,10 @@ const DEFAULT_DEPENDENCIES: VideoKeyframeOfflineVideoExportDependencies = Object
 	encodeVideo: encodeVideoKeyframeVideo,
 	encodeVideoToSink: encodeVideoKeyframeVideoToSink,
 });
+const EMPTY_ENCODED_RESOLVER: VideoKeyframeOfflineHtmlVideoSourceResolver = Object.freeze({
+	resolveSource() { throw new ReferenceError('Generated-only export has no admitted encoded media source.'); },
+	dispose() {},
+});
 
 /** Authenticate and encode one dormant exact browser RGBA export, publishing only after cleanup. */
 export async function encodeVideoKeyframeOfflineVideo(
@@ -249,7 +253,7 @@ async function executeOfflineVideo<Output>(
 	);
 	assertReady(request);
 	const result = await runVideoKeyframeOfflineVideoResources(
-		() => dependencies.createResolver(Object.freeze({
+		() => assets.length === 0 ? EMPTY_ENCODED_RESOLVER : dependencies.createResolver(Object.freeze({
 			sources: assets,
 			...(request.sourceTimeoutMs === undefined ? {} : { timeoutMs: request.sourceTimeoutMs }),
 		})),

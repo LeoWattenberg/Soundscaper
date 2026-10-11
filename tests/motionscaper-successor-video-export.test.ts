@@ -38,7 +38,7 @@ test('successor browser delivery renders saved Motion frames through the real ke
 	let drawablesClosed = 0, rasterReleases = 0;
 	const offline: VideoKeyframeOfflineVideoExportDependencies = {
 		createCanvas: () => ({ width: 4, height: 2, getContext() { throw new Error('Exact CPU finishing needs no GL context'); } }) as unknown as HTMLCanvasElement,
-		createResolver(options) { assert.deepEqual(options.sources, []); return { resolveSource() { throw new Error('Virtual pictures must not enter the encoded resolver'); }, dispose() {} }; },
+		createResolver() { throw new Error('Generated-only export must not create an encoded-media resolver'); },
 		createRenderer: createVideoKeyframeOfflineRgbaRenderer,
 		async encodeVideo(_engine, request) {
 			for (const index of [2, 0, 1]) { const rgba = new Uint8Array(request.producer.byteLength); await request.producer.produce(request.frameSource.frame(index), rgba, { signal: request.signal! }); pictures[index] = rgba; }
