@@ -36,6 +36,29 @@ test('the nightly runtime carries the browser-native container fixture dependenc
 	assert.equal(staged.has('mediabunny'), true);
 });
 
+test('the nightly generated-thumbnail fixture carries its real React design-system closure', async () => {
+	const result = await build({
+		entryPoints: ['src/common/editor/ui/workspace/ProjectBinCard.jsx', 'src/common/editor/ui/workspace/SourceMonitorPanel.jsx', 'src/common/editor/ui/timeline/VideoFilmstrip.jsx'].map(path => join(REPOSITORY_ROOT, path)),
+		bundle: true, write: false, metafile: true, format: 'esm', splitting: true,
+		outdir: join(REPOSITORY_ROOT, '.nightly-generated-thumbnail-imports'),
+		alias: { '@soundscaper/design-system': join(REPOSITORY_ROOT, 'vendor/audacity-design-system/components/src') },
+		external: ['react', 'react-dom', '*?worker&url', '*?url'],
+		loader: { '.woff2': 'file', '.woff': 'file', '.ttf': 'file' },
+	});
+	const reached = Object.keys(result.metafile.inputs).map(path => relative(REPOSITORY_ROOT, resolve(path)));
+	const packages = new Set((await resolveNightlyTestRuntimePackages(REPOSITORY_ROOT)).map(({ name }) => name));
+	const filter = await readPackagedPayloadFilter();
+	for (const input of reached) {
+		if (input.startsWith(`node_modules${sep}`)) {
+			assert.ok(packages.has(packageNameOf(input.slice('node_modules/'.length).replaceAll(sep, '/'))), input);
+			continue;
+		}
+		assert.ok(isStagedInput(input), `NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`);
+		const packaged = packagedPathOf(input);
+		assert.ok(packaged !== null && filter.some(pattern => matchesGlob(packaged, pattern)), `the nightly filter drops ${input}`);
+	}
+});
+
 test('the nightly payload carries the data file its release-line reader opens at runtime', async () => {
 	const input = 'config/product-release-lines.json';
 	assert.ok(isStagedInput(input), `NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`);

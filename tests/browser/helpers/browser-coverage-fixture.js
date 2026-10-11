@@ -7,7 +7,7 @@ import {
 	createBrowserCoverageCollector,
 } from '../../../scripts/lib/browser-coverage-profile.mjs';
 import { ordinaryBrowserProductSitePlan } from '../../../scripts/lib/browser-product-site-plan.mjs';
-import { resolveBrowserProductBaseURL } from './browser-product-base-url.ts';
+import { resolveBrowserProductBaseURL, scopedBrowserCoverageEnvironment } from './browser-product-base-url.ts';
 import { withTrackedBrowserContext } from './tracked-browser-context.ts';
 
 // Every spec imports its `test` from `audio-editor-test-fixtures.js`, which
@@ -51,7 +51,7 @@ export function withBrowserCoverageContext({ browser, launchOptions, options, br
 		},
 		createCollector() {
 			if (!measured) return null;
-			const collector = createBrowserCoverageCollector({ browserName, scripts, sites: browserCoverageSites ?? browserProductSites() });
+			const collector = createBrowserCoverageCollector({ browserName, scripts, environment: scopedBrowserCoverageEnvironment(browserCoverageSites), sites: browserCoverageSites ?? browserProductSites() });
 			return { attach: collector.attach, settle: collector.settle, collect: () => collector.collect(title, writtenSourceMaps) };
 		},
 		async release() { await ownedBrowser?.close(); },
@@ -80,6 +80,7 @@ export const test = base.extend({
 		}
 		const collector = createBrowserCoverageCollector({
 			browserName,
+			environment: scopedBrowserCoverageEnvironment(browserCoverageSites),
 			scripts,
 			sites: browserCoverageSites ?? browserProductSites(),
 		});

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
-import { resolveBrowserProductBaseURL } from './browser/helpers/browser-product-base-url.ts';
+import { resolveBrowserProductBaseURL, scopedBrowserCoverageEnvironment } from './browser/helpers/browser-product-base-url.ts';
 
 test('ordinary Motion UI files navigate their own product without changing other specs', () => {
 	for (const file of ['motionscaper-shell.spec.js', 'motionscaper-opaque-archive.spec.ts', 'motionscaper-documents.spec.js']) {
@@ -55,4 +55,28 @@ test('dedicated successor suites stay out of ordinary selection and retain authe
 	]);
 	assert.deepEqual(links.use.browserCoverageSites.map((site: { productId: string; origin: string }) => site.productId), ['framescaper', 'motionscaper']);
 	assert.equal(links.use.baseURL, links.use.browserCoverageSites[0].origin);
+});
+
+test('portable nightly Motion navigation uses only its launcher-declared site and preserves custom successor routes', () => {
+	const environment = {
+		SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: '/payload', SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL: 'http://127.0.0.1:4500',
+		SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: JSON.stringify({ soundscaper: 'http://127.0.0.1:4500', motionscaper: 'http://127.0.0.1:4502' }),
+		SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify([{ productId: 'motionscaper', origin: 'http://127.0.0.1:4502' }]),
+	};
+	const options = { file: 'motionscaper-documents.spec.js', baseURL: environment.SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL, environment };
+	assert.equal(resolveBrowserProductBaseURL(options), 'http://127.0.0.1:4502');
+	assert.equal(resolveBrowserProductBaseURL({ ...options, customSites: true }), options.baseURL);
+	assert.equal(resolveBrowserProductBaseURL({ ...options, file: 'audio-editor.spec.js' }), options.baseURL);
+	assert.equal(resolveBrowserProductBaseURL({ ...options, baseURL: 'http://127.0.0.1:4345' }), 'http://127.0.0.1:4345');
+	assert.throws(() => resolveBrowserProductBaseURL({ ...options, environment: { ...environment, SCAPE_BROWSER_COVERAGE_SITES: '[]' } }), /declared product/u);
+	assert.throws(() => resolveBrowserProductBaseURL({ ...options, environment: { ...environment, SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: '{"motionscaper":"http://127.0.0.1:4503"}' } }), /declared product/u);
+});
+
+test('portable scoped coverage retains the fixture origin without mutating the ordinary launcher environment', () => {
+	const environment = { SCAPE_BROWSER_COVERAGE_SITES: '[{"origin":"http://127.0.0.1:4500"}]', SCAPE_BROWSER_COVERAGE: '1' };
+	const sites = [{ productId: 'motionscaper', origin: 'http://127.0.0.1:4987', outputDirectory: '/run/retained/motionscaper' }];
+	assert.equal(scopedBrowserCoverageEnvironment(null, environment), environment);
+	assert.equal(scopedBrowserCoverageEnvironment(sites, {}).SCAPE_BROWSER_COVERAGE_SITES, undefined, 'ordinary collection remains in source-map mode');
+	assert.deepEqual(scopedBrowserCoverageEnvironment(sites, environment), { ...environment, SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify(sites) });
+	assert.equal(environment.SCAPE_BROWSER_COVERAGE_SITES, '[{"origin":"http://127.0.0.1:4500"}]');
 });
