@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawn } from 'node:child_process';
+import { pbkdf2 } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,7 +11,7 @@ import { motionSustainedCommand } from '../scripts/performance/motionscaper-sust
 interface Identity { pid: number; startTicks: string }
 interface Receipt {
 	code: number | null; signal: string | null; failure: string | null; closureObserved: boolean;
-	ownedProcesses: Identity[]; survivingProcesses: Identity[];
+	owner: Identity | null; ownedProcesses: Identity[]; survivingProcesses: Identity[];
 	signals: { identity: Identity; signal: string }[]; stdout: string; stderr: string;
 }
 async function live(identity: Identity): Promise<boolean> {
@@ -93,4 +94,21 @@ test('Motionscaper sustained command retains output admission failure while clea
 		assert.equal(receipt.closureObserved, true); assert.ok(Buffer.byteLength(receipt.stdout) <= 65536);
 		assert.deepEqual(receipt.survivingProcesses, []);
 	} finally { await removeSyntheticChild(childPath); await rm(directory, { recursive: true, force: true }); }
+});
+
+
+test('Motionscaper sustained command admits a fast real identity despite asynchronous file-I/O contention', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'motion-command-fast-'));
+	// Queue fixed work on the file-I/O pool; the command itself remains an unchanged fast Node executable.
+	const occupied = Array.from({ length: 4 }, () => new Promise<void>((resolve, reject) => {
+		pbkdf2('fixed synthetic input', 'fixed synthetic salt', 500000, 32, 'sha256', error => error ? reject(error) : resolve());
+	}));
+	try {
+		const result = await motionSustainedCommand({ command: process.execPath, args: ['--version'], cwd: directory, directory, id: 'fast', timeoutMs: 5000 });
+		const receipt = JSON.parse(await readFile(result.receipt.path, 'utf8')) as Receipt;
+		assert.equal(result.stdout, `${process.version}\n`); assert.equal(receipt.code, 0); assert.equal(receipt.signal, null);
+		assert.equal(receipt.closureObserved, true); assert.equal(receipt.failure, null); assert.ok(receipt.owner);
+		assert.ok(receipt.ownedProcesses.some(value => value.pid === receipt.owner!.pid && value.startTicks === receipt.owner!.startTicks));
+		assert.deepEqual(receipt.signals, []); assert.deepEqual(receipt.survivingProcesses, []);
+	} finally { await Promise.all(occupied); await rm(directory, { recursive: true, force: true }); }
 });

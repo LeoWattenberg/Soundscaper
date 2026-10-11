@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -10,13 +11,15 @@ interface ProcessState extends MotionProcessIdentity { readonly group: number; r
 const missing = (error: unknown) => !!error && typeof error === 'object' && Reflect.get(error, 'code') === 'ENOENT';
 const key = (value: MotionProcessIdentity) => `${value.pid}:${value.startTicks}`;
 const running = (value: ProcessState) => value.state !== 'Z' && value.state !== 'X';
+function parseState(text: string): ProcessState {
+	const fields = text.slice(text.lastIndexOf(')') + 2).trim().split(/\s+/u);
+	const identity = parseMotionProcessStat(text), group = Number(fields[2]), session = Number(fields[3]);
+	if (!Number.isSafeInteger(group) || !Number.isSafeInteger(session) || group < 0 || session < 0) throw new Error('Invalid command process group/session.');
+	return { ...identity, group, session, state: fields[0]! };
+}
 async function readState(pid: number): Promise<ProcessState | null> {
-	try {
-		const text = await readFile(`/proc/${pid}/stat`, 'utf8'), fields = text.slice(text.lastIndexOf(')') + 2).trim().split(/\s+/u);
-		const identity = parseMotionProcessStat(text), group = Number(fields[2]), session = Number(fields[3]);
-		if (!Number.isSafeInteger(group) || !Number.isSafeInteger(session) || group < 0 || session < 0) throw new Error('Invalid command process group/session.');
-		return { ...identity, group, session, state: fields[0]! };
-	} catch (error) { if (missing(error)) return null; throw error; }
+	try { return parseState(await readFile(`/proc/${pid}/stat`, 'utf8')); }
+	catch (error) { if (missing(error)) return null; throw error; }
 }
 
 /** Linux commands get their own session. Only authenticated PID/start identities are signalled;
@@ -79,7 +82,9 @@ export async function motionSustainedCommand(options: Readonly<{
 	};
 	try {
 		if (child.pid) {
-			owner = await readState(child.pid);
+			// Do not yield before admission: a fast child can become a real zombie, then be reaped by the next event-loop turn.
+			try { owner = parseState(readFileSync(`/proc/${child.pid}/stat`, 'utf8')); }
+			catch (error) { if (!missing(error)) throw error; }
 			if (owner && (owner.group !== child.pid || owner.session !== child.pid)) throw new Error('Owned command did not establish its isolated session.');
 			if (owner) known.set(key(owner), owner);
 			else fail('Owned command exited before process identity admission.');
