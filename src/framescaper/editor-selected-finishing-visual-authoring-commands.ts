@@ -24,7 +24,7 @@ import {
 } from '../common/editor/video-visual-presentation-v27.ts';
 import {
 	assertFramescaperSelectedVisualAuthoringFenceFinishing,
-	createFramescaperLinearGradientMaskNodeFinishing,
+	createFramescaperMaskNodeFinishing,
 	createFramescaperSelectedVisualAuthoringModelFinishing,
 	type FramescaperSelectedVisualAuthoringFenceFinishing,
 	type FramescaperSelectedVisualAuthoringSurfaceFinishing,
@@ -68,6 +68,7 @@ export interface FramescaperSelectedVisualAuthoringRequestFinishing {
 	readonly width?: number;
 	readonly height?: number;
 	readonly startX?: number; readonly startY?: number; readonly endX?: number; readonly endY?: number;
+	readonly centerX?: number; readonly centerY?: number; readonly radiusX?: number; readonly radiusY?: number; readonly innerFraction?: number;
 	readonly presetId?: string | null;
 	readonly name?: string;
 	readonly playheadSample?: number;
@@ -168,13 +169,9 @@ function maskCommand(project: Data, request: Data): unknown {
 	}
 	const maskId = requestedMaskId ?? createStableId('mask-matte');
 	const currentMask = requestedMaskId === null ? null : requireById(records(project.videoMaskMattes, 'video masks'), maskId, 'selected mask');
-	const shape = oneOf(request.shape, ['rectangle', 'ellipse', 'line', 'linear-gradient'] as const, 'mask shape');
 	const nodeId = currentMask && Array.isArray(currentMask.nodes) ? stableId(record(currentMask.nodes[0], 'mask node').id, 'mask node ID')
 		: createStableId('mask-node');
-	const node = shape === 'linear-gradient' ? createFramescaperLinearGradientMaskNodeFinishing(request, nodeId) : (() => {
-		const width = bounded(request.width, 0.01, 1, 'mask width'), height = bounded(request.height, 0.01, 1, 'mask height');
-		return { id: nodeId, kind: 'vector-shape', shape, x: (1 - width) / 2, y: (1 - height) / 2, width, height };
-	})();
+	const node = createFramescaperMaskNodeFinishing(request, nodeId);
 	const mask = normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: maskId, kind: 'mask', inputs: [], nodes: [node], outputNodeId: nodeId });
 	const presentation = currentPresentation
 		? normalizeVideoVisualPresentationV1({ ...currentPresentation, maskMatteIds: [...new Set([...currentPresentation.maskMatteIds, maskId])] })

@@ -6,7 +6,7 @@ import { paintPixelFrameCanvasV1, clearPixelFrameCanvasV1 } from '../../imaging/
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1, type PhotoDevelopResolutionV1 } from '../../photo-library-develop-full-resolution-port-v1.ts';
 import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
-import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopLinearGradientDialogV1.tsx';
+import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
 
 export interface PhotoDevelopMaskOverlayPropsV1 {

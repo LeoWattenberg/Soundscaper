@@ -430,11 +430,11 @@ on the shared mask graph.
   with a visualize-spots view.
 - **Shared — Optional:** red-eye correction.
 
-Menu-authored linear gradients bind existing adjustments through the shared
-renderer, with a temporary overlay projected through later geometry. Saved
-recipes retain their masks through editable handoff. Radial and range masks,
-brush resources, full mask management, composition authoring, and healing remain
-open; this first local-adjustment slice does not close L6.
+Menu-authored linear and radial gradients bind existing adjustments through the
+shared renderer, with a temporary overlay projected through later geometry. Saved
+recipes retain their masks through editable handoff. Range masks, brush resources,
+full mask management, composition authoring, and healing remain open; gradient
+authoring does not close L6.
 
 ### Exit gate
 

@@ -11,6 +11,7 @@ export const SELECTED_VISUAL_AUTHORING_COPY = Object.freeze({
 	selectedAttachment: 'Selected presentation attachment', attachedMask: 'Attached mask', newMask: 'New mask',
 	shape: 'Shape', rectangle: 'Rectangle', ellipse: 'Ellipse', line: 'Line', width: 'Width', height: 'Height',
 	linearGradient: 'Linear gradient', startX: 'Start X', startY: 'Start Y', endX: 'End X', endY: 'End Y',
+	radialGradient: 'Radial gradient', centerX: 'Center X', centerY: 'Center Y', radiusX: 'Radius X', radiusY: 'Radius Y', innerFraction: 'Inner full-coverage fraction',
 	updateMask: 'Update attached mask', createMask: 'Create and attach mask', removeAttachment: 'Remove attachment',
 	visualPreset: 'Visual preset', presetName: 'Preset name', saveGenerator: 'Save selected generator preset',
 	savedVisualPreset: 'Saved visual preset', none: 'None', applyGenerator: 'Apply to selected generator',

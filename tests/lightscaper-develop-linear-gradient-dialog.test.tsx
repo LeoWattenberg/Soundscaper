@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
-import PhotoDevelopLinearGradientDialogV1, { type PhotoDevelopLinearGradientDialogPropsV1 } from '../src/common/editor/ui/lightscaper/PhotoDevelopLinearGradientDialogV1.tsx';
+import PhotoDevelopGradientDialogV1, { type PhotoDevelopGradientDialogPropsV1 } from '../src/common/editor/ui/lightscaper/PhotoDevelopGradientDialogV1.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../src/common/i18n/lightscaper-develop-local-adjustments-copy.ts';
 import { normalizeImageDevelopStateV1OrV2, defaultImageDevelopStateV2 } from '../src/common/editor/imaging/image-develop-state-v2.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
@@ -21,13 +21,13 @@ function recipe() {
 }
 async function fixture(locale = 'en', initial = recipe()) {
 	let develop = initial, current = true, disabled = false, closed = 0;
-	const applied: Readonly<{ value: PhotoDevelopLinearGradientDialogPropsV1['develop']; overlay: Parameters<PhotoDevelopLinearGradientDialogPropsV1['onApply']>[1] }>[] = [];
-	let renderedProps: PhotoDevelopLinearGradientDialogPropsV1;
-	const onApply: PhotoDevelopLinearGradientDialogPropsV1['onApply'] = function (this: unknown, value, overlay) {
+	const applied: Readonly<{ value: PhotoDevelopGradientDialogPropsV1['develop']; overlay: Parameters<PhotoDevelopGradientDialogPropsV1['onApply']>[1] }>[] = [];
+	let renderedProps: PhotoDevelopGradientDialogPropsV1;
+	const onApply: PhotoDevelopGradientDialogPropsV1['onApply'] = function (this: unknown, value, overlay) {
 		assert.equal(this, renderedProps); applied.push({ value, overlay });
 	};
 	const mounted = await mountPhotoImportUi(() => {
-		const element = <PhotoDevelopLinearGradientDialogV1 develop={develop} locale={locale} disabled={disabled}
+		const element = <PhotoDevelopGradientDialogV1 develop={develop} locale={locale} disabled={disabled}
 			isCurrent={() => current} onApply={onApply} onClose={() => { closed++; }} />;
 		renderedProps = element.props; return element;
 	});

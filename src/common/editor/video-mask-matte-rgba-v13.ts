@@ -79,6 +79,7 @@ function* evaluateNode(node: VideoMaskMatteNodeV1, graph: VideoMaskMatteGraphV1,
 		for (let index = start; index < end; index++) {
 			const x = index % width, y = Math.floor(index / width), px = (x + 0.5) / width, py = (y + 0.5) / height;
 			if (node.kind === 'linear-gradient') output[index] = gradient(node, px, py);
+			else if (node.kind === 'radial-gradient') output[index] = radialGradient(node, px, py);
 			else if (node.kind === 'vector-shape') {
 				const inside = node.shape === 'rectangle' ? px >= node.x && px < node.x + node.width && py >= node.y && py < node.y + node.height
 					: ellipseContains(px, py, node.x, node.y, node.width, node.height); output[index] = inside ? 255 : 0;
@@ -113,6 +114,11 @@ function gradient(node: Extract<VideoMaskMatteNodeV1, { kind: 'linear-gradient' 
 	const nx = dx / scale, ny = dy / scale;
 	const projection = ((x - node.start.x) * nx + (y - node.start.y) * ny) / (scale * (nx * nx + ny * ny));
 	return Math.round(Math.max(0, Math.min(1, projection)) * 255);
+}
+
+function radialGradient(node: Extract<VideoMaskMatteNodeV1, { kind: 'radial-gradient' }>, x: number, y: number): number {
+	const rho = Math.hypot((x - node.center.x) / node.radius.x, (y - node.center.y) / node.radius.y);
+	return Math.round(255 * Math.max(0, Math.min(1, (1 - rho) / (1 - node.innerFraction))));
 }
 
 function* feather(source: Plane, width: number, height: number, radiusValue: number, allocate: (length: number) => Plane): Work {

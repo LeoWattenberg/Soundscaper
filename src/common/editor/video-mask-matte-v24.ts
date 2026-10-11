@@ -60,6 +60,14 @@ export interface VideoLinearGradientMaskNodeV1 {
 	readonly end: VideoMaskCoordinateV1;
 }
 
+export interface VideoRadialGradientMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'radial-gradient';
+	readonly center: VideoMaskCoordinateV1;
+	readonly radius: VideoMaskCoordinateV1;
+	readonly innerFraction: number;
+}
+
 export interface VideoRasterMaskNodeV1 {
 	readonly id: string;
 	readonly kind: 'raster';
@@ -97,6 +105,7 @@ export type VideoMaskMatteNodeV1 =
 	| VideoVectorShapeMaskNodeV1
 	| VideoVectorPathMaskNodeV1
 	| VideoLinearGradientMaskNodeV1
+	| VideoRadialGradientMaskNodeV1
 	| VideoRasterMaskNodeV1
 	| VideoAlphaMaskNodeV1
 	| VideoFeatherMaskNodeV1
@@ -117,6 +126,7 @@ const INPUT_FIELDS = Object.freeze(['name', 'sourceRef', 'kind']);
 const SHAPE_FIELDS = Object.freeze(['id', 'kind', 'shape', 'x', 'y', 'width', 'height']);
 const PATH_NODE_FIELDS = Object.freeze(['id', 'kind', 'fillRule', 'paths']);
 const GRADIENT_FIELDS = Object.freeze(['id', 'kind', 'start', 'end']);
+const RADIAL_FIELDS = Object.freeze(['id', 'kind', 'center', 'radius', 'innerFraction']);
 const PATH_FIELDS = Object.freeze(['id', 'closed', 'points']);
 const POINT_FIELDS = Object.freeze(['position', 'inHandle', 'outHandle']);
 const COORDINATE_FIELDS = Object.freeze(['x', 'y']);
@@ -127,7 +137,7 @@ const INVERT_FIELDS = Object.freeze(['id', 'kind', 'inputNodeId']);
 const BOOLEAN_FIELDS = Object.freeze(['id', 'kind', 'operation', 'inputNodeIds']);
 const ALL_NODE_FIELDS = Object.freeze([...new Set([
 	...SHAPE_FIELDS, ...PATH_NODE_FIELDS, ...RASTER_FIELDS, ...ALPHA_FIELDS,
-	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS,
+	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS, ...RADIAL_FIELDS,
 ])]);
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const INPUT_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
@@ -196,6 +206,7 @@ function normalizeNodes(value: unknown): readonly VideoMaskMatteNodeV1[] {
 		const kind = field(record, 'kind', name);
 		if (kind === 'vector-shape') return vectorShape(candidate, name, id);
 		if (kind === 'linear-gradient') return linearGradient(candidate, name, id);
+		if (kind === 'radial-gradient') return radialGradient(candidate, name, id);
 		if (kind === 'vector-path') {
 			const result = vectorPath(candidate, name, id, pathIds);
 			pointCount += result.pointCount;
@@ -281,6 +292,17 @@ function linearGradient(value: unknown, name: string, id: string): VideoLinearGr
 	const end = normalizeCoordinate(field(record, 'end', name), `${name}.end`);
 	if (start.x === end.x && start.y === end.y) throw new RangeError('Linear gradient endpoints must be distinct.');
 	return Object.freeze({ id, kind: 'linear-gradient', start, end });
+}
+
+function radialGradient(value: unknown, name: string, id: string): VideoRadialGradientMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, RADIAL_FIELDS);
+	const center = normalizeCoordinate(field(record, 'center', name), `${name}.center`);
+	const radiusValue = readClosedDomainRecord(field(record, 'radius', name), `${name}.radius`, COORDINATE_FIELDS);
+	const radius = Object.freeze({ x: positiveCoordinate(field(radiusValue, 'x', name), `${name}.radius.x`),
+		y: positiveCoordinate(field(radiusValue, 'y', name), `${name}.radius.y`) });
+	const innerFraction = boundedFinite(field(record, 'innerFraction', name), 0, 1, `${name}.innerFraction`);
+	if (innerFraction === 1) throw new RangeError('Radial gradient innerFraction must be below one.');
+	return Object.freeze({ id, kind: 'radial-gradient', center, radius, innerFraction });
 }
 
 export const VIDEO_MASK_MATTE_WORKING_LIMIT_V1 = 64 * 1024 * 1024;

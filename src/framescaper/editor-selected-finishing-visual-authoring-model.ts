@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
-import { normalizeVideoMaskMatteGraphV1, type VideoLinearGradientMaskNodeV1 } from '../common/editor/video-mask-matte-v24.ts';
+import { normalizeVideoMaskMatteGraphV1, type VideoLinearGradientMaskNodeV1, type VideoMaskMatteNodeV1 } from '../common/editor/video-mask-matte-v24.ts';
 import { readClosedDomainField } from '../common/editor/closed-domain-value.ts';
 import {
 	normalizeVideoFinishingPresetV1,
@@ -20,7 +20,8 @@ export const createFramescaperSelectedVisualAuthoringModel =
 type Data = Readonly<Record<string, unknown>>;
 
 export type FramescaperSelectedMaskDraftFinishing = Readonly<{ id: string; shape: 'rectangle' | 'ellipse'; width: number; height: number }>
-	| Readonly<{ id: string; shape: 'linear-gradient'; startX: number; startY: number; endX: number; endY: number }>;
+	| Readonly<{ id: string; shape: 'linear-gradient'; startX: number; startY: number; endX: number; endY: number }>
+	| Readonly<{ id: string; shape: 'radial-gradient'; centerX: number; centerY: number; radiusX: number; radiusY: number; innerFraction: number }>;
 
 /** Only new gradient endpoint fields use closed own-data admission; legacy
  * selected shape authoring keeps its existing request semantics. */
@@ -31,6 +32,29 @@ export function createFramescaperLinearGradientMaskNodeFinishing(request: Data, 
 	const node = graph.nodes[0]!;
 	if (node.kind !== 'linear-gradient') throw new Error('Gradient authoring produced a different node.');
 	return node;
+}
+
+/** The command delegates shape construction here without widening legacy
+ * request admission. Gradient scalar fields alone require inert own data. */
+export function createFramescaperMaskNodeFinishing(request: Data, nodeId: string): Readonly<VideoMaskMatteNodeV1> {
+	const shape = request.shape;
+	if (shape === 'linear-gradient') return createFramescaperLinearGradientMaskNodeFinishing(request, nodeId);
+	let node: unknown;
+	if (shape === 'radial-gradient') {
+		const field = (key: string) => readClosedDomainField(request, key, 'radial-gradient authoring');
+		node = { id: nodeId, kind: 'radial-gradient', center: { x: field('centerX'), y: field('centerY') },
+			radius: { x: field('radiusX'), y: field('radiusY') }, innerFraction: field('innerFraction') };
+	} else {
+		if (shape !== 'rectangle' && shape !== 'ellipse' && shape !== 'line') throw new RangeError('mask shape is unsupported.');
+		const width = maskSize(request.width, 'mask width'), height = maskSize(request.height, 'mask height');
+		node = { id: nodeId, kind: 'vector-shape', shape, x: (1 - width) / 2, y: (1 - height) / 2, width, height };
+	}
+	return normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: nodeId, kind: 'mask', inputs: [], nodes: [node], outputNodeId: nodeId }).nodes[0]!;
+}
+
+function maskSize(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.01 || value > 1) throw new RangeError(`${name} is outside its finite bound.`);
+	return value;
 }
 
 export const FRAMESCAPER_SELECTED_FINISHING_DIALOG_AUTHORING_SURFACES = Object.freeze([
@@ -134,6 +158,8 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 				const node = mask.nodes.find(({ id }) => id === mask.outputNodeId);
 				if (node?.kind === 'linear-gradient') return [Object.freeze({ id: mask.id, shape: 'linear-gradient',
 					startX: node.start.x, startY: node.start.y, endX: node.end.x, endY: node.end.y })];
+				if (node?.kind === 'radial-gradient') return [Object.freeze({ id: mask.id, shape: 'radial-gradient', centerX: node.center.x,
+					centerY: node.center.y, radiusX: node.radius.x, radiusY: node.radius.y, innerFraction: node.innerFraction })];
 				return node?.kind === 'vector-shape' ? [Object.freeze({ id: mask.id,
 					shape: node.shape, width: node.width, height: node.height })] : [];
 			})),

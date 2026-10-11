@@ -11,7 +11,7 @@ import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-
 import type { PixelFrameHistogramV1 } from '../../imaging/pixel-frame-histogram-v1.ts';
 import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.ts';
 import PhotoDevelopMaskOverlayV1 from './PhotoDevelopMaskOverlayV1.tsx';
-import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopLinearGradientDialogV1.tsx';
+import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 
 export interface PhotoDevelopPreviewPropsV2 {
 	readonly photoId: string;
