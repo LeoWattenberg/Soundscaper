@@ -5,6 +5,7 @@ import { bindFramescaperSuccessorCompositionPreview } from './editor-composition
 import { createVideoRetimeProgramOrdinalBridge } from '../common/editor/video-retime-program-ordinal-bridge.ts';
 import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from './editor-capture-runtime.ts';
 import { assertFramescaperSuccessorEnvironment, type FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
+import { framescaperSuccessorPlaybackCanonicalProject } from './editor-project-successor-playback.ts';
 import { resolveFramescaperCompositionSource } from './editor-composition-link-source.ts';
 import { createFramescaperSequenceActionsSequence } from './editor-project-sequence-sequence-actions.ts';
 import { createFramescaperMulticameraActionsSequence } from './editor-project-sequence-multicam-actions.ts';
@@ -28,7 +29,7 @@ export function createFramescaperSuccessorController(value: unknown, presentatio
 		productSequenceActions: { ...createFramescaperSequenceActionsSequence(execute), ...createFramescaperMulticameraActionsSequence(execute),
 			retimeSet: retime.set, retimeReset: retime.reset, retimeConstant: retime.constant, retimeReverse: retime.reverse, retimeFreeze: retime.freeze, retimeRamp: retime.ramp },
 		resolveProductVideoSource: async request => {
-			request.assertCurrent(); const resolved = resolveFramescaperCompositionSource(request.project, request.source); request.signal?.throwIfAborted(); request.assertCurrent();
+			request.assertCurrent(); const resolved = resolveFramescaperCompositionSource(framescaperSuccessorPlaybackCanonicalProject(request.project) ?? request.project, request.source); request.signal?.throwIfAborted(); request.assertCurrent();
 			return resolved ? { mediaKind: 'composition', timingIndex: resolved.timing.index } : null;
 		},
 		locale: presentation.locale, copy: presentation.copy, fileService: presentation.fileService,
