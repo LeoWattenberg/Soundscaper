@@ -5,7 +5,10 @@ import { createMotionLayer, createMotionscaperProject } from '../src/motionscape
 import { createMotionscaperHistory } from '../src/motionscaper/editor-project-commands.ts';
 import { copyMotionscaperLayers, pasteMotionscaperLayers } from '../src/motionscaper/editor-layer-clipboard.ts';
 import { compileMotionscaperProject } from '../src/motionscaper/editor-project-evaluation.ts';
-import { motionVector } from '../src/common/editor/motion-property.ts';
+import { motionScalar, motionVector } from '../src/common/editor/motion-property.ts';
+import { createMotionTrackingSettings, createMotionTrackingResult } from '../src/common/editor/motion-tracking-contract.ts';
+import { createMotionTrackingBinding } from '../src/common/editor/motion-tracking-authority.ts';
+import { trackingProject } from './helpers/motionscaper-tracking-fixture.ts';
 const r = (num: number, den = 1) => ({ num, den });
 const layer = (id: string) => createMotionLayer({ id, name: id, durationFrames: 300, content: { kind: 'null' } });
 const source = createMotionscaperProject({ id: 'source', title: 'Source', compositionId: 'main' });
@@ -64,4 +67,38 @@ test('M06 clipboard paste rejects malformed payloads, excess closure and identit
 	assert.throws(() => paste({ ...clipboard, filePath: '/private/source' }), /unknown|unsupported|field/iu);
 	assert.throws(() => paste({ ...clipboard, project: { ...clipboard.project, assets: [asset] } }), /closure/iu);
 	assert.throws(() => paste(clipboard, 'one'), /duplicate|identity/iu); assert.deepEqual(h.snapshot(), before);
+});
+
+const sound = { id: 'sound', name: 'Sound', kind: 'audio' as const, sha256: 'c'.repeat(64), byteLength: 4, storageKey: `motion-sha256:${'c'.repeat(64)}`, mimeType: 'audio/wav', sampleRate: 48000, channels: 1, duration: r(10) };
+const audioExpression = { source: 'audioAmplitude("sound", time) + ("sound" == "sound" ? 0 : 1)', enabled: false, references: [] };
+test('M08 clipboard retains expression-only audio assets and remaps only intrinsic asset literals in layers and nested audio', () => {
+	const animated = { ...layer('animated'), transform: { ...layer('animated').transform, opacity: { ...motionScalar(1), expression: audioExpression } } };
+	const nested = { ...source.compositions[0]!, id: 'nested', layers: [animated], audio: [{ id: 'placement', assetId: sound.id, startFrame: r(0), inFrame: r(0), outFrame: r(300), sourceStart: r(0), timeScale: r(1), enabled: true, gain: { ...motionScalar(1), expression: audioExpression } }] };
+	const precomp = createMotionLayer({ id: 'precomp', name: 'Precomp', durationFrames: 300, content: { kind: 'precomp', compositionId: 'nested' } });
+	const project = { ...source, assets: [sound], compositions: [{ ...source.compositions[0]!, layers: [animated, precomp] }, nested] };
+	const clipboard = copyMotionscaperLayers({ project, compositionId: 'main', layerIds: ['animated', 'precomp'] });
+	assert.deepEqual(clipboard.project.assets, [sound]);
+	assert.deepEqual(copyMotionscaperLayers({ project, compositionId: 'main', layerIds: ['animated'] }).project.assets, [sound]);
+	const destination = createMotionscaperProject({ id: 'destination', title: 'Destination', compositionId: 'dest' });
+	const plan = pasteMotionscaperLayers({ project: destination, compositionId: 'dest', clipboard, index: 0, createId });
+	assert.equal(plan.requiredAssets[0]!.sha256, sound.sha256);
+	const pasted = createMotionscaperHistory(destination).commit(plan.commands);
+	const expected = 'audioAmplitude("pasted-asset-sound", time) + ("sound" == "sound" ? 0 : 1)';
+	assert.equal(pasted.compositions[0]!.layers[0]!.transform.opacity.expression!.source, expected);
+	assert.equal(pasted.compositions[1]!.layers[0]!.transform.opacity.expression!.source, expected);
+	assert.equal(pasted.compositions[1]!.audio[0]!.gain.expression!.source, expected);
+});
+test('M08 clipboard refuses unresolved audio source dependencies while malformed non-audio source remains editable', () => {
+	const fixture = (text: string, assets = [sound]) => ({ ...source, assets, compositions: [{ ...source.compositions[0]!, layers: [{ ...layer('one'), transform: { ...layer('one').transform, opacity: { ...motionScalar(1), expression: { ...audioExpression, source: text } } } }] }] });
+	const copy = (project: unknown) => copyMotionscaperLayers({ project, compositionId: 'main', layerIds: ['one'] });
+	assert.throws(() => copy(fixture('audioAmplitude("sound") +')), /expression|audio|syntax/iu);
+	assert.throws(() => copy(fixture('audioAmplitude("sound")', [])), /asset|missing/iu);
+	assert.equal(copy(fixture('value +', [])).project.compositions[0]!.layers[0]!.transform.opacity.expression!.source, 'value +');
+});
+test('M07 clipboard refuses tracking custody across composition or project identity changes', () => {
+	const project = trackingProject(); const settings = createMotionTrackingSettings({ mode: 'point', firstFrame: 0, frameCount: 1, points: [[20, 20]] });
+	const result = createMotionTrackingResult({ id: 'track', binding: createMotionTrackingBinding(project, 'comp', 'source', settings), settings, samples: [{ frame: 0, status: 'tracked', points: [[20, 20]], confidence: 1, error: 0 }] });
+	const tracked = { ...project, compositions: [{ ...project.compositions[0]!, tracking: [result] }] };
+	assert.throws(() => copyMotionscaperLayers({ project: tracked, compositionId: 'comp', layerIds: ['source'] }), /tracking.*clipboard|clipboard.*tracking/iu);
+	assert.throws(() => pasteMotionscaperLayers({ project: source, compositionId: 'main', clipboard: { schemaVersion: 1, project: tracked }, index: 0, createId }), /tracking.*clipboard|clipboard.*tracking/iu);
 });

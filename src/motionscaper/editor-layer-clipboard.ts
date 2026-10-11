@@ -2,7 +2,9 @@
 
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionComposition, MotionLayer } from '../common/editor/motion-composition.ts';
-import { motionLayerDependencyIds, remapMotionLayerLinks } from '../common/editor/motion-layer-links.ts';
+import { motionLayerDependencyIds, remapMotionLayerLinks, replaceMotionLayerProperty } from '../common/editor/motion-layer-links.ts';
+import { motionExpressionAssetIds, remapMotionExpressionAssets } from '../common/editor/motion-expression-assets.ts';
+import { motionLayerProperties } from '../common/editor/motion-project-graph.ts';
 import { retimeMotionLayer } from '../common/editor/motion-layer-retiming.ts';
 import { normalizeMotionLayer } from '../common/editor/motion-layer-validation.ts';
 import { compareRationals, divideRationals, multiplyRationals, subtractRationals, type Rational } from '../common/editor/timeline-time.ts';
@@ -64,7 +66,7 @@ export function pasteMotionscaperLayers(options: Readonly<{
 	for (const layer of source.layers) layerIds.set(layer.id, allocate('layer', layer.id, layerNames));
 	for (const composition of clipboard.project.compositions) if (composition.id !== source.id) commands.push({ type: 'composition/add', composition: {
 		...composition, id: compositions.get(composition.id)!, layers: composition.layers.map((layer) => remapMedia(layer, assets, compositions)),
-		audio: composition.audio.map((placement) => ({ ...placement, assetId: assets.get(placement.assetId)! })),
+		audio: composition.audio.map((placement) => ({ ...placement, assetId: assets.get(placement.assetId)!, gain: { ...placement.gain, expression: remapMotionExpressionAssets(placement.gain.expression, assets) } })),
 	} });
 	const ratio = divideRationals(destination.frameRate, source.frameRate);
 	const origin = source.layers.reduce((at, layer) => compareRationals(layer.inFrame, at) < 0 ? layer.inFrame : at, source.layers[0]!.inFrame);
@@ -90,12 +92,16 @@ function closeProject(project: MotionscaperProject, root: MotionComposition): Mo
 	const compositions = [root]; const seen = new Set([root.id]); const assets = new Set<string>();
 	for (let index = 0; index < compositions.length; index += 1) {
 		const composition = compositions[index]!;
+		if (composition.tracking?.length || composition.trackingApplications?.length) throw new RangeError('Tracking composition clipboard transfer requires explicit analysis rebinding; copy is unavailable.');
 		for (const layer of composition.layers) {
 			for (const id of layerAssets(layer)) assets.add(id);
+			for (const { property } of motionLayerProperties(layer)) for (const id of motionExpressionAssetIds(property.expression)) assets.add(id);
 			if (layer.kind === 'precomp' && !seen.has(layer.compositionId)) { seen.add(layer.compositionId); compositions.push(available.get(layer.compositionId)!); }
 		}
-		for (const audio of composition.audio) assets.add(audio.assetId);
+		for (const audio of composition.audio) { assets.add(audio.assetId); for (const id of motionExpressionAssetIds(audio.gain.expression)) assets.add(id); }
 	}
+	const availableAssets = new Set(project.assets.map(({ id }) => id));
+	for (const id of assets) if (!availableAssets.has(id)) throw new ReferenceError(`Clipboard dependency asset ${id} is missing.`);
 	return normalizeMotionscaperProject({ ...project, primaryCompositionId: root.id, compositions, assets: project.assets.filter(({ id }) => assets.has(id)) });
 }
 function readClipboard(value: unknown): MotionscaperLayerClipboard {
@@ -107,7 +113,12 @@ function readClipboard(value: unknown): MotionscaperLayerClipboard {
 	if (closure.compositions.length !== project.compositions.length || closure.assets.length !== project.assets.length) throw new RangeError('Motion layer clipboard contains data outside its required closure.');
 	return { schemaVersion: 1, project: closure };
 }
-function remapMedia(layer: MotionLayer, assets: ReadonlyMap<string, string>, compositions: ReadonlyMap<string, string>): MotionLayer {
+function remapMedia(original: MotionLayer, assets: ReadonlyMap<string, string>, compositions: ReadonlyMap<string, string>): MotionLayer {
+	let layer = original;
+	for (const { path, property } of motionLayerProperties(original)) {
+		const expression = remapMotionExpressionAssets(property.expression, assets);
+		if (expression !== property.expression) layer = replaceMotionLayerProperty(layer, path, { ...property, expression });
+	}
 	if (layer.kind === 'image' || layer.kind === 'footage') return { ...layer, assetId: assets.get(layer.assetId)! };
 	if (layer.kind === 'text') return { ...layer, document: { ...layer.document, runs: layer.document.runs.map((run) => ({ ...run, fontAssetId: assets.get(run.fontAssetId)! })) } };
 	if (layer.kind === 'precomp') return { ...layer, compositionId: compositions.get(layer.compositionId)! };
