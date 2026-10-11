@@ -7,7 +7,7 @@ export interface MotionDesktopFiles {
 	read(request: { readonly token: string; readonly offset: number; readonly length: number }): Promise<Uint8Array>;
 	release(request: { readonly token: string }): Promise<void>;
 	bindOpened(request: { readonly token: string; readonly projectId: string }): Promise<void>;
-	beginSave(request: { readonly projectId: string; readonly suggestedName: string; readonly saveAs: boolean }): Promise<{ readonly token: string } | null>;
+	beginSave(request: { readonly projectId: string; readonly suggestedName: string; readonly saveAs: boolean; readonly saveCopy?: boolean }): Promise<{ readonly token: string } | null>;
 	write(request: { readonly token: string; readonly offset: number; readonly bytes: Uint8Array }): Promise<void>;
 	commit(request: { readonly token: string; readonly byteLength: number }): Promise<MotionSaveFileReceipt>;
 	cancel(request: { readonly token: string }): Promise<void>;

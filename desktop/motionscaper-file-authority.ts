@@ -8,7 +8,7 @@ import { MOTIONSCAPER_FILE_CHUNK_BYTES, type MotionDesktopFiles } from '../src/m
 interface Fingerprint { readonly dev: number; readonly ino: number; readonly size: number; readonly mtimeMs: number; readonly ctimeMs: number }
 interface Binding { readonly path: string; readonly fingerprint: Fingerprint | null }
 interface ReadCapability extends Binding { readonly file: FileHandle; readonly fingerprint: Fingerprint; busy: boolean }
-interface WriteCapability extends Binding { readonly projectId: string; readonly temporary: string; readonly file: FileHandle; readonly digest: Hash; bytes: number; busy: boolean; failed: boolean; closed: boolean }
+interface WriteCapability extends Binding { readonly projectId: string; readonly saveCopy: boolean; readonly temporary: string; readonly file: FileHandle; readonly digest: Hash; bytes: number; busy: boolean; failed: boolean; closed: boolean }
 export interface MotionFileDialogs {
 	chooseOpen(): Promise<string | null>;
 	chooseSave(options: { readonly suggestedName: string; readonly defaultPath?: string }): Promise<string | null>;
@@ -64,10 +64,11 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 			assertFingerprint(value.fingerprint, await requireFile(value.path));
 			bindings.set(projectId, { path: value.path, fingerprint: value.fingerprint });
 		},
-		async beginSave({ projectId, suggestedName, saveAs }) {
+		async beginSave({ projectId, suggestedName, saveAs, saveCopy = false }) {
 			active(); identity(projectId);
-			if (!bindings.has(projectId) && bindings.size >= 256) throw new RangeError('Too many Motionscaper file bindings.');
+			if (!saveCopy && !bindings.has(projectId) && bindings.size >= 256) throw new RangeError('Too many Motionscaper file bindings.');
 			if (typeof saveAs !== 'boolean' || typeof suggestedName !== 'string' || suggestedName.length > 512) throw new TypeError('Motionscaper Save requires a bounded name and saveAs boolean.');
+			if (typeof saveCopy !== 'boolean' || saveCopy && !saveAs) throw new TypeError('Motionscaper Save Copy requires saveAs and a boolean saveCopy flag.');
 			if (saving.has(projectId) || saving.size >= 4) throw new Error('A Motionscaper save is already active.');
 			saving.add(projectId);
 			try {
@@ -75,16 +76,18 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 				let path: string; let fingerprint: Fingerprint | null;
 				if (!saveAs && bound) { path = bound.path; fingerprint = await optionalFile(path); assertFingerprint(bound.fingerprint, fingerprint); }
 				else {
-					const chosen = await dialogs.chooseSave({ suggestedName: safeName(suggestedName), ...(bound ? { defaultPath: bound.path } : {}) });
+					const chosen = await dialogs.chooseSave({ suggestedName: safeName(suggestedName), ...(bound && !saveCopy ? { defaultPath: bound.path } : {}) });
 					if (chosen === null) { saving.delete(projectId); return null; }
 					if (!isAbsolute(chosen) || extname(chosen).toLowerCase() !== '.mscape') throw new TypeError('Choose a Motionscaper .mscape destination.');
 					path = chosen; fingerprint = await optionalFile(path);
 				}
+				if (saveCopy && bound && (path === bound.path || fingerprint && bound.fingerprint
+					&& fingerprint.dev === bound.fingerprint.dev && fingerprint.ino === bound.fingerprint.ino)) throw new Error('Save Copy requires an independent destination.');
 				active();
 				const temporary = join(dirname(path), `.${basename(path)}.motionscaper-${randomUUID()}.tmp`);
 				const file = await open(temporary, 'wx', 0o600);
 				if (disposed) { await file.close(); await rm(temporary, { force: true }); active(); }
-				const token = randomUUID(); writers.set(token, { path, fingerprint, projectId, temporary, file, digest: createHash('sha256'), bytes: 0, busy: false, failed: false, closed: false });
+				const token = randomUUID(); writers.set(token, { path, fingerprint, projectId, saveCopy, temporary, file, digest: createHash('sha256'), bytes: 0, busy: false, failed: false, closed: false });
 				return { token };
 			} catch (error) { saving.delete(projectId); throw error; }
 		},
@@ -116,7 +119,7 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 				await rename(value.temporary, value.path);
 				await syncDirectory(dirname(value.path));
 				const fingerprint = await requireFile(value.path);
-				bindings.set(value.projectId, { path: value.path, fingerprint });
+				if (!value.saveCopy) bindings.set(value.projectId, { path: value.path, fingerprint });
 				writers.delete(token); saving.delete(value.projectId);
 				return { name: basename(value.path), byteLength, sha256: value.digest.digest('hex') };
 			} catch (error) { value.failed = true; throw error; }

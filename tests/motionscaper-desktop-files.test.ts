@@ -52,6 +52,27 @@ test('cancelled or conflicting saves preserve the destination and refuse invalid
 	} finally { await files.dispose(); await rm(root, { recursive: true, force: true }); }
 });
 
+test('native Save Copy commits an independent file while normal Save retains its original binding', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'motionscaper-file-copy-'));
+	const original = join(root, 'original.mscape'); const copy = join(root, 'copy.mscape');
+	await writeFile(original, 'original'); let destination = original;
+	const files = createMotionscaperFileAuthority({ chooseOpen: async () => original, chooseSave: async () => destination });
+	try {
+		const selected = await files.selectOpen(); assert.ok(selected);
+		await files.bindOpened({ token: selected.token, projectId: 'p' }); await files.release({ token: selected.token });
+		await assert.rejects(files.beginSave({ projectId: 'p', suggestedName: 'Copy', saveAs: false, saveCopy: true }), /saveAs/iu);
+		await assert.rejects(files.beginSave({ projectId: 'p', suggestedName: 'Copy', saveAs: true, saveCopy: true }), /independent/iu);
+		destination = copy;
+		const pending = await files.beginSave({ projectId: 'p', suggestedName: 'Copy', saveAs: true, saveCopy: true }); assert.ok(pending);
+		await files.write({ token: pending.token, offset: 0, bytes: new TextEncoder().encode('copy') });
+		await files.commit({ token: pending.token, byteLength: 4 });
+		const save = await files.beginSave({ projectId: 'p', suggestedName: 'Current', saveAs: false }); assert.ok(save);
+		await files.write({ token: save.token, offset: 0, bytes: new TextEncoder().encode('saved') });
+		await files.commit({ token: save.token, byteLength: 5 });
+		assert.equal(await readFile(original, 'utf8'), 'saved'); assert.equal(await readFile(copy, 'utf8'), 'copy');
+	} finally { await files.dispose(); await rm(root, { recursive: true, force: true }); }
+});
+
 test('desktop archive adapter splits bounded chunks and exposes commit only after a complete stream', async () => {
 	const { beginMotionscaperDesktopSave, selectMotionscaperDesktopArchive } = await import('../src/motionscaper/desktop-file-adapter.ts');
 	const root = await mkdtemp(join(tmpdir(), 'motionscaper-file-adapter-'));

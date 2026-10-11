@@ -42,10 +42,11 @@ export async function selectMotionscaperDesktopArchive(files: MotionDesktopFiles
 
 /** File commit is explicit and must finish before publishing the revision to the project store. */
 export async function beginMotionscaperDesktopSave(files: MotionDesktopFiles, options: {
-	readonly projectId: string; readonly suggestedName: string; readonly saveAs?: boolean; readonly signal?: AbortSignal;
+	readonly projectId: string; readonly suggestedName: string; readonly saveAs?: boolean; readonly saveCopy?: boolean; readonly signal?: AbortSignal;
 }): Promise<MotionDesktopArchiveOutput | null> {
 	options.signal?.throwIfAborted();
-	const selected = await files.beginSave({ projectId: options.projectId, suggestedName: options.suggestedName, saveAs: options.saveAs ?? false });
+	const selected = await files.beginSave({ projectId: options.projectId, suggestedName: options.suggestedName,
+		saveAs: options.saveAs ?? false, ...(options.saveCopy === undefined ? {} : { saveCopy: options.saveCopy }) });
 	if (!selected) return null;
 	let offset = 0; let closed = false; let terminal = false;
 	let pending: Promise<void> = Promise.resolve();
