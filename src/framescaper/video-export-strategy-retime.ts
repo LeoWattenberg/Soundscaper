@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { bindFramescaperVideoFrameConsumer } from './video-export-frame-consumer.ts';
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import {
@@ -18,6 +19,7 @@ import type {
 	ProductVideoExportProjectRequest,
 } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import {
+	consumeVideoKeyframeOfflineFrames,
 	encodeVideoKeyframeOfflineVideo,
 	encodeVideoKeyframeOfflineVideoToSink,
 	type VideoKeyframeOfflineVideoExportRequest,
@@ -50,6 +52,7 @@ type OfflineSinkEncoder = (
 ) => Promise<VideoKeyframeVideoSinkEncoderResult<unknown>>;
 
 export interface FramescaperVideoExportStrategyRetimeDependencies {
+	readonly consumeOfflineFrames?: typeof consumeVideoKeyframeOfflineFrames;
 	readonly encodeOffline: typeof encodeVideoKeyframeOfflineVideo;
 	readonly encodeOfflineToSink: OfflineSinkEncoder;
 }
@@ -80,7 +83,7 @@ export function createFramescaperVideoExportStrategyRetime(
 	const forceKeyed = options.forceKeyed === true;
 	const authorities = new WeakMap<object, PlanAuthority>();
 	const exportAuthorities = new WeakMap<object, Readonly<Record<string, unknown>>>();
-	return Object.freeze({
+	return bindFramescaperVideoFrameConsumer(Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const foundation = framescaperProjectForPlaybackFoundationRetime(
 				profile,
@@ -151,7 +154,7 @@ export function createFramescaperVideoExportStrategyRetime(
 			);
 			return projectVideoExportSinkResult(encoded, plan, EXPORT_ERRORS) as ProductVideoExportSinkOutput<Output>;
 		},
-	});
+	}), (request, consume) => (dependencies.consumeOfflineFrames ?? consumeVideoKeyframeOfflineFrames)(offlineRequest(request, ownedPlan(request, authorities)), consume));
 }
 
 function ownedPlan(
@@ -251,7 +254,9 @@ function snapshotDependencies(value: unknown): FramescaperVideoExportStrategyRet
 	}
 	const encodeOffline = dataFunction(value, 'encodeOffline');
 	const encodeOfflineToSink = dataFunction(value, 'encodeOfflineToSink');
+	const consume = Object.hasOwn(value, 'consumeOfflineFrames') ? dataFunction(value, 'consumeOfflineFrames') : null;
 	return Object.freeze({
+		...(consume ? { consumeOfflineFrames: ((request, consumer) => Promise.resolve(Reflect.apply(consume, value, [request, consumer]) as Promise<void>)) as typeof consumeVideoKeyframeOfflineFrames } : {}),
 		encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
 			return Promise.resolve(Reflect.apply(encodeOffline, value, [request]) as (
 				PromiseLike<VideoKeyframeVideoEncoderResult> | VideoKeyframeVideoEncoderResult
@@ -271,7 +276,7 @@ function snapshotDependencies(value: unknown): FramescaperVideoExportStrategyRet
 
 function dataFunction(
 	value: object,
-	key: 'encodeOffline' | 'encodeOfflineToSink',
+	key: 'encodeOffline' | 'encodeOfflineToSink' | 'consumeOfflineFrames',
 ): (...arguments_: never[]) => unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(value, key);
 	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')

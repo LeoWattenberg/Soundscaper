@@ -200,16 +200,24 @@ export async function encodeVideoKeyframeOfflineVideoToSink<Output>(
 	}
 }
 
-async function executeOfflineVideo<Output>(
+/** Consume final RGBA with bounded backpressure; no encoded-container receipt is fabricated. */
+export async function consumeVideoKeyframeOfflineFrames(
+	request: VideoKeyframeOfflineVideoExportRequest,
+	consume: (request: VideoKeyframeVideoEncoderRequest) => Promise<void>,
+	dependencies: VideoKeyframeOfflineVideoExportDependencies = DEFAULT_DEPENDENCIES,
+): Promise<void> {
+	if (typeof consume !== 'function') throw new TypeError('An exact frame consumer is required.');
+	await executeOfflineVideo(request, dependencies, () => consume);
+}
+
+async function executeOfflineVideo<Result>(
 	requestValue: VideoKeyframeOfflineVideoExportRequest,
 	dependenciesValue: VideoKeyframeOfflineVideoExportDependencies,
 	createEncoder: (
 		dependencies: VideoKeyframeOfflineVideoExportDependencies,
 		request: NormalizedRequest,
-	) => (encoderRequest: VideoKeyframeVideoEncoderRequest) => Promise<
-		VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>
-	>,
-): Promise<VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>> {
+	) => (encoderRequest: VideoKeyframeVideoEncoderRequest) => Promise<Result>,
+): Promise<Result> {
 	const request = normalizeRequest(requestValue);
 	const dependencies = normalizeDependencies(dependenciesValue);
 	const encode = createEncoder(dependencies, request);

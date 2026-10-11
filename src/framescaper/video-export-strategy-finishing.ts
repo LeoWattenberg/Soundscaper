@@ -1,13 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createVisualExecution } from './video-export-visual-producer-finishing.ts';
+import { bindFramescaperVideoFrameConsumer, consumeFramescaperVideoFrames } from './video-export-frame-consumer.ts';
 import { snapshotExactExecutionDependencies, type ExactExecutionDependenciesFinishing, type FramescaperVideoExportExactDependencyOptionsFinishing } from './video-export-exact-dependencies-finishing.ts';
 
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import { assertManagedVideoColorRenderAdmissionV1 } from '../common/editor/video-color-management-v27.ts';
-import {
-	createVideoExactPictureExportFrameSource,
-	type VideoKeyframeExportFrame,
-} from '../common/editor/video-keyframe-export-frame-source.ts';
 import {
 	encodeVideoKeyframeVideo,
 	encodeVideoKeyframeVideoToSink,
@@ -15,12 +13,6 @@ import {
 	type VideoKeyframeVideoEncoderResult,
 	type VideoKeyframeVideoSinkEncoderResult,
 } from '../common/editor/video-keyframe-video-encoder.ts';
-import {
-	createVideoKeyframeOfflineEncoderRequest,
-	preflightVideoKeyframeOfflineEncoder,
-	type VideoKeyframeOfflineEncoderOptions,
-} from '../common/editor/ui/video-keyframe-offline-video-export-encoder.ts';
-import type { VideoKeyframeOfflineRgbaRenderer } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -131,7 +123,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 	const exports = new WeakMap<object, ExportAuthorityFinishing>();
 	const plans = new WeakMap<object, ExportAuthorityFinishing>();
 	const timingSources = new WeakMap<object, readonly string[]>();
-	return Object.freeze({
+	return bindFramescaperVideoFrameConsumer(Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const retimeProject = executableFoundation(profile, request.canonicalProject);
 			const retimeExportProject = delegate.createExportProject({
@@ -207,6 +199,18 @@ export function createFramescaperVideoExportStrategyFinishing(
 			if (!sourceIds) throw new TypeError('Selected finishing timing closure requires an owned export plan.');
 			return sourceIds;
 		},
+	}), async (request, consume) => {
+		const authority = ownedPlanAuthority(profile, request, exports, plans);
+		if (isFramescaperVideoVisualPlanFinishing(request.plan)) {
+			const execution = await createVisualExecution(profile, authority, request, assetStore, exactDependencies);
+			await runFramescaperFinishingEncode(async () => { await consume(execution.encoderRequest); DISPOSITIONS.set(request.plan, execution.exact.disposition()); }, () => execution.exact.dispose());
+		} else {
+			const execution = await createKeyedExecution(profile, authority, request, assetStore, exactDependencies);
+			await runFramescaperFinishingEncode(async () => {
+				await consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.retimeProject, exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor }, consume);
+				DISPOSITIONS.set(request.plan, execution.disposition());
+			}, () => execution.dispose());
+		}
 	});
 }
 
@@ -268,66 +272,6 @@ async function encodeKeyedPictureToSink<Output>(
 	}, () => execution.dispose());
 }
 
-async function createVisualExecution(
-	profile: unknown,
-	authority: ExportAuthorityFinishing,
-	request: ProductVideoExportStrategyEncodeRequest,
-	assetStore: FramescaperVideoExportVisualAssetStoreFinishing | undefined,
-	exactDependencies: ExactExecutionDependenciesFinishing,
-) {
-	if (!isFramescaperVideoVisualPlanFinishing(request.plan)) {
-		throw new TypeError('Selected finishing picture-only execution requires its exact V13 output plan.');
-	}
-	const visualPlan = request.plan;
-	if (!(request.videoBlobs instanceof Map) || request.videoBlobs.size !== 0) {
-		throw new TypeError('Selected finishing picture-only execution refuses unplanned video inputs.');
-	}
-	const includesAudio = request.plan.inputs.some(({ kind }) => kind === 'staged-audio-mix');
-	if (includesAudio !== (request.audioMix instanceof Blob)) {
-		throw new TypeError('Selected finishing picture-only audio must exactly match its detached plan.');
-	}
-	const exact = await createFramescaperVideoExportExactExecutionFinishing({
-		profile, project: authority.canonicalProject as unknown as FramescaperProjectFinishing,
-		request, ...(assetStore === undefined ? {} : { store: assetStore }),
-		...exactDependencies,
-	});
-	const frameSource = createVideoExactPictureExportFrameSource({
-		sampleRate: request.plan.sampleRate,
-		startFrame: request.plan.range.startFrame,
-		endFrame: request.plan.range.endFrame,
-		canvas: {
-			width: request.plan.canvas.width, height: request.plan.canvas.height,
-			frameRate: request.plan.canvas.frameRate, fit: request.plan.canvas.fit,
-			backgroundColor: request.plan.canvas.backgroundColor,
-		},
-	});
-	const renderer: VideoKeyframeOfflineRgbaRenderer = Object.freeze({
-		width: visualPlan.canvas.width, height: visualPlan.canvas.height,
-		byteLength: visualPlan.canvas.width * visualPlan.canvas.height * 4,
-		async produce(frame: VideoKeyframeExportFrame, target: Uint8Array,
-			options: Readonly<{ readonly signal: AbortSignal }>) {
-			await exact.compositor({
-				frame, layers: [], width: visualPlan.canvas.width, height: visualPlan.canvas.height,
-				rgba: target as Uint8Array<ArrayBuffer>, signal: options.signal,
-			});
-		},
-		async dispose() { await exact.dispose(); },
-	});
-	const encoderOptions: Readonly<Record<string, number>> = request.maximumOutputBytes === undefined
-		? Object.freeze({}) : Object.freeze({ maximumOutputBytes: request.maximumOutputBytes as number });
-	const options: VideoKeyframeOfflineEncoderOptions = Object.freeze({
-		format: request.plan.format,
-		quality: request.plan.quality,
-		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
-		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
-		encoderOptions,
-		signal: request.signal, assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
-	});
-	await preflightVideoKeyframeOfflineEncoder(options, frameSource);
-	return Object.freeze({ exact, encoderRequest: createVideoKeyframeOfflineEncoderRequest(
-		options, frameSource, renderer,
-	) });
-}
 
 async function encodeVisualPicture(
 	profile: unknown,

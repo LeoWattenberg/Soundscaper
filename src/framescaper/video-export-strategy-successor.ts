@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { bindFramescaperVideoFrameConsumer, consumeFramescaperVideoFrames } from './video-export-frame-consumer.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import type { ProductVideoExportPlan, ProductVideoExportStrategy, ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoExportGeneratedSources } from '../common/editor/video-export-generated-sources.ts';
@@ -75,7 +76,10 @@ export function createFramescaperVideoExportStrategySuccessor(options: Options):
 		captureTimingSourceIds(plan) { const captured = ownedPlan(plan); return captured.authority.delegate.captureTimingSourceIds?.(plan) ?? plan.activeSourceIds; },
 		captureGeneratedSources: plan => ownedPlan(plan).generated,
 	};
-	return Object.freeze(strategy);
+	return bindFramescaperVideoFrameConsumer(Object.freeze(strategy), (request, consume) => {
+		const captured = ownedRequest(request);
+		return consumeFramescaperVideoFrames(captured.authority.delegate, { ...request, canonicalProject: captured.authority.inherited, generatedSources: captured.generated }, consume);
+	});
 	function ownedExport(value: object, canonical?: object): Authority {
 		const authority = exports.get(value); if (!authority || (canonical && authority.canonical !== canonical)) throw new TypeError('Successor export requires its exact canonical project.');
 		if (canonical && !sameProjectSnapshot(normalizeFramescaperSuccessorProject(canonical), authority.project)) throw new Error('The successor export projection is stale.');

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { bindFramescaperVideoFrameConsumer, consumeFramescaperVideoFrames } from './video-export-frame-consumer.ts';
 
 import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
@@ -85,7 +86,7 @@ export function createFramescaperVideoExportStrategyTimelineImage(
 	);
 	const exports = new WeakMap<object, ExportAuthorityTimelineImage>();
 	const plans = new WeakMap<object, ExportAuthorityTimelineImage>();
-	return Object.freeze({
+	return bindFramescaperVideoFrameConsumer(Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const authority = projectAuthority(profile, request.canonicalProject);
 			foundationAuthorities.set(authority.inheritedProject, authority);
@@ -130,6 +131,9 @@ export function createFramescaperVideoExportStrategyTimelineImage(
 			if (!plans.has(plan)) throw new TypeError('Selected timelineImage timing closure requires an owned plan.');
 			return delegate.captureTimingSourceIds?.(plan) ?? plan.activeSourceIds;
 		},
+	}), (request, consume) => {
+		const authority = ownedPlanAuthority(profile, request, exports, plans);
+		return consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.inheritedProject }, consume);
 	});
 }
 

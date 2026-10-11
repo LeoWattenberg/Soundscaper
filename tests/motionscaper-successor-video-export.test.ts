@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { consumeFramescaperVideoFrames } from '../src/framescaper/video-export-frame-consumer.ts';
 import CanvasKitInit from 'canvaskit-wasm';
 import { createMotionscaperProject, createMotionLayer } from '../src/motionscaper/editor-project.ts';
 import { createMotionscaperRevision } from '../src/common/editor/motion-project-revision.ts';
@@ -13,7 +14,7 @@ import { createFramescaperCompositionSource } from '../src/framescaper/editor-co
 import { createFramescaperSuccessorRuntime } from '../src/framescaper/editor-project-successor-runtime.ts';
 import { framescaperSuccessorBaselineProject } from '../src/framescaper/editor-project-successor-commands.ts';
 import { createFramescaperVideoExportStrategySuccessor } from '../src/framescaper/video-export-strategy-successor.ts';
-import { encodeVideoKeyframeOfflineVideo, encodeVideoKeyframeOfflineVideoToSink, type VideoKeyframeOfflineVideoExportDependencies } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
+import { consumeVideoKeyframeOfflineFrames, encodeVideoKeyframeOfflineVideo, encodeVideoKeyframeOfflineVideoToSink, type VideoKeyframeOfflineVideoExportDependencies } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import { createVideoKeyframeOfflineRgbaRenderer } from '../src/common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import type { FramescaperVideoExportStrategyFinishingDependencies } from '../src/framescaper/video-export-strategy-finishing.ts';
 import { framescaperVideoExportDispositionFinishingFor } from '../src/framescaper/video-export-strategy-finishing.ts';
@@ -33,7 +34,7 @@ function fixture() {
 	const rasterizer = createCanvasKitMotionRasterizer(kit, { assets: [], fallbackFonts: [], async loadAsset() { throw new Error('No encoded original is permitted'); } });
 	return { project, rasterizer, linked };
 }
-test('successor browser delivery renders saved Motion frames through the real keyed offline and Frame finishing pipelines', async () => {
+for (const mode of ['encoded', 'raw-native'] as const) test(`successor ${mode} delivery renders saved Motion frames through the real keyed offline and Frame finishing pipelines`, async () => {
 	const { project, rasterizer, linked } = fixture(); const pictures: Uint8Array[] = []; const surfaces = new WeakMap<object, Uint8Array>();
 	let drawablesClosed = 0, rasterReleases = 0;
 	const offline: VideoKeyframeOfflineVideoExportDependencies = {
@@ -46,6 +47,7 @@ test('successor browser delivery renders saved Motion frames through the real ke
 		},
 	};
 	const dependencies: FramescaperVideoExportStrategyFinishingDependencies = {
+		consumeOfflineFrames: (request, consume) => consumeVideoKeyframeOfflineFrames(request, consume, offline),
 		encodeOffline: request => encodeVideoKeyframeOfflineVideo(request, offline), encodeOfflineToSink: (request, sink) => encodeVideoKeyframeOfflineVideoToSink(request, sink, offline),
 		captureExactFrame(entry) { const video = entry.video as Readonly<{ drawable: object }>; const pixels = surfaces.get(video.drawable); assert.ok(pixels); return { width: 4, height: 2, pixels: pixels.slice() }; },
 	};
@@ -59,11 +61,23 @@ test('successor browser delivery renders saved Motion frames through the real ke
 	const view = { kind: 'vfr' as const, reference: linked.timing.reference, index: linked.timing.index }; const views = new Map([['linked', view]]);
 	const request: ProductVideoExportStrategyEncodeRequest = { canonicalProject, exportProject, plan, timingBySourceId: new Map([['linked', bindVideoSourceTimingView(views, linked.source)]]), timingViewsBySourceId: views,
 		videoBlobs: new Map(), audioMix: null, editorFfmpeg: { runVideoKeyframeEncoderOperation() { throw new Error('Injected compression only'); } }, webCodecs: null, signal: new AbortController().signal, assertCurrent() {}, maximumOutputBytes: undefined };
-	const result = await strategy.encode(request); assert.equal(result.byteLength, 3);
+	if (mode === 'encoded') { const result = await strategy.encode(request); assert.equal(result.byteLength, 3); }
+	else await consumeFramescaperVideoFrames(strategy, request, async request => {
+		for (const index of [2, 0, 1]) { const rgba = new Uint8Array(request.producer.byteLength); await request.producer.produce(request.frameSource.frame(index), rgba, { signal: request.signal! }); pictures[index] = rgba; }
+	});
 	assert.ok(pictures[0]![0]! > 100); assert.equal(pictures[0]![3], 255); assert.equal(pictures[2]![0], 0); assert.notDeepEqual(pictures[0], pictures[2]);
 	assert.equal(drawablesClosed, 1); assert.equal(rasterReleases, 3);
 	assert.deepEqual(framescaperVideoExportDispositionFinishingFor(plan).unexplainedOmittedNodeIds, []);
-	await assert.rejects(async () => await strategy.encode({ ...request, canonicalProject: { ...canonicalProject } }), /canonical|project/iu);
+	const execute = (value: ProductVideoExportStrategyEncodeRequest) => mode === 'encoded' ? strategy.encode(value) : consumeFramescaperVideoFrames(strategy, value, async () => {});
+	await assert.rejects(async () => await execute({ ...request, canonicalProject: { ...canonicalProject } }), /canonical|project/iu);
+	if (mode === 'raw-native') {
+		const releasesBefore = rasterReleases;
+		await assert.rejects(consumeFramescaperVideoFrames(strategy, request, async value => {
+			await value.producer.produce(value.frameSource.frame(0), new Uint8Array(value.producer.byteLength), { signal: value.signal! });
+			throw new Error('Native consumer refused its next frame');
+		}), /Native consumer refused/iu);
+		assert.equal(drawablesClosed, 2); assert.equal(rasterReleases, releasesBefore + 1);
+	}
 	Object.assign(project, { title: 'Changed after capture' });
-	await assert.rejects(async () => await strategy.encode(request), /stale/iu);
+	await assert.rejects(async () => await execute(request), /stale/iu);
 });
