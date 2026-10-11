@@ -9,7 +9,7 @@ module.exports = {
 	...base, appId: 'org.framescaper.successor.desktop', productName: 'Framescaper Development', publish: null, fileAssociations: [],
 	beforePack: './scripts/framescaper-successor-before-pack.mjs', afterPack: './scripts/framescaper-successor-after-pack.mjs',
 	directories: { app: `${resources}/app`, buildResources: `${resources}/icons`, output: 'release/framescaper-successor' },
-	files: ['desktop/main.mjs', 'desktop/preload.cjs', 'desktop/product.json', 'package.json', '!node_modules/**/*'],
+	files: ['desktop/main.mjs', 'desktop/preload.cjs', 'desktop/product.json', 'desktop/native-payload.json', 'desktop/native-notices.md', 'package.json', '!node_modules/**/*'],
 	extraResources: [{ from: `${resources}/renderer`, to: 'renderer' }, { from: `${resources}/runtime`, to: 'runtime' },
 		{ from: 'LICENSE', to: 'licenses/Framescaper-AGPL-3.0.txt' }, { from: `${resources}/licenses`, to: 'licenses' }, { from: 'LICENSES', to: 'licenses/LICENSES' }],
 	win: { ...base.win, icon: `${resources}/icons/icon.png` },
