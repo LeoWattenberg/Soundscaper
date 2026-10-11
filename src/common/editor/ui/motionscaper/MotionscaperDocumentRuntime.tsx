@@ -14,6 +14,7 @@ import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import type { MotionscaperDeliveryQueue } from '../../../../motionscaper/editor-delivery-queue.ts';
 import type { MotionscaperLinkSender } from '../../../../motionscaper/editor-link-sender.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
+import type { MotionDesktopArchiveInput } from '../../../../motionscaper/desktop-file-adapter.ts';
 import type { MotionscaperOpaqueArchive } from '../../../../motionscaper/editor-opaque-archive.ts';
 import { MotionProjectLeaseError } from '../../../../motionscaper/editor-project-write-lease.ts';
 
@@ -60,6 +61,8 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [pending, setPending] = useState(false);
 	const [opaqueArchive, setOpaqueArchive] = useState<MotionscaperOpaqueArchive | null>(null);
 	const [archiveReview, setArchiveReview] = useState<MotionscaperDocumentOpen | null>(null);
+	const [nativeSelection, setNativeSelection] = useState<MotionDesktopArchiveInput | null>(null);
+	const retainedNative = useRef<MotionDesktopArchiveInput | null>(null);
 	const retainedOpen = useRef<MotionscaperDocumentOpen | null>(null);
 	const retainedArchive = useRef<MotionscaperOpaqueArchive | null>(null);
 	const lastRequest = useRef(0);
@@ -67,11 +70,11 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const renderQueue = useRef<MotionscaperDeliveryQueue | null>(null);
 	const runtimeMounted = useRef(true);
 	const busy = pending || snapshot.busy;
-	useEffect(() => { onChange({ ...snapshot, busy: busy || opaqueArchive !== null || archiveReview !== null }); }, [snapshot, busy, opaqueArchive, archiveReview, onChange]);
+	useEffect(() => { onChange({ ...snapshot, busy: busy || opaqueArchive !== null || archiveReview !== null || nativeSelection !== null }); }, [snapshot, busy, opaqueArchive, archiveReview, nativeSelection, onChange]);
 	useEffect(() => { runtimeMounted.current = true; return () => { runtimeMounted.current = false; void (async () => {
 		try { await renderQueue.current?.dispose(); } finally {
 			try { await linkSender.current?.dispose(); } finally {
-				try { await retainedOpen.current?.close(); } finally { try { await retainedArchive.current?.close(); } finally { try { await session.dispose(); } finally { await store.close(); } } }
+				try { await retainedOpen.current?.close(); } finally { try { await retainedArchive.current?.close(); } finally { try { await retainedNative.current?.release(); } finally { try { await session.dispose(); } finally { await store.close(); } } } }
 			}
 		}
 	})().catch(() => undefined); }; }, [session, store]);
@@ -92,6 +95,16 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 		try { await pending.open('import'); retainedOpen.current = null; setDialog(null); onProjectOpened(); }
 		catch (failure) { setArchiveReview(pending); setDialog(null); throw failure; }
 	}, [onProjectOpened]);
+	const openNativeSelection = useCallback(async (native: MotionDesktopArchiveInput, complete?: () => void) => {
+		let completed = false;
+		const selected: MotionDesktopArchiveInput = { ...native, release: async () => {
+			await native.release(); if (completed) return; completed = true;
+			retainedNative.current = null; setNativeSelection(null); complete?.();
+		} };
+		retainedNative.current = selected; setNativeSelection(selected);
+		const { openMotionscaperDesktopArchiveSelection } = await import('../../../../motionscaper/editor-document-desktop.ts');
+		await openMotionscaperDesktopArchiveSelection(session, selected, retainOpaque, reviewOpen);
+	}, [session, retainOpaque, reviewOpen]);
 	const openBrowserFile = useCallback(async (file: File) => {
 		if (/\.aepx?$/iu.test(file.name)) { setBridgeFile(file); setDialog('after-effects'); return; }
 		const { inspectMotionscaperOpaqueArchive } = await import('../../../../motionscaper/editor-opaque-archive.ts');
@@ -127,15 +140,16 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 				setDialog('send');
 			});
 		} else if (command === 'open') {
+			const native = request.nativeArchive;
+			if (native) { void run(() => openNativeSelection(native, () => request.onComplete?.(false))); return; }
 			const file = request.file;
 			if (file) {
 				void run(() => openBrowserFile(file)).finally(() => request.onComplete?.(Boolean(retainedArchive.current || retainedOpen.current))); return;
 			}
 			void run(async () => {
-				const { openMotionscaperDesktopProject } = await import('../../../../motionscaper/editor-document-desktop.ts');
-				const result = await openMotionscaperDesktopProject(session, undefined, retainOpaque, reviewOpen);
-				if (result === 'browser') setDialog('open');
-				else if (result === 'opened') { setDialog(null); onProjectOpened(); }
+				const { motionscaperDesktopFiles, selectMotionscaperDesktopArchive } = await import('../../../../motionscaper/desktop-file-adapter.ts');
+				const files = motionscaperDesktopFiles(); if (!files) { setDialog('open'); return; }
+				const selected = await selectMotionscaperDesktopArchive(files); if (selected) await openNativeSelection(selected);
 			});
 		} else if (command === 'library') {
 			setDialog('library');
@@ -160,7 +174,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			document.body.append(link); link.click(); link.remove();
 			globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000);
 		});
-	}, [request, run, session, store, onProjectOpened, retainOpaque, openBrowserFile, reviewOpen]);
+	}, [request, run, session, store, onProjectOpened, retainOpaque, openBrowserFile, reviewOpen, openNativeSelection]);
 	const close = () => { if (!busy) { setDialog(null); setError(null); } };
 	const opened = () => { setDialog(null); onProjectOpened(); };
 	const submit = (settings: MotionProjectSettings) => {
@@ -180,6 +194,10 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			await opaqueArchive.close(); retainedArchive.current = null; setOpaqueArchive(null); setError(null);
 		}} />
 	</Suspense>;
+	if (nativeSelection && error) return <AudioEditorDialogShell title={copy.motionscaperOpen} onClose={busy ? undefined : () => { void run(() => nativeSelection.release()); }} width={460}
+		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button disabled={busy} onClick={() => { void run(() => nativeSelection.release()); }}>{copy.motionscaperArchiveRetry}</Button>} />}>
+		<p role="alert">{error}</p><p>{copy.motionscaperArchiveNativeCleanup}</p>
+	</AudioEditorDialogShell>;
 	if (dialog === 'after-effects') return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
 		<MotionAeBridgeDialog copy={copy} store={store} busy={busy} initialFile={bridgeFile} project={snapshot.project ?? undefined}
 			onOpen={async (id) => { await session.open(id); opened(); }} onClose={close} />

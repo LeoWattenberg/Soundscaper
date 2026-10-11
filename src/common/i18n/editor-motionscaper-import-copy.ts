@@ -2,6 +2,7 @@
 import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
 const ENTRIES = [
+	['motionscaperArchiveNativeCleanup', 'The selected native file is still retained. Retry releasing it before another launched file opens.', 'Die ausgewählte native Datei wird noch aufbewahrt. Versuche erneut, sie freizugeben, bevor eine weitere gestartete Datei geöffnet wird.'],
 	['motionscaperArchiveReview', 'Open Project Conflict', 'Projektkonflikt beim Öffnen'],
 	['motionscaperArchiveReviewHint', 'This project identity already exists on this device. Choose which document to open. Cancel leaves the current document and its history unchanged.', 'Diese Projektidentität ist auf diesem Gerät bereits vorhanden. Wähle das zu öffnende Dokument. Abbrechen lässt das aktuelle Dokument und seinen Verlauf unverändert.'],
 	['motionscaperArchiveIncoming', 'Selected archive', 'Ausgewähltes Archiv'],

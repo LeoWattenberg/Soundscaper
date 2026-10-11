@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { MotionDesktopArchiveInput } from '../../../../motionscaper/desktop-file-adapter.ts';
 
 export interface MotionscaperShellMenuItem {
 	readonly id: string;
@@ -28,7 +29,7 @@ export interface MotionscaperShellMenuOptions {
 }
 
 export type MotionDocumentCommand = 'new' | 'open' | 'save' | 'copy' | 'library' | 'settings' | 'undo' | 'redo' | 'solid' | 'text' | 'rectangle' | 'ellipse' | 'star' | 'preview' | 'render' | 'canvas' | 'render-queue' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | 'compositing' | 'expressions' | 'appearance' | 'compositions' | 'scene' | 'after-effects' | 'send';
-export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand; readonly file?: File; readonly onComplete?: (readOnly: boolean) => void }
+export interface MotionDocumentRequest { readonly id: number; readonly command: MotionDocumentCommand; readonly file?: File; readonly nativeArchive?: MotionDesktopArchiveInput; readonly onComplete?: (readOnly: boolean) => void }
 
 /** The shell admits only actions its product runtime has actually supplied. */
 export function createMotionscaperShellMenus(

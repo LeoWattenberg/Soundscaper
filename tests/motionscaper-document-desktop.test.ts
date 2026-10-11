@@ -68,3 +68,14 @@ test('native Save checks the document fence before file commit and keeps the pri
 		assert.equal(session.getSnapshot().dirty, true);
 	} finally { await authority.dispose(); await store.close(); await rm(root, { recursive: true, force: true }); }
 });
+
+test('native reviewed Open preserves archive failure and cleanup failure together', async () => {
+	const { store, session } = fixture(); const cleanup = new Error('Native capability release failed.');
+	try {
+		await assert.rejects(openMotionscaperDesktopProject(session, {
+			selectOpen: async () => ({ token: 'invalid', name: 'invalid.mscape', byteLength: 3 }), read: async () => new Uint8Array([1, 2, 3]),
+			release: async () => { throw cleanup; }, bindOpened: async () => undefined, beginSave: async () => null, write: async () => undefined,
+			commit: async () => { throw new Error('No save.'); }, cancel: async () => undefined,
+		}, async () => undefined), error => error instanceof AggregateError && error.errors.length === 2 && error.errors[1] === cleanup);
+	} finally { await session.dispose(); await store.close(); }
+});

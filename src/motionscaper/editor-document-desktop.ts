@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { beginMotionscaperDesktopSave, motionscaperDesktopFiles, selectMotionscaperDesktopArchive } from './desktop-file-adapter.ts';
+import { beginMotionscaperDesktopSave, motionscaperDesktopFiles, selectMotionscaperDesktopArchive, type MotionDesktopArchiveInput } from './desktop-file-adapter.ts';
 import type { MotionDesktopFiles } from './desktop-file-contract.ts';
 import type { MotionscaperDocumentSession } from './editor-document-session.ts';
 import type { MotionscaperProjectStore } from './editor-project-store.ts';
@@ -38,8 +38,14 @@ export async function openMotionscaperDesktopProject(session: MotionscaperDocume
 	if (!files) return 'browser';
 	const selected = await selectMotionscaperDesktopArchive(files);
 	if (!selected) return 'cancelled';
-	let retained = false;
-	try {
+	return openMotionscaperDesktopArchiveSelection(session, selected, onOpaque, onReview);
+}
+
+export async function openMotionscaperDesktopArchiveSelection(session: MotionscaperDocumentSession, selected: MotionDesktopArchiveInput,
+	onOpaque?: (archive: MotionscaperOpaqueArchive) => void | Promise<void>,
+	onReview?: (pending: MotionscaperDocumentOpen) => void | Promise<void>): Promise<'opened' | 'opaque' | 'review'> {
+	let retained = false, failed = false; let failure: unknown; let result: 'opened' | 'opaque' | 'review' | undefined;
+	const inspect = async (): Promise<'opened' | 'opaque' | 'review'> => {
 		if (onOpaque) {
 			const archive = await inspectMotionscaperOpaqueArchive(selected.input, selected.name, { release: selected.release });
 			if (archive) { await onOpaque(archive); retained = true; return 'opaque'; }
@@ -48,5 +54,10 @@ export async function openMotionscaperDesktopProject(session: MotionscaperDocume
 		if (onReview) { retained = true; await onReview(pending); return 'review'; }
 		if (pending.review.existing) { await pending.close(); throw new MotionProjectConflictError(); }
 		await pending.open('import'); return 'opened';
-	} finally { if (!retained) await selected.release(); }
+	};
+	try { result = await inspect(); } catch (error) { failed = true; failure = error; }
+	if (!retained) {
+		try { await selected.release(); } catch (cleanup) { throw failed ? aggregateScapeErrors(failure, [cleanup], 'Motion archive open and capability release failed.') : cleanup; }
+	}
+	if (failed) throw failure; return result!;
 }

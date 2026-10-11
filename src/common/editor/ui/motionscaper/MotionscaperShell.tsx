@@ -34,6 +34,7 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 	});
 	const documentRef = useRef(documentState);
 	const readonlyLaunch = useRef(false);
+	const nativeLaunch = useRef<{ wake(): void; dispose(): void } | null>(null);
 	const documentChanged = useCallback((snapshot: MotionscaperDocumentSnapshot) => {
 		documentRef.current = snapshot;
 		if (!snapshot.busy) readonlyLaunch.current = false;
@@ -65,6 +66,31 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 		}).catch(() => { if (!disposed) setLaunchError(true); });
 		return () => { disposed = true; installation?.release(); finish?.(); };
 	}, []);
+	useEffect(() => {
+		if (Reflect.get(globalThis, 'scapeDesktop') === undefined) return;
+		let disposed = false; let observer: MutationObserver | undefined; let finish: (() => void) | undefined;
+		void Promise.all([import('../../../../motionscaper/editor-desktop-launch.ts'), import('../../../../motionscaper/desktop-launch-adapter.ts'), import('../../../../motionscaper/desktop-file-adapter.ts')]).then(([controller, adapter, fileAdapter]) => {
+			if (disposed) return; const launch = adapter.motionscaperDesktopLaunch(), files = fileAdapter.motionscaperDesktopFiles(); if (!launch || !files) return;
+			nativeLaunch.current = controller.installMotionscaperDesktopLaunch({ files, launch,
+				canOpen: () => !documentRef.current.busy && !document.querySelector('[role="dialog"]'), onError: () => setLaunchError(true),
+				onOpen: async nativeArchive => {
+					setLaunchError(false);
+					await new Promise<void>(resolve => {
+						finish = resolve;
+						setRequest(previous => {
+							const id = (previous?.id ?? 0) + 1;
+							return { id, command: 'open', nativeArchive, onComplete: () => {
+								finish = undefined; resolve(); setRequest(current => current?.id === id ? { id, command: 'open' } : current);
+							} };
+						});
+					});
+				},
+			});
+			observer = new MutationObserver(() => nativeLaunch.current?.wake()); observer.observe(document.body, { childList: true, subtree: true });
+		}).catch(() => { if (!disposed) setLaunchError(true); });
+		return () => { disposed = true; observer?.disconnect(); nativeLaunch.current?.dispose(); nativeLaunch.current = null; finish?.(); };
+	}, []);
+	useEffect(() => { nativeLaunch.current?.wake(); }, [documentState.busy]);
 	const projectOpened = useCallback(() => setWorkspaceOpen(true), []);
 	const menuCopy = useMemo(() => ({
 		...copy, applicationMenu: copy.motionscaperApplicationMenu,
