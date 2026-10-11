@@ -11,6 +11,7 @@ export function convertMotionAeTransform(layer: MotionAeLayer, frameRate: Ration
 	for (let rootIndex = 0; rootIndex < layer.properties.length; rootIndex++) {
 		const group = layer.properties[rootIndex]!, root = `${String(rootIndex)}:${group.matchName}`;
 		if (group.kind === 'group' && group.children.length === 0) continue;
+		if (group.matchName === 'ADBE Root Vectors Group' && layer.kind === 'shape') continue; // Shape conversion owns its report.
 		if (group.matchName === 'ADBE Text Properties' && layer.kind === 'text') continue; // Text conversion owns its report.
 		if (group.matchName === 'ADBE Mask Parade') continue; // The mask converter owns its admission and report.
 		if (group.matchName !== 'ADBE Transform Group' || group.kind !== 'group') {

@@ -4,6 +4,7 @@ import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeRepo
 import { motionAeRenderedSequence } from '../common/editor/motion-ae-render-sequence.ts';
 import { motionAeBoundedClock } from '../common/editor/motion-ae-property-conversion.ts';
 import { convertMotionAeTransform } from '../common/editor/motion-ae-transform-conversion.ts';
+import { convertMotionAeShapes } from '../common/editor/motion-ae-shape-conversion.ts';
 import { convertMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
 import { convertMotionAeTextLayer, rebaseMotionAeTextLayer, type MotionAeProjectTextImport } from '../common/editor/motion-ae-text-layer.ts';
 import { normalizeMotionAeFontBindings } from '../common/editor/motion-ae-text-fonts.ts';
@@ -53,8 +54,9 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 		if (converted.quantized) report.push({ scopeId: scope, propertyPath: '', status: 'sampled', code: 'clock-quantization', message: 'AE floating timing was rounded to the bounded one-millionth clock. Original timing remains in the exchange.' });
 		return converted.value;
 	};
-	function content(layer: MotionAeLayer, siblings: readonly MotionAeLayer[]): MotionLayerContent {
+	function content(layer: MotionAeLayer, siblings: readonly MotionAeLayer[], frameRate: MotionComposition['frameRate']): MotionLayerContent {
 		if (layer.threeD || layer.adjustment) { issue(layer.id, 'layer-kind', 'AE 3D, camera/light and adjustment intent requires a qualified mapping or a complete AE-rendered composition. A named null placeholder preserves hierarchy.'); return { kind: 'null' }; }
+		if (layer.kind === 'shape') return convertMotionAeShapes(layer, frameRate, () => { const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.'); used.add(id); return id; }, report) ?? { kind: 'null' };
 		if (layer.kind === 'text') {
 			const text = convertMotionAeTextLayer(layer, options, report);
 			if (!text) return { kind: 'null' };
@@ -93,7 +95,7 @@ export function convertMotionscaperAeExchange(input: unknown, options: Readonly<
 			const layer = createMotionLayer({ id, name: name(asset.name, 'Rendered frame'), durationFrames, content: { kind: 'image', assetId: asset.id } });
 			return { ...layer, inFrame: { num: frame, den: 1 }, outFrame: { num: frame + 1, den: 1 } };
 		}) : source.layers.map((layer) => {
-			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer, source.layers) });
+			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer, source.layers, frameRate) });
 			const blendMode = MOTION_BLEND_MODES.find((value) => value === layer.blendMode) ?? 'normal';
 			if (blendMode !== layer.blendMode) issue(layer.id, 'blend-mode', 'This AE blend mode is not mapped; normal blending is used in the partial draft.');
 			const timeScale = 100 / layer.stretch;

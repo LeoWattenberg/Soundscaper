@@ -36,7 +36,7 @@ test('AE conversion retains unsupported layers as named nulls and reports missin
 	const altered = { ...source, compositions: [{ ...comp, layers: [{ ...layer('shape'), kind: 'shape' as const, sourceId: null, properties: [] }, layer('missing')] }] };
 	const result = convertMotionscaperAeExchange(altered, { ...options(), bindings: [] });
 	assert.deepEqual(result.project.compositions[0]!.layers.map((entry) => entry.kind), ['null', 'null']);
-	assert.ok(result.report.some((entry) => entry.scopeId === 'shape' && entry.code === 'layer-kind' && entry.status === 'unsupported'));
+	assert.ok(result.report.some((entry) => entry.scopeId === 'shape' && entry.code === 'shape-mapping' && entry.status === 'unsupported'));
 	assert.ok(result.report.some((entry) => entry.scopeId === 'missing' && entry.code === 'missing-media'));
 	assert.deepEqual(result.project.assets, []);
 });

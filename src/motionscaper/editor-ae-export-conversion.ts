@@ -4,6 +4,7 @@ import type { MotionComposition, MotionLayer } from '../common/editor/motion-com
 import type { MotionAeExchange, MotionAeLayer, MotionAeProperty, MotionAeReportEntry } from '../common/editor/motion-ae-exchange-types.ts';
 import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
 import { exportMotionAeNumeric } from '../common/editor/motion-ae-export-property.ts';
+import { exportMotionAeShapes } from '../common/editor/motion-ae-shape-conversion.ts';
 import { exportMotionAeMasks } from '../common/editor/motion-ae-mask-conversion.ts';
 import { exportMotionAeTextLayer, type MotionAeProjectTextExport } from '../common/editor/motion-ae-text-layer.ts';
 import { normalizeMotionAeFontBindings } from '../common/editor/motion-ae-text-fonts.ts';
@@ -85,13 +86,17 @@ export function prepareMotionscaperAeExport(input: unknown, options: MotionAePro
 		if (comp.tracking?.length || comp.trackingApplications?.length) add(id, 'tracking-custody', 'Tracking analysis and application authority stay in original.mscape; mapped transform curves do not carry analysis authority.');
 		const layers: MotionAeLayer[] = comp.layers.map(layer => {
 			const layerId = layerIds.get(layer.id)!; let kind: MotionAeLayer['kind'] = 'null', sourceId: string | null = null, enabled = layer.enabled;
-			let textProperty: MotionAeProperty | null = null;
+			let contentProperty: MotionAeProperty | null = null;
 			const scale = number(layer.timeScale), validTiming = scale > 0 && 100 / scale >= 1 && 100 / scale <= 9900 && !layer.timeRemap;
 			if (!flat(layer)) { enabled = false; add(layerId, '3d', 'This layer uses 3D or nonplanar transform channels and becomes a disabled named null. Original geometry remains in original.mscape.'); }
 			else if (!validTiming) { enabled = false; add(layerId, 'source-timing', 'Held, reversed, remapped or out-of-range source timing becomes a disabled named null. Render the original composition to preserve playback.'); }
+			else if (layer.kind === 'shapes') {
+				contentProperty = exportMotionAeShapes({ ...layer, id: layerId }, comp.frameRate, report);
+				if (contentProperty) { kind = 'shape'; add(layerId, 'shape-host-profile', 'Applying named shape styles in installed AE requires a separately reviewed profile for that exact host version. Missing profiles require rendered fallback; raw popup values are never inferred.'); } else enabled = false;
+			}
 			else if (layer.kind === 'text') {
-				textProperty = exportMotionAeTextLayer(layer.document, layerId, options, report);
-				if (textProperty) kind = 'text'; else enabled = false;
+				contentProperty = exportMotionAeTextLayer(layer.document, layerId, options, report);
+				if (contentProperty) kind = 'text'; else enabled = false;
 			}
 			else if (layer.kind === 'precomp') { kind = 'composition'; sourceId = compIds.get(layer.compositionId)!; }
 			else if (layer.kind === 'footage' || layer.kind === 'image') {
@@ -104,7 +109,7 @@ export function prepareMotionscaperAeExport(input: unknown, options: MotionAePro
 			if ([startTime, inPoint, outPoint].some(time => Math.abs(time) > 10800)) throw new RangeError('AE layer timing exceeds its documented ±three-hour range. Retain original.mscape or prepare timing within that host range.');
 			return { id: layerId, name: layer.name, kind, sourceId, parentId: layer.parentId === null ? null : layerIds.get(layer.parentId)!, matte: null,
 				startTime, inPoint, outPoint, stretch: validTiming ? 100 / scale : 100,
-				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report), ...(textProperty ? [textProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
+				enabled, threeD: false, adjustment: false, blendMode: 'normal', properties: [...transform(layer, layerId, comp, report), ...(contentProperty ? [contentProperty] : []), ...exportMotionAeMasks(layer, layerId, number(comp.frameRate), report)] };
 		});
 		return { id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: 1, frameRate: number(comp.frameRate),
 			duration: comp.durationFrames / number(comp.frameRate), displayStartTime: 0, background: comp.background.slice(0, 3) as [number, number, number], layers: exportMotionAeMattes(comp.layers, layers, report) };
