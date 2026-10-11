@@ -27,19 +27,20 @@ export async function renderMotionscaperDelivery(options: MotionDeliveryOptions)
 		const snapshot = createMotionscaperRevision(options.project);
 		const composition = snapshot.project.compositions.find((entry) => entry.id === options.compositionId);
 		if (!composition) throw new Error('The composition to render is unavailable.');
-		const hasAudio = (options.format === 'mp4' || options.format === 'webm') && motionCompositionHasAudio(snapshot.project, composition.id);
+		const hasAudio = (options.format === 'mp4' || options.format === 'webm' || (options.format === 'prores' && !options.excludeAudio)) && motionCompositionHasAudio(snapshot.project, composition.id);
 		const plan = normalizeMotionRenderPlan({ identity: { projectId: snapshot.projectId, revisionDigest: snapshot.digest, compositionId: composition.id },
 			width: composition.width, height: composition.height, frameRate: composition.frameRate,
 			firstFrame: options.firstFrame, frameCount: options.endFrame - options.firstFrame });
 		const { loadMotionRasterRuntime, createMotionBrowserRasterizer } = await import('../common/editor/controller/composition/motion-raster-runtime.ts');
 		if (options.format === 'prores') {
-			if (motionCompositionHasAudio(snapshot.project, composition.id) && !options.excludeAudio) throw new Error('Native ProRes requires an explicit choice to exclude composition audio.');
 			const { motionscaperDesktopDelivery, createMotionscaperDesktopProresSink } = await import('./desktop-delivery-adapter.ts');
 			const delivery = motionscaperDesktopDelivery();
-			if (!delivery || !(await delivery.getProfile())) throw new Error('Native ProRes export is unavailable.');
-			const native = await createMotionscaperDesktopProresSink(delivery, { plan, suggestedName: motionDocumentFileName(snapshot.project.title).replace(/\.mscape$/u, '.mov'), signal: options.signal });
+			const profile = await delivery?.getProfile();
+			if (!delivery || !profile) throw new Error('Native ProRes export is unavailable.');
+			if (hasAudio && profile.audio !== 'pcm-s24le') throw new Error('This native encoder requires an explicit choice to exclude composition audio.');
+			const native = await createMotionscaperDesktopProresSink(delivery, { plan, suggestedName: motionDocumentFileName(snapshot.project.title).replace(/\.mscape$/u, '.mov'), signal: options.signal, ...(hasAudio ? { audio: { sampleRate: 48000, channels: 2 } as const } : {}) });
 			if (!native) throw new DOMException('Native export was cancelled.', 'AbortError');
-			sink = { ...native, audioPolicy: 'exclude' };
+			sink = hasAudio ? native : { ...native, audioPolicy: 'exclude' };
 		} else if (options.format === 'png') {
 			const runtime = await loadMotionRasterRuntime(options.signal);
 			const { createMotionPngSequenceSink } = await import('../common/editor/controller/export/motion-png-sequence.ts');

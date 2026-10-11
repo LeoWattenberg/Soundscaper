@@ -67,7 +67,7 @@ export default function MotionRenderDialog({ copy, project, store, onClose }: Re
 	return <AudioEditorDialogShell title={copy.motionscaperRenderTitle} onClose={onClose} width={480} initialFocus="[data-motion-render-format]"
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>
 			<Button variant="secondary" onClick={() => { if (busy) cancellation.current?.abort(); else onClose(); }}>{busy ? copy.motionscaperCancel : copy.motionscaperClose}</Button>
-			<Button variant="primary" disabled={busy || (format === 'prores' && authoredAudio && !excludeAudio)} type="submit" form={id}>{copy.motionscaperRender}</Button>
+			<Button variant="primary" disabled={busy || (format === 'prores' && authoredAudio && nativeProfile?.audio !== 'pcm-s24le' && !excludeAudio)} type="submit" form={id}>{copy.motionscaperRender}</Button>
 		</>} />}>
 		<form id={id} onSubmit={submit} className="motionscaper-settings-form"><fieldset disabled={busy}>
 			<label htmlFor={`${id}-format`}>{copy.motionscaperOutputFormat}</label><select id={`${id}-format`} data-motion-render-format value={format} onChange={(event) => setFormat(event.currentTarget.value as Format)}>
@@ -78,7 +78,7 @@ export default function MotionRenderDialog({ copy, project, store, onClose }: Re
 			<label className="motionscaper-number-field"><span>{copy.motionscaperEndFrame}</span><input type="number" min={1} max={composition.durationFrames} step={1} required value={endFrame} onChange={(event) => setEndFrame(event.currentTarget.valueAsNumber)} /></label>
 			{(format === 'mp4' || format === 'webm') && <><label className="motionscaper-number-field"><span>{copy.motionscaperRenderBackground}</span><input type="color" value={background} onChange={(event) => setBackground(event.currentTarget.value)} /></label><p>{copy.motionscaperVideoOpaque}</p></>}
 			{format === 'png' && <p>{copy.motionscaperPngWithoutAudio}</p>}
-			{format === 'prores' && <><p>{copy.motionscaperProresProfile}</p><p>{copy.motionscaperNativeWithoutAudio}</p>
+			{format === 'prores' && <><p>{copy.motionscaperProresProfile}</p><p>{nativeProfile?.audio === 'pcm-s24le' && !excludeAudio ? copy.motionscaperNativePcm : copy.motionscaperNativeWithoutAudio}</p>
 				{authoredAudio && <label><input type="checkbox" checked={excludeAudio} onChange={(event) => setExcludeAudio(event.currentTarget.checked)} />{copy.motionscaperExcludeAudio}</label>}
 			</>}
 		</fieldset></form>
