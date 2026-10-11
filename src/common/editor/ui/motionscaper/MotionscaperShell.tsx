@@ -114,6 +114,7 @@ export default function MotionscaperShell({ locale, copy, onNewComposition }: Mo
 	return <DesignSystemProviders copy={menuCopy}>
 		<div id="kw-audio-editor-design-system" className="motionscaper-shell" data-motion-editor-bound="true" data-product="motionscaper">
 			<AudioEditorMenuBar appName="Motionscaper" productId="motionscaper" locale={locale}
+				menuAvailabilityRevision={[documentState.busy, documentState.project !== null, documentState.canUndo, documentState.canRedo, checkingUpdates, workspaceOpen].join(':')}
 				copy={menuCopy} menus={menus} projectName={documentState.project?.title ?? 'Motionscaper'} projectTabs={null}
 				searchEnabled={false} saveState={documentState.dirty ? 'dirty' : 'saved'} saveText="" onAssistanceSearchClose={noAction}
 				onSearchActivate={noAction} onFullscreen={toggleFullscreen} />
