@@ -17,7 +17,7 @@ process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({
 
 export default defineConfig({
 	testDir: './tests/browser',
-	testIgnore: ['handbook/**', 'dual-origin/**', '**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts'],
+	testIgnore: ['handbook/**', 'dual-origin/**', '**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts', '**/motionscaper-successor-shell.spec.ts', '**/motionscaper-successor-opaque-archive.spec.ts'],
 	timeout: 30000,
 	expect: { timeout: 5000 },
 	fullyParallel: true,

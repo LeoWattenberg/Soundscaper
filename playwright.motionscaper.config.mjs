@@ -10,7 +10,7 @@ process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({ motionscaper: si
 export default defineConfig({
 	testDir: './tests/browser',
 	testMatch: '**/motionscaper*.spec.{js,ts}',
-	testIgnore: ['**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts'],
+	testIgnore: ['**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts', '**/motionscaper-successor-shell.spec.ts', '**/motionscaper-successor-opaque-archive.spec.ts'],
 	fullyParallel: true,
 	forbidOnly: Boolean(process.env.CI),
 	workers: 2,

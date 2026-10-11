@@ -7,7 +7,7 @@ async function config(name: string): Promise<Selection> {
 }
 test('Motion successor preview and native cleanup workflows run only against the explicit successor site', async () => {
 	const linked = await config('playwright.motionscaper-links.config.mjs');
-	for (const file of ['motionscaper-linked-native-menu.spec.ts', 'motionscaper-linked-mixed-preview.spec.ts', 'motionscaper-successor-native-cleanup.spec.ts']) {
+	for (const file of ['motionscaper-linked-native-menu.spec.ts', 'motionscaper-linked-mixed-preview.spec.ts', 'motionscaper-successor-native-cleanup.spec.ts', 'motionscaper-successor-shell.spec.ts', 'motionscaper-successor-opaque-archive.spec.ts']) {
 		const pattern = `**/${file}`;
 		assert.ok(linked.testMatch?.includes(pattern), `${file} needs the successor fixture`);
 		for (const name of ['playwright.config.mjs', 'playwright.motionscaper.config.mjs']) {
