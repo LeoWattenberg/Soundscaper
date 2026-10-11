@@ -113,17 +113,27 @@ reopen workflows, including retained PCM amplitude and cancellation. M09 has per
 planes, linear-SDR materials/lights, transparent shadow casters and deterministic
 thin-lens sampling. Actual worker/WebGL and host/CPU preview fixtures agree;
 matching-quality shutter/lens preview and final export agree, including exact
-nested quality and arbitrary seeks. Camera/lighting authoring and desktop
-reference qualification remain unfinished. M10 has versioned composition
+nested quality and arbitrary seeks. Menu-driven camera, lighting, material and
+quality authoring pass actual Chromium preview, undo/redo and save/reopen;
+desktop reference qualification remains unfinished. M10 has versioned composition
 offers, bounded streamed closure verification, compatible/pending update and
 Undo/Resume rules, and atomic receiver-owned successor storage with retained
-historical revisions. Saved-revision frame rendering uses the shared scene and
-retained image bytes after offline receiver reopen. Browser/desktop transports, Framescaper editor/render
-integration, and portable linked archives remain unfinished. M11 has a bounded
+historical revisions, with atomic owning-project/history CAS and private
+preparations. Saved-revision picture and PCM adapters use the shared scene and
+retained bytes after offline receiver reopen. Bounded portable linked archive
+export/import passes durable rollback fixtures for unchanged baseline intent.
+Browser/desktop transports, Framescaper editor/render integration and complete
+successor save/archive assembly remain unfinished. M11 has a bounded
 exchange schema, custody/report validation, readable installed-AE exporter and
-limited importer scripts with media digest verification, and a bounded script download. Editable conversion,
-sampling/render fallback and real-AE qualification remain unfinished.
-The Motionscaper Node shard passes 440 tests at this integration
+limited importer scripts with media digest verification, a bounded script
+download, explicit numeric sampling and limited editable exchange conversion.
+Atomic import retains original exchange/report custody and every media file
+through normal Save/reopen and portable archives, including unsupported null
+placeholders. Menu integration, render fallback and real-AE qualification remain
+unfinished. Additional composition authoring passes an actual nested picture/PCM
+preview and save/reopen workflow; retained font and gradient authoring pass
+Chromium pixel/history workflows.
+The Motionscaper Node shard passes 471 tests at this integration
 point. These results do not close a package's completion gate.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
