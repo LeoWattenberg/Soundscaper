@@ -104,3 +104,31 @@ test('M02 refused and interrupted claims leave no project or orphan writer visib
 		assert.equal(indexedDB.recordCount('kw-media-motionscaper-editor-v1', 'projects'), 0);
 	} finally { await store.close(); }
 });
+
+test('Motion failed durable lease deletion retains cleanup ownership and retries without enabling stale writes', async () => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const first = createMotionscaperProjectStore({ indexedDB: indexedDB as unknown as IDBFactory });
+	const second = createMotionscaperProjectStore({ indexedDB: indexedDB as unknown as IDBFactory });
+	try {
+		const lease = await first.acquireWriteAccess('release-retry');
+		indexedDB.failNextDeleteForStore('writeLeases', new DOMException('Release transaction aborted', 'AbortError'));
+		await assert.rejects(first.releaseWriteAccess(lease), /aborted/iu);
+		assert.equal(indexedDB.recordCount('kw-media-motionscaper-editor-v1', 'writeLeases'), 1);
+		await assert.rejects(first.assertWriteAccess(lease), /write access/iu);
+		await assert.rejects(second.acquireWriteAccess('release-retry'), /another|write access/iu);
+		await Promise.all([first.releaseWriteAccess(lease), first.releaseWriteAccess(lease)]);
+		assert.equal(indexedDB.recordCount('kw-media-motionscaper-editor-v1', 'writeLeases'), 0);
+		const next = await second.acquireWriteAccess('release-retry'); await second.releaseWriteAccess(next);
+	} finally { await first.close(); await second.close(); }
+});
+
+test('Motion failed store closure preserves the database for a later durable lease cleanup retry', async () => {
+	const indexedDB = createInstrumentedIndexedDB(); const store = createMotionscaperProjectStore({ indexedDB: indexedDB as unknown as IDBFactory });
+	await store.acquireWriteAccess('close-retry');
+	indexedDB.failNextDeleteForStore('writeLeases', new DOMException('Release transaction aborted', 'AbortError'));
+	await assert.rejects(store.close(), /cleanup/iu);
+	assert.equal(indexedDB.recordCount('kw-media-motionscaper-editor-v1', 'writeLeases'), 1);
+	await assert.rejects(store.list(), /closed/iu);
+	await Promise.all([store.close(), store.close()]);
+	assert.equal(indexedDB.recordCount('kw-media-motionscaper-editor-v1', 'writeLeases'), 0);
+});

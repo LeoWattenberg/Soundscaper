@@ -15,7 +15,7 @@ const DURATION = 15000, HEARTBEAT = 5000;
 interface PhysicalLease { readonly readOnly: boolean; readonly method: string; readonly lost?: Promise<unknown>; readonly finished?: Promise<unknown>; release(): void }
 interface LeaseRecord { readonly id: string; readonly token: string; readonly expiresAt: number }
 export interface MotionProjectWriteLease { readonly projectId: string; readonly token: string }
-interface Held { readonly lease: MotionProjectWriteLease; readonly physical: PhysicalLease | null; timer: ReturnType<typeof setInterval> | null; active: boolean }
+interface Held { readonly lease: MotionProjectWriteLease; readonly physical: PhysicalLease | null; timer: ReturnType<typeof setInterval> | null; active: boolean; releasing: Promise<void> | null }
 type Stores = Readonly<Record<string, IDBObjectStore>>;
 export interface MotionProjectLeaseOptions {
 	readonly database: () => Promise<IDBDatabase>; readonly physicalLocks: boolean;
@@ -54,7 +54,7 @@ export class MotionProjectWriteLeases {
 			? await acquireProjectLock(projectId, { projectStorageProfile: MOTIONSCAPER_PROJECT_STORAGE_PROFILE }) : null;
 		if (physical?.readOnly) { physical.release(); await physical.finished; throw new MotionProjectLeaseError(); }
 		const lease = Object.freeze({ projectId, token: crypto.randomUUID() });
-		const held: Held = { lease, physical, timer: null, active: true };
+		const held: Held = { lease, physical, timer: null, active: true, releasing: null };
 		void physical?.lost?.then(() => this.#lose(held), () => this.#lose(held));
 		try {
 			const database = await this.#options.database();
@@ -91,17 +91,23 @@ export class MotionProjectWriteLeases {
 	}
 	async release(lease: MotionProjectWriteLease): Promise<void> {
 		const held = this.#held.get(lease); if (!held) return;
-		this.#held.delete(lease); this.#lose(held);
-		try {
-			const database = await this.#options.database();
-			await transact(database, [MOTION_PROJECT_LEASE_STORE], 'readwrite', async stores => {
-				const value: unknown = await request(stores[MOTION_PROJECT_LEASE_STORE]!.get(lease.projectId));
-				if (value !== undefined && read(value, lease.projectId).token === lease.token) await request(stores[MOTION_PROJECT_LEASE_STORE]!.delete(lease.projectId));
-			});
-		} finally { held.physical?.release(); await held.physical?.finished; }
+		this.#lose(held);
+		held.releasing ??= this.#release(held);
+		try { await held.releasing; } finally { held.releasing = null; }
+	}
+	async #release(held: Held): Promise<void> {
+		const { lease } = held;
+		const database = await this.#options.database();
+		await transact(database, [MOTION_PROJECT_LEASE_STORE], 'readwrite', async stores => {
+			const value: unknown = await request(stores[MOTION_PROJECT_LEASE_STORE]!.get(lease.projectId));
+			if (value !== undefined && read(value, lease.projectId).token === lease.token) await request(stores[MOTION_PROJECT_LEASE_STORE]!.delete(lease.projectId));
+		});
+		// Keep both the token and physical exclusion until durable release succeeds.
+		held.physical?.release(); await held.physical?.finished;
+		this.#held.delete(lease);
 	}
 	async close(): Promise<void> {
-		if (this.#closed) return; this.#closed = true;
+		this.#closed = true;
 		await Promise.allSettled(this.#claims); this.#defaults.clear();
 		const results = await Promise.allSettled([...this.#held.keys()].map(lease => this.release(lease)));
 		const failures = results.filter(result => result.status === 'rejected').map(result => result.reason as unknown);

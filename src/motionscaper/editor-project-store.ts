@@ -48,6 +48,8 @@ export class MotionscaperProjectStore {
 	readonly #leases: MotionProjectWriteLeases;
 	readonly #listeners = new Set<(revision: MotionscaperRevision) => void>();
 	#closed = false;
+	#closing: Promise<void> | null = null;
+	#databaseClosed = false;
 
 	constructor(options: MotionscaperProjectStoreOptions) {
 		const indexedDB = options.indexedDB ?? globalThis.indexedDB;
@@ -68,10 +70,14 @@ export class MotionscaperProjectStore {
 	}
 
 	async close(): Promise<void> {
-		if (this.#closed) return;
+		if (this.#databaseClosed) return;
 		this.#closed = true;
 		this.#listeners.clear();
-		try { await this.#leases.close(); } finally { (await this.#databasePromise).close(); }
+		this.#closing ??= (async () => {
+			await this.#leases.close();
+			(await this.#databasePromise).close(); this.#databaseClosed = true;
+		})();
+		try { await this.#closing; } finally { this.#closing = null; }
 	}
 	acquireWriteAccess(id: string): Promise<MotionProjectWriteLease> { return this.#leases.acquire(id); }
 	releaseWriteAccess(lease: MotionProjectWriteLease): Promise<void> { return this.#leases.release(lease); }
