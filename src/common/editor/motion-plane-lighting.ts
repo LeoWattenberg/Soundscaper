@@ -3,16 +3,18 @@ import type { MotionCamera } from './motion-camera.ts';
 import type { MotionDepthPlane } from './motion-depth-compositing.ts';
 import type { MotionLighting } from './motion-lighting-plan.ts';
 import { motionPlaneMatteWeight, sampleMotionPlaneSurface } from './motion-plane-sampling.ts';
+import type { MotionVector2 } from './motion-property.ts';
 
 /** Mutates only the current fragment RGB, retaining its source/mask alpha. Scratch is caller-owned. */
-export function shadeMotionPlaneFragment(lighting: MotionLighting, camera: MotionCamera, plane: MotionDepthPlane, planes: readonly MotionDepthPlane[], localX: number, localY: number, pixels: Float64Array, slot: number, scratch: Float64Array): void {
+export function shadeMotionPlaneFragment(lighting: MotionLighting, camera: MotionCamera, plane: MotionDepthPlane, planes: readonly MotionDepthPlane[], localX: number, localY: number, pixels: Float64Array, slot: number, scratch: Float64Array, lens: MotionVector2): void {
 	const material = plane.layer.state.material; if (!material.acceptsLights || !lighting.lights.length) return;
 	const m = plane.layer.worldMatrix; const inverse = plane.worldToLocal;
 	const x = m[0] * localX + m[4] * localY + m[12]; const y = m[1] * localX + m[5] * localY + m[13]; const z = m[2] * localX + m[6] * localY + m[14];
 	let nx = -inverse[2]; let ny = -inverse[6]; let nz = -inverse[10]; const normal = Math.hypot(nx, ny, nz); nx /= normal; ny /= normal; nz /= normal;
-	let vx = camera.projection === 'perspective' ? camera.world[12] - x : -camera.world[8];
-	let vy = camera.projection === 'perspective' ? camera.world[13] - y : -camera.world[9];
-	let vz = camera.projection === 'perspective' ? camera.world[14] - z : -camera.world[10];
+	const cx = camera.world[0] * lens[0] + camera.world[4] * lens[1]; const cy = camera.world[1] * lens[0] + camera.world[5] * lens[1]; const cz = camera.world[2] * lens[0] + camera.world[6] * lens[1];
+	let vx = camera.projection === 'perspective' ? camera.world[12] + cx - x : -camera.world[8] + cx / camera.focusDistance;
+	let vy = camera.projection === 'perspective' ? camera.world[13] + cy - y : -camera.world[9] + cy / camera.focusDistance;
+	let vz = camera.projection === 'perspective' ? camera.world[14] + cz - z : -camera.world[10] + cz / camera.focusDistance;
 	const view = Math.hypot(vx, vy, vz); vx /= view; vy /= view; vz /= view;
 	if (nx * vx + ny * vy + nz * vz < 0) { nx = -nx; ny = -ny; nz = -nz; }
 	let r = 0; let g = 0; let b = 0;
@@ -30,7 +32,7 @@ export function shadeMotionPlaneFragment(lighting: MotionLighting, camera: Motio
 		}
 		const diffuse = Math.max(0, nx * ux + ny * uy + nz * uz);
 		if (!diffuse) continue;
-		if (material.receivesShadows && light.castsShadows) amount *= shadowTransmission(camera, plane, planes, x, y, z, lx, ly, lz, scratch);
+		if (material.receivesShadows && light.castsShadows) amount *= shadowTransmission(camera, plane, planes, x, y, z, lx, ly, lz, scratch, lens);
 		const hx = ux + vx; const hy = uy + vy; const hz = uz + vz; const length = Math.hypot(hx, hy, hz);
 		const specular = length ? material.specular * Math.max(0, (nx * hx + ny * hy + nz * hz) / length) ** material.shininess * alpha : 0;
 		r += (pixels[slot]! * material.diffuse * diffuse + specular) * light.rgb[0] * amount;
@@ -40,7 +42,7 @@ export function shadeMotionPlaneFragment(lighting: MotionLighting, camera: Motio
 	pixels[slot] = Math.min(alpha, r); pixels[slot + 1] = Math.min(alpha, g); pixels[slot + 2] = Math.min(alpha, b);
 }
 
-function shadowTransmission(camera: MotionCamera, receiver: MotionDepthPlane, planes: readonly MotionDepthPlane[], x: number, y: number, z: number, dx: number, dy: number, dz: number, scratch: Float64Array): number {
+function shadowTransmission(camera: MotionCamera, receiver: MotionDepthPlane, planes: readonly MotionDepthPlane[], x: number, y: number, z: number, dx: number, dy: number, dz: number, scratch: Float64Array, lens: MotionVector2): number {
 	let transmission = 1;
 	for (const caster of planes) {
 		if (caster === receiver || !caster.layer.state.material.castsShadows) continue;
@@ -56,7 +58,7 @@ function shadowTransmission(camera: MotionCamera, receiver: MotionDepthPlane, pl
 			const cx = view[0] * wx + view[4] * wy + view[8] * wz + view[12]; const cy = view[1] * wx + view[5] * wy + view[9] * wz + view[13]; const depth = view[2] * wx + view[6] * wy + view[10] * wz + view[14];
 			if (caster.matte.surface && depth >= camera.near && depth <= camera.far) {
 				const factor = camera.projection === 'perspective' ? camera.zoom / depth : camera.zoom / Math.max(camera.width, camera.height);
-				sampleMotionPlaneSurface(caster.matte.surface, camera.width / 2 + cx * factor - 0.5, camera.height / 2 + cy * factor - 0.5, scratch);
+				sampleMotionPlaneSurface(caster.matte.surface, camera.width / 2 + (cx - lens[0] * (1 - depth / camera.focusDistance)) * factor - 0.5, camera.height / 2 + (cy - lens[1] * (1 - depth / camera.focusDistance)) * factor - 0.5, scratch);
 			} else scratch.fill(0);
 			coverage *= motionPlaneMatteWeight(caster.matte, scratch[0]!, scratch[1]!, scratch[2]!, scratch[3]!);
 		}

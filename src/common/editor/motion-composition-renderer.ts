@@ -44,10 +44,10 @@ export const motionCpuCompositor: MotionCompositor = Object.freeze({ retainedSur
 
 /** Identical evaluated input and rasterizer serve seeking, preview, thumbnails, delivery and linked sources. */
 export async function renderMotionCompositionFrame(frame: MotionCompositionFrame, options: Readonly<{
-	rasterizer: MotionRasterizer; compositor?: MotionCompositor; signal?: AbortSignal; maximumWorkingBytes?: number;
+	rasterizer: MotionRasterizer; compositor?: MotionCompositor; signal?: AbortSignal; maximumWorkingBytes?: number; depthOfFieldSamples?: number;
 }>): Promise<MotionRenderResult> {
 	options.signal?.throwIfAborted();
-	admitFrame(frame, options.rasterizer, options.compositor ?? motionCpuCompositor);
+	admitFrame(frame, options.rasterizer, options.compositor ?? motionCpuCompositor, options.depthOfFieldSamples);
 	assertMotionWorkingBudget(estimateMotionFrameWorkingBytes(frame, options.rasterizer, options.compositor ?? motionCpuCompositor), options.maximumWorkingBytes ?? MOTION_DEFAULT_WORKING_BYTES);
 	const consumed: string[] = [];
 	const render = async (current: MotionCompositionFrame): Promise<MotionSurface> => {
@@ -57,7 +57,8 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 		const matteIds = new Set(current.layers.flatMap((layer) => layer.state.matte ? [layer.state.matte.layerId] : []));
 		const matteCache = new Map<string, MotionSurface>();
 		const processed = new Set<string>();
-		const depth = planMotionDepth(current); const depthPlans = new Map(depth.planes.map((plane) => [plane.layer.state.id, plane]));
+		const count = current === frame || options.depthOfFieldSamples === undefined ? options.depthOfFieldSamples : Math.min(options.depthOfFieldSamples, current.depthOfFieldSamples ?? 16);
+		const depth = planMotionDepth(current, count); const depthPlans = new Map(depth.planes.map((plane) => [plane.layer.state.id, plane]));
 		const lighting = planMotionLighting(current, depth);
 		consumed.push(current.requiredOperationIds[0]!);
 		const mark = (layer: MotionEvaluatedLayer) => { if (!processed.has(layer.state.id)) { processed.add(layer.state.id); consumed.push(...layer.operations.map((operation) => operation.id)); } };
@@ -65,7 +66,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 			const cached = matteCache.get(layer.state.id); if (cached) return cached;
 			const plane = depthPlans.get(layer.state.id);
 			let source = plane ? await compositeMotionDepthPlanes(createMotionSurface(current.width, current.height), depth.camera,
-				[{ ...plane, local: await renderMotionLayerLocalSource(layer, current, { ...options, renderPrecomposition: render }), opacity: 1 }], options.signal, lighting)
+				[{ ...plane, local: await renderMotionLayerLocalSource(layer, current, { ...options, renderPrecomposition: render }), opacity: 1 }], options.signal, lighting, depth.lenses)
 				: await renderMotionLayerSource(layer, current, { ...options, renderPrecomposition: render });
 			if (layer.state.matte) {
 				const matte = layers.get(layer.state.matte.layerId);
@@ -78,7 +79,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 		let group: MotionDepthPlane[] = [];
 		const flushDepth = async () => {
 			if (!group.length) return;
-			const replacement = await compositeMotionDepthPlanes(target.finish(), depth.camera, group, options.signal, lighting);
+			const replacement = await compositeMotionDepthPlanes(target.finish(), depth.camera, group, options.signal, lighting, depth.lenses);
 			if (!target.replace) throw new Error('Motion compositor omitted its admitted 3D replacement method.'); target.replace(replacement); group = [];
 		};
 		try {
@@ -114,8 +115,9 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 	return Object.freeze({ ...surface, consumedOperationIds: Object.freeze(consumed) });
 }
 
-function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer, compositor: MotionCompositor): void {
-	const depth = planMotionDepth(frame);
+function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer, compositor: MotionCompositor, depthOfFieldSamples?: number, nested = false): void {
+	const count = nested && depthOfFieldSamples !== undefined ? Math.min(depthOfFieldSamples, frame.depthOfFieldSamples ?? 16) : depthOfFieldSamples;
+	const depth = planMotionDepth(frame, count);
 	planMotionLighting(frame, depth);
 	if (depth.planes.length && !compositor.supportsReplacement) throw new Error('Motion compositor cannot replace a 3D backdrop; use the CPU compositor.');
 	const layers = new Map(frame.layers.map((layer) => [layer.state.id, layer]));
@@ -140,6 +142,6 @@ function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer,
 		const matteSource = layer.state.matte ? layers.get(layer.state.matte.layerId) : null;
 		if (matteSource && ['null', 'camera', 'light', 'adjustment'].includes(matteSource.state.kind)) throw new Error(`Motion matte source ${matteSource.state.name} is a non-pixel layer.`);
 		if (layer.state.kind === 'adjustment' && motionAdjustmentApplies(layer, frame) && !compositor.supportsReplacement) throw new Error('Motion compositor cannot replace an adjustment backdrop; use the CPU compositor.');
-		if (layer.precomposition !== null) admitFrame(layer.precomposition, rasterizer, compositor);
+		if (layer.precomposition !== null) admitFrame(layer.precomposition, rasterizer, compositor, depthOfFieldSamples, true);
 	}
 }

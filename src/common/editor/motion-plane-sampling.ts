@@ -13,6 +13,8 @@ export function sampleMotionPlaneSurface(source: MotionSurface, sx: number, sy: 
 		const weight = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy); const i = ((iy + dy) * source.width + ix + dx) * 4;
 		for (let c = 0; c < 4; c++) output[slot + c]! += source.pixels[i + c]! * weight;
 	}
+	const alpha = Math.min(1, Math.max(0, output[slot + 3]!)); output[slot + 3] = alpha;
+	for (let c = 0; c < 3; c++) output[slot + c] = Math.min(alpha, Math.max(0, output[slot + c]!));
 }
 export function motionPlaneMatteWeight(matte: MotionPlaneMatte, r: number, g: number, b: number, alpha: number): number {
 	const coverage = Math.max(0, Math.min(1, matte.opacity)) * (matte.mode.startsWith('luma') ? motionLinearLuma(r, g, b) : alpha);

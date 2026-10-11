@@ -13,7 +13,7 @@ import type { MotionPreviewBackend } from '../../src/common/editor/controller/co
 import type { MotionscaperProject } from '../../src/common/editor/motion-project-types.ts';
 
 type Fixture = Readonly<{ createClient(options: MotionPreviewOptions): Promise<MotionPreviewClient>; createSession(options: MotionPreviewSessionOptions): MotionPreviewBackend;
-	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject; depthProject: MotionscaperProject; lightProject: MotionscaperProject;
+	project: MotionscaperProject; shapeProject: MotionscaperProject; pinProject: MotionscaperProject; depthProject: MotionscaperProject; lightProject: MotionscaperProject; focusProject: MotionscaperProject;
 	audioFixture(): Promise<{ project: MotionscaperProject; bytes: Uint8Array }>; loadAsset(): Promise<Uint8Array> }>;
 let directory: string; let server: Server; let address: string;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -50,12 +50,13 @@ const caster = createMotionLayer({ id: 'caster', name: 'Caster', durationFrames:
 const receiver = createMotionLayer({ id: 'receiver', name: 'Receiver', durationFrames: 300, content: { kind: 'solid', color: motionColor([1, 1, 1, 1]), size: motionVector([64, 32]) } });
 const point = createMotionLayer({ id: 'light', name: 'Point', durationFrames: 300, content: { kind: 'light', lightType: 'point', color: motionColor([1, 1, 1, 1]), intensity: motionScalar(1), coneAngle: motionScalar(90), coneFeather: motionScalar(0), castsShadows: true } });
 const lightProject = { ...base, compositions: [{ ...base.compositions[0], layers: [{ ...caster, is3D: true, material: { ...caster.material, castsShadows: true }, transform: { ...caster.transform, position: motionVector([8, 0, 0]) } }, { ...receiver, is3D: true, transform: { ...receiver.transform, position: motionVector([0, 0, 32]) } }, { ...point, transform: { ...point.transform, position: motionVector([0, 16.5, -32]) } }, { ...camera, transform: { ...camera.transform, position: motionVector([32, 16, -100]) } }] }] };
+const focusProject = { ...base, compositions: [{ ...base.compositions[0], depthOfFieldSamples: 16, layers: [{ ...card, is3D: true, color: motionColor([1, 1, 1, 1]), transform: { ...card.transform, position: motionVector([28, 12, 64]) } }, { ...camera, projection: 'perspective', focusDistance: motionScalar(64), aperture: motionScalar(32), transform: { ...camera.transform, position: motionVector([32, 16, -64]) } }] }] };
 const audioFixture = async () => {
  const bytes = motionWavFixture(2); const { asset } = await prepareMotionMedia(new Blob([bytes]), { id: 'sound', name: 'Sound.wav' });
  const audioSolid = { ...solid, transform: { ...solid.transform, opacity: { ...motionScalar(1), expression: { source: 'audioAmplitude("sound", time, 0.02)', enabled: true, references: [] } } } };
  return { bytes, project: { ...base, assets: [asset], compositions: [{ ...base.compositions[0], layers: [audioSolid] }] } };
 };
-globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, depthProject, lightProject, audioFixture, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
+globalThis.motionFixture = { createClient, createSession, project, shapeProject, pinProject, depthProject, lightProject, focusProject, audioFixture, loadAsset: async () => new Uint8Array(await (await fetch(fontUrl)).arrayBuffer()) };
 `;
 
 test.beforeAll(async () => {
@@ -149,6 +150,24 @@ test('M09 transparent shadow casters and point lighting match worker WebGL and h
 	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
 	const response = Math.round(255 * (1.055 * (0.5 * 64 / Math.hypot(20.5, 64)) ** (1 / 2.4) - 0.055));
 	expect(rendered.pixels[0]!.slice((16 * 64 + 20) * 4, (16 * 64 + 20) * 4 + 4)).toEqual([response, response, response, 255]);
+});
+
+test('M09 deterministic depth-of-field lens samples preserve transparent coverage in worker and CPU preview', async ({ page }) => {
+	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
+	const rendered = await page.evaluate(async () => {
+		const fixture = (globalThis as unknown as { motionFixture: Fixture }).motionFixture;
+		const pixels: number[][] = []; const backends: string[] = [];
+		for (const forceHost of [false, true]) {
+			let frame: MotionPreviewFrame | undefined;
+			const client = await fixture.createClient({ ...(forceHost ? { backendFactory: () => Promise.resolve(fixture.createSession({ backend: 'host-cpu', maximumAssetBytes: 64 * 1024 * 1024, maximumWorkingBytes: 64 * 1024 * 1024 })) } : {}), onFrame(value) { frame = value; }, onState() {} });
+			await client.setProject(fixture.focusProject, fixture.loadAsset); await client.seek({ compositionId: 'main', time: 0 });
+			pixels.push([...frame!.rgba]); backends.push(frame!.backend); client.dispose();
+		}
+		return { pixels, backends };
+	});
+	expect(rendered.backends).toEqual(['worker-webgl2', 'host-cpu']); expect(rendered.pixels[0]).toEqual(rendered.pixels[1]);
+	const edge = rendered.pixels[0]!.slice((16 * 64 + 28) * 4, (16 * 64 + 28) * 4 + 4);
+	expect(edge.slice(0, 3)).toEqual([255, 255, 255]); expect(edge[3]).toBeGreaterThan(0); expect(edge[3]).toBeLessThan(255);
 });
 
 test('M05 bundled preview loads fonts and WASM lazily, animates shaped fallback glyphs and renders offline in a persistent worker', async ({ page, context }) => {
