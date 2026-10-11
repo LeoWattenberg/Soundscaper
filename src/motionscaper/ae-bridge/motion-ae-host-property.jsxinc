@@ -34,8 +34,8 @@ function readMotionAeHostProperty(property, host, layerId, path, report, budget,
         }
         if (matchName === 'ADBE Mask Atom' && host.mask)
             return { kind: kind, name: name, matchName: matchName, children: children, mask: host.mask(property) };
-        if (matchName.indexOf('ADBE Vector ') === 0) {
-            var style = (_b = host.vector) === null || _b === void 0 ? void 0 : _b.call(host, property);
+        if (matchName.indexOf('ADBE Vector ') === 0 || matchName === 'ADBE Gaussian Blur 2') {
+            var style = matchName.indexOf('ADBE Vector ') === 0 ? (_b = host.vector) === null || _b === void 0 ? void 0 : _b.call(host, property) : undefined;
             return __assign(__assign({ kind: kind, name: name, matchName: matchName, children: children }, (property.canSetEnabled === true && typeof property.enabled === 'boolean' ? { enabled: property.enabled } : {})), (style ? { vectorStyle: style } : {}));
         }
         return { kind: kind, name: name, matchName: matchName, children: children };

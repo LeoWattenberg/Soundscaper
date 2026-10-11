@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeInstalledImport = (function () {
+var chooseMotionAeGaussianProfile = MotionAeInstalledGaussianProfile.chooseMotionAeGaussianProfile;
+var applyMotionAeInstalledGaussian = MotionAeInstalledGaussian.applyMotionAeInstalledGaussian;
+var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
 var applyMotionAeHostShapes = MotionAeHostApplyShape.applyMotionAeHostShapes;
 var chooseMotionAeShapeProfile = MotionAeInstalledShapeProfile.chooseMotionAeShapeProfile;
 var applyMotionAeInstalledText = MotionAeInstalledText.applyMotionAeInstalledText;
@@ -192,6 +195,12 @@ function beginImport(project, root, plan, shapeProfile) {
         },
         parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
         properties: function (item) {
+            var _a;
+            if ((_a = item.gaussian) === null || _a === void 0 ? void 0 : _a.length) {
+                if (!plan.gaussianProfile)
+                    throw new Error('Reviewed Gaussian profile is missing.');
+                applyMotionAeInstalledGaussian(layers[item.id], item.gaussian, plan.gaussianProfile);
+            }
             if (item.shapes) {
                 if (!shapeProfile)
                     throw new Error('Choose a reviewed shape profile before creating editable shapes.');
@@ -287,6 +296,7 @@ function beginImport(project, root, plan, shapeProfile) {
 }
 /** Import into new AE items. The original project file, existing objects and media are never saved or overwritten. */
 function runMotionAeInstalledImport() {
+    var _a;
     try {
         var project_1 = app.project;
         if (!project_1)
@@ -309,10 +319,12 @@ function runMotionAeInstalledImport() {
         if (!file_1.close())
             throw new Error('Cannot close exchange manifest.');
         var plan = prepareMotionAeHostImport(json);
-        var needsShapes = false, hasExpressions = false;
+        var needsShapes = false, hasExpressions = false, needsGaussian = false;
         for (var comp = 0; comp < plan.compositions.length; comp++)
             for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
                 var layer = plan.compositions[comp].layers[index];
+                if ((_a = layer.gaussian) === null || _a === void 0 ? void 0 : _a.length)
+                    needsGaussian = true;
                 if (layer.blendMode !== 'normal' && (typeof BlendingMode === 'undefined' || BlendingMode[layer.blendMode.toUpperCase()] === undefined))
                     throw new Error('This AE host lacks the admitted named blend enum. Use the complete rendered fallback.');
                 for (var property = 0; property < layer.properties.length; property++)
@@ -329,6 +341,13 @@ function runMotionAeInstalledImport() {
                 if (plan.compositions[comp].layers[index].matte && !(parseFloat(app.version) >= 23))
                     throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
             }
+        if (needsGaussian) {
+            var selected = chooseMotionAeGaussianProfile();
+            if (!selected)
+                return;
+            if (stringifyMotionAeHostJson(selected) !== stringifyMotionAeHostJson(plan.gaussianProfile))
+                throw new Error('Select the exact reviewed Gaussian profile retained by this exchange. No items were created.');
+        }
         var shapeProfile_1 = needsShapes ? chooseMotionAeShapeProfile() : null;
         if (needsShapes && !shapeProfile_1)
             return;

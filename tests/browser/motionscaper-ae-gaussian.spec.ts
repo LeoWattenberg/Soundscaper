@@ -55,3 +55,21 @@ test('Motion File Gaussian profile opt-in rejects mismatches, survives Save/reop
 	await dialog.getByRole('button', { name: 'Remove Gaussian Profile', exact: true }).click(); await expect(reverse).toHaveCount(0);
 	await expect(dialog.getByLabel('Reviewed Gaussian profile for export', { exact: true })).toHaveValue('');
 });
+
+test('Motion File bridge downloads the bounded reviewed Gaussian script package with complete readable include closure', async ({ page }) => {
+	await page.goto('/embed/en/'); await menu(page, 'After Effects Bridge'); const dialog = page.getByRole('dialog');
+	const pending = page.waitForEvent('download'); await dialog.getByRole('button', { name: 'Download Bridge Scripts', exact: true }).click();
+	const downloaded = await pending, reader = new ZipReader(new BlobReader(new Blob([new Uint8Array(await readFile((await downloaded.path())!))])));
+	try {
+		const entries = await reader.getEntries(); expect(entries).toHaveLength(32);
+		const names = entries.map(entry => entry.filename); expect(names).toEqual(expect.arrayContaining(['Motionscaper-Gaussian-Profile.jsx', 'Motionscaper-Export-Gaussian.jsx']));
+		for (const entry of entries) {
+			if (entry.directory || !/\.jsx(?:inc)?$/u.test(entry.filename)) continue;
+			const text = await entry.getData!(new TextWriter());
+			for (const match of text.matchAll(/^#include "([A-Za-z0-9.-]+)"$/gmu)) expect(names).toContain(match[1]);
+			if (entry.filename === 'motion-ae-host-shape-profile.jsxinc') { expect(text).toContain('MotionAeGaussianProfile'); expect(text).toContain('MotionAeInstalledGaussianProfile'); }
+		}
+		const readme = entries.find(entry => entry.filename === 'README.txt'); if (!readme || readme.directory) throw new Error('Missing bridge guidance');
+		expect(await readme.getData!(new TextWriter())).toMatch(/no default or kernel equivalence/iu);
+	} finally { await reader.close(); }
+});

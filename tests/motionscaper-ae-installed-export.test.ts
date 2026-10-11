@@ -4,11 +4,13 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import vm from 'node:vm';
+import { motionAeGaussianProfileFixture } from './helpers/motionscaper-ae-gaussian-fixture.ts';
+import { motionAeGaussianHostFixture } from './helpers/motionscaper-ae-gaussian-host-fixture.ts';
 import { parseMotionAeExchange } from '../src/common/editor/motion-ae-exchange.ts';
 
-async function script(sampled = false, rendered = false): Promise<string> {
+async function script(sampled = false, rendered = false, gaussian = false): Promise<string> {
 	const root = new URL('../src/motionscaper/ae-bridge/', import.meta.url);
-	const entry = await readFile(new URL(rendered ? 'Motionscaper-Export-Rendered.jsx.txt' : sampled ? 'Motionscaper-Export-Sampled.jsx.txt' : 'Motionscaper-Export.jsx.txt', root), 'utf8'), parts: string[] = [];
+	const entry = await readFile(new URL(gaussian ? 'Motionscaper-Export-Gaussian.jsx.txt' : rendered ? 'Motionscaper-Export-Rendered.jsx.txt' : sampled ? 'Motionscaper-Export-Sampled.jsx.txt' : 'Motionscaper-Export.jsx.txt', root), 'utf8'), parts: string[] = [];
 	for (const line of entry.split('\n')) {
 		const include = /^#include "([A-Za-z0-9.-]+)"$/.exec(line);
 		if (include) parts.push(await readFile(new URL(include[1]!, root), 'utf8')); else if (!line.startsWith('#target ')) parts.push(line);
@@ -19,12 +21,13 @@ function host(writeFailure = false, evaluate = false, confirmed = true, includeM
 	const files = new Map<string, string>([['/source/Original.aep', 'original-project-bytes'], ['/source/Clip.mp4', 'original-media-bytes']]);
 	const folders = new Set(['/destination']), alerts: string[] = [], preExpression: boolean[] = [];
 	class HostFile {
-		encoding = ''; fsName: string; constructor(path: string) { this.fsName = path; } get name() { return this.fsName.split('/').at(-1)!; }
+		readonly alias = false; encoding = ''; fsName: string; constructor(path: string) { this.fsName = path; } get name() { return this.fsName.split('/').at(-1)!; }
 		get exists() { return files.has(this.fsName); } get length() { return this.name.endsWith('.png') ? (files.get(this.fsName) ?? '').length : Buffer.byteLength(files.get(this.fsName) ?? ''); }
 		open(mode: string) { if (mode === 'r') return this.exists; files.set(this.fsName, ''); return true; } read(count: number) { return files.get(this.fsName)!.slice(0, count); } close() { return true; }
 		write(value: string) { if (writeFailure) return false; files.set(this.fsName, value); return true; }
 		copy(destination: string) { if (files.has(destination)) return false; files.set(destination, files.get(this.fsName)!); return true; }
 		rename(name: string) { const target = this.fsName.replace(/[^/]+$/u, name); if (files.has(target)) return false; files.set(target, files.get(this.fsName)!); files.delete(this.fsName); this.fsName = target; return true; }
+		static openDialog() { return new HostFile('/reviewed-profile.json'); }
 		remove() { return files.delete(this.fsName); }
 	}
 	class HostFolder {
@@ -155,4 +158,23 @@ test('Motion AE exporter captures named layer blends and exact AV switches witho
 	assert.equal(fixture.layer.blendingMode, 'native-multiply'); assert.equal(Reflect.get(fixture.layer, 'preserveTransparency'), true);
 	const legacy = host(); vm.runInNewContext(await script(), legacy.sandbox, { timeout: 2000 });
 	assert.equal(Object.hasOwn(parseMotionAeExchange([...legacy.files].find(([path]) => path.endsWith('/motionae.json'))![1]).compositions[0]!.layers[0]!, 'compositing'), false);
+});
+
+test('Motion AE generated reviewed Gaussian exporter retains exact profile, effect values and switches without source writes', async () => {
+	const fixture = host(), profile = motionAeGaussianProfileFixture(), controls = motionAeGaussianHostFixture();
+	fixture.files.set('/reviewed-profile.json', JSON.stringify(profile));
+	Reflect.set(fixture.sandbox.app, 'version', profile.host.version); Reflect.set(fixture.sandbox.app, 'buildNumber', profile.host.buildNumber); Reflect.set(fixture.sandbox.app, 'isoLanguage', profile.host.locale);
+	const bind = (property: typeof controls.root) => { Object.defineProperty(property, 'propertyType', { value: property.kind === 'scalar' ? 'property' : 'group' }); Object.defineProperty(property, 'propertyValueType', { value: 'oneD' }); for (const child of property.children) bind(child); }; bind(controls.root);
+	controls.root.children[0]!.value = 6;
+	const before = fixture.layer.property;
+	Reflect.set(fixture.layer, 'property', (name: string) => name === 'ADBE Effect Parade' ? { name: 'Effects', matchName: name, propertyType: 'group', numProperties: 1, property: () => controls.root } : before(name));
+	Reflect.set(fixture.layer, 'effectsActive', true); Reflect.set(fixture.layer, 'preserveTransparency', false); Reflect.set(fixture.layer, 'collapseTransformation', false);
+	vm.runInNewContext(await script(false, false, true), fixture.sandbox, { timeout: 5000 });
+	assert.match(fixture.alerts.at(-1)!, /Exchange written/u);
+	const exchange = parseMotionAeExchange([...fixture.files].find(([path]) => path.endsWith('/motionae.json'))![1]), layer = exchange.compositions[0]!.layers[0]!;
+	assert.deepEqual(exchange.gaussianProfile, profile); assert.equal(layer.effectsActive, true);
+	const effect = layer.properties.find(property => property.matchName === 'ADBE Effect Parade'); assert.equal(effect?.kind, 'group'); if (effect?.kind !== 'group') throw new Error('Missing effect custody');
+	const gaussian = effect.children[0]!; assert.equal(gaussian.kind, 'group'); if (gaussian.kind !== 'group') throw new Error('Missing Gaussian'); assert.equal(gaussian.enabled, true);
+	assert.equal(gaussian.children[0]!.kind, 'numeric'); assert.deepEqual(controls.writes, []);
+	assert.equal(fixture.files.get('/source/Original.aep'), 'original-project-bytes'); assert.equal(fixture.files.get('/source/Clip.mp4'), 'original-media-bytes'); assert.equal(fixture.project.numItems, 2);
 });

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { chooseMotionAeGaussianProfile } from './motion-ae-installed-gaussian-profile.ts';
 import { chooseMotionAeShapeProfile } from './motion-ae-installed-shape-profile.ts';
 import { motionAeShapeStyle, type MotionAeShapeProfile } from './motion-ae-host-shape-profile.ts';
 import { stringifyMotionAeHostJson } from './motion-ae-host-json.ts';
@@ -23,7 +24,7 @@ interface AeLayer {
 	readonly index: number; readonly name: string; readonly parent: AeLayer | null; readonly source?: AeItem;
 	readonly startTime: number; readonly inPoint: number; readonly outPoint: number; readonly stretch: number;
 	readonly autoOrient?: unknown; readonly lightType?: unknown; readonly enabled: boolean; readonly threeDLayer?: boolean; readonly adjustmentLayer?: boolean; readonly nullLayer?: boolean;
-	readonly preserveTransparency?: boolean; readonly collapseTransformation?: boolean; readonly blendingMode?: unknown; readonly trackMatteType?: unknown; readonly trackMatteLayer?: AeLayer | null;
+	readonly effectsActive?: boolean; readonly preserveTransparency?: boolean; readonly collapseTransformation?: boolean; readonly blendingMode?: unknown; readonly trackMatteType?: unknown; readonly trackMatteLayer?: AeLayer | null;
 	property(name: string): MotionAePropertyHost | null;
 }
 interface AeComposition extends AeItem {
@@ -134,7 +135,7 @@ function readComposition(comp: AeComposition, report: MotionAeReportEntry[], bud
 		}
 		const scene = sceneMetadata(source, kind);
 		const compositing = !scene && typeof source.preserveTransparency === 'boolean' && typeof source.collapseTransformation === 'boolean' ? { preserveTransparency: source.preserveTransparency, collapseTransformation: source.collapseTransformation } : undefined;
-		layers.push({ ...(compositing ? { compositing } : {}), ...(scene ? { scene } : {}), id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
+		layers.push({ ...(typeof source.effectsActive === 'boolean' ? { effectsActive: source.effectsActive } : {}), ...(compositing ? { compositing } : {}), ...(scene ? { scene } : {}), id: layerId, name: source.name, kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source!.id) : kind === 'footage' ? 'footage-' + String(source.source!.id) : null,
 			parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte,
 			startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch,
 			enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true,
@@ -184,7 +185,7 @@ function transaction(parent: AeFolder, transferId: string, sourceFiles: Record<s
 	};
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-export function runMotionAeInstalledExport(sampled = false, rendered = false, reviewedShapes = false): void {
+export function runMotionAeInstalledExport(sampled = false, rendered = false, reviewedShapes = false, reviewedGaussian = false): void {
 	try {
 		const project = app.project; if (!project) throw new Error('Open the source project in After Effects first.');
 		if (sampled && rendered) throw new Error('Choose numeric sampling or whole-composition rendering separately.');
@@ -193,9 +194,10 @@ export function runMotionAeInstalledExport(sampled = false, rendered = false, re
 		if (rendered && !confirm('Render the complete active composition into a new 8-bit PNG sequence? Choose your installed full-size RGB+Alpha PNG template. This staged carrier accepts at most 256 frames and no audio. Alpha/color and installed-AE behavior remain unqualified. The native render call blocks; use AE cancellation controls, whose Escape behavior is unqualified. Existing queue items must be removed by you first. Original project and media files are never overwritten.')) return;
 		if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.')) return;
 		const shapeProfile = reviewedShapes ? chooseMotionAeShapeProfile() : null; if (reviewedShapes && !shapeProfile) return;
+		const gaussianProfile = reviewedGaussian ? chooseMotionAeGaussianProfile() : null; if (reviewedGaussian && !gaussianProfile) return;
 		const parent = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.'); if (!parent) return;
 		const transferId = 'motion-transfer-' + String(new Date().getTime()), sourceFiles: Record<string, AeFile> = {}, budget = { properties: 0, keys: 0, layers: 0 };
-		const host: MotionAeExportHost = { version: app.version, projectName: project.file?.name ?? 'Untitled.aep',
+		const host: MotionAeExportHost = { ...(gaussianProfile ? { gaussianProfile } : {}), version: app.version, projectName: project.file?.name ?? 'Untitled.aep',
 			color: { workingSpace: project.workingSpace, linearBlending: project.linearBlending, bitsPerChannel: project.bitsPerChannel }, checkCancelled: () => {},
 			begin: (id) => transaction(parent, id, sourceFiles, active instanceof CompItem ? active : undefined),
 			compositions: (report) => {

@@ -38,8 +38,8 @@ export function readMotionAeHostProperty(
 			children.push(readMotionAeHostProperty(child, host, layerId, path + '/' + String(index - 1) + ':' + child.matchName, report, budget, depth + 1));
 		}
 		if (matchName === 'ADBE Mask Atom' && host.mask) return { kind, name, matchName, children, mask: host.mask(property) };
-		if (matchName.indexOf('ADBE Vector ') === 0) {
-			const style = host.vector?.(property);
+		if (matchName.indexOf('ADBE Vector ') === 0 || matchName === 'ADBE Gaussian Blur 2') {
+			const style = matchName.indexOf('ADBE Vector ') === 0 ? host.vector?.(property) : undefined;
 			return { kind, name, matchName, children, ...(property.canSetEnabled === true && typeof property.enabled === 'boolean' ? { enabled: property.enabled } : {}), ...(style ? { vectorStyle: style } : {}) };
 		}
 		return { kind, name, matchName, children };

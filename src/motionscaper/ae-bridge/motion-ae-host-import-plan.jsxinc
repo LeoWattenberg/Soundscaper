@@ -1,5 +1,125 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostImportGaussian = (function () {
+var normalizeMotionAeGaussianProfile = MotionAeGaussianProfile.normalizeMotionAeGaussianProfile;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+function object(input) { if (!input || typeof input !== 'object' || Object.prototype.toString.call(input) === '[object Array]')
+    throw new Error('Gaussian controls require objects.'); return input; }
+function array(input, maximum) { if (Object.prototype.toString.call(input) !== '[object Array]' || input.length > maximum)
+    throw new Error('Gaussian control budget exceeded.'); return input; }
+function same(path, other) { if (path.length !== other.length)
+    return false; for (var index = 0; index < path.length; index++)
+    if (path[index] !== other[index])
+        return false; return true; }
+/** Admits exact closed Gaussian intent before the installed importer creates any object. */
+function readMotionAeImportGaussian(layer, inputProfile, warnings, budget, numeric) {
+    var profile = inputProfile ? normalizeMotionAeGaussianProfile(inputProfile) : null, roots = array(layer.properties, 65536), result = [];
+    var found = false;
+    for (var rootIndex = 0; rootIndex < roots.length; rootIndex++) {
+        var root = object(roots[rootIndex]);
+        if (root.matchName !== 'ADBE Effect Parade')
+            continue;
+        if (found || root.kind !== 'group')
+            throw new Error('Gaussian effect inventory is ambiguous.');
+        found = true;
+        var children = array(root.children, 32);
+        var _loop_1 = function (index) {
+            var effect = object(children[index]);
+            if (!profile || effect.kind !== 'group' || effect.matchName !== 'ADBE Gaussian Blur 2') {
+                warnings.push('An unmapped effect remains inert; choose a reviewed Gaussian profile or use complete rendered fallback.');
+                return "continue";
+            }
+            var compositing = object(layer.compositing);
+            if (layer.threeD !== false || layer.adjustment !== false || compositing.preserveTransparency !== false || compositing.collapseTransformation !== false || typeof layer.effectsActive !== 'boolean' || typeof effect.enabled !== 'boolean')
+                throw new Error('Gaussian effect requires captured neutral 2D layer switches.');
+            var selected = null, count = 0;
+            function visit(input, control, path) {
+                if (++count > 64 || path.length > 4 || ++budget.properties > 65536)
+                    throw new Error('Gaussian import control budget exceeded.');
+                var property = object(input);
+                if (property.matchName !== control.matchName)
+                    throw new Error('Gaussian control closure changed.');
+                if (control.kind === 'group') {
+                    if (property.kind !== 'group')
+                        throw new Error('Gaussian control group changed.');
+                    var children_1 = array(property.children, 32);
+                    if (children_1.length !== control.children.length)
+                        throw new Error('Gaussian control or effect-mask inventory changed.');
+                    for (var child = 0; child < children_1.length; child++) {
+                        var next = path.slice();
+                        next.push(control.children[child].matchName);
+                        visit(children_1[child], control.children[child], next);
+                    }
+                    return;
+                }
+                if (property.kind !== 'numeric' || property.samples !== undefined || property.expression !== null && object(property.expression).enabled !== false)
+                    throw new Error('Gaussian expressions or samples are not admitted.');
+                var value = numeric(property, warnings, budget), isBlur = same(path, profile.blurrinessPath), maximum = isBlur ? Math.min(control.maximum, 20 * profile.blurrinessPerSigma) : control.value, minimum = isBlur ? 0 : control.value;
+                function check(values) { if (values.length !== 1 || !isFinite(values[0]) || values[0] < minimum || values[0] > maximum)
+                    throw new Error('Gaussian scalar exceeds reviewed bounds or neutral settings.'); }
+                if (value.spatial || value.expression !== null || !isBlur && value.keys.length)
+                    throw new Error('Gaussian neutral controls must be static scalars.');
+                check(value.value);
+                for (var key = 0; key < value.keys.length; key++) {
+                    var item = value.keys[key];
+                    check(item.value);
+                    if (item.inInterpolation !== 'hold' && item.inInterpolation !== 'linear' || item.outInterpolation !== 'hold' && item.outInterpolation !== 'linear' || item.roving || item.inSpatialTangent !== null || item.outSpatialTangent !== null)
+                        throw new Error('Gaussian admits only authored hold/linear scalar keys.');
+                }
+                if (isBlur)
+                    selected = value;
+            }
+            visit(effect, profile.controls, []);
+            var blur = selected;
+            if (!blur)
+                throw new Error('Gaussian selected blur control is missing.');
+            result.push({ enabled: effect.enabled && layer.effectsActive, blur: blur });
+        };
+        for (var index = 0; index < children.length; index++) {
+            _loop_1(index);
+        }
+    }
+    if (result.length)
+        warnings.push('Reviewed Gaussian controls use the declared scale only. Installed-host kernel, bounds, color and alpha parity remain unqualified. Compare complete rendered fallback.');
+    return result;
+}
+
+return { readMotionAeImportGaussian: readMotionAeImportGaussian };
+}());
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeInstalledGaussian = (function () {
+var applyMotionAeGaussianHostEffect = MotionAeGaussianHostControls.applyMotionAeGaussianHostEffect;
+var motionAeInstalledGaussianKind = MotionAeInstalledGaussianProfile.motionAeInstalledGaussianKind;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/** Only a freshly owned layer is passed here; the surrounding importer retains rollback authority. */
+function applyMotionAeInstalledGaussian(layer, effects, profile) {
+    if (layer.threeDLayer !== false || layer.adjustmentLayer !== false || layer.preserveTransparency !== false || layer.collapseTransformation !== false)
+        throw new Error('Fresh Gaussian target must have verified neutral 2D compositing switches.');
+    if (effects.length > 32)
+        throw new Error('Gaussian effect budget exceeded.');
+    var group = layer.property('ADBE Effect Parade');
+    if (!group || group.numProperties !== 0 || !group.canAddProperty('ADBE Gaussian Blur 2'))
+        throw new Error('The fresh AE layer cannot accept the reviewed Gaussian effect.');
+    for (var index = 0; index < effects.length; index++) {
+        group.addProperty('ADBE Gaussian Blur 2');
+        // Adding an indexed property invalidates earlier references; reacquire only the new effect.
+        var target = group.property(index + 1);
+        if (!target || Number(group.numProperties) !== index + 1)
+            throw new Error('Gaussian effect creation changed the expected inventory.');
+        applyMotionAeGaussianHostEffect(target, profile, effects[index].blur, effects[index].enabled, { kind: motionAeInstalledGaussianKind, hold: KeyframeInterpolationType.HOLD, linear: KeyframeInterpolationType.LINEAR });
+    }
+    layer.effectsActive = true;
+    if (layer.effectsActive !== true)
+        throw new Error('AE did not enable the reviewed effect stack.');
+}
+
+return { applyMotionAeInstalledGaussian: applyMotionAeInstalledGaussian };
+}());
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeLayerBlend = (function () {
 
 "use strict";
@@ -39,6 +159,8 @@ return { motionAeLayerBlend: motionAeLayerBlend };
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeHostImportPlan = (function () {
+var normalizeMotionAeGaussianProfile = MotionAeGaussianProfile.normalizeMotionAeGaussianProfile;
+var readMotionAeImportGaussian = MotionAeHostImportGaussian.readMotionAeImportGaussian;
 var motionAeLayerBlend = MotionAeLayerBlend.motionAeLayerBlend;
 var readMotionAeImportScene = MotionAeHostImportScene.readMotionAeImportScene;
 var readMotionAeHostScalarExpression = MotionAeHostScalarExpression.readMotionAeHostScalarExpression;
@@ -155,7 +277,7 @@ function properties(input, warnings, budget) {
         if (++budget.properties > 65536)
             throw new Error('AE import property budget exceeded.');
         var root = record(roots[rootIndex]);
-        if (root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties' || root.matchName === 'ADBE Root Vectors Group' || root.matchName === 'ADBE Camera Options Group' || root.matchName === 'ADBE Light Options Group')
+        if (root.matchName === 'ADBE Effect Parade' || root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties' || root.matchName === 'ADBE Root Vectors Group' || root.matchName === 'ADBE Camera Options Group' || root.matchName === 'ADBE Light Options Group')
             continue;
         if (root.kind !== 'group' || root.matchName !== 'ADBE Transform Group') {
             warnings.push('An unmapped property group is omitted; retain the source package and render its composition for visual fidelity.');
@@ -251,6 +373,7 @@ function prepareMotionAeHostImport(json) {
     var input = record(parseMotionAeHostJson(json));
     if (input.format !== 'org.motionscaper.ae-exchange' || input.version !== 1)
         throw new Error('AE import format/version is unsupported.');
+    var gaussianProfile = input.gaussianProfile === undefined ? null : normalizeMotionAeGaussianProfile(input.gaussianProfile);
     var muteAudio = input.producer !== undefined && record(input.producer).application === 'motionscaper';
     if (muteAudio && record(input.producer).bridgeVersion !== '0.1.0')
         throw new Error('Motion export bridge version is unsupported.');
@@ -298,7 +421,7 @@ function prepareMotionAeHostImport(json) {
             if (layer.kind === 'text' && !textDocument)
                 throw new Error('AE text layer requires reviewed Source Text; render the original composition when it cannot be captured.');
             var transform = properties(layer.properties, warnings, budget), scene = readMotionAeImportScene(layer, transform, warnings, budget, numericProperty);
-            layers.push(__assign(__assign({ blendMode: admittedBlend !== null && admittedBlend !== void 0 ? admittedBlend : 'normal' }, (scene ? { scene: scene } : {})), { shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId), startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) }));
+            layers.push(__assign(__assign({ gaussian: readMotionAeImportGaussian(layer, gaussianProfile, warnings, budget, numericProperty), blendMode: admittedBlend !== null && admittedBlend !== void 0 ? admittedBlend : 'normal' }, (scene ? { scene: scene } : {})), { shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId), startTime: number(layer.startTime, -10800, 10800), inPoint: inPoint, outPoint: outPoint, stretch: stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) }));
         }
         var width = number(comp.width, 4, 30000), height = number(comp.height, 4, 30000);
         if (width !== Math.floor(width) || height !== Math.floor(height))
@@ -322,7 +445,7 @@ function prepareMotionAeHostImport(json) {
         }
     if (muteAudio)
         warnings.push('This Motion-authored editable subset is video-only. Imported footage and nested composition layers will be muted; original audio is preserved in original.mscape.');
-    var plan = { muteAudio: muteAudio, transferId: id(input.transferId), footage: footage, compositions: compositions, warnings: warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
+    var plan = __assign(__assign({}, (gaussianProfile ? { gaussianProfile: gaussianProfile } : {})), { muteAudio: muteAudio, transferId: id(input.transferId), footage: footage, compositions: compositions, warnings: warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } });
     verifyGraph(plan);
     return plan;
 }

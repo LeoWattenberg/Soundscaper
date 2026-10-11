@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeMotionAeGaussianProfile, type MotionAeGaussianProfile } from './motion-ae-gaussian-profile.ts';
+import { readMotionAeImportGaussian, type MotionAeImportGaussian } from './motion-ae-host-import-gaussian.ts';
 import { motionAeLayerBlend, type MotionAeLayerBlend } from './motion-ae-layer-blend.ts';
 import { readMotionAeImportScene, type MotionAeImportScene } from './motion-ae-host-import-scene.ts';
 import { readMotionAeHostScalarExpression } from './motion-ae-host-scalar-expression.ts';
@@ -16,7 +18,7 @@ export interface MotionAeImportLayer {
 	readonly blendMode: MotionAeLayerBlend; readonly enabled: boolean; readonly threeD: boolean; readonly properties: readonly MotionAeImportNumeric[];
 	readonly text: MotionAeImportText | null; readonly shapes: readonly MotionAeImportShapeGroup[] | null;
 	readonly masks: readonly MotionAeImportMask[]; readonly scene?: MotionAeImportScene;
-	readonly matte: MotionAeLayer['matte'];
+	readonly matte: MotionAeLayer['matte']; readonly gaussian?: readonly MotionAeImportGaussian[];
 }
 export interface MotionAeImportComposition {
 	readonly id: string; readonly name: string; readonly width: number; readonly height: number; readonly pixelAspect: number;
@@ -25,6 +27,7 @@ export interface MotionAeImportComposition {
 }
 export interface MotionAeImportFootage { readonly id: string; readonly name: string; readonly path: string; readonly byteLength: number; readonly sha256: string | null }
 export interface MotionAeImportPlan {
+	readonly gaussianProfile?: MotionAeGaussianProfile;
 	readonly transferId: string; readonly muteAudio: boolean; readonly footage: readonly MotionAeImportFootage[]; readonly compositions: readonly MotionAeImportComposition[]; readonly warnings: readonly string[];
 	readonly color: { readonly workingSpace: string; readonly linearBlending: boolean; readonly bitsPerChannel: number };
 }
@@ -89,7 +92,7 @@ function properties(input: unknown, warnings: string[], budget: { properties: nu
 	for (let rootIndex = 0; rootIndex < roots.length; rootIndex++) {
 		if (++budget.properties > 65_536) throw new Error('AE import property budget exceeded.');
 		const root = record(roots[rootIndex]);
-		if (root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties' || root.matchName === 'ADBE Root Vectors Group' || root.matchName === 'ADBE Camera Options Group' || root.matchName === 'ADBE Light Options Group') continue;
+		if (root.matchName === 'ADBE Effect Parade' || root.matchName === 'ADBE Mask Parade' || root.matchName === 'ADBE Text Properties' || root.matchName === 'ADBE Root Vectors Group' || root.matchName === 'ADBE Camera Options Group' || root.matchName === 'ADBE Light Options Group') continue;
 		if (root.kind !== 'group' || root.matchName !== 'ADBE Transform Group') { warnings.push('An unmapped property group is omitted; retain the source package and render its composition for visual fidelity.'); continue; }
 		const children = array(root.children, 65_536), seen: Record<string, boolean> = {};
 		for (let index = 0; index < children.length; index++) {
@@ -132,6 +135,7 @@ function verifyGraph(plan: MotionAeImportPlan): void {
 /** Parse the inert manifest and admit only operations implemented by this script version. No AE mutation occurs here. */
 export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 	const input = record(parseMotionAeHostJson(json)); if (input.format !== 'org.motionscaper.ae-exchange' || input.version !== 1) throw new Error('AE import format/version is unsupported.');
+	const gaussianProfile = input.gaussianProfile === undefined ? null : normalizeMotionAeGaussianProfile(input.gaussianProfile);
 	const muteAudio = input.producer !== undefined && record(input.producer).application === 'motionscaper';
 	if (muteAudio && record(input.producer).bridgeVersion !== '0.1.0') throw new Error('Motion export bridge version is unsupported.');
 	const warnings: string[] = [], footage: MotionAeImportFootage[] = [], compositions: MotionAeImportComposition[] = [], paths: Record<string, boolean> = {};
@@ -159,7 +163,7 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 			const textDocument = layer.kind === 'text' ? readMotionAeImportText(layer.properties, warnings, budget) : null;
 			if (layer.kind === 'text' && !textDocument) throw new Error('AE text layer requires reviewed Source Text; render the original composition when it cannot be captured.');
 			const transform = properties(layer.properties, warnings, budget), scene = readMotionAeImportScene(layer, transform, warnings, budget, numericProperty);
-			layers.push({ blendMode: admittedBlend ?? 'normal', ...(scene ? { scene } : {}), shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
+			layers.push({ gaussian: readMotionAeImportGaussian(layer, gaussianProfile, warnings, budget, numericProperty), blendMode: admittedBlend ?? 'normal', ...(scene ? { scene } : {}), shapes: layer.kind === 'shape' ? readMotionAeImportShapes(layer.properties, warnings, budget, numericProperty) : null, text: textDocument, id: id(layer.id), name: text(layer.name), kind: layer.kind, sourceId: layer.sourceId === null ? null : id(layer.sourceId), parentId: layer.parentId === null ? null : id(layer.parentId),
 				startTime: number(layer.startTime, -10800, 10800), inPoint, outPoint, stretch, enabled: boolean(layer.enabled), threeD: boolean(layer.threeD), matte: matte(layer.matte), properties: transform, masks: readMotionAeImportMasks(layer.properties, warnings, budget, numericProperty) });
 		}
 		const width = number(comp.width, 4, 30_000), height = number(comp.height, 4, 30_000);
@@ -173,6 +177,6 @@ export function prepareMotionAeHostImport(json: string): MotionAeImportPlan {
 	const reports = array(input.report, 65_536);
 	for (let index = 0; index < reports.length; index++) if (record(reports[index]).status === 'unsupported') { warnings.push('The source exchange contains unsupported content. Review its original transfer report and compare reference frames.'); break; }
 	if (muteAudio) warnings.push('This Motion-authored editable subset is video-only. Imported footage and nested composition layers will be muted; original audio is preserved in original.mscape.');
-	const plan = { muteAudio, transferId: id(input.transferId), footage, compositions, warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
+	const plan = { ...(gaussianProfile ? { gaussianProfile } : {}), muteAudio, transferId: id(input.transferId), footage, compositions, warnings, color: { workingSpace: text(color.workingSpace, 256), linearBlending: boolean(color.linearBlending), bitsPerChannel: bits } };
 	verifyGraph(plan); return plan;
 }

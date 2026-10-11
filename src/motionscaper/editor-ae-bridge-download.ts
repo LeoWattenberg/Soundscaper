@@ -4,9 +4,9 @@ import scalarExpression from './ae-bridge/motion-ae-host-scalar-expression.jsxin
 import importPath from './ae-bridge/motion-ae-host-import-path.jsxinc?raw';
 import importShape from './ae-bridge/motion-ae-host-import-shape.jsxinc?raw';
 import applyShape from './ae-bridge/motion-ae-host-apply-shape.jsxinc?raw';
+import gaussianProfile from './ae-bridge/Motionscaper-Gaussian-Profile.jsx.txt?raw';
+import gaussianExporter from './ae-bridge/Motionscaper-Export-Gaussian.jsx.txt?raw';
 import shapeProfile from './ae-bridge/motion-ae-host-shape-profile.jsxinc?raw';
-import shapeCalibration from './ae-bridge/motion-ae-host-shape-calibration.jsxinc?raw';
-import installedShapeProfile from './ae-bridge/motion-ae-installed-shape-profile.jsxinc?raw';
 import shapeExporter from './ae-bridge/Motionscaper-Export-Shapes.jsx.txt?raw';
 import prepareShapes from './ae-bridge/Motionscaper-Prepare-Shape-Profile.jsx.txt?raw';
 import captureShapes from './ae-bridge/Motionscaper-Capture-Shape-Profile.jsx.txt?raw';
@@ -46,8 +46,8 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 		'motion-ae-host-scalar-expression.jsxinc': scalarExpression,
 		'motion-ae-host-import-shape.jsxinc': importShape,
 		'motion-ae-host-apply-shape.jsxinc': applyShape,
-		'motion-ae-host-shape-calibration.jsxinc': shapeCalibration,
-		'motion-ae-installed-shape-profile.jsxinc': installedShapeProfile,
+		'Motionscaper-Gaussian-Profile.jsx': gaussianProfile,
+		'Motionscaper-Export-Gaussian.jsx': gaussianExporter,
 		'Motionscaper-Export-Sampled.jsx': sampledExporter,
 		'Motionscaper-Export-Rendered.jsx': renderedExporter,
 		'motion-ae-host-render.jsxinc': rendering,
@@ -78,6 +78,7 @@ export function createMotionscaperAeBridgeDownload(signal?: AbortSignal): Promis
 			+ 'The standard exporter captures authored values and inert expression text. Motionscaper supports a limited, explicitly reviewed conversion; whole-composition rendered fallback is available through an unqualified explicit entry.\n'
 			+ 'Choose motionae.json and all package media through the Motionscaper bridge menu. Original exchange intent, conversion reports and every retained media body survive normal Save and .mscape export. Unsupported original media types must be converted or carried by a future inert binary format before import.\n'
 			+ 'For editable shape capture, separately run Motionscaper-Prepare-Shape-Profile.jsx. It adds only a new five-group sample composition. Manually review/set its named Normal blend, fill rules, cap/join choices and path directions, then run Motionscaper-Capture-Shape-Profile.jsx to save a NEW profile. This is explicit user calibration, not visual qualification. Select that profile with Motionscaper-Export-Shapes.jsx; source export remains read-only. Profiles are bound to exact AE version, build and UI language. Missing or mismatched profiles require rendered fallback. Never substitute guessed popup integers.\n'
+			+ 'For editable Gaussian Blur, run Motionscaper-Gaussian-Profile.jsx: choose prepare to create only its own empty review composition, then follow the UI-label review instructions and select Blurriness and Effect Opacity before capture. Declare your own positive blurriness-per-Motion-sigma scale; no default or kernel equivalence is inferred. Capture requires the complete indexed scalar control closure, Both dimensions, Repeat Edge Pixels off, Effect Opacity 100%, no effect masks/expressions and no neutral-control keys. If the host cannot expose this closure, use complete rendered fallback. Export-Gaussian separately selects the exact version/build/language profile and remains read-only. Select the same profile explicitly in the Motion bridge dialog and installed importer. Only authored scalar hold/linear blur keys and bounded sigma 0..20 are mapped. Unknown effects, changed controls, mixed channels, effect masks and unsupported compositing stay inert with a report. Profiles and packages remain unqualified for installed-host kernel, bounds, color and alpha parity; complete rendered fallback is available.\n'
 			+ 'Reviewed scene conversion supports unparented one-node perspective cameras with XYZ position/Z roll and depth of field disabled, plus ambient lights with static opaque color and percentage intensity. Choose the light color interpretation explicitly. Camera clipping, projection and light/material response remain unqualified; 3D AV planes, tilted/point-of-interest cameras, other light types and shadows require further mapping or rendered fallback. SDK orientation/light names are captured read-only; importing creates native camera/light layers and verifies admitted values.\n'
 			+ 'For explicit numeric expression/animation sampling, run Motionscaper-Export-Sampled.jsx and confirm evaluation. It adds separate samples at each composition frame, retaining original keys and expression text.\n'
 			+ 'Sampling is limited to 4096 values per property and 262144 total keys/samples. It does not preserve subframe motion or motion blur. Native expression calls may block; installed-AE cancellation behavior is unqualified.\n'

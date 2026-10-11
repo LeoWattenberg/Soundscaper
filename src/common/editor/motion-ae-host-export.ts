@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeMotionAeGaussianProfile, type MotionAeGaussianProfile } from './motion-ae-gaussian-profile.ts';
 import type { MotionAeComposition, MotionAeExchange, MotionAeFootage, MotionAeReportEntry } from './motion-ae-exchange-types.ts';
 import type { MotionAeRenderedComposition } from './motion-ae-host-render.ts';
 import { stringifyMotionAeHostJson } from './motion-ae-host-json.ts';
@@ -12,6 +13,7 @@ export interface MotionAeExportTransaction {
 	rollback(): void;
 }
 export interface MotionAeExportHost {
+	readonly gaussianProfile?: MotionAeGaussianProfile;
 	readonly version: string; readonly projectName: string; readonly color: MotionAeExchange['color'];
 	compositions(report: MotionAeReportEntry[]): readonly MotionAeComposition[];
 	footage(report: MotionAeReportEntry[]): readonly MotionAeFootage[];
@@ -46,7 +48,7 @@ export function exportMotionAeHostProject(host: MotionAeExportHost, transferId: 
 		}
 		const exchange: MotionAeExchange = { format: 'org.motionscaper.ae-exchange', version: 1, transferId,
 			producer: { application: 'after-effects', version: host.version, bridgeVersion: '0.1.0' }, source: { name: host.projectName, revisionDigest: null },
-			color: host.color, compositions, footage, report };
+			color: host.color, compositions, footage, report, ...(host.gaussianProfile ? { gaussianProfile: normalizeMotionAeGaussianProfile(host.gaussianProfile) } : {}) };
 		host.checkCancelled(); const serialized = stringifyMotionAeHostJson(exchange); host.checkCancelled(); transaction.publish(serialized); return exchange;
 	} catch (error) {
 		try { transaction.rollback(); } catch (cleanup) {

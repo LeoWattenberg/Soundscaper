@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { chooseMotionAeGaussianProfile } from './motion-ae-installed-gaussian-profile.ts';
+import { applyMotionAeInstalledGaussian } from './motion-ae-installed-gaussian.ts';
+import { stringifyMotionAeHostJson } from './motion-ae-host-json.ts';
 import { applyMotionAeHostShapes } from './motion-ae-host-apply-shape.ts';
 import { chooseMotionAeShapeProfile } from './motion-ae-installed-shape-profile.ts';
 import type { MotionAeShapeProfile } from './motion-ae-host-shape-profile.ts';
@@ -22,7 +25,7 @@ interface AeProperty {
 	setSpatialTangentsAtKey(index: number, incoming: readonly number[], outgoing: readonly number[]): void; setRovingAtKey(index: number, value: boolean): void;
 }
 interface AeLayer {
-	readonly canSetCollapseTransformation: boolean; blendingMode: unknown; preserveTransparency: boolean; collapseTransformation: boolean; autoOrient: unknown; lightType: unknown; name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
+	readonly canSetCollapseTransformation: boolean; blendingMode: unknown; adjustmentLayer: boolean; effectsActive: boolean; preserveTransparency: boolean; collapseTransformation: boolean; autoOrient: unknown; lightType: unknown; name: string; enabled: boolean; audioEnabled: boolean; threeDLayer: boolean; startTime: number; inPoint: number; outPoint: number; stretch: number;
 	setParentWithJump(parent: AeLayer): void; property(name: string): AeProperty;
 	setTrackMatte?(source: AeLayer, type: unknown): void;
 }
@@ -146,6 +149,7 @@ function beginImport(project: AeProject, root: AeFolder, plan: MotionAeImportPla
 		},
 		parent: (item) => { layers[item.id]!.setParentWithJump(layers[item.parentId!]!); },
 		properties: (item) => {
+			if (item.gaussian?.length) { if (!plan.gaussianProfile) throw new Error('Reviewed Gaussian profile is missing.'); applyMotionAeInstalledGaussian(layers[item.id]!, item.gaussian, plan.gaussianProfile); }
 			if (item.shapes) {
 				if (!shapeProfile) throw new Error('Choose a reviewed shape profile before creating editable shapes.');
 				applyMotionAeHostShapes(layers[item.id]!.property('ADBE Root Vectors Group'), item.shapes, shapeProfile, { hold: KeyframeInterpolationType.HOLD, linear: KeyframeInterpolationType.LINEAR, shape: (input) => {
@@ -202,9 +206,9 @@ export function runMotionAeInstalledImport(): void {
 		if (file.alias || file.length > 16_777_216) throw new Error('Exchange manifest is aliased or exceeds its byte budget.');
 		file.encoding = 'UTF-8'; if (!file.open('r')) throw new Error('Cannot read the exchange manifest.'); let json: string;
 		try { json = file.read(); } catch (error) { closeOnError(file, error); } if (!file.close()) throw new Error('Cannot close exchange manifest.');
-		const plan = prepareMotionAeHostImport(json); let needsShapes = false, hasExpressions = false;
+		const plan = prepareMotionAeHostImport(json); let needsShapes = false, hasExpressions = false, needsGaussian = false;
 		for (let comp = 0; comp < plan.compositions.length; comp++) for (let index = 0; index < plan.compositions[comp]!.layers.length; index++) {
-			const layer = plan.compositions[comp]!.layers[index]!;
+			const layer = plan.compositions[comp]!.layers[index]!; if (layer.gaussian?.length) needsGaussian = true;
 			if (layer.blendMode !== 'normal' && (typeof BlendingMode === 'undefined' || BlendingMode[layer.blendMode.toUpperCase()] === undefined)) throw new Error('This AE host lacks the admitted named blend enum. Use the complete rendered fallback.');
 			for (let property = 0; property < layer.properties.length; property++) if (layer.properties[property]!.expression !== null) hasExpressions = true;
 			for (let mask = 0; mask < layer.masks.length; mask++) if (layer.masks[mask]!.opacity.expression !== null) hasExpressions = true;
@@ -212,6 +216,7 @@ export function runMotionAeInstalledImport(): void {
 			const text = plan.compositions[comp]!.layers[index]!.text; if (text) verifyMotionAeInstalledTextFont(text.font);
 			if (plan.compositions[comp]!.layers[index]!.matte && !(parseFloat(app.version) >= 23)) throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
 		}
+		if (needsGaussian) { const selected = chooseMotionAeGaussianProfile(); if (!selected) return; if (stringifyMotionAeHostJson(selected) !== stringifyMotionAeHostJson(plan.gaussianProfile)) throw new Error('Select the exact reviewed Gaussian profile retained by this exchange. No items were created.'); }
 		const shapeProfile = needsShapes ? chooseMotionAeShapeProfile() : null; if (needsShapes && !shapeProfile) return;
 		if (project.workingSpace !== plan.color.workingSpace || project.linearBlending !== plan.color.linearBlending || project.bitsPerChannel !== plan.color.bitsPerChannel) throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
 		let warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';

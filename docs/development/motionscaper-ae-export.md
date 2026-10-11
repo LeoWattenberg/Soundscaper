@@ -29,10 +29,10 @@ Normal, Multiply, Screen, Overlay, Darken, Lighten and Difference use named
 SDK layer blend enums when captured AV switches are neutral. Missing or enabled
 Preserve Transparency/Collapse Transformations, adjustment/3D blends, other
 blend modes, solids, unsupported scene/text/shape intent, audio placement, time
-remapping, held/reversed sources, effects and advanced render quality require
+remapping, held/reversed sources, unmapped effects and advanced render quality require
 further mapping or explicit whole-composition rendered fallback.
 Tracking authority stays in the original project even when a derived transform
-curve maps. Effects on supported layers are reported omissions. The transferred
+curve maps. Effects outside the reviewed Gaussian profile are reported omissions. The transferred
 scene is therefore a partial editing draft and may differ visually.
 
 The reverse profile is video-only. The readable importer recognizes a
@@ -72,8 +72,40 @@ non-normal mode. This is structural editing support: installed-host blend-space,
 color and alpha parity remain unqualified. The File bridge report and complete
 rendered package remain the appearance-preservation alternatives.
 
+The File bridge admits Gaussian Blur only after explicit selection of a reviewed
+`org.motionscaper.ae-gaussian-profile` version 1 file. Import requires the exact
+profile retained in the source exchange; Save/reopen retains that profile as
+inert custody, not continuing permission to convert. Reverse export requires a
+fresh selection. The profile binds the AE version, build and UI language, the
+complete captured scalar/group control tree and bounds, selected Blurriness and
+Effect Opacity paths, and a user-declared positive blurriness-per-Motion-sigma
+scale. No published sigma/radius/kernel equivalence is inferred.
+
+`Motionscaper-Gaussian-Profile.jsx` offers separate prepare/capture operations.
+Prepare creates only its own empty shape sample and Gaussian effect. Capture
+requires personally reviewed Both Dimensions, Repeat Edge Pixels off, Effect
+Opacity 100%, no effect masks and only the two selected scalar controls. If the
+host cannot expose the complete indexed closure including compositing controls,
+editable capture refuses with full-render guidance. Source export remains
+read-only through `Motionscaper-Export-Gaussian.jsx`. The installed importer
+requires selecting the exact local profile before any objects are created,
+checks fresh neutral 2D layer switches and the complete control inventory,
+applies only static or hold/linear scalar blur values within host and Motion
+sigma 0–20 bounds, and verifies values, keys, interpolation and effect switches.
+A failed application rolls back newly owned objects. Expressions, changed
+channels/edges/compositing, effect-mask references and unknown effects cannot
+gain this capability. Original values and omission reports remain in custody.
+Kernel, bounds, color, alpha and actual installed-host parity remain unqualified;
+the complete composition PNG fallback is the separate appearance carrier.
+
 Published API references used for the structural mapping:
 
+- [Adobe first-party effect match names](https://ae-scripting.docsforadobe.dev/matchnames/effects/firstparty/)
+  identify `ADBE Gaussian Blur 2`; the legacy effect is a distinct identity.
+- [Adobe Blur and Sharpen effects](https://helpx.adobe.com/after-effects/using/blur-sharpen-effects.html)
+  describes Gaussian controls without establishing Motion sigma equivalence.
+- [PropertyGroup.addProperty](https://ae-scripting.docsforadobe.dev/property/propertygroup/#propertygroupaddproperty)
+  specifies indexed-reference invalidation; the importer reacquires each new effect.
 - [Adobe blend mode documentation](https://helpx.adobe.com/after-effects/using/blending-modes-layer-styles.html)
   describes the supported channel operations and dependence on project blending settings.
 - [AVLayer.blendingMode](https://ae-scripting.docsforadobe.dev/layer/avlayer/#avlayerblendingmode)

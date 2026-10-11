@@ -3,8 +3,6 @@
 #target aftereffects
 #include "motion-ae-host-json.jsxinc"
 #include "motion-ae-host-shape-profile.jsxinc"
-#include "motion-ae-host-shape-calibration.jsxinc"
-#include "motion-ae-installed-shape-profile.jsxinc"
 #include "motion-ae-host-text.jsxinc"
 #include "motion-ae-installed-text.jsxinc"
 #include "motion-ae-host-sampling.jsxinc"

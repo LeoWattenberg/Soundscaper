@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
 var MotionAeInstalledExport = (function () {
+var chooseMotionAeGaussianProfile = MotionAeInstalledGaussianProfile.chooseMotionAeGaussianProfile;
 var chooseMotionAeShapeProfile = MotionAeInstalledShapeProfile.chooseMotionAeShapeProfile;
 var motionAeShapeStyle = MotionAeHostShapeProfile.motionAeShapeStyle;
 var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
@@ -148,7 +149,7 @@ function readComposition(comp, report, budget, sampled, profile) {
         }
         var scene = sceneMetadata(source, kind);
         var compositing = !scene && typeof source.preserveTransparency === 'boolean' && typeof source.collapseTransformation === 'boolean' ? { preserveTransparency: source.preserveTransparency, collapseTransformation: source.collapseTransformation } : undefined;
-        layers.push(__assign(__assign(__assign({}, (compositing ? { compositing: compositing } : {})), (scene ? { scene: scene } : {})), { id: layerId, name: source.name, kind: kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source.id) : kind === 'footage' ? 'footage-' + String(source.source.id) : null, parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte: matte, startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch, enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true, blendMode: source.blendingMode === undefined ? 'normal' : blendMode(source.blendingMode), properties: properties }));
+        layers.push(__assign(__assign(__assign(__assign({}, (typeof source.effectsActive === 'boolean' ? { effectsActive: source.effectsActive } : {})), (compositing ? { compositing: compositing } : {})), (scene ? { scene: scene } : {})), { id: layerId, name: source.name, kind: kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source.id) : kind === 'footage' ? 'footage-' + String(source.source.id) : null, parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte: matte, startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch, enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true, blendMode: source.blendingMode === undefined ? 'normal' : blendMode(source.blendingMode), properties: properties }));
         if (kind === 'shape' && !profile)
             report.push({ scopeId: layerId, propertyPath: 'ADBE Root Vectors Group', status: 'unsupported', code: 'shape-style-profile', message: 'Shape style metadata is unavailable without a separately selected, user-reviewed profile for this exact AE version/build/language. Use the calibration scripts then Export-Shapes, or rendered fallback. Ordinary export does not mutate source layers.' });
         report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'mapping', message: 'Captured authored data requires feature mapping and reference comparison; plug-ins, text runs, mask attributes, solids, footage interpretation and expressions may require an AE-rendered composition.' });
@@ -227,11 +228,12 @@ function transaction(parent, transferId, sourceFiles, renderedComposition) {
     };
 }
 /** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
-function runMotionAeInstalledExport(sampled, rendered, reviewedShapes) {
+function runMotionAeInstalledExport(sampled, rendered, reviewedShapes, reviewedGaussian) {
     var _a, _b;
     if (sampled === void 0) { sampled = false; }
     if (rendered === void 0) { rendered = false; }
     if (reviewedShapes === void 0) { reviewedShapes = false; }
+    if (reviewedGaussian === void 0) { reviewedGaussian = false; }
     try {
         var project_1 = app.project;
         if (!project_1)
@@ -248,14 +250,14 @@ function runMotionAeInstalledExport(sampled, rendered, reviewedShapes) {
         var shapeProfile_1 = reviewedShapes ? chooseMotionAeShapeProfile() : null;
         if (reviewedShapes && !shapeProfile_1)
             return;
+        var gaussianProfile = reviewedGaussian ? chooseMotionAeGaussianProfile() : null;
+        if (reviewedGaussian && !gaussianProfile)
+            return;
         var parent_1 = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.');
         if (!parent_1)
             return;
         var transferId_1 = 'motion-transfer-' + String(new Date().getTime()), sourceFiles_1 = {}, budget_1 = { properties: 0, keys: 0, layers: 0 };
-        var host = { version: app.version, projectName: (_b = (_a = project_1.file) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : 'Untitled.aep',
-            color: { workingSpace: project_1.workingSpace, linearBlending: project_1.linearBlending, bitsPerChannel: project_1.bitsPerChannel }, checkCancelled: function () { },
-            begin: function (id) { return transaction(parent_1, id, sourceFiles_1, active_1 instanceof CompItem ? active_1 : undefined); },
-            compositions: function (report) {
+        var host = __assign(__assign({}, (gaussianProfile ? { gaussianProfile: gaussianProfile } : {})), { version: app.version, projectName: (_b = (_a = project_1.file) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : 'Untitled.aep', color: { workingSpace: project_1.workingSpace, linearBlending: project_1.linearBlending, bitsPerChannel: project_1.bitsPerChannel }, checkCancelled: function () { }, begin: function (id) { return transaction(parent_1, id, sourceFiles_1, active_1 instanceof CompItem ? active_1 : undefined); }, compositions: function (report) {
                 var result = [];
                 if (shapeProfile_1)
                     report.push({ scopeId: transferId_1, propertyPath: '', status: 'editable', code: 'shape-style-profile', message: 'User-reviewed dropdown calibration; this is not installed-host visual qualification. ' + stringifyMotionAeHostJson(shapeProfile_1) });
@@ -272,8 +274,7 @@ function runMotionAeInstalledExport(sampled, rendered, reviewedShapes) {
                 if (!result.length)
                     throw new Error('The project has no compositions.');
                 return result;
-            },
-            footage: function (report) {
+            }, footage: function (report) {
                 var _a, _b;
                 var result = [];
                 for (var index = 1; index <= project_1.numItems; index++) {
@@ -293,8 +294,7 @@ function runMotionAeInstalledExport(sampled, rendered, reviewedShapes) {
                         width: item.width, height: item.height, pixelAspect: item.pixelAspect, frameRate: item.frameRate, duration: item.duration, hasVideo: item.hasVideo, hasAudio: item.hasAudio, still: ((_b = item.mainSource) === null || _b === void 0 ? void 0 : _b.isStill) === true });
                 }
                 return result;
-            }
-        };
+            } });
         exportMotionAeHostProject(host, transferId_1);
         alert('Exchange written to ' + parent_1.fsName + '/' + transferId_1 + '. Review motionae.json reports. This development bridge is not yet qualified in installed AE.');
     }

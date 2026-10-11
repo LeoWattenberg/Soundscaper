@@ -10,8 +10,12 @@ const directory = resolve(root, 'src/motionscaper/ae-bridge');
 const modules = [
 	{ name: 'motion-ae-host-json', global: 'MotionAeHostJson', exports: ['parseMotionAeHostJson', 'stringifyMotionAeHostJson'] },
 	{ name: 'motion-ae-host-shape-profile', global: 'MotionAeHostShapeProfile', exports: ['parseMotionAeShapeProfile', 'motionAeShapeStyle'] },
-	{ name: 'motion-ae-host-shape-calibration', global: 'MotionAeHostShapeCalibration', exports: ['prepareMotionAeShapeCalibration', 'captureMotionAeShapeCalibration', 'MOTION_AE_SHAPE_REVIEW'] },
-	{ name: 'motion-ae-installed-shape-profile', global: 'MotionAeInstalledShapeProfile', exports: ['chooseMotionAeShapeProfile', 'runMotionAeShapeCalibration'] },
+	{ name: 'motion-ae-host-shape-calibration', bundle: 'motion-ae-host-shape-profile', global: 'MotionAeHostShapeCalibration', exports: ['prepareMotionAeShapeCalibration', 'captureMotionAeShapeCalibration', 'MOTION_AE_SHAPE_REVIEW'] },
+	{ name: 'motion-ae-installed-shape-profile', bundle: 'motion-ae-host-shape-profile', global: 'MotionAeInstalledShapeProfile', exports: ['chooseMotionAeShapeProfile', 'runMotionAeShapeCalibration'] },
+	{ name: 'motion-ae-gaussian-profile', global: 'MotionAeGaussianProfile', exports: ['parseMotionAeGaussianProfile', 'normalizeMotionAeGaussianProfile', 'normalizeMotionAeGaussianControls', 'motionAeGaussianControl'], bundle: 'motion-ae-host-shape-profile' },
+	{ name: 'motion-ae-gaussian-host-controls', global: 'MotionAeGaussianHostControls', exports: ['captureMotionAeGaussianControls', 'applyMotionAeGaussianHostEffect'], bundle: 'motion-ae-host-shape-profile' },
+	{ name: 'motion-ae-gaussian-calibration', global: 'MotionAeGaussianCalibration', exports: ['prepareMotionAeGaussianCalibration', 'captureMotionAeGaussianCalibration', 'MOTION_AE_GAUSSIAN_REVIEW'], bundle: 'motion-ae-host-shape-profile' },
+	{ name: 'motion-ae-installed-gaussian-profile', global: 'MotionAeInstalledGaussianProfile', exports: ['chooseMotionAeGaussianProfile', 'runMotionAeGaussianCalibration', 'motionAeInstalledGaussianKind'], bundle: 'motion-ae-host-shape-profile' },
 	{ name: 'motion-ae-host-text', global: 'MotionAeHostText', exports: ['captureMotionAeTextStyle', 'applyMotionAeHostText', 'verifyMotionAeHostFont'] },
 	{ name: 'motion-ae-installed-text', global: 'MotionAeInstalledText', exports: ['readMotionAeInstalledText', 'applyMotionAeInstalledText', 'verifyMotionAeInstalledTextFont'] },
 	{ name: 'motion-ae-host-sampling', global: 'MotionAeHostSampling', exports: ['sampleMotionAeNumericProperty'] },
@@ -28,6 +32,8 @@ const modules = [
 	{ name: 'motion-ae-host-import-mask', global: 'MotionAeHostImportMask', exports: ['readMotionAeImportMasks'] },
 	{ name: 'motion-ae-host-scalar-expression', global: 'MotionAeHostScalarExpression', exports: ['readMotionAeHostScalarExpression'] },
 	{ name: 'motion-ae-host-import-scene', global: 'MotionAeHostImportScene', exports: ['readMotionAeImportScene'] },
+	{ name: 'motion-ae-host-import-gaussian', global: 'MotionAeHostImportGaussian', exports: ['readMotionAeImportGaussian'], bundle: 'motion-ae-host-import-plan' },
+	{ name: 'motion-ae-installed-gaussian', global: 'MotionAeInstalledGaussian', exports: ['applyMotionAeInstalledGaussian'], bundle: 'motion-ae-host-import-plan' },
 	{ name: 'motion-ae-layer-blend', global: 'MotionAeLayerBlend', exports: ['motionAeLayerBlend'], bundle: 'motion-ae-host-import-plan' },
 	{ name: 'motion-ae-host-import-plan', global: 'MotionAeHostImportPlan', exports: ['prepareMotionAeHostImport'] },
 	{ name: 'motion-ae-host-import', global: 'MotionAeHostImport', exports: ['importMotionAeHostPlan'] },
@@ -84,6 +90,8 @@ await publish('Motionscaper-Import.jsx.txt', entry([...modules.slice(0, sharedEn
 await publish('Motionscaper-Export-Shapes.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, false, true);'));
 await publish('Motionscaper-Prepare-Shape-Profile.jsx.txt', entry(modules.slice(0, 4), 'MotionAeInstalledShapeProfile.runMotionAeShapeCalibration();'));
 await publish('Motionscaper-Capture-Shape-Profile.jsx.txt', entry(modules.slice(0, 4), 'MotionAeInstalledShapeProfile.runMotionAeShapeCalibration(true);'));
+await publish('Motionscaper-Gaussian-Profile.jsx.txt', entry(modules.slice(0, sharedEnd), 'MotionAeInstalledGaussianProfile.runMotionAeGaussianCalibration();'));
+await publish('Motionscaper-Export-Gaussian.jsx.txt', entry(modules.slice(0, exportEnd), 'MotionAeInstalledExport.runMotionAeInstalledExport(false, false, false, true);'));
 if (stale) process.exitCode = 1;
 
 function entry(includes, call) {
