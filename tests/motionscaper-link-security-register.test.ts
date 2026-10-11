@@ -8,7 +8,7 @@ import { loadPolicyNarratives } from '../scripts/lib/policy-narratives.mjs';
 test('Motion bridge header exceptions have explicit development authority and derived security evidence', async () => {
 	const matrix = JSON.parse(await readFile(new URL('../config/production-security-matrix.json', import.meta.url), 'utf8')) as {
 		risks: readonly { id: string; status: string; currentControls: readonly { id: string }[]; developmentControls?: readonly {
-			id: string; policyAuthority: string; summary: string; evidence: readonly { path: string }[];
+			id: string; policyAuthority: string; summary: string; evidence: readonly { kind: string; path: string }[];
 		}[] }[];
 	};
 	const risk = matrix.risks.find(risk => risk.id === 'cross-origin-project-transfer'); assert.ok(risk);
@@ -18,7 +18,16 @@ test('Motion bridge header exceptions have explicit development authority and de
 	assert.match(control.summary, /\/composition-link\/send\//u); assert.match(control.summary, /\/composition-link\/receive\//u);
 	assert.match(control.summary, /same-origin-allow-popups/u); assert.match(control.summary, /unsafe-none/u); assert.match(control.summary, /credentialless/u);
 	assert.match(control.summary, /serialized saved updates/u); assert.match(control.summary, /unqualified|unfinished/u);
-	for (const evidence of control.evidence) await access(new URL(`../${evidence.path}`, import.meta.url));
+	assert.match(control.summary, /paired picture\/PCM/u); assert.match(control.summary, /Conform/u);
+	assert.match(control.summary, /decoded MP4/u); assert.match(control.summary, /packaged Linux x64/u);
+	for (const path of ['tests/browser/motionscaper-linked-editors.spec.ts', 'desktop/motionscaper-successor-native-qualification.ts',
+		'src/framescaper/editor-project-successor-portable-publication.ts', 'src/framescaper/editor-composition-link-conform-core.ts']) {
+		assert.ok(control.evidence.some(evidence => evidence.path === path), path);
+	}
+	for (const evidence of control.evidence) {
+		assert.ok(['implementation', 'test', 'workflow', 'audit', 'document'].includes(evidence.kind));
+		await access(new URL(`../${evidence.path}`, import.meta.url));
+	}
 	const narratives = await loadPolicyNarratives(fileURLToPath(new URL('../', import.meta.url))) as readonly { binding: { marker: string }; rendered: string }[];
 	const narrative = narratives.find(narrative => narrative.binding.marker === control.id); assert.ok(narrative);
 	assert.match(narrative.rendered, /same-origin-allow-popups/u);

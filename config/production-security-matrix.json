@@ -5401,7 +5401,7 @@
 			"developmentControls": [
 				{
 					"id": "isolated-motion-composition-bridge",
-					"summary": "The Motionscaper composition-link bridge is a qualified development foundation for the explicit Framescaper successor line; the connected editor workflow remains unfinished. Only the exact Motionscaper /composition-link/send/ path replaces Cross-Origin-Opener-Policy with same-origin-allow-popups, and only successor Framescaper /composition-link/receive/ replaces it with unsafe-none. The isolated editor routes retain same-origin opener policy. Both bridges inherit Cross-Origin-Embedder-Policy: credentialless and the existing CSP, referrer and nosniff policies, seal microphone, speaker selection, screen capture, camera and geolocation permissions, and refuse editor service-worker fallback. A nonce-bound same-origin BroadcastChannel relay crosses the isolated editor agent cluster; exact configured peer origins, exact bridge window identity and a random session bind the cross-origin MessagePort handshake. Closed wire packets enforce monotonic request/acknowledgement state, at most 32 MiB of metadata, one outstanding asset pull and at most 4 MiB per transferred chunk. Both transport and private receiver staging independently verify each declared digest and length. The default retained closure budget is 8 GiB with an explicit 64 GiB maximum. Atomic receiver publication binds the accepted snapshot, historical closure and exact owning project/history to storage digest and session write fences. The qualified helper supports serialized saved updates over one connected session pinned to one project/composition identity, with explicit Disconnect, a 60-second pending pairing limit, 30-second active RPC limit and a 120-second peer-presence expiry for throttled tabs. Complete editor/archive/native delivery integration remains unfinished. Actual cross-origin Chromium fixtures retain isolation, transfer complete original bytes, reopen after sender windows close, receive later saved revisions in the same windows, explicitly disconnect, and cancel stalled transfer on receiver bridge or isolated editor closure. These bounded fixtures do not qualify abrupt process or power loss, supported-browser popup lifecycle parity, maximum-scale heap/RSS/elapsed time, concurrent storage reservation or publisher authentication.",
+					"summary": "The Motionscaper composition-link bridge belongs to the explicit Framescaper successor development line. Connected editor workflows have focused Chromium and packaged Linux x64 evidence; remaining supported-platform and native generated-source delivery qualification is unfinished. Only the exact Motionscaper /composition-link/send/ path replaces Cross-Origin-Opener-Policy with same-origin-allow-popups, and only successor Framescaper /composition-link/receive/ replaces it with unsafe-none. The isolated editor routes retain same-origin opener policy. Both bridges inherit Cross-Origin-Embedder-Policy: credentialless and the existing CSP, referrer and nosniff policies, seal microphone, speaker selection, screen capture, camera and geolocation permissions, and refuse editor service-worker fallback. A nonce-bound same-origin BroadcastChannel relay crosses the isolated editor agent cluster; exact configured peer origins, exact bridge window identity and a random session bind the cross-origin MessagePort handshake. Closed wire packets enforce monotonic request/acknowledgement state, at most 32 MiB of metadata, one outstanding asset pull and at most 4 MiB per transferred chunk. Both transport and private receiver staging independently verify each declared digest and length. The default retained closure budget is 8 GiB with an explicit 64 GiB maximum. Atomic receiver publication binds the accepted snapshot, historical closure and exact owning project/history to storage digest and session write fences. One connected session supports serialized saved updates pinned to one project/composition identity, with explicit Disconnect, a 60-second pending pairing limit, 30-second active RPC limit and a 120-second peer-presence expiry for throttled tabs. The successor owns paired picture/PCM placement, immutable accepted revisions, compatible/pending updates, Undo/Resume and reviewed width/duration/FPS Conform. Conform Cancel leaves authored intent unchanged; Apply rechecks the reviewed digest and publishes one reversible edit. File Copy/Replace verifies retained original media, deterministically rebinds local identity conflicts, fences owner publication and retains previous archive custody. Exact generated picture and PCM adapters use retained revisions after offline reopen without fabricated encoded proxies. Actual connected-editor Chromium workflows cover saved sender updates, portable File Save/Open, cache loss, offline reopen and decoded MP4 pixels matching preview. The packaged Linux x64 GTK/X11 workflow exercises actual chooser custody, serialized watch generations published after private save, closed-dialog update, corruption refusal and Disconnect. Bounded cross-origin Chromium fixtures also retain isolation, transfer complete original bytes, receive later revisions in the same windows, and cancel stalled transfer on receiver bridge or isolated editor closure. These fixtures do not qualify abrupt process or power loss, supported-browser popup lifecycle parity, maximum-scale heap/RSS/elapsed time, concurrent storage reservation or publisher authenticity. Neither this development control nor its receiver storage changes the frozen family-v1 production admission.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -5450,6 +5450,58 @@
 						{
 							"kind": "test",
 							"path": "tests/motionscaper-link-security-register.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/editor-composition-link-frame-source.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/editor-composition-link-pcm-source.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/editor-composition-link-conform-core.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/editor-project-successor-portable-publication.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/editor-project-successor-linked-timing.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/framescaper/video-export-strategy-successor.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/motionscaper-successor-native-qualification.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/motionscaper-linked-editors.spec.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/motionscaper-successor-portable.spec.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/motionscaper-successor-portable-archive.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/motionscaper-saved-file-watch.test.ts"
+						},
+						{
+							"kind": "document",
+							"path": "docs/development/motionscaper-composition-links.md"
+						},
+						{
+							"kind": "document",
+							"path": "docs/development/motionscaper-desktop-saved-links.md"
 						}
 					],
 					"policyAuthority": "motionscaper-framescaper-successor-development"
