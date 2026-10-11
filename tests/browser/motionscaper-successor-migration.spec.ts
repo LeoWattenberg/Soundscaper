@@ -37,7 +37,7 @@ test('successor menu upgrades an archive durably and downloads the retained orig
 	});
 	await page.goto(`${routeRoot}/`);
 	const original = Buffer.from(await page.evaluate(async (url) => {
-		const harness = await import(url); return harness.original();
+		const harness = await import(url) as { original(): Promise<number[]> }; return harness.original();
 	}, `${routeRoot}/harness.js`));
 	await page.getByRole('button', { name: 'Upgrade archive for Framescaper 1.1 development…' }).click();
 	await expect(page.getByRole('status')).toContainText('0 upgraded projects');
@@ -50,7 +50,8 @@ test('successor menu upgrades an archive durably and downloads the retained orig
 	const downloaded = page.waitForEvent('download');
 	await page.getByRole('button', { name: 'Download original v1 archive' }).click();
 	const path = await (await downloaded).path();
-	expect(path).not.toBeNull(); expect(await readFile(path)).toEqual(original);
+	expect(path).not.toBeNull(); if (path === null) throw new Error('The original archive download is unavailable.');
+	expect(await readFile(path)).toEqual(original);
 	const upgraded = page.waitForEvent('download');
 	await page.getByRole('button', { name: 'Download upgraded v2 archive' }).click();
 	expect((await upgraded).suggestedFilename()).toBe('Browser migration-v2.fscape');

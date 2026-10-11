@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { freezeMotionValue, motionArray, motionDigest, motionId, motionInteger, motionRecord, motionRational, motionEnum } from '../common/editor/motion-values.ts';
 import type { MotionComposition } from '../common/editor/motion-composition.ts';
-import { verifyMotionscaperRevision, type MotionscaperRevision } from '../motionscaper/editor-project-revision.ts';
+import { verifyMotionscaperRevision, type MotionscaperRevision } from '../common/editor/motion-project-revision.ts';
 
 export interface FramescaperCompositionLink {
 	readonly kind: 'motionscaper-composition'; readonly sourceId: string;

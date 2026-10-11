@@ -40,10 +40,10 @@ export function otherProductId(product, destination) {
 	const selected = normalizeProductId(product);
 	if (destination !== undefined) {
 		const target = normalizeProductId(destination);
-		if (target === selected) throw new RangeError('The destination must name another product.');
+		if (target === selected) throw new RangeError('Destination must differ.');
 		return target;
 	}
-	if (selected === 'motionscaper') throw new RangeError('Motionscaper needs an explicit destination product.');
+	if (selected === 'motionscaper') throw new RangeError('Motionscaper needs an explicit destination.');
 	return selected === 'framescaper' ? 'soundscaper' : 'framescaper';
 }
 
