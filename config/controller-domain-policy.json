@@ -66,6 +66,7 @@
 		"composition/editor-action-functions.ts",
 		"composition/editor-action-resources.ts",
 		"composition/label-action-group.ts",
+		"composition/motion-link-port.ts",
 		"composition/motion-preview-backend.ts",
 		"composition/motion-preview-client.ts",
 		"composition/motion-preview-render-session.ts",
