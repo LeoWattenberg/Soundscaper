@@ -17,10 +17,10 @@ export function normalizeFramescaperSuccessorDesktopMetadata(value: unknown): Fr
 		|| typeof record.applicationVersion !== 'string' || !/^1\.1\.0-dev\.[1-9][0-9]*$/u.test(record.applicationVersion) || record.projectSchemaVersion !== 2 || record.releaseEligible !== false) throw new TypeError('Invalid Framescaper successor desktop identity.');
 	return Object.freeze({ schemaVersion: 1, id: 'framescaper', line: 'successor', desktopProfile: 'framescaper-successor-v2', applicationVersion: record.applicationVersion, projectSchemaVersion: 2, releaseEligible: false });
 }
-export function framescaperSuccessorDesktopEnvironment(version: string, platform: string) {
+export function framescaperSuccessorDesktopEnvironment(version: string, platform: string, nativeDelivery = false) {
 	return Object.freeze({ productId: 'framescaper', appName: FRAMESCAPER_SUCCESSOR_DESKTOP.name, version, platform, locale: 'en',
 		framescaperLine: 'successor', desktopProfile: FRAMESCAPER_SUCCESSOR_DESKTOP.profile, projectSchemaVersion: 2,
-		nativeCapabilities: Object.freeze(['motion-saved-files-v1']), releaseEligible: false });
+		nativeCapabilities: Object.freeze(['motion-saved-files-v1', ...(nativeDelivery ? ['frame-sequence-prores-v1'] : [])]), releaseEligible: false });
 }
 export function framescaperSuccessorDesktopDocumentUrl(value: string): boolean {
 	try { const url = new URL(value); return url.protocol === `${FRAMESCAPER_SUCCESSOR_DESKTOP.scheme}:` && url.host === 'bundle' && !url.username && !url.password && !url.search

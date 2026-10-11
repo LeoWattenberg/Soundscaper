@@ -12,6 +12,7 @@ export async function smokeFramescaperSuccessorShell(target: BrowserWindow): Pro
 		const rejection = await files.read({ token: 'unadmitted', offset: 0, length: 1 }).then(() => '', error => String(error));
 		return { environment: await window.scapeDesktop.v1.getEnvironment(), origin: location.protocol + '//' + location.host,
 			foreignBridge: !!(window.soundscaperDesktop || window.framescaperDesktop), bridgeMethods: Object.keys(window.scapeDesktop.v1),
+			deliveryProfile: await window.framescaperSuccessorDesktop.v1.delivery.getProfile(),
 			fileBridge: ['select', 'poll', 'read', 'release', 'cancel'].every(method => typeof files[method] === 'function'), rejection,
 			databases: (await indexedDB.databases()).map(database => database.name).sort() };
 	})()`);

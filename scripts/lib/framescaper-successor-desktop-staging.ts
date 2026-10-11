@@ -2,6 +2,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { build } from 'esbuild';
+import { stageMotionscaperNativePayload } from './motionscaper-native-staging.ts';
 import { generateDesktopIcon } from '../desktop-icons.mjs';
 import { framescaperBuildApplicationVersion } from './product-build-line.mjs';
 import { resolveNativeAddonPayloadTarget } from './native-addon-payload-manifest.mjs';
@@ -32,9 +33,10 @@ export async function prepareFramescaperSuccessorDesktop(options: Options): Prom
 	await writeJson(join(buildRoot, 'app/desktop/product.json'), metadata);
 	await cp(join(repositoryRoot, 'THIRD_PARTY_LICENSES.md'), join(buildRoot, 'licenses/THIRD_PARTY_LICENSES.md'));
 	await generateDesktopIcon({ sourcePath: join(repositoryRoot, 'public/logo/framescaper.svg'), outputPath: join(buildRoot, 'icons/icon.png') });
+	const native = await stageMotionscaperNativePayload({ repositoryRoot, buildRoot, targetId: target.id, buildResultRoot: process.env.FRAMESCAPER_SUCCESSOR_NATIVE_BUILD_RESULT });
 	const [platform, arch] = target.id.split('-');
 	await writeJson(join(buildRoot, 'stage-manifest.json'), { schemaVersion: 1, productId: 'framescaper', line: 'successor', nativeServiceProfile: metadata.desktopProfile,
-		applicationVersion: version, releaseEligible: false, sourceRevision, target: { platform, arch }, nativeCapabilities: ['motion-saved-files-v1'], desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		applicationVersion: version, releaseEligible: false, sourceRevision, target: { platform, arch }, nativeCapabilities: ['motion-saved-files-v1', ...(native.helper ? ['frame-sequence-prores-v1'] : [])], desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		files: await createFramescaperSuccessorStageInventory(buildRoot) });
 	await verifyFramescaperSuccessorDesktopStage(buildRoot, target.id);
 	console.log(`Prepared Framescaper successor ${version} in ${buildRoot}`);

@@ -13,6 +13,7 @@ test('Motion link consumer desktop profile isolates the explicit successor owner
 	assert.deepEqual(normalizeFramescaperSuccessorDesktopMetadata(metadata), metadata);
 	for (const invalid of [{ ...metadata, line: 'baseline' }, { ...metadata, releaseEligible: true }, { ...metadata, applicationVersion: '1.0.0' }, { ...metadata, projectSchemaVersion: 1 }, { ...metadata, nativeServices: true }]) assert.throws(() => normalizeFramescaperSuccessorDesktopMetadata(invalid), /identity/iu);
 	const environment = framescaperSuccessorDesktopEnvironment('1.1.0-dev.1', 'linux'); assert.deepEqual(environment.nativeCapabilities, ['motion-saved-files-v1']); assert.equal(environment.projectSchemaVersion, 2);
+	assert.deepEqual(framescaperSuccessorDesktopEnvironment('1.1.0-dev.1', 'linux', true).nativeCapabilities, ['motion-saved-files-v1', 'frame-sequence-prores-v1']);
 	assert.equal(framescaperSuccessorDesktopDocumentUrl(`${profile.origin}/embed/en/`), true);
 	for (const url of ['framescaper-app://bundle/', 'motionscaper-app://bundle/', `${profile.origin}/assets/index.html`, `${profile.origin}/?foreign=1`, `${profile.origin}/composition-link-bridge.html`]) assert.equal(framescaperSuccessorDesktopDocumentUrl(url), false, url);
 });
@@ -27,7 +28,7 @@ test('Motion successor renderer mount permits only its own confined origin with 
 test('Motion successor packaged evidence refuses baseline stores, foreign bridges and invented native authority', async () => {
 	const { assertFramescaperSuccessorSmoke } = await import('../desktop/framescaper-successor-smoke-evidence.ts');
 	const expected = { version: '1.1.0-dev.1', platform: 'linux', arch: 'x64' }, environment = framescaperSuccessorDesktopEnvironment(expected.version, expected.platform);
-	const valid = { origin: FRAMESCAPER_SUCCESSOR_DESKTOP.origin, arch: 'x64', environment, foreignBridge: false, bridgeMethods: ['getEnvironment'], fileBridge: true,
+	const valid = { origin: FRAMESCAPER_SUCCESSOR_DESKTOP.origin, arch: 'x64', environment, foreignBridge: false, bridgeMethods: ['getEnvironment'], fileBridge: true, deliveryProfile: null,
 		rejection: 'Unknown Motion saved-file renderer owner.', databases: ['kw-media-framescaper-editor-v2', 'kw-media-framescaper-editor-v2-media'] };
 	const report = (value: unknown) => `FRAMESCAPER_SUCCESSOR_SHELL_SMOKE ${JSON.stringify(value)}`;
 	assert.deepEqual(assertFramescaperSuccessorSmoke(report(valid), expected), valid);
