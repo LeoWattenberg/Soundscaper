@@ -2,6 +2,7 @@
 import { encodeMotionChannel, validateMotionSurface, type MotionSurface } from './motion-surface.ts';
 import { motionInteger } from './motion-values.ts';
 import { normalizeMotionRenderPlan, type MotionRenderPlan } from './controller/export/motion-render-pipeline.ts';
+import { normalizeMotionAudioFormat } from './motion-audio-contract.ts';
 
 export type MotionVideoFormat = 'mp4' | 'webm';
 export type MotionVideoBackground = readonly [number, number, number];
@@ -9,6 +10,27 @@ export type MotionVideoBackground = readonly [number, number, number];
  * timestamp and packet duration independently, so endpoint error is bounded
  * by one quantum without accumulating across the authored frame range. */
 export const MOTION_WEBM_TIMECODE_QUANTUM_SECONDS = 0.001;
+export interface MotionVideoAudioOptions { readonly sampleRate: number; readonly channels: 1 | 2; readonly bitrate?: number }
+export interface MotionVideoAudioDelivery extends MotionVideoAudioOptions {
+	readonly codec: 'aac' | 'opus'; readonly bitrate: number; readonly sampleCount: number; readonly maximumPacketCount: number;
+}
+export function motionVideoAudioBoundary(frame: number, plan: MotionRenderPlan, sampleRate: number): number {
+	const numerator = BigInt(frame) * BigInt(sampleRate) * BigInt(plan.frameRate.den); const denominator = BigInt(plan.frameRate.num);
+	const count = (numerator + denominator - 1n) / denominator;
+	if (count > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('Motion video exceeds exact audio sample coordinates.');
+	return Number(count);
+}
+/** Audio indexes and one-frame interleaving queues have separate finite admission. */
+export function normalizeMotionVideoAudio(plan: MotionRenderPlan, format: MotionVideoFormat, options: MotionVideoAudioOptions): MotionVideoAudioDelivery {
+	const audio = normalizeMotionAudioFormat({ ...options, sampleCount: 0 });
+	if (audio.sampleRate !== 48000) throw new RangeError('Browser motion video audio currently requires 48000 Hz.');
+	if (motionVideoAudioBoundary(1, plan, audio.sampleRate) > 65536) throw new RangeError('Audio/video interleaving requires at most 65536 samples per video frame.');
+	const sampleCount = motionVideoAudioBoundary(plan.frameCount, plan, audio.sampleRate);
+	const maximumPacketCount = Math.ceil(sampleCount / 960) + 8;
+	if (maximumPacketCount > 32768) throw new RangeError('The selected range exceeds browser audio packet index admission. Choose a shorter work area.');
+	return Object.freeze({ ...audio, sampleCount, maximumPacketCount, codec: format === 'mp4' ? 'aac' : 'opus',
+		bitrate: motionInteger(options.bitrate ?? 128000, 'audio bitrate', 32000, 320000) });
+}
 export interface MotionVideoDelivery {
 	readonly plan: MotionRenderPlan; readonly format: MotionVideoFormat;
 	readonly bitrate: number; readonly background: MotionVideoBackground;

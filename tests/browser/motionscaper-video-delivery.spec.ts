@@ -6,12 +6,22 @@ import type * as Video from '../../src/common/editor/controller/export/motion-br
 import type * as Surface from '../../src/common/editor/motion-surface.ts';
 import type * as Bunny from 'mediabunny';
 import type * as Delivery from '../../src/common/editor/motion-video-delivery.ts';
+import type * as Audio from '../../src/common/editor/motion-audio-mixer.ts';
+import type * as Project from '../../src/motionscaper/editor-project.ts';
+import type * as Request from '../../src/motionscaper/editor-render-task.ts';
+import type * as Pipeline from '../../src/common/editor/controller/export/motion-render-pipeline.ts';
+import type * as Property from '../../src/common/editor/motion-property.ts';
 
 const bundle = (): string => buildSync({ stdin: { contents: `
 	export { createMotionBrowserVideoSink } from '../../src/common/editor/controller/export/motion-browser-video.ts';
 	export { createMotionSurface } from '../../src/common/editor/motion-surface.ts';
 	export { MOTION_WEBM_TIMECODE_QUANTUM_SECONDS } from '../../src/common/editor/motion-video-delivery.ts';
-	export { Input, BufferSource, MP4, WEBM, VideoSampleSink } from 'mediabunny';`,
+	export { createMotionAudioMixer } from '../../src/common/editor/motion-audio-mixer.ts';
+	export { createMotionscaperProject } from '../../src/motionscaper/editor-project.ts';
+	export { createMotionscaperRenderRequest } from '../../src/motionscaper/editor-render-task.ts';
+	export { renderMotionFrameSequence } from '../../src/common/editor/controller/export/motion-render-pipeline.ts';
+	export { motionScalar } from '../../src/common/editor/motion-property.ts';
+	export { Input, BufferSource, MP4, WEBM, VideoSampleSink, AudioSampleSink, canEncodeAudio, Quality } from 'mediabunny';`,
 	resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'ts' }, bundle: true, write: false, format: 'iife',
 	globalName: 'motionVideoFixture', target: 'es2022' }).outputFiles[0]!.text;
 
@@ -84,3 +94,64 @@ test('M05 two-frame 30 fps WebM uses its declared millisecond resolution without
 	expect(result.duration).toBe(0.066);
 	expect(Math.abs(result.duration - 2 / 30)).toBeLessThanOrEqual(result.quantum);
 });
+
+for (const format of ['webm', 'mp4'] as const) {
+	test(`M05 ${format} consumes real mixed PCM and qualifies codec timing or explicit audio refusal`, async ({ page }) => {
+		await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
+		const result = await page.evaluate(async (format) => {
+			const fixture = (globalThis as unknown as { motionVideoFixture: typeof Video & typeof Surface & typeof Bunny & typeof Audio & typeof Project & typeof Request & typeof Pipeline & typeof Property }).motionVideoFixture;
+			const project = fixture.createMotionscaperProject({ id: 'audio-motion', compositionId: 'comp', title: 'Audio render', width: 32, height: 32, durationFrames: 40, frameRate: { num: 30, den: 1 } });
+			const asset = { kind: 'audio' as const, id: 'audio', name: 'Tone', sampleRate: 48000, channels: 2, duration: { num: 2, den: 1 },
+				sha256: 'a'.repeat(64), storageKey: `motion-sha256:${'a'.repeat(64)}`, byteLength: 1, mimeType: 'audio/wav' };
+			const authored = { ...project, assets: [asset], compositions: [{ ...project.compositions[0]!, audio: [{ id: 'tone', assetId: asset.id,
+				startFrame: { num: 0, den: 1 }, inFrame: { num: 0, den: 1 }, outFrame: { num: 40, den: 1 }, sourceStart: { num: 0, den: 1 },
+				timeScale: { num: 1, den: 1 }, enabled: true, gain: fixture.motionScalar(1) }] }] };
+			const placeholder = { async write() {}, async finish() { return null; }, async abort() {}, audio: { sampleRate: 48000, channels: 2 as const, async write() {} } };
+			const request = fixture.createMotionscaperRenderRequest({ project: authored, compositionId: 'comp', firstFrame: 7, endFrame: 37, sink: placeholder,
+				acquire: async (revision) => {
+					const audioMixer = fixture.createMotionAudioMixer({ project: revision.project, provider: {
+						async describe() { return { sampleRate: 48000, channels: 2, sampleCount: 96000 }; },
+						async read({ startSample, sampleCount }) { return Float32Array.from({ length: sampleCount * 2 }, (_, index) => {
+							const channel = index % 2; return (channel ? 0.125 : 0.25) * Math.sin(2 * Math.PI * (channel ? 880 : 440) * (startSample + Math.floor(index / 2)) / 48000);
+						}); },
+					} });
+					return { audioMixer, rasterizer: { async rasterize() { throw new Error('Empty visual layers.'); } }, async release() { audioMixer.dispose(); } };
+				} });
+			const supported = await fixture.canEncodeAudio(format === 'mp4' ? 'aac' : 'opus', { sampleRate: 48000, numberOfChannels: 2, quality: new fixture.Quality({ bitrate: 128000 }) });
+			const writable = new WritableStream<Uint8Array>();
+			if (!supported) {
+				try { await fixture.createMotionBrowserVideoSink({ plan: request.plan, format, audio: { sampleRate: 48000, channels: 2 }, writable }); throw new Error('Unsupported audio was admitted.'); }
+				catch (error) { return { supported: false, refusal: String(error), destinationLocked: writable.locked }; }
+			}
+			const sink = await fixture.createMotionBrowserVideoSink({ plan: request.plan, format, audio: { sampleRate: 48000, channels: 2 } });
+			const receipt = await fixture.renderMotionFrameSequence({ ...request, sink });
+			if (!receipt.output) throw new Error('Missing completed media.');
+			const input = new fixture.Input({ source: new fixture.BufferSource(await receipt.output.arrayBuffer()), formats: [fixture.WEBM, fixture.MP4] });
+			try {
+				const audio = await input.getPrimaryAudioTrack(); const video = await input.getPrimaryVideoTrack(); if (!audio || !video) throw new Error('Both tracks are required.');
+				const energy = [0, 0]; const peaks = [0, 0]; let count = 0; let first = Infinity; let last = 0;
+				for await (const sample of new fixture.AudioSampleSink(audio).samples()) {
+					try {
+						first = Math.min(first, sample.timestamp); last = Math.max(last, sample.timestamp + sample.duration);
+						for (let channel = 0; channel < 2; channel++) {
+							const pcm = new Float32Array(sample.numberOfFrames); sample.copyTo(pcm, { planeIndex: channel, format: 'f32-planar' });
+							for (const value of pcm) { energy[channel] = energy[channel]! + value * value; peaks[channel] = Math.max(peaks[channel]!, Math.abs(value)); }
+						}
+						count += sample.numberOfFrames;
+					} finally { sample.close(); }
+				}
+				let frames = 0; for await (const sample of new fixture.VideoSampleSink(video).samples()) { sample.close(); frames++; }
+				return { supported: true, first, last, count, rms: energy.map((value) => Math.sqrt(value / count)), peaks, frames,
+					sampleRate: audio.sampleRate, channels: audio.numberOfChannels, duration: await input.computeDuration() };
+			} finally { input.dispose(); }
+		}, format);
+		if (!result.supported) { expect(result.refusal).toMatch(/AAC.*audio/u); expect(result.destinationLocked).toBe(false); return; }
+		expect(result.frames).toBe(30); expect([result.sampleRate, result.channels]).toEqual([48000, 2]);
+		expect(result.count).toBeGreaterThanOrEqual(48000); expect(result.count).toBeLessThan(50000);
+		expect(result.first).toBeLessThanOrEqual(0.001); expect(result.last).toBeGreaterThanOrEqual(0.99); expect(result.last).toBeLessThan(1.04);
+		expect(result.rms![0]).toBeGreaterThan(0.15); expect(result.rms![0]).toBeLessThan(0.20);
+		expect(result.rms![1]).toBeGreaterThan(0.075); expect(result.rms![1]).toBeLessThan(0.10);
+		expect(result.peaks![0]).toBeLessThan(0.30); expect(result.peaks![1]).toBeLessThan(0.16);
+		expect(result.duration).toBeGreaterThanOrEqual(1); expect(result.duration).toBeLessThan(1.04);
+	});
+}

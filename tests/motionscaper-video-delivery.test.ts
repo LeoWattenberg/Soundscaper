@@ -2,9 +2,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMotionSurface } from '../src/common/editor/motion-surface.ts';
-import { MOTION_WEBM_TIMECODE_QUANTUM_SECONDS, motionVideoFrameTimestamp, motionVideoPixels, normalizeMotionVideoDelivery } from '../src/common/editor/motion-video-delivery.ts';
+import { MOTION_WEBM_TIMECODE_QUANTUM_SECONDS, motionVideoFrameTimestamp, motionVideoPixels, normalizeMotionVideoDelivery, normalizeMotionVideoAudio } from '../src/common/editor/motion-video-delivery.ts';
 import { createMotionBrowserVideoSink, type MotionVideoHost } from '../src/common/editor/controller/export/motion-browser-video.ts';
 import type { MotionRenderFrame, MotionRenderPlan } from '../src/common/editor/controller/export/motion-render-pipeline.ts';
+import type { MotionAudioMixBlock } from '../src/common/editor/motion-audio-contract.ts';
+import { addRationals, divideRationals, multiplyRationals } from '../src/common/editor/timeline-time.ts';
 
 const plan: MotionRenderPlan = { identity: { projectId: 'motion', compositionId: 'comp', revisionDigest: 'a'.repeat(64) },
 	width: 2, height: 2, frameRate: { num: 30000, den: 1001 }, firstFrame: 100, frameCount: 2 };
@@ -14,6 +16,7 @@ function createFixture() {
 	const events: string[] = []; const timestamps: number[] = []; let frameClosed = 0; let writable: WritableStream<Uint8Array> | undefined;
 	const host: MotionVideoHost = {
 		async supported() { return true; },
+		async supportedAudio() { return true; },
 		createFrame(_bytes, init) { timestamps.push(init.timestamp); return { close() { frameClosed += 1; } }; },
 		createEncoder(callbacks) {
 			let timestamp = 0;
@@ -46,6 +49,59 @@ test('M05 video admission bounds container indexes and refuses incompatible canv
 	assert.throws(() => normalizeMotionVideoDelivery({ plan: { ...plan, frameCount: 1_000_000 }, format: 'webm' }), /range.*long/u);
 	assert.throws(() => normalizeMotionVideoDelivery({ plan: { ...plan, width: 3 }, format: 'mp4' }), /even/u);
 	assert.throws(() => normalizeMotionVideoDelivery({ plan: { ...plan, frameRate: { num: 1_000_001, den: 1 } }, format: 'webm' }), /frame rate/u);
+});
+
+test('M05 audio video admission bounds queued interleaving and audio packet indexes', () => {
+	const audio = normalizeMotionVideoAudio(plan, 'webm', { sampleRate: 48000, channels: 2 });
+	assert.equal(audio.codec, 'opus'); assert.equal(audio.sampleCount, 3204);
+	assert.throws(() => normalizeMotionVideoAudio({ ...plan, frameRate: { num: 1, den: 10 } }, 'webm', { sampleRate: 48000, channels: 2 }), /interleav/u);
+	assert.throws(() => normalizeMotionVideoAudio({ ...plan, frameCount: 32768 }, 'webm', { sampleRate: 48000, channels: 2 }), /audio.*index/u);
+});
+
+test('M05 video consumes ordered revision-bound PCM before each frame and cannot publish missing audio', async () => {
+	const fixture = createFixture(); const samples: number[] = [];
+	const sink = await createMotionBrowserVideoSink({ plan, format: 'webm', audio: { sampleRate: 48000, channels: 1 } }, {
+		...fixture.host, async createMuxer(...args) { return { ...await fixture.host.createMuxer(...args),
+			async addAudio(block, timestamp) { samples.push(block.sampleCount); assert.equal(timestamp, samples.length === 1 ? 0 : 1602 / 48000); } }; },
+	});
+	assert.ok(sink.audio);
+	await assert.rejects(sink.write(frame(0)), /audio/u);
+	const start = multiplyRationals(divideRationals(plan.firstFrame, plan.frameRate), 48000);
+	const block = (offset: number): MotionAudioMixBlock => ({ projectId: 'motion', revision: 0, revisionDigest: 'a'.repeat(64), compositionId: 'comp',
+		startSample: addRationals(start, offset), sampleRate: 48000, channels: 1, sampleCount: 1602, interleaved: new Float32Array(1602) });
+	await assert.rejects(sink.audio.write({ ...block(0), revisionDigest: 'b'.repeat(64) }), /identity/u);
+	await sink.audio.write(block(0)); await sink.write(frame(0));
+	await assert.rejects(sink.audio.write(block(1602 + 1)), /timing/u);
+	await sink.audio.write(block(1602)); await sink.write(frame(1)); await sink.finish();
+	assert.deepEqual(samples, [1602, 1602]);
+});
+
+test('M05 unsupported audio refuses before muxer or destination admission', async () => {
+	const fixture = createFixture();
+	await assert.rejects(createMotionBrowserVideoSink({ plan, format: 'mp4', audio: { sampleRate: 48000, channels: 2 } }, {
+		...fixture.host, async supportedAudio() { return false; },
+	}), /AAC.*audio/u);
+	assert.equal(fixture.writable(), undefined);
+});
+
+test('M05 audio muxer refusal and PCM backpressure cancel without publishing or advancing sample order', async () => {
+	const fixture = createFixture(); let cancelled = 0; let committed = false;
+	const writable = new WritableStream<Uint8Array>({ abort() { cancelled++; }, close() { committed = true; } });
+	await assert.rejects(createMotionBrowserVideoSink({ plan, format: 'webm', audio: { sampleRate: 48000, channels: 1 }, writable }, fixture.host), /consume audio/u);
+	assert.equal(cancelled, 1); assert.deepEqual(fixture.events, ['mux-cancel']);
+	let unblock!: () => void; let enter!: () => void;
+	const blocked = new Promise<void>((resolve) => { unblock = resolve; }); const entered = new Promise<void>((resolve) => { enter = resolve; });
+	const sink = await createMotionBrowserVideoSink({ plan, format: 'webm', audio: { sampleRate: 48000, channels: 1 } }, {
+		...fixture.host, async createMuxer(...args) { return { ...await fixture.host.createMuxer(...args), async addAudio() { enter(); await blocked; } }; },
+	});
+	assert.ok(sink.audio);
+	const controller = new AbortController();
+	const block: MotionAudioMixBlock = { projectId: 'motion', revision: 0, revisionDigest: 'a'.repeat(64), compositionId: 'comp',
+		startSample: multiplyRationals(divideRationals(plan.firstFrame, plan.frameRate), 48000), sampleRate: 48000, channels: 1, sampleCount: 1602, interleaved: new Float32Array(1602) };
+	const pending = sink.audio.write(block, controller.signal); await entered;
+	await assert.rejects(sink.audio.write(block), /order/u); await assert.rejects(sink.finish(), /complete/u);
+	controller.abort(new DOMException('PCM cancelled', 'AbortError')); unblock(); await assert.rejects(pending, /PCM cancelled/u);
+	await sink.abort(controller.signal.reason); assert.equal(committed, false);
 });
 test('M05 video output rebases work areas, closes every frame and publishes only a complete stream', async () => {
 	const fixture = createFixture();
