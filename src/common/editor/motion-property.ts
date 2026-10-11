@@ -75,7 +75,14 @@ function normalizePropertyRecord(value: Readonly<Record<string, unknown>>): Moti
 function normalizeCurve(value: unknown): CompiledInterpolationCurve | null {
 	if (value === null) return null;
 	const record = motionRecord(value, ['anchors', 'segments'], 'motion curve');
-	motionArray(record.anchors, 4096, 'motion curve anchors', 2);
+	const anchors = motionArray(record.anchors, 4096, 'motion curve anchors', 1);
+	if (anchors.length === 1) {
+		const anchor = motionRecord(anchors[0], ['position', 'value'], 'motion curve anchor');
+		const position = motionRational(anchor.position, 'motion keyframe position');
+		if (position.num < 0) throw new RangeError('Motion keyframe positions must be non-negative.');
+		motionArray(record.segments, 0, 'single motion keyframe segments');
+		return freezeMotionValue({ anchors: [{ position, value: motionNumber(anchor.value, 'motion keyframe value', -Number.MAX_VALUE, Number.MAX_VALUE) }], segments: [] });
+	}
 	return compileInterpolationCurve(record);
 }
 
@@ -103,7 +110,7 @@ function normalizePathProperty(record: Readonly<Record<string, unknown>>, expres
 		if (compareRationals(keyframes[index - 1]!.position, keyframes[index]!.position) >= 0) throw new RangeError('Path keyframes must have increasing positions.');
 	}
 	const segments = motionArray(record.segments, 4095, 'path segments').map((item) => motionEnum(item, ['hold', 'linear', 'eased'], 'path segment'));
-	if (keyframes.length === 1 || segments.length !== Math.max(0, keyframes.length - 1)) throw new RangeError('Path segments must connect every pair of keyframes.');
+	if (segments.length !== Math.max(0, keyframes.length - 1)) throw new RangeError('Path segments must connect every pair of keyframes.');
 	return freezeMotionValue({ kind: 'path' as const, value, keyframes, segments, expression });
 }
 

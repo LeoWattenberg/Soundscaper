@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { evaluateInterpolationCurveAtExactPosition } from './interpolation-curve.ts';
+import { evaluateInterpolationCurveAtExactPosition, type CompiledInterpolationCurve } from './interpolation-curve.ts';
 import { compareRationals, divideRationals, subtractRationals, type Rational } from './timeline-time.ts';
 import { normalizeMotionProperty, type MotionPath, type MotionPathProperty, type MotionProperty, type MotionScalarProperty, type MotionVector2, type MotionVector3, type MotionColor } from './motion-property.ts';
 import { freezeMotionValue } from './motion-values.ts';
@@ -17,11 +17,11 @@ export function compileMotionProperty(value: unknown): (position: Rational) => M
 	const property = normalizeMotionProperty(value);
 	return (position) => {
 		if (property.expression?.enabled) throw new Error('Motion expression evaluation is unavailable until the expression engine is installed.');
-		if (property.kind === 'scalar') return property.curve === null ? property.value : evaluateInterpolationCurveAtExactPosition(property.curve, position);
+		if (property.kind === 'scalar') return property.curve === null ? property.value : evaluateCurve(property.curve, position);
 		if (property.kind === 'path') return evaluatePath(property, position);
 		const channels = property.value.map((channel, index) => {
 			const curve = property.curves[index];
-			const result = curve == null ? channel : evaluateInterpolationCurveAtExactPosition(curve, position);
+			const result = curve == null ? channel : evaluateCurve(curve, position);
 			return property.kind === 'color' ? Math.min(1, Math.max(0, result)) : result;
 		});
 		return Object.freeze(channels) as unknown as MotionVector2 | MotionVector3 | MotionColor;
@@ -69,4 +69,8 @@ function evaluatePath(property: MotionPathProperty, position: Rational): MotionP
 		const target = end.value.vertices[index]!;
 		return { point: point(vertex.point, target.point), inTangent: point(vertex.inTangent, target.inTangent), outTangent: point(vertex.outTangent, target.outTangent) };
 	}) });
+}
+
+function evaluateCurve(curve: CompiledInterpolationCurve, position: Rational): number {
+	return curve.anchors.length === 1 ? curve.anchors[0]!.value : evaluateInterpolationCurveAtExactPosition(curve, position);
 }
