@@ -78,6 +78,7 @@ export function partitionNodeTestFiles(repositoryRoot, testFiles = listNodeTestF
 	return shards;
 }
 
+/** @param {string} repositoryRoot @param {{ shard?: string | null }} options */
 export function selectNodeTestFiles(repositoryRoot, { shard = null } = {}) {
 	return shard === null
 		? listNodeTestFiles(repositoryRoot)
