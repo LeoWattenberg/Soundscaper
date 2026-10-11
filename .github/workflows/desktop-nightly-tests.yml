@@ -138,8 +138,8 @@ jobs:
         shell: bash
         run: |
           mapfile -t sandboxes < <(find release/desktop-nightly-products -type f -name chrome-sandbox -print)
-          if [[ "${#sandboxes[@]}" -ne 2 ]]; then
-            echo "Expected two packaged Chromium sandboxes; found ${#sandboxes[@]}" >&2
+          if [[ "${#sandboxes[@]}" -ne 3 ]]; then
+            echo "Expected three packaged Chromium sandboxes; found ${#sandboxes[@]}" >&2
             exit 1
           fi
           sudo chown root:root -- "${sandboxes[@]}"
