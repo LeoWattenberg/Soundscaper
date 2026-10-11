@@ -29,7 +29,8 @@ export function createFramescaperCompositionSource(options: Readonly<{ sourceId:
 
 /** Resolve before any encoded-media loader. A virtual marker without authenticated link intent is a refusal. */
 export function resolveFramescaperCompositionSource(value: unknown, sourceValue: Readonly<{ id: string }>) {
-	const project = normalizeFramescaperSuccessorProject(value); const source = project.sources.find(entry => entry.id === sourceValue.id);
+	const project = normalizeFramescaperSuccessorProject(value); const sources = project.sources as readonly Readonly<Record<string, unknown> & { id: string }>[];
+	const source = sources.find(entry => entry.id === sourceValue.id);
 	const link = project.compositionLinks.find(entry => entry.sourceId === sourceValue.id);
 	if (!link) {
 		if (source && source.videoCodec === CODEC) throw new RangeError('Motion composition source requires its retained typed link authority.');
