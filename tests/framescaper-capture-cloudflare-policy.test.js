@@ -156,24 +156,29 @@ function assertTransferDocuments(rules, productId) {
 	);
 }
 
-test('a relaxed Cross-Origin-Opener-Policy is refused unless the shared rule is detached first', async () => {
+test('a relaxed Cross-Origin-Opener-Policy requires an admitted exact route and detaching the shared rule', async () => {
 	const shared = await readFile('public/_headers', 'utf8');
 	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
-	const detached = shared.replace(
-		'/offline-shell.json\n',
-		'/transfer/\n\t! Cross-Origin-Opener-Policy\n\tCross-Origin-Opener-Policy: same-origin-allow-popups\n\n/offline-shell.json\n',
-	);
-	const rules = parseHeaderRules(composeProductHeaders(detached, routing));
-	assert.deepEqual(joinedHeader(rules, '/transfer/', 'cross-origin-opener-policy'), ['same-origin-allow-popups']);
+	const rules = parseHeaderRules(composeProductHeaders(shared, routing));
+	assert.deepEqual(joinedHeader(rules, '/transfer/send/', 'cross-origin-opener-policy'), ['same-origin-allow-popups']);
 	assert.deepEqual(joinedHeader(rules, '/en/', 'cross-origin-opener-policy'), ['same-origin']);
+	for (const path of ['/transfer/send/', '/en/']) {
+		assert.deepEqual(joinedHeader(rules, path, 'cross-origin-embedder-policy'), ['credentialless']);
+	}
 
 	const joined = shared.replace(
-		'/offline-shell.json\n',
-		'/transfer/\n\tCross-Origin-Opener-Policy: same-origin-allow-popups\n\n/offline-shell.json\n',
+		'/transfer/send/\n\t! Cross-Origin-Opener-Policy\n',
+		'/transfer/send/\n',
 	);
+	assert.notEqual(joined, shared, 'the admitted route must lose its detach directive for this refusal case');
 	assert.throws(
 		() => composeProductHeaders(joined, routing),
-		/relaxes Cross-Origin-Opener-Policy without detaching it/u,
+		/not an admitted exact bridge route: \/transfer\/send\//u,
+	);
+	const unadmitted = shared + '\n/transfer/\n\t! Cross-Origin-Opener-Policy\n\tCross-Origin-Opener-Policy: same-origin-allow-popups\n';
+	assert.throws(
+		() => composeProductHeaders(unadmitted, routing),
+		/not an admitted exact bridge route: \/transfer\/\./u,
 	);
 });
 
