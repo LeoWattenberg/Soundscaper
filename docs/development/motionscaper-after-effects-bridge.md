@@ -126,6 +126,25 @@ expressions inactive; consuming sampled values is a separate conversion step.
 
 ## Required qualification
 
+The pure exchange-to-Motion draft converter now maps 2D retained images/footage,
+precompositions, nulls, ordering, parenting, known blend/matte intent, and
+numeric transforms. Static, hold and linear values retain editable keys;
+explicit AE samples become linear frame-grid keys. Percent scale/opacity become
+Motion factors. Spatial tangents, roving and temporal Bezier speed require
+samples rather than an inferred curve. Imported expressions never execute.
+The new document uses fresh identities and retains the original exchange as
+separate custody. Unsupported layer kinds become named null placeholders, and
+all partial conversion requires explicit report acknowledgement before any
+publication. Audio, non-square pixels, color/footage interpretation, 3D,
+text/shapes/effects/masks and broader editable mapping remain incomplete.
+
+AE floating clocks cross an explicit one-millionth frame/second boundary;
+changed values get a sampling report and original values remain in custody.
+Composition duration rounds outward to a whole frame. Imported transforms use
+composition-origin keys, while source timing is rebased to that same origin.
+The converter validates declared media bindings; an importing controller must
+independently verify actual retained bytes before publishing them.
+
 The installed-AE matrix remains empty. It must record actual application
 versions, exported fixture hashes, subsequent AE re-import results, structure
 comparisons, and reference frames. Required cases include media and font loss,

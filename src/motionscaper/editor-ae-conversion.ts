@@ -1,0 +1,92 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeMotionAeExchange } from '../common/editor/motion-ae-exchange.ts';
+import type { MotionAeComposition, MotionAeExchange, MotionAeLayer, MotionAeReportEntry } from '../common/editor/motion-ae-exchange-types.ts';
+import { motionAeBoundedClock } from '../common/editor/motion-ae-property-conversion.ts';
+import { convertMotionAeTransform } from '../common/editor/motion-ae-transform-conversion.ts';
+import { normalizeMotionAsset, type MotionAsset } from '../common/editor/motion-asset.ts';
+import { MOTION_BLEND_MODES, type MotionComposition, type MotionLayer, type MotionLayerContent } from '../common/editor/motion-composition.ts';
+import { freezeMotionValue, motionId } from '../common/editor/motion-values.ts';
+import { motionScalar } from '../common/editor/motion-property.ts';
+import { normalizeMotionscaperProject } from './editor-project-validation.ts';
+import { createMotionLayer, type MotionscaperProject } from './editor-project.ts';
+
+export interface MotionAeMediaBinding { readonly footageId: string; readonly asset: MotionAsset }
+export interface MotionscaperAeConversion {
+	readonly project: MotionscaperProject; readonly exchange: MotionAeExchange;
+	readonly report: readonly MotionAeReportEntry[]; readonly requiresAcknowledgement: true;
+}
+/** Pure draft preparation. The import controller must verify every retained body before publication. */
+export function convertMotionscaperAeExchange(input: unknown, options: Readonly<{
+	projectId: string; allocateId: () => string; bindings: readonly MotionAeMediaBinding[]; primaryCompositionId?: string;
+}>): MotionscaperAeConversion {
+	const exchange = normalizeMotionAeExchange(input), projectId = motionId(options.projectId);
+	if (!exchange.compositions.length) throw new Error('The AE exchange contains no compositions.');
+	const report: MotionAeReportEntry[] = [...exchange.report];
+	const issue = (scopeId: string, code: string, message: string) => { report.push({ scopeId, propertyPath: '', status: 'unsupported', code, message }); };
+	issue(exchange.transferId, 'qualification', 'This development conversion is not qualified against installed AE. Review every unsupported entry and compare the imported result before use.');
+	issue(exchange.transferId, 'color-conversion', 'Motion uses linear Rec.709/sRGB composition rendering. AE working-space, blending, bit-depth and footage-interpretation parity remain unqualified; retain the original or render a reference composition in AE.');
+	const used = new Set([projectId]), ids = new Map<string, string>(), media = new Map<string, MotionAsset>(), assets: MotionAsset[] = [];
+	if (options.bindings.length > 4096) throw new RangeError('AE media binding budget exceeded.');
+	for (const binding of options.bindings) {
+		const source = exchange.footage.find((item) => item.id === binding.footageId), asset = normalizeMotionAsset(binding.asset);
+		if (!source || source.path === null || source.byteLength !== asset.byteLength || (source.sha256 !== null && source.sha256 !== asset.sha256) || asset.kind === 'font'
+			|| media.has(binding.footageId) || (source.hasVideo && (asset.kind === 'audio' || asset.width !== source.width || asset.height !== source.height))) throw new Error('AE media binding does not match retained source metadata.');
+		if (used.has(asset.id)) throw new Error('AE media destination identity is duplicated.'); used.add(asset.id);
+		media.set(binding.footageId, asset); assets.push(asset);
+	}
+	for (const composition of exchange.compositions) for (const source of [composition, ...composition.layers]) {
+		const id = motionId(options.allocateId()); if (used.has(id)) throw new Error('AE destination identity is duplicated.');
+		used.add(id); ids.set(source.id, id);
+	}
+	const clock = (value: number, scope: string) => {
+		const converted = motionAeBoundedClock(value);
+		if (converted.quantized) report.push({ scopeId: scope, propertyPath: '', status: 'sampled', code: 'clock-quantization', message: 'AE floating timing was rounded to the bounded one-millionth clock. Original timing remains in the exchange.' });
+		return converted.value;
+	};
+	function content(layer: MotionAeLayer): MotionLayerContent {
+		if (layer.threeD || layer.adjustment) { issue(layer.id, 'layer-kind', 'AE 3D, camera/light and adjustment intent requires a qualified mapping or a complete AE-rendered composition. A named null placeholder preserves hierarchy.'); return { kind: 'null' }; }
+		if (layer.kind === 'null') return { kind: 'null' };
+		if (layer.kind === 'composition') return { kind: 'precomp', compositionId: ids.get(layer.sourceId!)! };
+		if (layer.kind === 'footage') {
+			const asset = media.get(layer.sourceId!), source = exchange.footage.find((item) => item.id === layer.sourceId)!;
+			if (!asset) { issue(layer.id, 'missing-media', 'Select and verify the original package media before importing this layer. A named null placeholder is retained.'); return { kind: 'null' }; }
+			if (source.pixelAspect !== 1 || asset.kind === 'audio') { issue(layer.id, 'media-interpretation', 'Non-square-pixel and audio-only AE layer interpretation is not yet mapped. Render or convert this source explicitly.'); return { kind: 'null' }; }
+			if (asset.kind === 'image') return { kind: 'image', assetId: asset.id };
+			if (asset.kind === 'footage') {
+				if (asset.hasAudio) issue(layer.id, 'audio-mapping', 'AE audio enable/level intent is not yet captured. This partial footage import is muted; retain the source or render its audio in AE.');
+				return { kind: 'footage', assetId: asset.id, audioEnabled: false, audioGain: motionScalar(1) };
+			}
+		}
+		issue(layer.id, 'layer-kind', 'This AE layer kind is preserved in the exchange and represented by a named null. Use a complete AE-rendered composition to retain its appearance.');
+		return { kind: 'null' };
+	}
+	function composition(source: MotionAeComposition): MotionComposition {
+		const frameRate = clock(source.frameRate, source.id), frequency = frameRate.num / frameRate.den;
+		const duration = clock(source.duration * frequency, source.id);
+		const durationFrames = Math.max(1, Math.ceil(duration.num / duration.den));
+		if (source.pixelAspect !== 1) issue(source.id, 'pixel-aspect', 'This composition uses non-square pixels; the partial Motion document uses square pixels. Render a square-pixel reference in AE.');
+		if (durationFrames !== source.duration * frequency) report.push({ scopeId: source.id, propertyPath: '', status: 'sampled', code: 'duration-rounding', message: 'Composition duration was rounded outward to a whole Motion frame.' });
+		if (source.displayStartTime !== 0) issue(source.id, 'display-time', 'AE display start time remains in the exchange; the Motion timeline starts at zero.');
+		if (source.background.some((value) => value !== 0)) issue(source.id, 'viewer-background', 'AE composition viewer background is retained in the exchange. The Motion document keeps transparent composition output.');
+		const layers: MotionLayer[] = source.layers.map((layer) => {
+			const base = createMotionLayer({ id: ids.get(layer.id)!, name: name(layer.name, 'Layer'), durationFrames, content: content(layer) });
+			const blendMode = MOTION_BLEND_MODES.find((value) => value === layer.blendMode) ?? 'normal';
+			if (blendMode !== layer.blendMode) issue(layer.id, 'blend-mode', 'This AE blend mode is not mapped; normal blending is used in the partial draft.');
+			const timeScale = 100 / layer.stretch;
+			return { ...base, enabled: layer.enabled, parentId: layer.parentId === null ? null : ids.get(layer.parentId)!,
+				inFrame: clock(layer.inPoint * frequency, layer.id), outFrame: clock(layer.outPoint * frequency, layer.id),
+				// All imported property keys use composition frames. Rebase source timing explicitly to the same origin.
+				sourceStart: clock(-layer.startTime * timeScale, layer.id), timeScale: clock(timeScale, layer.id),
+				transform: convertMotionAeTransform(layer, frameRate, base.transform, report, durationFrames), blendMode,
+				matte: layer.matte === null ? null : { layerId: ids.get(layer.matte.layerId)!, mode: layer.matte.type } };
+		});
+		return { id: ids.get(source.id)!, name: name(source.name, 'Composition'), width: source.width, height: source.height, frameRate, durationFrames,
+			background: [0, 0, 0, 0], color: { workingSpace: 'linear-rec709-d65', outputSpace: 'srgb', alphaMode: 'premultiplied' }, layers, audio: [] };
+	}
+	const primary = options.primaryCompositionId ?? exchange.compositions[0]!.id;
+	if (!exchange.compositions.some((entry) => entry.id === primary)) throw new Error('Choose a composition present in this AE exchange.');
+	const project = normalizeMotionscaperProject({ schemaFamily: 'motionscaper', schemaVersion: 1, id: projectId, title: name(exchange.source.name, 'AE import'),
+		revision: 0, sampleRate: 48000, primaryCompositionId: ids.get(primary), compositions: exchange.compositions.map(composition), assets });
+	return freezeMotionValue({ project, exchange, report, requiresAcknowledgement: true as const });
+}
+function name(value: string, fallback: string): string { return value.normalize('NFC').slice(0, 512) || fallback; }
