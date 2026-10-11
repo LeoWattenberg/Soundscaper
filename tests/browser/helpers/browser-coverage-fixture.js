@@ -7,6 +7,8 @@ import {
 	createBrowserCoverageCollector,
 } from '../../../scripts/lib/browser-coverage-profile.mjs';
 import { ordinaryBrowserProductSitePlan } from '../../../scripts/lib/browser-product-site-plan.mjs';
+import { resolveBrowserProductBaseURL } from './browser-product-base-url.ts';
+import { withTrackedBrowserContext } from './tracked-browser-context.ts';
 
 // Every spec imports its `test` from `audio-editor-test-fixtures.js`, which
 // imports it from here, so collection is a property of the suite rather than
@@ -29,6 +31,35 @@ function browserProductSites() {
 	return sitePlan.sites;
 }
 
+/**
+ * Own an additional isolated recipient and its independent coverage recorder.
+ * @template Result
+ * @param {{ browser: import('@playwright/test').Browser, launchOptions?: import('@playwright/test').LaunchOptions, options: import('@playwright/test').BrowserContextOptions, browserCoverage?: boolean, browserCoverageSites?: Array<{origin: string, outputDirectory: string, productId: 'soundscaper' | 'framescaper' | 'motionscaper'}> | null, title: string }} options
+ * @param {(tracked: {context: import('@playwright/test').BrowserContext, newPage(): Promise<import('@playwright/test').Page>}) => Promise<Result>} work
+ */
+export function withBrowserCoverageContext({ browser, launchOptions, options, browserCoverage = true, browserCoverageSites = null, title }, work) {
+	const browserName = browser.browserType().name();
+	const measured = browserCoverage && collectsBrowserCoverage(browserName);
+	/** @type {import('@playwright/test').Browser | null} */
+	let ownedBrowser = null;
+	return withTrackedBrowserContext({
+		async createContext() {
+			// Worker coverage owns the whole browser CDP target. A second measured
+			// context needs its own browser, not a competing recorder on that target.
+			if (measured) ownedBrowser = await browser.browserType().launch(launchOptions);
+			return (ownedBrowser ?? browser).newContext(options);
+		},
+		createCollector() {
+			if (!measured) return null;
+			const collector = createBrowserCoverageCollector({ browserName, scripts, sites: browserCoverageSites ?? browserProductSites() });
+			return { attach: collector.attach, settle: collector.settle, collect: () => collector.collect(title, writtenSourceMaps) };
+		},
+		async release() { await ownedBrowser?.close(); },
+	}, work);
+}
+
+/** @typedef {{browserCoverage: boolean, browserCoverageSites: Array<{origin: string, outputDirectory: string, productId: 'soundscaper' | 'framescaper' | 'motionscaper'}> | null}} BrowserCoverageOptions */
+/** @type {import('@playwright/test').TestType<import('@playwright/test').PlaywrightTestArgs & import('@playwright/test').PlaywrightTestOptions & BrowserCoverageOptions, import('@playwright/test').PlaywrightWorkerArgs & import('@playwright/test').PlaywrightWorkerOptions>} */
 export const test = base.extend({
 	// A spec whose budget is bound by realtime work can switch collection off
 	// with `test.use({ browserCoverage: false })`: even precise block coverage
@@ -37,6 +68,11 @@ export const test = base.extend({
 	browserCoverage: [true, { option: true }],
 	// Custom product fixtures retain their own built roots and ordinary source URLs.
 	browserCoverageSites: [null, { option: true }],
+	baseURL: async ({ baseURL, browserCoverageSites }, use, testInfo) => {
+		await use(resolveBrowserProductBaseURL({
+			file: testInfo.file, baseURL, customSites: browserCoverageSites !== null,
+		}));
+	},
 	context: async ({ context, browserName, browserCoverage, browserCoverageSites }, use, testInfo) => {
 		if (!browserCoverage || !collectsBrowserCoverage(browserName)) {
 			await use(context);

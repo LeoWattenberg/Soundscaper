@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { BufferSource, EncodedPacketSink, Input, WEBM } from 'mediabunny';
 import type { BrowserContext, Page, TestInfo } from '@playwright/test';
 import { importMotionscaperArchive } from '../../src/motionscaper/editor-scape.ts';
-import { startPagesSiteStaticServer } from '../../scripts/lib/pages-site-static-server.mjs';
+import { createMotionscaperOfflineSite } from './helpers/motionscaper-offline-site.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { assertMotionPngDeliveryMatchesPreview, digest, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 
@@ -117,27 +116,34 @@ test('platform either delivers real VP9 packets or visibly refuses unsupported e
 	await receipt(context, info, { vp9: capability.supported ? 'actual two-packet WebM delivery' : 'explicit unsupported encoder refusal without download', refusedBeforeProbe: capability.refusedBeforeProbe, pngAfterAttempt: 'exact preview pixels' });
 });
 
-test.describe('platform offline authoring', () => {
-	test.use({ serviceWorkers: 'allow' });
-	test('platform reopens a retained-font composition and its warmed CanvasKit preview offline', async ({ page, context }: { page: Page; context: BrowserContext }, info: TestInfo) => {
+const offlineTest = test.extend<{ offlineSite: Awaited<ReturnType<typeof createMotionscaperOfflineSite>> }>({
+	// eslint-disable-next-line no-empty-pattern -- Playwright requires fixture argument destructuring.
+	offlineSite: async ({}, use) => {
+		const site = await createMotionscaperOfflineSite();
+		try { await use(site); } finally { await site.dispose(); }
+	},
+	// The context depends on this fixture; its collector finishes before the
+	// authenticated clone and sibling maps are removed. Only this product is served.
+	browserCoverageSites: async ({ offlineSite }, use) => { await use([offlineSite.descriptor]); },
+});
+offlineTest.describe('platform offline authoring', () => {
+	offlineTest.use({ serviceWorkers: 'allow' });
+	offlineTest('platform reopens a retained-font composition and its warmed CanvasKit preview offline', async ({ page, context, offlineSite: site }, info: TestInfo) => {
 		test.setTimeout(60_000); const failures: string[] = [];
 		page.on('requestfailed', request => failures.push(`${request.url()}: ${request.failure()?.errorText ?? 'failed'}`));
 		page.on('pageerror', error => failures.push(error.message));
-		const site = await startPagesSiteStaticServer({ root: resolve('.wrangler/browser-products/motionscaper') });
-		try {
-			await createScene(page, site.baseURL);
-			const before = await snapshotMotionPreviewFrames(page, [0]); await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device');
-			// Warm the opt-in library route before disconnecting, just like the renderer.
-			await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Platform scene', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
-			// Closing the real origin also covers WebKit, whose driver offline emulation
-			// refuses even a minimal cached service-worker document before dispatch.
-			await site.close(); await page.reload({ waitUntil: 'domcontentloaded' }); await expect(page.locator('[data-motion-editor-bound]')).toBeVisible();
-			await menu(page, 'File', 'Project Library');
-			try { await expect(page.getByRole('dialog', { name: 'Project Library', exact: true })).toBeVisible(); }
-			finally { await info.attach('offline-request-failures', { body: JSON.stringify(failures, null, 2), contentType: 'application/json' }); }
-			await page.getByRole('button', { name: 'Platform scene', exact: true }).click();
-			const after = await snapshotMotionPreviewFrames(page, [0]); expect(digest(after.get(0)!)).toBe(digest(before.get(0)!));
-			await receipt(context, info, { offlineSavedScenePreview: 'exact retained-font and shape pixels' });
-		} finally { await site.close(); }
+		await createScene(page, site.baseURL);
+		const before = await snapshotMotionPreviewFrames(page, [0]); await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device');
+		// Warm the opt-in library route before disconnecting, just like the renderer.
+		await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Platform scene', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+		// Closing the real origin also covers WebKit, whose driver offline emulation
+		// refuses even a minimal cached service-worker document before dispatch.
+		await site.close(); await page.reload({ waitUntil: 'domcontentloaded' }); await expect(page.locator('[data-motion-editor-bound]')).toBeVisible();
+		await menu(page, 'File', 'Project Library');
+		try { await expect(page.getByRole('dialog', { name: 'Project Library', exact: true })).toBeVisible(); }
+		finally { await info.attach('offline-request-failures', { body: JSON.stringify(failures, null, 2), contentType: 'application/json' }); }
+		await page.getByRole('button', { name: 'Platform scene', exact: true }).click();
+		const after = await snapshotMotionPreviewFrames(page, [0]); expect(digest(after.get(0)!)).toBe(digest(before.get(0)!));
+		await receipt(context, info, { offlineSavedScenePreview: 'exact retained-font and shape pixels' });
 	});
 });

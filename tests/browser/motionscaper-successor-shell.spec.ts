@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/browser-coverage-fixture.js';
 test('successor opens the real editor with its own durable owner and menu-only upgrade workflow', async ({ page }) => {
 	const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
 	await page.goto('/embed/en/');
