@@ -73,7 +73,7 @@ package complete.
 
 ### Implementation status
 
-M01–M08 are **In progress**; M09–M12 remain **Planned**. The isolated browser
+M01–M09 and M11 are **In progress**; M10 and M12 remain **Planned**. The isolated browser
 shell builds, and the packaged Linux x64 desktop shell boots under its own
 origin with bounded project-file capabilities. Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
@@ -93,16 +93,31 @@ M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and
 spatial/path editing pass actual browser workflows, including pixel preview,
 undo, and save/reopen. Ordered shape operators and shaped text animators have
-actual CanvasKit and worker/CPU preview coverage; their complete authoring menus
-remain under construction. M07 includes bounded local masks, ordered effects,
+actual CanvasKit and worker/CPU preview coverage and menu-opened operator editing.
+Exact work areas, composition selection, retained cross-project clipboard, and
+source timing/remapping pass browser editing, history and reopen workflows.
+Typography/fill authoring remains unfinished. M07 includes bounded local masks, ordered effects,
 alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
 projective corner pins. Tracking freshness stops preview/export before resource
-acquisition; tracking and compositing menu workflows remain unfinished. M08
+acquisition; point analysis/correction, planar pins, stabilization, cancellation,
+history and reopen pass menu-driven workflows using actual encoded footage.
+Compositing authoring menus remain unfinished. M08
 includes a closed expression parser/interpreter, shared exact scene/audio
 clocks, stable references, bounded queries, and atomic source/baking commands;
-prepared audio-amplitude integration and authoring workflows remain under
-construction. The Motionscaper Node shard passes 325 tests at this integration
+bounded native-PCM amplitude now drives preview/export pixels and mixed gain,
+with asynchronous baking and expression asset custody. Expression menus remain
+unfinished. M09 has perspective/orthographic cameras, depth-sorted translucent
+planes, linear-SDR materials/lights, transparent shadow casters and deterministic
+thin-lens sampling. Actual worker/WebGL and host/CPU preview fixtures agree;
+shutter adapters and camera/lighting authoring remain under construction.
+M11 has a bounded exchange schema and custody/report validation; installed-AE
+scripts, editable conversion and real-AE qualification remain unfinished.
+The Motionscaper Node shard passes 364 tests at this integration
 point. These results do not close a package's completion gate.
+
+The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
+M09's camera, depth-group, lighting and quality semantics. It does not claim
+After Effects pixel parity.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
