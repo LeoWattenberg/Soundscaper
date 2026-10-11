@@ -8,8 +8,9 @@ import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-st
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
 import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
+import type { PhotoDevelopMaskDisplaySelectionV1 } from '../../photo-develop-mask-display-v1.ts';
 
-export interface PhotoDevelopMaskOverlaySelectionV1 { readonly maskId: string; readonly effectId: string }
+export type PhotoDevelopMaskOverlaySelectionV1 = PhotoDevelopMaskDisplaySelectionV1;
 export interface PhotoDevelopGradientDialogPropsV1 {
 	readonly kind?: 'linear-gradient' | 'radial-gradient';
 	readonly develop: PhotoLibraryDevelopSettingsV2;

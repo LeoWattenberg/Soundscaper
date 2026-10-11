@@ -9,6 +9,7 @@ const EN = Object.freeze({
 	noEffects: 'Add a global, detail or LUT adjustment to bind a mask.',
 	bindingPolicy: 'Selecting an adjustment replaces its existing mask binding. Geometry adjustments cannot be bound. Changes remain local until Apply.',
 	showOverlay: 'Show mask overlay', overlayEffect: 'Overlay effect', chooseEffect: 'Choose an adjustment',
+	displayMode: 'Mask display', color: 'Color overlay', grayscale: 'Grayscale mask',
 	invalid: 'Choose a bound adjustment when showing the selected mask. The mask changes could not be applied.',
 	apply: 'Apply changes', close: 'Close',
 });
@@ -21,6 +22,7 @@ const DE: Readonly<Record<keyof typeof EN, string>> = Object.freeze({
 	noEffects: 'Eine globale, Detail- oder LUT-Anpassung hinzufügen, um eine Maske zuzuweisen.',
 	bindingPolicy: 'Die Auswahl einer Anpassung ersetzt deren bisherige Maskenzuweisung. Geometrieanpassungen können nicht zugewiesen werden. Änderungen bleiben bis zum Anwenden lokal.',
 	showOverlay: 'Maskenüberlagerung anzeigen', overlayEffect: 'Anpassung für die Überlagerung', chooseEffect: 'Anpassung auswählen',
+	displayMode: 'Maskenanzeige', color: 'Farbüberlagerung', grayscale: 'Graustufenmaske',
 	invalid: 'Für die Anzeige der gewählten Maske eine zugewiesene Anpassung auswählen. Die Maskenänderungen konnten nicht angewendet werden.',
 	apply: 'Änderungen anwenden', close: 'Schließen',
 });

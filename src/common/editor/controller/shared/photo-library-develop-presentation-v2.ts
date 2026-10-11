@@ -12,6 +12,7 @@ import { withPixelFrameBodyV1 } from '../../imaging/pixel-frame-body-v1.ts';
 import { paintPixelFrameCanvasV1, clearPixelFrameCanvasV1 } from '../../imaging/pixel-frame-canvas-presenter-v1.ts';
 import { createPixelFrameHistogramV1, type PixelFrameHistogramV1 } from '../../imaging/pixel-frame-histogram-v1.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1, type ImageDevelopMaskOverlaySelectionV1 } from '../../imaging/image-develop-mask-overlay-v1.ts';
+import { preparePhotoDevelopMaskDisplayModeV1, type PhotoDevelopMaskDisplayModeV1 } from '../../photo-develop-mask-display-v1.ts';
 
 export interface PhotoDevelopPresentationSnapshotV2 {
 	readonly status: 'idle' | 'pending' | 'ready' | 'missing' | 'failed';
@@ -28,6 +29,7 @@ export interface PhotoDevelopPresentationViewV2 {
 	readonly before: HTMLCanvasElement;
 	readonly after: HTMLCanvasElement;
 	readonly maskOverlay?: Readonly<ImageDevelopMaskOverlaySelectionV1>;
+	readonly maskOverlayMode?: PhotoDevelopMaskDisplayModeV1;
 	readonly overlay?: HTMLCanvasElement;
 }
 interface Ports {
@@ -43,6 +45,7 @@ type Rendered = Pick<PhotoDevelopPresentationSnapshotV2, 'before' | 'after' | 'e
 const SOURCE = Object.freeze({ maximumSidePixels: 2048, maximumPixels: 4_194_304, maximumBytes: 16_777_216 });
 const RENDER = Object.freeze({ maximumSidePixels: 4096, maximumPixels: 8_388_608, maximumBytes: 33_554_432 });
 const CHECK = AbortSignal.prototype.throwIfAborted;
+const FILL = Uint8Array.prototype.fill;
 const REASON = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 const ABORTED = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
@@ -52,7 +55,7 @@ const PREPARED = new WeakSet<object>();
  * waits. Canvas references are borrowed targets, never serialized authority. */
 export function preparePhotoDevelopPresentationViewV2(value: unknown): Readonly<PhotoDevelopPresentationViewV2> {
 	if (value && typeof value === 'object' && PREPARED.has(value)) return value as Readonly<PhotoDevelopPresentationViewV2>;
-	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after', 'maskOverlay', 'overlay'], ['photoId', 'develop', 'before', 'after']);
+	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after', 'maskOverlay', 'maskOverlayMode', 'overlay'], ['photoId', 'develop', 'before', 'after']);
 	const id = field(input, 'photoId', 'develop presentation');
 	if (typeof id !== 'string' || id.length === 0 || id.length > 256 || [...id].some(character => character.charCodeAt(0) < 32)) throw new TypeError('Develop requires a bounded photo ID.');
 	const resolution = Object.hasOwn(input, 'resolution') ? field(input, 'resolution', 'develop presentation') : undefined;
@@ -66,11 +69,14 @@ export function preparePhotoDevelopPresentationViewV2(value: unknown): Readonly<
 	if (!before || typeof before !== 'object' || !after || typeof after !== 'object' || before === after) throw new TypeError('Develop requires two distinct canvas targets.');
 	const rawSelection = Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'develop presentation') : undefined;
 	const overlay = Object.hasOwn(input, 'overlay') ? field(input, 'overlay', 'develop presentation') : undefined;
+	const rawMode = Object.hasOwn(input, 'maskOverlayMode') ? field(input, 'maskOverlayMode', 'develop presentation') : undefined;
+	const maskOverlayMode = preparePhotoDevelopMaskDisplayModeV1(rawMode);
+	if (rawMode !== undefined && rawSelection === undefined) throw new TypeError('Mask display mode requires an overlay selection and target.');
 	if ((rawSelection === undefined) !== (overlay === undefined)) throw new TypeError('Mask overlay requires both a selection and a canvas target.');
 	if (overlay !== undefined && (!overlay || typeof overlay !== 'object' || overlay === before || overlay === after)) throw new TypeError('Mask overlay requires a distinct canvas target.');
 	const maskOverlay = rawSelection === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawSelection);
 	const result = Object.freeze({ photoId: id, develop, resolution, revision: revision as number | undefined, before: before as HTMLCanvasElement, after: after as HTMLCanvasElement,
-		...(maskOverlay ? { maskOverlay, overlay: overlay as HTMLCanvasElement } : {}) });
+		...(maskOverlay ? { maskOverlay, maskOverlayMode, overlay: overlay as HTMLCanvasElement } : {}) });
 	PREPARED.add(result); return result;
 }
 
@@ -203,14 +209,17 @@ export class PhotoLibraryDevelopPresentationV2 {
 					throw new RangeError('Mask coverage does not match the requested After image.');
 				}
 				const pixels = new Uint8Array(observed.coverage.length * 4);
+				const grayscale = view.maskOverlayMode === 'grayscale';
 				try {
 					for (let index = 0; index < observed.coverage.length; index++) {
 						if (index % 16_384 === 0) check(signal);
-						pixels[index * 4] = 255; pixels[index * 4 + 1] = 48; pixels[index * 4 + 2] = 48; pixels[index * 4 + 3] = observed.coverage[index]!;
+						const coverage = observed.coverage[index]!;
+						pixels[index * 4] = grayscale ? coverage : 255; pixels[index * 4 + 1] = grayscale ? coverage : 48;
+						pixels[index * 4 + 2] = grayscale ? coverage : 48; pixels[index * 4 + 3] = grayscale ? 255 : coverage;
 					}
 					this.#ports.paint(view.overlay, { descriptor: { schemaVersion: 1, width: descriptor.width, height: descriptor.height,
 						sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels }, { limits: profile.render, signal }); check(signal);
-				} finally { pixels.fill(0); }
+				} finally { Reflect.apply(FILL, pixels, [0]); }
 			}
 			const extent = Object.freeze({ before: Object.freeze({ width: frame.descriptor.width, height: frame.descriptor.height }), after: Object.freeze({ width: output.frame.descriptor.width, height: output.frame.descriptor.height }) });
 			completed = Object.freeze({ before, after: output.histogram, extent });

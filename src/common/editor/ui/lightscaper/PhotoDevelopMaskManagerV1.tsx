@@ -10,6 +10,7 @@ import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
 import type { VideoMaskMatteGraphV1OrV2 } from '../../video-mask-matte-name-v2.ts';
+import type { PhotoDevelopMaskDisplayModeV1 } from '../../photo-develop-mask-display-v1.ts';
 import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 import './photo-develop-mask-management.css';
 
@@ -22,7 +23,7 @@ export interface PhotoDevelopMaskManagerPropsV1 {
 	readonly onClose: () => void;
 }
 type Form = Readonly<{ source: PhotoLibraryDevelopSettingsV2; draft: PhotoLibraryDevelopSettingsV2;
-	maskId: string; operandMaskId: string; name: string; nameInvalid: boolean; showOverlay: boolean; overlayEffect: string; invalid: boolean }>;
+	maskId: string; operandMaskId: string; name: string; nameInvalid: boolean; showOverlay: boolean; overlayEffect: string; displayMode: PhotoDevelopMaskDisplayModeV1; invalid: boolean }>;
 
 /** Scalar recipe editing only. Body custody and history belong to the selected
  * Develop owner; this dialog never acquires a mask resource. */
@@ -53,7 +54,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 			const name = command.type === 'bindings' || command.type === 'compose' ? form.name : graphName(draft.masks.find(mask => mask.id === maskId));
 			const operandMaskId = sameSelection && draft.masks.some(mask => mask.id === form.operandMaskId && mask.id !== maskId) ? form.operandMaskId : '';
 			update({ ...form, draft, maskId, operandMaskId, name, nameInvalid: false, invalid: false, showOverlay: sameSelection && form.showOverlay,
-				overlayEffect: sameSelection && chosen ? form.overlayEffect : '' });
+				overlayEffect: sameSelection && chosen ? form.overlayEffect : '', displayMode: sameSelection && chosen ? form.displayMode : 'color' });
 		} catch { update({ ...form, nameInvalid: command.type === 'rename', invalid: command.type !== 'rename' }); }
 	};
 	const apply = () => {
@@ -61,7 +62,8 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 		if (form.showOverlay && (!selected || !bindings.includes(form.overlayEffect) || !effects.some(effect => effect.id === form.overlayEffect))) {
 			update({ ...form, invalid: true }); return;
 		}
-		Reflect.apply(props.onApply, props, [form.draft, form.showOverlay ? Object.freeze({ maskId: form.maskId, effectId: form.overlayEffect }) : null]);
+		Reflect.apply(props.onApply, props, [form.draft, form.showOverlay ? Object.freeze({ maskId: form.maskId, effectId: form.overlayEffect,
+			...(form.displayMode === 'grayscale' ? { displayMode: form.displayMode } : {}) }) : null]);
 	};
 	return <AudioEditorDialogShell title={text.title} onClose={close} className="lightscaper-dialog lightscaper-mask-management-dialog"
 		overlayClassName="lightscaper-dialog-backdrop" closeOnOutside={false}>
@@ -70,7 +72,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 				onChange={event => {
 					if (!current()) return; const maskId = event.currentTarget.value;
 					const mask = form.draft.masks.find(mask => mask.id === maskId);
-					if (mask) update({ ...form, maskId, operandMaskId: '', name: graphName(mask), nameInvalid: false, showOverlay: false, overlayEffect: '', invalid: false });
+					if (mask) update({ ...form, maskId, operandMaskId: '', name: graphName(mask), nameInvalid: false, showOverlay: false, overlayEffect: '', displayMode: 'color', invalid: false });
 				}}>
 				{form.draft.masks.length === 0 && <option value="">{text.empty}</option>}
 				{form.draft.masks.map(mask => <option key={mask.id} value={mask.id}>{graphLabel(mask)}</option>)}
@@ -115,7 +117,12 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 				})}
 			</fieldset>
 			<label><input type="checkbox" aria-label={text.showOverlay} checked={form.showOverlay} disabled={props.disabled || !selected}
-				onChange={event => { if (current() && selected) update({ ...form, showOverlay: event.currentTarget.checked, overlayEffect: '', invalid: false }); }} />{text.showOverlay}</label>
+				onChange={event => { if (current() && selected) update({ ...form, showOverlay: event.currentTarget.checked, overlayEffect: '', displayMode: 'color', invalid: false }); }} />{text.showOverlay}</label>
+			{form.showOverlay && <label className="lightscaper-mask-management-selection">{text.displayMode}<select aria-label={text.displayMode}
+				value={form.displayMode} disabled={props.disabled} onChange={event => {
+					if (!current()) return; const displayMode = event.currentTarget.value;
+					if (displayMode === 'color' || displayMode === 'grayscale') update({ ...form, displayMode, invalid: false });
+				}}><option value="color">{text.color}</option><option value="grayscale">{text.grayscale}</option></select></label>}
 			{form.showOverlay && <label className="lightscaper-mask-management-selection">{text.overlayEffect}<select aria-label={text.overlayEffect}
 				value={form.overlayEffect} disabled={props.disabled} onChange={event => {
 					if (current()) update({ ...form, overlayEffect: event.currentTarget.value, invalid: false });
@@ -132,7 +139,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 
 function initial(source: PhotoLibraryDevelopSettingsV2): Form {
 	const draft = normalizeImageDevelopStateV1OrV2(source);
-	return { source, draft, maskId: draft.masks[0]?.id ?? '', operandMaskId: '', name: graphName(draft.masks[0]), nameInvalid: false, showOverlay: false, overlayEffect: '', invalid: false };
+	return { source, draft, maskId: draft.masks[0]?.id ?? '', operandMaskId: '', name: graphName(draft.masks[0]), nameInvalid: false, showOverlay: false, overlayEffect: '', displayMode: 'color', invalid: false };
 }
 function graphName(graph: VideoMaskMatteGraphV1OrV2 | undefined): string { return graph?.schemaVersion === 2 ? graph.name : ''; }
 function graphLabel(graph: VideoMaskMatteGraphV1OrV2): string { return graph.schemaVersion === 2 ? `${graph.name} (${graph.id})` : graph.id; }

@@ -7,7 +7,7 @@ import { usePhotoDevelopV2 } from './use-photo-develop-v2.ts';
 import PhotoDevelopEffectsV2 from './PhotoDevelopEffectsV2.tsx';
 import PhotoDevelopPreviewV2, { type PhotoDevelopPreviewPropsV2 } from './PhotoDevelopPreviewV2.tsx';
 import PhotoDevelopSettingsMenuV2 from './PhotoDevelopSettingsMenuV2.tsx';
-import PhotoDevelopGradientDialogV1, { type PhotoDevelopGradientDialogPropsV1, type PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
+import PhotoDevelopGradientDialogV1, { type PhotoDevelopGradientDialogPropsV1 } from './PhotoDevelopGradientDialogV1.tsx';
 import PhotoDevelopRangeMaskDialogV1, { type PhotoDevelopRangeMaskDialogPropsV1 } from './PhotoDevelopRangeMaskDialogV1.tsx';
 import { photoDevelopLocalAdjustmentsCopy } from '../../../i18n/lightscaper-develop-local-adjustments-copy.ts';
 import type { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
@@ -20,12 +20,14 @@ import type { PhotoLibraryDevelopMaskRasterPortV1 } from '../../photo-library-de
 import { capturePhotoDevelopExecutionContextV2, capturePhotoLibraryDevelopPortV2 } from '../../controller/shared/photo-library-develop-command-v2.ts';
 import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-brush-mask-copy.ts';
 import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
+import { preparePhotoDevelopMaskDisplaySelectionV1, type PhotoDevelopMaskDisplayModeV1 } from '../../photo-develop-mask-display-v1.ts';
+import type { ImageDevelopMaskOverlaySelectionV1 } from '../../imaging/image-develop-mask-overlay-v1.ts';
 import './photo-develop.css';
 
 const PhotoDevelopBrushMaskDialogV1 = lazy(() => import('./PhotoDevelopBrushMaskDialogV1.tsx'));
 const PhotoDevelopMaskManagerV1 = lazy(() => import('./PhotoDevelopMaskManagerV1.tsx'));
 
-export interface PhotoDevelopWorkspacePropsV2 extends Omit<PhotoDevelopPreviewPropsV2, 'develop' | 'messages' | 'maskOverlay' | 'isCurrent'> {
+export interface PhotoDevelopWorkspacePropsV2 extends Omit<PhotoDevelopPreviewPropsV2, 'develop' | 'messages' | 'maskOverlay' | 'maskOverlayMode' | 'isCurrent'> {
 	readonly generation: unknown;
 	readonly label: string;
 	readonly execute: ExecutePhotoDevelopV2;
@@ -131,17 +133,20 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
 	const [brushPort, setBrushPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopMaskRasterPortV1> }> | null>(null);
 	const [brushFailed, setBrushFailed] = useState<LocalEntry | null>(null);
-	const [overlay, setOverlay] = useState<Readonly<{ entry: LocalEntry; recipe: string; selection: Readonly<PhotoDevelopMaskOverlaySelectionV1> }> | null>(null);
+	const [overlay, setOverlay] = useState<Readonly<{ entry: LocalEntry; recipe: string; selection: Readonly<ImageDevelopMaskOverlaySelectionV1>; mode: PhotoDevelopMaskDisplayModeV1 }> | null>(null);
 	const localCurrent = () => current() && !busy && localEntry !== null && activeLocal.current === localEntry
 		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
 		&& owner.snapshot().document === document && owner.snapshot().draft === draft;
 	const brushCurrent = localEntry?.kind === 'brush' && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
 	const openLocal = (kind: LocalKind) => { if (current() && !busy && document && draft) setLocalEntry({ kind, owner, document, draft }); };
 	const applyLocal: PhotoDevelopRangeMaskDialogPropsV1['onApply'] = (value, selection) => {
-		if (!localCurrent() || !localEntry || !document) return; owner.edit(value);
+		if (!localCurrent() || !localEntry || !document) return;
+		const captured = selection === null ? null : preparePhotoDevelopMaskDisplaySelectionV1(selection);
+		if (!localCurrent()) return; owner.edit(value);
 		activeLocal.current = null;
 		const next = owner.snapshot().draft;
-		if (next && selection) setOverlay({ entry: { kind: localEntry.kind, owner, document, draft: next }, recipe: JSON.stringify(next), selection }); else setOverlay(null);
+		if (next && captured) setOverlay({ entry: { kind: localEntry.kind, owner, document, draft: next }, recipe: JSON.stringify(next),
+			selection: Object.freeze({ maskId: captured.maskId, effectId: captured.effectId }), mode: captured.displayMode }); else setOverlay(null);
 		setLocalEntry(null);
 	};
 	const closeLocal = () => { if (mounted() && activeLocal.current === localEntry) { activeLocal.current = null; setLocalEntry(null); } };
@@ -169,7 +174,7 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 	}, [localEntry, execute, registerImportRetirement, tasks]);
 	const recipe = useMemo(() => draft ? JSON.stringify(draft) : null, [draft]);
 	const selectedOverlay = overlay?.entry.owner === owner && overlay.entry.document.photoId === document?.photoId
-		&& overlay.entry.document.versionId === document?.versionId && overlay.recipe === recipe ? overlay.selection : undefined;
+		&& overlay.entry.document.versionId === document?.versionId && overlay.recipe === recipe ? overlay : undefined;
 	useEffect(() => { if (overlay && !selectedOverlay) setOverlay(null); }, [overlay, selectedOverlay]);
 	const catalogId = document?.catalogId ?? props.catalogId;
 	const now = () => new Date().toISOString();
@@ -201,7 +206,7 @@ export default function PhotoDevelopWorkspaceV2(props: PhotoDevelopWorkspaceProp
 				<button type="button" disabled={busy || snapshot.dirty || document.activeVersionId === document.versionId}
 					onClick={() => { run(() => owner.apply({ type: 'activate-version', versionId: document.versionId })); }}>{messages.useVersion}</button>
 				<div className="lightscaper-develop-layout"><PhotoDevelopPreviewV2 {...props} {...previewSource} registerRetirement={registerPreviewRetirement} develop={draft} messages={messages} revision={document.revision} resolution={selectedResolution.value}
-					maskOverlay={selectedOverlay} suspended={brushCurrent} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
+					maskOverlay={selectedOverlay?.selection} maskOverlayMode={selectedOverlay?.mode} suspended={brushCurrent} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
 					<PhotoDevelopEffectsV2 effects={draft.effects} owner={owner} messages={messages} disabled={busy}
 						isCurrent={() => mounted() && owner.snapshot().document === document} importCubeLut={importCubeLut}
 						onImportPending={onImportPending} registerImportRetirement={registerImportRetirement} /></div>

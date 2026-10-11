@@ -34,6 +34,7 @@
 .lightscaper-develop-settings-dialog label { display: flex; align-items: center; gap: .5rem; }
 .lightscaper-develop-image-plane { position: relative; width: fit-content; max-width: 100%; }
 .lightscaper-develop-images .lightscaper-develop-mask-overlay { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; opacity: .45; pointer-events: none; }
+.lightscaper-develop-images .lightscaper-develop-mask-overlay[data-mode="grayscale"] { opacity: 1; }
 .lightscaper-develop-images[data-mode="split"] .lightscaper-develop-image-plane { width: 100%; height: 100%; }
 .lightscaper-develop-local-dialog fieldset { display: grid; gap: .5rem; margin-block: .75rem; }
 .lightscaper-develop-local-dialog label { display: flex; align-items: center; gap: .5rem; margin-block: .25rem; }

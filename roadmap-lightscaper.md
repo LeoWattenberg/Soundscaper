@@ -507,8 +507,16 @@ the other mask remains available. Subtraction is selected minus other coverage.
 Composition remains local until Apply and the existing Save records it in history.
 Copied range nodes sample the input of the selected mask's bound adjustment;
 brush references retain their immutable body identity and archive custody.
-Further overlay modes, direct Frame mask-name authoring, and healing remain open;
-these slices do not close L6.
+The manager also offers Color overlay and Grayscale mask views after explicitly
+enabling the overlay and choosing a bound adjustment. Grayscale maps the actual
+projected coverage to opaque display intensity; color retains the existing red
+overlay. Both use the selected adjustment's input and the real geometry suffix.
+The choice is temporary, resets when reopening the manager, and changes neither
+the saved recipe nor After pixels, histograms, or exported output. Presentation
+keeps it separate from the renderer's strict mask/effect IDs and wipes its
+borrowed display plane before retirement completes.
+Direct Frame mask-name authoring and healing remain open; these slices do not
+close L6.
 
 ### Exit gate
 

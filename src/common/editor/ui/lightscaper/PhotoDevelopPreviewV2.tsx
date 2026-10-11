@@ -9,9 +9,10 @@ import type { PhotoDevelopResolutionV1 } from '../../photo-library-develop-full-
 import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { PhotoLibraryDevelopSettingsV2 } from '../../photo-library-develop-port-v2.ts';
 import type { PixelFrameHistogramV1 } from '../../imaging/pixel-frame-histogram-v1.ts';
+import type { ImageDevelopMaskOverlaySelectionV1 } from '../../imaging/image-develop-mask-overlay-v1.ts';
+import { preparePhotoDevelopMaskDisplayModeV1, type PhotoDevelopMaskDisplayModeV1 } from '../../photo-develop-mask-display-v1.ts';
 import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.ts';
 import PhotoDevelopMaskOverlayV1 from './PhotoDevelopMaskOverlayV1.tsx';
-import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 
 export interface PhotoDevelopPreviewPropsV2 {
 	readonly photoId: string;
@@ -25,7 +26,8 @@ export interface PhotoDevelopPreviewPropsV2 {
 	readonly registerRetirement: (retire: () => Promise<void>) => () => void;
 	readonly messages: PhotoDevelopCopyV1;
 	readonly locale: string;
-	readonly maskOverlay?: Readonly<PhotoDevelopMaskOverlaySelectionV1>;
+	readonly maskOverlay?: Readonly<ImageDevelopMaskOverlaySelectionV1>;
+	readonly maskOverlayMode?: PhotoDevelopMaskDisplayModeV1;
 	readonly suspended?: boolean;
 	readonly isCurrent?: () => boolean;
 }
@@ -48,7 +50,7 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 	if (registrationRef.current.method !== registerRetirement) registrationRef.current = { method: registerRetirement, receiver: props };
 	const registration = registrationRef.current;
 	const interaction = useMemo(() => ({ owner, photoId: props.photoId, develop: props.develop, revision: props.revision, resolution: props.resolution,
-		maskOverlay: props.maskOverlay, suspended: props.suspended }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.suspended]);
+		maskOverlay: props.maskOverlay, maskOverlayMode: props.maskOverlayMode, suspended: props.suspended }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended]);
 	const activeInteraction = useRef(interaction); activeInteraction.current = interaction;
 	const before = useRef<HTMLCanvasElement>(null), after = useRef<HTMLCanvasElement>(null), overlay = useRef<HTMLCanvasElement>(null);
 	const [view, setView] = useState(() => ({ owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 }));
@@ -77,7 +79,7 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 			if (props.maskOverlay && !overlay.current) throw new Error('Develop overlay target is unavailable.');
 			const prepared = preparePhotoDevelopPresentationViewV2({ photoId: props.photoId, develop: props.develop, revision: props.revision,
 				resolution: props.resolution, before: before.current, after: after.current,
-				...(props.maskOverlay ? { maskOverlay: props.maskOverlay, overlay: overlay.current } : {}) });
+				...(props.maskOverlay ? { maskOverlay: props.maskOverlay, maskOverlayMode: props.maskOverlayMode, overlay: overlay.current } : {}) });
 			void joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]).then(() => {
 				if (current) owner.setView(prepared);
 			}).catch(() => { if (current) setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' })); });
@@ -85,7 +87,7 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 			setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
 		}
 		return () => { current = false; void owner.pause().catch(() => undefined); };
-	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.suspended]);
+	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended]);
 	const { messages } = props, { mode, divider } = selected;
 	const current = () => lifetime.current && activeInteraction.current === interaction && rendered.current === selected && !props.suspended;
 	const aspect = mode === 'split' && snapshot.extent ? `${snapshot.extent.after.width} / ${snapshot.extent.after.height}` : undefined;
@@ -107,7 +109,8 @@ export default function PhotoDevelopPreviewV2(props: PhotoDevelopPreviewPropsV2)
 				<figcaption>{messages.before}</figcaption><canvas ref={before} width={0} height={0} role="img" aria-label={messages.before} data-photo-develop-before /></figure>
 			<figure hidden={mode === 'before'} style={{ clipPath: mode === 'split' ? `inset(0 0 0 ${divider}%)` : undefined }}>
 				<figcaption>{messages.after}</figcaption><div className="lightscaper-develop-image-plane"><canvas ref={after} width={0} height={0} role="img" aria-label={messages.after} data-photo-develop-after />
-					{props.maskOverlay && <PhotoDevelopMaskOverlayV1 canvasRef={overlay} state={snapshot.status} locale={props.locale} />}
+					{props.maskOverlay && <PhotoDevelopMaskOverlayV1 canvasRef={overlay} state={snapshot.status} locale={props.locale}
+						displayMode={preparePhotoDevelopMaskDisplayModeV1(props.maskOverlayMode)} />}
 				</div></figure>
 			{mode === 'split' && <div className="lightscaper-develop-divider" aria-hidden="true" style={{ left: `${divider}%` }} />}
 		</div></div>
