@@ -8,8 +8,10 @@ import {
 	motionscaperDesktopDocumentUrl, motionscaperDesktopEnvironment,
 } from './motionscaper-desktop-contract.ts';
 import { MOTIONSCAPER_FILE_METHODS } from '../src/motionscaper/desktop-file-contract.ts';
-import { createMotionscaperFileAuthority } from './motionscaper-file-authority.ts';
+import { createMotionscaperFileAuthority, type MotionFileAuthority } from './motionscaper-file-authority.ts';
 import { dispatchMotionscaperFileCall } from './motionscaper-file-ipc.ts';
+import { createMotionscaperLaunchAuthority, motionLaunchPaths } from './motionscaper-launch-authority.ts';
+import { dispatchMotionscaperLaunchCall } from './motionscaper-launch-ipc.ts';
 import { createMotionscaperNativeEncoder } from './motionscaper-native-executor.ts';
 import { createMotionscaperDeliveryAuthority } from './motionscaper-delivery-authority.ts';
 import { dispatchMotionscaperDeliveryCall } from './motionscaper-delivery-ipc.ts';
@@ -37,9 +39,22 @@ protocol.registerSchemesAsPrivileged([{
 let window: BrowserWindow | null = null;
 let nativeSmoke: unknown = null;
 let abortNativeDelivery: () => Promise<void> = () => Promise.resolve();
+let nativeFiles: MotionFileAuthority | null = null;
+const launches = createMotionscaperLaunchAuthority({
+	open: path => {
+		if (!nativeFiles) throw new Error('Motionscaper native files are unavailable.');
+		return nativeFiles.openTrustedPath(path);
+	},
+	revoke: token => nativeFiles?.revokeRead(token) ?? Promise.resolve(),
+	notify: () => {
+		if (window && !window.isDestroyed() && motionscaperDesktopDocumentUrl(window.webContents.getURL())) window.webContents.send(channels.projectLaunchPending);
+	},
+});
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-	app.on('second-instance', () => { window?.show(); window?.focus(); });
+	queueLaunchArguments(process.argv.slice(1), process.cwd());
+	app.on('open-file', (event, path) => { event.preventDefault(); queueLaunchArguments([path], process.cwd()); showLaunchWindow(); });
+	app.on('second-instance', (_event, argv, workingDirectory) => { queueLaunchArguments(argv.slice(1), workingDirectory); showLaunchWindow(); });
 	app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 	app.on('activate', () => { if (!window) void createWindow().catch(failStartup); });
 	void start().catch(failStartup);
@@ -80,7 +95,7 @@ async function start(): Promise<void> {
 		mainFrame: window !== null && event.senderFrame === window.webContents.mainFrame, url: event.senderFrame?.url ?? '',
 	}, request, () => updateDialog ??= (async () => {
 		const target = window; if (!target) return;
-		const copy = MOTIONSCAPER_UPDATES_COPY_BY_LOCALE[new URL(event.senderFrame.url).pathname.startsWith('/de/') ? 'de' : 'en'];
+		const copy = MOTIONSCAPER_UPDATES_COPY_BY_LOCALE[new URL(event.senderFrame?.url ?? identity.origin).pathname.startsWith('/de/') ? 'de' : 'en'];
 		const result = await checkUpdates(); if (window !== target || target.isDestroyed()) return;
 		const available = result.status === 'available';
 		const choice = await dialog.showMessageBox(target, { type: result.status === 'error' ? 'warning' : 'info', title: copy.motionscaperUpdatesTitle,
@@ -100,6 +115,11 @@ async function start(): Promise<void> {
 			return selection.canceled ? null : selection.filePath ?? null;
 		},
 	});
+	nativeFiles = files;
+	ipcMain.handle(channels.projectLaunch, (event: Electron.IpcMainInvokeEvent, method: unknown, request: unknown) => dispatchMotionscaperLaunchCall(launches, {
+		ownWindow: window !== null && event.sender === window.webContents,
+		mainFrame: window !== null && event.senderFrame === window.webContents.mainFrame, url: event.senderFrame?.url ?? '',
+	}, method, request));
 	ipcMain.handle(channels.projectFiles, (event: Electron.IpcMainInvokeEvent, method: unknown, request: unknown) => {
 		if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
 			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper file caller.');
@@ -116,7 +136,7 @@ async function start(): Promise<void> {
 			|| !motionscaperDesktopDocumentUrl(event.senderFrame.url)) throw new Error('Untrusted Motionscaper delivery caller.');
 		return dispatchMotionscaperDeliveryCall(delivery, method, request);
 	});
-	app.on('before-quit', () => { void Promise.all([files.dispose(), delivery.dispose()]).catch((error: unknown) => { console.error(error); }); });
+	app.on('before-quit', () => { void Promise.all([launches.dispose().then(() => files.dispose()), delivery.dispose()]).catch((error: unknown) => { console.error(error); }); });
 	Menu.setApplicationMenu(Menu.buildFromTemplate([
 		...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
 		{ label: 'File', submenu: [{ role: 'close' }] },
@@ -137,10 +157,22 @@ async function createWindow(): Promise<void> {
 	window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 	window.webContents.on('will-navigate', (event, url) => { if (!motionscaperDesktopDocumentUrl(url)) event.preventDefault(); });
 	window.webContents.on('will-attach-webview', (event) => { event.preventDefault(); });
-	window.on('closed', () => { window = null; void abortNativeDelivery().catch((error: unknown) => { console.error(error); }); });
-	window.webContents.on('render-process-gone', () => { void abortNativeDelivery().catch((error: unknown) => { console.error(error); }); });
+	window.webContents.on('did-start-navigation', (_event, _url, inPlace, mainFrame) => { if (mainFrame && !inPlace) void launches.reset().catch(reportLaunchError); });
+	window.on('closed', () => { window = null; void launches.reset().catch(reportLaunchError); void abortNativeDelivery().catch((error: unknown) => { console.error(error); }); });
+	window.webContents.on('render-process-gone', () => { void launches.reset().catch(reportLaunchError); void abortNativeDelivery().catch((error: unknown) => { console.error(error); }); });
 	await window.loadURL(`${identity.origin}/`);
 	if (process.argv.includes('--motionscaper-shell-smoke')) await smokeShell(window);
+}
+
+function queueLaunchArguments(argv: readonly string[], workingDirectory: string): void {
+	try { launches.enqueue(motionLaunchPaths(argv, workingDirectory)); } catch (error) { reportLaunchError(error); }
+}
+function showLaunchWindow(): void {
+	if (window) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
+	else if (app.isReady()) void createWindow().catch(failStartup);
+}
+function reportLaunchError(error: unknown): void {
+	dialog.showErrorBox('Motionscaper could not open the project', error instanceof Error ? error.message : 'The native file launch failed.');
 }
 
 function isMetadata(value: unknown): value is ProductMetadata {

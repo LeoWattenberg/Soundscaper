@@ -3,7 +3,7 @@ import { randomUUID, createHash, type Hash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, open, rename, rm, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join } from 'node:path';
-import { MOTIONSCAPER_FILE_CHUNK_BYTES, type MotionDesktopFiles } from '../src/motionscaper/desktop-file-contract.ts';
+import { MOTIONSCAPER_FILE_CHUNK_BYTES, type MotionDesktopFiles, type MotionOpenFileCapability } from '../src/motionscaper/desktop-file-contract.ts';
 
 interface Fingerprint { readonly dev: number; readonly ino: number; readonly size: number; readonly mtimeMs: number; readonly ctimeMs: number }
 interface Binding { readonly path: string; readonly fingerprint: Fingerprint | null }
@@ -13,7 +13,12 @@ export interface MotionFileDialogs {
 	chooseOpen(): Promise<string | null>;
 	chooseSave(options: { readonly suggestedName: string; readonly defaultPath?: string }): Promise<string | null>;
 }
-export interface MotionFileAuthority extends MotionDesktopFiles { dispose(): Promise<void> }
+export interface MotionFileAuthority extends MotionDesktopFiles {
+	/** Main-process OS file launch only; deliberately absent from the renderer method table. */
+	openTrustedPath(path: string): Promise<MotionOpenFileCapability>;
+	revokeRead(token: string): Promise<void>;
+	dispose(): Promise<void>;
+}
 
 /** Capabilities live only in this main-process instance; no path crosses the renderer bridge. */
 export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): MotionFileAuthority {
@@ -25,20 +30,30 @@ export function createMotionscaperFileAuthority(dialogs: MotionFileDialogs): Mot
 	const active = () => { if (disposed) throw new Error('Motionscaper file authority is closed.'); };
 	function reader(token: string): ReadCapability { active(); const value = readers.get(token); if (!value) throw new Error('Unknown Motionscaper read capability.'); return value; }
 	function writer(token: string): WriteCapability { active(); const value = writers.get(token); if (!value) throw new Error('Unknown Motionscaper write capability.'); return value; }
-	const authority: MotionFileAuthority = {
-		async selectOpen() {
-			active(); if (readers.size + opening >= 16) throw new RangeError('Too many open Motionscaper file capabilities.');
-			opening += 1;
+	async function acquireRead(choosePath: () => Promise<string | null>): Promise<MotionOpenFileCapability | null> {
+		active(); if (readers.size + opening >= 16) throw new RangeError('Too many open Motionscaper file capabilities.');
+		opening += 1;
+		try {
+			const path = await choosePath(); if (path === null) return null; active();
+			const fingerprint = await requireFile(path);
+			const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
 			try {
-				const path = await dialogs.chooseOpen(); if (path === null) return null; active();
-				const fingerprint = await requireFile(path);
-				const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-				try {
-					assertFingerprint(fingerprint, fingerprintOf(await file.stat())); active();
-					const token = randomUUID(); readers.set(token, { path, fingerprint, file, busy: false });
-					return { token, name: basename(path), byteLength: fingerprint.size };
-				} catch (error) { await file.close(); throw error; }
-			} finally { opening -= 1; }
+				assertFingerprint(fingerprint, fingerprintOf(await file.stat())); active();
+				const token = randomUUID(); readers.set(token, { path, fingerprint, file, busy: false });
+				return { token, name: basename(path), byteLength: fingerprint.size };
+			} catch (error) { await file.close(); throw error; }
+		} finally { opening -= 1; }
+	}
+	const authority: MotionFileAuthority = {
+		selectOpen: () => acquireRead(() => dialogs.chooseOpen()),
+		async openTrustedPath(path) {
+			const selected = await acquireRead(() => Promise.resolve(path));
+			if (!selected) throw new Error('Motionscaper native launch has no archive.');
+			return selected;
+		},
+		async revokeRead(token) {
+			const value = readers.get(token); if (!value) return;
+			await value.file.close(); if (readers.get(token) === value) readers.delete(token);
 		},
 		async read({ token, offset, length }) {
 			const value = reader(token); integer(offset, 'read offset'); integer(length, 'read length');
