@@ -9,8 +9,10 @@ import { assertMotionMaskParameters, type MotionMaskRasterizer } from './motion-
 import { motionEffectParameters, type MotionEffectRasterizer } from './motion-effect-rendering.ts';
 import { assertMotionAcyclic } from './motion-project-graph.ts';
 import { applyMotionMatte } from './motion-matte-rendering.ts';
-import { renderMotionLayerSource } from './motion-render-layer-source.ts';
+import { renderMotionLayerSource, renderMotionLayerLocalSource } from './motion-render-layer-source.ts';
 import { motionAdjustmentApplies, renderMotionAdjustment } from './motion-adjustment-rendering.ts';
+import { isMotionPixelLayer, planMotionDepth } from './motion-depth-plan.ts';
+import { compositeMotionDepthPlanes, type MotionDepthPlane } from './motion-depth-compositing.ts';
 
 export interface MotionRasterizer extends Partial<MotionMaskRasterizer>, Partial<MotionEffectRasterizer> {
 	readonly supportedSourceOperations?: readonly ('shape-operator' | 'text-animator')[];
@@ -54,22 +56,40 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 		const matteIds = new Set(current.layers.flatMap((layer) => layer.state.matte ? [layer.state.matte.layerId] : []));
 		const matteCache = new Map<string, MotionSurface>();
 		const processed = new Set<string>();
+		const depth = planMotionDepth(current); const depthPlans = new Map(depth.planes.map((plane) => [plane.layer.state.id, plane]));
 		consumed.push(current.requiredOperationIds[0]!);
+		const mark = (layer: MotionEvaluatedLayer) => { if (!processed.has(layer.state.id)) { processed.add(layer.state.id); consumed.push(...layer.operations.map((operation) => operation.id)); } };
 		const sourceFor = async (layer: MotionEvaluatedLayer): Promise<MotionSurface> => {
 			const cached = matteCache.get(layer.state.id); if (cached) return cached;
-			let source = await renderMotionLayerSource(layer, current, { ...options, renderPrecomposition: render });
+			const plane = depthPlans.get(layer.state.id);
+			let source = plane ? await compositeMotionDepthPlanes(createMotionSurface(current.width, current.height), depth.camera,
+				[{ ...plane, local: await renderMotionLayerLocalSource(layer, current, { ...options, renderPrecomposition: render }), opacity: 1 }], options.signal)
+				: await renderMotionLayerSource(layer, current, { ...options, renderPrecomposition: render });
 			if (layer.state.matte) {
 				const matte = layers.get(layer.state.matte.layerId);
 				source = applyMotionMatte(source, matte ? await sourceFor(matte) : null, layer.state.matte.mode, matte?.state.transform.opacity);
 			}
 			if (matteIds.has(layer.state.id)) matteCache.set(layer.state.id, source);
-			if (!processed.has(layer.state.id)) { processed.add(layer.state.id); consumed.push(...layer.operations.map((operation) => operation.id)); }
+			mark(layer);
 			return source;
+		};
+		let group: MotionDepthPlane[] = [];
+		const flushDepth = async () => {
+			if (!group.length) return;
+			const replacement = await compositeMotionDepthPlanes(target.finish(), depth.camera, group, options.signal);
+			if (!target.replace) throw new Error('Motion compositor omitted its admitted 3D replacement method.'); target.replace(replacement); group = [];
 		};
 		try {
 			for (const layer of [...current.layers].reverse()) {
 				options.signal?.throwIfAborted();
-				if (layer.state.kind === 'null') { consumed.push(...layer.operations.map((operation) => operation.id)); continue; }
+				if (['null', 'camera', 'light'].includes(layer.state.kind)) { mark(layer); continue; }
+				const plane = depthPlans.get(layer.state.id);
+				if (plane && !matteIds.has(layer.state.id)) {
+					const local = await renderMotionLayerLocalSource(layer, current, { ...options, renderPrecomposition: render });
+					const matte = layer.state.matte ? layers.get(layer.state.matte.layerId) : undefined;
+					group.push({ ...plane, local, ...(layer.state.matte ? { matte: { surface: matte ? await sourceFor(matte) : null, opacity: matte?.state.transform.opacity ?? 1, mode: layer.state.matte.mode } } : {}) }); mark(layer); continue;
+				}
+				if (!matteIds.has(layer.state.id)) await flushDepth();
 				if (layer.state.kind === 'adjustment') {
 					if (motionAdjustmentApplies(layer, current)) {
 						const matte = layer.state.matte ? layers.get(layer.state.matte.layerId) : undefined;
@@ -83,7 +103,7 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 				const source = await sourceFor(layer);
 				if (!matteIds.has(layer.state.id)) target.composite(source, layer.state.blendMode, layer.state.transform.opacity);
 			}
-			return target.finish();
+			await flushDepth(); return target.finish();
 		} finally { matteCache.clear(); target.dispose(); }
 	};
 	const surface = await render(frame);
@@ -93,13 +113,17 @@ export async function renderMotionCompositionFrame(frame: MotionCompositionFrame
 }
 
 function admitFrame(frame: MotionCompositionFrame, rasterizer: MotionRasterizer, compositor: MotionCompositor): void {
+	const depth = planMotionDepth(frame);
+	if (depth.planes.length && !compositor.supportsReplacement) throw new Error('Motion compositor cannot replace a 3D backdrop; use the CPU compositor.');
 	const layers = new Map(frame.layers.map((layer) => [layer.state.id, layer]));
 	assertMotionAcyclic(new Map(frame.layers.map((layer) => [layer.state.id, layer.state.matte ? [layer.state.matte.layerId] : []])), 'matte', 128);
 	for (const layer of frame.layers) {
-		if (layer.state.is3D) throw new Error(`Unsupported 3D motion layer ${layer.state.name}.`);
-		assertMotion2DMatrix(layer.worldMatrix);
+		if (['camera', 'light'].includes(layer.state.kind) && (layer.state.masks.length || layer.state.effects.some((effect) => effect.enabled) || layer.state.matte)) throw new Error(`Motion ${layer.state.kind} layers cannot consume pixel masks, effects or mattes.`);
+		if (layer.state.is3D && layer.state.kind === 'adjustment') throw new Error('Motion 3D adjustment layers require an isolated precomposition.');
+		if (layer.state.is3D && isMotionPixelLayer(layer) && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes)) throw new Error(`Motion 3D layer ${layer.state.name} requires a local-source renderer.`);
+		if (!layer.state.is3D && !['camera', 'light', 'null'].includes(layer.state.kind)) assertMotion2DMatrix(layer.worldMatrix);
 		for (const operation of layer.operations) {
-			if (['camera', 'light'].includes(operation.kind) || (operation.kind === 'shape-operator' || operation.kind === 'text-animator') && !rasterizer.supportedSourceOperations?.includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
+			if (operation.kind === 'light' || (operation.kind === 'shape-operator' || operation.kind === 'text-animator') && !rasterizer.supportedSourceOperations?.includes(operation.kind)) throw new Error(`Unsupported motion ${operation.kind} ${operation.sourceId}; its renderer is unavailable.`);
 			if (operation.kind === 'effect' && (!rasterizer.rasterizeEffect || !rasterizer.estimateEffectWorkingBytes || layer.state.kind !== 'adjustment' && (!rasterizer.rasterizeSource || !rasterizer.estimateSourceWorkingBytes))) {
 				throw new Error(`Unsupported motion effect ${operation.sourceId}; its local-source renderer is unavailable.`);
 			}

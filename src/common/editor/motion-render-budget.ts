@@ -4,6 +4,7 @@ import type { MotionCompositionFrame } from './motion-composition-evaluation.ts'
 import type { MotionCompositor, MotionRasterizer } from './motion-composition-renderer.ts';
 import { motionSurfaceLength } from './motion-surface.ts';
 import { motionAdjustmentApplies } from './motion-adjustment-rendering.ts';
+import { isMotionPixelLayer, MOTION_DEPTH_SCRATCH_BYTES } from './motion-depth-plan.ts';
 
 export const MOTION_DEFAULT_WORKING_BYTES = 512 * 1024 * 1024;
 
@@ -12,10 +13,28 @@ export function estimateMotionFrameWorkingBytes(frame: MotionCompositionFrame, r
 	const pixels = motionSurfaceLength(frame.width, frame.height) * Float32Array.BYTES_PER_ELEMENT;
 	const layerIds = new Set(frame.layers.map((layer) => layer.state.id));
 	const matteIds = new Set(frame.layers.flatMap((layer) => layer.state.matte && layerIds.has(layer.state.matte.layerId) ? [layer.state.matte.layerId] : []));
-	const retained = pixels * ((compositor.retainedSurfaceCount ?? 3) + matteIds.size);
+	let retained = pixels * ((compositor.retainedSurfaceCount ?? 3) + matteIds.size);
 	let peak = retained + pixels;
+	const depthLayers = frame.layers.filter((layer) => layer.state.is3D && isMotionPixelLayer(layer));
+	let depthSources = 0; let depthPeak = 0;
+	for (const layer of depthLayers) {
+		let sourceBytes = 16; let processing = 16;
+		if (layer.precomposition) {
+			const child = layer.precomposition; sourceBytes = motionSurfaceLength(child.width, child.height) * Float32Array.BYTES_PER_ELEMENT;
+			processing = Math.max(estimateMotionFrameWorkingBytes(child, rasterizer, compositor), sourceBytes,
+				layer.state.masks.length ? rasterizer.estimateMaskWorkingBytes!(child.width, child.height, layer.state.masks) : 0,
+				layer.state.effects.some((effect) => effect.enabled) ? rasterizer.estimateEffectWorkingBytes!(child.width, child.height, layer.state.effects) : 0);
+			// Expanded effects can return more pixels than the child grid; the processing bound covers them.
+			if (layer.state.effects.some((effect) => effect.enabled)) sourceBytes = processing;
+		} else if (layer.sourceAvailable) sourceBytes = processing = rasterizer.estimateSourceWorkingBytes!(layer, frame);
+		if (!Number.isSafeInteger(processing) || processing < 16) throw new RangeError('Motion 3D local rasterizer supplied an invalid working-memory estimate.');
+		depthPeak = Math.max(depthPeak, depthSources + processing); depthSources += sourceBytes;
+	}
+	if (depthLayers.length) peak = Math.max(peak, retained + pixels * 2 + MOTION_DEPTH_SCRATCH_BYTES + Math.max(depthPeak, depthSources));
+	// Source/matte work may run while a depth group still owns all its local rasters.
+	retained += depthSources;
 	for (const layer of frame.layers) {
-		if (layer.state.kind === 'null') continue;
+		if (['null', 'camera', 'light'].includes(layer.state.kind) || layer.state.is3D && isMotionPixelLayer(layer)) continue;
 		if (layer.state.kind === 'adjustment') {
 			if (motionAdjustmentApplies(layer, frame)) {
 				const processing = Math.max(pixels, layer.state.masks.length ? rasterizer.estimateMaskWorkingBytes!(frame.width, frame.height, layer.state.masks) : 0,
