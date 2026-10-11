@@ -9,6 +9,7 @@ import { createMotionscaperProjectStore, MotionProjectConflictError, type Motion
 import MotionProjectSettingsDialog from './MotionProjectSettingsDialog.tsx';
 import MotionProjectLibraryDialog from './MotionProjectLibraryDialog.tsx';
 import type { MotionAuthoredLayerKind } from '../../../../motionscaper/editor-layer-authoring.ts';
+import type { MotionscaperLayerClipboard } from '../../../../motionscaper/editor-layer-clipboard.ts';
 import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
 
@@ -33,6 +34,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 	const [session] = useState(() => new MotionscaperDocumentSession(store));
 	const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
 	const [dialog, setDialog] = useState<'new' | 'settings' | 'open' | 'library' | 'preview' | 'render' | 'import' | 'timeline' | 'properties' | 'paths' | 'operators' | 'tracking' | MotionAuthoredLayerKind | null>(null);
+	const [layerClipboard, setLayerClipboard] = useState<MotionscaperLayerClipboard | null>(null);
 	const [keyframeClipboard, setKeyframeClipboard] = useState<MotionKeyframeClipboard | null>(null);
 	const [projects, setProjects] = useState<readonly MotionProjectSummary[]>([]);
 	const [error, setError] = useState<string | null>(null);
@@ -114,7 +116,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			clipboard={keyframeClipboard} onCopyKeys={setKeyframeClipboard} onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
 	</Suspense>;
 	if (dialog === 'timeline' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>
-		<MotionTimelineDialog copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
+		<MotionTimelineDialog clipboard={layerClipboard} onCopyLayers={setLayerClipboard} copy={copy} project={snapshot.project} busy={busy} canUndo={snapshot.canUndo} canRedo={snapshot.canRedo}
 			onEdit={(commands) => session.edit(commands)} onUndo={() => session.undo()} onRedo={() => session.redo()} onClose={close} />
 	</Suspense>;
 	if (dialog === 'render' && snapshot.project) return <Suspense fallback={<p role="status">{copy.motionscaperWorking}</p>}>

@@ -299,6 +299,22 @@ const ENTRIES = [
 	['motionscaperWorkAreaOutputHint', 'Output samples whole frames within the work area. The fields show the actual sampled range; fractional work-area endpoints remain saved unchanged.', 'Die Ausgabe verwendet ganze Bilder innerhalb des Arbeitsbereichs. Die Felder zeigen den tatsächlichen Ausgabebereich; gebrochene Endpunkte bleiben unverändert gespeichert.'],
 	['motionscaperWorkAreaNoSamples', 'This range contains no whole-frame sample. Widen the range or choose Use Full Composition.', 'Dieser Bereich enthält kein ganzzahliges Ausgabebild. Erweitere den Bereich oder wähle Ganze Komposition verwenden.'],
 	['motionscaperPreviewFrameInvalid', 'Enter a whole frame or exact fraction within the composition.', 'Gib ein ganzes Bild oder einen exakten Bruch innerhalb der Komposition ein.'],
+	['motionscaperLayerClipboard', 'Layer clipboard', 'Ebenenzwischenablage'],
+	['motionscaperCopyDependencies', 'Include dependent layers', 'Abhängige Ebenen einschließen'],
+	['motionscaperCopyLayers', 'Copy Layers', 'Ebenen kopieren'],
+	['motionscaperPasteLayers', 'Paste Layers', 'Ebenen einfügen'],
+	['motionscaperPasteOriginalTiming', 'Keep original timing', 'Ursprüngliche Zeitlage beibehalten'],
+	['motionscaperPasteFrame', 'Paste at frame', 'Einfügen bei Bild'],
+	['motionscaperLayersCopied', 'Layers copied in this window', 'Ebenen in diesem Fenster kopiert'],
+	['motionscaperLayerClipboardHint', 'Copy selected layers between compositions or projects in this window. Retained media is reused. New layer identities preserve dependencies; original timing is converted to the destination frame rate.', 'Kopiere ausgewählte Ebenen zwischen Kompositionen oder Projekten in diesem Fenster. Gespeicherte Medien werden wiederverwendet. Neue Ebenenidentitäten erhalten Abhängigkeiten; die Zeitlage wird in die Zielbildrate umgerechnet.'],
+	['motionscaperSourceTiming', 'Source timing', 'Quellzeitsteuerung'],
+	['motionscaperSourceStart', 'Source start (seconds)', 'Quellstart (Sekunden)'],
+	['motionscaperSourceSpeed', 'Source speed', 'Quellgeschwindigkeit'],
+	['motionscaperApplySourceTiming', 'Apply Source Timing', 'Quellzeitsteuerung anwenden'],
+	['motionscaperEnableRemap', 'Enable Time Remap', 'Zeitverzerrung aktivieren'],
+	['motionscaperClearRemap', 'Clear Time Remap', 'Zeitverzerrung entfernen'],
+	['motionscaperSourceTimingHint', 'Use exact fractions for seconds and speed. Speed 1 plays forward, -1 reverses and 0 freezes. Source start is measured at the layer start.', 'Nutze exakte Bruchteile für Sekunden und Geschwindigkeit. 1 spielt vorwärts, -1 rückwärts und 0 friert ein. Der Quellstart bezieht sich auf den Ebenenstart.'],
+	['motionscaperRemapHint', 'Time remap controls source seconds and overrides source start and speed. Edit Source time in Properties and Keyframes; clearing remap restores the retained source timing.', 'Die Zeitverzerrung steuert Quellsekunden und übersteuert Quellstart und Geschwindigkeit. Bearbeite Quellzeit unter Eigenschaften und Schlüsselbilder; das Entfernen stellt die gespeicherte Quellzeitsteuerung wieder her.'],
 ] as const;
 
 export const MOTIONSCAPER_COPY_BY_LOCALE = Object.freeze({
