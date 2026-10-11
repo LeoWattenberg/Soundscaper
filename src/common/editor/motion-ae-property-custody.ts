@@ -77,9 +77,10 @@ export function normalizeMotionAeProperties(input: unknown, budget: MotionAeCust
 		const r = motionRecord(value, kind === 'numeric' ? [...required, 'samples'] : kind === 'group' ? [...required, 'mask', 'enabled', 'vectorStyle'] : required, 'AE property', required);
 		const base = { matchName: motionString(r.matchName, 'AE match name', 256), name: motionString(r.name, 'AE property name', 1024, true) };
 		if (kind === 'group') {
-			if ((r.enabled !== undefined || r.vectorStyle !== undefined) && !base.matchName.startsWith('ADBE Vector ')) throw new TypeError('AE enabled metadata requires a vector group.');
+			if (r.vectorStyle !== undefined && !base.matchName.startsWith('ADBE Vector ')) throw new TypeError('AE vector style metadata requires a vector group.');
+			if (r.enabled !== undefined && !base.matchName.startsWith('ADBE Vector ') && base.matchName !== 'ADBE Gaussian Blur 2') throw new TypeError('AE enabled metadata requires a vector or admitted Gaussian effect group.');
 			if (r.mask !== undefined && base.matchName !== 'ADBE Mask Atom') throw new TypeError('AE mask metadata requires a mask atom group.');
-			return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1), ...(r.mask === undefined ? {} : { mask: mask(r.mask) }), ...(r.enabled === undefined ? {} : { enabled: motionBoolean(r.enabled, 'AE vector enabled') }),
+			return { ...base, kind, children: normalizeMotionAeProperties(r.children, budget, depth + 1), ...(r.mask === undefined ? {} : { mask: mask(r.mask) }), ...(r.enabled === undefined ? {} : { enabled: motionBoolean(r.enabled, 'AE group enabled') }),
 				...(r.vectorStyle === undefined ? {} : { vectorStyle: normalizeMotionAeVectorStyle(r.vectorStyle) }) };
 		}
 		if (kind === 'unsupported') return { ...base, kind, reason: motionString(r.reason, 'AE unsupported reason', 2048) };

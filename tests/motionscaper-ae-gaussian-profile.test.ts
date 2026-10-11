@@ -1,16 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeMotionAeGaussianProfile, parseMotionAeGaussianProfile, motionAeGaussianControl, type MotionAeGaussianProfile } from '../src/common/editor/motion-ae-gaussian-profile.ts';
-const host = { version: '25.0', buildNumber: 17, locale: 'en_US' };
-function fixture(): MotionAeGaussianProfile { return { format: 'org.motionscaper.ae-gaussian-profile', version: 1, qualification: 'unqualified', reviewed: true, host,
-	review: { dimensions: 'both', repeatEdgePixels: false, effectOpacity: 100, effectMasks: 'none' }, blurrinessPerSigma: 2, blurrinessPath: ['reviewed-radius'], effectOpacityPath: ['reviewed-compositing', 'reviewed-opacity'],
-	controls: { kind: 'group', matchName: 'ADBE Gaussian Blur 2', children: [
-		{ kind: 'scalar', matchName: 'reviewed-radius', value: 0, minimum: 0, maximum: 1000 },
-		{ kind: 'scalar', matchName: 'reviewed-dimensions', value: 81, minimum: 1, maximum: 100 },
-		{ kind: 'scalar', matchName: 'reviewed-repeat', value: 0, minimum: 0, maximum: 1 },
-		{ kind: 'group', matchName: 'reviewed-compositing', children: [{ kind: 'scalar', matchName: 'reviewed-opacity', value: 100, minimum: 0, maximum: 100 }, { kind: 'group', matchName: 'reviewed-mask-references', children: [] }] },
-	] } }; }
+import { normalizeMotionAeGaussianProfile, parseMotionAeGaussianProfile, motionAeGaussianControl } from '../src/common/editor/motion-ae-gaussian-profile.ts';
+import { gaussianHost as host, motionAeGaussianProfileFixture as fixture } from './helpers/motionscaper-ae-gaussian-fixture.ts';
 test('Motion AE Gaussian profile retains exact reviewed host, declared scale, selected path and neutral control closure', () => {
 	const source = fixture(), normalized = parseMotionAeGaussianProfile(JSON.stringify(source), host);
 	assert.deepEqual(normalized, source); assert.notEqual(normalized, source); assert.notEqual(normalized.controls.children, source.controls.children);

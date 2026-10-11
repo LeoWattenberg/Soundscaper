@@ -77,6 +77,7 @@ export interface MotionAeLayer {
 	/** Captured SDK names, never inferred from raw popup integers. Missing legacy metadata stays absent. */
 	readonly scene?: MotionAeSceneMetadata;
 	/** Explicit AV switches; legacy omission stays absent and cannot authorize non-normal blending. */
+	readonly effectsActive?: boolean;
 	readonly compositing?: { readonly preserveTransparency: boolean; readonly collapseTransformation: boolean };
 }
 export interface MotionAeComposition {
