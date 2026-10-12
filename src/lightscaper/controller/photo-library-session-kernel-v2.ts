@@ -13,6 +13,8 @@ import type { PhotoLibraryBatchRenameRequestV1, PhotoLibraryBatchRenamePlanV1,
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { PhotoCommandOwnerCurrentV1 } from './photo-command-owner-current-v1.ts';
 import { createPhotoLibraryDevelopSessionV3 } from './photo-library-develop-session-v3.ts';
+import { createPhotoLibraryDevelopSettingsSessionCurrentV1 } from './photo-library-develop-settings-session-current-v1.ts';
+import { bindPhotoDevelopSettingsHostCurrentV1 } from './photo-library-develop-settings-host-current-v1.ts';
 import { readPhotoLibraryMetadataSnapshotCurrentV1 } from './photo-library-metadata-current-v1.ts';
 import { readPhotoLibraryMembershipsCurrentV1, applyPhotoLibraryMembershipsCurrentV1 } from './photo-library-memberships-current-v1.ts';
 import { readPhotoLibraryOriginalInspectionPageCurrentV1 } from './photo-library-original-inspection-current-v1.ts';
@@ -177,7 +179,11 @@ export class PhotoLibrarySessionKernelV2 {
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(legacyPhotoCommandOwnerV1(owner), admitted), signal),
 			mutate: (run, signal) => this.#mutation(run, signal), withPhoto: (catalogId, key, signal, run) => this.#withPhoto(catalogId, key, signal, (owner, admitted) => run(legacyPhotoCommandOwnerV1(owner), admitted)) });
 		this.legacyDevelop = this.#current ? legacyDevelop : undefined;
+		const settingsCurrent = this.#current ? createPhotoLibraryDevelopSettingsSessionCurrentV1(bindPhotoDevelopSettingsHostCurrentV1({ ports: this.#ports,
+			ready: () => this.#ready(), operation: (run, signal) => this.#operation(run, signal), mutate: (run, signal) => this.#mutation(run, signal),
+			withPhoto: (catalogId, key, signal, run) => this.#withPhoto(catalogId, key, signal, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted)) })) : undefined;
 		this.develop = this.#current ? createPhotoLibraryDevelopSessionV3({ repository: ports.catalog, ready: () => this.#ready(), maskRasters,
+			settingsCurrent,
 			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted), signal) }) : legacyDevelop;
 		this.#imports = createPhotoLibrarySessionImport({ ports: legacy, managed: this.#legacyManagedPorts(), presetSettings,

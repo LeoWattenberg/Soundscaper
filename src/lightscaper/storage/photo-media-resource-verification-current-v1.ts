@@ -26,6 +26,19 @@ export async function verifyPhotoResourcesCurrentV1(photo: unknown, host: PhotoR
 	try { const collector = createPhotoResourceReachabilityCurrentV1(); collector.addPhoto(photo); references = collector.finish(); }
 	catch (error) { check(signal); throw error; }
 	check(signal);
+	await verifyPhotoResourceReferencesCurrentV1(references, { cubeLutResources: () => Reflect.apply(luts, host, []) as ReturnType<PhotoResourceVerificationHostCurrentV1['cubeLutResources']>,
+		maskRasterResources: () => Reflect.apply(brushes, host, []) as ReturnType<PhotoResourceVerificationHostCurrentV1['maskRasterResources']> }, signal);
+}
+
+/** Admitted scalar closure, independently authenticated through the selected
+ * verification slots. This function grants neither a body nor installation. */
+export async function verifyPhotoResourceReferencesCurrentV1(references: ReturnType<ReturnType<typeof createPhotoResourceReachabilityCurrentV1>['finish']>,
+	host: PhotoResourceVerificationHostCurrentV1, signal?: AbortSignal): Promise<void> {
+	if (signal !== undefined) assertPhotoStackQuerySignalV1(signal);
+	const luts = readClosedDomainField(host as unknown as Record<string, unknown>, 'cubeLutResources', 'selected resource factories');
+	const brushes = readClosedDomainField(host as unknown as Record<string, unknown>, 'maskRasterResources', 'selected resource factories');
+	if (typeof luts !== 'function' || typeof brushes !== 'function') throw new TypeError('Current resource verification requires selected callable factories.');
+	check(signal);
 	if (references.luts.length) {
 		const resources = await Reflect.apply(luts, host, []) as Readonly<PhotoMediaCubeLutResourcesV1>; check(signal);
 		const verify = readClosedDomainField(resources as unknown as Record<string, unknown>, 'verifyReferencesV1', 'selected LUT verifier');

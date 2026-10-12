@@ -3,7 +3,7 @@
 import type { BrushMaskResourceReferenceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
 import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cube-lut-v27.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
 import { normalizePhotoDocumentCurrentV1 } from './photo-document-current-v1.ts';
 import { createPhotoCubeLutClosureV1, PHOTO_CUBE_LUT_CLOSURE_LIMITS_V1 } from './photo-cube-lut-closure-v1.ts';
 import { createPhotoMaskRasterReachabilityV1 } from './photo-mask-raster-reachability-v1.ts';
@@ -14,6 +14,7 @@ export interface PhotoResourceReferencesCurrentV1 {
 }
 export interface PhotoResourceReachabilityCurrentV1 {
 	addPhoto(value: unknown): void;
+	addDevelop(value: unknown): void;
 	finish(): Readonly<PhotoResourceReferencesCurrentV1>;
 }
 
@@ -25,29 +26,32 @@ export function createPhotoResourceReachabilityCurrentV1(): Readonly<PhotoResour
 	const brushes = new Map<string, Readonly<BrushMaskResourceReferenceV1>>();
 	const encoder = new TextEncoder();
 	let identityBytes = 0, sealed: Readonly<PhotoResourceReferencesCurrentV1> | null = null;
-	return Object.freeze({ addPhoto, finish });
+	return Object.freeze({ addPhoto, addDevelop, finish });
 
 	function addPhoto(value: unknown): void {
 		if (sealed !== null) throw new Error('The current Photo resource collector is sealed.');
 		const photo = normalizePhotoDocumentCurrentV1(value);
-		const packetLuts = createPhotoCubeLutClosureV1(), packetBrushes = createPhotoMaskRasterReachabilityV1();
-		const add = (develop: ImageDevelopStateCurrentV1): void => {
-			// Private computation view only: the full owning Photo and strict3
-			// recipe were admitted above. Never persist or publish this view.
-			const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV1OrV2({ processVersion: 2,
-				effects: develop.effects, geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
-			packetLuts.addDevelop(computation); packetBrushes.addDevelop(computation);
-		};
+		const packet = { luts: createPhotoCubeLutClosureV1(), brushes: createPhotoMaskRasterReachabilityV1() };
+		const add = (develop: ImageDevelopStateCurrentV1): void => { addRecipe(packet, develop); };
 		for (const version of photo.versions) {
 			add(version.develop);
 			if (!version.workspace) continue;
 			for (const entry of version.workspace.entries) add(entry.develop);
 			for (const snapshot of version.workspace.snapshots) add(snapshot.develop);
 		}
+		merge(packet);
+	}
+	function addDevelop(value: unknown): void {
+		if (sealed !== null) throw new Error('The current Photo resource collector is sealed.');
+		const develop = normalizeImageDevelopStateCurrentV1(value);
+		const packet = { luts: createPhotoCubeLutClosureV1(), brushes: createPhotoMaskRasterReachabilityV1() };
+		addRecipe(packet, develop); merge(packet);
+	}
+	function merge(packet: { luts: ReturnType<typeof createPhotoCubeLutClosureV1>; brushes: ReturnType<typeof createPhotoMaskRasterReachabilityV1> }): void {
 		const incomingLuts = new Map<string, Readonly<VideoCubeLutReferenceV1>>();
 		const incomingBrushes = new Map<string, Readonly<BrushMaskResourceReferenceV1>>();
 		let charge = 0;
-		for (const reference of packetLuts.finish()) {
+		for (const reference of packet.luts.finish()) {
 			const previous = luts.get(reference.sha256);
 			if (previous) {
 				if (JSON.stringify(previous) !== JSON.stringify(reference)) throw new TypeError('Conflicting LUT geometry or body identity for one SHA-256.');
@@ -56,7 +60,7 @@ export function createPhotoResourceReachabilityCurrentV1(): Readonly<PhotoResour
 			charge += 64 + encoder.encode(JSON.stringify(reference)).byteLength + 8;
 			incomingLuts.set(reference.sha256, reference);
 		}
-		for (const reference of packetBrushes.finish()) {
+		for (const reference of packet.brushes.finish()) {
 			const previous = brushes.get(reference.sha256);
 			if (previous) {
 				if (JSON.stringify(previous) !== JSON.stringify(reference)) throw new TypeError('Conflicting brush dimensions or body identity for one SHA-256.');
@@ -82,4 +86,12 @@ export function createPhotoResourceReachabilityCurrentV1(): Readonly<PhotoResour
 		});
 		return sealed;
 	}
+}
+
+function addRecipe(packet: { luts: ReturnType<typeof createPhotoCubeLutClosureV1>; brushes: ReturnType<typeof createPhotoMaskRasterReachabilityV1> }, develop: ImageDevelopStateCurrentV1): void {
+	// Actual Current recipe admission precedes this private resource view.
+	// It is never a whole Photo, persisted value or original/render authority.
+	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV1OrV2({ processVersion: 2,
+		effects: develop.effects, geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
+	packet.luts.addDevelop(computation); packet.brushes.addDevelop(computation);
 }

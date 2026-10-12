@@ -19,13 +19,35 @@ export interface ImageDevelopSettingsGroupsV1<Effect extends Readonly<{ id: stri
 export function copyImageDevelopGroupsV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
 	develop: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
 ): ImageDevelopSettingsGroupsV1<Effect, Mask> {
+	return copyGroups(develop, selection, false, false);
+}
+
+/** Current selection treats local adjustments as one complete independent
+ * group; the effect-type picker selects unbound global instances. */
+export function copyImageDevelopGroupsCurrentV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
+	develop: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
+	return copyGroups(develop, selection, false, true);
+}
+
+/** Inert selected metadata only. The selected Session owns authentication;
+ * retaining an input declaration here supplies no authority over its body. */
+export function copyImageDevelopSelectedGroupsV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
+	develop: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
+	return copyGroups(develop, selection, true, true);
+}
+
+function copyGroups<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2>(
+	develop: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1, selectedMetadata: boolean, independentLocal: boolean,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
 	const bound = new Set(develop.maskBindings.map(binding => binding.effectId));
-	const effects = develop.effects.filter(effect => selected(effect, selection, bound));
+	const effects = develop.effects.filter(effect => selected(effect, selection, bound, independentLocal));
 	const ids = new Set(effects.map(effect => effect.id));
 	const maskBindings = develop.maskBindings.filter(binding => ids.has(binding.effectId));
 	const maskIds = new Set(maskBindings.map(binding => binding.maskId));
-	const masks = selection.localAdjustments && selection.effectTypes === 'all' ? develop.masks : develop.masks.filter(mask => maskIds.has(mask.id));
-	if (masks.some(mask => mask.inputs.length > 0)) throw new RangeError('External mask media requires an authenticated settings adapter.');
+	const masks = selection.localAdjustments && (independentLocal || selection.effectTypes === 'all') ? develop.masks : develop.masks.filter(mask => maskIds.has(mask.id));
+	if (!selectedMetadata && masks.some(mask => mask.inputs.length > 0)) throw new RangeError('External mask media requires an authenticated settings adapter.');
 	return { effects, masks, maskBindings, geometry: selection.geometry ? develop.geometry : defaultImageDevelopStateV1().geometry };
 }
 
@@ -34,12 +56,24 @@ export function copyImageDevelopGroupsV1<Effect extends Readonly<{ id: string; t
 export function mergeImageDevelopGroupsV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
 	target: ImageDevelopSettingsGroupsV1<Effect, Mask>, source: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
 ): ImageDevelopSettingsGroupsV1<Effect, Mask> {
+	return mergeGroups(target, source, selection, false);
+}
+
+export function mergeImageDevelopGroupsCurrentV1<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2 = VideoMaskMatteGraphV1>(
+	target: ImageDevelopSettingsGroupsV1<Effect, Mask>, source: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
+	return mergeGroups(target, source, selection, true);
+}
+
+function mergeGroups<Effect extends Readonly<{ id: string; type: string }>, Mask extends VideoMaskMatteGraphV1OrV2>(
+	target: ImageDevelopSettingsGroupsV1<Effect, Mask>, source: ImageDevelopSettingsGroupsV1<Effect, Mask>, selection: ImageDevelopSelectionV1, independentLocal: boolean,
+): ImageDevelopSettingsGroupsV1<Effect, Mask> {
 	if (selection.effectTypes === 'all' && selection.localAdjustments) {
 		return { effects: source.effects, masks: source.masks, maskBindings: source.maskBindings,
 			geometry: selection.geometry ? source.geometry : target.geometry };
 	}
 	const bound = new Set(target.maskBindings.map(binding => binding.effectId));
-	const retained = target.effects.filter(effect => !selected(effect, selection, bound));
+	const retained = target.effects.filter(effect => !selected(effect, selection, bound, independentLocal));
 	const retainedIds = new Set(retained.map(effect => effect.id));
 	const effectIds = new Map<string, string>(), reserved = new Set([...retainedIds, ...source.effects.map(effect => effect.id)]);
 	const effects = source.effects.map(effect => {
@@ -48,7 +82,7 @@ export function mergeImageDevelopGroupsV1<Effect extends Readonly<{ id: string; 
 	});
 	const retainedMaskIds = new Set(target.maskBindings.filter(binding => retainedIds.has(binding.effectId)).map(binding => binding.maskId));
 	const formerlyBoundMasks = new Set(target.maskBindings.map(binding => binding.maskId));
-	const masks = target.masks.filter(mask => retainedMaskIds.has(mask.id) || !formerlyBoundMasks.has(mask.id));
+	const masks = independentLocal && selection.localAdjustments ? [] : target.masks.filter(mask => retainedMaskIds.has(mask.id) || !formerlyBoundMasks.has(mask.id));
 	const maskIds = new Map<string, string>();
 	const reservedMasks = new Set([...masks.map(mask => mask.id), ...source.masks.map(mask => mask.id)]);
 	for (const mask of source.masks) {
@@ -57,7 +91,7 @@ export function mergeImageDevelopGroupsV1<Effect extends Readonly<{ id: string; 
 		const id = existing ? allocateImageDevelopSettingsIdV1(reservedMasks, 'copied-mask') : mask.id;
 		maskIds.set(mask.id, id); masks.push({ ...mask, id });
 	}
-	const insertion = target.effects.findIndex(effect => selected(effect, selection, bound));
+	const insertion = target.effects.findIndex(effect => selected(effect, selection, bound, independentLocal));
 	const position = insertion < 0 ? retained.length : insertion;
 	const maskBindings = [...target.maskBindings.filter(binding => retainedIds.has(binding.effectId)),
 		...source.maskBindings.map(binding => ({ effectId: effectIds.get(binding.effectId)!, maskId: maskIds.get(binding.maskId)! }))];
@@ -65,7 +99,8 @@ export function mergeImageDevelopGroupsV1<Effect extends Readonly<{ id: string; 
 		geometry: selection.geometry ? source.geometry : target.geometry, masks, maskBindings };
 }
 
-function selected(effect: Readonly<{ type: string; id: string }>, selection: ImageDevelopSelectionV1, bound: ReadonlySet<string>): boolean {
+function selected(effect: Readonly<{ type: string; id: string }>, selection: ImageDevelopSelectionV1, bound: ReadonlySet<string>, independentLocal: boolean): boolean {
+	if (independentLocal && bound.has(effect.id)) return selection.localAdjustments;
 	return (selection.effectTypes === 'all' || selection.effectTypes.includes(effect.type)) && (selection.localAdjustments || !bound.has(effect.id));
 }
 

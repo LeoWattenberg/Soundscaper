@@ -5,6 +5,7 @@ import type { PhotoLibraryDevelopCommandV2, PhotoLibraryDevelopSettingsV2, Photo
 import type { PhotoLibraryDevelopCommandV3, PhotoLibraryDevelopSettingsV3, PhotoLibraryDevelopPortV3 } from '../../../photo-library-develop-port-v3.ts';
 import { capturePhotoLibraryDevelopMaskRasterPortV1 } from '../../../photo-library-develop-mask-raster-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../../photo-library-develop-original-port-v1.ts';
+import type { PhotoLibraryDevelopSettingsPortV3 } from '../../../photo-library-develop-settings-port-v3.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../../imaging/image-develop-state-v2.ts';
 import { normalizeImageDevelopStateCurrentV1 } from '../../../imaging/image-develop-state-current-v1.ts';
 import type { PhotoDevelopExecutionContextForProfileV1 } from './photo-library-develop-workflow-kernel-v1.ts';
@@ -86,15 +87,26 @@ export function capturePhotoDevelopPortForProfileV1<Profile extends PhotoDevelop
 				serialize: pin(presets.serialize, presets), list: pin(presets.list, presets), read: pin(presets.read, presets), write: pin(presets.write, presets) }) }),
 		}) as Readonly<PhotoDevelopPortForProfileV1<Profile>>;
 	}
-	const current = record(port, 'current Develop capability', ['schemaVersion', 'read', 'apply', 'original', 'maskRasters'], ['schemaVersion', 'read', 'apply']);
+	const current = record(port, 'current Develop capability', ['schemaVersion', 'read', 'apply', 'original', 'maskRasters', 'settingsCurrent'], ['schemaVersion', 'read', 'apply']);
 	const read = field(current, 'read', 'current Develop capability') as PhotoLibraryDevelopPortV3['read'];
 	const apply = field(current, 'apply', 'current Develop capability') as PhotoLibraryDevelopPortV3['apply'];
 	const original = Object.hasOwn(current, 'original') ? captureOriginal(field(current, 'original', 'current Develop capability')) : undefined;
 	const maskRasters = Object.hasOwn(current, 'maskRasters') ? field(current, 'maskRasters', 'current Develop capability') : undefined;
+	const settingsCurrent = Object.hasOwn(current, 'settingsCurrent') ? captureSettingsCurrent(field(current, 'settingsCurrent', 'current Develop capability')) : undefined;
 	return Object.freeze({ schemaVersion: 3, read: pin(read, port), apply: pin(apply, port),
 		...(original === undefined ? {} : { original }),
 		...(maskRasters === undefined ? {} : { maskRasters: capturePhotoLibraryDevelopMaskRasterPortV1(maskRasters) }),
+		...(settingsCurrent === undefined ? {} : { settingsCurrent }),
 	}) as Readonly<PhotoDevelopPortForProfileV1<Profile>>;
+}
+function captureSettingsCurrent(value: unknown): Readonly<PhotoLibraryDevelopSettingsPortV3> | undefined {
+	if (value === undefined) return undefined;
+	const input = record(value, 'Current settings capability', ['copy', 'copySelected', 'merge', 'adjust', 'applyBatch']);
+	return Object.freeze({ copy: pin(field(input, 'copy', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['copy'], value),
+		copySelected: pin(field(input, 'copySelected', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['copySelected'], value),
+		merge: pin(field(input, 'merge', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['merge'], value),
+		adjust: pin(field(input, 'adjust', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['adjust'], value),
+		applyBatch: pin(field(input, 'applyBatch', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['applyBatch'], value) });
 }
 function captureOriginal(value: unknown): Readonly<PhotoLibraryDevelopOriginalPortV1> | undefined {
 	if (value === undefined) return undefined;
