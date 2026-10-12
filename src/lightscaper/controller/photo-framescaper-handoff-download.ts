@@ -10,6 +10,8 @@ import { SCAPE_MIME_TYPE } from '../../common/editor/scape-project-format.ts';
 import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../../common/editor/scape-blob-budget.ts';
 import { id, integer, oneOf } from '../catalog/value-validation.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
+import type { PhotoFramescaperHandoffDownloadRequestCurrentV1 } from './photo-framescaper-handoff-download-current-v1.ts';
+import { readPhotoFramescaperHandoffDownloadRequestForProfileV1 } from './photo-framescaper-handoff-download-request-kernel-v1.ts';
 
 export interface PhotoFramescaperHandoffTarget {
 	readonly binding: Readonly<PhotoLibraryImageHandoffRequestV1>;
@@ -55,6 +57,13 @@ export class PhotoFramescaperHandoffDownload {
 		if (this.#active) return Promise.reject(new Error('An editable photo copy is already pending.'));
 		let request: PhotoFramescaperHandoffDownloadRequest;
 		try { request = admit(value); } catch (error) { return Promise.reject(error); }
+		return this.#start({ ...request, checkCurrent: request.target.checkCurrent }, async signal =>
+			readArchive(await request.buildArchive({ capture: request.target.capture, binding: request.target.binding, signal })));
+	}
+	startCurrent(value: PhotoFramescaperHandoffDownloadRequestCurrentV1): Promise<PhotoFramescaperHandoffDownloadReceipt> {
+		if (this.#active) return Promise.reject(new Error('An editable photo copy is already pending.'));
+		let request: PhotoFramescaperHandoffDownloadRequestCurrentV1;
+		try { request = readPhotoFramescaperHandoffDownloadRequestForProfileV1('current2', value); } catch (error) { return Promise.reject(error); }
 		return this.#start({ ...request, checkCurrent: request.target.checkCurrent }, async signal =>
 			readArchive(await request.buildArchive({ capture: request.target.capture, binding: request.target.binding, signal })));
 	}
@@ -141,22 +150,7 @@ function text(value: unknown): string { if (typeof value !== 'string' || value.l
 function pin<T>(value: unknown, receiver: unknown): T { if (typeof value !== 'function') throw new TypeError('Editable photo copy capability is unavailable.'); return ((...args: unknown[]) => Reflect.apply(value, receiver, args) as unknown) as T; }
 function copyName(name: string): string { return `${sanitizeSuggestedSaveName(name.replace(/\.[^.]*$/u, ''))}.fscape`; }
 function admit(value: unknown): PhotoFramescaperHandoffDownloadRequest {
-	const name = 'Editable photo copy request', source = record(value, name, ['target', 'fileName', 'fileTypeDescription', 'signal', 'buildArchive', 'prepareSave', 'saveFile'], ['target', 'fileName', 'fileTypeDescription', 'buildArchive', 'prepareSave', 'saveFile']);
-	const targetValue = field(source, 'target', name), target = record(targetValue, name, ['binding', 'capture', 'checkCurrent']);
-	const bindingValue = field(target, 'binding', name), input = record(bindingValue, name, ['catalogId', 'photoId', 'versionId', 'expectedRevision']);
-	const id = (key: string) => { const result = text(field(input, key, name)); if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(result)) throw new TypeError('Editable photo copy requires a stable identity.'); return result; };
-	const revision = field(input, 'expectedRevision', name);
-	if (!Number.isSafeInteger(revision) || (revision as number) < 0) throw new TypeError('Editable photo copy requires a saved revision.');
-	const captureValue = field(target, 'capture', name), capture = record(captureValue, name, ['withCapture']);
-	const signal = Object.hasOwn(source, 'signal') ? field(source, 'signal', name) : undefined;
-	if (signal !== undefined) { if (!(signal instanceof AbortSignal)) throw new TypeError('Editable photo copy requires a native signal.'); checked(signal); }
-	return Object.freeze({ fileName: text(field(source, 'fileName', name)), fileTypeDescription: text(field(source, 'fileTypeDescription', name)), signal: signal as AbortSignal | undefined,
-		target: Object.freeze({ binding: Object.freeze({ catalogId: id('catalogId'), photoId: id('photoId'), versionId: id('versionId'), expectedRevision: revision as number }),
-			capture: Object.freeze({ withCapture: pin<PhotoLibraryImageHandoffPortV1['withCapture']>(field(capture, 'withCapture', name), captureValue) }),
-			checkCurrent: pin<PhotoFramescaperHandoffTarget['checkCurrent']>(field(target, 'checkCurrent', name), targetValue) }),
-		buildArchive: pin<BuildPhotoFramescaperHandoffArchive>(field(source, 'buildArchive', name), value),
-		prepareSave: pin<PhotoFramescaperHandoffDownloadRequest['prepareSave']>(field(source, 'prepareSave', name), value),
-		saveFile: pin<PhotoFramescaperHandoffDownloadRequest['saveFile']>(field(source, 'saveFile', name), value) });
+	return readPhotoFramescaperHandoffDownloadRequestForProfileV1('legacy1', value);
 }
 function admitCollection(value: unknown): PhotoFramescaperCollectionHandoffDownloadRequest {
 	const name = 'Editable collection copy request', source = record(value, name, ['target', 'fileName', 'fileTypeDescription', 'signal', 'buildArchive', 'prepareSave', 'saveFile'], ['target', 'fileName', 'fileTypeDescription', 'buildArchive', 'prepareSave', 'saveFile']);

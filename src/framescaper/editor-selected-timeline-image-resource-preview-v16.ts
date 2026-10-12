@@ -15,7 +15,7 @@ import type { CreateFramescaperOpenFxExactExecutionV16 } from './video-export-ex
 const CHECK = AbortSignal.prototype.throwIfAborted;
 /** The owning TimelineImage admission runs before this pure capability choice. */
 export function requiresTimelineImageResourcePreviewV16(project: FramescaperProjectTimelineImage): boolean {
-	return project.sources.some(source => source.kind === 'image' && source.schemaVersion === 2) || hasSelectedCubeLutPictureV2(project) || (Array.isArray(project.videoVisualPresentations)
+	return project.sources.some(source => source.kind === 'image' && source.schemaVersion !== 1) || hasSelectedCubeLutPictureV2(project) || (Array.isArray(project.videoVisualPresentations)
 		&& project.videoVisualPresentations.some((row: Readonly<{ enabled?: boolean; grade?: Readonly<{ lut?: unknown }> }>) => row.enabled && row.grade?.lut != null));
 }
 

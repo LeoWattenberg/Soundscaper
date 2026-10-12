@@ -69,6 +69,7 @@ import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cu
 import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
 import { PhotoLibrarySessionLifetime } from './photo-library-session-lifetime.ts';
 import { createPhotoLibraryImageReceiveSessionV1 } from './photo-library-image-receive-session.ts';
+import { createPhotoLibrarySessionImageChildrenCurrentV1 } from './photo-library-session-image-children-current-v1.ts';
 import { createPhotoLibrarySessionImport } from './photo-library-session-import.ts';
 import { backupPhotoLibrarySession } from './photo-library-session-backup.ts';
 import { backupPhotoLibrarySessionCurrentV1 } from './photo-library-session-backup-current-v1.ts';
@@ -96,6 +97,8 @@ export class PhotoLibrarySessionKernelV2 {
 	readonly maskRasterSource: Readonly<MaskRasterSourcePortV1>;
 	readonly imageReceive: ReturnType<typeof createPhotoLibraryImageReceiveSessionV1>;
 	readonly imageHandoff: Readonly<PhotoLibraryImageHandoffPortV1>;
+	readonly imageHandoffCurrent?: ReturnType<typeof createPhotoLibrarySessionImageChildrenCurrentV1>['imageHandoffCurrent'];
+	readonly imageReceiveCurrent?: ReturnType<typeof createPhotoLibrarySessionImageChildrenCurrentV1>['imageReceiveCurrent'];
 	readonly collectionHandoff: Readonly<PhotoLibraryCollectionHandoffPortV1>;
 	readonly cullingNavigation?: PhotoLibrarySessionPortV2['cullingNavigation'];
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
@@ -120,6 +123,11 @@ export class PhotoLibrarySessionKernelV2 {
 			repository: { readCullingDestinationPage: ports.catalog.readCullingDestinationPage }, ready: () => this.#ready(), operation: (run, signal) => this.#operation(run, signal) });
 		this.imageReceive = createPhotoLibraryImageReceiveSessionV1({ ports: legacy, managed: this.#legacyManagedPorts(),
 			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
+		if (this.#current) {
+			const children = createPhotoLibrarySessionImageChildrenCurrentV1({ ports, managed: this.#managedPorts(), ready: () => this.#ready(),
+				operation: (run, signal, admit) => this.#operation(run, signal, admit), mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
+			this.imageHandoffCurrent = children.imageHandoffCurrent; this.imageReceiveCurrent = children.imageReceiveCurrent;
+		}
 		this.imageHandoff = Object.freeze({ withCapture: async <Result>(value: Readonly<PhotoLibraryImageHandoffRequestV1>,
 			consume: (view: Readonly<PhotoLibraryImageHandoffViewV1>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}) => {
 			const { signal } = readPhotoDevelopSignalOptionsV2(options); let binding!: Readonly<PhotoLibraryImageHandoffRequestV1>;

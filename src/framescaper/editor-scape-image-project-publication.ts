@@ -11,10 +11,13 @@ import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-e
 import type { StorageRepositoryPort } from '../common/editor/storage/repository-port.ts';
 import type { StorageRepositories } from '../common/editor/storage/repositories.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
-import { framescaperImageSourceResourceReferencesV2 } from '../common/editor/timeline-image-model-v2.ts';
+import { framescaperImageSourceResourceReferencesCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
+import { createFramescaperMaskRasterSourceTimelineImageV1 } from './timeline-image-mask-raster-source-v1.ts';
 import { createFramescaperCubeLutSourceFinishing } from './cube-lut-source-finishing.ts';
 import { validateFramescaperImageAssetBodyTimelineImage } from './editor-scape-asset-plan-timeline-image.ts';
 import type { FramescaperProject } from './editor-project.ts';
+import { prepareFramescaperTimelineImageResourceAuditV1 } from './internal/timeline-image-resource-audit-v1.ts';
+import { collectFramescaperImageProjectResourcesCurrentV1 } from '../common/editor/video-cube-lut-project-references-current-v1.ts';
 
 interface BodyPin { readonly key: string; readonly identity: Readonly<Record<string, unknown>> }
 export interface FramescaperScapeImagePublicationDependencies {
@@ -35,11 +38,19 @@ export class FramescaperScapeImageProjectPublication {
 	constructor(dependencies: FramescaperScapeImagePublicationDependencies) { this.#dependencies = dependencies; }
 	owns(value: object): boolean { return this.#created.has(value); }
 
+	async prepareSave(project: FramescaperProject): Promise<void> {
+		if (!project.sources.some(source => source.kind === 'image' && source.schemaVersion === 3)) return;
+		await this.#dependencies.retention.ensureSession();
+		await prepareFramescaperTimelineImageResourceAuditV1(this.#dependencies, project);
+	}
+
 	async create(project: FramescaperProject): Promise<ProjectDocument | null> {
 		const { port, media, retention } = this.#dependencies;
+		collectFramescaperImageProjectResourcesCurrentV1(project);
 		await retention.ensureSession();
 		const pins = new Map<string, BodyPin>();
-		const lutSource = createFramescaperCubeLutSourceFinishing({ loadMediaAsset: media.loadAsset.bind(media) });
+		const bodyStore = { loadMediaAsset: media.loadAsset.bind(media) };
+		const lutSource = createFramescaperCubeLutSourceFinishing(bodyStore), maskSource = createFramescaperMaskRasterSourceTimelineImageV1(bodyStore), failures: unknown[] = [];
 		try {
 			for (const source of project.sources) {
 				if (source.kind !== 'image') continue;
@@ -55,15 +66,26 @@ export class FramescaperScapeImageProjectPublication {
 					return { ...pack, schemaVersion: 1 as const };
 				})();
 				await validateFramescaperImageAssetBodyTimelineImage(packed, body);
-				if (source.schemaVersion === 2) for (const reference of framescaperImageSourceResourceReferencesV2(source)) {
+				const resources = framescaperImageSourceResourceReferencesCurrentV1(source);
+				for (const reference of resources.luts) {
 					const lutPin = await this.#pin(reference.storageKey, reference.byteLength, reference.sha256);
 					await lutSource.withBytes(reference, () => undefined);
 					const previous = pins.get(lutPin.key);
 					if (previous && !sameProjectSnapshot(previous.identity, lutPin.identity)) throw new Error('The staged image body changed between recipe owners.');
 					pins.set(lutPin.key, lutPin);
 				}
+				for (const reference of resources.brushes) {
+					const maskPin = await this.#pin(reference.storageKey, reference.byteLength, reference.sha256);
+					await maskSource.withBytes(reference, () => undefined);
+					const previous = pins.get(maskPin.key);
+					if (previous && !sameProjectSnapshot(previous.identity, maskPin.identity)) throw new Error('The staged brush body changed between source owners.');
+					pins.set(maskPin.key, maskPin);
+				}
 			}
-		} finally { await lutSource.close(); }
+		} catch (error) { failures.push(error); }
+		for (const result of await Promise.allSettled([lutSource.close(), maskSource.close()])) if (result.status === 'rejected' && !failures.some(error => Object.is(error, result.reason))) failures.push(result.reason);
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) throw new AggregateError(failures, 'Frame resource authentication and source retirement failed.', { cause: failures[0] });
 		const snapshot = compactProjectSourceMetadata(structuredClone(project)) as ProjectDocument;
 		const fence = createProjectCreationFence(), key = revisionKey(snapshot.id, Number(snapshot.revision));
 		const revision = { key, projectId: snapshot.id, revision: snapshot.revision, project: snapshot, creationFence: fence };

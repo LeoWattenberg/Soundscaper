@@ -8,18 +8,17 @@ import {
 import {
 	normalizeFramescaperImageClipV1,
 	type FramescaperImageClipV1,
-	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
 
-import { normalizeFramescaperImageSourceV1OrV2, type FramescaperImageSourceV2 } from '../common/editor/timeline-image-model-v2.ts';
+import { normalizeFramescaperImageSourceCurrentV1, type FramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 
 export type FramescaperImageClipPlacementTimelineImage = FramescaperClipCommandPlacement;
 
 export interface FramescaperImageSourceSetCommandTimelineImage {
 	readonly type: 'image-source/set';
 	readonly sourceId: string;
-	readonly expectedSource: FramescaperImageSourceV1 | FramescaperImageSourceV2 | null;
-	readonly source: FramescaperImageSourceV1 | FramescaperImageSourceV2 | null;
+	readonly expectedSource: FramescaperImageSourceCurrentV1 | null;
+	readonly source: FramescaperImageSourceCurrentV1 | null;
 }
 
 export interface FramescaperImageClipSetCommandTimelineImage {
@@ -57,8 +56,8 @@ function sourceCommand(value: unknown): FramescaperImageSourceSetCommandTimeline
 		'type', 'sourceId', 'expectedSource', 'source',
 	]);
 	const sourceId = stableId(field(command, 'sourceId'), 'sourceId');
-	const expectedSource = optional(field(command, 'expectedSource'), normalizeFramescaperImageSourceV1OrV2);
-	const source = optional(field(command, 'source'), normalizeFramescaperImageSourceV1OrV2);
+	const expectedSource = optional(field(command, 'expectedSource'), normalizeFramescaperImageSourceCurrentV1);
+	const source = optional(field(command, 'source'), normalizeFramescaperImageSourceCurrentV1);
 	assertMutation(expectedSource, source, 'image source');
 	assertIdentity(sourceId, expectedSource, source, 'image source');
 	return Object.freeze({ type: 'image-source/set', sourceId, expectedSource, source });

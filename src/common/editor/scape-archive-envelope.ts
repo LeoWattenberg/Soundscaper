@@ -329,6 +329,9 @@ function allowedAssetKinds(additional: readonly string[], family: ProjectSchemaF
 			throw new TypeError(`An additional Scape asset kind is invalid: ${String(kind)}.`);
 		}
 		if (result.has(kind)) throw new Error(`Duplicate Scape asset kind: ${kind}.`);
+		// The selected Frame image extension independently closes and authenticates
+		// Source3 mask declarations; catalog/preset/root kinds keep their own family.
+		if (family === 'framescaper' && kind === PHOTO_MASK_RASTER_ASSET_KIND_V1) { result.add(kind); continue; }
 		if (kind === PHOTO_CATALOG_PACK_ASSET_KIND || kind === PHOTO_STACK_PACK_ASSET_KIND
 			|| kind === PHOTO_SMART_COLLECTION_PACK_ASSET_KIND || kind === PHOTO_DEVELOP_PRESET_PACK_ASSET_KIND
 			|| kind === PHOTO_CUBE_LUT_ASSET_KIND || kind === PHOTO_MASK_RASTER_ASSET_KIND_V1) {

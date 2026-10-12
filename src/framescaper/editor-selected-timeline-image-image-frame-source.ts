@@ -19,11 +19,11 @@ import {
 	type FramescaperImageClipV1,
 	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
-import { normalizeFramescaperImageSourceV1OrV2, type FramescaperImageSourceV2 } from '../common/editor/timeline-image-model-v2.ts';
+import { normalizeFramescaperImageSourceCurrentV1, type FramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 
-export type FramescaperCurrentImageSourceTimelineImage = FramescaperImageSourceV1 | FramescaperImageSourceV2;
+export type FramescaperCurrentImageSourceTimelineImage = FramescaperImageSourceCurrentV1;
 export function framescaperImageDimensionsTimelineImage(source: FramescaperCurrentImageSourceTimelineImage) {
-	return source.schemaVersion === 2 ? source.developed : source.canonical;
+	return source.schemaVersion !== 1 ? source.developed : source.canonical;
 }
 
 export interface FramescaperStoredImageFrameTimelineImage {
@@ -152,7 +152,7 @@ export function fitFramescaperImagePreviewSizeTimelineImage(
 	maximumWidthValue: number,
 	maximumHeightValue: number,
 ): Readonly<{ readonly width: number; readonly height: number }> {
-	const canonical = framescaperImageDimensionsTimelineImage(normalizeFramescaperImageSourceV1OrV2(source));
+	const canonical = framescaperImageDimensionsTimelineImage(normalizeFramescaperImageSourceCurrentV1(source));
 	const maximumWidth = dimension(maximumWidthValue, 'timelineImage image preview width');
 	const maximumHeight = dimension(maximumHeightValue, 'timelineImage image preview height');
 	return fitPixelSizeV1(canonical.width, canonical.height, maximumWidth, maximumHeight);
@@ -169,7 +169,7 @@ export function framescaperImageSourceForClipTimelineImage(
 		&& (candidate as Readonly<Record<string, unknown>>).id === clip.sourceId
 	));
 	if (source === undefined) throw new ReferenceError(`timelineImage image source ${clip.sourceId} is unavailable.`);
-	const normalized = normalizeFramescaperImageSourceV1OrV2(source);
+	const normalized = normalizeFramescaperImageSourceCurrentV1(source);
 	if (normalized.id !== clip.sourceId) throw new ReferenceError('timelineImage image clip changed source authority.');
 	return normalized;
 }

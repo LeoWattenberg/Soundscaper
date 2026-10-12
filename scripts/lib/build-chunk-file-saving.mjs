@@ -10,10 +10,10 @@ export const fileSavingChunkGroups = [
 		priority: 99, minSize: 0, maxSize: 400_000, includeDependenciesRecursively: false,
 	},
 	{
-		// Portable ZIP framing, byte digests, bounded document serialization and
-		// output destinations do not own timeline sources or PCM encoding.
+		// Portable ZIP framing, byte digests, bounded document serialization,
+		// durable asset plans and body checks share the archive byte owner.
 		name: 'editor-scape-archive-bytes',
-		test: /src[\\/]common[\\/]editor[\\/]scape-(?:abort|byte-stream|export-estimate|export-destination|archive-zip-profile|photo-catalog-pack(?:-v[23])?|photo-cube-lut|photo-mask-raster-v1|photo-develop-preset-pack|photo-stack-pack|photo-smart-collection-pack|project-document|project-json-preflight)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]scape-(?:abort|byte-stream|export-estimate|export-destination|archive-zip-profile|photo-catalog-pack(?:-v[23])?|photo-cube-lut|photo-mask-raster-v1|photo-develop-preset-pack|photo-stack-pack|photo-smart-collection-pack|project-document|project-json-preflight|durable-asset-plan-core-v1)\.ts$/,
 		priority: 99, minSize: 0, maxSize: 400_000, includeDependenciesRecursively: false,
 	},
 ];

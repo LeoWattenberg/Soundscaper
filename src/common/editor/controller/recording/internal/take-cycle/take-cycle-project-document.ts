@@ -5,12 +5,12 @@ import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import { validateAudioEditorProjectV17 } from '../../../../project-v17-validation.ts';
 import type { ProjectDocumentBody } from '../../../../project-document-body-types.ts';
 import type { MediaClipLeaf, MediaSourceLeaf } from '../../../../project-media-types.ts';
-import type { FramescaperImageSourceV2 } from '../../../../timeline-image-model-v2.ts';
-import type { FramescaperImageClipV1, FramescaperImageSourceV1 } from '../../../../timeline-image-model.ts';
+import type { FramescaperImageSourceCurrentV1 } from '../../../../timeline-image-model-current-v1.ts';
+import type { FramescaperImageClipV1 } from '../../../../timeline-image-model.ts';
 
 /** The durable cycle preserves the selected product's document identity and media inventory. */
 export type TakeCycleProjectDocument = ProjectDocumentBody<
-	MediaSourceLeaf | ((FramescaperImageSourceV1 | FramescaperImageSourceV2) & Readonly<Record<string, unknown>>),
+	MediaSourceLeaf | (FramescaperImageSourceCurrentV1 & Readonly<Record<string, unknown>>),
 	MediaClipLeaf | (FramescaperImageClipV1 & Readonly<Record<string, unknown>>)
 >;
 

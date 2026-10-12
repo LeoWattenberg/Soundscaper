@@ -4,19 +4,21 @@ import { useCallback, useLayoutEffect, useRef, useState, type ChangeEvent } from
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoFramescaperReceiveCopy } from '../../../i18n/lightscaper-photo-framescaper-handoff-copy.ts';
 import { inspectPhotoFramescaperHandoffSourcesV1, type PhotoFramescaperHandoffInspectionV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-inspect-v1.ts';
+import { inspectPhotoFramescaperHandoffSourcesCurrentV1, type PhotoFramescaperHandoffInspectionCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-inspect-current-v1.ts';
 import type { CapturedPhotoImageReceive, PhotoImageReceiveOutcome } from './photo-library-workflow-image-receive.ts';
 import type { PhotoLibraryImageReceiveReceiptV1 } from '../../photo-library-image-receive-port-v1.ts';
+import type { PhotoLibraryImageReceiveReceiptV2 } from '../../photo-library-image-receive-port-v2.ts';
 import './photo-catalog-backup.css';
 
 export interface PhotoFramescaperReceiveDialogProps {
 	readonly locale: string; readonly capture: Readonly<CapturedPhotoImageReceive>; readonly isCurrent: () => boolean;
-	readonly inspect?: typeof inspectPhotoFramescaperHandoffSourcesV1;
+	readonly inspect?: typeof inspectPhotoFramescaperHandoffSourcesV1 | typeof inspectPhotoFramescaperHandoffSourcesCurrentV1;
 	readonly registerDestination: (cancelAndJoin: () => Promise<void>) => () => void;
-	readonly onImported: (receipt: Readonly<PhotoLibraryImageReceiveReceiptV1>) => void; readonly onClose: () => void;
+	readonly onImported: (receipt: Readonly<PhotoLibraryImageReceiveReceiptV1 | PhotoLibraryImageReceiveReceiptV2>) => void; readonly onClose: () => void;
 }
 interface Scope {
 	readonly stop: AbortController; readonly before: Promise<void> | null; readonly capture: Readonly<CapturedPhotoImageReceive>;
-	readonly inspect: typeof inspectPhotoFramescaperHandoffSourcesV1;
+	readonly inspect: typeof inspectPhotoFramescaperHandoffSourcesV1 | typeof inspectPhotoFramescaperHandoffSourcesCurrentV1;
 	live: boolean; closed: boolean; retired: boolean; archive: File | null; active: Promise<void> | null; retirement: Promise<void> | null;
 }
 const CHECK = AbortSignal.prototype.throwIfAborted, REASON = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
@@ -27,7 +29,7 @@ function check(current: Scope): void { Reflect.apply(CHECK, current.stop.signal,
 export default function PhotoFramescaperReceiveDialog(props: PhotoFramescaperReceiveDialogProps) {
 	const latest = useRef(props); latest.current = props;
 	const scope = useRef<Scope | null>(null), draining = useRef<Promise<void> | null>(null), fileInput = useRef<HTMLInputElement>(null);
-	const [inspection, setInspection] = useState<Readonly<PhotoFramescaperHandoffInspectionV1> | null>(null), [sourceId, setSourceId] = useState(''), [imageClipId, setImageClipId] = useState('');
+	const [inspection, setInspection] = useState<Readonly<PhotoFramescaperHandoffInspectionV1 | PhotoFramescaperHandoffInspectionCurrentV1> | null>(null), [sourceId, setSourceId] = useState(''), [imageClipId, setImageClipId] = useState('');
 	const [busy, setBusy] = useState(false), [closing, setClosing] = useState(false), [failed, setFailed] = useState(false), [reloadFailed, setReloadFailed] = useState(false);
 	const [outcome, setOutcome] = useState<Readonly<PhotoImageReceiveOutcome> | null>(null), [reloaded, setReloaded] = useState(false);
 	const copy = photoFramescaperReceiveCopy(props.locale);
@@ -43,12 +45,13 @@ export default function PhotoFramescaperReceiveDialog(props: PhotoFramescaperRec
 		}).finally(() => { current.retired = true; });
 		current.retirement = joined; draining.current = joined; void joined.catch(() => undefined); return joined;
 	}, []);
-	const { capture, registerDestination, inspect = inspectPhotoFramescaperHandoffSourcesV1 } = props;
+	const { capture, registerDestination } = props;
+	const inspect = props.inspect ?? (capture.schemaVersion === 2 ? inspectPhotoFramescaperHandoffSourcesCurrentV1 : inspectPhotoFramescaperHandoffSourcesV1);
 	useLayoutEffect(() => {
 		const receive = capture.receive, reload = capture.reload;
 		const current: Scope = { stop: new AbortController(), before: draining.current, live: true, closed: false, retired: false,
 			archive: null, active: null, retirement: null, inspect,
-			capture: Object.freeze<CapturedPhotoImageReceive>({ receive: (request, signal) => Reflect.apply(receive, capture, [request, signal]) as ReturnType<typeof receive>,
+			capture: Object.freeze<CapturedPhotoImageReceive>({ ...(capture.schemaVersion === 2 ? { schemaVersion: 2 as const } : {}), receive: (request, signal) => Reflect.apply(receive, capture, [request, signal]) as ReturnType<typeof receive>,
 				reload: signal => Reflect.apply(reload, capture, [signal]) as ReturnType<typeof reload> }) };
 		scope.current = current; setInspection(null); setSourceId(''); setImageClipId(''); setOutcome(null); setBusy(false); setClosing(false); setFailed(false); setReloadFailed(false); setReloaded(false);
 		const unregister = registerDestination(() => retire(current));

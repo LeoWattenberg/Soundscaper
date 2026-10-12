@@ -169,7 +169,7 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 			if (visible?.live) setBusy(visible.active !== null || controller.isPending() || originalRecovery.isPending());
 		}
 	}, [profile, createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, controller, originalRecovery]);
-	const captureImageReceive = usePhotoLibraryWorkflowImageReceive({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime, perform, publishPage });
+	const captureImageReceive = usePhotoLibraryWorkflowImageReceive({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime, perform, publishPage }, profile);
 	const { captureCollectionHandoff } = usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime }, profile);
 	const executeOriginalRecovery = useCallback<ExecutePhotoOriginalRecoveryV1>(async action => perform({ start: async (signal, current) => {
 		await action({ signal, acquire: () => acquire(profile, current),
@@ -512,8 +512,8 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		cancel: () => { slot.current?.active?.abort(); } };
 }
 
-export type PhotoLibraryWorkflowLegacyV2 = Omit<ReturnType<typeof useWorkflow>, 'executeDevelop' | 'loadDevelopProxyRuntime'> & { executeDevelop: ExecutePhotoDevelopCurrent; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV2 };
-export type PhotoLibraryWorkflowCurrentV1 = Omit<ReturnType<typeof useWorkflow>, 'executeDevelop' | 'loadDevelopProxyRuntime'> & { executeDevelop: ExecutePhotoDevelopCurrentV1; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV3 };
+export type PhotoLibraryWorkflowLegacyV2 = Omit<ReturnType<typeof useWorkflow>, 'executeDevelop' | 'loadDevelopProxyRuntime' | 'captureImageHandoff'> & Pick<PhotoLibraryWorkflowReadsLegacyV2, 'captureImageHandoff'> & { executeDevelop: ExecutePhotoDevelopCurrent; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV2 };
+export type PhotoLibraryWorkflowCurrentV1 = Omit<ReturnType<typeof useWorkflow>, 'executeDevelop' | 'loadDevelopProxyRuntime' | 'captureImageHandoff'> & Pick<PhotoLibraryWorkflowReadsCurrentV1, 'captureImageHandoff'> & { executeDevelop: ExecutePhotoDevelopCurrentV1; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV3 };
 export function usePhotoLibraryWorkflowForProfileV1(profile: 'legacy2', createSession?: CreatePhotoLibrarySessionV3, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2): PhotoLibraryWorkflowLegacyV2;
 export function usePhotoLibraryWorkflowForProfileV1(profile: 'current3', createSession?: CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV3): PhotoLibraryWorkflowCurrentV1;
 export function usePhotoLibraryWorkflowForProfileV1(profile: 'legacy2' | 'current3', createSession?: CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3): PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1 {

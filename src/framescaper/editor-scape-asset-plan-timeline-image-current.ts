@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { framescaperImageSourceResourceReferencesV2 } from '../common/editor/timeline-image-model-v2.ts';
+import { framescaperImageSourceResourceReferencesCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
+import { planFramescaperMaskRasterArchiveAssetsV1, validateFramescaperMaskRasterArchiveAssetsV1 } from './timeline-image-mask-raster-assets-v1.ts';
 import type { ScapeManifest } from '../common/editor/scape-archive-envelope.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
 import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
 import { collectFramescaperScapeAssetReferencesFinishing } from './editor-scape-asset-plan-finishing.ts';
 import { collectFramescaperDurableScapeAssetReferences, planFramescaperDurableScapeExportAssets,
-	validateFramescaperDurableScapeImportAssets, type FramescaperDurableScapeMetadataStore } from './editor-scape-durable-asset-plan-core.ts';
+	validateFramescaperDurableScapeImportAssets, type FramescaperDurableScapeMetadataStore } from '../common/editor/scape-durable-asset-plan-core-v1.ts';
 import { planFramescaperScapeImageExportAssetsTimelineImage, validateFramescaperScapeImageImportAssetsTimelineImage } from './editor-scape-asset-plan-timeline-image.ts';
 import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 
@@ -24,8 +25,8 @@ export function timelineImageArchivePackProjection(project: FramescaperProjectTi
 /** Every selected recipe resource is durable, including disabled effects. */
 function durableReferences(project: FramescaperProjectTimelineImage) {
 	const foundation = framescaperProjectFinishingFoundationShapeNativeMedia(framescaperProjectNativeMediaFoundationShapeTimelineImage(project));
-	const recipeLuts = project.sources.flatMap(source => source.kind === 'image' && source.schemaVersion === 2
-		? framescaperImageSourceResourceReferencesV2(source) : []);
+	const recipeLuts = project.sources.flatMap(source => source.kind === 'image' && source.schemaVersion !== 1
+		? framescaperImageSourceResourceReferencesCurrentV1(source).luts : []);
 	const extra = collectFramescaperDurableScapeAssetReferences({ sources: [], freezeRenderedSourceIds: new Set(),
 		luts: () => recipeLuts, processorStacks: () => [], motionAnalyses: () => [] }, 'finishing');
 	const all = [...collectFramescaperScapeAssetReferencesFinishing(foundation), ...extra];
@@ -47,10 +48,12 @@ export async function planTimelineImageCurrentArchiveAssets(project: Framescaper
 	// metadata read still belongs to the same archive operation.
 	const durable = await planFramescaperDurableScapeExportAssets(durableReferences(project), store, 'finishing', signal, warningOptions);
 	const images = await planFramescaperScapeImageExportAssetsTimelineImage(timelineImageArchivePackProjection(project), store, signal);
-	return Object.freeze([...durable, ...images]);
+	const masks = await planFramescaperMaskRasterArchiveAssetsV1(project, store, signal);
+	return Object.freeze([...durable, ...images, ...masks]);
 }
 
 export function validateTimelineImageCurrentArchiveAssets(project: FramescaperProjectTimelineImage, manifest: ScapeManifest) {
 	return Object.freeze({ foundation: validateFramescaperDurableScapeImportAssets(durableReferences(project), manifest, 'finishing'),
-		images: validateFramescaperScapeImageImportAssetsTimelineImage(timelineImageArchivePackProjection(project), manifest) });
+		images: validateFramescaperScapeImageImportAssetsTimelineImage(timelineImageArchivePackProjection(project), manifest),
+		masks: validateFramescaperMaskRasterArchiveAssetsV1(project, manifest) });
 }

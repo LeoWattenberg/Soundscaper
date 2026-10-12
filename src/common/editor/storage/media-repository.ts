@@ -56,6 +56,7 @@ import {
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 const throwIfAborted = createAbortGuard('Media storage was cancelled.');
+const nativeProjectAuditLoad = MediaAssetLoadRepository.prototype.load;
 
 interface MediaWriteOptions {
 	readonly signal?: AbortSignal;
@@ -223,6 +224,23 @@ export class MediaRepository {
 		} finally {
 			admission.release();
 		}
+	}
+
+	/** Private branding and native backend identity prevent a substituted public
+	 * reader from minting project publication authority. Capture the original
+	 * load intrinsic at module initialization; native lifecycle ownership stays
+	 * with this repository's existing asset load owner. */
+	static async captureProjectResourceAuditReaderV1(owner: MediaRepository, port: StorageRepositoryPort) {
+		const actualPort = owner.#port, actualLoads = owner.#assetLoads, memory = actualPort.memory;
+		const actualDatabase = actualPort.database, requestedDatabase = port.database, requestedMemory = port.memory;
+		const [database, requested] = await Promise.all([
+			Reflect.apply(actualDatabase, actualPort, []) as Promise<IDBDatabase | null>,
+			Reflect.apply(requestedDatabase, port, []) as Promise<IDBDatabase | null>,
+		]);
+		if (database !== requested || memory !== requestedMemory) throw new Error('Native body reader belongs to another project backend.');
+		return Object.freeze({ database, memory, loadAsset(sourceId: string, options: MediaAssetLoadOptions = {}): Promise<BlobLike | null> {
+			return Reflect.apply(nativeProjectAuditLoad, actualLoads, [sourceId, options]) as Promise<BlobLike | null>;
+		} });
 	}
 
 	loadAsset(sourceId: string, options: MediaAssetLoadOptions = {}): Promise<BlobLike | null> {
@@ -452,3 +470,7 @@ function nonEmptyString(value: unknown, message: string): string {
 	if (!text) throw new TypeError(message);
 	return text;
 }
+
+/** The module binding captures the original native owner before any caller can
+ * replace the public class property. Current publication imports this binding. */
+export const captureMediaProjectResourceAuditReaderV1 = MediaRepository.captureProjectResourceAuditReaderV1;

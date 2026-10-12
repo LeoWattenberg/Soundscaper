@@ -7,7 +7,7 @@ import {
 	FRAMESCAPER_IMAGE_FRAME_PACK_MAXIMUM_CHUNK_BYTES,
 	FRAMESCAPER_IMAGE_FRAME_PACK_MAXIMUM_RECEIPT_BYTES,
 } from '../common/editor/timeline-image-frame-pack-v1.ts';
-import { normalizeFramescaperImageSourceV1OrV2 } from '../common/editor/timeline-image-model-v2.ts';
+import { normalizeFramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import type { FramescaperCurrentImageSourceTimelineImage } from './editor-selected-timeline-image-image-frame-source.ts';
 import { framescaperEditableImageWorkingBytes } from './timeline-image-current-frame-source.ts';
 
@@ -103,7 +103,7 @@ export function assertFramescaperImagePreviewReaderMetadataTimelineImage(
 	sourceValue: FramescaperCurrentImageSourceTimelineImage,
 	byteLength: number,
 ): void {
-	const source = normalizeFramescaperImageSourceV1OrV2(sourceValue);
+	const source = normalizeFramescaperImageSourceCurrentV1(sourceValue);
 	if (!Number.isSafeInteger(byteLength) || byteLength < 0
 		|| byteLength > conservativeReaderMetadataBytes(source)) {
 		throw new RangeError(`timelineImage image reader ${source.id} exceeds its preflight metadata reservation.`);
@@ -131,7 +131,7 @@ function contextsAndSources(
 		throw new RangeError(`timelineImage image ${route} exceeds its context count bound.`);
 	}
 	const contexts = values.map((value) => Object.freeze({
-		source: normalizeFramescaperImageSourceV1OrV2(value?.source),
+		source: normalizeFramescaperImageSourceCurrentV1(value?.source),
 		width: dimension(value?.width, `timelineImage image ${route} width`),
 		height: dimension(value?.height, `timelineImage image ${route} height`),
 	}));

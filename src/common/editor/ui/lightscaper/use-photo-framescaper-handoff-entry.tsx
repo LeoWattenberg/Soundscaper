@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, useRef, useState, type MouseEvent } from 'react';
 import { photoFramescaperCollectionHandoffMenuLabel, photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel } from '../../../i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
-import type { PreparePhotoFramescaperHandoff } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
+import type { PreparePhotoFramescaperHandoffSelectedV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-download-current-v1.ts';
 import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { CapturedPhotoImageReceive } from './photo-library-workflow-image-receive.ts';
 import type { CapturedPhotoCollectionHandoff } from './photo-library-workflow-collection-handoff.ts';
@@ -14,13 +14,13 @@ interface Options {
 	readonly generation: object; readonly locale: string; readonly workingLabel: string; readonly disabled: boolean;
 	readonly selection: Readonly<{ id: string; fileName: string }> | null; readonly selectedCount: number;
 	readonly closeMenu: (event: MouseEvent<HTMLButtonElement>) => boolean;
-	readonly capture: () => PreparePhotoFramescaperHandoff; readonly prepareSave: () => Promise<void>;
+	readonly capture: () => PreparePhotoFramescaperHandoffSelectedV1; readonly prepareSave: () => Promise<void>;
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly registerDestination: (cancelAndJoin: () => Promise<void>) => () => void;
 	readonly receive: Readonly<{ disabled: boolean; capture: () => Readonly<CapturedPhotoImageReceive>; onImported: () => void }>;
 	readonly collection: Readonly<{ disabled: boolean; capture: () => Readonly<CapturedPhotoCollectionHandoff> }>;
 }
-interface Entry { readonly generation: object; readonly key: string; readonly photoId: string; readonly fileName: string; readonly prepare: PreparePhotoFramescaperHandoff; }
+interface Entry { readonly generation: object; readonly key: string; readonly photoId: string; readonly fileName: string; readonly prepare: PreparePhotoFramescaperHandoffSelectedV1; }
 
 /** Menu-only scalar capture. The archive, native decoder and full copy remain behind the dialog. */
 export function usePhotoFramescaperHandoffEntry(options: Options) {

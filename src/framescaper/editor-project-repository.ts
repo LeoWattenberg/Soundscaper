@@ -60,6 +60,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 		if (currentValue === null) throw new Error('Ordinary Framescaper save cannot create a project.');
 		const current = this.#exact(currentValue);
 		assertSameBodyAttachments(current, project);
+		await this.#prepareSave(project);
 		const saved = await this.#delegate.saveIfCurrent!(current, project, postCommit);
 		if (saved === null) throw new Error('The Framescaper project changed before save.');
 		return this.#exact(saved);
@@ -76,6 +77,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 			throw new Error('Framescaper compare-and-swap cannot change project identity.');
 		}
 		assertSameBodyAttachments(expected, project);
+		await this.#prepareSave(project);
 		return this.#optionalExact(await this.#delegate.saveIfCurrent!(expected, project, postCommit));
 	}
 
@@ -93,6 +95,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 		const project = this.#exact(projectValue);
 		if (expected.id !== project.id) throw new Error('Framescaper compare-and-swap cannot change project identity.');
 		assertSameBodyAttachments(expected, project);
+		await this.#prepareSave(project);
 		return this.#optionalExact(await this.#delegate.saveIfCurrentAndFenced!(
 			expected, project, writeFence, postCommit,
 		));
@@ -186,6 +189,12 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 
 	async delete(projectId: string): Promise<void> { await this.#delegate.delete(projectId); }
 
+	async #prepareSave(project: FramescaperProject): Promise<void> {
+		if (!project.sources.some(source => source.kind === 'image' && source.schemaVersion === 3)) return;
+		if (!this.#scapeImages) throw new Error('Current Frame save requires its actual native resource owner.');
+		await this.#scapeImages.prepareSave(project);
+	}
+
 	#exact(value: unknown): FramescaperProject & ProjectDocument {
 		return cloneFramescaperProject(this.#profile, value) as FramescaperProject & ProjectDocument;
 	}
@@ -251,7 +260,7 @@ function imageAuthority(project: FramescaperProject): ReadonlyMap<string, string
 	for (const source of project.sources as readonly Readonly<Record<string, unknown>>[]) {
 		if (source.kind !== 'image') continue;
 		const { name: _name, ...authority } = source;
-		if (source.schemaVersion === 2) {
+		if (source.schemaVersion === 2 || source.schemaVersion === 3) {
 			const { develop: _develop, developed: _developed, provenance: _provenance, ...pack } = authority;
 			result.set(String(source.id), JSON.stringify({ ...pack, schemaVersion: 1 }));
 		} else result.set(String(source.id), JSON.stringify(authority));

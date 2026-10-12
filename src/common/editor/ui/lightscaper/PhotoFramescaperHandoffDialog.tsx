@@ -4,14 +4,16 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoFramescaperHandoffCopy } from '../../../i18n/lightscaper-photo-framescaper-handoff-copy.ts';
 import { PhotoFramescaperHandoffDownload, type PhotoFramescaperHandoffDownloadReceipt, type PhotoFramescaperHandoffTarget,
-	type PreparePhotoFramescaperHandoff } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
+} from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
+import { isPhotoFramescaperHandoffTargetCurrentV1, type PreparePhotoFramescaperHandoffSelectedV1, type PhotoFramescaperHandoffTargetCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-download-current-v1.ts';
 import { exportPhotoFramescaperHandoffArchiveV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-archive-v1.ts';
+import { exportPhotoFramescaperHandoffArchiveCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-archive-current-v1.ts';
 import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import './photo-catalog-backup.css';
 
 export interface PhotoFramescaperHandoffDialogProps {
 	readonly locale: string; readonly photoId: string; readonly fileName: string;
-	readonly prepare: PreparePhotoFramescaperHandoff; readonly isSelected: () => boolean;
+	readonly prepare: PreparePhotoFramescaperHandoffSelectedV1; readonly isSelected: () => boolean;
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly registerDestination: (cancelAndJoin: () => Promise<void>) => () => void; readonly onClose: () => void;
 }
@@ -24,7 +26,7 @@ export default function PhotoFramescaperHandoffDialog(props: PhotoFramescaperHan
 	const latest = useRef(props); latest.current = props;
 	const controller = useRef<PhotoFramescaperHandoffDownload | null>(null); controller.current ??= new PhotoFramescaperHandoffDownload();
 	const owner = controller.current, scope = useRef<Scope | null>(null), draining = useRef<Promise<void> | null>(null);
-	const [target, setTarget] = useState<Readonly<{ owner: Scope; value: PhotoFramescaperHandoffTarget }> | null>(null);
+	const [target, setTarget] = useState<Readonly<{ owner: Scope; value: PhotoFramescaperHandoffTarget | PhotoFramescaperHandoffTargetCurrentV1 }> | null>(null);
 	const [failed, setFailed] = useState(false), [saving, setSaving] = useState(false), [closing, setClosing] = useState(false);
 	const [receipt, setReceipt] = useState<PhotoFramescaperHandoffDownloadReceipt | null>(null), button = useRef<HTMLButtonElement>(null);
 	const copy = photoFramescaperHandoffCopy(props.locale);
@@ -63,8 +65,10 @@ export default function PhotoFramescaperHandoffDialog(props: PhotoFramescaperHan
 		if (!current?.live || current.closed || current.active || target?.owner !== current || !runtime || !input.isSelected()) return;
 		setSaving(true); setFailed(false); setReceipt(null);
 		const prepareSave = runtime.prepareSave.bind(runtime), saveFile = runtime.saveFile.bind(runtime);
-		const work = owner.start({ target: target.value, fileName: input.fileName, fileTypeDescription: copy.fileType, signal: current.stop.signal,
-			prepareSave, saveFile, buildArchive: exportPhotoFramescaperHandoffArchiveV1 });
+		const delivery = { fileName: input.fileName, fileTypeDescription: copy.fileType, signal: current.stop.signal, prepareSave, saveFile };
+		const work = isPhotoFramescaperHandoffTargetCurrentV1(target.value)
+			? owner.startCurrent({ ...delivery, target: target.value, buildArchive: exportPhotoFramescaperHandoffArchiveCurrentV1 })
+			: owner.start({ ...delivery, target: target.value, buildArchive: exportPhotoFramescaperHandoffArchiveV1 });
 		const active = work.then(value => { if (current.live && !current.closed) setReceipt(value); }, () => { if (current.live && !current.closed) setFailed(true); })
 			.finally(() => { if (current.active === active) current.active = null; if (current.live && !current.closed) setSaving(false); });
 		current.active = active;

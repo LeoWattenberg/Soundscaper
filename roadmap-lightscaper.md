@@ -140,7 +140,9 @@ culling workflows. Opt-in thumbnails and a selected-photo loupe use disposable
 previews; global search and sort use bounded indexed candidate pages. Menu-owned
 develop and single-photo PNG/JPEG export workflows have landed; their milestones
 remain in progress. File-menu archive handoff exports a saved editable photo and
-receives it into the selected library with authenticated original and LUT bodies.
+receives it into the selected library with authenticated Original, LUT, and brush
+bodies. Current single-photo handoff preserves repaired recipes through editable
+Frame sources, native save/reopen/export, and reverse Photo3 publication.
 The import dialog also selects an ordinary Frame still's timeline or Project Bin
 placement explicitly. Manual collections, smart collections, and saved filters
 download as editable Frame sequences in native query order. The remaining L5
@@ -407,7 +409,11 @@ photo work moves between products without loss.
   a Framescaper still opens in Lightscaper's develop; and a collection hands
   to Framescaper as a sequence. Menu-owned selected collection and saved-filter
   sequences retain active saved recipes, original and LUT resources, and native
-  query order. Full cross-product and export-matrix qualification remains open.
+  query order. Single-photo Current handoff preserves repaired stacks and
+  authenticated brush resources through editable Source3 and reverse Photo3
+  publication. Collection and saved-filter sequences still use their legacy path
+  and require a Current successor. Full cross-product and export-matrix
+  qualification remains open.
 - **Shared — Optional:** ordering and per-photo duration presets for the
   handed-off sequence.
 
@@ -635,10 +641,28 @@ covering complete repair history, preset-only resources, two reopen cycles,
 actual preset application, late cancellation, and corruption rollback. Their
 independent observations check complete metadata, native Original chunk bytes,
 LUT and brush custody, and literal preview/PNG pixels.
-Editable Frame handoff still requires an explicit Current successor. Direct
-Frame mask-name and repair authoring remain open. This does not close L6;
-L7–L9 remain incomplete, and final inter-slice qualification follows completion
-of the implementation milestones.
+Menu-owned Current photo handoff now carries repaired recipes into editable
+Frame Source3 with explicit provenance2. Ordered Clone/Heal spots, mask names,
+geometry, disabled LUTs, and unused brush declarations remain intact. Complete
+LUT and SCMASK bodies are authenticated alongside the unchanged Original. Frame
+save, reopen, and project export preserve these bindings; Current receive
+publishes a fresh Photo3 and may reuse its authenticated Original. Source
+provenance retains the actual Photo and process versions, while wholly legacy
+handoffs retain Source2 behavior and permanent strict readers. Native Frame save
+audits actual resource bodies and checks their content tokens inside the existing
+project transaction before publication acknowledgment.
+The selected Lightscaper Node regression run passes 2,388 cases in 271 files;
+73 focused owning cases cover the final Current contracts and native lifetime,
+edit, save, reopen, archive, and render paths. Eight English/German Chromium and
+Firefox workflows verify actual Frame menu import, source rename, native
+save/reopen/export, reverse Photo3 publication, literal preview/PNG pixels,
+unchanged Originals, complete resource custody, and corruption refusal. Both
+product builds pass with the existing startup and chunk ceilings; Frame startup
+uses 100 requests and Lightscaper uses 51.
+Current collection and saved-filter sequence handoff, direct Frame repair and
+mask-name authoring, and Preset3 application during import remain open. Remaining
+L3–L6 exit gates still require completion; L7–L9 remain incomplete. Final
+inter-slice qualification follows completion of the implementation milestones.
 
 ### Exit gate
 

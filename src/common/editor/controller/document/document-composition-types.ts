@@ -2,8 +2,8 @@
 
 import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import type { MediaSourceLeaf, MediaClipLeaf } from '../../project-media-types.ts';
-import type { FramescaperImageSourceV2 } from '../../timeline-image-model-v2.ts';
-import type { FramescaperImageSourceV1, FramescaperImageClipV1 } from '../../timeline-image-model.ts';
+import type { FramescaperImageSourceCurrentV1 } from '../../timeline-image-model-current-v1.ts';
+import type { FramescaperImageClipV1 } from '../../timeline-image-model.ts';
 import type { ProjectDocumentBody } from '../../project-document-body-types.ts';
 import type { HistoryOperationMetadata } from './internal/history-operation-metadata.ts';
 
@@ -47,7 +47,7 @@ import type { TrackDuplicationProject } from './internal/track-duplication-servi
 export type DocumentProject =
 	& ControllerRuntimeProject
 	& ProjectDocumentBody<
-		MediaSourceLeaf | ((FramescaperImageSourceV1 | FramescaperImageSourceV2) & Readonly<Record<string, unknown>>),
+		MediaSourceLeaf | (FramescaperImageSourceCurrentV1 & Readonly<Record<string, unknown>>),
 		MediaClipLeaf | (FramescaperImageClipV1 & Readonly<Record<string, unknown>>)
 	>
 	& ProjectVisualProject

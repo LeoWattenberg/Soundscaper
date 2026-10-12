@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { confirmFileSizeWarning, type FileSizeWarningConfirmation, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
+import { type FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 import {
 	mapFramescaperImageTimelineFrameV1,
 	type FramescaperImageClipV1,
@@ -12,6 +12,7 @@ import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-
 import type { BoundVideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 type ImagePlan = UnifiedExactRenderPlanV13 | UnifiedExactRenderPlanV16;
 const CHECK = AbortSignal.prototype.throwIfAborted, TIMING_FOR_EACH = Map.prototype.forEach;
+import { admitActiveImageAssets, admitImageExecutionResources, type ImageExecutionBaseResourcesTimelineImage, type ImageExecutionResourcesTimelineImage } from './timeline-image-execution-resources-current-v1.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { defaultVideoSourceColorInterpretationV1 } from '../common/editor/video-color-management-v27.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
@@ -22,7 +23,7 @@ import {
 	type FramescaperCurrentImageSourceTimelineImage,
 	type FramescaperStoredImageAssetStoreTimelineImage,
 } from './editor-selected-timeline-image-image-frame-source.ts';
-import { openFramescaperCurrentImageFrameSource, framescaperEditableImageWorkingBytes, type FramescaperCurrentImageFrameReader } from './timeline-image-current-frame-source.ts';
+import { openFramescaperCurrentImageFrameSource, type FramescaperCurrentImageFrameReader } from './timeline-image-current-frame-source.ts';
 import { cloneFramescaperProjectTimelineImage, type FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { gradeEncodedFrame } from './selected-finishing-exact-frame-support.ts';
 import type { FramescaperSelectedExactSupplementalPictureFinishing } from './selected-finishing-exact-frame-execution.ts';
@@ -73,7 +74,7 @@ export async function createTimelineImageExecutionCore(options: Readonly<{
 		...item,
 		source: framescaperImageSourceForClipTimelineImage(project.sources, item.clip),
 	}));
-	const editable = planned.some(({ source }) => source.schemaVersion === 2);
+	const editable = planned.some(({ source }) => source.schemaVersion !== 1);
 	if (!currentMode && editable) throw new RangeError('Legacy timeline image execution cannot render an editable image source.');
 	await admitActiveImageAssets(planned.map(({ source }) => source), options);
 	const baseResources = await admitImageExecutionResources(planned, options);
@@ -215,61 +216,6 @@ function captureImageStore(store: FramescaperStoredImageAssetStoreTimelineImage)
 		owner = Object.getPrototypeOf(owner) as object | null;
 	}
 	throw new TypeError('Current image execution requires its image body reader.');
-}
-
-const MAXIMUM_ACTIVE_IMAGE_ASSETS = 512;
-const MAXIMUM_ACTIVE_IMAGE_ASSET_BYTES = 512 * 1024 * 1024;
-const MAXIMUM_ACTIVE_IMAGE_CONTEXTS = 4_096;
-const MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES = 512 * 1024 * 1024;
-
-interface ImageExecutionResourcesTimelineImage {
-	readonly maximumAssetBytes: bigint;
-	readonly snapshotBytes: bigint;
-	readonly recipeWorkingBytes: bigint;
-	readonly maximumWorkingBytes: bigint;
-	readonly readerMetadataBytes: bigint;
-}
-
-type ImageExecutionBaseResourcesTimelineImage = Omit<ImageExecutionResourcesTimelineImage, 'readerMetadataBytes'>;
-
-async function admitActiveImageAssets(sources: readonly FramescaperCurrentImageSourceTimelineImage[], options: FileSizeWarningOptions): Promise<void> {
-	const unique = new Map(sources.map((source) => [source.id, source] as const));
-	if (unique.size > MAXIMUM_ACTIVE_IMAGE_ASSETS) {
-		throw new RangeError('timelineImage active image assets exceed their count bound.');
-	}
-	let total = 0n;
-	for (const source of unique.values()) total += BigInt(source.assetByteLength);
-	if (total > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('timelineImage active image assets exceed the supported byte count.');
-	await confirmFileSizeWarning(Number(total), MAXIMUM_ACTIVE_IMAGE_ASSET_BYTES, 'Video export image assets', options);
-}
-
-async function admitImageExecutionResources(
-	planned: readonly Readonly<{
-		readonly clip: FramescaperImageClipV1;
-		readonly source: FramescaperCurrentImageSourceTimelineImage;
-	}>[],
-	options: FileSizeWarningOptions,
-): Promise<ImageExecutionBaseResourcesTimelineImage> {
-	if (planned.length > MAXIMUM_ACTIVE_IMAGE_CONTEXTS) {
-		throw new RangeError('timelineImage active image clips exceed their context bound.');
-	}
-	const sources = new Map<string, FramescaperCurrentImageSourceTimelineImage>();
-	for (const { source } of planned) sources.set(source.id, source);
-	let snapshotBytes = 0n;
-	let maximumAssetBytes = 0n, recipeWorkingBytes = 0n;
-	for (const source of sources.values()) {
-		const assetBytes = BigInt(source.assetByteLength);
-		snapshotBytes += assetBytes;
-		maximumAssetBytes = maximumBigInt(maximumAssetBytes, assetBytes);
-		recipeWorkingBytes = maximumBigInt(recipeWorkingBytes, framescaperEditableImageWorkingBytes(source));
-	}
-	const maximum = BigInt(MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
-	const inputBytes = snapshotBytes + maximumAssetBytes + rangeReadChunkBytes();
-	if (recipeWorkingBytes && inputBytes + recipeWorkingBytes > maximum) throw new RangeError('Editable image recipe exceeds its export working byte bound.');
-	await confirmFileSizeWarning(Number(inputBytes), MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES, 'Video export image snapshots', options);
-	// Confirmed large input snapshots keep the frame and decoder workspace budget.
-	const maximumWorkingBytes = inputBytes > maximum ? inputBytes + maximum : maximum;
-	return Object.freeze({ maximumAssetBytes, snapshotBytes, recipeWorkingBytes, maximumWorkingBytes });
 }
 
 function admitImageReaderMetadata(

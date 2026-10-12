@@ -1,14 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
-import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS } from '../catalog/types.ts';
+import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoDocumentV1 } from '../catalog/types.ts';
 import { id, name } from '../catalog/value-validation.ts';
 import type { PhotoLibrarySessionPortsV2 } from './photo-library-session-ports-v2.ts';
 
 /** The caller owns the catalog lease. Legacy File import retains notice/skip;
  * receive's strict plan refuses every unmapped keyword before catalog writes. */
-export async function resolvePhotoImportKeywordsV1(catalog: Pick<PhotoLibrarySessionPortsV2['catalog'], 'loadCatalog' | 'saveCatalog'>, catalogId: string, outcome: Readonly<{ photo: ReturnType<typeof normalizePhotoDocumentV1OrV2>; keywordNames: readonly string[] }>, createId: () => string, signal: AbortSignal, strict = false) {
+export async function resolvePhotoImportKeywordsV1(catalog: Pick<PhotoLibrarySessionPortsV2['catalog'], 'loadCatalog' | 'saveCatalog'>, catalogId: string, outcome: Readonly<{ photo: Pick<PhotoDocumentV1, 'keywordIds'>; keywordNames: readonly string[] }>, createId: () => string, signal: AbortSignal, strict = false) {
 	const root = await catalog.loadCatalog(catalogId);
 	if (!root) throw new ReferenceError('Photo catalog is missing.');
 	const keywords = [...root.keywords], ids = [...outcome.photo.keywordIds];

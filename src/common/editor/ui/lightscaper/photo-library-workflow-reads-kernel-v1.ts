@@ -11,6 +11,7 @@ import type { CreatePhotoLibraryDevelopProxyRuntimeV2, LoadPhotoLibraryDevelopPr
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { ReadPhotoExportMetadata } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import type { PhotoLibraryExportPresetsPortV1 } from '../../photo-library-export-presets-port-v1.ts';
+import type { PreparePhotoFramescaperHandoffSelectedV1, PreparePhotoFramescaperHandoffCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-download-current-v1.ts';
 import type { PreparePhotoFramescaperHandoff } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
 import type { PhotoLibraryImageHandoffPortV1 } from '../../photo-library-image-handoff-port-v1.ts';
 import { acquirePhotoLibraryWorkflowSlotCurrentV1, loadPhotoLibraryDevelopProxyCurrentV1, type PhotoLibraryWorkflowSlotCurrentV1 } from '../../controller/shared/photo-library-workflow-slot-current-v1.ts';
@@ -18,6 +19,7 @@ import type { CreatePhotoLibrarySessionCurrentV1, PhotoLibrarySessionPortCurrent
 import type { CreatePhotoLibraryDevelopProxyRuntimeV3, LoadPhotoLibraryDevelopProxyRuntimeV3 } from '../../photo-library-develop-proxy-port-v3.ts';
 import { capturePhotoLibraryDevelopPortV3 } from './photo-library-workflow-develop-current-v1.ts';
 import { capturePhotoLibraryLegacyDevelopCurrentV1 } from './photo-library-workflow-legacy-develop-current-v1.ts';
+import { preparePhotoLibraryImageHandoffCurrentV1 } from './photo-library-workflow-image-handoff-current-v1.ts';
 
 type SessionSlot = PhotoLibraryWorkflowSlotV2 | PhotoLibraryWorkflowSlotCurrentV1;
 interface ReadLoaderOwners {
@@ -167,7 +169,7 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 			if (!isCurrent()) throw new DOMException('Photo export preset generation is closed.', 'AbortError'); return access;
 		};
 	}, [profile, createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);
-	const captureImageHandoff = useCallback((): PreparePhotoFramescaperHandoff => {
+	const captureImageHandoff = useCallback((): PreparePhotoFramescaperHandoffSelectedV1 => {
 		const current = slot.current;
 		const isCurrent = () => current?.live && slot.current === current && current.factory === createSession && current.factory === factory.current
 			&& current.proxyFactory === createDevelopProxyRuntime && current.proxyFactory === renderer.current && current.backupLoader === loadBackupSaveRuntime && current.backupLoader === loader.current;
@@ -176,6 +178,7 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 			const signal = AbortSignal.any([externalSignal, current.lifetime.signal]);
 			const checked = () => { check(signal); if (!isCurrent()) throw new DOMException('Photo handoff generation is closed.', 'AbortError'); };
 			checked(); const owner = await acquire(profile, current); checked();
+			if (profile === 'current3') return preparePhotoLibraryImageHandoffCurrentV1(owner as PhotoLibrarySessionPortCurrentV1, photoId, signal, checked);
 			const develop = legacy(profile, owner, signal), handoff = owner.imageHandoff;
 			const currentSnapshot = await admitCurrent(profile, owner, photoId, signal); checked();
 			if (!handoff || typeof handoff.withCapture !== 'function') throw new Error('Editable photo handoff is unavailable.');
@@ -201,8 +204,12 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 	return { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff };
 }
 
-export type PhotoLibraryWorkflowReadsLegacyV2 = Omit<ReturnType<typeof useReads>, 'loadDevelopProxyRuntime'> & { loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV2 };
-export type PhotoLibraryWorkflowReadsCurrentV1 = Omit<ReturnType<typeof useReads>, 'loadDevelopProxyRuntime'> & { loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV3 };
+export type PhotoLibraryWorkflowReadsLegacyV2 = Omit<ReturnType<typeof useReads>, 'loadDevelopProxyRuntime' | 'captureImageHandoff'> & {
+	loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV2; captureImageHandoff: () => PreparePhotoFramescaperHandoff;
+};
+export type PhotoLibraryWorkflowReadsCurrentV1 = Omit<ReturnType<typeof useReads>, 'loadDevelopProxyRuntime' | 'captureImageHandoff'> & {
+	loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV3; captureImageHandoff: () => PreparePhotoFramescaperHandoffCurrentV1;
+};
 export function usePhotoLibraryWorkflowReadsForProfileV1(profile: 'legacy2', owners: PhotoLibraryWorkflowReadOwnersLegacyV2): PhotoLibraryWorkflowReadsLegacyV2;
 export function usePhotoLibraryWorkflowReadsForProfileV1(profile: 'current3', owners: PhotoLibraryWorkflowReadOwnersCurrentV1): PhotoLibraryWorkflowReadsCurrentV1;
 export function usePhotoLibraryWorkflowReadsForProfileV1(profile: 'legacy2' | 'current3', owners: PhotoLibraryWorkflowReadOwnersKernelV1): PhotoLibraryWorkflowReadsLegacyV2 | PhotoLibraryWorkflowReadsCurrentV1 {
