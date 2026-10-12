@@ -35,7 +35,7 @@ for (const locale of ['en', 'de']) test(`${locale}: menu Clone and genuine Heal 
 	await authorSpot(page, dialog, repairs, 'clone', { targetX: .7, targetY: .5, sourceX: .2, sourceY: .5, radius: .15, feather: 0, opacity: 1 });
 	await keyboard(page, named(dialog, 'button', repairs.apply)); await expect(dialog).toHaveCount(0);
 	await f.painted(CLONE); expect(await f.readPhoto()).toEqual(f.initial.photo);
-	await f.settingsMenu(); await expect(named(develop, 'button', settings.copy)).toHaveCount(0);
+	await f.settingsMenu(); await expect(named(develop, 'button', settings.copy)).toBeEnabled();
 	const cloned = await f.save(); expect(active(cloned).develop.processVersion).toBe(3);
 	const spot = active(cloned).develop.repairs.spots[0];
 	expect(spot).toMatchObject({ mode: 'clone', enabled: true, target: { x: .7, y: .5 }, source: { x: .2, y: .5 }, radius: .15, feather: 0, opacity: 1 });
@@ -63,7 +63,7 @@ for (const locale of ['en', 'de']) test(`${locale}: menu Clone and genuine Heal 
 	await named(develop, 'combobox', words.history).selectOption('0'); await f.painted(ORIGINAL);
 	await expect.poll(async () => active(await f.readPhoto()).workspace.cursor).toBe(0);
 	const legacyActive = await f.readPhoto(); expect(legacyActive.schemaVersion).toBe(3); expect(active(legacyActive).develop.processVersion).toBe(1);
-	await f.settingsMenu(); await expect(named(develop, 'button', settings.copy)).toHaveCount(0);
+	await f.settingsMenu(); await expect(named(develop, 'button', settings.copy)).toBeEnabled();
 	await expect(named(develop, 'button', repairs.menu)).toBeEnabled(); await f.immutable(legacyActive);
 	await named(develop, 'combobox', words.history).selectOption('1'); await f.painted(CLONE);
 	await named(develop, 'combobox', words.history).selectOption('2'); await f.painted(HEAL);
@@ -106,7 +106,7 @@ for (const locale of ['en', 'de']) test(`${locale}: Original source pointer move
 });
 
 async function openFixture(page, locale, name, pixels, width, height) {
-	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), settings = photoDevelopSettingsCopy(locale), repairs = photoDevelopRepairSpotsCopy(locale);
+	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), settings = photoDevelopSettingsCopy(locale, 'current3'), repairs = photoDevelopRepairSpotsCopy(locale);
 	const errors = []; page.on('pageerror', error => { errors.push(error.message); });
 	await installNativeImageHandoffRuntime(page);
 	const program = await compileNativeImageHandoffScript('repair-photo-custody.js', fileURLToPath(new URL('./helpers/lightscaper-repair-spots-reference.ts', import.meta.url)));

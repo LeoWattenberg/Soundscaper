@@ -580,8 +580,25 @@ delivery; JSON retry and reopened recovery avoid another image render or
 download. English/German Chromium and Firefox checks verify literal PNG and
 independently decoded JPEG pixels after Clone/Heal, crop/flip, and exposure,
 along with immutable Original bytes and native custody.
-Process3 settings, clipboard, presets, portable backup/restore,
-and editable Frame handoff still require explicit successors. Direct Frame
+Current Settings now supports repaired recipes in Copy/Paste, full and partial
+Sync, acknowledged Auto-sync, and relative Quick Develop. Copy retains the
+unsaved draft; the selected native source authenticates its full retained and
+draft resource closure before publishing a packet. Local selection includes
+the complete bound-adjustment and mask group, including unused declarations.
+Brush packets keep their exact authenticated identity within the selected
+Session; raw, cloned, foreign-Session, and unsupported external references
+cannot grant paste authority. Target saves independently authenticate their
+complete resource closure, and Originals remain unchanged. Legacy packets
+retain their grouping and leave target repairs intact; clearing repairs keeps
+process 3. Current settings and whole-recipe clipboard values have explicit
+schema 3 owners while the legacy readers remain strict.
+Current settings writes retire the active preview and keep queued old-revision
+presentations suspended through the native acknowledgments and document reload.
+English/German Chromium and Firefox workflows verify unsaved Heal/brush Copy,
+partial Sync/Auto-sync, and relative Quick Develop with literal preview/export
+pixels and the complete native Original/brush custody checks.
+Process3 presets, portable backup/restore, and editable Frame handoff still
+require explicit successors. Direct Frame
 mask-name and repair authoring remain open. This does not close L6; L7–L9
 remain incomplete.
 

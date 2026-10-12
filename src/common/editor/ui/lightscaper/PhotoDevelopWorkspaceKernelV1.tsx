@@ -7,10 +7,12 @@ import { usePhotoDevelopForProfileV1, type PhotoDevelopHookLegacyV2, type PhotoD
 import PhotoDevelopEffectsV2 from './PhotoDevelopEffectsV2.tsx';
 import PhotoDevelopPreviewV2, { type PhotoDevelopPreviewPropsV2 } from './PhotoDevelopPreviewV2.tsx';
 import PhotoDevelopSettingsMenuV2 from './PhotoDevelopSettingsMenuV2.tsx';
+import PhotoDevelopSettingsMenuCurrentV1 from './PhotoDevelopSettingsMenuCurrentV1.tsx';
 import PhotoDevelopGradientDialogV1, { type PhotoDevelopGradientDialogPropsV1 } from './PhotoDevelopGradientDialogV1.tsx';
 import PhotoDevelopRangeMaskDialogV1, { type PhotoDevelopRangeMaskDialogPropsV1 } from './PhotoDevelopRangeMaskDialogV1.tsx';
 
 import type { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
+import type { usePhotoDevelopSettingsCurrentV1 } from './use-photo-develop-settings-current-v1.ts';
 import { useCapturedMethod } from './use-lightscaper-captured-method.ts';
 import { photoDevelopSettingsCopy } from '../../../i18n/lightscaper-develop-settings-copy.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
@@ -48,11 +50,14 @@ const PhotoDevelopRepairSpotsDialogV1 = lazy(() => import('./PhotoDevelopRepairS
 type Props = Omit<PhotoDevelopWorkspacePropsV2, 'execute' | 'loadProxy'> & {
 	readonly executeLegacyDevelop?: ExecutePhotoDevelopV2;
 	readonly legacySettings?: ReturnType<typeof usePhotoDevelopSettingsV2>;
+	readonly settingsCurrent?: ReturnType<typeof usePhotoDevelopSettingsCurrentV1>;
 } & (Readonly<{ profile: 'legacy2'; execute: ExecutePhotoDevelopV2; loadProxy: PhotoDevelopPreviewPropsV2['loadProxy'] }>
 	| Readonly<{ profile: 'current3'; execute: ExecutePhotoDevelopCurrentV1; loadProxy: PhotoDevelopPreviewPropsCurrentV1['loadProxy'] }>);
 export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	if (props.profile !== 'legacy2' && props.profile !== 'current3') throw new TypeError('Unknown Develop Workspace profile.');
-	const profile = props.profile, settings = profile === 'current3' ? props.legacySettings : props.settings;
+	const profile = props.profile, legacySettings = profile === 'current3' ? props.legacySettings : props.settings;
+	const currentSettings = profile === 'current3' ? props.settingsCurrent : undefined, settings = currentSettings ?? legacySettings;
+	const currentSettingsOwner = currentSettings?.owner, legacySettingsOwner = legacySettings?.owner;
 	const { beforeOpen, photoId, readPreview, loadProxy, withOriginalFrame, importCubeLut: importMethod, registerRetirement, registerDemandRetirement } = props;
 	const selectedGeneration = props.generation, settingsOwner = settings?.owner, settingsDrain = settings?.drain;
 	const [lifecycle, setLifecycle] = useState(0);
@@ -139,8 +144,32 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const close = () => { if (!mounted()) return; void retire().catch(() => undefined); Reflect.apply(props.onClose, props, []); };
 	const current = () => mounted() && rendered.current === snapshot;
 	const importing = tasks.importing || (importState.tasks === tasks && importState.pending);
-	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !settings?.snapshot.busy && !importing) void action(); };
+	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !settingsOwner?.snapshot().busy && !importing) void action(); };
 	const document = snapshot.document, draft = snapshot.draft;
+	const withSettingsWrite = (action: () => Promise<unknown>, isCurrent: () => boolean): Promise<unknown> => {
+		const sourceCurrent = () => mounted() && !tasks.closing && owner.snapshot().document === document && owner.snapshot().draft === draft;
+		if (profile !== 'current3' || !document || !draft || snapshot.dirty || tasks.importing || !sourceCurrent() || !isCurrent()) return Promise.resolve(null);
+		tasks.importing = true; onImportPending(true);
+		const stop = new AbortController();
+		const work = Promise.resolve().then(async () => {
+			await joinPhotoLibraryRetirementV1(collect(tasks.previews));
+			Reflect.apply(AbortSignal.prototype.throwIfAborted, stop.signal, []);
+			if (!sourceCurrent() || !isCurrent()) return null;
+			return action();
+		}).finally(async () => {
+			try {
+				// A cancelled preparation also resumes an unchanged clean Source.
+				// A replaced owner or dirty draft never receives this reload.
+				if (sourceCurrent() && !owner.snapshot().dirty) await owner.reload();
+			} finally { tasks.importing = false; onImportPending(false); unregister(); }
+		});
+		const joined = work.then(() => undefined, (error: unknown) => {
+			if (!stop.signal.aborted || !Object.is(stop.signal.reason, error)) throw error;
+		});
+		void joined.catch(() => undefined);
+		const unregister = registerImportRetirement(() => { stop.abort(); return joined; });
+		return work;
+	};
 	const [legacyProof, setLegacyProof] = useState<Readonly<{ owner: typeof owner; document: typeof document; draft: typeof draft }> | null>(null);
 	const legacyToken = useRef(legacyProof); legacyToken.current = legacyProof;
 	const invalidateLegacy = () => { legacyToken.current = null; setLegacyProof(null); };
@@ -149,7 +178,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const edit = (value: ImageDevelopStateCurrentV1) => { if (profile === 'current3') (owner as PhotoLibraryDevelopWorkflowCurrentV1).edit(value); else (owner as PhotoLibraryDevelopWorkflowV2).edit(normalizeImageDevelopStateV1OrV2(value)); };
 	const Preview = (profile === 'current3' ? PhotoDevelopPreviewCurrentV1 : PhotoDevelopPreviewV2) as ComponentType<PhotoDevelopPreviewPropsCurrentV1>;
 	useEffect(() => {
-		if (profile !== 'current3' || !executeLegacyDevelop || !settingsOwner || !document || !draft || draft.processVersion === 3) return;
+		if (profile !== 'current3' || currentSettingsOwner || !executeLegacyDevelop || !legacySettingsOwner || !document || !draft || draft.processVersion === 3) return;
 		const capturedDocument = document, capturedDraft = draft, stop = new AbortController(); let active = true;
 		void executeLegacyDevelop(async value => {
 			const context = capturePhotoDevelopExecutionContextV2(value, value.signal), acquired = await context.acquire();
@@ -162,7 +191,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 			}
 		}, stop.signal).catch(() => undefined);
 		return () => { active = false; stop.abort(); legacyToken.current = null; };
-	}, [profile, executeLegacyDevelop, settingsOwner, owner, document, draft]);
+	}, [profile, executeLegacyDevelop, currentSettingsOwner, legacySettingsOwner, owner, document, draft]);
 	const busy = snapshot.busy || settings?.snapshot.busy === true || importing, disabled = busy || !document;
 	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush' | 'masks' | 'repairs';
 	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
@@ -238,7 +267,14 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 				{snapshot.receipt.notices.includes('cleanup-failed') && <p>{messages.cleanupFailed}</p>}
 				{snapshot.notice === 'refresh-failed' && <p>{messages.refreshFailed}</p>}</div>}
 			{document && draft && <>
-				{settings && legacyEligible && legacyDraft && catalogId && <PhotoDevelopSettingsMenuV2 locale={props.locale} owner={settings.owner} snapshot={settings.snapshot}
+				{currentSettings && catalogId && <PhotoDevelopSettingsMenuCurrentV1 locale={props.locale} owner={currentSettings.owner} snapshot={currentSettings.snapshot}
+					source={{ schemaVersion: 3, catalogId, photoId: document.photoId, versionId: document.versionId, revision: document.revision, develop: draft }}
+					selectedIds={props.selectedIds ?? [document.photoId]} disabled={busy} dirty={snapshot.dirty}
+						isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} onChanged={() => owner.reload()} withWritePreviewRetirement={withSettingsWrite}
+					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
+						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
+					localAdjustments={{ onOpen: openLocal }} repairs={{ available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } }} />}
+				{!currentSettings && legacySettings && legacyEligible && legacyDraft && catalogId && <PhotoDevelopSettingsMenuV2 locale={props.locale} owner={legacySettings.owner} snapshot={legacySettings.snapshot}
 					source={{ schemaVersion: 2, catalogId, photoId: document.photoId, versionId: document.versionId, revision: document.revision, develop: legacyDraft }}
 					selectedIds={props.selectedIds ?? [document.photoId]} disabled={busy} dirty={snapshot.dirty}
 					isCurrent={() => mounted() && owner.snapshot().document === document && (profile === 'legacy2'
@@ -246,7 +282,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
 						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
 					localAdjustments={{ onOpen: openLocal }} repairs={profile === 'current3' ? { available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } } : undefined} />}
-				{(!settings || !legacyEligible) && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale).menu}</summary>
+				{(!settings || !currentSettings && !legacyEligible) && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale, profile).menu}</summary>
 					<PhotoDevelopLocalAdjustmentsMenuV1 locale={props.locale} disabled={busy} isCurrent={current} localAdjustments={{ onOpen: openLocal }}
 						resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
 							onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
@@ -257,7 +293,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 				<button type="button" disabled={busy || snapshot.dirty || document.activeVersionId === document.versionId}
 					onClick={() => { run(() => owner.apply({ type: 'activate-version', versionId: document.versionId })); }}>{messages.useVersion}</button>
 				<div className="lightscaper-develop-layout"><Preview {...props} {...previewSource} registerRetirement={registerPreviewRetirement} develop={draft} messages={messages} revision={document.revision} resolution={selectedResolution.value}
-					maskOverlay={selectedOverlay?.selection} maskOverlayMode={selectedOverlay?.mode} suspended={brushCurrent} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
+					maskOverlay={selectedOverlay?.selection} maskOverlayMode={selectedOverlay?.mode} suspended={brushCurrent || profile === 'current3' && importing} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
 					<PhotoDevelopEffectsV2 effects={draft.effects} owner={owner} messages={messages} disabled={busy}
 						isCurrent={() => mounted() && owner.snapshot().document === document} importCubeLut={importCubeLut}
 						onImportPending={onImportPending} registerImportRetirement={registerImportRetirement} /></div>
@@ -307,8 +343,12 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 						onApply={applyLocal} onClose={closeLocal} />)}
 			<div className="lightscaper-develop-actions"><button type="button" disabled={disabled || !snapshot.dirty} onClick={() => { run(async () => {
 				const syncLegacy = legacyEligible; invalidateLegacy(); const receipt = await owner.save(messages.editLabel);
-				if (receipt && mounted() && catalogId && syncLegacy && receipt.snapshot.develop.processVersion !== 3) await settingsOwner?.syncAcknowledged({ schemaVersion: 2, catalogId,
-					photoId: receipt.snapshot.photoId, versionId: receipt.snapshot.versionId, revision: receipt.snapshot.revision, develop: receipt.snapshot.develop }, photoDevelopSettingsCopy(props.locale).autoLabel);
+				if (receipt && mounted() && catalogId) {
+					if (currentSettingsOwner) await currentSettingsOwner.syncAcknowledged({ schemaVersion: 3, catalogId, photoId: receipt.snapshot.photoId,
+						versionId: receipt.snapshot.versionId, revision: receipt.snapshot.revision, develop: receipt.snapshot.develop }, photoDevelopSettingsCopy(props.locale, profile).autoLabel);
+					else if (syncLegacy && receipt.snapshot.develop.processVersion !== 3) await legacySettingsOwner?.syncAcknowledged({ schemaVersion: 2, catalogId,
+						photoId: receipt.snapshot.photoId, versionId: receipt.snapshot.versionId, revision: receipt.snapshot.revision, develop: receipt.snapshot.develop }, photoDevelopSettingsCopy(props.locale).autoLabel);
+				}
 			}); }}>{messages.save}</button>
 				<button type="button" disabled={disabled || !snapshot.dirty} onClick={() => { if (current()) owner.discard(); }}>{messages.discard}</button>
 				<button type="button" disabled={busy || snapshot.dirty} onClick={() => { run(() => owner.open(props.photoId, document?.versionId)); }}>{messages.reload}</button>

@@ -96,7 +96,7 @@ test('Current App keeps a retained Develop menu handler retired across actual re
 });
 
 
-test('unrepaired Current App keeps the genuine legacy settings proof live across its own busy render', async () => {
+test('unrepaired Current App keeps genuine selected settings Copy delivery live across its own busy render', async () => {
 	const native = mediaRestoreFixture(), seeded = await seedCurrentAppPhoto(native.factory, currentAppLocks());
 	const preparation = await createPhotoLibrarySessionCurrentV1(seeded.options);
 	try {
@@ -111,26 +111,28 @@ test('unrepaired Current App keeps the genuine legacy settings proof live across
 	const observed: { signal?: AbortSignal; calls: number; nativeReads: Promise<unknown>[] } = { calls: 0, nativeReads: [] };
 	const rendering: CommitObservation = { commits: 0 };
 	const sessions: Awaited<ReturnType<typeof createPhotoLibrarySessionCurrentV1>>[] = [];
-	const copy = bundledLightscaperEditorCopyForLocale('en'), settings = photoDevelopSettingsCopy('en');
+	const copy = bundledLightscaperEditorCopyForLocale('en'), settings = photoDevelopSettingsCopy('en', 'current3');
 	const props: LightscaperAppPropsCurrentV1 = { locale: 'en', createSession: async () => {
-		const session = await createPhotoLibrarySessionCurrentV1(seeded.options), legacy = session.legacyDevelop!;
-		sessions.push(session);
-		const read = legacy.read;
-		Object.defineProperty(session, 'legacyDevelop', { configurable: true, value: Object.freeze({ ...legacy,
-			async read(request: Parameters<typeof read>[0], options: Parameters<typeof read>[1]) {
-				observed.calls++; observed.signal ??= options?.signal;
-				// Invoke the genuine complete-Photo reader with its real receiver.
-				// Only its delivery continuation is held across the App render.
-				const nativeRead = Reflect.apply(read, legacy, [request, options]) as ReturnType<typeof read>;
-				const outcome = nativeRead.then(value => ({ ok: true as const, value }), error => ({ ok: false as const, error }));
-				observed.nativeReads.push(outcome); await held;
-				const result = await outcome; if (!result.ok) throw result.error; return result.value;
+		const session = await createPhotoLibrarySessionCurrentV1(seeded.options), port = session.develop, child = port.settingsCurrent;
+		sessions.push(session); assert.ok(child, 'The actual Current settings child is available on an unrepaired native Photo.');
+		const copySelected = child.copySelected;
+		const selected = Object.freeze({ ...child,
+			async copySelected(this: unknown, request: Parameters<typeof copySelected>[0], options: Parameters<typeof copySelected>[1]) {
+				assert.equal(this, session.develop.settingsCurrent); observed.calls++; observed.signal ??= options?.signal;
+				// Invoke the actual selected source reader with its real receiver;
+				// preserve the exact issued packet and hold only its delivery.
+				const nativeRead = Reflect.apply(copySelected, child, [request, options]) as ReturnType<typeof copySelected>;
+				const outcome = nativeRead.then(value => ({ ok: true as const, value }), (error: unknown) => ({ ok: false as const, error }));
+				observed.nativeReads.push(outcome); const result = await outcome; await held;
+				if (!result.ok) throw result.error;
+				assert.equal(result.value.schemaVersion, 3); assert.equal(result.value.develop.processVersion, 2); return result.value;
 			},
-		}) });
+		});
+		Object.defineProperty(session, 'develop', { configurable: true, value: Object.freeze({ ...port, settingsCurrent: selected }) });
 		return session;
 	}, loadDevelopProxyRuntime: async (source, maskSource) => createPhotoDevelopRenderRuntimeV3({ source, ...(maskSource ? { maskSource } : {}) }) };
-	const mounted = await mountCurrentApp(() => <CommitBoundary observation={rendering}><Profiler id="legacy-settings-proof" onRender={() => {
-		if (++rendering.commits > 50) throw new Error('The genuine legacy settings proof exceeded 50 App commits.');
+	const mounted = await mountCurrentApp(() => <CommitBoundary observation={rendering}><Profiler id="current-settings-copy" onRender={() => {
+		if (++rendering.commits > 50) throw new Error('The genuine Current selected Copy exceeded 50 App commits.');
 	}}><LightscaperAppCurrentV1 {...props} /></Profiler></CommitBoundary>, async () => { await Promise.all(sessions.map(session => session.close())); });
 	const button = (name: string) => { const found = mounted.dom.container.querySelectorAll('button').find(value => value.textContent === name); assert.ok(found, name); return found; };
 	const click = async (name: string) => { const value = button(name); await act(async () => { reactProps(value).onClick?.({ currentTarget: value }); await settle(); }); };
@@ -139,13 +141,18 @@ test('unrepaired Current App keeps the genuine legacy settings proof live across
 		await waitFor(async () => { await act(async () => { await settle(); }); return mounted.dom.find('[data-photo-id]') !== null; }, 'unrepaired actual selected library');
 		const card = mounted.dom.one('[data-photo-id]'); await act(async () => { reactProps(card).onClick?.({ ctrlKey: false, metaKey: false, shiftKey: false }); });
 		await click(photoDevelopMenuLabel('en'));
-		await waitFor(async () => { await act(async () => { await settle(); }); return rendering.failure !== undefined || observed.calls > 0; }, 'genuine legacy proof reader entry');
-		assert.equal(rendering.failure, undefined, 'the genuine legacy settings proof must not restart across busy renders');
-		await act(async () => { await settle(); });
-		assert.ok(observed.signal); assert.equal(observed.signal.aborted, false, 'the same settings owner must survive the action busy render');
-		assert.equal(observed.calls, 1); assert.equal(mounted.dom.container.querySelectorAll('button').some(value => value.textContent === settings.copy), false);
-		release();
-		await waitFor(async () => { await act(async () => { await settle(); }); return mounted.dom.container.querySelectorAll('button').some(value => value.textContent === settings.copy && !reactProps(value).disabled); }, 'genuine legacy settings after joined proof');
-		assert.equal(observed.calls, 1);
+		await waitFor(async () => { await act(async () => { await settle(); }); return mounted.dom.container.querySelectorAll('button').some(value => value.textContent === settings.copy && !reactProps(value).disabled); }, 'genuine Current settings menu');
+		await click(settings.copy); await click(settings.confirmCopy);
+		await waitFor(async () => { await act(async () => { await settle(); }); return rendering.failure !== undefined || observed.calls > 0; }, 'actual selected Copy reader entry');
+		assert.equal(rendering.failure, undefined, 'The selected settings owner must not restart across busy renders.');
+		await Promise.all(observed.nativeReads); await act(async () => { await settle(); });
+		assert.ok(observed.signal); assert.equal(observed.signal.aborted, false, 'The same settings owner survives its action busy render.');
+		assert.equal(observed.calls, 1); assert.equal(mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied), false);
+		assert.ok(button(settings.confirmCopy), 'The child dialog awaits joined actual packet delivery.'); release();
+		await waitFor(async () => { await act(async () => { await settle(); }); return rendering.failure !== undefined
+			|| mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied); }, 'selected Packet3 clipboard publication');
+		assert.equal(rendering.failure, undefined); assert.ok(rendering.commits <= 50); assert.equal(observed.calls, 1);
+		assert.equal(observed.signal.aborted, false); assert.equal(mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied), true);
+		assert.equal(mounted.dom.container.querySelectorAll('button').some(value => value.textContent === settings.confirmCopy), false);
 	} finally { release(); await Promise.all(observed.nativeReads); await mounted.dispose(); }
 });

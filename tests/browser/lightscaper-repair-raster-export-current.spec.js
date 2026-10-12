@@ -115,7 +115,7 @@ async function fixture(page, locale, withSecond = false) {
 	const program = await compileNativeImageHandoffScript('repair-export-custody.js', fileURLToPath(new URL('./helpers/lightscaper-repair-export-reference.ts', import.meta.url)));
 	expect(program.assets).toEqual([]); await page.route(`**${PROGRAM}`, route => route.fulfill({ contentType: 'text/javascript', body: program.source }));
 	const errors = []; page.on('pageerror', error => { errors.push(error.message); });
-	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), repairs = photoDevelopRepairSpotsCopy(locale), settings = photoDevelopSettingsCopy(locale);
+	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), repairs = photoDevelopRepairSpotsCopy(locale), settings = photoDevelopSettingsCopy(locale, 'current3');
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
 	await page.goto(`${origin}/${locale}/`); const app = named(page, 'region', 'Lightscaper'); await expect(app).toBeVisible();
 	await expect(page.getByRole('dialog')).toHaveCount(0); await menu(copy.photoFileMenu); await keyboard(page, named(app, 'button', copy.photoImportPhotos));

@@ -23,7 +23,7 @@ import { usePhotoFramescaperHandoffEntry } from './use-photo-framescaper-handoff
 import { useCapturedMethod } from './use-lightscaper-captured-method.ts';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntryV2 } from './use-photo-develop-entry-v2.ts';
-import { usePhotoDevelopSettingsV2 } from './use-photo-develop-settings-v2.ts';
+import { usePhotoDevelopSettingsForProfileV1 } from './use-photo-develop-settings-kernel-v1.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { lightscaperRestoreCopy } from '../../../i18n/lightscaper-restore-copy.ts';
 import { usePhotoLibraryRestore } from './use-photo-library-restore.ts';
@@ -120,7 +120,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 	const savedGeneration = useMemo(() => Object.freeze({ generation, loadSavedFilterRuntime }), [generation, loadSavedFilterRuntime]);
 	const developGeneration = generation;
 	const developSurface = usePhotoDevelopEntryV2(developGeneration), developEntry = developSurface.entry, developVisible = developEntry !== null;
-	const developSettings = usePhotoDevelopSettingsV2({ generation: developGeneration, execute: library.executeLegacyDevelop });
+	const developSettings = usePhotoDevelopSettingsForProfileV1(profile, { generation: developGeneration, execute: profile === 'current3' ? library.executeDevelop : library.executeLegacyDevelop });
 	const restore = usePhotoLibraryRestore({ loadRuntime: loadRestoreRuntime, retireAndJoin: () => {
 		const presentation = joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]);
 		void presentation.catch(() => undefined);
