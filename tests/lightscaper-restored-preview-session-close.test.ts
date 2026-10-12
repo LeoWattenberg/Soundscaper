@@ -8,6 +8,7 @@ import { transact, transactionCompletion } from '../src/common/editor/storage/in
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
 import { exportPhotoCatalogArchiveV5 } from '../src/lightscaper/archive/catalog-archive-export-v5.ts';
 import { PhotoCatalogRepositoryV2 } from '../src/lightscaper/catalog/photo-catalog-repository-v2.ts';
+import { PhotoCatalogRepositoryKernelV2 } from '../src/lightscaper/catalog/photo-catalog-repository-kernel-v2.ts';
 import { PHOTO_CATALOG_STORES } from '../src/lightscaper/catalog/repository-types.ts';
 import { createPhotoLibraryRestoreRuntimeV2 } from '../src/lightscaper/photo-library-restore-runtime-v2.ts';
 import { createPhotoLibrarySessionV3 } from '../src/lightscaper/photo-library-session-runtime-v3.ts';
@@ -119,9 +120,9 @@ async function heldRestoredCacheRead(injectFailure: boolean) {
 		const state = { reads: 0, otherReads: 0, mediaCloses: 0, catalogCloses: 0 }, events: string[] = [];
 		const loadDescriptor = Object.getOwnPropertyDescriptor(OpfsRepository.prototype, 'loadBinaryRecord');
 		const mediaDescriptor = Object.getOwnPropertyDescriptor(PhotoMediaStoreV1.prototype, 'close');
-		const catalogDescriptor = Object.getOwnPropertyDescriptor(PhotoCatalogRepositoryV2.prototype, 'close');
+		const catalogDescriptor = Object.getOwnPropertyDescriptor(PhotoCatalogRepositoryKernelV2.prototype, 'close');
 		assert.ok(loadDescriptor); assert.ok(mediaDescriptor); assert.ok(catalogDescriptor);
-		const load = OpfsRepository.prototype.loadBinaryRecord, closeMedia = PhotoMediaStoreV1.prototype.close, closeCatalog = PhotoCatalogRepositoryV2.prototype.close;
+		const load = OpfsRepository.prototype.loadBinaryRecord, closeMedia = PhotoMediaStoreV1.prototype.close, closeCatalog = PhotoCatalogRepositoryKernelV2.prototype.close;
 		Object.defineProperty(OpfsRepository.prototype, 'loadBinaryRecord', { ...loadDescriptor,
 			value: async function(this: OpfsRepository, ...args: Parameters<OpfsRepository['loadBinaryRecord']>) {
 				const body = await Reflect.apply(load, this, args) as Blob;
@@ -133,8 +134,8 @@ async function heldRestoredCacheRead(injectFailure: boolean) {
 			} });
 		Object.defineProperty(PhotoMediaStoreV1.prototype, 'close', { ...mediaDescriptor,
 			value: function(this: PhotoMediaStoreV1) { state.mediaCloses++; events.push('media-close'); return Reflect.apply(closeMedia, this, []) as Promise<void>; } });
-		Object.defineProperty(PhotoCatalogRepositoryV2.prototype, 'close', { ...catalogDescriptor,
-			value: function(this: PhotoCatalogRepositoryV2) { state.catalogCloses++; events.push('catalog-close'); return Reflect.apply(closeCatalog, this, []) as Promise<void>; } });
+		Object.defineProperty(PhotoCatalogRepositoryKernelV2.prototype, 'close', { ...catalogDescriptor,
+			value: function(this: PhotoCatalogRepositoryKernelV2) { state.catalogCloses++; events.push('catalog-close'); return Reflect.apply(closeCatalog, this, []) as Promise<void>; } });
 		const preview = outcome(session.readPreview(value.photo.id, 'thumbnail'));
 		let closing: ReturnType<typeof outcome<void>> | undefined;
 		try {
@@ -154,7 +155,7 @@ async function heldRestoredCacheRead(injectFailure: boolean) {
 			release.resolve(); await preview; await (closing ?? outcome(session.close()));
 			Object.defineProperty(OpfsRepository.prototype, 'loadBinaryRecord', loadDescriptor);
 			Object.defineProperty(PhotoMediaStoreV1.prototype, 'close', mediaDescriptor);
-			Object.defineProperty(PhotoCatalogRepositoryV2.prototype, 'close', catalogDescriptor);
+			Object.defineProperty(PhotoCatalogRepositoryKernelV2.prototype, 'close', catalogDescriptor);
 		}
 		const reopened = await createPhotoLibrarySessionV3(value.options);
 		try {

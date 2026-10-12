@@ -25,8 +25,8 @@ export default function LightscaperBootstrap(props: LightscaperAppPropsCurrentV1
 			} });
 	}, [props.locale]);
 	const loadRestoreRuntime = useCallback(async () => {
-		const runtime = await import('../photo-library-restore-runtime-v2.ts');
-		return runtime.createPhotoLibraryRestoreRuntimeV2({ name: bundledSiteCopyForLocale(props.locale).workspacePhoto });
+		const runtime = await import('../photo-library-restore-runtime-current-v1.ts');
+		return runtime.createPhotoLibraryRestoreRuntimeCurrentV1({ name: bundledSiteCopyForLocale(props.locale).workspacePhoto });
 	}, [props.locale]);
 	const loadBackupSaveRuntime = useCallback(async () => {
 		const runtime = await import('../photo-library-backup-save-runtime.ts');

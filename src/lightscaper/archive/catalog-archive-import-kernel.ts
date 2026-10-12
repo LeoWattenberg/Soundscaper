@@ -21,6 +21,13 @@ import { readPhotoSmartCollectionPackEntryV1 } from './smart-collection-pack-ent
 import { assertPhotoStackQuerySignalV1 } from '../catalog/photo-stack-query-signal-v1.ts';
 import type { PhotoDocumentV1 } from '../catalog/types.ts';
 import type { PhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
+import type { PhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
+import type { PhotoDevelopPresetRowCurrentV1 } from '../storage/photo-develop-preset-row-current-v1.ts';
+import { createPhotoCatalogArchiveReachabilityCurrentV1 } from './catalog-archive-reachability-current-v1.ts';
+import { readPhotoCatalogPackEntryV4 } from './catalog-pack-entry-v4.ts';
+import { readPhotoDevelopPresetPackEntryV3 } from './develop-preset-pack-entry-v3.ts';
+import { normalizePhotoCatalogArchiveV7, assertPhotoCatalogPackManifestV7,
+	type PhotoCatalogArchiveDevelopPresetPackV7 } from './catalog-archive-contract-v7.ts';
 import type { PhotoDevelopPresetRowV2 } from '../storage/photo-develop-preset-row-v2.ts';
 import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cube-lut-v27.ts';
 import { createPhotoCubeLutReachabilityV1 } from '../catalog/photo-cube-lut-reachability-v1.ts';
@@ -61,39 +68,54 @@ export type PhotoCatalogArchiveStageFactoryV6 = (root: PhotoCatalogRootV1,
 	developPresetPack: PhotoCatalogArchivePresetHeaderV5 | null,
 	lutResources: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[],
 	maskRasters: readonly Readonly<PhotoCatalogArchiveMaskRasterResourceV6>[]) => Promise<PhotoCatalogArchiveStageV6>;
-type KernelFactory = (...args: Parameters<PhotoCatalogArchiveStageFactoryV6>) => Promise<PhotoCatalogArchiveStageV5 | PhotoCatalogArchiveStageV6>;
+export interface PhotoCatalogArchiveStageV7 extends Omit<PhotoCatalogArchiveStageV6, 'writePhoto' | 'writeDevelopPresets'> {
+	writePhoto(photo: PhotoDocumentCurrentV1, original: AsyncIterable<Uint8Array>): Promise<void>;
+	writeDevelopPresets(row: PhotoDevelopPresetRowCurrentV1): Promise<void>;
+}
+export type PhotoCatalogArchivePresetHeaderV7 = PhotoCatalogArchivePresetHeaderV5 | Readonly<PhotoCatalogArchiveDevelopPresetPackV7>;
+export type PhotoCatalogArchiveStageFactoryV7 = (root: PhotoCatalogRootV1,
+	savedCollectionState: Readonly<PhotoSmartCollectionsStateV1> | null,
+	developPresetPack: PhotoCatalogArchivePresetHeaderV7 | null,
+	lutResources: readonly Readonly<PhotoCatalogArchiveLutResourceV5>[],
+	maskRasters: readonly Readonly<PhotoCatalogArchiveMaskRasterResourceV6>[]) => Promise<PhotoCatalogArchiveStageV7>;
+type KernelFactory = PhotoCatalogArchiveStageFactoryV5 | PhotoCatalogArchiveStageFactoryV6 | PhotoCatalogArchiveStageFactoryV7;
 type AdmittedDocument = Omit<PhotoCatalogArchiveDocumentV6, 'schemaVersion' | 'developPresetPack'> & {
-	readonly schemaVersion: 5 | 6; readonly developPresetPack: PhotoCatalogArchivePresetHeaderV5 | null };
+	readonly schemaVersion: 5 | 6 | 7; readonly developPresetPack: PhotoCatalogArchivePresetHeaderV7 | null };
 
 /** Preserve archived values; this codec neither remaps identities nor owns a database/writer. */
 export async function importPhotoCatalogArchiveKernel(input: ScapeProjectInput, createStage: KernelFactory,
-	options: Readonly<{ signal?: AbortSignal; readerFactories?: ScapeProjectInputReaderFactories }>, maximumVersion: 5 | 6): Promise<PhotoCatalogRootV1> {
+	options: Readonly<{ signal?: AbortSignal; readerFactories?: ScapeProjectInputReaderFactories }>, maximumVersion: 5 | 6 | 7): Promise<PhotoCatalogRootV1> {
+	if (maximumVersion !== 5 && maximumVersion !== 6 && maximumVersion !== 7) throw new RangeError('Unsupported fixed archive import version.');
 	if (typeof createStage !== 'function') throw new TypeError('A provisional photo catalog destination is required.');
 	const admitted = readClosedDomainRecord(options, 'archive import options', ['signal', 'readerFactories'], []);
 	const signal = Object.hasOwn(admitted, 'signal') ? readClosedDomainField(admitted, 'signal', 'archive import options') as AbortSignal | undefined : undefined;
 	if (signal !== undefined) assertPhotoStackQuerySignalV1(signal);
 	const readers = Object.hasOwn(admitted, 'readerFactories') ? readClosedDomainField(admitted, 'readerFactories', 'archive import options') as ScapeProjectInputReaderFactories : undefined;
-	let stage: PhotoCatalogArchiveStageV6 | undefined, rollback: (() => Promise<void>) | undefined, published = false;
+	let stage: PhotoCatalogArchiveStageV7 | undefined, rollback: (() => Promise<void>) | undefined, published = false;
 	try {
 		const root = await withScapeProjectInput(input, signal, async entries => {
 			const envelope = await readScapeArchiveEnvelope(entries, { maximumProjectBytes: LIMITS.maximumDocumentBytes }, signal);
 			verifyScapeAssetBytes(new TextEncoder().encode(envelope.projectText), envelope.manifest.project, 'photo catalog document');
 			const admittedArchive = admitArchive(parseOpaqueScapeProjectDocument(envelope.projectText), envelope.manifest, maximumVersion);
 			const { document, legacy } = admittedArchive;
-			checkSignal(signal); const acquired = await createStage(document.catalog, document.savedCollectionState, document.developPresetPack, document.lutResources, document.maskRasters);
+			checkSignal(signal); const acquired = await Reflect.apply(createStage, undefined, [document.catalog, document.savedCollectionState,
+				document.developPresetPack, document.lutResources, document.maskRasters]) as PhotoCatalogArchiveStageV5 | PhotoCatalogArchiveStageV6 | PhotoCatalogArchiveStageV7;
 			if (!acquired) throw new TypeError('Photo catalog stage is incomplete.');
 			const owner = acquired, leave = owner.rollback;
 			if (typeof leave === 'function') rollback = () => Reflect.apply(leave, owner, []) as Promise<void>;
-			const target = captureStage(owner, leave, document.schemaVersion === 6);
+			const target = captureStage(owner, leave, document.schemaVersion >= 6);
 			checkSignal(signal);
-			stage = target; const reachability = createPhotoCubeLutReachabilityV1(), masks = document.schemaVersion === 6 ? createPhotoMaskRasterReachabilityV1() : undefined; const identities = new PhotoCatalogArchiveIdentityLedger(), photos = new PhotoCatalogArchiveIdentityGuard(document.catalog, identities);
+			stage = target; const reachability = createPhotoCubeLutReachabilityV1(), masks = document.schemaVersion === 6 ? createPhotoMaskRasterReachabilityV1() : undefined;
+			const current = document.schemaVersion === 7 ? createPhotoCatalogArchiveReachabilityCurrentV1() : undefined;
+			const identities = new PhotoCatalogArchiveIdentityLedger(), photos = new PhotoCatalogArchiveIdentityGuard(document.catalog, identities);
 			const saved = new PhotoCatalogArchiveSavedCollectionGuardV3(document.catalog, document.savedCollectionState);
 			const assets = new Map(envelope.manifest.assets.map(asset => [asset.sourceId, asset]));
 			for (const pack of document.packs) {
 				const entry = envelope.entryByName.get(pack.entry), asset = assets.get(pack.id);
 				if (!entry || !asset) throw new Error('Photo archive pack is unavailable.');
-				const count = await (legacy ? readPhotoCatalogPackEntryV1 : document.schemaVersion === 6 ? readPhotoCatalogPackEntryV3 : readPhotoCatalogPackEntryV2)(entry, asset, envelope.expandedByteBudget, async (photo, original) => {
-					photos.admit(photo); reachability.addPhoto(photo); masks?.addPhoto(photo); await target.writePhoto(photo, original);
+				const count = await (legacy ? readPhotoCatalogPackEntryV1 : document.schemaVersion === 7 ? readPhotoCatalogPackEntryV4 : document.schemaVersion === 6 ? readPhotoCatalogPackEntryV3 : readPhotoCatalogPackEntryV2)(entry, asset, envelope.expandedByteBudget, async (photo: PhotoDocumentCurrentV1, original) => {
+					photos.admit(photo); if (current) current.addPhoto(photo); else { reachability.addPhoto(photo); masks?.addPhoto(photo); }
+					await target.writePhoto(photo, original);
 				}, signal);
 				if (count !== pack.photoCount) throw new RangeError('Photo archive pack differs from its declared record count.');
 			}
@@ -120,15 +142,17 @@ export async function importPhotoCatalogArchiveKernel(input: ScapeProjectInput, 
 			if (pack) {
 				const entry = envelope.entryByName.get(pack.entry), asset = assets.get(pack.id);
 				if (!entry || !asset) throw new Error('Develop preset archive pack is unavailable.');
-				await (legacy ? readPhotoDevelopPresetPackEntryV1 : readPhotoDevelopPresetPackEntryV2)(entry, asset, envelope.expandedByteBudget, document.catalog.id, async row => {
+				await (legacy ? readPhotoDevelopPresetPackEntryV1 : document.schemaVersion === 7 ? readPhotoDevelopPresetPackEntryV3 : readPhotoDevelopPresetPackEntryV2)(entry, asset, envelope.expandedByteBudget, document.catalog.id, async (row: PhotoDevelopPresetRowCurrentV1) => {
 					if (row.schemaVersion !== pack.rowSchemaVersion || row.revision !== pack.revision || row.presets.length !== pack.presetCount) throw new Error('Develop preset row differs from its archive header.');
-					for (const preset of row.presets) { reachability.addPreset(preset); masks?.addPreset(preset); }
+					if (current) current.addPresetRow(row, document.catalog.id);
+					else for (const preset of row.presets) { reachability.addPreset(preset); masks?.addPreset(preset); }
 					await target.writeDevelopPresets(row);
 				}, signal);
 			}
-			const reached = reachability.finish();
+			const currentReferences = current?.finish(), reached = currentReferences?.luts ?? reachability.finish();
 			if (JSON.stringify(reached) !== JSON.stringify(document.lutResources.map(resource => resource.reference))) throw new TypeError('Archive declared LUT resources differ from complete reachable custody.');
 			if (masks && JSON.stringify(masks.finish()) !== JSON.stringify(document.maskRasters.map(resource => resource.reference))) throw new TypeError('Archive declared mask resources differ from complete reachable custody.');
+			if (currentReferences && JSON.stringify(currentReferences.brushes) !== JSON.stringify(document.maskRasters.map(resource => resource.reference))) throw new TypeError('Archive declared mask resources differ from complete reachable custody.');
 			for (const resource of document.lutResources) {
 				const entry = envelope.entryByName.get(resource.entry), asset = assets.get(resource.id);
 				if (!entry || !asset) throw new Error('LUT archive resource is unavailable.');
@@ -157,11 +181,12 @@ export async function importPhotoCatalogArchiveKernel(input: ScapeProjectInput, 
 	}
 }
 
-function admitArchive(parsed: unknown, manifest: ScapeManifest, maximumVersion: 5 | 6): Readonly<{ document: AdmittedDocument; legacy: boolean }> {
+function admitArchive(parsed: unknown, manifest: ScapeManifest, maximumVersion: 5 | 6 | 7): Readonly<{ document: AdmittedDocument; legacy: boolean }> {
 	const value = readClosedDomainRecord(parsed, 'catalog archive identity', ['schemaFamily', 'schemaVersion', 'kind', 'id', 'title',
-		'catalog', 'packs', 'stackCount', 'stackPacks', 'savedCollectionState', 'savedCollectionPacks', 'developPresetPack', 'lutResources', ...(maximumVersion === 6 ? ['maskRasters'] : [])], ['schemaFamily', 'schemaVersion']);
+		'catalog', 'packs', 'stackCount', 'stackPacks', 'savedCollectionState', 'savedCollectionPacks', 'developPresetPack', 'lutResources', ...(maximumVersion >= 6 ? ['maskRasters'] : [])], ['schemaFamily', 'schemaVersion']);
 	const version = readClosedDomainField(value, 'schemaVersion', 'catalog archive identity');
-	if (version === 6 && maximumVersion === 6) { const document = normalizePhotoCatalogArchiveV6(parsed); assertPhotoCatalogPackManifestV6(document, manifest); return { document, legacy: false }; }
+	if (version === 7 && maximumVersion === 7) { const document = normalizePhotoCatalogArchiveV7(parsed); assertPhotoCatalogPackManifestV7(document, manifest); return { document, legacy: false }; }
+	if (version === 6 && maximumVersion >= 6) { const document = normalizePhotoCatalogArchiveV6(parsed); assertPhotoCatalogPackManifestV6(document, manifest); return { document, legacy: false }; }
 	if (version === 5) { const document = normalizePhotoCatalogArchiveV5(parsed); assertPhotoCatalogPackManifestV5(document, manifest); return { document: { ...document, maskRasters: [] }, legacy: false }; }
 	const old = version === 1 ? normalizePhotoCatalogArchiveV1(parsed) : version === 2 ? normalizePhotoCatalogArchiveV2(parsed)
 		: version === 3 ? normalizePhotoCatalogArchiveV3(parsed) : normalizePhotoCatalogArchiveV4(parsed);
@@ -182,15 +207,15 @@ function admitArchive(parsed: unknown, manifest: ScapeManifest, maximumVersion: 
 		developPresetPack: header, lutResources: [], maskRasters: [] } };
 }
 
-function captureStage(stage: PhotoCatalogArchiveStageV5 | PhotoCatalogArchiveStageV6, rollback: PhotoCatalogArchiveStageV5['rollback'], requireMasks: boolean): PhotoCatalogArchiveStageV6 {
+function captureStage(stage: PhotoCatalogArchiveStageV5 | PhotoCatalogArchiveStageV6 | PhotoCatalogArchiveStageV7, rollback: PhotoCatalogArchiveStageV5['rollback'], requireMasks: boolean): PhotoCatalogArchiveStageV7 {
 	const photo = stage.writePhoto, stack = stage.writeStack, saved = stage.writeSavedCollection, presets = stage.writeDevelopPresets,
 		lut = stage.writeLut, publish = stage.publish;
 	const mask = requireMasks && 'writeMaskRaster' in stage ? stage.writeMaskRaster : undefined;
 	if ([photo, stack, saved, presets, lut, publish, rollback, ...(requireMasks ? [mask] : [])].some(method => typeof method !== 'function')) throw new TypeError('Photo catalog stage is incomplete.');
-	return Object.freeze({ writePhoto: (...args: Parameters<typeof photo>) => Reflect.apply(photo, stage, args) as Promise<void>,
+	return Object.freeze({ writePhoto: (...args: Parameters<PhotoCatalogArchiveStageV7['writePhoto']>) => Reflect.apply(photo, stage, args) as Promise<void>,
 		writeStack: (...args: Parameters<typeof stack>) => Reflect.apply(stack, stage, args) as Promise<void>,
 		writeSavedCollection: (...args: Parameters<typeof saved>) => Reflect.apply(saved, stage, args) as Promise<void>,
-		writeDevelopPresets: (...args: Parameters<typeof presets>) => Reflect.apply(presets, stage, args) as Promise<void>,
+		writeDevelopPresets: (...args: Parameters<PhotoCatalogArchiveStageV7['writeDevelopPresets']>) => Reflect.apply(presets, stage, args) as Promise<void>,
 		writeLut: (...args: Parameters<typeof lut>) => Reflect.apply(lut, stage, args) as Promise<void>,
 		writeMaskRaster: (...args: Parameters<PhotoCatalogArchiveStageV6['writeMaskRaster']>) => {
 			if (typeof mask !== 'function') return Promise.reject(new TypeError('Legacy destination has no mask transport.'));

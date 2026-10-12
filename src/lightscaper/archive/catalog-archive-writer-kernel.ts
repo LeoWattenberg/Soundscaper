@@ -10,7 +10,7 @@ import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../../common/editor/scape-blo
 import { PHOTO_CATALOG_PACK_ASSET_KIND } from '../../common/editor/scape-photo-catalog-pack.ts';
 import { SCAPE_MIME_TYPE } from '../../common/editor/scape-project-format.ts';
 import type { PhotoCatalogRootV1 } from '../catalog/types.ts';
-import type { PhotoCatalogPackInput as PhotoCatalogPackInputV2, PhotoCatalogPackOptions } from './catalog-pack-codec.ts';
+import type { PhotoCatalogPackInputForProfile, PhotoCatalogPackDocumentProfile, PhotoCatalogPackOptions } from './catalog-pack-codec.ts';
 import { PHOTO_CATALOG_ARCHIVE_LIMITS_V1 as LIMITS, type PhotoCatalogArchiveIdentityGuard, type PhotoCatalogArchivePackV1 } from './catalog-archive-contract.ts';
 import type { PhotoCatalogPackSequence } from './catalog-pack-sequence-kernel.ts';
 
@@ -25,23 +25,23 @@ export interface PhotoCatalogArchiveWrittenResult<Document> {
 export interface PhotoCatalogArchivePackWriter {
 	addPack(descriptor: Pick<ScapeAssetDescriptor, 'sourceId' | 'entry' | 'kind' | 'encoding'>, bytes: AsyncIterable<Uint8Array>): Promise<void>;
 }
-export interface PhotoCatalogArchiveWriterProfile {
-	readonly encoding: string; readonly schemaVersion: 5 | 6; readonly maximumStreamingOutputBytes: number;
-	sequence(photos: Iterable<PhotoCatalogPackInputV2> | AsyncIterable<PhotoCatalogPackInputV2>, identity: PhotoCatalogArchiveIdentityGuard, signal?: AbortSignal): PhotoCatalogPackSequence;
-	encode(photos: AsyncIterable<PhotoCatalogPackInputV2>, options: PhotoCatalogPackOptions): AsyncIterable<Uint8Array>;
+export interface PhotoCatalogArchiveWriterProfile<Profile extends PhotoCatalogPackDocumentProfile = 'legacy2'> {
+	readonly encoding: string; readonly schemaVersion: Profile extends 'current3' ? 7 : 5 | 6; readonly maximumStreamingOutputBytes: number;
+	sequence(photos: Iterable<PhotoCatalogPackInputForProfile<Profile>> | AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>, identity: PhotoCatalogArchiveIdentityGuard, signal?: AbortSignal): PhotoCatalogPackSequence<Profile>;
+	encode(photos: AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>, options: PhotoCatalogPackOptions): AsyncIterable<Uint8Array>;
 }
-export type PhotoCatalogArchivePrepare<Document, Version extends 5 | 6> = (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
+export type PhotoCatalogArchivePrepare<Document, Version extends 5 | 6 | 7> = (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
 	document: Document; text: string; schemaVersion: Version; beforeFinish?: () => Promise<void> }>>;
 const nativeAbort = AbortSignal.prototype.throwIfAborted;
 const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
 const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 
 /** Private STORE/ZIP64 kernel; public profiles fix their codec and framing bound. */
-export async function writePhotoCatalogArchiveKernel<Document>(root: PhotoCatalogRootV1,
-	photos: Iterable<PhotoCatalogPackInputV2> | AsyncIterable<PhotoCatalogPackInputV2>, identity: PhotoCatalogArchiveIdentityGuard,
+export async function writePhotoCatalogArchiveKernel<Document, Profile extends PhotoCatalogPackDocumentProfile>(root: PhotoCatalogRootV1,
+	photos: Iterable<PhotoCatalogPackInputForProfile<Profile>> | AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>, identity: PhotoCatalogArchiveIdentityGuard,
 	prepare: (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
-		document: Document; text: string; schemaVersion: 5 | 6; beforeFinish?: () => Promise<void> }>>,
-	options: PhotoCatalogArchiveExportOptions, profile: PhotoCatalogArchiveWriterProfile, maximumStreamingOutputBytes = profile.maximumStreamingOutputBytes): Promise<PhotoCatalogArchiveWrittenResult<Document>> {
+		document: Document; text: string; schemaVersion: 5 | 6 | 7; beforeFinish?: () => Promise<void> }>>,
+	options: PhotoCatalogArchiveExportOptions, profile: PhotoCatalogArchiveWriterProfile<Profile>, maximumStreamingOutputBytes = profile.maximumStreamingOutputBytes): Promise<PhotoCatalogArchiveWrittenResult<Document>> {
 	const signal = options.signal, writable = options.writable, streaming = Boolean(writable),
 		blobMaximum = options.maximumBlobBytes ?? SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES;
 	if (!Number.isSafeInteger(blobMaximum) || blobMaximum < 1 || blobMaximum > SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES) throw new RangeError('Photo archive Blob maximum must tighten the shared maximum.');
@@ -55,7 +55,7 @@ export async function writePhotoCatalogArchiveKernel<Document>(root: PhotoCatalo
 	const destination = createScapeExportDestination(target, SCAPE_MIME_TYPE, streaming ? maximumStreamingOutputBytes : blobMaximum);
 	const writer = new ZipWriter(destination.target, { dataDescriptor: true, dataDescriptorSignature: true,
 		extendedTimestamp: true, zip64: true, level: 0, useWebWorkers: false, signal });
-	let sequence: PhotoCatalogPackSequence | undefined, expandedBytes = 0;
+	let sequence: PhotoCatalogPackSequence<Profile> | undefined, expandedBytes = 0;
 	const packs: PhotoCatalogArchivePackV1[] = [], assets: ScapeAssetDescriptor[] = [];
 	const packWriter: PhotoCatalogArchivePackWriter = { async addPack(descriptor, bytes) {
 		if (assets.length >= LIMITS.maximumPacks) throw new RangeError('Photo catalog requires too many Scape asset packs.');

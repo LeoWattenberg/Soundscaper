@@ -482,7 +482,8 @@ proxy/full rendering. The native File System Access backup witness is qualified
 in Chromium and remains skipped in Firefox, where that capability is absent.
 Archives 1–5 remain readable; direct schema 5 and pack 2 paths still refuse
 brush references before consuming their originals and join provisional rollback.
-Editable Frame handoff and preset transport retain their brush refusal guards.
+Editable Frame handoff retains its brush refusal guards. Current preset
+transport is covered by the explicit archive 7 route described below.
 Develop's Settings menu now opens an opt-in general mask manager, listing all
 retained graphs, including composed mattes and disabled or unbound brush masks.
 Duplicate creates a fresh graph identity while preserving every node, input,
@@ -612,10 +613,32 @@ Two actual native settings owners also compete for the same row: one receives
 a positive CAS acknowledgment and the other a conflict. Repair-only presets
 retain the target's geometry and local brush, with literal preview/PNG pixels
 and complete native Original, LUT, and brush custody checks.
-Portable preset/backup/restore formats and editable Frame handoff still
-require explicit successors. Direct Frame
-mask-name and repair authoring remain open. This does not close L6; L7–L9
-remain incomplete.
+Current catalog backup and restore now carry complete repaired Photos and
+presets through explicit archive 7, photo pack 4, and preset pack 3 owners.
+The mixed preset row preserves its presence, revision, complete settings,
+authored digests, and sticky schema 3 after the final repaired preset is removed.
+All retained history, redo, snapshots, disabled adjustments, and unused declared
+LUT and brush inputs participate in the combined resource closure. Backup
+checks complete metadata and actual packed-entry capacity before acquiring
+resource bodies, reading Originals, or opening the destination. It authenticates
+bodies serially and checks the final native metadata fences before Close.
+Restore installs the unchanged Original bytes in a freshly allocated native
+media namespace and audits complete photo, preset, LUT, and brush inventories
+before and after promotion and at the final publication acknowledgment.
+Reader and decoder cleanup join before the existing one-pointer publication.
+A known positive native acknowledgment survives late cancellation; corruption
+and rejected publication keep the previous selected library. Wholly legacy
+backups retain their schema 5 or 6 bytes, and archive readers 1–6 remain strict.
+The selected Lightscaper Node regression run passes 1,998 cases in 237 files.
+Eight English/German native workflows pass in each of Chromium and Firefox,
+covering complete repair history, preset-only resources, two reopen cycles,
+actual preset application, late cancellation, and corruption rollback. Their
+independent observations check complete metadata, native Original chunk bytes,
+LUT and brush custody, and literal preview/PNG pixels.
+Editable Frame handoff still requires an explicit Current successor. Direct
+Frame mask-name and repair authoring remain open. This does not close L6;
+L7–L9 remain incomplete, and final inter-slice qualification follows completion
+of the implementation milestones.
 
 ### Exit gate
 

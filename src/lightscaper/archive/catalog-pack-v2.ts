@@ -12,6 +12,6 @@ export function measurePhotoCatalogPackRecordV2(value: unknown): number { return
 export function encodePhotoCatalogPackV2(records: Iterable<PhotoCatalogPackInputV2> | AsyncIterable<PhotoCatalogPackInputV2>, options: PhotoCatalogPackOptionsV2 = {}) {
 	return encodePhotoCatalogPack(records, options, profile);
 }
-export function readPhotoCatalogPackV2(source: AsyncIterable<Uint8Array>, consume: Parameters<typeof readPhotoCatalogPack>[1], options: PhotoCatalogPackOptionsV2 = {}): Promise<number> {
-	return readPhotoCatalogPack(source, consume, options, profile);
+export function readPhotoCatalogPackV2(source: AsyncIterable<Uint8Array>, consume: Parameters<typeof readPhotoCatalogPack<'legacy2'>>[1], options: PhotoCatalogPackOptionsV2 = {}): Promise<number> {
+	return readPhotoCatalogPack<'legacy2'>(source, consume, options, profile);
 }

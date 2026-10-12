@@ -5,20 +5,27 @@ import { photoStorageKey } from './repository-records.ts';
 import { readPhotoStackRecordV1 } from './photo-stack-record-v1.ts';
 import { readAuditedPhotoSmartCollectionV1, readPhotoSmartCollectionAuditKeyV1 } from './photo-smart-collection-audit-kernel.ts';
 import { assertPhotoSmartCollectionArchiveQueryV1 } from './photo-smart-collection-archive-read-v1.ts';
-import { photoCatalogRestorePhotoRecordsV2, photoCatalogRestoreStackRecordsV1,
+import { photoCatalogRestoreStackRecordsV1,
 	photoCatalogRestoreSavedCollectionRecordsV1 } from './photo-catalog-restore-records-v2.ts';
 import { assertPhotoCatalogRestoreValueV1, assertPhotoCatalogRestoreRecordV1, type PhotoCatalogRestoreStoresV1,
 	type PhotoCatalogRestoreStoreV1 } from './photo-catalog-restore-audit-pages-v1.ts';
-import type { PhotoCatalogRestoreFinalizeContextV2 } from './photo-catalog-restore-finalize-v2.ts';
+import type { PhotoCatalogRestoreFinalizeContextV2, PhotoCatalogRestoreFinalizeContextForProfileV1 } from './photo-catalog-restore-finalize-v2.ts';
+import { photoCatalogRestorePhotoRecordsForProfileV1, assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1 } from './internal/photo-catalog-restore-records-kernel-v1.ts';
 import { field, id, record } from './value-validation.ts';
 
 export interface PhotoCatalogRestoreAuditTotalsV2 { memberships: number; stackMemberships: number; legacyRows: number }
 
-/** One source and its independently bounded projections at a time; this is not a whole-heap byte claim. */
-export async function auditPhotoCatalogRestoreRecordV2(stores: PhotoCatalogRestoreStoresV1, store: PhotoCatalogRestoreStoreV1,
+export function auditPhotoCatalogRestoreRecordV2(stores: PhotoCatalogRestoreStoresV1, store: PhotoCatalogRestoreStoreV1,
 	key: string, context: PhotoCatalogRestoreFinalizeContextV2, totals: PhotoCatalogRestoreAuditTotalsV2): Promise<void> {
+	return auditPhotoCatalogRestoreRecordForProfileV1('legacy2', stores, store, key, context, totals);
+}
+
+/** One source and its independently bounded projections at a time; this is not a whole-heap byte claim. */
+export async function auditPhotoCatalogRestoreRecordForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, stores: PhotoCatalogRestoreStoresV1, store: PhotoCatalogRestoreStoreV1,
+	key: string, context: PhotoCatalogRestoreFinalizeContextForProfileV1<Profile>, totals: PhotoCatalogRestoreAuditTotalsV2): Promise<void> {
+	assertPhotoCatalogRestoreProfileV1(profile);
 	if (store === 'photos') {
-		const rows = await photoRows(stores, key, context);
+		const rows = await photoRows(profile, stores, key, context);
 		context.assertDelivered('photo', rows.photo.document);
 		await assertPhotoCatalogRestoreRecordV1(stores, 'summaries', key, rows.summary);
 		await assertPhotoCatalogRestoreRecordV1(stores, 'photoQueryRowsV2', key, rows.queryV2);
@@ -69,10 +76,10 @@ export function auditPhotoCatalogRestoreKeyV2(store: PhotoCatalogRestoreStoreV1,
 	if (key !== catalogId) throw new TypeError('Restored candidate contains foreign control rows.');
 }
 
-async function photoRows(stores: PhotoCatalogRestoreStoresV1, key: string, context: PhotoCatalogRestoreFinalizeContextV2) {
+async function photoRows<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, stores: PhotoCatalogRestoreStoresV1, key: string, context: PhotoCatalogRestoreFinalizeContextForProfileV1<Profile>) {
 	const raw: unknown = await request(stores.photos.get(key));
 	const input = record(raw, 'restored stored photo', ['key', 'document']);
-	const rows = photoCatalogRestorePhotoRecordsV2(context.root, field(input, 'document')), document = rows.photo.document;
+	const rows = photoCatalogRestorePhotoRecordsForProfileV1(profile, context.root, field(input, 'document')), document = rows.photo.document;
 	if (document.catalogId !== context.root.id || key !== photoStorageKey(context.root.id, document.id)) throw new TypeError('Restored photo belongs to a foreign catalog.');
 	assertPhotoCatalogRestoreValueV1(raw, rows.photo); return rows;
 }

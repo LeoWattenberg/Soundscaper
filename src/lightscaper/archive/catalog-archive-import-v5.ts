@@ -9,5 +9,5 @@ export type { PhotoCatalogArchiveStageV5, PhotoCatalogArchiveStageFactoryV5, Pho
 export function importPhotoCatalogArchiveV5(input: ScapeProjectInput, createStage: PhotoCatalogArchiveStageFactoryV5,
 	options: Readonly<{ signal?: AbortSignal; readerFactories?: ScapeProjectInputReaderFactories }> = {}): Promise<PhotoCatalogRootV1> {
 	if (typeof createStage !== 'function') return Promise.reject(new TypeError('A provisional photo catalog destination is required.'));
-	return importPhotoCatalogArchiveKernel(input, (...args) => createStage(args[0], args[1], args[2], args[3]), options, 5);
+	return importPhotoCatalogArchiveKernel(input, (...args: Parameters<PhotoCatalogArchiveStageFactoryV5>) => createStage(args[0], args[1], args[2], args[3]), options, 5);
 }

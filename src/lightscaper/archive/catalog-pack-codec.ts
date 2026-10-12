@@ -5,6 +5,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
 import { parsePhotoDocumentV1OrV2, serializePhotoDocumentV1OrV2, normalizePhotoDocumentV1OrV2, type PhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
+import { parsePhotoDocumentCurrentV1, serializePhotoDocumentCurrentV1, normalizePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoDocumentV1 } from '../catalog/types.ts';
 import { photoPackByteView } from './pack-byte-chunk.ts';
 
@@ -33,16 +34,22 @@ export interface PhotoCatalogPackInput {
 
 type PhotoCatalogPackLimits = Readonly<Record<keyof typeof PHOTO_CATALOG_PACK_LIMITS, number>>;
 
-export interface PhotoCatalogPackCodecProfile {
+export type PhotoCatalogPackDocumentProfile = 'legacy2' | 'current3';
+export type PhotoCatalogPackDocumentForProfile<Profile extends PhotoCatalogPackDocumentProfile> = Profile extends 'current3' ? PhotoDocumentCurrentV1 : PhotoDocumentV1 | PhotoDocumentV2;
+export interface PhotoCatalogPackInputForProfile<Profile extends PhotoCatalogPackDocumentProfile> {
+	readonly photo: PhotoCatalogPackDocumentForProfile<Profile>; readonly original: Blob;
+}
+export interface PhotoCatalogPackCodecProfile<Profile extends PhotoCatalogPackDocumentProfile = 'legacy2'> {
 	readonly magic: Uint8Array;
-	admit(photo: PhotoDocumentV1 | PhotoDocumentV2): void;
+	readonly documentProfile?: Profile;
+	admit(photo: PhotoCatalogPackDocumentForProfile<Profile>): void;
 }
 
 /** Admit one record's fixed format bytes before opening its retained original. */
-export function measurePhotoCatalogPackRecord(value: unknown, profile: PhotoCatalogPackCodecProfile): number {
-	const photo = normalizePhotoDocumentV1OrV2(value);
+export function measurePhotoCatalogPackRecord<Profile extends PhotoCatalogPackDocumentProfile = 'legacy2'>(value: unknown, profile: PhotoCatalogPackCodecProfile<Profile>): number {
+	const photo = normalizeForProfile(profile, value);
 	profile.admit(photo);
-	const size = 12 + TEXT_ENCODER.encode(serializePhotoDocumentV1OrV2(photo)).byteLength + photo.original.byteLength;
+	const size = 12 + TEXT_ENCODER.encode(serializeForProfile(profile, photo)).byteLength + photo.original.byteLength;
 	if (!Number.isSafeInteger(size) || size + profile.magic.byteLength > PHOTO_CATALOG_PACK_LIMITS.maximumPackBytes) {
 		throw new RangeError('A photo original cannot fit the bounded archive pack.');
 	}
@@ -55,11 +62,11 @@ export function measurePhotoCatalogPackRecord(value: unknown, profile: PhotoCata
  * compression, preview pixels or depth conversion occurs. ZIP supplies the
  * outer pack digest; each original is independently authenticated here.
  */
-export async function* encodePhotoCatalogPack(
-	records: Iterable<PhotoCatalogPackInput> | AsyncIterable<PhotoCatalogPackInput>,
-	options: PhotoCatalogPackOptions, profile: PhotoCatalogPackCodecProfile,
+export async function* encodePhotoCatalogPack<Profile extends PhotoCatalogPackDocumentProfile = 'legacy2'>(
+	records: Iterable<PhotoCatalogPackInputForProfile<Profile>> | AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>,
+	options: PhotoCatalogPackOptions, profile: PhotoCatalogPackCodecProfile<Profile>,
 ): AsyncGenerator<Uint8Array> {
-	const limits = packLimits(options), MAGIC = profile.magic;
+	currentProfile(profile); const limits = packLimits(options), MAGIC = profile.magic;
 	const ids = new Set<string>();
 	let total = MAGIC.byteLength;
 	if (total > limits.maximumPackBytes) throw new RangeError('Photo pack exceeds its pack byte limit.');
@@ -69,12 +76,12 @@ export async function* encodePhotoCatalogPack(
 	for await (const value of records) {
 		check(options.signal);
 		const record = readClosedDomainRecord(value, 'photo pack input', ['photo', 'original']);
-		const photo = normalizePhotoDocumentV1OrV2(readClosedDomainField(record, 'photo', 'photo pack input'));
+		const photo = normalizeForProfile(profile, readClosedDomainField(record, 'photo', 'photo pack input'));
 		profile.admit(photo);
 		checkPhoto(photo, ids, limits.maximumRecords, catalogId); catalogId ??= photo.catalogId;
 		const original = canonicalMediaContentBlob(readClosedDomainField(record, 'original', 'photo pack input'));
 		if (original.size !== photo.original.byteLength) throw new RangeError('Photo pack original length differs from its reference.');
-		const metadata = TEXT_ENCODER.encode(serializePhotoDocumentV1OrV2(photo));
+		const metadata = TEXT_ENCODER.encode(serializeForProfile(profile, photo));
 		total += 12 + metadata.byteLength + original.size;
 		if (!Number.isSafeInteger(total) || total > limits.maximumPackBytes) throw new RangeError('Photo pack exceeds its pack byte limit.');
 		const header = new Uint8Array(12);
@@ -99,12 +106,12 @@ export async function* encodePhotoCatalogPack(
  * Scape manifest verification succeed; later failure requires rollback.
  * Retained input is one ≤4MiB chunk plus one ≤2MiB metadata document.
  */
-export async function readPhotoCatalogPack(
+export async function readPhotoCatalogPack<Profile extends PhotoCatalogPackDocumentProfile = 'legacy2'>(
 	source: AsyncIterable<Uint8Array>,
-	consume: (photo: PhotoDocumentV1 | PhotoDocumentV2, original: AsyncIterable<Uint8Array>) => Promise<void>,
-	options: PhotoCatalogPackOptions, profile: PhotoCatalogPackCodecProfile,
+	consume: (photo: PhotoCatalogPackDocumentForProfile<Profile>, original: AsyncIterable<Uint8Array>) => Promise<void>,
+	options: PhotoCatalogPackOptions, profile: PhotoCatalogPackCodecProfile<Profile>,
 ): Promise<number> {
-	const limits = packLimits(options), MAGIC = profile.magic;
+	currentProfile(profile); const limits = packLimits(options), MAGIC = profile.magic;
 	if (typeof consume !== 'function') throw new TypeError('A photo pack consumer is required.');
 	check(options.signal);
 	const cursor = new PhotoPackCursor(source, limits.maximumPackBytes, limits.maximumChunkBytes, options.signal);
@@ -124,7 +131,7 @@ export async function readPhotoCatalogPack(
 			const originalBytes = view.getBigUint64(4, true);
 			if (metadataBytes < 1 || metadataBytes > LIGHTSCAPER_CATALOG_LIMITS.maximumDocumentBytes) throw new RangeError('Photo pack metadata exceeds its document limit.');
 			if (originalBytes < 1n || originalBytes + BigInt(cursor.consumedBytes + metadataBytes) > BigInt(limits.maximumPackBytes)) throw new RangeError('Photo pack original exceeds its pack byte limit.');
-			const document = parsePhotoDocumentV1OrV2(TEXT_DECODER.decode(await cursor.exact(metadataBytes)));
+			const document = parseForProfile(profile, TEXT_DECODER.decode(await cursor.exact(metadataBytes)));
 			if (document.kind !== 'photo') throw new TypeError('Photo pack records require photo documents.');
 			profile.admit(document);
 			checkPhoto(document, ids, limits.maximumRecords, catalogId); catalogId ??= document.catalogId;
@@ -145,7 +152,7 @@ export async function readPhotoCatalogPack(
 	return ids.size;
 }
 
-async function* originalChunks(cursor: PhotoPackCursor, photo: PhotoDocumentV1 | PhotoDocumentV2, complete: () => void) {
+async function* originalChunks(cursor: PhotoPackCursor, photo: PhotoDocumentCurrentV1, complete: () => void) {
 	const digest = sha256.create();
 	let remaining = photo.original.byteLength;
 	while (remaining > 0) {
@@ -156,11 +163,25 @@ async function* originalChunks(cursor: PhotoPackCursor, photo: PhotoDocumentV1 |
 	complete();
 }
 
-function checkPhoto(photo: PhotoDocumentV1 | PhotoDocumentV2, ids: Set<string>, maximum: number, catalogId: string | null): void {
+function checkPhoto(photo: PhotoDocumentCurrentV1, ids: Set<string>, maximum: number, catalogId: string | null): void {
 	if (ids.has(photo.id)) throw new Error('Photo pack contains duplicate photo records.');
 	if (ids.size >= maximum) throw new RangeError('Photo pack exceeds its record limit.');
 	if (catalogId !== null && catalogId !== photo.catalogId) throw new Error('Photo pack contains records from different catalogs.');
 	ids.add(photo.id);
+}
+function currentProfile(profile: PhotoCatalogPackCodecProfile<PhotoCatalogPackDocumentProfile>): boolean {
+	const value = profile.documentProfile ?? 'legacy2';
+	if (value !== 'legacy2' && value !== 'current3') throw new RangeError('Unsupported fixed photo pack document profile.');
+	return value === 'current3';
+}
+function normalizeForProfile<Profile extends PhotoCatalogPackDocumentProfile>(profile: PhotoCatalogPackCodecProfile<Profile>, value: unknown): PhotoCatalogPackDocumentForProfile<Profile> {
+	return (currentProfile(profile) ? normalizePhotoDocumentCurrentV1(value) : normalizePhotoDocumentV1OrV2(value)) as PhotoCatalogPackDocumentForProfile<Profile>;
+}
+function serializeForProfile(profile: PhotoCatalogPackCodecProfile<PhotoCatalogPackDocumentProfile>, value: unknown): string {
+	return currentProfile(profile) ? serializePhotoDocumentCurrentV1(value) : serializePhotoDocumentV1OrV2(value);
+}
+function parseForProfile<Profile extends PhotoCatalogPackDocumentProfile>(profile: PhotoCatalogPackCodecProfile<Profile>, text: string): PhotoCatalogPackDocumentForProfile<Profile> {
+	return (currentProfile(profile) ? parsePhotoDocumentCurrentV1(text) : parsePhotoDocumentV1OrV2(text)) as PhotoCatalogPackDocumentForProfile<Profile>;
 }
 
 function* splitBytes(bytes: Uint8Array, span: number) {

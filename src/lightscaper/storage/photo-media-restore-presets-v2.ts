@@ -5,47 +5,72 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { request } from '../../common/editor/storage/indexeddb-backend.ts';
 import { field, integer, record } from '../catalog/value-validation.ts';
 import { normalizePhotoDevelopPresetRowV1OrV2, type PhotoDevelopPresetRowV2 } from './photo-develop-preset-row-v2.ts';
+import { normalizePhotoDevelopPresetRowCurrentV1, type PhotoDevelopPresetRowCurrentV1 } from './photo-develop-preset-row-current-v1.ts';
 import { photoDevelopPresetsKeyV1, type PhotoDevelopPresetRowV1 } from './photo-develop-presets-v1.ts';
+import { assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1 } from '../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
 
-export interface PhotoMediaRestorePresetHeaderV2 { readonly rowSchemaVersion: 1 | 2; readonly revision: number; readonly presetCount: number }
-export interface PhotoMediaRestorePresetBindingV2 extends PhotoMediaRestorePresetHeaderV2 { readonly sha256: string }
-type PresetRow = PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2;
+export interface PhotoMediaRestorePresetHeaderForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> {
+	readonly rowSchemaVersion: Profile extends 'legacy2' ? 1 | 2 : 1 | 2 | 3;
+	readonly revision: number; readonly presetCount: number;
+}
+export type PhotoMediaRestorePresetBindingForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> = PhotoMediaRestorePresetHeaderForProfileV1<Profile> & Readonly<{ sha256: string }>;
+export type PhotoMediaRestorePresetHeaderV2 = PhotoMediaRestorePresetHeaderForProfileV1<'legacy2'>;
+export type PhotoMediaRestorePresetBindingV2 = PhotoMediaRestorePresetBindingForProfileV1<'legacy2'>;
+type PresetRow<Profile extends PhotoCatalogRestoreProfileV1> = Profile extends 'legacy2' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2 : PhotoDevelopPresetRowCurrentV1;
 
 export function admitPhotoMediaRestorePresetHeaderV2(value: unknown): Readonly<PhotoMediaRestorePresetHeaderV2> | null {
+	return admitPhotoMediaRestorePresetHeaderForProfileV1('legacy2', value);
+}
+export function admitPhotoMediaRestorePresetsV2(value: unknown, catalogId: string, expected: PhotoMediaRestorePresetHeaderV2 | null): PresetRow<'legacy2'> {
+	return admitPhotoMediaRestorePresetsForProfileV1('legacy2', value, catalogId, expected);
+}
+export function bindPhotoMediaRestorePresetsV2(row: PresetRow<'legacy2'>): Readonly<PhotoMediaRestorePresetBindingV2> {
+	return bindPhotoMediaRestorePresetsForProfileV1('legacy2', row);
+}
+export function readPhotoMediaRestorePresetsV2(settings: IDBObjectStore, catalogId: string, expected: PhotoMediaRestorePresetBindingV2 | null): Promise<PresetRow<'legacy2'> | null> {
+	return readPhotoMediaRestorePresetsForProfileV1('legacy2', settings, catalogId, expected);
+}
+export function assertPhotoMediaRestorePresetsV2(settings: IDBObjectStore, catalogId: string, expected: PhotoMediaRestorePresetBindingV2 | null): Promise<void> {
+	return assertPhotoMediaRestorePresetsForProfileV1('legacy2', settings, catalogId, expected);
+}
+
+export function admitPhotoMediaRestorePresetHeaderForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, value: unknown): Readonly<PhotoMediaRestorePresetHeaderForProfileV1<Profile>> | null {
+	assertPhotoCatalogRestoreProfileV1(profile);
 	if (value === null) return null;
 	const input = record(value, 'restore Develop preset header2', ['rowSchemaVersion', 'revision', 'presetCount']);
 	const version = field(input, 'rowSchemaVersion');
-	if (version !== 1 && version !== 2) throw new TypeError('Restore preset row version is unsupported.');
+	if (version !== 1 && version !== 2 && !(profile === 'current3' && version === 3)) throw new TypeError('Restore preset row version is unsupported.');
 	return Object.freeze({ rowSchemaVersion: version, revision: integer(field(input, 'revision'), 1, Number.MAX_SAFE_INTEGER, 'restore preset revision'),
-		presetCount: integer(field(input, 'presetCount'), 0, 16, 'restore preset count') });
+		presetCount: integer(field(input, 'presetCount'), 0, 16, 'restore preset count') }) as Readonly<PhotoMediaRestorePresetHeaderForProfileV1<Profile>>;
 }
-
-export function admitPhotoMediaRestorePresetsV2(value: unknown, catalogId: string, expected: PhotoMediaRestorePresetHeaderV2 | null): PresetRow {
+export function admitPhotoMediaRestorePresetsForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, value: unknown, catalogId: string,
+	expected: PhotoMediaRestorePresetHeaderForProfileV1<Profile> | null): PresetRow<Profile> {
+	assertPhotoCatalogRestoreProfileV1(profile);
 	if (expected === null) throw new Error('Restore Develop presets were declared absent.');
-	const row = normalizePhotoDevelopPresetRowV1OrV2(value, catalogId);
-	if (row.schemaVersion !== expected.rowSchemaVersion || row.revision !== expected.revision || row.presets.length !== expected.presetCount) {
-		throw new Error('Restore preset row differs from its declared version/header.');
-	}
+	const row = (profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(value, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(value, catalogId)) as PresetRow<Profile>;
+	if (row.schemaVersion !== expected.rowSchemaVersion || row.revision !== expected.revision || row.presets.length !== expected.presetCount) throw new Error('Restore preset row differs from its declared version/header.');
 	return row;
 }
 /** Only bounded scalars and the complete canonical digest survive delivery. */
-export function bindPhotoMediaRestorePresetsV2(row: PresetRow): Readonly<PhotoMediaRestorePresetBindingV2> {
+export function bindPhotoMediaRestorePresetsForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, row: PresetRow<Profile>): Readonly<PhotoMediaRestorePresetBindingForProfileV1<Profile>> {
+	assertPhotoCatalogRestoreProfileV1(profile);
 	const bytes = new TextEncoder().encode(JSON.stringify(row));
-	try { return Object.freeze({ rowSchemaVersion: row.schemaVersion, revision: row.revision, presetCount: row.presets.length, sha256: bytesToHex(sha256(bytes)) }); }
+	try { return Object.freeze({ rowSchemaVersion: row.schemaVersion, revision: row.revision, presetCount: row.presets.length,
+		sha256: bytesToHex(sha256(bytes)) }) as Readonly<PhotoMediaRestorePresetBindingForProfileV1<Profile>>; }
 	finally { bytes.fill(0); }
 }
-
-/** Exact physical absence or a complete authenticated delivered row; one point read, no inventory. */
-export async function readPhotoMediaRestorePresetsV2(settings: IDBObjectStore, catalogId: string,
-	expected: PhotoMediaRestorePresetBindingV2 | null): Promise<PresetRow | null> {
+/** Exact physical absence or a complete authenticated delivered row; one point read. */
+export async function readPhotoMediaRestorePresetsForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, settings: IDBObjectStore, catalogId: string,
+	expected: PhotoMediaRestorePresetBindingForProfileV1<Profile> | null): Promise<PresetRow<Profile> | null> {
+	assertPhotoCatalogRestoreProfileV1(profile);
 	const key = photoDevelopPresetsKeyV1(catalogId), raw: unknown = await request(settings.get(key));
 	if (expected === null) { if (raw !== undefined) throw new Error('Restore preset state differs from declared absence.'); return null; }
 	if (raw === undefined) throw new Error('Restore preset row was not delivered.');
 	const wrapper = record(raw, 'restore preset settings wrapper', ['key', 'value']);
 	if (field(wrapper, 'key') !== key) throw new Error('Restore preset settings key differs.');
-	const row = admitPhotoMediaRestorePresetsV2(field(wrapper, 'value'), catalogId, expected);
-	if (bindPhotoMediaRestorePresetsV2(row).sha256 !== expected.sha256) throw new Error('Restore preset row changed after delivery.');
+	const row = admitPhotoMediaRestorePresetsForProfileV1(profile, field(wrapper, 'value'), catalogId, expected);
+	if (bindPhotoMediaRestorePresetsForProfileV1(profile, row).sha256 !== expected.sha256) throw new Error('Restore preset row changed after delivery.');
 	return row;
 }
-export async function assertPhotoMediaRestorePresetsV2(settings: IDBObjectStore, catalogId: string,
-	expected: PhotoMediaRestorePresetBindingV2 | null): Promise<void> { await readPhotoMediaRestorePresetsV2(settings, catalogId, expected); }
+export async function assertPhotoMediaRestorePresetsForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, settings: IDBObjectStore, catalogId: string,
+	expected: PhotoMediaRestorePresetBindingForProfileV1<Profile> | null): Promise<void> { await readPhotoMediaRestorePresetsForProfileV1(profile, settings, catalogId, expected); }

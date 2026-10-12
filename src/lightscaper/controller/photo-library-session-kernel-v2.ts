@@ -71,6 +71,7 @@ import { PhotoLibrarySessionLifetime } from './photo-library-session-lifetime.ts
 import { createPhotoLibraryImageReceiveSessionV1 } from './photo-library-image-receive-session.ts';
 import { createPhotoLibrarySessionImport } from './photo-library-session-import.ts';
 import { backupPhotoLibrarySession } from './photo-library-session-backup.ts';
+import { backupPhotoLibrarySessionCurrentV1 } from './photo-library-session-backup-current-v1.ts';
 import { capturePhotoLibrarySessionPorts, capturePhotoLibrarySessionPortsCurrentV1, legacyPhotoLibrarySessionPortsV1, legacyPhotoCommandOwnerV1, readPhotoLibraryPageCursorV1 } from './photo-library-session-bindings.ts';
 import { createPhotoLibraryMaskRasterSourceV1 } from './photo-library-mask-raster-session-v1.ts';
 import { createPhotoLibraryDevelopMaskRasterSessionV1 } from './photo-library-develop-mask-raster-session-v1.ts';
@@ -523,7 +524,8 @@ export class PhotoLibrarySessionKernelV2 {
 		return this.#imports(files, request);
 	}
 	backupCatalog(options: PhotoLibraryBackupOptionsV1 = {}): Promise<PhotoLibraryBackupResultV1> {
-		return backupPhotoLibrarySession({ ports: this.#legacyPorts, presetSettings: this.#developPresetSettings,
+		return this.#current ? backupPhotoLibrarySessionCurrentV1({ ports: this.#ports, presetSettings: this.#developPresetSettings,
+			mutate: (run, signal) => this.#mutation(run, signal) }, options) : backupPhotoLibrarySession({ ports: this.#legacyPorts, presetSettings: this.#developPresetSettings,
 			mutate: (run, signal) => this.#mutation(run, signal) }, options);
 	}
 

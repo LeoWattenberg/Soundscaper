@@ -5,6 +5,7 @@ import type { VideoCubeLutReferenceV1 } from '../../common/editor/video-color-cu
 import { normalizeImageDevelopStateV1OrV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
 import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
 import { normalizePhotoDocumentCurrentV1 } from './photo-document-current-v1.ts';
+import { normalizePhotoDevelopPresetRowCurrentV1 } from '../storage/photo-develop-preset-row-current-v1.ts';
 import { createPhotoCubeLutClosureV1, PHOTO_CUBE_LUT_CLOSURE_LIMITS_V1 } from './photo-cube-lut-closure-v1.ts';
 import { createPhotoMaskRasterReachabilityV1 } from './photo-mask-raster-reachability-v1.ts';
 
@@ -15,6 +16,7 @@ export interface PhotoResourceReferencesCurrentV1 {
 export interface PhotoResourceReachabilityCurrentV1 {
 	addPhoto(value: unknown): void;
 	addDevelop(value: unknown): void;
+	addPresetRow(value: unknown, catalogId: string): void;
 	finish(): Readonly<PhotoResourceReferencesCurrentV1>;
 }
 
@@ -26,7 +28,7 @@ export function createPhotoResourceReachabilityCurrentV1(): Readonly<PhotoResour
 	const brushes = new Map<string, Readonly<BrushMaskResourceReferenceV1>>();
 	const encoder = new TextEncoder();
 	let identityBytes = 0, sealed: Readonly<PhotoResourceReferencesCurrentV1> | null = null;
-	return Object.freeze({ addPhoto, addDevelop, finish });
+	return Object.freeze({ addPhoto, addDevelop, addPresetRow, finish });
 
 	function addPhoto(value: unknown): void {
 		if (sealed !== null) throw new Error('The current Photo resource collector is sealed.');
@@ -46,6 +48,13 @@ export function createPhotoResourceReachabilityCurrentV1(): Readonly<PhotoResour
 		const develop = normalizeImageDevelopStateCurrentV1(value);
 		const packet = { luts: createPhotoCubeLutClosureV1(), brushes: createPhotoMaskRasterReachabilityV1() };
 		addRecipe(packet, develop); merge(packet);
+	}
+	function addPresetRow(value: unknown, catalogId: string): void {
+		if (sealed !== null) throw new Error('The current Photo resource collector is sealed.');
+		const row = normalizePhotoDevelopPresetRowCurrentV1(value, catalogId);
+		const packet = { luts: createPhotoCubeLutClosureV1(), brushes: createPhotoMaskRasterReachabilityV1() };
+		for (const preset of row.presets) addRecipe(packet, preset.settings.develop);
+		merge(packet);
 	}
 	function merge(packet: { luts: ReturnType<typeof createPhotoCubeLutClosureV1>; brushes: ReturnType<typeof createPhotoMaskRasterReachabilityV1> }): void {
 		const incomingLuts = new Map<string, Readonly<VideoCubeLutReferenceV1>>();
