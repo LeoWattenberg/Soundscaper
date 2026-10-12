@@ -79,7 +79,7 @@
 		"src/common/editor/project-media-factory.ts": 585,
 		"src/common/editor/scape-project-document.ts": 569,
 		"src/common/editor/staffpad/native/StaffPad/TimeAndPitch.cpp": 559,
-		"src/common/editor/storage.js": 572,
+		"src/common/editor/storage.js": 570,
 		"src/common/editor/storage/encoded-capture-spool-repository.ts": 579,
 		"src/common/editor/storage/framescaper-capture-session-creation-repository.ts": 551,
 		"src/common/editor/storage/linked-original-lifecycle-coordinator.ts": 552,

@@ -22,7 +22,7 @@ import { createStableId } from './project.js';
 import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import { createAudacityAnnotationImport, readAup4AnnotationTracks } from './audacity-annotation-interchange.ts';
 import { secondsToSampleFrame } from './timeline-time.ts';
-import { planAup4ClipAudio } from './aup4-import-plan.ts';
+import { aup4ImportSourceKey, planAup4ClipAudio } from './aup4-import-plan.ts';
 import { confirmFileSizeWarning } from './controller/shared/file-size-warning.ts';
 
 const DEFAULT_MAX_DECODED_BYTES = 512 * 1024 * 1024;import {
@@ -120,6 +120,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	const clips = [];
 	const tracks = [];
 	const sourceAudio = [];
+	const reusedSources = new Map();
 	const selectedTrackIds = [];
 	const selectedClipIds = [];
 	const annotationTracks = readAup4AnnotationTracks(root, compatibilityReport, opaqueNode);
@@ -155,6 +156,8 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			const channelNodes = alignedChannels.filter(Boolean);
 			if (!channelNodes.length) continue;
 			const audioPlan = options.planAudio ? planAup4ClipAudio(alignedChannels, channelRates, trackRate) : null;
+			const sourceKey = audioPlan ? aup4ImportSourceKey(audioPlan) : null;
+			const reusedSource = sourceKey ? reusedSources.get(sourceKey) : null;
 			const channels = [];
 			for (let channel = 0; !audioPlan && channel < group.length; channel += 1) {
 				const clipNode = alignedChannels[channel];
@@ -183,7 +186,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				stretchRatio, stretchToTempo, trimLeftSeconds, trimStartFrames, trimEndFrames,
 				sourceDurationFrames, timelineStartFrame, durationFrames,
 			} = readAup4ClipTiming(clipNode, frameCount, trackRate, projectRate, importedTempoBpm);
-			const sourceId = idFactory('source');
+			const sourceId = reusedSource?.id || idFactory('source');
 			const clipId = idFactory('clip');
 			const pitchAndSpeedPreset = readPitchAndSpeedPreset(clipNode);
 			const envelope = readEnvelope(
@@ -193,7 +196,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				durationFrames,
 			);
 			const nativeEnvelopeNode = audacityXmlChildren(clipNode, 'envelope')[0];
-			const source = createAudioSource({
+			const source = reusedSource || createAudioSource({
 				id: sourceId,
 				name: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
 				mimeType: 'audio/x-audacity-sampleblocks',
@@ -203,7 +206,8 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				sampleRate: trackRate,
 				originalSampleRate: trackRate,
 				sampleFormat: sourceSampleFormat,
-				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]) },
+				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]),
+					aup4ChannelSequences: alignedChannels.map((node) => opaqueNode(audacityXmlChildren(node, 'sequence')[0])) },
 			});
 			const groupId = audacityXmlAttribute(clipNode, 'groupId', -1);
 			const audacityCutLineCount = channelNodes.reduce((total, node) => (
@@ -244,10 +248,13 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				},
 			});
 			if (channelNodes.some((node) => Boolean(audacityXmlAttribute(node, 'isSelected', false)))) selectedClipIds.push(clipId);
-			sources.push(source);
+			if (!reusedSource) {
+				sources.push(source);
+				if (sourceKey) reusedSources.set(sourceKey, source);
+				sourceAudio.push(audioPlan ? { ...audioPlan, sourceId } : { sourceId, sampleRate: trackRate, channels });
+			}
 			clips.push(clip);
 			clipIds.push(clip.id);
-			sourceAudio.push(audioPlan ? { ...audioPlan, sourceId } : { sourceId, sampleRate: trackRate, channels });
 		}
 		const selected = group.some((node) => Boolean(audacityXmlAttribute(node, 'isSelected', false)));
 		if (selected) selectedTrackIds.push(trackId);

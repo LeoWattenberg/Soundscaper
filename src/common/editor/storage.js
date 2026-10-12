@@ -204,13 +204,11 @@ export class AudioEditorProjectStore {
 		return this.sourceRepository.beginWrite(sourceId, metadata);
 	}
 
-	async writeDerivedSource(sourceId, baseSourceId, replacementChunks, metadata = {}) {
-		return this.sourceRepository.writeDerived(sourceId, baseSourceId, replacementChunks, metadata);
-	}
+	async writeDerivedSource(sourceId, baseSourceId, replacementChunks, metadata = {}) { return this.sourceRepository.writeDerived(sourceId, baseSourceId, replacementChunks, metadata); }
 
-	async writeAudioBuffer(sourceId, audioBuffer, metadata = {}, { chunkFrames = 65_536 } = {}) {
-		return this.sourceRepository.writeAudioBuffer(sourceId, audioBuffer, metadata, { chunkFrames });
-	}
+	async writeSampleBlockSource(sourceId, baseSourceId, channels, metadata = {}) { return this.sourceRepository.writeSampleBlocks(sourceId, baseSourceId, channels, metadata); }
+
+	async writeAudioBuffer(sourceId, audioBuffer, metadata = {}, { chunkFrames = 65_536 } = {}) { return this.sourceRepository.writeAudioBuffer(sourceId, audioBuffer, metadata, { chunkFrames }); }
 
 	async getSourceMetadata(sourceId) {
 		return this.sourceRepository.getMetadata(sourceId);

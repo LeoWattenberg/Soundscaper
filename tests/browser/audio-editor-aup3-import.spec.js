@@ -1,6 +1,7 @@
 import initSqlJs from 'sql.js';
 import { createAup3Fixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseFileAction, trackNameText } from './audio-editor-test-helpers.js';
+import { createAup3ProjectData, serializeAup3Xml } from '../aup3-fixture.js';
 
 test('opens a checkpointed Audacity 3 project through the File menu', async ({ page }) => {
 	await page.addInitScript(() => {
@@ -37,8 +38,54 @@ test('opens a checkpointed Audacity 3 project through the File menu', async ({ p
 	const requests = await page.evaluate(() => globalThis.__audacityImportRequests);
 	expect(requests).toContain('plan-import');
 	expect(requests).toContain('read-import-chunk');
-	expect(requests.filter((type) => type === 'read-import-chunk')).toHaveLength(4);
+	expect(requests.filter((type) => type === 'read-import-chunk')).toHaveLength(6);
 	expect(requests).not.toContain('decode');
+});
+
+test('keeps shared Audacity blocks in one backing source after opening and reloading', async ({ page }) => {
+	const options = { tracks: [{ name: 'Shared recording', clips: [{
+		samples: Array.from({ length: 65_536 }, (_, index) => Math.sin(index / 17) * 0.5),
+		trimLeft: 0.1, trimRight: 0.1,
+	}] }] };
+	const SQL = await initSqlJs();
+	const database = new SQL.Database(await createAup3Fixture({ SQL, ...options }));
+	let bytes;
+	try {
+		const root = createAup3ProjectData(options).project;
+		const track = root.children[0], clip = track.children[0];
+		for (let index = 1; index < 10; index += 1) {
+			const duplicate = structuredClone(clip);
+			duplicate.attributes.offset = index * 2;
+			track.children.push(duplicate);
+		}
+		const { dictionary, document } = serializeAup3Xml(root);
+		database.run('UPDATE project SET dict = ?, doc = ? WHERE id = 1', [dictionary, document]);
+		bytes = database.export();
+	} finally { database.close(); }
+	let editor = await bootEditor(page, '/embed/en/');
+	const chooser = page.waitForEvent('filechooser');
+	await chooseFileAction(page, editor, 'Open');
+	await (await chooser).setFiles({ name: 'shared.aup3', mimeType: 'application/x-audacity-project', buffer: Buffer.from(bytes) });
+	await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: 30_000 });
+	await expect(editor).toHaveAttribute('data-clip-count', '10');
+	const storage = await page.evaluate(async () => {
+		const request = (input) => new Promise((resolve, reject) => {
+			input.onsuccess = () => resolve(input.result);
+			input.onerror = () => reject(input.error);
+		});
+		const database = await request(indexedDB.open('kw-media-soundscaper-editor-v1'));
+		try {
+			const sources = await request(database.transaction('sources', 'readonly').objectStore('sources').getAll());
+			const sequences = sources.filter((source) => source.storage === 'sample-block-sequence');
+			const pools = sources.filter((source) => sequences.some((sequence) => sequence.baseSourceId === source.id));
+			return { sequences: sequences.length, pools: pools.length, frames: pools[0]?.frameCount };
+		} finally { database.close(); }
+	});
+	expect(storage).toEqual({ sequences: 1, pools: 1, frames: 65_536 });
+	await page.reload();
+	editor = page.locator('[data-audio-editor]');
+	await expect(editor).toHaveAttribute('data-clip-count', '10', { timeout: 30_000 });
+	await expect(trackNameText(editor).first()).toHaveText('Shared recording');
 });
 
 test('keeps a complete import error readable and permits opening another AUP3', async ({ page }) => {

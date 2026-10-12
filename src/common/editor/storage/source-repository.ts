@@ -21,6 +21,7 @@ import type { TransientAnalysisCacheRepository } from './transient-analysis-cach
 import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
 import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
 import type { AudioEditorOptimizationMode } from '../performance-preferences.ts';
+import { publishSampleBlockSource, type SampleBlockReference } from './sample-block-source.ts';
 
 const IMMUTABLE_SOURCE_METADATA_FIELDS = Object.freeze([
 	'channelCount', 'sampleRate', 'frameCount', 'frameLength', 'chunkFrames', 'chunkCount',
@@ -82,6 +83,10 @@ export class SourceRepository {
 		);
 	}
 
+	writeSampleBlocks(sourceId: string, baseSourceId: string, channels: readonly (readonly SampleBlockReference[])[], metadata: Readonly<Record<string, unknown>>): Promise<StorageRecord> {
+		return this.#writeLifecycle.runPublication(() => publishSampleBlockSource(this.#options.records, sourceId, baseSourceId, channels, metadata));
+	}
+
 	async writeAudioBuffer(
 		sourceId: string,
 		audioBuffer: AudioBuffer,
@@ -120,7 +125,8 @@ export class SourceRepository {
 
 	replaceMetadataIfCurrent(expected: StorageRecord, replacement: StorageRecord): Promise<boolean> {
 		if (!sameStoredSourceIdentity(expected, replacement)
-			|| IMMUTABLE_SOURCE_METADATA_FIELDS.some((field) => !Object.is(expected[field], replacement[field]))) {
+			|| IMMUTABLE_SOURCE_METADATA_FIELDS.some((field) => !Object.is(expected[field], replacement[field]))
+			|| JSON.stringify(expected.sampleBlockChannels) !== JSON.stringify(replacement.sampleBlockChannels)) {
 			return Promise.resolve(false);
 		}
 		return this.#options.records.compareAndSwapMetadata(expected, replacement);

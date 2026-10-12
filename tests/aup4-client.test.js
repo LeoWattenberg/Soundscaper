@@ -9,6 +9,18 @@ import {
 } from '../src/common/editor/aup4-client.js';
 import { createDesktopSelectedRangeBlob } from '../src/common/editor/desktop-selected-range-blob.ts';
 
+test('Audacity client forwards shared sample-block admission to the import worker', async () => {
+	const worker = new FakeWorker(), client = createAup4Client({ worker });
+	try {
+		const planning = client.planImport('shared', { title: 'shared.aup3', preserveSampleBlocks: true });
+		const message = worker.messages.at(-1);
+		assert.equal(message.type, 'plan-import');
+		assert.equal(message.args.preserveSampleBlocks, true);
+		worker.emit({ id: message.id, result: { sampleBlockStorage: { pcmBytes: 24 } } });
+		assert.deepEqual(await planning, { sampleBlockStorage: { pcmBytes: 24 } });
+	} finally { client.dispose(); }
+});
+
 test('AUP4 client sends a selected desktop descriptor instead of cloning an empty virtual Blob', async () => {
 	const worker = new FakeWorker();
 	const client = createAup4Client({ worker });
