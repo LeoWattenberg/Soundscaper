@@ -597,7 +597,22 @@ presentations suspended through the native acknowledgments and document reload.
 English/German Chromium and Firefox workflows verify unsaved Heal/brush Copy,
 partial Sync/Auto-sync, and relative Quick Develop with literal preview/export
 pixels and the complete native Original/brush custody checks.
-Process3 presets, portable backup/restore, and editable Frame handoff still
+Current presets now save unsaved repaired recipes through the Settings menu,
+with explicit Preset3 and mixed Row3 formats at the existing physical settings
+key. Reads preserve legacy rows; removing the final Preset3 keeps Row3. Each
+write authenticates the entire retained LUT/brush closure before native CAS.
+Rename preserves the complete settings and their authored digest. Application
+uses an actual selected native preset ID and row revision, authenticates the
+whole row, and rechecks it before each target write. Stored brush settings and
+JSON clones cannot acquire clipboard authority through a preset. Originals
+remain unchanged, and current preview retirement also fences preset application.
+English/German Chromium and Firefox workflows exercise dirty Heal/brush/LUT
+preset save, reopen, rename, application, history restoration, and sticky delete.
+Two actual native settings owners also compete for the same row: one receives
+a positive CAS acknowledgment and the other a conflict. Repair-only presets
+retain the target's geometry and local brush, with literal preview/PNG pixels
+and complete native Original, LUT, and brush custody checks.
+Portable preset/backup/restore formats and editable Frame handoff still
 require explicit successors. Direct Frame
 mask-name and repair authoring remain open. This does not close L6; L7–L9
 remain incomplete.

@@ -81,14 +81,15 @@ async function fixture(locale = 'en', retainedLegacy = false, presentationBarrie
 	};
 }
 
-for (const locale of ['en', 'de']) for (const retained of [false, true]) test(`${locale}: opted-in Current Settings menu admits ${retained ? 'retained repairs with an active legacy recipe' : 'the complete repaired recipe'} without exposing legacy presets`, async () => {
+for (const locale of ['en', 'de']) for (const retained of [false, true]) test(`${locale}: opted-in Current Settings menu admits ${retained ? 'retained repairs with an active legacy recipe' : 'the complete repaired recipe'} with Current presets reachable from Settings`, async () => {
 	const ui = await fixture(locale, retained);
 	try {
 		const row = (await ui.f.inspect())[0]!.photo; assert.equal(row.schemaVersion, 3);
 		if (retained) { assert.equal((await ui.f.read()).develop.processVersion, 1); await assert.rejects(ui.f.session.legacyDevelop!.read({ schemaVersion: 2, photoId: row.id })); }
 		const copy = ui.button(ui.text.copy), details = copy.closest('details'); assert.ok(details);
 		assert.equal(details.querySelector('summary')?.textContent, locale === 'de' ? 'Einstellungen' : 'Settings');
-		assert.equal(ui.dom.container.querySelectorAll('button').some(node => node.textContent === ui.text.presets), false, 'Current presets await their own authenticated successor.');
+		assert.equal(details.querySelectorAll('button').filter(node => node.textContent === ui.text.presets).length, 1);
+		assert.equal(ui.dom.container.querySelectorAll('[role="dialog"]').some(node => node.getAttribute('aria-label') === ui.text.presets), false, 'Preset management remains opt-in.');
 		assert.equal(ui.dom.container.querySelectorAll('button').some(node => node.textContent === ui.text.confirmCopy), false);
 		await ui.click(copy); assert.ok(ui.button(ui.text.confirmCopy));
 		const repairLabel = locale === 'de' ? 'Reparaturstellen' : 'Repair spots';

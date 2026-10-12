@@ -5,6 +5,7 @@ import type { PhotoLibraryDevelopCommandV2, PhotoLibraryDevelopSettingsV2, Photo
 import type { PhotoLibraryDevelopCommandV3, PhotoLibraryDevelopSettingsV3, PhotoLibraryDevelopPortV3 } from '../../../photo-library-develop-port-v3.ts';
 import { capturePhotoLibraryDevelopMaskRasterPortV1 } from '../../../photo-library-develop-mask-raster-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../../photo-library-develop-original-port-v1.ts';
+import type { PhotoLibraryDevelopPresetsPortV3 } from '../../../photo-library-develop-presets-port-v3.ts';
 import type { PhotoLibraryDevelopSettingsPortV3 } from '../../../photo-library-develop-settings-port-v3.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../../imaging/image-develop-state-v2.ts';
 import { normalizeImageDevelopStateCurrentV1 } from '../../../imaging/image-develop-state-current-v1.ts';
@@ -87,17 +88,29 @@ export function capturePhotoDevelopPortForProfileV1<Profile extends PhotoDevelop
 				serialize: pin(presets.serialize, presets), list: pin(presets.list, presets), read: pin(presets.read, presets), write: pin(presets.write, presets) }) }),
 		}) as Readonly<PhotoDevelopPortForProfileV1<Profile>>;
 	}
-	const current = record(port, 'current Develop capability', ['schemaVersion', 'read', 'apply', 'original', 'maskRasters', 'settingsCurrent'], ['schemaVersion', 'read', 'apply']);
+	const current = record(port, 'current Develop capability', ['schemaVersion', 'read', 'apply', 'original', 'maskRasters', 'settingsCurrent', 'presetsCurrent'], ['schemaVersion', 'read', 'apply']);
 	const read = field(current, 'read', 'current Develop capability') as PhotoLibraryDevelopPortV3['read'];
 	const apply = field(current, 'apply', 'current Develop capability') as PhotoLibraryDevelopPortV3['apply'];
 	const original = Object.hasOwn(current, 'original') ? captureOriginal(field(current, 'original', 'current Develop capability')) : undefined;
 	const maskRasters = Object.hasOwn(current, 'maskRasters') ? field(current, 'maskRasters', 'current Develop capability') : undefined;
 	const settingsCurrent = Object.hasOwn(current, 'settingsCurrent') ? captureSettingsCurrent(field(current, 'settingsCurrent', 'current Develop capability')) : undefined;
+	const presetsCurrent = Object.hasOwn(current, 'presetsCurrent') ? capturePresetsCurrent(field(current, 'presetsCurrent', 'current Develop capability')) : undefined;
 	return Object.freeze({ schemaVersion: 3, read: pin(read, port), apply: pin(apply, port),
 		...(original === undefined ? {} : { original }),
 		...(maskRasters === undefined ? {} : { maskRasters: capturePhotoLibraryDevelopMaskRasterPortV1(maskRasters) }),
 		...(settingsCurrent === undefined ? {} : { settingsCurrent }),
+		...(presetsCurrent === undefined ? {} : { presetsCurrent }),
 	}) as Readonly<PhotoDevelopPortForProfileV1<Profile>>;
+}
+function capturePresetsCurrent(value: unknown): Readonly<PhotoLibraryDevelopPresetsPortV3> | undefined {
+	if (value === undefined) return undefined;
+	const input = record(value, 'Current presets capability', ['create', 'parse', 'serialize', 'list', 'read', 'write']);
+	return Object.freeze({ create: pin(field(input, 'create', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['create'], value),
+		parse: pin(field(input, 'parse', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['parse'], value),
+		serialize: pin(field(input, 'serialize', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['serialize'], value),
+		list: pin(field(input, 'list', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['list'], value),
+		read: pin(field(input, 'read', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['read'], value),
+		write: pin(field(input, 'write', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['write'], value) });
 }
 function captureSettingsCurrent(value: unknown): Readonly<PhotoLibraryDevelopSettingsPortV3> | undefined {
 	if (value === undefined) return undefined;

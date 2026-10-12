@@ -10,6 +10,9 @@ import type { ImageDevelopSettingsPacketV2 } from '../../../imaging/image-develo
 import { normalizeImageDevelopSelectionV2 } from '../../../imaging/image-develop-settings-v2.ts';
 import { normalizeImageDevelopRelativeActionV1 as normalizeImageDevelopRelativeActionV2 } from '../../../imaging/image-develop-settings-v1.ts';
 import { normalizeImageDevelopPresetV1OrV2 } from '../../../imaging/image-develop-preset-v2.ts';
+import { normalizeImageDevelopSelectedPresetCurrentV1 } from '../../../imaging/image-develop-preset-selected-v3.ts';
+import type { PhotoLibraryDevelopPresetSnapshotV3, PhotoLibraryDevelopPresetAcknowledgementV3, PhotoLibraryDevelopPresetsPortV3, PhotoLibraryDevelopPresetCommandV3 } from '../../../photo-library-develop-presets-port-v3.ts';
+import type { PhotoLibraryDevelopPresetBodyV3 } from '../../../photo-library-develop-presets-port-v3.ts';
 import { detachPhotoDevelopSettingsSourceV2 as source, developSettingsId as id, developSettingsIds as ids,
 	developSettingsName as name, developSettingsRevision as revision, type PhotoDevelopSettingsSourceV2 } from '../photo-library-develop-settings-intent-v2.ts';
 
@@ -23,13 +26,17 @@ export type SettingsSourceForProfileV1<Profile extends PhotoDevelopProfileV1> = 
 export type SettingsSelectionForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? ImageDevelopSelectionV2 : ImageDevelopSelectionV3;
 export type SettingsPacketForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? ImageDevelopSettingsPacketV2 : ImageDevelopSettingsPacketV3;
 export type SettingsReceiptForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopBatchReceiptV2 : PhotoLibraryDevelopBatchReceiptV3;
+type PresetSnapshotForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPresetSnapshotV2 : PhotoLibraryDevelopPresetSnapshotV3;
+type PresetAcknowledgementForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPresetAcknowledgementV2 : PhotoLibraryDevelopPresetAcknowledgementV3;
+type PresetCommand = Parameters<PhotoLibraryDevelopPresetsPortV2['write']>[0]['command'] | PhotoLibraryDevelopPresetCommandV3;
+type PresetPort = PhotoLibraryDevelopPresetsPortV2 | PhotoLibraryDevelopPresetsPortV3;
 type BatchAction = PhotoLibraryDevelopBatchRequestV2['action'] | PhotoLibraryDevelopBatchRequestV3['action'];
 export interface PhotoDevelopSettingsWorkflowSnapshotForProfileV1<Profile extends PhotoDevelopProfileV1> {
 	readonly busy: boolean;
 	readonly clipboard: SettingsPacketForProfileV1<Profile> | null;
-	readonly presets: PhotoLibraryDevelopPresetSnapshotV2 | null;
+	readonly presets: PresetSnapshotForProfileV1<Profile> | null;
 	readonly batch: SettingsReceiptForProfileV1<Profile> | null;
-	readonly presetReceipt: PhotoLibraryDevelopPresetAcknowledgementV2 | null;
+	readonly presetReceipt: PresetAcknowledgementForProfileV1<Profile> | null;
 	readonly autoSync: boolean;
 	readonly autoSyncTargetCount: number;
 	readonly notice: 'refresh-failed' | null;
@@ -132,45 +139,74 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		});
 	}
 	protected listPresetsLegacy(catalogId: string): Promise<PhotoLibraryDevelopPresetSnapshotV2 | null> {
-		this.#assertLegacy();
+		this.#assertLegacy(); return this.#listPresets(catalogId) as Promise<PhotoLibraryDevelopPresetSnapshotV2 | null>;
+	}
+	protected listPresetsCurrent(catalogId: string): Promise<PhotoLibraryDevelopPresetSnapshotV3 | null> {
+		this.#assertCurrent(); return this.#listPresets(catalogId) as Promise<PhotoLibraryDevelopPresetSnapshotV3 | null>;
+	}
+	protected savePresetLegacy(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
+		this.#assertLegacy(); return this.#savePreset(value, selection, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null>;
+	}
+	protected savePresetCurrent(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null> {
+		this.#assertCurrent(); return this.#savePreset(value, selection, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null>;
+	}
+	protected applyPresetLegacy(value: SettingsSourceForProfileV1<Profile>, presetId: string, listRevision: number, label: string): Promise<SettingsReceiptForProfileV1<Profile> | null> {
+		this.#assertLegacy(); return this.#applyPreset(value, presetId, listRevision, label);
+	}
+	protected applyPresetCurrent(value: SettingsSourceForProfileV1<Profile>, presetId: string, listRevision: number, label: string): Promise<SettingsReceiptForProfileV1<Profile> | null> {
+		this.#assertCurrent(); return this.#applyPreset(value, presetId, listRevision, label);
+	}
+	protected renamePresetLegacy(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
+		this.#assertLegacy(); return this.#renamePreset(catalogId, presetId, listRevision, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null>;
+	}
+	protected renamePresetCurrent(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null> {
+		this.#assertCurrent(); return this.#renamePreset(catalogId, presetId, listRevision, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null>;
+	}
+	protected deletePresetLegacy(catalogId: string, presetId: string, listRevision: number): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
+		this.#assertLegacy(); return this.#deletePreset(catalogId, presetId, listRevision) as Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null>;
+	}
+	protected deletePresetCurrent(catalogId: string, presetId: string, listRevision: number): Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null> {
+		this.#assertCurrent(); return this.#deletePreset(catalogId, presetId, listRevision) as Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null>;
+	}
+	#listPresets(catalogId: string): Promise<PresetSnapshotForProfileV1<Profile> | null> {
 		return this.#run(() => id(catalogId), async (context, catalog) => {
 			const port = await this.#acquire(context); if (!port) return null;
-			const snapshot = await presets(port).list({ schemaVersion: 2, catalogId: catalog }, { signal: context.signal }); check(context.signal);
-			if (snapshot.schemaVersion !== 2 || snapshot.catalogId !== catalog || snapshot.presets.length > 16) throw new Error('Preset menu changed catalog or exceeded its bound.');
+			const capability = presets(this.#profile, port);
+			const snapshot = await (Reflect.apply(capability.list, capability, [{ schemaVersion: this.#schema, catalogId: catalog }, { signal: context.signal }]) as Promise<PresetSnapshotForProfileV1<Profile>>); check(context.signal);
+			if (snapshot.schemaVersion !== this.#schema || snapshot.catalogId !== catalog || snapshot.presets.length > 16) throw new Error('Preset menu changed catalog or exceeded its bound.');
 			if (this.#admittedCurrent(context)) this.#publish({ presets: snapshot }); return snapshot;
 		});
 	}
-	protected savePresetLegacy(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
-		this.#assertLegacy();
+	#savePreset(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PresetAcknowledgementForProfileV1<Profile> | null> {
 		return this.#run(() => { const captured = this.#source(value); return { source: captured, selection: this.#selection(selection), name: name(presetName), expectedRevision: this.#menu(captured.catalogId).revision, id: id(this.#createId()) }; }, async (context, input) => {
 			const port = await this.#acquire(context); if (!port) return null;
-			const packet = await this.#copy(context, port, input.source, input.selection);
-			const capability = presets(port), preset = capability.create({ schemaVersion: 2, id: input.id, name: input.name, settings: packet as ImageDevelopSettingsPacketV2 });
+			const packet = await this.#copy(context, port, input.source, input.selection), capability = presets(this.#profile, port);
+			const preset = Reflect.apply(capability.create, capability, [{ schemaVersion: this.#schema, id: input.id, name: input.name, settings: packet }]) as ReturnType<PhotoLibraryDevelopPresetsPortV3['create']> | ReturnType<PhotoLibraryDevelopPresetsPortV2['create']>;
 			return this.#writePreset(context, capability, input.source.catalogId, { type: 'save', expectedRevision: input.expectedRevision, preset });
 		});
 	}
-	protected applyPresetLegacy(value: SettingsSourceForProfileV1<Profile>, presetId: string, listRevision: number, label: string): Promise<SettingsReceiptForProfileV1<Profile> | null> {
-		this.#assertLegacy();
+	#applyPreset(value: SettingsSourceForProfileV1<Profile>, presetId: string, listRevision: number, label: string): Promise<SettingsReceiptForProfileV1<Profile> | null> {
 		return this.#run(() => { const captured = this.#source(value); return { source: captured, selected: this.#selected(captured.catalogId, presetId, listRevision), label: name(label) }; }, async (context, input) => {
 			const port = await this.#acquire(context); if (!port) return null;
-			const preset = await this.#readPreset(context, presets(port), input.source.catalogId, input.selected);
+			if (this.#profile === 'current3') return this.#batch(context, port, input.source.catalogId, [target(input.source)],
+				{ kind: 'preset', presetId: input.selected.info.id, expectedPresetRevision: input.selected.revision }, input.label);
+			const preset = await this.#readPreset(context, presets(this.#profile, port), input.source.catalogId, input.selected);
 			return this.#batch(context, port, input.source.catalogId, [target(input.source)], { kind: 'paste', settings: preset.settings }, input.label);
 		});
 	}
-	protected renamePresetLegacy(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
-		this.#assertLegacy();
+	#renamePreset(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PresetAcknowledgementForProfileV1<Profile> | null> {
 		return this.#run(() => ({ catalogId: id(catalogId), selected: this.#selected(catalogId, presetId, listRevision), name: name(presetName) }), async (context, input) => {
 			const port = await this.#acquire(context); if (!port) return null;
-			const capability = presets(port), body = await this.#readPreset(context, capability, input.catalogId, input.selected);
-			const preset = normalizeImageDevelopPresetV1OrV2({ ...body, identity: { ...body.identity, name: input.name } });
+			const capability = presets(this.#profile, port), body = await this.#readPreset(context, capability, input.catalogId, input.selected);
+			const value = { ...body, identity: { ...body.identity, name: input.name } };
+			const preset = this.#profile === 'legacy2' ? normalizeImageDevelopPresetV1OrV2(value) : normalizeImageDevelopSelectedPresetCurrentV1(value);
 			return this.#writePreset(context, capability, input.catalogId, { type: 'save', expectedRevision: input.selected.revision, preset });
 		});
 	}
-	protected deletePresetLegacy(catalogId: string, presetId: string, listRevision: number): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
-		this.#assertLegacy();
+	#deletePreset(catalogId: string, presetId: string, listRevision: number): Promise<PresetAcknowledgementForProfileV1<Profile> | null> {
 		return this.#run(() => ({ catalogId: id(catalogId), selected: this.#selected(catalogId, presetId, listRevision) }), async (context, input) => {
 			const port = await this.#acquire(context); if (!port) return null;
-			return this.#writePreset(context, presets(port), input.catalogId, { type: 'delete', expectedRevision: input.selected.revision, presetId: input.selected.info.id });
+			return this.#writePreset(context, presets(this.#profile, port), input.catalogId, { type: 'delete', expectedRevision: input.selected.revision, presetId: input.selected.info.id });
 		});
 	}
 	cancel(): Promise<void> { this.#active?.abort(); return this.#pending ? this.#pending.then(() => undefined, () => undefined) : Promise.resolve(); }
@@ -184,7 +220,8 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		this.#closing = Promise.resolve().then(() => this.cancel()); return this.#closing;
 	}
 	get #schema(): 2 | 3 { return this.#profile === 'legacy2' ? 2 : 3; }
-	#assertLegacy(): void { if (this.#profile !== 'legacy2') throw new TypeError('Current presets require their own authenticated successor.'); }
+	#assertLegacy(): void { if (this.#profile !== 'legacy2') throw new TypeError('Legacy presets require the legacy profile.'); }
+	#assertCurrent(): void { if (this.#profile !== 'current3') throw new TypeError('Current presets require the Current profile.'); }
 	#source(value: unknown): SettingsSourceForProfileV1<Profile> {
 		return (this.#profile === 'legacy2' ? source(value) : detachPhotoDevelopSettingsSourceCurrentV1(value)) as SettingsSourceForProfileV1<Profile>;
 	}
@@ -206,7 +243,7 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		return packet as SettingsPacketForProfileV1<Profile>;
 	}
 
-	#menu(catalogId: string): PhotoLibraryDevelopPresetSnapshotV2 {
+	#menu(catalogId: string): PresetSnapshotForProfileV1<Profile> {
 		const snapshot = this.#view.presets;
 		if (!snapshot || snapshot.catalogId !== id(catalogId)) throw new Error('Load the preset menu first.'); return snapshot;
 	}
@@ -215,16 +252,18 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		const info = snapshot.presets.find(preset => preset.id === selected);
 		if (snapshot.revision !== expected || !info) throw new Error('Reload the changed preset menu.'); return Object.freeze({ revision: expected, info });
 	}
-	async #readPreset(context: PhotoDevelopExecutionContextForProfileV1<Profile>, capability: PhotoLibraryDevelopPresetsPortV2, catalogId: string, selected: SelectedPreset) {
-		const body = await capability.read({ schemaVersion: 2, catalogId, presetId: selected.info.id, expectedRevision: selected.revision }, { signal: context.signal });
+	async #readPreset(context: PhotoDevelopExecutionContextForProfileV1<Profile>, capability: PresetPort, catalogId: string, selected: SelectedPreset) {
+		const body = await (Reflect.apply(capability.read, capability, [{ schemaVersion: this.#schema, catalogId, presetId: selected.info.id, expectedRevision: selected.revision }, { signal: context.signal }]) as Promise<PhotoLibraryDevelopPresetBodyV3 | Awaited<ReturnType<PhotoLibraryDevelopPresetsPortV2['read']>>>);
 		if (!this.#admittedCurrent(context)) throw new Error('The preset view retired.');
-		const preset = normalizeImageDevelopPresetV1OrV2(body.preset);
-		if (body.schemaVersion !== 2 || body.catalogId !== catalogId || body.revision !== selected.revision || preset.identity.id !== selected.info.id || preset.identity.authoredStateSha256 !== selected.info.authoredStateSha256) throw new Error('The selected preset changed.'); return preset;
+		const preset = this.#profile === 'legacy2' ? normalizeImageDevelopPresetV1OrV2(body.preset) : normalizeImageDevelopSelectedPresetCurrentV1(body.preset);
+		if (body.schemaVersion !== this.#schema || body.catalogId !== catalogId || body.revision !== selected.revision || preset.identity.id !== selected.info.id || preset.identity.authoredStateSha256 !== selected.info.authoredStateSha256) throw new Error('The selected preset changed.'); return preset;
 	}
-	async #writePreset(context: PhotoDevelopExecutionContextForProfileV1<Profile>, capability: PhotoLibraryDevelopPresetsPortV2, catalogId: string, command: Parameters<PhotoLibraryDevelopPresetsPortV2['write']>[0]['command']) {
+	async #writePreset(context: PhotoDevelopExecutionContextForProfileV1<Profile>, capability: PresetPort, catalogId: string, command: PresetCommand) {
 		if (!this.#admittedCurrent(context)) throw new Error('The settings view retired.');
-		const receipt = await capability.write({ schemaVersion: 2, catalogId, command }, { signal: context.signal });
-		if (this.#acknowledgedCurrent(context)) this.#publish({ presets: receipt.snapshot, presetReceipt: receipt }); return receipt;
+		const receipt = await (Reflect.apply(capability.write, capability, [{ schemaVersion: this.#schema, catalogId, command }, { signal: context.signal }]) as Promise<PresetAcknowledgementForProfileV1<Profile>>);
+		if (receipt.schemaVersion !== this.#schema || receipt.snapshot.schemaVersion !== this.#schema || receipt.snapshot.catalogId !== catalogId) throw new Error('Preset acknowledgment changed schema or catalog.');
+		const snapshot = receipt.snapshot as PresetSnapshotForProfileV1<Profile>;
+		if (this.#acknowledgedCurrent(context)) this.#publish({ presets: snapshot, presetReceipt: receipt }); return receipt;
 	}
 	async #targets(context: PhotoDevelopExecutionContextForProfileV1<Profile>, port: Readonly<PhotoDevelopPortForProfileV1<Profile>>, selected: readonly string[]) {
 		const targets: PhotoLibraryDevelopBatchTargetV2[] = [];
@@ -310,7 +349,7 @@ function settings<Profile extends PhotoDevelopProfileV1>(profile: Profile, port:
 	const child = profile === 'legacy2' ? (port as PhotoLibraryDevelopPortV2).settings : (port as PhotoLibraryDevelopPortV3).settingsCurrent;
 	if (!child) throw new Error('Develop settings are unavailable.'); return child;
 }
-function presets<Profile extends PhotoDevelopProfileV1>(port: Readonly<PhotoDevelopPortForProfileV1<Profile>>) {
-	const child = (port as PhotoLibraryDevelopPortV2).presets;
+function presets<Profile extends PhotoDevelopProfileV1>(profile: Profile, port: Readonly<PhotoDevelopPortForProfileV1<Profile>>) {
+	const child = profile === 'legacy2' ? (port as PhotoLibraryDevelopPortV2).presets : (port as PhotoLibraryDevelopPortV3).presetsCurrent;
 	if (!child) throw new Error('Develop presets are unavailable.'); return child;
 }

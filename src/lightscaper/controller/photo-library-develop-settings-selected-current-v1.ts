@@ -5,8 +5,8 @@ import type { PhotoLibraryDevelopCopySelectedV3 } from '../../common/editor/phot
 import type { ImageDevelopSettingsPacketV3 } from '../../common/editor/imaging/image-develop-settings-contract-v3.ts';
 import type { ImageDevelopSettingsPacketCurrentV1 } from '../../common/editor/imaging/image-develop-settings-current-v1.ts';
 import { normalizeImageDevelopSettingsPacketCurrentV1 } from '../../common/editor/imaging/image-develop-settings-current-v1.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
-import { normalizeBrushMaskResourceReferenceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
+import { normalizeImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { assertPhotoDevelopSelectedMaskInputsCurrentV1 as assertBrushInputs } from './internal/photo-develop-selected-mask-inputs-current-v1.ts';
 import { normalizeImageDevelopSelectionV3, mergeImageDevelopSettingsV3 } from '../../common/editor/imaging/image-develop-settings-v3.ts';
 import { copyImageDevelopSelectedSettingsV3, mergeImageDevelopSelectedSettingsV3 } from '../../common/editor/imaging/image-develop-settings-selected-v3.ts';
 import { normalizePhotoDocumentCurrentV1, serializePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
@@ -90,10 +90,4 @@ export function createPhotoDevelopSelectedSettingsCurrentV1(host: PhotoDevelopSe
 			} catch (error) { check(admitted); throw error; }
 		}, signal]) as Promise<ImageDevelopSettingsPacketV3>;
 	}
-}
-
-/** This selected child has only the immutable brush body owner. Every input,
- * including unused declarations, must belong to that authenticated namespace. */
-function assertBrushInputs(develop: Readonly<ImageDevelopStateCurrentV1>): void {
-	for (const graph of develop.masks) for (const input of graph.inputs) normalizeBrushMaskResourceReferenceV1(input.sourceRef);
 }

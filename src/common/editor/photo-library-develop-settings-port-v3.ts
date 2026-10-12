@@ -42,6 +42,7 @@ export interface PhotoLibraryDevelopBatchRequestV3 {
 	readonly targets: readonly PhotoLibraryDevelopBatchTargetV3[];
 	readonly action:
 		| Readonly<{ kind: 'paste'; settings: Readonly<ImageDevelopSettingsPacketCurrentV1> }>
+		| Readonly<{ kind: 'preset'; presetId: string; expectedPresetRevision: number }>
 		| Readonly<{ kind: 'relative'; effectType: PhotoLibraryDevelopRelativeV3['effectType']; changes: Readonly<Record<string, number>> }>;
 	readonly label: string;
 	readonly createdAt: string;

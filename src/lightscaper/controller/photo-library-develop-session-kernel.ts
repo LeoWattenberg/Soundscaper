@@ -3,6 +3,7 @@
 import type { PhotoLibraryDevelopPortV2, PhotoLibraryDevelopSnapshotV2, PhotoLibraryDevelopCommandV2 } from '../../common/editor/photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopPortV3, PhotoLibraryDevelopSnapshotV3, PhotoLibraryDevelopCommandV3 } from '../../common/editor/photo-library-develop-port-v3.ts';
 import type { PhotoLibraryDevelopMaskRasterPortV1 } from '../../common/editor/photo-library-develop-mask-raster-port-v1.ts';
+import type { PhotoLibraryDevelopPresetsPortV3 } from '../../common/editor/photo-library-develop-presets-port-v3.ts';
 import type { PhotoLibraryDevelopSettingsPortV3 } from '../../common/editor/photo-library-develop-settings-port-v3.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
 import { normalizeImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
@@ -33,6 +34,7 @@ export interface PhotoLibraryDevelopSessionHostV2 extends PhotoLibraryDevelopSet
 }
 export interface PhotoLibraryDevelopSessionHostV3 {
 	readonly settingsCurrent?: Readonly<PhotoLibraryDevelopSettingsPortV3>;
+	readonly presetsCurrent?: Readonly<PhotoLibraryDevelopPresetsPortV3>;
 	readonly repository: Pick<PhotoCatalogRepositoryCurrentV1, 'loadPhoto'>;
 	readonly ready: () => Promise<string>;
 	readonly operation: <Result>(run: (signal: AbortSignal) => Promise<Result>, signal?: AbortSignal) => Promise<Result>;
@@ -55,6 +57,7 @@ export function createPhotoLibraryDevelopSessionForProfileV1(profile: Profile, h
 	const legacy = profile === 'legacy2' ? host as PhotoLibraryDevelopSessionHostV2 : null;
 	const repository = host.repository, originalSource = host.originalSource, presetStorage = legacy?.presetStorage, maskRasters = host.maskRasters;
 	const settingsCurrent = legacy ? undefined : (host as PhotoLibraryDevelopSessionHostV3).settingsCurrent;
+	const presetsCurrent = legacy ? undefined : (host as PhotoLibraryDevelopSessionHostV3).presetsCurrent;
 	const initialize = host.ready, readPhoto = repository.loadPhoto, borrowedOperation = host.operation, borrowedEdit = host.edit;
 	const borrowedMutate = legacy?.mutate;
 	if ([initialize, readPhoto, borrowedOperation, borrowedEdit].some(method => typeof method !== 'function')) throw new TypeError('Complete Develop host capabilities are required.');
@@ -65,6 +68,7 @@ export function createPhotoLibraryDevelopSessionForProfileV1(profile: Profile, h
 	const children = legacy ? legacyChildren(legacy, ready, operation, loadPhoto, originalSource, presetStorage, borrowedMutate!) : {
 		...(originalSource ? { original: currentOriginal(originalSource, ready, operation, loadPhoto) } : {}),
 		...(settingsCurrent ? { settingsCurrent } : {}),
+		...(presetsCurrent ? { presetsCurrent } : {}),
 	};
 	return Object.freeze({ schemaVersion: profile === 'legacy2' ? 2 : 3,
 		...(maskRasters ? { maskRasters } : {}), ...children,

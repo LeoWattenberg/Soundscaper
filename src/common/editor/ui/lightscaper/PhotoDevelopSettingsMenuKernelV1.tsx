@@ -27,9 +27,8 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 	const active = useRef(entry), live = useRef(true), owned = useRef(owner), writing = useRef<object | null>(null); owned.current = owner;
 	useEffect(() => { live.current = true; active.current = null; setEntry(null); return () => { live.current = false; active.current = null; }; }, [owner]);
 	const latest = useRef(props); latest.current = props;
-	const legacyOwner = props.profile === 'legacy2' ? props.owner : null;
 	const current = () => live.current && owned.current === owner && props.isCurrent();
-	const invoke = (method: 'copy' | 'paste' | 'sync' | 'relative' | 'armAutoSync', ...args: unknown[]) => Reflect.apply(owner[method], owner, args) as Promise<unknown>;
+	const invoke = (method: 'copy' | 'paste' | 'sync' | 'relative' | 'armAutoSync' | 'listPresets' | 'savePreset' | 'applyPreset' | 'renamePreset' | 'deletePreset', ...args: unknown[]) => Reflect.apply(owner[method], owner, args) as Promise<unknown>;
 	const dialogCurrent = () => current() && entry !== null && active.current === entry;
 	const interactive = () => latest.current === props && dialogCurrent() && owner.snapshot() === snapshot;
 	const busy = props.disabled || snapshot.busy || writePending;
@@ -43,8 +42,8 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 		} else void action().then(async result => { if (result && refresh && current()) await props.onChanged(); }).catch(() => undefined);
 	};
 	const open = (mode: Mode) => {
-		if (latest.current !== props || !current() || owner.snapshot() !== snapshot || busy || writing.current || active.current || mode === 'presets' && !legacyOwner) return; const next = Object.freeze({ mode }); active.current = next; setEntry(next);
-		if (mode === 'presets' && legacyOwner) run(() => legacyOwner.listPresets(source.catalogId));
+		if (latest.current !== props || !current() || owner.snapshot() !== snapshot || busy || writing.current || active.current) return; const next = Object.freeze({ mode }); active.current = next; setEntry(next);
+		if (mode === 'presets') run(() => invoke('listPresets', source.catalogId));
 	};
 	const close = () => { if (!dialogCurrent()) return; active.current = null; setEntry(null); };
 	const menu = snapshot.presets?.catalogId === source.catalogId ? snapshot.presets : null;
@@ -60,7 +59,7 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 			<button type="button" disabled={busy || props.dirty || props.selectedIds.filter(id => id !== source.photoId).length === 0} onClick={() => { open('auto'); }}>{messages.auto}</button>
 			{snapshot.autoSync && <button type="button" disabled={busy} onClick={() => { if (current()) owner.clearAutoSync(); }}>{messages.stopAuto}</button>}
 			<button type="button" disabled={busy || props.dirty || props.selectedIds.length === 0} onClick={() => { open('quick'); }}>{messages.quick}</button>
-			{legacyOwner && <button type="button" disabled={busy} onClick={() => { open('presets'); }}>{messages.presets}</button>}
+			<button type="button" disabled={busy} onClick={() => { open('presets'); }}>{messages.presets}</button>
 		</details>
 		{snapshot.autoSync && <p role="status">{messages.autoActive} {snapshot.autoSyncTargetCount}</p>}
 		{snapshot.clipboard && <p role="status">{messages.copied}</p>}
@@ -89,24 +88,24 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 			}}>{messages.confirmAuto}</button></>}
 			{entry.mode === 'quick' && <PhotoDevelopQuickSettings messages={messages} disabled={busy || props.dirty} isCurrent={dialogCurrent}
 				onApply={(type, changes) => { if (dialogCurrent()) run(() => invoke('relative', source.catalogId, props.selectedIds, type, changes, messages.quickLabel), true); }} />}
-			{entry.mode === 'presets' && legacyOwner && <>
+			{entry.mode === 'presets' && <>
 				<label>{messages.choosePreset}<select aria-label={messages.choosePreset} value={presetId} disabled={busy} onChange={event => { if (interactive()) setPresetId(event.currentTarget.value); }}>
 					<option value="">{messages.noPreset}</option>{menu?.presets.map(preset => <option key={preset.id} value={preset.id}>{preset.name} ({preset.scope === 'full' ? messages.full : messages.partial})</option>)}</select></label>
 				<label>{messages.presetName}<input aria-label={messages.presetName} value={presetName} maxLength={256} disabled={busy}
 					onChange={event => { if (interactive()) setPresetName(event.currentTarget.value); }} /></label>
 				<button type="button" disabled={busy || !menu || !presetName.trim() || menu.presets.length >= 16} onClick={() => {
-					if (dialogCurrent()) run(() => legacyOwner.savePreset(source as PhotoDevelopSettingsMenuPropsV2['source'], selection, presetName));
+					if (dialogCurrent()) run(() => invoke('savePreset', source, selection, presetName));
 				}}>{messages.savePreset}</button>
 				<button type="button" disabled={busy || props.dirty || !selected} onClick={() => {
-					if (dialogCurrent() && selected && menu) run(() => legacyOwner.applyPreset(source as PhotoDevelopSettingsMenuPropsV2['source'], selected.id, menu.revision, messages.presetLabel), true);
+					if (dialogCurrent() && selected && menu) run(() => invoke('applyPreset', source, selected.id, menu.revision, messages.presetLabel), true);
 				}}>{messages.applyPreset}</button>
 				<button type="button" disabled={busy || !selected || !presetName.trim()} onClick={() => {
-					if (dialogCurrent() && selected && menu) run(() => legacyOwner.renamePreset(source.catalogId, selected.id, menu.revision, presetName));
+					if (dialogCurrent() && selected && menu) run(() => invoke('renamePreset', source.catalogId, selected.id, menu.revision, presetName));
 				}}>{messages.renamePreset}</button>
 				<button type="button" disabled={busy || !selected} onClick={() => {
-					if (dialogCurrent() && selected && menu) run(() => legacyOwner.deletePreset(source.catalogId, selected.id, menu.revision));
+					if (dialogCurrent() && selected && menu) run(() => invoke('deletePreset', source.catalogId, selected.id, menu.revision));
 				}}>{messages.deletePreset}</button>
-				<button type="button" disabled={busy} onClick={() => { if (dialogCurrent()) run(() => legacyOwner.listPresets(source.catalogId)); }}>{messages.reloadPresets}</button>
+				<button type="button" disabled={busy} onClick={() => { if (dialogCurrent()) run(() => invoke('listPresets', source.catalogId)); }}>{messages.reloadPresets}</button>
 			</>}
 		<button type="button" disabled={!snapshot.busy} onClick={() => { if (dialogCurrent() && owner.snapshot() === snapshot) void owner.cancel(); }}>{messages.cancel}</button>
 			<button type="button" onClick={close}>{messages.close}</button>
