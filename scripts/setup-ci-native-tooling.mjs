@@ -111,6 +111,16 @@ export async function installWindowsArm64MediaTools({
 	return bin;
 }
 
+// MSVC 14.51 removed locale::empty(). Keep the explicit UTF-8 facet while
+// using the standard, deterministic base locale on the authenticated source.
+export function patchRceditLocale(source) {
+	const before = 'wif.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t>));';
+	if (source.split(before).length !== 2) {
+		throw new Error('rcedit locale compatibility patch does not match its exact source context.');
+	}
+	return source.replace(before, before.replace('std::locale::empty()', 'std::locale::classic()'));
+}
+
 /**
  * @param {{env?: NodeJS.ProcessEnv, pin?: Readonly<ArchivePin>, fetchImpl?: typeof fetch,
  * runImpl?: (executable: string, args: string[], options: object) => Promise<{stdout: string, stderr: string}>}} [options]
@@ -129,6 +139,8 @@ export async function buildWindowsArm64Rcedit({
 		const options = { encoding: 'utf8', timeout: 120_000, windowsHide: true };
 		await runImpl(join(env.SystemRoot, 'System32', 'tar.exe'),
 			['-xf', archive, '-C', source, '--strip-components=1'], options);
+		const rescle = join(source, 'src', 'rescle.cc');
+		await writeFile(rescle, patchRceditLocale(await readFile(rescle, 'utf8')));
 		const cmake = join(env.ProgramFiles, 'CMake', 'bin', 'cmake.exe');
 		await runImpl(cmake, ['-S', source, '-B', build, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',
 			'-DCMAKE_C_COMPILER=cl.exe', '-DCMAKE_CXX_COMPILER=cl.exe'], options);
