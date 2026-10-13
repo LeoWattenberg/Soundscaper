@@ -102,7 +102,9 @@ module.exports = {
 		notarize: signing.mac.notarize,
 		icon: '.desktop-build/icons/icon.png',
 		identity: macSigningIdentity,
-		hardenedRuntime: true,
+		// Ad-hoc signatures have no Team ID; hardened library validation would
+		// reject the bundled Electron framework before the application can start.
+		hardenedRuntime: signing.mac.notarize,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
 		signIgnore: signing.mac.notarize ? '/Contents/Resources/runtime/' : macPreAuthenticatedRuntimePayload,
