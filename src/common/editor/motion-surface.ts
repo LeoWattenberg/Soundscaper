@@ -3,6 +3,7 @@
 import type { MotionLayerBase } from './motion-composition.ts';
 import type { MotionColor } from './motion-property.ts';
 import type { MotionMatrix4 } from './motion-transform.ts';
+import { decodeVideoChannel, encodeVideoChannel } from './video-color-transfer.ts';
 
 export type MotionBlendMode = MotionLayerBase['blendMode'];
 export interface MotionSurface {
@@ -62,12 +63,10 @@ export function compositeMotionSurfaces(destination: MotionSurface, source: Moti
 	}
 }
 export function decodeMotionChannel(value: number, space: 'srgb' | 'rec709'): number {
-	return space === 'srgb' ? (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
-		: (value < 0.081 ? value / 4.5 : ((value + 0.099) / 1.099) ** (1 / 0.45));
+	return decodeVideoChannel(value, space);
 }
 export function encodeMotionChannel(value: number, space: 'srgb' | 'rec709'): number {
-	return space === 'srgb' ? (value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055)
-		: (value < 0.018 ? value * 4.5 : 1.099 * value ** 0.45 - 0.099);
+	return encodeVideoChannel(value, space);
 }
 /** Encoding occurs after unpremultiplication; zero-alpha colors are canonical zero. */
 export function motionSurfaceToRgba8(surface: MotionSurface, space: 'srgb' | 'rec709'): Uint8ClampedArray {
