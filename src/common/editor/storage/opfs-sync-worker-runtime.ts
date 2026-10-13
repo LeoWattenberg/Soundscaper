@@ -49,6 +49,7 @@ export class OpfsSyncWorkerRuntime {
 	readonly #writers = new Map<string, WorkerWriter>();
 	readonly #active = new Set<string>();
 	readonly #cancelled = new Set<string>();
+	readonly #readOwners = new Map<string, Promise<void>>();
 	#directory: FileSystemDirectoryHandle | null = null;
 	#initialized = false;
 
@@ -87,24 +88,26 @@ export class OpfsSyncWorkerRuntime {
 	async #snapshot(request: WorkerRequest, requestIdValue: string): Promise<Record<string, unknown>> {
 		const operationId = readOperation(request.operationId);
 		const path = normalizeOpfsWorkerPath(request.path);
-		const fileHandle = await this.#fileHandle(path, false);
-		this.#throwIfCancelled(requestIdValue);
-		const access = await createSyncAccess(fileHandle, true);
-		let size: number;
-		try {
-			size = access.getSize();
-			if (!Number.isSafeInteger(size) || size < 0) {
-				throw new Error('OPFS synchronous access returned an invalid file size.');
+		return this.#withReadOwner(path, requestIdValue, async () => {
+			const fileHandle = await this.#fileHandle(path, false);
+			this.#throwIfCancelled(requestIdValue);
+			const access = await createSyncAccess(fileHandle, true);
+			let size: number;
+			try {
+				size = access.getSize();
+				if (!Number.isSafeInteger(size) || size < 0) {
+					throw new Error('OPFS synchronous access returned an invalid file size.');
+				}
+			} finally {
+				access.close();
 			}
-		} finally {
-			access.close();
-		}
-		this.#throwIfCancelled(requestIdValue);
-		const file = await fileHandle.getFile();
-		if (!(file instanceof Blob) || file.size !== size) {
-			throw new Error('The OPFS file changed during snapshot acquisition.');
-		}
-		return Object.freeze({ operationId, size, file });
+			this.#throwIfCancelled(requestIdValue);
+			const file = await fileHandle.getFile();
+			if (!(file instanceof Blob) || file.size !== size) {
+				throw new Error('The OPFS file changed during snapshot acquisition.');
+			}
+			return Object.freeze({ operationId, size, file });
+		});
 	}
 
 	#initialize(request: WorkerRequest): Record<string, unknown> {
@@ -120,22 +123,41 @@ export class OpfsSyncWorkerRuntime {
 		const operationId = readOperation(request.operationId);
 		const path = normalizeOpfsWorkerPath(request.path);
 		const { offset, length } = normalizeOpfsReadRange(request.offset, request.length);
-		const fileHandle = await this.#fileHandle(path, false);
-		this.#throwIfCancelled(requestIdValue);
-		const access = await createSyncAccess(fileHandle, true);
-		try {
-			const size = access.getSize();
-			if (!Number.isSafeInteger(size) || size < 0) {
-				throw new Error('OPFS synchronous access returned an invalid file size.');
-			}
-			if (offset + length > size) throw new RangeError('The requested range exceeds the OPFS file.');
+		return this.#withReadOwner(path, requestIdValue, async () => {
+			const fileHandle = await this.#fileHandle(path, false);
 			this.#throwIfCancelled(requestIdValue);
-			const bytes = new Uint8Array(length);
-			const read = access.read(bytes, { at: offset });
-			if (read !== length) throw new Error('OPFS synchronous access returned a short read.');
-			return Object.freeze({ operationId, size, bytes: bytes.buffer });
+			const access = await createSyncAccess(fileHandle, true);
+			try {
+				const size = access.getSize();
+				if (!Number.isSafeInteger(size) || size < 0) {
+					throw new Error('OPFS synchronous access returned an invalid file size.');
+				}
+				if (offset + length > size) throw new RangeError('The requested range exceeds the OPFS file.');
+				this.#throwIfCancelled(requestIdValue);
+				const bytes = new Uint8Array(length);
+				const read = access.read(bytes, { at: offset });
+				if (read !== length) throw new Error('OPFS synchronous access returned a short read.');
+				return Object.freeze({ operationId, size, bytes: bytes.buffer });
+			} finally {
+				access.close();
+			}
+		});
+	}
+
+	/** Native access and getFile must finish under the same path owner. A
+	 * queued read never delays cancellation or a writer's close request. */
+	async #withReadOwner<Result>(path: string, id: string, consume: () => Promise<Result>): Promise<Result> {
+		const previous = this.#readOwners.get(path);
+		let release!: () => void;
+		const terminal = new Promise<void>(resolve => { release = resolve; });
+		this.#readOwners.set(path, terminal);
+		await previous;
+		try {
+			this.#throwIfCancelled(id);
+			return await consume();
 		} finally {
-			access.close();
+			release();
+			if (this.#readOwners.get(path) === terminal) this.#readOwners.delete(path);
 		}
 	}
 
