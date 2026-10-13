@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Input, BufferSource, ALL_FORMATS } from 'mediabunny';
 
 import {
 	createVideoExactPictureExportFrameSource,
@@ -67,9 +68,9 @@ test('WebCodecs sink delivery opens with the exact generated size and streams bo
 	assert.equal(fixture.disposals(), 1);
 });
 
-test('the default lazy backend writes finite Mediabunny containers from browser chunks', async () => {
+test('Motion owned Main709 chunks retain finite default lazy Mediabunny container evidence', async () => {
 	for (const [format, codec] of [
-		['mp4', 'avc1.42001e'],
+		['mp4', 'avc1.4d001e'],
 		['webm', 'vp09.00.10.08'],
 	] as const) {
 		const frameSource = createVideoExactPictureExportFrameSource({
@@ -104,6 +105,18 @@ test('the default lazy backend writes finite Mediabunny containers from browser 
 		);
 		assert.deepEqual(encoder.configs[0]?.avc, format === 'mp4' ? { format: 'avc' } : undefined);
 		assert.equal(encoder.configs[0]?.hardwareAcceleration, 'prefer-hardware');
+		const input = new Input({ source: new BufferSource(result.bytes), formats: ALL_FORMATS });
+		try {
+			const track = await input.getPrimaryVideoTrack(); assert.ok(track);
+			assert.deepEqual([track.displayWidth, track.displayHeight], [4, 2]);
+			if (format === 'mp4') {
+				const config = await track.getDecoderConfig(); assert.ok(config);
+				assert.equal(config.codec, 'avc1.4d001e');
+				assert.deepEqual(config.colorSpace, { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false });
+				assert.deepEqual(new Uint8Array(config.description as ArrayBuffer), Uint8Array.from(Buffer.from('014d001effe1000d674d001eda7e7889a80808081001000468ce3c80', 'hex')));
+			}
+		} finally { input.dispose(); }
+
 	}
 });
 
@@ -170,10 +183,9 @@ function nativeFixture(format: 'mp4' | 'webm', container: Uint8Array, codec: str
 
 function fakeEncoder(format: 'mp4' | 'webm') {
 	const configs: Record<string, unknown>[] = [];
-	const avcc = Uint8Array.of(
-		1, 66, 0, 30, 255, 225, 0, 9, 103, 66, 0, 30, 244, 75, 32, 1, 16,
-		1, 0, 4, 104, 206, 60, 128,
-	);
+	// Synthetic Main SPS: one progressive16x16 macroblock cropped to4x2,
+	// POC2, one reference, absent VUI. The owning producer supplies its709 signal.
+	const avcc = Uint8Array.from(Buffer.from('014d001effe10008674d001eda7e788401000468ce3c80', 'hex'));
 	class Frame {
 		readonly timestamp: number;
 		readonly duration: number;
@@ -207,10 +219,10 @@ function fakeEncoder(format: 'mp4' | 'webm') {
 				copyTo(target: Uint8Array) { target.set(data); },
 			}, {
 				decoderConfig: {
-					codec: format === 'mp4' ? 'avc1.42001e' : 'vp09.00.10.08',
+					codec: format === 'mp4' ? 'avc1.4d001e' : 'vp09.00.10.08',
 					codedWidth: 4,
 					codedHeight: 2,
-					...(format === 'mp4' ? { description: avcc } : {}),
+					...(format === 'mp4' ? { description: avcc, colorSpace: { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false } as const } : {}),
 				},
 			});
 		}
