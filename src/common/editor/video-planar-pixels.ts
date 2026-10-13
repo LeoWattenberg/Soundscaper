@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { decodeMotionChannel, encodeMotionChannel } from './motion-surface.ts';
+import { decodeVideoChannel, encodeVideoChannel } from './video-color-transfer.ts';
 
 /** The actual bytes produced by a compositor, before opaque video encoding. */
 export interface VideoRgbaOutput {
@@ -66,7 +66,7 @@ export function videoRgbaI420Pixels(rgba: Uint8Array, width: number, height: num
 	return videoI420Pixels(width, height, (pixel, rgb) => {
 		const at = pixel * 4, alpha = rgba[at + 3]! / 255;
 		for (let c = 0; c < 3; c++) rgb[c] = alpha === 0 ? 0 : contract.encoding === 'rec709' && alpha === 1 ? rgba[at + c]! / 255
-			: encodeMotionChannel(decodeMotionChannel(rgba[at + c]! / 255, contract.encoding) * alpha, 'rec709');
+			: encodeVideoChannel(decodeVideoChannel(rgba[at + c]! / 255, contract.encoding) * alpha, 'rec709');
 	}, target);
 }
 function code(value: number, minimum: number, maximum: number): number { return Math.max(minimum, Math.min(maximum, Math.round(value))); }
