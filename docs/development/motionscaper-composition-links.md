@@ -135,7 +135,20 @@ shared compositor. Virtual sources also request asynchronous frames during
 playback. Focused actual CanvasKit/Frame tests cover seek/reseek, transparency
 and mixed image order. The connected sender/receiver menu browser workflow
 also saves a portable archive, opens it in a fresh receiver, exports real MP4
-and verifies presented pixels after decoding, then reopens the project offline.
+and verifies file pixels and actual native presentation separately, then reopens
+the project offline. The file oracle retains the absolute 12-code authored-color
+bound: native I420/NV12 output uses an independent limited-range BT.709 inverse;
+native RGB output must meet the same bound and is explicitly unqualified for
+normative plane verification. Actual file tags, geometry, two frame timestamps,
+native output, HTML-video pixels and a separately constructed same-byte native
+frame control are retained. A control never replaces the authored file bound.
+Chromium 151's retained blue fixture presented code 241 despite correct 709
+planes yielding about 253 by the normative inverse. Its original absolute HTML
+assertion remains a recorded failure. The exact Chromium/libyuv source and a
+constant-plane control agree with the bounded H709 chroma coefficient in
+[the pinned libyuv implementation](https://chromium.googlesource.com/libyuv/libyuv/+/8aeb3a9ca36341a640528e59b34b5d641080dca8/source/row_common.cc).
+The maintained presentation check requires actual native and HTML output to
+match the same-tag native control; it does not claim universal display fidelity.
 
 The engine companion adapter presents 4,096-frame stereo Float32 storage chunks
 on the saved Motion project's native sample rate, including a short terminal

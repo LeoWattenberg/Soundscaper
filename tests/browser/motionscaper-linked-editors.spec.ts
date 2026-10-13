@@ -2,6 +2,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test, withBrowserCoverageContext } from './helpers/browser-coverage-fixture.js';
 import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { observeLinkedVideoPixels, verifyLinkedVideoPixels } from './helpers/motion-linked-video-pixels.js';
 const motionOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_MOTION_PORT || 4346}`;
 const frameOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_FRAME_PORT || 4345}`;
 test.use({ serviceWorkers: 'allow' });
@@ -35,17 +37,13 @@ async function exportVideoColor(page: Page): Promise<number[]> {
 	const downloading = page.waitForEvent('download'); await link.click(); const file = await downloading; const path = await file.path(); if (!path) throw new Error('Linked video download is absent.');
 	const bytes = await readFile(path); expect(bytes.subarray(4, 8).toString()).toBe('ftyp');
 	const outputPath = test.info().outputPath('linked-export.mp4'); await writeFile(outputPath, bytes); await test.info().attach('linked-export', { path: outputPath, contentType: 'video/mp4' });
-	return page.evaluate(async encoded => {
-		const url = URL.createObjectURL(new Blob([Uint8Array.from(atob(encoded), character => character.charCodeAt(0))], { type: 'video/mp4' })); const video = document.createElement('video');
-		Object.assign(video, { muted: true, playsInline: true, preload: 'auto' }); Object.assign(video.style, { position: 'fixed', left: '8px', top: '8px', width: '96px', height: '64px', zIndex: '2147483647' }); document.body.append(video);
-		let callback: number | undefined; let presentationTimeout: ReturnType<typeof setTimeout> | undefined;
-		try {
-			const presented = new Promise<void>((resolve, reject) => { presentationTimeout = setTimeout(() => reject(new Error('Linked video presentation timed out.')), 15_000); callback = video.requestVideoFrameCallback(() => { clearTimeout(presentationTimeout); callback = undefined; resolve(); }); });
-			const loaded = new Promise<void>((resolve, reject) => { video.onloadeddata = () => resolve(); video.onerror = () => reject(new Error('Linked video decode failed.')); }); video.src = url; video.load(); await Promise.all([loaded, presented]);
-			if (video.videoWidth !== 96 || video.videoHeight !== 64) throw new Error('Linked video dimensions changed.');
-			const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 64; const context = canvas.getContext('2d')!; context.drawImage(video, 0, 0); return [...context.getImageData(48, 32, 1, 1).data];
-		} finally { if (callback !== undefined) video.cancelVideoFrameCallback(callback); clearTimeout(presentationTimeout); video.removeAttribute('src'); video.load(); video.remove(); URL.revokeObjectURL(url); }
-	}, bytes.toString('base64'));
+	const observation = await observeLinkedVideoPixels(page, bytes);
+	await test.info().attach('linked-video-native-and-presentation', { contentType: 'application/json', body: JSON.stringify({
+		byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex'), ...observation,
+	}, null, 2) });
+	const verified = verifyLinkedVideoPixels(observation);
+	test.info().annotations.push({ type: 'linked-video-file-fidelity', description: verified.classifications.join(', ') });
+	return verified.colors[0]!;
 }
 test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser, browserCoverage, browserCoverageSites, launchOptions, headless, channel }) => {
 	test.setTimeout(120_000);
