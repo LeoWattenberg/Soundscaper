@@ -22,6 +22,7 @@
 import { normalizeVideoRgbaOutput, videoI420ByteLength, videoRgbaI420Pixels, VIDEO_I420_COLOR_SPACE, type VideoRgbaOutput } from './video-planar-pixels.ts';
 import { raceAbortablePromise } from './abort-race.ts';
 import { createVideoElementaryStreamWriter } from './video-elementary-stream.ts';
+import { createVideoAvcColorNormalizer } from './video-avc-color-description.ts';
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
@@ -111,7 +112,7 @@ export interface VideoWebCodecsChunkProduceRequest
 	extends Omit<VideoWebCodecsProduceRequest, 'write'> {
 	/** MP4 consumes length-prefixed AVC; the legacy elementary-stream path consumes Annex-B. */
 	readonly h264Format?: 'annexb' | 'avc';
-	/** Receives each browser chunk with the exact metadata emitted beside it. */
+	/** Receives browser packets with explicit own-709 AVC signaling; picture bytes/timing remain exact. */
 	readonly writeChunk: (
 		chunk: VideoWebCodecsEncodedChunk,
 		metadata?: EncodedVideoChunkMetadata,
@@ -194,7 +195,7 @@ export async function produceVideoWebCodecsStream(
 	return Object.freeze({ ...encoded, byteLength });
 }
 
-/** Encode every exact frame while preserving WebCodecs chunk timing and decoder metadata. */
+/** Encode exact frames, retaining timing/picture bytes and completing missing own AVC color signaling. */
 export async function produceVideoWebCodecsChunks(
 	request: VideoWebCodecsChunkProduceRequest,
 ): Promise<VideoWebCodecsProduceResult> {
@@ -219,9 +220,12 @@ export async function produceVideoWebCodecsChunks(
 	request.signal?.addEventListener('abort', onAbort, { once: true });
 	let chunkCount = 0;
 	let byteLength = 0;
+	const normalizeAvc = request.videoCodec === 'h264' && request.h264Format === 'avc'
+		? createVideoAvcColorNormalizer(width, height) : undefined;
 	const drain = async () => {
 		while (pending.length > 0) {
-			const next = pending.shift()!;
+			const emitted = pending.shift()!;
+			const next = normalizeAvc ? normalizeAvc(emitted.chunk, emitted.metadata) : emitted;
 			chunkCount += 1;
 			byteLength += next.chunk.byteLength;
 			await request.writeChunk(next.chunk, next.metadata);
