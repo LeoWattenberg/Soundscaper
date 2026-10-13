@@ -70,10 +70,11 @@ test('the encoder is configured with what the plan decided and nothing else', as
 test('native mux production requests AVC and preserves each chunk metadata callback', async () => {
 	const metadata = {
 		decoderConfig: {
-			codec: 'avc1.4d001f',
+			codec: 'avc1.4d001e',
 			codedWidth: 4,
 			codedHeight: 2,
-			description: Uint8Array.of(1, 0x4d, 0, 0x1f),
+			colorSpace: { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false },
+			description: Uint8Array.from(Buffer.from('014d001effe1000d674d001eda7e7889a8080808100100026880', 'hex')),
 		},
 	} as EncodedVideoChunkMetadata;
 	const harness = createHarness({ frameCount: 1, metadata });
@@ -254,11 +255,11 @@ function createHarness(options: {
 			if (queued.length === 0) return;
 			const index = queued.shift()!;
 			const chunk = {
-				byteLength: 4,
+				byteLength: options.metadata ? 6 : 4,
 				type: index === 0 ? 'key' as const : 'delta' as const,
 				timestamp: frameTimestamp(index, RATE_2997),
 				duration: frameTimestamp(1, RATE_2997),
-				copyTo: (target: Uint8Array) => target.set([1, 2, 3, 4]),
+				copyTo: (target: Uint8Array) => target.set(options.metadata ? [0, 0, 0, 2, 0x65, 0x88] : [1, 2, 3, 4]),
 			};
 			harness.emittedChunks.push(chunk);
 			output?.(chunk, options.metadata);

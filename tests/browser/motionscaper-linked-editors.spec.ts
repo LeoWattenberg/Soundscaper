@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { Page } from '@playwright/test';
-import { expect, test, withBrowserCoverageContext } from './helpers/browser-coverage-fixture.js';
+import { expect, test, withBrowserCoverageContext, inspectLinkedOfflineReadiness } from './helpers/motionscaper-linked-fixture.js';
 import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { observeLinkedVideoPixels, verifyLinkedVideoPixels } from './helpers/motion-linked-video-pixels.js';
 const motionOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_MOTION_PORT || 4346}`;
 const frameOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_LINK_FRAME_PORT || 4345}`;
 test.use({ serviceWorkers: 'allow' });
@@ -35,19 +37,15 @@ async function exportVideoColor(page: Page): Promise<number[]> {
 	const downloading = page.waitForEvent('download'); await link.click(); const file = await downloading; const path = await file.path(); if (!path) throw new Error('Linked video download is absent.');
 	const bytes = await readFile(path); expect(bytes.subarray(4, 8).toString()).toBe('ftyp');
 	const outputPath = test.info().outputPath('linked-export.mp4'); await writeFile(outputPath, bytes); await test.info().attach('linked-export', { path: outputPath, contentType: 'video/mp4' });
-	return page.evaluate(async encoded => {
-		const url = URL.createObjectURL(new Blob([Uint8Array.from(atob(encoded), character => character.charCodeAt(0))], { type: 'video/mp4' })); const video = document.createElement('video');
-		Object.assign(video, { muted: true, playsInline: true, preload: 'auto' }); Object.assign(video.style, { position: 'fixed', left: '8px', top: '8px', width: '96px', height: '64px', zIndex: '2147483647' }); document.body.append(video);
-		let callback: number | undefined; let presentationTimeout: ReturnType<typeof setTimeout> | undefined;
-		try {
-			const presented = new Promise<void>((resolve, reject) => { presentationTimeout = setTimeout(() => reject(new Error('Linked video presentation timed out.')), 15_000); callback = video.requestVideoFrameCallback(() => { clearTimeout(presentationTimeout); callback = undefined; resolve(); }); });
-			const loaded = new Promise<void>((resolve, reject) => { video.onloadeddata = () => resolve(); video.onerror = () => reject(new Error('Linked video decode failed.')); }); video.src = url; video.load(); await Promise.all([loaded, presented]);
-			if (video.videoWidth !== 96 || video.videoHeight !== 64) throw new Error('Linked video dimensions changed.');
-			const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 64; const context = canvas.getContext('2d')!; context.drawImage(video, 0, 0); return [...context.getImageData(48, 32, 1, 1).data];
-		} finally { if (callback !== undefined) video.cancelVideoFrameCallback(callback); clearTimeout(presentationTimeout); video.removeAttribute('src'); video.load(); video.remove(); URL.revokeObjectURL(url); }
-	}, bytes.toString('base64'));
+	const observation = await observeLinkedVideoPixels(page, bytes);
+	await test.info().attach('linked-video-native-and-presentation', { contentType: 'application/json', body: JSON.stringify({
+		byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex'), ...observation,
+	}, null, 2) });
+	const verified = verifyLinkedVideoPixels(observation);
+	test.info().annotations.push({ type: 'linked-video-file-fidelity', description: verified.classifications.join(', ') });
+	return verified.colors[0]!;
 }
-test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser, browserCoverage, browserCoverageSites, launchOptions, headless, channel }) => {
+test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser, browserCoverage, browserCoverageSites, launchOptions, headless, channel, linkedOrigins }) => {
 	test.setTimeout(120_000);
 	const errors: string[] = []; frame.on('pageerror', error => errors.push(error.message));
 	await frame.addInitScript(() => Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined }));
@@ -90,8 +88,12 @@ test('actual editor menus connect saved compositions, update automatically, and 
 		await expect.poll(() => previewColor(imported)).toEqual([0, 0, 255, 255]);
 		const encodedColor = await exportVideoColor(imported); for (const [index, expected] of [0, 0, 255, 255].entries()) expect(Math.abs(encodedColor[index]! - expected), JSON.stringify(encodedColor)).toBeLessThanOrEqual(12);
 	});
-	await frame.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })); });
-	await context.setOffline(true); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	const offlineReadiness = await inspectLinkedOfflineReadiness(frame, linkedOrigins.sites[0]!);
+	await test.info().attach('linked-offline-used-asset-and-font-custody', { contentType: 'application/json', body: JSON.stringify(offlineReadiness, null, 2) });
+	await linkedOrigins.close(); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	await expect(frame.locator('[data-editor-ready]')).toHaveAttribute('data-editor-ready', 'true');
+	await expect(frame.locator('[data-project-id]')).toHaveAttribute('data-project-id', projectId!);
+	await expect(frame.locator('[data-project-id]')).not.toHaveAttribute('data-project-activation-pending', 'true');
 	await expect.poll(() => previewColor(frame)).toEqual([0, 0, 255, 255]); await menu(frame, 'File', 'Linked compositions…'); await expect(links.locator('code')).toHaveText(conformed!);
 	expect(errors).toEqual([]);
 });

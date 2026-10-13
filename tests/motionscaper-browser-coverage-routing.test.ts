@@ -16,11 +16,13 @@ test('standard browser preparation builds every required product before validati
 
 test('Motion linked browser coverage names its actual built origins and checkout source maps', async () => {
 	const module = await import('../playwright.motionscaper-links.config.mjs');
-	const config = module.default as { use: { browserCoverageSites?: { productId: string; origin: string; outputDirectory: string }[] }; webServer: { url: string }[] };
+	const config = module.default as { workers: number; use: { browserCoverageSites?: { productId: string; origin: string; outputDirectory: string }[] }; webServer?: unknown };
 	const sites = config.use.browserCoverageSites; assert.ok(sites);
+	assert.equal(config.webServer, undefined, 'dedicated test fixtures own the two origins through collector teardown');
+	assert.equal(config.workers, 1);
 	assert.deepEqual(sites.map(site => site.productId), ['framescaper', 'motionscaper']);
 	for (const [index, site] of sites.entries()) {
-		assert.equal(site.origin, new URL(config.webServer[index]!.url).origin);
+		assert.equal(site.origin, `http://127.0.0.1:${index === 0 ? process.env.PLAYWRIGHT_LINK_FRAME_PORT || 4345 : process.env.PLAYWRIGHT_LINK_MOTION_PORT || 4346}`);
 		assert.equal(site.outputDirectory, resolve('.wrangler/motionscaper-links', site.productId));
 	}
 	const fixture = await readFile(new URL('./browser/helpers/browser-coverage-fixture.js', import.meta.url), 'utf8');

@@ -135,7 +135,49 @@ shared compositor. Virtual sources also request asynchronous frames during
 playback. Focused actual CanvasKit/Frame tests cover seek/reseek, transparency
 and mixed image order. The connected sender/receiver menu browser workflow
 also saves a portable archive, opens it in a fresh receiver, exports real MP4
-and verifies presented pixels after decoding, then reopens the project offline.
+and verifies file pixels and actual native presentation separately, then reopens
+the project offline. The file oracle retains the absolute 12-code authored-color
+bound: native I420/NV12 output uses an independent limited-range BT.709 inverse;
+native RGB output must meet the same bound and is explicitly unqualified for
+normative plane verification. Actual file tags, geometry, two frame timestamps,
+native output, HTML-video pixels and a separately constructed same-byte native
+frame control are retained. A control never replaces the authored file bound.
+Chromium 151's retained blue fixture presented code 241 despite correct 709
+planes yielding about 253 by the normative inverse. Its original absolute HTML
+assertion remains a recorded failure. The exact Chromium/libyuv source and a
+constant-plane control agree with the bounded H709 chroma coefficient in
+[the pinned libyuv implementation](https://chromium.googlesource.com/libyuv/libyuv/+/8aeb3a9ca36341a640528e59b34b5d641080dca8/source/row_common.cc).
+The maintained presentation check requires actual native and HTML output to
+match the same-tag native control; it does not claim universal display fidelity.
+
+Owned WebCodecs AVC output now completes missing Main-profile SPS color signaling
+from the producer's explicit BT.709 limited I420 contract and actual emitted
+configuration. This includes absent VUI and in-band SPS parameter sets. Existing
+consistent descriptions stay byte-identical; conflicting color, incompatible
+profile/level/constraints, contradictory crop geometry and unsupported or
+malformed bounded syntax refuse before writing. A native decoder configuration
+may describe fewer Main constraint flags or a higher defined level than its actual
+SPS; the SPS must retain every declared flag and remains the format authority.
+Main Level 1b is ordered between Levels 1 and 1.1 using constraint_set3, as
+specified by [RFC 6184](https://www.rfc-editor.org/rfc/rfc6184#section-8.1).
+This compatibility rule does not claim unequal codec labels are canonical or
+byte-identical. An actual level above the declared configuration refuses.
+Neither codec string nor
+profile bytes are rewritten. This is a bounded metadata parser, not a full
+PPS/VCL conformance validator or support for Baseline/High/scaling syntax.
+
+The retained WebKit 2336 control emitted SPS/PPS in all six actual packets over
+three seconds, including three requested IDR frames. Completing only the absent
+signaling made its native NV12 decoder report BT.709 while preserving every active
+plane byte, coded-picture/PPS byte, packet order and timestamp. Independent
+FFmpeg 9.0.1 decoding confirmed all full active planes unchanged. Separately
+constructed absent-VUI and additional in-band cases also passed; these are not
+claims about native encoder emission. The original valid 811-byte MP4 and strict
+native-metadata refusal remain retained. The pinned WebKit decoder ignores the
+supplied color override; the bounded producer operation follows
+[the primary H.264 metadata implementation](https://github.com/FFmpeg/FFmpeg/blob/n8.0/libavcodec/bsf/h264_metadata.c#L183).
+This does not modify imported media or qualify valid-transfer behavior in the
+separate raw-FFmpeg export route.
 
 The engine companion adapter presents 4,096-frame stereo Float32 storage chunks
 on the saved Motion project's native sample rate, including a short terminal
@@ -197,3 +239,25 @@ native watcher evidence is recorded in
 delivery and the remaining platform matrix remain incomplete release gates.
 
 No **Update AI assets** run is required; the assistance runtime closure is unchanged.
+
+The owned encoder callback also reverses the exact Firefox153 native avcC
+serializer defect: zero reserved bits coupled with one duplicated NAL header on
+each single SPS/PPS. Admission requires the recovered sets to equal the actual
+owned key packet byte for byte before ordinary strict geometry/profile/color
+validation. General and imported avcC parsing stays strict. A six-frame, three-
+second native Firefox control retained identical complete BGRX output and all
+non-SPS packet bytes/timing; independent pinned FFmpeg9.0.1 decoding retained
+identical full active YUV planes. The original malformed description and decoder
+warnings remain evidence. This bounded control does not replace final menu and
+offline workflow qualification.
+
+Cold-load offline handoff replays a bounded set of completed resources actually
+observed in this document: versioned same-origin JavaScript, CSS, WASM and fonts.
+It waits for the exact active own worker, serializes requests, and stops on known
+resource-timing loss, limits, cancellation or failure. The lazy helper admits at
+most 256 URLs, 4096 observations and 32 fonts within 30 seconds; it does not expand install
+inventory or fetch unused optional modules. Its settled state describes requests,
+not durable custody or a complete historical resource inventory. The offline
+linked workflow separately verifies the observed assets, original fonts and
+navigation bytes against the current build's shell cache and waits for restored
+owner/editor readiness before the existing picture/link/error assertions.

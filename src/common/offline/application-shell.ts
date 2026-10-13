@@ -81,6 +81,8 @@ export async function registerOfflineApplicationShell(
 			type: 'classic',
 			updateViaCache: 'none',
 		});
+		const { replayDocumentApplicationFonts } = await import('./application-shell-used-fonts.js');
+		await replayDocumentApplicationFonts(serviceWorker, registration, scriptUrl);
 		return Object.freeze({ status: 'registered', registration });
 	} catch (error) {
 		return Object.freeze({ status: 'failed', error });

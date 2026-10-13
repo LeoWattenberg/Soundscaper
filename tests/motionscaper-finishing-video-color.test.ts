@@ -15,7 +15,7 @@ import { produceVideoWebCodecsChunks, type VideoWebCodecsChunkProduceRequest } f
 // Structural container for the fake muxer; the real producer/plane path is exercised.
 const structuralMp4 = Uint8Array.of(0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109, 0, 0, 0, 0, 0, 0, 0, 9, 109, 111, 111, 118, 0, 0, 0, 0, 9, 109, 100, 97, 116, 0);
 const output = { encoding: 'rec709', alphaMode: 'straight', precision: 'unorm8' } as const;
-const colorSpace = { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false };
+const colorSpace = { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', fullRange: false } as const;
 function harness(color: readonly number[], options: { abort?: AbortController; failEncode?: boolean } = {}) {
 	const frames: { bytes: Uint8Array; init: Readonly<Record<string, unknown>>; closed: number }[] = [];
 	let closed = 0, writes = 0;
@@ -29,13 +29,19 @@ function harness(color: readonly number[], options: { abort?: AbortController; f
 	}
 	class Encoder {
 		state = 'configured'; encodeQueueSize = 0;
+		avc = false;
 		constructor(callbacks: ConstructorParameters<VideoWebCodecsChunkProduceRequest['encoderClass']>[0]) { emit = callbacks.output; }
-		configure() {}
+		configure(config: Record<string, unknown>) { this.avc = (config.avc as { format?: string } | undefined)?.format === 'avc'; }
 		encode(frame: unknown) {
 			assert.ok(frame instanceof Frame);
 			if (options.failEncode) throw new Error('encode refused');
 			options.abort?.abort();
-			emit({ byteLength: 1, timestamp: Number(frame.captured.init.timestamp), type: 'key', copyTo(bytes) { bytes[0] = 1; } });
+			const bytes = this.avc ? Uint8Array.of(0, 0, 0, 2, 0x65, 0x88) : Uint8Array.of(1);
+			emit({ byteLength: bytes.length, timestamp: Number(frame.captured.init.timestamp), type: 'key', copyTo(target) { target.set(bytes); } },
+				this.avc ? { decoderConfig: { codec: 'avc1.4d001e', codedWidth: Number(frame.captured.init.codedWidth),
+					codedHeight: Number(frame.captured.init.codedHeight), colorSpace,
+					description: Uint8Array.from(Buffer.from('014d001effe1000d674d001eda7e7889a8080808100100026880', 'hex')),
+				} } : undefined);
 		}
 		async flush() {}
 		close() { this.state = 'closed'; closed++; }
@@ -114,7 +120,7 @@ test('Motion uses an explicit sRGB legacy contract and refuses an invalid contra
 
 test('Motion finishing contract survives common admission and actual browser execution into encoder planes', async () => {
 	for (const encoding of ['srgb', 'rec709'] as const) {
-		const h = harness([128, 128, 128, 255]); let disposed = 0, chunks = 0;
+		const h = harness([128, 128, 128, 255]); let disposed = 0, chunks = 0, bytes = 0;
 		const frameSource = createVideoExactPictureExportFrameSource({ sampleRate: 48000, startFrame: 0, endFrame: 3200,
 			canvas: { width: 4, height: 2, frameRate: { num: 30, den: 1 } } });
 		const result = await encodeVideoKeyframeVideo(null, {
@@ -126,8 +132,8 @@ test('Motion finishing contract survives common admission and actual browser exe
 			executeBrowserWebCodecs: request => executeVideoKeyframeMediabunnyEncoder(request, {
 				produceVideo: produceVideoWebCodecsChunks,
 				createMuxer: () => ({
-					async start() {}, async addVideoChunk() { chunks++; }, async addAudioPcm() { throw new Error('No audio'); },
-					async finalize() { return { bytes: structuralMp4.slice(), videoChunkCount: chunks, videoByteLength: chunks, audioChunkCount: 0, audioFrameCount: 0, decoderConfigObserved: true }; },
+					async start() {}, async addVideoChunk(chunk) { chunks++; bytes += chunk.byteLength; }, async addAudioPcm() { throw new Error('No audio'); },
+					async finalize() { return { bytes: structuralMp4.slice(), videoChunkCount: chunks, videoByteLength: bytes, audioChunkCount: 0, audioFrameCount: 0, decoderConfigObserved: true }; },
 					async cancel() { throw new Error('Unexpected cancellation'); },
 				}),
 			}),
