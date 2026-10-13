@@ -40,6 +40,8 @@ export default function AudioEditorSearch({
 	const previousFocusRef = useRef(null);
 	const optionRefs = useRef([]);
 	const wasOpenRef = useRef(open);
+	const focusFrameRef = useRef(/** @type {number | null} */ (null));
+	const restoreFrameRef = useRef(/** @type {number | null} */ (null));
 	const listboxId = useId();
 	const [query, setQuery] = useState('');
 	const [activeKey, setActiveKey] = useState(null);
@@ -86,9 +88,29 @@ export default function AudioEditorSearch({
 		}
 	}, []);
 
-	const focusInput = useCallback(() => {
-		requestAnimationFrame(() => inputRef.current?.focus?.({ preventScroll: true }));
+	const cancelInputFocus = useCallback(() => {
+		if (focusFrameRef.current !== null) cancelAnimationFrame(focusFrameRef.current);
+		focusFrameRef.current = null;
 	}, []);
+
+	const cancelFocusRestore = useCallback(() => {
+		if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+		restoreFrameRef.current = null;
+	}, []);
+
+	const focusInput = useCallback(() => {
+		cancelInputFocus();
+		cancelFocusRestore();
+		focusFrameRef.current = requestAnimationFrame(() => {
+			focusFrameRef.current = null;
+			inputRef.current?.focus?.({ preventScroll: true });
+		});
+	}, [cancelInputFocus, cancelFocusRestore]);
+
+	useEffect(() => () => {
+		cancelInputFocus();
+		cancelFocusRestore();
+	}, [cancelInputFocus, cancelFocusRestore]);
 
 	const requestOpen = useCallback((focusCandidate) => {
 		if (!open) rememberFocus(focusCandidate || document.activeElement);
@@ -97,19 +119,24 @@ export default function AudioEditorSearch({
 	}, [focusInput, onOpenChange, open, rememberFocus]);
 
 	const close = useCallback(({ restoreFocus = false } = {}) => {
+		cancelInputFocus();
+		cancelFocusRestore();
 		setQuery('');
 		setActiveKey(null);
 		onOpenChange?.(false);
 		if (!restoreFocus) return;
 		const previousFocus = previousFocusRef.current;
-		requestAnimationFrame(() => {
+		restoreFrameRef.current = requestAnimationFrame(() => {
+			restoreFrameRef.current = null;
 			if (previousFocus?.isConnected) previousFocus.focus?.({ preventScroll: true });
 			else compactTriggerRef.current?.focus?.({ preventScroll: true });
 		});
-	}, [onOpenChange]);
+	}, [cancelInputFocus, cancelFocusRestore, onOpenChange]);
 
 	const activate = useCallback((entry) => {
 		if (!entry || entry.disabled) return;
+		cancelInputFocus();
+		cancelFocusRestore();
 		const returnTarget = previousFocusRef.current?.isConnected
 			? previousFocusRef.current : compactTriggerRef.current;
 		returnTarget?.focus?.({ preventScroll: true });
@@ -117,16 +144,17 @@ export default function AudioEditorSearch({
 		setActiveKey(null);
 		onOpenChange?.(false);
 		queueMicrotask(() => onActivate?.(entry));
-	}, [onActivate, onOpenChange]);
+	}, [cancelInputFocus, cancelFocusRestore, onActivate, onOpenChange]);
 
 	useEffect(() => {
 		if (!wasOpenRef.current && open) focusInput();
 		if (wasOpenRef.current && !open) {
+			cancelInputFocus();
 			setQuery('');
 			setActiveKey(null);
 		}
 		wasOpenRef.current = open;
-	}, [focusInput, open]);
+	}, [cancelInputFocus, focusInput, open]);
 
 	useEffect(() => {
 		const coordinator = assistanceSearch?.coordinator;
