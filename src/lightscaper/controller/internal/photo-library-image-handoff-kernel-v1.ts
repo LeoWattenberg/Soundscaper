@@ -24,6 +24,7 @@ import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-pre
 import type { PhotoLibrarySessionPortsV2 } from '../photo-library-session-ports-v2.ts';
 import type { PhotoLibrarySessionPortsCurrentV1 } from '../photo-library-session-ports-current-v1.ts';
 import { assertPhotoDevelopHandoffMasksForProfileV1 } from './photo-image-handoff-model-kernel-v1.ts';
+import { preparePhotoLibraryHandoffRetainedResourcesCurrentV1 } from './photo-library-handoff-retained-resources-current-v1.ts';
 
 type Profile = 'legacy2' | 'current3';
 type Ports = PhotoLibrarySessionPortsV2 | PhotoLibrarySessionPortsCurrentV1;
@@ -57,11 +58,7 @@ export async function withPhotoLibraryImageHandoffForProfileV1<Result>(profile: 
 		collector.addDevelop(initial.versions.find(version => version.id === request.versionId)!.develop);
 		references = { luts: collector.finish(), brushes: [] };
 	} else {
-		const complete = createPhotoResourceReachabilityCurrentV1();
-		for (const version of initial.versions) for (const develop of [version.develop, ...(version.workspace?.entries.map(entry => entry.develop) ?? []), ...(version.workspace?.snapshots.map(snapshot => snapshot.develop) ?? [])]) {
-			for (const graph of develop.masks) for (const input of graph.inputs) normalizeBrushMaskResourceReferenceV1(input.sourceRef);
-		}
-		complete.addPhoto(initial); const retained = complete.finish();
+		const { references: retained } = preparePhotoLibraryHandoffRetainedResourcesCurrentV1(initial);
 		const selected = initial.versions.find(version => version.id === request.versionId)!;
 		assertPhotoDevelopHandoffMasksForProfileV1('current3', selected.develop, initial.original.width, initial.original.height);
 		const collector = createPhotoResourceReachabilityCurrentV1(); collector.addDevelop(selected.develop); references = collector.finish();
@@ -113,7 +110,7 @@ export async function withPhotoLibraryImageHandoffForProfileV1<Result>(profile: 
 
 /** Actual source and consumer outcomes join independently. Both body kinds
  * share the same active-child gate, and closed/busy admission precedes reflection. */
-export async function withPhotoLibraryImageHandoffResourcesForProfileV1<Result>(profile: Profile, ports: Ports, references: References,
+export async function withPhotoLibraryImageHandoffResourcesForProfileV1<Result>(profile: Profile, ports: Pick<Ports, 'cubeLutResources' | 'maskRasterResources'>, references: References,
 	signal: AbortSignal, prepare: () => Promise<void>, consume: (readers: Readonly<Readers>) => Result | Promise<Result>): Promise<Result> {
 	assertProfile(profile); check(signal);
 	const lutFactory = ports.cubeLutResources, maskFactory = ports.maskRasterResources;

@@ -5,6 +5,7 @@ import type { PhotoLibraryImageHandoffRequestV1 } from '../../common/editor/phot
 import type { PhotoLibrarySessionPortsCurrentV1 } from './photo-library-session-ports-current-v1.ts';
 import type { PhotoManagedImportPortsCurrentV1 } from '../import/managed-import-ports-current-v1.ts';
 import { createPhotoLibraryImageReceiveSessionCurrentV1 } from './photo-library-image-receive-session-current-v1.ts';
+import { createPhotoLibrarySessionCollectionChildCurrentV1 } from './photo-library-session-collection-child-current-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
 import { field, id, integer, record } from '../catalog/value-validation.ts';
 
@@ -39,5 +40,6 @@ export function createPhotoLibrarySessionImageChildrenCurrentV1(host: Host) {
 		});
 	} });
 	const imageReceiveCurrent = createPhotoLibraryImageReceiveSessionCurrentV1({ ports, managed, mutate, resetReady });
-	return Object.freeze({ imageHandoffCurrent, imageReceiveCurrent });
+	const collectionHandoffCurrent = createPhotoLibrarySessionCollectionChildCurrentV1(host);
+	return Object.freeze({ imageHandoffCurrent, imageReceiveCurrent, collectionHandoffCurrent });
 }

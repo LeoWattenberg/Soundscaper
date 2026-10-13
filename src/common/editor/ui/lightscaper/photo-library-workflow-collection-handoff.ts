@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, type RefObject } from 'react';
-import { readClosedDomainRecord as record, readClosedDomainField as field, readClosedDomainArray as array } from '../../closed-domain-value.ts';
+import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../closed-domain-value.ts';
 import { acquirePhotoLibraryWorkflowSlotV2, type PhotoLibraryWorkflowSlotV2 } from '../../controller/shared/photo-library-workflow-slot-v2.ts';
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { CreatePhotoLibrarySessionV3, PhotoLibrarySessionPortV2 } from '../../photo-library-session-port-v2.ts';
@@ -12,14 +12,16 @@ import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-librar
 import type { PhotoLibraryDefinitionPageV1 } from '../../photo-library-session-port-v1.ts';
 import type { PhotoLibrarySavedCollectionPageV1, PhotoLibrarySavedCollectionPortV1 } from '../../photo-library-saved-collection-port-v1.ts';
 import type { PhotoLibraryCollectionHandoffPortV1, PhotoLibraryCollectionHandoffRequestV1, PhotoLibraryCollectionHandoffViewV1 } from '../../photo-library-collection-handoff-port-v1.ts';
-import type { PhotoFramescaperCollectionHandoffTarget } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
+import type { PhotoFramescaperCollectionHandoffTargetSelectedV1 } from '../../../../lightscaper/controller/photo-framescaper-collection-handoff-download-current-v1.ts';
+import type { PhotoLibraryCollectionHandoffPortV2, PhotoLibraryCollectionHandoffViewV2 } from '../../photo-library-collection-handoff-port-v2.ts';
+import { capturedCollectionFactsForProfileV1 } from './internal/photo-library-workflow-collection-facts-kernel-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../../../../lightscaper/storage/photo-develop-preset-read-v2.ts';
 
 export interface CapturedPhotoCollectionHandoff {
 	readCatalogPage(request?: Readonly<{ cursor?: string | null; selectedId?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryDefinitionPageV1>;
 	readSavedPage(request?: Readonly<{ cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibrarySavedCollectionPageV1>;
 	prepare(selection: Readonly<{ scope: 'catalog' | 'saved-query'; collectionId: string }>, signal: AbortSignal):
-		Promise<Readonly<{ fileName: string; target: Readonly<PhotoFramescaperCollectionHandoffTarget> }>>;
+		Promise<Readonly<{ fileName: string; target: Readonly<PhotoFramescaperCollectionHandoffTargetSelectedV1> }>>;
 }
 type SessionSlot = PhotoLibraryWorkflowSlotV2 | PhotoLibraryWorkflowSlotCurrentV1;
 type SessionFactory = CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1;
@@ -33,7 +35,7 @@ interface Owners {
 interface Ports {
 	readonly readCatalog: PhotoLibrarySessionPortV2['readDefinitionPage']; readonly readDefinition: PhotoLibrarySessionPortV2['readDefinition'];
 	readonly readSaved: PhotoLibrarySavedCollectionPortV1['readPage']; readonly readSnapshot: PhotoLibrarySavedCollectionPortV1['readSnapshot'];
-	readonly withCapture: PhotoLibraryCollectionHandoffPortV1['withCapture'];
+	readonly withCapture: PhotoLibraryCollectionHandoffPortV1['withCapture'] | PhotoLibraryCollectionHandoffPortV2['withCapture'];
 }
 const CHECK = AbortSignal.prototype.throwIfAborted, ANY = AbortSignal.any;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
@@ -85,7 +87,7 @@ export function usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader
 			if (!pending) {
 				const work = (async () => {
 					const owner = await (profile === 'current3' ? acquirePhotoLibraryWorkflowSlotCurrentV1(captured as PhotoLibraryWorkflowSlotCurrentV1) : acquirePhotoLibraryWorkflowSlotV2(captured as PhotoLibraryWorkflowSlotV2)); checked(signal);
-					const saved = data(owner, 'savedCollections'), handoff = data(owner, 'collectionHandoff');
+					const saved = data(owner, 'savedCollections'), handoff = data(owner, profile === 'current3' ? 'collectionHandoffCurrent' : 'collectionHandoff');
 					return Object.freeze({ readCatalog: pin<Ports['readCatalog']>(owner, 'readDefinitionPage', true), readDefinition: pin<Ports['readDefinition']>(owner, 'readDefinition', true),
 						readSaved: pin<Ports['readSaved']>(saved, 'readPage'), readSnapshot: pin<Ports['readSnapshot']>(saved, 'readSnapshot'), withCapture: pin<Ports['withCapture']>(handoff, 'withCapture') });
 				})();
@@ -122,63 +124,47 @@ export function usePhotoLibraryWorkflowCollectionHandoff({ slot, factory, loader
 				};
 				const selected = await readSelection(signal), proof = JSON.stringify(selected); let archiveFacts: string | null = null;
 				const operationSignal = (external?: AbortSignal) => { const result = external ? Reflect.apply(ANY, AbortSignal, [[signal, joined(external)]]) as AbortSignal : signal; checked(result); return result; };
-				const capture: PhotoLibraryCollectionHandoffPortV1 = Object.freeze({ async withCapture<Result>(request: Readonly<PhotoLibraryCollectionHandoffRequestV1>,
-					consume: (view: Readonly<PhotoLibraryCollectionHandoffViewV1>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<Result> {
+				const invoke = async <Result>(request: Readonly<PhotoLibraryCollectionHandoffRequestV1>,
+						consume: (view: Readonly<PhotoLibraryCollectionHandoffViewV1 | PhotoLibraryCollectionHandoffViewV2>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<Result> => {
 					const readOptions = readPhotoDevelopSignalOptionsV2(options), current = operationSignal(readOptions.signal);
 					const detached = record(request, label, ['catalogId', 'collectionId', 'scope', 'expectedCatalogRevision', 'expectedDefinitionRevision'], ['catalogId', 'collectionId', 'scope', 'expectedCatalogRevision']);
 					if (Object.keys(detached).length !== Object.keys(selected.binding).length || Object.keys(selected.binding).some(key => field(detached, key, label) !== data(selected.binding, key))) throw new Error('Collection capture binding changed.');
 					if (typeof consume !== 'function') throw new TypeError('Collection capture requires its callable consumer.');
-					const result = await deliverJoined<Readonly<PhotoLibraryCollectionHandoffViewV1>, Result>(receive => native.withCapture(selected.binding, receive, { signal: current }), async view => {
-						checked(current); const facts = capturedFacts(view);
+					const result = await deliverJoined<Readonly<PhotoLibraryCollectionHandoffViewV1 | PhotoLibraryCollectionHandoffViewV2>, Result>(receive => Reflect.apply(native.withCapture, native, [selected.binding, receive, { signal: current }]) as Promise<unknown>, async view => {
+						checked(current); const facts = capturedCollectionFactsForProfileV1(profile, view);
 						if (archiveFacts !== null && facts !== archiveFacts) throw new Error('Captured collection saved facts changed.');
 						archiveFacts = facts; const delivered = await consume(view); checked(current); return delivered;
 					});
 					checked(current); return result;
+				};
+				const legacyCapture = Object.freeze<PhotoLibraryCollectionHandoffPortV1>({ withCapture(request, consume, options) {
+					if (typeof consume !== 'function') return Promise.reject(new TypeError('Collection capture requires its callable consumer.'));
+					return invoke(request, view => { if (view.schemaVersion !== 1) throw new TypeError('Legacy collection view changed.'); return consume(view); }, options);
 				} });
-				const target = Object.freeze({ binding: selected.binding, capture, async checkCurrent(external: AbortSignal) {
+				const currentCapture = Object.freeze<PhotoLibraryCollectionHandoffPortV2>({ withCapture(request, consume, options) {
+					if (typeof consume !== 'function') return Promise.reject(new TypeError('Collection capture requires its callable consumer.'));
+					return invoke(request, view => { if (view.schemaVersion !== 2) throw new TypeError('Current collection view changed.'); return consume(view); }, options);
+				} });
+				const checkCurrent = async (external: AbortSignal) => {
 					const current = operationSignal(external);
 					if (archiveFacts === null) {
 						if (JSON.stringify(await readSelection(current)) !== proof) throw new Error('Saved collection changed.');
 					} else {
 						// The archive's scoped body authority has ended. A new actual Session
 						// capture reauthenticates resources and the whole ordered scalar witness.
-						await deliverJoined<Readonly<PhotoLibraryCollectionHandoffViewV1>, void>(receive => native.withCapture(selected.binding, receive, { signal: current }), view => {
-							checked(current); if (capturedFacts(view) !== archiveFacts) throw new Error('Captured collection saved facts changed.');
+						await deliverJoined<Readonly<PhotoLibraryCollectionHandoffViewV1 | PhotoLibraryCollectionHandoffViewV2>, void>(receive => Reflect.apply(native.withCapture, native, [selected.binding, receive, { signal: current }]) as Promise<unknown>, view => {
+							checked(current); if (capturedCollectionFactsForProfileV1(profile, view) !== archiveFacts) throw new Error('Captured collection saved facts changed.');
 						});
 					}
 					checked(current);
-				} });
+				};
+				const target = profile === 'current3' ? Object.freeze({ schemaVersion: 2 as const, binding: selected.binding, capture: currentCapture, checkCurrent })
+					: Object.freeze({ binding: selected.binding, capture: legacyCapture, checkCurrent });
 				return Object.freeze({ fileName: `${selected.name}.fscape`, target });
 			},
 		});
 	}, [profile, slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime]);
 	return { captureCollectionHandoff };
-}
-
-/** Retain only bounded detached scalars, never a borrowed view/body capability. */
-function capturedFacts(view: Readonly<PhotoLibraryCollectionHandoffViewV1>): string {
-	const label = 'Collection captured facts', input = record(view, label, ['schemaVersion', 'signal', 'collection', 'photos', 'lutReferences', 'withOriginal', 'withLutBytes']);
-	if (field(input, 'schemaVersion', label) !== 1) throw new TypeError('Collection capture returned an unsupported view.');
-	let remaining = 2 * 1024 * 1024;
-	const scalar = (value: unknown, depth: number): unknown => {
-		if (depth > 8) throw new RangeError('Collection scalar facts are too deeply nested.');
-		if (value === null || typeof value === 'boolean') return value;
-		if (typeof value === 'number' && Number.isFinite(value)) return value;
-		if (typeof value === 'string') {
-			if (value.length > remaining) throw new RangeError('Collection scalar facts exceed their fixed capacity.');
-			remaining -= new TextEncoder().encode(value).byteLength; if (remaining < 0) throw new RangeError('Collection scalar facts exceed their fixed capacity.'); return value;
-		}
-		if (Array.isArray(value)) return array(value, label, 0, 4_094).map(entry => scalar(entry, depth + 1));
-		if (!value || typeof value !== 'object') throw new TypeError('Collection facts require inert JSON scalars.');
-		const keys = Object.keys(value); if (keys.length > 64) throw new RangeError('Collection scalar record is too large.');
-		const source = record(value, label, keys), output: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-		for (const key of keys) output[key] = scalar(field(source, key, label), depth + 1);
-		return output;
-	};
-	const result = JSON.stringify({ collection: scalar(field(input, 'collection', label), 0), photos: scalar(field(input, 'photos', label), 0),
-		lutReferences: scalar(field(input, 'lutReferences', label), 0) });
-	if (new TextEncoder().encode(result).byteLength > 2 * 1024 * 1024) throw new RangeError('Collection scalar facts exceed their fixed capacity.');
-	return result;
 }
 
 /** Join an admitted callback even if its transport ignores the returned work.

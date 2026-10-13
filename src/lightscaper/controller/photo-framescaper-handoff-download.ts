@@ -8,10 +8,11 @@ import type { PhotoLibraryImageHandoffPortV1, PhotoLibraryImageHandoffRequestV1 
 import type { PhotoLibraryCollectionHandoffPortV1, PhotoLibraryCollectionHandoffRequestV1 } from '../../common/editor/photo-library-collection-handoff-port-v1.ts';
 import { SCAPE_MIME_TYPE } from '../../common/editor/scape-project-format.ts';
 import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../../common/editor/scape-blob-budget.ts';
-import { id, integer, oneOf } from '../catalog/value-validation.ts';
-import { readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
+import { id, integer } from '../catalog/value-validation.ts';
 import type { PhotoFramescaperHandoffDownloadRequestCurrentV1 } from './photo-framescaper-handoff-download-current-v1.ts';
 import { readPhotoFramescaperHandoffDownloadRequestForProfileV1 } from './photo-framescaper-handoff-download-request-kernel-v1.ts';
+import type { PhotoFramescaperCollectionHandoffDownloadRequestCurrentV1 } from './photo-framescaper-collection-handoff-download-current-v1.ts';
+import { readPhotoFramescaperCollectionDownloadRequestForProfileV1 } from './internal/photo-framescaper-collection-handoff-download-request-kernel-v1.ts';
 
 export interface PhotoFramescaperHandoffTarget {
 	readonly binding: Readonly<PhotoLibraryImageHandoffRequestV1>;
@@ -74,6 +75,14 @@ export class PhotoFramescaperHandoffDownload {
 		return this.#start({ ...request, checkCurrent: request.target.checkCurrent }, async signal =>
 			readCollectionArchive(await request.buildArchive({ capture: request.target.capture, binding: request.target.binding, signal })));
 	}
+	startCollectionCurrent(value: PhotoFramescaperCollectionHandoffDownloadRequestCurrentV1): Promise<PhotoFramescaperCollectionHandoffDownloadReceipt> {
+		if (this.#active) return Promise.reject(new Error('An editable photo copy is already pending.'));
+		let request: PhotoFramescaperCollectionHandoffDownloadRequestCurrentV1;
+		try { request = readPhotoFramescaperCollectionDownloadRequestForProfileV1('current2', value); } catch (error) { return Promise.reject(error); }
+		return this.#start({ ...request, checkCurrent: request.target.checkCurrent }, async signal =>
+			readCollectionArchive(await request.buildArchive({ capture: request.target.capture, binding: request.target.binding, signal })));
+	}
+
 	#start<Identity>(request: DeliveryRequest, buildArchive: (signal: AbortSignal) => Promise<DeliveryArchive<Identity>>): Promise<DownloadReceipt<Identity>> {
 		if (this.#active) return Promise.reject(new Error('An editable photo copy is already pending.'));
 		let settle!: () => void;
@@ -153,22 +162,7 @@ function admit(value: unknown): PhotoFramescaperHandoffDownloadRequest {
 	return readPhotoFramescaperHandoffDownloadRequestForProfileV1('legacy1', value);
 }
 function admitCollection(value: unknown): PhotoFramescaperCollectionHandoffDownloadRequest {
-	const name = 'Editable collection copy request', source = record(value, name, ['target', 'fileName', 'fileTypeDescription', 'signal', 'buildArchive', 'prepareSave', 'saveFile'], ['target', 'fileName', 'fileTypeDescription', 'buildArchive', 'prepareSave', 'saveFile']);
-	const targetValue = field(source, 'target', name), target = record(targetValue, name, ['binding', 'capture', 'checkCurrent']);
-	const input = record(field(target, 'binding', name), name, ['catalogId', 'collectionId', 'scope', 'expectedCatalogRevision', 'expectedDefinitionRevision'], ['catalogId', 'collectionId', 'scope', 'expectedCatalogRevision']);
-	const scope = oneOf(field(input, 'scope', name), ['catalog', 'saved-query'] as const, 'collection scope');
-	if (Object.hasOwn(input, 'expectedDefinitionRevision') !== (scope === 'saved-query')) throw new TypeError('Editable collection definition revision must match its scope.');
-	const binding = Object.freeze({ catalogId: id(field(input, 'catalogId', name), 'collection catalog ID'), collectionId: id(field(input, 'collectionId', name), 'collection ID'), scope,
-		expectedCatalogRevision: integer(field(input, 'expectedCatalogRevision', name), 0, Number.MAX_SAFE_INTEGER, 'collection revision'),
-		...(scope === 'saved-query' ? { expectedDefinitionRevision: integer(field(input, 'expectedDefinitionRevision', name), 0, Number.MAX_SAFE_INTEGER, 'collection definition revision') } : {}) });
-	const captureValue = field(target, 'capture', name), capture = record(captureValue, name, ['withCapture']);
-	const options = readPhotoDevelopSignalOptionsV2(Object.hasOwn(source, 'signal') ? { signal: field(source, 'signal', name) } : {});
-	return Object.freeze({ fileName: text(field(source, 'fileName', name)), fileTypeDescription: text(field(source, 'fileTypeDescription', name)), ...options,
-		target: Object.freeze({ binding, capture: Object.freeze({ withCapture: pin<PhotoLibraryCollectionHandoffPortV1['withCapture']>(field(capture, 'withCapture', name), captureValue) }),
-			checkCurrent: pin<PhotoFramescaperCollectionHandoffTarget['checkCurrent']>(field(target, 'checkCurrent', name), targetValue) }),
-		buildArchive: pin<BuildPhotoFramescaperCollectionHandoffArchive>(field(source, 'buildArchive', name), value),
-		prepareSave: pin<PhotoFramescaperCollectionHandoffDownloadRequest['prepareSave']>(field(source, 'prepareSave', name), value),
-		saveFile: pin<PhotoFramescaperCollectionHandoffDownloadRequest['saveFile']>(field(source, 'saveFile', name), value) });
+	return readPhotoFramescaperCollectionDownloadRequestForProfileV1('legacy1', value);
 }
 function readPrepared(value: unknown): PreparedBrowserSave {
 	const name = 'Editable photo copy destination', source = record(value, name, ['mode', 'cancelled', 'fileName', 'target', 'createWritable', 'patchFinalPrefix', 'bytesWritten', 'commit', 'abort', 'savedFile'], ['mode']);

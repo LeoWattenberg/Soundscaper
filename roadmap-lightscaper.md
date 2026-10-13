@@ -411,9 +411,11 @@ photo work moves between products without loss.
   sequences retain active saved recipes, original and LUT resources, and native
   query order. Single-photo Current handoff preserves repaired stacks and
   authenticated brush resources through editable Source3 and reverse Photo3
-  publication. Collection and saved-filter sequences still use their legacy path
-  and require a Current successor. Full cross-product and export-matrix
-  qualification remains open.
+  publication. Current collection and saved-filter sequences preserve truthful
+  Photo/process provenance through editable Source2/3, selected LUT and brush
+  declarations, and native query order. Complete retained resources are
+  authenticated before Original acquisition; inactive histories stay in the
+  sender. Full cross-product and export-matrix qualification remains open.
 - **Shared — Optional:** ordering and per-photo duration presets for the
   handed-off sequence.
 
@@ -659,8 +661,25 @@ save/reopen/export, reverse Photo3 publication, literal preview/PNG pixels,
 unchanged Originals, complete resource custody, and corruption refusal. Both
 product builds pass with the existing startup and chunk ceilings; Frame startup
 uses 100 requests and Lightscaper uses 51.
-Current collection and saved-filter sequence handoff, direct Frame repair and
-mask-name authoring, and Preset3 application during import remain open. Remaining
+Current collection and saved-filter handoff now uses a named Current Session
+child and explicit View2, preserving complete selected declarations, including
+disabled LUTs and unused brushes. The entire retained Photo namespace and
+resource ledger are admitted before body authentication or Original acquisition.
+Source3 provenance retains a full Photo3 even when its selected process is
+legacy; Photo2 brush recipes remain Photo2, and wholly legacy recipes keep
+Source2. Each generated source pack counts its Original independently, with
+mandatory pack-prefix and resource limits checked before scoped Original reads
+or decode, followed by exact generated-pack and ZIP bounds. The selected
+Lightscaper Node regression passes 2,442 cases in 280 files, including actual
+native Frame import, command edit, CAS save, reopen, export, literal recipe
+pixels, resource custody, and joined decode/brush cancellation. Eight
+English/German Chromium and Firefox sequence workflows pass through actual
+collection and saved-filter export, Frame menu import, edit, native save,
+reopen, and project export, with unchanged sender custody. Native OPFS reads
+serialize per path through snapshot acquisition to prevent Firefox access
+contention; cancellation, other paths, and writer dispatch remain independent.
+Direct Frame repair and mask-name authoring and Preset3 application during
+import remain open. Remaining
 L3–L6 exit gates still require completion; L7–L9 remain incomplete. Final
 inter-slice qualification follows completion of the implementation milestones.
 

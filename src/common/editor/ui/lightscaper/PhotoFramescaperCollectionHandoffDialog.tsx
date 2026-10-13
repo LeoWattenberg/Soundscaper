@@ -7,6 +7,8 @@ import { photoFramescaperCollectionHandoffCopy } from '../../../i18n/lightscaper
 import { PhotoFramescaperHandoffDownload, type BuildPhotoFramescaperCollectionHandoffArchive,
 	type PhotoFramescaperCollectionHandoffDownloadReceipt } from '../../../../lightscaper/controller/photo-framescaper-handoff-download.ts';
 import { exportPhotoFramescaperCollectionHandoffArchiveV1 } from '../../../../lightscaper/controller/photo-framescaper-collection-handoff-archive-v1.ts';
+import { exportPhotoFramescaperCollectionHandoffArchiveCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-collection-handoff-archive-current-v1.ts';
+import { isPhotoFramescaperCollectionHandoffTargetCurrentV1, type BuildPhotoFramescaperCollectionHandoffArchiveCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-collection-handoff-download-current-v1.ts';
 import type { CapturedPhotoCollectionHandoff } from './photo-library-workflow-collection-handoff.ts';
 import type { PhotoLibraryDefinitionPageRequestV1 } from '../../photo-library-session-port-v1.ts';
 import type { PhotoLibrarySavedCollectionPageV1 } from '../../photo-library-saved-collection-port-v1.ts';
@@ -18,6 +20,7 @@ export interface PhotoFramescaperCollectionHandoffDialogProps {
 	readonly saveRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
 	readonly registerDestination: (cancelAndJoin: () => Promise<void>) => () => void; readonly onClose: () => void;
 	readonly buildArchive?: BuildPhotoFramescaperCollectionHandoffArchive;
+	readonly buildArchiveCurrent?: BuildPhotoFramescaperCollectionHandoffArchiveCurrentV1;
 }
 type Prepared = Awaited<ReturnType<CapturedPhotoCollectionHandoff['prepare']>>;
 type Selection = Readonly<{ scope: 'catalog' | 'saved-query'; collectionId: string }>;
@@ -126,9 +129,11 @@ export default function PhotoFramescaperCollectionHandoffDialog(props: PhotoFram
 		if (!current || current.reading || current.preparing || current.active || !present(current) || target?.owner !== current || !runtime || !selection.current) return;
 		setSaving(true); setFailed(false); setReceipt(null);
 		const prepareSave = runtime.prepareSave.bind(runtime), saveFile = runtime.saveFile.bind(runtime);
-		const buildArchive = (input.buildArchive ?? exportPhotoFramescaperCollectionHandoffArchiveV1).bind(input);
-		const work = owner.startCollection({ target: target.value.target, fileName: target.value.fileName, fileTypeDescription: copy.fileType,
-			signal: current.stop.signal, prepareSave, saveFile, buildArchive });
+		const selected = target.value.target;
+		const request = { fileName: target.value.fileName, fileTypeDescription: copy.fileType, signal: current.stop.signal, prepareSave, saveFile };
+		const work = isPhotoFramescaperCollectionHandoffTargetCurrentV1(selected)
+			? owner.startCollectionCurrent({ ...request, target: selected, buildArchive: (input.buildArchiveCurrent ?? exportPhotoFramescaperCollectionHandoffArchiveCurrentV1).bind(input) })
+			: owner.startCollection({ ...request, target: selected, buildArchive: (input.buildArchive ?? exportPhotoFramescaperCollectionHandoffArchiveV1).bind(input) });
 		const active = work.then(value => { if (present(current)) setReceipt(value); }, error => { if (present(current)) setFailed(true); throw error; })
 			.finally(() => { if (current.active === active) current.active = null; if (present(current)) setSaving(false); });
 		current.active = active; void active.catch(() => undefined);

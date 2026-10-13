@@ -100,6 +100,7 @@ export class PhotoLibrarySessionKernelV2 {
 	readonly imageHandoffCurrent?: ReturnType<typeof createPhotoLibrarySessionImageChildrenCurrentV1>['imageHandoffCurrent'];
 	readonly imageReceiveCurrent?: ReturnType<typeof createPhotoLibrarySessionImageChildrenCurrentV1>['imageReceiveCurrent'];
 	readonly collectionHandoff: Readonly<PhotoLibraryCollectionHandoffPortV1>;
+	readonly collectionHandoffCurrent?: ReturnType<typeof createPhotoLibrarySessionImageChildrenCurrentV1>['collectionHandoffCurrent'];
 	readonly cullingNavigation?: PhotoLibrarySessionPortV2['cullingNavigation'];
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportJournalCurrent?: Readonly<PhotoLibraryExportJournalPort>;
@@ -127,6 +128,7 @@ export class PhotoLibrarySessionKernelV2 {
 			const children = createPhotoLibrarySessionImageChildrenCurrentV1({ ports, managed: this.#managedPorts(), ready: () => this.#ready(),
 				operation: (run, signal, admit) => this.#operation(run, signal, admit), mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 			this.imageHandoffCurrent = children.imageHandoffCurrent; this.imageReceiveCurrent = children.imageReceiveCurrent;
+			this.collectionHandoffCurrent = children.collectionHandoffCurrent;
 		}
 		this.imageHandoff = Object.freeze({ withCapture: async <Result>(value: Readonly<PhotoLibraryImageHandoffRequestV1>,
 			consume: (view: Readonly<PhotoLibraryImageHandoffViewV1>) => Result | Promise<Result>, options: Readonly<{ signal?: AbortSignal }> = {}) => {
