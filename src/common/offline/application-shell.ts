@@ -3,6 +3,7 @@
 import { normalizeProductId } from '../product-identities.js';
 import { APPLICATION_READY_SELECTOR } from '../site/application-ready-scheduler.js';
 import { BUILT_PRODUCT_ID } from '../site/route.js';
+import { replayDocumentApplicationFonts } from './application-shell-used-fonts.js';
 
 interface OfflineServiceWorkerContainer {
 	register(
@@ -81,6 +82,7 @@ export async function registerOfflineApplicationShell(
 			type: 'classic',
 			updateViaCache: 'none',
 		});
+		await replayDocumentApplicationFonts(serviceWorker, registration, scriptUrl);
 		return Object.freeze({ status: 'registered', registration });
 	} catch (error) {
 		return Object.freeze({ status: 'failed', error });
