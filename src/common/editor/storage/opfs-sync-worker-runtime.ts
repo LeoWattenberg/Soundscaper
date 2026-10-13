@@ -49,6 +49,7 @@ export class OpfsSyncWorkerRuntime {
 	readonly #writers = new Map<string, WorkerWriter>();
 	readonly #active = new Set<string>();
 	readonly #cancelled = new Set<string>();
+	readonly #readTails = new Map<string, Promise<void>>();
 	#directory: FileSystemDirectoryHandle | null = null;
 	#initialized = false;
 
@@ -70,8 +71,7 @@ export class OpfsSyncWorkerRuntime {
 		this.#active.add(id);
 		try {
 			this.#throwIfCancelled(id);
-			if (type === 'read') return await this.#read(request, id);
-			if (type === 'snapshot') return await this.#snapshot(request, id);
+			if (type === 'read' || type === 'snapshot') return await this.#orderedRead(request, id, type);
 			if (type === 'open-writer') return await this.#openWriter(request, id);
 			if (type === 'write') return this.#write(request, id);
 			if (type === 'close-writer') return this.#closeWriter(request, id);
@@ -81,6 +81,23 @@ export class OpfsSyncWorkerRuntime {
 		} finally {
 			this.#active.delete(id);
 			this.#cancelled.delete(id);
+		}
+	}
+
+	/** Some OPFS hosts still take an exclusive lock for read-only sync handles. */
+	async #orderedRead(request: WorkerRequest, id: string, type: 'read' | 'snapshot'): Promise<Record<string, unknown>> {
+		const path = normalizeOpfsWorkerPath(request.path);
+		const previous = this.#readTails.get(path);
+		let release = () => {};
+		const tail = new Promise<void>(resolve => { release = resolve; });
+		this.#readTails.set(path, tail);
+		try {
+			await previous;
+			this.#throwIfCancelled(id);
+			return await (type === 'read' ? this.#read(request, id) : this.#snapshot(request, id));
+		} finally {
+			release();
+			if (this.#readTails.get(path) === tail) this.#readTails.delete(path);
 		}
 	}
 
