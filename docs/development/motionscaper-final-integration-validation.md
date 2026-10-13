@@ -68,13 +68,21 @@ by this recovery.
 | --- | --- |
 | Canonical static gate | `npm run check:static` passed, including full lint, types, audits, documentation and builds. Changed-file lint remains required for subsequent edits. |
 | All exhaustive Node partitions | All five finished: 27,125 tests, 27,108 passed, 14 declared skips and three failures in common-2's nightly-payload dependency closure. Motion's 953 tests passed without skips. Full Node acceptance is failed. |
-| Ordinary Chromium/Firefox/WebKit suite | Active, 7,536 discovered cases. Observed completed phases: Chromium 2,492 passed, three failed and 17 skipped; Firefox 2,368 passed, nine failed and 135 skipped. All 139 Motion-named Chromium cases passed; Firefox's 139 Motion cases include six failures and one declared skip. WebKit and the terminal aggregate report remain pending. |
+| Ordinary Chromium/Firefox/WebKit suite | Closed with exit 1: 7,536 cases, 7,207 passed, 25 failed, 303 declared skips and one unrun serial-dependent case. Chromium: 2,492 passed, three failed, 17 skipped. Firefox: 2,368 passed, nine failed, 134 skipped, one unrun. WebKit: 2,347 passed, 13 failed, 152 skipped. Full browser acceptance is failed. |
 | Separate dual-origin and Motion-links suites | Canonical complete runs pending. Color conversion and browser media initialization repairs have focused evidence; the full linked/offline workflow and new file/presentation oracle remain under qualification. |
 | Handbook browser suite | All 32 cases passed, without skips or retries. |
 | Fresh bounded Linux packaged aggregate | Passed all nine steps and four workflow receipts for Linux x64 software rendering, with verified packages, native helper and independent decoder. This does not cover the separate authored-title failure below. |
 | Browser and native controlled-duration workflows | Pending for this source. |
-| Complete accepted Node/Chromium coverage union and monotone ratchets | Pending. Only the closed passing common-1 Node profiles have been strictly audited and compacted. Failed common-2 and active browser profiles have not been admitted; no floors or ceilings were lowered. |
+| Complete accepted Node/Chromium coverage union and monotone ratchets | Pending. Only the closed passing common-1 Node profiles have been strictly audited and compacted. Failed common-2 and failed ordinary browser profiles have not been admitted; no floors or ceilings were lowered. |
 | Installed AE, other target/sign/install/update/hardware/maximum matrix | Open; AE environment unavailable. |
+
+The terminal report matches all 7,536 discovered case identities and records
+one attempt per case, no retries, no flaky outcomes and no global report errors.
+The source and all seven site inventories remained unchanged. The omitted
+Firefox case is the rehearsal-edit workflow after the serial ADR failure.
+The durable `browser-ordinary/terminal-review.json` receipt has SHA-256
+`71a159f8895a70cd47f1282d17738cfb8038cdf0bc7ca2e952fbd7b5a30dc526`;
+its failure/skip ledger retains every original error and declared skip.
 
 ### Failures and repairs in progress
 
@@ -113,6 +121,14 @@ The frozen full run also exposed Punch recording, short-import playback and
 post-workspace-switch tempo failures. Bounded unchanged-workflow diagnostics
 passed the latter two categories but did not establish their original causes.
 They remain unresolved; no timing or signal bounds were relaxed.
+
+WebKit's remaining failures also include three live-effect continuity cases,
+musical-number tempo editing, a disabled Select menu, search activation and a
+return-to-home navigation timeout. The annotation workflow reached and closed
+the read-only Frame view; its timeout occurred during the subsequent Sound
+home navigation, before checking reopened annotations. These failures remain
+open. A separate delayed-focus control is investigating search activation;
+it does not establish acceptance of the original workflow.
 
 Supplemental M10 execution reached actual connection, update, Undo/Resume,
 Conform, portable Save/Open and matching blue preview in Firefox. Delivered MP4
