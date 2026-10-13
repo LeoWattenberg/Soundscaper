@@ -31,7 +31,7 @@ import { PhotoLibraryDefinitionReader } from '../../controller/shared/photo-libr
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
 import { DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from './use-photo-library-workflow-v2.ts';
-import { usePhotoLibraryWorkflowForProfileV1, type PhotoLibraryWorkflowLegacyV2, type PhotoLibraryWorkflowCurrentV1 } from './use-photo-library-workflow-kernel-v1.ts';
+import { usePhotoLibraryWorkflowForProfileV1, type PhotoLibraryWorkflowLegacyV2, type PhotoLibraryWorkflowCurrentV1, type PhotoLibraryWorkflowKernelV1 } from './use-photo-library-workflow-kernel-v1.ts';
 import type { LoadPhotoMetadataQueryRuntimeV2 } from '../../photo-library-query-port-v2.ts';
 import type { LoadPhotoSavedFilterRuntimeV1 } from '../../photo-library-saved-filter-runtime-v1.ts';
 import { usePhotoSavedFilters } from './use-photo-saved-filters.ts';
@@ -45,7 +45,7 @@ import './photo-culling.css';
 
 type Props = (LightscaperAppPropsV2 & { readonly profile: 'legacy2' }) | (LightscaperAppPropsCurrentV1 & { readonly profile: 'current3' });
 
-const PhotoImportDialog = lazy(() => import('./PhotoImportDialogV2.tsx'));
+const PhotoImportDialog = lazy(() => import('./LightscaperPhotoImportSurfaceV1.tsx'));
 const PhotoMetadataDialog = lazy(() => import('./PhotoMetadataDialog.tsx'));
 const PhotoPreviewPresentation = lazy(() => import('./PhotoPreviewPresentation.tsx'));
 const PhotoQueryDialog = lazy(() => import('./PhotoQuerySurface.tsx'));
@@ -141,8 +141,8 @@ export default function LightscaperAppKernelV1(props: Props) {
 	}, [savedGeneration]);
 	const factory = currentGeneration;
 	const { importFiles } = library;
-	const onImport = useCallback(async (...parameters: Parameters<typeof importFiles>) => {
-		const receipt = await importFiles(...parameters);
+	const onImport = useCallback(async (...parameters: Parameters<PhotoLibraryWorkflowKernelV1['importFiles']>) => {
+		const receipt = await Reflect.apply(importFiles, undefined, parameters) as Awaited<ReturnType<typeof importFiles>>;
 		if (factory.current === generation && receipt.outcome === 'acknowledged') setLibraryVisible(true);
 		return receipt;
 	}, [factory, generation, importFiles]);
@@ -507,7 +507,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 				onClose={() => { if (isCurrent()) setMembershipsVisible(false); }} />
 		</Suspense>}
 		{!restore.busy && importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
-			<PhotoImportDialog locale={locale} title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
+			<PhotoImportDialog profile={profile} locale={locale} title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
 				cancelLabel={copy.photoCancelAction} failureLabel={copy.photoImportFailed} busy={library.busy} error={library.error} copy={copy}
 				readPresets={library.readImportPresets} applyPreset={library.applyImportPreset} createId={createPresetId}
 				readDevelopPresets={library.readImportDevelopPresets}

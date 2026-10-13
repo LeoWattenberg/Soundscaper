@@ -678,8 +678,21 @@ collection and saved-filter export, Frame menu import, edit, native save,
 reopen, and project export, with unchanged sender custody. Native OPFS reads
 serialize per path through snapshot acquisition to prevent Firefox access
 contention; cancellation, other paths, and writer dispatch remain independent.
-Direct Frame repair and mask-name authoring and Preset3 application during
-import remain open. Remaining
+The existing File-menu import options now apply retained Current repair presets
+through a named Session child and the existing managed-import writer. Complete
+preset-row declarations and LUT/brush bodies are authenticated before Original
+preparation; every unpublished target rechecks the native row. Full presets
+retain geometry and local resources, while repair-only presets preserve other
+target settings. Original bytes, paths, and content tokens remain unchanged;
+deduplicated imports add their own permanent Original roots. Failed files keep
+their input positions, and acknowledged imports survive later refusal or
+cancellation. The inherited V2 preset import remains strict. The selected
+Lightscaper regression passes 2,472 cases in 284 files. Eight English/German
+Chromium and Firefox workflows verify actual menu import, per-file results,
+complete native custody, literal preview/PNG pixels, and reopen for both full
+and repair-only presets. Both product builds retain the startup and chunk
+ceilings.
+Direct Frame repair and mask-name authoring remain open. Remaining
 L3–L6 exit gates still require completion; L7–L9 remain incomplete. Final
 inter-slice qualification follows completion of the implementation milestones.
 

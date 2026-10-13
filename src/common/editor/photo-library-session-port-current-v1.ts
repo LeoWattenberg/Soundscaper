@@ -6,6 +6,7 @@ import type { PhotoLibraryDevelopPortV2 } from './photo-library-develop-port-v2.
 import type { PhotoLibraryImageHandoffPortV2 } from './photo-library-image-handoff-port-v2.ts';
 import type { PhotoLibraryImageReceivePortV2 } from './photo-library-image-receive-port-v2.ts';
 import type { PhotoLibraryCollectionHandoffPortV2 } from './photo-library-collection-handoff-port-v2.ts';
+import type { PhotoLibraryDevelopImportPortCurrentV1 } from './photo-library-develop-import-port-current-v1.ts';
 
 /** Current Develop settings with unchanged scalar library and organization capabilities. */
 export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessionPortV2, 'develop'> {
@@ -22,5 +23,7 @@ export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessi
 	readonly imageReceiveCurrent?: Readonly<PhotoLibraryImageReceivePortV2>;
 	/** Native ordered Current sequence capture; the inherited legacy child stays strict. */
 	readonly collectionHandoffCurrent?: Readonly<PhotoLibraryCollectionHandoffPortV2>;
+	/** Selected Current presets share the existing managed import and writer. */
+	readonly developImportCurrent?: Readonly<PhotoLibraryDevelopImportPortCurrentV1>;
 }
 export type CreatePhotoLibrarySessionCurrentV1 = () => Promise<PhotoLibrarySessionPortCurrentV1>;

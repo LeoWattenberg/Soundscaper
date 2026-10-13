@@ -71,6 +71,7 @@ import { PhotoLibrarySessionLifetime } from './photo-library-session-lifetime.ts
 import { createPhotoLibraryImageReceiveSessionV1 } from './photo-library-image-receive-session.ts';
 import { createPhotoLibrarySessionImageChildrenCurrentV1 } from './photo-library-session-image-children-current-v1.ts';
 import { createPhotoLibrarySessionImport } from './photo-library-session-import.ts';
+import { createPhotoLibrarySessionImportChildCurrentV1 } from './photo-library-session-import-child-current-v1.ts';
 import { backupPhotoLibrarySession } from './photo-library-session-backup.ts';
 import { backupPhotoLibrarySessionCurrentV1 } from './photo-library-session-backup-current-v1.ts';
 import { capturePhotoLibrarySessionPorts, capturePhotoLibrarySessionPortsCurrentV1, legacyPhotoLibrarySessionPortsV1, legacyPhotoCommandOwnerV1, readPhotoLibraryPageCursorV1 } from './photo-library-session-bindings.ts';
@@ -86,6 +87,7 @@ export class PhotoLibrarySessionKernelV2 {
 	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV2> | ReturnType<typeof createPhotoLibraryDevelopSessionV3>;
 	readonly legacyDevelop?: ReturnType<typeof createPhotoLibraryDevelopSessionV2>;
 	readonly developImport: Readonly<PhotoLibraryDevelopImportPortV2>;
+	readonly developImportCurrent?: ReturnType<typeof createPhotoLibrarySessionImportChildCurrentV1>;
 	readonly #ports: PhotoLibrarySessionPortsCurrentV1;
 	readonly #legacyPorts: PhotoLibrarySessionPortsV2;
 	readonly #current: boolean;
@@ -198,6 +200,8 @@ export class PhotoLibrarySessionKernelV2 {
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted), signal) }) : legacyDevelop;
 		this.#imports = createPhotoLibrarySessionImport({ ports: legacy, managed: this.#legacyManagedPorts(), presetSettings,
 			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
+		if (this.#current) this.developImportCurrent = createPhotoLibrarySessionImportChildCurrentV1({ ports, managed: this.#managedPorts(), presetSettings, ready: () => this.#ready(),
+			operation: (run, signal) => this.#operation(run, signal), mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 		const resources = ports.cubeLutResources;
 		const selectedResources = async () => { if (!resources) throw new Error('Selected LUT resources are unavailable.'); return Reflect.apply(resources, ports, []); };
 		this.cubeLuts = Object.freeze<PhotoLibraryCubeLutPortV1>({ schemaVersion: 1,
