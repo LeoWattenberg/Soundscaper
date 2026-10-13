@@ -56,6 +56,20 @@ HDR behavior, multichannel delivery, or Adobe application interchange. Linux x64
 has local packaged evidence. Other native targets require their target-native
 CI build and packaged smoke before release qualification.
 
+`node scripts/motionscaper-authored-native-smoke.mjs --output=/absolute/new/directory`
+is the separate maintained authored-title workflow. It creates the composition,
+rectangle and text through public menus, saves a font-complete archive, compares
+preview pixels, cancels the real GTK export destination once, then retries and
+decodes the MOV with the unchanged color/alpha/cadence bounds. It requires the
+stage/package overrides and source-bound reference artifact used by the other
+native qualifiers, a fresh private X11 display explicitly named by
+`MOTIONSCAPER_QUALIFICATION_PRIVATE_DISPLAY`, and short owner-only `TMPDIR` and
+`XDG_RUNTIME_DIR` directories. Its fresh output retains physical archives, movies,
+chooser observations and child/cleanup receipts. The fixed GTK layout is admitted
+only for the launched process and observed Save-button coordinates; another layout
+is refused. Standalone packaged execution and Linux aggregate registration remain
+pending; adding the harness does not qualify an application run.
+
 Changes to this helper's source or build closure require refreshing
 `native/motionscaper-media-host/source-manifest.json` and rebuilding native media
 artifacts. They do not require **Update AI assets** unless the separate assistance
