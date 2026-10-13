@@ -1,5 +1,12 @@
 # Linux packaged qualification gate
 
+Status on 2026-10-13: a fresh bounded Linux x64 aggregate passed against source
+`328cae02fb961d87524a6bcb37c54800b3ae7026`. The old temporary receipts were lost
+after a reboot and remain historical. The new run has its own verified builds,
+packages, independent decoder and closed processes. It qualifies the listed
+software-rendered workflows, not all milestones or the complete release.
+See [final validation status](motionscaper-final-integration-validation.md).
+
 Motion candidate packages and desktop nightly test artifacts require the same
 three external Linux workflows before their package upload can succeed:
 
@@ -79,9 +86,26 @@ credentialed signing, installed file-association dispatch, installed After
 Effects comparisons and broader codec/color profiles require their own actual
 receipts. Workflow inclusion alone does not establish those receipts.
 
-## Local Linux x64 receipt
+## Fresh source-328 Linux x64 result
 
-The complete runner passed against both actual packages from source revision
+The maintained aggregate passed all nine steps and retained all four required
+receipts for launch, authored 2.5D scene and offline successor picture/PCM delivery.
+The aggregate SHA-256 is
+`4fdb6f5fbaa2d5bfca7afc857ef5fd6f5ec6dee7ee8ccd1866a0db4d3ce6c883`;
+the independently reviewed native build result is
+`97158eb3efcbb0e48aff1be162accf7f4c2edc9233fc82926a534e8fe285e564`.
+Both packages and their sandbox permissions remained unchanged across the run;
+all 40 recorded descendants closed with no survivors or zombies.
+
+This result excludes duration, maximum scenes, hardware rendering and other
+targets. A separate complete title/text authoring workflow subsequently failed
+its original ProRes color bound; that failure and repairs are recorded in the
+[final validation ledger](motionscaper-final-integration-validation.md).
+The bounded aggregate does not close that additional M05 gate.
+
+## Historical Linux x64 report
+
+The committed record reported a complete run against both packages from source revision
 `1b96f6b9d658d92d12555572043a89e192a703ff`. All three phases completed and all four
 required receipts were present. The aggregate record SHA-256 was
 `24d2bb7e2bfe65a3deeb0cb4b798660a599a8f1bceb956fb161adea558cca525`; the independent
@@ -103,7 +127,22 @@ RGB error `0.005798446`, alpha error `0.000603348`, and PCM error zero across
 4,800 stereo frames at 48 kHz. The three-frame movie digest was
 `3c37b639b24c65dc7e60c59b7a055a2407700f02cc21044016446c4b9361f313`.
 
-This local receipt exercises the same source-bound runner used by CI with a
-software-rendered Motion app and software WebGL2 successor. It does not replace
-execution of the hosted Linux ARM job, signed installation qualification or
-hardware GPU receipts. No workflow was dispatched and no artifact was published.
+Those hashes and measurements are retained from the committed historical
+record. The temporary receipt and reference evidence are unavailable after the reboot.
+The fresh source-328 packages were built and verified separately; these old
+receipt hashes must not be assigned to them.
+
+Before the reboot, the conversation also recorded a complete bounded Linux x64
+aggregate and a separate native duration run at
+`c80ac57f384318f3284851abda461cacb6f629d8` on 2026-10-12. The duration run compared
+300 and 1,200 frames at 160×90 through real preview, GTK destinations, native
+ProRes/PCM delivery and cancellation/retry. These are historical reported
+outcomes with lost evidence, not a reconstructed receipt or a current PASS.
+
+The maintained runner preserves Electron's sandbox. Historical local WSL runs
+used root ownership and mode 4755 only on the newly built packages' two
+`chrome-sandbox` files; they did not disable the sandbox or change host policy.
+A fresh run must verify its own package bytes, permissions and process cleanup.
+Hosted Linux ARM, other targets, signed installation, hardware GPU and installed
+AE behavior still need their own actual evidence. No workflow or publication is
+performed by this documentation recovery.

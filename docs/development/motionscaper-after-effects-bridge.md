@@ -1,9 +1,12 @@
 # Motionscaper After Effects bridge
 
-M11 is in development. The versioned exchange contract, readable exporter and
-limited importer, and opt-in editor workflow are implemented; broad editable
-conversion and installed-AE reference qualification remain incomplete. No After Effects version has
-been qualified. Synthetic host tests must not populate that qualification matrix.
+M11 remains **In progress**. The versioned exchange, readable scripts,
+menu-driven import/export, source custody, reviewed editable subset and bounded
+sampled/rendered alternatives are implemented. No installed After Effects test
+environment is available and no AE version is qualified. Synthetic host tests
+must not populate the installed-host matrix. Historical local browser results
+were reported before the 2026-10-13 reboot; their temporary receipts are lost and
+fresh local checks do not qualify an installed AE host. See [final validation status](motionscaper-final-integration-validation.md).
 
 The intended workflow uses readable `.jsx` scripts through **File > Scripts >
 Run Script File** in an installed After Effects application. Adobe documents
@@ -67,14 +70,20 @@ media copying uses AE's per-file operation.
 ## Limited importer
 
 `Motionscaper-Import.jsx` parses inert bounded JSON before opening an undo group.
-Its current admitted subset is compositions, retained footage, null layers,
-parent links, layer timing and transforms, temporal interpolation/ease, spatial
-tangents and roving keys, plus the explicit hard-edge mask subset below. Unsupported layer kinds produce an actionable request
-to render the complete composition; unsupported property groups, expressions,
-blend intent produce a preflight warning requiring an explicit
-choice before creating partial imported content. Imported expressions are never
-activated. Text, shapes, solid sources, cameras, lights, effect mappings and
-Motionscaper model conversion remain incomplete.
+Its admitted subset includes compositions, retained footage, nulls, parent links,
+timing/transforms, authored keys/ease and the hard-edge masks/mattes below.
+Reviewed paragraph text, ordered path/paint shapes, a narrow camera/ambient-light
+mapping, named blends and Gaussian Blur 2 controls also have host and Motion
+conversion paths. Their admission rules are explicit; they are not general
+AE compatibility. Unmapped layers and properties retain reports and source
+custody, with an explicit choice before creating partial content.
+
+Expressions stay inactive by default. Separate import/export opt-ins translate
+only the admitted scalar opacity subset. The installed importer independently
+validates its closed ES3 expression source before mutation, applies values and
+keys first, then checks activation errors and one finite in-point sample.
+Failure rolls back only newly created objects. That probe does not qualify all
+frames or subframes. See [expression mapping](motionscaper-ae-expressions.md).
 
 The destination project must already have matching working space, linear blend
 and bit depth settings; the script never changes those project-wide settings.
@@ -137,6 +146,43 @@ explicit source visibility after host binding. Missing APIs roll back newly
 created objects. Structural host tests and actual browser matte pixels cover
 these paths; actual AE alpha/luma/color/reference qualification remains open.
 
+## Other implemented editable mappings
+
+- **Text:** static uniform fill-only horizontal paragraph boxes, with explicit
+  retained-font/PostScript associations and reviewed line spacing/color. Reflow
+  is reported; mixed runs, animation, strokes, point/vertical text and missing
+  style metadata require fallback. The host importer requires AE 24.6 or newer
+  and verifies installed faces; it never installs fonts. See [text staging](motionscaper-ae-text-qualification.md).
+- **Shapes:** ordered isolated Bézier path/solid-paint groups with admitted
+  hold/linear keys and static similarity transforms. Fill/stroke use independent
+  editable path copies. Gradients, nested groups, compound/operator semantics and
+  unsupported easing remain reported. Named popup styles require a separately
+  reviewed exact version/build/language profile, never guessed enum values.
+  See [shape staging](motionscaper-ae-shape-qualification.md).
+- **Scenes:** unparented one-node perspective cameras with neutral X/Y rotation,
+  Z roll and disabled depth of field; ambient lights with reviewed static opaque
+  SDR color and intensity keys. General 3D AV/materials, point/spot lights,
+  shadows, orthographic/parented cameras and DOF are not editable mappings.
+  See [scene staging](motionscaper-ae-scene-qualification.md).
+- **Blends and Gaussian:** Normal, Multiply, Screen, Overlay, Darken, Lighten and
+  Difference have closed bidirectional named mappings. Gaussian Blur 2 requires
+  an explicitly selected exact-host profile, complete neutral control inventory
+  and positive declared blurriness-to-sigma scale. Host readback/rollback preserves
+  source values; it does not establish kernel/radius, bounds, color or alpha
+  equivalence. Other enabled effects and non-neutral compositing controls stay
+  unsupported. Complete rendered fallback is offered within its bounds.
+
+The Motion-to-AE editable package retains `original.mscape` and an explicit
+ledger. It is video-only: imported layers are muted, including precompositions.
+Authored audio, unused assets, unsupported timing, temporal/DOF and other intent
+remain in the original archive. A retained original is not a rendered appearance
+claim. The [rendered export](motionscaper-ae-render-transfer-qualification.md)
+uses full authored Motion quality for every frame of one complete composition,
+up to 256 frames, with 8-bit straight-alpha sRGB PNG and no transferred audio.
+The 256 MiB package includes an original archive admitted up to 128 MiB. It
+refuses excess or missing output rather than skipping frames. This is not a
+universal editable-or-baked promise for every admitted project.
+
 ## Exchange contract
 
 `motion-ae-exchange.ts` admits `org.motionscaper.ae-exchange`, version 1. The
@@ -190,8 +236,9 @@ host calls. An individual native expression evaluation may block; installed-AE
 Escape interruption remains unqualified. Sampling failures retain authored
 data and add an unsupported report. Frame values do not preserve subframe
 motion, motion blur, or general spatial/temporal interpolation semantics.
-The initial AE importer still imports authored transform keys and keeps
-expressions inactive; consuming sampled values is a separate conversion step.
+The host importer uses admitted authored transform keys. The project converter
+can consume declared frame samples as linear keys; otherwise expressions stay
+inert unless the separate reviewed scalar translation option is admitted.
 
 ## Required qualification
 
@@ -233,12 +280,15 @@ precompositions, nulls, ordering, parenting, known blend/matte intent, and
 numeric transforms. Static, hold and linear values retain editable keys;
 explicit AE samples become linear frame-grid keys. Percent scale/opacity become
 Motion factors. Animated or sequence footage cannot bind a single decoded still. Spatial tangents, roving and temporal Bezier speed require
-samples rather than an inferred curve. Imported expressions never execute.
+samples rather than an inferred curve. Expressions remain inert by default;
+explicit reviewed scalar translation is the separately bounded exception.
 The new document uses fresh identities and retains the original exchange as
 separate custody. Unsupported layer kinds become named null placeholders, and
 all partial conversion requires explicit report acknowledgement before any
-publication. Audio, non-square pixels, color/footage interpretation, 3D,
-text/shapes/effects, advanced masks and broader editable mapping remain incomplete.
+publication. Reviewed text, shapes, hard-edge masks/mattes, scenes, named blends
+and Gaussian controls are mapped under the limits below. Audio, non-square
+pixels, general 3D/materials, advanced masks and broader mappings remain outside
+this editable subset.
 
 AE floating clocks cross an explicit one-millionth frame/second boundary;
 changed values get a sampling report and original values remain in custody.
