@@ -45,8 +45,8 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/CMakeLists.txt",
-			"byteLength": 2769,
-			"sha256": "ebe4616e4ee5aaefa84b6308c5b2fcf7fa75946fc51e69e37d0c098f1853b5f4"
+			"byteLength": 3165,
+			"sha256": "a9df0e8d234d3408d9607871cd04ca1022e324b1c8c055026557598cff708521"
 		},
 		{
 			"path": "native/motionscaper-media-host/THIRD_PARTY_NOTICES.md",
@@ -80,8 +80,8 @@
 		},
 		{
 			"path": "native/motionscaper-media-host/src/prores_encoder.cpp",
-			"byteLength": 8961,
-			"sha256": "63f095b0670b6e1652c45b6479c14058548730379a19b082b623ffc68f9541c8"
+			"byteLength": 9497,
+			"sha256": "d6ac4e19c20308312a2c0feeb031c272f07b9d03c63069e45d3d45c8d1814819"
 		},
 		{
 			"path": "native/motionscaper-media-host/src/prores_encoder.hpp",
@@ -112,6 +112,11 @@
 			"path": "native/motionscaper-media-host/tests/pcm_roundtrip.cpp",
 			"byteLength": 4028,
 			"sha256": "5b9c415bccc4679cd33765d93e7a2f00936445ebd2919c7bd0bcb46e26fef50c"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/prores_edges_roundtrip.cpp",
+			"byteLength": 7557,
+			"sha256": "ea7b8c874382595bafded0c208c7f6315fbd7450dfe9074e0e4a7b908086717e"
 		},
 		{
 			"path": "native/motionscaper-media-host/tests/prores_roundtrip.cpp",

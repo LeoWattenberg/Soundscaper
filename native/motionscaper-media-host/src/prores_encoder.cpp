@@ -65,6 +65,13 @@ void encode_prores4444(frame_carrier& carrier, const std::filesystem::path& dest
 	if (session.format->oformat->flags & AVFMT_GLOBALHEADER) codec.flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 	require(av_opt_set(codec.priv_data, "profile", "4444", 0), "Select ProRes 4444");
 	require(av_opt_set(codec.priv_data, "alpha_bits", "16", 0), "Select ProRes alpha storage");
+	// FFmpeg 9.0.1 proresenc_kostya_common.h admits QUANT_MAT_XQ_LUMA = 5
+	// through the integer quant_mat option. Its 2--4 weights preserve thin
+	// antialiased strokes; automatic 4444 selects HQ weights up to 7 instead.
+	// This changes quantization, not the 4444 profile or ten-bit input precision.
+	constexpr int fine_detail_matrix = 5;
+	codec.flags |= AV_CODEC_FLAG_QSCALE; codec.global_quality = FF_QP2LAMBDA;
+	require(av_opt_set_int(codec.priv_data, "quant_mat", fine_detail_matrix, 0), "Select ProRes fine-detail quantization");
 	require(avcodec_open2(&codec, encoder, nullptr), "Open Motionscaper ProRes encoder");
 	AVStream* stream = avformat_new_stream(session.format, nullptr);
 	if (!stream) throw std::runtime_error("Motionscaper MOV stream allocation failed.");
