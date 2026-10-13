@@ -239,3 +239,14 @@ native watcher evidence is recorded in
 delivery and the remaining platform matrix remain incomplete release gates.
 
 No **Update AI assets** run is required; the assistance runtime closure is unchanged.
+
+The owned encoder callback also reverses the exact Firefox153 native avcC
+serializer defect: zero reserved bits coupled with one duplicated NAL header on
+each single SPS/PPS. Admission requires the recovered sets to equal the actual
+owned key packet byte for byte before ordinary strict geometry/profile/color
+validation. General and imported avcC parsing stays strict. A six-frame, three-
+second native Firefox control retained identical complete BGRX output and all
+non-SPS packet bytes/timing; independent pinned FFmpeg9.0.1 decoding retained
+identical full active YUV planes. The original malformed description and decoder
+warnings remain evidence. This bounded control does not replace final menu and
+offline workflow qualification.

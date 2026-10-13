@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { restoreOwnedAvcConfiguration } from './video-avc-native-configuration.ts';
 import type { VideoWebCodecsEncodedChunk } from './video-webcodecs-producer.ts';
 
 const MAX_DESCRIPTION = 65_536;
@@ -162,13 +163,16 @@ export function createVideoAvcColorNormalizer(width: number, height: number) {
 	let nalLength = 0;
 	let sets: Uint8Array[] = [];
 	return (chunk: VideoWebCodecsEncodedChunk, metadata?: EncodedVideoChunkMetadata) => {
+		requireAvc(Number.isSafeInteger(chunk.byteLength) && chunk.byteLength > 0 && chunk.byteLength <= MAX_PACKET);
+		const bytes = new Uint8Array(chunk.byteLength); chunk.copyTo(bytes);
 		let result = metadata;
 		if (metadata?.decoderConfig) {
 			const config = metadata.decoderConfig, color = config.colorSpace;
 			requireAvc(/^avc1\.4d[0-9a-f]{4}$/iu.test(config.codec) && config.codedWidth === width && config.codedHeight === height
 				&& color?.primaries === 'bt709' && color.transfer === 'bt709' && color.matrix === 'bt709' && color.fullRange === false
 				&& config.description);
-			const original = descriptionBytes(config.description); const updated = completeVideoAvcColorDescription(original, { width, height });
+			const emitted = descriptionBytes(config.description);
+			const original = restoreOwnedAvcConfiguration(emitted, bytes, chunk.type); const updated = completeVideoAvcColorDescription(original, { width, height });
 			// Native config can retain a broader requested Main level; actual avcC/SPS remains the content authority.
 			const constraints = Number.parseInt(config.codec.slice(7, 9), 16);
 			requireAvc((constraints & 3) === 0 && (original[2]! & constraints) === constraints
@@ -183,10 +187,10 @@ export function createVideoAvcColorNormalizer(width: number, height: number) {
 				}
 				if (group === 0) count = updated[at++]!;
 			}
-			if (updated !== original) result = { ...metadata, decoderConfig: { ...config, description: updated } };
+			if (updated !== emitted) result = { ...metadata, decoderConfig: { ...config, description: updated } };
 		}
-		requireAvc(nalLength > 0 && Number.isSafeInteger(chunk.byteLength) && chunk.byteLength > 0 && chunk.byteLength <= MAX_PACKET);
-		const bytes = new Uint8Array(chunk.byteLength); chunk.copyTo(bytes); let offset = 0; let count = 0;
+		requireAvc(nalLength > 0);
+		let offset = 0; let count = 0;
 		const replacements: { start: number; end: number; nal: Uint8Array }[] = [];
 		while (offset < bytes.length) {
 			const start = offset;
