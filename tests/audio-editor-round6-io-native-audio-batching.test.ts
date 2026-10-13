@@ -2,7 +2,6 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
 import { createFramescaperBrowserAudioRecorder, type FramescaperAudioDataLike } from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-audio-recorder.ts';
 import type { CapturePcmChunk } from '../src/common/editor/controller/capture/internal/framescaper-capture-pcm-packetizer.ts';
 import { deferred, waitFor } from './helpers/async-test-control.ts';
@@ -59,7 +58,10 @@ test('normal native ten-millisecond AudioData uses the advertised PCM storage bu
 	});
 	recorder.start(960);
 	try {
-		for (const block of blocks) { processor.push(block); await delay(10); }
+		for (const block of blocks) {
+			processor.push(block);
+			await waitFor(() => block.closed, 'the next native audio block');
+		}
 		assert.deepEqual(errors, [], '400 ms of ordinary PCM must fit the unchanged 32 nominal-chunk budget');
 		assert.equal(recorder.state, 'recording');
 		assert.equal(recorder.pendingChunks, 4);

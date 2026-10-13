@@ -7,7 +7,7 @@ import { expectCapturePhase, openRecordingSetup, selectSourceRoles } from './hel
 import { installRound6NativeCapture } from './helpers/framescaper-round6-native-audio-capture.js';
 
 for (const monitoring of [true, false]) {
-	test(`native microphone and shared-screen capture remains durable with monitoring=${String(monitoring)}`, async ({ page, browserName }) => {
+	test(`native microphone and shared-screen capture remains durable and isolates monitor output with monitoring=${String(monitoring)}`, async ({ page, browserName }) => {
 		await installRound6NativeCapture(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');
@@ -31,16 +31,22 @@ for (const monitoring of [true, false]) {
 			const frames = await page.evaluate(() => window.__round6CaptureNativeFrameSizes());
 			throw new Error(`Native AudioData: ${JSON.stringify({ count: frames.length, frameSizes: [...new Set(frames)] })}\n${await panel.innerText()}`, { cause: error });
 		}
-		await page.waitForTimeout(1000);
+		if (monitoring) {
+			await expect.poll(() => page.evaluate(() => window.__round6CaptureMonitorOutput().microphone)).toBeGreaterThan(0.1);
+		}
 		await expect.poll(() => page.evaluate(() => window.__round6CaptureNativePcm().frames)).toBeGreaterThan(16_384);
 		if (!monitoring && browserName === 'chromium') {
-			await expect.poll(() => page.evaluate(() => window.__round6CaptureNativeFrameSizes().length)).toBeGreaterThan(32);
+			// Two inputs must supply enough native blocks to exercise batch publication.
+			await expect.poll(() => page.evaluate(() => window.__round6CaptureNativeFrameSizes().length)).toBeGreaterThan(64);
 		}
 		const frames = await page.evaluate(() => window.__round6CaptureNativeFrameSizes());
 		if (!monitoring && browserName === 'chromium') {
 			expect(frames.length).toBeGreaterThan(32);
 			expect(frames.every(frame => frame === 480)).toBe(true);
 		}
+		const output = await page.evaluate(() => window.__round6CaptureMonitorOutput());
+		expect(output['system-audio']).toBeLessThan(0.000001);
+		if (!monitoring) expect(output.microphone).toBeLessThan(0.000001);
 		await expectCapturePhase(panel, 'recording');
 		await panel.getByRole('button', { name: 'Stop and import', exact: true }).click();
 		await expect(panel).toHaveAttribute('data-capture-phase', /^(?:inactive|recovery)$/u, { timeout: 30_000 });
