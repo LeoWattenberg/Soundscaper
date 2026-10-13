@@ -19,8 +19,9 @@ implementation, not execution or compatibility.
 
 Fresh results below have terminal process results and retained evidence under
 `~/.cache/soundscaper/motionscaper-recovery-328cae02f-20261013/` on the validation
-host. The browser invocation is still running; its partial results are explicitly
-identified. Changed source will need the applicable gates again. Do not infer
+host. The ordinary browser invocation is closed and failed; subsequent focused
+results are attributed to their own sources. Changed source will need the
+applicable gates again. Do not infer
 success from a progress marker, an earlier source's result or generated files.
 
 ## Implementation and acceptance are separate
@@ -69,7 +70,7 @@ by this recovery.
 | Canonical static gate | `npm run check:static` passed, including full lint, types, audits, documentation and builds. Changed-file lint remains required for subsequent edits. |
 | All exhaustive Node partitions | All five finished: 27,125 tests, 27,108 passed, 14 declared skips and three failures in common-2's nightly-payload dependency closure. Motion's 953 tests passed without skips. Full Node acceptance is failed. |
 | Ordinary Chromium/Firefox/WebKit suite | Closed with exit 1: 7,536 cases, 7,207 passed, 25 failed, 303 declared skips and one unrun serial-dependent case. Chromium: 2,492 passed, three failed, 17 skipped. Firefox: 2,368 passed, nine failed, 134 skipped, one unrun. WebKit: 2,347 passed, 13 failed, 152 skipped. Full browser acceptance is failed. |
-| Separate dual-origin and Motion-links suites | Canonical complete runs pending. Color conversion and browser media initialization repairs have focused evidence; the full linked/offline workflow and new file/presentation oracle remain under qualification. |
+| Separate dual-origin and Motion-links suites | Canonical complete runs pending. The first linked-editor workflow subsequently passed all three engines on source `f316e407e`, including physical export and reopening after both origins closed. This is three cases, not complete suite acceptance. |
 | Handbook browser suite | All 32 cases passed, without skips or retries. |
 | Fresh bounded Linux packaged aggregate | Passed all nine steps and four workflow receipts for Linux x64 software rendering, with verified packages, native helper and independent decoder. This does not cover the separate authored-title failure below. |
 | Browser and native controlled-duration workflows | Pending for this source. |
@@ -123,12 +124,27 @@ passed the latter two categories but did not establish their original causes.
 They remain unresolved; no timing or signal bounds were relaxed.
 
 WebKit's remaining failures also include three live-effect continuity cases,
-musical-number tempo editing, a disabled Select menu, search activation and a
-return-to-home navigation timeout. The annotation workflow reached and closed
+musical-number tempo editing, a disabled Select menu and a return-to-home
+navigation timeout. The annotation workflow reached and closed
 the read-only Frame view; its timeout occurred during the subsequent Sound
 home navigation, before checking reopened annotations. These failures remain
-open. A separate delayed-focus control is investigating search activation;
-it does not establish acceptance of the original workflow.
+open. The integrated search repair cancels stale opening and restoration focus
+frames on activation or unmount. Its causal mounted-component controls fail on
+the old implementation and pass normally and in StrictMode after repair. The
+unchanged search workflows and cold effect-dialog controls passed 36 cases
+across all three engines on source `d8dbe9a4c`; these focused results do not
+close full browser acceptance. Integration also fixes the rack dialog's chunk
+ownership and extracts shared video transfer functions without changing their
+numerical formulas.
+
+A paired capture of the original three WebKit live-effect workflows passed
+their ScriptProcessor assertions on frozen source 328. Its independent native
+observer nevertheless found a 26.12 ms near-silent EQ interval inside the
+post-edit window. Both observers used the same live output; native input and
+frame continuity guards passed. A read-only audit found no persistent EQ
+history reset. Synchronous audio-thread coefficient rebuilding and upstream
+chunk starvation remain possible causes. The passing ScriptProcessor checks
+therefore do not qualify native continuity or resolve the original failures.
 
 Supplemental M10 execution reached actual connection, update, Undo/Resume,
 Conform, portable Save/Open and matching blue preview in Firefox. Delivered MP4
@@ -142,8 +158,28 @@ An independent file oracle with retained absolute presentation measurements is
 being qualified; the original HTML-pixel failure is not relabeled successful.
 Offline reopening also required avoiding an unused portable-recovery import.
 That key-only custody admission repair is integrated, with present/corrupt and
-cancelled custody checks preserved. Used-font persistence and real owned-origin
-shutdown/reopening are still being qualified.
+cancelled custody checks preserved. The first complete linked-editor workflow
+now passes in Chromium, Firefox and WebKit on source `f316e407e`, with no
+retries, skips or errors. Each engine verified 121 current-release cache bodies,
+including eight used fonts, against the manifest and actual built bytes. Both
+owned origins then closed before reopening the same stored owner with a ready
+editor, blue preview, matching link digest and no page errors. All 1,415 site
+and source-map files remained unchanged. The receipt is
+`video-color-repair/used-assets-dotted-original/qualification.json`, SHA-256
+`e7b4d1509a37df5015bddb52cad11e2716066c03ba24d1c7ef3fa8fa4106fcfc`.
+
+The integrated delivery repair completes missing color signaling only for the
+encoder's own limited-range BT.709 AVC output. Bounded native configuration
+repairs preserve picture bytes and timing and leave the general metadata
+parser strict. The offline repair replays the observed completed asset set
+through the current worker; it does not claim complete historical inventory or
+general persistence. The workflow separately proves its actual cache custody.
+Chromium's absolute native/HTML blue value remains 241; its normative decoded
+file planes satisfy the unchanged twelve-code bound and match an independent
+same-plane presentation control. Firefox's BGRX native output satisfies that
+bound but does not qualify normative YUV-plane decoding. Earlier absolute
+presentation failures remain recorded. Complete linked and dual-origin suites
+on the combined implementation remain pending.
 
 The supplemental M05 desktop workflow completed real New Composition, shape/text
 authoring, Save, preview, cancellation and retry, and produced a ProRes 4444 MOV.
@@ -160,12 +196,16 @@ The maintained authored-title workflow now checks exact saved menu intent and
 decoder/CanvasKit byte authority; its 14 focused checks pass. Its real native
 Save, preview, destination cancellation/retry and export execution remains
 pending on a fresh package. Menu execution and the earlier small-scene aggregate
-do not close the failed authored-title gate.
+do not close the failed authored-title gate. Normal native reuse verification
+and a fresh maintained reference-decoder build/verification passed on clean
+source `a92368082`; all seven prefix trees and 172 files remained unchanged.
+The native receipt retains its original `f66040509` identity. These phases did
+not stage or package a desktop application, run the GUI or change its sandbox.
 
-Integration preserves each original repair commit in Git ancestry. Seven
+Integration preserves each original repair commit in Git ancestry. Eight
 finished auxiliary worktrees were removed after their commits were merged;
 remaining worktrees stay below the ten-worktree limit. No source, dependency,
-site or packaged bytes used by the active frozen capture were changed.
+site or packaged bytes used by the completed frozen capture were changed.
 
 The retained evidence includes `gates/static-result.json`, all five
 `node/*-result.json` files, the handbook result, and
