@@ -171,6 +171,10 @@ try:
         x11.XFlush(display)
         time.sleep(0.6)
         if mode in {"save-project", "export"}:
+            # Commit the Name entry and release its GTK completion grab before Save.
+            key(0xFF09, True)
+            key(0xFF09, False)
+            x11.XFlush(display)
             # Exact native Save button observed in the owned private GTK dialog.
             # Refuse a different layout instead of guessing or adding a fallback.
             attributes = XWindowAttributes()
