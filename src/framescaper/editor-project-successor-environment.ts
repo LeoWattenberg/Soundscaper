@@ -30,7 +30,7 @@ export async function createFramescaperSuccessorEnvironment(options: Readonly<{ 
 			if (record) {
 				if (hydrated.get(id) !== record.archiveDigest) { await hydrateFramescaperSuccessorArchive(record, media, signal); hydrated.set(id, record.archiveDigest); }
 			}
-			if (!hydrated.has(`portable:${id}`)) {
+			if (!hydrated.has(`portable:${id}`) && await archiveRepository.hasPortableCustody(id, signal)) {
 				const { restoreFramescaperSuccessorPortableCustody } = await import('./editor-project-successor-portable-import.ts');
 				const digest = await restoreFramescaperSuccessorPortableCustody(id, media, { line: options.line, signal, ...(settings.indexedDB ? { indexedDB: settings.indexedDB } : {}) });
 				if (digest) hydrated.set(`portable:${id}`, digest);
