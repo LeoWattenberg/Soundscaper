@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -8,6 +9,11 @@ import { hashMotionSustainedFile } from './motionscaper-sustained-observation.ts
 import { parseMotionProcessStat, selectMotionOwnedProcesses, type MotionProcessIdentity } from './motionscaper-sustained-process.ts';
 
 interface ProcessState extends MotionProcessIdentity { readonly group: number; readonly session: number; readonly state: string }
+interface StatFailure {
+	readonly pid: number; readonly path: string; readonly observedAt: string; readonly message: string;
+	readonly encoding: 'utf8-read-string'; readonly utf8ByteLength: number; readonly sha256: string;
+	readonly capturedBase64: string; readonly truncated: boolean;
+}
 // A task may vanish after its /proc entry was opened, so Linux read can return ESRCH.
 const missing = (error: unknown) => {
 	const code: unknown = error && typeof error === 'object' ? Reflect.get(error, 'code') : null;
@@ -20,10 +26,6 @@ function parseState(text: string): ProcessState {
 	const identity = parseMotionProcessStat(text), group = Number(fields[2]), session = Number(fields[3]);
 	if (!Number.isSafeInteger(group) || !Number.isSafeInteger(session) || group < 0 || session < 0) throw new Error('Invalid command process group/session.');
 	return { ...identity, group, session, state: fields[0]! };
-}
-async function readState(pid: number): Promise<ProcessState | null> {
-	try { return parseState(await readFile(`/proc/${pid}/stat`, 'utf8')); }
-	catch (error) { if (missing(error)) return null; throw error; }
 }
 
 /** Linux commands get their own session. Only authenticated PID/start identities are signalled;
@@ -40,6 +42,27 @@ export async function motionSustainedCommand(options: Readonly<{
 	let stdout = '', stderr = '', outputBytes = 0, cleanupStarted: number | null = null;
 	let close: { code: number | null; signal: NodeJS.Signals | null; closedAt: string } | null = null, exited = false;
 	const failures: string[] = [], cleanupErrors: string[] = [];
+	const statFailures: StatFailure[] = []; let statFailureOverflow = false;
+	const observedState = (pid: number, text: string) => {
+		try { return parseState(text); }
+		catch (error) {
+			if (statFailures.length >= 16) statFailureOverflow = true;
+			else {
+				// Preserve the exact string consumed by the existing parser, not a later /proc reread.
+				// This is evidence of a refused observation, never permission to skip its task.
+				const bytes = Buffer.from(text, 'utf8');
+				statFailures.push({ pid, path: `/proc/${pid}/stat`, observedAt: new Date().toISOString(),
+					message: String(error).slice(0, 500), encoding: 'utf8-read-string', utf8ByteLength: bytes.length,
+					sha256: createHash('sha256').update(bytes).digest('hex'),
+					capturedBase64: bytes.subarray(0, 4096).toString('base64'), truncated: bytes.length > 4096 });
+			}
+			throw error;
+		}
+	};
+	const readState = async (pid: number): Promise<ProcessState | null> => {
+		try { return observedState(pid, await readFile(`/proc/${pid}/stat`, 'utf8')); }
+		catch (error) { if (missing(error)) return null; throw error; }
+	};
 	const fail = (message: string) => { if (!failures.includes(message) && failures.length < 16) failures.push(message); cleanupStarted ??= performance.now(); };
 	const collect = (kind: 'stdout' | 'stderr', bytes: Buffer) => {
 		outputBytes += bytes.length;
@@ -87,7 +110,7 @@ export async function motionSustainedCommand(options: Readonly<{
 	try {
 		if (child.pid) {
 			// Do not yield before admission: a fast child can become a real zombie, then be reaped by the next event-loop turn.
-			try { owner = parseState(readFileSync(`/proc/${child.pid}/stat`, 'utf8')); }
+			try { owner = observedState(child.pid, readFileSync(`/proc/${child.pid}/stat`, 'utf8')); }
 			catch (error) { if (!missing(error)) throw error; }
 			if (owner && (owner.group !== child.pid || owner.session !== child.pid)) throw new Error('Owned command did not establish its isolated session.');
 			if (owner) known.set(key(owner), owner);
@@ -126,7 +149,7 @@ export async function motionSustainedCommand(options: Readonly<{
 	const actualClose = close as { code: number | null; signal: NodeJS.Signals | null; closedAt: string } | null;
 	const receipt = { argv: [options.command, ...options.args], cwd: options.cwd, pid: child.pid ?? null,
 		startedAt, closedAt: actualClose?.closedAt ?? null, cleanupEndedAt: new Date().toISOString(), code: actualClose?.code ?? null, signal: actualClose?.signal ?? null,
-		closureObserved: actualClose !== null, stdout, stderr, failure: failures[0] ?? null, failures, cleanupErrors,
+		closureObserved: actualClose !== null, stdout, stderr, failure: failures[0] ?? null, failures, cleanupErrors, statFailures, statFailureOverflow,
 		owner, ownedProcesses: [...known.values()], signals, survivingProcesses: survivors, unreapedZombies: zombies };
 	await writeFile(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx' });
 	const pin = await hashMotionSustainedFile(receiptPath, 512 * 1024);
