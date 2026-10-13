@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { requireMotionHostWebGl } from './helpers/motionscaper-host-webgl.ts';
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 import { motionCompositionLinkFrameToRgba8 } from '../../src/common/editor/motion-link-picture-source.ts';
 import { createMotionSurface } from '../../src/common/editor/motion-surface.ts';
 
 test('linked sRGB straight-alpha carrier reaches WebGL as exact RGBA8 without a canvas readback', async ({ page }: { page: Page }) => {
+	await requireMotionHostWebGl(page);
 	const surface = createMotionSurface(4, 1); surface.pixels.set([0.125, 0.25, 0.5, 0.5, 0.0005, 0.001, 0.002, 0.004, 0, 0, 0, 0, 0.18, 0.01, 1, 1]);
 	const picture = motionCompositionLinkFrameToRgba8({ identity: { projectId: 'linked', compositionId: 'main', revisionDigest: 'a'.repeat(64) }, time: { num: 1, den: 30 }, surface: { ...surface, consumedOperationIds: [] } });
 	const expected = [...picture.pixels];

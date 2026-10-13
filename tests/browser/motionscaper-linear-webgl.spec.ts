@@ -2,6 +2,7 @@
 
 import { expect, test } from '@playwright/test';
 import { buildSync } from 'esbuild';
+import { requireMotionHostWebGl } from './helpers/motionscaper-host-webgl.ts';
 import { fileURLToPath } from 'node:url';
 import type * as Surface from '../../src/common/editor/motion-surface.ts';
 import type * as WebGl from '../../src/common/editor/motion-webgl-compositor.ts';
@@ -10,6 +11,7 @@ const bundle = () => buildSync({ stdin: { contents: "export * from '../../src/co
 	resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'ts' }, bundle: true, write: false, format: 'iife', globalName: 'motionFixture', target: 'es2022' }).outputFiles[0]!.text;
 
 test('M04 WebGL2 float blending matches CPU for all declared modes, alpha edges and repeated frame targets', async ({ page }) => {
+	await requireMotionHostWebGl(page, { floatTarget: true });
 	await page.addScriptTag({ content: bundle() });
 	const result = await page.evaluate(() => {
 		const motion = (globalThis as unknown as { motionFixture: typeof Surface & typeof WebGl }).motionFixture;
@@ -56,6 +58,7 @@ test('M04 missing WebGL2 float support has an explicit CPU fallback reason', asy
 });
 
 test('M04 nested targets retain isolated pixels and context loss invalidates all unfinished frames', async ({ page }) => {
+	await requireMotionHostWebGl(page, { floatTarget: true, contextLoss: true });
 	await page.addScriptTag({ content: bundle() });
 	const result = await page.evaluate(async () => {
 		const motion = (globalThis as unknown as { motionFixture: typeof Surface & typeof WebGl }).motionFixture;
@@ -84,6 +87,7 @@ test('M04 nested targets retain isolated pixels and context loss invalidates all
 });
 
 test('M07 whole-backdrop replacement preserves float alpha, source ownership and subsequent blends on WebGL2', async ({ page }) => {
+	await requireMotionHostWebGl(page, { floatTarget: true });
 	await page.addScriptTag({ content: bundle() });
 	const result = await page.evaluate(() => {
 		const motion = (globalThis as unknown as { motionFixture: typeof Surface & typeof WebGl }).motionFixture;
