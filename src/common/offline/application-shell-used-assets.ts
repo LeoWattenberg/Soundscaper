@@ -4,8 +4,8 @@ export function isUsedApplicationAsset(name: string, origin: string, kind: 'font
 	try {
 		const url = new URL(name);
 		return url.origin === origin && !url.search && !url.hash && name === url.href
-			&& (kind === 'fonts' ? /^\/assets\/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8,}\.(?:woff2?|ttf|otf)$/u
-				: /^\/assets\/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8,}\.(?:js|css|wasm|woff2?|ttf|otf)$/u).test(url.pathname);
+			&& (kind === 'fonts' ? /^\/assets\/[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8,}\.(?:woff2?|ttf|otf)$/u
+				: /^\/assets\/[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8,}\.(?:js|css|wasm|woff2?|ttf|otf)$/u).test(url.pathname);
 	} catch { return false; }
 }
 

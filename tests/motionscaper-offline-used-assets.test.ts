@@ -147,3 +147,13 @@ test('Motion resource observation refuses known dropped, overflowed, malformed a
 		watcher.dispose(); assert.deepEqual(f.counts(), { listeners: 0, disconnected: 1 });
 	}
 });
+
+test('Motion used assets admit real dotted Vite locale and worker basenames within one immutable path component', async () => {
+	const f = replayFixture(); f.claim();
+	const locale = `${origin}/assets/hi.json-CgAX4hYx.js`, dotted = `${origin}/assets/motion.preview-worker-Ab12_cd-.js`;
+	f.names.push(locale, dotted, `${origin}/assets/nested/hi.json-CgAX4hYx.js`,
+		`${origin}/assets/../hi.json-CgAX4hYx.js`, `${locale}?v=1`, `${locale}#x`,
+		'https://other.test/assets/hi.json-CgAX4hYx.js', `${origin}/assets/hi.json.js`, `${origin}/assets/hi.json-CgAX4hYx.zip`);
+	assert.deepEqual(await replayUsedApplicationAssets(f.options), [script, locale, dotted]);
+	assert.deepEqual(f.calls, [script, locale, dotted]);
+});
