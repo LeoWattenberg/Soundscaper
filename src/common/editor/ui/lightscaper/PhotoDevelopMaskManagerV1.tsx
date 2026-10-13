@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
 import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
@@ -21,6 +21,9 @@ export interface PhotoDevelopMaskManagerPropsV1 {
 	readonly disabled?: boolean;
 	/** Presentation controls are offered only when the caller can show an overlay. */
 	readonly overlayAvailable?: boolean;
+	readonly presentation?: ReactNode;
+	/** Optional live presentation observes a local draft without publishing it. */
+	readonly onPresentationChange?: (value: Readonly<ImageDevelopStateCurrentV1>, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly isCurrent: () => boolean;
 	readonly onApply: (value: ImageDevelopStateCurrentV1, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly onClose: () => void;
@@ -38,9 +41,23 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 	const rendered = useRef(form); rendered.current = form;
 	const live = useRef(true);
 	useLayoutEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
+	const notified = useRef({ source: form.source, draft: form.draft, maskId: '', effectId: '', mode: 'color' });
+	if (notified.current.source !== form.source) notified.current = { source: form.source, draft: form.draft, maskId: '', effectId: '', mode: 'color' };
 	const presented = () => live.current && latest.current === props && rendered.current === form && form.source === props.develop && props.isCurrent();
 	const current = () => presented() && !props.disabled;
-	const update = (next: Form) => { if (current()) { rendered.current = next; setForm(next); } };
+	const update = (next: Form) => {
+		if (!current()) return;
+		const callback = props.onPresentationChange;
+		rendered.current = next; setForm(next);
+		if (!callback) return;
+		const choice = presentationChoice(next, props.overlayAvailable), previous = notified.current;
+		const notification = { source: next.source, draft: next.draft, maskId: choice?.maskId ?? '', effectId: choice?.effectId ?? '', mode: choice?.displayMode ?? 'color' };
+		notified.current = notification;
+		if (previous.source !== notification.source || previous.draft === notification.draft && previous.maskId === notification.maskId && previous.effectId === notification.effectId && previous.mode === notification.mode) return;
+		// The update already admitted this exact form/props generation. Publish
+		// its scalar presentation before a parent render changes that event fence.
+		Reflect.apply(callback, props, [next.draft, choice]);
+	};
 	const effects = form.draft.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1);
 	const selected = form.draft.masks.find(mask => mask.id === form.maskId);
 	const operands = form.draft.masks.filter(mask => mask.id !== form.maskId);
@@ -135,6 +152,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 			</select></label>}
 			{form.invalid && <p role="alert">{text.invalid}</p>}
 			{form.nameInvalid && <p role="alert">{text.nameInvalid}</p>}
+			{props.presentation}
 			<div className="lightscaper-develop-actions"><button type="button" disabled={props.disabled} onClick={apply}>{text.apply}</button>
 				<button type="button" onClick={close}>{text.close}</button></div>
 		</div>
@@ -147,3 +165,9 @@ function initial(source: ImageDevelopStateCurrentV1): Form {
 }
 function graphName(graph: VideoMaskMatteGraphV1OrV2 | undefined): string { return graph?.schemaVersion === 2 ? graph.name : ''; }
 function graphLabel(graph: VideoMaskMatteGraphV1OrV2): string { return graph.schemaVersion === 2 ? `${graph.name} (${graph.id})` : graph.id; }
+function presentationChoice(form: Form, available?: boolean): Readonly<PhotoDevelopMaskOverlaySelectionV1> | null {
+	if (available === false || !form.showOverlay || !form.draft.masks.some(mask => mask.id === form.maskId)
+		|| !form.draft.maskBindings.some(binding => binding.maskId === form.maskId && binding.effectId === form.overlayEffect)
+		|| !form.draft.effects.some(effect => effect.id === form.overlayEffect && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1)) return null;
+	return Object.freeze({ maskId: form.maskId, effectId: form.overlayEffect, ...(form.displayMode === 'grayscale' ? { displayMode: form.displayMode } : {}) });
+}

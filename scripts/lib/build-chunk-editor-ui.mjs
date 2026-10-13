@@ -47,10 +47,10 @@ export const editorUiChunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		// Presentation is reached only after the optional photo preview is opened.
+		// Presentation is reached only after an optional photo or Frame preview opens.
 		// Keep its body/canvas owner apart from the scalar bootstrap controller.
 		name: 'editor-pixel-preview-presentation',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/](?:pixel-preview-presentation-v1|photo-library-develop-presentation-v[12])\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/](?:controller[\\/]shared[\\/](?:pixel-preview-presentation-v1|photo-library-develop-presentation-v[12]|image-develop-draft-presentation-v1)|imaging[\\/]photo-develop-display-frame-v1|photo-develop-mask-display-v1)\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,

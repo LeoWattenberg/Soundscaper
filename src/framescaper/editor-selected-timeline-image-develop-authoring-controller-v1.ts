@@ -8,6 +8,8 @@ import type { FramescaperCurrentImageFrameReader } from './timeline-image-curren
 import type { ImageDevelopStateCurrentV1 } from '../common/editor/imaging/image-develop-state-current-v1.ts';
 import type { PixelFrameV1 } from '../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { defaultImageDevelopStateV1 } from '../common/editor/imaging/image-develop-state-v1.ts';
+import type { WithImageDevelopDraftFrameV1 } from '../common/editor/controller/shared/image-develop-draft-presentation-v1.ts';
+import { assertFramescaperNativeImageSignalCurrentV1 } from './internal/timeline-image-native-pack-owner-current-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../common/editor/controller/shared/image-repair-spots-authoring-v1.ts';
 import { suspendVideoPreviewForAuthoringV1 } from '../common/editor/controller/clip-video/video-preview-authoring-suspension-v1.ts';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
@@ -22,6 +24,7 @@ export interface FramescaperImageDevelopAuthoringSessionCurrentV1 {
 	readonly sourceName: string;
 	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
+	readonly withDraftFrame?: WithImageDevelopDraftFrameV1;
 	isCurrent(): boolean;
 	apply(develop: Readonly<ImageDevelopStateCurrentV1>): void;
 	closeAndJoin(): Promise<void>;
@@ -31,6 +34,7 @@ export interface FramescaperImageDevelopAuthoringPortCurrentV1 {
 }
 const PORTS = new WeakMap<object, Readonly<FramescaperImageDevelopAuthoringPortCurrentV1>>();
 const CHECK = AbortSignal.prototype.throwIfAborted;
+const NativeController = AbortController, ANY = AbortSignal.any, ABORT = AbortController.prototype.abort;
 export function framescaperImageDevelopAuthoringForCurrentV1(owner: object): Readonly<FramescaperImageDevelopAuthoringPortCurrentV1> | null {
 	return PORTS.get(owner) ?? null;
 }
@@ -45,7 +49,9 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 	PORTS.set(controller, Object.freeze({ async open(value = {}) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, 'signal');
 		if (descriptor && !Object.hasOwn(descriptor, 'value')) throw new TypeError('Image Develop signal must be an own data property.');
-		const signal = descriptor?.value as AbortSignal | undefined;
+		const external = descriptor?.value as AbortSignal | undefined;
+		assertFramescaperNativeImageSignalCurrentV1(external);
+		const stop = new NativeController(), signal = external === undefined ? stop.signal : ANY([external, stop.signal]);
 		const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
 		check(); readClosedDomainRecord(value, 'Image Develop options', ['signal'], []);
 		const selected = snapshot(); if (selected.readOnly === true) throw new Error('The selected Frame project is read only.');
@@ -57,7 +63,9 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 		if (BigInt(source.assetByteLength) * 3n + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + 4_096n > 512n * 1024n * 1024n) {
 			throw new RangeError('Frame Original authoring exceeds its 512 MiB working byte bound.');
 		}
-		const { prepareFramescaperImageDevelopSourceCurrentV1 } = await import('./timeline-image-develop-authoring-current-v1.ts');
+		const [{ prepareFramescaperImageDevelopSourceCurrentV1 }, { prepareImageDevelopMaskOverlaySelectionV1 }] = await Promise.all([
+			import('./timeline-image-develop-authoring-current-v1.ts'), import('../common/editor/imaging/image-develop-mask-overlay-v1.ts'),
+		]);
 		check();
 		prepareFramescaperImageDevelopSourceCurrentV1(project, clip.id, develop);
 		let sealed = false, applied = false, reader: FramescaperCurrentImageFrameReader | undefined, opening: Promise<FramescaperCurrentImageFrameReader> | undefined;
@@ -83,27 +91,53 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 			} finally { await Promise.all([luts.close(), brushes.close()]); }
 		})();
 		try { await authenticate(); current(); } catch (error) { suspension.release(); throw error; }
-		const withOriginalFrame: WithImageRepairSpotsOriginalFrameV1 = <Result>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, callerOptions: Readonly<{ signal?: AbortSignal }> = {}): Promise<Result> => {
+		const operation = <Result>(run: (admitted: AbortSignal) => Promise<Result>, callerOptions: Readonly<{ signal?: AbortSignal }>): Promise<Result> => {
 			if (sealed) return Promise.reject(new Error('The Frame image authoring scope is closed.'));
+			if (pending.size) return Promise.reject(new Error('Frame image authoring work is already pending.'));
 			let resolve!: (value: Result | PromiseLike<Result>) => void, reject!: (error: unknown) => void;
 			const work = new Promise<Result>((yes, no) => { resolve = yes; reject = no; }); pending.add(work); void work.catch(() => undefined);
 			void (async () => {
-				current(); const record = readClosedDomainRecord(callerOptions, 'Frame Original options', ['signal'], []);
-				const caller = Object.hasOwn(record, 'signal') ? readClosedDomainField(record, 'signal', 'Frame Original options') as AbortSignal : undefined;
-				if (caller !== undefined) Reflect.apply(CHECK, caller, []);
-				if (typeof consume !== 'function') throw new TypeError('Frame Original borrowing requires a consumer.');
-				const admitted = signal === undefined ? caller : caller === undefined ? signal : AbortSignal.any([signal, caller]);
-				const borrowerCurrent = () => { if (admitted !== undefined) Reflect.apply(CHECK, admitted, []); current(); };
-				await authenticate(); borrowerCurrent();
-				opening ??= import('./timeline-image-current-frame-source.ts').then(module => module.openFramescaperCurrentImageFrameSource(borrowed, source, signal, undefined, 'canonical-authoring'));
-				reader = await opening; borrowerCurrent();
-				return reader.withCanonicalFrame(async frame => { borrowerCurrent(); const result = await consume(frame); borrowerCurrent(); return result; }, admitted);
+				let admitted = signal;
+				try {
+					current(); const callerField = Object.getOwnPropertyDescriptor(callerOptions, 'signal');
+					if (callerField && !Object.hasOwn(callerField, 'value')) throw new TypeError('Frame image signal must be an own data property.');
+					const caller = callerField?.value as AbortSignal | undefined;
+					assertFramescaperNativeImageSignalCurrentV1(caller); admitted = caller === undefined ? signal : ANY([signal, caller]);
+					readClosedDomainRecord(callerOptions, 'Frame image options', ['signal'], []); Reflect.apply(CHECK, admitted, []); current();
+				} catch (error) { Reflect.apply(CHECK, admitted, []); current(); throw error; }
+				return run(admitted);
 			})().then(result => { pending.delete(work); resolve(result); }, error => { pending.delete(work); reject(error); });
 			return work;
 		};
-		return Object.freeze<FramescaperImageDevelopAuthoringSessionCurrentV1>({ sourceName: source.name, develop, withOriginalFrame, isCurrent,
+		const canonical = async <Result>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, admitted: AbortSignal): Promise<Result> => {
+			const borrowerCurrent = () => { Reflect.apply(CHECK, admitted, []); current(); };
+			borrowerCurrent(); if (typeof consume !== 'function') throw new TypeError('Frame Original borrowing requires a consumer.');
+			await authenticate(); borrowerCurrent();
+			opening ??= import('./timeline-image-current-frame-source.ts').then(module => module.openFramescaperCurrentImageFrameSource(borrowed, source, signal, undefined, 'canonical-authoring'));
+			reader = await opening; borrowerCurrent();
+			return reader.withCanonicalFrame(async frame => { borrowerCurrent(); const result = await consume(frame); borrowerCurrent(); return result; }, admitted);
+		};
+		const withOriginalFrame: WithImageRepairSpotsOriginalFrameV1 = (consume, callerOptions = {}) => operation(admitted => canonical(consume, admitted), callerOptions);
+		const withDraftFrame: WithImageDevelopDraftFrameV1 = (request, consume, callerOptions = {}) => operation(async admitted => {
+			Reflect.apply(CHECK, admitted, []); current();
+			let captured: Parameters<WithImageDevelopDraftFrameV1>[0];
+			try {
+				if (typeof consume !== 'function') throw new TypeError('Frame draft borrowing requires a consumer.');
+				const input = readClosedDomainRecord(request, 'Frame Develop draft', ['develop', 'maskOverlay'], ['develop']);
+				const prepared = prepareFramescaperImageDevelopSourceCurrentV1(project, clip.id, readClosedDomainField(input, 'develop', 'Frame Develop draft'));
+				if (!prepared.source) throw new TypeError('Frame draft rendering requires its exact image source.');
+				captured = Object.freeze({ develop: prepared.source.schemaVersion === 1 ? defaultImageDevelopStateV1() : prepared.source.develop,
+					...(Object.hasOwn(input, 'maskOverlay') ? { maskOverlay: prepareImageDevelopMaskOverlaySelectionV1(readClosedDomainField(input, 'maskOverlay', 'Frame Develop draft')) } : {}) });
+				Reflect.apply(CHECK, admitted, []); current();
+			} catch (error) { Reflect.apply(CHECK, admitted, []); current(); throw error; }
+			const { withFramescaperImageDevelopDraftFrameCurrentV1: render } = await import('./internal/selected-image-develop-draft-render-owner-current-v1.ts');
+			Reflect.apply(CHECK, admitted, []); current();
+			return render({ project, clipId: clip.id, store: borrowed, assertCurrent: current,
+				withOriginalFrame: (accept, options = {}) => canonical(accept, options.signal ?? admitted) }, captured, consume, admitted);
+		}, callerOptions);
+		return Object.freeze<FramescaperImageDevelopAuthoringSessionCurrentV1>({ sourceName: source.name, develop, withOriginalFrame, withDraftFrame, isCurrent,
 			apply(next) {
-				current(); if (pending.size) throw new Error('Frame Original work must join before Apply.');
+				current(); if (pending.size) throw new Error('Frame image work must join before Apply.');
 				const command = prepareFramescaperImageDevelopSourceCurrentV1(project, clip.id, next); current();
 				if (!sameProjectSnapshot(command.source, command.expectedSource)) Reflect.apply(commit, edit, [command]);
 				applied = true;
@@ -117,7 +151,8 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 					suspension.release();
 					if (errors.length === 1) throw errors[0];
 					if (errors.length) throw new AggregateError(errors, 'Frame image authoring retirement failed.');
-				})(); void closing.catch(() => undefined); return closing;
+				})(); void closing.catch(() => undefined);
+				Reflect.apply(ABORT, stop, [new Error('The selected Frame image changed during authoring.')]); return closing;
 			},
 		});
 	} }));

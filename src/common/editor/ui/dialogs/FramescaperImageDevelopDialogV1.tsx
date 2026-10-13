@@ -3,12 +3,14 @@
 import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
 import ImageRepairSpotsEditorV1 from './ImageRepairSpotsEditorV1.tsx';
-import PhotoDevelopMaskManagerV1 from '../lightscaper/PhotoDevelopMaskManagerV1.tsx';
+import FramescaperImageDevelopMaskEditorV1 from './FramescaperImageDevelopMaskEditorV1.tsx';
+import type { WithImageDevelopDraftFrameV1 } from '../../controller/shared/image-develop-draft-presentation-v1.ts';
 
 export interface FramescaperImageDevelopDialogPropsV1 {
 	readonly kind: 'repairs' | 'masks';
 	readonly develop: ImageDevelopStateCurrentV1;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
+	readonly withDraftFrame?: WithImageDevelopDraftFrameV1;
 	readonly locale: string;
 	readonly disabled?: boolean;
 	readonly isCurrent: () => boolean;
@@ -29,5 +31,6 @@ export default function FramescaperImageDevelopDialogV1(props: FramescaperImageD
 	return props.kind === 'repairs'
 		? <ImageRepairSpotsEditorV1 develop={props.develop} withOriginalFrame={props.withOriginalFrame} locale={props.locale} disabled={props.disabled}
 			isCurrent={props.isCurrent} onApply={apply} onClose={close} registerRetirement={props.registerRetirement} />
-		: <PhotoDevelopMaskManagerV1 develop={props.develop} locale={props.locale} disabled={props.disabled} overlayAvailable={false} isCurrent={props.isCurrent} onApply={apply} onClose={close} />;
+		: <FramescaperImageDevelopMaskEditorV1 develop={props.develop} locale={props.locale} disabled={props.disabled} withDraftFrame={props.withDraftFrame}
+			isCurrent={props.isCurrent} onApply={apply} onClose={close} registerRetirement={props.registerRetirement} />;
 }

@@ -74,7 +74,9 @@ for (const locale of ['en', 'de']) test(`${locale}: Frame image menus author rea
 		cloned = await f.frame(framePage, projectId); expect(cloned.pixels).toEqual(CLONE); unchangedBodies(cloned, imported);
 		await chooseCommandAction(framePage, editor, copy.effectMenu, entries.masks);
 		const manager = named(framePage, 'dialog', mask.title); await expect(manager).toBeVisible();
-		await expect(named(manager, 'checkbox', mask.showOverlay)).toHaveCount(0);
+		await expect(named(manager, 'checkbox', mask.showOverlay)).toHaveCount(1);
+		await expect(named(manager, 'checkbox', mask.showOverlay)).not.toBeChecked();
+		await expect(named(manager, 'combobox', mask.displayMode)).toHaveCount(0);
 		const maskId = cloned.source.develop.masks[0].id, editedName = 'Native Frame painted mask';
 		await named(manager, 'combobox', mask.mask).selectOption(maskId); await named(manager, 'textbox', mask.name).fill(editedName);
 		await keyboard(framePage, named(manager, 'button', mask.rename)); await expect(named(manager, 'combobox', mask.mask)).toHaveValue(maskId);

@@ -198,6 +198,7 @@
 		"shared/deferred-module-facade.ts",
 		"shared/file-size-warning-confirmation.ts",
 		"shared/file-size-warning.ts",
+		"shared/image-develop-draft-presentation-v1.ts",
 		"shared/image-repair-spots-authoring-v1.ts",
 		"shared/isolated-track-render-project-v21.ts",
 		"shared/lifecycle.ts",

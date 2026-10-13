@@ -724,6 +724,27 @@ Both product builds preserve the existing startup and chunk ceilings. Remaining
 L3–L6 exit gates still require completion; L7–L9 remain incomplete. Final
 inter-slice qualification follows completion of the implementation milestones.
 
+The opted-in Frame mask manager now renders its complete local draft with
+temporary color or grayscale coverage. Coverage starts off, requires a bound
+adjustment, samples that adjustment's actual repaired input after preceding
+effects, and follows subsequent geometry. Composition and binding edits render
+without publishing; display choices never enter the recipe or history. Every
+draft authenticates the complete retained LUT and brush namespace, including
+disabled and unused declarations, before borrowing canonical pixels. Raw and
+rendered work share one exclusive native scope. Replacement, Apply and Close
+join physical retirement, and failed previews keep Close usable while blocking
+Apply. The [Frame mask presentation contract](docs/architecture/lightscaper-frame-mask-overlay.md)
+records those bounds and ownership rules. The selected Lightscaper regression
+passes 2,598 cases in 298 files. Twelve English/German Chromium and Firefox
+workflows verify literal stage coverage, crop/flip transport, boolean brush
+composition, keyboard controls, unchanged Apply, cancellation, native
+Save/reopen, immutable custody and actual peer-lease takeover. Optional display
+allocation and mode admission share the existing presentation chunk owner;
+both builds preserve the startup and chunk ceilings (100 Frame requests,
+52 Lightscaper requests). Direct Frame brush creation and re-editing remain
+subsequent authoring work. L3–L6 exit gates remain in progress; L7–L9 and final
+inter-slice qualification remain pending.
+
 ### Exit gate
 
 - New mask node kinds pass property tests and goldens and are authorable from

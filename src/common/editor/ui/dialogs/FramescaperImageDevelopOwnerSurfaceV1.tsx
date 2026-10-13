@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { framescaperImageDevelopAuthoringForCurrentV1 } from '../../../../framescaper/editor-selected-timeline-image-develop-authoring-controller-v1.ts';
 import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
+import type { WithImageDevelopDraftFrameV1 } from '../../controller/shared/image-develop-draft-presentation-v1.ts';
 import type { PixelFrameV1 } from '../../imaging/pixel-frame-contract-v1.ts';
 import { photoDevelopRepairSpotsCopy } from '../../../i18n/lightscaper-develop-repair-spots-copy.ts';
 import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
@@ -23,6 +24,7 @@ interface NativeSession {
 	readonly value: Session;
 	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
+	readonly withDraftFrame?: WithImageDevelopDraftFrameV1;
 	readonly isCurrent: () => boolean;
 	readonly apply: (develop: Readonly<ImageDevelopStateCurrentV1>) => void;
 	readonly close: () => Promise<void>;
@@ -37,6 +39,7 @@ interface Scope {
 	opening: Promise<void>;
 	native: NativeSession | null;
 	sealed: boolean;
+	dismissing: boolean;
 	closing: Promise<void> | null;
 	failed: Readonly<{ value: unknown }> | null;
 }
@@ -60,7 +63,7 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 	useEffect(() => {
 		live.current = true;
 		const scope: Scope = { controller: props.controller, kind: props.kind, stop: new AbortController(), children: new Set(), retiring: new Set(),
-			predecessor: predecessor.current.then(() => undefined, () => undefined), opening: Promise.resolve(), native: null, sealed: false, closing: null, failed: null };
+			predecessor: predecessor.current.then(() => undefined, () => undefined), opening: Promise.resolve(), native: null, sealed: false, dismissing: false, closing: null, failed: null };
 		active.current = scope; setView({ scope, failed: false, closing: false });
 		let port: Port | null = null, open: Port['open'] | null = null;
 		try { port = framescaperImageDevelopAuthoringForCurrentV1(scope.controller); open = port?.open ?? null; }
@@ -70,7 +73,12 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 			Reflect.apply(CHECK, scope.stop.signal, []);
 			if (!port || !open) throw new Error('Selected image authoring is unavailable.');
 			const session = await Reflect.apply(open, port, [{ signal: scope.stop.signal }]) as Session;
-			scope.native = captureSession(session);
+			try { scope.native = captureSession(session); }
+			catch (error) {
+				try { await session.closeAndJoin(); }
+				catch (cleanup) { if (!Object.is(error, cleanup)) throw new AggregateError([error, cleanup], 'Frame image owner admission and retirement failed.', { cause: cleanup }); }
+				throw error;
+			}
 			Reflect.apply(CHECK, scope.stop.signal, []);
 			if (presented(scope) && !scope.sealed) setView({ scope, failed: false, closing: false });
 		});
@@ -86,11 +94,13 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 	const scope = view?.scope;
 	const current = () => Boolean(scope && presented(scope) && !scope.sealed && !latest.current.disabled && scope.native?.isCurrent());
 	const close = () => {
-		if (!scope || !presented(scope)) return;
-		scope.sealed = true; setView({ scope, failed: false, closing: true });
-		void retire(scope).then(() => {
+		if (!scope || !presented(scope) || scope.dismissing) return;
+		scope.dismissing = true; scope.sealed = true; setView({ scope, failed: false, closing: true });
+		const dismiss = () => {
 			if (presented(scope)) Reflect.apply(latest.current.onClose, latest.current, []);
-		}, (error: unknown) => { publishFailure(scope, error); });
+		};
+		void retire(scope).then(dismiss, (error: unknown) => { publishFailure(scope, error); dismiss(); })
+			.catch((error: unknown) => { publishFailure(scope, error); });
 	};
 	const apply = (develop: Readonly<ImageDevelopStateCurrentV1>) => {
 		if (!scope || !current()) return;
@@ -107,6 +117,7 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 	if (!scope || !presented(scope)) return null;
 	if (scope.native && !view.failed && !view.closing) return <FramescaperImageDevelopSurfaceV1 kind={props.kind} locale={props.locale}
 		develop={scope.native.develop} withOriginalFrame={scope.native.withOriginalFrame} disabled={props.disabled} isCurrent={current}
+		withDraftFrame={scope.native.withDraftFrame}
 		onApply={apply} onClose={close} registerRetirement={registerRetirement} />;
 	const repair = photoDevelopRepairSpotsCopy(props.locale), mask = photoDevelopMaskManagementCopy(props.locale);
 	return <div data-frame-image-develop-surface><AudioEditorDialogShell title={props.kind === 'repairs' ? repair.title : mask.title}
@@ -118,9 +129,15 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 
 function captureSession(value: Session): NativeSession {
 	const current = value.isCurrent, withOriginalFrame = value.withOriginalFrame, apply = value.apply, close = value.closeAndJoin;
+	const draft = Object.getOwnPropertyDescriptor(value, 'withDraftFrame');
+	if (draft && (!Object.hasOwn(draft, 'value') || draft.value !== undefined && typeof draft.value !== 'function')) throw new TypeError('Invalid selected image draft renderer.');
+	const withDraftFrame = draft?.value as WithImageDevelopDraftFrameV1 | undefined;
+	const capturedDraft: WithImageDevelopDraftFrameV1 | undefined = withDraftFrame
+		? (request, consume, options) => Reflect.apply(withDraftFrame, value, [request, consume, options]) : undefined;
 	if ([current, withOriginalFrame, apply, close].some(method => typeof method !== 'function')) throw new TypeError('Invalid selected image authoring owner.');
 	let closing: Promise<void> | null = null;
 	return { value, develop: value.develop,
+		...(capturedDraft ? { withDraftFrame: capturedDraft } : {}),
 		isCurrent: () => Reflect.apply(current, value, []) === true,
 		withOriginalFrame: <Result,>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>) =>
 			Reflect.apply(withOriginalFrame, value, [consume, options]) as Promise<Result>,
