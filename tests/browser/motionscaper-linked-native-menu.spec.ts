@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/motionscaper-linked-fixture.js';
+import { probeMotionHostWebGl } from './helpers/motionscaper-host-webgl.ts';
 import { createMotionscaperProject } from '../../src/motionscaper/editor-project.ts';
 import { exportMotionscaperArchive } from '../../src/motionscaper/editor-scape.ts';
 async function menu(page: Page, top: string, item: string | RegExp): Promise<void> { await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: item, exact: typeof item === 'string' }).click(); }
@@ -54,10 +55,14 @@ for (const unavailablePreview of [false, true]) test(`native successor File expo
 		Object.defineProperty(globalThis, 'frameNativeCapture', { value: () => ({ plan, picture, audio }) });
 	}, { archive: [...new Uint8Array(await archive.arrayBuffer())], profile: FRAMESCAPER_SUCCESSOR_DELIVERY_PROFILE });
 	await page.goto('/embed/en/'); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	const hostPreview = await page.evaluate(probeMotionHostWebGl, {});
+	test.info().annotations.push({ type: 'host-gpu-qualification', description: hostPreview.reason });
+	await test.info().attach('native-preview-host.json', { body: JSON.stringify(hostPreview), contentType: 'application/json' });
+	const cpuPreview = unavailablePreview || !hostPreview.available;
 	await expect(page.locator('[data-frame-native-delivery]')).toHaveCount(0); await menu(page, 'File', 'Linked compositions…');
 	await page.getByRole('button', { name: 'Choose saved .mscape file', exact: true }).click(); await expect(page.getByText('Native revision 0', { exact: true }).first()).toBeVisible();
 	await page.getByRole('button', { name: 'Disconnect', exact: true }).click(); await close(page);
-	if (unavailablePreview) {
+	if (cpuPreview) {
 		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'cpu');
 		await expect(page.locator('[data-video-preview-renderer-warning]')).toHaveCount(0);
 		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-omitted-composition-clip-ids', '');
@@ -84,7 +89,7 @@ for (const unavailablePreview of [false, true]) test(`native successor File expo
 	for (let index = 0; index < 3; index++) { const surface = await frames.read(index), pixel = (16 * 64 + 16) * 4; expect(surface.pixels[pixel + 3]).toBeCloseTo(128 / 255, 6); expect(surface.pixels[pixel]).toBeGreaterThan(0.09); expect(surface.pixels[3]).toBe(0); }
 	const audio = await openMotionNativePcmReader(createBlobScapeArchiveByteSource(new Blob([new Uint8Array(captured.audio)])), motionNativePcmPlan({ ...captured.plan, identity }, { sampleRate: 48000, channels: 2 }));
 	for (const offset of [0, 4096]) { const block = await audio.read(offset); for (let index = 0; index < block.length / 2; index++) for (let channel = 0; channel < 2; channel++) expect(block[index * 2 + channel]).toBeCloseTo(motionscaperSuccessorNativeExpectedSample(offset + index, channel), 6); }
-	if (unavailablePreview) {
+	if (cpuPreview) {
 		await close(page); await page.reload(); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
 		await expect(page.locator('[data-video-preview]')).toHaveAttribute('data-video-preview-renderer', 'cpu');
 		const color = await page.locator('[data-video-preview-cpu-canvas]').evaluate((canvas: HTMLCanvasElement) => [...canvas.getContext('2d')!.getImageData(16, 16, 1, 1).data]); expect(color).toEqual([89, 45, 149, 255]);
