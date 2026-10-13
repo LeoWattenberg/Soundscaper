@@ -1,10 +1,12 @@
 # Motionscaper final integration status
 
-Status: **M01–M12 In progress**. The surviving implementation source is
+Status: **M01–M12 In progress**. Reviewed repairs are integrated into
+`feat/motionscaper` in the main Motionscaper worktree. The separate ordinary
+browser capture still uses frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026` on
 `feat/motionscaper-final-validation`. This status records fresh validation on
-2026-10-13, with the ordinary browser run still active. It does not mark any
-milestone complete or certify a release.
+2026-10-13. Its results do not qualify the newer combined implementation,
+mark any milestone complete or certify a release.
 
 ## Evidence boundary
 
@@ -66,8 +68,8 @@ by this recovery.
 | --- | --- |
 | Canonical static gate | `npm run check:static` passed, including full lint, types, audits, documentation and builds. Changed-file lint remains required for subsequent edits. |
 | All exhaustive Node partitions | All five finished: 27,125 tests, 27,108 passed, 14 declared skips and three failures in common-2's nightly-payload dependency closure. Motion's 953 tests passed without skips. Full Node acceptance is failed. |
-| Ordinary Chromium/Firefox/WebKit suite | Active, 7,536 discovered cases. Chromium finished with 2,492 passed, three failed and 17 skipped; all 139 Motion-named Chromium cases passed. Firefox and WebKit results are pending. |
-| Separate dual-origin and Motion-links suites | Canonical complete runs pending. Supplemental real-editor Firefox delivery failed its unchanged blue-pixel bound; Linux WebKit timed out during video encoding. |
+| Ordinary Chromium/Firefox/WebKit suite | Active, 7,536 discovered cases. Observed completed phases: Chromium 2,492 passed, three failed and 17 skipped; Firefox 2,368 passed, nine failed and 135 skipped. All 139 Motion-named Chromium cases passed; Firefox's 139 Motion cases include six failures and one declared skip. WebKit and the terminal aggregate report remain pending. |
+| Separate dual-origin and Motion-links suites | Canonical complete runs pending. Color conversion and browser media initialization repairs have focused evidence; the full linked/offline workflow and new file/presentation oracle remain under qualification. |
 | Handbook browser suite | All 32 cases passed, without skips or retries. |
 | Fresh bounded Linux packaged aggregate | Passed all nine steps and four workflow receipts for Linux x64 software rendering, with verified packages, native helper and independent decoder. This does not cover the separate authored-title failure below. |
 | Browser and native controlled-duration workflows | Pending for this source. |
@@ -78,32 +80,76 @@ by this recovery.
 
 The three Chromium failures are Spreadsheet Undo after an asynchronous paste,
 Contrast after attenuation, and the recording-louder guide's authored Amplify
-value. The Spreadsheet repair waits for the existing checkbox to become enabled
-before Undo; its unchanged complete file passed 42 cases across all three engines
-on a separate repair branch. Contrast and Amplify remain under investigation.
+value. The integrated Spreadsheet repair waits for the existing checkbox to
+become enabled before Undo; its unchanged complete file passed 42 cases across
+all three engines. The integrated Amplify repair reserves a user's draft before
+late headroom analysis; its 32 focused Node checks and both original workflows
+passed across all three engines. These focused passes do not replace the failed
+source-328 results or establish acceptance of the combined implementation.
 
 The three common-2 failures come from the sustained-browser verifier importing
 the entire host workload into the portable nightly payload. A separate repair
 extracts the reference verifier and stages its four actual dependencies. The
-original failing assertions and new omission tests pass on that repair branch.
-These focused results do not make the original full-suite failures successful.
-Neither repair is yet integrated into the frozen source-328 browser capture.
+original failing assertions and new omission tests pass on the integrated
+repair. These focused results do not make the original full-suite failures
+successful. The frozen source-328 browser capture remains unchanged.
+
+The integrated rack-dialog repair mounts the header with its loaded parameter
+controls, preventing the demonstrated Close-target movement during loading.
+Both loading regressions and the original Radio/ADR workflows passed all three
+engines; the unchanged resize workflow also passed in a separate follow-up.
+The original full-run failures remain recorded.
+
+Five direct GPU checks now require an independent native host witness. Their
+original comparisons passed in Chromium and WebKit; Firefox's absent WebGL2
+produces five explicit qualification skips. CPU fallback checks remain intact;
+these skips do not prove Firefox GPU fidelity. The real-audio readiness check
+now observes a live analyser/clock/playing tuple in-page within the original
+five-second deadline. A failed diagnostic captured loud intervals missed by
+cross-process polling. The unchanged one-second playback, signal, queue and
+pause assertions passed all three engines after this observation repair.
+
+The frozen full run also exposed Punch recording, short-import playback and
+post-workspace-switch tempo failures. Bounded unchanged-workflow diagnostics
+passed the latter two categories but did not establish their original causes.
+They remain unresolved; no timing or signal bounds were relaxed.
 
 Supplemental M10 execution reached actual connection, update, Undo/Resume,
 Conform, portable Save/Open and matching blue preview in Firefox. Delivered MP4
 pixels exceeded the unchanged green-channel limit. Inspection found BT.601
-planes declared as BT.709; an explicit WebCodecs conversion repair is in progress.
-WebKit's encoder timeout is a separate unresolved result. The complete final
-offline-editor step was not reached in either run.
+planes declared as BT.709. The integrated finishing conversion now produces
+explicit limited-range BT.709 planes. Firefox passed the original full case;
+WebKit media initialization was separately diagnosed and repaired, and its real
+delivery passed the color check before a later offline failure. Chromium's
+correct 709 file exposed a separate native canvas conversion approximation.
+An independent file oracle with retained absolute presentation measurements is
+being qualified; the original HTML-pixel failure is not relabeled successful.
+Offline reopening also required avoiding an unused portable-recovery import.
+That key-only custody admission repair is integrated, with present/corrupt and
+cancelled custody checks preserved. Used-font persistence and real owned-origin
+shutdown/reopening are still being qualified.
 
 The supplemental M05 desktop workflow completed real New Composition, shape/text
 authoring, Save, preview, cancellation and retry, and produced a ProRes 4444 MOV.
 Its strict color check failed: 9.83 ten-bit code values versus the unchanged limit
 of eight, at two text-edge channels across two frames. Alpha was exact. Encoding
 the retained CPU reference produced identical movie and decoded bytes. A
-precodec conversion stayed within the bound; native ProRes quality is being
-repaired. Menu execution and the passing small-scene aggregate do not close this
-failed authored-title gate.
+precodec conversion stayed within the bound. The integrated native quality
+repair passed all five native CTests and a fresh maintained helper/reference
+replay of the retained authored input, with a maximum 3.93-code error against
+the same eight-code limit. Those receipts remain bound to source `f66040509`,
+not the newer combined implementation. They do not establish a new packaged
+GUI result.
+The maintained authored-title workflow now checks exact saved menu intent and
+decoder/CanvasKit byte authority; its 14 focused checks pass. Its real native
+Save, preview, destination cancellation/retry and export execution remains
+pending on a fresh package. Menu execution and the earlier small-scene aggregate
+do not close the failed authored-title gate.
+
+Integration preserves each original repair commit in Git ancestry. Seven
+finished auxiliary worktrees were removed after their commits were merged;
+remaining worktrees stay below the ten-worktree limit. No source, dependency,
+site or packaged bytes used by the active frozen capture were changed.
 
 The retained evidence includes `gates/static-result.json`, all five
 `node/*-result.json` files, the handbook result, and
