@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { openAssistanceTask } from './helpers/assistance-task-menu.js';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import {
@@ -180,6 +181,7 @@ async function fixtureSnapshot(page) {
 }
 
 async function installFixture(page, options) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ installed = [], holdList = false, holdModels = false,
 		holdInstall = false }) => {
 		const installedIds = new Set([...installed, 'panns-cnn10', 'alternative-enhancer']);

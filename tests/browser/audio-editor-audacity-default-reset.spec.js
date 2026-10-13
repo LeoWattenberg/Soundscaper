@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, chooseCommandAction, chooseNestedCommandAction, closeDialog,
@@ -40,6 +41,7 @@ test.describe('Audacity selection default preset', () => {
 	});
 
 	test('desktop menu effect changes reset the previous dialog’s local control state', async ({ page }) => {
+		await installDesktopSpeedWarmupManifest(page);
 		await page.addInitScript(() => {
 			globalThis.scapeDesktop = { v1: {
 				version: 1,

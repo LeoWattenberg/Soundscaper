@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { addRackEffect, bootEditor, chooseCommandAction, importFiles, openEffectsForTrack, openEffectStackMenu } from './audio-editor-test-helpers.js';
 import { installNativePluginParameterHost } from './helpers/native-plugin-parameter-host.js';
@@ -51,6 +52,7 @@ test('native hosted stacks suspend unsupported macro export while ordinary effec
 
 async function openHostedStack(page) {
 	await installNativePluginParameterHost(page);
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const saved = [];
 		let bytes = [];

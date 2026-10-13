@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseFileAction, openNestedCommandMenu } from './audio-editor-test-helpers.js';
 import { nativeOriginalImportFixture } from '../helpers/native-original-import-fixture.ts';
@@ -18,6 +19,7 @@ for (const illustrated of [false, true]) test(`ordinary desktop MP3 with album a
 			const response = await native.fetch(url, init);
 			return { status: response.status, headers: [...response.headers.entries()], base64: Buffer.from(await response.arrayBuffer()).toString('base64') };
 		});
+		await installDesktopSpeedWarmupManifest(page);
 		await page.addInitScript(() => {
 			const statuses = [];
 			Object.defineProperty(globalThis, '__nativeOriginalStatuses', { value: statuses });

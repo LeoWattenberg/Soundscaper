@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { readdir } from 'node:fs/promises';
 
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
@@ -72,10 +73,10 @@ test('desktop defaults to Speed, preserves Memory, and leaves AI code on demand'
 		},
 	};
 	// The web build removes the manifest; the desktop protocol serves it directly.
+	await installDesktopFfmpegFixture(page);
 	await page.route('**/.offline-build-manifest.json', async (route) => {
 		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) });
 	});
-	await installDesktopFfmpegFixture(page);
 	const requested = [];
 	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
 	const editor = await bootEditor(page, '/embed/en/');
@@ -275,6 +276,7 @@ async function savedOptimizationMode(page) {
 }
 
 async function installDesktopFfmpegFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const calls = [];
 		const status = (state, overrides = {}) => Object.freeze({

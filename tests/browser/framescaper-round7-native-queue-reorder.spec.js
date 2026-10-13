@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, getMenuItem, openNestedCommandMenu } from './audio-editor-test-helpers.js';
 import { openNativePreferences } from './helpers/assistance-task-menu.js';
@@ -41,6 +42,7 @@ test('Background jobs reorders pending work after cancelling an earlier job', as
 });
 
 async function installQueueFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript((ids) => {
 		const preferences = {
 			nativeMediaEnabled: false, hardwareDecodeEnabled: false,

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { Buffer } from 'node:buffer';
 
 import { expect, test, toneA, toneB, createWavFixture } from './audio-editor-test-fixtures.js';
@@ -333,6 +334,7 @@ async function installLinkedAudioBridge(page) {
 			headers: { 'Content-Length': String(media[kind].buffer.byteLength) },
 		});
 	});
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ fixtures, ids }) => {
 		const state = { next: 'initial', choices: [], released: [], rangeRequests: [], exports: [] };
 		const writes = new Map();
@@ -490,6 +492,7 @@ async function installLinkedVideoBridge(page) {
 			headers: { 'Content-Length': String(media.buffer.byteLength) },
 		});
 	});
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript((records) => {
 		const byKey = Object.fromEntries(records.map((record) => [record.key, record]));
 		const byLocator = Object.fromEntries(records.map((record) => [record.locatorId, record]));

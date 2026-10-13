@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './desktop-speed-warmup-fixture.js';
 import { createDeterministicAvFixture } from '../fixtures/deterministic-av-media.js';
 
 export async function installWebVcrHost(page, { recordingFixture = false } = {}) {
 	const recordedVideoBase64 = recordingFixture
 		? createDeterministicAvFixture('web-vcr-recording.webm').buffer.toString('base64') : null;
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ recordingFixture: hasRecordingFixture, recordedVideoBase64: videoBase64 }) => {
 		const harness = {
 			audioDataClosed: 0,

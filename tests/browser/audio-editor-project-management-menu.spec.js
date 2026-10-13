@@ -1,3 +1,4 @@
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { readFile } from 'node:fs/promises';
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
@@ -224,6 +225,7 @@ async function installLinkedAudioDesktopBridge(page, fixture) {
 		contentType: fixture.mimeType,
 		headers: { 'Content-Length': String(fixture.buffer.byteLength) },
 	}));
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ base64, name, mimeType, size }) => {
 		const locatorId = '1'.repeat(64);
 		const locatorRevision = 'a'.repeat(64);
