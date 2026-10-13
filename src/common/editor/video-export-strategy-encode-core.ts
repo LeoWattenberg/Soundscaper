@@ -87,6 +87,7 @@ export function createVideoExportOfflineRequest(
 			maximumOutputBytes: request.maximumOutputBytes as number,
 		}),
 		...(request.rgbaPostprocessor === undefined ? {} : { rgbaPostprocessor: request.rgbaPostprocessor }),
+		...(request.rgbaOutput === undefined ? {} : { rgbaOutput: request.rgbaOutput }),
 		...(request.rgbaCompositor === undefined ? {} : { rgbaCompositor: request.rgbaCompositor }),
 		signal: request.signal,
 		assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,

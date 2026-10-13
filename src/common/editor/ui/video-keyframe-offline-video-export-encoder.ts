@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeVideoRgbaOutput, type VideoRgbaOutput } from '../video-planar-pixels.ts';
 
 import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import { FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES } from '../ffmpeg-output-stream.ts';
@@ -29,6 +30,7 @@ export interface VideoKeyframeOfflineWebCodecsDecision {
 }
 
 export interface VideoKeyframeOfflineEncoderOptions {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly quality: VideoDeliveryQuality;
 	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
@@ -47,6 +49,7 @@ export function createVideoKeyframeOfflineEncoderRequest(
 	return Object.freeze({
 		frameSource,
 		producer: renderer,
+		rgbaOutput: normalizeVideoRgbaOutput(request.rgbaOutput),
 		format: request.format,
 		quality: request.quality,
 		...(request.webCodecs ? { webCodecs: webCodecsEncode(request.webCodecs) } : {}),

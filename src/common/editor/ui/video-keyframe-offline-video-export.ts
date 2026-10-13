@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeVideoRgbaOutput, type VideoRgbaOutput } from '../video-planar-pixels.ts';
 
 import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import { snapshotVideoExportGeneratedSources, type VideoExportGeneratedSources } from '../video-export-generated-sources.ts';
@@ -96,6 +97,7 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly sourceTimeoutMs?: number;
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
 	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
@@ -132,6 +134,7 @@ interface NormalizedRequest {
 	readonly sourceTimeoutMs?: number;
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
 	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
@@ -142,7 +145,7 @@ const REQUEST_FIELDS = [
 	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent', 'confirmFileSizeWarning', 'generatedSources',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'rgbaOutput', 'signal', 'assertCurrent', 'confirmFileSizeWarning', 'generatedSources',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
@@ -361,6 +364,7 @@ function normalizeRequest(value: unknown, rawFrames = false): NormalizedRequest 
 			audioMix: canonicalMediaContentBlob(request.audioMix),
 		}),
 		encoderOptions: Object.freeze(encoderOptions),
+		rgbaOutput: normalizeVideoRgbaOutput(request.rgbaOutput),
 		...(request.confirmFileSizeWarning === undefined ? {} : { confirmFileSizeWarning: request.confirmFileSizeWarning as FileSizeWarningConfirmation }),
 		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
 		...(request.rgbaPostprocessor === undefined ? {} : {

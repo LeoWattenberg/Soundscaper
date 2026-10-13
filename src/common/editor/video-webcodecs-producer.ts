@@ -19,6 +19,7 @@
  * back the chunks it happened to get.
  */
 
+import { normalizeVideoRgbaOutput, videoI420ByteLength, videoRgbaI420Pixels, VIDEO_I420_COLOR_SPACE, type VideoRgbaOutput } from './video-planar-pixels.ts';
 import { raceAbortablePromise } from './abort-race.ts';
 import { createVideoElementaryStreamWriter } from './video-elementary-stream.ts';
 
@@ -83,6 +84,7 @@ interface RgbaProducerLike {
 }
 
 export interface VideoWebCodecsProduceRequest {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly frameSource: FrameSourceLike;
 	readonly producer: RgbaProducerLike;
@@ -235,13 +237,15 @@ export async function produceVideoWebCodecsChunks(
 			...(request.hardwareAcceleration ? { hardwareAcceleration: request.hardwareAcceleration } : {}),
 			...(request.h264Format ? { h264Format: request.h264Format } : {}),
 		}));
+		const rgbaOutput = normalizeVideoRgbaOutput(request.rgbaOutput);
 		const rgba = new Uint8Array(producer.byteLength);
+		const planar = new Uint8Array(videoI420ByteLength(width, height));
 		for (let index = 0; index < frameSource.frameCount; index += 1) {
 			assertReady(request, failure);
 			await producer.produce(frameSource.frame(index), rgba, signalOptions(request.signal));
 			assertReady(request, failure);
-			const videoFrame = new videoFrameClass(rgba, {
-				format: 'RGBA',
+			const videoFrame = new videoFrameClass(videoRgbaI420Pixels(rgba, width, height, rgbaOutput, planar), {
+				format: 'I420', colorSpace: VIDEO_I420_COLOR_SPACE,
 				codedWidth: width,
 				codedHeight: height,
 				timestamp: frameTimestamp(index, frameRate),

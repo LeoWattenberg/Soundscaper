@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeVideoRgbaOutput } from './video-planar-pixels.ts';
 
 /**
  * Admitting one keyed video encode request before a lease is taken.
@@ -38,7 +39,7 @@ import type {
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 const REQUEST_FIELDS = new Set([
-	'frameSource', 'producer', 'format', 'quality', 'webCodecs', 'audioMix', 'ringCapacityBytes',
+	'frameSource', 'producer', 'rgbaOutput', 'format', 'quality', 'webCodecs', 'audioMix', 'ringCapacityBytes',
 	'audioRingCapacityBytes', 'maximumAudioBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 	'maximumOutputBytes', 'maximumOutputChunkBytes', 'signal', 'assertCurrent', 'confirmFileSizeWarning',
@@ -104,6 +105,7 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 		: undefined;
 	const result: Record<string, unknown> = {
 		desktopExternalFfmpeg,
+		rgbaOutput: normalizeVideoRgbaOutput(optional(record, 'rgbaOutput', undefined)),
 		frameSource,
 		producer,
 		format,

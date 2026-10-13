@@ -17,6 +17,7 @@
  * encoder that would only say "unsupported".
  */
 
+import { initializeBrowserMediaPlatform } from './browser-media-initialization.ts';
 import { createVideoWebCodecsEncoderConfiguration } from './video-webcodecs-producer.ts';
 
 export type VideoWebCodecsTier = 'webcodecs' | 'ffmpeg';
@@ -143,6 +144,7 @@ export async function resolveVideoWebCodecsSupport(
 	const { width, height, frameRate } = canvasGeometry(canvas);
 	let probed: { supported?: boolean };
 	try {
+		initializeBrowserMediaPlatform();
 		probed = await encoder.isConfigSupported(createVideoWebCodecsEncoderConfiguration({
 			videoCodec,
 			codec,

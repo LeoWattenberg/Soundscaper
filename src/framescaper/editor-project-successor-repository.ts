@@ -12,6 +12,7 @@ export interface FramescaperSuccessorRepository {
 	complete(id: string): Promise<FramescaperMigrationRecord>;
 	recover(signal?: AbortSignal): Promise<readonly string[]>;
 	load(id: string): Promise<FramescaperMigrationRecord | null>;
+	hasPortableCustody(id: string, signal?: AbortSignal): Promise<boolean>;
 	list(): Promise<readonly FramescaperMigrationRecord[]>;
 	close(): void;
 }
@@ -70,6 +71,13 @@ export async function openFramescaperSuccessorRepository(options: { readonly ind
 			return recovered;
 		},
 		async load(id) { const value: unknown = await transact(database, ['projects'], 'readonly', stores => request(stores.projects.get(id))); return value === undefined ? null : decode(readStored(value)); },
+		async hasPortableCustody(id, signal) {
+			motionId(id); signal?.throwIfAborted();
+			// Presence only: any retained value still requires the full authenticated
+			// recovery path. Do not fetch archive bodies or cache a negative result.
+			const key = await transact(database, ['portableArchives'], 'readonly', stores => request(stores.portableArchives.getKey(id)));
+			signal?.throwIfAborted(); return key !== undefined;
+		},
 		list: () => transact(database, ['projects'], 'readonly', async stores => (await request(stores.projects.getAll()) as unknown[]).map(value => decode(readStored(value)))),
 		close: () => database.close(),
 	};

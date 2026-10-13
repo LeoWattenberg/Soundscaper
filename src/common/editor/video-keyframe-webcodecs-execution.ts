@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { VideoRgbaOutput } from './video-planar-pixels.ts';
 
 /**
  * The WebCodecs half of keyed encoding.
@@ -44,6 +45,7 @@ export interface VideoKeyframeWebCodecsEncode {
 }
 
 export interface VideoKeyframeWebCodecsExecutionRequest {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly ffmpeg: VideoKeyframeEncoderFfmpegPort;
 	readonly videoStream: VideoKeyframeFfmpegInputStream;
 	readonly audioStream?: VideoKeyframeFfmpegInputStream;
@@ -114,6 +116,7 @@ async function writeEncodedStream(
 	await produceVideoWebCodecsStream({
 		frameSource: createAuthenticatedVideoKeyframeExecutionFrameSource(frameSource, workload),
 		producer: createExactVideoKeyframeRgbaProducer(producer, workload.frameBytes),
+		rgbaOutput: request.rgbaOutput,
 		videoCodec: workload.elementaryFormat === 'ivf' ? 'vp9' : 'h264',
 		codec: webCodecs.codec,
 		bitrate: webCodecs.bitrate,

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { VideoRgbaOutput } from '../../video-planar-pixels.ts';
 
 import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import type { FfmpegOutputSink } from '../../ffmpeg-output-stream.ts';
@@ -78,6 +79,7 @@ export interface ProductVideoExportStrategyEncodeRequest {
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
 	/** Product-owned exact per-layer picture composition before encoding. */
 	readonly rgbaCompositor?: VideoKeyframeOfflineRgbaCompositor;
+	readonly rgbaOutput?: VideoRgbaOutput;
 }
 
 export interface ProductVideoExportEncodedOutput {
