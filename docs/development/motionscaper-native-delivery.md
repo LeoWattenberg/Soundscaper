@@ -13,6 +13,17 @@ to the encoder's `yuva444p10` input. The ProRes 4444 codec stores 16-bit alpha;
 effective color input precision is **10 bits**, not float or 16-bit color. HDR
 delivery and arbitrary working color spaces are outside this profile.
 
+The pinned FFmpeg 9.0.1 `prores_ks` encoder uses fixed quantizer 1 and its
+`QUANT_MAT_XQ_LUMA` integer matrix option (5), while retaining the ProRes 4444
+profile. The matrix has weights 2–4 instead of the automatic 4444 profile's HQ
+weights up to 7. This preserves fine antialiased strokes at the existing lossy
+`8/1023` RGB bound in the retained title and native edge regression; it does not
+make ProRes lossless or establish a universal maximum error for every image.
+Output size can increase; existing frame, carrier, and destination bounds remain.
+The native edge test also checks partial alpha, exact alpha endpoints, Rec.709
+tags and rational timestamps. A newly built helper still needs fresh packaged
+GUI and sustained qualification before those previous receipts apply to it.
+
 The separate `motion-native-pcm-carrier-v1.ts` transports interleaved float32
 audio with headroom. The native host rounds and clamps once to signed 24-bit
 little-endian PCM. Mono and stereo at 8–192 kHz are admitted. The exported range
