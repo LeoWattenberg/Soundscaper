@@ -91,7 +91,16 @@ export async function projectTimelineSourceNames(page, projectId) {
 }
 
 export async function effectSourcePeak(page, name) {
-	return page.evaluate(async ({ databaseName, effectName }) => {
+	return storedSourcePeak(page, { name });
+}
+
+/** Read one source's peak by stable identity when capture passes share a display name. */
+export async function sourcePeakById(page, sourceId) {
+	return storedSourcePeak(page, { sourceId });
+}
+
+async function storedSourcePeak(page, selector) {
+	return page.evaluate(async ({ databaseName, name, sourceId }) => {
 		const { source, peaks } = await new Promise((resolve, reject) => {
 			const openRequest = indexedDB.open(databaseName);
 			openRequest.onerror = () => reject(openRequest.error);
@@ -100,7 +109,8 @@ export async function effectSourcePeak(page, name) {
 				const sourcesRequest = database.transaction('sources', 'readonly').objectStore('sources').getAll();
 				sourcesRequest.onerror = () => reject(sourcesRequest.error);
 				sourcesRequest.onsuccess = () => {
-					const source = sourcesRequest.result.find((candidate) => candidate.name?.includes(effectName));
+					const source = sourcesRequest.result.find((candidate) => sourceId
+						? candidate.id === sourceId : candidate.name?.includes(name));
 					if (!source) {
 						database.close();
 						resolve({ source: null, peaks: null });
@@ -125,5 +135,5 @@ export async function effectSourcePeak(page, name) {
 			}
 		}
 		return peak;
-	}, { databaseName: SOUNDSCAPER_DATABASE_NAME, effectName: name });
+	}, { databaseName: SOUNDSCAPER_DATABASE_NAME, ...selector });
 }

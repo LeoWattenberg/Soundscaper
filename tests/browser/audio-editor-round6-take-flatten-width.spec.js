@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, effectSourcePeak, importFiles } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 import { installOscillatorMicrophone, persistedProject } from './helpers/complex-editing-workflows.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { sourcePeakById } from './helpers/stored-source-probes.js';
 
 test('ordinary promoted mono microphone take flattens with its native width', async ({ page }) => {
 	await installOscillatorMicrophone(page);
@@ -28,7 +29,8 @@ test('ordinary promoted mono microphone take flattens with its native width', as
 	expect(take).toBeTruthy();
 	const source = captured.sources.find(item => item.id === take.sourceId);
 	expect(source.channelCount).toBe(1);
-	const inputPeak = await effectSourcePeak(page, source.name);
+	// Loop passes share a display name; IndexedDB's source order need not match the selected take.
+	const inputPeak = await sourcePeakById(page, source.id);
 	expect(inputPeak).toBeGreaterThan(.05);
 	await chooseTrackMenuAction(page, editor, editor.locator('[data-track-row]').first(), 'Take lanes and comps');
 	const dialog = page.getByRole('dialog', { name: 'Take lanes and comps', exact: true });
@@ -43,7 +45,7 @@ test('ordinary promoted mono microphone take flattens with its native width', as
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	const flattened = await persistedProject(page, id);
 	const result = flattened.sources.find(item => item.name.includes('flattened take'));
-	const resultPeak = await effectSourcePeak(page, result.name);
+	const resultPeak = await sourcePeakById(page, result.id);
 	console.log('Take flatten native PCM', { inputWidth: source.channelCount, outputWidth: result.channelCount, inputPeak, resultPeak });
 	expect(resultPeak).toBeGreaterThan(.05);
 	expect(result.channelCount).toBe(source.channelCount);
