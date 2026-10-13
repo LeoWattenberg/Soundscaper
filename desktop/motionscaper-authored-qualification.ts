@@ -9,7 +9,8 @@ import { motionSustainedCommand } from '../scripts/performance/motionscaper-sust
 import { hashMotionSustainedFile, sampleMotionOwnedProcesses } from '../scripts/performance/motionscaper-sustained-observation.ts';
 import { resolveMotionQualificationPaths } from './motionscaper-native-qualification-paths.ts';
 import { inspectMotionNativeReference, prepareMotionNativeReferenceDecoder } from './motionscaper-native-reference.ts';
-import { motionAuthoredPackageIdentity, motionAuthoredSourceIdentity } from './motionscaper-authored-identity.ts';
+import { motionAuthoredFileIdentity, motionAuthoredPackageIdentity, motionAuthoredSourceIdentity, verifyMotionAuthoredFileIdentity } from './motionscaper-authored-identity.ts';
+import { motionAuthoredRasterIdentity, verifyMotionAuthoredRasterIdentity } from './motionscaper-authored-raster-authority.ts';
 import { motionAuthoredSha, readMotionAuthoredReference } from './motionscaper-authored-reference.ts';
 import { verifyMotionAuthoredNative, verifyMotionAuthoredPreview } from './motionscaper-authored-oracles.ts';
 import { finishMotionAuthoredQualification } from './motionscaper-authored-lifecycle.ts';
@@ -50,8 +51,10 @@ export async function qualifyMotionscaperAuthoredTitle(output: string): Promise<
 	await mkdir(output, { recursive: false, mode: 0o700 });
 	const write = async (name: string, value: unknown) => { await writeFile(join(output, name), `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' }); };
 	const decoder = await prepareMotionNativeReferenceDecoder(output);
+	const decoderIdentity = await motionAuthoredFileIdentity(decoder); assert.ok(decoderIdentity.mode & 0o111);
+	const rasterAuthority = await motionAuthoredRasterIdentity(root);
 	const pins = await Promise.all([join(paths.stage, 'stage-manifest.json'), join(process.env.MOTIONSCAPER_REFERENCE_ARTIFACT, 'reference-receipt.json'), join(process.env.MOTIONSCAPER_REFERENCE_NATIVE_RESULT, 'build-result.json')].map(path => hashMotionSustainedFile(path)));
-	await write('input-authority.json', { root, sourceRevision: revision, paths, pins, packageBefore, display: process.env.DISPLAY, decoder });
+	await write('input-authority.json', { root, sourceRevision: revision, paths, pins, packageBefore, display: process.env.DISPLAY, decoderIdentity, rasterAuthority });
 	let application: Awaited<ReturnType<typeof launchMotionSustainedApplication>> | undefined;
 	const receipt = await finishMotionAuthoredQualification(async () => {
 		application = await launchMotionSustainedApplication({ executable: paths.executable, cwd: root, directory: output, native: true });
@@ -69,7 +72,7 @@ export async function qualifyMotionscaperAuthoredTitle(output: string): Promise<
 		await author(page); await menu('File', 'Save'); await choose('save-project', 'saved.mscape');
 		await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device', { timeout: 30000 });
 		const archivePath = join(output, 'saved.mscape'), moviePath = join(output, 'output.mov');
-		const reference = await readMotionAuthoredReference(root, archivePath);
+		const reference = await readMotionAuthoredReference(root, archivePath, rasterAuthority);
 		await menu('View', 'Composition Preview'); const preview = page.getByRole('dialog', { name: 'Composition Preview', exact: true });
 		let maximumPreviewPremultipliedCodeError = 0;
 		for (const frame of [0, 1]) {
@@ -90,6 +93,7 @@ export async function qualifyMotionscaperAuthoredTitle(output: string): Promise<
 		await expect(render.getByRole('status')).toHaveText('Render complete', { timeout: 30000 }); await expect(render.getByRole('alert')).toHaveCount(0); await remember();
 		assert.ok((await stat(moviePath)).size <= 64 * 1024 * 1024);
 		const rgbaPath = join(output, 'reference.rgba'), pcmPath = join(output, 'reference.pcm');
+		await verifyMotionAuthoredFileIdentity(decoderIdentity);
 		const decoded = await motionSustainedCommand({ command: decoder, args: [moviePath, rgbaPath, pcmPath], cwd: root, directory: output, id: 'reference-decoder', timeoutMs: 30000 });
 		const metadata = inspectMotionNativeReference(JSON.parse(decoded.stdout) as unknown, (await stat(rgbaPath)).size, (await stat(pcmPath)).size);
 		const rgba = await readFile(rgbaPath), pcm = await readFile(pcmPath);
@@ -101,6 +105,7 @@ export async function qualifyMotionscaperAuthoredTitle(output: string): Promise<
 	}, async () => { if (application) await application.cleanup(); }, async () => {
 		assert.equal(await motionAuthoredSourceIdentity(root), revision); await verifyStage();
 		for (const pin of pins) assert.deepEqual(await hashMotionSustainedFile(pin.path), pin, 'Native/reference/stage input identity changed.');
+		await verifyMotionAuthoredFileIdentity(decoderIdentity); await verifyMotionAuthoredRasterIdentity(rasterAuthority);
 		const packageAfter = await motionAuthoredPackageIdentity(paths.package); await write('package-after.json', packageAfter); assert.deepEqual(packageAfter, packageBefore);
 	}, async value => { await write('result.json', value); });
 	console.log(`MOTIONSCAPER_AUTHORED_NATIVE_QUALIFIED ${JSON.stringify(receipt)}`);

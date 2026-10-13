@@ -6,6 +6,18 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { hashMotionSustainedFile } from '../scripts/performance/motionscaper-sustained-observation.ts';
 
+/** Retain both content and actual regular-file authority across the qualification. */
+export async function motionAuthoredFileIdentity(path: string) {
+	assert.equal(await realpath(path), path, 'Qualification input must have a canonical resolved path.');
+	const before = await lstat(path), pin = await hashMotionSustainedFile(path), after = await lstat(path);
+	const metadata = (value: typeof before) => ({ dev: value.dev, ino: value.ino, ctimeMs: value.ctimeMs, mtimeMs: value.mtimeMs, mode: value.mode, uid: value.uid, gid: value.gid });
+	assert.deepEqual(metadata(after), metadata(before), 'Qualification input identity changed while hashing.');
+	return { ...pin, ...metadata(after) };
+}
+export async function verifyMotionAuthoredFileIdentity(expected: Awaited<ReturnType<typeof motionAuthoredFileIdentity>>): Promise<void> {
+	assert.deepEqual(await motionAuthoredFileIdentity(expected.path), expected, 'Qualification input identity changed.');
+}
+
 export async function motionAuthoredSourceIdentity(root: string): Promise<string> {
 	const execute = promisify(execFile);
 	const revision = (await execute('git', ['rev-parse', 'HEAD'], { cwd: root, timeout: 10000 })).stdout.trim();
