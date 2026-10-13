@@ -19,9 +19,9 @@ function escape(bits: string): Uint8Array {
 	}
 	return Uint8Array.of(0x67, ...out);
 }
-function sps(options: { signal?: string; vui?: boolean; profile?: number; level?: number; width?: number; crop?: number[]; tail?: string } = {}): Uint8Array {
+function sps(options: { signal?: string; vui?: boolean; profile?: number; level?: number; constraints?: number; width?: number; crop?: number[]; tail?: string } = {}): Uint8Array {
 	// Main, POC2, 1 reference, progressive96x64, existing VUI, no aspect/overscan.
-	const prefix = n(options.profile ?? 77, 8) + n(0, 8) + n(options.level ?? 30, 8) + ue(0) + ue(0) + ue(2)
+	const prefix = n(options.profile ?? 77, 8) + n(options.constraints ?? 0, 8) + n(options.level ?? 30, 8) + ue(0) + ue(0) + ue(2)
 		+ ue(1) + '0' + ue(options.width ?? 5) + ue(3) + '1' + '1' + (options.crop ? '1' + options.crop.map(ue).join('') : '0');
 	return escape(prefix + (options.vui === false ? '0' : '1' + '00' + (options.signal ?? '0') + (options.tail ?? '000000')));
 }
@@ -165,7 +165,37 @@ test('Motion AVC SPS geometry must agree with actual producer dimensions and cro
 test('Motion AVC accepts actual encoder Main constraint refinements but no conflicting profile or level', () => {
 	const config = { ...metadata().decoderConfig!, codec: 'avc1.4d001e' };
 	assert.doesNotThrow(() => createVideoAvcColorNormalizer(96, 64)(chunk(), { decoderConfig: config }));
-	for (const codec of ['avc1.4d801e', 'avc1.4d001f', 'avc1.4d031e']) {
+	for (const codec of ['avc1.4d801e', 'avc1.4d0014', 'avc1.4d031e']) {
 	 assert.throws(() => createVideoAvcColorNormalizer(96, 64)(chunk(), { decoderConfig: { ...config, codec } }), /AVC/u);
+	}
+});
+
+test('Motion accepts an actual lower Main level without rewriting native config, SPS or picture packets', () => {
+	// Captured Chromium151 application callback: requested/emitted config Level3, actual SPS Level1.
+	const description = Uint8Array.from(Buffer.from('AU1MCv/hABBnTUwKjGhiSagICAg8IhGoAQAEaM48gA==', 'base64'));
+	const meta = { decoderConfig: { ...metadata().decoderConfig!, codec: 'avc1.4d001e', description } };
+	const before = description.slice(); const normalize = createVideoAvcColorNormalizer(96, 64);
+	for (const [index, encoded] of [
+		'AAAAMWW4AAQEP//+CKKAAX8cAAQIo4ycnJ+H/+CKK+OAAIEccydddddPXXXXXT1111109eA=',
+		'AAAAGGHgAH5AQ5BPycTyHvO+fkPed8/IeTO+fw==',
+	].entries()) {
+		const data = Uint8Array.from(Buffer.from(encoded, 'base64'));
+		const packet = { ...chunk(data), type: index === 0 ? 'key' as const : 'delta' as const, timestamp: index * 500_000 };
+		const result = normalize(packet, index === 0 ? meta : undefined);
+		assert.equal(result.chunk, packet); assert.equal(result.metadata, index === 0 ? meta : undefined);
+	}
+	assert.deepEqual(description, before); assert.equal(meta.decoderConfig.codec, 'avc1.4d001e');
+});
+
+test('Motion Main level compatibility is ordered, defined and constraint preserving including Level1b', () => {
+	const run = (actual: number, constraints: number, codec: string) => createVideoAvcColorNormalizer(96, 64)(chunk(), {
+		decoderConfig: { ...metadata().decoderConfig!, codec, description: avcc(sps({ level: actual, constraints, signal: signal709 })) },
+	});
+	for (const [level, flags, codec] of [[10, 0, 'avc1.4d000b'], [11, 16, 'avc1.4d000b'], [11, 16, 'avc1.4d100b'],
+		[11, 0, 'avc1.4d0014'], [30, 0, 'avc1.4d003e']] as const) assert.doesNotThrow(() => run(level, flags, codec));
+	for (const [level, flags, codec] of [[11, 16, 'avc1.4d000a'], [11, 0, 'avc1.4d100b'], [20, 16, 'avc1.4d100b'],
+		[30, 0, 'avc1.4d0014'], [10, 0, 'avc1.4d801e'], [10, 0, 'avc1.4d0023'], [10, 0, 'avc1.4d0009'],
+		[10, 0, 'avc1.4d011e'], [31, 0, 'avc1.4d001e']] as const) {
+		assert.throws(() => run(level, flags, codec), /AVC/u);
 	}
 });

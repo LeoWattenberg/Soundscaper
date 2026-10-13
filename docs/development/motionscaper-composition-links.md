@@ -156,8 +156,13 @@ configuration. This includes absent VUI and in-band SPS parameter sets. Existing
 consistent descriptions stay byte-identical; conflicting color, incompatible
 profile/level/constraints, contradictory crop geometry and unsupported or
 malformed bounded syntax refuse before writing. A native decoder configuration
-may describe fewer Main constraint flags than its actual SPS; the SPS must retain
-every declared flag and remains the format authority. Neither codec string nor
+may describe fewer Main constraint flags or a higher defined level than its actual
+SPS; the SPS must retain every declared flag and remains the format authority.
+Main Level 1b is ordered between Levels 1 and 1.1 using constraint_set3, as
+specified by [RFC 6184](https://www.rfc-editor.org/rfc/rfc6184#section-8.1).
+This compatibility rule does not claim unequal codec labels are canonical or
+byte-identical. An actual level above the declared configuration refuses.
+Neither codec string nor
 profile bytes are rewritten. This is a bounded metadata parser, not a full
 PPS/VCL conformance validator or support for Baseline/High/scaling syntax.
 

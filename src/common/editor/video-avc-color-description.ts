@@ -4,6 +4,12 @@ import type { VideoWebCodecsEncodedChunk } from './video-webcodecs-producer.ts';
 const MAX_DESCRIPTION = 65_536;
 const MAX_NAL = 4_096;
 const MAX_PACKET = 64 * 1024 * 1024;
+const MAIN_LEVELS = [10, 11, 12, 13, 20, 21, 22, 30, 31, 32, 40, 41, 42, 50, 51, 52, 60, 61, 62];
+function mainLevelRank(level: number, constraints: number): number {
+	requireAvc(MAIN_LEVELS.includes(level) && (constraints & 3) === 0);
+	// AnnexA/RFC6184: Main Level1b lies between1 and1.1, signaled by level11+constraint_set3.
+	return level === 11 && (constraints & 16) !== 0 ? 10.5 : level;
+}
 function requireAvc(condition: unknown): asserts condition {
 	if (!condition) throw new Error('Owned AVC color description is missing, conflicting or unsupported.');
 }
@@ -68,7 +74,7 @@ function completeSps(nal: Uint8Array, geometry?: Readonly<{ width: number; heigh
 	const bits = new Bits(nal);
 	requireAvc(bits.read(8) === 77); // The maintained encoder admission requests Main (4d00), never High/scaling.
 	requireAvc((bits.read(8) & 3) === 0);
-	const level = bits.read(8); requireAvc([10, 11, 12, 13, 20, 21, 22, 30, 31, 32, 40, 41, 42, 50, 51, 52, 60, 61, 62].includes(level));
+	const level = bits.read(8); requireAvc(MAIN_LEVELS.includes(level));
 	bits.ue(31); bits.ue(12);
 	const poc = bits.ue(2);
 	if (poc === 0) bits.ue(12);
@@ -163,10 +169,10 @@ export function createVideoAvcColorNormalizer(width: number, height: number) {
 				&& color?.primaries === 'bt709' && color.transfer === 'bt709' && color.matrix === 'bt709' && color.fullRange === false
 				&& config.description);
 			const original = descriptionBytes(config.description); const updated = completeVideoAvcColorDescription(original, { width, height });
-			// Encoders may refine the requested Main constraints (for example 4d00 -> 4d4c).
+			// Native config can retain a broader requested Main level; actual avcC/SPS remains the content authority.
 			const constraints = Number.parseInt(config.codec.slice(7, 9), 16);
 			requireAvc((constraints & 3) === 0 && (original[2]! & constraints) === constraints
-				&& Number.parseInt(config.codec.slice(9, 11), 16) === original[3]);
+				&& mainLevelRank(original[3]!, original[2]!) <= mainLevelRank(Number.parseInt(config.codec.slice(9, 11), 16), constraints));
 			nalLength = (original[4]! & 3) + 1;
 			sets = [];
 			let at = 6; let count = updated[5]! & 31;
