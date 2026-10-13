@@ -17,7 +17,8 @@ test('menu-opened Frame draft presentation retains the existing optional pixel o
 	assert.equal(EAGER_CHUNK_GROUPS.has(owner), false);
 	// The display allocator and its temporary mode validator share the optional
 	// owner; leaving either in an eager group pulls presentation back into boot.
-	for (const dependency of ['imaging/photo-develop-display-frame-v1.ts', 'photo-develop-mask-display-v1.ts']) {
+	for (const dependency of ['imaging/photo-develop-display-frame-v1.ts', 'photo-develop-mask-display-v1.ts',
+		'controller/shared/image-brush-mask-authoring-v1.ts', 'controller/shared/photo-library-brush-mask-authoring-v1.ts', 'image-brush-mask-resource-port-v1.ts']) {
 		for (const candidate of [directory + dependency, (directory + dependency).replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), owner);
 		assert.notEqual(chunkGroupForModulePath(directory + dependency + '.foreign'), owner);
 	}

@@ -68,3 +68,19 @@ test('Close waits for a held native mask read even when that read fails after ca
 		assert.equal(videoPreviewAuthoringPausedV1(f.controller), false); assert.deepEqual(f.controller.project, f.project); assert.equal(f.calls(), 1);
 	} finally { await f.dispose(); }
 });
+
+test('an unavailable native brush writer keeps Frame admission failure closeable and releases preview suspension', async () => {
+	const f = editableImageFixture(), project = f.project(); let closes = 0;
+	const controller = { project, getSnapshot: () => ({ selectedClipId: f.clip.id, readOnly: false }),
+		actions: { edit: { commit: () => assert.fail('An unavailable brush owner cannot publish.') } } };
+	bindFramescaperImageDevelopAuthoringCurrentV1({ controller, store: f.store });
+	const mounted = await mountPhotoImportUi(() => <FramescaperImageDevelopOwnerSurfaceV1 controller={controller} locale="en"
+		kind="brush" disabled={false} onClose={() => { closes++; }} />);
+	try {
+		await waitFor(async () => { await act(async () => { await settle(); }); return mounted.dom.container.querySelectorAll('[role="alert"]').length === 1; }, 'native brush admission failure');
+		assert.equal(videoPreviewAuthoringPausedV1(controller), false); assert.deepEqual(controller.project, project);
+		const close = mounted.dom.container.querySelectorAll('button').find(node => node.textContent === photoDevelopRepairSpotsCopy('en').close); assert.ok(close);
+		await act(async () => { reactProps(close).onClick?.({}); await settle(); });
+		await waitFor(() => closes === 1, 'unavailable brush admission Close');
+	} finally { await mounted.dispose(); }
+});

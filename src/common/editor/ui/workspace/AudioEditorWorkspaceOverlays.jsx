@@ -299,10 +299,10 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					</React.Suspense>
 				</div>
 			)}
-			{selectedFramescaperProject && ['image-develop-repairs', 'image-develop-masks'].includes(activeSurface) && (
+			{selectedFramescaperProject && ['image-develop-repairs', 'image-develop-masks', 'image-develop-brush'].includes(activeSurface) && (
 				<div data-editor-surface={activeSurface}><React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 					<FramescaperImageDevelopOwnerSurfaceV1 controller={controller} locale={locale}
-						kind={activeSurface === 'image-develop-repairs' ? 'repairs' : 'masks'} disabled={editBlocked || snapshot.readOnly === true}
+						kind={activeSurface === 'image-develop-repairs' ? 'repairs' : activeSurface === 'image-develop-brush' ? 'brush' : 'masks'} disabled={editBlocked || snapshot.readOnly === true}
 						onClose={() => setActiveSurface(null)} />
 				</React.Suspense></div>
 			)}

@@ -22,6 +22,9 @@ import { fitPixelSizeV1 } from '../../common/editor/imaging/pixel-frame-resize-v
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../common/editor/video-image-geometry-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../../common/editor/controller/shared/image-repair-spots-authoring-v1.ts';
 import type { FramescaperImageSourceCurrentV1 } from '../../common/editor/timeline-image-model-current-v1.ts';
+import { framescaperImageSourceResourceReferencesCurrentV1 } from '../../common/editor/timeline-image-model-current-v1.ts';
+import type { MaskRasterSourcePortV1 } from '../../common/editor/imaging/mask-raster-source-port-v1.ts';
+import type { BrushMaskResourceReferenceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
 
 export interface FramescaperImageDevelopDraftFrameHostCurrentV1 {
 	readonly project: unknown;
@@ -41,11 +44,24 @@ const FILL = Uint8Array.prototype.fill;
  * no store, writer, history transition or persistent source identity. */
 export async function withFramescaperImageDevelopDraftFrameCurrentV1<Result>(host: FramescaperImageDevelopDraftFrameHostCurrentV1,
 	request: unknown, consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, signal?: AbortSignal): Promise<Result> {
+	return withDraft(host, request, consume, signal);
+}
+
+/** Private temporary-body entry point. The ordinary Session draft function
+ * remains installed-only and keeps its exact closed request admission. */
+export async function withFramescaperImageDevelopBrushDraftFrameCurrentV1<Result>(host: FramescaperImageDevelopDraftFrameHostCurrentV1,
+	request: unknown, consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, signal: AbortSignal | undefined,
+	override: Readonly<{ reference: Readonly<BrushMaskResourceReferenceV1>; source: Readonly<MaskRasterSourcePortV1> }>): Promise<Result> {
+	return withDraft(host, request, consume, signal, override);
+}
+async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurrentV1,
+	request: unknown, consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, signal?: AbortSignal,
+	override?: Readonly<{ reference: Readonly<BrushMaskResourceReferenceV1>; source: Readonly<MaskRasterSourcePortV1> }>): Promise<Result> {
 	assertFramescaperNativeImageSignalCurrentV1(signal);
 	const current = host.assertCurrent, original = host.withOriginalFrame, store = host.store, clipId = host.clipId;
 	const check = () => { checkFramescaperNativeImageSignalCurrentV1(signal); Reflect.apply(current, host, []); checkFramescaperNativeImageSignalCurrentV1(signal); };
 	check(); if (typeof consume !== 'function' || typeof original !== 'function' || typeof current !== 'function') throw new TypeError('Frame draft rendering requires its selected canonical owner and consumer.');
-	const { develop, selection, source, references } = (() => {
+	const { develop, selection, source, references, retained } = (() => {
 		try {
 			const input = record(request, 'Frame Develop draft', ['develop', 'maskOverlay'], ['develop']);
 			const develop = normalizeImageDevelopStateCurrentV1(field(input, 'develop', 'Frame Develop draft'));
@@ -54,8 +70,11 @@ export async function withFramescaperImageDevelopDraftFrameCurrentV1<Result>(hos
 			const project = cloneFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, host.project);
 			const prepared = prepareFramescaperImageDevelopSourceCurrentV1(project, clipId, develop), source = prepared.source;
 			if (!source) throw new TypeError('Frame draft rendering requires its exact image source.');
+			if (override && !framescaperImageSourceResourceReferencesCurrentV1(source).brushes.some(value => value.storageKey === override.reference.storageKey)) throw new RangeError('The temporary brush is not declared by the exact selected draft.');
 			const references = collectFramescaperImageProjectResourcesCurrentV1({ ...project, sources: project.sources.map(value => value.id === source.id ? source : value) });
-			preflight(source, develop, selection, references); check(); return { develop, selection, source, references };
+			const retained = override ? collectFramescaperImageProjectResourcesCurrentV1(project) : undefined;
+			const budgetReferences = retained ? { luts: [...retained.luts, ...references.luts], brushes: [...retained.brushes, ...references.brushes] } : references;
+			preflight(source, develop, selection, budgetReferences, override?.reference.byteLength ?? 0); check(); return { develop, selection, source, references, retained };
 		} catch (error) { check(); throw error; }
 	})();
 	// Both real native body readers capture the store method and receiver before
@@ -63,8 +82,17 @@ export async function withFramescaperImageDevelopDraftFrameCurrentV1<Result>(hos
 	const luts = createFramescaperCubeLutSourceFinishing(store), brushes = createFramescaperMaskRasterSourceTimelineImageV1(store);
 	const cleanup = [() => luts.close(), () => brushes.close()];
 	try {
+		// A supplied temporary body cannot conceal a corrupt saved declaration,
+		// including an unchanged declaration with the same content key.
+		if (retained) {
+			for (const reference of retained.luts) { check(); await luts.withBytes(reference, () => undefined, { signal }); check(); }
+			for (const reference of retained.brushes) { check(); await brushes.withBytes(reference, () => undefined, { signal }); check(); }
+		}
 		for (const reference of references.luts) { check(); await luts.withBytes(reference, () => undefined, { signal }); check(); }
-		for (const reference of references.brushes) { check(); await brushes.withBytes(reference, () => undefined, { signal }); check(); }
+		const maskSource: Readonly<MaskRasterSourcePortV1> = override ? Object.freeze({ withBytes<Result>(reference: Readonly<BrushMaskResourceReferenceV1>, consume: (bytes: Uint8Array<ArrayBuffer>) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>): Promise<Result> {
+			return reference.storageKey === override.reference.storageKey ? override.source.withBytes(reference, consume, options) : brushes.withBytes(reference, consume, options);
+		} }) : brushes;
+		for (const reference of references.brushes) { check(); await maskSource.withBytes(reference, () => undefined, { signal }); check(); }
 		return await Reflect.apply(original, host, [async (frame: Parameters<Parameters<WithImageRepairSpotsOriginalFrameV1>[0]>[0]) => {
 			let outcome: { value: Result } | { error: unknown };
 			try {
@@ -76,7 +104,7 @@ export async function withFramescaperImageDevelopDraftFrameCurrentV1<Result>(hos
 						const result = develop.processVersion === 3
 							? await consume(view) : await withPhysicalRetirement(view, consume, signal);
 						check(); return result;
-					}, PROFILE, { source: luts, maskSource: brushes }) };
+					}, PROFILE, { source: luts, maskSource }) };
 			} catch (error) { outcome = { error }; }
 			// Resource sources drain before the canonical scope can release pixels.
 			await retireFramescaperNativeImageCurrentV1('error' in outcome ? outcome : undefined, cleanup);
@@ -87,7 +115,7 @@ export async function withFramescaperImageDevelopDraftFrameCurrentV1<Result>(hos
 
 function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelopStateCurrentV1,
 	selection: Readonly<ImageDevelopMaskOverlaySelectionV1> | undefined,
-	references: ReturnType<typeof collectFramescaperImageProjectResourcesCurrentV1>): void {
+	references: ReturnType<typeof collectFramescaperImageProjectResourcesCurrentV1>, temporaryBodyBytes = 0): void {
 	planPixelFrameV1({ schemaVersion: 1, width: source.canonical.width, height: source.canonical.height,
 		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, PIXELS);
 	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: develop.effects,
@@ -119,7 +147,10 @@ function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelo
 	const render = BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + maximum * 4n + lutBytes + BigInt(masks.peakWorkingBytes) + presentation + 4_096n;
 	let peak = render > authenticationBytes ? render : authenticationBytes;
 	if (repairs && BigInt(repairs.stageWorkingBytes) > peak) peak = BigInt(repairs.stageWorkingBytes);
-	if (BigInt(source.assetByteLength) * 3n + peak > 512n * 1024n * 1024n) throw new RangeError('Frame draft rendering exceeds its 512 MiB working byte bound.');
+	// The brush dialog's bounded authoring/display owner remains alive while
+	// this temporary snapshot, authentication copy and renderer are borrowed.
+	const authoring = temporaryBodyBytes ? 64n * 1024n * 1024n + BigInt(temporaryBodyBytes) * 3n : 0n;
+	if (BigInt(source.assetByteLength) * 3n + peak + authoring > 512n * 1024n * 1024n) throw new RangeError('Frame draft rendering exceeds its 512 MiB working byte bound.');
 }
 
 /** Process3's shared renderer certifies its own backings. Older local drafts

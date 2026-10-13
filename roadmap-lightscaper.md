@@ -741,9 +741,34 @@ composition, keyboard controls, unchanged Apply, cancellation, native
 Save/reopen, immutable custody and actual peer-lease takeover. Optional display
 allocation and mode admission share the existing presentation chunk owner;
 both builds preserve the startup and chunk ceilings (100 Frame requests,
-52 Lightscaper requests). Direct Frame brush creation and re-editing remain
-subsequent authoring work. L3–L6 exit gates remain in progress; L7–L9 and final
+52 Lightscaper requests). L3–L6 exit gates remain in progress; L7–L9 and final
 inter-slice qualification remain pending.
+
+Direct Frame brush creation and re-editing now have an optional Effect-menu
+entry. The shared neutral authoring owner and controls retain Photo's strict
+catalog acknowledgement while Frame uses its actual selected native project
+writer and project acknowledgement. Local paint, erase, undo and redo borrow
+an authenticated temporary brush for repaired, effect-aligned After and optional
+color/grayscale coverage; they create no native body or history entry. Apply
+joins preview work, installs the immutable body and uses the existing Frame
+source command. Re-editing preserves graph identity, names, alpha/raster-alpha
+shape, bindings and enabled flags; global history retains predecessor resources.
+Close joins pending work and remains usable after preview failure, stale
+currentness and same-generation parent refreshes. Complete retained resources
+authenticate before native reads or writes, including disabled LUTs and unused
+brushes. The [Frame brush authoring contract](docs/architecture/lightscaper-frame-brush-authoring.md)
+records the unchanged 512 MiB admission, private body capture, native ACK and
+physical retirement rules. The selected Lightscaper regression passes 2,634
+cases in 302 files. Twenty current English/German Chromium and Firefox
+workflows verify Frame brush creation/re-edit, existing Frame mask overlays and
+repaired Photo brush editing with native saved history and reload. Browser
+qualification caught and fixed the actual workspace dispatch guard and pointer
+admission through Frame's effects overlay. Both builds preserve the startup
+and chunk ceilings (100 Frame requests, 52 Lightscaper requests). An older
+Photo brush browser spec still requests the retired legacy Settings caption
+before opening the editor; that broader legacy qualification remains deferred.
+L3–L6 exit gates remain in progress; L7–L9 and final inter-slice qualification
+remain pending.
 
 ### Exit gate
 

@@ -4,7 +4,7 @@ import { framescaperImageDevelopCopy } from '../../i18n/framescaper-image-develo
 import { isCurrentProjectSchemaIdentity, FRAMESCAPER_PROJECT_SCHEMA_FAMILY } from '../project-schema-identity.ts';
 import type { FramescaperProject } from '../../../framescaper/editor-project.ts';
 
-export type FramescaperImageDevelopKindV1 = 'repairs' | 'masks';
+export type FramescaperImageDevelopKindV1 = 'repairs' | 'masks' | 'brush';
 interface Item { readonly id: string; readonly label: string; readonly disabled: boolean; onClick(): unknown }
 /** Presentation reads only scalar menu availability. The selected native
  * controller admits the complete current project and owns every edit. */
@@ -19,7 +19,7 @@ export function createFramescaperImageDevelopMenuItemsV1(input: Readonly<{
 	const enabled = !input.editingBlocked && input.readOnly !== true && typeof open === 'function' && !locked
 		&& clip?.kind === 'image' && source?.kind === 'image' && source.canonical.frameCount === 1;
 	const copy = framescaperImageDevelopCopy(input.locale ?? 'en');
-	return Object.freeze((['repairs', 'masks'] as const).map(kind => Object.freeze({
+	return Object.freeze((['repairs', 'masks', 'brush'] as const).map(kind => Object.freeze({
 		id: `image-develop-${kind}`, label: copy[kind], disabled: !enabled, onClick: () => enabled ? open?.(kind) : undefined,
 	})));
 }

@@ -89,7 +89,7 @@ export function createProductWorkspaceApplicationMenuRuntime({
 	return Object.freeze({
 		openFramescaperImageDevelop: productId === 'framescaper' && controller !== null && typeof controller === 'object'
 			&& framescaperImageDevelopAuthoringForCurrentV1(controller) !== null ? (kind: FramescaperImageDevelopKindV1) => {
-				if (!editingBlocked && !readOnly && (kind === 'repairs' || kind === 'masks')) openSurface(`image-develop-${kind}`);
+				if (!editingBlocked && !readOnly && (kind === 'repairs' || kind === 'masks' || kind === 'brush')) openSurface(`image-develop-${kind}`);
 			} : undefined,
 		framescaperNativeServices: wrapFramescaperNativeServicesMenuRuntime(nativeServicesRuntime, run),
 		framescaperCandidateAuthoring: candidateAuthoringRuntime === null ? null : Object.freeze({

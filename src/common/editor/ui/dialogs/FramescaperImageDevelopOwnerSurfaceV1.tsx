@@ -5,16 +5,19 @@ import { framescaperImageDevelopAuthoringForCurrentV1 } from '../../../../frames
 import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
 import type { WithImageDevelopDraftFrameV1 } from '../../controller/shared/image-develop-draft-presentation-v1.ts';
+import { captureImageBrushMaskResourcePortV1, type WithImageBrushMaskDraftFrameV1 } from '../../image-brush-mask-resource-port-v1.ts';
+import { readClosedDomainRecord, readClosedDomainField } from '../../closed-domain-value.ts';
 import type { PixelFrameV1 } from '../../imaging/pixel-frame-contract-v1.ts';
 import { photoDevelopRepairSpotsCopy } from '../../../i18n/lightscaper-develop-repair-spots-copy.ts';
 import { photoDevelopMaskManagementCopy } from '../../../i18n/lightscaper-develop-mask-management-copy.ts';
+import { photoDevelopBrushMaskCopy } from '../../../i18n/lightscaper-develop-brush-mask-copy.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import FramescaperImageDevelopSurfaceV1 from './FramescaperImageDevelopSurfaceV1.tsx';
 
 export interface FramescaperImageDevelopOwnerSurfacePropsV1 {
 	readonly controller: object;
 	readonly locale: string;
-	readonly kind: 'repairs' | 'masks';
+	readonly kind: 'repairs' | 'masks' | 'brush';
 	readonly disabled: boolean;
 	readonly onClose: () => void;
 }
@@ -25,13 +28,15 @@ interface NativeSession {
 	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
 	readonly withDraftFrame?: WithImageDevelopDraftFrameV1;
+	readonly brushMasks?: NonNullable<Session['brushMasks']>;
+	readonly withBrushDraftFrame?: WithImageBrushMaskDraftFrameV1;
 	readonly isCurrent: () => boolean;
 	readonly apply: (develop: Readonly<ImageDevelopStateCurrentV1>) => void;
 	readonly close: () => Promise<void>;
 }
 interface Scope {
 	readonly controller: object;
-	readonly kind: 'repairs' | 'masks';
+	readonly kind: 'repairs' | 'masks' | 'brush';
 	readonly stop: AbortController;
 	readonly children: Set<() => Promise<void>>;
 	readonly retiring: Set<Promise<void>>;
@@ -51,7 +56,7 @@ const REASON = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!
 /** The selected controller owns source admission, history and preview release.
  * Presentation generations only capture methods, seal callbacks and join owners. */
 export default function FramescaperImageDevelopOwnerSurfaceV1(props: FramescaperImageDevelopOwnerSurfacePropsV1) {
-	if (props.kind !== 'repairs' && props.kind !== 'masks') throw new TypeError('Unknown Frame image authoring surface.');
+	if (props.kind !== 'repairs' && props.kind !== 'masks' && props.kind !== 'brush') throw new TypeError('Unknown Frame image authoring surface.');
 	const latest = useRef(props); latest.current = props;
 	const live = useRef(true), active = useRef<Scope | null>(null), predecessor = useRef<Promise<void>>(Promise.resolve());
 	const [view, setView] = useState<View | null>(null);
@@ -73,7 +78,11 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 			Reflect.apply(CHECK, scope.stop.signal, []);
 			if (!port || !open) throw new Error('Selected image authoring is unavailable.');
 			const session = await Reflect.apply(open, port, [{ signal: scope.stop.signal }]) as Session;
-			try { scope.native = captureSession(session); }
+			try {
+				const captured = captureSession(session);
+				if (scope.kind === 'brush' && (!captured.brushMasks || !captured.withBrushDraftFrame)) throw new Error('Selected native Frame brush authoring is unavailable.');
+				scope.native = captured;
+			}
 			catch (error) {
 				try { await session.closeAndJoin(); }
 				catch (cleanup) { if (!Object.is(error, cleanup)) throw new AggregateError([error, cleanup], 'Frame image owner admission and retirement failed.', { cause: cleanup }); }
@@ -118,9 +127,10 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 	if (scope.native && !view.failed && !view.closing) return <FramescaperImageDevelopSurfaceV1 kind={props.kind} locale={props.locale}
 		develop={scope.native.develop} withOriginalFrame={scope.native.withOriginalFrame} disabled={props.disabled} isCurrent={current}
 		withDraftFrame={scope.native.withDraftFrame}
+		brushMasks={scope.native.brushMasks} withBrushDraftFrame={scope.native.withBrushDraftFrame}
 		onApply={apply} onClose={close} registerRetirement={registerRetirement} />;
-	const repair = photoDevelopRepairSpotsCopy(props.locale), mask = photoDevelopMaskManagementCopy(props.locale);
-	return <div data-frame-image-develop-surface><AudioEditorDialogShell title={props.kind === 'repairs' ? repair.title : mask.title}
+	const repair = photoDevelopRepairSpotsCopy(props.locale), mask = photoDevelopMaskManagementCopy(props.locale), brush = photoDevelopBrushMaskCopy(props.locale);
+	return <div data-frame-image-develop-surface><AudioEditorDialogShell title={props.kind === 'repairs' ? repair.title : props.kind === 'brush' ? brush.title : mask.title}
 		onClose={close} closeOnOutside={false} overlayClassName="lightscaper-dialog-backdrop" className="lightscaper-dialog">
 		{view.failed ? <p role="alert">{diagnostic(scope.failed?.value, repair.failed)}</p> : <p role="status">{repair.working}</p>}
 		<button type="button" onClick={close}>{repair.close}</button>
@@ -134,10 +144,30 @@ function captureSession(value: Session): NativeSession {
 	const withDraftFrame = draft?.value as WithImageDevelopDraftFrameV1 | undefined;
 	const capturedDraft: WithImageDevelopDraftFrameV1 | undefined = withDraftFrame
 		? (request, consume, options) => Reflect.apply(withDraftFrame, value, [request, consume, options]) : undefined;
+	const brush = Object.getOwnPropertyDescriptor(value, 'brushMasks'), brushDraft = Object.getOwnPropertyDescriptor(value, 'withBrushDraftFrame');
+	if (brush && !Object.hasOwn(brush, 'value')) throw new TypeError('Invalid selected image brush owner.');
+	if (brushDraft && (!Object.hasOwn(brushDraft, 'value') || brushDraft.value !== undefined && typeof brushDraft.value !== 'function')) throw new TypeError('Invalid selected image brush draft renderer.');
+	const withBrushDraftFrame = brushDraft?.value as WithImageBrushMaskDraftFrameV1 | undefined;
+	const capturedBrushDraft: WithImageBrushMaskDraftFrameV1 | undefined = withBrushDraftFrame
+		? (request, consume, options) => Reflect.apply(withBrushDraftFrame, value, [request, consume, options]) : undefined;
+	let brushMasks: NativeSession['brushMasks'];
+	if (brush?.value !== undefined) {
+		const input = readClosedDomainRecord(brush.value, 'Frame brush owner', ['schemaVersion', 'source', 'install', 'projectId']);
+		const projectId = readClosedDomainField(input, 'projectId', 'Frame brush owner');
+		if (typeof projectId !== 'string' || !projectId) throw new TypeError('Frame brush owner requires its actual project identity.');
+		const install = readClosedDomainField(input, 'install', 'Frame brush owner');
+		if (typeof install !== 'function') throw new TypeError('Frame brush installation requires its native data method.');
+		const child = captureImageBrushMaskResourcePortV1<Awaited<ReturnType<NonNullable<Session['brushMasks']>['install']>>>({
+			schemaVersion: readClosedDomainField(input, 'schemaVersion', 'Frame brush owner'), source: readClosedDomainField(input, 'source', 'Frame brush owner'),
+			install: (...args: Parameters<NonNullable<Session['brushMasks']>['install']>) => Reflect.apply(install as NonNullable<Session['brushMasks']>['install'], brush.value, args) as ReturnType<NonNullable<Session['brushMasks']>['install']>,
+		});
+		brushMasks = Object.freeze({ ...child, projectId });
+	}
 	if ([current, withOriginalFrame, apply, close].some(method => typeof method !== 'function')) throw new TypeError('Invalid selected image authoring owner.');
 	let closing: Promise<void> | null = null;
 	return { value, develop: value.develop,
 		...(capturedDraft ? { withDraftFrame: capturedDraft } : {}),
+		...(brushMasks ? { brushMasks } : {}), ...(capturedBrushDraft ? { withBrushDraftFrame: capturedBrushDraft } : {}),
 		isCurrent: () => Reflect.apply(current, value, []) === true,
 		withOriginalFrame: <Result,>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>) =>
 			Reflect.apply(withOriginalFrame, value, [consume, options]) as Promise<Result>,
