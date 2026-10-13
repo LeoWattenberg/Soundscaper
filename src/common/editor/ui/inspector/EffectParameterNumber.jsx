@@ -33,6 +33,7 @@ export default function ParameterNumber({
 	timeCodeUnit: timeUnit,
 	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 	onCommit,
+	onDraftChange = undefined,
 	onGestureBegin,
 	onGesturePreview,
 	onGestureCommit,
@@ -173,6 +174,7 @@ export default function ParameterNumber({
 				hookName="effect-number-input"
 				visuallyHiddenLabel
 				onCommit={(_name, raw) => commit(raw)}
+				onDraftChange={onDraftChange}
 			/>
 			{valueUnit && <span className="audio-editor-effect-number__unit" style={{ left: `calc(11px + ${String(gestureValue ?? value ?? '').length} * 7.6px)` }} aria-hidden="true">{valueUnit}</span>}
 			</div>}

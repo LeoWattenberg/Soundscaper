@@ -5,7 +5,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { cancelDraftEditOnEscape, createDraftBlurCommitGuard, draftBlurShouldCommit } from '../draft-blur-commit.ts';
 
-export function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', visuallyHiddenLabel = false, onCommit }) {
+export function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', visuallyHiddenLabel = false, onCommit, onDraftChange = undefined }) {
 	const [draft, setDraft] = useState(String(value ?? ''));
 	const [error, setError] = useState(false);
 	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
@@ -44,7 +44,11 @@ export function CommitField({ label, name, value, type = 'text', disabled, readO
 				multiline={multiline}
 				disabled={disabled || readOnly}
 				error={error}
-				onChange={setDraft}
+				onChange={(next) => {
+					if (disabled || readOnly) return;
+					onDraftChange?.();
+					setDraft(next);
+				}}
 				onBlur={commit}
 				width="100%"
 			/>
