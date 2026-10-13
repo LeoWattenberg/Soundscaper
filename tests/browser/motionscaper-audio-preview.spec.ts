@@ -38,14 +38,17 @@ test('M05 real AudioContext plays bounded mixed PCM and its sample clock stops o
 		document.querySelector('button')!.addEventListener('click', () => { void scope.audioPreview.play({ compositionId: 'main', startTime: 0, endTime: 1 }).catch((error: unknown) => { scope.playbackError = String(error); }); });
 	});
 	await page.getByRole('button', { name: 'Play audio' }).click();
-	await expect(async () => {
-		const playing = await page.evaluate(() => {
-			const scope = globalThis as unknown as Scope; const samples = new Float32Array(256); scope.analyser.getFloatTimeDomainData(samples);
-			return { clock: scope.audioPreview.clock.now(), error: scope.playbackError, peak: Math.max(...samples.map(Math.abs)), maximumQueued: scope.maximumQueued, status: scope.audioPreview.snapshot().status };
-		});
-		expect(playing.clock).toBeGreaterThan(30); expect(playing.error).toBeNull(); expect(playing.peak).toBeGreaterThan(0.15);
-		expect(playing.maximumQueued).toBeLessThanOrEqual(3); expect(playing.status).toBe('playing');
-	}).toPass({ timeout: 5000 });
+	// Observe the live audio window in-page; cross-process backoff can miss a one-second signal.
+	const ready = await page.waitForFunction(() => {
+		const scope = globalThis as unknown as Scope; const samples = new Float32Array(256); scope.analyser.getFloatTimeDomainData(samples);
+		const playing = { clock: scope.audioPreview.clock.now(), error: scope.playbackError, peak: Math.max(...samples.map(Math.abs)), maximumQueued: scope.maximumQueued, status: scope.audioPreview.snapshot().status };
+		if (playing.error !== null || playing.maximumQueued > 3) return playing;
+		return playing.clock > 30 && playing.peak > 0.15 && playing.status === 'playing' ? playing : null;
+	}, undefined, { polling: 20, timeout: 5000 });
+	const playing = await ready.jsonValue(); await ready.dispose();
+	if (!playing) throw new Error('The live audio readiness observation is missing.');
+	expect(playing.clock).toBeGreaterThan(30); expect(playing.error).toBeNull(); expect(playing.peak).toBeGreaterThan(0.15);
+	expect(playing.maximumQueued).toBeLessThanOrEqual(3); expect(playing.status).toBe('playing');
 	const paused = await page.evaluate(() => { const scope = globalThis as unknown as Scope; scope.audioPreview.pause(); return { clock: scope.audioPreview.clock.now(), context: scope.context.currentTime }; });
 	await expect.poll(() => page.evaluate(() => (globalThis as unknown as Scope).context.currentTime)).toBeGreaterThan(paused.context + 0.05);
 	const stopped = await page.evaluate(async () => {
