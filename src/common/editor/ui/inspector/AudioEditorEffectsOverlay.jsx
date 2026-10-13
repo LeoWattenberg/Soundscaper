@@ -4,12 +4,12 @@ import { audioSelectionEffectDefaults, createEffect } from '../../effects.js';
 import { audioEffectControlTracks } from '../../audio-effect-control-tracks.ts';
 import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
-import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import RackEffectDialog from './RackEffectDialog.tsx';
 import { audacityEffectDialogWidth, isAudacityNyquistPort } from '../audacity-port-layouts.ts';
 import { useAudacityEffectOptions } from './audacity-effect-options.ts';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import EffectPresetBar from './EffectPresetBar.jsx';
-import LazyEffectParameterEditor from './LazyEffectParameterEditor.jsx';
+import { EffectParameterEditor as LazyEffectParameterEditor } from './LazyEffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
 import { createAudacityRealtimeEffectShortcutHandler } from './audacity-realtime-effect-shortcut.ts';
 import { nativeRackEffectCommit, supportsLiveRackEffectGesture } from './live-rack-effect-gesture.ts';
@@ -386,7 +386,7 @@ export function AudioEditorEffectsOverlay({
 				/>
 			</div>}
 			{renderDialogs && effect && (
-				<AudioEditorDialogShell
+				<RackEffectDialog
 					isOpen
 					title={safeEffectLabel(effect, copy)}
 					headerTitle={`${safeEffectLabel(effect, copy).replace(/ \(Audacity\)$/u, '')} - ${effectScope === 'master' ? copy['ui.effectsOverlay.masterEffects'] || copy.master : effectOwner?.name || ''}`}
@@ -510,7 +510,7 @@ export function AudioEditorEffectsOverlay({
 							))}
 						/>
 					</section>
-				</AudioEditorDialogShell>
+				</RackEffectDialog>
 			)}
 
 			{renderRack && picker && (
