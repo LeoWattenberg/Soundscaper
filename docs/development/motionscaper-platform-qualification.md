@@ -1,7 +1,12 @@
 # Motionscaper platform qualification
 
-This is a bounded M12 development gate, not a public-release certification. The
-dedicated Motion configuration retains the existing Chromium suite and adds
+M01–M12 remain **In progress**. This page describes maintained qualification
+workflows and historical observations, not a public-release certification.
+The 2026-10-13 source-328 validation passed static, Motion Node, handbook and
+bounded Linux checks, but complete browser acceptance and other gates remain.
+Historical counts and versions below do not qualify the new source; see
+[final validation status](motionscaper-final-integration-validation.md).
+The dedicated Motion configuration retains the existing Chromium suite and adds
 focused workflow, video-delivery and durable-lease specs for Firefox and WebKit.
 The main repository configuration and CI continue to select all three engines
 for the broader suite.
@@ -23,9 +28,9 @@ font byte count, preview pixel hashes, encoder outcome, and offline outcome. Add
 `--reporter=json` to retain those receipts in a machine-readable report. Generated
 reports, traces and browser binaries are not committed.
 
-## Measured workflow
+## Historical measured workflow
 
-The local Linux x64 run exercises four cases per engine:
+The recorded 2026-10-11 Linux x64 run exercised four cases per engine:
 
 1. The isolated Motion shell starts without initializing a project or displaying
    an authoring panel. German keyboard menus open a composition dialog, focus its
@@ -130,17 +135,39 @@ and stale writes until retry succeeds. A subsequent owner can then acquire it.
 These five video cases and one lease case passed on each engine: 18 cases, no
 skips or retries. They complement the twelve editor/offline cases above.
 
+## Storage and isolation capability boundaries
+
+The successor archive repository uses digest-verified binary chunks of at most
+4 MiB, retaining original and portable archives without relying on IndexedDB
+Blob/File storage. The historical ephemeral Linux WebKit host rejected Blob/File
+writes but accepted the bounded byte route. Import retains its 512 MiB archive
+admission. This is a measured host observation, not a general Safari claim.
+
+Original archive copies above 16 MiB require a streaming picker or persistent
+temporary-file storage. If neither is available, the action refuses before
+reading the archive; it does not discard custody or allocate an unbounded Blob.
+The historical ephemeral WebKit host lacked these routes. The maintained tests
+cover capability refusal and cleanup; their old temporary receipts are lost.
+
+Editor headers remain COOP `same-origin` and COEP `credentialless`. The bridge
+checks the exact header contract and compares actual COI/SharedArrayBuffer with
+an independent host capability probe. The historical Linux WebKit host lacked
+credentialless isolation. Functional transfer there is not proof of actual COI;
+unconditional isolation across every browser remains an unqualified claim.
+
 ## Distribution and remaining gates
 
-The current local evidence complements these configured gates:
+The following code paths are implemented; their configuration is not evidence
+that the current source completed the corresponding gate:
 
 | Gate | Repository authority | Remaining work/evidence |
 | --- | --- | --- |
 | Full browser matrix | `playwright.config.mjs`, `.github/workflows/quality.yml`, `.github/workflows/desktop-preview.yml` | Full current-revision Chromium/Firefox/WebKit suites, regressions and coverage union remain the final integration gate. |
 | Native helper builds | `.github/workflows/motionscaper-media-host-native-build.yml` | Source-bound build/self-test/verification is configured for Linux x64/arm64, Windows x64/arm64 and macOS arm64. Configuration alone is not a successful target receipt. |
 | Internal packaged smoke | `.github/workflows/desktop-nightly-tests.yml` | Each selected target downloads its verified Motion helper before packaging and runs `motionscaper-desktop-smoke.mjs --require-native-prores`. Current branch receipts on the other four targets are still required. |
-| Packaged launch, 2.5D and linked delivery | [Linux CI qualification](motionscaper-linux-ci-qualification.md) | Candidate/nightly Linux packages require all three real packaged workflows with a separate verified test-only decoder artifact. A complete local Linux x64 aggregate produced four required receipts; configured ARM64 execution, hardware GPU and other target matching-quality references remain open. |
+| Packaged launch, 2.5D and linked delivery | [Linux CI qualification](motionscaper-linux-ci-qualification.md) | A fresh software Linux x64 aggregate passed all three workflows and four source-bound receipts. Separate authored-title color, duration, ARM64, hardware and other targets remain open. |
 | Public candidate release | [Own candidate route](motionscaper-preview-release.md), `.github/workflows/desktop-preview.yml` | Motion tags select a separate verified-helper packaging and mandatory corresponding-source inventory route. The five-target workflow has not been run by this local gate; current target receipts remain required. Untagged Sound/Frame scope is unchanged. |
+| Own stable and Pages preparation | [Release preparation](../operations/motionscaper-release.md), `motionscaper-stable.yml`, `pages-deploy-preflight.mjs` | Own active-tag admission, complete quality dependencies, package/source inventory, exact web artifact binding and Motion route/artwork tables are implemented. The register remains on its candidate channel; activation and publication have not occurred. |
 | Signing and installation | `scripts/lib/desktop-signing-config.cjs`, public package workflow | Existing conditional Developer ID/notarization and Windows certificate/Azure paths need credentialed Motion artifact, installation and own-channel update receipts. Ad-hoc internal packages do not satisfy signing. |
 | External application/platform behavior | M09/M11 implementation gates | Installed macOS Safari, target-native file associations/launches, installed Adobe After Effects interchange and target-specific color/alpha behavior require actual environments. |
 

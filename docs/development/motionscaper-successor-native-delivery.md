@@ -42,7 +42,13 @@ notices and exact helper bytes; extra native files and foreign service methods
 are refused. The Motion helper source, carrier source pins and assistance
 runtime closure are unchanged.
 
-## Linux x64 qualification
+## Historical Linux x64 qualification
+
+The following committed report describes an earlier package, not the current
+source. Temporary qualification receipts were lost in the 2026-10-13 reboot.
+New source-328 packages passed a fresh bounded Linux aggregate independently.
+The historical measurements below are not receipts for those packages. See
+[final validation status](motionscaper-final-integration-validation.md).
 
 The external harness in
 `desktop/motionscaper-successor-delivery-qualification.ts` drives the real
@@ -97,15 +103,27 @@ FFmpeg installation; it is absent from the package. Run this harness with
 Node's maintained TypeScript stripping, not a transformer that injects helpers
 into functions serialized to the browser.
 
-When WebGL cannot start, the preview reports affected generated composition
-clips as unavailable instead of silently presenting a black successful preview.
-The same packaged source was also run with
-`FRAMESCAPER_SUCCESSOR_PREVIEW_BACKEND=unavailable`, which launches Electron
-with `--disable-gpu`. It verified the visible omission warning before and after
-offline reopen and produced the same MOV digest and decode measurements.
-That fallback is a diagnostic, not CPU-only preview qualification. Native
-finishing remains separately available. Hardware-GPU combinations, Windows,
-macOS, other architectures, Wayland, and broader native format/duration stress
-cases remain outside this Linux x64 result.
+The historical package above also had a GPU-disabled omission-warning
+experiment. That result predates the current CPU finishing preview and must not
+be described as qualification of the later fallback.
+
+Current successor preview includes CPU finishing for retained linked scenes
+and ordinary timeline images when WebGL is unavailable or lost, using the same
+authenticated picture executor as export. Declared Rec.709 finishing bytes are
+converted to sRGB at the preview boundary without changing delivery bytes.
+Inherited Frame adjustment effects that require WebGL2 still refuse explicitly;
+an incomplete picture is never presented as successfully rendered. Source
+replacement, context recovery and offline reopen have maintained browser tests,
+but the lost earlier receipts cannot qualify source 328.
+
+The File dialog also owns Retry Output Cleanup. Failed native cancellation
+retains its cleanup handle and prevents another export or dialog closure until
+retry succeeds; a successfully published destination remains distinct from late
+cancellation. This uses the existing helper and PCM contract.
+
+Hardware GPU, Windows, macOS, other architectures, Wayland, installation and
+broader native format/duration cases remain outside the historical Linux result.
+Fresh source-328 offline successor picture/PCM delivery passed in the bounded
+Linux aggregate. Complete browser matrix and duration acceptance remain open.
 
 No manual **Update AI assets** run is required.

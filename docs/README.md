@@ -108,6 +108,7 @@ belong in Git history, not in the maintained documentation set.
 - [Packaged Motionscaper file launch qualification](development/motionscaper-native-launch-qualification.md).
 - [Packaged Motionscaper scene qualification](development/motionscaper-native-scene-qualification.md).
 - [Motionscaper platform qualification](development/motionscaper-platform-qualification.md).
+- [Motionscaper final validation status](development/motionscaper-final-integration-validation.md).
 - [Motionscaper candidate package route](development/motionscaper-preview-release.md).
 - [Framescaper successor native composition delivery](development/motionscaper-successor-native-delivery.md).
 - [Motionscaper sustained CPU workload](development/motionscaper-sustained-workload.md).

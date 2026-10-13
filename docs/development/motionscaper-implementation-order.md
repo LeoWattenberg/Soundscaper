@@ -73,11 +73,11 @@ package complete.
 
 ### Implementation status
 
-M01–M12 are **In progress**. M12 has release-register and reference preparation
-and a bounded three-engine browser qualification; its complete release gate
-still depends on M01–M11. The isolated browser
-shell builds, and the packaged Linux x64 desktop shell boots under its own
-origin with bounded project-file capabilities. Typed project contracts, atomic
+M01–M12 are **In progress**; named implementations do not close release gates.
+Source `328cae02f` passed fresh static, Motion Node and bounded Linux gates.
+Full Node/browser regressions, color repairs, duration and external gates remain.
+Earlier results below are historical; fresh results and failures are recorded in
+[final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
 saved/recovery storage, paragraph/vector rasterization, and linear-light CPU
 and WebGL2 compositing have focused Motionscaper coverage. Menu-driven document
@@ -112,12 +112,12 @@ timing resolution. The separate float-carrier native helper and own-origin
 desktop delivery pass a packaged Linux ProRes 4444 publication smoke test with
 authenticated PCM24 audio. Other desktop targets remain unqualified. Flat MOV
 delivery admits at most 32,768 frames so its retained sample index is bounded.
-The [sustained CPU fixture](motionscaper-sustained-workload.md) verifies real
-worker preview, retained WAV decoding, exact stereo PCM and forward-only PNG
-delivery as duration grows. Its explicit Node/V8 profile passes 300 and 1,200
-frames with fixed retained queue/cache sizes; browser RSS and maximum workloads
-remain separate qualification gates. Preview and render leases reuse bounded,
-digest-bound font providers while preserving imported multilingual pixels.
+The [sustained drivers](motionscaper-sustained-browser-native-qualification.md)
+measure worker preview, retained PCM and physical browser/native output as
+duration grows. The c80 native 300/1,200-frame success was reported before the
+reboot; its receipts are lost. The c80 browser verifier failed; source 328 fixes
+its loader, but fresh qualification and maximum-workload evidence remain pending.
+Preview and render leases retain bounded digest-bound font providers.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and
 spatial/path editing pass actual browser workflows, including pixel preview,
@@ -255,9 +255,9 @@ Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-An earlier run of all Motion-named TypeScript tests, including cross-product
-link tests, passed 736 tests. Subsequent feature changes receive focused qualification.
-These results do not close a package's completion gate.
+Fresh source-328 Motion Node tests passed all 953 cases. All 139 Motion-named
+Chromium cases passed within an unfinished full run with other-product failures.
+These results do not close a package; complete accepted coverage remains pending.
 The [platform fixture](motionscaper-platform-qualification.md) passes twelve
 actual Chromium, Firefox and Linux WebKit workflows covering keyboard menus,
 retained fonts, authored keys, Save/reopen, same-engine PNG/preview and offline
@@ -266,18 +266,18 @@ Linux WebKit refuses before an independently reproduced native encoder crash.
 Different engines' whole-frame hashes are not claimed identical. Maximum
 workloads, full existing-product regression, hardware GPU, macOS Safari and
 credentialed native distribution still require their own gates.
-The capability register and generated references describe the independent Motion
-workspace and partial platform qualification. They preserve the frozen family-v1
-baselines and exclude inherited Audacity/Nyquist/shared-layout authoring claims.
+The capability register owns Motion's independent workspace and bounded claims.
+Own Pages tables, stable-release and source-bound deployment preparation exist;
+activation/publication and credentialed target qualification remain separate.
 
 The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
 M09's camera, depth-group, lighting and quality semantics. It does not claim
 After Effects pixel parity.
 
 The current [composition link foundations](motionscaper-composition-links.md)
-declare M10's revision, closure, history and rendering authority. Connected
-browser editing and bounded Linux x64 native delivery have actual receipts;
-the remaining native/browser target and hardware qualification matrix stays open.
+declare M10's revision, closure, history and rendering authority. Fresh
+bounded Linux delivery has source-328 evidence; full browser editing,
+duration, remaining target and hardware qualification remain open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten

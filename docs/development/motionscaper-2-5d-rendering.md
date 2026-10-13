@@ -1,10 +1,12 @@
 # Motionscaper 2.5D rendering contract
 
-M09 remains in progress. The renderer has focused native CanvasKit fixtures and
-actual worker/WebGL and host/CPU preview coverage for translucent intersections,
-lighting, transparent shadows, depth of field and combined shutter/lens samples.
-Matching-quality worker/CPU preview and final export agree. Authoring menus
-and desktop reference qualification remain open.
+M09 remains **In progress**. Layer > Scene exposes camera/light creation,
+3D transforms, materials, shadows and lens/shutter quality. The renderer and
+matching-quality worker/WebGL, host/CPU and native reference workflows are
+implemented, including translucent intersections and isolated precompositions.
+Historical focused and software Linux results were reported before the reboot;
+their temporary receipts are unavailable. A fresh source-328 packaged Linux
+scene passed; hardware and remaining platforms stay open. See [final validation status](motionscaper-final-integration-validation.md).
 These are Motionscaper semantics; After Effects pixel parity is unqualified.
 
 ## Cameras and geometry
