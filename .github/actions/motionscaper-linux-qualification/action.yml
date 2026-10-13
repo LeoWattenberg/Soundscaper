@@ -1,5 +1,5 @@
 name: Qualify complete Linux Motion workflows
-description: Real packaged launch, 2.5D native delivery and offline Frame successor picture/PCM workflows.
+description: Real packaged launch, authored title, 2.5D delivery and offline Frame successor workflows; complete qualification currently requires Linux x64.
 inputs:
   target:
     required: true
@@ -51,7 +51,7 @@ runs:
         if [[ "${#sandboxes[@]}" -ne 1 ]]; then exit 1; fi
         sudo chown root:root -- "${sandboxes[0]}"
         sudo chmod 4755 -- "${sandboxes[0]}"
-    - name: Require all three real packaged workflows
+    - name: Require all four real packaged workflows
       shell: bash
       run: >-
         xvfb-run -a node scripts/motionscaper-linux-qualification.ts
