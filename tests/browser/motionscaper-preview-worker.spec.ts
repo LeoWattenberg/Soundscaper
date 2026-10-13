@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workerChunkGroups } from '../../scripts/lib/build-worker-chunks.mjs';
+import { requireMotionHostWebGl } from './helpers/motionscaper-host-webgl.ts';
 import { expectMotionWorkerBackend } from './helpers/motionscaper-worker-webgl.ts';
 import type { MotionPreviewClient, MotionPreviewFrame, MotionPreviewOptions } from '../../src/common/editor/controller/composition/motion-preview-types.ts';
 import type { MotionPreviewSessionOptions } from '../../src/common/editor/controller/composition/motion-preview-render-session.ts';
@@ -238,6 +239,7 @@ test('M05 a failed module worker load falls back to the host and completes the p
 
 test('M05 actual WebGL context loss retries the same frame through CanvasKit CPU', async ({ page }) => {
 	await page.goto(address); await page.waitForFunction(() => 'motionFixture' in globalThis);
+	await requireMotionHostWebGl(page, { floatTarget: true, contextLoss: true });
 	const result = await page.evaluate(async () => {
 		const fixture = (globalThis as unknown as { motionFixture: Fixture }).motionFixture; const canvas = document.createElement('canvas');
 		const session = fixture.createSession({ backend: 'worker-cpu', maximumAssetBytes: 1024 * 1024, maximumWorkingBytes: 8 * 1024 * 1024, createCanvas: () => canvas });
