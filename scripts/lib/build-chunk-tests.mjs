@@ -371,7 +371,7 @@ export const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/
 
 /** Timeline-image features, their captured native LUT reader and runtime projections. */
 export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
-	/src[\\/]framescaper[\\/](?:(?:internal[\\/]timeline-image-develop-frame-kernel-v1|timeline-image-[^\\/]+|cube-lut-source-finishing)\.ts$|editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
+	/src[\\/]framescaper[\\/](?:(?:internal[\\/]timeline-image-(?:develop-frame-kernel|native-pack-owner-current)-v1|timeline-image-[^\\/]+|cube-lut-source-finishing)\.ts$|editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
 
 
 /**

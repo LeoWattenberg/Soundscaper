@@ -692,7 +692,25 @@ Chromium and Firefox workflows verify actual menu import, per-file results,
 complete native custody, literal preview/PNG pixels, and reopen for both full
 and repair-only presets. Both product builds retain the startup and chunk
 ceilings.
-Direct Frame repair and mask-name authoring remain open. Remaining
+Direct Frame static-image Clone/Heal and mask-name editing now use opt-in
+entries in the existing Effect menu. The editor joins accepted visual preview
+work before borrowing the authenticated raw canonical frame, and joins and
+wipes its borrowed pixels before preview resumes. Every retained LUT and brush
+body is authenticated before the editing session is delivered. Apply uses the
+existing image-source command and history: unchanged recipes keep their exact
+source and provenance, while changed recipes become Source3 with truthful
+Frame provenance and the same immutable pack and Original. Selection, read-only
+state, the complete project snapshot, cancellation and byte bounds fence each
+borrow and edit. Mask names remain scalar recipe metadata; Frame mask overlay
+presentation remains outside this completed authoring slice.
+The selected Lightscaper regression passes 2,545 cases in 291 files, including
+native pack lifetime, physical detachment refusal, joined dismissal, and the
+complete menu path. Four English/German Chromium and Firefox workflows verify
+raw Original pixels, unchanged Apply, Clone, Undo/Redo, mask naming, native
+Save/reopen, archive bytes, and immutable sender/resource custody. Chromium
+also verifies the ready WebGL preview; Firefox verifies the resolved visual
+Session and native recipe pixels when its headless platform lacks WebGL2.
+Both product builds preserve the existing startup and chunk ceilings. Remaining
 L3–L6 exit gates still require completion; L7–L9 remain incomplete. Final
 inter-slice qualification follows completion of the implementation milestones.
 

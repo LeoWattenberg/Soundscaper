@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
+import type { WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
+import ImageRepairSpotsEditorV1 from './ImageRepairSpotsEditorV1.tsx';
+import PhotoDevelopMaskManagerV1 from '../lightscaper/PhotoDevelopMaskManagerV1.tsx';
+
+export interface FramescaperImageDevelopDialogPropsV1 {
+	readonly kind: 'repairs' | 'masks';
+	readonly develop: ImageDevelopStateCurrentV1;
+	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
+	readonly locale: string;
+	readonly disabled?: boolean;
+	readonly isCurrent: () => boolean;
+	readonly onApply: (develop: Readonly<ImageDevelopStateCurrentV1>) => void;
+	readonly onClose: () => void;
+	readonly registerRetirement?: (retire: () => Promise<void>) => () => void;
+}
+/** Both menu-selected editors hold a local draft; the caller owns publication. */
+export default function FramescaperImageDevelopDialogV1(props: FramescaperImageDevelopDialogPropsV1) {
+	if (props.kind !== 'repairs' && props.kind !== 'masks') throw new TypeError('Unknown Frame image editor.');
+	const apply = (value: Readonly<ImageDevelopStateCurrentV1>) => {
+		const before = props.develop.processVersion === 3 ? props.develop.repairs.spots : [];
+		const after = value.processVersion === 3 ? value.repairs.spots : [];
+		const develop = props.kind === 'repairs' && JSON.stringify(before) === JSON.stringify(after) ? props.develop : value;
+		Reflect.apply(props.onApply, props, [develop]);
+	};
+	const close = () => { Reflect.apply(props.onClose, props, []); };
+	return props.kind === 'repairs'
+		? <ImageRepairSpotsEditorV1 develop={props.develop} withOriginalFrame={props.withOriginalFrame} locale={props.locale} disabled={props.disabled}
+			isCurrent={props.isCurrent} onApply={apply} onClose={close} registerRetirement={props.registerRetirement} />
+		: <PhotoDevelopMaskManagerV1 develop={props.develop} locale={props.locale} disabled={props.disabled} overlayAvailable={false} isCurrent={props.isCurrent} onApply={apply} onClose={close} />;
+}

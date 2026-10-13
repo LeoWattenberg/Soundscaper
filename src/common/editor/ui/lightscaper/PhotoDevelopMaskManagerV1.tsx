@@ -19,6 +19,8 @@ export interface PhotoDevelopMaskManagerPropsV1 {
 	readonly develop: ImageDevelopStateCurrentV1;
 	readonly locale: string;
 	readonly disabled?: boolean;
+	/** Presentation controls are offered only when the caller can show an overlay. */
+	readonly overlayAvailable?: boolean;
 	readonly isCurrent: () => boolean;
 	readonly onApply: (value: ImageDevelopStateCurrentV1, overlay: Readonly<PhotoDevelopMaskOverlaySelectionV1> | null) => void;
 	readonly onClose: () => void;
@@ -60,10 +62,11 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 	};
 	const apply = () => {
 		if (!current()) return;
-		if (form.showOverlay && (!selected || !bindings.includes(form.overlayEffect) || !effects.some(effect => effect.id === form.overlayEffect))) {
+		const showOverlay = props.overlayAvailable !== false && form.showOverlay;
+		if (showOverlay && (!selected || !bindings.includes(form.overlayEffect) || !effects.some(effect => effect.id === form.overlayEffect))) {
 			update({ ...form, invalid: true }); return;
 		}
-		Reflect.apply(props.onApply, props, [form.draft, form.showOverlay ? Object.freeze({ maskId: form.maskId, effectId: form.overlayEffect,
+		Reflect.apply(props.onApply, props, [form.draft, showOverlay ? Object.freeze({ maskId: form.maskId, effectId: form.overlayEffect,
 			...(form.displayMode === 'grayscale' ? { displayMode: form.displayMode } : {}) }) : null]);
 	};
 	return <AudioEditorDialogShell title={text.title} onClose={close} className="lightscaper-dialog lightscaper-mask-management-dialog"
@@ -117,14 +120,14 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 						}} />{name}</label>;
 				})}
 			</fieldset>
-			<label><input type="checkbox" aria-label={text.showOverlay} checked={form.showOverlay} disabled={props.disabled || !selected}
-				onChange={event => { if (current() && selected) update({ ...form, showOverlay: event.currentTarget.checked, overlayEffect: '', displayMode: 'color', invalid: false }); }} />{text.showOverlay}</label>
-			{form.showOverlay && <label className="lightscaper-mask-management-selection">{text.displayMode}<select aria-label={text.displayMode}
+			{props.overlayAvailable !== false && <label><input type="checkbox" aria-label={text.showOverlay} checked={form.showOverlay} disabled={props.disabled || !selected}
+				onChange={event => { if (current() && selected && props.overlayAvailable !== false) update({ ...form, showOverlay: event.currentTarget.checked, overlayEffect: '', displayMode: 'color', invalid: false }); }} />{text.showOverlay}</label>}
+			{props.overlayAvailable !== false && form.showOverlay && <label className="lightscaper-mask-management-selection">{text.displayMode}<select aria-label={text.displayMode}
 				value={form.displayMode} disabled={props.disabled} onChange={event => {
 					if (!current()) return; const displayMode = event.currentTarget.value;
 					if (displayMode === 'color' || displayMode === 'grayscale') update({ ...form, displayMode, invalid: false });
 				}}><option value="color">{text.color}</option><option value="grayscale">{text.grayscale}</option></select></label>}
-			{form.showOverlay && <label className="lightscaper-mask-management-selection">{text.overlayEffect}<select aria-label={text.overlayEffect}
+			{props.overlayAvailable !== false && form.showOverlay && <label className="lightscaper-mask-management-selection">{text.overlayEffect}<select aria-label={text.overlayEffect}
 				value={form.overlayEffect} disabled={props.disabled} onChange={event => {
 					if (current()) update({ ...form, overlayEffect: event.currentTarget.value, invalid: false });
 				}}><option value="">{text.chooseEffect}</option>{effects.filter(effect => bindings.includes(effect.id)).map(effect =>

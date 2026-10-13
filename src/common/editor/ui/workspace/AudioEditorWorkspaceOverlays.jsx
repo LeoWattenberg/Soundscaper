@@ -35,6 +35,8 @@ const FramescaperVisualInspectorDialog = FRAMESCAPER_BUILD
 	? lazyEditorModule(() => import('../dialogs/FramescaperVisualInspectorDialog.tsx')) : null;
 const FramescaperSelectedVisualAuthoringDialog = FRAMESCAPER_BUILD
 	? lazyEditorModule(() => import('../dialogs/FramescaperSelectedVisualAuthoringDialog.tsx')) : null;
+const FramescaperImageDevelopOwnerSurfaceV1 = FRAMESCAPER_BUILD
+	? lazyEditorModule(() => import('../dialogs/FramescaperImageDevelopOwnerSurfaceV1.tsx')) : null;
 const ExportDialog = lazyEditorModule(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = lazyEditorModule(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = lazyEditorModule(() => import('../inspector/LabelExportDialog.jsx'));
@@ -296,6 +298,13 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 						/>
 					</React.Suspense>
 				</div>
+			)}
+			{selectedFramescaperProject && ['image-develop-repairs', 'image-develop-masks'].includes(activeSurface) && (
+				<div data-editor-surface={activeSurface}><React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+					<FramescaperImageDevelopOwnerSurfaceV1 controller={controller} locale={locale}
+						kind={activeSurface === 'image-develop-repairs' ? 'repairs' : 'masks'} disabled={editBlocked || snapshot.readOnly === true}
+						onClose={() => setActiveSurface(null)} />
+				</React.Suspense></div>
 			)}
 			{capabilities.audioEffects && activeSurface === 'selection-effect' && (
 				<div data-editor-surface="selection-effect">

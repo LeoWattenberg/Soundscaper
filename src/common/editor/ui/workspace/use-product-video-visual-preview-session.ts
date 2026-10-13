@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { RefObject } from 'react';
 
 import { createVideoPreviewSessionOwner } from '../../controller/clip-video/video-preview-session-owner.ts';
+import { registerVideoPreviewAuthoringParticipantV1, subscribeVideoPreviewAuthoringV1, videoPreviewAuthoringEpochV1, videoPreviewAuthoringPausedV1 } from '../../controller/clip-video/video-preview-authoring-suspension-v1.ts';
 import type { VideoCanvasFit } from '../../video-canvas-fit.ts';
 
 import {
@@ -64,6 +65,11 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 		sessionRef.current?.resolveTransitionWeight(clipId, timelineSample) ?? null
 	), []);
 	const retireAndJoin = useCallback(() => ownerRetirement.current?.close() ?? Promise.resolve(), [ownerRetirement]);
+	const subscribeAuthoring = useCallback((listener: () => void) => subscribeVideoPreviewAuthoringV1(options.owner, listener), [options.owner]);
+	const readAuthoring = useCallback(() => videoPreviewAuthoringEpochV1(options.owner), [options.owner]);
+	const authoringEpoch = useSyncExternalStore(subscribeAuthoring, readAuthoring, readAuthoring);
+	const authoringPaused = videoPreviewAuthoringPausedV1(options.owner);
+	useEffect(() => registerVideoPreviewAuthoringParticipantV1(options.owner, retireAndJoin), [options.owner, retireAndJoin]);
 	useEffect(() => {
 		let live = true;
 		const predecessor = lifetimeRef.current;
@@ -97,7 +103,7 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 		const create = runtime?.create;
 		const request = Object.freeze({ project: options.project, width: options.width, height: options.height,
 			...(options.fit === undefined ? {} : { fit: options.fit }) });
-		void lifetime.replace(!runtime || !options.project || !create ? null : (signal) => (
+		void lifetime.replace(authoringPaused || !runtime || !options.project || !create ? null : (signal) => (
 			Reflect.apply(create, runtime, [{ ...request, signal }]) as Promise<ProductVideoVisualPreviewSession | null>
 		)).then((session) => {
 			if (!live) return;
@@ -111,7 +117,7 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 			live = false; sessionRef.current = null;
 			void lifetime.close().catch(() => undefined);
 		};
-	}, [options.afterReplace, options.beforeReplace, options.failureMessage, options.fit, options.height, options.project, options.width, ownerRetirement, runtime, updateFrame]);
+	}, [authoringEpoch, authoringPaused, options.afterReplace, options.beforeReplace, options.failureMessage, options.fit, options.height, options.project, options.width, ownerRetirement, runtime, updateFrame]);
 	return Object.freeze({ sessionRef, state, updateFrame, resolveTransitionWeight, retireAndJoin });
 }
 

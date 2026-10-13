@@ -53,6 +53,7 @@ import {
 } from './editor-selected-timeline-image-image-authoring-controller.ts';
 import { bindFramescaperSelectedImagePreviewControllerTimelineImage } from
 	'./editor-selected-timeline-image-image-preview-controller.ts';
+import { bindFramescaperImageDevelopAuthoringCurrentV1 } from './editor-selected-timeline-image-develop-authoring-controller-v1.ts';
 
 const PRESENTATION_FIELDS = [
 	'locale', 'copy', 'fileService', 'confirmMonoConversion', 'confirmFileSizeWarning',
@@ -227,6 +228,7 @@ export function createFramescaperAudioEditorController(
 		actions: { projectBin: binController.actions.projectBin,
 			edit: { commit: command => binController.actions.edit.commit(command as never) } },
 	});
+	bindFramescaperImageDevelopAuthoringCurrentV1({ controller: controller as never, store: environment.controllerStore });
 	return controller;
 }
 

@@ -4,6 +4,7 @@ import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-s
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
 import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-candidate-authoring-menu.ts';
 import { createFramescaperFinishingMenuItems } from './framescaper-finishing-menu.ts';
+import { createFramescaperImageDevelopMenuItemsV1 } from './framescaper-image-develop-menu-v1.ts';
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperWorkflowApplicationMenuItems } from './soundscaper-workflow-product-runtime.tsx';
@@ -15,7 +16,7 @@ export function createApplicationMenuProductTrackItems({ productId, project, edi
 }
 
 export function createApplicationMenuProductItems({
-	productId, capabilities = {}, project, snapshot = {}, editBlocked, copy, actions,
+	productId, capabilities = {}, project, snapshot = {}, editBlocked, copy, actions, locale = 'en',
 }) {
 	const nestedSequences = createFramescaperNestedSequenceMenuItems({
 		productId, project, editingBlocked: editBlocked, copy: {
@@ -63,6 +64,10 @@ export function createApplicationMenuProductItems({
 		productId, project, capabilities, editingBlocked: editBlocked,
 		readOnly: snapshot.readOnly === true, copy,
 	}, { open: (surface) => actions.openFramescaperFinishing?.(surface) });
+	const imageDevelop = createFramescaperImageDevelopMenuItemsV1({
+		productId, project, selectedClipId: snapshot.selectedClipId, editingBlocked: editBlocked,
+		readOnly: snapshot.readOnly === true, locale,
+	}, actions.openFramescaperImageDevelop);
 	const nativeServices = createFramescaperNativeServicesMenuItems({
 		productId,
 		runtimeAvailable: nativeRuntime !== null,
@@ -98,7 +103,7 @@ export function createApplicationMenuProductItems({
 		tracks: Object.freeze([nestedSequences, multicamera, ...candidateAuthoring.tracks,
 			...selectedFinishing.tracks, ...soundscaperWorkflows.tracks].filter(Boolean)),
 		generate: candidateAuthoring.generate,
-		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect,
+		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect, ...imageDevelop,
 			...soundscaperWorkflows.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
 		analyze: Object.freeze([...selectedFinishing.analyze, ...soundscaperWorkflows.analyze,
 			...soundscaperNativeServices.analyze]),

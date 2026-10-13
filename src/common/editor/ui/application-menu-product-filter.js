@@ -31,6 +31,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 					'framescaper-ofx-manage', 'framescaper-video-effects', 'framescaper-video-transitions',
 					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
 					'framescaper-video-finishing',
+					'image-develop-repairs', 'image-develop-masks',
 				]);
 				return {
 					...menu,

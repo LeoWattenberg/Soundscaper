@@ -18,6 +18,8 @@ import {
 	type FramescaperCandidateAuthoringSurface,
 } from '../framescaper-candidate-authoring-actions.ts';
 import { framescaperSelectedVisualAuthoringSurfaceId } from '../framescaper-selected-visual-authoring-menu.ts';
+import { framescaperImageDevelopAuthoringForCurrentV1 } from '../../../../framescaper/editor-selected-timeline-image-develop-authoring-controller-v1.ts';
+import type { FramescaperImageDevelopKindV1 } from '../framescaper-image-develop-menu-v1.ts';
 import {
 	framescaperFinishingSurfaceId,
 	type FramescaperFinishingSurface,
@@ -85,6 +87,10 @@ export function createProductWorkspaceApplicationMenuRuntime({
 	});
 	const candidateAuthoringRuntime = framescaperCandidateAuthoringActionRuntimeFor(controller);
 	return Object.freeze({
+		openFramescaperImageDevelop: productId === 'framescaper' && controller !== null && typeof controller === 'object'
+			&& framescaperImageDevelopAuthoringForCurrentV1(controller) !== null ? (kind: FramescaperImageDevelopKindV1) => {
+				if (!editingBlocked && !readOnly && (kind === 'repairs' || kind === 'masks')) openSurface(`image-develop-${kind}`);
+			} : undefined,
 		framescaperNativeServices: wrapFramescaperNativeServicesMenuRuntime(nativeServicesRuntime, run),
 		framescaperCandidateAuthoring: candidateAuthoringRuntime === null ? null : Object.freeze({
 			surfaces: candidateAuthoringRuntime.surfaces,
