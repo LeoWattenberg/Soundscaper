@@ -67,6 +67,7 @@ export default function AudacityPortEffectLayout({ effectType, definition, param
 			value={Number(((Number(parameters.gainDb) || 0) + sourcePeak).toFixed(3))}
 			range={[-50 + sourcePeak, 50 + sourcePeak]} step={0.1} presentation="slider"
 			copy={copy} disabled={disabled} hook="newPeakAmplitude" timeCodeUnit={null}
+			onDraftChange={control?.props?.onDraftChange}
 			onCommit={next => control?.props?.onCommit?.(next - sourcePeak, { controlValue: next - sourcePeak })} />;
 	};
 	const rateControls = ['audacity-change-tempo', 'audacity-change-speed-pitch'].includes(effectType);

@@ -298,6 +298,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					/>
 				)}
 				<EffectParameterEditor
+					key={JSON.stringify([projectIdentity, selectionType])}
 					advancedSettings={advancedSettings}
 					effect={{
 						type: selectionType,
@@ -322,6 +323,12 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						? controller.actions.effects.auditionSelectionParametricEq
 						: undefined}
 					onChange={(changes) => changes.params && updateSelectionParams(changes.params)}
+					onParameterDraft={selectionType === 'audacity-amplify' ? (name) => {
+						if (name !== 'gainDb' || blocked || liveProjectIdentity() !== projectIdentity) return;
+						// Reserve the current authored gain before a pending headroom scan finishes.
+						// Text still commits on blur; Escape keeps this prior gain, not the late default.
+						controller.actions.effects.setSelectionParams({ gainDb: selectionParams.gainDb });
+					} : undefined}
 				/>
 				{selectionType === 'eq' && snapshot.selection?.frequencyRange && (
 					<p className="audio-editor-panel-hint" data-parametric-eq-spectral-notice>
