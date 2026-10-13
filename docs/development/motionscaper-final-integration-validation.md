@@ -1,8 +1,9 @@
 # Motionscaper final integration status
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
-`feat/motionscaper` in the main Motionscaper worktree. The separate ordinary
-browser capture still uses frozen source
+`feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
+is source `af41c31cdfcbd2ac64fd412c599e7c4d229f12d0`; its combined gates remain
+open. The separate ordinary browser capture uses frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026` on
 `feat/motionscaper-final-validation`. This status records fresh validation on
 2026-10-13. Its results do not qualify the newer combined implementation,
@@ -63,7 +64,41 @@ checks are implemented. The register remains on the candidate channel. No tag,
 register activation, hosted deployment, dispatch or publication was performed
 by this recovery.
 
-## Current gate ledger
+## Latest integrated validation
+
+All twelve packages remain **In progress**. The complete implementation and a
+passing focused workflow are distinct from the required combined acceptance.
+These newer results retain their own source identities; none changes the failed
+source-328 ledger below into a pass.
+
+| Gate and source | Latest terminal result |
+| --- | --- |
+| Complete static gate, `19bc434e8` | Passed full lint, types, architecture, audits, documentation and builds. Later source changes still need their applicable gates. |
+| All five exhaustive Node partitions, `cbf09f9ea` | Closed failed: 27,226 tests, 27,211 passed, one failure and 14 declared skips. Motion's 1,032 tests passed without skips, including real pinned-helper MOV decoding. The sole failure was a stale synthetic Baseline AVC fixture after the owning producer began requiring Main; its corrected fixture and stronger container checks subsequently passed 14 focused checks. A fresh complete accepted Node gate remains required. |
+| Retained mixed-image reopening, `cbf09f9ea` | The unchanged workflow passed Chromium, Firefox and WebKit, without skips or retries. Per-file read serialization fixes the reproduced same-worker exclusive OPFS lock collision; the retained image was intact. This does not claim cross-worker or read/write arbitration. |
+| Complete linked/dual-origin suites, `19bc434e8` | Closed failed: 34/36 linked cases and 8/9 dual-origin cases passed. Firefox failures were image reopening and an absent-host GPU assertion; WebKit lost the archive of a two-download pair. All three first linked-editor/offline/export workflows passed. |
+| Fresh complete linked/dual-origin suites, `c61839c8d` | In progress after integrated OPFS, native-host witness and download scheduling repairs. Chromium's complete linked partition closed with 11/12 passing and a new realtime audio-clock gap during native export; all its GPU/loss/restore checks passed. Remaining partitions and causal diagnosis are open. |
+| Maintained authored-title Linux workflow, `9173a2063` | Passed actual New, shape/text authoring, native Save, preview, export cancellation/retry and independent ProRes decoding. A normal Tab releases GTK filename completion before the original single Save click. Two-frame RGB error was 3.93/1023 against the unchanged eight-code limit; alpha was exact. Registration in the required complete aggregate remains in progress. |
+| Six unchanged WebKit regression workflows, `cbf09f9ea` | Punch, three tempo workflows, musical selection and configurable-effects search passed, without skips or retries. Non-reproduction does not establish the causes of their earlier failures. |
+| Controlled-duration browser workflow, `cbf09f9ea` | Closed failed on command-observer process-stat admission. Original validation and cleanup remain enforced; a later evidence-only repair retains the refused stat for diagnosis. The duration gate is not qualified. |
+| Controlled-duration native workflow, `cbf09f9ea` | Closed failed after 300-frame preview/export because the general sampler captured only two real encoder-memory observations, below the unchanged requirement of three. A separate bounded encoder observer is in development. The 1,200-frame run and complete duration gate remain unqualified. |
+| Complete accepted coverage union and external matrix | Open. Failed raw profiles remain unparsed and unadmitted; no coverage floor, startup ceiling, timeout, color bound or signal bound was weakened. No installed AE environment is available. |
+
+The exhaustive Node receipt is `current-cbf09-node/closed.json`, SHA-256
+`b4114a584812dfcee0b8d72c193ebd73d433e765402639d1bdb327ae2f31546d`.
+All five commands closed, source and staged helper bytes remained unchanged,
+and all observed owned process identities were gone. The maintained authored
+receipt is `current-9173-native-qualification/authored-command/outer-tool-closure.json`,
+SHA-256 `7e3aa68474dac446141f06cd1e6baabb153682a5ab8d73e34f55dcf0bb8f5459`.
+Native package custody preserves the original sandbox bytes/inodes and records
+changes to historical package metadata; older packages are not silently
+requalified after those changes.
+
+The duration profile is **300 and 1,200 frames**, or ten and forty seconds at
+30 fps, not 300 and 1,200 seconds. Its fixed picture, PCM, memory, timing and
+cleanup requirements remain unchanged.
+
+## Frozen source-328 gate ledger
 
 | Gate at source 328 | Result recorded on 2026-10-13 |
 | --- | --- |
@@ -192,11 +227,12 @@ replay of the retained authored input, with a maximum 3.93-code error against
 the same eight-code limit. Those receipts remain bound to source `f66040509`,
 not the newer combined implementation. They do not establish a new packaged
 GUI result.
-The maintained authored-title workflow now checks exact saved menu intent and
-decoder/CanvasKit byte authority; its 14 focused checks pass. Its real native
-Save, preview, destination cancellation/retry and export execution remains
-pending on a fresh package. Menu execution and the earlier small-scene aggregate
-do not close the failed authored-title gate. Normal native reuse verification
+The maintained authored-title workflow checks exact saved menu intent and
+decoder/CanvasKit byte authority; its initial 14 focused checks passed before
+fresh native execution. The later source-9173 standalone success is recorded
+above. Menu execution and the earlier small-scene aggregate did not close the
+failed authored-title gate; the required combined aggregate and duration gates
+remain separate. Normal native reuse verification
 and a fresh maintained reference-decoder build/verification passed on clean
 source `a92368082`; all seven prefix trees and 172 files remained unchanged.
 The native receipt retains its original `f66040509` identity. These phases did

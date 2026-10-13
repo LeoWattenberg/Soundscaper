@@ -74,8 +74,9 @@ package complete.
 ### Implementation status
 
 M01–M12 are **In progress**; named implementations do not close release gates.
-Source `328cae02f` passed fresh static, Motion Node and bounded Linux gates.
-Full Node/browser regressions, color repairs, duration and external gates remain.
+Substantial implementations and focused browser/native workflows pass; the
+current combined acceptance, remaining regressions, duration and external gates
+remain open. Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
