@@ -6,7 +6,6 @@ import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-iden
 import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	M3_LONGFORM_EDITORIAL_SPECIFICATION,
-	applyM3LongformEditorialEditPlan,
 	createM3LongformEditorialBaseProject,
 	createM3LongformEditorialEditPlan,
 	createM3LongformEditorialWorkload,
@@ -14,6 +13,15 @@ import {
 } from '../src/common/editor/quality/m3-longform-editorial-workload.ts';
 import { loadSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
+
+type Workload = ReturnType<typeof createM3LongformEditorialWorkload>;
+let generatedWorkloads: readonly [Workload, Workload] | undefined;
+
+// Two independent full replays serve the position, byte and loader assertions.
+// Keep this lazy so a focused schema/shape run does not replay the edit plan.
+function workloads(): readonly [Workload, Workload] {
+	return generatedWorkloads ??= [createM3LongformEditorialWorkload(), createM3LongformEditorialWorkload()];
+}
 
 test('the milestone 3 long-form fixture has the exact two-hour editorial shape', () => {
 	const project = createM3LongformEditorialBaseProject();
@@ -57,9 +65,10 @@ test('the seeded edit plan contains exactly 10,000 production commands in a froz
 });
 
 test('the edit workload replays deterministically with exact audio and video positions', () => {
-	const plan = createM3LongformEditorialEditPlan();
-	const first = applyM3LongformEditorialEditPlan(createM3LongformEditorialBaseProject(), plan);
-	const second = applyM3LongformEditorialEditPlan(createM3LongformEditorialBaseProject(), plan);
+	const [firstWorkload, secondWorkload] = workloads();
+	const plan = firstWorkload.editPlan;
+	const first = firstWorkload.project;
+	const second = secondWorkload.project;
 	validateSoundscaperProject(first);
 
 	assert.deepEqual(second, first);
@@ -73,8 +82,7 @@ test('the edit workload replays deterministically with exact audio and video pos
 });
 
 test('the complete generated workload remains byte deterministic and specification-bound', () => {
-	const first = createM3LongformEditorialWorkload();
-	const second = createM3LongformEditorialWorkload();
+	const [first, second] = workloads();
 	const projectBytes = JSON.stringify(first.project);
 	const planBytes = JSON.stringify(first.editPlan.commands);
 
@@ -104,7 +112,7 @@ test('the long-form fixture is generated at the newest declared Soundscaper sche
 });
 
 test('the maintained Soundscaper loader opens the long-form fixture without migration', () => {
-	const loaded = loadSoundscaperProject(createM3LongformEditorialWorkload().project);
+	const loaded = loadSoundscaperProject(workloads()[0].project);
 	assert.equal(loaded.readOnly, false);
 	assert.equal(loaded.intrinsicReadOnly, false);
 	assert.equal(loaded.reason, null);
