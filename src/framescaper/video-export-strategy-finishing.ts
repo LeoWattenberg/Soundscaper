@@ -207,7 +207,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 		} else {
 			const execution = await createKeyedExecution(profile, authority, request, assetStore, exactDependencies);
 			await runFramescaperFinishingEncode(async () => {
-				await consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.retimeProject, exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor }, value => consume(value, execution.rgbaOutput));
+				await consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.retimeProject, exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor, rgbaOutput: execution.rgbaOutput }, value => consume(value, execution.rgbaOutput));
 				DISPOSITIONS.set(request.plan, execution.disposition());
 			}, () => execution.dispose());
 		}
@@ -243,7 +243,7 @@ async function encodeKeyedPicture(
 	return runFramescaperFinishingEncode(async () => {
 		const result = await delegate.encode({
 			...request, canonicalProject: authority.retimeProject,
-			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
+			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor, rgbaOutput: execution.rgbaOutput,
 		});
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
@@ -265,7 +265,7 @@ async function encodeKeyedPictureToSink<Output>(
 	return runFramescaperFinishingEncode(async () => {
 		const result = await delegate.encodeToSink({
 			...request, canonicalProject: authority.retimeProject,
-			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
+			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor, rgbaOutput: execution.rgbaOutput,
 		}, sink);
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;

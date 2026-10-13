@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { VideoRgbaOutput } from './video-planar-pixels.ts';
 
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { raceAbortablePromise } from './abort-race.ts';
@@ -29,6 +30,7 @@ const DEFAULT_MAXIMUM_OUTPUT_BYTES = 2 * 1024 * 1024 * 1024;
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export interface VideoKeyframeMediabunnyExecutionRequest extends FileSizeWarningOptions {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly workload: VideoKeyframeEncoderWorkload;
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly producer: VideoKeyframeRgbaFrameProducer;
@@ -133,6 +135,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 					returnValue: 'Video keyframe RGBA producers must return void.',
 					allocation: 'The video keyframe producer did not retain its exact RGBA allocation.',
 				}),
+				rgbaOutput: request.rgbaOutput,
 				videoCodec: workload.format === 'mp4' ? 'h264' : 'vp9',
 				codec: webCodecs.codec,
 				bitrate: webCodecs.bitrate,

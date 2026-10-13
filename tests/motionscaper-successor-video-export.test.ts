@@ -42,6 +42,7 @@ for (const mode of ['encoded', 'raw-native'] as const) test(`successor ${mode} d
 		createResolver() { throw new Error('Generated-only export must not create an encoded-media resolver'); },
 		createRenderer: createVideoKeyframeOfflineRgbaRenderer,
 		async encodeVideo(_engine, request) {
+			assert.deepEqual(request.rgbaOutput, { encoding: 'rec709', alphaMode: 'straight', precision: 'unorm8' });
 			for (const index of [2, 0, 1]) { const rgba = new Uint8Array(request.producer.byteLength); await request.producer.produce(request.frameSource.frame(index), rgba, { signal: request.signal! }); pictures[index] = rgba; }
 			const bytes = Uint8Array.of(1, 2, 3); return { bytes, byteLength: 3, videoEncoder: 'ffmpeg', format: 'mp4', extension: '.mp4', mimeType: 'video/mp4', frameCount: 3, rgbaChunkCount: 3, outputChunkCount: 1 };
 		},

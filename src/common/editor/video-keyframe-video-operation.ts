@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { VideoRgbaOutput } from './video-planar-pixels.ts';
 
 import type { VideoKeyframeAudioInputSource } from './video-keyframe-audio-input.ts';
 import {
@@ -18,6 +19,7 @@ export interface VideoKeyframeDeliveredOutput<Output> {
 }
 
 export interface VideoKeyframeVideoOperationRequest<Output> {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly lease: VideoKeyframeEncoderOperationLease;
 	readonly workload: VideoKeyframeEncoderWorkloadRequest;
 	readonly producer: VideoKeyframeRgbaFrameProducer;
@@ -59,6 +61,7 @@ export async function runVideoKeyframeVideoOperation<Output>(
 		encoded = await encodeVideoKeyframeFrames({
 			...request.workload,
 			producer: request.producer,
+			rgbaOutput: request.rgbaOutput,
 			...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
 			...(request.audioSource ? { audioSource: request.audioSource } : {}),
 			ffmpeg: lease,

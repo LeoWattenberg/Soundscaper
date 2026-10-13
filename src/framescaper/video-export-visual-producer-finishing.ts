@@ -57,6 +57,7 @@ export async function createVisualExecution(
 		? Object.freeze({}) : Object.freeze({ maximumOutputBytes: request.maximumOutputBytes as number });
 	const options: VideoKeyframeOfflineEncoderOptions = Object.freeze({
 		format: request.plan.format,
+		rgbaOutput: exact.rgbaOutput,
 		quality: request.plan.quality,
 		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
 		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
