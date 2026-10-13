@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readFile } from 'node:fs/promises';
-import { expect, test } from './audio-editor-test-fixtures.js';
+import { expect, audioTest as test } from './helpers/motionscaper-linked-fixture.js';
 import { createMotionscaperOpaqueArchive } from '../helpers/motionscaper-opaque-archive.ts';
 import { disableNativeSavePicker, seedWorkspaceOnboardingComplete, waitForEditor, waitForProjectActivation } from './audio-editor-test-helpers.js';
 

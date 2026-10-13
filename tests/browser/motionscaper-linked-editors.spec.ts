@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { Page } from '@playwright/test';
-import { expect, test, withBrowserCoverageContext } from './helpers/browser-coverage-fixture.js';
+import { expect, test, withBrowserCoverageContext, inspectLinkedOfflineReadiness } from './helpers/motionscaper-linked-fixture.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { observeLinkedVideoPixels, verifyLinkedVideoPixels } from './helpers/motion-linked-video-pixels.js';
@@ -45,7 +45,7 @@ async function exportVideoColor(page: Page): Promise<number[]> {
 	test.info().annotations.push({ type: 'linked-video-file-fidelity', description: verified.classifications.join(', ') });
 	return verified.colors[0]!;
 }
-test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser, browserCoverage, browserCoverageSites, launchOptions, headless, channel }) => {
+test('actual editor menus connect saved compositions, update automatically, and pin Undo until Resume', async ({ page: frame, context, browser, browserCoverage, browserCoverageSites, launchOptions, headless, channel, linkedOrigins }) => {
 	test.setTimeout(120_000);
 	const errors: string[] = []; frame.on('pageerror', error => errors.push(error.message));
 	await frame.addInitScript(() => Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined }));
@@ -88,8 +88,9 @@ test('actual editor menus connect saved compositions, update automatically, and 
 		await expect.poll(() => previewColor(imported)).toEqual([0, 0, 255, 255]);
 		const encodedColor = await exportVideoColor(imported); for (const [index, expected] of [0, 0, 255, 255].entries()) expect(Math.abs(encodedColor[index]! - expected), JSON.stringify(encodedColor)).toBeLessThanOrEqual(12);
 	});
-	await frame.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })); });
-	await context.setOffline(true); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	const offlineReadiness = await inspectLinkedOfflineReadiness(frame, linkedOrigins.sites[0]!);
+	await test.info().attach('linked-offline-used-font-custody', { contentType: 'application/json', body: JSON.stringify(offlineReadiness, null, 2) });
+	await linkedOrigins.close(); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
 	await expect.poll(() => previewColor(frame)).toEqual([0, 0, 255, 255]); await menu(frame, 'File', 'Linked compositions…'); await expect(links.locator('code')).toHaveText(conformed!);
 	expect(errors).toEqual([]);
 });

@@ -6,10 +6,7 @@ const frameOrigin = `http://127.0.0.1:${framePort}`, motionOrigin = `http://127.
 export default defineConfig({
 	testDir: './tests/browser', testMatch: ['**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts', '**/motionscaper-successor-opaque-archive.spec.ts', '**/motionscaper-successor-shell.spec.ts'], workers: 1, timeout: 90_000,
 	forbidOnly: Boolean(process.env.CI), expect: { timeout: 15_000 }, reporter: 'list', outputDir: 'test-results',
-	webServer: [ ['framescaper', framePort, frameOrigin], ['motionscaper', motionPort, motionOrigin] ].map(([product, port, origin]) => ({
-		command: `node scripts/serve-pages-site.mjs .wrangler/motionscaper-links/${product} --host 127.0.0.1 --port ${port}`,
-		url: `${origin}/en/`, reuseExistingServer: false, timeout: 120_000,
-	})),
+	// Each serialized case owns both exact origins through its coverage collector's teardown.
 	use: { browserCoverageSites: [
 		{ productId: 'framescaper', origin: frameOrigin, outputDirectory: resolve('.wrangler/motionscaper-links/framescaper') },
 		{ productId: 'motionscaper', origin: motionOrigin, outputDirectory: resolve('.wrangler/motionscaper-links/motionscaper') },

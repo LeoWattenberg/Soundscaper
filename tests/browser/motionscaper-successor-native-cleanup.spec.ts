@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { Page } from '@playwright/test';
-import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { expect, test } from './helpers/motionscaper-linked-fixture.js';
 import { motionscaperSuccessorNativeFixture } from '../helpers/motionscaper-successor-native-fixture.ts';
 import { exportMotionscaperArchive } from '../../src/motionscaper/editor-scape.ts';
 import { FRAMESCAPER_SUCCESSOR_DELIVERY_PROFILE } from '../../src/framescaper/editor-successor-native-delivery-contract.ts';
