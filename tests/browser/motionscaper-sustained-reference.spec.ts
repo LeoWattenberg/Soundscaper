@@ -6,14 +6,15 @@ import { join, resolve } from 'node:path';
 import type { BrowserContext } from '@playwright/test';
 import { test } from './helpers/browser-coverage-fixture.js';
 import { build } from 'esbuild';
-import { verifyMotionSustainedBrowserVideo } from '../../scripts/performance/motionscaper-sustained-browser.ts';
+import { verifyMotionSustainedBrowserVideo } from '../../scripts/performance/motionscaper-sustained-browser-reference.ts';
 
 import { authoredWildcardResponseHeaders } from '../../scripts/lib/static-response-headers.mjs';
 
 const origin = 'http://127.0.0.1:4454';
 async function oracleBundle() {
 	const result = await build({ entryPoints: [resolve('scripts/performance/motionscaper-sustained-webm.ts')],
-		bundle: true, write: false, format: 'iife', globalName: 'MotionSustainedVerification', platform: 'browser' });
+		bundle: true, write: false, format: 'iife', globalName: 'MotionSustainedVerification', platform: 'browser',
+		tsconfigRaw: { compilerOptions: { alwaysStrict: true } } });
 	assert.equal(result.outputFiles.length, 1);
 	const content = result.outputFiles[0]!.text;
 	assert.match(content, /^"use strict";\s+var MotionSustainedVerification =/u);

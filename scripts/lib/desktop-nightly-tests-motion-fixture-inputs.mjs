@@ -9,6 +9,11 @@ export const NIGHTLY_MOTION_FIXTURE_INPUTS = Object.freeze([
 	'scripts/lib/motionscaper-qualification-media.ts',
 	'scripts/lib/motionscaper-qualification-opaque-archive.ts',
 	'scripts/lib/motionscaper-successor-qualification-fixture.ts',
+	// Exact browser oracle closure, including the spec's runtime esbuild entry.
+	'scripts/performance/motionscaper-sustained-browser-reference.ts',
+	'scripts/performance/motionscaper-sustained-webm.ts',
+	'scripts/performance/motionscaper-sustained-opus.ts',
+	'scripts/performance/motionscaper-sustained-plan.ts',
 	'tests/helpers/framescaper-model-fixture-common.ts',
 	'tests/helpers/framescaper-model-fixture.ts',
 	'tests/helpers/framescaper-timeline-image-preview-fixture.ts',

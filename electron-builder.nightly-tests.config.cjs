@@ -111,6 +111,10 @@ module.exports = {
 				// launcher's own modules reach the main process through `files`
 				// above, so this carries the payload's copies, not the launcher's.
 				'scripts/lib/**/*',
+				'scripts/performance/motionscaper-sustained-browser-reference.ts',
+				'scripts/performance/motionscaper-sustained-webm.ts',
+				'scripts/performance/motionscaper-sustained-opus.ts',
+				'scripts/performance/motionscaper-sustained-plan.ts',
 				'scripts/*.mjs',
 				'src/**/*',
 				'vendor/audacity-design-system/components/src/assets/fonts/MusescoreIcon.woff2',
