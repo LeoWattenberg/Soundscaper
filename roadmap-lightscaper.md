@@ -315,6 +315,16 @@ real-library scale.
 - **Shared — Optional:** merge-on-import of a catalog Scape archive into an open
   catalog.
 
+The existing File → Photo batch rename and guarded Undo workflow now admits
+complete repaired Photo3 records through the named Current Session child.
+Selection, plans, receipts and inverse packets retain their bounded scalar
+wire1; the inherited V1/V2 methods stay strict. Rename preserves every retained
+develop version, history entry, snapshot, immutable Original and LUT/brush
+resource. No-op edits add no history; stale inverses stay available, and known
+native acknowledgments survive late cancellation. Native tests also verify
+mixed Photo1/2/3 publication and reopening through the query index. The broader
+L3 exit gates remain in progress.
+
 ### Exit gate
 
 - Node and browser workflows cover the full loop keyboard-complete in every

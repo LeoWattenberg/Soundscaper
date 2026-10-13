@@ -49,7 +49,7 @@ bytes below the plan ceiling.
 
 ## Publication, cancellation and history
 
-An item operation borrows the session's current live, idle `PhotoCommandOwnerV1`.
+An item operation borrows the session's current live, idle photo command owner.
 Composition refreshes that owner under the catalog writer lease before access;
 this helper does not grant authority to a closed or stale resource. It checks
 native cancellation before owner access, validates the current document and
@@ -128,6 +128,25 @@ Forward successes create an inverse but carry no error detail, and the full
 every admitted name, revision, ACK and remaining inverse without increasing the
 ceiling or throwing after a durable edit because of ordinary error detail.
 
-Menu/UI integration and native batch workflows remain a later composition
-packet. Single-photo capture-time edits already use the existing authored
-capture timestamp with an optional unknown offset; they need no schema change.
+## Current repaired photos
+
+The Current Session exposes `batchRenameCurrent`, borrowing the same catalog
+writer, selected `PhotoCommandOwnerCurrentV1`, and joined Session lifetime.
+Its selection and item facades admit the complete retained Photo1/2/3 document,
+including inactive versions, redo history, snapshots and repair resource
+declarations. Metadata publication preserves that document's original schema;
+renaming an older photo never upgrades its develop process.
+
+The permanent V1/V2 readers and inherited Session methods retain their strict
+admission. A private fixed-profile kernel shares the serial loop and scalar
+receipt assembly; the profile is chosen by the owning facade and never supplied
+by a request. Selection, plan, receipt and inverse remain wire1 with the same
+64-item and byte limits. No new writer, storage namespace, schema or resource
+publication is introduced.
+
+The existing [menu workflow](lightscaper-batch-rename-ui.md) selects the explicit
+Current child for repaired photos. Native tests cover immutable Original and
+retained repair/LUT/brush custody, guarded inverse restoration, stale slots,
+no-op history, late cancellation after acknowledgment and fresh reopening.
+Single-photo capture-time edits use the existing authored capture timestamp
+with an optional unknown offset; they need no schema change.

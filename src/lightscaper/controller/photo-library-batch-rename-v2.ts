@@ -1,144 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { PhotoLibraryBatchRenameItemV1, PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1,
-	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoItemV1, PhotoLibraryBatchRenameUndoV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
-import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
-import type { PhotoCatalogRepositoryV2 } from '../catalog/photo-catalog-repository-v2.ts';
-import { field, id, record } from '../catalog/value-validation.ts';
-import { normalizePhotoBatchRenamePlanV1 } from './photo-batch-rename-v1.ts';
-import { applyPhotoBatchRenameItemV2, applyPhotoBatchRenameUndoItemV2 } from './photo-batch-rename-v2.ts';
-import { PHOTO_BATCH_RENAME_RECEIPT_MAXIMUM_BYTES_V1, PHOTO_BATCH_RENAME_ERROR_MAXIMUM_UNITS_V1 } from './photo-library-batch-rename-v1.ts';
+import { readPhotoLibraryBatchRenameSelectionForProfileV1, renamePhotoLibraryBatchForProfileV1,
+	undoPhotoLibraryBatchRenameForProfileV1, type PhotoBatchRenameSessionPortsForProfileV1 } from './internal/photo-library-batch-rename-kernel-v1.ts';
 export { planPhotoLibraryBatchRenameV1 as planPhotoLibraryBatchRenameV2 } from './photo-library-batch-rename-v1.ts';
-import { checkBatchRenameBytes, normalizePhotoBatchRenameUndoV1, readBatchRenameArray } from './photo-batch-rename-inverse-v1.ts';
-import type { PhotoCommandOwnerV2 } from './photo-command-owner-v2.ts';
-import { admitPhotoLibraryQueryBuildRequestV1 } from './photo-library-query-v1.ts';
+export type PhotoBatchRenameSessionPortsV2 = PhotoBatchRenameSessionPortsForProfileV1<'legacy2'>;
 
-const SNAPSHOT_MAXIMUM_BYTES = 256 * 1024;
-const nativeAbort = AbortSignal.prototype.throwIfAborted;
-const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
-
-/** Borrow the existing session lifecycle and owner, never create another writer. */
-export interface PhotoBatchRenameSessionPortsV2 {
-	readonly repository: Pick<PhotoCatalogRepositoryV2, 'loadPhoto'>;
-	readonly mutate: <Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal) => Promise<Result>;
-	readonly withPhoto: <Result>(catalogId: string, photoId: string, signal: AbortSignal,
-		run: (owner: PhotoCommandOwnerV2, signal: AbortSignal) => Promise<Result>) => Promise<Result>;
+/** Complete fixed legacy2 admission shares the existing selected Session writer. */
+export function readPhotoLibraryBatchRenameSelectionV2(ports: PhotoBatchRenameSessionPortsV2, value: unknown, options: unknown = {}) {
+	return readPhotoLibraryBatchRenameSelectionForProfileV1('legacy2', ports, value, options);
 }
-
-function admitPlan(value: unknown): PhotoLibraryBatchRenamePlanV1 {
-	const input = record(value, 'photo library batch rename plan', ['schemaVersion', 'kind', 'catalogId', 'rename', 'items']);
-	if (field(input, 'schemaVersion') !== 1) throw new RangeError('Unsupported or future photo batch rename version.');
-	if (field(input, 'kind') !== 'photo-batch-rename') throw new RangeError('Unsupported photo batch rename kind.');
-	return normalizePhotoBatchRenamePlanV1({ schemaVersion: 1, kind: 'photo-batch-rename', catalogId: field(input, 'catalogId'),
-		rename: field(input, 'rename'), items: readBatchRenameArray(field(input, 'items'), 'batch rename items') });
+export function renamePhotoLibraryBatchV2(ports: PhotoBatchRenameSessionPortsV2, value: unknown, options: unknown = {}) {
+	return renamePhotoLibraryBatchForProfileV1('legacy2', ports, value, options);
 }
-
-/** One document per step, only scalar names/revisions survive the point read. */
-export async function readPhotoLibraryBatchRenameSelectionV2(ports: PhotoBatchRenameSessionPortsV2, value: unknown, options: unknown = {}): Promise<PhotoLibraryBatchRenameSnapshotV1> {
-	const admitted = admitPhotoLibraryQueryBuildRequestV1(options), seen = new Set<string>();
-	const selected = readBatchRenameArray(value, 'batch rename photo IDs').map(value => {
-		const key = id(value, 'batch rename photo ID');
-		if (seen.has(key)) throw new RangeError('Batch rename contains duplicate photo identities.');
-		seen.add(key); return key;
-	});
-	const borrowed = capture(ports); checkOptional(admitted.signal);
-	return borrowed.mutate(async (catalogId, signal) => {
-		const selection: PhotoLibraryBatchRenameSnapshotV1['selection'][number][] = [];
-		for (let position = 0; position < selected.length; position++) {
-			check(signal);
-			const key = selected[position]!;
-			const value = await borrowed.loadPhoto(catalogId, key); check(signal);
-			if (value === null) throw new ReferenceError('Batch rename photo is missing.');
-			const photo = normalizePhotoDocumentV1OrV2(value);
-			check(signal);
-			if (photo.catalogId !== catalogId || photo.id !== key) throw new ReferenceError('Batch rename photo is missing or foreign.');
-			selection.push(Object.freeze({ photoId: key, expectedRevision: photo.revision, fileName: photo.metadata.fileName }));
-			if (position + 1 < selected.length) await task();
-		}
-		const snapshot: PhotoLibraryBatchRenameSnapshotV1 = Object.freeze({ schemaVersion: 1, catalogId, selection: Object.freeze(selection) });
-		checkBatchRenameBytes(snapshot, SNAPSHOT_MAXIMUM_BYTES, 'Batch rename snapshot'); return snapshot;
-	}, admitted.signal);
+export function undoPhotoLibraryBatchRenameV2(ports: PhotoBatchRenameSessionPortsV2, value: unknown, options: unknown = {}) {
+	return undoPhotoLibraryBatchRenameForProfileV1('legacy2', ports, value, options);
 }
-
-export async function renamePhotoLibraryBatchV2(ports: PhotoBatchRenameSessionPortsV2, value: unknown, options: unknown = {}): Promise<PhotoLibraryBatchRenameReceiptV1> {
-	const admitted = admitPhotoLibraryQueryBuildRequestV1(options), plan = admitPlan(value);
-	const borrowed = capture(ports); checkOptional(admitted.signal); return runBatch(borrowed, plan, 'rename', admitted.signal);
-}
-
-export async function undoPhotoLibraryBatchRenameV2(ports: PhotoBatchRenameSessionPortsV2, value: unknown, options: unknown = {}): Promise<PhotoLibraryBatchRenameReceiptV1> {
-	const admitted = admitPhotoLibraryQueryBuildRequestV1(options), undo = normalizePhotoBatchRenameUndoV1(value);
-	const borrowed = capture(ports); checkOptional(admitted.signal); return runBatch(borrowed, undo, 'undo', admitted.signal);
-}
-
-async function runBatch(ports: Captured, packet: PhotoLibraryBatchRenamePlanV1 | PhotoLibraryBatchRenameUndoV1,
-	action: 'rename' | 'undo', outerSignal?: AbortSignal): Promise<PhotoLibraryBatchRenameReceiptV1> {
-	const outcomes: PhotoLibraryBatchRenameItemV1[] = [];
-	const inverse: PhotoLibraryBatchRenameUndoItemV1[] = packet.kind === 'photo-batch-rename-undo' ? [...packet.items] : [];
-	let started = false, activeSignal: AbortSignal | undefined;
-	let completion: PhotoLibraryBatchRenameReceiptV1['completion'] = 'finished', message: string | null = null;
-	try {
-		await ports.mutate(async (catalogId, signal) => {
-			if (catalogId !== packet.catalogId) throw new RangeError('Batch rename differs from the current catalog identity.');
-			started = true; activeSignal = signal;
-			for (let position = 0; position < packet.items.length; position++) {
-				const item = packet.items[position]!, before = outcomes.length;
-				try {
-					check(signal);
-					await ports.withPhoto(catalogId, item.photoId, signal, async (owner, admitted) => {
-						const ack = packet.kind === 'photo-batch-rename'
-							? await applyPhotoBatchRenameItemV2(owner, packet, position, { signal: admitted })
-							: await applyPhotoBatchRenameUndoItemV2(owner, packet, position, { signal: admitted });
-						// Publish the scalar receipt inside the borrowed operation before
-						// any cancellation check or surrounding lease cleanup can fail.
-						outcomes.push(Object.freeze({ ...ack, message: null }));
-						if (ack.status === 'renamed') inverse.push(Object.freeze({ index: ack.index, photoId: ack.photoId,
-							expectedRevision: ack.revision, fileName: ack.fileName, previousDisplayName: ack.previousDisplayName }));
-						else if (ack.status === 'restored') inverse.splice(inverse.findIndex(entry => entry.index === ack.index), 1);
-					});
-				} catch (error) {
-					if (aborted(signal) || outcomes.length !== before) throw error;
-					const previousDisplayName = 'sourceFileName' in item ? item.sourceFileName : item.fileName;
-					const fileName = 'sourceFileName' in item ? item.fileName : item.previousDisplayName;
-					outcomes.push(Object.freeze({ index: item.index, photoId: item.photoId, previousDisplayName, fileName,
-						revision: null, status: 'failed', message: failureMessage(error) }));
-				}
-				if (position + 1 < packet.items.length) await task();
-			}
-		}, outerSignal);
-	} catch (error) {
-		if (!started) throw error;
-		const cancelled = activeSignal !== undefined && aborted(activeSignal) && Object.is(error, Reflect.apply(nativeReason, activeSignal, []));
-		// A normal final late abort returns without reaching this catch. An
-		// independent cleanup failure still needs reporting after every ACK.
-		completion = cancelled && outcomes.length < packet.items.length ? 'cancelled' : 'interrupted';
-		message = failureMessage(error, activeSignal);
-	}
-	const undo = inverse.length === 0 ? null : normalizePhotoBatchRenameUndoV1({ schemaVersion: 1, kind: 'photo-batch-rename-undo', catalogId: packet.catalogId, items: inverse });
-	const receipt: PhotoLibraryBatchRenameReceiptV1 = Object.freeze({ schemaVersion: 1, action, completion, items: Object.freeze(outcomes), undo, message });
-	checkBatchRenameBytes(receipt, PHOTO_BATCH_RENAME_RECEIPT_MAXIMUM_BYTES_V1, 'Batch rename receipt'); return receipt;
-}
-
-function check(signal: AbortSignal): void { Reflect.apply(nativeAbort, signal, []); }
-function aborted(signal?: AbortSignal): boolean { return signal !== undefined && (Reflect.apply(nativeAborted, signal, []) as unknown) === true; }
-function task(): Promise<void> { return new Promise(resolve => { setTimeout(resolve, 0); }); }
-function failureMessage(error: unknown, signal?: AbortSignal): string {
-	if (aborted(signal) && Object.is(error, Reflect.apply(nativeReason, signal, []))) return 'Photo batch change cancelled.';
-	try {
-		const descriptor = error && typeof error === 'object' ? Object.getOwnPropertyDescriptor(error, 'message') : undefined;
-		if (descriptor && 'value' in descriptor && typeof descriptor.value === 'string') return descriptor.value.slice(0, PHOTO_BATCH_RENAME_ERROR_MAXIMUM_UNITS_V1);
-	} catch { /* Error inspection cannot veto a durable acknowledgment. */ }
-	return 'Photo batch change failed.';
-}
-
-const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
-function checkOptional(signal?: AbortSignal): void { if (signal !== undefined) check(signal); }
-function capture(ports: PhotoBatchRenameSessionPortsV2) {
-	const repository = ports.repository, load = repository.loadPhoto, mutate = ports.mutate, withPhoto = ports.withPhoto;
-	if ([load, mutate, withPhoto].some(method => typeof method !== 'function')) throw new TypeError('Current batch rename requires complete captured capabilities.');
-	return {
-		loadPhoto: (...args: Parameters<typeof load>) => Reflect.apply(load, repository, args),
-		mutate: ((...args) => Reflect.apply(mutate, ports, args)) as typeof mutate,
-		withPhoto: ((...args) => Reflect.apply(withPhoto, ports, args)) as typeof withPhoto,
-	};
-}
-type Captured = ReturnType<typeof capture>;

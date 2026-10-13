@@ -21,6 +21,20 @@ and each selected sequence position. Editing a field invalidates the preview.
 Apply uses that exact frozen plan; it does not reread names, retry conflicts or
 renumber surviving entries.
 
+The Current workflow captures the selected Session's optional named
+`batchRenameCurrent` child for selection, planning, rename and undo. Its scalar
+snapshot, plan, receipt and inverse retain the existing version-1 wire. The
+native child admits each complete retained Current Photo, including repaired
+Photo3 documents; changing a display name preserves develop history, Original
+identity and stored source bytes. The inherited scalar Session methods and the
+legacy workflow continue to admit only Photo1/2.
+
+Each Current operation requires all four child methods as own callable data
+properties. The workflow captures their actual receiver and methods before
+native work yields, and the captured selection retains that planner. An absent,
+partial or accessor-backed child refuses the batch operation without invoking
+the inherited scalar methods. Other Session operations remain available.
+
 ## Receipts and bounded undo
 
 The existing workflow owns one pending capture, rename or undo operation.

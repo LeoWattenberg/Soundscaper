@@ -2,6 +2,8 @@
 
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -116,8 +118,26 @@ for (const locale of ['en', 'de']) {
 		await topAction(page, app, copy.photoViewMenu, copy.photoShowLibrary);
 		for (let index = 0; index < 2; index++) await expect(app.locator(`[data-photo-id="${ids[index]}"]`)).toContainText(before.photos[index].fileName);
 		expect(await observe(page, ids)).toEqual(final); expect(errors).toEqual([]);
-		expect(requests.filter(url => /\/assets\/editor-copy-/u.test(url))).toEqual([]);
+		await assertSharedCopyOwnership(requests);
 	});
+}
+
+async function assertSharedCopyOwnership(requests) {
+	// Semantic copy chunks also contain shared effect labels and Lightscaper
+	// mask/repair strings. Verify their actual owners instead of their names.
+	const assets = new Set(requests.filter(url => /\/assets\/editor-copy-[^/]+\.js$/u.test(url))
+		.map(url => new URL(url).pathname.split('/').at(-1)));
+	const root = fileURLToPath(new URL('../../', import.meta.url));
+	const maps = `${browserProductSiteForBuild('lightscaper').outputDirectory}-source-maps`;
+	for (const asset of assets) {
+		const { sources } = JSON.parse(await readFile(resolve(root, maps, `${asset}.map`), 'utf8'));
+		expect(Array.isArray(sources)).toBe(true); expect(sources.length).toBeGreaterThan(0);
+		for (const source of sources) {
+			const name = source.replaceAll('\\', '/').match(/\/src\/common\/i18n\/([^/]+)$/u)?.[1];
+			expect(name, `Unexpected owner in loaded shared copy chunk ${asset}`).toMatch(
+				/^(?:canonical-extras(?:-standard-effects)?\.js|lightscaper-[a-z-]+\.(?:ts|js))$/u);
+		}
+	}
 }
 
 function assertOriginal(actual, previous) {

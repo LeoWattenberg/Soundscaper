@@ -21,8 +21,9 @@ import { capturePhotoLibraryDevelopPortV2, type ExecutePhotoDevelopCurrent } fro
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-port-v1.ts';
 import { createPhotoLibraryCullingWorkflowV1 } from '../../controller/shared/photo-library-culling-workflow-v1.ts';
-import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
+import type { PhotoLibraryBatchRenamePortV1, PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
+import { capturePhotoLibraryBatchRenameCurrentV1 } from './photo-library-workflow-batch-rename-current-v1.ts';
 import { readPhotoLibrarySelectionIdsV1 } from '../../controller/shared/photo-library-selection-v1.ts';
 import { detachPhotoLibraryImportGestureV2, executePhotoLibraryImportGestureV2, type PhotoLibraryImportGestureOptionsV2 } from './photo-library-workflow-import-v2.ts';
 import { detachPhotoLibraryImportGestureCurrentV1, executePhotoLibraryImportGestureCurrentV1, type PhotoLibraryImportGestureOptionsCurrentV1 } from './photo-library-workflow-import-current-v1.ts';
@@ -302,9 +303,10 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		} catch (failure) { setError(message(failure)); return; }
 		setBatchRenameSnapshot(null); setBatchRenameReceipt(null); admission.batchRenamePlanner = null;
 		await perform(async (owner, signal, current) => {
-			const next = await owner.readBatchRenameSelection(ids, { signal }); check(signal);
+			const batch = profile === 'current3' ? capturePhotoLibraryBatchRenameCurrentV1(owner, signal) : owner;
+			const next = await batch.readBatchRenameSelection(ids, { signal }); check(signal);
 			if (current.live && current.factory === factory.current) {
-				current.batchRenamePlanner = request => owner.planBatchRename(request); setBatchRenameSnapshot(next);
+				current.batchRenamePlanner = request => batch.planBatchRename(request); setBatchRenameSnapshot(next);
 			}
 		}, options.signal);
 	}, [profile, createSession, createDevelopProxyRuntime, perform, controller, originalRecovery]);
@@ -315,7 +317,7 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		}
 		return current.batchRenamePlanner(request);
 	}, []);
-	const runBatchRename = useCallback(async (save: (owner: ScalarSession, signal: AbortSignal) => Promise<PhotoLibraryBatchRenameReceiptV1>,
+	const runBatchRename = useCallback(async (save: (owner: Readonly<PhotoLibraryBatchRenamePortV1>, signal: AbortSignal) => Promise<PhotoLibraryBatchRenameReceiptV1>,
 		options: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryBatchRenameWorkflowReceiptV1> => {
 		if (!slot.current?.live || slot.current.factory !== factory.current) return Object.freeze({ outcome: 'cancelled' });
 		let result: Extract<PhotoLibraryBatchRenameWorkflowReceiptV1, { outcome: 'acknowledged' }> | null = null;
@@ -330,7 +332,8 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		const status = await perform(async (owner, signal, current) => {
 			if (!current.live || current.factory !== factory.current) throw new DOMException('Batch rename generation is closed.', 'AbortError');
 			generation = current; setBatchRenameReceipt(null);
-			const receipt = await save(owner, signal);
+			const batch = profile === 'current3' ? capturePhotoLibraryBatchRenameCurrentV1(owner, signal) : owner;
+			const receipt = await save(batch, signal);
 			result = Object.freeze({ outcome: 'acknowledged', receipt, notice: 'refresh-failed' });
 			remember(current, Object.freeze({ ...result, notice: null }));
 			if (!current.live || current.factory !== factory.current) return;

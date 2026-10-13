@@ -10,6 +10,7 @@ import type { PhotoLibraryOriginalInspectionFailureV1, PhotoLibraryOriginalInspe
 	PhotoLibraryOriginalRestoreTargetV1, PhotoLibraryOriginalRestorationOptionsV1, PhotoLibraryOriginalRestorationReceiptV1 } from '../../common/editor/photo-library-original-recovery-port-v1.ts';
 import type { PhotoLibraryBatchRenameRequestV1, PhotoLibraryBatchRenamePlanV1,
 	PhotoLibraryBatchRenameUndoV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameSnapshotV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
+import { createPhotoLibraryBatchRenameSessionCurrentV1 } from './photo-library-batch-rename-current-v1.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { PhotoCommandOwnerCurrentV1 } from './photo-command-owner-current-v1.ts';
 import { createPhotoLibraryDevelopSessionV3 } from './photo-library-develop-session-v3.ts';
@@ -83,6 +84,7 @@ function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionKernelV2 {
+	readonly batchRenameCurrent?: ReturnType<typeof createPhotoLibraryBatchRenameSessionCurrentV1>;
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
 	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV2> | ReturnType<typeof createPhotoLibraryDevelopSessionV3>;
 	readonly legacyDevelop?: ReturnType<typeof createPhotoLibraryDevelopSessionV2>;
@@ -127,6 +129,9 @@ export class PhotoLibrarySessionKernelV2 {
 		this.imageReceive = createPhotoLibraryImageReceiveSessionV1({ ports: legacy, managed: this.#legacyManagedPorts(),
 			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 		if (this.#current) {
+			this.batchRenameCurrent = createPhotoLibraryBatchRenameSessionCurrentV1({ repository: ports.catalog,
+				mutate: (run, signal) => this.#mutation(run, signal), withPhoto: (catalogId, key, signal, run) =>
+					this.#withPhoto(catalogId, key, signal, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted)) }, () => this.#lifetime.assertAccepting());
 			const children = createPhotoLibrarySessionImageChildrenCurrentV1({ ports, managed: this.#managedPorts(), ready: () => this.#ready(),
 				operation: (run, signal, admit) => this.#operation(run, signal, admit), mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 			this.imageHandoffCurrent = children.imageHandoffCurrent; this.imageReceiveCurrent = children.imageReceiveCurrent;
@@ -289,22 +294,16 @@ export class PhotoLibrarySessionKernelV2 {
 	}
 
 
-	readBatchRenameSelection(photoIds: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameSnapshotV1> {
-		return readPhotoLibraryBatchRenameSelectionV2(this.#batchRenamePorts(), photoIds, options);
-	}
+	readBatchRenameSelection(photoIds: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameSnapshotV1> { return readPhotoLibraryBatchRenameSelectionV2(this.#batchRenamePorts(), photoIds, options); }
 
 	planBatchRename(request: PhotoLibraryBatchRenameRequestV1): PhotoLibraryBatchRenamePlanV1 {
 		this.#lifetime.assertAccepting();
 		return planPhotoLibraryBatchRenameV2(request);
 	}
 
-	renamePhotos(plan: PhotoLibraryBatchRenamePlanV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameReceiptV1> {
-		return renamePhotoLibraryBatchV2(this.#batchRenamePorts(), plan, options);
-	}
+	renamePhotos(plan: PhotoLibraryBatchRenamePlanV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameReceiptV1> { return renamePhotoLibraryBatchV2(this.#batchRenamePorts(), plan, options); }
 
-	undoBatchRename(undo: PhotoLibraryBatchRenameUndoV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameReceiptV1> {
-		return undoPhotoLibraryBatchRenameV2(this.#batchRenamePorts(), undo, options);
-	}
+	undoBatchRename(undo: PhotoLibraryBatchRenameUndoV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameReceiptV1> { return undoPhotoLibraryBatchRenameV2(this.#batchRenamePorts(), undo, options); }
 
 	#batchRenamePorts(): PhotoBatchRenameSessionPortsV2 {
 		return { repository: this.#legacyPorts.catalog, mutate: (run, signal) => this.#mutation(run, signal),
