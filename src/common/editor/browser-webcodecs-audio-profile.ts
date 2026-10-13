@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { initializeBrowserMediaPlatform } from './browser-media-initialization.ts';
+
 /** One exact browser audio profile shared by capability probes and encoders. */
 
 export type BrowserWebCodecsAudioCodec = 'aac' | 'opus';
@@ -46,6 +48,7 @@ export async function probeBrowserWebCodecsAudioEncoding(
 ): Promise<boolean> {
 	if (typeof encoder?.isConfigSupported !== 'function') return false;
 	try {
+		initializeBrowserMediaPlatform();
 		return (await encoder.isConfigSupported(
 			browserWebCodecsAudioConfiguration(codec, geometry),
 		)).supported === true;

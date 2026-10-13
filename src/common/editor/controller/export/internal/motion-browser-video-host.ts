@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { MotionVideoHost } from '../motion-browser-video.ts';
+import { initializeBrowserMediaPlatform } from '../../../browser-media-initialization.ts';
 import { aggregateScapeErrors } from '../../../scape-abort.ts';
 import { assertMotionBrowserVideoProbeSafe } from './motion-browser-video-admission.ts';
 
@@ -8,10 +9,11 @@ export const motionBrowserVideoHost: MotionVideoHost = {
 	async supported(config) {
 		assertMotionBrowserVideoProbeSafe();
 		if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return false;
-		try { return (await VideoEncoder.isConfigSupported(config)).supported === true; } catch { return false; }
+		try { initializeBrowserMediaPlatform(); return (await VideoEncoder.isConfigSupported(config)).supported === true; } catch { return false; }
 	},
 	async supportedAudio(audio) {
 		if (typeof AudioEncoder === 'undefined' || typeof AudioData === 'undefined') return false;
+		initializeBrowserMediaPlatform();
 		const { canEncodeAudio, Quality } = await import('mediabunny');
 		return canEncodeAudio(audio.codec, { sampleRate: audio.sampleRate, numberOfChannels: audio.channels, quality: new Quality({ bitrate: audio.bitrate }) });
 	},
