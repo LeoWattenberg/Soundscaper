@@ -225,7 +225,7 @@
 		"tests/framescaper-captured-video-proxy-bodies.test.ts": 551,
 		"tests/framescaper-desktop-project-library-core-body-transfer.test.ts": 560,
 		"tests/framescaper-media-host-linked-runtime.test.js": 563,
-		"tests/framescaper-media-host-native-adapters.test.js": 584,
+		"tests/framescaper-media-host-native-adapters.test.js": 575,
 		"tests/framescaper-motion-analysis-frame-provider-finishing.test.ts": 558,
 		"tests/framescaper-native-host-build-recipes.test.js": 598,
 		"tests/framescaper-project-sequence-claim-cleanup-repository.test.ts": 550,
