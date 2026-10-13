@@ -250,3 +250,14 @@ non-SPS packet bytes/timing; independent pinned FFmpeg9.0.1 decoding retained
 identical full active YUV planes. The original malformed description and decoder
 warnings remain evidence. This bounded control does not replace final menu and
 offline workflow qualification.
+
+Cold-load offline handoff replays a bounded set of completed resources actually
+observed in this document: versioned same-origin JavaScript, CSS, WASM and fonts.
+It waits for the exact active own worker, serializes requests, and stops on known
+resource-timing loss, limits, cancellation or failure. The lazy helper admits at
+most 256 URLs, 4096 observations and 32 fonts within 30 seconds; it does not expand install
+inventory or fetch unused optional modules. Its settled state describes requests,
+not durable custody or a complete historical resource inventory. The offline
+linked workflow separately verifies the observed assets, original fonts and
+navigation bytes against the current build's shell cache and waits for restored
+owner/editor readiness before the existing picture/link/error assertions.

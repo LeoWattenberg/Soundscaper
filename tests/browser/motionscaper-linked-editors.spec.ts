@@ -89,8 +89,11 @@ test('actual editor menus connect saved compositions, update automatically, and 
 		const encodedColor = await exportVideoColor(imported); for (const [index, expected] of [0, 0, 255, 255].entries()) expect(Math.abs(encodedColor[index]! - expected), JSON.stringify(encodedColor)).toBeLessThanOrEqual(12);
 	});
 	const offlineReadiness = await inspectLinkedOfflineReadiness(frame, linkedOrigins.sites[0]!);
-	await test.info().attach('linked-offline-used-font-custody', { contentType: 'application/json', body: JSON.stringify(offlineReadiness, null, 2) });
+	await test.info().attach('linked-offline-used-asset-and-font-custody', { contentType: 'application/json', body: JSON.stringify(offlineReadiness, null, 2) });
 	await linkedOrigins.close(); await frame.reload(); await expect(frame.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	await expect(frame.locator('[data-editor-ready]')).toHaveAttribute('data-editor-ready', 'true');
+	await expect(frame.locator('[data-project-id]')).toHaveAttribute('data-project-id', projectId!);
+	await expect(frame.locator('[data-project-id]')).not.toHaveAttribute('data-project-activation-pending', 'true');
 	await expect.poll(() => previewColor(frame)).toEqual([0, 0, 255, 255]); await menu(frame, 'File', 'Linked compositions…'); await expect(links.locator('code')).toHaveText(conformed!);
 	expect(errors).toEqual([]);
 });
