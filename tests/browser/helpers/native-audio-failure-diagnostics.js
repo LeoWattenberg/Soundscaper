@@ -22,6 +22,15 @@ export async function sampleNativeAudioFailure(page, browserName, pause = sample
 			const { result } = await session.send('Runtime.callFunctionOn', {
 				objectId: objects.objectId, returnByValue: true,
 				functionDeclaration: `function() {
+					const preview = document.querySelector('[data-video-preview]');
+					const root = preview || document.querySelector('[data-audio-editor]');
+					const key = root && Object.keys(root).find(key => key.startsWith('__reactFiber$'));
+					let fiber = key ? root[key] : null;
+					let engine = null;
+					while (fiber && !engine) {
+						engine = fiber.memoizedProps?.controller?.engine;
+						fiber = fiber.return;
+					}
 					return {
 						at: performance.now(),
 						contexts: this.map(context => ({
@@ -30,8 +39,18 @@ export async function sampleNativeAudioFailure(page, browserName, pause = sample
 							outputLatency: context.outputLatency, sinkId: context.sinkId,
 							timestamp: context.getOutputTimestamp?.(),
 						})),
+						transport: engine ? {
+							state: engine.state, nativeTime: engine.context?.currentTime,
+							positionFrame: engine.positionFrame,
+							playbackStartFrame: engine.playbackStartFrame,
+							playbackStartTime: engine.playbackStartTime,
+							playEndFrame: engine.playEndFrame,
+							playbackDurationFrames: engine.playbackDurationFrames,
+							graphLatencyFrames: engine.graph?.latencyFrames,
+							pendingPlayRequest: engine.pendingPlayRequest,
+						} : null,
 						sequence: document.querySelector('[data-sequence-timecode]')?.dataset,
-						preview: document.querySelector('[data-video-preview]')?.dataset,
+						preview: preview?.dataset,
 						media: [...document.querySelectorAll('video, audio')].map(element => ({
 							tag: element.tagName, readyState: element.readyState,
 							currentTime: element.currentTime, paused: element.paused,
