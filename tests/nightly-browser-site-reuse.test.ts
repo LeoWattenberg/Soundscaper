@@ -20,8 +20,9 @@ test('every downloaded profile authenticates source revision, product, origin, f
 	await mkdir(resolve('.wrangler'), { recursive: true });
 	const root = await mkdtemp(resolve('.wrangler/nightly-sites-reuse-test-'));
 	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const outputRoot = relative(resolve('.'), root).split('\\').join('/');
 	const sites = NIGHTLY_BROWSER_SITES.map((site, index) => ({ ...site,
-		outputDirectory: relative(resolve('.'), resolve(root, String(index))).split('\\').join('/'),
+		outputDirectory: `${outputRoot}/${String(index)}` as const,
 	}));
 	for (const site of sites) {
 		const output = resolve(site.outputDirectory);
