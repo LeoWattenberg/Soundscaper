@@ -218,7 +218,7 @@
 		"tests/desktop-preload-assistance-operation.test.js": 573,
 		"tests/desktop-preload-framescaper-native-services.test.js": 600,
 		"tests/desktop-save-capacity.test.js": 575,
-		"tests/desktop-soundscaper-delivery-service.test.ts": 600,
+		"tests/desktop-soundscaper-delivery-service.test.ts": 592,
 		"tests/desktop-video-timing-probe-smoke.test.js": 585,
 		"tests/editor-assistance-owned-video-highlight-transform-registry-v1.test.ts": 579,
 		"tests/external-ffmpeg-video-operation-service.test.ts": 593,

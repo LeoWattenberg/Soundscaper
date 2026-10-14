@@ -15,6 +15,7 @@ import {
 } from '../desktop/soundscaper-delivery-database.ts';
 import { observeSoundscaperDeliveryRoot } from '../desktop/soundscaper-delivery-root.ts';
 import { SoundscaperDeliveryService } from '../desktop/soundscaper-delivery-service.ts';
+import type { SoundscaperDeliveryStartOptions } from '../desktop/soundscaper-delivery-service-contract.ts';
 import { createSoundscaperDeliveryDescriptionV1 } from '../src/common/editor/soundscaper-delivery-contract-v1.ts';
 import {
 	createSoundscaperPersistentAudioDeliveryPlanV1,
@@ -211,9 +212,7 @@ test('waiting is nonterminal, while final project or plan drift is permanently s
 test('publication re-reads project identity and refuses a revision changed during rendering', async (context) => {
 	const fixture = await createFixture(context);
 	let persistedIdentity = description().projectIdentity;
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
-		databasePath: join(fixture.root, 'delivery.sqlite'),
+	const service = await fixture.start({
 		readProjectIdentity: async () => persistedIdentity,
 	});
 	const grant = await service.authorizeRoot(fixture.outputRoot);
@@ -241,9 +240,7 @@ test('publication revalidates project authority at the authenticated link bounda
 	let authorityReads = 0;
 	const original = description().projectIdentity;
 	const changed = Object.freeze({ ...original, projectRevision: 18, projectSha256: 'b'.repeat(64) });
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
-		databasePath: join(fixture.root, 'delivery.sqlite'),
+	const service = await fixture.start({
 		readProjectIdentity: async () => (++authorityReads < 4 ? original : changed),
 	});
 	const grant = await service.authorizeRoot(fixture.outputRoot);
@@ -269,9 +266,7 @@ test('publication preserves stale-plan at the final authenticated authority boun
 		projectIdentity: description().projectIdentity,
 		planFingerprint: '',
 	};
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
-		databasePath: join(fixture.root, 'delivery.sqlite'),
+	const service = await fixture.start({
 		readProjectIdentity: async () => description().projectIdentity,
 		beforeFileFence(operation) {
 			if (operation === 'publication-authority') currentAuthority.planFingerprint = 'b'.repeat(64);
@@ -332,8 +327,7 @@ test('publication authenticates the linked inode and recovers a crash after link
 	let takeoverDatabase: DatabaseSync | null = null;
 	let takeoverLease: ReturnType<typeof acquireSoundscaperDeliveryWriterLease> | null = null;
 	const databasePath = join(fixture.root, 'delivery.sqlite');
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
+	const service = await fixture.start({
 		databasePath, now: () => nowMs, instanceId: 'first-instance', processId: 101,
 		readProjectIdentity: async () => description().projectIdentity,
 		beforeFileFence(operation) {
@@ -362,7 +356,7 @@ test('publication authenticates the linked inode and recovers a crash after link
 	await service.close();
 	releaseSoundscaperDeliveryWriterLease(takeoverDatabase!, takeoverLease!);
 	takeoverDatabase!.close();
-	const recovered = await fixture.start();
+	const recovered = await fixture.start({ now: () => nowMs });
 	const completed = recovered.list().entries[0]!;
 	assert.equal(completed.state, 'completed');
 	assert.deepEqual(await readdir(fixture.outputRoot), ['linked.wav']);
@@ -373,9 +367,7 @@ test('publication authenticates the linked inode and recovers a crash after link
 test('tampering after the final staging inspection cannot publish changed bytes', async (context) => {
 	const fixture = await createFixture(context);
 	let stagingPath = '';
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
-		databasePath: join(fixture.root, 'delivery.sqlite'),
+	const service = await fixture.start({
 		readProjectIdentity: async () => description().projectIdentity,
 		beforeFileFence(operation) {
 			if (operation === 'publication-ready') writeFileSync(stagingPath, new Uint8Array([9, 9, 9, 9]));
@@ -458,8 +450,7 @@ test('lease loss during an active write leaves successor recovery intact and clo
 	let takeoverDatabase: DatabaseSync | null = null;
 	let takeoverLease: ReturnType<typeof acquireSoundscaperDeliveryWriterLease> | null = null;
 	const databasePath = join(fixture.root, 'delivery.sqlite');
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
+	const service = await fixture.start({
 		databasePath, now: () => nowMs, instanceId: 'active-first', processId: 101,
 		readProjectIdentity: async () => description().projectIdentity,
 		beforeFileFence(operation) {
@@ -486,7 +477,7 @@ test('lease loss during an active write leaves successor recovery intact and clo
 		'the fenced owner leaves only its opaque private recovery state');
 	releaseSoundscaperDeliveryWriterLease(takeoverDatabase!, takeoverLease!);
 	takeoverDatabase!.close();
-	const recovered = await fixture.start();
+	const recovered = await fixture.start({ now: () => nowMs });
 	assert.equal(recovered.list().entries[0]?.state, 'waiting-for-project');
 	assert.equal((await readdir(fixture.privateStagingRoot)).includes(partial), false);
 	assert.deepEqual(await readdir(fixture.outputRoot), []);
@@ -500,8 +491,7 @@ test('a lease takeover during awaited root observation fences the stale writer b
 	const waiting = new Promise<void>((resolve) => { releaseObservation = resolve; });
 	let nowMs = 1_000;
 	const databasePath = join(fixture.root, 'delivery.sqlite');
-	const service = await SoundscaperDeliveryService.start({
-		filesystem: fixture.filesystem,
+	const service = await fixture.start({
 		databasePath,
 		instanceId: 'instance-first', processId: 101, now: () => nowMs,
 		readProjectIdentity: async () => null,
@@ -579,12 +569,14 @@ async function createFixture(context: test.TestContext) {
 		outputRoot,
 		privateStagingRoot,
 		filesystem,
-		start: () => SoundscaperDeliveryService.start({
+		start: (overrides: Partial<SoundscaperDeliveryStartOptions> = {}) => SoundscaperDeliveryService.start({
 			databasePath: join(root, 'delivery.sqlite'),
 			readProjectIdentity: async (projectId: string) => projectId === 'album-project'
 				? { projectId, projectRevision: 17, projectSha256: 'a'.repeat(64) }
 				: null,
 			filesystem,
+			now: () => 1_000,
+			...overrides,
 		}),
 	};
 }
