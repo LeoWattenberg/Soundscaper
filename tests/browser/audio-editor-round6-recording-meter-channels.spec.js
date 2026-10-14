@@ -31,7 +31,10 @@ test('the recording meter preserves an ordinary stereo microphone silent right c
 	await record.click();
 	await expect(record).toHaveAttribute('aria-label', 'Pause recording');
 	await expect(editor.getByRole('button', { name: 'Stop', exact: true })).toBeEnabled();
-	await page.waitForTimeout(1000);
+	const preview = editor.locator('[data-clip-id^="recording-preview-"]');
+	await expect(preview).toBeVisible();
+	// This duration comes from captured PCM after the recording latency trim.
+	await expect(preview).toHaveAccessibleName(/, (?:0\.[1-9]\d*|[1-9]\d*(?:\.\d+)?) seconds? long$/u);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	await expect(record).toHaveAttribute('aria-pressed', 'false');
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');

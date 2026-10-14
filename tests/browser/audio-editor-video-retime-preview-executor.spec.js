@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
+import { installInitialVideoFrameLoader } from './helpers/initial-video-frame.js';
 
 import {
 	createVideoRetimePreviewOrdinalRgb,
@@ -356,6 +357,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 	syntheticRouteTest('presents an interval the paused clock already occupies through a real frame callback', async ({
 		page,
 	}) => {
+		await installInitialVideoFrameLoader(page);
 		await installHarnessRoutes(page, { strictModules: true });
 		await page.goto(`${HARNESS_ROOT}/index.html`);
 		const result = await page.evaluate(async ({ fixturePath, root }) => {
@@ -364,18 +366,10 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 			);
 			const video = document.createElement('video');
 			Object.assign(video, { muted: true, preload: 'auto' });
-			video.src = fixturePath;
 			document.body.append(video);
-			await new Promise((resolve, reject) => {
-				video.addEventListener('loadeddata', resolve, { once: true });
-				video.addEventListener('error', () => reject(video.error), { once: true });
-			});
-			// A paused element publishes no further frame callback for the picture it
-			// already presents, so the first request for that picture must still seek.
-			await new Promise((resolve) => {
-				const id = video.requestVideoFrameCallback(() => resolve());
-				setTimeout(() => { video.cancelVideoFrameCallback(id); resolve(); }, 2_000);
-			});
+			// Observe the initial native presentation before requesting its interval
+			// again: an already-presented paused picture needs a seek for a new callback.
+			await globalThis.__loadInitiallyPresentedVideo(video, fixturePath);
 			const port = createVideoRetimeHtmlVideoSeekPort(video, {
 				assertCurrent: () => {},
 				timeoutMs: 4_000,

@@ -521,7 +521,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(recordingWaveform).toBeVisible();
 		await expect(recordingWaveform).toHaveAttribute('data-waveform-renderer', 'audacity');
 		await expect(recordingWaveform).toHaveAttribute('data-waveform-mode', 'summary');
-		await page.waitForTimeout(350);
+		// The preview duration counts PCM retained after the input latency trim.
+		await expect(recordingPreview).toHaveAccessibleName(/, (?:0\.[1-9]\d*|[1-9]\d*(?:\.\d+)?) seconds? long$/u);
 		await editor.evaluate((element) => {
 			element.tabIndex = -1;
 			element.focus();
