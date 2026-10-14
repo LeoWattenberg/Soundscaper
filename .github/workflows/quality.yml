@@ -731,8 +731,10 @@ jobs:
         if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Install Playwright Firefox
-        run: npx playwright install --with-deps firefox
+      - name: Restore or install verified Playwright Firefox
+        uses: ./.github/actions/verified-firefox
+        with:
+          scope: ubuntu-24.04
 
       - name: Install PulseAudio
         timeout-minutes: 10

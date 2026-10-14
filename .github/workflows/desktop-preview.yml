@@ -170,8 +170,10 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Restore or install verified dependencies
+        uses: ./.github/actions/verified-node-dependencies
+        with:
+          scope: ubuntu-24.04
 
       - name: Install virtual display for the native-helper Electron proof
         timeout-minutes: 10
@@ -320,8 +322,10 @@ jobs:
           npm install --global --prefix "$HOME/.local" npm@12.0.1
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Restore or install verified dependencies
+        uses: ./.github/actions/verified-node-dependencies
+        with:
+          scope: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
 
       - name: Set up the interchange reference Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -435,11 +439,15 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Restore or install verified dependencies
+        uses: ./.github/actions/verified-node-dependencies
+        with:
+          scope: ubuntu-24.04
 
-      - name: Install Playwright Firefox
-        run: npx playwright install --with-deps firefox
+      - name: Restore or install verified Playwright Firefox
+        uses: ./.github/actions/verified-firefox
+        with:
+          scope: ubuntu-24.04
 
       - name: Install PulseAudio
         timeout-minutes: 10

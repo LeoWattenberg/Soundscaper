@@ -283,7 +283,7 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	assert.ok(firefoxJob.includes(gate), `${label} firefox must wait for the verified build`);
 	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
 	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
-	assert.match(firefoxJob, /playwright install --with-deps firefox/u);
+	assert.match(firefoxJob, /uses: \.\/\.github\/actions\/verified-firefox/u);
 	assert.match(firefoxJob, /ci-apt-install\.sh pulseaudio pulseaudio-utils/u);
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
