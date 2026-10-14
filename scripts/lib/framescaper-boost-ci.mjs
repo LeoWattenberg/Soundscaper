@@ -14,6 +14,11 @@ import {
 	readFramescaperMediaHostSourceManifest,
 	verifyFramescaperMediaHostBoostClosure,
 } from './framescaper-media-host-build.mjs';
+import {
+	boostClosureCacheIdentity,
+	readVerifiedBoostClosureCache,
+	saveVerifiedBoostClosureCache,
+} from './framescaper-boost-ci-cache.mjs';
 
 export const FRAMESCAPER_BOOST_CI_ADMISSION = deepFreeze({
 	version: '1.92.0',
@@ -63,28 +68,38 @@ export async function runFramescaperBoostCiProvisioning(options, dependencies = 
 	const materialize = dependencies.materialize ?? materializeVerifiedFramescaperBoostClosure;
 	const versionHeaderAdmission = dependencies.versionHeaderAdmission
 		?? FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION;
-
-	await download({
-		destination: plan.archivePath,
-		admission: FRAMESCAPER_BOOST_CI_ADMISSION,
+	const cacheOptions = {
+		cacheRoot: options.cacheRoot,
+		identity: boostClosureCacheIdentity({
+			archive: FRAMESCAPER_BOOST_CI_ADMISSION,
+			closure: readFramescaperMediaHostSourceManifest(repositoryRoot).boost.headerClosure,
+			versionHeader: versionHeaderAdmission,
+		}),
+		versionHeader: versionHeaderAdmission,
+	};
+	const cached = await readVerifiedBoostClosureCache({
+		...cacheOptions, verify: boostSourceRoot => verify({ repositoryRoot, boostSourceRoot }),
 	});
-	await extract({
-		archivePath: plan.archivePath,
-		sourceRoot: plan.extractedSourceRoot,
-		admission: FRAMESCAPER_BOOST_CI_ADMISSION,
-	});
-	const extractedSourceRoot = await canonicalDirectory(
-		plan.extractedSourceRoot, 'extracted Boost source root',
-	);
-	const closure = await verify({ repositoryRoot, boostSourceRoot: extractedSourceRoot });
+	let inputSourceRoot = cached?.sourceRoot;
+	let closure = cached?.closure;
+	if (cached === null) {
+		await download({ destination: plan.archivePath, admission: FRAMESCAPER_BOOST_CI_ADMISSION });
+		await extract({
+			archivePath: plan.archivePath, sourceRoot: plan.extractedSourceRoot,
+			admission: FRAMESCAPER_BOOST_CI_ADMISSION,
+		});
+		inputSourceRoot = await canonicalDirectory(plan.extractedSourceRoot, 'extracted Boost source root');
+		closure = await verify({ repositoryRoot, boostSourceRoot: inputSourceRoot });
+	}
 	const materialized = await materialize({
-		sourceRoot: extractedSourceRoot, closureRoot: plan.closureRoot, closure,
+		sourceRoot: inputSourceRoot, closureRoot: plan.closureRoot, closure,
 	});
 	const sourceRoot = await canonicalDirectory(materialized, 'Boost closure root');
 	await materializePinnedFramescaperBoostVersionHeader({
-		sourceRoot: extractedSourceRoot, closureRoot: sourceRoot, admission: versionHeaderAdmission,
+		sourceRoot: inputSourceRoot, closureRoot: sourceRoot, admission: versionHeaderAdmission,
 	});
 	await verify({ repositoryRoot, boostSourceRoot: sourceRoot });
+	if (cached === null) await saveVerifiedBoostClosureCache({ ...cacheOptions, sourceRoot, closure });
 	await writeFile(join(sourceRoot, '.framescaper-source-identity.json'), `${JSON.stringify({
 		schemaVersion: 1,
 		component: 'boost',
@@ -96,7 +111,7 @@ export async function runFramescaperBoostCiProvisioning(options, dependencies = 
 	}, null, '\t')}\n`, { flag: 'wx', mode: 0o400 });
 	await Promise.all([
 		rm(plan.archivePath, { force: true }),
-		rm(extractedSourceRoot, { recursive: true, force: true }),
+		rm(plan.extractedSourceRoot, { recursive: true, force: true }),
 	]);
 	await publishBoostEnvironment({ githubEnvironmentPath, sourceRoot });
 	return deepFreeze({ workspace, sourceRoot });

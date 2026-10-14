@@ -429,8 +429,27 @@ jobs:
         # "The enforcement handshake ended early" before it can complete.
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
+      - name: Resolve the interchange download cache identity
+        id: interchange-cache-key
+        run: node scripts/provision-interchange-conformance.mjs --cache-key >> "$GITHUB_OUTPUT"
+
+      - name: Restore verified interchange download inputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .wrangler/test-download-cache/interchange
+          key: >-
+            interchange-downloads-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.interchange-cache-key.outputs.key }}-${{ hashFiles('scripts/provision-interchange-conformance.mjs', 'scripts/lib/interchange-download-cache.mjs') }}
+
       - name: Provision interchange conformance reference tools
         run: npm run provision:interchange-conformance
+
+      - name: Restore authenticated Boost test headers
+        if: matrix.shard == 'framescaper'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .wrangler/test-download-cache/boost
+          key: >-
+            boost-test-headers-v1-${{ hashFiles('config/boost-multiprecision-source-manifest.json', 'native/framescaper-media-host/source-manifest.json', 'scripts/lib/framescaper-boost-ci.mjs', 'scripts/lib/framescaper-boost-ci-cache.mjs') }}
 
       - name: Provision pinned Boost closure for Framescaper native tests
         if: matrix.shard == 'framescaper'
@@ -576,6 +595,17 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Resolve the interchange download cache identity
+        id: interchange-cache-key
+        run: node scripts/provision-interchange-conformance.mjs --cache-key >> "$GITHUB_OUTPUT"
+
+      - name: Restore verified interchange download inputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .wrangler/test-download-cache/interchange
+          key: >-
+            interchange-downloads-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.interchange-cache-key.outputs.key }}-${{ hashFiles('scripts/provision-interchange-conformance.mjs', 'scripts/lib/interchange-download-cache.mjs') }}
+
       - name: Provision interchange conformance readers
         run: npm run provision:interchange-conformance
 
@@ -718,6 +748,17 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.12'
+
+      - name: Resolve the interchange download cache identity
+        id: interchange-cache-key
+        run: node scripts/provision-interchange-conformance.mjs --cache-key >> "$GITHUB_OUTPUT"
+
+      - name: Restore verified interchange download inputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .wrangler/test-download-cache/interchange
+          key: >-
+            interchange-downloads-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.interchange-cache-key.outputs.key }}-${{ hashFiles('scripts/provision-interchange-conformance.mjs', 'scripts/lib/interchange-download-cache.mjs') }}
 
       - name: Provision interchange conformance readers
         run: npm run provision:interchange-conformance
