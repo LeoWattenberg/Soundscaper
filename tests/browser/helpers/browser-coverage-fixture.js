@@ -7,6 +7,7 @@ import {
 	createBrowserCoverageCollector,
 } from '../../../scripts/lib/browser-coverage-profile.mjs';
 import { ordinaryBrowserProductSitePlan } from '../../../scripts/lib/browser-product-site-plan.mjs';
+import { collectFailureClientDiagnostics } from './failure-client-diagnostics.js';
 
 // Every spec imports its `test` from `audio-editor-test-fixtures.js`, which
 // imports it from here, so collection is a property of the suite rather than
@@ -55,12 +56,14 @@ export const test = base.extend({
 			await collector.collect(testInfo.titlePath.join(' '), writtenSourceMaps);
 		}
 	},
-	page: async ({ page }, use) => {
+	page: async ({ page, browserName }, use, testInfo) => {
 		// Playwright opened this page while the context fixture was still setting
 		// up, so the recorder may still be starting. Settling here is what keeps a
 		// test's first navigation inside the measured window.
 		await collectors.get(page.context())?.settle();
-		await use(page);
+		const finishDiagnostics = collectFailureClientDiagnostics(page, browserName);
+		try { await use(page); }
+		finally { await finishDiagnostics(testInfo); }
 	},
 });
 
