@@ -206,7 +206,14 @@ test.describe('workspace panel resizing', () => {
 		await dockWorkspacePanel(editor, 'metadata', 'bottom');
 		const bottomDock = editor.locator('[data-panel-dock="bottom"]');
 		await expect(bottomDock.locator('[data-workspace-panel-group]')).toHaveCount(2);
-		await page.waitForTimeout(250);
+		await expect.poll(async () => {
+			const [dock, mixer, metadata] = await Promise.all([
+				bottomDock.boundingBox(), mixerPanel.boundingBox(),
+				editor.locator('[data-workspace-panel="metadata"]').boundingBox(),
+			]);
+			return dock && mixer && metadata
+				? mixer.width + metadata.width - dock.width : Number.POSITIVE_INFINITY;
+		}).toBeCloseTo(0, 0);
 		const initialDockBounds = await bottomDock.boundingBox();
 		const initialMixerBounds = await mixerPanel.boundingBox();
 		const initialMetadataBounds = await editor.locator('[data-workspace-panel="metadata"]').boundingBox();
