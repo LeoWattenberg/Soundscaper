@@ -118,7 +118,7 @@ export class SoundscaperDeliveryRootStore {
 
 	revoke(grantId: unknown, nowMs: number): boolean {
 		return this.#database.prepare(`
-			UPDATE delivery_roots SET revoked_at_ms = ?
+			UPDATE delivery_roots SET revoked_at_ms = MAX(authorized_at_ms, ?)
 			WHERE grant_id = ? AND revoked_at_ms IS NULL
 		`).run(nowMs, id(grantId, 'root grant')).changes === 1;
 	}

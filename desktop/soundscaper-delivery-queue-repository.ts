@@ -138,7 +138,7 @@ export class SoundscaperDeliveryQueueRepository {
 				const claimed = this.#database.prepare(`
 				UPDATE delivery_queue SET state = 'running', claim_id = ?, attempt = attempt + 1,
 					progress = 0, last_failure_code = NULL,
-					updated_at_ms = ? WHERE job_id = ? AND state = 'queued'
+					updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ? AND state = 'queued'
 				`).run(claimId, this.#now(), jobId).changes;
 				if (claimed !== 1) throw new SoundscaperDeliveryClaimRaceError();
 			});
@@ -157,7 +157,7 @@ export class SoundscaperDeliveryQueueRepository {
 			if (current.progress !== null && progress < current.progress) {
 				throw new RangeError('Soundscaper delivery progress cannot move backwards.');
 			}
-			this.#database.prepare('UPDATE delivery_queue SET progress = ?, updated_at_ms = ? WHERE job_id = ?')
+			this.#database.prepare('UPDATE delivery_queue SET progress = ?, updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?')
 				.run(progress, this.#now(), jobId);
 		});
 	}
@@ -167,7 +167,7 @@ export class SoundscaperDeliveryQueueRepository {
 			this.#database.prepare(`
 				UPDATE delivery_queue SET staging_name = ?, staging_volume_identity = NULL,
 					staging_file_identity = NULL, staging_recovery_token = NULL,
-					final_name = ?, updated_at_ms = ? WHERE job_id = ?
+					final_name = ?, updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?
 			`).run(stagingName, finalName, this.#now(), jobId);
 		});
 	}
@@ -182,7 +182,7 @@ export class SoundscaperDeliveryQueueRepository {
 			this.#database.prepare(`
 				UPDATE delivery_queue SET staging_volume_identity = ?, staging_file_identity = ?,
 					staging_recovery_token = ?,
-					updated_at_ms = ? WHERE job_id = ?
+					updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?
 			`).run(volumeIdentity, fileIdentity, recoveryToken, this.#now(), jobId);
 		});
 	}
@@ -191,7 +191,7 @@ export class SoundscaperDeliveryQueueRepository {
 		this.mutation('write-sealed', jobId, 'running', () => {
 			this.#database.prepare(`
 				UPDATE delivery_queue SET staged_byte_length = ?, staged_sha256 = ?, progress = 1,
-					updated_at_ms = ? WHERE job_id = ?
+					updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?
 			`).run(byteLength, sha256, this.#now(), jobId);
 		});
 	}
@@ -201,7 +201,7 @@ export class SoundscaperDeliveryQueueRepository {
 			this.#database.prepare(`
 				UPDATE delivery_queue SET staging_name = NULL, staging_volume_identity = NULL,
 					staging_file_identity = NULL, staging_recovery_token = NULL, final_name = NULL,
-					staged_byte_length = NULL, staged_sha256 = NULL, updated_at_ms = ? WHERE job_id = ?
+					staged_byte_length = NULL, staged_sha256 = NULL, updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?
 			`).run(this.#now(), jobId);
 		});
 	}
@@ -245,7 +245,7 @@ export class SoundscaperDeliveryQueueRepository {
 				UPDATE delivery_queue SET state = 'completed', result_json = ?, report_json = ?, claim_id = NULL,
 					staging_name = NULL, staging_volume_identity = NULL,
 					staging_file_identity = NULL, staging_recovery_token = NULL,
-					progress = 1, last_failure_code = NULL, updated_at_ms = ?
+					progress = 1, last_failure_code = NULL, updated_at_ms = MAX(updated_at_ms, ?)
 				WHERE job_id = ?
 			`).run(JSON.stringify(result), JSON.stringify(result.report), this.#now(), jobId);
 			this.#database.prepare('DELETE FROM delivery_publication_journal WHERE job_id = ?').run(jobId);
@@ -262,7 +262,7 @@ export class SoundscaperDeliveryQueueRepository {
 					staging_name = NULL, staging_volume_identity = NULL,
 					staging_file_identity = NULL, staging_recovery_token = NULL,
 					final_name = NULL, staged_byte_length = NULL, staged_sha256 = NULL,
-					updated_at_ms = ? WHERE job_id = ?
+					updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?
 			`).run(failureCode, report === null ? null : JSON.stringify(report), this.#now(), jobId);
 		});
 	}
@@ -307,7 +307,7 @@ export class SoundscaperDeliveryQueueRepository {
 			const ordered = rows.filter((row) => row.job_id !== jobId);
 			ordered.splice(position, 0, this.row(jobId));
 			const update = this.#database.prepare(
-				'UPDATE delivery_queue SET position = ?, updated_at_ms = ? WHERE job_id = ?',
+				'UPDATE delivery_queue SET position = ?, updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?',
 			);
 			ordered.forEach((row, index) => update.run(index, this.#now(), row.job_id));
 		});
@@ -322,7 +322,7 @@ export class SoundscaperDeliveryQueueRepository {
 		this.#database.prepare(`
 			UPDATE delivery_queue SET state = ?, last_failure_code = ?, claim_id = NULL,
 				progress = NULL, ${clearStaging ? 'staging_name = NULL, staging_volume_identity = NULL, staging_file_identity = NULL, staging_recovery_token = NULL, final_name = NULL, staged_byte_length = NULL, staged_sha256 = NULL,' : ''}
-				updated_at_ms = ? WHERE job_id = ?
+				updated_at_ms = MAX(updated_at_ms, ?) WHERE job_id = ?
 		`).run(state, failureCode, this.#now(), jobId);
 	}
 
