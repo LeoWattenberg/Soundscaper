@@ -49,8 +49,8 @@ export async function sampleNativeAudioFailure(page, browserName, pause = sample
 							graphLatencyFrames: engine.graph?.latencyFrames,
 							pendingPlayRequest: engine.pendingPlayRequest,
 						} : null,
-						sequence: document.querySelector('[data-sequence-timecode]')?.dataset,
-						preview: preview?.dataset,
+						sequence: { ...document.querySelector('[data-sequence-timecode]')?.dataset },
+						preview: { ...preview?.dataset },
 						media: [...document.querySelectorAll('video, audio')].map(element => ({
 							tag: element.tagName, readyState: element.readyState,
 							currentTime: element.currentTime, paused: element.paused,
