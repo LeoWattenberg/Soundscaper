@@ -37,7 +37,7 @@ export function ciInputCacheIdentity(options: CiInputCacheIdentityOptions): stri
 		for (const file of readdirSync(join(repositoryRoot, 'patches/npm')).sort()) files.push(join('patches/npm', file));
 	} else files.push('node_modules/playwright-core/package.json', 'node_modules/playwright-core/browsers.json');
 	const policyKeys = ['NODE_ENV', 'ELECTRON_SKIP_BINARY_DOWNLOAD', 'ELECTRON_OVERRIDE_DIST_PATH', 'ELECTRON_CUSTOM_DIR', 'ELECTRON_CUSTOM_FILENAME', 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD', 'PLAYWRIGHT_BROWSERS_PATH', 'SOUNDSCAPER_DESKTOP_TARGET_PLATFORM', 'SOUNDSCAPER_DESKTOP_TARGET_ARCH'];
-	const installPolicy = [...new Set([...policyKeys, ...Object.keys(environment).filter(key => /^npm_config_/iu.test(key))])].sort().map(key => [key, environment[key] ?? '']);
+	const installPolicy = [...new Set([...policyKeys, ...Object.keys(environment).filter(key => /^npm_config_/iu.test(key))])].sort().map(key => [key, key === 'PLAYWRIGHT_BROWSERS_PATH' && kind === 'firefox' ? '<controlled-engine-cache>' : environment[key] ?? '']);
 	return createHash('sha256').update(JSON.stringify({
 		schemaVersion: 1, kind, nodeVersion: options.nodeVersion, npmVersion: options.npmVersion,
 		platform: options.platform, architecture: options.architecture, scope: options.scope, installPolicy,

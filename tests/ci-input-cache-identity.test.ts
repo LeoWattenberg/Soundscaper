@@ -43,6 +43,7 @@ test('Firefox identity binds the installed Playwright engine revision and verifi
 	writeFileSync(engines, JSON.stringify({ browsers: [{ name: 'firefox', revision: '1538' }] }));
 	const options = { repositoryRoot: root, kind: 'firefox' as const, nodeVersion: '26.5.0', npmVersion: '12.0.1', platform: 'linux', architecture: 'x64', scope: 'ubuntu-24.04/image-1', environment: {} };
 	const original = ciInputCacheIdentity(options);
+	assert.equal(ciInputCacheIdentity({ ...options, environment: { PLAYWRIGHT_BROWSERS_PATH: '/earlier-registration' } }), original);
 	writeFileSync(engines, JSON.stringify({ browsers: [{ name: 'firefox', revision: '1539' }] }));
 	assert.notEqual(ciInputCacheIdentity(options), original);
 });
