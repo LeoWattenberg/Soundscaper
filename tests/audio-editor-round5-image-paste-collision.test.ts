@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { framescaperPublishedProject, createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { normalizeFramescaperImageClipV1 } from '../src/common/editor/timeline-image-model.ts';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { applyFramescaperProjectCommand } from '../src/framescaper/editor-project-commands.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -30,19 +30,19 @@ for (const mode of ['overwrite', 'overwrite-middle', 'insert-middle'] as const) 
 	}, { type: 'image-clip/set', clipId: fixture.clip.id, expectedClip: null, expectedPlacement: null,
 		clip: fixture.clip, placement: { scope: 'timeline', trackId: owner.id } }] });
 	assert.ok(await environment.timelineImages.publishIfCurrent({ expected: base, project: authored, bytes: fixture.bytes }));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, fixture.project.id);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
-	await controller.actions.project.openById(fixture.project.id);
+	assert.equal(controller.project?.id, fixture.project.id);
 	controller.actions.timeline.selectClip(fixture.clip.id);
 	await controller.actions.edit.copy();
 	assert.equal(controller.getSnapshot().history.hasClipboard, true);
 	if (mode !== 'overwrite') controller.actions.transport.seek(120_000);
-	const before = environment.runtime.cloneProject(controller.project);
+	const before = framescaperPublishedProject(controller.project);
 	const historyCount = controller.getSnapshot().history.undoEntries.length;
 	await (mode === 'insert-middle' ? controller.actions.edit.pasteInsert() : controller.actions.edit.pasteOverlap());
 	assert.notEqual(controller.getSnapshot().status.state, 'error', JSON.stringify(controller.getSnapshot().status));
-	const after = environment.runtime.cloneProject(controller.project);
+	const after = framescaperPublishedProject(controller.project);
 	const clips = after.clips.filter(clip => clip.kind === 'image').map(normalizeFramescaperImageClipV1)
 		.sort((left, right) => left.sequenceStartFrame - right.sequenceStartFrame);
 	assert.equal(clips.length, mode === 'overwrite' ? 1 : mode === 'overwrite-middle' ? 2 : 3);

@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { framescaperPublishedProject } from './helpers/framescaper-controller-project-fixture.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { normalizeVideoGeneratorClipV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import { normalizeVideoVisualPresentationV1 } from '../src/common/editor/video-visual-presentation-v27.ts';
@@ -33,15 +34,15 @@ for (const kind of ['video-title', 'video-noise'] as const) for (const styled of
 				maskWidth: model.maskWidth, presetId: null,
 			}) as AudioEditorCommand);
 		}
-		const before = environment.runtime.cloneProject(controller.project);
+		const before = framescaperPublishedProject(controller.project);
 		assert.deepEqual(controller.actions.projectBin.moveFromTimeline(original.id), [original.id]);
-		const binned = environment.runtime.cloneProject(controller.project);
+		const binned = framescaperPublishedProject(controller.project);
 		assert.equal(binned.clips.length, 0);
 		assert.deepEqual(binned.videoVisualPresentations, before.videoVisualPresentations);
 		const historyCount = controller.getSnapshot().history.undoEntries.length;
 		const placedId = controller.actions.projectBin.place(original.id);
 		assert.equal(typeof placedId, 'string');
-		const after = environment.runtime.cloneProject(controller.project);
+		const after = framescaperPublishedProject(controller.project);
 		const placed = after.clips.find(clip => clip.id === placedId);
 		assert.ok(placed);
 		assert.equal(placed.sourceId, original.sourceId);

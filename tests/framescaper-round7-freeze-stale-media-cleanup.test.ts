@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
+import { createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE as PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -26,10 +26,10 @@ test('a normally completed Freeze retains its media, but stale capture releases 
 	} });
 	const project = createFramescaperProject(PROFILE, framescaperBaselineOptions());
 	assert.ok(await environment.createProjectIfAbsent(project));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, project.id);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
-	await controller.actions.project.openById(project.id);
+	assert.equal(controller.project?.id, project.id);
 	const runtime = framescaperSelectedVisualAuthoringRuntimeFor(controller);
 	assert.ok(runtime);
 	const captureStarted = deferred();

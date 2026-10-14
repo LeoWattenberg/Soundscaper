@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
+import { createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { createFramescaperBaselineImageFixture } from './helpers/framescaper-baseline-image-fixture.ts';
@@ -28,10 +28,10 @@ test('the real Framescaper public bin actions select an owned timeline image', a
 	}, { type: 'image-clip/set', clipId: fixture.clip.id, expectedClip: null, expectedPlacement: null,
 		clip: fixture.clip, placement: { scope: 'timeline', trackId: track.id } }] });
 	assert.ok(await environment.timelineImages.publishIfCurrent({ expected: base, project: authored, bytes: fixture.bytes }));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, fixture.project.id);
 	try {
 		await controller.ready;
-		await controller.actions.project.openById(fixture.project.id);
+		assert.equal(controller.project?.id, fixture.project.id);
 		assert.deepEqual(controller.actions.projectBin.moveFromTimeline(fixture.clip.id), [fixture.clip.id]);
 		const placed = controller.actions.projectBin.place(fixture.clip.id);
 		assert.equal(typeof placed, 'string');

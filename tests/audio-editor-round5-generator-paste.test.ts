@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { framescaperPublishedProject } from './helpers/framescaper-controller-project-fixture.ts';
 import { normalizeVideoGeneratorClipV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
@@ -20,7 +21,7 @@ for (const mode of ['overwrite', 'overwrite-middle', 'insert-middle'] as const) 
 	const authoring = framescaperCandidateAuthoringActionRuntimeFor(controller);
 	assert.ok(authoring);
 	await authoring.run('video-title');
-	const before = environment.runtime.cloneProject(controller.project);
+	const before = framescaperPublishedProject(controller.project);
 	const original = normalizeVideoGeneratorClipV1(before.clips.at(-1));
 	controller.actions.timeline.selectClip(original.id);
 	await controller.actions.edit.copy();
@@ -29,7 +30,7 @@ for (const mode of ['overwrite', 'overwrite-middle', 'insert-middle'] as const) 
 	const historyCount = controller.getSnapshot().history.undoEntries.length;
 	await (mode === 'insert-middle' ? controller.actions.edit.pasteInsert() : controller.actions.edit.pasteOverlap());
 	assert.notEqual(controller.getSnapshot().status.state, 'error', JSON.stringify(controller.getSnapshot().status));
-	const after = environment.runtime.cloneProject(controller.project);
+	const after = framescaperPublishedProject(controller.project);
 	assert.equal(after.tracks.length, before.tracks.length);
 	const clips = (after.clips as readonly Readonly<Record<string, unknown>>[])
 		.filter(clip => clip.kind === 'generator').map(normalizeVideoGeneratorClipV1)

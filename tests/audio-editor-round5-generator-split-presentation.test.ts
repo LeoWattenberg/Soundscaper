@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { framescaperPublishedProject } from './helpers/framescaper-controller-project-fixture.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { normalizeVideoGeneratorClipV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import { normalizeVideoVisualPresentationV1 } from '../src/common/editor/video-visual-presentation-v27.ts';
@@ -33,12 +34,12 @@ for (const kind of ['video-title', 'video-noise'] as const) for (const styled of
 			maskWidth: model.maskWidth, presetId: null,
 		}) as AudioEditorCommand);
 	}
-	const before = environment.runtime.cloneProject(controller.project);
+	const before = framescaperPublishedProject(controller.project);
 	const owner = before.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(original.id));
 	assert.ok(owner);
 	const historyCount = controller.getSnapshot().history.undoEntries.length;
 	controller.actions.edit.splitAt(96_000, [owner.id]);
-	const after = environment.runtime.cloneProject(controller.project);
+	const after = framescaperPublishedProject(controller.project);
 	const clips = (after.clips as readonly Readonly<Record<string, unknown>>[]).map(normalizeVideoGeneratorClipV1);
 	assert.equal(clips.length, 2);
 	const presentations = (after.videoVisualPresentations as readonly unknown[]).map(normalizeVideoVisualPresentationV1);
