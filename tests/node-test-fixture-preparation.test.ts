@@ -84,7 +84,7 @@ async function exists(path: string): Promise<boolean> {
 	}
 }
 
-async function fixture(context: test.TestContext, mode: 'success' | 'failure') {
+async function fixture(context: test.TestContext, mode: 'success' | 'failure', external = false) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-fixture-runner-test-'));
 	let runnerChild: ChildProcess | undefined = undefined;
 	let completion: Promise<{ code: number | null; signal: NodeJS.Signals | null }> | undefined = undefined;
@@ -142,6 +142,16 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure') {
 			'\tawait prepare("desktop", process.argv[3]);',
 			'}',
 		].join('\n')),
+		writeFile(join(root, 'scripts/lib/node-test-desktop-runtime-artifact.ts'), [
+			"import assert from 'node:assert/strict';",
+			"import { readFileSync, writeFileSync } from 'node:fs';",
+			"import { join } from 'node:path';",
+			'export const validateDesktopRuntimeTestArtifact = ({ repositoryRoot, fixtureRoot }) => {',
+			'\tassert.equal(repositoryRoot, process.env.SCAPE_FAKE_NODE_FIXTURE_CONTROL);',
+			'\tassert.equal(readFileSync(join(fixtureRoot, "ready"), "utf8"), "desktop");',
+			'\twriteFileSync(join(repositoryRoot, "artifact-validated"), fixtureRoot);',
+			'};',
+		].join('\n')),
 		writeFile(join(root, 'scripts/prepare-node-openfx-test-fixture.mjs'), [
 			"import { prepare } from './lib/fixture-control.mjs';",
 			'await prepare("openfx", process.argv[3]);',
@@ -166,7 +176,13 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure') {
 	};
 	delete environment.NODE_V8_COVERAGE;
 	delete environment.NODE_TEST_CONTEXT;
-	const child = spawn(process.execPath, [join(root, 'scripts/run-node-tests.mjs')], {
+	const externalRoot = join(root, 'downloaded');
+	if (external) {
+		await mkdir(externalRoot);
+		await writeFile(join(externalRoot, 'ready'), 'desktop');
+		await writeFile(join(root, 'desktop.started'), JSON.stringify({ pid: process.pid, directory: externalRoot }));
+	}
+	const child = spawn(process.execPath, [join(root, 'scripts/run-node-tests.mjs'), ...external ? [`--desktop-runtime-fixture=${externalRoot}`] : []], {
 		cwd: root, env: environment, stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	runnerChild = child;
@@ -216,4 +232,13 @@ test('a failed preparation waits for its sibling to close before removing both f
 	for (const label of ['openfx', 'desktop', 'native']) {
 		await assert.rejects(access((await record(run.root, label)).directory), { code: 'ENOENT' });
 	}
+});
+
+test('an explicit workflow fixture is authenticated before reuse and survives runner cleanup', { timeout: 15_000 }, async context => {
+	const run = await fixture(context, 'success', true);
+	assert.deepEqual(await run.completed, { code: 0, signal: null }, run.output.join(''));
+	const desktop = await record(run.root, 'desktop');
+	assert.equal(await readFile(join(run.root, 'artifact-validated'), 'utf8'), desktop.directory);
+	assert.equal(await readFile(join(desktop.directory, 'ready'), 'utf8'), 'desktop');
+	for (const label of ['openfx', 'native']) await assert.rejects(access((await record(run.root, label)).directory), { code: 'ENOENT' });
 });

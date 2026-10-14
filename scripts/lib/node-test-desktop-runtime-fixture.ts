@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { lstatSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { compileDesktopProjectLibraryRuntime } from './desktop-project-library-runtime.mjs';
+import { recordVerifiedInputTree, verifyInputTree } from './verified-ci-input-tree.ts';
 
 export const DESKTOP_RUNTIME_TEST_FIXTURE_ENV = 'SCAPE_NODE_TEST_DESKTOP_RUNTIME_FIXTURE';
 
@@ -16,20 +19,22 @@ const COMPILATION_TESTS = new Set([
 	'desktop-native-helper-real-process.test.js',
 ]);
 
-interface RuntimeOptions {
+export interface RuntimeOptions {
 	repositoryRoot: string;
 	outputRoot: string;
 }
 
-interface RuntimeResult {
+export interface RuntimeResult {
 	readonly files: readonly string[];
 }
 
-type CompileRuntime = (options: RuntimeOptions) => Promise<RuntimeResult>;
+export type CompileRuntime = (options: RuntimeOptions) => Promise<RuntimeResult>;
 
-interface FixtureManifest {
+export interface DesktopRuntimeFixtureManifest {
+	schemaVersion: 2;
 	repositoryRoot: string;
 	files: string[];
+	inputIdentity: string | null;
 }
 
 export function needsDesktopRuntimeTestFixture(testFiles: readonly string[]): boolean {
@@ -40,13 +45,15 @@ export function needsDesktopRuntimeTestFixture(testFiles: readonly string[]): bo
 export async function prepareDesktopRuntimeTestFixture(
 	{ repositoryRoot, fixtureRoot }: { repositoryRoot: string; fixtureRoot: string },
 	compile: CompileRuntime = compileDesktopProjectLibraryRuntime,
+	inputIdentity: string | null = null,
 ): Promise<void> {
 	try {
 		await mkdir(fixtureRoot, { recursive: true });
 		const result = await compile({ repositoryRoot, outputRoot: join(fixtureRoot, 'runtime') });
 		await writeFile(join(fixtureRoot, 'fixture.json'), JSON.stringify({
-			repositoryRoot: resolve(repositoryRoot), files: result.files,
+			schemaVersion: 2, repositoryRoot: resolve(repositoryRoot), files: result.files, inputIdentity,
 		}), { flag: 'wx' });
+		recordVerifiedInputTree(desktopRuntimeFixtureTree(fixtureRoot, inputIdentity, result.files));
 	} catch (error) {
 		await rm(fixtureRoot, { recursive: true, force: true });
 		throw error;
@@ -63,23 +70,38 @@ export async function compileDesktopRuntimeTestFixture(
 ): Promise<RuntimeResult> {
 	const fixtureRoot = environment[DESKTOP_RUNTIME_TEST_FIXTURE_ENV];
 	if (!fixtureRoot) return compile(options);
-	const manifest = readFixtureManifest(await readFile(join(fixtureRoot, 'fixture.json'), 'utf8'));
+	const manifest = readDesktopRuntimeFixtureManifestFile(fixtureRoot);
 	if (manifest.repositoryRoot !== resolve(options.repositoryRoot)) return compile(options);
+	if (!verifyInputTree(desktopRuntimeFixtureTree(fixtureRoot, manifest.inputIdentity, manifest.files))) throw new Error('Prepared desktop runtime bytes changed.');
 	await cp(join(fixtureRoot, 'runtime'), options.outputRoot, {
 		recursive: true, force: false, errorOnExist: true,
 	});
+	if (!verifyInputTree({ ...desktopRuntimeFixtureTree(fixtureRoot, manifest.inputIdentity, manifest.files), root: options.outputRoot })) throw new Error('Copied desktop runtime bytes changed.');
 	return Object.freeze({ files: Object.freeze(manifest.files) });
 }
 
-function readFixtureManifest(source: string): FixtureManifest {
+export function desktopRuntimeFixtureTree(fixtureRoot: string, inputIdentity: string | null, files: readonly string[]) {
+	const inventory = createHash('sha256').update(JSON.stringify(files)).digest('hex');
+	return { root: join(fixtureRoot, 'runtime'), receipt: join(fixtureRoot, 'runtime-receipt.json'), identity: `desktop-runtime-fixture-v2:${inputIdentity ?? 'fresh-invocation'}:${inventory}`, preserveModes: false };
+}
+
+export function readDesktopRuntimeFixtureManifestFile(fixtureRoot: string): DesktopRuntimeFixtureManifest {
+	const path = join(fixtureRoot, 'fixture.json');
+	if (!lstatSync(fixtureRoot).isDirectory() || !lstatSync(path).isFile() || lstatSync(path).size > 1024 * 1024) throw new Error('Invalid desktop runtime test fixture metadata.');
+	return readDesktopRuntimeFixtureManifest(readFileSync(path, 'utf8'));
+}
+
+export function readDesktopRuntimeFixtureManifest(source: string): DesktopRuntimeFixtureManifest {
 	const manifest: unknown = JSON.parse(source);
-	if (typeof manifest !== 'object' || manifest === null
+	if (source.length > 1024 * 1024 || typeof manifest !== 'object' || manifest === null
+		|| !('schemaVersion' in manifest) || manifest.schemaVersion !== 2
 		|| !('repositoryRoot' in manifest) || typeof manifest.repositoryRoot !== 'string'
+		|| !('inputIdentity' in manifest) || manifest.inputIdentity !== null && typeof manifest.inputIdentity !== 'string'
 		|| !('files' in manifest) || !Array.isArray(manifest.files)
-		|| !manifest.files.every((file: unknown) => typeof file === 'string')) {
+		|| !manifest.files.every((file: unknown) => typeof file === 'string' && file !== '' && !file.includes('..') && !file.startsWith('/') && !file.includes('\\'))) {
 		throw new Error('Invalid desktop runtime test fixture manifest.');
 	}
-	return { repositoryRoot: manifest.repositoryRoot, files: manifest.files as string[] };
+	return { schemaVersion: 2, repositoryRoot: manifest.repositoryRoot, files: manifest.files as string[], inputIdentity: manifest.inputIdentity as string | null };
 }
 
 // A separate process retains compilation coverage under the runner's V8

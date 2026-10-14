@@ -150,6 +150,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Prepare one fresh desktop test runtime for the common shards
+        uses: ./.github/actions/prepare-desktop-runtime-test-fixture
+
   tests:
     name: Tests / ${{ matrix.shard }}
     needs: quality
@@ -234,8 +237,15 @@ jobs:
           fi
           test -x node_modules/electron/dist/electron
 
+      - name: Download the fresh desktop test runtime
+        if: matrix.shard == 'common-1' || matrix.shard == 'common-2'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: node-desktop-runtime-fixture-${{ github.sha }}
+          path: .wrangler/node-desktop-runtime-fixture
+
       - name: Run the ${{ matrix.shard }} Node test shard
-        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native
+        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native --desktop-runtime-fixture=.wrangler/node-desktop-runtime-fixture
         env:
           # The headroom the suite has always run under. Nothing here merges
           # coverage — the shard only records raw V8 profiles — but a few tests

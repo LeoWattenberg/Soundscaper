@@ -51,17 +51,10 @@ jobs:
       # twelve, even though setup-node's package cache hits in every one of them.
       # Restoring the installed tree is one archive extract instead, so the gate
       # spends its time on the checks rather than on installing.
-      - name: Restore the installed dependency tree
-        id: dependency-tree
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore or install verified dependencies
+        uses: ./.github/actions/verified-node-dependencies
         with:
-          path: node_modules
-          key: >-
-            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
-
-      - name: Install dependencies
-        if: steps.dependency-tree.outputs.cache-hit != 'true'
-        run: npm ci
+          scope: ubuntu-24.04
 
       - name: Check and build the Soundscaper handbook
         run: npm run docs:check
@@ -141,6 +134,9 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps/
           if-no-files-found: error
           retention-days: 1
+
+      - name: Prepare one fresh desktop test runtime for the common shards
+        uses: ./.github/actions/prepare-desktop-runtime-test-fixture
 
   lint:
     name: Lint / ${{ matrix.shard }}
@@ -422,17 +418,10 @@ jobs:
       # The gate proved this out: a restored tree costs seconds where `npm ci`
       # costs anywhere from twelve seconds to five minutes depending on how many
       # jobs are writing 891 packages at once.
-      - name: Restore the installed dependency tree
-        id: dependency-tree
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore or install verified dependencies
+        uses: ./.github/actions/verified-node-dependencies
         with:
-          path: node_modules
-          key: >-
-            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
-
-      - name: Install dependencies
-        if: steps.dependency-tree.outputs.cache-hit != 'true'
-        run: npm ci
+          scope: ubuntu-24.04
 
       - name: Install virtual display for the native-helper Electron proof
         timeout-minutes: 10
@@ -479,8 +468,15 @@ jobs:
           fi
           test -x node_modules/electron/dist/electron
 
+      - name: Download the fresh desktop test runtime
+        if: matrix.shard == 'common-1' || matrix.shard == 'common-2'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: node-desktop-runtime-fixture-${{ github.sha }}
+          path: .wrangler/node-desktop-runtime-fixture
+
       - name: Run the ${{ matrix.shard }} Node test shard
-        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native
+        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native --desktop-runtime-fixture=.wrangler/node-desktop-runtime-fixture
         env:
           # The headroom the suite has always run under. Nothing here merges
           # coverage — the shard only records raw V8 profiles — but a few tests

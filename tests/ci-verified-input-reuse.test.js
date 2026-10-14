@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { extractJob, readWorkflow } from './helpers/workflow-jobs.js';
 
-test('Preview and Stable test jobs verify restored installed trees before their consumers', async () => {
-	for (const [workflow, jobs] of [['desktop-preview.yml', ['tests', 'browser', 'firefox']], ['soundscaper-stable-1.yml', ['tests', 'browser']]]) {
+test('desktop fixture producers and test jobs verify restored installed trees before their consumers', async () => {
+	for (const [workflow, jobs] of [['quality.yml', ['build', 'tests']], ['desktop-preview.yml', ['tests', 'browser', 'firefox']], ['soundscaper-stable-1.yml', ['tests', 'browser']]]) {
 		for (const name of jobs) assert.match(extractJob(await readWorkflow(workflow), name), /uses: \.\/\.github\/actions\/verified-node-dependencies/u);
 	}
 	const action = await readFile(new URL('../.github/actions/verified-node-dependencies/action.yml', import.meta.url), 'utf8');
