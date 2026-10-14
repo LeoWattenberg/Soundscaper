@@ -44,6 +44,7 @@ import {
 	waitForProjectActivation,
 	waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
+import { waitForCurrentWaveformPaint, waitForPlayheadAdvance } from './helpers/performance-paint-readiness.js';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -289,7 +290,8 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await page.waitForTimeout(500);
+		await waitForCurrentWaveformPaint(editor, 2);
+		await waitForPlayheadAdvance(editor);
 		// Keep both probes on the same post-startup playback window.
 		await page.evaluate(() => {
 			globalThis.__audioEditorLongTasks = [];
