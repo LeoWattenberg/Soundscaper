@@ -106,7 +106,9 @@ jobs:
         uses: ./.github/actions/verified-node-dependencies
         with:
           scope: ubuntu-24.04
-      - run: bash scripts/ci-apt-install.sh xvfb
+      - name: Install virtual display for the native-helper Electron proof
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh xvfb
       - name: Resolve the interchange download cache identity
         id: interchange-cache-key
         run: node scripts/provision-interchange-conformance.mjs --cache-key >> "$GITHUB_OUTPUT"
