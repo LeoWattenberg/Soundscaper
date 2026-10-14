@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { readdir } from 'node:fs/promises';
 
@@ -192,7 +193,7 @@ for (const mode of ['Light', 'Dark']) {
 		await expect(checkbox).not.toBeChecked();
 		await expect(checkbox).toHaveCSS('border-width', '0px');
 		await expect(checkbox).toHaveCSS('outline-style', 'none');
-		await preferences.screenshot({ path: testInfo.outputPath(`appearance-${mode}.png`) });
+		await capturePassingScreenshot(preferences, { path: testInfo.outputPath(`appearance-${mode}.png`) });
 		const idleFill = cssColor(palette.background.control.checkbox.idle);
 		await expect(checkbox).toHaveCSS('background-color', idleFill);
 		await checkbox.hover();

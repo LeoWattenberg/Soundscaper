@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, createWavFixture } from './audio-editor-test-fixtures.js';
 import {
 	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction,
@@ -83,7 +84,7 @@ test.describe('Audacity Graphic EQ fader bank', () => {
 		await page.getByRole('menuitem', { name: 'Advanced settings', exact: true }).click();
 		await dialog.getByRole('button', { name: 'Interpolation', exact: true }).click();
 		await page.getByRole('option', { name: 'Cosine', exact: true }).click();
-		await dialog.screenshot({ path: 'test-results/graphic-eq-dialog.png' });
+		await capturePassingScreenshot(dialog, { path: 'test-results/graphic-eq-dialog.png' });
 		await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 		await expect(dialog).toBeHidden({ timeout: 20_000 });
 		// Audacity's sampled cosine envelope gives 5.917160393252566 dB at

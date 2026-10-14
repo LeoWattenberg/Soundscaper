@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction,
@@ -69,7 +70,7 @@ test.describe('Audacity Filter Curve EQ', () => {
 		await expect(graph).toContainText('-90');
 		const height = await textbox.evaluate((input) => ({ input: input.getBoundingClientRect().height, wrapper: input.parentElement.getBoundingClientRect().height }));
 		expect(height.wrapper).toBeGreaterThanOrEqual(height.input);
-		await dialog.screenshot({ path: 'test-results/filter-curve-dialog.png' });
+		await capturePassingScreenshot(dialog, { path: 'test-results/filter-curve-dialog.png' });
 		await closeDialog(dialog);
 		expect(errors).toEqual([]);
 	});
