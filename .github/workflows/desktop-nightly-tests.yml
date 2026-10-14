@@ -78,6 +78,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Set up native tooling
         uses: ./.github/actions/setup-native-tooling
