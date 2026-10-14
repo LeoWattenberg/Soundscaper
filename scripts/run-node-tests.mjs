@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 import {
 	describeNodeTestSelection,
@@ -20,6 +20,7 @@ import {
 	DESKTOP_RUNTIME_TEST_FIXTURE_ENV,
 	needsDesktopRuntimeTestFixture,
 } from './lib/node-test-desktop-runtime-fixture.ts';
+import { OPENFX_TEST_FIXTURE_ENV, openFxTestFixtureArtifacts } from './lib/node-test-openfx-fixture.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const argv = process.argv.slice(2);
@@ -57,30 +58,39 @@ if (coverageArgument !== undefined) {
 const styleAssetLoader = resolve(root, 'scripts/node-style-asset-loader.mjs');
 const requiredNativeReporter = resolve(root, 'scripts/require-linux-native-tests-reporter.mjs');
 const desktopRuntimeFixtureScript = resolve(root, 'scripts/lib/node-test-desktop-runtime-fixture.ts');
+const openFxFixtureScript = resolve(root, 'scripts/prepare-node-openfx-test-fixture.mjs');
 let desktopRuntimeFixtureDirectory = null;
+let openFxFixtureDirectory = null;
 // Only this invocation may supply a fixture; direct test runs compile normally.
 delete env[DESKTOP_RUNTIME_TEST_FIXTURE_ENV];
+delete env[OPENFX_TEST_FIXTURE_ENV];
 let executionError = null;
 let exitCode = 0;
 try {
 	for (const batch of partitionNodeTestExecutionBatches(testFiles)) {
+		const preparations = [];
+		if (openFxFixtureDirectory === null && openFxTestFixtureArtifacts(batch).length > 0) {
+			openFxFixtureDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-node-openfx-'));
+			preparations.push(prepareFixture('OpenFX test fixture', [openFxFixtureScript, root, openFxFixtureDirectory, ...batch]));
+		}
 		if (desktopRuntimeFixtureDirectory === null && needsDesktopRuntimeTestFixture(batch)) {
-			// Compile once before the parallel consumers, with the same coverage
-			// environment. Each consumer receives a private copy of these fresh bytes.
 			desktopRuntimeFixtureDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-node-desktop-runtime-'));
-			const preparation = spawnSync(process.execPath, [
-				desktopRuntimeFixtureScript, root, desktopRuntimeFixtureDirectory,
-			], { cwd: root, env, stdio: 'inherit' });
+			preparations.push(prepareFixture('Desktop test runtime', [desktopRuntimeFixtureScript, root, desktopRuntimeFixtureDirectory]));
+		}
+		// Independent compilers overlap, then both close before consumers or cleanup.
+		let preparationFailed = false;
+		for (const preparation of await Promise.all(preparations)) {
 			if (preparation.error || preparation.signal) {
-				executionError = preparation.error ?? new Error(`Desktop test runtime compilation terminated with ${preparation.signal}.`);
-				break;
+				executionError = preparation.error ?? new Error(`${preparation.label} compilation terminated with ${preparation.signal}.`);
 			}
 			if (preparation.status !== 0) {
+				preparationFailed = true;
 				exitCode = preparation.status ?? 1;
-				break;
 			}
-			env[DESKTOP_RUNTIME_TEST_FIXTURE_ENV] = desktopRuntimeFixtureDirectory;
 		}
+		if (executionError !== null || preparationFailed) break;
+		if (openFxFixtureDirectory !== null) env[OPENFX_TEST_FIXTURE_ENV] = openFxFixtureDirectory;
+		if (desktopRuntimeFixtureDirectory !== null) env[DESKTOP_RUNTIME_TEST_FIXTURE_ENV] = desktopRuntimeFixtureDirectory;
 		const result = spawnSync(process.execPath, [
 			'--import', 'tsx', '--import', styleAssetLoader,
 			...(requireLinuxNative ? ['--test-reporter', requiredNativeReporter] : []),
@@ -104,6 +114,7 @@ try {
 	if (desktopRuntimeFixtureDirectory !== null) {
 		rmSync(desktopRuntimeFixtureDirectory, { recursive: true, force: true });
 	}
+	if (openFxFixtureDirectory !== null) rmSync(openFxFixtureDirectory, { recursive: true, force: true });
 }
 
 let requiredNativeReport = '';
@@ -121,3 +132,13 @@ if (executionError !== null) throw executionError;
 const requiredNativeError = requiredLinuxNativeSkipError(requiredNativeReport);
 if (requiredNativeError !== null) throw requiredNativeError;
 process.exitCode = exitCode;
+
+// Resolve failures as results so a sibling compiler always finishes before cleanup.
+function prepareFixture(label, arguments_) {
+	return new Promise((resolvePreparation) => {
+		let error = null;
+		const child = spawn(process.execPath, arguments_, { cwd: root, env, stdio: 'inherit' });
+		child.once('error', (failure) => { error = failure; });
+		child.once('close', (status, signal) => resolvePreparation({ label, error, status, signal }));
+	});
+}
