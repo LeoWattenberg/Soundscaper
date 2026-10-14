@@ -30,6 +30,8 @@ test('installed dependency identities bind manifests, patches, toolchain, host a
 		assert.notEqual(ciInputCacheIdentity({ ...options, ...update }), original);
 	}
 	assert.notEqual(ciInputCacheIdentity({ ...options, environment: { ELECTRON_SKIP_BINARY_DOWNLOAD: '1' } }), original);
+	assert.notEqual(ciInputCacheIdentity({ ...options, environment: { NPM_CONFIG_BUILD_FROM_SOURCE: 'true' } }), original);
+	assert.notEqual(ciInputCacheIdentity({ ...options, environment: { SOUNDSCAPER_DESKTOP_TARGET_ARCH: 'arm64' } }), original);
 });
 
 test('Firefox identity binds the installed Playwright engine revision and verifier while excluding runtime registration state', t => {
