@@ -9,6 +9,7 @@ import { stripParameterDescriptor } from '../src/common/editor/effect-parameter-
 import { MockAudioBuffer, MockAudioContext } from './helpers/mock-audio-context.js';
 import type { EngineRuntimeHost } from '../src/common/editor/engine/runtime-types.ts';
 type ParamProbe = AudioParam & { events: readonly unknown[][] };
+type GainProbe = ReturnType<MockAudioContext['createGain']> & { gain: ParamProbe };
 
 function fixture({ mixed = false, alwaysSlow = false } = {}) {
 	const context = new MockAudioContext({ sampleRate: 44_100 });
@@ -20,7 +21,7 @@ function fixture({ mixed = false, alwaysSlow = false } = {}) {
 	const cleared: number[] = [];
 	context.createGain = () => {
 		const node = makeGain();
-		const param = node.gain as unknown as ParamProbe;
+		const param = (node as GainProbe).gain;
 		const set = param.setValueAtTime.bind(param);
 		param.setValueAtTime = (value, time) => {
 			set(value, time);
@@ -90,9 +91,9 @@ test('an owned recorder start is confirmed once and remains strict when automati
 
 test('project gain and delayed registry automation replace the complete old window at the shared source frame', async () => {
 	const f = fixture({ mixed: true });
-	const track = f.context.createGain().gain as unknown as ParamProbe;
-	const master = f.context.createGain().gain as unknown as ParamProbe;
-	const laneParam = f.context.createGain().gain as unknown as ParamProbe;
+	const track = (f.context.createGain() as GainProbe).gain;
+	const master = (f.context.createGain() as GainProbe).gain;
+	const laneParam = (f.context.createGain() as GainProbe).gain;
 	const registry = new ScheduledParameterRegistry();
 	const address = { kind: 'strip' as const, strip: { kind: 'track' as const, id: 'track' }, parameterId: 'gain' as const };
 	registry.registerAudioParam(stripParameterDescriptor(address, 441), laneParam);
