@@ -4,6 +4,7 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import { bootEditor, chooseCommandAction, clipByName, collectClientErrors,
 	disableNativeSavePicker, importFiles, openParametricEqSelectionEffect } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
+import { primaryReleaseDryPeak } from './helpers/parametric-primary-release-baseline.js';
 
 for (const kind of ['band', 'output']) test(`Parametric EQ ${kind} completes at primary release while middle remains held`, async ({ page }) => {
 	test.setTimeout(60_000);
@@ -13,7 +14,7 @@ for (const kind of ['band', 'output']) test(`Parametric EQ ${kind} completes at 
 	const recording = createWavFixture({ name: `Parametric ${kind} recording.wav`, frequency: 500,
 		duration: 1, channelCount: 1, channelAmplitudes: [.15] });
 	await importFiles(editor, [recording]);
-	const dryPeak = peak(await exportSamples(page, editor));
+	const dryPeak = await primaryReleaseDryPeak(page, editor, recording, kind === 'band');
 	// A mono track's default centered pan delivers equal-power stereo.
 	expect(dryPeak).toBeCloseTo(.15 * Math.SQRT1_2, 3);
 	const open = async () => {
@@ -67,7 +68,7 @@ test('Parametric output retains native keyboard and outside mouse completion wit
 	const recording = createWavFixture({ name: 'Outside Parametric recording.wav', frequency: 500,
 		duration: 1, channelCount: 1, channelAmplitudes: [.15] });
 	await importFiles(editor, [recording]);
-	const dryPeak = peak(await exportSamples(page, editor));
+	const dryPeak = await primaryReleaseDryPeak(page, editor, recording);
 	expect(dryPeak).toBeCloseTo(.15 * Math.SQRT1_2, 3);
 	await chooseCommandAction(page, editor, 'Select', 'Select all');
 	const dialog = await openParametricEqSelectionEffect(page, editor);

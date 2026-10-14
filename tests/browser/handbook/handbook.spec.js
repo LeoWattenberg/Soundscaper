@@ -94,7 +94,7 @@ test('states a local model purpose and keeps packaged-test mechanics collapsed',
 	await expect(disclosure.getByText(/silero-voice-activity/u)).toBeVisible();
 });
 
-test('compares Web and Desktop separately with accessible, coloured symbols', async ({ page }) => {
+test('compares Web and Desktop with accessible symbols and explains the capability differences', async ({ page }) => {
 	await page.goto(`${BASE}start/how-soundscaper-compares/`);
 	await expect(page.getByRole('heading', { level: 1, name: 'How Soundscaper compares' })).toBeVisible();
 	const tables = page.getByRole('table');
@@ -114,10 +114,6 @@ test('compares Web and Desktop separately with accessible, coloured symbols', as
 	}
 	expect(new Set(colours).size).toBe(3);
 	await expect(tables.getByText(/^(?:Yes|No|Partial)(?:\s|$)/u)).toHaveCount(0);
-});
-
-test('explains corrected capabilities and the Desktop-only workflows', async ({ page }) => {
-	await page.goto(`${BASE}start/how-soundscaper-compares/`);
 	const row = (capability) => page.getByRole('row').filter({
 		has: page.getByRole('cell', { name: capability, exact: true }),
 	});
