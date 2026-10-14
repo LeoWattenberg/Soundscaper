@@ -196,7 +196,7 @@
 		"tests/browser/audio-editor-direct-wav-save.spec.js": 799,
 		"tests/browser/audio-editor-scape-open-compatibility.spec.js": 781,
 		"tests/browser/audio-editor-timeline-interactions.spec.js": 780,
-		"tests/browser/audio-editor-video-retime-preview-executor.spec.js": 785,
+		"tests/browser/audio-editor-video-retime-preview-executor.spec.js": 779,
 		"tests/desktop-assistance-enhancement-separation-ort-worker.test.ts": 600,
 		"tests/desktop-assistance-operation-service.test.ts": 558,
 		"tests/desktop-audio-codec-runtime-composition.test.ts": 560,
