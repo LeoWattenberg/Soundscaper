@@ -134,4 +134,3 @@ function readManifest(source: string): FixtureManifest {
 }
 
 function digest(bytes: Buffer): string { return createHash('sha256').update(bytes).digest('hex'); }
-
