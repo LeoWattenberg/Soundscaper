@@ -21,6 +21,8 @@ import {
 	needsDesktopRuntimeTestFixture,
 } from './lib/node-test-desktop-runtime-fixture.ts';
 import { OPENFX_TEST_FIXTURE_ENV, openFxTestFixtureArtifacts } from './lib/node-test-openfx-fixture.ts';
+import { NATIVE_TEST_FIXTURE_ENV } from './lib/node-native-test-fixtures.ts';
+import { selectedNativeTestFixtures } from './lib/node-native-test-fixture-recipes.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const argv = process.argv.slice(2);
@@ -59,16 +61,23 @@ const styleAssetLoader = resolve(root, 'scripts/node-style-asset-loader.mjs');
 const requiredNativeReporter = resolve(root, 'scripts/require-linux-native-tests-reporter.mjs');
 const desktopRuntimeFixtureScript = resolve(root, 'scripts/lib/node-test-desktop-runtime-fixture.ts');
 const openFxFixtureScript = resolve(root, 'scripts/prepare-node-openfx-test-fixture.mjs');
+const nativeFixtureScript = resolve(root, 'scripts/prepare-node-native-test-fixtures.mjs');
 let desktopRuntimeFixtureDirectory = null;
 let openFxFixtureDirectory = null;
+let nativeFixtureDirectory = null;
 // Only this invocation may supply a fixture; direct test runs compile normally.
 delete env[DESKTOP_RUNTIME_TEST_FIXTURE_ENV];
 delete env[OPENFX_TEST_FIXTURE_ENV];
+delete env[NATIVE_TEST_FIXTURE_ENV];
 let executionError = null;
 let exitCode = 0;
 try {
 	for (const batch of partitionNodeTestExecutionBatches(testFiles)) {
 		const preparations = [];
+		if (nativeFixtureDirectory === null && selectedNativeTestFixtures(batch, env, true).length > 0) {
+			nativeFixtureDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-node-native-'));
+			preparations.push(prepareFixture('Native test fixtures', [nativeFixtureScript, root, nativeFixtureDirectory, ...batch]));
+		}
 		if (openFxFixtureDirectory === null && openFxTestFixtureArtifacts(batch).length > 0) {
 			openFxFixtureDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-node-openfx-'));
 			preparations.push(prepareFixture('OpenFX test fixture', [openFxFixtureScript, root, openFxFixtureDirectory, ...batch]));
@@ -77,7 +86,7 @@ try {
 			desktopRuntimeFixtureDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-node-desktop-runtime-'));
 			preparations.push(prepareFixture('Desktop test runtime', [desktopRuntimeFixtureScript, root, desktopRuntimeFixtureDirectory]));
 		}
-		// Independent compilers overlap, then both close before consumers or cleanup.
+		// Independent compilers overlap, then all close before consumers or cleanup.
 		let preparationFailed = false;
 		for (const preparation of await Promise.all(preparations)) {
 			if (preparation.error || preparation.signal) {
@@ -91,6 +100,7 @@ try {
 		if (executionError !== null || preparationFailed) break;
 		if (openFxFixtureDirectory !== null) env[OPENFX_TEST_FIXTURE_ENV] = openFxFixtureDirectory;
 		if (desktopRuntimeFixtureDirectory !== null) env[DESKTOP_RUNTIME_TEST_FIXTURE_ENV] = desktopRuntimeFixtureDirectory;
+		if (nativeFixtureDirectory !== null) env[NATIVE_TEST_FIXTURE_ENV] = nativeFixtureDirectory;
 		const result = spawnSync(process.execPath, [
 			'--import', 'tsx', '--import', styleAssetLoader,
 			...(requireLinuxNative ? ['--test-reporter', requiredNativeReporter] : []),
@@ -115,6 +125,7 @@ try {
 		rmSync(desktopRuntimeFixtureDirectory, { recursive: true, force: true });
 	}
 	if (openFxFixtureDirectory !== null) rmSync(openFxFixtureDirectory, { recursive: true, force: true });
+	if (nativeFixtureDirectory !== null) rmSync(nativeFixtureDirectory, { recursive: true, force: true });
 }
 
 let requiredNativeReport = '';

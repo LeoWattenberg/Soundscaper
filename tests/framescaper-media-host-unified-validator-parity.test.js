@@ -9,25 +9,20 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
-	boostClosureIncludeArguments,
 	requireExactRetimeClosure,
 } from './helpers/framescaper-boost-closure.js';
 import {
 	mediaHostUnifiedPlanGeneration,
 } from './helpers/framescaper-media-host-unified-plan-fixture.js';
 import { createPrivateNativeFixtureArtifact } from './helpers/native-fixture-compiler.ts';
+import { compileNativeTestFixture } from '../scripts/lib/node-native-test-fixtures.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
-const sourceRoot = join(repositoryRoot, 'native/framescaper-media-host/src');
-const fixtureSource = join(
-	repositoryRoot,
-	'native/framescaper-media-host/tests/unified_plan_admission_fixture.cpp',
-);
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const TIMING_SHA256 = 'cd'.repeat(32);
 const validator = createPrivateNativeFixtureArtifact({
 	prefix: 'framescaper-unified-validator-build-', fileName: 'unified-plan-admission',
-	build: buildValidatorExecutable,
+	build: outputPath => compileNativeTestFixture({ repositoryRoot, kind: 'media-validator', outputPath }),
 });
 test.after(() => validator.cleanup());
 
@@ -517,20 +512,6 @@ function buildFixture(context) {
 		rmSync(directory, { recursive: true, force: true });
 		throw error;
 	}
-}
-
-function buildValidatorExecutable(executable) {
-	const boostArguments = boostClosureIncludeArguments();
-	const files = [
-		'media_plan.cpp', 'legacy_plan_semantics.cpp', 'legacy_plan_v8_filter_semantics.cpp',
-		'media_file_grants.cpp', 'sha256.cpp', 'strict_json.cpp',
-	].map((file) => join(sourceRoot, file));
-	files.push(join(repositoryRoot, 'native/common/sha256.cpp'));
-	const built = spawnSync('c++', [
-		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		...boostArguments, '-I', sourceRoot, fixtureSource, ...files, '-o', executable,
-	], { encoding: 'utf8' });
-	assert.equal(built.status, 0, built.stderr);
 }
 
 function admit(fixture, plan) {

@@ -11,6 +11,7 @@ import { waitFor } from './helpers/async-test-control.ts';
 
 const OPENFX_ENV = 'SCAPE_NODE_TEST_OPENFX_FIXTURE';
 const DESKTOP_ENV = 'SCAPE_NODE_TEST_DESKTOP_RUNTIME_FIXTURE';
+const NATIVE_ENV = 'SCAPE_NODE_TEST_NATIVE_FIXTURE';
 const CONTROL_ENV = 'SCAPE_FAKE_NODE_FIXTURE_CONTROL';
 const MODE_ENV = 'SCAPE_FAKE_NODE_FIXTURE_MODE';
 
@@ -45,6 +46,7 @@ function running(pid) {
 export async function prepare(label, directory) {
 	assert.equal(process.env.SCAPE_NODE_TEST_OPENFX_FIXTURE, undefined);
 	assert.equal(process.env.SCAPE_NODE_TEST_DESKTOP_RUNTIME_FIXTURE, undefined);
+	assert.equal(process.env.SCAPE_NODE_TEST_NATIVE_FIXTURE, undefined);
 	await writeFile(join(control, label + '.started'), JSON.stringify({ pid: process.pid, directory }));
 	const sibling = label === 'openfx' ? 'desktop' : 'openfx';
 	await until(() => exists(join(control, sibling + '.started')));
@@ -59,8 +61,8 @@ export async function prepare(label, directory) {
 		// The first compiler has exited; neither fixture may be removed yet.
 		await access(directory);
 		await access(other.directory);
-		await writeFile(join(control, 'desktop.held'), 'both directories survive');
-		await until(() => exists(join(control, 'desktop.release')));
+		await writeFile(join(control, label + '.held'), 'all directories survive');
+		await until(() => exists(join(control, label + '.release')));
 	}
 	await writeFile(join(directory, 'ready'), label);
 	await writeFile(join(control, label + '.finished'), 'ready');
@@ -88,11 +90,11 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure') {
 	let completion: Promise<{ code: number | null; signal: NodeJS.Signals | null }> | undefined = undefined;
 	context.after(async () => {
 		if (runnerChild) {
-			await writeFile(join(root, 'desktop.release'), 'cleanup release');
+			await Promise.all(['desktop', 'native'].map(label => writeFile(join(root, label + '.release'), 'cleanup release')));
 			if (running(runnerChild)) runnerChild.kill();
 			await completion?.catch(() => undefined);
 		}
-		for (const label of ['openfx', 'desktop']) {
+		for (const label of ['openfx', 'desktop', 'native']) {
 			if (await exists(join(root, `${label}.started`))) {
 				await rm((await record(root, label)).directory, { recursive: true, force: true });
 			}
@@ -125,6 +127,12 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure') {
 			`export const OPENFX_TEST_FIXTURE_ENV = '${OPENFX_ENV}';`,
 			'export const openFxTestFixtureArtifacts = () => ["plugin", "runtime"];',
 		].join('\n')),
+		writeFile(join(root, 'scripts/lib/node-native-test-fixtures.ts'), `export const NATIVE_TEST_FIXTURE_ENV = '${NATIVE_ENV}';`),
+		writeFile(join(root, 'scripts/lib/node-native-test-fixture-recipes.ts'), 'export const selectedNativeTestFixtures = () => ["media-contract"];'),
+		writeFile(join(root, 'scripts/prepare-node-native-test-fixtures.mjs'), [
+			"import { prepare } from './lib/fixture-control.mjs';",
+			'await prepare("native", process.argv[3]);',
+		].join('\n')),
 		writeFile(join(root, 'scripts/lib/node-test-desktop-runtime-fixture.ts'), [
 			"import { basename } from 'node:path';",
 			"import { prepare } from './fixture-control.mjs';",
@@ -144,16 +152,17 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure') {
 			"import { join } from 'node:path';",
 			"import test from 'node:test';",
 			'test("both freshly prepared fixtures reach the consumer", () => {',
-			`\tconst openfx = process.env.${OPENFX_ENV}, desktop = process.env.${DESKTOP_ENV};`,
+			`\tconst openfx = process.env.${OPENFX_ENV}, desktop = process.env.${DESKTOP_ENV}, native = process.env.${NATIVE_ENV};`,
 			'\tassert.equal(readFileSync(join(openfx, "ready"), "utf8"), "openfx");',
 			'\tassert.equal(readFileSync(join(desktop, "ready"), "utf8"), "desktop");',
-			`\twriteFileSync(join(process.env.${CONTROL_ENV}, "consumer"), JSON.stringify({ openfx, desktop }));`,
+			'\tassert.equal(readFileSync(join(native, "ready"), "utf8"), "native");',
+			`\twriteFileSync(join(process.env.${CONTROL_ENV}, "consumer"), JSON.stringify({ openfx, desktop, native }));`,
 			'});',
 		].join('\n')),
 	]);
 	const environment: NodeJS.ProcessEnv = {
 		...process.env, [CONTROL_ENV]: root, [MODE_ENV]: mode,
-		[OPENFX_ENV]: 'stale-openfx-fixture', [DESKTOP_ENV]: 'stale-desktop-fixture',
+		[OPENFX_ENV]: 'stale-openfx-fixture', [DESKTOP_ENV]: 'stale-desktop-fixture', [NATIVE_ENV]: 'stale-native-fixture',
 	};
 	delete environment.NODE_V8_COVERAGE;
 	delete environment.NODE_TEST_CONTEXT;
@@ -181,10 +190,10 @@ test('the Node runner overlaps fresh preparations and supplies both fixtures onl
 	const run = await fixture(context, 'success');
 	const result = await run.completed;
 	assert.deepEqual(result, { code: 0, signal: null }, run.output.join(''));
-	const [openfx, desktop] = await Promise.all(['openfx', 'desktop'].map(label => record(run.root, label)));
+	const [openfx, desktop, native] = await Promise.all(['openfx', 'desktop', 'native'].map(label => record(run.root, label)));
 	const consumer: unknown = JSON.parse(await readFile(join(run.root, 'consumer'), 'utf8'));
-	assert.deepEqual(consumer, { openfx: openfx.directory, desktop: desktop.directory });
-	for (const prepared of [openfx, desktop]) {
+	assert.deepEqual(consumer, { openfx: openfx.directory, desktop: desktop.directory, native: native.directory });
+	for (const prepared of [openfx, desktop, native]) {
 		await assert.rejects(access(prepared.directory), { code: 'ENOENT' });
 	}
 });
@@ -198,13 +207,13 @@ test('a failed preparation waits for its sibling to close before removing both f
 		assert.equal(running(run.child), true, 'the runner must still wait for the surviving compiler');
 		assert.equal(await exists(join(run.root, 'consumer')), false);
 	} finally {
-		await writeFile(join(run.root, 'desktop.release'), 'finish sibling');
+		await Promise.all(['desktop', 'native'].map(label => writeFile(join(run.root, label + '.release'), 'finish sibling')));
 	}
 	const result = await run.completed;
 	assert.deepEqual(result, { code: 1, signal: null }, run.output.join(''));
 	assert.equal(await readFile(join(run.root, 'desktop.finished'), 'utf8'), 'ready');
 	assert.equal(await exists(join(run.root, 'consumer')), false);
-	for (const label of ['openfx', 'desktop']) {
+	for (const label of ['openfx', 'desktop', 'native']) {
 		await assert.rejects(access((await record(run.root, label)).directory), { code: 'ENOENT' });
 	}
 });

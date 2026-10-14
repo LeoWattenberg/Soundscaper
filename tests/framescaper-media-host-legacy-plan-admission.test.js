@@ -10,14 +10,10 @@ import test from 'node:test';
 
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
-import { createPrivateNativeFixtureArtifact } from './helpers/native-fixture-compiler.ts';
+import { createMediaContractHostFixture } from './helpers/framescaper-media-contract-host-fixture.js';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
-const sourceRoot = join(repositoryRoot, 'native/framescaper-media-host/src');
-const contractHost = createPrivateNativeFixtureArtifact({
-	prefix: 'framescaper-legacy-host-build-', fileName: 'framescaper-media-host',
-	build: buildContractHostExecutable,
-});
+const contractHost = createMediaContractHostFixture(repositoryRoot, { closure: false });
 test.after(() => contractHost.cleanup());
 
 test('V7 admission closes keyed plan metadata, identities, nested fields, and source digests', (context) => {
@@ -175,21 +171,6 @@ function buildContractHost(context) {
 		rmSync(directory, { recursive: true, force: true });
 		throw error;
 	}
-}
-
-function buildContractHostExecutable(executable) {
-	const files = [
-		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
-		'media_host_arguments.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
-	].map((file) => join(sourceRoot, file));
-	files.push(join(repositoryRoot, 'native/common/sha256.cpp'));
-	const built = spawnSync('c++', [
-		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', sourceRoot,
-		...files, '-o', executable,
-	], { encoding: 'utf8' });
-	assert.equal(built.status, 0, built.stderr);
 }
 
 function operationPaths(directory) {
