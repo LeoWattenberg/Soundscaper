@@ -7,7 +7,7 @@ import { expectCapturePhase, openRecordingSetup, selectSourceRoles } from './hel
 import { installRound6NativeCapture } from './helpers/framescaper-round6-native-audio-capture.js';
 
 for (const monitoring of [true, false]) {
-	test(`native microphone and shared-screen capture remains durable and isolates monitor output with monitoring=${String(monitoring)}`, async ({ page, browserName }) => {
+	test(`native microphone and shared-screen capture remains durable and isolates monitor output with monitoring=${String(monitoring)}`, async ({ page, browserName }, testInfo) => {
 		await installRound6NativeCapture(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');
@@ -31,10 +31,20 @@ for (const monitoring of [true, false]) {
 			const frames = await page.evaluate(() => window.__round6CaptureNativeFrameSizes());
 			throw new Error(`Native AudioData: ${JSON.stringify({ count: frames.length, frameSizes: [...new Set(frames)] })}\n${await panel.innerText()}`, { cause: error });
 		}
-		if (monitoring) {
-			await expect.poll(() => page.evaluate(() => window.__round6CaptureMonitorOutput().microphone)).toBeGreaterThan(0.1);
+		const captureStart = await page.evaluate(() => window.__round6CaptureNativeDiagnostics());
+		try {
+			if (monitoring) {
+				await expect.poll(() => page.evaluate(() => window.__round6CaptureMonitorOutput().microphone)).toBeGreaterThan(0.1);
+			}
+			await expect.poll(() => page.evaluate(() => window.__round6CaptureNativePcm().frames)).toBeGreaterThan(16_384);
+		} catch (error) {
+			const diagnostics = await page.evaluate(() => window.__round6CaptureNativeDiagnostics());
+			throw new Error(`Native capture clocks: ${JSON.stringify({ captureStart, diagnostics })}\n${await panel.innerText()}`, { cause: error });
 		}
-		await expect.poll(() => page.evaluate(() => window.__round6CaptureNativePcm().frames)).toBeGreaterThan(16_384);
+		await testInfo.attach('native-capture-clocks', {
+			body: JSON.stringify({ captureStart, diagnostics: await page.evaluate(() => window.__round6CaptureNativeDiagnostics()) }),
+			contentType: 'application/json',
+		});
 		if (!monitoring && browserName === 'chromium') {
 			// Two inputs must supply enough native blocks to exercise batch publication.
 			await expect.poll(() => page.evaluate(() => window.__round6CaptureNativeFrameSizes().length)).toBeGreaterThan(64);
