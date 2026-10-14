@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { MicrophoneMeterSession } from '../microphone-meter-service.ts';
+import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { RecordingInputRoute, RecordingPoolSource } from './recording-input-coordination-service.ts';
 import type {
 	normalizePreferredInputDeviceId,
@@ -101,6 +102,7 @@ export interface RecordingRoutingServiceRuntime<
 	Project extends RecordingRoutingProject = RecordingRoutingProject,
 	Stream = unknown,
 > {
+	readonly lifetime: Pick<EditorControllerLifetime, 'inactive' | 'signal'>;
 	readonly AUDIO_DEVICE_PREFERENCES_SETTING_KEY: string;
 	readonly RECORDING_CHANNEL_COUNT_MAXIMUM: number;
 	readonly RECORDING_DEFAULT_DEVICE_ID: string;
