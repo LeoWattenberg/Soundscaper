@@ -16,6 +16,9 @@
 		"types": ["node"]
 	},
 	"include": [
+		"desktop/audiocom-integration.ts",
+		"desktop/audiocom-authorization.ts",
+		"desktop/audiocom-links.ts",
 		"desktop/blender-ipc.ts",
 		"desktop/blender-export-store.ts",
 		"desktop/blender-live-server.ts",

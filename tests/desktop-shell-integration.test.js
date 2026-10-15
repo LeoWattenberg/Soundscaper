@@ -131,7 +131,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		'collectAssistanceModelGarbage', 'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'setNativePluginInstallationAllowed', 'signalReady', 'startNativeVampAnalyzer', 'statDesktopVideoCodecOutput', 'writeChunk', 'writeDesktopVideoCodecInput',
 		].sort();
 	const mcpFields = ['readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest'];
-	const freesoundFields = ['openFreesoundAuthorization'];
+	const freesoundFields = ['openFreesoundAuthorization', 'openAudiocomAuthorization', 'openAudiocomLink'];
 	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'blender', 'persistentDelivery', ...mcpFields, ...freesoundFields].sort());
 	const framescaperBridge = exposed.get('framescaperDesktop');
 	assert.deepEqual(Object.keys(framescaperBridge.v1).sort(), [...baseFields, 'projectLibrary'].sort());
@@ -171,4 +171,12 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	assert.deepEqual(calls[7], { method: 'invoke', channel: 'soundscaper:v1:save:release-target', value: 'b'.repeat(48) });
 	assert.throws(() => bridge.v1.releaseSaveTarget('invalid'), /Invalid opaque identifier/u);
 	assert.equal(calls.length, 8, 'invalid targets remain inside the preload');
+	const audiocomAuthorizeUrl = 'https://api.audio.com/auth/authorize?client_id=x&response_type=code&state=y&scope=public&code_challenge=' + 'a'.repeat(43) + '&code_challenge_method=S256&redirect_uri=https%3A%2F%2Fsoundscaper.org%2Fapi%2Faudiocom%2Foauth%2Fcallback';
+	await bridge.v1.openAudiocomAuthorization(audiocomAuthorizeUrl);
+	assert.deepEqual(calls[8], { method: 'invoke', channel: 'soundscaper:v1:audiocom:authorize', value: audiocomAuthorizeUrl });
+	assert.throws(() => bridge.v1.openAudiocomAuthorization('https://evil.example/'), /authorization URL/u);
+	assert.equal(calls.length, 9, 'untrusted authorization URLs remain inside the preload');
+	await bridge.v1.openAudiocomLink('https://audio.com/user/audio/field-take');
+	assert.deepEqual(calls[9], { method: 'invoke', channel: 'soundscaper:v1:audiocom:link', value: 'https://audio.com/user/audio/field-take' });
+	assert.throws(() => bridge.v1.openAudiocomLink('https://evil.example/'), /audio.com link/u);
 });

@@ -16,7 +16,7 @@ process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({
 
 export default defineConfig({
 	testDir: './tests/browser',
-	testIgnore: ['handbook/**', 'dual-origin/**'],
+	testIgnore: ['handbook/**', 'dual-origin/**', 'audiocity/**'],
 	timeout: 30000,
 	expect: { timeout: 5000 },
 	fullyParallel: true,

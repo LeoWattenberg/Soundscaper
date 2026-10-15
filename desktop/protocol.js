@@ -78,8 +78,9 @@ export function registerAppScheme(protocolApi) {
 	}]);
 }
 
+/** @typedef {(request: Request, url: URL) => Promise<Response>} DesktopProviderProxy */
 export function createProtocolHandler({
-	productId = 'soundscaper', rendererRoot, runtimeRoot, readCapabilities, freesoundProxy = null,
+	productId = 'soundscaper', rendererRoot, runtimeRoot, readCapabilities, freesoundProxy = /** @type {DesktopProviderProxy | null} */ (null), audiocomProxy = /** @type {DesktopProviderProxy | null} */ (null),
 }) {
 	if (productId !== 'soundscaper' && productId !== 'framescaper') {
 		throw new TypeError('Desktop protocol product is invalid');
@@ -90,6 +91,10 @@ export function createProtocolHandler({
 			if (url.pathname.startsWith(FREESOUND_DESKTOP_PREFIX)) {
 				if (productId !== 'soundscaper' || typeof freesoundProxy !== 'function') throw new ProtocolError(404, 'Not found');
 				return await freesoundProxy(request, url);
+			}
+			if (url.pathname.startsWith('/_desktop/audiocom')) {
+				if (productId !== 'soundscaper' || typeof audiocomProxy !== 'function') throw new ProtocolError(404, 'Not found');
+				return await audiocomProxy(request, url);
 			}
 			if (request.method !== 'GET' && request.method !== 'HEAD') throw new ProtocolError(405, 'Method not allowed');
 			if (url.pathname.startsWith(READ_CAPABILITY_PREFIX)) {
