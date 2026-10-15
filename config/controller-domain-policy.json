@@ -86,6 +86,7 @@
 		"composition/selection-action-group.ts",
 		"composition/snapshot-composition.ts",
 		"composition/toolbar-docking-session.ts",
+		"composition/workspace-focus-request.ts",
 		"composition/workspace-state-types.ts",
 		"document/consolidate-media-service.ts",
 		"document/controller-document-scope.ts",
