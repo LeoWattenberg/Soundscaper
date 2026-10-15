@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { composeProductHeaders, matchedHeaders, parseHeaderRules, webBuildRouting } from '../../scripts/lib/product-web-routing.mjs';
 import { assertMotionLinkEditorIsolation, probeMotionLinkIsolation, readMotionLinkIsolation, type MotionLinkIsolationCapability } from './helpers/motion-link-isolation.ts';
 
-interface Fixture { receive(): string; send(url: string, stall?: boolean): void; connect(url: string): void; update(revision: number): Promise<void>; disconnect(): Promise<void>; state(): { received: string | null; sent: string | null; error: string | null; pulls: number; cancelled: number }; retained(): Promise<{ digest: string | null; bytes: number[] | null }> }
+interface Fixture { receive(): string; send(url: string, stall?: boolean): void; connect(url: string, locale?: string): void; update(revision: number): Promise<void>; disconnect(): Promise<void>; state(): { received: string | null; sent: string | null; error: string | null; pulls: number; cancelled: number }; retained(): Promise<{ digest: string | null; bytes: number[] | null }> }
 let directory: string | undefined; const servers: Server[] = []; let motion: string; let frame: string;
 let isolation: MotionLinkIsolationCapability;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -54,7 +54,7 @@ let received = null, sent = null, error = null, pulls = 0, cancelled = 0, persis
 globalThis.fixture = {
  receive() { const connection = createMotionLinkReceiverConnection({...origins,async receive(value,options) {const repository = await openFramescaperCompositionLinkRepository({line:'successor'});try {await repository.receive('frame','linked',value,options);received=value.revision.digest;}finally{await repository.close();}}}); connection.completion.then(digest=>received=digest,failure=>error=String(failure)); return connection.url; },
  send(connectionUrl,stall=false) { void sendMotionLinkConnection({...origins,connectionUrl,offer,readAsset:async()=>({size:bytes.length,stream:()=>new ReadableStream({pull(controller){pulls++;if(!stall){controller.enqueue(bytes);controller.close();}},cancel(){cancelled++;}},{highWaterMark:0})})}).then(digest=>sent=digest,failure=>error=String(failure)); },
- connect(connectionUrl) { void openMotionLinkSenderConnection({...origins,connectionUrl,readAsset:async()=>({size:bytes.length,stream:()=>new Blob([bytes]).stream()})}).then(async connection=>{persistent=connection;sent=await connection.send(offer);},failure=>error=String(failure)); },
+ connect(connectionUrl,locale) { void openMotionLinkSenderConnection({...origins,connectionUrl,locale,readAsset:async()=>({size:bytes.length,stream:()=>new Blob([bytes]).stream()})}).then(async connection=>{persistent=connection;sent=await connection.send(offer);},failure=>error=String(failure)); },
  async update(revision) {if(!persistent) throw new Error('Not connected.'); const updated = createMotionCompositionOffer('main',createMotionscaperRevision({...offer.revision.project,revision,title:'Saved '+revision}));sent=await persistent.send(updated);},
  async disconnect() {await persistent?.dispose();persistent=null;},
  state:()=>({received,sent,error,pulls,cancelled}),
@@ -132,4 +132,33 @@ test('M10 closing the isolated source editor cancels its pending bridge transfer
 	await sender.close(); await expect.poll(async () => (await state(receiver)).error).not.toBeNull();
 	expect(await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.retained())).toEqual({ digest: null, bytes: null });
 	await expect(bridge.getByRole('status')).toContainText('connection closed');
+});
+
+test('M10 committed French catalog reaches both real bridge windows without replacing their established connection', async ({ context }) => {
+	const catalog = JSON.parse(await readFile(join(repository, 'src/common/i18n/translations/fr.json'), 'utf8')) as { entries: Record<string, readonly [string, string, string]> };
+	const translated = (key: string, source: string) => {
+		const entry = catalog.entries[`ui.motion-link-bridge.${key}`];
+		expect(entry).toBeDefined(); expect(entry![1]).toBe(source); expect(entry![2]).not.toBe(source);
+		return entry![2];
+	};
+	const title = translated('title', 'Composition Link'); const connect = translated('send', 'Connect to Framescaper');
+	const connected = translated('connected', 'Connected. Saved composition updates pass between the editors.');
+	const closed = translated('closed', 'The connection closed. Return to the editors to check the transfer result.');
+	const sender = await context.newPage(); const receiver = await context.newPage(); await ready(sender, motion); await ready(receiver, frame);
+	const url = await receiver.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.receive());
+	const bridgeEvent = context.waitForEvent('page');
+	await sender.evaluate(connection => (globalThis as unknown as { fixture: Fixture }).fixture.connect(connection, 'fr'), url);
+	const bridge = await bridgeEvent; await expect(bridge.locator('html')).toHaveAttribute('lang', 'fr');
+	await expect(bridge).toHaveTitle(title); await expect(bridge.getByRole('heading', { level: 1 })).toHaveText(title);
+	const receiveEvent = context.waitForEvent('page'); await bridge.getByRole('button', { name: connect, exact: true }).click();
+	const receivingBridge = await receiveEvent; await expect(receivingBridge.locator('html')).toHaveAttribute('lang', 'fr');
+	await expect(receivingBridge).toHaveTitle(title); await expect(receivingBridge.getByRole('status')).toHaveText(connected);
+	await expect(bridge.getByRole('status')).toHaveText(connected);
+	await expect.poll(async () => (await state(sender)).sent).toMatch(/^[a-f0-9]{64}$/u); const first = (await state(sender)).sent;
+	await expect.poll(async () => (await state(receiver)).received).toBe(first); const windows = context.pages().length;
+	await sender.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.update(1)); const updated = (await state(sender)).sent;
+	expect(updated).not.toBe(first); await expect.poll(async () => (await state(receiver)).received).toBe(updated);
+	expect(context.pages()).toHaveLength(windows); expect((await state(sender)).error).toBeNull(); expect((await state(receiver)).error).toBeNull();
+	await sender.evaluate(() => (globalThis as unknown as { fixture: Fixture }).fixture.disconnect());
+	await expect(bridge.getByRole('status')).toHaveText(closed); await expect(receivingBridge.getByRole('status')).toHaveText(closed);
 });

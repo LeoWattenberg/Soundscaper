@@ -14,6 +14,7 @@ import type { MotionKeyframeClipboard } from '../../motion-keyframe-edit.ts';
 import type { MotionscaperDeliveryQueue } from '../../../../motionscaper/editor-delivery-queue.ts';
 import type { MotionscaperLinkSender } from '../../../../motionscaper/editor-link-sender.ts';
 import type { MotionDocumentRequest } from './shell-menu.ts';
+import { motionLinkLocaleForEditor } from '../../motion-link-locale.ts';
 import type { MotionDesktopArchiveInput } from '../../../../motionscaper/desktop-file-adapter.ts';
 import type { MotionscaperOpaqueArchive } from '../../../../motionscaper/editor-opaque-archive.ts';
 import { MotionProjectLeaseError } from '../../../../motionscaper/editor-project-write-lease.ts';
@@ -136,7 +137,7 @@ export default function MotionscaperDocumentRuntime({ copy, request, onChange, o
 			void run(async () => {
 				if (!linkSender.current) {
 					const [{ createMotionscaperLinkSender }, { resolveMotionLinkOrigins }] = await Promise.all([import('../../../../motionscaper/editor-link-sender.ts'), import('../../motion-link-connection-urls.ts')]);
-					linkSender.current = createMotionscaperLinkSender({ session, store, ...resolveMotionLinkOrigins('motionscaper', location.origin, import.meta.env.PUBLIC_MOTION_LINK_PEER_ORIGIN), locale: document.documentElement.lang.startsWith('de') ? 'de' : 'en' });
+					linkSender.current = createMotionscaperLinkSender({ session, store, ...resolveMotionLinkOrigins('motionscaper', location.origin, import.meta.env.PUBLIC_MOTION_LINK_PEER_ORIGIN), locale: motionLinkLocaleForEditor(document.documentElement.lang) });
 				}
 				setDialog('send');
 			});

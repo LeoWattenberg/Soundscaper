@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { motionLinkNonce, normalizeMotionLinkPacket, motionLinkPacketTransfers } from '../../motion-link-wire.ts';
 import { readMotionLinkConnectionUrl, motionLinkOrigin, type MotionLinkOrigins } from '../../motion-link-connection-urls.ts';
+import { assertMotionLinkLocale } from '../../motion-link-locale.ts';
 import { connectMotionLinkBroadcast } from './internal/motion-link-broadcast.ts';
 
 export interface MotionLinkBridgeSession { readonly closed: Promise<void>; dispose(): void }
-interface BridgeIntent { readonly cap: string; readonly session: string; readonly locale: 'en' | 'de' }
+interface BridgeIntent { readonly cap: string; readonly session: string; readonly locale: string }
 export interface MotionLinkSendBridgeIntent extends BridgeIntent { readonly receiver: URL }
 export interface MotionLinkReceiveBridgeIntent extends BridgeIntent { readonly senderOrigin: string }
 function params(hash: string, keys: readonly string[]): URLSearchParams {
@@ -13,7 +14,7 @@ function params(hash: string, keys: readonly string[]): URLSearchParams {
 	if (actual.length !== keys.length || keys.some((key) => !value.has(key))) throw new Error('Motion bridge intent is malformed.'); return value;
 }
 function common(value: URLSearchParams): BridgeIntent {
-	const locale = value.get('locale'); if (locale !== 'en' && locale !== 'de') throw new Error('Motion bridge language is unavailable.');
+	const locale = assertMotionLinkLocale(value.get('locale'));
 	return { cap: motionLinkNonce(value.get('cap')), session: motionLinkNonce(value.get('session')), locale };
 }
 export function readMotionLinkSendBridgeIntent(hash: string, receiverOrigin: string): MotionLinkSendBridgeIntent {

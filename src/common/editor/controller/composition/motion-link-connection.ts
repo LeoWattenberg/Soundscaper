@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createMotionLinkConnectionUrl, readMotionLinkConnectionUrl, createMotionLinkNonce, motionLinkOrigin, MOTION_LINK_SEND_PATH, type MotionLinkOrigins } from '../../motion-link-connection-urls.ts';
 import { normalizeMotionCompositionOffer } from '../../motion-link-protocol.ts';
+import { assertMotionLinkLocale } from '../../motion-link-locale.ts';
 import { listenMotionLinkBroadcast, type MotionLinkBroadcastConnection } from './internal/motion-link-broadcast.ts';
 import { createMotionCompositionPortSender, receiveMotionCompositionPort, type MotionCompositionPortSender, type MotionLinkPortReceiverOptions, type MotionLinkPortSenderOptions } from './motion-link-port.ts';
 
@@ -23,14 +24,15 @@ export function createMotionLinkReceiverConnection(options: MotionLinkOrigins & 
 	return { url: createMotionLinkConnectionUrl(options.receiverOrigin, cap), ready, completion, dispose() { lifetime.abort(); listener.dispose(); lifetime.dispose(); } };
 }
 export interface MotionLinkSenderConnectionOptions extends MotionLinkOrigins, Pick<MotionLinkPortSenderOptions, 'readAsset' | 'signal'> {
-	readonly connectionUrl: string; readonly locale?: 'en' | 'de'; readonly openWindow?: (url: string) => Window | null;
+	readonly connectionUrl: string; readonly locale?: string; readonly openWindow?: (url: string) => Window | null;
 }
 /** Call from a menu action so the sender bridge can open; subsequent saved updates reuse this connection. */
 export async function openMotionLinkSenderConnection(options: MotionLinkSenderConnectionOptions): Promise<MotionCompositionPortSender> {
 	options.signal?.throwIfAborted(); const receiver = readMotionLinkConnectionUrl(options.connectionUrl, options.receiverOrigin); const senderOrigin = motionLinkOrigin(options.senderOrigin);
+	const locale = assertMotionLinkLocale(options.locale ?? 'en');
 	const cap = createMotionLinkNonce(); const session = createMotionLinkNonce(); const lifetime = pageLifetime(options.signal);
 	const listener = listenMotionLinkBroadcast({ cap, session, peerOrigin: options.receiverOrigin, signal: lifetime.signal }); let connection: MotionLinkBroadcastConnection | null = null;
-	const bridge = new URL(MOTION_LINK_SEND_PATH, senderOrigin); bridge.hash = new URLSearchParams({ cap, session, receiver: receiver.href, locale: options.locale ?? 'en' }).toString();
+	const bridge = new URL(MOTION_LINK_SEND_PATH, senderOrigin); bridge.hash = new URLSearchParams({ cap, session, receiver: receiver.href, locale }).toString();
 	try {
 		const popup = options.openWindow ? options.openWindow(bridge.href) : window.open(bridge.href, '_blank', 'popup=1,width=680,height=460');
 		// Isolated editors lose their WindowProxy relationship after navigation; popup.closed is not evidence of failure here.
