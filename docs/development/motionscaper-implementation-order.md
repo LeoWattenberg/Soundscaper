@@ -78,10 +78,16 @@ The final scope audit found two locale seams and missing generated Motion copy.
 The editor admission fix (`2e10bc63e`) now covers all ten Motion copy owners and
 the shared effect labels it consumes. Its actual loader/resolver regression
 failed before the fix; all 18 focused controls, strict types, lint and size
-checks pass. French authoring (`333aa48c1`) adds all 732 Motion/bridge strings and
-both Motion handbook pages through the maintained writers and validators,
-preserving the 4,019 existing catalog entries. The separate bridge locale fix
-and wider generated-language work remain in progress. The new
+checks pass. The bridge locale fix (`3ad4bda4e`) also admits complete catalog
+tags, retains them through both bridge windows and resolves late-arriving copy
+without reconnecting. Its 13 combined catalog/locale/lifetime controls pass;
+the real French cross-origin case awaits the fresh browser run.
+Integration `f125ba024` contains 22 generated languages, adding 16,104 current
+Motion/bridge strings and 44 Motion handbook pages through the maintained
+writers and validators. Each language adds 732 keys while preserving its 4,019
+prior entries, the other catalogs and loader index. The remaining four language
+integrations are open; whole-language handbook completeness is not claimed.
+The new
 incompatible-morph UI case (`ce13106ed`) has static checks only; browser runtime
 proof is pending. Codec tests (`4fa4b3450`) now retain their actual encoded or
 refused branch, parsed facts and output bytes; no new encoding result is claimed.
