@@ -141,8 +141,12 @@ packages also pass resource verification, reusing the authenticated native
 helper. The five-workflow installed aggregate then passed native launch,
 animated scene, authored title, successor delivery and saved-file linking.
 Its output, source, package and process-closure audits passed. This qualifies
-the fixed Linux x64 software profile; the current native duration and maximum
-workloads still need their separate evidence.
+the fixed Linux x64 software profile. The separate current-source native
+duration invocation failed during the 300-frame encoder-cancellation retry:
+the save chooser remained open after selection. The 1,200-frame workload and
+independent output checks were not reached. Source, package, output-preservation
+and process-closure audits passed; the chooser cause remains unknown. Current
+maximum workloads still need their separate evidence.
 Maximum-workload fixtures, independent oracles and the bounded native driver
 (`a4e851dc3`) are integrated as `2978ab0cc`. Installed source `322c8a6b1` passed
 64×64 shutter/lens sampling, 64 contributing planes and 32 lights. The
@@ -152,7 +156,7 @@ all 52,428,800 stereo PCM sample frames and selected pictures of that retained
 movie; it does not clear the memory failure. Two Conform diagnostic runs passed
 the original workflow without reproducing its historical 15-second failure;
 the second retained all 25 activation-phase pairs. No activation fix is claimed.
-The current fixed Linux native-duration profile passed both 300 and 1,200 frames,
+Earlier installed source `322c8a6b1` passed both 300 and 1,200 native frames,
 including preview/ProRes, upload/encoder cancellation and retry, independent
 picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
 not close the browser, maximum-workload or broader platform gates.
