@@ -61,12 +61,12 @@ export class StaffPadRenderClient {
 	}
 
 	dispose() {
-		if (this.disposed) return;
+		if (this.disposed && !this.worker) return;
 		this.disposed = true;
 		const worker = this.worker;
-		this.worker = null;
 		try {
 			worker?.terminate();
+			this.worker = null;
 		} finally {
 			this.requests.dispose(new Error('StaffPadRenderClient was disposed.'));
 		}

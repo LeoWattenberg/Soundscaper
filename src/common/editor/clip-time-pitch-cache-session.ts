@@ -21,6 +21,7 @@ export class ClipTimePitchCacheSessionFence {
 	#clearPromise: Promise<void> | null = null;
 	#disposed = false;
 	#disposePromise: Promise<void> | null = null;
+	#disposalComplete = false;
 
 	constructor(options: CacheSessionFenceOptions) {
 		this.#createAbortError = options.createAbortError;
@@ -64,9 +65,9 @@ export class ClipTimePitchCacheSessionFence {
 		disposeResource?: () => Awaitable<unknown>,
 	): Promise<void> {
 		if (this.#disposePromise) return this.#disposePromise;
-		if (this.#disposed) return Promise.resolve();
-		this.#disposed = true;
-		const clearing = this.clear(jobs, reset);
+		if (this.#disposalComplete) return Promise.resolve();
+		const first = !this.#disposed; this.#disposed = true;
+		const clearing = first ? this.clear(jobs, reset) : this.#clearPromise ?? Promise.resolve();
 		let resourceDisposal: Promise<unknown>;
 		try {
 			resourceDisposal = Promise.resolve(disposeResource?.());
@@ -75,7 +76,8 @@ export class ClipTimePitchCacheSessionFence {
 		}
 		this.#disposePromise = Promise.allSettled([clearing, resourceDisposal]).then((results) => {
 			const failure = results.find((result) => result.status === 'rejected');
-			if (failure?.status === 'rejected') throw failure.reason;
+			if (failure?.status === 'rejected') { this.#disposePromise = null; throw failure.reason; }
+			this.#disposalComplete = true;
 		});
 		return this.#disposePromise;
 	}

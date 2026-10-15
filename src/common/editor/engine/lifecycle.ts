@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { disposeEngine, disposeEngineResources } from './disposal.ts';
 import { ChunkStreamClient } from '../chunk-stream-client.js';
 import { createChunkStreamAudioNode } from '../chunk-stream-worklet-node.js';
 import { createAudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
@@ -30,7 +31,6 @@ import {
 } from '../track-folder-media-runtime.ts';
 import { resolveProjectGraphSelection } from './project-graph-selection.ts';
 import { playbackSessionStart, restorePlaybackSessionStart } from './playback-session.ts';
-import { disposePlaybackFrequencyOutput } from './playback-frequency-range.ts';
 import { resolveRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
@@ -463,49 +463,8 @@ getOutputDeviceState() {
 		});
 	},
 
-dispose() {
-		if (this.disposePromise) return this.disposePromise;
-		this.disposed = true;
-		this.lifecycleGeneration += 1;
-		this.state = 'disposed';
-		this.disposePromise = this[ENGINE_DISPOSE_RESOURCES]();
-		return this.disposePromise;
-	},
-
-async [ENGINE_DISPOSE_RESOURCES]() {
-		this[ENGINE_CANCEL_SCRUB]();
-		this[ENGINE_HALT_GRAPH]();
-		this.project = null;
-		this.projectGraphSelection = null;
-		this.sources.clear();
-		this.chunkSources.clear();
-		this.positionListeners.clear();
-		this.meterListeners.clear();
-		this.stateListeners.clear(); this.playbackErrorListeners.clear();
-		this.parametricEqErrorListeners.clear();
-		this.reversedBuffers = new WeakMap();
-		this.preparedSpeedPlayback = null;
-		clearPreparedAudioWarpPlayback(this);
-		this.masterLoudnessMeter?.dispose();
-		this.masterLoudnessMeter = null;
-		this.masterLoudnessMeterChannelCount = null;
-		this.masterLoudnessMeterChannelWeights = null;
-		this.masterLoudnessMeterPromise = null;
-		this.latestMasterLoudnessMeter = null;
-		this.masterLoudnessMeterError = null;
-		disposePlaybackFrequencyOutput(this);
-		this.playbackOutputNode?.disconnect();
-		this.playbackOutputNode = null;
-		this.playbackOutputDestination = null;
-		const context = this.context;
-		this.context = null;
-		if (context?.state !== 'closed') await context?.close?.();
-		try {
-			this.chunkStreamClient?.dispose?.();
-		} finally {
-			this.chunkStreamClient = null;
-		}
-	},
+dispose() { return disposeEngine(this); },
+[ENGINE_DISPOSE_RESOURCES]: disposeEngineResources,
 async [ENGINE_GET_CONTEXT]() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (this.context) return this.context;

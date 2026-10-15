@@ -13,11 +13,15 @@ import type { FramescaperSuccessorProject } from './editor-project-successor.ts'
 type Provider = ReturnType<typeof createStoredChunkProvider> | NonNullable<ReturnType<typeof createFramescaperCompositionPcmSource>>;
 type Stream = NonNullable<ProductNativeRenderInputOperation['renderAudioToSink']>;
 /** A delivery owns its providers, StaffPad cache and engine independently of preview activation. */
-export function createFramescaperSuccessorNativeAudioLease(environment: FramescaperSuccessorEnvironment, project: FramescaperSuccessorProject, signal: AbortSignal, assertCurrent: () => void, onReleased: () => void) {
+export function createFramescaperSuccessorNativeAudioLease(environment: FramescaperSuccessorEnvironment, project: FramescaperSuccessorProject, signal: AbortSignal, assertCurrent: () => void, onReleased: () => void, resources: Readonly<{
+	createEngine?: () => ReturnType<typeof createAudioEditorEngine>;
+	createCache?: (options: ConstructorParameters<typeof ClipTimePitchRenderCacheCoordinator>[0]) => ClipTimePitchRenderCacheCoordinator;
+}> = {}) {
 	const projection = environment.playback.projectForPlayback(project).project;
 	const providers = new Map<string, Provider>(), buffers = new Map<string, AudioBuffer>();
-	const engine = createAudioEditorEngine();
-	const cache = new ClipTimePitchRenderCacheCoordinator({ store: environment.store,
+	const engine = (resources.createEngine ?? createAudioEditorEngine)();
+	const createCache = resources.createCache ?? (options => new ClipTimePitchRenderCacheCoordinator(options));
+	const cache = createCache({ store: environment.store,
 		async loadSourceChannels(source: { id: string; channelCount: number; frameCount: number }, context: { signal?: AbortSignal }) {
 			const provider = providers.get(source.id); if (!provider) throw new Error('Pinned time/pitch original is unavailable.');
 			const channels = Array.from({ length: source.channelCount }, () => new Float32Array(source.frameCount)); let offset = 0;
@@ -32,7 +36,7 @@ export function createFramescaperSuccessorNativeAudioLease(environment: Framesca
 		}, transferLoadedSourceChannels: true,
 	});
 	let prepared: Promise<void> | null = null, releasing: Promise<void> | null = null, released = false;
-	let engineReleased = false, cacheReleased = false;
+	let engineReleased = false, cacheReleased = false; let cleanupFailure: MotionDeliveryCleanupFailure | null = null;
 	async function prepare() {
 		if (released) throw new Error('Pinned native audio inputs are closed.');
 		prepared ??= (async () => {
@@ -67,8 +71,8 @@ export function createFramescaperSuccessorNativeAudioLease(environment: Framesca
 			if (!engineReleased) { try { await engine.dispose(); engineReleased = true; } catch (error) { errors.push(error); } }
 			if (!cacheReleased) { try { await cache.dispose(); cacheReleased = true; } catch (error) { errors.push(error); } }
 			for (const [id, provider] of providers) { try { await provider.dispose(); providers.delete(id); } catch (error) { errors.push(error); } }
-			if (errors.length) throw new MotionDeliveryCleanupFailure(errors, 'Pinned Frame native inputs still require cleanup.', release);
-			buffers.clear(); released = true; onReleased();
+			if (errors.length) { cleanupFailure ??= new MotionDeliveryCleanupFailure(errors, 'Pinned Frame native inputs still require cleanup.', release); throw cleanupFailure; }
+			buffers.clear(); released = true; cleanupFailure?.completeCleanup(); onReleased();
 		})();
 		try { await releasing; } finally { releasing = null; }
 	}

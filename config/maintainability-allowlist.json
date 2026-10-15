@@ -67,7 +67,6 @@
 		"src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts": 561,
 		"src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-service.ts": 577,
 		"src/common/editor/effect-macros.js": 563,
-		"src/common/editor/engine/lifecycle.ts": 570,
 		"src/common/editor/engine/native-effect-latency-v21.ts": 595,
 		"src/common/editor/interpolation-curve.ts": 552,
 		"src/common/editor/media-export.js": 552,

@@ -40,10 +40,10 @@ export async function renderProductNativeAudioToSink<Buffers>(
 	await dependencies.prepareCommittedTimePitchCaches(project, dependencies.signal);
 	dependencies.assertCurrent();
 	const engine = dependencies.createRenderEngine();
-	let primary: unknown;
+	let primary: unknown, failed = false; let result: Result | null = null;
 	try {
 		engine.loadProject(project, dependencies.sourceBuffers);
-		const result = await engine.renderMixToSink({
+		const rendered = await engine.renderMixToSink({
 			...range, signal: dependencies.signal,
 			sink: async (channels, metadata) => {
 				dependencies.assertCurrent();
@@ -55,19 +55,15 @@ export async function renderProductNativeAudioToSink<Buffers>(
 			suspendForBackpressure: false,
 		});
 		dependencies.assertCurrent();
-		return exactResult(result);
-	} catch (error) {
-		primary = error;
-		throw error;
-	} finally {
-		try { await engine.dispose(); }
-		catch (error) {
-			if (primary !== undefined) throw new AggregateError(
-				[primary, error], 'Native PCM streaming and render-engine cleanup failed.', { cause: primary },
-			);
-			throw error;
-		}
-	}
+		result = exactResult(rendered);
+	} catch (error) { failed = true; primary = error; }
+	let cleanup: unknown, cleanupFailed = false;
+	try { await engine.dispose(); } catch (error) { cleanupFailed = true; cleanup = error; }
+	if (cleanupFailed && failed) throw new AggregateError([primary, cleanup], 'Native PCM streaming and render-engine cleanup failed.', { cause: primary });
+	if (cleanupFailed) throw cleanup;
+	if (failed) throw primary;
+	if (!result) throw new Error('Native PCM streaming returned no result.');
+	return result;
 }
 
 function exactResult(value: unknown): Result {
