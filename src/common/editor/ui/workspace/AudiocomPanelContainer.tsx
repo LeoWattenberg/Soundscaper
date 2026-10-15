@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { audiocomCopy } from '../../../i18n/audiocom-copy.ts';
+import { AUDIO_COM_DEFAULT_SERVER_URL } from '../../advanced-preferences.ts';
 import {
 	createAudiocomPanelSession,
 	audiocomPanelSession,
@@ -26,11 +27,13 @@ export interface AudiocomPanelContainerProps {
 export default function AudiocomPanelContainer({
 	controller, snapshot, copy, locale, disabled = false, panelActive = true, session: providedSession, fileService,
 }: AudiocomPanelContainerProps) {
-	const session = useMemo(() => providedSession ?? (controller ? audiocomPanelSession(controller) : createAudiocomPanelSession()),
-		[controller, providedSession]);
+	const configuredServer = record(record(snapshot.preferences)?.advanced)?.audioComServerUrl;
+	const apiOrigin = typeof configuredServer === 'string' ? configuredServer : AUDIO_COM_DEFAULT_SERVER_URL;
+	const session = useMemo(() => providedSession ?? (controller ? audiocomPanelSession(controller, { apiOrigin }) : createAudiocomPanelSession({ apiOrigin })),
+		[controller, providedSession, apiOrigin]);
 	const state = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const archives = useMemo(() => createAudiocomProjectArchives({ saveFile: fileService ? request => fileService.saveFile(request) : undefined,
-		onAuthenticationExpired: () => { void session.disconnect(); } }), [fileService, session]);
+	const archives = useMemo(() => createAudiocomProjectArchives({ apiOrigin, saveFile: fileService ? request => fileService.saveFile(request) : undefined,
+		onAuthenticationExpired: () => { void session.disconnect(); } }), [apiOrigin, fileService, session]);
 	const archiveState = useSyncExternalStore(archives.subscribe, archives.getSnapshot, archives.getSnapshot);
 	const localizedCopy = useMemo(() => {
 		const resolved = audiocomCopy(locale ?? snapshot.locale, copy);
