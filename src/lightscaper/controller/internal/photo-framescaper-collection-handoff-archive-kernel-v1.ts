@@ -14,7 +14,7 @@ import { planImageDevelopRepairSpotsV1 } from '../../../common/editor/imaging/im
 import { prepareImageDevelopBrushMasksV1 } from '../../../common/editor/imaging/image-develop-brush-mask-v1.ts';
 import { planImageGeometryV1 } from '../../../common/editor/imaging/image-geometry-plan-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../../common/editor/video-image-geometry-v1.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../../common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV4 } from '../../../common/editor/imaging/image-develop-state-v4.ts';
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../../common/editor/closed-domain-value.ts';
 import { normalizeVideoCubeLutReferenceV1 } from '../../../common/editor/cube-lut-reference-contract.ts';
 import { FRAMESCAPER_IMAGE_ASSET_MIME_TYPE } from '../../../common/editor/timeline-image-model.ts';
@@ -216,7 +216,7 @@ function developResources(profile: HandoffProfile, develop: unknown) { const clo
 const RAW_METADATA_ONLY = Object.freeze({ async withBytes<Result>(): Promise<Result> {
 	throw new TypeError('Collection RAW metadata preparation cannot read a resource body.');
 } });
-function admitRawCurrentWork(develop: Readonly<ImageDevelopStateCurrentV1>, width: number, height: number, originalBytes: number): void {
+function admitRawCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, width: number, height: number, originalBytes: number): void {
 	const prepared = prepareLinearDevelopCurrentV1({ frame: { descriptor: { schemaVersion: 1, width, height,
 		sampleFormat: 'unorm16', primaries: 'srgb', transfer: 'linear' } }, develop }, PHOTO_DEVELOP_LINEAR_LIMITS_V1,
 	{ source: RAW_METADATA_ONLY, maskSource: RAW_METADATA_ONLY });
@@ -229,12 +229,12 @@ function admitRawCurrentWork(develop: Readonly<ImageDevelopStateCurrentV1>, widt
 /** Pure admission of the canonical repair stage and every downstream mask,
  * geometry and declared resource. The mandatory pack prefix is a lower bound;
  * actual compressed pack bytes remain independently checked after decoding. */
-function admitCurrentWork(develop: Readonly<ImageDevelopStateCurrentV1>, originalWidth: number, originalHeight: number, originalBytes: number): void {
+function admitCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, originalWidth: number, originalHeight: number, originalBytes: number): void {
 	const limits = { maximumSidePixels: 8_192, maximumPixels: 16_777_216, maximumBytes: 64 * 1024 * 1024 };
-	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, geometry: develop.geometry,
+	const computation = develop.processVersion === 3 || develop.processVersion === 4 ? normalizeImageDevelopStateV2({ processVersion: 2, geometry: develop.geometry,
 		effects: develop.effects, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
 	const masks = prepareImageDevelopBrushMasksV1(computation, originalWidth, originalHeight, limits);
-	const repair = develop.processVersion === 3 ? planImageDevelopRepairSpotsV1(develop.repairs, originalWidth, originalHeight) : undefined;
+	const repair = develop.processVersion === 3 || develop.processVersion === 4 ? planImageDevelopRepairSpotsV1(develop.repairs, originalWidth, originalHeight) : undefined;
 	let width = originalWidth, height = originalHeight, maximum = BigInt(width) * BigInt(height) * 4n;
 	const geometry = (value: Parameters<typeof planImageGeometryV1>[0]) => {
 		const planned = planImageGeometryV1(value, width, height); width = planned.width; height = planned.height;

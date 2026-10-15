@@ -4,12 +4,12 @@ import type { PhotoLibraryRestoreReceiptV1 } from '../../../common/editor/photo-
 import { readClosedDomainField, readClosedDomainRecord } from '../../../common/editor/closed-domain-value.ts';
 import { aggregateScapeErrors } from '../../../common/editor/scape-abort.ts';
 import type { ScapeProjectInput, ScapeProjectInputReaderFactories } from '../../../common/editor/scape-project-input.ts';
-import { importPhotoCatalogArchiveV7, type PhotoCatalogArchiveStageV7 } from '../../archive/catalog-archive-import-v7.ts';
+import { importPhotoCatalogArchiveV7 } from '../../archive/catalog-archive-import-v7.ts';
+import { importPhotoCatalogArchiveV8 } from '../../archive/catalog-archive-import-v8.ts';
+import type { PhotoCatalogArchiveStageV8 } from '../../archive/catalog-archive-import-kernel.ts';
 import { importPhotoCatalogArchiveV6 } from '../../archive/catalog-archive-import-v6.ts';
 import { readValidatedPhotoCatalogRootV1 } from '../../catalog/documents.ts';
-import { normalizePhotoDocumentCurrentV1 } from '../../catalog/photo-document-current-v1.ts';
-import { assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1 } from '../../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
-import { normalizePhotoDocumentV1OrV2 } from '../../catalog/photo-document-v2.ts';
+import { assertPhotoCatalogRestoreProfileV1, normalizePhotoCatalogRestoreDocumentForProfileV1, type PhotoCatalogRestoreProfileV1 } from '../../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
 import { name } from '../../catalog/value-validation.ts';
 import { createPhotoCatalogRestoreStageForProfileV1, type PhotoCatalogRestoreStageV2 } from '../../catalog/internal/photo-catalog-restore-stage-kernel-v1.ts';
 import { inspectPhotoCatalogRestoreNamespaceV1 } from '../../catalog/photo-catalog-restore-owner-v1.ts';
@@ -47,7 +47,7 @@ const abort = AbortController.prototype.abort;
 export async function restorePhotoLibraryArchiveForProfileV1(profile: PhotoCatalogRestoreProfileV1, input: ScapeProjectInput,
 	options: PhotoLibraryArchiveRestoreOptionsV2): Promise<Readonly<PhotoLibraryRestoreReceiptV1>> {
 	assertPhotoCatalogRestoreProfileV1(profile);
-	const importArchive: typeof importPhotoCatalogArchiveV7 = profile === 'legacy2' ? importPhotoCatalogArchiveV6 : importPhotoCatalogArchiveV7;
+	const importArchive: typeof importPhotoCatalogArchiveV8 = profile === 'legacy2' ? importPhotoCatalogArchiveV6 : profile === 'current3' ? importPhotoCatalogArchiveV7 : importPhotoCatalogArchiveV8;
 	const value = readClosedDomainRecord(options, 'library archive restore', ['name', 'indexedDB', 'locks', 'settings', 'signal', 'allocateToken', 'readerFactories'],
 		['name', 'indexedDB', 'locks', 'settings']);
 	const field = (key: string) => readClosedDomainField(value, key, 'library archive restore');
@@ -180,9 +180,9 @@ export async function restorePhotoLibraryArchiveForProfileV1(profile: PhotoCatal
 							writeLut = (...args: Parameters<typeof lutMethod>) => Reflect.apply(lutMethod, mediaOwner, args),
 							writeMaskRaster = (...args: Parameters<typeof maskMethod>) => Reflect.apply(maskMethod, mediaOwner, args),
 							finishCatalog = () => Reflect.apply(catalogFinish, catalogOwner, []), finishMedia = () => Reflect.apply(mediaFinish, mediaOwner, []);
-						return Object.freeze<PhotoCatalogArchiveStageV7>({
+						return Object.freeze<PhotoCatalogArchiveStageV8>({
 							writePhoto: (value, original) => throughCodec(async () => {
-								assertHeld(); const photo = profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : normalizePhotoDocumentCurrentV1(value);
+								assertHeld(); const photo = normalizePhotoCatalogRestoreDocumentForProfileV1(profile, value);
 								await writeOriginal(photo, original); assertHeld(); await writePhoto(photo);
 							}),
 							writeStack: value => throughCodec(async () => { assertHeld(); await writeStack(value); }),

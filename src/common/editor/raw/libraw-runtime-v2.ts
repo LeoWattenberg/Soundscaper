@@ -4,6 +4,7 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import { readPixelFrameV1 } from '../imaging/pixel-frame-contract-v1.ts';
 import { loadLibRawRecoveryModuleV2 } from './libraw-runtime-asset-v2.ts';
 import type { RawRecoveryFrameV2, RawRecoveryPixelFrameV2, RawRecoveryProfileV2 } from './libraw-wasm-instance-v2.ts';
+import { withRawRecoveryFrameAuthorityV1 } from './internal/raw-recovery-frame-authority-v1.ts';
 
 export type { RawRecoveryFrameV2, RawRecoveryPixelFrameV2, RawRecoveryProfileV2 } from './libraw-wasm-instance-v2.ts';
 type WorkerEvent = Readonly<{ data?: unknown }>;
@@ -64,7 +65,7 @@ export async function withDecodedRawRecoveryFrameV2<Result>(value: unknown,
 		if (!decoded) throw new Error('RAW recovery worker has no admitted frame.');
 		// Recheck the pinned storage after the writer has joined, retaining the
 		// captured scalars and plane even if the transport replaced its packet.
-		outcome = { value: await consume(readResponse({ schemaVersion: 2, kind: 'recovery', ...decoded }, profile)) }; check();
+		outcome = { value: await withRawRecoveryFrameAuthorityV1(readResponse({ schemaVersion: 2, kind: 'recovery', ...decoded }, profile), consume) }; check();
 	} catch (error) { outcome = { error }; }
 	const failures: unknown[] = 'error' in outcome ? [outcome.error] : [];
 	try { if (plane) wipe(plane); } catch (error) { failures.push(error); }

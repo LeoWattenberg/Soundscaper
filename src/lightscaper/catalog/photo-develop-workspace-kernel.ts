@@ -2,13 +2,15 @@
 
 import type { ImageDevelopStateV1 } from '../../common/editor/imaging/image-develop-contract-v1.ts';
 import type { ImageDevelopStateV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV3, type ImageDevelopStateThroughV3 } from '../../common/editor/imaging/image-develop-state-through-v3.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../common/editor/imaging/image-develop-state-v4.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS } from './types.ts';
 import { array, field, id, integer, name, record, unique, utcTimestamp } from './value-validation.ts';
 
-export type PhotoDevelopWorkspaceProfileV1 = 'legacy2' | 'current3';
-type Develop<Profile extends PhotoDevelopWorkspaceProfileV1> = Profile extends 'legacy2' ? ImageDevelopStateV1 | ImageDevelopStateV2 : ImageDevelopStateCurrentV1;
+export type PhotoDevelopWorkspaceProfileV1 = 'legacy2' | 'current3' | 'current4';
+type Develop<Profile extends PhotoDevelopWorkspaceProfileV1> = Profile extends 'legacy2' ? ImageDevelopStateV1 | ImageDevelopStateV2
+	: Profile extends 'current3' ? ImageDevelopStateThroughV3 : ImageDevelopStateThroughV4;
 export interface PhotoDevelopHistoryEntryForProfileV1<Profile extends PhotoDevelopWorkspaceProfileV1> {
 	readonly label: string;
 	readonly createdAt: string | null;
@@ -21,7 +23,7 @@ export interface PhotoDevelopSnapshotForProfileV1<Profile extends PhotoDevelopWo
 	readonly develop: Develop<Profile>;
 }
 export interface PhotoDevelopWorkspaceForProfileV1<Profile extends PhotoDevelopWorkspaceProfileV1> {
-	readonly schemaVersion: Profile extends 'legacy2' ? 2 : 3;
+	readonly schemaVersion: Profile extends 'legacy2' ? 2 : Profile extends 'current3' ? 3 : 4;
 	readonly kind: 'photo-develop-workspace';
 	readonly entries: readonly PhotoDevelopHistoryEntryForProfileV1<Profile>[];
 	readonly cursor: number;
@@ -94,9 +96,10 @@ export function deletePhotoDevelopSnapshotForProfileV1<Profile extends PhotoDeve
 	if (!workspace.snapshots.some(candidate => candidate.id === snapshotId)) throw new ReferenceError('The photo develop snapshot is missing.');
 	return freezeWorkspace(profile, workspace.entries, workspace.cursor, workspace.snapshots.filter(candidate => candidate.id !== snapshotId));
 }
-function profileVersion(value: PhotoDevelopWorkspaceProfileV1): 2 | 3 {
+function profileVersion(value: PhotoDevelopWorkspaceProfileV1): 2 | 3 | 4 {
 	if (value === 'legacy2') return 2;
 	if (value === 'current3') return 3;
+	if (value === 'current4') return 4;
 	throw new TypeError('Unsupported fixed photo workspace profile.');
 }
 function readStep(value: unknown): PhotoDevelopHistoryStepV1 {
@@ -115,7 +118,8 @@ function snapshot<Profile extends PhotoDevelopWorkspaceProfileV1>(profile: Profi
 }
 function develop<Profile extends PhotoDevelopWorkspaceProfileV1>(profile: Profile, value: unknown): Develop<Profile> {
 	profileVersion(profile);
-	return (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2(value) : normalizeImageDevelopStateCurrentV1(value)) as Develop<Profile>;
+	return (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2(value)
+		: profile === 'current3' ? normalizeImageDevelopStateThroughV3(value) : normalizeImageDevelopStateThroughV4(value)) as Develop<Profile>;
 }
 function workspaceValue<Profile extends PhotoDevelopWorkspaceProfileV1>(profile: Profile,
 	entries: readonly PhotoDevelopHistoryEntryForProfileV1<Profile>[], cursor: number, snapshots: readonly PhotoDevelopSnapshotForProfileV1<Profile>[],

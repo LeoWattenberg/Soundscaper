@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { framescaperImageDevelopAuthoringForCurrentV1 } from '../../../../framescaper/editor-selected-timeline-image-develop-authoring-controller-v1.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
+import { framescaperImageDevelopAuthoringForCurrentV1,
+	type WithFramescaperImageDevelopDraftFrameCurrentV1, type WithFramescaperImageBrushDraftFrameCurrentV1 } from '../../../../framescaper/editor-selected-timeline-image-develop-authoring-controller-v1.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../imaging/image-develop-state-v4.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
-import type { WithImageDevelopDraftFrameV1 } from '../../controller/shared/image-develop-draft-presentation-v1.ts';
-import { captureImageBrushMaskResourcePortV1, type WithImageBrushMaskDraftFrameV1 } from '../../image-brush-mask-resource-port-v1.ts';
+import { captureImageBrushMaskResourcePortV1 } from '../../image-brush-mask-resource-port-v1.ts';
 import { readClosedDomainRecord, readClosedDomainField } from '../../closed-domain-value.ts';
 import type { PixelFrameV1 } from '../../imaging/pixel-frame-contract-v1.ts';
 import { photoDevelopRepairSpotsCopy } from '../../../i18n/lightscaper-develop-repair-spots-copy.ts';
@@ -26,13 +26,13 @@ type Session = Awaited<ReturnType<Port['open']>>;
 interface NativeSession {
 	readonly nativeCurrent?: true;
 	readonly value: Session;
-	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
+	readonly develop: Readonly<ImageDevelopStateThroughV4>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
-	readonly withDraftFrame?: WithImageDevelopDraftFrameV1;
+	readonly withDraftFrame?: WithFramescaperImageDevelopDraftFrameCurrentV1;
 	readonly brushMasks?: NonNullable<Session['brushMasks']>;
-	readonly withBrushDraftFrame?: WithImageBrushMaskDraftFrameV1;
+	readonly withBrushDraftFrame?: WithFramescaperImageBrushDraftFrameCurrentV1;
 	readonly isCurrent: () => boolean;
-	readonly apply: (develop: Readonly<ImageDevelopStateCurrentV1>) => void;
+	readonly apply: (develop: Readonly<ImageDevelopStateThroughV4>) => void;
 	readonly close: () => Promise<void>;
 }
 interface Scope {
@@ -112,7 +112,7 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 		void retire(scope).then(dismiss, (error: unknown) => { publishFailure(scope, error); dismiss(); })
 			.catch((error: unknown) => { publishFailure(scope, error); });
 	};
-	const apply = (develop: Readonly<ImageDevelopStateCurrentV1>) => {
+	const apply = (develop: Readonly<ImageDevelopStateThroughV4>) => {
 		if (!scope || !current()) return;
 		try { scope.native!.apply(develop); close(); }
 		catch (error) { publishFailure(scope, error); }
@@ -145,14 +145,14 @@ function captureSession(value: Session): NativeSession {
 	const current = value.isCurrent, withOriginalFrame = value.withOriginalFrame, apply = value.apply, close = value.closeAndJoin;
 	const draft = Object.getOwnPropertyDescriptor(value, 'withDraftFrame');
 	if (draft && (!Object.hasOwn(draft, 'value') || draft.value !== undefined && typeof draft.value !== 'function')) throw new TypeError('Invalid selected image draft renderer.');
-	const withDraftFrame = draft?.value as WithImageDevelopDraftFrameV1 | undefined;
-	const capturedDraft: WithImageDevelopDraftFrameV1 | undefined = withDraftFrame
+	const withDraftFrame = draft?.value as WithFramescaperImageDevelopDraftFrameCurrentV1 | undefined;
+	const capturedDraft: WithFramescaperImageDevelopDraftFrameCurrentV1 | undefined = withDraftFrame
 		? (request, consume, options) => Reflect.apply(withDraftFrame, value, [request, consume, options]) : undefined;
 	const brush = Object.getOwnPropertyDescriptor(value, 'brushMasks'), brushDraft = Object.getOwnPropertyDescriptor(value, 'withBrushDraftFrame');
 	if (brush && !Object.hasOwn(brush, 'value')) throw new TypeError('Invalid selected image brush owner.');
 	if (brushDraft && (!Object.hasOwn(brushDraft, 'value') || brushDraft.value !== undefined && typeof brushDraft.value !== 'function')) throw new TypeError('Invalid selected image brush draft renderer.');
-	const withBrushDraftFrame = brushDraft?.value as WithImageBrushMaskDraftFrameV1 | undefined;
-	const capturedBrushDraft: WithImageBrushMaskDraftFrameV1 | undefined = withBrushDraftFrame
+	const withBrushDraftFrame = brushDraft?.value as WithFramescaperImageBrushDraftFrameCurrentV1 | undefined;
+	const capturedBrushDraft: WithFramescaperImageBrushDraftFrameCurrentV1 | undefined = withBrushDraftFrame
 		? (request, consume, options) => Reflect.apply(withBrushDraftFrame, value, [request, consume, options]) : undefined;
 	let brushMasks: NativeSession['brushMasks'];
 	if (brush?.value !== undefined) {
@@ -168,8 +168,11 @@ function captureSession(value: Session): NativeSession {
 		brushMasks = Object.freeze({ ...child, projectId });
 	}
 	if ([current, withOriginalFrame, apply, close].some(method => typeof method !== 'function')) throw new TypeError('Invalid selected image authoring owner.');
+	const saved = Object.getOwnPropertyDescriptor(value, 'develop');
+	if (!saved || !Object.hasOwn(saved, 'value') || saved.enumerable !== true) throw new TypeError('Selected image Develop must be an own data recipe.');
+	const develop = normalizeImageDevelopStateThroughV4(saved.value);
 	let closing: Promise<void> | null = null;
-	return { value, develop: value.develop,
+	return { value, develop,
 		...(native ? { nativeCurrent: true as const } : {}),
 		...(capturedDraft ? { withDraftFrame: capturedDraft } : {}),
 		...(brushMasks ? { brushMasks } : {}), ...(capturedBrushDraft ? { withBrushDraftFrame: capturedBrushDraft } : {}),

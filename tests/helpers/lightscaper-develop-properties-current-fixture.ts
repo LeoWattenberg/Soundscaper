@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import fc from 'fast-check';
 import { normalizeImageDevelopStateV3 } from '../../src/common/editor/imaging/image-develop-state-v3.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../src/common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV4 } from '../../src/common/editor/imaging/image-develop-state-v4.ts';
 import type { BrushMaskResourceReferenceV1 } from '../../src/common/editor/imaging/brush-mask-resource-v1.ts';
 import type { VideoCubeLutReferenceV1 } from '../../src/common/editor/video-color-cube-lut-v27.ts';
 import { createVideoEffectV2 } from '../../src/common/editor/video-effects-v2.ts';
@@ -14,7 +14,7 @@ import { PhotoCatalogRepositoryCurrentV1 } from '../../src/lightscaper/catalog/p
 import { PhotoMediaStoreV1 } from '../../src/lightscaper/storage/photo-media-store.ts';
 import { readPhotoLibrarySessionLocationV2 } from '../../src/lightscaper/storage/photo-library-location-reader-v2.ts';
 import { verifyPhotoResourcesCurrentV1 } from '../../src/lightscaper/storage/photo-media-resource-verification-current-v1.ts';
-import type { PhotoLibraryDevelopCommandV3 } from '../../src/common/editor/photo-library-develop-port-v3.ts';
+import type { PhotoLibraryDevelopCommandCurrentV1 } from '../../src/common/editor/photo-library-develop-port-current-v1.ts';
 import { repairPresetsFixture } from './lightscaper-repair-presets-current-fixture.ts';
 import { LUT_BODY } from './lightscaper-lut-archive-fixture.ts';
 
@@ -82,16 +82,16 @@ export async function developPropertiesFixtureCurrentV1(count = 3) {
 			verifyOriginal: media.verifyOriginal, verifyResources: (photo, signal) => verifyPhotoResourcesCurrentV1(photo, f.resources, signal) }); owned.catalog = catalog;
 		const refresh = async () => { const rows = await f.inspect(); rows.forEach((row, index) => { f.photos[index] = row.photo; }); return rows; };
 		const read = async (index = 0) => { await refresh(); return session.develop.read({ schemaVersion: 3, photoId: f.photos[index]!.id }); };
-		const apply = async (command: PhotoLibraryDevelopCommandV3, index = 0) => {
+		const apply = async (command: PhotoLibraryDevelopCommandCurrentV1, index = 0) => {
 			const before = await read(index), ack = await session.develop.apply({ schemaVersion: 3, photoId: before.photoId, expectedRevision: before.revision, command });
 			await refresh(); return ack;
 		};
 		const resourceKeys = [brush.storageKey, unusedBrush.storageKey, lut.storageKey];
 		return { ...f, get session() { return session; }, resourcesForRecipe, read, apply,
-			source(index = 0, develop: ImageDevelopStateCurrentV1 = f.photos[index]!.versions.find(version => version.id === f.photos[index]!.activeVersionId)!.develop) {
+			source(index = 0, develop: ImageDevelopStateThroughV4 = f.photos[index]!.versions.find(version => version.id === f.photos[index]!.activeVersionId)!.develop) {
 				const photo = f.photos[index]!; return { schemaVersion: 3 as const, catalogId: photo.catalogId, photoId: photo.id, versionId: photo.activeVersionId, revision: photo.revision, develop };
 			},
-			async record(develop: ImageDevelopStateCurrentV1, index = 0) { const before = await read(index); return apply({ type: 'record-develop', versionId: before.versionId, develop, label: 'Generated', createdAt: GENERATED_CURRENT_TIME }, index); },
+			async record(develop: ImageDevelopStateThroughV4, index = 0) { const before = await read(index); return apply({ type: 'record-develop', versionId: before.versionId, develop, label: 'Generated', createdAt: GENERATED_CURRENT_TIME }, index); },
 			async reopen() { await session.close(); session = await createPhotoLibrarySessionCurrentV1(f.options); await session.readPage(); await refresh(); return session; },
 			async openCommandOwner(index = 0) { await refresh(); const photo = f.photos[index]!;
 				const owner = await PhotoCommandOwnerCurrentV1.open(catalog, photo.catalogId, photo.id); commands.add(owner); return owner; },

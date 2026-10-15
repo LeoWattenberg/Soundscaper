@@ -11,6 +11,7 @@ import { normalizePhotoDocumentV1 } from '../../src/lightscaper/catalog/photo-do
 import { applyPhotoCommandCurrentV1 } from '../../src/lightscaper/controller/photo-commands-current-v1.ts';
 import { defaultImageDevelopStateV2 } from '../../src/common/editor/imaging/image-develop-state-v2.ts';
 import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../src/common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../src/common/editor/imaging/image-develop-state-v4.ts';
 import { withPreparedBrushMaskResourceV1, type BrushMaskResourceReferenceV1 } from '../../src/common/editor/imaging/brush-mask-resource-v1.ts';
 import type { PhotoDocumentCurrentV1 } from '../../src/lightscaper/catalog/photo-document-current-v1.ts';
 import type { ExecutePhotoDevelopCurrentV1 } from '../../src/common/editor/controller/shared/photo-library-develop-workflow-current-v1.ts';
@@ -23,6 +24,8 @@ import { pngBytes, repairRecipe, ORIGINAL } from './lightscaper-repair-raster-ex
 
 export const SETTINGS_TIME = '2026-10-12T00:00:00.000Z';
 export const FULL_SETTINGS_SELECTION = Object.freeze({ effectTypes: 'all' as const, geometry: true, localAdjustments: true, repairs: true });
+/** Explicit evolving Current selection; fixed Packet3 callers keep the constant above. */
+export const CURRENT_SETTINGS_SELECTION = Object.freeze({ ...FULL_SETTINGS_SELECTION, rawDevelopment: true });
 export function brushSettingsRecipe(reference: Readonly<BrushMaskResourceReferenceV1>, base: ImageDevelopStateCurrentV1 = repairRecipe()) {
 	return normalizeImageDevelopStateCurrentV1({ ...base, masks: [{ schemaVersion: 2, name: 'Paint', id: 'painted', kind: 'matte',
 		inputs: [{ name: 'paint', sourceRef: reference.storageKey, kind: 'alpha' }], nodes: [{ id: 'alpha', kind: 'alpha', inputName: 'paint' }], outputNodeId: 'alpha' }], maskBindings: [] });
@@ -87,13 +90,13 @@ export async function repairSettingsFixture(count = 2) {
 			finally { await Promise.all([catalog.close(), media.close()]); }
 		};
 		const read = (index = 0) => actual.develop.read({ schemaVersion: 3, photoId: photos[index]!.id });
-		const source = (index = 0, draft: ImageDevelopStateCurrentV1 = photos[index]!.versions[0]!.develop) => ({ schemaVersion: 3 as const,
+		const source = (index = 0, draft: ImageDevelopStateThroughV4 = photos[index]!.versions[0]!.develop) => ({ schemaVersion: 3 as const,
 			catalogId: photos[index]!.catalogId, photoId: photos[index]!.id, versionId: photos[index]!.activeVersionId, revision: photos[index]!.revision, develop: draft });
 		const execute: ExecutePhotoDevelopCurrentV1 = async (run, external) => { const signal = external ?? new AbortController().signal;
 			await run({ signal, acquire: async () => actual.develop, isCurrent: () => true, refresh: () => actual.readPage() }); return 'completed'; };
 		return { session: actual, photos, options, native, hooks, saved, borrowed, bytes, read, source, execute, inspect,
 			async record(develop: unknown, index = 0) { const before = await read(index); const ack = await actual.develop.apply({ schemaVersion: 3, photoId: before.photoId,
-				expectedRevision: before.revision, command: { type: 'record-develop', versionId: before.versionId, develop: normalizeImageDevelopStateCurrentV1(develop), label: 'Settings fixture', createdAt: SETTINGS_TIME } });
+				expectedRevision: before.revision, command: { type: 'record-develop', versionId: before.versionId, develop: normalizeImageDevelopStateThroughV4(develop), label: 'Settings fixture', createdAt: SETTINGS_TIME } });
 				photos[index] = (await inspect())[index]!.photo; return ack; },
 			async installBrush(alpha: readonly number[] = [255, 0, 128]) { return withPreparedBrushMaskResourceV1({ width: alpha.length, height: 1, alpha: Uint8Array.from(alpha) },
 				body => actual.develop.maskRasters!.install(body.reference, body.bytes)); },

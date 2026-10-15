@@ -3,18 +3,26 @@
 import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../../../closed-domain-value.ts';
 import type { PhotoLibraryDevelopCommandV2, PhotoLibraryDevelopSettingsV2, PhotoLibraryDevelopPortV2 } from '../../../photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopCommandV3, PhotoLibraryDevelopSettingsV3, PhotoLibraryDevelopPortV3 } from '../../../photo-library-develop-port-v3.ts';
+import type { PhotoLibraryDevelopCommandCurrentV1, PhotoLibraryDevelopSettingsCurrentV1, PhotoLibraryDevelopPortCurrentV1,
+	PhotoLibraryDevelopOriginalCapabilityCurrentV1 } from '../../../photo-library-develop-port-current-v1.ts';
 import { capturePhotoLibraryDevelopMaskRasterPortV1 } from '../../../photo-library-develop-mask-raster-port-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../../photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryDevelopPresetsPortV3 } from '../../../photo-library-develop-presets-port-v3.ts';
 import type { PhotoLibraryDevelopSettingsPortV3 } from '../../../photo-library-develop-settings-port-v3.ts';
+import type { PhotoLibraryDevelopSettingsPortCurrentV1 } from '../../../photo-library-develop-settings-port-current-v1.ts';
+import type { PhotoLibraryDevelopPresetsPortCurrentV1 } from '../../../photo-library-develop-presets-port-current-v1.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../../imaging/image-develop-state-v2.ts';
-import { normalizeImageDevelopStateCurrentV1 } from '../../../imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV3 } from '../../../imaging/image-develop-state-through-v3.ts';
+import { normalizeImageDevelopStateThroughV4 } from '../../../imaging/image-develop-state-v4.ts';
 import type { PhotoDevelopExecutionContextForProfileV1 } from './photo-library-develop-workflow-kernel-v1.ts';
 
-export type PhotoDevelopProfileV1 = 'legacy2' | 'current3';
-export type PhotoDevelopCommandForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopCommandV2 : PhotoLibraryDevelopCommandV3;
-export type PhotoDevelopSettingsForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopSettingsV2 : PhotoLibraryDevelopSettingsV3;
-export type PhotoDevelopPortForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPortV2 : PhotoLibraryDevelopPortV3;
+export type PhotoDevelopProfileV1 = 'legacy2' | 'current3' | 'current4';
+export type PhotoDevelopCommandForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopCommandV2
+	: Profile extends 'current3' ? PhotoLibraryDevelopCommandV3 : PhotoLibraryDevelopCommandCurrentV1;
+export type PhotoDevelopSettingsForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopSettingsV2
+	: Profile extends 'current3' ? PhotoLibraryDevelopSettingsV3 : PhotoLibraryDevelopSettingsCurrentV1;
+export type PhotoDevelopPortForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPortV2
+	: Profile extends 'current3' ? PhotoLibraryDevelopPortV3 : PhotoLibraryDevelopPortCurrentV1;
 const CHECK = AbortSignal.prototype.throwIfAborted;
 
 /** Fixed owners share detachment; callers cannot inject a normalizer or schema policy. */
@@ -39,7 +47,8 @@ export function detachPhotoDevelopCommandForProfileV1<Profile extends PhotoDevel
 }
 export function detachPhotoDevelopSettingsForProfileV1<Profile extends PhotoDevelopProfileV1>(profile: Profile, value: unknown): PhotoDevelopSettingsForProfileV1<Profile> {
 	admitProfile(profile); const input = detached(value);
-	return (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2(input) : normalizeImageDevelopStateCurrentV1(input)) as PhotoDevelopSettingsForProfileV1<Profile>;
+	return (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2(input) : profile === 'current3'
+		? normalizeImageDevelopStateThroughV3(input) : normalizeImageDevelopStateThroughV4(input)) as PhotoDevelopSettingsForProfileV1<Profile>;
 }
 
 function detached(value: unknown, maximumBytes = 2_097_152): unknown {
@@ -89,12 +98,12 @@ export function capturePhotoDevelopPortForProfileV1<Profile extends PhotoDevelop
 		}) as Readonly<PhotoDevelopPortForProfileV1<Profile>>;
 	}
 	const current = record(port, 'current Develop capability', ['schemaVersion', 'read', 'apply', 'original', 'maskRasters', 'settingsCurrent', 'presetsCurrent'], ['schemaVersion', 'read', 'apply']);
-	const read = field(current, 'read', 'current Develop capability') as PhotoLibraryDevelopPortV3['read'];
-	const apply = field(current, 'apply', 'current Develop capability') as PhotoLibraryDevelopPortV3['apply'];
-	const original = Object.hasOwn(current, 'original') ? captureOriginal(field(current, 'original', 'current Develop capability')) : undefined;
+	const read = field(current, 'read', 'current Develop capability') as PhotoDevelopPortForProfileV1<Profile>['read'];
+	const apply = field(current, 'apply', 'current Develop capability') as PhotoDevelopPortForProfileV1<Profile>['apply'];
+	const original = Object.hasOwn(current, 'original') ? captureOriginal(field(current, 'original', 'current Develop capability'), profile === 'current4') : undefined;
 	const maskRasters = Object.hasOwn(current, 'maskRasters') ? field(current, 'maskRasters', 'current Develop capability') : undefined;
-	const settingsCurrent = Object.hasOwn(current, 'settingsCurrent') ? captureSettingsCurrent(field(current, 'settingsCurrent', 'current Develop capability')) : undefined;
-	const presetsCurrent = Object.hasOwn(current, 'presetsCurrent') ? capturePresetsCurrent(field(current, 'presetsCurrent', 'current Develop capability')) : undefined;
+	const settingsCurrent = Object.hasOwn(current, 'settingsCurrent') ? captureSettingsCurrent(profile, field(current, 'settingsCurrent', 'current Develop capability')) : undefined;
+	const presetsCurrent = Object.hasOwn(current, 'presetsCurrent') ? capturePresetsCurrent(profile, field(current, 'presetsCurrent', 'current Develop capability')) : undefined;
 	return Object.freeze({ schemaVersion: 3, read: pin(read, port), apply: pin(apply, port),
 		...(original === undefined ? {} : { original }),
 		...(maskRasters === undefined ? {} : { maskRasters: capturePhotoLibraryDevelopMaskRasterPortV1(maskRasters) }),
@@ -102,29 +111,33 @@ export function capturePhotoDevelopPortForProfileV1<Profile extends PhotoDevelop
 		...(presetsCurrent === undefined ? {} : { presetsCurrent }),
 	}) as Readonly<PhotoDevelopPortForProfileV1<Profile>>;
 }
-function capturePresetsCurrent(value: unknown): Readonly<PhotoLibraryDevelopPresetsPortV3> | undefined {
+type Presets<Profile extends PhotoDevelopProfileV1> = Profile extends 'current4' ? PhotoLibraryDevelopPresetsPortCurrentV1 : PhotoLibraryDevelopPresetsPortV3;
+type Settings<Profile extends PhotoDevelopProfileV1> = Profile extends 'current4' ? PhotoLibraryDevelopSettingsPortCurrentV1 : PhotoLibraryDevelopSettingsPortV3;
+function capturePresetsCurrent<Profile extends PhotoDevelopProfileV1>(_profile: Profile, value: unknown): Readonly<Presets<Profile>> | undefined {
 	if (value === undefined) return undefined;
 	const input = record(value, 'Current presets capability', ['create', 'parse', 'serialize', 'list', 'read', 'write']);
-	return Object.freeze({ create: pin(field(input, 'create', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['create'], value),
-		parse: pin(field(input, 'parse', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['parse'], value),
-		serialize: pin(field(input, 'serialize', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['serialize'], value),
-		list: pin(field(input, 'list', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['list'], value),
-		read: pin(field(input, 'read', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['read'], value),
-		write: pin(field(input, 'write', 'Current presets capability') as PhotoLibraryDevelopPresetsPortV3['write'], value) });
+	return Object.freeze({ create: pin(field(input, 'create', 'Current presets capability') as Presets<Profile>['create'], value),
+		parse: pin(field(input, 'parse', 'Current presets capability') as Presets<Profile>['parse'], value),
+		serialize: pin(field(input, 'serialize', 'Current presets capability') as Presets<Profile>['serialize'], value),
+		list: pin(field(input, 'list', 'Current presets capability') as Presets<Profile>['list'], value),
+		read: pin(field(input, 'read', 'Current presets capability') as Presets<Profile>['read'], value),
+		write: pin(field(input, 'write', 'Current presets capability') as Presets<Profile>['write'], value) }) as Readonly<Presets<Profile>>;
 }
-function captureSettingsCurrent(value: unknown): Readonly<PhotoLibraryDevelopSettingsPortV3> | undefined {
+function captureSettingsCurrent<Profile extends PhotoDevelopProfileV1>(_profile: Profile, value: unknown): Readonly<Settings<Profile>> | undefined {
 	if (value === undefined) return undefined;
 	const input = record(value, 'Current settings capability', ['copy', 'copySelected', 'merge', 'adjust', 'applyBatch']);
-	return Object.freeze({ copy: pin(field(input, 'copy', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['copy'], value),
-		copySelected: pin(field(input, 'copySelected', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['copySelected'], value),
-		merge: pin(field(input, 'merge', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['merge'], value),
-		adjust: pin(field(input, 'adjust', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['adjust'], value),
-		applyBatch: pin(field(input, 'applyBatch', 'Current settings capability') as PhotoLibraryDevelopSettingsPortV3['applyBatch'], value) });
+	return Object.freeze({ copy: pin(field(input, 'copy', 'Current settings capability') as Settings<Profile>['copy'], value),
+		copySelected: pin(field(input, 'copySelected', 'Current settings capability') as Settings<Profile>['copySelected'], value),
+		merge: pin(field(input, 'merge', 'Current settings capability') as Settings<Profile>['merge'], value),
+		adjust: pin(field(input, 'adjust', 'Current settings capability') as Settings<Profile>['adjust'], value),
+		applyBatch: pin(field(input, 'applyBatch', 'Current settings capability') as Settings<Profile>['applyBatch'], value) }) as Readonly<Settings<Profile>>;
 }
-function captureOriginal(value: unknown): Readonly<PhotoLibraryDevelopOriginalPortV1> | undefined {
+function captureOriginal(value: unknown, derived: boolean): Readonly<PhotoLibraryDevelopOriginalCapabilityCurrentV1> | undefined {
 	if (value === undefined) return undefined;
-	const input = record(value, 'Develop Original capability', ['withFrame']);
-	return Object.freeze({ withFrame: pin(field(input, 'withFrame', 'Develop Original capability') as PhotoLibraryDevelopOriginalPortV1['withFrame'], value) });
+	const input = record(value, 'Develop Original capability', derived ? ['withFrame', 'withDerivedFrame'] : ['withFrame'], ['withFrame']);
+	const withDerivedFrame = derived && Object.hasOwn(input, 'withDerivedFrame') ? field(input, 'withDerivedFrame', 'Develop Original capability') : undefined;
+	return Object.freeze({ withFrame: pin(field(input, 'withFrame', 'Develop Original capability') as PhotoLibraryDevelopOriginalPortV1['withFrame'], value),
+		...(withDerivedFrame === undefined ? {} : { withDerivedFrame: pin(withDerivedFrame as NonNullable<PhotoLibraryDevelopOriginalCapabilityCurrentV1['withDerivedFrame']>, value) }) });
 }
 function pin<Method extends (...args: never[]) => unknown>(method: Method, receiver: unknown): Method {
 	if (typeof method !== 'function') throw new TypeError('Current Develop requires callable capabilities.');
@@ -140,5 +153,5 @@ export function capturePhotoDevelopContextForProfileV1<Profile extends PhotoDeve
 	} catch (error) { Reflect.apply(CHECK, signal, []); throw error; }
 }
 function admitProfile(value: PhotoDevelopProfileV1): void {
-	if (value !== 'legacy2' && value !== 'current3') throw new TypeError('Unsupported Develop authoring profile.');
+	if (value !== 'legacy2' && value !== 'current3' && value !== 'current4') throw new TypeError('Unsupported Develop authoring profile.');
 }

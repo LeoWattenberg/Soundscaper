@@ -125,7 +125,7 @@ test('unrepaired Current App keeps genuine selected settings Copy delivery live 
 				const outcome = nativeRead.then(value => ({ ok: true as const, value }), (error: unknown) => ({ ok: false as const, error }));
 				observed.nativeReads.push(outcome); const result = await outcome; await held;
 				if (!result.ok) throw result.error;
-				assert.equal(result.value.schemaVersion, 3); assert.equal(result.value.develop.processVersion, 2); return result.value;
+				assert.equal(result.value.schemaVersion, 4); assert.equal(result.value.develop.processVersion, 2); return result.value;
 			},
 		});
 		Object.defineProperty(session, 'develop', { configurable: true, value: Object.freeze({ ...port, settingsCurrent: selected }) });
@@ -150,7 +150,7 @@ test('unrepaired Current App keeps genuine selected settings Copy delivery live 
 		assert.equal(observed.calls, 1); assert.equal(mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied), false);
 		assert.ok(button(settings.confirmCopy), 'The child dialog awaits joined actual packet delivery.'); release();
 		await waitFor(async () => { await act(async () => { await settle(); }); return rendering.failure !== undefined
-			|| mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied); }, 'selected Packet3 clipboard publication');
+			|| mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied); }, 'selected Packet4 clipboard publication');
 		assert.equal(rendering.failure, undefined); assert.ok(rendering.commits <= 50); assert.equal(observed.calls, 1);
 		assert.equal(observed.signal.aborted, false); assert.equal(mounted.dom.container.querySelectorAll('p').some(value => value.textContent === settings.copied), true);
 		assert.equal(mounted.dom.container.querySelectorAll('button').some(value => value.textContent === settings.confirmCopy), false);

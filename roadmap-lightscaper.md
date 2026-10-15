@@ -152,7 +152,9 @@ export and cross-product qualification gates are open. Current RAW menu import
 and bounded native Float32 development are implemented, including geometry,
 spatial effects, LUTs, local masks and Clone/Heal. The combined RAW workflow is
 verified in Chromium and Firefox. Current raster export retains native output
-processing and offers PNG16 with saved presets and batch recovery; external
+processing and offers PNG16 with saved presets and batch recovery. Opt-in RAW
+source processing now carries canonical, linear-headroom and highlight-recovery
+choices through the Current draft, saved recipe and native rendering; external
 decoder publication, wider product qualification and desktop capabilities remain
 pending.
 
@@ -172,7 +174,7 @@ Architectural constraints that still drive the sequence:
 
 - the established byte route remains exact; Current RAW processing uses the
   same L2 contracts, with native stage ownership and aggregate memory admission;
-  highlight recovery and wider output remain pending in L7;
+  wider output and the remaining L7 qualification stay open;
 - original custody and catalog persistence have separate owners and must
   reconcile interrupted publication before a library is exposed;
 - catalog-scale browsing uses bounded indexed pages rather than whole-project
@@ -927,7 +929,7 @@ there.
   cache reuse, culling saves, native Develop and reload. The Lightscaper build
   retains 53 ready-graph requests and six initial requests within existing
   ceilings. Broader camera coverage,
-  highlight recovery, wide-gamut/soft-proof output, GPU/native execution,
+  wide-gamut/soft-proof output, GPU/native execution,
   lens/camera profiles, HDR merge, L8 and L9 remain unfinished. Current native
   Develop and raster export qualification is recorded above; remaining L3–L6
   exit gates and L7 completion remain open.
@@ -939,9 +941,22 @@ there.
   variation, stable midtones and retained headroom through the actual native
   decoder and production worker. The selected Lightscaper regression passes
   3,329 checks in 383 files, including 27 recovery checks. ABI1 and canonical
-  Source4 receipts remain unchanged. Existing-menu Current Develop, proxy,
-  Full, export and editable Frame integration of recovery remain pending;
-  highlight recovery is not yet a completed product feature.
+  Source4 receipts remain unchanged. The subsequent
+  [Current source-processing integration](docs/architecture/lightscaper-raw-source-processing.md)
+  offers Canonical Original, Linear headroom and Highlight recovery through
+  Develop → Settings → RAW source processing. Its explicit process4 recipe
+  retains every existing adjustment group; Current Packet4/Preset4, history,
+  native rendering, raster delivery and editable Source4 carry that policy.
+  Before retains the canonical Original; After authenticates and lends the
+  selected ABI2 plane separately. Eight English/German Chromium/Firefox checks
+  qualify the actual menu, canonical Before, recovery/headroom After, repair,
+  Save/reload, PNG16 and Sidecar2 with complete native-plane comparisons and
+  unchanged Original custody. Focused Frame owner tests cover native saved and
+  draft rendering through the actual repair/mask/brush surfaces. Archive8 now
+  preserves native Row4, complete history, retained resource bodies and Original
+  custody through backup, restore and selected-session reopen. The broader
+  product qualification remains in progress; this
+  does not close the full L7 exit gate.
 - **Web Enhanced — Planned:** GPU evaluation of the develop stack where
   capability-detected, with the CPU path as the conformance oracle under
   recorded tolerance budgets.

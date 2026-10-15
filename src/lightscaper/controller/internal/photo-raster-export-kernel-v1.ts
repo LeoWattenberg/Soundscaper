@@ -17,9 +17,10 @@ import { DETAIL_SHARPEN_EFFECT_TYPE_V1 } from '../../../common/editor/video-shar
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 as LIMITS } from '../../../common/editor/photo-library-develop-full-resolution-port-v1.ts';
 import type { PhotoDevelopExecutionContextV2 } from '../../../common/editor/controller/shared/photo-library-develop-workflow-v2.ts';
 import type { PhotoDevelopExecutionContextCurrentV1 } from '../../../common/editor/controller/shared/photo-library-develop-workflow-current-v1.ts';
-import { capturePhotoDevelopExecutionContextCurrentV1, capturePhotoLibraryDevelopPortV3, detachPhotoLibraryDevelopSettingsV3 } from '../../../common/editor/controller/shared/photo-library-develop-command-v3.ts';
+import { capturePhotoDevelopExecutionContextCurrentV1, capturePhotoLibraryDevelopPortCurrentV1, detachPhotoLibraryDevelopSettingsCurrentV1 } from '../../../common/editor/controller/shared/photo-library-develop-command-current-v1.ts';
 import type { PhotoLibraryDevelopProxyRuntimeV2 } from '../../../common/editor/photo-library-develop-proxy-port-v2.ts';
-import type { PhotoLibraryDevelopProxyRuntimeV3 } from '../../../common/editor/photo-library-develop-proxy-port-v3.ts';
+import type { PhotoLibraryDevelopProxyRuntimeCurrentV1 } from '../../../common/editor/photo-library-develop-proxy-port-current-v1.ts';
+import { capturePhotoRasterExportSourceCurrentV1, preparePhotoRasterNativeRetainedBytesCurrentV1 } from './photo-raster-export-source-current-v1.ts';
 
 import { normalizeImageMetadataV1 } from '../../../common/editor/imaging/image-metadata-normalizer-v1.ts';
 import { withImageExifContainerV1 } from '../../../common/editor/imaging/image-exif-container-v1.ts';
@@ -132,13 +133,14 @@ export class PhotoRasterExportKernelV1 {
 					const current = () => { check(signal); if (!scope.isCurrent()) throw new Error('Photo raster export generation is stale.'); check(signal); };
 					current();
 					const acquired = await scope.acquire(); current();
-					const port = this.#profile === 'current3' ? capturePhotoLibraryDevelopPortV3(acquired as Parameters<typeof capturePhotoLibraryDevelopPortV3>[0])
+					const port = this.#profile === 'current3' ? capturePhotoLibraryDevelopPortCurrentV1(acquired as Parameters<typeof capturePhotoLibraryDevelopPortCurrentV1>[0])
 						: capturePhotoLibraryDevelopPortV2(acquired as Parameters<typeof capturePhotoLibraryDevelopPortV2>[0]); current();
 					const read = async () => {
 						current(); const snapshot: unknown = await Reflect.apply(port.read, port, [{ schemaVersion: this.#profile === 'current3' ? 3 : 2, photoId: request.photoId, versionId: request.versionId }, { signal }]);
 						current(); return readSnapshot(snapshot, request, this.#profile);
 					};
-					const initial = await read(), develop = this.#profile === 'current3' ? detachPhotoLibraryDevelopSettingsV3(initial.develop) : detachPhotoLibraryDevelopSettingsV2(initial.develop);
+					const initial = await read(), develop = this.#profile === 'current3' ? detachPhotoLibraryDevelopSettingsCurrentV1(initial.develop) : detachPhotoLibraryDevelopSettingsV2(initial.develop);
+					const withSource = this.#profile === 'current3' ? capturePhotoRasterExportSourceCurrentV1(request, develop) : request.withOriginalFrame;
 					if (sidecar) await sidecar.capture({ catalogId: initial.catalogId, photoId: request.photoId, versionId: request.versionId, expectedRevision: request.expectedRevision }, develop, signal); current();
 					let exif: Readonly<ImageExifMetadataV1> | null = null;
 					if (request.output?.metadataScope === 'capture') {
@@ -148,25 +150,27 @@ export class PhotoRasterExportKernelV1 {
 						} catch (error) { current(); throw new PhotoRasterExportMetadataRefusal(error); }
 					}
 					const runtime = await request.loadRenderer(); current();
-					const render = pin<PhotoLibraryDevelopProxyRuntimeV2['withFullResolution'] | PhotoLibraryDevelopProxyRuntimeV3['withFullResolution']>(runtime.withFullResolution, runtime);
+					const render = pin<PhotoLibraryDevelopProxyRuntimeV2['withFullResolution'] | PhotoLibraryDevelopProxyRuntimeCurrentV1['withFullResolution']>(runtime.withFullResolution, runtime);
 					let width = 0, height = 0;
-					const renderOriginal = async (graphic: Readonly<PixelFrameV1> | null) => {
-						const text = request.output?.textWatermark;
-						const mark = graphic || text?.opacity ? (await import('../../../common/editor/imaging/pixel-frame-graphic-watermark-v1.ts')).withGraphicWatermarkPixelFrameV1 : null;
+					const renderWithSource = (admittedGraphic?: Readonly<PixelFrameV1> | null) => withSource({ schemaVersion: 1, photoId: request.photoId, expectedRevision: request.expectedRevision }, async original => {
 						current();
-						await request.withOriginalFrame({ schemaVersion: 1, photoId: request.photoId, expectedRevision: request.expectedRevision }, async original => {
+						const originalView = record(original, 'Photo raster original', ['photoId', 'revision', 'frame']);
+						if (field(originalView, 'photoId', 'Photo raster original') !== request.photoId
+							|| field(originalView, 'revision', 'Photo raster original') !== request.expectedRevision) throw new Error('Photo raster original revision or identity changed.');
+						const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : LIMITS.source);
+						const bitDepth = request.output && 'bitDepth' in request.output ? request.output.bitDepth : 8;
+						const renderOriginal = async (graphic: Readonly<PixelFrameV1> | null) => {
+							const text = request.output?.textWatermark;
+							const mark = graphic || text?.opacity ? (await import('../../../common/editor/imaging/pixel-frame-graphic-watermark-v1.ts')).withGraphicWatermarkPixelFrameV1 : null;
 							current();
-							const originalView = record(original, 'Photo raster original', ['photoId', 'revision', 'frame']);
-							if (field(originalView, 'photoId', 'Photo raster original') !== request.photoId
-								|| field(originalView, 'revision', 'Photo raster original') !== request.expectedRevision) throw new Error('Photo raster original revision or identity changed.');
-							const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : LIMITS.source);
-							const bitDepth = request.output && 'bitDepth' in request.output ? request.output.bitDepth : 8;
+							const retainedSourceBytes = this.#profile === 'current3' && (source.descriptor.sampleFormat !== 'unorm8' || bitDepth === 16)
+								? preparePhotoRasterNativeRetainedBytesCurrentV1(source, graphic, graphic ? request.graphicWatermark?.body : undefined) : 0;
 							const renderInput = async (input: Readonly<PixelFrameV1>) => { await Reflect.apply(render, undefined, [{ frame: input, develop, signal }, async (output: unknown) => {
 								current(); const view = record(output, 'Photo raster render', ['frame', 'histogram'], ['frame']);
-								const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
+								const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.render : LIMITS.render);
 								if (this.#profile === 'current3' && (frame.descriptor.sampleFormat === 'float32' || bitDepth === 16)) {
 									await withPhotoRasterLinearOutputCurrentV1({ frame, originals: [source, input], output: request.output, bitDepth,
-										graphic, graphicWatermark: request.graphicWatermark, withTextFrame: request.withTextFrame, signal, current },
+										graphic, graphicWatermark: request.graphicWatermark, withTextFrame: request.withTextFrame, retainedSourceBytes, signal, current },
 									async (final, limits, maximumOutputBytes, borrowed) => {
 										current(); const encoded = await request.encode(final, { signal, limits, maximumOutputBytes, ...(bitDepth === 16 ? { bitDepth } : {}) });
 										bytes = readEncoded(encoded, maximumOutputBytes, ...borrowed); width = final.descriptor.width; height = final.descriptor.height; current();
@@ -210,12 +214,17 @@ export class PhotoRasterExportKernelV1 {
 							if (this.#profile === 'current3') await withPhotoRasterLinearOriginalCurrentV1(source, bitDepth, renderInput, signal);
 							else await renderInput(source);
 							current();
-						}, { signal });
-					};
-					if (request.graphicWatermark && request.graphicWatermark.opacity !== 0) {
+						};
+						if (admittedGraphic !== undefined) await renderOriginal(admittedGraphic);
+						else if (request.graphicWatermark && request.graphicWatermark.opacity !== 0) {
+							const withGraphic = request.withGraphicFrame ?? (await import('../../../common/editor/imaging/image-export-graphic-source-v1.ts')).withImageExportGraphicFrameV1;
+							current(); await withGraphic({ body: request.graphicWatermark.body, signal }, graphic => renderOriginal(graphic));
+						} else await renderOriginal(null);
+					}, { signal });
+					if (this.#profile === 'legacy2' && request.graphicWatermark && request.graphicWatermark.opacity !== 0) {
 						const withGraphic = request.withGraphicFrame ?? (await import('../../../common/editor/imaging/image-export-graphic-source-v1.ts')).withImageExportGraphicFrameV1;
-						current(); await withGraphic({ body: request.graphicWatermark.body, signal }, graphic => renderOriginal(graphic));
-					} else await renderOriginal(null);
+						current(); await withGraphic({ body: request.graphicWatermark.body, signal }, graphic => renderWithSource(graphic));
+					} else await renderWithSource();
 					// Both renderer and original owner have completed their late checks and cleanup.
 					current();
 					if (!bytes) throw new Error('Photo raster renderer did not complete its frame consumer.');
@@ -366,7 +375,8 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 function admitRequest(value: unknown, extension: '.png' | '.jpg', profile: PhotoRasterExportProfileV1, format: 'png' | 'jpeg'): Request {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
-	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'sidecar', 'graphicWatermark', 'withGraphicFrame', 'withTextFrame'], required);
+	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'sidecar', 'graphicWatermark', 'withGraphicFrame', 'withTextFrame', ...(profile === 'current3' ? ['withDerivedFrame'] : [])], required);
+	const withDerivedFrame = Object.hasOwn(input, 'withDerivedFrame') ? pin<NonNullable<PhotoRasterExportRequestCurrentV1['withDerivedFrame']>>(field(input, 'withDerivedFrame', name), value) : undefined;
 	const output = Object.hasOwn(input, 'output') ? profile === 'current3' ? capturePhotoRasterExportOutputCurrentV1(field(input, 'output', name), format) : capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
 	const graphicWatermark = Object.hasOwn(input, 'graphicWatermark') ? captureImageExportGraphicRequest(field(input, 'graphicWatermark', name)) : undefined;
 	const withGraphicFrame = Object.hasOwn(input, 'withGraphicFrame') ? pin<typeof withImageExportGraphicFrameV1>(field(input, 'withGraphicFrame', name), value) : undefined;
@@ -389,11 +399,11 @@ function admitRequest(value: unknown, extension: '.png' | '.jpg', profile: Photo
 	return Object.freeze({ photoId: stableId(field(input, 'photoId', name)), versionId: stableId(field(input, 'versionId', name)),
 		expectedRevision: revision, fileName, fileTypeDescription: text(field(input, 'fileTypeDescription', name), 256), signal: signal as AbortSignal | undefined,
 		prepareSave: method('prepareSave'), saveFile: method('saveFile'), execute: method('execute'), withOriginalFrame: method('withOriginalFrame'),
-		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, sidecar: capturedSidecar, graphicWatermark, withGraphicFrame, withTextFrame });
+		loadRenderer: method('loadRenderer'), encode: method('encode'), output, readMetadata: metadataRead, sidecar: capturedSidecar, graphicWatermark, withGraphicFrame, withTextFrame, ...(withDerivedFrame ? { withDerivedFrame } : {}) });
 }
 function pin<Method>(value: unknown, receiver: unknown): Method {
 	if (typeof value !== 'function') throw new TypeError('Photo raster export requires its captured methods.');
-	return Reflect.apply(Function.prototype.bind, value, [receiver]) as Method;
+	return ((...args: unknown[]): unknown => Reflect.apply(value, receiver, args)) as Method;
 }
 function check(signal: AbortSignal): void {
 	Reflect.apply(CHECK, signal, []);
@@ -415,6 +425,7 @@ interface Request extends Omit<PhotoRasterExportRequest, 'execute' | 'loadRender
 	readonly loadRenderer: PhotoRasterExportRequest['loadRenderer'] | PhotoRasterExportRequestCurrentV1['loadRenderer'];
 	readonly output?: PhotoRasterExportOutputCurrentV1;
 	readonly encode: PhotoRasterExportRequestCurrentV1['encode'];
+	readonly withDerivedFrame?: PhotoRasterExportRequestCurrentV1['withDerivedFrame'];
 }
 type Context = PhotoDevelopExecutionContextV2 | PhotoDevelopExecutionContextCurrentV1;
 function execute(request: Request, run: (context: Context) => Promise<void>, signal: AbortSignal): ReturnType<PhotoRasterExportRequest['execute']> {

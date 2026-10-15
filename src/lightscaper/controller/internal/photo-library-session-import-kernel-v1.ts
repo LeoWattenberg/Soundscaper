@@ -11,7 +11,7 @@ import type { PhotoDocumentV2 } from '../../catalog/photo-document-v2.ts';
 import type { PhotoDocumentV1 } from '../../catalog/types.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../../catalog/photo-document-current-v1.ts';
 import type { PhotoCatalogPackInputV2 } from '../../archive/catalog-pack-v2.ts';
-import type { PhotoCatalogPackInputV4 } from '../../archive/catalog-pack-v4.ts';
+import type { PhotoCatalogPackInputCurrentV1 } from '../../archive/catalog-pack-current-v1.ts';
 import { importManagedPhotosV2 } from '../../import/managed-import-v2.ts';
 import { importManagedPhotosCurrentV1 } from '../../import/managed-import-current-v1.ts';
 import type { PhotoManagedImportPortsV2 } from '../../import/managed-import-ports-v2.ts';
@@ -94,7 +94,7 @@ export function createPhotoLibrarySessionImportForProfileV1(profile: 'legacy2' |
 				receipts = profile === 'legacy2'
 					? await legacyImport(catalogId, bridge() as AsyncIterable<PhotoCatalogPackInputV2>,
 						{ ...managed as PhotoManagedImportPortsV2, exclusive: async (_id, operation) => operation(signal) }, { signal, onPublished: acknowledge })
-					: await importManagedPhotosCurrentV1(catalogId, bridge() as AsyncIterable<PhotoCatalogPackInputV4>,
+					: await importManagedPhotosCurrentV1(catalogId, bridge() as AsyncIterable<PhotoCatalogPackInputCurrentV1>,
 						{ ...managed as PhotoManagedImportPortsCurrentV1, exclusive: async (_id, operation) => operation(signal) }, { signal, onPublished: acknowledge });
 			} catch (failure) { resetReady(); throw failure; }
 			for (const receipt of receipts) acknowledge(receipt);

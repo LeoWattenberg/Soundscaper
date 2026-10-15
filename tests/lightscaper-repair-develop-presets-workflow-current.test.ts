@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PhotoLibraryDevelopSettingsWorkflowCurrentV1 } from '../src/common/editor/controller/shared/photo-library-develop-settings-workflow-current-v1.ts';
-import { normalizeImageDevelopStateCurrentV1 } from '../src/common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4 } from '../src/common/editor/imaging/image-develop-state-v4.ts';
 import { createVideoEffectV2 } from '../src/common/editor/video-effects-v2.ts';
-import { repairSettingsFixture, brushSettingsRecipe, FULL_SETTINGS_SELECTION, SETTINGS_TIME } from './helpers/lightscaper-repair-settings-current-fixture.ts';
+import { repairSettingsFixture, brushSettingsRecipe, CURRENT_SETTINGS_SELECTION, SETTINGS_TIME } from './helpers/lightscaper-repair-settings-current-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
 
 type Fixture = Awaited<ReturnType<typeof repairSettingsFixture>>;
@@ -13,7 +13,7 @@ const workflow = (f: Fixture) => new PhotoLibraryDevelopSettingsWorkflowCurrentV
 async function source(f: Fixture, index = 0, value?: unknown) {
 	const document = await f.read(index);
 	return { schemaVersion: 3 as const, catalogId: document.catalogId, photoId: document.photoId, versionId: document.versionId,
-		revision: document.revision, develop: value === undefined ? document.develop : normalizeImageDevelopStateCurrentV1(value) };
+		revision: document.revision, develop: value === undefined ? document.develop : normalizeImageDevelopStateThroughV4(value) };
 }
 async function list(owner: PhotoLibraryDevelopSettingsWorkflowCurrentV1, f: Fixture) {
 	const result = await owner.listPresets(f.photos[0]!.catalogId); assert.ok(result); assert.equal(result.schemaVersion, 3); return result;
@@ -34,13 +34,13 @@ test('Current preset workflow saves a complete dirty Clone and Heal draft withou
 	const f = await repairSettingsFixture(), owner = workflow(f), before = await f.inspect();
 	try {
 		await list(owner, f); const original = (await f.read()).develop; assert.ok(original.processVersion === 3);
-		const dirty = normalizeImageDevelopStateCurrentV1({ ...original,
+		const dirty = normalizeImageDevelopStateThroughV4({ ...original,
 			effects: [createVideoEffectV2('tone-ladder-v1', { id: 'tone', params: { exposure: .25 } })],
 			repairs: { schemaVersion: 1, spots: [original.repairs.spots[0]!, { ...original.repairs.spots[0]!, id: 'heal', mode: 'heal' }] } });
-		const ack = await owner.savePreset(await source(f, 0, dirty), FULL_SETTINGS_SELECTION, 'Dirty repairs'); assert.ok(ack); assert.equal(ack.schemaVersion, 3);
-		const body = await savedBody(owner, f); assert.equal(body.preset.schemaVersion, 3); assert.deepEqual(body.preset.settings.develop, dirty);
+		const ack = await owner.savePreset(await source(f, 0, dirty), CURRENT_SETTINGS_SELECTION, 'Dirty repairs'); assert.ok(ack); assert.equal(ack.schemaVersion, 3);
+		const body = await savedBody(owner, f); assert.equal(body.preset.schemaVersion, 4); assert.deepEqual(body.preset.settings.develop, dirty);
 		assert.equal(owner.snapshot().presets?.presets.find(preset => preset.id === body.preset.identity.id)?.scope, 'full');
-		assert.deepEqual(body.preset.settings.selection, FULL_SETTINGS_SELECTION); assert.equal(f.saved.length, 0); assert.equal(owner.snapshot().clipboard, null);
+		assert.deepEqual(body.preset.settings.selection, CURRENT_SETTINGS_SELECTION); assert.equal(f.saved.length, 0); assert.equal(owner.snapshot().clipboard, null);
 		assert.deepEqual(await f.inspect(), before); const digest = body.preset.identity.authoredStateSha256;
 		const rename = await owner.renamePreset(body.catalogId, body.preset.identity.id, body.revision, 'Renamed repairs'); assert.ok(rename);
 		const renamed = await savedBody(owner, f); assert.equal(renamed.preset.identity.name, 'Renamed repairs');
@@ -55,13 +55,13 @@ test('Current partial preset replaces only the ordered repair group through nati
 	const f = await repairSettingsFixture(), owner = workflow(f);
 	try {
 		const original = (await f.read()).develop; assert.ok(original.processVersion === 3);
-		const target = normalizeImageDevelopStateCurrentV1({ ...original, repairs: { schemaVersion: 1, spots: [{ ...original.repairs.spots[0]!, id: 'target' }] },
+		const target = normalizeImageDevelopStateThroughV4({ ...original, repairs: { schemaVersion: 1, spots: [{ ...original.repairs.spots[0]!, id: 'target' }] },
 			effects: [createVideoEffectV2('tone-ladder-v1', { id: 'target-tone', params: { exposure: .75 } })] });
 		await f.record(target, 1); const before = await f.inspect(); await list(owner, f);
-		const selection = { effectTypes: [], geometry: false, localAdjustments: false, repairs: true };
+		const selection = { effectTypes: [], geometry: false, localAdjustments: false, repairs: true, rawDevelopment: false };
 		const ack = await owner.savePreset(await source(f), selection, 'Repairs only'); assert.ok(ack); const body = await savedBody(owner, f);
 		assert.equal(owner.snapshot().presets?.presets.find(preset => preset.id === body.preset.identity.id)?.scope, 'partial');
-		assert.deepEqual(body.preset.settings.selection, selection); assert.equal(body.preset.schemaVersion, 3);
+		assert.deepEqual(body.preset.settings.selection, selection); assert.equal(body.preset.schemaVersion, 4);
 		const receipt = await owner.applyPreset(await source(f, 1), body.preset.identity.id, body.revision, 'Apply repairs'); assert.ok(receipt);
 		assert.equal(receipt.outcomes[0]?.status, 'applied'); const after = await f.read(1); assert.equal(after.develop.processVersion, 3);
 		assert.deepEqual(after.develop, { ...target, repairs: original.repairs }); assert.equal(after.revision, before[1]!.photo.revision + 1);
@@ -77,7 +77,7 @@ test('Current stored brush presets apply by native row binding without clipboard
 	const f = await repairSettingsFixture(), owner = workflow(f);
 	try {
 		const installed = await f.installBrush(), dirty = brushSettingsRecipe(installed.reference); await list(owner, f);
-		const before = await f.inspect(), ack = await owner.savePreset(await source(f, 0, dirty), FULL_SETTINGS_SELECTION, 'Unused brush repairs'); assert.ok(ack);
+		const before = await f.inspect(), ack = await owner.savePreset(await source(f, 0, dirty), CURRENT_SETTINGS_SELECTION, 'Unused brush repairs'); assert.ok(ack);
 		const body = await savedBody(owner, f); assert.equal(body.preset.settings.develop.masks[0]?.inputs[0]?.sourceRef, installed.reference.storageKey);
 		assert.equal(owner.snapshot().clipboard, null); const cap = f.session.develop.presetsCurrent; assert.ok(cap);
 		assert.throws(() => cap.serialize(body.preset), /brush|external|mask|resource/iu, 'Stored metadata is not an external body transport.');
@@ -94,7 +94,7 @@ test('Current stored brush presets apply by native row binding without clipboard
 test('Current stale or missing native preset bindings refuse before any target Photo save', async () => {
 	const f = await repairSettingsFixture(), owner = workflow(f), other = workflow(f);
 	try {
-		await list(owner, f); assert.ok(await owner.savePreset(await source(f), FULL_SETTINGS_SELECTION, 'First'));
+		await list(owner, f); assert.ok(await owner.savePreset(await source(f), CURRENT_SETTINGS_SELECTION, 'First'));
 		const body = await savedBody(owner, f); await list(other, f);
 		assert.ok(await other.renamePreset(body.catalogId, body.preset.identity.id, body.revision, 'Native successor'));
 		const before = await f.inspect(); await owner.applyPreset(await source(f, 1), body.preset.identity.id, body.revision, 'Stale native binding');
@@ -111,7 +111,7 @@ test('Current dirty brush preset Save Close joins the actual authentication body
 	try {
 		const installed = await f.installBrush(); await list(owner, f); const before = await f.inspect();
 		f.hooks.borrowedBrush = async (_reference, bytes) => { observed.bytes = bytes; entered.resolve(); await release.promise; };
-		joining.work = owner.savePreset(await source(f, 0, brushSettingsRecipe(installed.reference)), FULL_SETTINGS_SELECTION, 'Held brush');
+		joining.work = owner.savePreset(await source(f, 0, brushSettingsRecipe(installed.reference)), CURRENT_SETTINGS_SELECTION, 'Held brush');
 		assert.equal(await Promise.race([entered.promise.then(() => true), joining.work.then(() => false)]), true);
 		assert.ok(observed.bytes?.some(value => value !== 0)); joining.closing = owner.close(); assert.equal(owner.close(), joining.closing);
 		assert.equal(await remainsPending(joining.closing), true); assert.equal(owner.snapshot().presetReceipt, null);
@@ -125,7 +125,7 @@ test('Current preset Apply retains a genuine late native Photo ACK through menu 
 	const f = await repairSettingsFixture(), owner = workflow(f), entered = deferred<void>(), release = deferred<void>();
 	const joining: { work?: ReturnType<typeof owner.applyPreset>; closing?: Promise<void> } = {};
 	try {
-		await list(owner, f); assert.ok(await owner.savePreset(await source(f), FULL_SETTINGS_SELECTION, 'Repairs'));
+		await list(owner, f); assert.ok(await owner.savePreset(await source(f), CURRENT_SETTINGS_SELECTION, 'Repairs'));
 		const body = await savedBody(owner, f), before = await f.inspect();
 		f.hooks.afterSave = async photo => { if (photo.id === f.photos[1]!.id) { entered.resolve(); await release.promise; } };
 		joining.work = owner.applyPreset(await source(f, 1), body.preset.identity.id, body.revision, 'Native ACK');

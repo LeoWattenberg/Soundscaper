@@ -8,4 +8,4 @@ import { createImageDevelopPresetForProfileV1, normalizeImageDevelopPresetForPro
  * The actual selected native row owner must separately verify its closure. */
 export function createImageDevelopSelectedPresetV3(value: unknown) { return createImageDevelopPresetForProfileV1('current3', value, 'selected'); }
 export function normalizeImageDevelopSelectedPresetV3(value: unknown) { return normalizeImageDevelopPresetForProfileV1('current3', value, 'selected'); }
-export function normalizeImageDevelopSelectedPresetCurrentV1(value: unknown) { return normalizeImageDevelopPresetCurrentForProfileV1('current3', value, 'selected'); }
+export function normalizeImageDevelopSelectedPresetCurrentV1(value: unknown) { return normalizeImageDevelopPresetCurrentForProfileV1('current4', value, 'selected'); }

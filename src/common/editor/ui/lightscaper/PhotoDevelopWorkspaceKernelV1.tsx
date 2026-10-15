@@ -30,11 +30,14 @@ import PhotoDevelopPreviewCurrentV1, { type PhotoDevelopPreviewPropsCurrentV1 } 
 import PhotoDevelopLocalAdjustmentsMenuV1 from './PhotoDevelopLocalAdjustmentsMenuV1.tsx';
 import type { PhotoLibraryDevelopPortV2 } from '../../photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV4 } from '../../imaging/image-develop-state-v4.ts';
+import { prepareImageDevelopAuthoringCurrentV1, retainImageDevelopRawDevelopmentCurrentV1 } from '../../imaging/image-develop-authoring-current-v1.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../imaging/image-develop-state-v2.ts';
-import { capturePhotoDevelopExecutionContextCurrentV1 } from '../../controller/shared/photo-library-develop-command-v3.ts';
-import { capturePhotoLibraryDevelopPortV3 } from './photo-library-workflow-develop-current-v1.ts';
-import type { PhotoLibraryDevelopPortV3 } from '../../photo-library-develop-port-v3.ts';
+import { capturePhotoDevelopExecutionContextCurrentV1 } from '../../controller/shared/photo-library-develop-command-current-v1.ts';
+import { capturePhotoLibraryDevelopPortCurrentV1 } from './photo-library-workflow-develop-current-v1.ts';
+import type { PhotoLibraryDevelopPortCurrentV1, PhotoLibraryDevelopOriginalCapabilityCurrentV1 } from '../../photo-library-develop-port-current-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../photo-library-develop-original-current-v1.ts';
+import { photoDevelopRawDevelopmentCopy } from '../../../i18n/lightscaper-raw-development-copy.ts';
 import type { ExecutePhotoDevelopCurrentV1, PhotoLibraryDevelopWorkflowCurrentV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
 import type { PhotoLibraryDevelopWorkflowV2 } from '../../controller/shared/photo-library-develop-workflow-v2.ts';
 import type { ComponentType } from 'react';
@@ -47,11 +50,13 @@ const PhotoDevelopBrushMaskDialogV1 = lazy(() => import('./PhotoDevelopBrushMask
 const PhotoDevelopMaskManagerV1 = lazy(() => import('./PhotoDevelopMaskManagerV1.tsx'));
 const PhotoDevelopRepairSpotsDialogV1 = lazy(() => import('./PhotoDevelopRepairSpotsDialogV1.tsx'));
 const PhotoDevelopRepairSpotsDialogCurrentV1 = lazy(() => import('./PhotoDevelopRepairSpotsDialogCurrentV1.tsx'));
+const PhotoDevelopRawDevelopmentDialogCurrentV1 = lazy(() => import('./PhotoDevelopRawDevelopmentDialogCurrentV1.tsx'));
 
 type Props = Omit<PhotoDevelopWorkspacePropsV2, 'execute' | 'loadProxy'> & {
 	readonly executeLegacyDevelop?: ExecutePhotoDevelopV2;
 	readonly legacySettings?: ReturnType<typeof usePhotoDevelopSettingsV2>;
 	readonly settingsCurrent?: ReturnType<typeof usePhotoDevelopSettingsCurrentV1>;
+	readonly withDerivedFrame?: PhotoLibraryDevelopOriginalPortCurrentV1['withDerivedFrame'];
 } & (Readonly<{ profile: 'legacy2'; execute: ExecutePhotoDevelopV2; loadProxy: PhotoDevelopPreviewPropsV2['loadProxy'] }>
 	| Readonly<{ profile: 'current3'; execute: ExecutePhotoDevelopCurrentV1; loadProxy: PhotoDevelopPreviewPropsCurrentV1['loadProxy'] }>);
 export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
@@ -60,11 +65,11 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const RepairSpotsDialog = profile === 'current3' ? PhotoDevelopRepairSpotsDialogCurrentV1 : PhotoDevelopRepairSpotsDialogV1;
 	const currentSettings = profile === 'current3' ? props.settingsCurrent : undefined, settings = currentSettings ?? legacySettings;
 	const currentSettingsOwner = currentSettings?.owner, legacySettingsOwner = legacySettings?.owner;
-	const { beforeOpen, photoId, readPreview, loadProxy, withOriginalFrame, importCubeLut: importMethod, registerRetirement, registerDemandRetirement } = props;
+	const { beforeOpen, photoId, readPreview, loadProxy, withOriginalFrame, withDerivedFrame, importCubeLut: importMethod, registerRetirement, registerDemandRetirement } = props;
 	const selectedGeneration = props.generation, settingsOwner = settings?.owner, settingsDrain = settings?.drain;
 	const [lifecycle, setLifecycle] = useState(0);
-	const generation = useMemo(() => ({ selectedGeneration, lifecycle, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, settingsOwner }),
-		[selectedGeneration, lifecycle, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, settingsOwner]);
+	const generation = useMemo(() => ({ selectedGeneration, lifecycle, readPreview, loadProxy, withOriginalFrame, withDerivedFrame, importMethod, registerRetirement, registerDemandRetirement, settingsOwner }),
+		[selectedGeneration, lifecycle, readPreview, loadProxy, withOriginalFrame, withDerivedFrame, importMethod, registerRetirement, registerDemandRetirement, settingsOwner]);
 	const execution = useRef({ method: props.execute, invoke: pin(props.execute, props) });
 	if (execution.current.method !== props.execute) execution.current = { method: props.execute, invoke: pin(props.execute, props) };
 	const execute = execution.current.invoke;
@@ -79,11 +84,11 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const live = useRef(true);
 	const owned = useRef(owner); owned.current = owner;
 	const rendered = useRef(snapshot); rendered.current = snapshot;
-	const capabilityRef = useRef({ owner, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, receiver: props });
+	const capabilityRef = useRef({ owner, readPreview, loadProxy, withOriginalFrame, withDerivedFrame, importMethod, registerRetirement, registerDemandRetirement, receiver: props });
 	const previous = capabilityRef.current;
-	if (previous.owner !== owner || previous.readPreview !== readPreview || previous.loadProxy !== loadProxy || previous.withOriginalFrame !== withOriginalFrame
+	if (previous.owner !== owner || previous.readPreview !== readPreview || previous.loadProxy !== loadProxy || previous.withOriginalFrame !== withOriginalFrame || previous.withDerivedFrame !== withDerivedFrame
 		|| previous.importMethod !== importMethod || previous.registerRetirement !== registerRetirement || previous.registerDemandRetirement !== registerDemandRetirement) {
-		capabilityRef.current = { owner, readPreview, loadProxy, withOriginalFrame, importMethod, registerRetirement, registerDemandRetirement, receiver: props };
+		capabilityRef.current = { owner, readPreview, loadProxy, withOriginalFrame, withDerivedFrame, importMethod, registerRetirement, registerDemandRetirement, receiver: props };
 	}
 	const capability = capabilityRef.current;
 	const presentation = useMemo(() => ({ owner, capability, photoId }), [owner, capability, photoId]);
@@ -102,7 +107,8 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	}, [tasks, capability]);
 	const onImportPending = useCallback((pending: boolean) => { if (owned.current === owner && live.current) setImportState({ tasks, pending }); }, [owner, tasks]);
 	const previewSource = useMemo(() => ({ readPreview: pin(capability.readPreview, capability.receiver), loadProxy: pin(capability.loadProxy, capability.receiver),
-		withOriginalFrame: capability.withOriginalFrame === undefined ? undefined : pin(capability.withOriginalFrame, capability.receiver) }), [capability]);
+		withOriginalFrame: capability.withOriginalFrame === undefined ? undefined : pin(capability.withOriginalFrame, capability.receiver),
+		withDerivedFrame: capability.withDerivedFrame === undefined ? undefined : pin(capability.withDerivedFrame, capability.receiver) }), [capability]);
 	const importCubeLut = useMemo(() => capability.importMethod ? ((file: Blob, options?: { signal?: AbortSignal }) => {
 		if (!live.current || owned.current !== owner || tasks.importing || tasks.closing) return Promise.reject(new Error('A photo LUT import is unavailable or already pending.'));
 		tasks.importing = true;
@@ -146,10 +152,10 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const close = () => { if (!mounted()) return; void retire().catch(() => undefined); Reflect.apply(props.onClose, props, []); };
 	const current = () => mounted() && rendered.current === snapshot;
 	const importing = tasks.importing || (importState.tasks === tasks && importState.pending);
-	const run = (action: () => Promise<unknown>) => { if (current() && !snapshot.busy && !settingsOwner?.snapshot().busy && !importing) void action(); };
+	const run = (action: () => Promise<unknown>) => { if (current() && parentAvailable() && !snapshot.busy && !settingsOwner?.snapshot().busy && !importing) void action(); };
 	const document = snapshot.document, draft = snapshot.draft;
 	const withSettingsWrite = (action: () => Promise<unknown>, isCurrent: () => boolean): Promise<unknown> => {
-		const sourceCurrent = () => mounted() && !tasks.closing && owner.snapshot().document === document && owner.snapshot().draft === draft;
+		const sourceCurrent = () => mounted() && parentAvailable() && !tasks.closing && owner.snapshot().document === document && owner.snapshot().draft === draft;
 		if (profile !== 'current3' || !document || !draft || snapshot.dirty || tasks.importing || !sourceCurrent() || !isCurrent()) return Promise.resolve(null);
 		tasks.importing = true; onImportPending(true);
 		const stop = new AbortController();
@@ -176,11 +182,12 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const legacyToken = useRef(legacyProof); legacyToken.current = legacyProof;
 	const invalidateLegacy = () => { legacyToken.current = null; setLegacyProof(null); };
 	const legacyEligible = profile === 'legacy2' || legacyProof?.owner === owner && legacyProof.document === document && legacyProof.draft === draft && legacyToken.current === legacyProof;
-	const legacyDraft = draft && draft.processVersion !== 3 ? normalizeImageDevelopStateV1OrV2(draft) : null;
-	const edit = (value: ImageDevelopStateCurrentV1) => { if (profile === 'current3') (owner as PhotoLibraryDevelopWorkflowCurrentV1).edit(value); else (owner as PhotoLibraryDevelopWorkflowV2).edit(normalizeImageDevelopStateV1OrV2(value)); };
+	const legacyDraft = draft && (draft.processVersion === 1 || draft.processVersion === 2) ? normalizeImageDevelopStateV1OrV2(draft) : null;
+	const authoringDraft = useMemo(() => draft ? prepareImageDevelopAuthoringCurrentV1(draft) : null, [draft]);
+	const edit = (value: ImageDevelopStateThroughV4) => { if (profile === 'current3') (owner as PhotoLibraryDevelopWorkflowCurrentV1).edit(value); else (owner as PhotoLibraryDevelopWorkflowV2).edit(normalizeImageDevelopStateV1OrV2(value)); };
 	const Preview = (profile === 'current3' ? PhotoDevelopPreviewCurrentV1 : PhotoDevelopPreviewV2) as ComponentType<PhotoDevelopPreviewPropsCurrentV1>;
 	useEffect(() => {
-		if (profile !== 'current3' || currentSettingsOwner || !executeLegacyDevelop || !legacySettingsOwner || !document || !draft || draft.processVersion === 3) return;
+		if (profile !== 'current3' || currentSettingsOwner || !executeLegacyDevelop || !legacySettingsOwner || !document || !draft || draft.processVersion >= 3) return;
 		const capturedDocument = document, capturedDraft = draft, stop = new AbortController(); let active = true;
 		void executeLegacyDevelop(async value => {
 			const context = capturePhotoDevelopExecutionContextV2(value, value.signal), acquired = await context.acquire();
@@ -195,23 +202,27 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 		return () => { active = false; stop.abort(); legacyToken.current = null; };
 	}, [profile, executeLegacyDevelop, currentSettingsOwner, legacySettingsOwner, owner, document, draft]);
 	const busy = snapshot.busy || settings?.snapshot.busy === true || importing, disabled = busy || !document;
-	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush' | 'masks' | 'repairs';
+	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush' | 'masks' | 'repairs' | 'raw-development';
 	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
 	const [localEntry, setLocalEntry] = useState<LocalEntry | null>(null);
 	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
+	const parentAvailable = () => { const entry = activeLocal.current;
+		return !entry || entry.kind !== 'raw-development' || entry.owner !== owner || entry.document !== document || entry.draft !== draft; };
 	const [brushPort, setBrushPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopMaskRasterPortV1> }> | null>(null);
-	const [repairPort, setRepairPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopOriginalPortV1> }> | null>(null);
+	const [repairPort, setRepairPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopOriginalCapabilityCurrentV1> }> | null>(null);
 	const [brushFailed, setBrushFailed] = useState<LocalEntry | null>(null);
 	const [overlay, setOverlay] = useState<Readonly<{ entry: LocalEntry; recipe: string; selection: Readonly<ImageDevelopMaskOverlaySelectionV1>; mode: PhotoDevelopMaskDisplayModeV1 }> | null>(null);
 	const localCurrent = () => current() && !busy && localEntry !== null && activeLocal.current === localEntry
 		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
 		&& owner.snapshot().document === document && owner.snapshot().draft === draft;
-	const brushCurrent = (localEntry?.kind === 'brush' || localEntry?.kind === 'repairs') && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
-	const openLocal = (kind: LocalKind) => { if (current() && !busy && document && draft) setLocalEntry({ kind, owner, document, draft }); };
+	const brushCurrent = (localEntry?.kind === 'brush' || localEntry?.kind === 'repairs' || localEntry?.kind === 'raw-development') && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
+	const openLocal = (kind: LocalKind) => { if (current() && parentAvailable() && !busy && document && draft) {
+		const entry = { kind, owner, document, draft }; activeLocal.current = entry; setLocalEntry(entry);
+	} };
 	const applyLocal: PhotoDevelopRangeMaskDialogPropsV1['onApply'] = (value, selection) => {
 		if (!localCurrent() || !localEntry || !document) return;
 		const captured = selection === null ? null : preparePhotoDevelopMaskDisplaySelectionV1(selection);
-		if (!localCurrent()) return; invalidateLegacy(); edit(value);
+		if (!localCurrent()) return; invalidateLegacy(); edit(retainImageDevelopRawDevelopmentCurrentV1(draft, value));
 		activeLocal.current = null;
 		const next = owner.snapshot().draft;
 		if (next && captured) setOverlay({ entry: { kind: localEntry.kind, owner, document, draft: next }, recipe: JSON.stringify(next),
@@ -220,21 +231,29 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	};
 	const closeLocal = () => { if (mounted() && activeLocal.current === localEntry) { activeLocal.current = null; setLocalEntry(null); } };
 	useEffect(() => {
-		if (localEntry?.kind !== 'brush' && localEntry?.kind !== 'repairs') return;
+		if (localEntry?.kind !== 'brush' && localEntry?.kind !== 'repairs' && localEntry?.kind !== 'raw-development') return;
 		const entry = localEntry, stop = new AbortController(); let liveEntry = true;
 		const entryCurrent = () => liveEntry && live.current && owned.current === entry.owner && activeLocal.current === entry
 			&& entry.owner.snapshot().document === entry.document && entry.owner.snapshot().draft === entry.draft;
 		const work = joinPhotoLibraryRetirementV1(collect(tasks.previews)).then(async () => {
 			Reflect.apply(AbortSignal.prototype.throwIfAborted, stop.signal, []);
 			if (!entryCurrent()) return;
-			const publish = async (context: Readonly<{ signal: AbortSignal; isCurrent: () => boolean }>, acquire: () => Promise<Readonly<PhotoLibraryDevelopPortV2 | PhotoLibraryDevelopPortV3>>) => {
+			const publish = async (context: Readonly<{ signal: AbortSignal; isCurrent: () => boolean }>, acquire: () => Promise<Readonly<PhotoLibraryDevelopPortV2 | PhotoLibraryDevelopPortCurrentV1>>) => {
 				Reflect.apply(AbortSignal.prototype.throwIfAborted, context.signal, []);
 				if (!entryCurrent() || !context.isCurrent()) return;
 				const port = await acquire();
 				Reflect.apply(AbortSignal.prototype.throwIfAborted, context.signal, []);
-				if (entry.kind === 'repairs') {
+				if (entry.kind === 'repairs' || entry.kind === 'raw-development') {
 					if (!port.original) throw new Error('Selected Original authoring is unavailable.');
-					if (entryCurrent() && context.isCurrent()) setRepairPort({ entry, port: port.original });
+					const original: Readonly<PhotoLibraryDevelopOriginalCapabilityCurrentV1> = port.original;
+					const mode = entry.draft.processVersion === 4 ? entry.draft.rawDevelopment.mode : 'canonical';
+					const input: Readonly<PhotoLibraryDevelopOriginalPortV1> = mode === 'canonical' ? Object.freeze({ withFrame: pin(original.withFrame, original) }) : Object.freeze({
+						withFrame: <Result,>(request: Parameters<PhotoLibraryDevelopOriginalPortV1['withFrame']>[0], consume: (view: Parameters<Parameters<PhotoLibraryDevelopOriginalPortV1['withFrame']>[1]>[0]) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>) => {
+							if (!original.withDerivedFrame) return Promise.reject(new Error('Derived RAW repair input is unavailable.'));
+							return original.withDerivedFrame({ ...request, profile: mode === 'headroom' ? 'linear-headroom-v1' : 'highlight-recovery-v1' },
+								view => consume(Object.freeze({ photoId: view.photoId, revision: view.revision, frame: view.frame })), options);
+						} });
+					if (entryCurrent() && context.isCurrent()) setRepairPort({ entry, port: entry.kind === 'raw-development' ? original : input });
 				} else {
 					if (!port.maskRasters) throw new Error('Selected brush installation is unavailable.');
 					if (entryCurrent() && context.isCurrent()) setBrushPort({ entry, port: port.maskRasters });
@@ -242,7 +261,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 			};
 			if (profile === 'current3') await (execute as ExecutePhotoDevelopCurrentV1)(async value => {
 				const context = capturePhotoDevelopExecutionContextCurrentV1(value, value.signal);
-				await publish(context, async () => capturePhotoLibraryDevelopPortV3(await context.acquire(), context.signal));
+				await publish(context, async () => capturePhotoLibraryDevelopPortCurrentV1(await context.acquire(), context.signal));
 			}, stop.signal);
 			else await (execute as ExecutePhotoDevelopV2)(async value => {
 				const context = capturePhotoDevelopExecutionContextV2(value, value.signal);
@@ -272,22 +291,23 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 				{currentSettings && catalogId && <PhotoDevelopSettingsMenuCurrentV1 locale={props.locale} owner={currentSettings.owner} snapshot={currentSettings.snapshot}
 					source={{ schemaVersion: 3, catalogId, photoId: document.photoId, versionId: document.versionId, revision: document.revision, develop: draft }}
 					selectedIds={props.selectedIds ?? [document.photoId]} disabled={busy} dirty={snapshot.dirty}
-						isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} onChanged={() => owner.reload()} withWritePreviewRetirement={withSettingsWrite}
+						isCurrent={() => mounted() && parentAvailable() && owner.snapshot().document === document && owner.snapshot().draft === draft} onChanged={() => owner.reload()} withWritePreviewRetirement={withSettingsWrite}
 					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
-						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
-					localAdjustments={{ onOpen: openLocal }} repairs={{ available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } }} />}
+						onChange: value => { if (current() && parentAvailable() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
+					localAdjustments={{ onOpen: openLocal }} repairs={{ available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } }} rawDevelopment={{ onOpen: () => { openLocal('raw-development'); } }} />}
 				{!currentSettings && legacySettings && legacyEligible && legacyDraft && catalogId && <PhotoDevelopSettingsMenuV2 locale={props.locale} owner={legacySettings.owner} snapshot={legacySettings.snapshot}
 					source={{ schemaVersion: 2, catalogId, photoId: document.photoId, versionId: document.versionId, revision: document.revision, develop: legacyDraft }}
 					selectedIds={props.selectedIds ?? [document.photoId]} disabled={busy} dirty={snapshot.dirty}
-					isCurrent={() => mounted() && owner.snapshot().document === document && (profile === 'legacy2'
-						|| legacyToken.current === legacyProof && owner.snapshot().draft === draft && draft.processVersion !== 3)} onChanged={() => owner.reload()}
+					isCurrent={() => mounted() && parentAvailable() && owner.snapshot().document === document && (profile === 'legacy2'
+						|| legacyToken.current === legacyProof && owner.snapshot().draft === draft && draft.processVersion < 3)} onChanged={() => owner.reload()}
 					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
-						onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
+						onChange: value => { if (current() && parentAvailable() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
 					localAdjustments={{ onOpen: openLocal }} repairs={profile === 'current3' ? { available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } } : undefined} />}
 				{(!settings || !currentSettings && !legacyEligible) && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale, profile).menu}</summary>
+					{profile === 'current3' && <button type="button" disabled={busy} onClick={() => { if (current()) openLocal('raw-development'); }}>{photoDevelopRawDevelopmentCopy(props.locale).menu}</button>}
 					<PhotoDevelopLocalAdjustmentsMenuV1 locale={props.locale} disabled={busy} isCurrent={current} localAdjustments={{ onOpen: openLocal }}
 						resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
-							onChange: value => { if (current() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
+							onChange: value => { if (current() && parentAvailable() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
 						repairs={profile === 'current3' ? { available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } } : undefined} /></details>}
 				<label>{messages.version}<select value={document.versionId} disabled={busy || snapshot.dirty} onChange={event => {
 					const id = event.currentTarget.value; run(() => owner.open(props.photoId, id));
@@ -297,7 +317,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 				<div className="lightscaper-develop-layout"><Preview {...props} {...previewSource} registerRetirement={registerPreviewRetirement} develop={draft} messages={messages} revision={document.revision} resolution={selectedResolution.value}
 					maskOverlay={selectedOverlay?.selection} maskOverlayMode={selectedOverlay?.mode} suspended={brushCurrent || profile === 'current3' && importing} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
 					<PhotoDevelopEffectsV2 effects={draft.effects} owner={owner} messages={messages} disabled={busy}
-						isCurrent={() => mounted() && owner.snapshot().document === document} importCubeLut={importCubeLut}
+						isCurrent={() => mounted() && parentAvailable() && owner.snapshot().document === document} importCubeLut={importCubeLut}
 						onImportPending={onImportPending} registerImportRetirement={registerImportRetirement} /></div>
 				<div className="lightscaper-develop-history"><section aria-label={messages.history}><h3>{messages.history}</h3>
 					<label>{messages.history}<select value={document.history.cursor} disabled={busy || snapshot.dirty} onChange={event => {
@@ -323,44 +343,51 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 						onClick={() => { run(() => owner.apply({ type: 'delete-virtual-copy', versionId: document.versionId })); }}>{messages.deleteCopy}</button>
 				</section></div>
 			</>}
-			{localEntry && document && draft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
-				&& (localEntry.kind === 'repairs'
+			{localEntry && document && draft && authoringDraft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
+				&& (localEntry.kind === 'raw-development'
+					? repairPort?.entry === localEntry
+						? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopRawDevelopmentDialogCurrentV1 photoId={document.photoId} revision={document.revision}
+							develop={draft} original={repairPort.port} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={value => {
+								if (!localCurrent()) return; invalidateLegacy(); edit(value); activeLocal.current = null; setLocalEntry(null); setOverlay(null);
+							}} onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
+						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{messages.working}</p>
+					: localEntry.kind === 'repairs'
 					? repairPort?.entry === localEntry
 						? <Suspense fallback={<p role="status">{messages.working}</p>}><RepairSpotsDialog photoId={document.photoId} revision={document.revision}
-							develop={draft} original={repairPort.port} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={value => { applyLocal(value, null); }}
+							develop={authoringDraft} original={repairPort.port} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={value => { applyLocal(value, null); }}
 							onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
 						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{messages.working}</p>
 					: localEntry.kind === 'brush'
 					? brushPort?.entry === localEntry
 						? <Suspense fallback={<p role="status">{photoDevelopBrushMaskCopy(props.locale).working}</p>}><PhotoDevelopBrushMaskDialogV1 port={brushPort.port}
-							develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={applyLocal} onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
-						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{photoDevelopBrushMaskCopy(props.locale)[brushFailed === localEntry ? 'failed' : 'working']}</p>
+							develop={authoringDraft} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={applyLocal} onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
+						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{brushFailed === localEntry ? photoDevelopBrushMaskCopy(props.locale).failed : photoDevelopBrushMaskCopy(props.locale).working}</p>
 					: localEntry.kind === 'masks'
-					? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopMaskManagerV1 develop={draft} locale={props.locale} disabled={busy}
+					? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopMaskManagerV1 develop={authoringDraft} locale={props.locale} disabled={busy}
 						isCurrent={localCurrent} onApply={applyLocal} onClose={closeLocal} /></Suspense>
 					: localEntry.kind === 'luminance-range' || localEntry.kind === 'color-range'
-					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
+					? <PhotoDevelopRangeMaskDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={authoringDraft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
 						onApply={applyLocal} onClose={closeLocal} />
-					: <PhotoDevelopGradientDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={draft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
+					: <PhotoDevelopGradientDialogV1 key={localEntry.kind} kind={localEntry.kind} develop={authoringDraft} locale={props.locale} disabled={busy} isCurrent={localCurrent}
 						onApply={applyLocal} onClose={closeLocal} />)}
 			<div className="lightscaper-develop-actions"><button type="button" disabled={disabled || !snapshot.dirty} onClick={() => { run(async () => {
 				const syncLegacy = legacyEligible; invalidateLegacy(); const receipt = await owner.save(messages.editLabel);
 				if (receipt && mounted() && catalogId) {
 					if (currentSettingsOwner) await currentSettingsOwner.syncAcknowledged({ schemaVersion: 3, catalogId, photoId: receipt.snapshot.photoId,
 						versionId: receipt.snapshot.versionId, revision: receipt.snapshot.revision, develop: receipt.snapshot.develop }, photoDevelopSettingsCopy(props.locale, profile).autoLabel);
-					else if (syncLegacy && receipt.snapshot.develop.processVersion !== 3) await legacySettingsOwner?.syncAcknowledged({ schemaVersion: 2, catalogId,
+					else if (syncLegacy && (receipt.snapshot.develop.processVersion === 1 || receipt.snapshot.develop.processVersion === 2)) await legacySettingsOwner?.syncAcknowledged({ schemaVersion: 2, catalogId,
 						photoId: receipt.snapshot.photoId, versionId: receipt.snapshot.versionId, revision: receipt.snapshot.revision, develop: receipt.snapshot.develop }, photoDevelopSettingsCopy(props.locale).autoLabel);
 				}
 			}); }}>{messages.save}</button>
-				<button type="button" disabled={disabled || !snapshot.dirty} onClick={() => { if (current()) owner.discard(); }}>{messages.discard}</button>
+				<button type="button" disabled={disabled || !snapshot.dirty} onClick={() => { if (current() && parentAvailable()) owner.discard(); }}>{messages.discard}</button>
 				<button type="button" disabled={busy || snapshot.dirty} onClick={() => { run(() => owner.open(props.photoId, document?.versionId)); }}>{messages.reload}</button>
-				<button type="button" disabled={!busy} onClick={() => { if (current()) void joinPhotoLibraryRetirementV1([owner.cancel(), settingsOwner?.cancel() ?? null, ...collect(tasks.imports)]).catch(() => undefined); }}>{messages.cancel}</button>
+				<button type="button" disabled={!busy} onClick={() => { if (current() && parentAvailable()) void joinPhotoLibraryRetirementV1([owner.cancel(), settingsOwner?.cancel() ?? null, ...collect(tasks.imports)]).catch(() => undefined); }}>{messages.cancel}</button>
 				<button type="button" onClick={close}>{messages.close}</button></div>
 		</div>
 	</AudioEditorDialogShell>;
 }
 
-function pin<Method extends (...args: never[]) => unknown>(method: Method, receiver: Props): Method {
+function pin<Method extends (...args: never[]) => unknown>(method: Method, receiver: unknown): Method {
 	return ((...args: unknown[]): unknown => Reflect.apply(method, receiver, args) as unknown) as unknown as Method;
 }
 

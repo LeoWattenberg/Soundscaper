@@ -8,7 +8,8 @@ import { applyPhotoDevelopPresetCurrentV1 } from '../src/lightscaper/storage/pho
 import { normalizePhotoDocumentV1 } from '../src/lightscaper/catalog/photo-document.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../src/lightscaper/catalog/photo-document-current-v1.ts';
 import { defaultImageDevelopStateV2 } from '../src/common/editor/imaging/image-develop-state-v2.ts';
-import { brushSettingsRecipe } from './helpers/lightscaper-repair-settings-current-fixture.ts';
+import { copyImageDevelopSettingsV3 } from '../src/common/editor/imaging/image-develop-settings-v3.ts';
+import { brushSettingsRecipe, FULL_SETTINGS_SELECTION } from './helpers/lightscaper-repair-settings-current-fixture.ts';
 import { repairPresetsFixture, currentPreset } from './helpers/lightscaper-repair-presets-current-fixture.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
@@ -18,14 +19,14 @@ function unpublished(f: Fixture) {
 	const seed = photoArchiveFixture(3, f.bytes).photo;
 	return normalizePhotoDocumentV1({ ...seed, catalogId: f.root.id, original: { ...seed.original, width: 3, height: 1, hasAlpha: false } });
 }
-async function save(f: Fixture, preset = currentPreset(f.packet())) {
+async function save(f: Fixture, preset: ReturnType<typeof currentPreset> = currentPreset(f.packet())) {
 	return applyPhotoDevelopPresetCurrentV1(f.settings, f.root, { type: 'save', expectedRevision: 0, preset }, { resources: f.resources });
 }
 function capture(f: Fixture, revision = 1, presetId = 'repair-preset', signal = new AbortController().signal) {
 	return borrowPhotoImportDevelopPresetCurrentV1(f.settings, { schemaVersion: 3, catalogId: f.root.id, presetId, expectedRevision: revision }, f.resources)(f.root.id, signal);
 }
 
-test('selected native Preset3 imports ordered repairs into an unpublished legacy photo with exact Original custody', async () => {
+test('selected native Preset4 imports ordered repairs into an unpublished legacy photo with exact Original custody', async () => {
 	const f = await repairPresetsFixture();
 	try {
 		const preset = currentPreset(f.packet()), saved = await applyPhotoDevelopPresetCurrentV1(f.settings, f.root,
@@ -50,7 +51,7 @@ test('selected native Preset3 imports ordered repairs into an unpublished legacy
 		assert.equal(version.workspace?.schemaVersion, 3); assert.equal(version.workspace?.entries.length, 2);
 		assert.equal(version.workspace?.entries[0]?.develop.processVersion, 1);
 		assert.equal(version.workspace?.entries[1]?.develop.processVersion, 3);
-		assert.deepEqual(await f.row(), { schemaVersion: 3, kind: 'photo-develop-presets', catalogId: f.root.id,
+		assert.deepEqual(await f.row(), { schemaVersion: 4, kind: 'photo-develop-presets', catalogId: f.root.id,
 			revision: saved.revision, presets: [preset] });
 	} finally { await f.close(); }
 });
@@ -85,7 +86,7 @@ test('Current import authenticates unused brush declarations in another retained
 	const f = await repairPresetsFixture();
 	try {
 		const body = await f.installBrush(), clean = currentPreset(f.packet()), other = currentPreset(await f.selectedPacket(brushSettingsRecipe(body.reference)), 'other');
-		await f.writeRow({ schemaVersion: 3, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1, presets: [clean, other] });
+		await f.writeRow({ schemaVersion: 4, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1, presets: [clean, other] });
 		await f.corruptBrush(body.reference); const before = await f.inspect(), row = await f.row(); f.borrowed.splice(0);
 		await assert.rejects(capture(f)); assert.deepEqual(await f.inspect(), before); assert.deepEqual(await f.row(), row);
 		assert.equal(f.writes.length, 0); assert.ok(f.borrowed.every(bytes => bytes.every(byte => byte === 0)));
@@ -97,7 +98,7 @@ test('Current import rechecks the complete native preset row before every unpubl
 	try {
 		const preset = currentPreset(f.packet()); await save(f, preset); const apply = await capture(f), photo = unpublished(f), first = await apply(photo);
 		assert.equal(first.schemaVersion, 3);
-		await f.writeRow({ schemaVersion: 3, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1,
+		await f.writeRow({ schemaVersion: 4, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1,
 			presets: [currentPreset(f.packet(), preset.identity.id, 'Changed retained name')] });
 		await assert.rejects(apply(photo), /changed|conflict|revision/i);
 		assert.deepEqual(photo, unpublished(f)); assert.deepEqual(first.original, photo.original);
@@ -158,7 +159,9 @@ test('Current import refuses foreign or already published photos without mutatin
 test('permanent V2 import reader still refuses a real native retained Preset3 row', async () => {
 	const f = await repairPresetsFixture();
 	try {
-		await save(f); const captured = borrowPhotoImportDevelopPresetV2(f.settings,
+		const packet = copyImageDevelopSettingsV3({ schemaVersion: 3, develop: f.source().develop, selection: FULL_SETTINGS_SELECTION });
+		await save(f, currentPreset(packet)); assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 3);
+		const captured = borrowPhotoImportDevelopPresetV2(f.settings,
 			{ schemaVersion: 2, catalogId: f.root.id, presetId: 'repair-preset', expectedRevision: 1 });
 		await assert.rejects(captured(f.root.id, new AbortController().signal), /row version/);
 	} finally { await f.close(); }

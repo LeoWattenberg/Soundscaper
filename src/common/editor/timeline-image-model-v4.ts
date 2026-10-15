@@ -1,58 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
-import { normalizeFramescaperImageSourceV1, FRAMESCAPER_IMAGE_MODEL_LIMITS_V1 as LIMITS, type FramescaperImageSourceV1 } from './timeline-image-model.ts';
-import { normalizeFramescaperRawOriginalReceiptV1, type FramescaperRawOriginalReceiptV1 } from './timeline-image-raw-receipt-v1.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from './imaging/image-develop-state-current-v1.ts';
-import { normalizeBrushMaskResourceReferenceV1 } from './imaging/brush-mask-resource-v1.ts';
+import { normalizeFramescaperRawImageSourceForProfileV1, type FramescaperRawImageSourceForProfileV1 } from './internal/timeline-image-model-raw-kernel-v1.ts';
 import { createImageDevelopResourceReachabilityCurrentV1, type ImageDevelopResourceReferencesCurrentV1 } from './imaging/image-develop-resource-reachability-current-v1.ts';
-import { normalizeImageDevelopHandoffProvenanceV2, imageDevelopHandoffRecipeSha256V2, type ImageDevelopHandoffProvenanceV2 } from './image-develop-handoff-provenance-v2.ts';
 
-export interface FramescaperImageSourceV4 extends Omit<FramescaperImageSourceV1, 'schemaVersion'> {
-	readonly schemaVersion: 4;
-	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
-	readonly developed: Readonly<{ width: number; height: number }>;
-	readonly provenance: Readonly<ImageDevelopHandoffProvenanceV2>;
-	/** Native Original authority; canonical FramePack1 pixels are display cache. */
-	readonly raw: Readonly<FramescaperRawOriginalReceiptV1>;
-}
-const PACK_FIELDS = ['kind', 'id', 'name', 'mimeType', 'storageKey', 'contentSha256', 'assetByteLength', 'original', 'canonical', 'conversionReceiptSha256'];
+export type FramescaperImageSourceV4 = FramescaperRawImageSourceForProfileV1<'current3'>;
 
-/** Explicit static RAW successor. Permanent Source1/2/3 admission is unchanged;
- * scalar receipt admission never substitutes for Original/body authentication. */
+/** Permanent Source4 admission retains recipes through3 and ABI1 authority. */
 export function normalizeFramescaperImageSourceV4(value: unknown): Readonly<FramescaperImageSourceV4> {
-	const input = record(value, 'Frame RAW image source', ['schemaVersion', ...PACK_FIELDS, 'develop', 'developed', 'provenance', 'raw']);
-	if (field(input, 'schemaVersion', 'Frame RAW image source') !== 4) throw new RangeError('Unsupported Frame RAW image source version.');
-	const pack: Record<string, unknown> = { schemaVersion: 1 };
-	for (const key of PACK_FIELDS) pack[key] = field(input, key, 'Frame RAW image source');
-	const base = normalizeFramescaperImageSourceV1(pack), raw = normalizeFramescaperRawOriginalReceiptV1(field(input, 'raw', 'Frame RAW image source'));
-	const rawMime = base.original.recognizedFormat === 'dng' ? 'image/x-adobe-dng' : base.original.recognizedFormat === 'crw' ? 'image/x-canon-crw' : null;
-	if (rawMime === null || base.original.mimeType !== rawMime || base.original.byteLength > LIMITS.maximumOriginalBytes
-		|| base.assetByteLength > LIMITS.maximumAssetBytes || base.canonical.frameCount !== 1 || base.canonical.hasAlpha
-		|| base.canonical.width !== raw.descriptor.width || base.canonical.height !== raw.descriptor.height) {
-		throw new RangeError('Frame RAW source requires one bounded opaque native Original and its exact presentation extent.');
-	}
-	const develop = normalizeImageDevelopStateCurrentV1(field(input, 'develop', 'Frame RAW image source'));
-	const provenance = normalizeImageDevelopHandoffProvenanceV2(field(input, 'provenance', 'Frame RAW image source'));
-	if (provenance.original.sha256 !== base.original.sha256 || provenance.original.byteLength !== base.original.byteLength
-		|| provenance.original.exactName.normalize('NFC') !== base.original.fileName || provenance.developSha256 !== imageDevelopHandoffRecipeSha256V2(develop)) {
-		throw new Error('Frame RAW Original or unchanged recipe differs from its handoff provenance.');
-	}
-	if (provenance.origin.schemaFamily === 'lightscaper' && (provenance.origin.schemaVersion === 1 && develop.processVersion !== 1 || provenance.origin.schemaVersion === 2 && develop.processVersion === 3)) {
-		throw new RangeError('Frame RAW recipe requires its truthful Photo schema provenance.');
-	}
-	for (const graph of develop.masks) for (const input of graph.inputs) normalizeBrushMaskResourceReferenceV1(input.sourceRef);
-	const output = record(field(input, 'developed', 'Frame RAW image source'), 'Frame RAW natural output', ['width', 'height']);
-	const width = dimension(field(output, 'width', 'Frame RAW natural output')), height = dimension(field(output, 'height', 'Frame RAW natural output'));
-	if (width * height > LIMITS.maximumPixelsPerFrame) throw new RangeError('Frame RAW natural output exceeds its pixel bound.');
-	return Object.freeze({ ...base, schemaVersion: 4, develop, developed: Object.freeze({ width, height }), provenance, raw });
+	return normalizeFramescaperRawImageSourceForProfileV1('current3', value);
 }
 
 export function framescaperImageSourceResourceReferencesV4(value: unknown): Readonly<ImageDevelopResourceReferencesCurrentV1> {
 	const source = normalizeFramescaperImageSourceV4(value), closure = createImageDevelopResourceReachabilityCurrentV1();
 	closure.addDevelop(source.develop); return closure.finish();
-}
-function dimension(value: unknown): number {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > LIMITS.maximumDimension) throw new RangeError('Frame RAW natural dimension exceeds its bound.');
-	return value;
 }

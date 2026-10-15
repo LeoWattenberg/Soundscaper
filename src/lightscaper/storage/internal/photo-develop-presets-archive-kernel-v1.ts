@@ -9,11 +9,14 @@ import { normalizePhotoDevelopPresetRowV1OrV2, type PhotoDevelopPresetRowV2 } fr
 import { photoDevelopPresetEntryValue } from '../photo-develop-preset-read.ts';
 
 import { normalizePhotoDevelopPresetRowCurrentV1, type PhotoDevelopPresetRowCurrentV1 } from '../photo-develop-preset-row-current-v1.ts';
+import type { PhotoDevelopPresetRowThroughV3 } from '../photo-develop-preset-row-current-v1.ts';
+import { normalizePhotoDevelopPresetRowCurrentForProfileV1 } from './photo-develop-preset-row-kernel-v1.ts';
 
 export type PhotoDevelopPresetArchiveSettingsPortV1 = Readonly<Pick<KeyValueRepository, 'readEntry'>>;
 
-type Profile = 'legacy2' | 'current3';
-type RowFor<Mode extends Profile> = Mode extends 'legacy2' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2 : PhotoDevelopPresetRowCurrentV1;
+type Profile = 'legacy2' | 'current3' | 'current4';
+type RowFor<Mode extends Profile> = Mode extends 'legacy2' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2
+	: Mode extends 'current3' ? PhotoDevelopPresetRowThroughV3 : PhotoDevelopPresetRowCurrentV1;
 export interface PhotoDevelopPresetArchiveCaptureForProfileV1<Mode extends Profile> {
 	readonly row: RowFor<Mode> | null;
 	readonly verify: () => Promise<void>;
@@ -23,8 +26,8 @@ const nativeAbort = AbortSignal.prototype.throwIfAborted;
 /** Borrow the selected media settings under the existing catalog writer; this row has its own revision. */
 export async function capturePhotoDevelopPresetsArchiveForProfileV1<Mode extends Profile>(profile: Mode, repository: PhotoDevelopPresetArchiveSettingsPortV1,
 	catalogId: string, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoDevelopPresetArchiveCaptureForProfileV1<Mode>> {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new RangeError('Unsupported fixed preset archive profile.');
-	if (profile === 'current3') { const native = Object.getOwnPropertyDescriptor(options, 'signal');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new RangeError('Unsupported fixed preset archive profile.');
+	if (profile !== 'legacy2') { const native = Object.getOwnPropertyDescriptor(options, 'signal');
 		if (native && Object.hasOwn(native, 'value') && native.value !== undefined) Reflect.apply(nativeAbort, native.value, []); }
 	const key = photoDevelopPresetsKeyV1(catalogId), { signal } = readPhotoStackSignalOptionsV1(options);
 	const readEntry = repository.readEntry;
@@ -38,8 +41,9 @@ export async function capturePhotoDevelopPresetsArchiveForProfileV1<Mode extends
 
 	async function snapshot(): Promise<RowFor<Mode> | null> {
 		check(); const entry = await read(key); check(); const raw = photoDevelopPresetEntryValue(entry);
-		try { return raw === undefined ? null : (profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(raw, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(raw, catalogId)) as RowFor<Mode>; }
-		catch (error) { if (profile === 'current3') check(); throw error; }
+		try { return raw === undefined ? null : (profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(raw, catalogId)
+			: profile === 'current3' ? normalizePhotoDevelopPresetRowCurrentForProfileV1('current3', raw, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(raw, catalogId)) as RowFor<Mode>; }
+		catch (error) { if (profile !== 'legacy2') check(); throw error; }
 	}
 	function check(): void { if (signal) Reflect.apply(nativeAbort, signal, []); }
 }

@@ -26,11 +26,11 @@ export interface PhotoCatalogArchivePackWriter {
 	addPack(descriptor: Pick<ScapeAssetDescriptor, 'sourceId' | 'entry' | 'kind' | 'encoding'>, bytes: AsyncIterable<Uint8Array>): Promise<void>;
 }
 export interface PhotoCatalogArchiveWriterProfile<Profile extends PhotoCatalogPackDocumentProfile = 'legacy2'> {
-	readonly encoding: string; readonly schemaVersion: Profile extends 'current3' ? 7 : 5 | 6; readonly maximumStreamingOutputBytes: number;
+	readonly encoding: string; readonly schemaVersion: Profile extends 'current4' ? 8 : Profile extends 'current3' ? 7 : 5 | 6; readonly maximumStreamingOutputBytes: number;
 	sequence(photos: Iterable<PhotoCatalogPackInputForProfile<Profile>> | AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>, identity: PhotoCatalogArchiveIdentityGuard, signal?: AbortSignal): PhotoCatalogPackSequence<Profile>;
 	encode(photos: AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>, options: PhotoCatalogPackOptions): AsyncIterable<Uint8Array>;
 }
-export type PhotoCatalogArchivePrepare<Document, Version extends 5 | 6 | 7> = (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
+export type PhotoCatalogArchivePrepare<Document, Version extends 5 | 6 | 7 | 8> = (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
 	document: Document; text: string; schemaVersion: Version; beforeFinish?: () => Promise<void> }>>;
 const nativeAbort = AbortSignal.prototype.throwIfAborted;
 const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
@@ -40,7 +40,7 @@ const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'rea
 export async function writePhotoCatalogArchiveKernel<Document, Profile extends PhotoCatalogPackDocumentProfile>(root: PhotoCatalogRootV1,
 	photos: Iterable<PhotoCatalogPackInputForProfile<Profile>> | AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>, identity: PhotoCatalogArchiveIdentityGuard,
 	prepare: (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
-		document: Document; text: string; schemaVersion: 5 | 6 | 7; beforeFinish?: () => Promise<void> }>>,
+		document: Document; text: string; schemaVersion: 5 | 6 | 7 | 8; beforeFinish?: () => Promise<void> }>>,
 	options: PhotoCatalogArchiveExportOptions, profile: PhotoCatalogArchiveWriterProfile<Profile>, maximumStreamingOutputBytes = profile.maximumStreamingOutputBytes): Promise<PhotoCatalogArchiveWrittenResult<Document>> {
 	const signal = options.signal, writable = options.writable, streaming = Boolean(writable),
 		blobMaximum = options.maximumBlobBytes ?? SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES;

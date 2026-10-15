@@ -5,6 +5,7 @@ import type { MaskRasterSourcePortV1 } from '../../common/editor/imaging/mask-ra
 import { exportPhotoCatalogArchiveV5, type PhotoCatalogArchiveExportResultV5 } from '../archive/catalog-archive-export-v5.ts';
 import { exportPhotoCatalogArchiveV6, type PhotoCatalogArchiveExportResultV6 } from '../archive/catalog-archive-export-v6.ts';
 import { exportPhotoCatalogArchiveV7, type PhotoCatalogArchiveExportResultV7 } from '../archive/catalog-archive-export-v7.ts';
+import { exportPhotoCatalogArchiveV8, type PhotoCatalogArchiveExportResultV8 } from '../archive/catalog-archive-export-v8.ts';
 import { borrowPhotoMaskRasterArchiveSourceV1 } from '../archive/mask-raster-archive-source-v1.ts';
 import { borrowPhotoCubeLutArchiveSourceV1, type PhotoCubeLutArchiveSourceV1 } from '../archive/cube-lut-archive-source-v1.ts';
 import { withPhotoSmartCollectionWriteSignalV1 } from '../catalog/photo-smart-collection-repository-v1.ts';
@@ -21,7 +22,7 @@ export interface PhotoLibraryBackupPortsCurrentV1 extends PhotoLibraryBackupInve
 	readonly lutResources: PhotoCubeLutArchiveSourceV1;
 	readonly maskRasters: MaskRasterSourcePortV1;
 }
-export type PhotoLibraryBackupResultCurrentV1 = PhotoCatalogArchiveExportResultV5 | PhotoCatalogArchiveExportResultV6 | PhotoCatalogArchiveExportResultV7;
+export type PhotoLibraryBackupResultCurrentV1 = PhotoCatalogArchiveExportResultV5 | PhotoCatalogArchiveExportResultV6 | PhotoCatalogArchiveExportResultV7 | PhotoCatalogArchiveExportResultV8;
 const CHECK = AbortSignal.prototype.throwIfAborted;
 function check(signal?: AbortSignal): void { if (signal !== undefined) Reflect.apply(CHECK, signal, []); }
 
@@ -72,6 +73,8 @@ export async function exportPhotoLibraryBackupCurrentV1(catalogValue: unknown, p
 		}
 		check(signal); if (options.createWritable) await verifyMetadata();
 		const sourceView = inventory.source, request = { writable, signal, maximumBlobBytes: options.maximumBlobBytes, verifySource };
+		if (sourceView.requiresRawDevelopment) return exportPhotoCatalogArchiveV8(sourceView.initial.catalog, sourceView.originals, inventory.stacks,
+			inventory.state, inventory.definitions, presets.row, lutSource, maskSource, request);
 		if (sourceView.requiresCurrentFormat) return exportPhotoCatalogArchiveV7(sourceView.initial.catalog, sourceView.originals, inventory.stacks,
 			inventory.state, inventory.definitions, presets.row, lutSource, maskSource, request);
 		// This is full strict legacy admission of actual legacy values, never a

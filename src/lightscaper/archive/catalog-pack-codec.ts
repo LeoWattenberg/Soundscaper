@@ -6,6 +6,7 @@ import { readClosedDomainField, readClosedDomainRecord } from '../../common/edit
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
 import { parsePhotoDocumentV1OrV2, serializePhotoDocumentV1OrV2, normalizePhotoDocumentV1OrV2, type PhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
 import { parsePhotoDocumentCurrentV1, serializePhotoDocumentCurrentV1, normalizePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
+import { normalizePhotoDocumentThroughV3, type PhotoDocumentThroughV3 } from '../catalog/photo-document-through-v3.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoDocumentV1 } from '../catalog/types.ts';
 import { photoPackByteView } from './pack-byte-chunk.ts';
 
@@ -34,8 +35,8 @@ export interface PhotoCatalogPackInput {
 
 type PhotoCatalogPackLimits = Readonly<Record<keyof typeof PHOTO_CATALOG_PACK_LIMITS, number>>;
 
-export type PhotoCatalogPackDocumentProfile = 'legacy2' | 'current3';
-export type PhotoCatalogPackDocumentForProfile<Profile extends PhotoCatalogPackDocumentProfile> = Profile extends 'current3' ? PhotoDocumentCurrentV1 : PhotoDocumentV1 | PhotoDocumentV2;
+export type PhotoCatalogPackDocumentProfile = 'legacy2' | 'current3' | 'current4';
+export type PhotoCatalogPackDocumentForProfile<Profile extends PhotoCatalogPackDocumentProfile> = Profile extends 'current4' ? PhotoDocumentCurrentV1 : Profile extends 'current3' ? PhotoDocumentThroughV3 : PhotoDocumentV1 | PhotoDocumentV2;
 export interface PhotoCatalogPackInputForProfile<Profile extends PhotoCatalogPackDocumentProfile> {
 	readonly photo: PhotoCatalogPackDocumentForProfile<Profile>; readonly original: Blob;
 }
@@ -169,19 +170,20 @@ function checkPhoto(photo: PhotoDocumentCurrentV1, ids: Set<string>, maximum: nu
 	if (catalogId !== null && catalogId !== photo.catalogId) throw new Error('Photo pack contains records from different catalogs.');
 	ids.add(photo.id);
 }
-function currentProfile(profile: PhotoCatalogPackCodecProfile<PhotoCatalogPackDocumentProfile>): boolean {
+function currentProfile(profile: PhotoCatalogPackCodecProfile<PhotoCatalogPackDocumentProfile>): PhotoCatalogPackDocumentProfile {
 	const value = profile.documentProfile ?? 'legacy2';
-	if (value !== 'legacy2' && value !== 'current3') throw new RangeError('Unsupported fixed photo pack document profile.');
-	return value === 'current3';
+	if (value !== 'legacy2' && value !== 'current3' && value !== 'current4') throw new RangeError('Unsupported fixed photo pack document profile.');
+	return value;
 }
 function normalizeForProfile<Profile extends PhotoCatalogPackDocumentProfile>(profile: PhotoCatalogPackCodecProfile<Profile>, value: unknown): PhotoCatalogPackDocumentForProfile<Profile> {
-	return (currentProfile(profile) ? normalizePhotoDocumentCurrentV1(value) : normalizePhotoDocumentV1OrV2(value)) as PhotoCatalogPackDocumentForProfile<Profile>;
+	const mode = currentProfile(profile);
+	return (mode === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : mode === 'current3' ? normalizePhotoDocumentThroughV3(value) : normalizePhotoDocumentCurrentV1(value)) as PhotoCatalogPackDocumentForProfile<Profile>;
 }
 function serializeForProfile(profile: PhotoCatalogPackCodecProfile<PhotoCatalogPackDocumentProfile>, value: unknown): string {
-	return currentProfile(profile) ? serializePhotoDocumentCurrentV1(value) : serializePhotoDocumentV1OrV2(value);
+	return currentProfile(profile) === 'legacy2' ? serializePhotoDocumentV1OrV2(value) : serializePhotoDocumentCurrentV1(normalizeForProfile(profile, value));
 }
 function parseForProfile<Profile extends PhotoCatalogPackDocumentProfile>(profile: PhotoCatalogPackCodecProfile<Profile>, text: string): PhotoCatalogPackDocumentForProfile<Profile> {
-	return (currentProfile(profile) ? parsePhotoDocumentCurrentV1(text) : parsePhotoDocumentV1OrV2(text)) as PhotoCatalogPackDocumentForProfile<Profile>;
+	return normalizeForProfile(profile, currentProfile(profile) === 'legacy2' ? parsePhotoDocumentV1OrV2(text) : parsePhotoDocumentCurrentV1(text));
 }
 
 function* splitBytes(bytes: Uint8Array, span: number) {

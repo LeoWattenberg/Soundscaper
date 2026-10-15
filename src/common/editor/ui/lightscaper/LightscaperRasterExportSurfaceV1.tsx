@@ -23,7 +23,7 @@ export default function LightscaperRasterExportSurfaceV1({ profile, library, ras
 	if (profile === 'current3') {
 		const current = library as PhotoLibraryWorkflowCurrentV1;
 		return <Suspense fallback={<p role="status">{workingLabel}</p>}><CurrentSurface key={entry.key} {...common}
-			execute={current.executeDevelop} loadRenderer={current.loadDevelopProxyRuntime} /></Suspense>;
+			execute={current.executeDevelop} withDerivedFrame={current.withDerivedFrame} loadRenderer={current.loadDevelopProxyRuntime} /></Suspense>;
 	}
 	if (profile !== 'legacy2') throw new TypeError('Unknown photo raster export surface profile.');
 	const legacy = library as PhotoLibraryWorkflowLegacyV2;

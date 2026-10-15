@@ -4,6 +4,7 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../catalog/photo-document-v2.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
+import { normalizePhotoDocumentThroughV3 } from '../catalog/photo-document-through-v3.ts';
 import { PHOTO_CATALOG_PACK_LIMITS as LIMITS, type PhotoCatalogPackInputForProfile, type PhotoCatalogPackDocumentProfile } from './catalog-pack-codec.ts';
 import type { PhotoCatalogArchiveIdentityGuard } from './catalog-archive-contract.ts';
 
@@ -26,7 +27,7 @@ export class PhotoCatalogPackSequence<Profile extends PhotoCatalogPackDocumentPr
 	constructor(source: Iterable<PhotoCatalogPackInputForProfile<Profile>> | AsyncIterable<PhotoCatalogPackInputForProfile<Profile>>,
 		readonly identity: PhotoCatalogArchiveIdentityGuard, readonly signal: AbortSignal | undefined, readonly measure: (value: unknown) => number,
 		readonly documentProfile: Profile = 'legacy2' as Profile) {
-		if (documentProfile !== 'legacy2' && documentProfile !== 'current3') throw new RangeError('Unsupported fixed photo pack sequence profile.');
+		if (documentProfile !== 'legacy2' && documentProfile !== 'current3' && documentProfile !== 'current4') throw new RangeError('Unsupported fixed photo pack sequence profile.');
 		const iterate = Symbol.asyncIterator in source ? source[Symbol.asyncIterator] : source[Symbol.iterator];
 		const iterator = Reflect.apply(iterate, source, []) as AsyncIterator<PhotoCatalogPackInputForProfile<Profile>> | Iterator<PhotoCatalogPackInputForProfile<Profile>>;
 		const next = iterator.next, leave = iterator.return;
@@ -81,8 +82,9 @@ export class PhotoCatalogPackSequence<Profile extends PhotoCatalogPackDocumentPr
 		if (next.done) { this.#done = true; return null; }
 		const input = record(next.value, 'photo archive input', ['photo', 'original']);
 		const raw = field(input, 'photo', 'photo archive input');
-		const photo = (this.documentProfile === 'current3' ? normalizePhotoDocumentCurrentV1(raw) : normalizePhotoDocumentV1OrV2(raw)) as PhotoCatalogPackInputForProfile<Profile>['photo'];
-		const currentSize = this.documentProfile === 'current3' ? this.measure(photo) : null; this.#check();
+		const photo = (this.documentProfile === 'current4' ? normalizePhotoDocumentCurrentV1(raw) : this.documentProfile === 'current3'
+			? normalizePhotoDocumentThroughV3(raw) : normalizePhotoDocumentV1OrV2(raw)) as PhotoCatalogPackInputForProfile<Profile>['photo'];
+		const currentSize = this.documentProfile !== 'legacy2' ? this.measure(photo) : null; this.#check();
 		const original = canonicalMediaContentBlob(field(input, 'original', 'photo archive input'));
 		if (original.size !== photo.original.byteLength) throw new RangeError('Photo original length differs from its archive reference.');
 		const size = currentSize ?? this.measure(photo); this.#check(); this.identity.admit(photo);

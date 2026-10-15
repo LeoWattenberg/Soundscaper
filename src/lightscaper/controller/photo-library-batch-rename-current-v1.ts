@@ -5,17 +5,17 @@ import { readPhotoLibraryBatchRenameSelectionForProfileV1, renamePhotoLibraryBat
 import type { PhotoLibraryBatchRenamePortV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
 import { planPhotoLibraryBatchRenameV1 } from './photo-library-batch-rename-v1.ts';
 export { planPhotoLibraryBatchRenameV1 as planPhotoLibraryBatchRenameCurrentV1 } from './photo-library-batch-rename-v1.ts';
-export type PhotoBatchRenameSessionPortsCurrentV1 = PhotoBatchRenameSessionPortsForProfileV1<'current3'>;
+export type PhotoBatchRenameSessionPortsCurrentV1 = PhotoBatchRenameSessionPortsForProfileV1<'current4'>;
 
-/** Complete fixed current3 admission shares the existing selected Session writer. */
+/** Complete fixed current4 admission shares the existing selected Session writer. */
 export function readPhotoLibraryBatchRenameSelectionCurrentV1(ports: PhotoBatchRenameSessionPortsCurrentV1, value: unknown, options: unknown = {}) {
-	return readPhotoLibraryBatchRenameSelectionForProfileV1('current3', ports, value, options);
+	return readPhotoLibraryBatchRenameSelectionForProfileV1('current4', ports, value, options);
 }
 export function renamePhotoLibraryBatchCurrentV1(ports: PhotoBatchRenameSessionPortsCurrentV1, value: unknown, options: unknown = {}) {
-	return renamePhotoLibraryBatchForProfileV1('current3', ports, value, options);
+	return renamePhotoLibraryBatchForProfileV1('current4', ports, value, options);
 }
 export function undoPhotoLibraryBatchRenameCurrentV1(ports: PhotoBatchRenameSessionPortsCurrentV1, value: unknown, options: unknown = {}) {
-	return undoPhotoLibraryBatchRenameForProfileV1('current3', ports, value, options);
+	return undoPhotoLibraryBatchRenameForProfileV1('current4', ports, value, options);
 }
 
 /** The Current child borrows its parent's writer/owner/lifetime, never a second one. */

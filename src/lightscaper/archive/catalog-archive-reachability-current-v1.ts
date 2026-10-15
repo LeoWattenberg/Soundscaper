@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeBrushMaskResourceReferenceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV4 } from '../../common/editor/imaging/image-develop-state-v4.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { createPhotoResourceReachabilityCurrentV1, type PhotoResourceReferencesCurrentV1 } from '../catalog/photo-resource-reachability-current-v1.ts';
 import { normalizePhotoDevelopPresetRowCurrentV1 } from '../storage/photo-develop-preset-row-current-v1.ts';
@@ -34,6 +34,6 @@ export function createPhotoCatalogArchiveReachabilityCurrentV1(): Readonly<Photo
 		closure.addPresetRow(row, catalogId);
 	}, finish() { sealed = true; return closure.finish(); } });
 }
-function admitInputs(develop: ImageDevelopStateCurrentV1): void {
+function admitInputs(develop: ImageDevelopStateThroughV4): void {
 	for (const mask of develop.masks) for (const input of mask.inputs) normalizeBrushMaskResourceReferenceV1(input.sourceRef);
 }

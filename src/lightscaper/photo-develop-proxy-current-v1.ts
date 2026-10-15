@@ -2,7 +2,7 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../common/editor/closed-domain-value.ts';
 import type { PhotoLibraryDevelopProxyViewV3 } from '../common/editor/photo-library-develop-proxy-port-v3.ts';
-import { normalizeImageDevelopStateCurrentV1 } from '../common/editor/imaging/image-develop-state-current-v1.ts';
+import { captureImageDevelopRawRequestCurrentV1 } from '../common/editor/imaging/image-develop-raw-request-current-v1.ts';
 import { prepareDevelopProxyMetadataCurrentV1 } from '../common/editor/imaging/image-develop-linear-metadata-current-v1.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1 } from '../common/editor/imaging/image-develop-mask-overlay-v1.ts';
 import { prepareNativeDevelopProxySourceCurrentV1, withNativeDevelopProxySourceCurrentV1 } from '../common/editor/imaging/native-develop-proxy-source-current-v1.ts';
@@ -26,8 +26,8 @@ export async function withPhotoDevelopProxyCurrentV1<Result>(value: unknown,
 	const signal = captureRepairSignalV1(signalField?.value), check = () => { checkRepairSignalV1(signal); };
 	const prepared = (() => { try {
 		check(); if (typeof consume !== 'function') throw new TypeError('Current proxy requires a scoped consumer.');
-		const input = record(value, 'Current Develop proxy', ['frame', 'develop', 'signal', 'maskOverlay'], ['frame', 'develop']);
-		const develop = normalizeImageDevelopStateCurrentV1(field(input, 'develop', 'Current Develop proxy'));
+		const input = record(captureImageDevelopRawRequestCurrentV1(value), 'Current Develop proxy', ['frame', 'develop', 'signal', 'maskOverlay'], ['frame', 'develop']);
+		const develop = field(input, 'develop', 'Current Develop proxy');
 		const selection = Object.hasOwn(input, 'maskOverlay') ? prepareImageDevelopMaskOverlaySelectionV1(field(input, 'maskOverlay', 'Current Develop proxy')) : undefined;
 		const plan = prepareNativeDevelopProxySourceCurrentV1(field(input, 'frame', 'Current Develop proxy'), signal);
 		const request = { develop, ...(signal ? { signal } : {}), ...(selection ? { maskOverlay: selection } : {}) };

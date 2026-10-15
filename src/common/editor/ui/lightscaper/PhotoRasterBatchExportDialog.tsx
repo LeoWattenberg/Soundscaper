@@ -15,6 +15,7 @@ export interface PhotoRasterBatchExportDialogPropsCurrentV1 extends Omit<PhotoRa
 	readonly onPending?: () => void;
 	readonly execute: PhotoRasterExportDialogPropsCurrentV1['execute'];
 	readonly loadRenderer: PhotoRasterExportDialogPropsCurrentV1['loadRenderer'];
+	readonly withDerivedFrame?: PhotoRasterExportDialogPropsCurrentV1['withDerivedFrame'];
 }
 export default function PhotoRasterBatchExportDialog(props: PhotoRasterBatchExportDialogProps) {
 	return <PhotoRasterBatchExportDialogKernelV1 {...props} profile="legacy2" />;

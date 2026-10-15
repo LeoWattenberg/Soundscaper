@@ -13,6 +13,7 @@ type Props = Omit<PhotoDevelopWorkspacePropsV2, 'execute' | 'loadProxy' | 'setti
 	readonly executeLegacyDevelop: PhotoDevelopWorkspacePropsV2['execute'];
 	readonly loadProxy: PhotoDevelopWorkspacePropsV2['loadProxy'] | PhotoDevelopWorkspacePropsCurrentV1['loadProxy'];
 	readonly settings: ReturnType<typeof usePhotoDevelopSettingsV2> | ReturnType<typeof usePhotoDevelopSettingsCurrentV1>;
+	readonly withDerivedFrame?: PhotoDevelopWorkspacePropsCurrentV1['withDerivedFrame'];
 };
 /** The fixed App profile carries its actual factory/owner pair to the lazy view. */
 export default function LightscaperPhotoDevelopSurfaceV1(props: Props) {

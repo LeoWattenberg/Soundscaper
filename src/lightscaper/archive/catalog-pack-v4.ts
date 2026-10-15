@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createPhotoCatalogArchiveReachabilityCurrentV1 } from './catalog-archive-reachability-current-v1.ts';
-import type { PhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
+import type { PhotoDocumentThroughV3 } from '../catalog/photo-document-through-v3.ts';
 import { encodePhotoCatalogPack, readPhotoCatalogPack, measurePhotoCatalogPackRecord,
 	PHOTO_CATALOG_PACK_LIMITS, type PhotoCatalogPackOptions, type PhotoCatalogPackInputForProfile, type PhotoCatalogPackCodecProfile } from './catalog-pack-codec.ts';
 
@@ -16,6 +16,6 @@ export function measurePhotoCatalogPackRecordV4(value: unknown): number { return
 export function encodePhotoCatalogPackV4(records: Iterable<PhotoCatalogPackInputV4> | AsyncIterable<PhotoCatalogPackInputV4>, options: PhotoCatalogPackOptionsV4 = {}) {
 	return encodePhotoCatalogPack(records, options, profile);
 }
-export function readPhotoCatalogPackV4(source: AsyncIterable<Uint8Array>, consume: (photo: PhotoDocumentCurrentV1, original: AsyncIterable<Uint8Array>) => Promise<void>, options: PhotoCatalogPackOptionsV4 = {}): Promise<number> {
+export function readPhotoCatalogPackV4(source: AsyncIterable<Uint8Array>, consume: (photo: PhotoDocumentThroughV3, original: AsyncIterable<Uint8Array>) => Promise<void>, options: PhotoCatalogPackOptionsV4 = {}): Promise<number> {
 	return readPhotoCatalogPack(source, consume, options, profile);
 }

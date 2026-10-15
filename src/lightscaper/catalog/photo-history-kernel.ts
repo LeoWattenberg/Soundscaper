@@ -2,12 +2,14 @@
 
 import type { PhotoDocumentV1 } from './types.ts';
 import { normalizePhotoDocumentV1OrV2, serializePhotoDocumentV1OrV2, upgradePhotoDocumentV2, type PhotoDocumentV2 } from './photo-document-v2.ts';
-import { normalizePhotoDocumentCurrentV1, serializePhotoDocumentCurrentV1, upgradePhotoDocumentV3, type PhotoDocumentCurrentV1 } from './photo-document-current-v1.ts';
+import { normalizePhotoDocumentCurrentV1, serializePhotoDocumentCurrentV1, upgradePhotoDocumentV3, upgradePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from './photo-document-current-v1.ts';
+import { normalizePhotoDocumentV3, type PhotoDocumentV3 } from './photo-document-v3.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS } from './types.ts';
 import { array, field, id, integer, name, record, utcTimestamp } from './value-validation.ts';
 
-export type PhotoHistoryProfileV1 = 'legacy2' | 'current3';
-type Photo<Profile extends PhotoHistoryProfileV1> = Profile extends 'legacy2' ? PhotoDocumentV1 | PhotoDocumentV2 : PhotoDocumentCurrentV1;
+export type PhotoHistoryProfileV1 = 'legacy2' | 'current3' | 'current4';
+type Photo<Profile extends PhotoHistoryProfileV1> = Profile extends 'legacy2' ? PhotoDocumentV1 | PhotoDocumentV2
+	: Profile extends 'current3' ? PhotoDocumentV1 | PhotoDocumentV2 | PhotoDocumentV3 : PhotoDocumentCurrentV1;
 export interface PhotoHistoryForProfileV1<Profile extends PhotoHistoryProfileV1> {
 	readonly present: Photo<Profile>;
 	readonly past: readonly Photo<Profile>[];
@@ -45,18 +47,20 @@ export function redoPhotoHistoryForProfileV1<Profile extends PhotoHistoryProfile
 }
 export function createPhotoVersionForProfileV1<Profile extends PhotoHistoryProfileV1>(profile: Profile, value: unknown, requestValue: VersionRequest): Photo<Profile> {
 	const photo = readPhoto(profile, value);
-	const request = profile === 'current3' ? readVersionRequest(requestValue) : requestValue;
+	const request = profile !== 'legacy2' ? readVersionRequest(requestValue) : requestValue;
 	const source = photo.versions.find(version => version.id === (request.sourceVersionId ?? photo.activeVersionId));
 	if (!source) throw new ReferenceError('Cannot copy a missing photo version.');
 	return readPhoto(profile, { ...photo, activeVersionId: request.id, versions: [...photo.versions,
 		{ id: request.id, name: request.name, createdAt: request.createdAt, kind: 'virtual-copy', develop: source.develop }] });
 }
 function assertProfile(profile: PhotoHistoryProfileV1): void {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported fixed photo history profile.');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new TypeError('Unsupported fixed photo history profile.');
 }
 function readPhoto<Profile extends PhotoHistoryProfileV1>(profile: Profile, value: unknown): Photo<Profile> {
 	assertProfile(profile);
-	return (profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : normalizePhotoDocumentCurrentV1(value)) as Photo<Profile>;
+	if (profile === 'legacy2') return normalizePhotoDocumentV1OrV2(value) as Photo<Profile>;
+	const photo = normalizePhotoDocumentCurrentV1(value);
+	return (profile === 'current3' && photo.schemaVersion === 3 ? normalizePhotoDocumentV3(photo) : photo) as Photo<Profile>;
 }
 function readHistory<Profile extends PhotoHistoryProfileV1>(profile: Profile, value: PhotoHistoryForProfileV1<Profile>): PhotoHistoryForProfileV1<Profile> {
 	assertProfile(profile);
@@ -89,7 +93,8 @@ function aggregateVersion<Profile extends PhotoHistoryProfileV1>(profile: Profil
 	return version;
 }
 function withNextRevision<Profile extends PhotoHistoryProfileV1>(profile: Profile, photo: Photo<Profile>, revision: number, aggregate: 1 | 2 | 3): Photo<Profile> {
-	const retained = aggregate === 3 ? upgradePhotoDocumentV3(photo) : aggregate === 2 ? upgradePhotoDocumentV2(photo) : photo;
+	const retained = aggregate === 3 ? profile === 'current4' ? upgradePhotoDocumentCurrentV1(photo) : upgradePhotoDocumentV3(photo)
+		: aggregate === 2 ? upgradePhotoDocumentV2(photo) : photo;
 	return readPhoto(profile, { ...retained, revision: integer(revision + 1, 1, Number.MAX_SAFE_INTEGER, 'photo revision') });
 }
 function freezeHistory<Profile extends PhotoHistoryProfileV1>(profile: Profile, present: Photo<Profile>, past: readonly Photo<Profile>[], future: readonly Photo<Profile>[], capacity: number): PhotoHistoryForProfileV1<Profile> {

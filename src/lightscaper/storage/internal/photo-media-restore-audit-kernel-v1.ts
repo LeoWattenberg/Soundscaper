@@ -15,7 +15,7 @@ import type { PhotoCatalogArchiveMaskRasterResourceV6 } from '../../archive/cata
 import { assertPhotoMediaRestoreMaskRastersV1, auditPhotoMediaRestoreMaskRasterReachabilityV1 } from '../photo-media-restore-mask-rasters-v1.ts';
 import { checkMediaRestoreSignalV1 } from '../photo-media-restore-signal-v1.ts';
 import { assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1 } from '../../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
-import { auditPhotoMediaRestoreResourcesCurrentV1 } from '../photo-media-restore-resource-audit-current-v1.ts';
+import { auditPhotoMediaRestoreResourcesForProfileV1 } from '../photo-media-restore-resource-audit-current-v1.ts';
 import { assertPhotoMediaRestorePresetsForProfileV1, type PhotoMediaRestorePresetBindingV2, type PhotoMediaRestorePresetBindingForProfileV1 } from '../photo-media-restore-presets-v2.ts';
 
 export interface PhotoMediaRestoreCountsV2 {
@@ -34,7 +34,7 @@ export async function finishPhotoMediaRestoreForProfileV1(profile: PhotoCatalogR
 		await assertPhotoMediaRestorePresetsForProfileV1(profile, stores.settings!, root.id, presets);
 	}, signal);
 	const auditResources = async (): Promise<void> => {
-		if (profile === 'current3') await auditPhotoMediaRestoreResourcesCurrentV1(media, catalog, allocation, root, presets, luts, maskRasters, signal);
+		if (profile !== 'legacy2') await auditPhotoMediaRestoreResourcesForProfileV1(profile, media, catalog, allocation, root, presets, luts, maskRasters, signal);
 		else {
 			await auditPhotoMediaRestoreLutReachabilityV1(media, catalog, allocation, root, presets as PhotoMediaRestorePresetBindingV2 | null, luts, signal);
 			await auditPhotoMediaRestoreMaskRasterReachabilityV1(media, catalog, allocation, root, maskRasters, signal);

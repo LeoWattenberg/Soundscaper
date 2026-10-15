@@ -4,7 +4,7 @@ import { request, readCursorPage } from '../../common/editor/storage/indexeddb-b
 import { catalogTransaction } from '../catalog/catalog-transaction.ts';
 import { readValidatedPhotoCatalogRootV1 } from '../catalog/documents.ts';
 import { readStoredPhotoCurrentV1 } from '../catalog/photo-catalog-records-current-v1.ts';
-import { assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1, type PhotoCatalogRestorePhotoForProfileV1 } from '../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
+import { assertPhotoCatalogRestoreProfileV1, normalizePhotoCatalogRestoreDocumentForProfileV1, type PhotoCatalogRestoreProfileV1, type PhotoCatalogRestorePhotoForProfileV1 } from '../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
 import { readStoredPhotoV1OrV2 } from '../catalog/photo-catalog-records-v2.ts';
 import { readIndexState } from '../catalog/repository-records.ts';
 import { readPhotoQueryBuildStateV2 } from '../catalog/photo-query-index-storage-v2.ts';
@@ -39,7 +39,7 @@ export async function readMediaRestoreCatalogPageForProfileV1<Profile extends Ph
 		return Object.freeze(await readCursorPage(stores.photos!, { afterPrimaryKey: afterKey ?? undefined, limit: 64,
 			project(value, key) {
 				if (typeof key !== 'string') throw new TypeError('Restore photo requires a scalar key.');
-				const photo = (profile === 'legacy2' ? readStoredPhotoV1OrV2(value, key) : readStoredPhotoCurrentV1(value, key)) as PhotoCatalogRestorePhotoForProfileV1<Profile>;
+				const photo = normalizePhotoCatalogRestoreDocumentForProfileV1(profile, profile === 'legacy2' ? readStoredPhotoV1OrV2(value, key) : readStoredPhotoCurrentV1(value, key));
 				if (photo.catalogId !== root.id || key !== `${root.id}|${photo.id}`) throw new Error('Restore photo scope/key differs.');
 				if (visit) Reflect.apply(visit, undefined, [photo]);
 				return Object.freeze({ photoId: photo.id, assetId: photo.original.storageKey, sourceId: photo.original.id,

@@ -5,8 +5,8 @@ import { createImageDevelopPresetV2, parseImageDevelopPresetV1OrV2, serializeIma
 import { checkImageDevelopSettingsBytesV1 } from '../../../common/editor/imaging/image-develop-settings-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-preset-read-v2.ts';
 import { field, id, integer, record } from '../../catalog/value-validation.ts';
-import { readPhotoDevelopPresetsV2, readPhotoDevelopPresetV2, applyPhotoDevelopPresetV2,
-	normalizePhotoDevelopPresetCommandV2 } from '../../storage/photo-develop-presets-v2.ts';
+import { readPhotoDevelopPresetsForProfileV1, readPhotoDevelopPresetForProfileV1, applyPhotoDevelopPresetForProfileV1,
+	normalizePhotoDevelopPresetCommandForProfileV1 } from '../../storage/internal/photo-develop-presets-kernel-v1.ts';
 import type { PhotoCatalogRepositoryV2 } from '../../catalog/photo-catalog-repository-v2.ts';
 import type { PhotoDevelopPresetSettingsPortV1 } from '../../storage/photo-develop-presets-v1.ts';
 import { borrowPhotoDevelopPresetSettingsV2 } from '../../storage/photo-develop-preset-read-v2.ts';
@@ -14,9 +14,10 @@ import type { PhotoLibraryDevelopPresetV2 } from '../../../common/editor/photo-l
 
 import type { PhotoLibraryDevelopPresetsPortV3, PhotoLibraryDevelopPresetSnapshotV3, PhotoLibraryDevelopPresetBodyV3 } from '../../../common/editor/photo-library-develop-presets-port-v3.ts';
 import { createImageDevelopSelectedPresetV3 } from '../../../common/editor/imaging/image-develop-preset-selected-v3.ts';
+import { createImageDevelopSelectedPresetV4 } from '../../../common/editor/imaging/image-develop-preset-selected-v4.ts';
 import { parseImageDevelopPresetCurrentV1, serializeImageDevelopPresetCurrentV1 } from '../../../common/editor/imaging/image-develop-preset-current-v1.ts';
-import { readPhotoDevelopPresetsCurrentV1, readPhotoDevelopPresetCurrentV1, applyPhotoDevelopPresetCurrentV1,
-	normalizePhotoDevelopPresetCommandCurrentV1 } from '../../storage/photo-develop-presets-current-v1.ts';
+import { normalizeImageDevelopPresetCurrentForProfileV1, readImageDevelopPresetJsonV1 } from '../../../common/editor/imaging/internal/image-develop-preset-kernel-v1.ts';
+import type { PhotoLibraryDevelopPresetsPortCurrentV1, PhotoLibraryDevelopPresetBodyCurrentV1 } from '../../../common/editor/photo-library-develop-presets-port-current-v1.ts';
 import type { PhotoResourceVerificationHostCurrentV1 } from '../../storage/photo-media-resource-verification-current-v1.ts';
 
 export interface PhotoLibraryDevelopPresetStorageV2 {
@@ -38,18 +39,19 @@ export interface PhotoLibraryDevelopPresetStorageCurrentV1 {
 export interface PhotoLibraryDevelopPresetsSessionHostCurrentV1 extends Omit<PhotoLibraryDevelopPresetsSessionHostV2, 'storage'> {
 	readonly storage: PhotoLibraryDevelopPresetStorageCurrentV1;
 }
-type Profile = 'legacy2' | 'current3';
+type Profile = 'legacy2' | 'current3' | 'current4';
 type Host = PhotoLibraryDevelopPresetsSessionHostV2 | PhotoLibraryDevelopPresetsSessionHostCurrentV1;
-type Port = PhotoLibraryDevelopPresetsPortV2 | PhotoLibraryDevelopPresetsPortV3;
+type Port = PhotoLibraryDevelopPresetsPortV2 | PhotoLibraryDevelopPresetsPortV3 | PhotoLibraryDevelopPresetsPortCurrentV1;
 type Snapshot = PhotoLibraryDevelopPresetSnapshotV2 | PhotoLibraryDevelopPresetSnapshotV3;
-type Body = PhotoLibraryDevelopPresetBodyV2 | PhotoLibraryDevelopPresetBodyV3;
+type Body = PhotoLibraryDevelopPresetBodyV2 | PhotoLibraryDevelopPresetBodyV3 | PhotoLibraryDevelopPresetBodyCurrentV1;
 const nativeAbort = AbortSignal.prototype.throwIfAborted;
 
 /** This optional capability borrows the existing Session lifetime, single writer and catalog lease. */
 export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: 'legacy2', host: PhotoLibraryDevelopPresetsSessionHostV2): Readonly<PhotoLibraryDevelopPresetsPortV2>;
 export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: 'current3', host: PhotoLibraryDevelopPresetsSessionHostCurrentV1): Readonly<PhotoLibraryDevelopPresetsPortV3>;
+export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: 'current4', host: PhotoLibraryDevelopPresetsSessionHostCurrentV1): Readonly<PhotoLibraryDevelopPresetsPortCurrentV1>;
 export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: Profile, host: Host): Readonly<Port> {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new RangeError('Unsupported fixed preset Session profile.');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new RangeError('Unsupported fixed preset Session profile.');
 	const legacy = profile === 'legacy2' ? host as PhotoLibraryDevelopPresetsSessionHostV2 : undefined;
 	const schemaVersion = profile === 'legacy2' ? 2 as const : 3 as const;
 	const storage = host.storage, settings = borrowPhotoDevelopPresetSettingsV2(storage.settings);
@@ -60,16 +62,25 @@ export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: Pro
 	const ready = (): Promise<string> => Reflect.apply(initialize, host, []);
 	const loadCatalog: typeof readCatalog = (...args) => Reflect.apply(readCatalog, catalog, args);
 	const verifyResources = verify === undefined ? undefined : (...args: Parameters<NonNullable<typeof verify>>) => Reflect.apply(verify, storage, args);
-	return Object.freeze({ create: profile === 'legacy2' ? createImageDevelopPresetV2 : createImageDevelopSelectedPresetV3,
-		parse: profile === 'legacy2' ? parseImageDevelopPresetV1OrV2 : parseImageDevelopPresetCurrentV1,
-		serialize: profile === 'legacy2' ? serializeImageDevelopPresetV1OrV2 : serializeImageDevelopPresetCurrentV1,
+	return Object.freeze({ create: profile === 'legacy2' ? createImageDevelopPresetV2 : profile === 'current3' ? createImageDevelopSelectedPresetV3 : (value: unknown) => {
+		const input = request('current4', value, ['schemaVersion', 'id', 'name', 'settings']);
+		const settings = record(field(input, 'settings'), 'Current preset settings', ['schemaVersion', 'kind', 'selection', 'develop']);
+		const version = field(settings, 'schemaVersion'), captured = { schemaVersion: version, kind: field(settings, 'kind'),
+			selection: field(settings, 'selection'), develop: field(settings, 'develop') };
+		const identity = { id: field(input, 'id'), name: field(input, 'name') };
+		if (version === 3) return createImageDevelopSelectedPresetV3({ schemaVersion: 3, ...identity, settings: captured });
+		if (version === 4) return createImageDevelopSelectedPresetV4({ schemaVersion: 4, ...identity, settings: captured });
+		throw new RangeError('Current preset creation requires an explicit settings packet3 or packet4.');
+	},
+		parse: profile === 'legacy2' ? parseImageDevelopPresetV1OrV2 : profile === 'current3' ? (text: string) => normalizeImageDevelopPresetCurrentForProfileV1('current3', readImageDevelopPresetJsonV1(text)) : parseImageDevelopPresetCurrentV1,
+		serialize: profile === 'legacy2' ? serializeImageDevelopPresetV1OrV2 : profile === 'current3' ? (value: unknown) => JSON.stringify(normalizeImageDevelopPresetCurrentForProfileV1('current3', value)) : serializeImageDevelopPresetCurrentV1,
 		async list(value: unknown, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<Snapshot> {
 			const { signal } = signalOptions(profile, options);
 			const catalogId = admit(profile, signal, () => id(field(request(profile, value, ['schemaVersion', 'catalogId']), 'catalogId'), 'Develop preset catalog ID'));
 			if (signal) Reflect.apply(nativeAbort, signal, []);
 			return Reflect.apply(operation<Snapshot>, host, [async (admitted: AbortSignal) => {
 				checkCatalog(catalogId, await ready()); Reflect.apply(nativeAbort, admitted, []);
-				return (profile === 'legacy2' ? readPhotoDevelopPresetsV2 : readPhotoDevelopPresetsCurrentV1)(settings, catalogId, { signal: admitted });
+				return readPhotoDevelopPresetsForProfileV1(profile, settings, catalogId, { signal: admitted });
 			}, signal]);
 		},
 		async read(value: unknown, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<Body> {
@@ -82,14 +93,14 @@ export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: Pro
 			if (signal) Reflect.apply(nativeAbort, signal, []);
 			return Reflect.apply(operation<Body>, host, [async (admitted: AbortSignal) => {
 				checkCatalog(catalogId, await ready()); Reflect.apply(nativeAbort, admitted, []);
-				return (profile === 'legacy2' ? readPhotoDevelopPresetV2 : readPhotoDevelopPresetCurrentV1)(settings, catalogId, presetId, expected, { signal: admitted });
+				return readPhotoDevelopPresetForProfileV1(profile, settings, catalogId, presetId, expected, { signal: admitted });
 			}, signal]);
 		},
 		async write(value: unknown, options: Readonly<{ signal?: AbortSignal }> = {}) {
 			const { signal } = signalOptions(profile, options);
 			const { catalogId, command } = admit(profile, signal, () => {
 				const input = request(profile, value, ['schemaVersion', 'catalogId', 'command']), catalogId = id(field(input, 'catalogId'), 'Develop preset catalog ID');
-				const command = (profile === 'legacy2' ? normalizePhotoDevelopPresetCommandV2 : normalizePhotoDevelopPresetCommandCurrentV1)(field(input, 'command'));
+				const command = normalizePhotoDevelopPresetCommandForProfileV1(profile, field(input, 'command'));
 				checkImageDevelopSettingsBytesV1({ schemaVersion, catalogId, command }); return { catalogId, command };
 			});
 			if (signal) Reflect.apply(nativeAbort, signal, []);
@@ -99,9 +110,8 @@ export function createPhotoLibraryDevelopPresetsSessionForProfileV1(profile: Pro
 					checkCatalog(catalogId, current);
 					const root = await loadCatalog(catalogId); Reflect.apply(nativeAbort, admitted, []);
 					if (!root) throw new ReferenceError('Photo catalog is missing.');
-					completed.snapshot = profile === 'legacy2'
-						? await applyPhotoDevelopPresetV2(settings, root, command, { signal: admitted, ...(verifyResources ? { verifyResources } : {}) })
-						: await applyPhotoDevelopPresetCurrentV1(settings, root, command, { signal: admitted, resources });
+					completed.snapshot = await applyPhotoDevelopPresetForProfileV1(profile, settings, root, command,
+						profile === 'legacy2' ? { signal: admitted, ...(verifyResources ? { verifyResources } : {}) } : { signal: admitted, resources });
 					return completed.snapshot;
 				}, signal]);
 				return Object.freeze({ schemaVersion, snapshot, notices: Object.freeze([]) });
@@ -121,7 +131,7 @@ function checkCatalog(requested: string, current: string): void { if (requested 
 
 function signalOptions(profile: Profile, value: unknown) {
 	let signal: AbortSignal | undefined;
-	if (profile === 'current3' && value !== null && typeof value === 'object') {
+	if (profile !== 'legacy2' && value !== null && typeof value === 'object') {
 		const native = Object.getOwnPropertyDescriptor(value, 'signal');
 		if (native && Object.hasOwn(native, 'value')) { signal = native.value as AbortSignal | undefined; if (signal !== undefined) Reflect.apply(nativeAbort, signal, []); }
 	}
@@ -135,6 +145,6 @@ function captureResources(host: PhotoResourceVerificationHostCurrentV1): Readonl
 }
 
 function admit<Result>(profile: Profile, signal: AbortSignal | undefined, run: () => Result): Result {
-	try { const result = run(); if (profile === 'current3' && signal !== undefined) Reflect.apply(nativeAbort, signal, []); return result; }
-	catch (error) { if (profile === 'current3' && signal !== undefined) Reflect.apply(nativeAbort, signal, []); throw error; }
+	try { const result = run(); if (profile !== 'legacy2' && signal !== undefined) Reflect.apply(nativeAbort, signal, []); return result; }
+	catch (error) { if (profile !== 'legacy2' && signal !== undefined) Reflect.apply(nativeAbort, signal, []); throw error; }
 }

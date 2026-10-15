@@ -2,14 +2,14 @@
 
 import type { ScapeArchiveEntry, ScapeAssetDescriptor } from '../../common/editor/scape-archive-envelope.ts';
 import type { ScapeExpandedByteBudget } from '../../common/editor/scape-expanded-byte-budget.ts';
-import type { PhotoDevelopPresetRowCurrentV1 } from '../storage/photo-develop-preset-row-current-v1.ts';
+import type { PhotoDevelopPresetRowThroughV3 } from '../storage/photo-develop-preset-row-current-v1.ts';
 import { readCatalogArchivePackEntry } from './archive-pack-entry.ts';
 import { readPhotoDevelopPresetPackV3, PHOTO_DEVELOP_PRESET_PACK_LIMITS_V3 as LIMITS } from './develop-preset-pack-v3.ts';
 const CHECK = AbortSignal.prototype.throwIfAborted;
 
 export function readPhotoDevelopPresetPackEntryV3(entry: ScapeArchiveEntry, descriptor: ScapeAssetDescriptor,
 	budget: ScapeExpandedByteBudget, catalogId: string,
-	consume: (row: PhotoDevelopPresetRowCurrentV1) => Promise<void>, signal?: AbortSignal): Promise<number> {
+	consume: (row: PhotoDevelopPresetRowThroughV3) => Promise<void>, signal?: AbortSignal): Promise<number> {
 	if (typeof consume !== 'function') return Promise.reject(new TypeError('A provisional preset row consumer is required.'));
 	if (!Number.isSafeInteger(descriptor.size) || descriptor.size < 1 || descriptor.size > LIMITS.maximumPackBytes) return Promise.reject(new RangeError('Develop preset descriptor exceeds its pack bound.'));
 	const getData = entry.getData;

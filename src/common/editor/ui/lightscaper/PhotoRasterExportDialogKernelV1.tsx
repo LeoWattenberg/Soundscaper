@@ -113,7 +113,8 @@ export default function PhotoRasterExportDialogKernelV1(props: Props) {
 			...(current.withTextFrame ? { withTextFrame: current.withTextFrame } : {}),
 			prepareSave, saveFile, encode: current.encode };
 		const work = current.profile === 'current3'
-			? (controller as PhotoRasterExportCurrentV1).start({ ...request, execute: current.execute, loadRenderer: current.loadRenderer })
+			? (controller as PhotoRasterExportCurrentV1).start({ ...request, execute: current.execute, loadRenderer: current.loadRenderer,
+				...(current.withDerivedFrame ? { withDerivedFrame: current.withDerivedFrame } : {}) })
 			: (controller as PhotoRasterExport).start({ ...request, execute: current.execute, loadRenderer: current.loadRenderer });
 		const joined = work.then(result => { if (lifetime.live) setReceipt(result); }, (error: unknown) => { if (lifetime.live) {
 			if (isPhotoRasterExportMetadataRefusal(error)) setMetadataFailed(true); else setFailed(true);

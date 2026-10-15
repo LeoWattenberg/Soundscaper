@@ -92,7 +92,7 @@ export async function createPhotoCatalogRestoreStageForProfileV1(profile: PhotoC
 		const primaryIsAbort = signal !== undefined && Reflect.apply(nativeAborted, signal, []) === true
 			&& Object.is(error, Reflect.apply(nativeReason, signal, []));
 		throw aggregateScapeErrors(error, cleanup, 'Catalog restore preparation and cleanup failed.',
-			profile === 'current3' ? { primaryIsAbort } : primaryIsAbort ? { primaryIsAbort: true } : undefined);
+			profile !== 'legacy2' ? { primaryIsAbort } : primaryIsAbort ? { primaryIsAbort: true } : undefined);
 	}
 }
 

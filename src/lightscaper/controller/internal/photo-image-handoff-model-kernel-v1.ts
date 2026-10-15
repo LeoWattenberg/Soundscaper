@@ -2,11 +2,11 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../../common/editor/closed-domain-value.ts';
 import { createImageDevelopHandoffProvenanceV1 } from '../../../common/editor/image-develop-handoff-provenance-v1.ts';
-import { createImageDevelopHandoffProvenanceV2 } from '../../../common/editor/image-develop-handoff-provenance-v2.ts';
+import { createImageDevelopHandoffProvenanceCurrentV1 } from '../../../common/editor/image-develop-handoff-provenance-current-v1.ts';
 import { prepareImageDevelopBrushMasksV1 } from '../../../common/editor/imaging/image-develop-brush-mask-v1.ts';
 import { planImageDevelopMasksV1 } from '../../../common/editor/imaging/image-develop-mask-plan-v1.ts';
 import { planImageDevelopRepairSpotsV1 } from '../../../common/editor/imaging/image-develop-repair-plan-v1.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../../common/editor/imaging/image-develop-state-v4.ts';
 import { normalizeImageDevelopStateV2 } from '../../../common/editor/imaging/image-develop-state-v2.ts';
 import { planImageGeometryV1 } from '../../../common/editor/imaging/image-geometry-plan-v1.ts';
 import { createVideoTrack } from '../../../common/editor/project-media-factory.ts';
@@ -51,11 +51,12 @@ const PIXEL_LIMITS = Object.freeze({ maximumSidePixels: FRAMESCAPER_IMAGE_MODEL_
 export function assertPhotoDevelopHandoffMasksForProfileV1(profile: HandoffProfile, value: unknown, width: number, height: number): void {
 	assertHandoffProfile(profile);
 	if (profile === 'legacy2') { assertImageDevelopMaskRasterPortableV1(value); planImageDevelopMasksV1(value, width, height, PIXEL_LIMITS); return; }
-	const develop = normalizeImageDevelopStateCurrentV1(value);
+	const develop = normalizeImageDevelopStateThroughV4(value);
 	if (width * height * 4 > 64 * 1024 * 1024) throw new RangeError('Current handoff canonical source exceeds its pixel byte capacity.');
-	if (develop.processVersion === 3) planImageDevelopRepairSpotsV1(develop.repairs, width, height);
+	if (develop.processVersion === 3 || develop.processVersion === 4) planImageDevelopRepairSpotsV1(develop.repairs, width, height);
 	// This owning execution-only view never becomes persisted Photo/Source metadata.
-	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, geometry: develop.geometry, effects: develop.effects, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
+	const computation = develop.processVersion === 3 || develop.processVersion === 4
+		? normalizeImageDevelopStateV2({ processVersion: 2, geometry: develop.geometry, effects: develop.effects, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
 	prepareImageDevelopBrushMasksV1(computation, width, height, PIXEL_LIMITS);
 }
 
@@ -109,7 +110,7 @@ export async function createPhotoImageHandoffSourceForProfileV1(profile: Handoff
 		|| read('hasAlpha') !== field(original, 'hasAlpha', 'Photo image original geometry')) throw new Error('Photo image decoded original geometry or alpha binding changed.');
 	const sourceId = field(input, 'sourceId', label), develop = facts.version.develop;
 	const successor = profile === 'current3' && (raw !== undefined || facts.photoSchemaVersion === 3 || develop.masks.some(graph => graph.inputs.length > 0));
-	const provenance = (successor ? createImageDevelopHandoffProvenanceV2 : createImageDevelopHandoffProvenanceV1)({ develop,
+	const provenance = (successor ? createImageDevelopHandoffProvenanceCurrentV1 : createImageDevelopHandoffProvenanceV1)({ develop,
 		original: { exactName: facts.original.fileName, sha256: facts.original.contentSha256, byteLength: facts.original.byteLength },
 		origin: { schemaFamily: 'lightscaper', schemaVersion: facts.photoSchemaVersion, catalogId: facts.binding.catalogId, photoId: facts.binding.photoId,
 			revision: facts.binding.revision, versionId: facts.version.id, versionKind: facts.version.kind, versionName: facts.version.name, versionCreatedAt: facts.version.createdAt } });
@@ -161,7 +162,7 @@ function rawFormat(value: unknown): 'dng' | 'crw' {
 	if (value === 'image/x-canon-crw') return 'crw';
 	throw new RangeError('RAW image handoff original MIME has no admitted native route.');
 }
-function natural(develop: ImageDevelopStateCurrentV1, width: unknown, height: unknown) {
+function natural(develop: ImageDevelopStateThroughV4, width: unknown, height: unknown) {
 	if (typeof width !== 'number' || typeof height !== 'number') throw new TypeError('Photo image handoff requires natural original dimensions.');
 	let plan = planImageGeometryV1({ schemaVersion: 1, ...develop.geometry, perspective: null }, width, height);
 	for (const effect of develop.effects) if (effect.enabled && effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) {

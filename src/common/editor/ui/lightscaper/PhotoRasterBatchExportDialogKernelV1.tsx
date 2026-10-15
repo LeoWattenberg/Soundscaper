@@ -126,7 +126,8 @@ export default function PhotoRasterBatchExportDialogKernelV1(props: Props) {
 			...(graphicNeeded && graphic.prepared ? { graphicWatermark: graphic.prepared } : {}), ...(current.withGraphicFrame ? { withGraphicFrame: current.withGraphicFrame } : {}),
 			encode };
 		const queue = current.profile === 'current3'
-			? new PhotoRasterExportBatchQueueCurrentV1({ ...runtimeOptions, execute: current.execute, loadRenderer: current.loadRenderer })
+			? new PhotoRasterExportBatchQueueCurrentV1({ ...runtimeOptions, execute: current.execute, loadRenderer: current.loadRenderer,
+				...(current.withDerivedFrame ? { withDerivedFrame: current.withDerivedFrame } : {}) })
 			: new PhotoRasterExportBatchQueue({ ...runtimeOptions, execute: current.execute, loadRenderer: current.loadRenderer });
 		lifetime.queue = queue;
 		if (current.profile === 'current3') current.onPending?.();

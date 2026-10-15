@@ -12,9 +12,7 @@ import { PHOTO_CATALOG_PACK_LIMITS_V1 } from '../../archive/catalog-pack.ts';
 import { photoPackByteView } from '../../archive/pack-byte-chunk.ts';
 import { catalogTransaction } from '../../catalog/catalog-transaction.ts';
 import { readValidatedPhotoCatalogRootV1 } from '../../catalog/documents.ts';
-import { normalizePhotoDocumentCurrentV1 } from '../../catalog/photo-document-current-v1.ts';
-import { assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1 } from '../../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
-import { normalizePhotoDocumentV1OrV2 } from '../../catalog/photo-document-v2.ts';
+import { assertPhotoCatalogRestoreProfileV1, normalizePhotoCatalogRestoreDocumentForProfileV1, type PhotoCatalogRestoreProfileV1 } from '../../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
 import { getMemoryDatabase } from '../../../common/editor/storage/memory-backend.ts';
 import { normalizeCubeLutProfileEffectV1 } from '../../../common/editor/video-cube-lut-profile-v1.ts';
 import type { PhotoCatalogArchiveLutResourceV5 } from '../../archive/catalog-archive-contract-v5.ts';
@@ -164,7 +162,7 @@ class Candidate {
 		});
 	}
 	async #write(value: unknown, source: AsyncIterable<Uint8Array>): Promise<Readonly<PhotoMediaRestoreOriginalReceiptV1>> {
-		const photo = this.profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : normalizePhotoDocumentCurrentV1(value);
+		const photo = normalizePhotoCatalogRestoreDocumentForProfileV1(this.profile, value);
 		if (photo.catalogId !== this.root.id) throw new TypeError('Restore original requires a photo in the allocated catalog.');
 		const original = photo.original, size = original.byteLength;
 		if (12 + 8 + new TextEncoder().encode(JSON.stringify(photo)).byteLength + size > PHOTO_CATALOG_PACK_LIMITS_V1.maximumPackBytes) throw new RangeError('A photo original cannot fit its bounded archive pack.');

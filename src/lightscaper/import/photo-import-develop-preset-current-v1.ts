@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { PhotoLibraryDevelopPresetReadV3 } from '../../common/editor/photo-library-develop-presets-port-v3.ts';
-import { mergeImageDevelopSelectedSettingsV3 } from '../../common/editor/imaging/image-develop-settings-selected-v3.ts';
+import { mergeImageDevelopSelectedSettingsV4 } from '../../common/editor/imaging/image-develop-settings-selected-v4.ts';
 import { normalizePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { createPhotoDevelopWorkspaceCurrentV1, commitPhotoDevelopWorkspaceCurrentV1 } from '../catalog/photo-develop-workspace-current-v1.ts';
 import { borrowPhotoDevelopPresetEntryReaderV2, readPhotoDevelopSignalOptionsV2 } from '../storage/photo-develop-preset-read-v2.ts';
@@ -39,11 +39,11 @@ export function borrowPhotoImportDevelopPresetCurrentV1(repository: PhotoDevelop
 			let successor = photo.schemaVersion;
 			const versions = photo.versions.map(version => {
 				if (version.id !== photo.activeVersionId) return version;
-				const develop = mergeImageDevelopSelectedSettingsV3({ schemaVersion: 3, target: version.develop, settings: binding.preset.settings });
+				const develop = mergeImageDevelopSelectedSettingsV4({ schemaVersion: 4, target: version.develop, settings: binding.preset.settings });
 				const workspace = commitPhotoDevelopWorkspaceCurrentV1(version.workspace
 					?? createPhotoDevelopWorkspaceCurrentV1(version.develop, { label: 'Imported', createdAt: version.createdAt }),
 				develop, { label: binding.preset.identity.name, createdAt: version.createdAt });
-				if (develop.processVersion === 3 || workspace.schemaVersion === 3) successor = 3;
+				if (develop.processVersion >= 3 || workspace.schemaVersion >= 3) successor = 3;
 				else if (successor === 1 && (develop.processVersion === 2 || workspace.schemaVersion === 2)) successor = 2;
 				return { ...version, develop, workspace };
 			});

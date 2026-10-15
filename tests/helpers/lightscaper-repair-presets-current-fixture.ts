@@ -8,16 +8,24 @@ import { PhotoMediaStoreV1 } from '../../src/lightscaper/storage/photo-media-sto
 import { PhotoCatalogRepositoryCurrentV1 } from '../../src/lightscaper/catalog/photo-catalog-repository-current-v1.ts';
 import { readPhotoLibrarySessionLocationV2 } from '../../src/lightscaper/storage/photo-library-location-reader-v2.ts';
 import { photoDevelopPresetsKeyV1 } from '../../src/lightscaper/storage/photo-develop-presets-v1.ts';
-import { repairSettingsFixture, FULL_SETTINGS_SELECTION } from './lightscaper-repair-settings-current-fixture.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../src/common/editor/imaging/image-develop-state-current-v1.ts';
+import { repairSettingsFixture, CURRENT_SETTINGS_SELECTION } from './lightscaper-repair-settings-current-fixture.ts';
+import type { ImageDevelopStateThroughV4 } from '../../src/common/editor/imaging/image-develop-state-v4.ts';
 import type { ImageDevelopSelectionV3, ImageDevelopSettingsPacketV3 } from '../../src/common/editor/imaging/image-develop-settings-contract-v3.ts';
+import type { ImageDevelopSelectionV4, ImageDevelopSettingsPacketV4 } from '../../src/common/editor/imaging/image-develop-settings-contract-v4.ts';
+import type { ImageDevelopPresetV3 } from '../../src/common/editor/imaging/image-develop-preset-v3.ts';
+import type { ImageDevelopPresetV4 } from '../../src/common/editor/imaging/image-develop-preset-v4.ts';
 
-/** Honest normalized Packet3 plus the actual owning visual identity hash.
+/** Honest Packet3/4 identity preserves its explicit preset version and hash.
  * The fixture creates no proof; native owners must authenticate every body. */
-export function currentPreset(packet: Readonly<ImageDevelopSettingsPacketV3>, id = 'repair-preset', name = 'Repair preset') {
-	return Object.freeze({ schemaVersion: 3 as const, kind: 'image-develop-preset' as const,
+export function currentPreset(packet: Readonly<ImageDevelopSettingsPacketV3>, id?: string, name?: string): Readonly<ImageDevelopPresetV3>;
+export function currentPreset(packet: Readonly<ImageDevelopSettingsPacketV4>, id?: string, name?: string): Readonly<ImageDevelopPresetV4>;
+export function currentPreset(packet: Readonly<ImageDevelopSettingsPacketV3 | ImageDevelopSettingsPacketV4>, id?: string, name?: string): Readonly<ImageDevelopPresetV3 | ImageDevelopPresetV4>;
+export function currentPreset(packet: Readonly<ImageDevelopSettingsPacketV3 | ImageDevelopSettingsPacketV4>, id = 'repair-preset', name = 'Repair preset') {
+	const shared = { kind: 'image-develop-preset' as const,
 		identity: normalizeVideoVisualPresetV1({ schemaVersion: 1, kind: 'video-preset', id, name,
-			modelKind: 'adjustment-layer', authoredStateSha256: fingerprintNativeMediaPlan(packet).sha256 }), settings: packet });
+			modelKind: 'adjustment-layer', authoredStateSha256: fingerprintNativeMediaPlan(packet).sha256 }) };
+	return packet.schemaVersion === 3 ? Object.freeze({ ...shared, schemaVersion: 3 as const, settings: packet })
+		: Object.freeze({ ...shared, schemaVersion: 4 as const, settings: packet });
 }
 
 /** The selected Session and additional native settings owners share the exact
@@ -66,11 +74,11 @@ export async function repairPresetsFixture(count = 2) {
 					row.value.bytes[0] = row.value.bytes[0]! ^ 1; await request(stores.analysis!.put(row));
 				}); } finally { database.close(); }
 			},
-			packet(develop: ImageDevelopStateCurrentV1 = f.source().develop, selection: ImageDevelopSelectionV3 = FULL_SETTINGS_SELECTION) {
-				return f.session.develop.settingsCurrent!.copy({ schemaVersion: 3, develop, selection });
+			packet(develop: ImageDevelopStateThroughV4 = f.source().develop, selection: ImageDevelopSelectionV3 | ImageDevelopSelectionV4 = CURRENT_SETTINGS_SELECTION) {
+				return f.session.develop.settingsCurrent!.copy({ schemaVersion: 3, develop, selection: currentSelection(selection) });
 			},
-			async selectedPacket(develop: ImageDevelopStateCurrentV1 = f.source().develop, selection: ImageDevelopSelectionV3 = FULL_SETTINGS_SELECTION) {
-				return f.session.develop.settingsCurrent!.copySelected({ ...f.source(0, develop), selection });
+			async selectedPacket(develop: ImageDevelopStateThroughV4 = f.source().develop, selection: ImageDevelopSelectionV3 | ImageDevelopSelectionV4 = CURRENT_SETTINGS_SELECTION) {
+				return f.session.develop.settingsCurrent!.copySelected({ ...f.source(0, develop), selection: currentSelection(selection) });
 			},
 			async openSettings() {
 				const current = new PhotoMediaStoreV1({ indexedDB: f.native.factory, locks: f.options.locks, databaseName: selected.location.mediaDatabaseName, preferOpfs: false });
@@ -88,4 +96,7 @@ export async function repairPresetsFixture(count = 2) {
 		const errors = outcomes.flatMap(outcome => outcome.status === 'rejected' ? [outcome.reason as unknown] : []);
 		if (errors.length) throw new AggregateError([error, ...errors], 'Preset fixture setup and cleanup failed.', { cause: error }); throw error;
 	}
+}
+function currentSelection(value: ImageDevelopSelectionV3 | ImageDevelopSelectionV4): ImageDevelopSelectionV4 {
+	return 'rawDevelopment' in value ? value : { ...value, rawDevelopment: false };
 }

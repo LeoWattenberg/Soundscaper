@@ -38,10 +38,10 @@ export { DEFAULT_PHOTO_LIBRARY_QUERY_V1, DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from '
 import type { CreatePhotoLibrarySessionV3, PhotoLibrarySessionPortV2 } from '../../photo-library-session-port-v2.ts';
 import type { CreatePhotoLibrarySessionCurrentV1, PhotoLibrarySessionPortCurrentV1 } from '../../photo-library-session-port-current-v1.ts';
 import { acquirePhotoLibraryWorkflowSlotCurrentV1, retirePhotoLibraryWorkflowSlotCurrentV1, type PhotoLibraryWorkflowSlotCurrentV1 } from '../../controller/shared/photo-library-workflow-slot-current-v1.ts';
-import type { CreatePhotoLibraryDevelopProxyRuntimeV3, LoadPhotoLibraryDevelopProxyRuntimeV3 } from '../../photo-library-develop-proxy-port-v3.ts';
+import type { CreatePhotoLibraryDevelopProxyRuntimeCurrentV1, LoadPhotoLibraryDevelopProxyRuntimeCurrentV1 } from '../../photo-library-develop-proxy-port-current-v1.ts';
 import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
 import type { ExecutePhotoDevelopCurrentV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
-import { capturePhotoLibraryDevelopPortV3 } from './photo-library-workflow-develop-current-v1.ts';
+import { capturePhotoLibraryDevelopPortCurrentV1 } from './photo-library-workflow-develop-current-v1.ts';
 import { capturePhotoLibraryLegacyDevelopCurrentV1 } from './photo-library-workflow-legacy-develop-current-v1.ts';
 type ReadHook = (profile: 'legacy2' | 'current3', owners: PhotoLibraryWorkflowReadOwnersKernelV1) => PhotoLibraryWorkflowReadsLegacyV2 | PhotoLibraryWorkflowReadsCurrentV1;
 
@@ -70,7 +70,7 @@ const useReadsForProfile = usePhotoLibraryWorkflowReadsForProfileV1 as ReadHook;
 
 /** The effect owns one resource generation, including factories resolving after cleanup. */
 function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1,
-	createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3) {
+	createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeCurrentV1) {
 	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unknown selected photo workflow profile.');
 	const factory = useRef(createSession); factory.current = createSession;
 	const loader = useRef(loadBackupSaveRuntime); loader.current = loadBackupSaveRuntime;
@@ -227,7 +227,7 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 	const executeCurrent = useCallback<ExecutePhotoDevelopCurrentV1>((action, externalSignal) => perform({ start: async (signal, current) => {
 		await action({ signal, acquire: async () => {
 			const selected = await acquirePhotoLibraryWorkflowSlotCurrentV1(current as PhotoLibraryWorkflowSlotCurrentV1); check(signal);
-			return capturePhotoLibraryDevelopPortV3(selected.develop, signal);
+			return capturePhotoLibraryDevelopPortCurrentV1(selected.develop, signal);
 		}, isCurrent: () => current.live && slot.current === current && current.factory === factory.current && current.backupLoader === loader.current && current.proxyFactory === renderer.current,
 		refresh: async () => { const selected = await acquire(profile, current); check(signal); const next = await readVisiblePage(selected, current, null, signal); check(signal); return publishPage(current, next); } });
 	} }, externalSignal), [profile, perform, publishPage]);
@@ -267,7 +267,7 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		return receipt;
 	}, [perform, controller, createSession, loadBackupSaveRuntime]);
 
-	const { readPreview, withOriginalFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff } = useReadsForProfile(profile, { slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime });
+	const { readPreview, withOriginalFrame, withDerivedFrame, loadDevelopProxyRuntime, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff } = useReadsForProfile(profile, { slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime });
 	const importCubeLut = useCallback<PhotoLibraryCubeLutPortV1['importFile']>(async (file, options = {}) => {
 		const result: { receipt?: Awaited<ReturnType<PhotoLibraryCubeLutPortV1['importFile']>>; failure?: Readonly<{ value: unknown }> } = {};
 		const caller = options.signal; if (caller) check(caller);
@@ -513,7 +513,7 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 	return { ...originalWorkflow, retireAndJoin, registerExportDestination, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeLegacyDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
-		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff, captureImageReceive, captureCollectionHandoff, readPreview, withOriginalFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff, captureImageReceive, captureCollectionHandoff, readPreview, withOriginalFrame, withDerivedFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, readImportDevelopPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }
@@ -521,10 +521,10 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 export type PhotoLibraryWorkflowKernelV1 = ReturnType<typeof useWorkflow>;
 export type PhotoLibraryWorkflowLegacyV2 = Omit<PhotoLibraryWorkflowKernelV1, 'executeDevelop' | 'loadDevelopProxyRuntime' | 'captureImageHandoff' | 'importFiles' | 'readImportDevelopPresets'> & Pick<PhotoLibraryWorkflowReadsLegacyV2, 'captureImageHandoff'> & { executeDevelop: ExecutePhotoDevelopCurrent; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV2;
 	readImportDevelopPresets: PhotoLibrarySessionPortV2['developImport']['listPresets']; importFiles: (files: readonly File[], options?: PhotoLibraryImportGestureOptionsV2) => Promise<PhotoLibraryImportGestureReceiptV1> };
-export type PhotoLibraryWorkflowCurrentV1 = Omit<PhotoLibraryWorkflowKernelV1, 'executeDevelop' | 'loadDevelopProxyRuntime' | 'captureImageHandoff' | 'importFiles' | 'readImportDevelopPresets'> & Pick<PhotoLibraryWorkflowReadsCurrentV1, 'captureImageHandoff'> & { executeDevelop: ExecutePhotoDevelopCurrentV1; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeV3;
+export type PhotoLibraryWorkflowCurrentV1 = Omit<PhotoLibraryWorkflowKernelV1, 'executeDevelop' | 'loadDevelopProxyRuntime' | 'captureImageHandoff' | 'importFiles' | 'readImportDevelopPresets'> & Pick<PhotoLibraryWorkflowReadsCurrentV1, 'captureImageHandoff'> & { executeDevelop: ExecutePhotoDevelopCurrentV1; loadDevelopProxyRuntime: LoadPhotoLibraryDevelopProxyRuntimeCurrentV1;
 	readImportDevelopPresets: NonNullable<PhotoLibrarySessionPortCurrentV1['developImportCurrent']>['listPresets']; importFiles: (files: readonly File[], options?: PhotoLibraryImportGestureOptionsCurrentV1) => Promise<PhotoLibraryImportGestureReceiptV1> };
 export function usePhotoLibraryWorkflowForProfileV1(profile: 'legacy2', createSession?: CreatePhotoLibrarySessionV3, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2): PhotoLibraryWorkflowLegacyV2;
-export function usePhotoLibraryWorkflowForProfileV1(profile: 'current3', createSession?: CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV3): PhotoLibraryWorkflowCurrentV1;
-export function usePhotoLibraryWorkflowForProfileV1(profile: 'legacy2' | 'current3', createSession?: CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3): PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1 {
+export function usePhotoLibraryWorkflowForProfileV1(profile: 'current3', createSession?: CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeCurrentV1): PhotoLibraryWorkflowCurrentV1;
+export function usePhotoLibraryWorkflowForProfileV1(profile: 'legacy2' | 'current3', createSession?: CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, createDevelopProxyRuntime?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeCurrentV1): PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1 {
 	return useWorkflow(profile, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime) as PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1;
 }

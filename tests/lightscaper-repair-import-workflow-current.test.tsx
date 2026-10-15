@@ -81,6 +81,6 @@ test('actual Current workflow acquires once and reads its named native preset me
 	try {
 		assert.ok(value); await act(async () => { work = value!.readImportDevelopPresets(); }); assert.equal(reads, 1);
 		await act(async () => { ready.resolve(f.session); assert.deepEqual(await work, saved.snapshot); }); assert.equal(reads, 1);
-		assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 3); assert.equal(saved.snapshot.presets[0]!.id, preset.identity.id);
+		assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 4); assert.equal(saved.snapshot.presets[0]!.id, preset.identity.id);
 	} finally { ready.resolve(f.session); await work?.catch(() => undefined); await mounted.dispose(); await f.close(); }
 });

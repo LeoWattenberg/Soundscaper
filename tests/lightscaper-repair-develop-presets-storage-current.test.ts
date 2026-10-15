@@ -21,7 +21,7 @@ function save(f: Fixture, preset: unknown, expectedRevision = 0, settings: Setti
 	return Reflect.apply(apply, undefined, [settings, f.root, { type: 'save', expectedRevision, preset }, { resources, ...(signal ? { signal } : {}) }]) as Promise<Snapshot>;
 }
 
-test('native Current preset rows persist exact repairs, list/read, no-op and retain Row3 after final deletion', async () => {
+test('native Current preset rows persist exact repairs, list/read, no-op and retain Row4 after final deletion', async () => {
 	const f = await repairPresetsFixture();
 	try {
 		const before = await f.inspect(), preset = currentPreset(f.packet()), first = await save(f, preset);
@@ -29,7 +29,7 @@ test('native Current preset rows persist exact repairs, list/read, no-op and ret
 		assert.deepEqual((await read(f.settings, f.root.id, preset.identity.id, 1) as unknown as { preset: unknown }).preset, preset);
 		assert.deepEqual(await list(f.settings, f.root.id), first); assert.deepEqual(await save(f, preset, 1), first); assert.equal(f.writes.length, 1);
 		const removed = await Reflect.apply(apply, undefined, [f.settings, f.root, { type: 'delete', expectedRevision: 1, presetId: preset.identity.id }, { resources: f.resources }]) as Snapshot;
-		assert.equal(removed.revision, 2); assert.deepEqual(removed.presets, []); assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 3);
+		assert.equal(removed.revision, 2); assert.deepEqual(removed.presets, []); assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 4);
 		assert.deepEqual(await f.inspect(), before);
 	} finally { await f.close(); }
 });
@@ -75,7 +75,7 @@ test('native Current writes authenticate other retained preset bodies before pub
 	const f = await repairPresetsFixture();
 	try {
 		const body = await f.installBrush(), bad = currentPreset(await f.selectedPacket(brushSettingsRecipe(body.reference)), 'retained'), clean = currentPreset(f.packet(), 'clean');
-		await f.writeRow({ schemaVersion: 3, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1, presets: [clean, bad] });
+		await f.writeRow({ schemaVersion: 4, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1, presets: [clean, bad] });
 		await f.corruptBrush(body.reference); const before = await f.row(), photos = await f.inspect();
 		await assert.rejects(save(f, currentPreset(f.packet(), 'clean', 'Changed name'), 1)); assert.deepEqual(await f.row(), before);
 		assert.equal(f.writes.length, 0); assert.deepEqual(await f.inspect(), photos); assert.ok(f.borrowed.every(bytes => bytes.every(byte => byte === 0)));

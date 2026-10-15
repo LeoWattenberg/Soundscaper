@@ -4,7 +4,7 @@ import { normalizeFramescaperEditableImageSourceForProfileV1, type FramescaperEd
 import { createImageDevelopResourceReachabilityCurrentV1, type ImageDevelopResourceReferencesCurrentV1 } from './imaging/image-develop-resource-reachability-current-v1.ts';
 
 export type FramescaperImageSourceV3 = FramescaperEditableImageSourceForProfileV1<'current3'>;
-/** Full Current metadata stays beside the unchanged canonical Original pack. */
+/** Permanent Source3 admission retains recipes through3 beside the Original pack. */
 export function normalizeFramescaperImageSourceV3(value: unknown): Readonly<FramescaperImageSourceV3> {
 	return normalizeFramescaperEditableImageSourceForProfileV1('current3', value);
 }

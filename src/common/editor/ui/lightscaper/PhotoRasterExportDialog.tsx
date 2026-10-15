@@ -9,7 +9,8 @@ import type { ExecutePhotoDevelopCurrentV1 } from '../../controller/shared/photo
 import type { PhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
 import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
-import type { LoadPhotoLibraryDevelopProxyRuntimeV3 } from '../../photo-library-develop-proxy-port-v3.ts';
+import type { LoadPhotoLibraryDevelopProxyRuntimeCurrentV1 } from '../../photo-library-develop-proxy-port-current-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../photo-library-develop-original-current-v1.ts';
 
 export interface PhotoRasterExportDialogProps {
 	readonly format: 'png' | 'jpeg';
@@ -50,7 +51,8 @@ export interface PhotoRasterExportCopy {
 }
 export interface PhotoRasterExportDialogPropsCurrentV1 extends Omit<PhotoRasterExportDialogProps, 'execute' | 'loadRenderer'> {
 	readonly execute: ExecutePhotoDevelopCurrentV1;
-	readonly loadRenderer: LoadPhotoLibraryDevelopProxyRuntimeV3;
+	readonly loadRenderer: LoadPhotoLibraryDevelopProxyRuntimeCurrentV1;
+	readonly withDerivedFrame?: PhotoLibraryDevelopOriginalPortCurrentV1['withDerivedFrame'];
 }
 export default function PhotoRasterExportDialog(props: PhotoRasterExportDialogProps) {
 	return <PhotoRasterExportDialogKernelV1 {...props} profile="legacy2" />;

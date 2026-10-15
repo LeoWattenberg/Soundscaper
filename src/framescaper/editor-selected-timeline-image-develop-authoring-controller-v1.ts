@@ -5,11 +5,12 @@ import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE as PROFILE } from './editor-project
 import type { FramescaperImageSourceSetCommandTimelineImage } from './editor-project-timeline-image-image-command.ts';
 import type { FramescaperStoredImageAssetStoreTimelineImage } from './editor-selected-timeline-image-image-frame-source.ts';
 import type { FramescaperCurrentImageFrameReader } from './timeline-image-current-frame-source.ts';
-import type { ImageDevelopStateCurrentV1 } from '../common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV4 } from '../common/editor/imaging/image-develop-state-v4.ts';
 import type { PixelFrameV1 } from '../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { defaultImageDevelopStateV1 } from '../common/editor/imaging/image-develop-state-v1.ts';
-import type { WithImageDevelopDraftFrameV1 } from '../common/editor/controller/shared/image-develop-draft-presentation-v1.ts';
-import type { ImageBrushMaskResourceAcknowledgementV1, ImageBrushMaskResourcePortV1, WithImageBrushMaskDraftFrameV1 } from '../common/editor/image-brush-mask-resource-port-v1.ts';
+import type { ImageDevelopFrameViewV1 } from '../common/editor/imaging/image-develop-frame-core.ts';
+import type { ImageDevelopMaskOverlaySelectionV1 } from '../common/editor/imaging/image-develop-mask-overlay-v1.ts';
+import type { ImageBrushMaskResourceAcknowledgementV1, ImageBrushMaskResourcePortV1, ImageBrushMaskDraftFrameRequestV1 } from '../common/editor/image-brush-mask-resource-port-v1.ts';
 import type { MediaAssetWriteOptions, OwnedMediaAssetWriter } from '../common/editor/storage/media-asset-write-contract.ts';
 import { assertFramescaperNativeImageSignalCurrentV1, retireFramescaperNativeImageCurrentV1 } from './internal/timeline-image-native-pack-owner-current-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../common/editor/controller/shared/image-repair-spots-authoring-v1.ts';
@@ -26,15 +27,26 @@ interface Controller {
 export interface FramescaperImageDevelopAuthoringSessionCurrentV1 {
 	readonly nativeCurrent?: true;
 	readonly sourceName: string;
-	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
+	readonly develop: Readonly<ImageDevelopStateThroughV4>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
-	readonly withDraftFrame?: WithImageDevelopDraftFrameV1;
+	readonly withDraftFrame?: WithFramescaperImageDevelopDraftFrameCurrentV1;
 	readonly brushMasks?: Readonly<ImageBrushMaskResourcePortV1<ImageBrushMaskResourceAcknowledgementV1 & { readonly projectId: string }> & { readonly projectId: string }>;
-	readonly withBrushDraftFrame?: WithImageBrushMaskDraftFrameV1;
+	readonly withBrushDraftFrame?: WithFramescaperImageBrushDraftFrameCurrentV1;
 	isCurrent(): boolean;
-	apply(develop: Readonly<ImageDevelopStateCurrentV1>): void;
+	apply(develop: Readonly<ImageDevelopStateThroughV4>): void;
 	closeAndJoin(): Promise<void>;
 }
+export interface FramescaperImageDevelopDraftRequestCurrentV1 {
+	readonly develop: Readonly<ImageDevelopStateThroughV4>;
+	readonly maskOverlay?: Readonly<ImageDevelopMaskOverlaySelectionV1>;
+}
+export type WithFramescaperImageDevelopDraftFrameCurrentV1 = <Result>(request: Readonly<FramescaperImageDevelopDraftRequestCurrentV1>,
+	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>) => Promise<Result>;
+export interface FramescaperImageBrushDraftRequestCurrentV1 extends Omit<ImageBrushMaskDraftFrameRequestV1, 'develop'> {
+	readonly develop: Readonly<ImageDevelopStateThroughV4>;
+}
+export type WithFramescaperImageBrushDraftFrameCurrentV1 = <Result>(request: Readonly<FramescaperImageBrushDraftRequestCurrentV1>,
+	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>) => Promise<Result>;
 export interface FramescaperImageDevelopAuthoringPortCurrentV1 {
 	open(options?: Readonly<{ signal?: AbortSignal }>): Promise<Readonly<FramescaperImageDevelopAuthoringSessionCurrentV1>>;
 }
@@ -136,18 +148,18 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 		};
 		const brushOwner = writable ? createFramescaperImageBrushMaskPortCurrentV1({ project, store: writable,
 			assertCurrent: current, operation, authenticate: authenticateRetained }) : undefined;
-		const canonical = async <Result>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, admitted: AbortSignal): Promise<Result> => {
+		const inputFrame = async <Result>(selectedDevelop: unknown, consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, admitted: AbortSignal): Promise<Result> => {
 			const borrowerCurrent = () => { Reflect.apply(CHECK, admitted, []); current(); };
 			borrowerCurrent(); if (typeof consume !== 'function') throw new TypeError('Frame Original borrowing requires a consumer.');
 			await authenticate(); borrowerCurrent();
 			opening ??= import('./timeline-image-current-frame-source.ts').then(module => module.openFramescaperCurrentImageFrameSource(borrowed, source, signal, undefined, 'canonical-authoring'));
 			reader = await opening; borrowerCurrent();
-			return reader.withCanonicalFrame(async frame => { borrowerCurrent(); const result = await consume(frame); borrowerCurrent(); return result; }, admitted);
+			return reader.withDevelopInputFrame(selectedDevelop, async frame => { borrowerCurrent(); const result = await consume(frame); borrowerCurrent(); return result; }, admitted);
 		};
-		const withOriginalFrame: WithImageRepairSpotsOriginalFrameV1 = (consume, callerOptions = {}) => operation(admitted => canonical(consume, admitted), callerOptions);
-		const withDraftFrame: WithImageDevelopDraftFrameV1 = (request, consume, callerOptions = {}) => operation(async admitted => {
+		const withOriginalFrame: WithImageRepairSpotsOriginalFrameV1 = (consume, callerOptions = {}) => operation(admitted => inputFrame(develop, consume, admitted), callerOptions);
+		const withDraftFrame: WithFramescaperImageDevelopDraftFrameCurrentV1 = (request, consume, callerOptions = {}) => operation(async admitted => {
 			Reflect.apply(CHECK, admitted, []); current();
-			let captured: Parameters<WithImageDevelopDraftFrameV1>[0];
+			let captured: FramescaperImageDevelopDraftRequestCurrentV1;
 			try {
 				if (typeof consume !== 'function') throw new TypeError('Frame draft borrowing requires a consumer.');
 				const input = readClosedDomainRecord(request, 'Frame Develop draft', ['develop', 'maskOverlay'], ['develop']);
@@ -160,9 +172,10 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 			const { withFramescaperImageDevelopDraftFrameCurrentV1: render } = await import('./internal/selected-image-develop-draft-render-owner-current-v1.ts');
 			Reflect.apply(CHECK, admitted, []); current();
 			return render({ project, clipId: clip.id, store: borrowed, assertCurrent: current,
-				withOriginalFrame: (accept, options = {}) => canonical(accept, options.signal ?? admitted) }, captured, consume, admitted);
+				withOriginalFrame: (accept, options = {}) => inputFrame(develop, accept, options.signal ?? admitted),
+				withDevelopInputFrame: (selectedDevelop, accept, options = {}) => inputFrame(selectedDevelop, accept, options.signal ?? admitted) }, captured, consume, admitted);
 		}, callerOptions);
-		const withBrushDraftFrame: WithImageBrushMaskDraftFrameV1 = (request, consume, callerOptions = {}) => operation(async admitted => {
+		const withBrushDraftFrame: WithFramescaperImageBrushDraftFrameCurrentV1 = (request, consume, callerOptions = {}) => operation(async admitted => {
 			Reflect.apply(CHECK, admitted, []); current();
 			let captured: ReturnType<typeof prepareFramescaperImageBrushDraftFrameCurrentV1>;
 			try { captured = prepareFramescaperImageBrushDraftFrameCurrentV1(request); }
@@ -177,7 +190,8 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 				const { withFramescaperImageBrushDraftFrameCurrentV1: render } = await import('./internal/selected-image-brush-draft-render-owner-current-v1.ts');
 				Reflect.apply(CHECK, admitted, []); current();
 				return await render({ project, clipId: clip.id, store: borrowed, assertCurrent: current,
-					withOriginalFrame: (accept, options = {}) => canonical(accept, options.signal ?? admitted) }, captured, consume, admitted);
+					withOriginalFrame: (accept, options = {}) => inputFrame(develop, accept, options.signal ?? admitted),
+					withDevelopInputFrame: (selectedDevelop, accept, options = {}) => inputFrame(selectedDevelop, accept, options.signal ?? admitted) }, captured, consume, admitted);
 			} catch (error) { outcome = { error }; throw error; }
 			finally { await retireFramescaperNativeImageCurrentV1(outcome, [() => captured.retire()]); }
 		}, callerOptions);

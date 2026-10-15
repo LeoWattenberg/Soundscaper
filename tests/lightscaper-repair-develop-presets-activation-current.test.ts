@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPhotoLibrarySessionCurrentV1 } from '../src/lightscaper/photo-library-session-runtime-current-v1.ts';
 import { normalizeImageDevelopStateCurrentV1 } from '../src/common/editor/imaging/image-develop-state-current-v1.ts';
-import type { ImageDevelopSettingsPacketV3 } from '../src/common/editor/imaging/image-develop-settings-contract-v3.ts';
+import type { ImageDevelopSettingsPacketV4 } from '../src/common/editor/imaging/image-develop-settings-contract-v4.ts';
 import { repairRecipe } from './helpers/lightscaper-repair-raster-export-current-fixture.ts';
-import { repairSettingsFixture, brushSettingsRecipe, FULL_SETTINGS_SELECTION, SETTINGS_TIME } from './helpers/lightscaper-repair-settings-current-fixture.ts';
+import { repairSettingsFixture, brushSettingsRecipe, CURRENT_SETTINGS_SELECTION, SETTINGS_TIME } from './helpers/lightscaper-repair-settings-current-fixture.ts';
 
 interface Preset {
 	readonly schemaVersion: number;
 	readonly identity: Readonly<{ id: string; name: string; authoredStateSha256: string }>;
-	readonly settings: ImageDevelopSettingsPacketV3;
+	readonly settings: ImageDevelopSettingsPacketV4;
 }
 interface Snapshot { readonly schemaVersion: number; readonly catalogId: string; readonly revision: number; readonly presets: readonly unknown[] }
 interface NativePresets {
@@ -48,9 +48,9 @@ test('native repaired brush preset reopens and applies by row binding while clon
 		const child = presets(f.session.develop), catalogId = f.photos[0]!.catalogId, installed = await f.installBrush();
 		const draft = normalizeImageDevelopStateCurrentV1({ ...brushSettingsRecipe(installed.reference), processVersion: 3, repairs: repairRecipe().repairs });
 		const before = await f.inspect(), settings = f.session.develop.settingsCurrent; assert.ok(settings);
-		const packet = await settings.copySelected({ ...f.source(0, draft), selection: FULL_SETTINGS_SELECTION });
+		const packet = await settings.copySelected({ ...f.source(0, draft), selection: CURRENT_SETTINGS_SELECTION });
 		const preset = child.create({ schemaVersion: 3, id: 'native-repaired-brush', name: 'Repaired brush', settings: packet });
-		assert.equal(preset.schemaVersion, 3); assert.deepEqual(preset.settings.develop, draft);
+		assert.equal(preset.schemaVersion, 4); assert.deepEqual(preset.settings.develop, draft);
 		const ack = await child.write({ schemaVersion: 3, catalogId, command: { type: 'save', expectedRevision: 0, preset } });
 		assert.equal(ack.schemaVersion, 3); assert.equal(ack.snapshot.revision, 1); assert.deepEqual(ack.notices, []);
 		assert.deepEqual(await f.inspect(), before); assert.equal(f.saved.length, 0);
@@ -62,7 +62,7 @@ test('native repaired brush preset reopens and applies by row binding while clon
 		const target = before[1]!.photo, request = { schemaVersion: 3 as const, catalogId, targets: [{ photoId: target.id, versionId: target.activeVersionId, expectedRevision: target.revision }],
 			label: 'Native repaired preset', createdAt: SETTINGS_TIME };
 		const raw: unknown = JSON.parse(JSON.stringify(saved.preset.settings));
-		await assert.rejects(selected.applyBatch({ ...request, action: { kind: 'paste', settings: raw as ImageDevelopSettingsPacketV3 } }));
+		await assert.rejects(selected.applyBatch({ ...request, action: { kind: 'paste', settings: raw as ImageDevelopSettingsPacketV4 } }));
 		const receipt = await selected.applyBatch({ ...request, action: { kind: 'preset', presetId: preset.identity.id, expectedPresetRevision: saved.revision } });
 		assert.equal(receipt.outcomes[0]!.status, 'applied');
 		const after = await f.inspect(); assert.deepEqual(after[1]!.photo.versions[0]!.develop, draft); assert.deepEqual(after[0], before[0]);

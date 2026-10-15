@@ -7,6 +7,7 @@ import { photoMemberships, photoStorageKey, photoSummary } from '../repository-r
 import type { PhotoMembershipV1, PhotoSummaryV1 } from '../repository-types.ts';
 import type { PhotoDocumentV1 } from '../types.ts';
 import { normalizePhotoDocumentCurrentV1, serializePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1 } from '../photo-document-current-v1.ts';
+import { normalizePhotoDocumentThroughV3, type PhotoDocumentThroughV3 } from '../photo-document-through-v3.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { id, integer } from '../value-validation.ts';
 import { normalizePhotoStackV1, serializePhotoStackV1, type PhotoStackV1 } from '../photo-stack-v1.ts';
@@ -18,8 +19,12 @@ import { projectPhotoQueryRowV2, type PhotoQueryRowV2 } from '../photo-query-ind
 export { photoCatalogRestoreRootRecordsV1, photoCatalogRestoreStackRecordsV1, photoCatalogRestoreSavedCollectionRecordsV1,
 	type PhotoCatalogRestoreRootRecordsV1 } from '../photo-catalog-restore-records-v1.ts';
 
-export type PhotoCatalogRestoreProfileV1 = 'legacy2' | 'current3';
-export type PhotoCatalogRestorePhotoForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> = Profile extends 'legacy2' ? PhotoDocumentV1 | PhotoDocumentV2 : PhotoDocumentCurrentV1;
+export type PhotoCatalogRestoreProfileV1 = 'legacy2' | 'current3' | 'current4';
+export type PhotoCatalogRestorePhotoForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> = Profile extends 'legacy2' ? PhotoDocumentV1 | PhotoDocumentV2 : Profile extends 'current3' ? PhotoDocumentThroughV3 : PhotoDocumentCurrentV1;
+export function normalizePhotoCatalogRestoreDocumentForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, value: unknown): PhotoCatalogRestorePhotoForProfileV1<Profile> {
+	assertPhotoCatalogRestoreProfileV1(profile);
+	return (profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : profile === 'current3' ? normalizePhotoDocumentThroughV3(value) : normalizePhotoDocumentCurrentV1(value)) as PhotoCatalogRestorePhotoForProfileV1<Profile>;
+}
 export interface PhotoCatalogRestorePhotoRecordsForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> {
 	readonly photo: Readonly<{ key: string; document: PhotoCatalogRestorePhotoForProfileV1<Profile> }>;
 	readonly summary: PhotoSummaryV1;
@@ -33,7 +38,7 @@ export interface PhotoCatalogRestorePhotoRecordsForProfileV1<Profile extends Pho
 export function photoCatalogRestorePhotoRecordsForProfileV1<Profile extends PhotoCatalogRestoreProfileV1>(profile: Profile, rootValue: unknown, value: unknown): PhotoCatalogRestorePhotoRecordsForProfileV1<Profile> {
 	assertPhotoCatalogRestoreProfileV1(profile);
 	const root = readValidatedPhotoCatalogRootV1(rootValue);
-	const document = (profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : normalizePhotoDocumentCurrentV1(value)) as PhotoCatalogRestorePhotoForProfileV1<Profile>;
+	const document = normalizePhotoCatalogRestoreDocumentForProfileV1(profile, value);
 	validatePhotoCatalogReferencesV1(document, root);
 	let queryV1: PhotoQueryRowV1 | null;
 	try { queryV1 = projectPhotoQueryRowV1(document); }
@@ -77,7 +82,7 @@ export class PhotoCatalogRestoreDeliveryForProfileV1<Profile extends PhotoCatalo
 		const descriptor = Object.getOwnPropertyDescriptor(value, 'kind');
 		if (!descriptor || !Object.hasOwn(descriptor, 'value')) throw new TypeError('Delivery kind requires inert own data.');
 		const kind: unknown = descriptor.value;
-		const document = kind === 'photo' ? (this.profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : normalizePhotoDocumentCurrentV1(value))
+		const document = kind === 'photo' ? normalizePhotoCatalogRestoreDocumentForProfileV1(this.profile, value)
 			: kind === 'photo-stack' ? normalizePhotoStackV1(value)
 			: kind === 'photo-smart-collection' ? normalizePhotoSmartCollectionV1(value) : undefined;
 		if (!document) throw new TypeError('Unsupported restore delivery kind.');
@@ -89,5 +94,5 @@ export class PhotoCatalogRestoreDeliveryForProfileV1<Profile extends PhotoCatalo
 }
 
 export function assertPhotoCatalogRestoreProfileV1(value: unknown): asserts value is PhotoCatalogRestoreProfileV1 {
-	if (value !== 'legacy2' && value !== 'current3') throw new RangeError('Unsupported fixed restore profile.');
+	if (value !== 'legacy2' && value !== 'current3' && value !== 'current4') throw new RangeError('Unsupported fixed restore profile.');
 }

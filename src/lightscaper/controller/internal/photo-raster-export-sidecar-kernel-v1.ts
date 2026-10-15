@@ -2,7 +2,7 @@
 
 import type { BrowserFileSaveRequest, BrowserSavedFile } from '../../../common/editor/browser-file-save-service.ts';
 import type { PhotoLibraryExportSidecarRequest, ReadPhotoExportSidecar } from '../../../common/editor/photo-library-session-port-v2.ts';
-import type { ImageDevelopStateCurrentV1 } from '../../../common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV4 } from '../../../common/editor/imaging/image-develop-state-v4.ts';
 import type { PhotoRasterExportProfileV1 } from '../photo-raster-export-contract-v1.ts';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../../common/editor/closed-domain-value.ts';
 import { parsePhotoExportSidecarV1, serializePhotoExportSidecarV1, PHOTO_EXPORT_SIDECAR_SUFFIX_V1, PHOTO_EXPORT_SIDECAR_MIME_TYPE_V1 } from '../../catalog/photo-export-sidecar-v1.ts';
@@ -34,7 +34,7 @@ export class PhotoRasterExportSidecarKernelV1 {
 		this.#read = Reflect.apply(Function.prototype.bind, read, [value]) as ReadPhotoExportSidecar;
 		this.#save = save;
 	}
-	async capture(binding: Readonly<PhotoLibraryExportSidecarRequest>, develop: Readonly<ImageDevelopStateCurrentV1>, signal: AbortSignal): Promise<void> {
+	async capture(binding: Readonly<PhotoLibraryExportSidecarRequest>, develop: Readonly<ImageDevelopStateThroughV4>, signal: AbortSignal): Promise<void> {
 		// The caller supplies the same detached, normalized recipe consumed by its renderer.
 		this.#binding = Object.freeze({ ...binding }); this.#developText = canonicalPhotoDocumentJsonV1(develop);
 		this.#text = await this.#readText(signal);

@@ -3,7 +3,10 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import { prepareFramescaperRawImageOriginalCurrentV1 } from '../../common/editor/timeline-image-raw-original-plan-current-v1.ts';
 import { prepareLinearDevelopMetadataCurrentV1 } from '../../common/editor/imaging/image-develop-linear-metadata-current-v1.ts';
 import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../common/editor/photo-library-develop-linear-port-v1.ts';
-import { normalizeImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4 } from '../../common/editor/imaging/image-develop-state-v4.ts';
+import { prepareImageDevelopAuthoringCurrentV1 } from '../../common/editor/imaging/image-develop-authoring-current-v1.ts';
+import { prepareFramescaperRawImageEncodedCurrentV1 } from '../../common/editor/timeline-image-raw-encoded-plan-current-v1.ts';
+import { framescaperImagePackSourceCurrentV1 } from '../../common/editor/timeline-image-pack-source-current-v1.ts';
 import { IMAGE_DEVELOP_REPAIR_LIMITS_V1 } from '../../common/editor/imaging/image-develop-repair-spots-v1.ts';
 
 export const FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 = 1024 * 1024 * 1024;
@@ -31,17 +34,23 @@ export function prepareFramescaperRawImageWorkingCurrentV1(value: unknown,
 	optionsValue: FramescaperRawImageWorkingOptionsCurrentV1 = {}) {
 	const raw = prepareFramescaperRawImageOriginalCurrentV1(value), options = record(optionsValue, 'Frame RAW working options',
 		['develop', 'maskOverlay', 'authoringBytes', 'temporaryBodyBytes'], []);
-	const develop = Object.hasOwn(options, 'develop') ? normalizeImageDevelopStateCurrentV1(field(options, 'develop', 'Frame RAW working options')) : raw.source.develop;
-	const source = raw.source, prepared = prepareLinearDevelopMetadataCurrentV1({ frame: { descriptor: source.raw.descriptor }, develop,
+	const develop = Object.hasOwn(options, 'develop') ? normalizeImageDevelopStateThroughV4(field(options, 'develop', 'Frame RAW working options')) : raw.source.develop;
+	const source = raw.source, derived = develop.processVersion === 4 && develop.rawDevelopment.mode !== 'canonical';
+	if (derived && (source.raw.descriptor.width < 16 || source.raw.descriptor.height < 16)) throw new RangeError('Frame RAW recovery requires at least sixteen pixels per side.');
+	const encoded = derived ? prepareFramescaperRawImageEncodedCurrentV1({ pack: framescaperImagePackSourceCurrentV1(source), raw: source.raw }) : undefined;
+	const inputDescriptor = derived ? { ...source.raw.descriptor, sampleFormat: 'float32' as const } : source.raw.descriptor;
+	// This is scalar planning only. Actual execution retains the complete saved
+	// recipe and independently requires its active native source authority.
+	const prepared = prepareLinearDevelopMetadataCurrentV1({ frame: { descriptor: inputDescriptor }, develop: prepareImageDevelopAuthoringCurrentV1(develop),
 		...(Object.hasOwn(options, 'maskOverlay') ? { maskOverlay: field(options, 'maskOverlay', 'Frame RAW working options') } : {}) },
 		PHOTO_DEVELOP_LINEAR_LIMITS_V1, { source: METADATA_ONLY, maskSource: METADATA_ONLY });
 	const authoringBytes = bounded(options, 'authoringBytes', FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1);
 	const temporaryBodyBytes = bounded(options, 'temporaryBodyBytes', 16 * 1024 * 1024);
 	const descriptor = prepared.finalDescriptor;
-	const packBytes = BigInt(source.assetByteLength), originalBytes = BigInt(raw.originalBytes), frameBytes = BigInt(raw.frameBytes);
+	const packBytes = BigInt(source.assetByteLength), originalBytes = BigInt(raw.originalBytes), frameBytes = BigInt(derived ? raw.frameBytes * 2 : raw.frameBytes);
 	const extras = BigInt(authoringBytes) + BigInt(temporaryBodyBytes) * 3n;
 	const finalFloat = BigInt(descriptor.width) * BigInt(descriptor.height) * 16n, displayBytes = finalFloat / 4n;
-	const decode = raw.decodeWorkingBytes + extras;
+	const decode = (encoded?.decodeWorkingBytes ?? raw.decodeWorkingBytes) + extras;
 	const render = originalBytes + BigInt(prepared.peakWorkingBytes) + extras + RESERVE;
 	const display = originalBytes + frameBytes + finalFloat + BigInt(prepared.masks.peakWorkingBytes) + displayBytes * 2n + extras + RESERVE;
 	// Repair Apply can borrow the same canonical Original with a later local

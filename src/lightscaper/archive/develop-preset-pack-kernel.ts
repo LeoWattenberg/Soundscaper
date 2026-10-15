@@ -6,7 +6,12 @@ import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository
 import { PHOTO_DEVELOP_PRESETS_LIMITS_V1, type PhotoDevelopPresetRowV1 } from '../storage/photo-develop-presets-v1.ts';
 import { normalizePhotoDevelopPresetRowV1OrV2, type PhotoDevelopPresetRowV2 } from '../storage/photo-develop-preset-row-v2.ts';
 import { normalizePhotoDevelopPresetRowCurrentV1, type PhotoDevelopPresetRowCurrentV1 } from '../storage/photo-develop-preset-row-current-v1.ts';
+import { normalizePhotoDevelopPresetRowCurrentForProfileV1 } from '../storage/internal/photo-develop-preset-row-kernel-v1.ts';
+import type { PhotoDevelopPresetRowThroughV3 } from '../storage/photo-develop-preset-row-current-v1.ts';
 import { createPhotoCatalogArchiveReachabilityCurrentV1 } from './catalog-archive-reachability-current-v1.ts';
+import { createImageDevelopResourceReachabilityCurrentV1 } from '../../common/editor/imaging/image-develop-resource-reachability-current-v1.ts';
+import { normalizeImageDevelopStateV3 } from '../../common/editor/imaging/image-develop-state-v3.ts';
+import { normalizeBrushMaskResourceReferenceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
 import { photoPackByteView } from './pack-byte-chunk.ts';
 
 export const PHOTO_DEVELOP_PRESET_PACK_LIMITS = Object.freeze({ maximumPackBytes: PHOTO_DEVELOP_PRESETS_LIMITS_V1.maximumRowBytes,
@@ -16,7 +21,10 @@ const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'ab
 const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 
 /** Eager closed admission detaches the row before the first borrowed asynchronous write. */
-export function encodePhotoDevelopPresetPackForProfile(profile: 'legacy2' | 'current3', value: unknown, catalogId: string,
+type Profile = 'legacy2' | 'current3' | 'current4';
+type RowFor<Mode extends Profile> = Mode extends 'legacy2' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2
+	: Mode extends 'current3' ? PhotoDevelopPresetRowThroughV3 : PhotoDevelopPresetRowCurrentV1;
+export function encodePhotoDevelopPresetPackForProfile(profile: Profile, value: unknown, catalogId: string,
 	options: Readonly<{ signal?: AbortSignal }> = {}): AsyncIterable<Uint8Array> {
 	assertProfile(profile); const { signal } = readPhotoStackSignalOptionsV1(options); check(signal);
 	const row = normalizeRow(profile, value, catalogId), bytes = new TextEncoder().encode(JSON.stringify(row));
@@ -30,8 +38,8 @@ export function encodePhotoDevelopPresetPackForProfile(profile: 'legacy2' | 'cur
 }
 
 /** One at-most10MiB row, strict streaming UTF8, intrinsic chunks and joined source retirement. */
-export async function readPhotoDevelopPresetPackForProfile<Profile extends 'legacy2' | 'current3'>(profile: Profile, source: AsyncIterable<Uint8Array>, catalogId: string,
-	options: Readonly<{ signal?: AbortSignal }> = {}): Promise<Profile extends 'current3' ? PhotoDevelopPresetRowCurrentV1 : PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2> {
+export async function readPhotoDevelopPresetPackForProfile<Mode extends Profile>(profile: Mode, source: AsyncIterable<Uint8Array>, catalogId: string,
+	options: Readonly<{ signal?: AbortSignal }> = {}): Promise<RowFor<Mode>> {
 	assertProfile(profile); const catalog = id(catalogId, 'preset pack catalog ID'), { signal } = readPhotoStackSignalOptionsV1(options); check(signal);
 	const iterate = source?.[Symbol.asyncIterator];
 	if (typeof iterate !== 'function') throw new TypeError('Develop preset pack requires an asynchronous byte source.');
@@ -58,16 +66,30 @@ export async function readPhotoDevelopPresetPackForProfile<Profile extends 'lega
 	const primaryIsAbort = signal !== undefined && Reflect.apply(nativeAborted, signal, []) === true && Object.is(failure, Reflect.apply(nativeReason, signal, []));
 	if (failed) throw aggregateScapeErrors(failure, cleanup, 'Develop preset pack decoding and source retirement failed.',
 		{ primaryIsAbort });
-	if (cleanup.length) throw cleanup[0]; return result! as Profile extends 'current3' ? PhotoDevelopPresetRowCurrentV1 : PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2;
+	if (cleanup.length) throw cleanup[0]; return result! as RowFor<Mode>;
 }
 function check(signal?: AbortSignal): void { if (signal) Reflect.apply(nativeAbort, signal, []); }
 
 function assertProfile(value: unknown): void {
-	if (value !== 'legacy2' && value !== 'current3') throw new RangeError('Unsupported fixed preset pack profile.');
+	if (value !== 'legacy2' && value !== 'current3' && value !== 'current4') throw new RangeError('Unsupported fixed preset pack profile.');
 }
-function normalizeRow(profile: 'legacy2' | 'current3', value: unknown, catalogId: string): PhotoDevelopPresetRowCurrentV1 {
+function normalizeRow(profile: Profile, value: unknown, catalogId: string): PhotoDevelopPresetRowCurrentV1 {
 	if (profile === 'legacy2') return normalizePhotoDevelopPresetRowV1OrV2(value, catalogId);
+	if (profile === 'current3') {
+		const row = normalizePhotoDevelopPresetRowCurrentForProfileV1('current3', value, catalogId);
+		const closure = createPhotoCatalogArchiveReachabilityCurrentV1(); closure.addPresetRow(row, catalogId); closure.finish(); return row;
+	}
 	const row = normalizePhotoDevelopPresetRowCurrentV1(value, catalogId);
-	const closure = createPhotoCatalogArchiveReachabilityCurrentV1(); closure.addPresetRow(row, catalogId); closure.finish();
+	const closure = createImageDevelopResourceReachabilityCurrentV1();
+	for (const preset of row.presets) {
+		const develop = preset.settings.develop;
+		for (const mask of develop.masks) for (const input of mask.inputs) normalizeBrushMaskResourceReferenceV1(input.sourceRef);
+		// Source processing has no resource declarations. This private scalar
+		// projection reuses the fixed ledger without rewriting stored recipes
+		// or extending central Current admission before its owners activate.
+		closure.addDevelop(develop.processVersion === 4 ? normalizeImageDevelopStateV3({ processVersion: 3, effects: develop.effects,
+			geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings, repairs: develop.repairs }) : develop);
+	}
+	closure.finish();
 	return row;
 }

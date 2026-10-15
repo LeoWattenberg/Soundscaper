@@ -6,8 +6,8 @@ import fc from 'fast-check';
 import { developPropertiesFixtureCurrentV1, generatedDevelopSpecCurrentV1, generatedDevelopCurrentV1,
 	GENERATED_CURRENT_TIME } from './helpers/lightscaper-develop-properties-current-fixture.ts';
 import { defaultImageDevelopStateV2 } from '../src/common/editor/imaging/image-develop-state-v2.ts';
-import type { ImageDevelopSelectionV3 } from '../src/common/editor/imaging/image-develop-settings-contract-v3.ts';
-import type { ImageDevelopStateCurrentV1 } from '../src/common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopSelectionV4 } from '../src/common/editor/imaging/image-develop-settings-contract-v4.ts';
+import type { ImageDevelopStateThroughV4 } from '../src/common/editor/imaging/image-develop-state-v4.ts';
 import type { PhotoDocumentCurrentV1 } from '../src/lightscaper/catalog/photo-document-current-v1.ts';
 import { parsePhotoDevelopWorkspaceCurrentV1, serializePhotoDevelopWorkspaceCurrentV1 } from '../src/lightscaper/catalog/photo-develop-workspace-current-v1.ts';
 
@@ -15,7 +15,7 @@ const runs = { endOnFailure: true, numRuns: 10 };
 type Fixture = Awaited<ReturnType<typeof developPropertiesFixtureCurrentV1>>;
 function active(photo: PhotoDocumentCurrentV1) { const version = photo.versions.find(value => value.id === photo.activeVersionId); assert.ok(version); return version; }
 async function photo(f: Fixture, index = 0) { return (await f.inspect())[index]!.photo; }
-function repairs(value: Readonly<ImageDevelopStateCurrentV1>) { return value.processVersion === 3 ? value.repairs : { schemaVersion: 1, spots: [] }; }
+function repairs(value: Readonly<ImageDevelopStateThroughV4>) { return value.processVersion === 3 || value.processVersion === 4 ? value.repairs : { schemaVersion: 1, spots: [] }; }
 
 test('seeded Current3 native history branches, named snapshots and reopening preserve immutable recipe records and complete resources', async () => {
 	await fc.assert(fc.asyncProperty(fc.array(generatedDevelopSpecCurrentV1, { minLength: 2, maxLength: 4 }), generatedDevelopSpecCurrentV1, fc.nat(),
@@ -86,8 +86,8 @@ test('seeded Current3 partial native sync isolates repair, geometry, local and g
 			await f.record(donor); await f.record(target, 1); await f.record(target, 2);
 			const custody = await f.inspectCustody(), before = await f.inspect(), source = await f.read(), targets = [await f.read(1), await f.read(2)], child = f.session.develop.settingsCurrent!;
 			const local = spec.kind === 'local' || spec.kind === 'full', global = spec.kind === 'global' || spec.kind === 'full', selectedRepairs = spec.kind === 'repairs' || spec.kind === 'full';
-			const selection: ImageDevelopSelectionV3 = { effectTypes: spec.kind === 'full' ? 'all' : global ? ['white-balance-v1', 'tone-ladder-v1'] : [],
-				geometry: spec.geometry, localAdjustments: local, repairs: selectedRepairs };
+			const selection: ImageDevelopSelectionV4 = { effectTypes: spec.kind === 'full' ? 'all' : global ? ['white-balance-v1', 'tone-ladder-v1'] : [],
+				geometry: spec.geometry, localAdjustments: local, repairs: selectedRepairs, rawDevelopment: false };
 			let analysisWrites = 0; f.native.observeTransactions((_transaction, stores, mode) => { if (mode === 'readwrite' && [...(typeof stores === 'string' ? [stores] : stores)].includes('analysis')) analysisWrites++; });
 			const packet = await child.copySelected({ ...f.source(0, donor), selection }); assert.equal(packet.develop.processVersion, 3); assert.deepEqual(repairs(packet.develop), selectedRepairs ? donor.repairs : { schemaVersion: 1, spots: [] });
 			const request = { schemaVersion: 3 as const, catalogId: source.catalogId, targets: targets.map(row => ({ photoId: row.photoId, versionId: row.versionId, expectedRevision: row.revision })),

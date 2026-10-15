@@ -6,13 +6,19 @@ import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-pre
 import { array, field, id, integer, name, oneOf, record, utcTimestamp } from '../../catalog/value-validation.ts';
 import type { PhotoCommandOwnerCurrentV1 } from '../photo-command-owner-current-v1.ts';
 import type { PhotoLibraryDevelopSettingsPortV3, PhotoLibraryDevelopBatchRequestV3, PhotoLibraryDevelopBatchReceiptV3 } from '../../../common/editor/photo-library-develop-settings-port-v3.ts';
+import type { PhotoLibraryDevelopSettingsPortCurrentV1, PhotoLibraryDevelopBatchRequestCurrentV1 } from '../../../common/editor/photo-library-develop-settings-port-current-v1.ts';
 import { copyImageDevelopSettingsV3, adjustImageDevelopSettingsV3 } from '../../../common/editor/imaging/image-develop-settings-v3.ts';
+import { copyImageDevelopSettingsV4, adjustImageDevelopSettingsV4 } from '../../../common/editor/imaging/image-develop-settings-v4.ts';
 import { mergeImageDevelopSelectedSettingsV3 } from '../../../common/editor/imaging/image-develop-settings-selected-v3.ts';
+import { mergeImageDevelopSelectedSettingsV4 } from '../../../common/editor/imaging/image-develop-settings-selected-v4.ts';
 import { preparePhotoDevelopPresetBatchCurrentV1 } from '../../storage/photo-develop-presets-current-v1.ts';
+import { preparePhotoDevelopPresetBatchForProfileV1 } from '../../storage/internal/photo-develop-presets-kernel-v1.ts';
 import { borrowPhotoDevelopPresetSettingsV2 } from '../../storage/photo-develop-preset-read-v2.ts';
 import type { PhotoLibraryDevelopPresetStorageCurrentV1 } from '../photo-library-develop-presets-session-current-v1.ts';
-import { createPhotoDevelopSelectedSettingsCurrentV1, type PhotoDevelopSelectedSettingsHostCurrentV1 } from '../photo-library-develop-settings-selected-current-v1.ts';
+import { createPhotoDevelopSelectedSettingsForProfileV1, type PhotoDevelopSelectedSettingsHostCurrentV1 } from '../photo-library-develop-settings-selected-current-v1.ts';
 import type { PhotoCommandOwnerV2 } from '../photo-command-owner-v2.ts';
+import { normalizePhotoDocumentV3 } from '../../catalog/photo-document-v3.ts';
+import { normalizePhotoDocumentV1OrV2 } from '../../catalog/photo-document-v2.ts';
 import { adjustImageDevelopSettingsV2, copyImageDevelopSettingsV2, mergeImageDevelopSettingsV2, normalizeImageDevelopSettingsPacketV1OrV2 } from '../../../common/editor/imaging/image-develop-settings-v2.ts';
 import { normalizeImageDevelopRelativeActionV1, checkImageDevelopSettingsBytesV1 } from '../../../common/editor/imaging/image-develop-settings-v1.ts';
 
@@ -27,11 +33,11 @@ export interface PhotoLibraryDevelopSettingsSessionHostCurrentV1 extends PhotoDe
 	readonly withPhoto: <Result>(catalogId: string, photoId: string, signal: AbortSignal,
 		run: (owner: PhotoCommandOwnerCurrentV1, signal: AbortSignal) => Promise<Result>) => Promise<Result>;
 }
-type Profile = 'legacy2' | 'current3';
+type Profile = 'legacy2' | 'current3' | 'current4';
 type Host = PhotoLibraryDevelopSettingsSessionHostV2 | PhotoLibraryDevelopSettingsSessionHostCurrentV1;
-type Request = PhotoLibraryDevelopBatchRequestV2 | PhotoLibraryDevelopBatchRequestV3;
+type Request = PhotoLibraryDevelopBatchRequestV2 | PhotoLibraryDevelopBatchRequestV3 | PhotoLibraryDevelopBatchRequestCurrentV1;
 type Receipt = PhotoLibraryDevelopBatchReceiptV2 | PhotoLibraryDevelopBatchReceiptV3;
-type Selected = ReturnType<typeof createPhotoDevelopSelectedSettingsCurrentV1>;
+type Selected = Pick<ReturnType<typeof createPhotoDevelopSelectedSettingsForProfileV1>, 'admit' | 'merge'>;
 type Owner = PhotoCommandOwnerV2 | PhotoCommandOwnerCurrentV1;
 const nativeAbort = AbortSignal.prototype.throwIfAborted;
 const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
@@ -39,34 +45,37 @@ const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'rea
 
 export function createPhotoLibraryDevelopSettingsSessionForProfileV1(profile: 'legacy2', host: PhotoLibraryDevelopSettingsSessionHostV2): Readonly<PhotoLibraryDevelopSettingsPortV2>;
 export function createPhotoLibraryDevelopSettingsSessionForProfileV1(profile: 'current3', host: PhotoLibraryDevelopSettingsSessionHostCurrentV1): Readonly<PhotoLibraryDevelopSettingsPortV3>;
+export function createPhotoLibraryDevelopSettingsSessionForProfileV1(profile: 'current4', host: PhotoLibraryDevelopSettingsSessionHostCurrentV1): Readonly<PhotoLibraryDevelopSettingsPortCurrentV1>;
 /** One fixed-profile writer/batch loop. Current copy admits resources only
  * through its same-child selected source adapter; legacy behavior stays strict. */
-export function createPhotoLibraryDevelopSettingsSessionForProfileV1(profile: Profile, host: Host): Readonly<PhotoLibraryDevelopSettingsPortV2 | PhotoLibraryDevelopSettingsPortV3> {
+export function createPhotoLibraryDevelopSettingsSessionForProfileV1(profile: Profile, host: Host): Readonly<PhotoLibraryDevelopSettingsPortV2 | PhotoLibraryDevelopSettingsPortV3 | PhotoLibraryDevelopSettingsPortCurrentV1> {
 	assertProfile(profile); const mutate = host.mutate, withPhoto = host.withPhoto;
 	if (typeof mutate !== 'function' || typeof withPhoto !== 'function') throw new TypeError('Develop batches require the Session writer and photo owner.');
-	const presetStorage = profile === 'current3' ? (host as PhotoLibraryDevelopSettingsSessionHostCurrentV1).presetStorage : undefined;
+	const presetStorage = profile !== 'legacy2' ? (host as PhotoLibraryDevelopSettingsSessionHostCurrentV1).presetStorage : undefined;
 	const pinned = { ...(presetStorage ? { presetStorage: pinPresetStorage(presetStorage) } : {}), mutate: (run: Parameters<typeof mutate>[0], signal?: AbortSignal) => Reflect.apply(mutate, host, [run, signal]) as Promise<unknown>,
 		withPhoto: (catalogId: string, photoId: string, signal: AbortSignal, run: (owner: Owner, signal: AbortSignal) => Promise<void>) => Reflect.apply(withPhoto, host, [catalogId, photoId, signal, run]) as Promise<void> };
-	const selected = profile === 'current3' ? createPhotoDevelopSelectedSettingsCurrentV1(host as PhotoLibraryDevelopSettingsSessionHostCurrentV1) : undefined;
-	return Object.freeze({ copy: profile === 'legacy2' ? copyImageDevelopSettingsV2 : copyImageDevelopSettingsV3,
-		merge: selected ? selected.merge : mergeImageDevelopSettingsV2, adjust: profile === 'legacy2' ? adjustImageDevelopSettingsV2 : adjustImageDevelopSettingsV3,
+	const selected = profile === 'legacy2' ? undefined : profile === 'current3'
+		? createPhotoDevelopSelectedSettingsForProfileV1('current3', host as PhotoLibraryDevelopSettingsSessionHostCurrentV1)
+		: createPhotoDevelopSelectedSettingsForProfileV1('current4', host as PhotoLibraryDevelopSettingsSessionHostCurrentV1);
+	return Object.freeze({ copy: profile === 'legacy2' ? copyImageDevelopSettingsV2 : profile === 'current3' ? copyImageDevelopSettingsV3 : copyCurrent,
+		merge: selected ? selected.merge : mergeImageDevelopSettingsV2, adjust: profile === 'legacy2' ? adjustImageDevelopSettingsV2 : profile === 'current3' ? adjustImageDevelopSettingsV3 : adjustCurrent,
 		...(selected ? { copySelected: selected.copySelected } : {}),
 		async applyBatch(value: unknown, options: Readonly<{ signal?: AbortSignal }> = {}) {
-			if (profile === 'current3') {
+			if (profile !== 'legacy2') {
 				const native = Object.getOwnPropertyDescriptor(options, 'signal');
 				if (native && Object.hasOwn(native, 'value')) check(native.value as AbortSignal | undefined);
 			}
 			const { signal } = readPhotoDevelopSignalOptionsV2(options);
-			if (profile === 'current3') check(signal);
+			if (profile !== 'legacy2') check(signal);
 			let request: Request;
-			try { request = normalizePhotoLibraryDevelopBatchForProfileV1(profile, value, selected); } catch (error) { if (profile === 'current3') check(signal); throw error; }
+			try { request = normalizePhotoLibraryDevelopBatchForProfileV1(profile, value, selected); } catch (error) { if (profile !== 'legacy2') check(signal); throw error; }
 			check(signal); return applyBatch(profile, pinned, request, selected, signal);
-		} }) as Readonly<PhotoLibraryDevelopSettingsPortV2 | PhotoLibraryDevelopSettingsPortV3>;
+		} }) as Readonly<PhotoLibraryDevelopSettingsPortV2 | PhotoLibraryDevelopSettingsPortV3 | PhotoLibraryDevelopSettingsPortCurrentV1>;
 }
 
 /** Snap every target and the single shared action before any initialization, lease or await. */
 export function normalizePhotoLibraryDevelopBatchForProfileV1(profile: Profile, value: unknown, selected?: Selected): Request {
-	assertProfile(profile); const schemaVersion = profile === 'current3' ? 3 : 2;
+	assertProfile(profile); const schemaVersion = profile === 'legacy2' ? 2 : 3;
 	const input = record(value, 'Develop batch', ['schemaVersion', 'catalogId', 'targets', 'action', 'label', 'createdAt']);
 	if (field(input, 'schemaVersion') !== schemaVersion) throw new RangeError('Unsupported Develop batch version.');
 	const seen = new Set<string>();
@@ -78,8 +87,8 @@ export function normalizePhotoLibraryDevelopBatchForProfileV1(profile: Profile, 
 		return Object.freeze({ photoId, versionId: id(field(target, 'versionId'), 'Develop target version ID'),
 			expectedRevision: integer(field(target, 'expectedRevision'), 0, Number.MAX_SAFE_INTEGER, 'Develop target revision') });
 	});
-	const actionInput = record(field(input, 'action'), 'Develop batch action', profile === 'current3' ? ['kind', 'settings', 'effectType', 'changes', 'presetId', 'expectedPresetRevision'] : ['kind', 'settings', 'effectType', 'changes'], ['kind']);
-	const kind = oneOf(field(actionInput, 'kind'), profile === 'current3' ? ['paste', 'relative', 'preset'] as const : ['paste', 'relative'] as const, 'Develop batch action kind');
+	const actionInput = record(field(input, 'action'), 'Develop batch action', profile !== 'legacy2' ? ['kind', 'settings', 'effectType', 'changes', 'presetId', 'expectedPresetRevision'] : ['kind', 'settings', 'effectType', 'changes'], ['kind']);
+	const kind = oneOf(field(actionInput, 'kind'), profile !== 'legacy2' ? ['paste', 'relative', 'preset'] as const : ['paste', 'relative'] as const, 'Develop batch action kind');
 	let action: Request['action'];
 	if (kind === 'paste') {
 		record(actionInput, 'Develop batch paste', ['kind', 'settings']);
@@ -111,9 +120,11 @@ async function applyBatch(profile: Profile, host: { readonly presetStorage?: Rea
 			if (catalogId !== request.catalogId) throw new RangeError('Develop batch belongs to another catalog.');
 			let preset: Awaited<ReturnType<typeof preparePhotoDevelopPresetBatchCurrentV1>> | undefined;
 			if (request.action.kind === 'preset') {
-				if (profile !== 'current3' || !host.presetStorage) throw new ReferenceError('Current native preset storage is unavailable.');
-				preset = await preparePhotoDevelopPresetBatchCurrentV1(host.presetStorage.settings, catalogId, request.action.presetId,
-					request.action.expectedPresetRevision, { signal, resources: host.presetStorage.resources });
+				if (profile === 'legacy2' || !host.presetStorage) throw new ReferenceError('Current native preset storage is unavailable.');
+				const options = { signal, resources: host.presetStorage.resources };
+				preset = profile === 'current3' ? await preparePhotoDevelopPresetBatchForProfileV1('current3', host.presetStorage.settings, catalogId,
+					request.action.presetId, request.action.expectedPresetRevision, options)
+					: await preparePhotoDevelopPresetBatchCurrentV1(host.presetStorage.settings, catalogId, request.action.presetId, request.action.expectedPresetRevision, options);
 			}
 			started = true; activeSignal = signal;
 			for (let index = 0; index < request.targets.length; index++) {
@@ -123,18 +134,23 @@ async function applyBatch(profile: Profile, host: { readonly presetStorage?: Rea
 					if (preset) await preset.recheck();
 					await host.withPhoto(catalogId, target.photoId, signal, async (owner, admitted) => {
 						const before = owner.history.present;
+						if (profile === 'current3') {
+							if (before.schemaVersion === 3) normalizePhotoDocumentV3(before); else normalizePhotoDocumentV1OrV2(before);
+						}
 						if (before.revision !== target.expectedRevision) {
 							outcomes[index] = { ...slot, status: 'conflict', code: 'revision-conflict' }; return;
 						}
 						const version = before.versions.find(version => version.id === target.versionId);
 						if (!version) { outcomes[index] = { ...slot, status: 'failed', code: 'version-missing' }; return; }
-						const schemaVersion = profile === 'current3' ? 3 : 2;
+						const schemaVersion = profile === 'legacy2' ? 2 : 3;
 						const develop = request.action.kind === 'preset'
-							? mergeImageDevelopSelectedSettingsV3({ schemaVersion: 3, target: version.develop, settings: preset!.preset.settings })
+							? profile === 'current4' ? mergeImageDevelopSelectedSettingsV4({ schemaVersion: 4, target: version.develop, settings: preset!.preset.settings })
+								: mergeImageDevelopSelectedSettingsV3({ schemaVersion: 3, target: version.develop, settings: preset!.preset.settings })
 							: request.action.kind === 'paste'
 							? selected ? selected.merge({ schemaVersion, target: version.develop, settings: request.action.settings })
 								: mergeImageDevelopSettingsV2({ schemaVersion, target: version.develop, settings: request.action.settings })
-							: (profile === 'current3' ? adjustImageDevelopSettingsV3 : adjustImageDevelopSettingsV2)({ schemaVersion, target: version.develop, effectType: request.action.effectType, changes: request.action.changes });
+							: profile === 'current4' ? adjustImageDevelopSettingsV4({ schemaVersion: 4, target: version.develop, effectType: request.action.effectType, changes: request.action.changes })
+								: (profile === 'current3' ? adjustImageDevelopSettingsV3 : adjustImageDevelopSettingsV2)({ schemaVersion, target: version.develop, effectType: request.action.effectType, changes: request.action.changes });
 						if (JSON.stringify(develop) === JSON.stringify(version.develop)) {
 							outcomes[index] = { ...slot, status: 'unchanged', revision: before.revision, historyCursor: version.workspace?.cursor ?? 0 }; return;
 						}
@@ -160,7 +176,7 @@ async function applyBatch(profile: Profile, host: { readonly presetStorage?: Rea
 		completion = cancelled ? 'cancelled' : 'interrupted';
 		if (completion === 'interrupted') notices.push('cleanup-failed');
 	}
-	const receipt = Object.freeze({ schemaVersion: profile === 'current3' ? 3 as const : 2 as const, catalogId: request.catalogId, completion,
+	const receipt = Object.freeze({ schemaVersion: profile === 'legacy2' ? 2 as const : 3 as const, catalogId: request.catalogId, completion,
 		outcomes: Object.freeze(outcomes.map(outcome => Object.freeze(outcome))), notices: Object.freeze(notices) });
 	// 64 scalar outcomes fit comfortably; no settings/document/media inventory is returned.
 	if (new TextEncoder().encode(JSON.stringify(receipt)).byteLength > 65_536) throw new RangeError('Develop batch receipt exceeded its scalar bound.');
@@ -172,13 +188,24 @@ function revisionConflict(error: unknown, profile: Profile): boolean {
 	try {
 		if (!error || typeof error !== 'object') return false;
 		const descriptor = Object.getOwnPropertyDescriptor(error, 'code');
-		return descriptor !== undefined && Object.hasOwn(descriptor, 'value') && (descriptor.value === 'PHOTO_REVISION_CONFLICT' || (profile === 'current3' && descriptor.value === 'DEVELOP_PRESET_REVISION_CONFLICT'));
+		return descriptor !== undefined && Object.hasOwn(descriptor, 'value') && (descriptor.value === 'PHOTO_REVISION_CONFLICT' || (profile !== 'legacy2' && descriptor.value === 'DEVELOP_PRESET_REVISION_CONFLICT'));
 	} catch { return false; }
 }
 
 function check(signal?: AbortSignal): void { if (signal !== undefined) Reflect.apply(nativeAbort, signal, []); }
 function assertProfile(profile: unknown): asserts profile is Profile {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported fixed settings Session profile.');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new TypeError('Unsupported fixed settings Session profile.');
+}
+
+function copyCurrent(value: unknown) {
+	const input = record(value, 'Current settings copy', ['schemaVersion', 'develop', 'selection']);
+	if (field(input, 'schemaVersion') !== 3) throw new RangeError('Unsupported Current settings copy wire version.');
+	return copyImageDevelopSettingsV4({ schemaVersion: 4, develop: field(input, 'develop'), selection: field(input, 'selection') });
+}
+function adjustCurrent(value: unknown) {
+	const input = record(value, 'Current relative settings', ['schemaVersion', 'target', 'effectType', 'changes']);
+	if (field(input, 'schemaVersion') !== 3) throw new RangeError('Unsupported Current relative settings wire version.');
+	return adjustImageDevelopSettingsV4({ schemaVersion: 4, target: field(input, 'target'), effectType: field(input, 'effectType'), changes: field(input, 'changes') });
 }
 
 function pinPresetStorage(storage: PhotoLibraryDevelopPresetStorageCurrentV1): Readonly<PhotoLibraryDevelopPresetStorageCurrentV1> {

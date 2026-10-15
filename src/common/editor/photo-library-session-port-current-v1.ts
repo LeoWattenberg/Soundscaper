@@ -2,7 +2,7 @@
 
 import type { PhotoLibrarySessionPortV2, ReadPhotoExportSidecar, PhotoLibraryExportJournalPort } from './photo-library-session-port-v2.ts';
 import type { PhotoLibraryBatchRenamePortV1 } from './photo-library-batch-rename-port-v1.ts';
-import type { PhotoLibraryDevelopPortV3 } from './photo-library-develop-port-v3.ts';
+import type { PhotoLibraryDevelopPortCurrentV1 } from './photo-library-develop-port-current-v1.ts';
 import type { PhotoLibraryDevelopPortV2 } from './photo-library-develop-port-v2.ts';
 import type { PhotoLibraryImageHandoffPortV2 } from './photo-library-image-handoff-port-v2.ts';
 import type { PhotoLibraryImageReceivePortV2 } from './photo-library-image-receive-port-v2.ts';
@@ -20,7 +20,7 @@ export interface PhotoLibraryPreviewReadOptionsCurrentV1 {
 /** Current Develop settings with unchanged scalar library and organization capabilities. */
 export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessionPortV2, 'develop' | 'readPreview'> {
 	readPreview(photoId: string, tier: PhotoLibraryPreviewTierV1, options?: Readonly<PhotoLibraryPreviewReadOptionsCurrentV1>): Promise<PhotoLibraryPreviewOutcomeV1>;
-	readonly develop: Readonly<PhotoLibraryDevelopPortV3>;
+	readonly develop: Readonly<PhotoLibraryDevelopPortCurrentV1>;
 	/** Whole Current Photo admission; inherited batch rename methods remain strict Photo1/2. */
 	readonly batchRenameCurrent?: Readonly<PhotoLibraryBatchRenamePortV1>;
 	/** A genuine legacy capability, admitted against the complete retained Photo1/2 document. */

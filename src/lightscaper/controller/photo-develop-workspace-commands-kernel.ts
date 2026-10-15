@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeImageDevelopStateV1OrV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV3, type ImageDevelopStateThroughV3 } from '../../common/editor/imaging/image-develop-state-through-v3.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../common/editor/imaging/image-develop-state-v4.ts';
 import { normalizePhotoDocumentV1OrV2, upgradePhotoDocumentV2, type PhotoVersionV2 } from '../catalog/photo-document-v2.ts';
-import { normalizePhotoDocumentCurrentV1, upgradePhotoDocumentV3, type PhotoDocumentCurrentV1, type PhotoVersionCurrentV1 } from '../catalog/photo-document-current-v1.ts';
+import { normalizePhotoDocumentCurrentV1, upgradePhotoDocumentV3, upgradePhotoDocumentCurrentV1, type PhotoDocumentCurrentV1, type PhotoVersionCurrentV1 } from '../catalog/photo-document-current-v1.ts';
+import { normalizePhotoDocumentV3, type PhotoDocumentV3, type PhotoVersionV3 } from '../catalog/photo-document-v3.ts';
 import { createPhotoDevelopWorkspaceV1, commitPhotoDevelopWorkspaceV1, selectPhotoDevelopHistoryV1,
 	savePhotoDevelopSnapshotV1, deletePhotoDevelopSnapshotV1, restorePhotoDevelopSnapshotV1 } from '../catalog/photo-develop-workspace-v1.ts';
 import { createPhotoDevelopWorkspaceV2, commitPhotoDevelopWorkspaceV2, selectPhotoDevelopHistoryV2,
@@ -16,11 +18,15 @@ import { field, id, integer, name, oneOf, record, utcTimestamp } from '../catalo
 import type { PhotoDevelopWorkspaceCommandV2 } from './photo-develop-workspace-commands-v2.ts';
 import type { PhotoDevelopWorkspaceCommandCurrentV1 } from './photo-develop-workspace-commands-current-v1.ts';
 
-export type PhotoCommandProfileV1 = 'legacy2' | 'current3';
+export type PhotoCommandProfileV1 = 'legacy2' | 'current3' | 'current4';
 export type PhotoForCommandProfileV1<Profile extends PhotoCommandProfileV1> = Profile extends 'legacy2'
-	? ReturnType<typeof normalizePhotoDocumentV1OrV2> : PhotoDocumentCurrentV1;
-type Version<Profile extends PhotoCommandProfileV1> = Profile extends 'legacy2' ? PhotoVersionV2 : PhotoVersionCurrentV1;
-type Command<Profile extends PhotoCommandProfileV1> = Profile extends 'legacy2' ? PhotoDevelopWorkspaceCommandV2 : PhotoDevelopWorkspaceCommandCurrentV1;
+	? ReturnType<typeof normalizePhotoDocumentV1OrV2> : Profile extends 'current3' ? ReturnType<typeof normalizePhotoDocumentV1OrV2> | PhotoDocumentV3 : PhotoDocumentCurrentV1;
+type Version<Profile extends PhotoCommandProfileV1> = Profile extends 'legacy2' ? PhotoVersionV2 : Profile extends 'current3' ? PhotoVersionV2 | PhotoVersionV3 : PhotoVersionCurrentV1;
+type Develop<Profile extends PhotoCommandProfileV1> = Profile extends 'current4' ? ImageDevelopStateThroughV4 : ImageDevelopStateThroughV3;
+type CommandThroughV3 = Exclude<PhotoDevelopWorkspaceCommandV2, { type: 'record-develop' }>
+	| Readonly<{ type: 'record-develop'; versionId?: string; develop: ImageDevelopStateThroughV3; label: string; createdAt: string }>;
+type Command<Profile extends PhotoCommandProfileV1> = Profile extends 'legacy2' ? PhotoDevelopWorkspaceCommandV2
+	: Profile extends 'current3' ? CommandThroughV3 : PhotoDevelopWorkspaceCommandCurrentV1;
 export const PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_KERNEL = Object.freeze(['record-develop', 'select-develop-history',
 	'save-develop-snapshot', 'delete-develop-snapshot', 'restore-develop-snapshot'] as const);
 
@@ -32,17 +38,21 @@ const CURRENT = { create: createPhotoDevelopWorkspaceCurrentV1, commit: commitPh
 	save: savePhotoDevelopSnapshotCurrentV1, remove: deletePhotoDevelopSnapshotCurrentV1, restore: restorePhotoDevelopSnapshotCurrentV1 };
 
 function assertProfile(profile: PhotoCommandProfileV1): void {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported fixed photo command profile.');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new TypeError('Unsupported fixed photo command profile.');
 }
 
 /** Profiles are selected by the two fixed facades; commands never carry policy. */
 export function readPhotoForCommandProfileV1<Profile extends PhotoCommandProfileV1>(profile: Profile, value: unknown): PhotoForCommandProfileV1<Profile> {
 	assertProfile(profile);
-	return (profile === 'legacy2' ? normalizePhotoDocumentV1OrV2(value) : normalizePhotoDocumentCurrentV1(value)) as PhotoForCommandProfileV1<Profile>;
+	if (profile === 'legacy2') return normalizePhotoDocumentV1OrV2(value) as PhotoForCommandProfileV1<Profile>;
+	if (profile === 'current4') return normalizePhotoDocumentCurrentV1(value) as PhotoForCommandProfileV1<Profile>;
+	const photo = normalizePhotoDocumentCurrentV1(value);
+	return (photo.schemaVersion === 3 ? normalizePhotoDocumentV3(photo) : photo) as PhotoForCommandProfileV1<Profile>;
 }
-export function readDevelopForCommandProfileV1(profile: PhotoCommandProfileV1, value: unknown): ImageDevelopStateCurrentV1 {
+export function readDevelopForCommandProfileV1<Profile extends PhotoCommandProfileV1>(profile: Profile, value: unknown): Develop<Profile> {
 	assertProfile(profile);
-	return profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2(value) : normalizeImageDevelopStateCurrentV1(value);
+	return (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2(value)
+		: profile === 'current3' ? normalizeImageDevelopStateThroughV3(value) : normalizeImageDevelopStateThroughV4(value)) as Develop<Profile>;
 }
 
 /** Detach the complete command before storage, initialization or a write lease. */
@@ -84,12 +94,12 @@ export function applyPhotoDevelopWorkspaceCommandForProfileV1<Profile extends Ph
 	const photo = readPhotoForCommandProfileV1(profile, value), command = normalizePhotoDevelopWorkspaceCommandForProfileV1(profile, commandValue);
 	const versionId = command.versionId ?? photo.activeVersionId, version = photo.versions.find(candidate => candidate.id === versionId);
 	if (!version) throw new ReferenceError('The requested photo version is missing.');
-	const initialOps = profile === 'current3' ? CURRENT : version.develop.processVersion === 2 ? LEGACY2 : LEGACY1;
+	const initialOps = profile !== 'legacy2' ? CURRENT : version.develop.processVersion === 2 ? LEGACY2 : LEGACY1;
 	let initial = version.workspace ?? initialOps.create(version.develop, { label: 'Initial settings', createdAt: version.createdAt });
 	if (profile === 'legacy2' && command.type === 'record-develop' && command.develop.processVersion === 2 && initial.schemaVersion === 1) {
 		initial = upgradePhotoDevelopWorkspaceV2(initial);
 	}
-	const ops = profile === 'current3' ? CURRENT : initial.schemaVersion === 2 ? LEGACY2 : LEGACY1;
+	const ops = profile !== 'legacy2' ? CURRENT : initial.schemaVersion === 2 ? LEGACY2 : LEGACY1;
 	let workspace: PhotoDevelopWorkspaceCurrentV1;
 	if (command.type === 'record-develop') workspace = ops.commit(initial, command.develop, { label: command.label, createdAt: command.createdAt });
 	else if (command.type === 'select-develop-history') workspace = ops.select(initial, command.cursor);
@@ -97,7 +107,7 @@ export function applyPhotoDevelopWorkspaceCommandForProfileV1<Profile extends Ph
 	else if (command.type === 'delete-develop-snapshot') workspace = ops.remove(initial, command.snapshotId);
 	else workspace = ops.restore(initial, { snapshotId: command.snapshotId, label: command.label, createdAt: command.createdAt });
 	const develop = workspace.entries[workspace.cursor]!.develop;
-	const aggregate = workspace.schemaVersion === 3 ? upgradePhotoDocumentV3(photo)
+	const aggregate = workspace.schemaVersion >= 3 ? profile === 'current4' ? upgradePhotoDocumentCurrentV1(photo) : upgradePhotoDocumentV3(photo)
 		: workspace.schemaVersion === 2 && photo.schemaVersion !== 3 ? upgradePhotoDocumentV2(photo) : photo;
 	return readPhotoForCommandProfileV1(profile, { ...aggregate,
 		versions: photo.versions.map(candidate => candidate.id === versionId ? { ...candidate, develop, workspace } : candidate) });
@@ -107,7 +117,7 @@ export function applyPhotoDevelopWorkspaceCommandForProfileV1<Profile extends Ph
 export function applyLegacyPhotoDevelopToVersionForProfileV1<Profile extends PhotoCommandProfileV1>(profile: Profile, version: PhotoVersionCurrentV1, developValue: unknown): Version<Profile> {
 	const develop = readDevelopForCommandProfileV1(profile, developValue);
 	if (!version.workspace) return Object.freeze({ ...version, develop }) as Version<Profile>;
-	const workspace = profile === 'current3'
+	const workspace = profile !== 'legacy2'
 		? CURRENT.commit(version.workspace, develop, { label: 'Develop settings', createdAt: null })
 		: develop.processVersion === 2 || version.workspace.schemaVersion === 2
 			? LEGACY2.commit(upgradePhotoDevelopWorkspaceV2(version.workspace), develop, { label: 'Develop settings', createdAt: null })

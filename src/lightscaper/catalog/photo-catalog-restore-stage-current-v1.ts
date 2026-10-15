@@ -4,5 +4,5 @@ import { createPhotoCatalogRestoreStageForProfileV1, type PhotoCatalogRestoreSta
 export type PhotoCatalogRestoreStageOptionsCurrentV1 = PhotoCatalogRestoreStageOptionsV2;
 export type PhotoCatalogRestoreStageCurrentV1 = PhotoCatalogRestoreStageV2;
 export function createPhotoCatalogRestoreStageCurrentV1(options: PhotoCatalogRestoreStageOptionsCurrentV1): Promise<PhotoCatalogRestoreStageCurrentV1> {
-	return createPhotoCatalogRestoreStageForProfileV1('current3', options);
+	return createPhotoCatalogRestoreStageForProfileV1('current4', options);
 }

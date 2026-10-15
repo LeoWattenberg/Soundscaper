@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ImageDevelopPresetV3 } from './imaging/image-develop-preset-v3.ts';
-import type { ImageDevelopPresetCurrentV1 } from './imaging/image-develop-preset-current-v1.ts';
+import type { ImageDevelopPresetThroughV3 } from './imaging/image-develop-preset-current-v1.ts';
 import type { ImageDevelopSettingsPacketV3 } from './imaging/image-develop-settings-contract-v3.ts';
 import type { PhotoLibraryDevelopPresetInfoV2 } from './photo-library-develop-presets-port-v2.ts';
 
-export type PhotoLibraryDevelopPresetV3 = ImageDevelopPresetCurrentV1;
+export type PhotoLibraryDevelopPresetV3 = ImageDevelopPresetThroughV3;
 export type PhotoLibraryDevelopPresetInfoV3 = PhotoLibraryDevelopPresetInfoV2;
 export interface PhotoLibraryDevelopPresetSnapshotV3 {
 	readonly schemaVersion: 3;

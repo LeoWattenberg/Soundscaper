@@ -14,7 +14,7 @@ import { createPhotoLibraryBatchRenameSessionCurrentV1 } from './photo-library-b
 import { createPhotoLibrarySessionExportPresetsV1 } from './internal/photo-library-session-export-presets-v1.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { PhotoCommandOwnerCurrentV1 } from './photo-command-owner-current-v1.ts';
-import { createPhotoLibraryDevelopSessionV3 } from './photo-library-develop-session-v3.ts';
+import { createPhotoLibrarySessionDevelopCurrentV1 } from './photo-library-session-develop-current-v1.ts';
 import { createPhotoDevelopPresetChildrenCurrentV1 } from './photo-library-develop-presets-host-current-v1.ts';
 import { readPhotoLibraryMetadataSnapshotCurrentV1 } from './photo-library-metadata-current-v1.ts';
 import { readPhotoLibraryMembershipsCurrentV1, applyPhotoLibraryMembershipsCurrentV1 } from './photo-library-memberships-current-v1.ts';
@@ -89,7 +89,7 @@ function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
 export class PhotoLibrarySessionKernelV2 {
 	readonly batchRenameCurrent?: ReturnType<typeof createPhotoLibraryBatchRenameSessionCurrentV1>;
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
-	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV2> | ReturnType<typeof createPhotoLibraryDevelopSessionV3>;
+	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV2> | ReturnType<typeof createPhotoLibrarySessionDevelopCurrentV1>;
 	readonly legacyDevelop?: ReturnType<typeof createPhotoLibraryDevelopSessionV2>;
 	readonly developImport: Readonly<PhotoLibraryDevelopImportPortV2>;
 	readonly developImportCurrent?: ReturnType<typeof createPhotoLibrarySessionImportChildCurrentV1>;
@@ -201,7 +201,7 @@ export class PhotoLibrarySessionKernelV2 {
 		const currentChildren = this.#current ? createPhotoDevelopPresetChildrenCurrentV1({ ports: this.#ports, presetSettings,
 			ready: () => this.#ready(), operation: (run, signal) => this.#operation(run, signal), mutate: (run, signal) => this.#mutation(run, signal),
 			withPhoto: (catalogId, key, signal, run) => this.#withPhoto(catalogId, key, signal, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted)) }) : undefined;
-		this.develop = this.#current ? createPhotoLibraryDevelopSessionV3({ repository: ports.catalog, ready: () => this.#ready(), maskRasters,
+		this.develop = this.#current ? createPhotoLibrarySessionDevelopCurrentV1({ repository: ports.catalog, ready: () => this.#ready(), maskRasters,
 			...currentChildren,
 			originalSource: ports.backup ? { loadOriginal: ports.backup.loadOriginal } : undefined,
 			operation: (run, signal) => this.#operation(run, signal), edit: (key, run, signal) => this.#editPhoto(key, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted), signal) }) : legacyDevelop;

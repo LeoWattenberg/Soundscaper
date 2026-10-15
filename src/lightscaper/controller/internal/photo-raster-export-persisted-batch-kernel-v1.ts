@@ -32,7 +32,7 @@ export async function readPhotoRasterExportBindingForProfileV1(profile: PhotoRas
 	const closure = createPhotoCubeLutClosureV1(), develop = sidecar.version.develop;
 	// The complete Current sidecar is admitted above. Only the private LUT ledger
 	// sees its computation view; full recipe and sidecar fingerprints retain repairs.
-	closure.addDevelop(develop.processVersion === 3 ? { processVersion: 2, effects: develop.effects,
+	closure.addDevelop(develop.processVersion === 3 || develop.processVersion === 4 ? { processVersion: 2, effects: develop.effects,
 		geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings } : develop);
 	return Object.freeze({ originalSha256: sidecar.original.contentSha256, recipeSha256: canonicalJsonSha256(sidecar.version.develop),
 		lutSha256: Object.freeze(closure.finish().map(reference => reference.sha256)), ...(sidecarEnabled ? { sidecarSha256: canonicalJsonSha256(sidecar) } : {}) });

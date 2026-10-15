@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { framescaperImageSourceResourceReferencesCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
+import { framescaperImageSourceResourceReferencesCurrentV1, normalizeFramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import { planFramescaperMaskRasterArchiveAssetsV1, validateFramescaperMaskRasterArchiveAssetsV1 } from './timeline-image-mask-raster-assets-v1.ts';
 import type { ScapeManifest } from '../common/editor/scape-archive-envelope.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
@@ -11,7 +11,6 @@ import { collectFramescaperDurableScapeAssetReferences, planFramescaperDurableSc
 import { planFramescaperScapeImageExportAssetsTimelineImage, validateFramescaperScapeImageImportAssetsTimelineImage } from './editor-scape-asset-plan-timeline-image.ts';
 import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { framescaperImagePackSourceCurrentV1 } from '../common/editor/timeline-image-pack-source-current-v1.ts';
-import { normalizeFramescaperImageSourceV4 } from '../common/editor/timeline-image-model-v4.ts';
 import { prepareFramescaperRawImageOriginalCurrentV1 } from '../common/editor/timeline-image-raw-original-plan-current-v1.ts';
 import { canonicalMediaContentBlob } from '../common/editor/storage/media-content-digest.ts';
 
@@ -62,7 +61,9 @@ export async function planTimelineImageCurrentArchiveAssets(project: Framescaper
 /** The full Source4 document remains authoritative beside its exact immutable
  * pack projection. No cached byte frame grants native Original equality. */
 export async function validateFramescaperRawImageAssetBodyCurrentV1(value: unknown, bodyValue: unknown, signal?: AbortSignal): Promise<void> {
-	const source = normalizeFramescaperImageSourceV4(value), body = canonicalMediaContentBlob(bodyValue);
+	const source = normalizeFramescaperImageSourceCurrentV1(value);
+	if (source.schemaVersion !== 4) throw new RangeError('Frame RAW archive proof requires an explicit Source4.');
+	const body = canonicalMediaContentBlob(bodyValue);
 	assertRawPackBudget(source);
 	const size = Number(Reflect.apply(Object.getOwnPropertyDescriptor(Blob.prototype, 'size')!.get!, body, []));
 	if (size !== source.assetByteLength) throw new RangeError('Frame RAW archive body differs from its exact native size.');

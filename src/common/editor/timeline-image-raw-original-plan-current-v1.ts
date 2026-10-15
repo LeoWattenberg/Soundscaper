@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { normalizeFramescaperImageSourceV4 } from './timeline-image-model-v4.ts';
+import { normalizeFramescaperImageSourceCurrentV1 } from './timeline-image-model-current-v1.ts';
 import { encodeFramescaperImageConversionReceiptV1 } from './timeline-image-conversion-receipt-v1.ts';
 
 const MAXIMUM = 1024n * 1024n * 1024n, RESERVE = 32n * 1024n * 1024n;
@@ -10,7 +10,9 @@ const MAXIMUM = 1024n * 1024n * 1024n, RESERVE = 32n * 1024n * 1024n;
  * scalar owner has no decoder, worker, native body reader or WASM loader edge.
  * The joined worker retires before the consumer's separate render phase. */
 export function prepareFramescaperRawImageOriginalCurrentV1(value: unknown) {
-	const source = normalizeFramescaperImageSourceV4(value), originalBytes = source.original.byteLength;
+	const source = normalizeFramescaperImageSourceCurrentV1(value);
+	if (source.schemaVersion !== 4) throw new RangeError('Frame RAW Original planning requires an explicit Source4.');
+	const originalBytes = source.original.byteLength;
 	const expected = encodeFramescaperImageConversionReceiptV1({ schemaVersion: 1, kind: 'raw-original', raw: source.raw });
 	try { if (bytesToHex(sha256(expected)) !== source.conversionReceiptSha256) throw new Error('Frame RAW source conversion receipt differs from its exact native declaration.'); }
 	finally { expected.fill(0); }

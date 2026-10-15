@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PhotoLibraryDevelopPresentationV2, preparePhotoDevelopPresentationViewV2, type PhotoDevelopPresentationSnapshotV2 } from '../../controller/shared/photo-library-develop-presentation-v2.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../photo-library-develop-original-port-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../photo-library-develop-original-current-v1.ts';
 import type { PixelFrameHistogramV1 } from '../../imaging/pixel-frame-histogram-v1.ts';
 import { preparePhotoDevelopMaskDisplayModeV1 } from '../../photo-develop-mask-display-v1.ts';
 import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.ts';
@@ -18,14 +19,16 @@ type PreviewMode = typeof MODES[number];
 export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly<{ props: PhotoDevelopPreviewPropsV2 | PhotoDevelopPreviewPropsCurrentV1; profile: 'legacy2' | 'current3' }>) {
 	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unknown fixed Develop preview profile.');
 	const { readPreview, withOriginalFrame, loadProxy, beforePresent, registerRetirement } = props;
-	const sourceRef = useRef({ readPreview, withOriginalFrame, loadProxy, beforePresent, receiver: props });
+	const withDerivedFrame = profile === 'current3' ? (props as PhotoDevelopPreviewPropsCurrentV1).withDerivedFrame : undefined;
+	const sourceRef = useRef({ readPreview, withOriginalFrame, withDerivedFrame, loadProxy, beforePresent, receiver: props });
 	if (sourceRef.current.readPreview !== readPreview || sourceRef.current.withOriginalFrame !== withOriginalFrame
-		|| sourceRef.current.loadProxy !== loadProxy || sourceRef.current.beforePresent !== beforePresent) {
-		sourceRef.current = { readPreview, withOriginalFrame, loadProxy, beforePresent, receiver: props };
+		|| sourceRef.current.withDerivedFrame !== withDerivedFrame || sourceRef.current.loadProxy !== loadProxy || sourceRef.current.beforePresent !== beforePresent) {
+		sourceRef.current = { readPreview, withOriginalFrame, withDerivedFrame, loadProxy, beforePresent, receiver: props };
 	}
 	const source = sourceRef.current;
 	const owner = useMemo(() => new (profile === 'legacy2' ? PhotoLibraryDevelopPresentationV2 : PhotoLibraryDevelopPresentationCurrentV1)({ readPreview: pin(source.readPreview, source.receiver),
 		withOriginalFrame: source.withOriginalFrame === undefined ? undefined : pin<PhotoLibraryDevelopOriginalPortV1['withFrame']>(source.withOriginalFrame, source.receiver),
+		...(profile === 'current3' && source.withDerivedFrame ? { withDerivedFrame: pin<PhotoLibraryDevelopOriginalPortCurrentV1['withDerivedFrame']>(source.withDerivedFrame, source.receiver) } : {}),
 		loadProxy: pin(source.loadProxy, source.receiver), beforePresent: source.beforePresent }), [source, profile]);
 	const retirement = useRef<Promise<void>>(Promise.resolve());
 	const lifetime = useRef(false);

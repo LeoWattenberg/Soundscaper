@@ -3,7 +3,7 @@
 import type { PhotoLibrarySessionPortCurrentV1 } from '../../photo-library-session-port-current-v1.ts';
 import type { PhotoLibraryImageHandoffPortV2 } from '../../photo-library-image-handoff-port-v2.ts';
 import type { PhotoFramescaperHandoffTargetCurrentV1 } from '../../../../lightscaper/controller/photo-framescaper-handoff-download-current-v1.ts';
-import { capturePhotoLibraryDevelopPortV3 } from './photo-library-workflow-develop-current-v1.ts';
+import { capturePhotoLibraryDevelopPortCurrentV1 } from './photo-library-workflow-develop-current-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../../../../lightscaper/storage/photo-develop-preset-read-v2.ts';
 
 const CHECK = AbortSignal.prototype.throwIfAborted;
@@ -17,7 +17,7 @@ export async function preparePhotoLibraryImageHandoffCurrentV1(owner: PhotoLibra
 	const handoff = owner.imageHandoffCurrent;
 	const method = handoff && Object.getOwnPropertyDescriptor(handoff, 'withCapture')?.value as unknown;
 	if (!handoff || typeof method !== 'function') throw new Error('Current editable photo handoff is unavailable.');
-	const develop = capturePhotoLibraryDevelopPortV3(owner.develop, signal);
+	const develop = capturePhotoLibraryDevelopPortCurrentV1(owner.develop, signal);
 	const snapshot = await develop.read({ schemaVersion: 3, photoId }, { signal }); checked();
 	if (snapshot.photoId !== photoId || snapshot.versionId !== snapshot.activeVersionId) throw new Error('The active photo selection changed.');
 	const binding = Object.freeze({ catalogId: snapshot.catalogId, photoId, versionId: snapshot.activeVersionId, expectedRevision: snapshot.revision });

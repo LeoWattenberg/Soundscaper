@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../common/editor/closed-domain-value.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../common/editor/imaging/image-develop-state-v4.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1, type ImageDevelopMaskOverlaySelectionV1 } from '../../common/editor/imaging/image-develop-mask-overlay-v1.ts';
 import { withBrushMaskResourceV1 } from '../../common/editor/imaging/brush-mask-resource-v1.ts';
 import type { ImageDevelopFrameViewV1 } from '../../common/editor/imaging/image-develop-frame-core.ts';
@@ -10,7 +10,7 @@ import { withFramescaperImageDevelopBrushDraftFrameCurrentV1, type FramescaperIm
 import { assertFramescaperNativeImageSignalCurrentV1, checkFramescaperNativeImageSignalCurrentV1, retireFramescaperNativeImageCurrentV1 } from './timeline-image-native-pack-owner-current-v1.ts';
 
 export interface FramescaperImageBrushDraftFrameCurrentV1 extends FramescaperImageBrushBodyCurrentV1 {
-	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
+	readonly develop: Readonly<ImageDevelopStateThroughV4>;
 	readonly maskOverlay?: Readonly<ImageDevelopMaskOverlaySelectionV1>;
 }
 const CAPTURES = new WeakSet<object>();
@@ -20,7 +20,7 @@ const SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength'
  * subsequent same-tick caller edits cannot change accepted recipe/body/IDs. */
 export function prepareFramescaperImageBrushDraftFrameCurrentV1(value: unknown): Readonly<FramescaperImageBrushDraftFrameCurrentV1> {
 	const input = record(value, 'Frame brush draft', ['develop', 'reference', 'bytes', 'maskOverlay'], ['develop', 'reference', 'bytes']);
-	const develop = normalizeImageDevelopStateCurrentV1(field(input, 'develop', 'Frame brush draft'));
+	const develop = normalizeImageDevelopStateThroughV4(field(input, 'develop', 'Frame brush draft'));
 	const rawSelection = Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'Frame brush draft') : undefined;
 	const maskOverlay = rawSelection === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawSelection);
 	const body = prepareFramescaperImageBrushBodyCurrentV1(field(input, 'reference', 'Frame brush draft'), field(input, 'bytes', 'Frame brush draft'));

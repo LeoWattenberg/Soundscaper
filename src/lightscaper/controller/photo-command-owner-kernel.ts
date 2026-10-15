@@ -79,7 +79,7 @@ export class PhotoCommandOwnerKernel<Profile extends PhotoCommandProfileV1> {
 		return this.#synchronous(() => {
 			const version = this.#history.present.versions.find(entry => entry.id === id(versionId, 'clipboard version ID'));
 			if (!version) throw new ReferenceError('Cannot copy a missing photo version.');
-			if (version.develop.processVersion === 3) throw new RangeError('Repair process3 requires a current clipboard adapter.');
+			if (version.develop.processVersion >= 3) throw new RangeError('Successor develop processing requires a current clipboard adapter.');
 			const packet = createPhotoDevelopClipboardV2(version.develop);
 			this.#assertLive(); this.#clipboard = packet; return packet;
 		});
@@ -90,12 +90,12 @@ export class PhotoCommandOwnerKernel<Profile extends PhotoCommandProfileV1> {
 	pasteDevelop(value: unknown = this.#clipboard, versionId?: string, options: PhotoCommandOptionsKernel = {}): Promise<PhotoForCommandProfileV1<Profile>> {
 		return this.#transition(history => {
 			if (value === null) throw new ReferenceError('The photo develop clipboard is empty.');
-			if (this.#profile === 'current3') {
+			if (this.#profile !== 'legacy2') {
 				const targetId = versionId === undefined ? history.present.activeVersionId : id(versionId, 'develop version ID');
 				const target = history.present.versions.find(version => version.id === targetId);
 				if (!target) throw new ReferenceError('The requested photo version is missing.');
-				if (target.develop.processVersion === 3 || target.workspace?.schemaVersion === 3) {
-					throw new RangeError('Repair process3 or workspace3 requires a current clipboard adapter.');
+				if (target.develop.processVersion >= 3 || (target.workspace?.schemaVersion ?? 1) >= 3) {
+					throw new RangeError('Successor develop processing or history requires a current clipboard adapter.');
 				}
 			}
 			const packet = normalizePhotoDevelopClipboardV1OrV2(value);

@@ -25,7 +25,7 @@ import { defaultImageDevelopStateV2 } from '../../src/common/editor/imaging/imag
 import { photoArchiveFixture } from './lightscaper-photo-fixture.ts';
 import { mediaRestoreFixture } from './lightscaper-media-restore-fixture.ts';
 import { InstrumentedKeyRange } from './instrumented-indexeddb-keys.ts';
-import { brushSettingsRecipe, FULL_SETTINGS_SELECTION, SETTINGS_TIME } from './lightscaper-repair-settings-current-fixture.ts';
+import { brushSettingsRecipe, CURRENT_SETTINGS_SELECTION, SETTINGS_TIME } from './lightscaper-repair-settings-current-fixture.ts';
 import { pngBytes, ORIGINAL, repairRecipe } from './lightscaper-repair-raster-export-current-fixture.ts';
 import { LUT_BODY, profile } from './lightscaper-masked-frame-fixture.ts';
 
@@ -122,7 +122,7 @@ export async function repairBackupCurrentFixture(placement: RepairBackupPlacemen
 				}
 				const source = await actual.develop.read({ schemaVersion: 3, photoId: records[0]!.photo.id });
 				const packet = await actual.develop.settingsCurrent!.copySelected({ schemaVersion: 3, catalogId: source.catalogId, photoId: source.photoId,
-					versionId: source.versionId, revision: source.revision, develop: draft, selection: FULL_SETTINGS_SELECTION });
+					versionId: source.versionId, revision: source.revision, develop: draft, selection: CURRENT_SETTINGS_SELECTION });
 				const preset = actual.develop.presetsCurrent!.create({ schemaVersion: 3, id: 'portable', name: 'Portable repair', settings: packet });
 				await actual.develop.presetsCurrent!.write({ schemaVersion: 3, catalogId: root.id, command: { type: 'save', expectedRevision: 0, preset } });
 				events.splice(0); borrowed.splice(0); return preset;

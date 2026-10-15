@@ -11,26 +11,26 @@ import { normalizeImageDevelopSelectionV2 } from '../../../imaging/image-develop
 import { normalizeImageDevelopRelativeActionV1 as normalizeImageDevelopRelativeActionV2 } from '../../../imaging/image-develop-settings-v1.ts';
 import { normalizeImageDevelopPresetV1OrV2 } from '../../../imaging/image-develop-preset-v2.ts';
 import { normalizeImageDevelopSelectedPresetCurrentV1 } from '../../../imaging/image-develop-preset-selected-v3.ts';
-import type { PhotoLibraryDevelopPresetSnapshotV3, PhotoLibraryDevelopPresetAcknowledgementV3, PhotoLibraryDevelopPresetsPortV3, PhotoLibraryDevelopPresetCommandV3 } from '../../../photo-library-develop-presets-port-v3.ts';
-import type { PhotoLibraryDevelopPresetBodyV3 } from '../../../photo-library-develop-presets-port-v3.ts';
+import type { PhotoLibraryDevelopPresetSnapshotCurrentV1, PhotoLibraryDevelopPresetAcknowledgementCurrentV1, PhotoLibraryDevelopPresetsPortCurrentV1,
+	PhotoLibraryDevelopPresetCommandCurrentV1, PhotoLibraryDevelopPresetBodyCurrentV1 } from '../../../photo-library-develop-presets-port-current-v1.ts';
 import { detachPhotoDevelopSettingsSourceV2 as source, developSettingsId as id, developSettingsIds as ids,
 	developSettingsName as name, developSettingsRevision as revision, type PhotoDevelopSettingsSourceV2 } from '../photo-library-develop-settings-intent-v2.ts';
 
-import type { PhotoLibraryDevelopPortV3 } from '../../../photo-library-develop-port-v3.ts';
-import type { PhotoLibraryDevelopBatchReceiptV3, PhotoLibraryDevelopBatchRequestV3 } from '../../../photo-library-develop-settings-port-v3.ts';
-import type { ImageDevelopSelectionV3, ImageDevelopSettingsPacketV3 } from '../../../imaging/image-develop-settings-contract-v3.ts';
-import { normalizeImageDevelopSelectionV3 } from '../../../imaging/image-develop-settings-v3.ts';
+import type { PhotoLibraryDevelopPortCurrentV1 } from '../../../photo-library-develop-port-current-v1.ts';
+import type { PhotoLibraryDevelopBatchReceiptCurrentV1, PhotoLibraryDevelopBatchRequestCurrentV1 } from '../../../photo-library-develop-settings-port-current-v1.ts';
+import type { ImageDevelopSelectionV4, ImageDevelopSettingsPacketV4 } from '../../../imaging/image-develop-settings-contract-v4.ts';
+import { normalizeImageDevelopSelectionV4 } from '../../../imaging/image-develop-settings-v4.ts';
 import { detachPhotoDevelopSettingsSourceCurrentV1, type PhotoDevelopSettingsSourceCurrentV1 } from '../photo-library-develop-settings-intent-current-v1.ts';
 
 export type SettingsSourceForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoDevelopSettingsSourceV2 : PhotoDevelopSettingsSourceCurrentV1;
-export type SettingsSelectionForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? ImageDevelopSelectionV2 : ImageDevelopSelectionV3;
-export type SettingsPacketForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? ImageDevelopSettingsPacketV2 : ImageDevelopSettingsPacketV3;
-export type SettingsReceiptForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopBatchReceiptV2 : PhotoLibraryDevelopBatchReceiptV3;
-type PresetSnapshotForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPresetSnapshotV2 : PhotoLibraryDevelopPresetSnapshotV3;
-type PresetAcknowledgementForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPresetAcknowledgementV2 : PhotoLibraryDevelopPresetAcknowledgementV3;
-type PresetCommand = Parameters<PhotoLibraryDevelopPresetsPortV2['write']>[0]['command'] | PhotoLibraryDevelopPresetCommandV3;
-type PresetPort = PhotoLibraryDevelopPresetsPortV2 | PhotoLibraryDevelopPresetsPortV3;
-type BatchAction = PhotoLibraryDevelopBatchRequestV2['action'] | PhotoLibraryDevelopBatchRequestV3['action'];
+export type SettingsSelectionForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? ImageDevelopSelectionV2 : ImageDevelopSelectionV4;
+export type SettingsPacketForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? ImageDevelopSettingsPacketV2 : ImageDevelopSettingsPacketV4;
+export type SettingsReceiptForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopBatchReceiptV2 : PhotoLibraryDevelopBatchReceiptCurrentV1;
+type PresetSnapshotForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPresetSnapshotV2 : PhotoLibraryDevelopPresetSnapshotCurrentV1;
+type PresetAcknowledgementForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopPresetAcknowledgementV2 : PhotoLibraryDevelopPresetAcknowledgementCurrentV1;
+type PresetCommand = Parameters<PhotoLibraryDevelopPresetsPortV2['write']>[0]['command'] | PhotoLibraryDevelopPresetCommandCurrentV1;
+type PresetPort = PhotoLibraryDevelopPresetsPortV2 | PhotoLibraryDevelopPresetsPortCurrentV1;
+type BatchAction = PhotoLibraryDevelopBatchRequestV2['action'] | PhotoLibraryDevelopBatchRequestCurrentV1['action'];
 export interface PhotoDevelopSettingsWorkflowSnapshotForProfileV1<Profile extends PhotoDevelopProfileV1> {
 	readonly busy: boolean;
 	readonly clipboard: SettingsPacketForProfileV1<Profile> | null;
@@ -70,7 +70,7 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 	#closing: Promise<void> | null = null;
 
 	constructor(profile: Profile, options: Readonly<{ execute: ExecutePhotoDevelopForProfileV1<Profile>; now?: () => string; createId?: () => string }>) {
-		if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unknown fixed Develop settings workflow profile.');
+		if (profile !== 'legacy2' && profile !== 'current4') throw new TypeError('Unknown fixed Develop settings workflow profile.');
 		this.#profile = profile;
 		const execute = options.execute, now = options.now ?? (() => new Date().toISOString()), createId = options.createId ?? (() => crypto.randomUUID());
 		this.#execute = (...args) => Reflect.apply(execute, options, args); this.#now = () => Reflect.apply(now, options, []);
@@ -141,14 +141,14 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 	protected listPresetsLegacy(catalogId: string): Promise<PhotoLibraryDevelopPresetSnapshotV2 | null> {
 		this.#assertLegacy(); return this.#listPresets(catalogId) as Promise<PhotoLibraryDevelopPresetSnapshotV2 | null>;
 	}
-	protected listPresetsCurrent(catalogId: string): Promise<PhotoLibraryDevelopPresetSnapshotV3 | null> {
-		this.#assertCurrent(); return this.#listPresets(catalogId) as Promise<PhotoLibraryDevelopPresetSnapshotV3 | null>;
+	protected listPresetsCurrent(catalogId: string): Promise<PhotoLibraryDevelopPresetSnapshotCurrentV1 | null> {
+		this.#assertCurrent(); return this.#listPresets(catalogId) as Promise<PhotoLibraryDevelopPresetSnapshotCurrentV1 | null>;
 	}
 	protected savePresetLegacy(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
 		this.#assertLegacy(); return this.#savePreset(value, selection, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null>;
 	}
-	protected savePresetCurrent(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null> {
-		this.#assertCurrent(); return this.#savePreset(value, selection, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null>;
+	protected savePresetCurrent(value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementCurrentV1 | null> {
+		this.#assertCurrent(); return this.#savePreset(value, selection, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementCurrentV1 | null>;
 	}
 	protected applyPresetLegacy(value: SettingsSourceForProfileV1<Profile>, presetId: string, listRevision: number, label: string): Promise<SettingsReceiptForProfileV1<Profile> | null> {
 		this.#assertLegacy(); return this.#applyPreset(value, presetId, listRevision, label);
@@ -159,14 +159,14 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 	protected renamePresetLegacy(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
 		this.#assertLegacy(); return this.#renamePreset(catalogId, presetId, listRevision, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null>;
 	}
-	protected renamePresetCurrent(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null> {
-		this.#assertCurrent(); return this.#renamePreset(catalogId, presetId, listRevision, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null>;
+	protected renamePresetCurrent(catalogId: string, presetId: string, listRevision: number, presetName: string): Promise<PhotoLibraryDevelopPresetAcknowledgementCurrentV1 | null> {
+		this.#assertCurrent(); return this.#renamePreset(catalogId, presetId, listRevision, presetName) as Promise<PhotoLibraryDevelopPresetAcknowledgementCurrentV1 | null>;
 	}
 	protected deletePresetLegacy(catalogId: string, presetId: string, listRevision: number): Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null> {
 		this.#assertLegacy(); return this.#deletePreset(catalogId, presetId, listRevision) as Promise<PhotoLibraryDevelopPresetAcknowledgementV2 | null>;
 	}
-	protected deletePresetCurrent(catalogId: string, presetId: string, listRevision: number): Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null> {
-		this.#assertCurrent(); return this.#deletePreset(catalogId, presetId, listRevision) as Promise<PhotoLibraryDevelopPresetAcknowledgementV3 | null>;
+	protected deletePresetCurrent(catalogId: string, presetId: string, listRevision: number): Promise<PhotoLibraryDevelopPresetAcknowledgementCurrentV1 | null> {
+		this.#assertCurrent(); return this.#deletePreset(catalogId, presetId, listRevision) as Promise<PhotoLibraryDevelopPresetAcknowledgementCurrentV1 | null>;
 	}
 	#listPresets(catalogId: string): Promise<PresetSnapshotForProfileV1<Profile> | null> {
 		return this.#run(() => id(catalogId), async (context, catalog) => {
@@ -181,14 +181,14 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		return this.#run(() => { const captured = this.#source(value); return { source: captured, selection: this.#selection(selection), name: name(presetName), expectedRevision: this.#menu(captured.catalogId).revision, id: id(this.#createId()) }; }, async (context, input) => {
 			const port = await this.#acquire(context); if (!port) return null;
 			const packet = await this.#copy(context, port, input.source, input.selection), capability = presets(this.#profile, port);
-			const preset = Reflect.apply(capability.create, capability, [{ schemaVersion: this.#schema, id: input.id, name: input.name, settings: packet }]) as ReturnType<PhotoLibraryDevelopPresetsPortV3['create']> | ReturnType<PhotoLibraryDevelopPresetsPortV2['create']>;
+			const preset = Reflect.apply(capability.create, capability, [{ schemaVersion: this.#schema, id: input.id, name: input.name, settings: packet }]) as ReturnType<PhotoLibraryDevelopPresetsPortCurrentV1['create']> | ReturnType<PhotoLibraryDevelopPresetsPortV2['create']>;
 			return this.#writePreset(context, capability, input.source.catalogId, { type: 'save', expectedRevision: input.expectedRevision, preset });
 		});
 	}
 	#applyPreset(value: SettingsSourceForProfileV1<Profile>, presetId: string, listRevision: number, label: string): Promise<SettingsReceiptForProfileV1<Profile> | null> {
 		return this.#run(() => { const captured = this.#source(value); return { source: captured, selected: this.#selected(captured.catalogId, presetId, listRevision), label: name(label) }; }, async (context, input) => {
 			const port = await this.#acquire(context); if (!port) return null;
-			if (this.#profile === 'current3') return this.#batch(context, port, input.source.catalogId, [target(input.source)],
+			if (this.#profile === 'current4') return this.#batch(context, port, input.source.catalogId, [target(input.source)],
 				{ kind: 'preset', presetId: input.selected.info.id, expectedPresetRevision: input.selected.revision }, input.label);
 			const preset = await this.#readPreset(context, presets(this.#profile, port), input.source.catalogId, input.selected);
 			return this.#batch(context, port, input.source.catalogId, [target(input.source)], { kind: 'paste', settings: preset.settings }, input.label);
@@ -221,12 +221,12 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 	}
 	get #schema(): 2 | 3 { return this.#profile === 'legacy2' ? 2 : 3; }
 	#assertLegacy(): void { if (this.#profile !== 'legacy2') throw new TypeError('Legacy presets require the legacy profile.'); }
-	#assertCurrent(): void { if (this.#profile !== 'current3') throw new TypeError('Current presets require the Current profile.'); }
+	#assertCurrent(): void { if (this.#profile !== 'current4') throw new TypeError('Current presets require the Current profile.'); }
 	#source(value: unknown): SettingsSourceForProfileV1<Profile> {
 		return (this.#profile === 'legacy2' ? source(value) : detachPhotoDevelopSettingsSourceCurrentV1(value)) as SettingsSourceForProfileV1<Profile>;
 	}
 	#selection(value: unknown): SettingsSelectionForProfileV1<Profile> {
-		return (this.#profile === 'legacy2' ? normalizeImageDevelopSelectionV2(value) : normalizeImageDevelopSelectionV3(value)) as SettingsSelectionForProfileV1<Profile>;
+		return (this.#profile === 'legacy2' ? normalizeImageDevelopSelectionV2(value) : normalizeImageDevelopSelectionV4(value)) as SettingsSelectionForProfileV1<Profile>;
 	}
 	async #copy(context: PhotoDevelopExecutionContextForProfileV1<Profile>, port: Readonly<PhotoDevelopPortForProfileV1<Profile>>,
 		value: SettingsSourceForProfileV1<Profile>, selection: SettingsSelectionForProfileV1<Profile>): Promise<SettingsPacketForProfileV1<Profile>> {
@@ -234,10 +234,10 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		const child = settings(this.#profile, port);
 		const packet = this.#profile === 'legacy2'
 			? (child as NonNullable<PhotoLibraryDevelopPortV2['settings']>).copy({ schemaVersion: 2, develop: value.develop as PhotoDevelopSettingsSourceV2['develop'], selection })
-			: await (child as NonNullable<PhotoLibraryDevelopPortV3['settingsCurrent']>).copySelected({ ...value, schemaVersion: 3,
-				selection: selection as ImageDevelopSelectionV3 }, { signal: context.signal });
+			: await (child as NonNullable<PhotoLibraryDevelopPortCurrentV1['settingsCurrent']>).copySelected({ ...value, schemaVersion: 3,
+				selection: selection as ImageDevelopSelectionV4 }, { signal: context.signal });
 		if (!this.#admittedCurrent(context)) throw new Error('The settings view retired.');
-		if (packet.schemaVersion !== this.#schema) throw new Error('Copied settings changed schema.');
+		if (packet.schemaVersion !== (this.#profile === 'legacy2' ? 2 : 4)) throw new Error('Copied settings changed schema.');
 		// Preserve the exact enrolled selected packet; normalizing or cloning it
 		// would discard the Session's independent brush-authentication proof.
 		return packet as SettingsPacketForProfileV1<Profile>;
@@ -253,7 +253,7 @@ export class PhotoLibraryDevelopSettingsWorkflowKernelV1<Profile extends PhotoDe
 		if (snapshot.revision !== expected || !info) throw new Error('Reload the changed preset menu.'); return Object.freeze({ revision: expected, info });
 	}
 	async #readPreset(context: PhotoDevelopExecutionContextForProfileV1<Profile>, capability: PresetPort, catalogId: string, selected: SelectedPreset) {
-		const body = await (Reflect.apply(capability.read, capability, [{ schemaVersion: this.#schema, catalogId, presetId: selected.info.id, expectedRevision: selected.revision }, { signal: context.signal }]) as Promise<PhotoLibraryDevelopPresetBodyV3 | Awaited<ReturnType<PhotoLibraryDevelopPresetsPortV2['read']>>>);
+		const body = await (Reflect.apply(capability.read, capability, [{ schemaVersion: this.#schema, catalogId, presetId: selected.info.id, expectedRevision: selected.revision }, { signal: context.signal }]) as Promise<PhotoLibraryDevelopPresetBodyCurrentV1 | Awaited<ReturnType<PhotoLibraryDevelopPresetsPortV2['read']>>>);
 		if (!this.#admittedCurrent(context)) throw new Error('The preset view retired.');
 		const preset = this.#profile === 'legacy2' ? normalizeImageDevelopPresetV1OrV2(body.preset) : normalizeImageDevelopSelectedPresetCurrentV1(body.preset);
 		if (body.schemaVersion !== this.#schema || body.catalogId !== catalogId || body.revision !== selected.revision || preset.identity.id !== selected.info.id || preset.identity.authoredStateSha256 !== selected.info.authoredStateSha256) throw new Error('The selected preset changed.'); return preset;
@@ -346,10 +346,10 @@ function target(value: PhotoDevelopSettingsSourceV2 | PhotoDevelopSettingsSource
 	return Object.freeze({ photoId: value.photoId, versionId: value.versionId, expectedRevision: value.revision });
 }
 function settings<Profile extends PhotoDevelopProfileV1>(profile: Profile, port: Readonly<PhotoDevelopPortForProfileV1<Profile>>) {
-	const child = profile === 'legacy2' ? (port as PhotoLibraryDevelopPortV2).settings : (port as PhotoLibraryDevelopPortV3).settingsCurrent;
+	const child = profile === 'legacy2' ? (port as PhotoLibraryDevelopPortV2).settings : (port as PhotoLibraryDevelopPortCurrentV1).settingsCurrent;
 	if (!child) throw new Error('Develop settings are unavailable.'); return child;
 }
 function presets<Profile extends PhotoDevelopProfileV1>(profile: Profile, port: Readonly<PhotoDevelopPortForProfileV1<Profile>>) {
-	const child = profile === 'legacy2' ? (port as PhotoLibraryDevelopPortV2).presets : (port as PhotoLibraryDevelopPortV3).presetsCurrent;
+	const child = profile === 'legacy2' ? (port as PhotoLibraryDevelopPortV2).presets : (port as PhotoLibraryDevelopPortCurrentV1).presetsCurrent;
 	if (!child) throw new Error('Develop presets are unavailable.'); return child;
 }

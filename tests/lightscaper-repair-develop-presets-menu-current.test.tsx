@@ -132,7 +132,7 @@ for (const locale of ['en', 'de']) test(`${locale}: Current preset menu saves a 
 		assert.equal(ui.settings().snapshot.batch?.outcomes[0]?.status, 'applied'); assert.deepEqual((await ui.f.read(1)).develop, body.preset.settings.develop);
 		const applied = await ui.f.inspect(); assert.deepEqual(applied[0], before[0]); assert.equal(ui.f.saved.length, 1);
 		await ui.click(ui.button(ui.text.deletePreset)); await ui.settled();
-		assert.deepEqual(await ui.f.row(), { schemaVersion: 3, kind: 'photo-develop-presets', catalogId: first.catalogId, revision: 3, presets: [] });
+		assert.deepEqual(await ui.f.row(), { schemaVersion: 4, kind: 'photo-develop-presets', catalogId: first.catalogId, revision: 3, presets: [] });
 		for (const [index, row] of (await ui.f.inspect()).entries()) { assert.deepEqual(row.photo.original, before[index]!.photo.original); assert.deepEqual(row.bytes, before[index]!.bytes); }
 	} finally { await ui.dispose(); }
 });

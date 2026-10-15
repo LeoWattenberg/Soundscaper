@@ -12,7 +12,8 @@ import type { ImageExportSizingV1 } from '../../common/editor/imaging/image-expo
 import { normalizeDetailSharpenParamsV1 } from '../../common/editor/video-sharpen-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../common/editor/photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryDevelopProxyRuntimeV2 } from '../../common/editor/photo-library-develop-proxy-port-v2.ts';
-import type { PhotoLibraryDevelopProxyRuntimeV3 } from '../../common/editor/photo-library-develop-proxy-port-v3.ts';
+import type { PhotoLibraryDevelopProxyRuntimeCurrentV1 } from '../../common/editor/photo-library-develop-proxy-port-current-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../common/editor/photo-library-develop-original-current-v1.ts';
 import type { PhotoLibraryMetadataSnapshotV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import type { ImageExportGraphicRequest } from '../../common/editor/image-export-graphic-request.ts';
 import type { withImageExportGraphicFrameV1 } from '../../common/editor/imaging/image-export-graphic-source-v1.ts';
@@ -102,7 +103,8 @@ export class PhotoRasterExportMetadataRefusal extends Error {
 
 export interface PhotoRasterExportRequestCurrentV1 extends Omit<PhotoRasterExportRequest, 'execute' | 'loadRenderer' | 'output' | 'encode'> {
 	readonly execute: ExecutePhotoDevelopCurrentV1;
-	readonly loadRenderer: () => Promise<Pick<PhotoLibraryDevelopProxyRuntimeV3, 'withFullResolution'>>;
+	readonly loadRenderer: () => Promise<Pick<PhotoLibraryDevelopProxyRuntimeCurrentV1, 'withFullResolution'>>;
+	readonly withDerivedFrame?: PhotoLibraryDevelopOriginalPortCurrentV1['withDerivedFrame'];
 	readonly output?: PhotoRasterExportOutputCurrentV1;
 	readonly encode: (frame: Readonly<PixelFrameV1>, options: Readonly<{
 		signal: AbortSignal; limits: PixelFrameLimitsV1; maximumOutputBytes: number; bitDepth?: 8 | 16;

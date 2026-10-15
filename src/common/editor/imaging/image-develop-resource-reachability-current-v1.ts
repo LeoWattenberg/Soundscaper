@@ -4,7 +4,7 @@ import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-limits.ts';
 import { normalizeCubeLutProfileEffectV1, CUBE_LUT_PROFILE_EFFECT_TYPE_V1 } from '../video-cube-lut-profile-v1.ts';
 import type { VideoCubeLutReferenceV1 } from '../cube-lut-reference-contract.ts';
 import { normalizeBrushMaskResourceReferenceV1, type BrushMaskResourceReferenceV1 } from './brush-mask-resource-v1.ts';
-import { normalizeImageDevelopStateCurrentV1 } from './image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4 } from './image-develop-state-v4.ts';
 
 export const IMAGE_DEVELOP_RESOURCE_REACHABILITY_LIMITS_CURRENT_V1 = Object.freeze({
 	maximumReferences: SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2, maximumIdentityBytes: 16_777_216,
@@ -36,7 +36,7 @@ export function createImageDevelopResourceReachabilityCurrentV1(): Readonly<Imag
 	const state: State = { luts: new Map(), brushes: new Map(), identityBytes: 0, sealed: null };
 	const collector = Object.freeze({ addDevelop(value: unknown): void {
 		open();
-		const develop = normalizeImageDevelopStateCurrentV1(value);
+		const develop = normalizeImageDevelopStateThroughV4(value);
 		const luts = new Map<string, Readonly<VideoCubeLutReferenceV1>>(), brushes = new Map<string, Readonly<BrushMaskResourceReferenceV1>>();
 		for (const effect of develop.effects) {
 			if (effect.type !== CUBE_LUT_PROFILE_EFFECT_TYPE_V1) continue;

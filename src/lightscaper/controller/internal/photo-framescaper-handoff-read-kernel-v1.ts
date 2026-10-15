@@ -222,7 +222,7 @@ async function deliverCurrent<Result>(facts: Omit<PhotoFramescaperHandoffReadVie
 
 export interface PhotoFramescaperHandoffSourceChoiceForProfileV1 {
 	readonly sourceId: string; readonly name: string; readonly originalName: string;
-	readonly processVersion: 1 | 2 | 3; readonly width: number; readonly height: number;
+	readonly processVersion: 1 | 2 | 3 | 4; readonly width: number; readonly height: number;
 	readonly versionKind?: 'master' | 'virtual-copy';
 	/** Ordinary Source1 choices retain only Frame's stored NFC original name. */
 	readonly imageClips?: readonly Readonly<{ clipId: string; sequenceId: string; sequenceName: string; scope: 'timeline' | 'bin' }>[];

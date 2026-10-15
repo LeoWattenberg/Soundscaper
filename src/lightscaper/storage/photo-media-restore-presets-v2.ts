@@ -6,17 +6,19 @@ import { request } from '../../common/editor/storage/indexeddb-backend.ts';
 import { field, integer, record } from '../catalog/value-validation.ts';
 import { normalizePhotoDevelopPresetRowV1OrV2, type PhotoDevelopPresetRowV2 } from './photo-develop-preset-row-v2.ts';
 import { normalizePhotoDevelopPresetRowCurrentV1, type PhotoDevelopPresetRowCurrentV1 } from './photo-develop-preset-row-current-v1.ts';
+import { normalizePhotoDevelopPresetRowCurrentForProfileV1 } from './internal/photo-develop-preset-row-kernel-v1.ts';
+import type { PhotoDevelopPresetRowV3 } from './photo-develop-preset-row-v3.ts';
 import { photoDevelopPresetsKeyV1, type PhotoDevelopPresetRowV1 } from './photo-develop-presets-v1.ts';
 import { assertPhotoCatalogRestoreProfileV1, type PhotoCatalogRestoreProfileV1 } from '../catalog/internal/photo-catalog-restore-records-kernel-v1.ts';
 
 export interface PhotoMediaRestorePresetHeaderForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> {
-	readonly rowSchemaVersion: Profile extends 'legacy2' ? 1 | 2 : 1 | 2 | 3;
+	readonly rowSchemaVersion: Profile extends 'legacy2' ? 1 | 2 : Profile extends 'current3' ? 1 | 2 | 3 : 1 | 2 | 3 | 4;
 	readonly revision: number; readonly presetCount: number;
 }
 export type PhotoMediaRestorePresetBindingForProfileV1<Profile extends PhotoCatalogRestoreProfileV1> = PhotoMediaRestorePresetHeaderForProfileV1<Profile> & Readonly<{ sha256: string }>;
 export type PhotoMediaRestorePresetHeaderV2 = PhotoMediaRestorePresetHeaderForProfileV1<'legacy2'>;
 export type PhotoMediaRestorePresetBindingV2 = PhotoMediaRestorePresetBindingForProfileV1<'legacy2'>;
-type PresetRow<Profile extends PhotoCatalogRestoreProfileV1> = Profile extends 'legacy2' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2 : PhotoDevelopPresetRowCurrentV1;
+type PresetRow<Profile extends PhotoCatalogRestoreProfileV1> = Profile extends 'legacy2' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2 : Profile extends 'current3' ? PhotoDevelopPresetRowV1 | PhotoDevelopPresetRowV2 | PhotoDevelopPresetRowV3 : PhotoDevelopPresetRowCurrentV1;
 
 export function admitPhotoMediaRestorePresetHeaderV2(value: unknown): Readonly<PhotoMediaRestorePresetHeaderV2> | null {
 	return admitPhotoMediaRestorePresetHeaderForProfileV1('legacy2', value);
@@ -39,7 +41,7 @@ export function admitPhotoMediaRestorePresetHeaderForProfileV1<Profile extends P
 	if (value === null) return null;
 	const input = record(value, 'restore Develop preset header2', ['rowSchemaVersion', 'revision', 'presetCount']);
 	const version = field(input, 'rowSchemaVersion');
-	if (version !== 1 && version !== 2 && !(profile === 'current3' && version === 3)) throw new TypeError('Restore preset row version is unsupported.');
+	if (version !== 1 && version !== 2 && !(profile !== 'legacy2' && version === 3) && !(profile === 'current4' && version === 4)) throw new TypeError('Restore preset row version is unsupported.');
 	return Object.freeze({ rowSchemaVersion: version, revision: integer(field(input, 'revision'), 1, Number.MAX_SAFE_INTEGER, 'restore preset revision'),
 		presetCount: integer(field(input, 'presetCount'), 0, 16, 'restore preset count') }) as Readonly<PhotoMediaRestorePresetHeaderForProfileV1<Profile>>;
 }
@@ -47,7 +49,8 @@ export function admitPhotoMediaRestorePresetsForProfileV1<Profile extends PhotoC
 	expected: PhotoMediaRestorePresetHeaderForProfileV1<Profile> | null): PresetRow<Profile> {
 	assertPhotoCatalogRestoreProfileV1(profile);
 	if (expected === null) throw new Error('Restore Develop presets were declared absent.');
-	const row = (profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(value, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(value, catalogId)) as PresetRow<Profile>;
+	const row = (profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(value, catalogId) : profile === 'current3'
+		? normalizePhotoDevelopPresetRowCurrentForProfileV1('current3', value, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(value, catalogId)) as PresetRow<Profile>;
 	if (row.schemaVersion !== expected.rowSchemaVersion || row.revision !== expected.revision || row.presets.length !== expected.presetCount) throw new Error('Restore preset row differs from its declared version/header.');
 	return row;
 }

@@ -10,8 +10,9 @@ import PhotoDevelopLocalAdjustmentsMenuV1 from './PhotoDevelopLocalAdjustmentsMe
 
 import type { PhotoDevelopSettingsMenuPropsV2 } from './PhotoDevelopSettingsMenuV2.tsx';
 import type { PhotoDevelopSettingsMenuPropsCurrentV1 } from './PhotoDevelopSettingsMenuCurrentV1.tsx';
-import type { ImageDevelopSelectionV3 } from '../../imaging/image-develop-settings-contract-v3.ts';
+import type { ImageDevelopSelectionV4 } from '../../imaging/image-develop-settings-contract-v4.ts';
 import PhotoDevelopSettingsPickerCurrentV1 from './PhotoDevelopSettingsPickerCurrentV1.tsx';
+import { photoDevelopRawDevelopmentCopy } from '../../../i18n/lightscaper-raw-development-copy.ts';
 
 type Props = (PhotoDevelopSettingsMenuPropsV2 & Readonly<{ profile: 'legacy2' }>)
 	| (PhotoDevelopSettingsMenuPropsCurrentV1 & Readonly<{ profile: 'current3' }>);
@@ -21,7 +22,7 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 	if (props.profile !== 'legacy2' && props.profile !== 'current3') throw new TypeError('Unknown fixed Develop settings menu profile.');
 	const { owner, snapshot, source } = props, messages = photoDevelopSettingsCopy(props.locale, props.profile);
 	const [entry, setEntry] = useState<Readonly<{ mode: Mode }> | null>(null);
-	const [selection, setSelection] = useState<ImageDevelopSelectionV1 | ImageDevelopSelectionV3>(() => ({ effectTypes: 'all', geometry: true, localAdjustments: true, ...(props.profile === 'current3' ? { repairs: true } : {}) }));
+	const [selection, setSelection] = useState<ImageDevelopSelectionV1 | ImageDevelopSelectionV4>(() => ({ effectTypes: 'all', geometry: true, localAdjustments: true, ...(props.profile === 'current3' ? { repairs: true, rawDevelopment: true } : {}) }));
 	const [presetName, setPresetName] = useState(''), [presetId, setPresetId] = useState('');
 	const [writePending, setWritePending] = useState(false);
 	const active = useRef(entry), live = useRef(true), owned = useRef(owner), writing = useRef<object | null>(null); owned.current = owner;
@@ -51,6 +52,9 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 	const modes = { copy: messages.copy, sync: messages.sync, auto: messages.auto, quick: messages.quick, presets: messages.presets };
 	return <>
 		<details className="lightscaper-develop-settings-menu"><summary>{messages.menu}</summary>
+			{props.profile === 'current3' && props.rawDevelopment && <button type="button" disabled={busy} onClick={() => {
+				if (current() && !active.current) props.rawDevelopment?.onOpen();
+			}}>{photoDevelopRawDevelopmentCopy(props.locale).menu}</button>}
 			<PhotoDevelopLocalAdjustmentsMenuV1 locale={props.locale} disabled={busy} isCurrent={() => current() && !active.current}
 				resolution={props.resolution} localAdjustments={props.localAdjustments} repairs={props.repairs} />
 			<button type="button" disabled={busy} onClick={() => { open('copy'); }}>{messages.copy}</button>
@@ -75,7 +79,7 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 			{snapshot.busy && <p role="status">{messages.working}</p>}
 			<p>{messages.selected}: {props.selectedIds.length}</p><p>{messages.targetPolicy}</p>
 			{entry.mode !== 'quick' && (props.profile === 'current3'
-				? <PhotoDevelopSettingsPickerCurrentV1 value={selection as ImageDevelopSelectionV3} disabled={busy} messages={messages} isCurrent={interactive} onChange={setSelection} />
+				? <PhotoDevelopSettingsPickerCurrentV1 value={selection as ImageDevelopSelectionV4} disabled={busy} messages={messages} isCurrent={interactive} onChange={setSelection} />
 				: <PhotoDevelopSettingsPickerV2 value={selection} disabled={busy} messages={messages} isCurrent={interactive} onChange={setSelection} />)}
 			{entry.mode === 'copy' && <button type="button" disabled={busy} onClick={() => {
 				if (!dialogCurrent()) return; run(async () => { await invoke('copy', source, selection); close(); });

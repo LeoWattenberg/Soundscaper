@@ -2,8 +2,9 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../../closed-domain-value.ts';
 import type { PixelPreviewPresentationReaderV1 } from '../pixel-preview-presentation-v1.ts';
-import type { PhotoLibraryDevelopSettingsV3 } from '../../../photo-library-develop-port-v3.ts';
-import type { LoadPhotoLibraryDevelopProxyRuntimeV3, PhotoLibraryDevelopProxyRuntimeV3 } from '../../../photo-library-develop-proxy-port-v3.ts';
+import type { PhotoLibraryDevelopSettingsCurrentV1 } from '../../../photo-library-develop-port-current-v1.ts';
+import type { LoadPhotoLibraryDevelopProxyRuntimeCurrentV1, PhotoLibraryDevelopProxyRuntimeCurrentV1 } from '../../../photo-library-develop-proxy-port-current-v1.ts';
+import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../../photo-library-develop-original-current-v1.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../../photo-library-develop-original-port-v1.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../../../photo-library-develop-full-resolution-port-v1.ts';
 import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../../photo-library-develop-linear-port-v1.ts';
@@ -16,21 +17,24 @@ import { createPixelFrameHistogramV1 } from '../../../imaging/pixel-frame-histog
 import { prepareImageDevelopMaskOverlaySelectionV1 } from '../../../imaging/image-develop-mask-overlay-v1.ts';
 import { preparePhotoDevelopMaskDisplayModeV1 } from '../../../photo-develop-mask-display-v1.ts';
 
-import { normalizeImageDevelopStateCurrentV1 } from '../../../imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV3 } from '../../../imaging/image-develop-state-through-v3.ts';
+import { normalizeImageDevelopStateThroughV4 } from '../../../imaging/image-develop-state-v4.ts';
+import { presentPhotoDevelopRawCurrentV1 } from './photo-library-develop-raw-presentation-current-v1.ts';
 import { withPhotoDevelopDisplayFrameV1 } from '../../../imaging/photo-develop-display-frame-v1.ts';
 import { withRepairPixelFrameLifetimeV1 } from '../../../imaging/pixel-frame-repair-lifetime-v1.ts';
 import type { PhotoDevelopPresentationSnapshotV2, PhotoDevelopPresentationViewV2 } from '../photo-library-develop-presentation-v2.ts';
 
-export type PhotoDevelopPresentationProfileV1 = 'legacy2' | 'current3';
-export interface PhotoDevelopPresentationViewKernelV1 extends Omit<PhotoDevelopPresentationViewV2, 'develop'> { readonly develop: PhotoLibraryDevelopSettingsV3; }
-type CapturedPorts = Required<Omit<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'readPreview'>> & Pick<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'readPreview'>;
+export type PhotoDevelopPresentationProfileV1 = 'legacy2' | 'current3' | 'current4';
+export interface PhotoDevelopPresentationViewKernelV1 extends Omit<PhotoDevelopPresentationViewV2, 'develop'> { readonly develop: PhotoLibraryDevelopSettingsCurrentV1; }
+type CapturedPorts = Required<Omit<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'withDerivedFrame' | 'readPreview'>> & Pick<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'withDerivedFrame' | 'readPreview'>;
 function assertProfile(value: unknown): asserts value is PhotoDevelopPresentationProfileV1 {
-	if (value !== 'legacy2' && value !== 'current3') throw new TypeError('Unknown fixed Develop presentation profile.');
+	if (value !== 'legacy2' && value !== 'current3' && value !== 'current4') throw new TypeError('Unknown fixed Develop presentation profile.');
 }
 export interface PhotoDevelopPresentationPortsKernelV1 {
 	readonly withOriginalFrame?: PhotoLibraryDevelopOriginalPortV1['withFrame'];
+	readonly withDerivedFrame?: PhotoLibraryDevelopOriginalPortCurrentV1['withDerivedFrame'];
 	readonly readPreview?: PixelPreviewPresentationReaderV1;
-	readonly loadProxy: LoadPhotoLibraryDevelopProxyRuntimeV3;
+	readonly loadProxy: LoadPhotoLibraryDevelopProxyRuntimeCurrentV1;
 	readonly beforePresent?: Promise<void>;
 	readonly stage?: typeof withPixelFrameBodyV1;
 	readonly paint?: typeof paintPixelFrameCanvasV1;
@@ -58,8 +62,8 @@ export function preparePhotoDevelopPresentationViewForProfileV1(profile: PhotoDe
 	if (resolution !== undefined && resolution !== 'proxy' && resolution !== 'full') throw new RangeError('Unknown develop resolution.');
 	const revision = Object.hasOwn(input, 'revision') ? field(input, 'revision', 'develop presentation') : undefined;
 	if (revision !== undefined && (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0)) throw new RangeError('Develop requires a bounded photo revision.');
-	if ((profile === 'current3' || resolution === 'full') && revision === undefined) throw new RangeError('Full-resolution develop requires a photo revision.');
-	const develop = (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2 : normalizeImageDevelopStateCurrentV1)(field(input, 'develop', 'develop presentation'));
+	if ((profile !== 'legacy2' || resolution === 'full') && revision === undefined) throw new RangeError('Full-resolution develop requires a photo revision.');
+	const develop = (profile === 'legacy2' ? normalizeImageDevelopStateV1OrV2 : profile === 'current3' ? normalizeImageDevelopStateThroughV3 : normalizeImageDevelopStateThroughV4)(field(input, 'develop', 'develop presentation'));
 	if (new TextEncoder().encode(JSON.stringify(develop)).byteLength > 2_097_152) throw new RangeError('Develop settings exceed their byte budget.');
 	const before = field(input, 'before', 'develop presentation'), after = field(input, 'after', 'develop presentation');
 	if (!before || typeof before !== 'object' || !after || typeof after !== 'object' || before === after) throw new TypeError('Develop requires two distinct canvas targets.');
@@ -83,27 +87,29 @@ function pin<Callable extends (...args: never[]) => unknown>(value: unknown, rec
 function ports(profile: PhotoDevelopPresentationProfileV1, value: PhotoDevelopPresentationPortsKernelV1): CapturedPorts {
 	assertProfile(profile);
 	const input = record(value, 'develop presentation ports', profile === 'legacy2' ? ['withOriginalFrame', 'readPreview', 'loadProxy', 'beforePresent', 'stage', 'paint', 'clear']
-		: ['withOriginalFrame', 'readPreview', 'loadProxy', 'beforePresent', 'paint', 'clear'], profile === 'legacy2' ? ['readPreview', 'loadProxy'] : ['loadProxy']);
+		: ['withOriginalFrame', ...(profile === 'current4' ? ['withDerivedFrame'] : []), 'readPreview', 'loadProxy', 'beforePresent', 'paint', 'clear'], profile === 'legacy2' ? ['readPreview', 'loadProxy'] : ['loadProxy']);
 	const optional = (key: string): unknown => Object.hasOwn(input, key) ? field(input, key, 'develop presentation ports') : undefined;
 	const reader = optional('readPreview');
 	const original = optional('withOriginalFrame'), gate = optional('beforePresent'), stage = optional('stage'), paint = optional('paint'), clear = optional('clear');
+	const derived = optional('withDerivedFrame');
 	return Object.freeze({ withOriginalFrame: original === undefined ? undefined : pin<PhotoLibraryDevelopOriginalPortV1['withFrame']>(original, value),
+		withDerivedFrame: derived === undefined ? undefined : pin<PhotoLibraryDevelopOriginalPortCurrentV1['withDerivedFrame']>(derived, value),
 		readPreview: reader === undefined ? undefined : pin<PixelPreviewPresentationReaderV1>(reader, value),
-		loadProxy: pin<LoadPhotoLibraryDevelopProxyRuntimeV3>(field(input, 'loadProxy', 'develop presentation ports'), value),
+		loadProxy: pin<LoadPhotoLibraryDevelopProxyRuntimeCurrentV1>(field(input, 'loadProxy', 'develop presentation ports'), value),
 		beforePresent: gate === undefined ? Promise.resolve() : gate as Promise<void>,
 		stage: stage === undefined ? withPixelFrameBodyV1 : pin<typeof withPixelFrameBodyV1>(stage, value),
 		paint: paint === undefined ? paintPixelFrameCanvasV1 : pin<typeof paintPixelFrameCanvasV1>(paint, value),
 		clear: clear === undefined ? clearPixelFrameCanvasV1 : pin<typeof clearPixelFrameCanvasV1>(clear, value) });
 }
 
-function captureRuntime(profile: PhotoDevelopPresentationProfileV1, value: Readonly<PhotoLibraryDevelopProxyRuntimeV3>): Readonly<PhotoLibraryDevelopProxyRuntimeV3> {
+function captureRuntime(profile: PhotoDevelopPresentationProfileV1, value: Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1>): Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1> {
 	const methods = ['withProxy', 'withFullResolution'];
-	const input = record(value, 'develop runtime', profile === 'current3' ? [...methods, 'withLinearWorkingFrame'] : methods, methods);
+	const input = record(value, 'develop runtime', profile !== 'legacy2' ? [...methods, 'withLinearWorkingFrame'] : methods, methods);
 	if (Object.hasOwn(input, 'withLinearWorkingFrame') && typeof field(input, 'withLinearWorkingFrame', 'develop runtime') !== 'function') {
 		throw new TypeError('Linear working delivery requires an own runtime method.');
 	}
-	return Object.freeze({ withProxy: pin<PhotoLibraryDevelopProxyRuntimeV3['withProxy']>(field(input, 'withProxy', 'develop runtime'), value),
-		withFullResolution: pin<PhotoLibraryDevelopProxyRuntimeV3['withFullResolution']>(field(input, 'withFullResolution', 'develop runtime'), value) });
+	return Object.freeze({ withProxy: pin<PhotoLibraryDevelopProxyRuntimeCurrentV1['withProxy']>(field(input, 'withProxy', 'develop runtime'), value),
+		withFullResolution: pin<PhotoLibraryDevelopProxyRuntimeCurrentV1['withFullResolution']>(field(input, 'withFullResolution', 'develop runtime'), value) });
 }
 
 /** One joined source/stage/current renderer at a time. Only scalar histograms and
@@ -178,14 +184,18 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 	async #run(view: Readonly<PhotoDevelopPresentationViewKernelV1>, signal: AbortSignal): Promise<void> {
 		try { await this.#ports.beforePresent; } catch (error) { this.#remember(error); throw error; }
 		check(signal);
-		if (this.#profile === 'current3' || view.resolution === 'full') {
+		if (this.#profile !== 'legacy2' || view.resolution === 'full') {
 			const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(this.#profile, loaded); check(signal);
+			if (this.#profile === 'current4' && view.develop.processVersion === 4 && view.develop.rawDevelopment.mode !== 'canonical') {
+				const rendered = await presentPhotoDevelopRawCurrentV1(view, runtime, this.#ports, signal, () => this.#view === view);
+				check(signal); if (this.#view === view && rendered) this.#publish({ status: 'ready', ...rendered, error: null }); return;
+			}
 			if (!this.#ports.withOriginalFrame) throw new Error('Full-resolution development is unavailable.');
 			const rendered = await this.#ports.withOriginalFrame({ schemaVersion: 1, photoId: view.photoId, expectedRevision: view.revision! }, async source => {
 				check(signal);
 				if (source.photoId !== view.photoId || source.revision !== view.revision) throw new Error('Develop original changed its requested identity or revision.');
-				const frame = readPixelFrameV1(source.frame, this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source);
-				return this.#profile === 'current3' ? this.#presentCurrent(view, frame, runtime, signal) : this.#present(view, frame, runtime, signal);
+				const frame = readPixelFrameV1(source.frame, this.#profile !== 'legacy2' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source);
+				return this.#profile !== 'legacy2' ? this.#presentCurrent(view, frame, runtime, signal) : this.#present(view, frame, runtime, signal);
 			}, { signal });
 			check(signal); if (this.#view === view && rendered) this.#publish({ status: 'ready', ...rendered, error: null }); return;
 		}
@@ -197,14 +207,14 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 		const rendered = await this.#ports.stage({ descriptor, byteLength, outputSha256, body, signal }, frame => this.#present(view, frame, runtime, signal), { limits: SOURCE });
 		check(signal); if (this.#view === view && rendered) this.#publish({ status: 'ready', ...rendered, error: null });
 	}
-	async #present(view: Readonly<PhotoDevelopPresentationViewKernelV1>, frame: PixelFrameV1, runtime: Readonly<PhotoLibraryDevelopProxyRuntimeV3>, signal: AbortSignal): Promise<Rendered | null> {
+	async #present(view: Readonly<PhotoDevelopPresentationViewKernelV1>, frame: PixelFrameV1, runtime: Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1>, signal: AbortSignal): Promise<Rendered | null> {
 		const profile = view.resolution === 'full' ? PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 : { source: SOURCE, render: RENDER };
 		const render = view.resolution === 'full' ? runtime.withFullResolution : runtime.withProxy;
 		if (typeof render !== 'function') throw new Error('The requested develop renderer is unavailable.');
 		const before = await createPixelFrameHistogramV1(frame, { limits: profile.source, signal }); check(signal);
 		this.#ports.paint(view.before, frame, { limits: profile.source, signal }); check(signal);
 		let completed: Rendered | null = null;
-		await Reflect.apply(render, runtime, [{ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, (output: Parameters<Parameters<PhotoLibraryDevelopProxyRuntimeV3['withProxy']>[1]>[0]) => {
+		await Reflect.apply(render, runtime, [{ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, (output: Parameters<Parameters<PhotoLibraryDevelopProxyRuntimeCurrentV1['withProxy']>[1]>[0]) => {
 			check(signal); if (this.#view !== view) return;
 			this.#ports.paint(view.after, output.frame, { limits: profile.render, signal }); check(signal);
 			if (view.maskOverlay && view.overlay) {
@@ -231,7 +241,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 		}]);
 		check(signal); return completed;
 	}
-	async #presentCurrent(view: Readonly<PhotoDevelopPresentationViewKernelV1>, frame: PixelFrameV1, runtime: Readonly<PhotoLibraryDevelopProxyRuntimeV3>, signal: AbortSignal): Promise<Rendered | null> {
+	async #presentCurrent(view: Readonly<PhotoDevelopPresentationViewKernelV1>, frame: PixelFrameV1, runtime: Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1>, signal: AbortSignal): Promise<Rendered | null> {
 		if (frame.descriptor.sampleFormat !== 'unorm8') return presentPhotoDevelopLinearV1(view, frame, runtime, signal, this.#ports.paint, () => this.#view === view);
 		const resolution = view.resolution ?? 'proxy', full = PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1;
 		const original = await withRepairPixelFrameLifetimeV1(async owner => {

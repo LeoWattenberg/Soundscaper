@@ -32,12 +32,12 @@ async function nativeMenu() {
 		await cap.write({ schemaVersion: 3, catalogId: f.root.id, command: { type: 'save', expectedRevision: 0, preset } });
 		const snapshot = await cap.list({ schemaVersion: 3, catalogId: f.root.id });
 		assert.equal(snapshot.schemaVersion, 3); assert.equal(snapshot.presets.length, 1);
-		assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 3);
+		assert.equal((await f.row() as { schemaVersion: number }).schemaVersion, 4);
 		return { f, snapshot, read: async () => cap.list({ schemaVersion: 3, catalogId: f.root.id }) };
 	} catch (error) { await f.close(); throw error; }
 }
 
-for (const locale of ['en', 'de']) test(`${locale}: Current Import selector admits the genuine retained Preset3 menu and emits only its frozen scalar identity`, async () => {
+for (const locale of ['en', 'de']) test(`${locale}: Current Import selector admits the genuine retained Preset4 menu and emits only its frozen scalar identity`, async () => {
 	const native = await nativeMenu(), choices: unknown[] = [];
 	const props = { readPresets: native.read, value: null, busy: false, copy: photoDevelopSettingsCopy(locale, 'current3'),
 		onPending: () => undefined, onChange: (value: unknown) => { choices.push(value); } };

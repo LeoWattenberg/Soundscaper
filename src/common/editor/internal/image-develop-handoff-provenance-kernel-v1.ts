@@ -5,18 +5,19 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
 import { readCanonicalSafeVisualText, readExactSafeVisualText } from '../safe-visual-text.ts';
 import { IMAGE_DEVELOP_LIMITS_V1 } from '../imaging/image-develop-contract-v1.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV3 } from '../imaging/image-develop-state-through-v3.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../imaging/image-develop-state-v4.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../imaging/image-develop-state-v2.ts';
 
-type Profile = 'legacy1' | 'current2';
+type Profile = 'legacy1' | 'current2' | 'current4';
 export type ImageDevelopHandoffOriginForProfileV1<Mode extends Profile> = Readonly<{
-	schemaFamily: 'lightscaper'; schemaVersion: Mode extends 'current2' ? 1 | 2 | 3 : 1 | 2; catalogId: string; photoId: string; revision: number;
+	schemaFamily: 'lightscaper'; schemaVersion: Mode extends 'legacy1' ? 1 | 2 : 1 | 2 | 3; catalogId: string; photoId: string; revision: number;
 	versionId: string; versionKind: 'master' | 'virtual-copy'; versionName: string; versionCreatedAt: string;
 }> | Readonly<{
 	schemaFamily: 'framescaper'; schemaVersion: 1; projectId: string; revision: number; sourceId: string; sequenceId: string; clipId: string;
 }>;
 export interface ImageDevelopHandoffProvenanceForProfileV1<Mode extends Profile> {
-	readonly schemaVersion: Mode extends 'current2' ? 2 : 1;
+	readonly schemaVersion: Mode extends 'legacy1' ? 1 : 2;
 	readonly kind: 'image-develop-handoff';
 	readonly origin: ImageDevelopHandoffOriginForProfileV1<Mode>;
 	/** Exact original spelling is retained beside its canonical original filename. */
@@ -38,7 +39,7 @@ export function createImageDevelopHandoffProvenanceForProfileV1<Mode extends Pro
 	const result = normalizeImageDevelopHandoffProvenanceForProfileV1(profile, { schemaVersion: profile === 'legacy1' ? 1 : 2, kind: 'image-develop-handoff',
 		origin: field(input, 'origin', 'image handoff provenance request'), original: field(input, 'original', 'image handoff provenance request'),
 		developSha256: imageDevelopHandoffRecipeSha256ForProfileV1(profile, develop) });
-	if (result.origin.schemaFamily === 'lightscaper' && (result.origin.schemaVersion === 1 && develop.processVersion !== 1 || result.origin.schemaVersion === 2 && develop.processVersion === 3)) {
+	if (result.origin.schemaFamily === 'lightscaper' && (result.origin.schemaVersion === 1 && develop.processVersion !== 1 || result.origin.schemaVersion === 2 && develop.processVersion >= 3)) {
 		throw new RangeError('A Photo1 origin cannot bind a successor develop process.');
 	}
 	return result;
@@ -64,7 +65,7 @@ function origin<Mode extends Profile>(profile: Mode, value: unknown): ImageDevel
 	if (family === 'lightscaper') {
 		const input = record(value, 'photo handoff origin', ['schemaFamily', 'schemaVersion', 'catalogId', 'photoId', 'revision', 'versionId', 'versionKind', 'versionName', 'versionCreatedAt']);
 		const version = field(input, 'schemaVersion', 'photo handoff origin'), kind = field(input, 'versionKind', 'photo handoff origin');
-		if (version !== 1 && version !== 2 && !(profile === 'current2' && version === 3)) throw new RangeError('Unsupported photo handoff schema version.');
+		if (version !== 1 && version !== 2 && !(profile !== 'legacy1' && version === 3)) throw new RangeError('Unsupported photo handoff schema version.');
 		if (kind !== 'master' && kind !== 'virtual-copy') throw new RangeError('Unsupported photo handoff version kind.');
 		return Object.freeze({ schemaFamily: family, schemaVersion: version as Extract<ImageDevelopHandoffOriginForProfileV1<Mode>, { schemaFamily: 'lightscaper' }>['schemaVersion'], catalogId: id(field(input, 'catalogId', 'photo handoff origin')),
 			photoId: id(field(input, 'photoId', 'photo handoff origin')), revision: integer(field(input, 'revision', 'photo handoff origin'), 0, Number.MAX_SAFE_INTEGER),
@@ -101,8 +102,9 @@ function timestamp(value: unknown): string {
 }
 
 function assertProfile(value: unknown): void {
-	if (value !== 'legacy1' && value !== 'current2') throw new RangeError('Unsupported fixed image provenance profile.');
+	if (value !== 'legacy1' && value !== 'current2' && value !== 'current4') throw new RangeError('Unsupported fixed image provenance profile.');
 }
-function developForProfile(profile: Profile, value: unknown): ImageDevelopStateCurrentV1 {
-	return profile === 'legacy1' ? normalizeImageDevelopStateV1OrV2(value) : normalizeImageDevelopStateCurrentV1(value);
+function developForProfile(profile: Profile, value: unknown): ImageDevelopStateThroughV4 {
+	return profile === 'legacy1' ? normalizeImageDevelopStateV1OrV2(value)
+		: profile === 'current2' ? normalizeImageDevelopStateThroughV3(value) : normalizeImageDevelopStateThroughV4(value);
 }

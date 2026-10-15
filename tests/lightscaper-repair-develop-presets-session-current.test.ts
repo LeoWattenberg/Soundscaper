@@ -10,7 +10,7 @@ import { deferred, remainsPending } from './helpers/async-test-control.ts';
 
 type Fixture = Awaited<ReturnType<typeof repairPresetsFixture>>;
 interface Menu { readonly schemaVersion: 3; readonly catalogId: string; readonly revision: number; readonly presets: readonly { readonly id: string; readonly name: string; readonly authoredStateSha256: string }[] }
-interface Presets { create(value: unknown): { readonly schemaVersion: 3; readonly settings: unknown; readonly identity: { readonly id: string; readonly name: string; readonly authoredStateSha256: string } };
+interface Presets { create(value: unknown): { readonly schemaVersion: 4; readonly settings: unknown; readonly identity: { readonly id: string; readonly name: string; readonly authoredStateSha256: string } };
 	parse(text: string): unknown; serialize(value: unknown): string;
 	list(value: unknown, options?: { signal?: AbortSignal }): Promise<Menu>;
 	read(value: unknown, options?: { signal?: AbortSignal }): Promise<{ readonly schemaVersion: 3; readonly revision: number; readonly preset: ReturnType<Presets['create']> }>;
@@ -22,6 +22,7 @@ function child(session: Fixture['session']): Presets {
 function request(f: Fixture, command: unknown) { return { schemaVersion: 3, catalogId: f.root.id, command }; }
 async function save(f: Fixture, cap: Presets, id = 'repair-preset', draft = f.source().develop, expectedRevision = 0) {
 	const packet = await f.selectedPacket(draft), preset = cap.create({ schemaVersion: 3, id, name: 'Repair preset', settings: packet });
+	assert.equal(packet.schemaVersion, 4); assert.equal(preset.schemaVersion, 4);
 	const ack = await cap.write(request(f, { type: 'save', expectedRevision, preset })); return { packet, preset, ack };
 }
 async function apply(f: Fixture, presetId = 'repair-preset', expectedPresetRevision = 1, indexes = [1]) {

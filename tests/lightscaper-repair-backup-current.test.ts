@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { normalizePhotoDocumentCurrentV1 } from '../src/lightscaper/catalog/photo-document-current-v1.ts';
-import { createImageDevelopSelectedPresetV3 } from '../src/common/editor/imaging/image-develop-preset-selected-v3.ts';
+import { createImageDevelopSelectedPresetV4 } from '../src/common/editor/imaging/image-develop-preset-selected-v4.ts';
 import { normalizeImageDevelopStateCurrentV1 } from '../src/common/editor/imaging/image-develop-state-current-v1.ts';
 import { repairBackupCurrentFixture, readRepairBackupArchive, repairBackupDestination } from './helpers/lightscaper-repair-backup-current-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
@@ -46,16 +46,16 @@ for (const placement of ['active', 'redo', 'snapshot', 'inactive'] as const) tes
 	} finally { await f.close(); }
 });
 
-test('native Row3 selects Archive7 for wholly legacy Photos and authenticates preset-only disabled LUT and unused brushes before destination/original', async () => {
+test('native Row4 selects Archive8 for wholly legacy Photos and authenticates preset-only disabled LUT and unused brushes before destination/original', async () => {
 	const f = await repairBackupCurrentFixture('legacy'), target = repairBackupDestination(f.events);
 	try {
 		const preset = await f.savePreset(true), row = await f.row(), before = await f.inspect(); assert.ok(before.every(photo => photo?.schemaVersion === 1));
 		const result = await f.session.backupCatalog({ createWritable: target.createWritable }); assert.equal(result.blob, null);
 		assert.equal(target.writable.locked, false); assert.equal(f.events.at(-1), 'commit'); assert.equal(f.events.filter(value => value === 'commit').length, 1);
-		const value = await readRepairBackupArchive(new Blob(target.parts)); assert.equal(value.document.schemaVersion, 7);
+		const value = await readRepairBackupArchive(new Blob(target.parts)); assert.equal(value.document.schemaVersion, 8);
 		assert.deepEqual(packedPhotos(value.document, value.entries).photos, before);
 		const header = value.document.developPresetPack as { entry: string; rowSchemaVersion: number; revision: number; presetCount: number };
-		assert.equal(header.entry, 'assets/develop-presets-v3.bin'); assert.equal(header.rowSchemaVersion, 3); assert.equal(header.revision, 1); assert.equal(header.presetCount, 1);
+		assert.equal(header.entry, 'assets/develop-presets-v4.bin'); assert.equal(header.rowSchemaVersion, 4); assert.equal(header.revision, 1); assert.equal(header.presetCount, 1);
 		assert.deepEqual(JSON.parse(new TextDecoder().decode(value.entries.get(header.entry))) as unknown, row);
 		const masks = value.document.maskRasters as readonly Resource[], luts = value.document.lutResources as readonly Resource[];
 		assert.equal(masks.length, 2); assert.equal(luts.length, 1);
@@ -68,13 +68,13 @@ test('native Row3 selects Archive7 for wholly legacy Photos and authenticates pr
 	} finally { await f.close(); }
 });
 
-test('empty sticky native Row3 remains present at its exact revision and still chooses Archive7', async () => {
+test('empty sticky native Row4 remains present at its exact revision and still chooses Archive8', async () => {
 	const f = await repairBackupCurrentFixture('legacy');
 	try {
 		await f.savePreset(); await f.session.develop.presetsCurrent!.write({ schemaVersion: 3, catalogId: f.root.id,
 			command: { type: 'delete', expectedRevision: 1, presetId: 'portable' } });
 		const row = await f.row(), value = await archive(f), header = value.document.developPresetPack as { entry: string; rowSchemaVersion: number; revision: number; presetCount: number };
-		assert.equal(value.document.schemaVersion, 7); assert.equal(header.rowSchemaVersion, 3); assert.equal(header.revision, 2); assert.equal(header.presetCount, 0);
+		assert.equal(value.document.schemaVersion, 8); assert.equal(header.rowSchemaVersion, 4); assert.equal(header.revision, 2); assert.equal(header.presetCount, 0);
 		assert.deepEqual(JSON.parse(new TextDecoder().decode(value.entries.get(header.entry))) as unknown, row); assert.deepEqual(await f.row(), row);
 		assert.ok(packedPhotos(value.document, value.entries).photos.every(photo => photo.schemaVersion === 1));
 	} finally { await f.close(); }
@@ -105,8 +105,8 @@ for (const sourceRef of ['foreign-source', `brush-mask-v2:3:1:${'a'.repeat(64)}`
 	try {
 		const preset = await f.savePreset(true), base = preset.settings.develop, graph = base.masks[0]!;
 		const develop = normalizeImageDevelopStateCurrentV1({ ...base, masks: [{ ...graph, inputs: [...graph.inputs, { name: 'foreign', sourceRef, kind: 'alpha' }] }] });
-		const changed = createImageDevelopSelectedPresetV3({ schemaVersion: 3, id: preset.identity.id, name: preset.identity.name, settings: { ...preset.settings, develop } });
-		const row = { schemaVersion: 3, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1, presets: [changed] }; await f.writeRow(row); f.events.splice(0);
+		const changed = createImageDevelopSelectedPresetV4({ schemaVersion: 4, id: preset.identity.id, name: preset.identity.name, settings: { ...preset.settings, develop } });
+		const row = { schemaVersion: 4, kind: 'photo-develop-presets', catalogId: f.root.id, revision: 1, presets: [changed] }; await f.writeRow(row); f.events.splice(0);
 		await assert.rejects(f.session.backupCatalog({ createWritable: target.createWritable })); assert.deepEqual(f.events, []); assert.deepEqual(await f.row(), row);
 	} finally { await f.close(); }
 });

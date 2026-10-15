@@ -4,17 +4,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPhotoLibrarySessionCurrentV1 } from '../src/lightscaper/photo-library-session-runtime-current-v1.ts';
 import { defaultImageDevelopStateV2 } from '../src/common/editor/imaging/image-develop-state-v2.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../src/common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../src/common/editor/imaging/image-develop-state-v4.ts';
+import type { ImageDevelopSettingsPacketV4 } from '../src/common/editor/imaging/image-develop-settings-contract-v4.ts';
 import { repairRecipe } from './helpers/lightscaper-repair-raster-export-current-fixture.ts';
-import { repairSettingsFixture, brushSettingsRecipe, FULL_SETTINGS_SELECTION, SETTINGS_TIME } from './helpers/lightscaper-repair-settings-current-fixture.ts';
+import { repairSettingsFixture, brushSettingsRecipe, CURRENT_SETTINGS_SELECTION, SETTINGS_TIME } from './helpers/lightscaper-repair-settings-current-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
 
 type Fixture = Awaited<ReturnType<typeof repairSettingsFixture>>;
-type Selection = { readonly effectTypes: 'all' | readonly string[]; readonly geometry: boolean; readonly localAdjustments: boolean; readonly repairs: boolean };
-interface Packet { readonly schemaVersion: 3; readonly kind: 'photo-develop-settings'; readonly selection: Selection; readonly develop: ImageDevelopStateCurrentV1 }
+type Packet = ImageDevelopSettingsPacketV4;
 interface Receipt { readonly schemaVersion: 3; readonly completion: 'finished' | 'cancelled' | 'interrupted'; readonly notices: readonly string[];
 	readonly outcomes: readonly { readonly photoId: string; readonly status: 'applied' | 'unchanged' | 'conflict' | 'failed' | 'not-attempted'; readonly revision: number | null }[] }
-interface CurrentSettings { copy(request: unknown): Packet; merge(request: unknown): ImageDevelopStateCurrentV1; adjust(request: unknown): ImageDevelopStateCurrentV1;
+interface CurrentSettings { copy(request: unknown): Packet; merge(request: unknown): ImageDevelopStateThroughV4; adjust(request: unknown): ImageDevelopStateThroughV4;
 	copySelected(request: unknown, options?: Readonly<{ signal?: AbortSignal }>): Promise<Packet>;
 	applyBatch(request: unknown, options?: Readonly<{ signal?: AbortSignal }>): Promise<Receipt> }
 function settings(f: Fixture): CurrentSettings {
@@ -25,15 +25,15 @@ function settings(f: Fixture): CurrentSettings {
 function target(f: Fixture, index: number) { const photo = f.photos[index]!; return { photoId: photo.id, versionId: photo.activeVersionId, expectedRevision: photo.revision }; }
 function batch(f: Fixture, action: unknown, indexes = [1]) { return { schemaVersion: 3, catalogId: f.photos[0]!.catalogId, targets: indexes.map(index => target(f, index)), action, label: 'Current settings', createdAt: SETTINGS_TIME }; }
 const relative = (exposure: number) => ({ kind: 'relative', effectType: 'tone-ladder-v1', changes: { exposure } });
-const local = Object.freeze({ effectTypes: [] as readonly string[], geometry: false, localAdjustments: true, repairs: false });
+const local = Object.freeze({ effectTypes: [] as readonly string[], geometry: false, localAdjustments: true, repairs: false, rawDevelopment: false });
 
 // Every positive reaches the actual missing selected child at baseline. No
 // future value module import, synthetic Port2 or substitute body validator.
 test('selected Current settings copy, merge and native batch donate exact ordered repairs while preserving Originals', async () => {
 	const f = await repairSettingsFixture();
 	try { const child = settings(f), before = await f.inspect(), source = await f.read();
-		const packet = child.copy({ schemaVersion: 3, develop: source.develop, selection: FULL_SETTINGS_SELECTION });
-		assert.equal(packet.schemaVersion, 3); assert.equal(packet.develop.processVersion, 3);
+		const packet = child.copy({ schemaVersion: 3, develop: source.develop, selection: CURRENT_SETTINGS_SELECTION });
+		assert.equal(packet.schemaVersion, 4); assert.equal(packet.develop.processVersion, 3);
 		const merged = child.merge({ schemaVersion: 3, target: f.photos[1]!.versions[0]!.develop, settings: packet });
 		assert.equal(merged.processVersion, 3); assert.deepEqual(merged, source.develop);
 		const receipt = await child.applyBatch(batch(f, { kind: 'paste', settings: packet })); assert.equal(receipt.schemaVersion, 3); assert.equal(receipt.outcomes[0]!.status, 'applied');
@@ -130,7 +130,7 @@ test('selected draft copy authenticates an unused declared native brush before a
 	try { const child = settings(f), first = await f.installBrush(), unused = await f.installBrush([0, 255, 1]), base = brushSettingsRecipe(first.reference), graph = base.masks[0]!;
 		const draft = { ...base, masks: [{ ...graph, inputs: [...graph.inputs, { name: 'unused', sourceRef: unused.reference.storageKey, kind: 'alpha' }] }] };
 		await f.corruptBrush(unused.reference); const before = await f.inspect(); let published = 0;
-		await assert.rejects(child.copySelected({ ...f.source(0, normalizeImageDevelopStateCurrentV1(draft)), selection: local }).then(packet => { published++; return packet; }));
+		await assert.rejects(child.copySelected({ ...f.source(0, normalizeImageDevelopStateThroughV4(draft)), selection: local }).then(packet => { published++; return packet; }));
 		assert.equal(published, 0); assert.deepEqual(await f.inspect(), before); assert.ok(f.borrowed.every(bytes => bytes.every(byte => byte === 0)));
 	} finally { await f.close(); }
 });
@@ -155,7 +155,7 @@ for (const sourceRef of ['foreign-source', `brush-mask-v2:1:1:${'a'.repeat(64)}`
 	const f = await repairSettingsFixture();
 	try {
 		const child = settings(f), installed = await f.installBrush(), base = brushSettingsRecipe(installed.reference), graph = base.masks[0]!;
-		const draft = normalizeImageDevelopStateCurrentV1({ ...base, masks: [{ ...graph,
+		const draft = normalizeImageDevelopStateThroughV4({ ...base, masks: [{ ...graph,
 			inputs: [...graph.inputs, { name: 'unused', sourceRef, kind: 'alpha' }] }] });
 		const before = await f.inspect(); let published = 0;
 		await assert.rejects(child.copySelected({ ...f.source(0, draft), selection: local }).then(packet => { published++; return packet; }), { name: 'TypeError' });

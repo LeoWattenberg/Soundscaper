@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV3 } from '../../common/editor/imaging/image-develop-state-through-v3.ts';
 import type { PhotoExportSidecarBindingV1, PhotoExportSidecarV1 } from './photo-export-sidecar-v1.ts';
 import { createPhotoExportSidecarForProfileV1, normalizePhotoExportSidecarForProfileV1,
 	parsePhotoExportSidecarForProfileV1, serializePhotoExportSidecarForProfileV1 } from './internal/photo-export-sidecar-kernel-v1.ts';
@@ -9,7 +9,7 @@ import { createPhotoExportSidecarForProfileV1, normalizePhotoExportSidecarForPro
 export interface PhotoExportSidecarV2 extends Omit<PhotoExportSidecarV1, 'schemaVersion' | 'photoSchemaVersion' | 'version'> {
 	readonly schemaVersion: 2;
 	readonly photoSchemaVersion: 3;
-	readonly version: Omit<PhotoExportSidecarV1['version'], 'develop'> & { readonly develop: Readonly<ImageDevelopStateCurrentV1> };
+	readonly version: Omit<PhotoExportSidecarV1['version'], 'develop'> & { readonly develop: Readonly<ImageDevelopStateThroughV3> };
 }
 export function createPhotoExportSidecarV2(value: unknown, binding: PhotoExportSidecarBindingV1): PhotoExportSidecarV2 {
 	return createPhotoExportSidecarForProfileV1('current2', value, binding);

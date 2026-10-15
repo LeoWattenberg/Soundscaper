@@ -11,7 +11,7 @@ import type { PhotoRasterExportProfileV1 } from '../photo-raster-export-contract
 import { parsePhotoExportSidecarCurrentV1 } from '../../catalog/photo-export-sidecar-current-v1.ts';
 import type { ExecutePhotoDevelopCurrentV1, PhotoDevelopExecutionContextCurrentV1 } from '../../../common/editor/controller/shared/photo-library-develop-workflow-current-v1.ts';
 import type { PhotoDevelopExecutionContextV2 } from '../../../common/editor/controller/shared/photo-library-develop-workflow-v2.ts';
-import { detachPhotoLibraryDevelopSettingsV3, capturePhotoDevelopExecutionContextCurrentV1, capturePhotoLibraryDevelopPortV3 } from '../../../common/editor/controller/shared/photo-library-develop-command-v3.ts';
+import { detachPhotoLibraryDevelopSettingsCurrentV1, capturePhotoDevelopExecutionContextCurrentV1, capturePhotoLibraryDevelopPortCurrentV1 } from '../../../common/editor/controller/shared/photo-library-develop-command-current-v1.ts';
 import { detachPhotoLibraryDevelopSettingsV2, capturePhotoDevelopExecutionContextV2, capturePhotoLibraryDevelopPortV2 } from '../../../common/editor/controller/shared/photo-library-develop-command-v2.ts';
 
 interface Runtime { readonly execute: ExecutePhotoDevelopV2 | ExecutePhotoDevelopCurrentV1; readonly read: ReadPhotoExportSidecar;
@@ -75,14 +75,14 @@ export class PhotoRasterBatchSidecarRecoveryKernelV1 {
 				const current = () => { signal.throwIfAborted(); if (!scope.isCurrent()) throw new Error('Photo companion selected generation changed.'); };
 				current(); const acquired = await scope.acquire(); current();
 				const schemaVersion = this.#profile === 'current3' ? 3 : 2;
-				const port = this.#profile === 'current3' ? capturePhotoLibraryDevelopPortV3(acquired as Parameters<typeof capturePhotoLibraryDevelopPortV3>[0])
+				const port = this.#profile === 'current3' ? capturePhotoLibraryDevelopPortCurrentV1(acquired as Parameters<typeof capturePhotoLibraryDevelopPortCurrentV1>[0])
 					: capturePhotoLibraryDevelopPortV2(acquired as Parameters<typeof capturePhotoLibraryDevelopPortV2>[0]); current();
 				if (port.schemaVersion !== schemaVersion) throw new TypeError('Photo companion requires current saved Develop.');
 				const snapshot: unknown = await Reflect.apply(port.read, port, [{ schemaVersion, photoId: binding.photoId }, { signal }]); current();
 				const own = (key: string): unknown => { const data = Object.getOwnPropertyDescriptor(snapshot, key); if (!data || !Object.hasOwn(data, 'value')) throw new TypeError('Photo companion snapshot requires own data.'); return data.value; };
 				if (own('schemaVersion') !== schemaVersion || own('catalogId') !== binding.catalogId || own('photoId') !== binding.photoId
 					|| own('revision') !== binding.expectedRevision || own('versionId') !== binding.versionId || own('activeVersionId') !== binding.versionId) throw new Error('Photo companion saved version changed.');
-				await sidecar.capture(binding, this.#profile === 'current3' ? detachPhotoLibraryDevelopSettingsV3(own('develop')) : detachPhotoLibraryDevelopSettingsV2(own('develop')), signal); current();
+				await sidecar.capture(binding, this.#profile === 'current3' ? detachPhotoLibraryDevelopSettingsCurrentV1(own('develop')) : detachPhotoLibraryDevelopSettingsV2(own('develop')), signal); current();
 				await sidecar.verify(signal); current(); result = await sidecar.deliver(ack.fileName, signal);
 				} catch (cause) { result = sidecar.failure(ack.fileName, signal, cause); }
 			}, external]);

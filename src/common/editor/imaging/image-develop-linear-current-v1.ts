@@ -21,6 +21,7 @@ import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mas
 import type { ImageDevelopMaskOverlayViewV1 } from './image-develop-mask-overlay-v1.ts';
 import { withProjectedImageDevelopMaskCoverageCurrentV1 } from './image-develop-mask-overlay-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
+import { captureImageDevelopRawRequestCurrentV1 } from './image-develop-raw-request-current-v1.ts';
 
 const TYPED_BUFFER = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), 'buffer')!.get!;
 const BACKING_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
@@ -36,7 +37,7 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 	const signal = captureRepairSignalV1(signalField?.value), check = () => { checkRepairSignalV1(signal); };
 	const prepared = (() => { try {
 		check(); if (typeof consume !== 'function') throw new TypeError('Current linear Develop requires a scoped consumer.');
-		const prepared = prepareLinearDevelopCurrentV1(value, profile, options); check(); return prepared;
+		const prepared = prepareLinearDevelopCurrentV1(captureImageDevelopRawRequestCurrentV1(value), profile, options); check(); return prepared;
 	} catch (error) { check(); throw error; } })();
 	const source = (() => { try {
 		const raw = record(prepared.raw, 'Current linear source', ['descriptor', 'pixels']);

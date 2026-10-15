@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ImageDevelopStateCurrentV1 } from './imaging/image-develop-state-current-v1.ts';
+import type { ImageDevelopStateThroughV3 } from './imaging/image-develop-state-through-v3.ts';
 import type { PhotoLibraryDevelopCommandV2, PhotoLibraryDevelopSnapshotV2 } from './photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from './photo-library-develop-original-port-v1.ts';
 import type { PhotoLibraryDevelopMaskRasterPortV1 } from './photo-library-develop-mask-raster-port-v1.ts';
@@ -8,7 +8,7 @@ import type { PhotoLibraryDevelopPresetsPortV3 } from './photo-library-develop-p
 import type { PhotoLibraryDevelopSettingsPortV3 } from './photo-library-develop-settings-port-v3.ts';
 
 /** Complete current settings; original locators and resource bodies remain private. */
-export type PhotoLibraryDevelopSettingsV3 = ImageDevelopStateCurrentV1;
+export type PhotoLibraryDevelopSettingsV3 = ImageDevelopStateThroughV3;
 export interface PhotoLibraryDevelopSnapshotV3 extends Omit<PhotoLibraryDevelopSnapshotV2, 'schemaVersion' | 'develop'> {
 	readonly schemaVersion: 3;
 	readonly develop: Readonly<PhotoLibraryDevelopSettingsV3>;

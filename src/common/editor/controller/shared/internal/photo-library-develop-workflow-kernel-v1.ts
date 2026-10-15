@@ -8,6 +8,8 @@ import { CUBE_LUT_PROFILE_EFFECT_TYPE_V1 } from '../../../video-cube-lut-profile
 import type { VideoEffectLeafV2 } from '../../../video-effect-leaf-v2.ts';
 import type { PhotoLibraryDevelopAcknowledgementV2, PhotoLibraryDevelopSnapshotV2, PhotoLibraryDevelopApplyV2 } from '../../../photo-library-develop-port-v2.ts';
 import type { PhotoLibraryDevelopAcknowledgementV3, PhotoLibraryDevelopSnapshotV3, PhotoLibraryDevelopApplyV3 } from '../../../photo-library-develop-port-v3.ts';
+import type { PhotoLibraryDevelopAcknowledgementCurrentV1, PhotoLibraryDevelopSnapshotCurrentV1,
+	PhotoLibraryDevelopApplyCurrentV1 } from '../../../photo-library-develop-port-current-v1.ts';
 import { detachPhotoDevelopCommandForProfileV1, detachPhotoDevelopSettingsForProfileV1, capturePhotoDevelopPortForProfileV1, capturePhotoDevelopContextForProfileV1,
 	type PhotoDevelopProfileV1, type PhotoDevelopCommandForProfileV1, type PhotoDevelopSettingsForProfileV1, type PhotoDevelopPortForProfileV1 } from './photo-library-develop-command-kernel-v1.ts';
 
@@ -18,11 +20,14 @@ export interface PhotoDevelopExecutionContextForProfileV1<Profile extends PhotoD
 	readonly refresh: () => Promise<unknown>;
 }
 export type ExecutePhotoDevelopForProfileV1<Profile extends PhotoDevelopProfileV1> = (action: (context: PhotoDevelopExecutionContextForProfileV1<Profile>) => Promise<void>, signal?: AbortSignal) => Promise<unknown>;
-export type PhotoDevelopDocumentForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopSnapshotV2 : PhotoLibraryDevelopSnapshotV3;
+export type PhotoDevelopDocumentForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopSnapshotV2
+	: Profile extends 'current3' ? PhotoLibraryDevelopSnapshotV3 : PhotoLibraryDevelopSnapshotCurrentV1;
 export type PhotoDevelopAcknowledgementForProfileV1<Profile extends PhotoDevelopProfileV1> =
-	(Profile extends 'legacy2' ? Omit<PhotoLibraryDevelopAcknowledgementV2, 'snapshot'> : Omit<PhotoLibraryDevelopAcknowledgementV3, 'snapshot'>)
+	(Profile extends 'legacy2' ? Omit<PhotoLibraryDevelopAcknowledgementV2, 'snapshot'> : Profile extends 'current3'
+		? Omit<PhotoLibraryDevelopAcknowledgementV3, 'snapshot'> : Omit<PhotoLibraryDevelopAcknowledgementCurrentV1, 'snapshot'>)
 	& Readonly<{ snapshot: Readonly<PhotoDevelopDocumentForProfileV1<Profile>> }>;
-export type PhotoDevelopApplyForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopApplyV2 : PhotoLibraryDevelopApplyV3;
+export type PhotoDevelopApplyForProfileV1<Profile extends PhotoDevelopProfileV1> = Profile extends 'legacy2' ? PhotoLibraryDevelopApplyV2
+	: Profile extends 'current3' ? PhotoLibraryDevelopApplyV3 : PhotoLibraryDevelopApplyCurrentV1;
 export interface PhotoDevelopWorkflowSnapshotForProfileV1<Profile extends PhotoDevelopProfileV1> {
 	readonly visible: boolean;
 	readonly busy: boolean;
@@ -55,7 +60,7 @@ export class PhotoLibraryDevelopWorkflowKernelV1<Profile extends PhotoDevelopPro
 	#closing: Promise<void> | null = null;
 
 	constructor(profile: Profile, options: Readonly<{ execute: ExecutePhotoDevelopForProfileV1<Profile>; now?: () => string }>) {
-		if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported Develop authoring profile.');
+		if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new TypeError('Unsupported Develop authoring profile.');
 		this.#profile = profile;
 		const execute = options.execute, now = options.now ?? (() => new Date().toISOString());
 		this.#execute = (...args) => Reflect.apply(execute, options, args); this.#now = () => Reflect.apply(now, options, []);
@@ -89,7 +94,7 @@ export class PhotoLibraryDevelopWorkflowKernelV1<Profile extends PhotoDevelopPro
 	setEffects(value: readonly VideoEffectLeafV2[]): void {
 		if (!this.#editable()) return;
 		const draft = this.#view.draft!, effects = normalizeVideoEffectsV2(readClosedDomainArray(value, 'Develop effects', 0, IMAGE_DEVELOP_LIMITS_V1.maximumEffects));
-		const processVersion = this.#profile === 'current3' && draft.processVersion === 3 ? 3
+		const processVersion = this.#profile === 'current4' && draft.processVersion === 4 ? 4 : this.#profile !== 'legacy2' && draft.processVersion === 3 ? 3
 			: draft.processVersion === 2 || effects.some(effect => effect.type === CUBE_LUT_PROFILE_EFFECT_TYPE_V1) ? 2 : 1;
 		const retained = new Set(effects.map(effect => effect.id));
 		const maskBindings = draft.maskBindings.filter(binding => retained.has(binding.effectId));
@@ -100,7 +105,9 @@ export class PhotoLibraryDevelopWorkflowKernelV1<Profile extends PhotoDevelopPro
 	edit(value: PhotoDevelopSettingsForProfileV1<Profile>): void {
 		if (!this.#editable()) return;
 		const draft = this.#view.draft!, next = detachPhotoDevelopSettingsForProfileV1(this.#profile, value);
-		if (this.#profile === 'current3' && draft.processVersion === 3 && next.processVersion !== 3) throw new RangeError('An authored repair draft cannot downgrade its process version.');
+		if (this.#profile !== 'legacy2' && (draft.processVersion === 3 && next.processVersion < 3 || draft.processVersion === 4 && next.processVersion !== 4)) {
+			throw new RangeError('An authored repair or RAW draft cannot downgrade its process version.');
+		}
 		if (this.#editable() && this.#view.draft === draft) { this.#gesture = null; this.#setDraft(next); }
 	}
 	beginGesture(): void { if (this.#editable() && !this.#gesture) this.#gesture = this.#view.draft; }
@@ -119,20 +126,26 @@ export class PhotoLibraryDevelopWorkflowKernelV1<Profile extends PhotoDevelopPro
 		if (!this.#view.document || !this.#view.draft || !this.#view.dirty) return Promise.resolve(null);
 		return this.#run(() => {
 			const document = this.#view.document!, draft = this.#view.draft!;
-			return this.#request({ type: 'record-develop', versionId: document.versionId, develop: draft, label, createdAt: this.#now() } as PhotoDevelopCommandForProfileV1<Profile>);
+			return this.#request({ type: 'record-develop', versionId: document.versionId, develop: draft, label, createdAt: this.#now() });
 		}, (context, request) => this.#apply(context, request));
 	}
 	apply(value: PhotoDevelopCommandForProfileV1<Profile>): Promise<PhotoDevelopAcknowledgementForProfileV1<Profile> | null> {
 		return this.#run(() => this.#request(value), (context, request) => this.#apply(context, request));
 	}
-	#request(value: PhotoDevelopCommandForProfileV1<Profile>): Readonly<PhotoDevelopApplyForProfileV1<Profile>> {
+	#request(value: unknown): Readonly<PhotoDevelopApplyForProfileV1<Profile>> {
 		const document = this.#view.document;
 		if (!document || !this.#view.visible) throw new Error('Develop selection is unavailable.');
 		const command = detachPhotoDevelopCommandForProfileV1(this.#profile, value);
 		if ('versionId' in command && command.type !== 'activate-version' && command.versionId !== document.versionId) throw new Error('Develop command belongs to another version.');
 		if (command.type === 'activate-version' && !document.versions.some(version => version.id === command.versionId)) throw new Error('The requested version is missing.');
 		if (command.type === 'create-virtual-copy' && command.sourceVersionId !== document.versionId) throw new Error('Virtual copy belongs to another version.');
-		return Object.freeze({ schemaVersion: this.#schema, photoId: document.photoId, expectedRevision: document.revision, command }) as PhotoDevelopApplyForProfileV1<Profile>;
+		const binding = { photoId: document.photoId, expectedRevision: document.revision };
+		const request: PhotoLibraryDevelopApplyV2 | PhotoLibraryDevelopApplyV3 | PhotoLibraryDevelopApplyCurrentV1 = this.#profile === 'legacy2'
+			? Object.freeze({ ...binding, schemaVersion: 2, command: detachPhotoDevelopCommandForProfileV1('legacy2', command) })
+			: this.#profile === 'current3' ? Object.freeze({ ...binding, schemaVersion: 3, command: detachPhotoDevelopCommandForProfileV1('current3', command) })
+				: Object.freeze({ ...binding, schemaVersion: 3, command: detachPhotoDevelopCommandForProfileV1('current4', command) });
+		// Each branch proves the correlated fixed schema and command policy.
+		return request as PhotoDevelopApplyForProfileV1<Profile>;
 	}
 	async #apply(context: PhotoDevelopExecutionContextForProfileV1<Profile>, request: Readonly<PhotoDevelopApplyForProfileV1<Profile>>): Promise<PhotoDevelopAcknowledgementForProfileV1<Profile> | null> {
 		const port = await this.#acquire(context); if (!port) return null;

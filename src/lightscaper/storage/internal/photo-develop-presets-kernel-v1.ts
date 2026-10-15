@@ -12,9 +12,12 @@ import { photoDevelopPresetsKeyV1, PHOTO_DEVELOP_PRESETS_LIMITS_V1 as LIMITS,
 	PhotoDevelopPresetRevisionConflictError, type PhotoDevelopPresetReadPortV1, type PhotoDevelopPresetSettingsPortV1 } from '../photo-develop-presets-v1.ts';
 import { borrowPhotoDevelopPresetEntryReaderV2, borrowPhotoDevelopPresetSettingsV2, photoDevelopPresetEntryValue, readPhotoDevelopSignalOptionsV2 } from '../photo-develop-preset-read-v2.ts';
 
-import type { PhotoLibraryDevelopPresetSnapshotV3, PhotoLibraryDevelopPresetBodyV3, PhotoLibraryDevelopPresetCommandV3, PhotoLibraryDevelopPresetV3 } from '../../../common/editor/photo-library-develop-presets-port-v3.ts';
-import { normalizeImageDevelopSelectedPresetCurrentV1 } from '../../../common/editor/imaging/image-develop-preset-selected-v3.ts';
+import type { PhotoLibraryDevelopPresetSnapshotV3, PhotoLibraryDevelopPresetBodyV3, PhotoLibraryDevelopPresetCommandV3 } from '../../../common/editor/photo-library-develop-presets-port-v3.ts';
+import type { PhotoLibraryDevelopPresetBodyCurrentV1, PhotoLibraryDevelopPresetCommandCurrentV1,
+	PhotoLibraryDevelopPresetCurrentV1 } from '../../../common/editor/photo-library-develop-presets-port-current-v1.ts';
+import { normalizeImageDevelopPresetCurrentForProfileV1 } from '../../../common/editor/imaging/internal/image-develop-preset-kernel-v1.ts';
 import { normalizePhotoDevelopPresetRowCurrentV1, type PhotoDevelopPresetRowCurrentV1 } from '../photo-develop-preset-row-current-v1.ts';
+import { normalizePhotoDevelopPresetRowCurrentForProfileV1 } from './photo-develop-preset-row-kernel-v1.ts';
 import { createPhotoResourceReachabilityCurrentV1 } from '../../catalog/photo-resource-reachability-current-v1.ts';
 import { verifyPhotoResourceReferencesCurrentV1, type PhotoResourceVerificationHostCurrentV1 } from '../photo-media-resource-verification-current-v1.ts';
 import { assertPhotoDevelopSelectedMaskInputsCurrentV1 } from '../../controller/internal/photo-develop-selected-mask-inputs-current-v1.ts';
@@ -23,12 +26,12 @@ export interface PhotoDevelopPresetOptionsV2 {
 	readonly verifyResources?: (preset: PhotoLibraryDevelopPresetV2, signal?: AbortSignal) => Promise<void>;
 }
 export interface PhotoDevelopPresetOptionsCurrentV1 { readonly signal?: AbortSignal; readonly resources?: PhotoResourceVerificationHostCurrentV1; }
-type Profile = 'legacy2' | 'current3';
+type Profile = 'legacy2' | 'current3' | 'current4';
 type Options = PhotoDevelopPresetOptionsV2 | PhotoDevelopPresetOptionsCurrentV1;
-type Command = PhotoLibraryDevelopPresetCommandV2 | PhotoLibraryDevelopPresetCommandV3;
+type Command = PhotoLibraryDevelopPresetCommandV2 | PhotoLibraryDevelopPresetCommandV3 | PhotoLibraryDevelopPresetCommandCurrentV1;
 type Snapshot = PhotoLibraryDevelopPresetSnapshotV2 | PhotoLibraryDevelopPresetSnapshotV3;
-type Body = PhotoLibraryDevelopPresetBodyV2 | PhotoLibraryDevelopPresetBodyV3;
-type Preset = PhotoLibraryDevelopPresetV3;
+type Body = PhotoLibraryDevelopPresetBodyV2 | PhotoLibraryDevelopPresetBodyV3 | PhotoLibraryDevelopPresetBodyCurrentV1;
+type Preset = PhotoLibraryDevelopPresetCurrentV1;
 type Row = PhotoDevelopPresetRowCurrentV1;
 const CHECK = AbortSignal.prototype.throwIfAborted;
 function check(signal?: AbortSignal): void { if (signal) Reflect.apply(CHECK, signal, []); }
@@ -79,7 +82,7 @@ export async function applyPhotoDevelopPresetForProfileV1(profile: Profile, repo
 	const { signal } = admit(profile, firstSignal, () => readPhotoDevelopSignalOptionsV2(Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal') } : {})); check(signal);
 	const verifier = profile === 'legacy2' && Object.hasOwn(input, 'verifyResources') ? field(input, 'verifyResources') : undefined;
 	const resources = admit(profile, signal, () => {
-		const rawResources = profile === 'current3' && Object.hasOwn(input, 'resources') ? field(input, 'resources') : undefined;
+		const rawResources = profile !== 'legacy2' && Object.hasOwn(input, 'resources') ? field(input, 'resources') : undefined;
 		return rawResources === undefined ? undefined : captureResources(rawResources);
 	});
 	if (verifier !== undefined && typeof verifier !== 'function') throw new TypeError('Develop preset resource verification must be callable.');
@@ -99,11 +102,12 @@ export async function applyPhotoDevelopPresetForProfileV1(profile: Profile, repo
 		&& serializePreset(profile, existing) === serializePreset(profile, command.preset);
 	const presets = unchanged ? [...current.presets] : current.presets.filter(preset => preset.identity.id !== selected);
 	if (!unchanged && command.type === 'save') presets.push(command.preset);
-	const schemaVersion = profile === 'current3' && (current.schemaVersion === 3 || presets.some(preset => preset.schemaVersion === 3)) ? 3
+	const schemaVersion = profile === 'current4' && (current.schemaVersion === 4 || presets.some(preset => preset.schemaVersion === 4)) ? 4
+		: profile !== 'legacy2' && (current.schemaVersion === 3 || presets.some(preset => preset.schemaVersion === 3)) ? 3
 		: current.schemaVersion === 2 || presets.some(preset => preset.schemaVersion === 2) ? 2 : 1;
 	const body = { schemaVersion, kind: 'photo-develop-presets', catalogId: root.id, revision: current.revision + (unchanged ? 0 : 1), presets };
 	const next = admit(profile, signal, () => normalizeRow(profile, body, root.id));
-	if (profile === 'current3') await verifyRow(next, resources, signal);
+	if (profile !== 'legacy2') await verifyRow(next, resources, signal);
 	else {
 		// One ledger proves complete retained reference geometry and its shared capacity, including disabled instances.
 		const closure = createPhotoCubeLutReachabilityV1(); for (const preset of next.presets) closure.addPreset(preset);
@@ -134,10 +138,15 @@ function snapshot(profile: Profile, row: Readonly<{ catalogId: string; revision:
 	const result = Object.freeze({ schemaVersion: profile === 'legacy2' ? 2 as const : 3 as const, catalogId: row.catalogId, revision: row.revision,
 		presets: Object.freeze(row.presets.map(preset => Object.freeze({ id: preset.identity.id, name: preset.identity.name,
 			authoredStateSha256: preset.identity.authoredStateSha256,
-			scope: preset.settings.selection.effectTypes === 'all' && preset.settings.selection.geometry && preset.settings.selection.localAdjustments
-				&& (profile === 'legacy2' || preset.schemaVersion !== 3 || preset.settings.selection.repairs) ? 'full' as const : 'partial' as const }))) });
+			scope: fullSelection(preset) ? 'full' as const : 'partial' as const }))) });
 	if (new TextEncoder().encode(JSON.stringify(result)).byteLength > LIMITS.maximumMenuBytes) throw new RangeError('Develop preset menu exceeds its scalar byte bound.');
 	return result as Snapshot;
+}
+function fullSelection(preset: Preset): boolean {
+	const selection = preset.settings.selection;
+	const repairs = preset.schemaVersion === 3 || preset.schemaVersion === 4 ? preset.settings.selection.repairs : true;
+	const rawDevelopment = preset.schemaVersion === 4 ? preset.settings.selection.rawDevelopment : true;
+	return selection.effectTypes === 'all' && selection.geometry && selection.localAdjustments && repairs && rawDevelopment;
 }
 
 /** Only this named native binding supplies stored settings to Current batch
@@ -145,38 +154,45 @@ function snapshot(profile: Profile, row: Readonly<{ catalogId: string; revision:
  * before every target; no arbitrary packet enters clipboard enrollment. */
 export async function preparePhotoDevelopPresetBatchCurrentKernelV1(repository: PhotoDevelopPresetReadPortV1, catalogId: string, presetId: string,
 	expectedRevision: number, options: PhotoDevelopPresetOptionsCurrentV1 = {}) {
-	const firstSignal = nativePreabort('current3', options);
-	const input = admit('current3', firstSignal, () => record(options, 'Current preset binding options', ['signal', 'resources'], []));
-	const { signal } = signalOptions('current3', Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal') } : {});
+	return preparePhotoDevelopPresetBatchForProfileV1('current4', repository, catalogId, presetId, expectedRevision, options);
+}
+export async function preparePhotoDevelopPresetBatchForProfileV1(profile: 'current3' | 'current4', repository: PhotoDevelopPresetReadPortV1, catalogId: string, presetId: string,
+	expectedRevision: number, options: PhotoDevelopPresetOptionsCurrentV1 = {}) {
+	assertProfile(profile);
+	const firstSignal = nativePreabort(profile, options);
+	const input = admit(profile, firstSignal, () => record(options, 'Current preset binding options', ['signal', 'resources'], []));
+	const { signal } = signalOptions(profile, Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal') } : {});
 	const rawResources = Object.hasOwn(input, 'resources') ? field(input, 'resources') : undefined;
 	const resources = rawResources === undefined ? undefined : captureResources(rawResources);
 	const key = photoDevelopPresetsKeyV1(catalogId), selected = id(presetId, 'Develop preset ID'), expected = integer(expectedRevision, 0, Number.MAX_SAFE_INTEGER, 'Develop preset revision');
 	const read = borrowPhotoDevelopPresetEntryReaderV2(repository); check(signal);
 	const initial = photoDevelopPresetEntryValue(await read(key)); check(signal);
 	if (initial === undefined) throw new ReferenceError('Develop preset is missing.');
-	const row = admit('current3', signal, () => normalizeRow('current3', initial, catalogId));
+	const row = admit(profile, signal, () => normalizeRow(profile, initial, catalogId));
 	if (row.revision !== expected) throw new PhotoDevelopPresetRevisionConflictError();
 	const preset = row.presets.find(value => value.identity.id === selected);
 	if (!preset) throw new ReferenceError('Develop preset is missing.');
 	const serialized = JSON.stringify(row); await verifyRow(row, resources, signal); check(signal);
 	const recheck = async () => {
 		check(signal); const raw = photoDevelopPresetEntryValue(await read(key)); check(signal);
-		if (raw === undefined || JSON.stringify(admit('current3', signal, () => normalizeRow('current3', raw, catalogId))) !== serialized) throw new PhotoDevelopPresetRevisionConflictError();
+		if (raw === undefined || JSON.stringify(admit(profile, signal, () => normalizeRow(profile, raw, catalogId))) !== serialized) throw new PhotoDevelopPresetRevisionConflictError();
 		check(signal);
 	};
 	await recheck(); return Object.freeze({ preset, recheck });
 }
 
 function normalizePreset(profile: Profile, value: unknown): Preset {
-	return profile === 'legacy2' ? normalizeImageDevelopPresetV1OrV2(value) : normalizeImageDevelopSelectedPresetCurrentV1(value);
+	return profile === 'legacy2' ? normalizeImageDevelopPresetV1OrV2(value)
+		: profile === 'current3' ? normalizeImageDevelopPresetCurrentForProfileV1('current3', value, 'selected') : normalizeImageDevelopPresetCurrentForProfileV1('current4', value, 'selected');
 }
 function normalizeRow(profile: Profile, value: unknown, catalogId: string): Row {
-	const row = profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(value, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(value, catalogId);
-	if (profile === 'current3') for (const preset of row.presets) assertPhotoDevelopSelectedMaskInputsCurrentV1(preset.settings.develop);
+	const row = profile === 'legacy2' ? normalizePhotoDevelopPresetRowV1OrV2(value, catalogId)
+		: profile === 'current3' ? normalizePhotoDevelopPresetRowCurrentForProfileV1('current3', value, catalogId) : normalizePhotoDevelopPresetRowCurrentV1(value, catalogId);
+	if (profile !== 'legacy2') for (const preset of row.presets) assertPhotoDevelopSelectedMaskInputsCurrentV1(preset.settings.develop);
 	return row;
 }
 function serializePreset(profile: Profile, preset: Preset): string {
-	return profile === 'legacy2' ? serializeImageDevelopPresetV1OrV2(preset) : JSON.stringify(normalizeImageDevelopSelectedPresetCurrentV1(preset));
+	return profile === 'legacy2' ? serializeImageDevelopPresetV1OrV2(preset) : JSON.stringify(normalizePreset(profile, preset));
 }
 function captureResources(value: unknown): Readonly<PhotoResourceVerificationHostCurrentV1> {
 	const input = record(value, 'Selected preset resource factories', ['cubeLutResources', 'maskRasterResources']);
@@ -194,16 +210,16 @@ async function verifyRow(row: Row, resources: PhotoResourceVerificationHostCurre
 	await verifyPhotoResourceReferencesCurrentV1(references, resources, signal); check(signal);
 }
 function nativePreabort(profile: Profile, value: unknown): AbortSignal | undefined {
-	if (profile !== 'current3' || value === null || typeof value !== 'object') return;
+	if (profile === 'legacy2' || value === null || typeof value !== 'object') return;
 	const descriptor = Object.getOwnPropertyDescriptor(value, 'signal');
 	if (descriptor && Object.hasOwn(descriptor, 'value')) { const signal = descriptor.value as AbortSignal | undefined; check(signal); return signal; }
 }
 function signalOptions(profile: Profile, value: unknown) { const signal = nativePreabort(profile, value); return admit(profile, signal, () => readPhotoDevelopSignalOptionsV2(value)); }
 function assertProfile(profile: unknown): asserts profile is Profile {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new RangeError('Unsupported fixed native preset profile.');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'current4') throw new RangeError('Unsupported fixed native preset profile.');
 }
 
 function admit<Result>(profile: Profile, signal: AbortSignal | undefined, run: () => Result): Result {
-	try { const result = run(); if (profile === 'current3') check(signal); return result; }
-	catch (error) { if (profile === 'current3') check(signal); throw error; }
+	try { const result = run(); if (profile !== 'legacy2') check(signal); return result; }
+	catch (error) { if (profile !== 'legacy2') check(signal); throw error; }
 }

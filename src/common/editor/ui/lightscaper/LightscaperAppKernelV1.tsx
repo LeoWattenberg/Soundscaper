@@ -467,7 +467,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 		{!restore.busy && developVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<LightscaperPhotoDevelopSurfaceV1 profile={profile} locale={locale} photoId={developEntry.photoId} label={developEntry.label} generation={developGeneration}
 					selectedIds={photoSelection.snapshot.selectedIds} settings={developSettings}
-					execute={library.executeDevelop} executeLegacyDevelop={library.executeLegacyDevelop} readPreview={library.readPreview} withOriginalFrame={library.withOriginalFrame} loadProxy={library.loadDevelopProxyRuntime} importCubeLut={library.importCubeLut}
+					execute={library.executeDevelop} executeLegacyDevelop={library.executeLegacyDevelop} readPreview={library.readPreview} withOriginalFrame={library.withOriginalFrame} withDerivedFrame={library.withDerivedFrame} loadProxy={library.loadDevelopProxyRuntime} importCubeLut={library.importCubeLut}
 					beforePresent={developEntry.beforePresent} beforeOpen={developEntry.beforeOpen} registerDemandRetirement={developSurface.register}
 					registerRetirement={registerPreviewRetirement} onClose={() => {
 						developSurface.close(joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]));

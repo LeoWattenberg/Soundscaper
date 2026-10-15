@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { upgradePhotoDocumentV2 } from '../catalog/photo-document-v2.ts';
-import { upgradePhotoDocumentV3 } from '../catalog/photo-document-current-v1.ts';
+import { upgradePhotoDocumentV3, upgradePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { createPhotoVersionForProfileV1 } from '../catalog/photo-history-kernel.ts';
 import { field, id, name, oneOf, record } from '../catalog/value-validation.ts';
 import { PHOTO_DEVELOP_WORKSPACE_COMMAND_TYPES_KERNEL, applyPhotoDevelopWorkspaceCommandForProfileV1,
@@ -42,7 +42,7 @@ export function applyPhotoCommandForProfileV1<Profile extends PhotoCommandProfil
 		const versionId = Object.hasOwn(input, 'versionId') ? id(field(input, 'versionId'), 'develop version ID') : photo.activeVersionId;
 		requireVersion(photo, versionId);
 		const develop = readDevelopForCommandProfileV1(profile, field(input, 'develop'));
-		const aggregate = develop.processVersion === 3 ? upgradePhotoDocumentV3(photo)
+		const aggregate = develop.processVersion >= 3 ? profile === 'current4' ? upgradePhotoDocumentCurrentV1(photo) : upgradePhotoDocumentV3(photo)
 			: develop.processVersion === 2 && photo.schemaVersion !== 3 ? upgradePhotoDocumentV2(photo) : photo;
 		return readPhotoForCommandProfileV1(profile, { ...aggregate, versions: photo.versions.map(version => version.id === versionId
 			? applyLegacyPhotoDevelopToVersionForProfileV1(profile, version, develop) : version) });

@@ -9,7 +9,8 @@ import { createFramescaperMaskRasterSourceTimelineImageV1 } from '../timeline-im
 import { assertFramescaperNativeImageSignalCurrentV1, checkFramescaperNativeImageSignalCurrentV1, retireFramescaperNativeImageCurrentV1 } from './timeline-image-native-pack-owner-current-v1.ts';
 import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../common/editor/closed-domain-value.ts';
 import { collectFramescaperImageProjectResourcesCurrentV1 } from '../../common/editor/video-cube-lut-project-references-current-v1.ts';
-import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
+import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../../common/editor/imaging/image-develop-state-v4.ts';
+import { prepareImageDevelopAuthoringCurrentV1 } from '../../common/editor/imaging/image-develop-authoring-current-v1.ts';
 import { normalizeImageDevelopStateV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
 import { withImageDevelopFrameCurrentV1 } from '../../common/editor/imaging/image-develop-frame-current-v1.ts';
 import { withImageDevelopLinearCurrentV1 } from '../../common/editor/imaging/image-develop-linear-current-v1.ts';
@@ -22,7 +23,7 @@ import { prepareImageDevelopMaskOverlaySelectionV1, type ImageDevelopMaskOverlay
 import { prepareImageDevelopBrushMasksCurrentV1 } from '../../common/editor/imaging/image-develop-mask-plan-current-v1.ts';
 import { planImageDevelopRepairSpotsV1 } from '../../common/editor/imaging/image-develop-repair-plan-v1.ts';
 import { planImageGeometryV1 } from '../../common/editor/imaging/image-geometry-plan-v1.ts';
-import { planPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
+import { planPixelFrameV1, type PixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { fitPixelSizeV1 } from '../../common/editor/imaging/pixel-frame-resize-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../common/editor/video-image-geometry-v1.ts';
 import type { WithImageRepairSpotsOriginalFrameV1 } from '../../common/editor/controller/shared/image-repair-spots-authoring-v1.ts';
@@ -36,6 +37,7 @@ export interface FramescaperImageDevelopDraftFrameHostCurrentV1 {
 	readonly clipId: string;
 	readonly store: FramescaperStoredImageAssetStoreTimelineImage;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
+	readonly withDevelopInputFrame?: <Result>(develop: unknown, consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, options?: Readonly<{ signal?: AbortSignal }>) => Promise<Result>;
 	assertCurrent(): void;
 }
 const PIXELS = Object.freeze({ maximumSidePixels: 8192, maximumPixels: 16_777_216, maximumBytes: 67_108_864 });
@@ -60,13 +62,15 @@ async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurr
 	request: unknown, consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, signal?: AbortSignal,
 	override?: Readonly<{ reference: Readonly<BrushMaskResourceReferenceV1>; source: Readonly<MaskRasterSourcePortV1> }>): Promise<Result> {
 	assertFramescaperNativeImageSignalCurrentV1(signal);
-	const current = host.assertCurrent, original = host.withOriginalFrame, store = host.store, clipId = host.clipId;
+	const current = host.assertCurrent, original = host.withOriginalFrame, developInput = host.withDevelopInputFrame, store = host.store, clipId = host.clipId;
 	const check = () => { checkFramescaperNativeImageSignalCurrentV1(signal); Reflect.apply(current, host, []); checkFramescaperNativeImageSignalCurrentV1(signal); };
-	check(); if (typeof consume !== 'function' || typeof original !== 'function' || typeof current !== 'function') throw new TypeError('Frame draft rendering requires its selected canonical owner and consumer.');
+	check(); if (typeof consume !== 'function' || typeof original !== 'function' || typeof current !== 'function'
+		|| developInput !== undefined && typeof developInput !== 'function') throw new TypeError('Frame draft rendering requires its selected Original owner and consumer.');
 	const { develop, selection, source, references, retained } = (() => {
 		try {
 			const input = record(request, 'Frame Develop draft', ['develop', 'maskOverlay'], ['develop']);
-			const develop = normalizeImageDevelopStateCurrentV1(field(input, 'develop', 'Frame Develop draft'));
+			const develop = normalizeImageDevelopStateThroughV4(field(input, 'develop', 'Frame Develop draft'));
+			if (develop.processVersion === 4 && develop.rawDevelopment.mode !== 'canonical' && !developInput) throw new TypeError('Frame RAW drafts require their selected derived-input owner.');
 			const rawSelection = Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'Frame Develop draft') : undefined;
 			const selection = rawSelection === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawSelection);
 			const project = cloneFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, host.project);
@@ -95,12 +99,16 @@ async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurr
 			return reference.storageKey === override.reference.storageKey ? override.source.withBytes(reference, consume, options) : brushes.withBytes(reference, consume, options);
 		} }) : brushes;
 		for (const reference of references.brushes) { check(); await maskSource.withBytes(reference, () => undefined, { signal }); check(); }
-		return await Reflect.apply(original, host, [async (frame: Parameters<Parameters<WithImageRepairSpotsOriginalFrameV1>[0]>[0]) => {
+		const borrow = <Value>(accept: (frame: Readonly<PixelFrameV1>) => Value | Promise<Value>): Promise<Value> => developInput
+			? Reflect.apply(developInput, host, [develop, accept, { signal }]) as Promise<Value>
+			: Reflect.apply(original, host, [accept, { signal }]) as Promise<Value>;
+		return await borrow(async frame => {
 			let outcome: { value: Result } | { error: unknown };
 			try {
 				check(); if (frame.descriptor.width !== source.canonical.width || frame.descriptor.height !== source.canonical.height) throw new RangeError('Frame draft Original differs from its exact canonical source.');
 				if (source.schemaVersion === 4) {
-					if (frame.descriptor.sampleFormat !== 'unorm16' || frame.descriptor.transfer !== 'linear' || frame.descriptor.primaries !== 'srgb') throw new TypeError('Frame RAW draft requires its authenticated native Original words.');
+					const format = develop.processVersion === 4 && develop.rawDevelopment.mode !== 'canonical' ? 'float32' : 'unorm16';
+					if (frame.descriptor.sampleFormat !== format || frame.descriptor.transfer !== 'linear' || frame.descriptor.primaries !== 'srgb') throw new TypeError('Frame RAW draft requires its authenticated selected native input.');
 					outcome = { value: await withImageDevelopLinearCurrentV1({ frame, develop, signal, ...(selection ? { maskOverlay: selection } : {}) },
 						(output, overlay) => withLinearPixelFrameDisplayV1({ frame: output, signal }, async display => {
 							check(); if (display.descriptor.width !== source.developed.width || display.descriptor.height !== source.developed.height) throw new RangeError('Frame RAW draft natural output differs from its admitted source dimensions.');
@@ -121,11 +129,11 @@ async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurr
 			// Resource sources drain before the canonical scope can release pixels.
 			await retireFramescaperNativeImageCurrentV1('error' in outcome ? outcome : undefined, cleanup);
 			if ('error' in outcome) throw outcome.error; return outcome.value;
-		}, { signal }]) as Result;
+		});
 	} catch (error) { await retireFramescaperNativeImageCurrentV1({ error }, cleanup); throw error; }
 }
 
-function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelopStateCurrentV1,
+function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelopStateThroughV4,
 	selection: Readonly<ImageDevelopMaskOverlaySelectionV1> | undefined,
 	references: ReturnType<typeof collectFramescaperImageProjectResourcesCurrentV1>, temporaryBodyBytes = 0): void {
 	if (source.schemaVersion === 4) {
@@ -145,10 +153,11 @@ function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelo
 	}
 	planPixelFrameV1({ schemaVersion: 1, width: source.canonical.width, height: source.canonical.height,
 		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, PIXELS);
-	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: develop.effects,
-		geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
+	const admitted = prepareImageDevelopAuthoringCurrentV1(develop);
+	const computation = admitted.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: admitted.effects,
+		geometry: admitted.geometry, masks: admitted.masks, maskBindings: admitted.maskBindings }) : admitted;
 	const masks = prepareImageDevelopBrushMasksCurrentV1(computation, source.canonical.width, source.canonical.height, PIXELS, selection);
-	const repairs = develop.processVersion === 3 ? planImageDevelopRepairSpotsV1(develop.repairs, source.canonical.width, source.canonical.height) : undefined;
+	const repairs = admitted.processVersion === 3 ? planImageDevelopRepairSpotsV1(admitted.repairs, source.canonical.width, source.canonical.height) : undefined;
 	let width = source.canonical.width, height = source.canonical.height, maximum = BigInt(width) * BigInt(height) * 4n;
 	const geometry = (value: Parameters<typeof planImageGeometryV1>[0]) => {
 		const plan = planImageGeometryV1(value, width, height); width = plan.width; height = plan.height;

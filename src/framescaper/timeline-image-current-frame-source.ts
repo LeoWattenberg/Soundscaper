@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { normalizeFramescaperImageSourceCurrentV1, framescaperImageSourceResourceReferencesCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import { normalizeImageDevelopStateV2 } from '../common/editor/imaging/image-develop-state-v2.ts';
+import { normalizeImageDevelopStateThroughV4 } from '../common/editor/imaging/image-develop-state-v4.ts';
+import { prepareImageDevelopAuthoringCurrentV1 } from '../common/editor/imaging/image-develop-authoring-current-v1.ts';
 import { planImageDevelopRepairSpotsV1 } from '../common/editor/imaging/image-develop-repair-plan-v1.ts';
 import { withFramescaperImageDevelopFrameForProfileV1 } from './internal/timeline-image-develop-frame-kernel-v1.ts';
 import { createFramescaperMaskRasterSourceTimelineImageV1 } from './timeline-image-mask-raster-source-v1.ts';
@@ -24,6 +26,7 @@ const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byte
 const PIXEL_LIMITS = Object.freeze({ maximumSidePixels: IMAGE_LIMITS.maximumDimension, maximumPixels: IMAGE_LIMITS.maximumPixelsPerFrame, maximumBytes: IMAGE_LIMITS.maximumPixelsPerFrame * 4 });
 export interface FramescaperCurrentImageFrameReader extends FramescaperImageFramePackReaderV1 {
 	withCanonicalFrame<Result>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, signal?: AbortSignal): Promise<Result>;
+	withDevelopInputFrame<Result>(develop: unknown, consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, signal?: AbortSignal): Promise<Result>;
 	closeAndJoin(): Promise<void>;
 }
 
@@ -33,9 +36,10 @@ export interface FramescaperCurrentImageFrameReader extends FramescaperImageFram
 export function framescaperEditableImageWorkingBytes(source: FramescaperCurrentImageSourceTimelineImage): bigint {
 	if (source.schemaVersion === 4) return prepareFramescaperRawImageWorkingCurrentV1(source).recipeWorkingBytes;
 	if (source.schemaVersion === 1) return 0n;
-	const computation = source.develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: source.develop.effects,
-		geometry: source.develop.geometry, masks: source.develop.masks, maskBindings: source.develop.maskBindings }) : source.develop;
-	const repair = source.develop.processVersion === 3 ? planImageDevelopRepairSpotsV1(source.develop.repairs, source.canonical.width, source.canonical.height) : undefined;
+	const admitted = prepareImageDevelopAuthoringCurrentV1(source.develop);
+	const computation = admitted.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: admitted.effects,
+		geometry: admitted.geometry, masks: admitted.masks, maskBindings: admitted.maskBindings }) : admitted;
+	const repair = admitted.processVersion === 3 ? planImageDevelopRepairSpotsV1(admitted.repairs, source.canonical.width, source.canonical.height) : undefined;
 	const masks = prepareImageDevelopBrushMasksCurrentV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	let width = source.canonical.width, height = source.canonical.height, maximum = BigInt(width) * BigInt(height) * 4n;
 	const geometry = (value: Parameters<typeof planImageGeometryV1>[0]) => {
@@ -94,6 +98,12 @@ export async function openFramescaperCurrentImageFrameSource(store: FramescaperS
 			catch (error) { wipe(value); throw error; }
 		}, external, source.schemaVersion !== 1);
 		return Object.freeze({ ...reader, withCanonicalFrame: native.withCanonicalFrame,
+			async withDevelopInputFrame<Result>(developValue: unknown, consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, external?: AbortSignal): Promise<Result> {
+				assertFramescaperNativeImageSignalCurrentV1(external); check();
+				const develop = normalizeImageDevelopStateThroughV4(developValue);
+				if (develop.processVersion === 4 && develop.rawDevelopment.mode !== 'canonical') throw new RangeError('A raster Develop input requires the canonical profile; RAW processing requires Source4.');
+				return native.withCanonicalFrame(consume, external);
+			},
 			readOriginal(external?: AbortSignal) { return raw(admitted => reader.readOriginal(admitted), external); },
 			readFrame(index: number, external?: AbortSignal) {
 				if (source.schemaVersion === 1) return raw(admitted => reader.readFrame(index, admitted), external);

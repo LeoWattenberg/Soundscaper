@@ -95,7 +95,7 @@ for (const locale of ['en', 'de']) for (const retained of [false, true]) test(`$
 		const repairLabel = locale === 'de' ? 'Reparaturstellen' : 'Repair spots';
 		const repair = ui.dom.container.querySelectorAll('input').find(node => node.parentNode?.textContent === repairLabel); assert.ok(repair);
 		assert.equal(reactProps(repair).checked, true); await ui.click(ui.button(ui.text.confirmCopy)); await ui.settled();
-		assert.equal(ui.settings().snapshot.clipboard?.schemaVersion, 3);
+		assert.equal(ui.settings().snapshot.clipboard?.schemaVersion, 4);
 	} finally { await ui.dispose(); }
 });
 

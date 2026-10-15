@@ -56,6 +56,8 @@ interface NativeOutput {
 	readonly graphic: Readonly<PixelFrameV1> | null;
 	readonly graphicWatermark?: Readonly<ImageExportGraphicRequest>;
 	readonly withTextFrame?: typeof withImageExportTextFrameV1;
+	/** Retained encoded Original and graphic scopes beyond listed plane backings. */
+	readonly retainedSourceBytes?: number;
 	readonly signal: AbortSignal;
 	readonly current: () => void;
 }
@@ -72,7 +74,9 @@ export async function withPhotoRasterLinearOutputCurrentV1<Result>(request: Nati
 	const initial = Object.freeze({ descriptor, pixels: admitted.pixels });
 	const borrowed = [...request.originals, initial, ...(request.graphic ? [request.graphic] : [])];
 	const text = request.output?.textWatermark;
-	const borrowedBytes = physicalBytes(borrowed) + MASK_SCOPE_BYTES + (text?.opacity ? GLYPH_WORKING_BYTES : 0);
+	const retained = request.retainedSourceBytes ?? 0;
+	if (!Number.isSafeInteger(retained) || retained < 0 || retained > PHOTO_RASTER_LINEAR_WORKING_BYTES_CURRENT_V1) throw new RangeError('Native raster retained source storage is invalid.');
+	const borrowedBytes = physicalBytes(borrowed) + retained + MASK_SCOPE_BYTES + (text?.opacity ? GLYPH_WORKING_BYTES : 0);
 	const owner = new LinearDevelopOwnerV1(borrowedBytes, PHOTO_RASTER_LINEAR_WORKING_BYTES_CURRENT_V1);
 	return owner.run(async () => {
 		let frame: Readonly<LinearWorkingPixelFrameV1> = initial, backing: ArrayBuffer | null = null, ownedBytes = 0;

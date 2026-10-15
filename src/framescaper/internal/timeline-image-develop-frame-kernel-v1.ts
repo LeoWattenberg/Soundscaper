@@ -2,6 +2,8 @@
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import { normalizeFramescaperImageSourceV2, framescaperImageSourceResourceReferencesV2 } from '../../common/editor/timeline-image-model-v2.ts';
 import { normalizeFramescaperImageSourceV3, framescaperImageSourceResourceReferencesV3 } from '../../common/editor/timeline-image-model-v3.ts';
+import { normalizeFramescaperImageSourceCurrentV1, framescaperImageSourceResourceReferencesCurrentV1 } from '../../common/editor/timeline-image-model-current-v1.ts';
+import { prepareImageDevelopAuthoringCurrentV1 } from '../../common/editor/imaging/image-develop-authoring-current-v1.ts';
 import { FRAMESCAPER_IMAGE_MODEL_LIMITS_V1 as LIMITS, type FramescaperImageSourceV1 } from '../../common/editor/timeline-image-model.ts';
 import { openFramescaperImageFramePackV1 } from '../../common/editor/timeline-image-frame-pack-v1.ts';
 import type { ImageDevelopFrameOptionsV2 } from '../../common/editor/imaging/image-develop-frame-v2.ts';
@@ -30,11 +32,14 @@ export async function withFramescaperImageDevelopFrameForProfileV1<Result>(profi
 	if (signal !== undefined) assertSignal(signal);
 	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
 	check(); if (typeof consume !== 'function') throw new TypeError('Editable image delivery requires a scoped consumer.');
-	const source = source2 ? normalizeFramescaperImageSourceV2(field(input, 'source', 'Frame editable image request'))
-		: normalizeFramescaperImageSourceV3(field(input, 'source', 'Frame editable image request'));
-	const computation = source.develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2,
-		effects: source.develop.effects, geometry: source.develop.geometry, masks: source.develop.masks, maskBindings: source.develop.maskBindings }) : source.develop;
-	if (source.develop.processVersion === 3) planImageDevelopRepairSpotsV1(source.develop.repairs, source.canonical.width, source.canonical.height);
+	const selected = field(input, 'source', 'Frame editable image request');
+	const source = source2 ? normalizeFramescaperImageSourceV2(selected) : active ? normalizeFramescaperImageSourceCurrentV1(selected) : normalizeFramescaperImageSourceV3(selected);
+	if (source.schemaVersion !== 2 && source.schemaVersion !== 3) throw new RangeError('Frame editable byte delivery requires its exact Source2/3.');
+	if (source2 !== (source.schemaVersion === 2)) throw new RangeError('Frame editable execution requires its selected source version.');
+	const admitted = prepareImageDevelopAuthoringCurrentV1(source.develop);
+	const computation = admitted.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2,
+		effects: admitted.effects, geometry: admitted.geometry, masks: admitted.masks, maskBindings: admitted.maskBindings }) : admitted;
+	if (admitted.processVersion === 3) planImageDevelopRepairSpotsV1(admitted.repairs, source.canonical.width, source.canonical.height);
 	if (active) prepareImageDevelopBrushMasksCurrentV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	else if (source.schemaVersion === 3) planAdmittedImageDevelopMasksV1(admitImageDevelopBrushMaskAuthorityV1(computation), source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	else planImageDevelopMasksV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
@@ -46,7 +51,7 @@ export async function withFramescaperImageDevelopFrameForProfileV1<Result>(profi
 	const read = (offset: number, length: number) => Reflect.apply(rawRead, value, [offset, length]) as Uint8Array | Promise<Uint8Array>;
 	const options = record(optionsValue, 'Frame image resource options', source2 ? ['source'] : ['source', 'maskSource'], []);
 	const references = source.schemaVersion === 2 ? { luts: framescaperImageSourceResourceReferencesV2(source), brushes: [] }
-		: framescaperImageSourceResourceReferencesV3(source);
+		: active ? framescaperImageSourceResourceReferencesCurrentV1(source) : framescaperImageSourceResourceReferencesV3(source);
 	const lutSource = references.luts.length ? captureCubeLutSourceV1(field(options, 'source', 'Frame image LUT source')) : undefined;
 	const maskSource = references.brushes.length ? captureMaskRasterSourceV1(field(options, 'maskSource', 'Frame image brush source')) : undefined;
 	const { develop: _develop, developed: _developed, provenance: _provenance, ...packed } = source;

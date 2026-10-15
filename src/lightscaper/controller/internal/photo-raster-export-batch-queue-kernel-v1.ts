@@ -43,6 +43,7 @@ export interface PhotoRasterExportBatchRuntimeCurrentV1 extends Omit<PhotoRaster
 	readonly prepareDestinations: (plan: Readonly<PhotoRasterExportBatchCurrentV1>, options: Readonly<{ signal: AbortSignal }>) => PhotoRasterExportBatchDestinations | PromiseLike<PhotoRasterExportBatchDestinations>;
 	readonly encode: (format: 'png' | 'jpeg', frame: Readonly<PixelFrameV1>, options: Parameters<PhotoRasterExportRequestCurrentV1['encode']>[1]) => ReturnType<PhotoRasterExportRequestCurrentV1['encode']>;
 	readonly withTextFrame?: PhotoRasterExportRequestCurrentV1['withTextFrame'];
+	readonly withDerivedFrame?: PhotoRasterExportRequestCurrentV1['withDerivedFrame'];
 }
 interface Runtime extends Omit<PhotoRasterExportBatchRuntime, 'execute' | 'loadRenderer' | 'encode' | 'prepareDestinations'> {
 	readonly execute: PhotoRasterExportBatchRuntime['execute'] | PhotoRasterExportBatchRuntimeCurrentV1['execute'];
@@ -50,6 +51,7 @@ interface Runtime extends Omit<PhotoRasterExportBatchRuntime, 'execute' | 'loadR
 	readonly prepareDestinations: PhotoRasterExportBatchRuntimeCurrentV1['prepareDestinations'];
 	readonly encode: PhotoRasterExportBatchRuntimeCurrentV1['encode'];
 	readonly withTextFrame?: PhotoRasterExportRequestCurrentV1['withTextFrame'];
+	readonly withDerivedFrame?: PhotoRasterExportRequestCurrentV1['withDerivedFrame'];
 }
 
 export interface PhotoRasterExportBatchReceipt {
@@ -244,6 +246,7 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 				...(runtime.graphicWatermark ? { graphicWatermark: runtime.graphicWatermark.request } : {}),
 				...(runtime.withGraphicFrame ? { withGraphicFrame: runtime.withGraphicFrame } : {}),
 				...(runtime.withTextFrame ? { withTextFrame: runtime.withTextFrame } : {}),
+				...(runtime.withDerivedFrame ? { withDerivedFrame: runtime.withDerivedFrame } : {}),
 				prepareSave: request => destinations.prepareSave(member, request), saveFile: request => request.mimeType === 'application/json' && plan.sidecarEnabled ? destinations.saveSidecar!(member, request) : destinations.saveFile(member, request),
 				execute: runtime.execute, withOriginalFrame: runtime.withOriginalFrame, loadRenderer: runtime.loadRenderer,
 				encode: (frame, options) => runtime.encode(plan.format, frame, options) });
@@ -262,7 +265,7 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 
 function captureRuntime(profile: PhotoRasterExportProfileV1, value: unknown): Readonly<Runtime> {
 	const methods = ['prepareDestinations', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
-	const input = record(value, 'Photo raster batch runtime', ['fileTypeDescription', ...methods, 'readMetadata', 'readSidecar', 'graphicWatermark', 'withGraphicFrame', ...(profile === 'current3' ? ['withTextFrame'] : [])], ['fileTypeDescription', ...methods]);
+	const input = record(value, 'Photo raster batch runtime', ['fileTypeDescription', ...methods, 'readMetadata', 'readSidecar', 'graphicWatermark', 'withGraphicFrame', ...(profile === 'current3' ? ['withTextFrame', 'withDerivedFrame'] : [])], ['fileTypeDescription', ...methods]);
 	const description = field(input, 'fileTypeDescription', 'Photo raster batch runtime');
 	if (typeof description !== 'string' || !description || description.length > 256) throw new TypeError('Photo raster batch type description exceeds its scalar bound.');
 	return Object.freeze({ fileTypeDescription: description, prepareDestinations: method<Runtime['prepareDestinations']>(input, value, 'prepareDestinations'),
@@ -272,6 +275,7 @@ function captureRuntime(profile: PhotoRasterExportProfileV1, value: unknown): Re
 		...(Object.hasOwn(input, 'graphicWatermark') ? { graphicWatermark: capturePreparedPhotoRasterBatchGraphicV1(field(input, 'graphicWatermark', 'Photo raster batch runtime')) } : {}),
 		...(Object.hasOwn(input, 'withGraphicFrame') ? { withGraphicFrame: method<NonNullable<PhotoRasterExportBatchRuntime['withGraphicFrame']>>(input, value, 'withGraphicFrame') } : {}),
 		...(Object.hasOwn(input, 'withTextFrame') ? { withTextFrame: method<NonNullable<Runtime['withTextFrame']>>(input, value, 'withTextFrame') } : {}),
+		...(Object.hasOwn(input, 'withDerivedFrame') ? { withDerivedFrame: method<NonNullable<Runtime['withDerivedFrame']>>(input, value, 'withDerivedFrame') } : {}),
 		...(Object.hasOwn(input, 'readMetadata') ? { readMetadata: method<NonNullable<PhotoRasterExportBatchRuntime['readMetadata']>>(input, value, 'readMetadata') } : {}) });
 }
 function captureRetirement(value: unknown): PhotoRasterExportBatchDestinations['retireAndJoin'] {

@@ -5,9 +5,9 @@ import type { VideoEffectLeafV2 } from '../../video-effect-leaf-v2.ts';
 import { PhotoLibraryDevelopWorkflowKernelV1, type PhotoDevelopExecutionContextForProfileV1,
 	type ExecutePhotoDevelopForProfileV1, type PhotoDevelopWorkflowSnapshotForProfileV1 } from './internal/photo-library-develop-workflow-kernel-v1.ts';
 
-export type PhotoDevelopExecutionContextCurrentV1 = PhotoDevelopExecutionContextForProfileV1<'current3'>;
-export type ExecutePhotoDevelopCurrentV1 = ExecutePhotoDevelopForProfileV1<'current3'>;
-export type PhotoDevelopWorkflowSnapshotCurrentV1 = PhotoDevelopWorkflowSnapshotForProfileV1<'current3'>;
+export type PhotoDevelopExecutionContextCurrentV1 = PhotoDevelopExecutionContextForProfileV1<'current4'>;
+export type ExecutePhotoDevelopCurrentV1 = ExecutePhotoDevelopForProfileV1<'current4'>;
+export type PhotoDevelopWorkflowSnapshotCurrentV1 = PhotoDevelopWorkflowSnapshotForProfileV1<'current4'>;
 /** The existing effects editors need only this scalar gesture capability. */
 export interface PhotoDevelopEffectsAuthoringPortV1 {
 	snapshot(): Readonly<{ draft: Readonly<{ effects: readonly VideoEffectLeafV2[] }> | null }>;
@@ -18,6 +18,6 @@ export interface PhotoDevelopEffectsAuthoringPortV1 {
 	cancelGesture(): void;
 }
 /** Current scalar edits retain complete repair metadata under the existing writer. */
-export class PhotoLibraryDevelopWorkflowCurrentV1 extends PhotoLibraryDevelopWorkflowKernelV1<'current3'> implements PhotoDevelopEffectsAuthoringPortV1 {
-	constructor(options: Readonly<{ execute: ExecutePhotoDevelopCurrentV1; now?: () => string }>) { super('current3', options); }
+export class PhotoLibraryDevelopWorkflowCurrentV1 extends PhotoLibraryDevelopWorkflowKernelV1<'current4'> implements PhotoDevelopEffectsAuthoringPortV1 {
+	constructor(options: Readonly<{ execute: ExecutePhotoDevelopCurrentV1; now?: () => string }>) { super('current4', options); }
 }

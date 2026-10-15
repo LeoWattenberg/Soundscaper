@@ -196,7 +196,8 @@ test('Photo3 applies the unchanged complete document two-MiB gate and current pa
 
 test('current workspace dispatch refuses future versions and raw old envelopes containing repairs', () => {
 	const raw = retained().versions[0]!.workspace!; let invoked = 0;
-	for (const schemaVersion of [0, 4, '3', { valueOf() { invoked++; return 3; } }]) assert.throws(() => normalizePhotoDevelopWorkspaceCurrentV1({ ...raw, schemaVersion }));
+	assert.throws(() => normalizePhotoDevelopWorkspaceV3({ ...raw, schemaVersion: 4 }));
+	for (const schemaVersion of [0, 5, '3', { valueOf() { invoked++; return 3; } }]) assert.throws(() => normalizePhotoDevelopWorkspaceCurrentV1({ ...raw, schemaVersion }));
 	for (const schemaVersion of [1, 2]) assert.throws(() => normalizePhotoDevelopWorkspaceCurrentV1({ ...raw, schemaVersion }));
 	assert.throws(() => normalizePhotoDevelopWorkspaceCurrentV1({ get schemaVersion() { invoked++; return 3; } }));
 	assert.equal(invoked, 0);

@@ -119,9 +119,10 @@ test('Current JSON dispatch retains explicit3 and exact legacy1/2 bytes without 
 
 test('Preset3 closed admission refuses accessors, hidden authority, future versions and incorrect hash before hooks run', () => {
 	const preset = literal(); let reads = 0;
+	assert.throws(() => normalize({ ...preset, schemaVersion: 4 }));
 	const accessor = Object.defineProperty({ ...preset }, 'settings', { enumerable: true, get() { reads++; return preset.settings; } });
 	for (const value of [accessor, { ...preset, body: new Uint8Array(1) }, { ...preset, catalogId: 'foreign' }, { ...preset, [Symbol('authority')]: true },
-		Object.assign(Object.create({ inherited: true }) as object, preset), { ...preset, schemaVersion: 4 },
+		Object.assign(Object.create({ inherited: true }) as object, preset), { ...preset, schemaVersion: 5 },
 		{ ...preset, identity: { ...preset.identity, authoredStateSha256: sha('0') } }, { ...preset, identity: { ...preset.identity, modelKind: 'generator' } }]) assert.throws(() => normalizeCurrent(value));
 	assert.equal(reads, 0);
 	const bad = { ...preset.settings, develop: { ...develop(), repairs: { schemaVersion: 1 as const, spots: [{ ...spot('bad'), opacity: 2 }] } } };
@@ -164,8 +165,9 @@ test('empty Row3 stays explicit3 while actual legacy rows stay byte-identical an
 
 test('Row3 owning admission detaches the complete row and rejects foreign or future envelopes, duplicate IDs and17 presets', () => {
 	let reads = 0; const input = row(), accessor = Object.defineProperty(row(), 'presets', { enumerable: true, get() { reads++; return []; } });
+	assert.throws(() => row3({ ...input, schemaVersion: 4 }));
 	for (const value of [accessor, { ...input, catalogId: 'foreign' }, { ...input, revision: 0 }, { ...input, revision: Number.MAX_SAFE_INTEGER + 1 },
-		{ ...input, schemaVersion: 4 }, { ...input, body: new Blob() }, row([literal(), literal()]), row(Array.from({ length: 17 }, (_, index) => literal(packet(), `preset-${String(index)}`)))]) assert.throws(() => rowCurrent(value));
+		{ ...input, schemaVersion: 5 }, { ...input, body: new Blob() }, row([literal(), literal()]), row(Array.from({ length: 17 }, (_, index) => literal(packet(), `preset-${String(index)}`)))]) assert.throws(() => rowCurrent(value));
 	assert.equal(reads, 0); assert.deepEqual(input, row());
 });
 

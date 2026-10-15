@@ -6,7 +6,7 @@ import { canonicalMediaContentBlob, digestMediaContent } from '../../../common/e
 import { normalizePhotoDocumentCurrentV1 } from '../../catalog/photo-document-current-v1.ts';
 import { capturePhotoManagedImportPortsCurrentV1, type PhotoManagedImportPortsCurrentV1 } from '../managed-import-ports-current-v1.ts';
 import type { CatalogOriginalReferenceV1 } from '../../../common/editor/storage/media-catalog-original-schema.ts';
-import type { PhotoCatalogPackInputV4 } from '../../archive/catalog-pack-v4.ts';
+import type { PhotoCatalogPackInputCurrentV1 } from '../../archive/catalog-pack-current-v1.ts';
 import { normalizePhotoCatalogRootV1 } from '../../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../../catalog/photo-document-v2.ts';
 import { validatePhotoCatalogReferencesV1 } from '../../catalog/photo-document.ts';
@@ -28,7 +28,7 @@ const SIGNAL_PROTO = AbortSignal.prototype;
  * exact. Full mixed recipes and selected resources enter the owning boundary;
  * no original/source fact is reconstructed through a legacy placeholder. */
 export async function importManagedPhotosForProfileV1(profile: Profile, catalogId: string,
-	photos: Iterable<PhotoCatalogPackInputV4> | AsyncIterable<PhotoCatalogPackInputV4>,
+	photos: Iterable<PhotoCatalogPackInputCurrentV1> | AsyncIterable<PhotoCatalogPackInputCurrentV1>,
 	portsValue: Ports, options: PhotoManagedImportOptionsV1 = {}): Promise<readonly PhotoManagedImportReceiptV1[]> {
 	assertProfile(profile); const catalog = id(catalogId, 'catalog ID'), request = admitOptions(options);
 	check(request.signal); const ports = profile === 'legacy2' ? capturePhotoManagedImportPortsV2(portsValue as PhotoManagedImportPortsV2) : capturePhotoManagedImportPortsCurrentV1(portsValue as PhotoManagedImportPortsCurrentV1);
