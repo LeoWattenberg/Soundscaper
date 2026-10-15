@@ -25,6 +25,11 @@ export function CommitField({ label, name, value, type = 'text', disabled, readO
 	return (
 		<label className="audio-editor-field" {...hook} onKeyDown={(event) => {
 			if (disabled || readOnly || event.nativeEvent?.isComposing) return;
+			if ((event.key === 'a' || event.key === 'A') && (event.ctrlKey || event.metaKey)
+				&& !(event.ctrlKey && event.metaKey) && !event.altKey && !event.shiftKey && !event.defaultPrevented) {
+				// Reserve replacement intent before an asynchronous default can collapse the native selection.
+				onDraftChange?.();
+			}
 			if (event.key === 'Enter' && !multiline) {
 				event.preventDefault();
 				event.stopPropagation();
