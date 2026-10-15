@@ -176,7 +176,8 @@ The expanded native develop packet adds focused numerical tests for geometry,
 all seven spatial families, LUT body authentication, incoming-stage masks and
 Clone/Heal, plus scoped retirement and metadata-first budget refusal. Its new
 browser workflow exercises repair, masked global adjustment, sharpening and
-crop/rotation through the real Current editor. Final integration results are
-still being qualified; the historical counts above describe the preceding
-decoder/global-workflow packets. L3–L6 exit gates, L7 completion, L8 and L9
-remain pending.
+crop/rotation through the real Current editor. That packet passed 2,916 selected
+Lightscaper cases across 327 files and qualified eight RAW browser cases across
+Chromium and Firefox, including the combined native stack workflow. The counts
+above describe the preceding decoder/global-workflow packets. L3–L6 exit gates,
+L7 completion, L8 and L9 remain pending.

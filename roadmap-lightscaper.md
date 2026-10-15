@@ -149,15 +149,17 @@ download as editable Frame sequences in native query order. The remaining L5
 export and cross-product qualification gates are open. Current RAW menu import
 and bounded native Float32 development are implemented, including geometry,
 spatial effects, LUTs, local masks and Clone/Heal. The combined RAW workflow is
-verified in Chromium and Firefox; external decoder publication, wider product
-qualification and desktop capabilities remain pending.
+verified in Chromium and Firefox. Current raster export retains native output
+processing and offers PNG16 with saved presets and batch recovery; external
+decoder publication, wider product qualification and desktop capabilities remain
+pending.
 
 | Area | Current capability |
 | --- | --- |
 | Product seam | Three-product registry, separate-origin routes and independently built sites, per-product profiles/capabilities/PWA/i18n, registry-driven switching, and product-owned test shards. Lightscaper desktop wiring waits for L8. |
 | Imaging engine | Shared parametric video effects, managed SDR color with linear-light grade math and `.cube` LUTs, mask graphs, visual presets, and keyframe curves. Wider primaries/transfers remain recognized by the schema and refused at render admission. |
 | Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
-| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask and repair stages; RAW output/handoff and wide-gamut work remain open. |
+| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask, repair and output stages, with final PNG8/16 or JPEG8 delivery; editable RAW handoff and wide-gamut work remain open. |
 | Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
 | Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. |
 | Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
@@ -844,12 +846,21 @@ there.
   parser/transient work, without claiming an exact JavaScript heap bound.
   Oversized combinations refuse. The byte helpers retain their existing
   arithmetic; a factored shared coverage generator keeps the byte wrapper's
-  profile unchanged. The selected Lightscaper regression passes 2,916 cases in
-  327 files. Chromium and Firefox pass the real RAW menu workflow through Clone,
+  profile unchanged. The selected Lightscaper regression passes 2,970 cases in
+  335 files. Chromium and Firefox pass the real RAW menu workflow through Clone,
   masked tone, sharpening, rotated crop, Save and reload, with full-plane pixel
   comparisons and unchanged authenticated Originals. Together with import and
-  native worker checks, eight RAW browser cases are qualified.
-  RAW export/handoff, culling integration and wider output remain unfinished.
+  native worker and raster export checks, ten RAW browser cases are qualified.
+  [Current native raster export](docs/architecture/lightscaper-native-raster-export.md)
+  keeps resizing, output sharpening, graphic and glyph compositing in Float32.
+  PNG8/JPEG receive the final encoded byte plane; explicit PNG16 streams final
+  sRGB words without an encoded working-plane detour. Current nested Output2
+  preserves depth through presets, batch plans and reviewed recovery, while
+  permanent legacy readers stay strict. Capture EXIF supports fresh PNG16
+  through an explicit Current container policy. The output owner charges held
+  Original/rendered/resource storage, replacing planes and the codec under a
+  one-GiB aggregate bound and enforces the reduced codec return capacity.
+  Editable RAW handoff, culling integration and wider output remain unfinished.
   The first foundation qualified 2,776 cases in 311 files, with four
   English/German Chromium/Firefox workflows retaining native repaired Photo
   preview, brush editing, saved history and reload. The preceding RAW/global
@@ -876,11 +887,11 @@ there.
   regression passed 2,845 cases in 319 files, including pinned Canon CRW import
   through the actual native worker. The browser decoder
   fetch uses the exact pinned artifact; external asset publication is still
-  pending. RAW export/handoff, RAW-specific culling, broader camera coverage,
+  pending. Editable RAW handoff, RAW-specific culling, broader camera coverage,
   highlight recovery, wide-gamut/soft-proof output, GPU/native execution,
-  lens/camera profiles, HDR merge, L8 and L9 remain unfinished. The expanded
-  native-stage packet does not claim final browser or regression counts here;
-  remaining L3–L6 exit gates and L7 completion remain open.
+  lens/camera profiles, HDR merge, L8 and L9 remain unfinished. Current native
+  Develop and raster export qualification is recorded above; remaining L3–L6
+  exit gates and L7 completion remain open.
 - **Web Enhanced — Planned:** GPU evaluation of the develop stack where
   capability-detected, with the CPU path as the conformance oracle under
   recorded tolerance budgets.

@@ -3,7 +3,8 @@ import type { PhotoLibraryExportJournalSettings, PhotoLibraryExportJournalAccess
 import type { PhotoLibrarySessionPortsV2 } from '../photo-library-session-ports-v2.ts';
 import { createPhotoExportSidecarV1, serializePhotoExportSidecarV1 } from '../../catalog/photo-export-sidecar-v1.ts';
 import { normalizePhotoDocumentV1OrV2 } from '../../catalog/photo-document-v2.ts';
-import { normalizePhotoRasterExportJournalV1, photoRasterExportJournalKeyV1 } from '../../storage/photo-raster-export-journal-v1.ts';
+import { photoRasterExportJournalKeyV1 } from '../../storage/photo-raster-export-journal-v1.ts';
+import { normalizePhotoRasterExportJournalForProfileV1 } from '../../storage/internal/photo-raster-export-journal-kernel-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-preset-read-v2.ts';
 import type { PhotoLibrarySessionPortsCurrentV1 } from '../photo-library-session-ports-current-v1.ts';
 import { createPhotoExportSidecarCurrentV1, serializePhotoExportSidecarCurrentV1 } from '../../catalog/photo-export-sidecar-current-v1.ts';
@@ -45,7 +46,7 @@ export function openPhotoLibraryExportJournalForProfileV1(profile: 'legacy2' | '
 		const catalogId = await ready(); check(admitted); const key = photoRasterExportJournalKeyV1(catalogId);
 		const admitKey = (candidate: string) => { if (candidate !== key) throw new TypeError('Photo export journal key is outside the selected catalog.'); };
 		const admitValue = (value: unknown) => {
-			const journal = normalizePhotoRasterExportJournalV1(value);
+			const journal = normalizePhotoRasterExportJournalForProfileV1(profile, value);
 			if (journal.catalogId !== catalogId) throw new TypeError('Photo export journal belongs to another selected catalog.'); return journal;
 		};
 		const checked = async (current: AbortSignal) => { check(current); if (await ready() !== catalogId) throw new Error('Photo export journal selected catalog changed.'); check(current); };

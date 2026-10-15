@@ -27,11 +27,16 @@ import type { ImageExifMetadataV1 } from '../../../common/editor/imaging/image-m
 import { captureImageExportGraphicRequest, imageExportGraphicPlacement } from '../../../common/editor/image-export-graphic-request.ts';
 import type { withImageExportGraphicFrameV1 } from '../../../common/editor/imaging/image-export-graphic-source-v1.ts';
 import type { withImageExportTextFrameV1 } from '../../../common/editor/imaging/image-export-text-frame-v1.ts';
+import { capturePhotoRasterExportOutputCurrentV1, type PhotoRasterExportOutputCurrentV1 } from '../photo-raster-export-output-current-v1.ts';
+import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../../common/editor/photo-library-develop-linear-port-v1.ts';
+import { withPhotoRasterLinearOriginalCurrentV1, withPhotoRasterLinearOutputCurrentV1 } from './photo-raster-export-linear-current-v1.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 268_435_456;
 const CHECK = AbortSignal.prototype.throwIfAborted;
 const REASON = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 const RESIZABLE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable')!.get!;
+const BUFFER = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), 'buffer')!.get!;
+const SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
 const WIPE = Uint8Array.prototype.fill;
 const ADD = EventTarget.prototype.addEventListener, REMOVE = EventTarget.prototype.removeEventListener;
 interface ActiveExport { readonly stop: AbortController; readonly joined: Promise<void>; committing: boolean; }
@@ -56,7 +61,7 @@ export class PhotoRasterExportKernelV1 {
 	start(value: Request): Promise<PhotoRasterExportReceipt> {
 		if (this.#active) return Promise.reject(new Error('A photo raster export is already pending.'));
 		let request: Request, sidecar: PhotoRasterExportSidecarKernelV1 | null;
-		try { request = admitRequest(value, this.extension); sidecar = request.sidecar ? new PhotoRasterExportSidecarKernelV1(this.#profile, request.sidecar, request.saveFile) : null; } catch (error) { return Promise.reject(error); }
+		try { request = admitRequest(value, this.extension, this.#profile, this.#format); sidecar = request.sidecar ? new PhotoRasterExportSidecarKernelV1(this.#profile, request.sidecar, request.saveFile) : null; } catch (error) { return Promise.reject(error); }
 		let settled!: () => void;
 		const active: ActiveExport = { stop: new AbortController(), committing: false,
 			joined: new Promise<void>(resolve => { settled = resolve; }) };
@@ -154,15 +159,25 @@ export class PhotoRasterExportKernelV1 {
 							const originalView = record(original, 'Photo raster original', ['photoId', 'revision', 'frame']);
 							if (field(originalView, 'photoId', 'Photo raster original') !== request.photoId
 								|| field(originalView, 'revision', 'Photo raster original') !== request.expectedRevision) throw new Error('Photo raster original revision or identity changed.');
-							const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), LIMITS.source);
-							await Reflect.apply(render, undefined, [{ frame: source, develop, signal }, async (output: unknown) => {
+							const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : LIMITS.source);
+							const bitDepth = request.output && 'bitDepth' in request.output ? request.output.bitDepth : 8;
+							const renderInput = async (input: Readonly<PixelFrameV1>) => { await Reflect.apply(render, undefined, [{ frame: input, develop, signal }, async (output: unknown) => {
 								current(); const view = record(output, 'Photo raster render', ['frame', 'histogram'], ['frame']);
 								const frame = readPixelFrameV1(field(view, 'frame', 'Photo raster render'), LIMITS.render);
+								if (this.#profile === 'current3' && (frame.descriptor.sampleFormat === 'float32' || bitDepth === 16)) {
+									await withPhotoRasterLinearOutputCurrentV1({ frame, originals: [source, input], output: request.output, bitDepth,
+										graphic, graphicWatermark: request.graphicWatermark, withTextFrame: request.withTextFrame, signal, current },
+									async (final, limits, maximumOutputBytes, borrowed) => {
+										current(); const encoded = await request.encode(final, { signal, limits, maximumOutputBytes, ...(bitDepth === 16 ? { bitDepth } : {}) });
+										bytes = readEncoded(encoded, maximumOutputBytes, ...borrowed); width = final.descriptor.width; height = final.descriptor.height; current();
+									});
+									return;
+								}
 								const encode = async (delivery: Readonly<PixelFrameV1>, resized: Readonly<PixelFrameV1>) => {
 									const encodeOutput = async (marked: Readonly<PixelFrameV1>) => {
 										const finish = async (final: Readonly<PixelFrameV1>, glyph: Readonly<PixelFrameV1> | null) => {
 											current(); const encoded = await request.encode(final, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
-											bytes = readEncoded(encoded, source, frame, resized, delivery, marked, final, ...(graphic ? [graphic] : []), ...(glyph ? [glyph] : []));
+											bytes = readEncoded(encoded, MAXIMUM_OUTPUT_BYTES, source, frame, resized, delivery, marked, final, ...(graphic ? [graphic] : []), ...(glyph ? [glyph] : []));
 											width = final.descriptor.width; height = final.descriptor.height; current();
 										};
 										if (text?.opacity && mark) {
@@ -191,7 +206,9 @@ export class PhotoRasterExportKernelV1 {
 									await withExportResizedPixelFrameV1({ frame, sizing: request.output.sizing, quality: request.output.quality, signal }, deliver, { limits: LIMITS.render });
 								} else await deliver(frame);
 								current();
-							}]);
+							}]); };
+							if (this.#profile === 'current3') await withPhotoRasterLinearOriginalCurrentV1(source, bitDepth, renderInput, signal);
+							else await renderInput(source);
 							current();
 						}, { signal });
 					};
@@ -234,7 +251,9 @@ export class PhotoRasterExportKernelV1 {
 					if (request.output?.metadataScope === 'capture') {
 						let entered = false;
 						try {
-							await withImageExifContainerV1({ format: this.#format, bytes, exif, width, height, scope: 'capture' }, async output => {
+							const compose = this.#profile === 'current3'
+								? (await import('../../../common/editor/imaging/image-exif-container-current-v1.ts')).withImageExifContainerCurrentV1 : withImageExifContainerV1;
+							current(); await compose({ format: this.#format, bytes, exif, width, height, scope: 'capture' }, async output => {
 								entered = true;
 								try { await publish(output); } catch (error) {
 									// Keep composed bytes alive through the exact destination's abort/drain.
@@ -300,13 +319,13 @@ function readSnapshot(value: unknown, request: Request, profile: PhotoRasterExpo
 	return { catalogId: text(field(input, 'catalogId', 'Photo raster snapshot'), 128), develop: field(input, 'develop', 'Photo raster snapshot') };
 }
 
-function readEncoded(value: unknown, ...frames: Readonly<PixelFrameV1>[]): Uint8Array<ArrayBuffer> {
+function readEncoded(value: unknown, maximumBytes: number, ...frames: Readonly<PixelFrameV1>[]): Uint8Array<ArrayBuffer> {
 	if (!(value instanceof Uint8Array) || Object.getPrototypeOf(value) !== Uint8Array.prototype
 		|| ['buffer', 'byteLength', 'length', 'byteOffset'].some(key => Object.hasOwn(value, key))) throw new TypeError('Photo raster encoder requires independent intrinsic bytes.');
 	const buffer = value.buffer;
-	if (!(buffer instanceof ArrayBuffer) || Reflect.apply(RESIZABLE, buffer, []) || value.byteOffset !== 0 || value.byteLength !== buffer.byteLength
-		|| frames.some(frame => buffer === frame.pixels.buffer)) throw new TypeError('Photo raster bytes must own a fixed independent buffer.');
-	if (value.byteLength < 1 || value.byteLength > MAXIMUM_OUTPUT_BYTES) {
+	if (!(buffer instanceof ArrayBuffer) || Reflect.apply(RESIZABLE, buffer, []) || value.byteOffset !== 0 || value.byteLength !== Reflect.apply(SIZE, buffer, [])
+		|| frames.some(frame => buffer === Reflect.apply(BUFFER, frame.pixels, []))) throw new TypeError('Photo raster bytes must own a fixed independent buffer.');
+	if (value.byteLength < 1 || value.byteLength > maximumBytes) {
 		Reflect.apply(WIPE, value, [0]); throw new RangeError('Photo raster output exceeds its admitted byte bound.');
 	}
 	return value as Uint8Array<ArrayBuffer>;
@@ -344,11 +363,11 @@ function readSaved(value: BrowserSavedFile | DirectSavedFile, expectedBytes: num
 	return { fileName: text(field(input, 'fileName', 'Photo raster delivery'), 512), method: method as 'desktop' | 'file-system-access' | 'download' };
 }
 
-function admitRequest(value: unknown, extension: '.png' | '.jpg'): Request {
+function admitRequest(value: unknown, extension: '.png' | '.jpg', profile: PhotoRasterExportProfileV1, format: 'png' | 'jpeg'): Request {
 	const name = 'Photo raster request', methods = ['prepareSave', 'saveFile', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
 	const required = ['photoId', 'versionId', 'expectedRevision', 'fileName', 'fileTypeDescription', ...methods];
 	const input = record(value, name, [...required, 'signal', 'output', 'readMetadata', 'sidecar', 'graphicWatermark', 'withGraphicFrame', 'withTextFrame'], required);
-	const output = Object.hasOwn(input, 'output') ? capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
+	const output = Object.hasOwn(input, 'output') ? profile === 'current3' ? capturePhotoRasterExportOutputCurrentV1(field(input, 'output', name), format) : capturePhotoRasterExportOutput(field(input, 'output', name)) : undefined;
 	const graphicWatermark = Object.hasOwn(input, 'graphicWatermark') ? captureImageExportGraphicRequest(field(input, 'graphicWatermark', name)) : undefined;
 	const withGraphicFrame = Object.hasOwn(input, 'withGraphicFrame') ? pin<typeof withImageExportGraphicFrameV1>(field(input, 'withGraphicFrame', name), value) : undefined;
 	const withTextFrame = Object.hasOwn(input, 'withTextFrame') ? pin<typeof withImageExportTextFrameV1>(field(input, 'withTextFrame', name), value) : undefined;
@@ -391,9 +410,11 @@ function stableId(value: unknown): string {
 	return id;
 }
 
-interface Request extends Omit<PhotoRasterExportRequest, 'execute' | 'loadRenderer'> {
+interface Request extends Omit<PhotoRasterExportRequest, 'execute' | 'loadRenderer' | 'output' | 'encode'> {
 	readonly execute: PhotoRasterExportRequest['execute'] | PhotoRasterExportRequestCurrentV1['execute'];
 	readonly loadRenderer: PhotoRasterExportRequest['loadRenderer'] | PhotoRasterExportRequestCurrentV1['loadRenderer'];
+	readonly output?: PhotoRasterExportOutputCurrentV1;
+	readonly encode: PhotoRasterExportRequestCurrentV1['encode'];
 }
 type Context = PhotoDevelopExecutionContextV2 | PhotoDevelopExecutionContextCurrentV1;
 function execute(request: Request, run: (context: Context) => Promise<void>, signal: AbortSignal): ReturnType<PhotoRasterExportRequest['execute']> {

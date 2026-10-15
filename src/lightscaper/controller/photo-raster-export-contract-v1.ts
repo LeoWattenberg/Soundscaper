@@ -18,6 +18,7 @@ import type { ImageExportGraphicRequest } from '../../common/editor/image-export
 import type { withImageExportGraphicFrameV1 } from '../../common/editor/imaging/image-export-graphic-source-v1.ts';
 import { captureImageExportTextV1, type ImageExportTextV1 } from '../../common/editor/image-export-text-v1.ts';
 import type { withImageExportTextFrameV1 } from '../../common/editor/imaging/image-export-text-frame-v1.ts';
+import type { PhotoRasterExportOutputCurrentV1 } from './photo-raster-export-output-current-v1.ts';
 
 export type ReadPhotoExportMetadata = (photoId: string, expectedRevision: number, options: Readonly<{ signal: AbortSignal }>) =>
 	Promise<Readonly<{ catalogId: string; snapshot: PhotoLibraryMetadataSnapshotV1 }>>;
@@ -99,9 +100,13 @@ export class PhotoRasterExportMetadataRefusal extends Error {
 	constructor(cause: unknown) { super('Capture metadata could not be included. Choose Strip to export without it.', { cause }); METADATA_REFUSALS.add(this); }
 }
 
-export interface PhotoRasterExportRequestCurrentV1 extends Omit<PhotoRasterExportRequest, 'execute' | 'loadRenderer'> {
+export interface PhotoRasterExportRequestCurrentV1 extends Omit<PhotoRasterExportRequest, 'execute' | 'loadRenderer' | 'output' | 'encode'> {
 	readonly execute: ExecutePhotoDevelopCurrentV1;
 	readonly loadRenderer: () => Promise<Pick<PhotoLibraryDevelopProxyRuntimeV3, 'withFullResolution'>>;
+	readonly output?: PhotoRasterExportOutputCurrentV1;
+	readonly encode: (frame: Readonly<PixelFrameV1>, options: Readonly<{
+		signal: AbortSignal; limits: PixelFrameLimitsV1; maximumOutputBytes: number; bitDepth?: 8 | 16;
+	}>) => Promise<Uint8Array<ArrayBuffer>>;
 }
 export type PhotoRasterExportProfileV1 = 'legacy2' | 'current3';
 export type PhotoRasterExportRequestForProfileV1<Profile extends PhotoRasterExportProfileV1> =

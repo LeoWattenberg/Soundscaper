@@ -3,17 +3,19 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PhotoRasterExportBatchQueue, type PhotoRasterExportBatchReceipt, type PhotoRasterExportBatchRuntime } from '../../../../lightscaper/controller/photo-raster-export-batch-queue.ts';
 import { capturePhotoRasterExportBatchV1 } from '../../../../lightscaper/controller/photo-raster-export-batch-v1.ts';
+import { capturePhotoRasterExportBatchCurrentV1 } from '../../../../lightscaper/controller/photo-raster-export-batch-current-v1.ts';
 import { PhotoRasterPersistedBatch } from '../../../../lightscaper/controller/photo-raster-export-persisted-batch.ts';
 import { isPhotoRasterExportMemberCompleteV1 } from '../../../../lightscaper/storage/photo-raster-export-journal-v1.ts';
 import type { ReadPhotoExportSidecar } from '../../photo-library-session-port-v2.ts';
-import { capturePhotoRasterExportOutput } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import { encodePixelFramePngV1 } from '../../imaging/pixel-frame-png-v1.ts';
 import { encodePixelFrameJpegV1 } from '../../imaging/pixel-frame-jpeg-v1.ts';
+import { encodePhotoPngCurrentV1 } from './photo-png-export-encoder-current-v1.ts';
 import { photoPngExportCopy } from '../../../i18n/lightscaper-photo-png-export-copy.ts';
 import { photoJpegExportCopy } from '../../../i18n/lightscaper-photo-jpeg-export-copy.ts';
 import { photoBatchExportCopy } from '../../../i18n/lightscaper-photo-batch-export-copy.ts';
 import { imageExportGraphicCopy } from '../../../i18n/image-export-graphic-copy.ts';
-import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, rasterExportText, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, captureRasterExportSettingsOutputV1, captureRasterExportSettingsOutputCurrentV1,
+	restoreRasterExportSettings, restoreRasterExportSettingsCurrentV1 } from './PhotoRasterExportSettings.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PhotoRasterExportPresets from './PhotoRasterExportPresets.tsx';
 import GraphicWatermarkFields from '../GraphicWatermarkFields.tsx';
@@ -85,7 +87,8 @@ export default function PhotoRasterBatchExportDialogKernelV1(props: Props) {
 			current.persisted = owner;
 			if (current.live && !current.closed) {
 				const retained = owner.journal;
-				if (retained) { setSettings(restoreRasterExportSettings(retained.output, retained.filenameTemplate)); setFormat(retained.format); setSidecarEnabled(Boolean(retained.sidecarEnabled)); }
+				if (retained) { setSettings(profile === 'current3' ? restoreRasterExportSettingsCurrentV1(retained.output, retained.filenameTemplate, retained.format)
+					: restoreRasterExportSettings(retained.output, retained.filenameTemplate)); setFormat(retained.format); setSidecarEnabled(Boolean(retained.sidecarEnabled)); }
 				setTarget({ owner, lifetime: current });
 				if (!owner.journal && !owner.prepared || owner.journal?.members.every(isPhotoRasterExportMemberCompleteV1)) latest.current.onSettled();
 			}
@@ -107,12 +110,13 @@ export default function PhotoRasterBatchExportDialogKernelV1(props: Props) {
 		if (recovering && !jobs.length || replaceCompleted && !replaceable) return;
 		const value = { schemaVersion: 1, batchId: current.batchId, format, filenameTemplate: settings.filenameTemplate, members: target.owner.prepared?.members };
 		try {
-			const output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
-				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
-			plan = recovering ? journal! : capturePhotoRasterExportBatchV1({ ...value, output, ...(sidecarEnabled ? { sidecarEnabled: true } : {}), ...(graphic.value.enabled && graphic.prepared ? { graphicWatermark: graphic.prepared.intent } : {}) });
+			const output = profile === 'current3' ? captureRasterExportSettingsOutputCurrentV1(settings, format) : captureRasterExportSettingsOutputV1(settings);
+			const capture = profile === 'current3' ? capturePhotoRasterExportBatchCurrentV1 : capturePhotoRasterExportBatchV1;
+			plan = recovering ? journal! : capture({ ...value, output, ...(sidecarEnabled ? { sidecarEnabled: true } : {}), ...(graphic.value.enabled && graphic.prepared ? { graphicWatermark: graphic.prepared.intent } : {}) });
 		} catch { setInvalid(true); return; }
 		setInvalid(false);
-		const encode: PhotoRasterExportBatchRuntime['encode'] = (kind, frame, options) => kind === 'png' ? encodePixelFramePngV1(frame, options) : encodePixelFrameJpegV1(frame, { ...options, quality: 0.9 });
+		const encode: PhotoRasterExportBatchRuntime['encode'] = (kind, frame, options) => kind === 'png'
+			? (profile === 'current3' ? encodePhotoPngCurrentV1(frame, options) : encodePixelFramePngV1(frame, options)) : encodePixelFrameJpegV1(frame, { ...options, quality: 0.9 });
 		const runtimeOptions = { fileTypeDescription: plan.format === 'png' ? photoPngExportCopy(current.locale).fileType : photoJpegExportCopy(current.locale).fileType,
 			prepareDestinations: (admitted: Parameters<PhotoRasterExportBatchRuntime['prepareDestinations']>[0]) => recovering ? target.owner.prepareRecoveryDestinations(admitted, runtime, reviewed)
 				: target.owner.prepareFreshDestinations(admitted, runtime, settings.filenameTemplate, replaceCompleted),
@@ -160,17 +164,20 @@ export default function PhotoRasterBatchExportDialogKernelV1(props: Props) {
 		<div data-photo-batch-export-dialog className="lightscaper-catalog-backup">
 			<p>{copy.description}</p>
 			<label>{copy.format}<select data-photo-batch-export-format value={journal && !replaceable ? journal.format : format} disabled={started || !ready || !!journal && !replaceable}
-				onChange={event => { if (event.target.value === 'png' || event.target.value === 'jpeg') setFormat(event.target.value); }}>
+				onChange={event => { if (event.target.value === 'png' || event.target.value === 'jpeg') {
+					setFormat(event.target.value); if (profile === 'current3' && event.target.value === 'jpeg') setSettings(value => { const next = { ...value }; delete next.bitDepth; return next; });
+				} }}>
 				<option value="png">{copy.png}</option><option value="jpeg">{copy.jpeg}</option>
 			</select></label>
 			<PhotoRasterExportSettings value={settings} copy={settingsCopy} locale={props.locale} disabled={started || !ready || !!journal && !replaceable}
+				currentFormat={profile === 'current3' ? format : undefined}
 				onChange={value => { setSettings(value); setInvalid(false); }} />
 			<PhotoRasterExportPresets locale={props.locale} capture={props.capturePresets} registerDestination={registerDestination} batch disabled={started || !ready || graphic.pending || !!journal && !replaceable}
 				captureCurrent={(id, name) => ({ schemaVersion: 1, id, name, format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
-					output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
-						...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) })}
+					output: profile === 'current3' ? captureRasterExportSettingsOutputCurrentV1(settings, format) : captureRasterExportSettingsOutputV1(settings) })}
 				onApply={async preset => { const lifetime = scope.current; await graphic.reset(); if (!lifetime?.live || lifetime.closed || scope.current !== lifetime) return;
-					setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setFormat(preset.format); setSidecarEnabled(preset.sidecarEnabled); setInvalid(false); }} />
+					setSettings(profile === 'current3' ? restoreRasterExportSettingsCurrentV1(preset.output, preset.filenameTemplate, preset.format)
+						: restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setFormat(preset.format); setSidecarEnabled(preset.sidecarEnabled); setInvalid(false); }} />
 			{journal?.graphicWatermark && !replaceable ? <fieldset disabled={started || !ready || graphic.pending} data-photo-batch-graphic-recovery>
 				<p>{retainedRasterPending ? copy.graphicRecovery : copy.graphicSidecarOnly}</p>
 				<dl data-photo-batch-graphic-placement>

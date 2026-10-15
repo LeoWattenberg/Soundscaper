@@ -9,14 +9,15 @@ import { parsePhotoExportSidecarV1 } from '../../catalog/photo-export-sidecar-v1
 import { createPhotoCubeLutClosureV1 } from '../../catalog/photo-cube-lut-closure-v1.ts';
 import { PhotoRasterExportJournalOwnerV1 } from '../../storage/photo-raster-export-journal-owner-v1.ts';
 import { PhotoRasterExportJournalOwnerCurrentV1 } from '../../storage/photo-raster-export-journal-owner-current-v1.ts';
-import { createPhotoRasterExportJournalV1, isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportBindingV1 } from '../../storage/photo-raster-export-journal-v1.ts';
+import { isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportBindingV1 } from '../../storage/photo-raster-export-journal-v1.ts';
+import { createPhotoRasterExportJournalForProfileV1 } from '../../storage/internal/photo-raster-export-journal-kernel-v1.ts';
 import { capturePhotoRasterBatchSelection, type PhotoRasterBatchSelection, type PreparedPhotoRasterBatchSelection } from '../photo-raster-export-batch-selection.ts';
 import { preparePhotoRasterBatchSelectionForProfileV1 } from './photo-raster-export-batch-selection-kernel-v1.ts';
 import type { PhotoRasterExportBatchDestinations } from '../photo-raster-export-batch-queue.ts';
 import type { PhotoRasterExportBatchV1 } from '../photo-raster-export-batch-v1.ts';
 import { createPhotoRasterBatchDownloadDestinations } from '../photo-raster-export-batch-download-destinations.ts';
-import { assertPhotoRasterJournalPlanV1, createPhotoRasterJournalDestinationsV1, PhotoRasterJournalDestinationErrorV1 } from '../photo-raster-export-journal-destinations-v1.ts';
-import { reconcilePhotoRasterExportBatchRecoveryV1, type PhotoRasterExportRecoveryEntryV1 } from '../photo-raster-export-batch-recovery-v1.ts';
+import { assertPhotoRasterJournalPlanForProfileV1, createPhotoRasterJournalDestinationsForProfileV1, PhotoRasterJournalDestinationErrorV1 } from './photo-raster-export-journal-destinations-kernel-v1.ts';
+import { reconcilePhotoRasterExportBatchRecoveryForProfileV1, type PhotoRasterExportRecoveryEntryV1 } from './photo-raster-export-batch-recovery-kernel-v1.ts';
 import { readClosedDomainRecord as record, readClosedDomainField as field, readClosedDomainArray as array } from '../../../common/editor/closed-domain-value.ts';
 
 /** Scalar provenance from a complete admitted saved Photo, not a body lease. */
@@ -100,7 +101,7 @@ export class PhotoRasterPersistedBatchKernelV1 {
 				catch { signal.throwIfAborted(); /* Missing/stale facts never authorize work. */ }
 			}
 			signal.throwIfAborted();
-			return Object.freeze({ profile, options, owner, prepared, bindings: Object.freeze(bindings), recovery: journal ? reconcilePhotoRasterExportBatchRecoveryV1(journal, { catalogId: access.catalogId, members: current }) : Object.freeze([]), verify });
+			return Object.freeze({ profile, options, owner, prepared, bindings: Object.freeze(bindings), recovery: journal ? reconcilePhotoRasterExportBatchRecoveryForProfileV1(profile, journal, { catalogId: access.catalogId, members: current }) : Object.freeze([]), verify });
 		} catch (error) { await owner.closeAndJoin(); throw error; }
 	}
 	/** Native ports and exact targets pin in the gesture, before the held CAS.
@@ -112,7 +113,7 @@ export class PhotoRasterPersistedBatchKernelV1 {
 		}) || plan.members.length !== this.prepared.members.length) throw new TypeError('Photo export plan differs from its captured selection.');
 		if (this.journal && (!replaceCompleted || this.journal.members.some(member => !isPhotoRasterExportMemberCompleteV1(member)))) throw new TypeError('Existing export history requires explicit completed replacement.');
 		if (this.journal?.batchId === plan.batchId) throw new TypeError('Completed replacement requires a different batch identity.');
-		const value = createPhotoRasterExportJournalV1(plan, { catalogId: this.#journal.catalogId, filenameTemplate, bindings: plan.sidecarEnabled ? this.#bindings : this.#bindings.map(({ originalSha256, recipeSha256, lutSha256 }) => ({ originalSha256, recipeSha256, lutSha256 })) });
+		const value = createPhotoRasterExportJournalForProfileV1(this.#profile, plan, { catalogId: this.#journal.catalogId, filenameTemplate, bindings: plan.sidecarEnabled ? this.#bindings : this.#bindings.map(({ originalSha256, recipeSha256, lutSha256 }) => ({ originalSha256, recipeSha256, lutSha256 })) });
 		const native = createPhotoRasterBatchDownloadDestinations(plan, runtime);
 		return (async () => {
 			try {
@@ -127,7 +128,7 @@ export class PhotoRasterPersistedBatchKernelV1 {
 	}
 	prepareRecoveryDestinations(plan: Readonly<PhotoRasterExportBatchV1>, runtime: unknown, reviewedRetryJobIds: readonly string[]): Promise<Readonly<PhotoRasterExportBatchDestinations>> {
 		this.#options.signal.throwIfAborted();
-		assertPhotoRasterJournalPlanV1(plan, this.#journal);
+		assertPhotoRasterJournalPlanForProfileV1(this.#profile, plan, this.#journal);
 		for (const member of plan.members) {
 			const entry = this.recovery.find(entry => entry.member.jobId === member.jobId);
 			if (!entry?.currentMatches || entry.disposition === 'already-committed' || entry.disposition === 'stale' || (entry.disposition === 'needs-review' && !reviewedRetryJobIds.includes(member.jobId))) throw new TypeError('Photo export recovery requires current facts and explicit uncertainty review.');
@@ -147,7 +148,7 @@ export class PhotoRasterPersistedBatchKernelV1 {
 			saveFile: async (member, request) => { await verify(member, request); return native.saveFile(member, request); },
 			...(native.saveSidecar ? { saveSidecar: async (member: PhotoRasterExportBatchV1['members'][number], request: Parameters<PhotoRasterExportBatchDestinations['saveFile']>[1]) => { await verify(member, request); return native.saveSidecar!(member, request); } } : {}),
 		});
-		const joined = await createPhotoRasterJournalDestinationsV1(plan, this.#journal, () => verified, { reviewedRetryJobIds: reviewed });
+		const joined = await createPhotoRasterJournalDestinationsForProfileV1(this.#profile, plan, this.#journal, () => verified, { reviewedRetryJobIds: reviewed });
 		return Object.freeze({ prepareSave: joined.prepareSave, saveFile: joined.saveFile, ...(joined.saveSidecar ? { saveSidecar: joined.saveSidecar } : {}), retireAndJoin: joined.retireAndJoin });
 	}
 	closeAndJoin(): Promise<void> { return this.#journal.closeAndJoin(); }

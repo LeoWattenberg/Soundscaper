@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { PhotoRasterExport, isPhotoRasterExportMetadataRefusal, capturePhotoRasterExportOutput, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
+import { PhotoRasterExport, isPhotoRasterExportMetadataRefusal, type PhotoRasterExportReceipt, type PhotoRasterExportRequest } from '../../../../lightscaper/controller/photo-raster-export.ts';
 import { formatImageExportFilenameV1 } from '../../image-export-filename-v1.ts';
-import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, rasterExportSizing, rasterExportText, restoreRasterExportSettings } from './PhotoRasterExportSettings.tsx';
+import PhotoRasterExportSettings, { DEFAULT_RASTER_EXPORT_SETTINGS, captureRasterExportSettingsOutputV1, captureRasterExportSettingsOutputCurrentV1,
+	restoreRasterExportSettings, restoreRasterExportSettingsCurrentV1 } from './PhotoRasterExportSettings.tsx';
 import PhotoRasterExportPresets from './PhotoRasterExportPresets.tsx';
 import type { PhotoRasterExportPresetV1 } from '../../photo-library-export-presets-port-v1.ts';
 import { photoBatchExportCopy } from '../../../i18n/lightscaper-photo-batch-export-copy.ts';
@@ -33,7 +34,9 @@ export default function PhotoRasterExportDialogKernelV1(props: Props) {
 	const scope = useRef<Scope | null>(null), retiring = useRef<Promise<void> | null>(null);
 	const [target, setTarget] = useState<Target | null>(null), [receipt, setReceipt] = useState<PhotoRasterExportReceipt | null>(null);
 	const [failed, setFailed] = useState(false), [saving, setSaving] = useState(false), [closing, setClosing] = useState(false);
-	const [settings, setSettings] = useState(() => props.initialPreset ? restoreRasterExportSettings(props.initialPreset.output, props.initialPreset.filenameTemplate) : DEFAULT_RASTER_EXPORT_SETTINGS), [invalidSettings, setInvalidSettings] = useState(false);
+	const [settings, setSettings] = useState(() => props.initialPreset ? (props.profile === 'current3'
+		? restoreRasterExportSettingsCurrentV1(props.initialPreset.output, props.initialPreset.filenameTemplate, props.format)
+		: restoreRasterExportSettings(props.initialPreset.output, props.initialPreset.filenameTemplate)) : DEFAULT_RASTER_EXPORT_SETTINGS), [invalidSettings, setInvalidSettings] = useState(false);
 	const [metadataFailed, setMetadataFailed] = useState(false), [sidecarEnabled, setSidecarEnabled] = useState(props.initialPreset?.sidecarEnabled ?? false);
 	const saveButton = useRef<HTMLButtonElement>(null), focused = useRef(false);
 	const controller = owner.current, copy = props.copy, queueCopy = photoBatchExportCopy(props.locale);
@@ -94,8 +97,7 @@ export default function PhotoRasterExportDialogKernelV1(props: Props) {
 		let fileName: string, output: NonNullable<PhotoRasterExportRequest['output']>, graphicWatermark: PhotoRasterExportRequest['graphicWatermark'];
 		try {
 			fileName = formatImageExportFilenameV1({ template: settings.filenameTemplate, sourceFileName: current.fileName, format: current.format, index: 1 });
-			output = capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
-				...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) });
+			output = profile === 'current3' ? captureRasterExportSettingsOutputCurrentV1(settings, current.format) : captureRasterExportSettingsOutputV1(settings);
 			graphicWatermark = graphic.capture();
 			if (sidecarEnabled) { if (!current.captureSidecarReader) throw new Error('Photo sidecar reader is unavailable.'); sidecar = { read: current.captureSidecarReader() }; }
 		} catch { setInvalidSettings(true); return; }
@@ -129,7 +131,8 @@ export default function PhotoRasterExportDialogKernelV1(props: Props) {
 			input.onApplyPreset(preset); return;
 		}
 		if (preset.format !== input.format) throw new Error('This export surface cannot change format.');
-		setSettings(restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setSidecarEnabled(preset.sidecarEnabled); setReceipt(null);
+		setSettings(profile === 'current3' ? restoreRasterExportSettingsCurrentV1(preset.output, preset.filenameTemplate, input.format)
+			: restoreRasterExportSettings(preset.output, preset.filenameTemplate)); setSidecarEnabled(preset.sidecarEnabled); setReceipt(null);
 		graphic.onChange({ ...graphic.value, enabled: false, body: null });
 	};
 	const retrySidecar = () => {
@@ -156,6 +159,7 @@ export default function PhotoRasterExportDialogKernelV1(props: Props) {
 		<div {...{ [`data-photo-${props.format}-export-dialog`]: true }} className="lightscaper-catalog-backup">
 			<p>{copy.description}</p>
 			<PhotoRasterExportSettings value={settings} copy={copy} locale={props.locale} disabled={!ready || saving || closing}
+				currentFormat={profile === 'current3' ? props.format : undefined}
 				onChange={value => { if (actionScope() && ready && !saving && !closing) { setSettings(value); setInvalidSettings(false); setMetadataFailed(false); } }} />
 			<label><input type="checkbox" data-photo-raster-export-sidecar checked={sidecarEnabled} disabled={!ready || saving || closing || !!partialSidecar || !props.captureSidecarReader}
 				onChange={event => { if (actionScope() && ready && !saving && !closing && !partialSidecar) { setSidecarEnabled(event.target.checked); setInvalidSettings(false); } }} />{copy.sidecar}</label>
@@ -165,8 +169,7 @@ export default function PhotoRasterExportDialogKernelV1(props: Props) {
 				captureCurrent={(id, name) => {
 					if (!actionScope() || !ready || saving || closing || partialSidecar) throw new Error('Export settings are currently protected.');
 					return { schemaVersion: 1, id, name, format: props.format, filenameTemplate: settings.filenameTemplate, sidecarEnabled,
-						output: capturePhotoRasterExportOutput({ sizing: rasterExportSizing(settings), quality: settings.quality, metadataScope: settings.metadataScope, ...rasterExportText(settings),
-							...(settings.sharpen ? { sharpen: { amount: Number(settings.sharpenAmount), threshold: Number(settings.sharpenThreshold) } } : {}) }) };
+						output: profile === 'current3' ? captureRasterExportSettingsOutputCurrentV1(settings, props.format) : captureRasterExportSettingsOutputV1(settings) };
 				}} onApply={applyPreset} />
 			{invalidSettings && <p role="alert">{copy.invalidSettings}</p>}
 			{metadataFailed && <p role="alert" data-photo-raster-export-metadata-error>{copy.metadataFailed}</p>}

@@ -11,6 +11,7 @@ import type { PhotoLibraryOriginalInspectionFailureV1, PhotoLibraryOriginalInspe
 import type { PhotoLibraryBatchRenameRequestV1, PhotoLibraryBatchRenamePlanV1,
 	PhotoLibraryBatchRenameUndoV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameSnapshotV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
 import { createPhotoLibraryBatchRenameSessionCurrentV1 } from './photo-library-batch-rename-current-v1.ts';
+import { createPhotoLibrarySessionExportPresetsV1 } from './internal/photo-library-session-export-presets-v1.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { PhotoCommandOwnerCurrentV1 } from './photo-command-owner-current-v1.ts';
 import { createPhotoLibraryDevelopSessionV3 } from './photo-library-develop-session-v3.ts';
@@ -111,6 +112,7 @@ export class PhotoLibrarySessionKernelV2 {
 	readonly exportJournal?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportJournalCurrent?: Readonly<PhotoLibraryExportJournalPort>;
 	readonly exportPresets?: PhotoLibrarySessionPortV2['exportPresets'];
+	readonly exportPresetsCurrent?: ReturnType<typeof createPhotoLibrarySessionExportPresetsV1>['current'];
 	#catalog: Promise<string> | null = null;
 	#photo: PhotoCommandOwnerV2 | PhotoCommandOwnerCurrentV1 | null = null;
 	#previews: Promise<PhotoLibraryPreviewSchedulerPortV2> | null = null;
@@ -170,14 +172,11 @@ export class PhotoLibrarySessionKernelV2 {
 					...(scope === 'saved-query' ? { expectedDefinitionRevision: integer(field(request, 'expectedDefinitionRevision'), 0, Number.MAX_SAFE_INTEGER, 'collection definition revision') } : {}) });
 			});
 		} });
-		if (ports.exportPresetSettings) this.exportPresets = Object.freeze({ open: (options = {}) => {
-			const { signal } = readPhotoDevelopSignalOptionsV2(options);
-			return this.#operation(async admitted => {
-				const { openPhotoLibraryExportPresetsSession } = await import('./photo-library-export-presets-session.ts'); check(admitted);
-				return openPhotoLibraryExportPresetsSession({ settings: ports.exportPresetSettings!, ready: () => this.#ready(),
-					operation: (run, caller, admit) => this.#operation(run, caller, admit), mutate: (run, caller) => this.#mutation(run, caller) }, { signal: admitted });
-			}, signal);
-		} });
+		if (ports.exportPresetSettings) {
+			const presets = createPhotoLibrarySessionExportPresetsV1({ settings: ports.exportPresetSettings, ready: () => this.#ready(),
+				operation: (run, caller, admit) => this.#operation(run, caller, admit), mutate: (run, caller) => this.#mutation(run, caller) }, this.#current);
+			this.exportPresets = presets.legacy; this.exportPresetsCurrent = presets.current;
+		}
 		if (ports.exportJournalSettings) {
 			const host = { settings: ports.exportJournalSettings, ready: () => this.#ready(), loadOriginal: ports.backup?.loadOriginal,
 				operation: <Result>(run: (signal: AbortSignal) => Promise<Result>, caller?: AbortSignal, admit?: () => void) => this.#operation(run, caller, admit) };

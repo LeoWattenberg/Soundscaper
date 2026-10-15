@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record, readClosedDomainArray as array } from '../../../common/editor/closed-domain-value.ts';
-import { normalizePhotoRasterExportJournalV1, isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportJournalMemberV1 } from '../../storage/photo-raster-export-journal-v1.ts';
+import { isPhotoRasterExportMemberCompleteV1, type PhotoRasterExportJournalMemberV1 } from '../../storage/photo-raster-export-journal-v1.ts';
+import { normalizePhotoRasterExportJournalForProfileV1 } from '../../storage/internal/photo-raster-export-journal-kernel-v1.ts';
 import { createDeliveryQueueRunner } from '../../../common/editor/delivery-queue-runner.ts';
 import type { DeliveryQueue, DeliveryQueueState } from '../../../common/editor/delivery-queue.ts';
 import type { BrowserFileSaveRequest, BrowserSavedFile, PreparedBrowserSave } from '../../../common/editor/browser-file-save-service.ts';
@@ -9,7 +10,9 @@ import type { PixelFrameV1 } from '../../../common/editor/imaging/pixel-frame-co
 import { PhotoRasterBatchSidecarRecoveryKernelV1, type PhotoRasterBatchSidecarRecoveryReceipt } from './photo-raster-export-batch-sidecar-kernel-v1.ts';
 import { PhotoRasterExportKernelV1 } from './photo-raster-export-kernel-v1.ts';
 import type { PhotoRasterExportReceipt, PhotoRasterExportRequest, PhotoRasterExportRequestCurrentV1, PhotoRasterExportProfileV1 } from '../photo-raster-export-contract-v1.ts';
-import { capturePhotoRasterExportBatchV1, type PhotoRasterExportBatchV1, type PhotoRasterExportBatchMemberV1 } from '../photo-raster-export-batch-v1.ts';
+import type { PhotoRasterExportBatchV1, PhotoRasterExportBatchMemberV1 } from '../photo-raster-export-batch-v1.ts';
+import type { PhotoRasterExportBatchCurrentV1 } from '../photo-raster-export-batch-current-v1.ts';
+import { capturePhotoRasterExportBatchForProfileV1 } from './photo-raster-export-batch-kernel-v1.ts';
 import { capturePreparedPhotoRasterBatchGraphicV1, type PreparedPhotoRasterBatchGraphicV1 } from '../photo-raster-export-batch-graphic-v1.ts';
 
 /** Methods use authority acquired by the initial gesture. They must never open
@@ -34,13 +37,19 @@ export interface PhotoRasterExportBatchRuntime {
 	readonly graphicWatermark?: Readonly<PreparedPhotoRasterBatchGraphicV1>;
 	readonly withGraphicFrame?: PhotoRasterExportRequest['withGraphicFrame'];
 }
-export interface PhotoRasterExportBatchRuntimeCurrentV1 extends Omit<PhotoRasterExportBatchRuntime, 'execute' | 'loadRenderer'> {
+export interface PhotoRasterExportBatchRuntimeCurrentV1 extends Omit<PhotoRasterExportBatchRuntime, 'execute' | 'loadRenderer' | 'encode' | 'prepareDestinations'> {
 	readonly execute: PhotoRasterExportRequestCurrentV1['execute'];
 	readonly loadRenderer: PhotoRasterExportRequestCurrentV1['loadRenderer'];
+	readonly prepareDestinations: (plan: Readonly<PhotoRasterExportBatchCurrentV1>, options: Readonly<{ signal: AbortSignal }>) => PhotoRasterExportBatchDestinations | PromiseLike<PhotoRasterExportBatchDestinations>;
+	readonly encode: (format: 'png' | 'jpeg', frame: Readonly<PixelFrameV1>, options: Parameters<PhotoRasterExportRequestCurrentV1['encode']>[1]) => ReturnType<PhotoRasterExportRequestCurrentV1['encode']>;
+	readonly withTextFrame?: PhotoRasterExportRequestCurrentV1['withTextFrame'];
 }
-interface Runtime extends Omit<PhotoRasterExportBatchRuntime, 'execute' | 'loadRenderer'> {
+interface Runtime extends Omit<PhotoRasterExportBatchRuntime, 'execute' | 'loadRenderer' | 'encode' | 'prepareDestinations'> {
 	readonly execute: PhotoRasterExportBatchRuntime['execute'] | PhotoRasterExportBatchRuntimeCurrentV1['execute'];
 	readonly loadRenderer: PhotoRasterExportBatchRuntime['loadRenderer'] | PhotoRasterExportBatchRuntimeCurrentV1['loadRenderer'];
+	readonly prepareDestinations: PhotoRasterExportBatchRuntimeCurrentV1['prepareDestinations'];
+	readonly encode: PhotoRasterExportBatchRuntimeCurrentV1['encode'];
+	readonly withTextFrame?: PhotoRasterExportRequestCurrentV1['withTextFrame'];
 }
 
 export interface PhotoRasterExportBatchReceipt {
@@ -86,7 +95,7 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 	readonly #members = new Map<string, MemberCompletion>();
 	readonly #observers = new Set<(receipt: Readonly<PhotoRasterExportBatchReceipt>) => void>();
 	readonly #recover = new Map<string, Readonly<{ catalogId: string; member: Readonly<PhotoRasterExportJournalMemberV1> }>>();
-	#plan: Readonly<PhotoRasterExportBatchV1> | null = null;
+	#plan: Readonly<PhotoRasterExportBatchCurrentV1> | null = null;
 	#destinations: Readonly<PhotoRasterExportBatchDestinations> | null = null;
 	#phase: PhotoRasterExportBatchReceipt['phase'] = 'idle';
 	#queue: DeliveryQueue;
@@ -98,7 +107,7 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 	protected constructor(profile: PhotoRasterExportProfileV1, value: Runtime) {
 		if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported photo raster batch profile.');
 		this.#profile = profile;
-		this.#runtime = captureRuntime(value);
+		this.#runtime = captureRuntime(profile, value);
 		this.#runner = createDeliveryQueueRunner({ runJob: (entry, context) => this.#runMember(entry.jobId, context.signal),
 			onChange: queue => {
 				this.#queue = queue;
@@ -127,13 +136,13 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 	}
 	/** Single use: neither Maps nor atomic-restart labels constitute persisted resume. */
 	start(value: unknown): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
-		return this.#start(() => capturePhotoRasterExportBatchV1(value));
+		return this.#start(() => capturePhotoRasterExportBatchForProfileV1(this.#profile, value));
 	}
 	/** A fixed journal is admitted whole before selecting work. Stable original
 	 * ordinals and names survive omissions; committed members never enqueue. */
 	startRecovery(value: unknown, jobIds: readonly string[]): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
 		return this.#start(() => {
-			const journal = normalizePhotoRasterExportJournalV1(value), ids = array(jobIds, 'Photo export recovery jobs', 1, journal.members.length);
+			const journal = normalizePhotoRasterExportJournalForProfileV1(this.#profile, value), ids = array(jobIds, 'Photo export recovery jobs', 1, journal.members.length);
 			if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !journal.members.some(member => member.jobId === id && !isPhotoRasterExportMemberCompleteV1(member)))) throw new TypeError('Photo export recovery jobs are outside unfinished journal work.');
 			for (const member of journal.members) if (ids.includes(member.jobId) && member.state === 'committed') this.#recover.set(member.jobId, Object.freeze({ catalogId: journal.catalogId, member }));
 			const members = journal.members.filter(member => ids.includes(member.jobId)).map(({ jobId, index, photoId, versionId, expectedRevision, sourceFileName, fileName }) =>
@@ -142,7 +151,7 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 				...(journal.graphicWatermark ? { graphicWatermark: journal.graphicWatermark } : {}) });
 		});
 	}
-	#start(capture: () => Readonly<PhotoRasterExportBatchV1>): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
+	#start(capture: () => Readonly<PhotoRasterExportBatchCurrentV1>): Promise<Readonly<PhotoRasterExportBatchReceipt>> {
 		if (this.#phase !== 'idle') return Promise.reject(new PhotoRasterExportBatchError(new Error('Photo raster batch already started.'), this.getSnapshot()));
 		let preparation: PhotoRasterExportBatchDestinations | PromiseLike<PhotoRasterExportBatchDestinations>;
 		try {
@@ -234,6 +243,7 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 				...(plan.output ? { output: plan.output } : {}), ...(runtime.readMetadata ? { readMetadata: runtime.readMetadata } : {}),
 				...(runtime.graphicWatermark ? { graphicWatermark: runtime.graphicWatermark.request } : {}),
 				...(runtime.withGraphicFrame ? { withGraphicFrame: runtime.withGraphicFrame } : {}),
+				...(runtime.withTextFrame ? { withTextFrame: runtime.withTextFrame } : {}),
 				prepareSave: request => destinations.prepareSave(member, request), saveFile: request => request.mimeType === 'application/json' && plan.sidecarEnabled ? destinations.saveSidecar!(member, request) : destinations.saveFile(member, request),
 				execute: runtime.execute, withOriginalFrame: runtime.withOriginalFrame, loadRenderer: runtime.loadRenderer,
 				encode: (frame, options) => runtime.encode(plan.format, frame, options) });
@@ -250,17 +260,18 @@ export class PhotoRasterExportBatchQueueKernelV1 {
 	}
 }
 
-function captureRuntime(value: unknown): Readonly<Runtime> {
+function captureRuntime(profile: PhotoRasterExportProfileV1, value: unknown): Readonly<Runtime> {
 	const methods = ['prepareDestinations', 'execute', 'withOriginalFrame', 'loadRenderer', 'encode'] as const;
-	const input = record(value, 'Photo raster batch runtime', ['fileTypeDescription', ...methods, 'readMetadata', 'readSidecar', 'graphicWatermark', 'withGraphicFrame'], ['fileTypeDescription', ...methods]);
+	const input = record(value, 'Photo raster batch runtime', ['fileTypeDescription', ...methods, 'readMetadata', 'readSidecar', 'graphicWatermark', 'withGraphicFrame', ...(profile === 'current3' ? ['withTextFrame'] : [])], ['fileTypeDescription', ...methods]);
 	const description = field(input, 'fileTypeDescription', 'Photo raster batch runtime');
 	if (typeof description !== 'string' || !description || description.length > 256) throw new TypeError('Photo raster batch type description exceeds its scalar bound.');
-	return Object.freeze({ fileTypeDescription: description, prepareDestinations: method<PhotoRasterExportBatchRuntime['prepareDestinations']>(input, value, 'prepareDestinations'),
+	return Object.freeze({ fileTypeDescription: description, prepareDestinations: method<Runtime['prepareDestinations']>(input, value, 'prepareDestinations'),
 		execute: method<Runtime['execute']>(input, value, 'execute'), withOriginalFrame: method<PhotoRasterExportBatchRuntime['withOriginalFrame']>(input, value, 'withOriginalFrame'),
-		loadRenderer: method<Runtime['loadRenderer']>(input, value, 'loadRenderer'), encode: method<PhotoRasterExportBatchRuntime['encode']>(input, value, 'encode'),
+		loadRenderer: method<Runtime['loadRenderer']>(input, value, 'loadRenderer'), encode: method<Runtime['encode']>(input, value, 'encode'),
 		...(Object.hasOwn(input, 'readSidecar') ? { readSidecar: method<NonNullable<PhotoRasterExportBatchRuntime['readSidecar']>>(input, value, 'readSidecar') } : {}),
 		...(Object.hasOwn(input, 'graphicWatermark') ? { graphicWatermark: capturePreparedPhotoRasterBatchGraphicV1(field(input, 'graphicWatermark', 'Photo raster batch runtime')) } : {}),
 		...(Object.hasOwn(input, 'withGraphicFrame') ? { withGraphicFrame: method<NonNullable<PhotoRasterExportBatchRuntime['withGraphicFrame']>>(input, value, 'withGraphicFrame') } : {}),
+		...(Object.hasOwn(input, 'withTextFrame') ? { withTextFrame: method<NonNullable<Runtime['withTextFrame']>>(input, value, 'withTextFrame') } : {}),
 		...(Object.hasOwn(input, 'readMetadata') ? { readMetadata: method<NonNullable<PhotoRasterExportBatchRuntime['readMetadata']>>(input, value, 'readMetadata') } : {}) });
 }
 function captureRetirement(value: unknown): PhotoRasterExportBatchDestinations['retireAndJoin'] {

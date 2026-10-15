@@ -8,6 +8,7 @@ import type { PhotoLibraryImageHandoffPortV2 } from './photo-library-image-hando
 import type { PhotoLibraryImageReceivePortV2 } from './photo-library-image-receive-port-v2.ts';
 import type { PhotoLibraryCollectionHandoffPortV2 } from './photo-library-collection-handoff-port-v2.ts';
 import type { PhotoLibraryDevelopImportPortCurrentV1 } from './photo-library-develop-import-port-current-v1.ts';
+import type { PhotoLibraryExportPresetsPortCurrentV1 } from './photo-library-export-presets-port-current-v1.ts';
 
 /** Current Develop settings with unchanged scalar library and organization capabilities. */
 export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessionPortV2, 'develop'> {
@@ -20,6 +21,7 @@ export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessi
 	readonly readExportSidecarCurrent?: ReadPhotoExportSidecar;
 	/** Same scalar journal wire, verified against the complete selected Current Photo. */
 	readonly exportJournalCurrent?: Readonly<PhotoLibraryExportJournalPort>;
+	readonly exportPresetsCurrent?: Readonly<PhotoLibraryExportPresetsPortCurrentV1>;
 	/** Complete Current Photo admission and joined LUT/brush transport. */
 	readonly imageHandoffCurrent?: Readonly<PhotoLibraryImageHandoffPortV2>;
 	/** Explicit Current native publication; the inherited legacy child stays strict. */

@@ -164,8 +164,9 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 			if (!current || !isCurrent()) throw new DOMException('Photo export preset generation is closed.', 'AbortError');
 			const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
 			check(signal); const owner = await acquire(profile, current); check(signal);
-			if (!isCurrent() || !owner.exportPresets) throw new Error('Photo export presets are unavailable.');
-			const access = await owner.exportPresets.open({ signal }); check(signal);
+			const presets = profile === 'current3' ? (owner as PhotoLibrarySessionPortCurrentV1).exportPresetsCurrent : owner.exportPresets;
+			if (!isCurrent() || !presets) throw new Error('Photo export presets are unavailable.');
+			const access = await presets.open({ signal }); check(signal);
 			if (!isCurrent()) throw new DOMException('Photo export preset generation is closed.', 'AbortError'); return access;
 		};
 	}, [profile, createSession, createDevelopProxyRuntime, loadBackupSaveRuntime, slot, factory, loader, renderer]);

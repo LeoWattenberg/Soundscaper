@@ -14,6 +14,7 @@ const EXPORT_COMPOSITION = 'src/common/editor/ui/lightscaper/LightscaperRasterEx
 const SESSIONS = ['src/lightscaper/controller/photo-library-session-v2.ts', 'src/lightscaper/controller/photo-library-session-current-v1.ts'];
 const SESSION_KERNEL = 'src/lightscaper/controller/photo-library-session-kernel-v2.ts';
 const SESSION_EXPORTS = 'src/lightscaper/controller/photo-library-session-export-sidecar.ts';
+const SESSION_PRESETS = 'src/lightscaper/controller/internal/photo-library-session-export-presets-v1.ts';
 const COPY = ['lightscaper-photo-batch-export-menu-copy', 'lightscaper-photo-batch-export-copy', 'lightscaper-photo-export-presets-copy'];
 const moduleSource = (path: string) => transformSync(readFileSync(path, 'utf8'), { sourcefile: path,
 	loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : path.endsWith('.json') ? 'json' : 'js', format: 'esm' }).code;
@@ -45,9 +46,11 @@ test('both actual photo shells stay cold for queue, optional batch labels and bo
 			'src/common/editor/ui/lightscaper/PhotoRasterExportSurface.tsx', 'src/common/editor/ui/lightscaper/PhotoRasterExportDialogKernelV1.tsx',
 			'src/common/editor/ui/lightscaper/PhotoRasterBatchExportDialogKernelV1.tsx',
 			'src/lightscaper/controller/photo-library-export-journal-session.ts', 'src/lightscaper/controller/photo-library-export-presets-session.ts',
+			'src/lightscaper/controller/photo-library-export-presets-current-session.ts', 'src/lightscaper/controller/internal/photo-library-export-presets-session-kernel-v1.ts',
 			'src/lightscaper/storage/photo-raster-export-presets-v1.ts', 'src/lightscaper/controller/photo-raster-export-preset-v1.ts',
+			'src/lightscaper/storage/photo-raster-export-presets-current-v1.ts', 'src/lightscaper/controller/photo-raster-export-preset-current-v1.ts',
 			'src/common/editor/ui/lightscaper/PhotoRasterExportPresets.tsx', 'src/common/i18n/lightscaper-photo-export-presets-copy.ts', 'src/common/i18n/lightscaper-photo-batch-export-copy.ts',
-			'src/common/editor/imaging/pixel-frame-png-v1.ts', 'src/common/editor/imaging/pixel-frame-jpeg-v1.ts']) assert.equal(reached.has(path), false, path);
+			'src/common/editor/imaging/pixel-frame-png-v1.ts', 'src/common/editor/imaging/pixel-frame-png16-v1.ts', 'src/common/editor/imaging/pixel-frame-jpeg-v1.ts']) assert.equal(reached.has(path), false, path);
 		assert.equal(reached.has(APP_KERNEL), true, app);
 		assert.equal(reached.has(EXPORT_COMPOSITION), true, app);
 		assert.equal(reached.has('src/common/i18n/lightscaper-photo-batch-export-menu-copy.ts'), true);
@@ -69,8 +72,12 @@ test('both actual Sessions reach their shared lazy journal and preset facades', 
 		assert.ok(dynamicRelativeImports(facadeSource).includes(facade), facade);
 		assert.equal(staticRelativeDependencies(facadeSource).includes(facade), false, facade);
 	}
-	assert.ok(dynamicRelativeImports(kernel).includes('./photo-library-export-presets-session.ts'));
-	assert.equal(staticRelativeDependencies(kernel).includes('./photo-library-export-presets-session.ts'), false);
+	assert.ok(staticRelativeDependencies(kernel).includes('./internal/photo-library-session-export-presets-v1.ts'));
+	const presetSource = moduleSource(resolve(ROOT, SESSION_PRESETS));
+	for (const facade of ['../photo-library-export-presets-session.ts', '../photo-library-export-presets-current-session.ts']) {
+		assert.ok(dynamicRelativeImports(presetSource).includes(facade), facade);
+		assert.equal(staticRelativeDependencies(presetSource).includes(facade), false, facade);
+	}
 	for (const entry of SESSIONS) {
 		const reached = new Set<string>(), pending = [resolve(ROOT, entry)];
 		while (pending.length) {
@@ -78,10 +85,16 @@ test('both actual Sessions reach their shared lazy journal and preset facades', 
 			for (const specifier of staticRelativeDependencies(moduleSource(path))) { const target = resolveRelativeModule(path, specifier); assert.ok(target); pending.push(target); }
 		}
 		assert.equal(reached.has(SESSION_KERNEL), true, entry); assert.equal(reached.has(SESSION_EXPORTS), true, entry);
+		assert.equal(reached.has(SESSION_PRESETS), true, entry);
 		for (const optional of ['photo-library-export-journal-session.ts', 'photo-library-export-journal-current-session.ts',
 			'internal/photo-library-export-journal-kernel-v1.ts', 'photo-library-export-presets-session.ts', 'photo-raster-export-current-v1.ts',
+			'photo-library-export-presets-current-session.ts', 'internal/photo-library-export-presets-session-kernel-v1.ts',
+			'photo-raster-export-preset-current-v1.ts',
 			'photo-raster-export-batch-queue-current-v1.ts']) assert.equal(reached.has(`src/lightscaper/controller/${optional}`), false, `${entry} eagerly loads ${optional}`);
+		for (const preset of ['photo-raster-export-presets-v1.ts', 'photo-raster-export-presets-current-v1.ts']) {
+			assert.equal(reached.has(`src/lightscaper/storage/${preset}`), false, `${entry} eagerly loads ${preset}`);
+		}
 		for (const copy of COPY.slice(1)) assert.equal(reached.has(`src/common/i18n/${copy}.ts`), false, entry);
-		for (const codec of ['png', 'jpeg']) assert.equal(reached.has(`src/common/editor/imaging/pixel-frame-${codec}-v1.ts`), false, entry);
+		for (const codec of ['png', 'png16', 'jpeg']) assert.equal(reached.has(`src/common/editor/imaging/pixel-frame-${codec}-v1.ts`), false, entry);
 	}
 });

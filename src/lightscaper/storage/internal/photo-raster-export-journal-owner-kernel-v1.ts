@@ -2,6 +2,7 @@
 import { normalizePhotoRasterExportJournalV1, normalizePhotoRasterExportDownloadAckV1, normalizePhotoRasterExportSidecarAckV1, isPhotoRasterExportMemberCompleteV1, photoRasterExportJournalKeyV1,
 	type PhotoRasterExportJournalV1, type PhotoRasterExportDownloadAckV1, type PhotoRasterExportSidecarAckV1 } from '../photo-raster-export-journal-v1.ts';
 import { readClosedDomainRecord as record, readClosedDomainField as field } from '../../../common/editor/closed-domain-value.ts';
+import { normalizePhotoRasterExportJournalCurrentV1 } from '../photo-raster-export-journal-current-v1.ts';
 
 export interface PhotoRasterExportJournalSettingsV1 {
 	get(key: string): Promise<unknown>;
@@ -125,7 +126,7 @@ export class PhotoRasterExportJournalOwnerKernelV1 {
 		});
 	}
 	#admit(value: unknown): Readonly<PhotoRasterExportJournalV1> {
-		const result = normalizePhotoRasterExportJournalV1(value);
+		const result = this.#requireNativeClaim ? normalizePhotoRasterExportJournalCurrentV1(value) : normalizePhotoRasterExportJournalV1(value);
 		if (result.catalogId !== this.catalogId) throw new TypeError('Photo export journal belongs to another catalog.'); return result;
 	}
 	#join<Result>(invoke: () => Promise<Result>): Promise<Result> {
