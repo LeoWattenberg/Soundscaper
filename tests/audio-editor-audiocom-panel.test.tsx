@@ -57,6 +57,25 @@ test('audio.com requests a connection before search and upload controls stay col
 	assert.doesNotMatch(connected, /<button[^>]*>[^<]*Audacity/u);
 });
 
+test('project archives are opt-in and visible only when the selected provider advertises whole-file support', () => {
+	const state = { supported: true, formats: ['aup3', 'aup4'] as const, maximumBytes: 100000000,
+		results: [{ id: 'p', name: 'Session', format: 'aup3' as const, snapshotId: 's', size: 24000 }],
+		page: 1, hasNext: false, status: 'ready' as const, provider: { kind: 'audiocity' as const, webOrigin: 'http://127.0.0.1:8088' } };
+	const archives = { state, onRefresh: () => {}, onUpload: () => {}, onDownload: () => {}, onCancel: () => {} };
+	const props = { ...BASE, copy: { ...COPY, projectArchives: 'Project archives', providerServer: 'Storage server:',
+		projectArchiveNotice: 'Use File → Open to edit the downloaded file.', projectArchiveLimit: 'Maximum {size} MB',
+		projectArchiveSize: '{format} · {size} MB',
+		chooseProjectArchive: 'Upload AUP3 or AUP4', refreshProjects: 'Refresh projects', downloadProject: 'Download project',
+	}, state: { ...BASE.state, auth: { status: 'connected' as const } }, archives };
+	const markup = renderToStaticMarkup(<AudiocomPanel {...props} />);
+	assert.match(markup, /<details[^>]*data-audiocom-projects="true"(?![^>]*\bopen)/u);
+	assert.match(markup, /accept="\.aup3,\.aup4"/u);
+	assert.match(markup, /Download project/u); assert.match(markup, /Storage server:/u);
+	assert.match(markup, /href="http:\/\/127\.0\.0\.1:8088"/u);
+	assert.doesNotMatch(renderToStaticMarkup(<AudiocomPanel {...props} archives={{ ...archives, state: { ...state, supported: false } }} />), /data-audiocom-projects/u);
+	assert.doesNotMatch(renderToStaticMarkup(<AudiocomPanel {...props} state={BASE.state} />), /data-audiocom-projects/u);
+});
+
 test('audio.com links preserve normal browser navigation and use an injected desktop opener', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

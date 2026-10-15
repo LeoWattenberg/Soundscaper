@@ -31,6 +31,8 @@ import {
 	type OAuthSessionRecord,
 } from './oauth-repository.ts';
 
+import { providerConfiguration } from './provider-config.ts';
+
 export interface OAuthHandlerDependencies {
 	readonly repository?: AudiocomOAuthRepository;
 	readonly fetchImpl?: typeof fetch;
@@ -45,7 +47,6 @@ export interface AuthorizedAudiocomSession {
 	readonly masterKey: string;
 }
 
-const API_ORIGIN = 'https://api.audio.com';
 const ATTEMPT_TTL_MS = 10 * 60 * 1_000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 const REFRESH_MARGIN_MS = 60 * 1_000;
@@ -63,7 +64,7 @@ export async function handleAudiocomOAuthStartRequest(
 		const repository = repositoryFor(context, dependencies);
 		const now = nowFrom(dependencies);
 		await repository.cleanupExpired(now);
-		const attemptId = randomCapability();
+		const attemptId = `${await providerAttemptPrefix(context)}${randomCapability()}`;
 		const handoffToken = randomCapability();
 		const state = randomCapability();
 		const verifier = randomCapability(48);
@@ -82,11 +83,11 @@ export async function handleAudiocomOAuthStartRequest(
 			createdAt: now,
 			expiresAt,
 		});
-		const authorizeUrl = new URL('/auth/authorize', API_ORIGIN);
+		const authorizeUrl = new URL('/auth/authorize', providerConfiguration(context.env).authorizationOrigin);
 		authorizeUrl.searchParams.set('client_id', clientId);
 		authorizeUrl.searchParams.set('response_type', 'code');
 		authorizeUrl.searchParams.set('state', state);
-		authorizeUrl.searchParams.set('scope', 'public');
+		authorizeUrl.searchParams.set('scope', providerConfiguration(context.env).scope);
 		authorizeUrl.searchParams.set('code_challenge_method', 'S256');
 		authorizeUrl.searchParams.set('code_challenge', await hashCapability(verifier));
 		authorizeUrl.searchParams.set('redirect_uri', oauthRedirectUri(context));
@@ -123,7 +124,7 @@ export async function handleAudiocomOAuthCallbackRequest(
 		const repository = repositoryFor(context, dependencies);
 		const now = nowFrom(dependencies);
 		const attempt = await repository.findAttemptByStateHash(await hashCapability(state));
-		if (attempt === null || attempt.expiresAt <= now) {
+		if (attempt === null || !await attemptMatchesProvider(context, attempt.id) || attempt.expiresAt <= now) {
 			throw new OAuthHttpError(410, 'authorization_expired', 'This Audiocom connection attempt has expired.');
 		}
 		if (attempt.status !== 'pending') {
@@ -173,7 +174,7 @@ export async function handleAudiocomOAuthPollRequest(
 		const repository = repositoryFor(context, dependencies);
 		const now = nowFrom(dependencies);
 		let attempt = await repository.findAttemptById(input.attemptId);
-		if (attempt === null) throw new OAuthHttpError(404, 'authorization_not_found', 'The connection attempt was not found.');
+		if (attempt === null || !await attemptMatchesProvider(context, attempt.id)) throw new OAuthHttpError(404, 'authorization_not_found', 'The connection attempt was not found.');
 		const handoffHash = await hashCapability(input.handoffToken);
 		if (!constantTimeEqual(handoffHash, attempt.handoffHash)) {
 			throw new OAuthHttpError(404, 'authorization_not_found', 'The connection attempt was not found.');
@@ -265,7 +266,7 @@ export async function authorizeAudiocomSession(
 	const repository = repositoryFor(context, dependencies);
 	const now = nowFrom(dependencies);
 	const session = await repository.findSession(tokenHash, now);
-	if (session === null || (credentials.transport === 'cookie') !== (session.clientKind === 'web')) {
+	if (session === null || !await attemptMatchesProvider(context, session.grant.user.id) || (credentials.transport === 'cookie') !== (session.clientKind === 'web')) {
 		throw new OAuthHttpError(401, 'authentication_required', 'Connect to Audiocom to continue.');
 	}
 	await repository.touchSession(tokenHash, now, now + SESSION_TTL_MS);
@@ -461,6 +462,15 @@ function optionalSessionToken(request: Request): Readonly<{ token: string; trans
 	const hasCookie = request.headers.get('cookie')?.includes('__Host-audiocom_session=') === true;
 	if (!hasAuthorization && !hasCookie) return null;
 	return requestSessionToken(request);
+}
+
+async function providerAttemptPrefix(context: AudiocomOAuthFunctionContext): Promise<string> {
+	const provider = providerConfiguration(context.env);
+	return provider.kind === 'audiocity' ? `audiocity-${await hashCapability(provider.apiOrigin)}-` : '';
+}
+async function attemptMatchesProvider(context: AudiocomOAuthFunctionContext, attemptId: string): Promise<boolean> {
+	const prefix = await providerAttemptPrefix(context);
+	return prefix ? attemptId.startsWith(prefix) : !attemptId.startsWith('audiocity-');
 }
 
 function grantIdentifier(userId: string): string { return `audiocom-user-${String(userId)}`; }

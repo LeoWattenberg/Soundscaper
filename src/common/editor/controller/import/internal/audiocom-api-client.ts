@@ -4,6 +4,7 @@ import type {
 	AudiocomAccount, AudiocomApiClient, AudiocomAuthorizationReservation,
 	AudiocomSearchPage, AudiocomSearchResult,
 } from '../audiocom-panel-session.ts';
+import { audiocomProvider, DEFAULT_AUDIOCOM_PROVIDER, type AudiocomProvider } from './audiocom-provider.ts';
 
 const PREFIX = '/api/audiocom/';
 const DESKTOP_PREFIX = 'soundscaper-app://bundle/_desktop/audiocom';
@@ -28,6 +29,16 @@ export function createAudiocomApiClient(options: ClientOptions = {}): AudiocomAp
 	const request = (path: string, init: RequestInit = {}): Promise<Response> => fetchImpl(requestUrl(path), {
 		...init, credentials: 'include', redirect: 'error',
 	});
+	let provider = DEFAULT_AUDIOCOM_PROVIDER;
+	let providerLoaded = false;
+	const loadProvider = async (signal?: AbortSignal): Promise<AudiocomProvider> => {
+		if (!providerLoaded) {
+			const value = await responseData(await request(`${PREFIX}usage`, { signal }));
+			provider = audiocomProvider(record(value).provider, location);
+			providerLoaded = true;
+		}
+		return provider;
+	};
 	const account = (value: unknown): AudiocomAccount => {
 		const data = record(value);
 		if (typeof data.connected !== 'boolean') throw new Error('Invalid audio.com account response.');
@@ -40,12 +51,13 @@ export function createAudiocomApiClient(options: ClientOptions = {}): AudiocomAp
 			return response.status === 401 ? { connected: false } : account(await responseData(response));
 		},
 		startOAuth: async signal => {
+			await loadProvider(signal);
 			const data = record(await responseData(await request(`${PREFIX}oauth/start`, json({ client: desktop ? 'desktop' : 'web' }, signal))));
 			const attempt = {
 				attemptId: requiredString(data.attemptId), handoffToken: requiredString(data.handoffToken),
 				authorizeUrl: requiredString(data.authorizeUrl), expiresAt: requiredString(data.expiresAt),
 			};
-			assertAudiocomAuthorizationUrl(attempt.authorizeUrl, location);
+			assertAudiocomAuthorizationUrl(attempt.authorizeUrl, location, provider);
 			if (!Number.isFinite(Date.parse(attempt.expiresAt))) throw new Error('Invalid audio.com authorization expiry.');
 			return attempt;
 		},
@@ -57,15 +69,17 @@ export function createAudiocomApiClient(options: ClientOptions = {}): AudiocomAp
 			return { connected: true };
 		},
 		disconnect: async signal => { await responseData(await request(`${PREFIX}oauth/session`, { method: 'DELETE', signal })); },
-		reserveAuthorization: options.reserveAuthorization ?? (() => reserveAuthorization(desktop, location)),
+		reserveAuthorization: options.reserveAuthorization ?? (() => reserveAuthorization(desktop, location, () => provider)),
 		search: async ({ query, page }, signal): Promise<AudiocomSearchPage> => {
 			const params = new URLSearchParams({ q: query, page: String(page) });
 			const data = record(await responseData(await request(`${PREFIX}search?${params}`, { signal })));
 			if (!Array.isArray(data.results) || data.results.length > 100 || !Number.isSafeInteger(data.page)
 				|| Number(data.page) < 1 || typeof data.hasNext !== 'boolean') throw new Error('Invalid audio.com search response.');
-			return { results: data.results.map(value => normalizeResult(value, requestUrl)), page: Number(data.page), hasNext: data.hasNext };
+			await loadProvider(signal);
+			return { results: data.results.map(value => normalizeResult(value, requestUrl, provider)), page: Number(data.page), hasNext: data.hasNext };
 		},
 		upload: async (file, draft, signal) => {
+			await loadProvider(signal);
 			const params = new URLSearchParams({
 				title: draft.title, description: draft.description, category: draft.category, license: draft.license,
 				listed: draft.visibility === 'listed' ? '1' : '0', downloadable: draft.downloadable ? '1' : '0',
@@ -74,18 +88,18 @@ export function createAudiocomApiClient(options: ClientOptions = {}): AudiocomAp
 				method: 'POST', signal, body: file,
 				headers: { 'Content-Type': uploadMime(file), 'X-Audiocom-Filename': encodeURIComponent(file.name), 'X-Audiocom-Content-Length': String(file.size) },
 			})));
-			return { audio: normalizeResult(data.audio, requestUrl), processing: data.processing === true };
+			return { audio: normalizeResult(data.audio, requestUrl, provider), processing: data.processing === true };
 		},
 	};
 }
 
-export function assertAudiocomAuthorizationUrl(value: string, location?: Pick<Location, 'origin' | 'protocol'>): string {
+export function assertAudiocomAuthorizationUrl(value: string, location?: Pick<Location, 'origin' | 'protocol'>, provider: AudiocomProvider = DEFAULT_AUDIOCOM_PROVIDER): string {
 	const url = new URL(value);
 	const keys = ['client_id', 'redirect_uri', 'response_type', 'state', 'scope', 'code_challenge', 'code_challenge_method'];
-	if (`${url.origin}${url.pathname}` !== 'https://api.audio.com/auth/authorize' || url.username || url.password || url.hash
+	if (`${url.origin}${url.pathname}` !== `${provider.apiOrigin}/auth/authorize` || url.username || url.password || url.hash
 		|| [...url.searchParams.keys()].some(key => !keys.includes(key))
 		|| keys.some(key => url.searchParams.getAll(key).length !== 1 || !url.searchParams.get(key))
-		|| url.searchParams.get('response_type') !== 'code' || url.searchParams.get('scope') !== 'public'
+		|| url.searchParams.get('response_type') !== 'code' || url.searchParams.get('scope') !== provider.scope
 		|| url.searchParams.get('code_challenge_method') !== 'S256'
 		|| !/^[A-Za-z0-9_-]{43}$/u.test(url.searchParams.get('code_challenge') ?? '')) throw new Error('Invalid audio.com authorization URL.');
 	const redirect = url.searchParams.get('redirect_uri');
@@ -95,11 +109,11 @@ export function assertAudiocomAuthorizationUrl(value: string, location?: Pick<Lo
 	return url.href;
 }
 
-function reserveAuthorization(desktop: boolean, location?: Pick<Location, 'origin' | 'protocol'>): AudiocomAuthorizationReservation {
+function reserveAuthorization(desktop: boolean, location: Pick<Location, 'origin' | 'protocol'> | undefined, provider: () => AudiocomProvider): AudiocomAuthorizationReservation {
 	if (desktop) {
 		const bridge = (globalThis as typeof globalThis & { soundscaperDesktop?: { v1?: { openAudiocomAuthorization?: (url: string) => Promise<unknown> } } }).soundscaperDesktop?.v1;
 		return { open: async url => {
-			assertAudiocomAuthorizationUrl(url, location);
+			assertAudiocomAuthorizationUrl(url, location, provider());
 			if (!bridge?.openAudiocomAuthorization) throw new Error('The desktop audio.com connection is unavailable.');
 			await bridge.openAudiocomAuthorization(url);
 		}, close: () => undefined };
@@ -108,17 +122,19 @@ function reserveAuthorization(desktop: boolean, location?: Pick<Location, 'origi
 	if (!opened) throw new Error('Allow the audio.com authorization window and try again.');
 	opened.opener = null;
 	return {
-		open: url => { opened.location.replace(assertAudiocomAuthorizationUrl(url, location)); },
+		open: url => { opened.location.replace(assertAudiocomAuthorizationUrl(url, location, provider())); },
 		close: () => opened.close(),
 	};
 }
 
-function normalizeResult(value: unknown, requestUrl: (path: string) => string): AudiocomSearchResult {
+function normalizeResult(value: unknown, requestUrl: (path: string) => string, provider: AudiocomProvider): AudiocomSearchResult {
 	const data = record(value);
 	const id = requiredString(data.id);
-	if (!/^[1-9]\d{0,31}$/u.test(id)) throw new Error('Invalid audio.com audio ID.');
+	const validId = provider.kind === 'audiocity' ? /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u.test(id) : /^[1-9]\d{0,31}$/u.test(id);
+	if (!validId) throw new Error('Invalid audio.com audio ID.');
 	const url = new URL(requiredString(data.url));
-	if (url.origin !== 'https://audio.com' || url.username || url.password) throw new Error('Invalid audio.com audio link.');
+	if (url.origin !== provider.webOrigin || url.username || url.password || url.search || url.hash
+		|| (provider.kind === 'audiocity' && url.pathname !== `/public/audio/${id}`)) throw new Error('Invalid audio.com audio link.');
 	const preview = typeof data.previewUrl === 'string' ? new URL(data.previewUrl, 'https://soundscaper.org') : null;
 	if (preview && (preview.origin !== 'https://soundscaper.org' || preview.pathname !== `${PREFIX}preview`)) throw new Error('Invalid audio.com preview link.');
 	const duration = Number(data.durationSeconds);

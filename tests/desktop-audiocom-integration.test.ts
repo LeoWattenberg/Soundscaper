@@ -141,6 +141,7 @@ test('desktop audio.com uses the system browser only for verified authorization 
 	const handlers = new Map<string, (event: unknown, value: unknown) => Promise<boolean>>();
 	const options = {
 		appOrigin: APP_ORIGIN, apiOrigin: API_ORIGIN, filePath: '/unused', platform: 'linux',
+		fetchImpl: async () => Response.json({ data: { provider: { kind: 'audiocom' } } }),
 		channels: { openAudiocomAuthorization: 'open', openAudiocomLink: 'link' },
 		safeStorage: { isEncryptionAvailable: () => false },
 		handle: (channel: string, listener: (event: unknown, value: unknown) => Promise<boolean>) => { handlers.set(channel, listener); },

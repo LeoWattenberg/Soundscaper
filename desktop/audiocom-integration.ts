@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { assertAudiocomAuthorizationUrl } from './audiocom-authorization.ts';
+import { assertAudiocomAuthorizationUrl, assertAudiocomExternalProvider, type AudiocomExternalConfiguration } from './audiocom-authorization.ts';
 import { assertAudiocomLinkUrl } from './audiocom-links.ts';
 
 export const AUDIOCOM_DESKTOP_PREFIX = '/_desktop/audiocom';
@@ -14,7 +14,7 @@ const RESPONSE_HEADERS = ['cache-control', 'content-disposition', 'content-lengt
 const AUDIO_TYPES = new Set(['audio/wav', 'audio/vnd.wave', 'audio/wave', 'audio/x-wav', 'audio/mpeg', 'audio/mpa', 'audio/mpa-robust', 'audio/flac', 'audio/x-flac', 'audio/x-wavpack', 'audio/x-wavpack-correction', 'audio/aiff', 'audio/x-aiff', 'audio/ogg', 'audio/vorbis', 'audio/vorbis-config', 'application/ogg', 'audio/m4a', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg4-generic']);
 const UPLOAD_PARAMETERS = ['title', 'category', 'description', 'license', 'listed', 'downloadable'];
 
-type RequestKind = 'empty' | 'start' | 'json' | 'upload';
+type RequestKind = 'empty' | 'start' | 'json' | 'upload' | 'project';
 interface ProxyRoute {
 	readonly method: string;
 	readonly path: string;
@@ -31,6 +31,9 @@ const ROUTES: readonly ProxyRoute[] = [
 	{ method: 'GET', path: '/usage', kind: 'empty' },
 	{ method: 'GET', path: '/preview', kind: 'empty', query: ['url'] },
 	{ method: 'POST', path: '/uploads', kind: 'upload', query: UPLOAD_PARAMETERS },
+	{ method: 'GET', path: '/projects', kind: 'empty', query: ['page'] },
+	{ method: 'POST', path: '/projects', kind: 'project', query: ['name', 'format'] },
+	{ method: 'GET', path: '/projects/download', kind: 'empty', query: ['id', 'snapshotId'] },
 ];
 
 interface SafeStorage {
@@ -128,14 +131,31 @@ export async function createDesktopAudiocomIntegration(options: IntegrationOptio
 	const sessionStore = new DesktopAudiocomSessionStore(options);
 	await sessionStore.load();
 	options.handle(options.channels.openAudiocomAuthorization, async (_event, value) => {
-		await options.shell.openExternal(assertAudiocomAuthorizationUrl(value));
+		await options.shell.openExternal(await externalUrl(value, assertAudiocomAuthorizationUrl, options));
 		return true;
 	});
 	options.handle(options.channels.openAudiocomLink, async (_event, value) => {
-		await options.shell.openExternal(assertAudiocomLinkUrl(value));
+		await options.shell.openExternal(await externalUrl(value, assertAudiocomLinkUrl, options));
 		return true;
 	});
 	return Object.freeze({ proxy: createDesktopAudiocomProxy({ ...options, fetchImpl: options.fetchImpl ?? fetch, sessionStore }) });
+}
+
+async function externalUrl(value: unknown, validate: (value: unknown, configuration?: AudiocomExternalConfiguration) => string, options: IntegrationOptions): Promise<string> {
+	try { return validate(value); }
+	catch (error) {
+		if (typeof value !== 'string') throw error;
+		try {
+			const response = await (options.fetchImpl ?? fetch)(`${options.apiOrigin}/api/audiocom/usage`, {
+				headers: { Accept: 'application/json', Origin: options.appOrigin }, redirect: 'error', signal: AbortSignal.timeout(10_000),
+			});
+			if (!response.ok) { await response.body?.cancel(); throw error; }
+			const payload: unknown = JSON.parse(new TextDecoder().decode(await boundedBody(response.body)));
+			if (!isRecord(payload) || !isRecord(payload.data)) throw error;
+			const provider = assertAudiocomExternalProvider(payload.data.provider, options.apiOrigin);
+			return validate(value, { backendOrigin: options.apiOrigin, provider });
+		} catch { throw error; }
+	}
 }
 
 export function createDesktopAudiocomProxy({ appOrigin, apiOrigin, fetchImpl, sessionStore }: ProxyOptions) {
@@ -180,13 +200,20 @@ async function requestOptions(request: Request, route: ProxyRoute, appOrigin: st
 		if (!/^application\/json(?:\s*;|$)/iu.test(request.headers.get('content-type') ?? '')) throw new TypeError();
 		headers.set('Content-Type', 'application/json');
 		body = await boundedBody(request.body);
-	} else if (route.kind === 'upload') {
+	} else if (route.kind === 'upload' || route.kind === 'project') {
 		const contentType = (request.headers.get('content-type') ?? '').toLowerCase();
 		const declaredLength = request.headers.get('x-audiocom-content-length') ?? '';
 		const length = Number(declaredLength);
 		const filename = request.headers.get('x-audiocom-filename') ?? '';
 		if (!/^[1-9]\d{0,8}$/u.test(declaredLength) || length > MAX_UPLOAD_BYTES
-			|| !AUDIO_TYPES.has(contentType) || !/^[\x21-\x7e]{1,1024}$/u.test(filename) || !request.body) throw new TypeError();
+			|| !(route.kind === 'project' ? contentType === 'application/octet-stream' : AUDIO_TYPES.has(contentType))
+			|| !/^[\x21-\x7e]{1,1024}$/u.test(filename) || !request.body) throw new TypeError();
+		if (route.kind === 'project') {
+			const decoded = decodeURIComponent(filename);
+			const format = new URL(request.url).searchParams.get('format');
+			if (length < 16 || !/\.(?:aup3|aup4)$/iu.test(decoded) || !decoded.toLowerCase().endsWith(`.${format ?? ''}`)
+				|| /[/\\]/u.test(decoded) || [...decoded].some(character => (character.codePointAt(0) ?? 0) < 32 || character.codePointAt(0) === 127)) throw new TypeError();
+		}
 		headers.set('Content-Type', contentType);
 		headers.set('Content-Length', String(length));
 		headers.set('X-Audiocom-Content-Length', String(length));

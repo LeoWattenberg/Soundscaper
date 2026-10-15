@@ -17,10 +17,10 @@ export function parseOAuthPollInput(value: unknown): Readonly<{ attemptId: strin
 	const source = exact(value, ['attemptId', 'handoffToken']);
 	return { attemptId: capability(source.attemptId), handoffToken: capability(source.handoffToken) };
 }
-export function normalizeTokenPair(value: unknown): AudiocomTokenPair {
+export function normalizeTokenPair(value: unknown, requiredScopes: readonly string[] = ['public']): AudiocomTokenPair {
 	const source = record(value);
 	if (source.token_type !== 'Bearer' && source.token_type !== 'bearer') throw new AudiocomOAuthContractError('Invalid OAuth token type.');
-	if (typeof source.scope === 'string' && !source.scope.split(' ').includes('public')) throw new AudiocomOAuthContractError('Missing public OAuth scope.');
+	if (typeof source.scope === 'string' && requiredScopes.some(scope => !(source.scope as string).split(' ').includes(scope))) throw new AudiocomOAuthContractError('Missing requested OAuth scope.');
 	if (!Number.isSafeInteger(source.expires_in) || Number(source.expires_in) < 60 || Number(source.expires_in) > 604_800) {
 		throw new AudiocomOAuthContractError('Invalid OAuth expiry.');
 	}

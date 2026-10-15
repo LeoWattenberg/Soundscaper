@@ -12,6 +12,7 @@ test('the browser client streams desktop audio and metadata through the proxy in
 		appOrigin: 'soundscaper-app://bundle', apiOrigin: 'https://soundscaper.org',
 		sessionStore: { get: () => 'a'.repeat(43), set: async () => {}, clear: async () => {} },
 		fetchImpl: async (url, init) => {
+			if (String(url).endsWith('/usage')) return Response.json({ data: {} });
 			const request = new Request(url, init);
 			parsed = parseUploadInput(request);
 			assert.equal(request.headers.get('authorization'), `Bearer ${'a'.repeat(43)}`);

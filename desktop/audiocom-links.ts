@@ -1,15 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { assertAudiocomExternalProvider, type AudiocomExternalConfiguration } from './audiocom-authorization.ts';
 
 /** External panel links stay inside the provider and its displayed license deeds. */
-export function assertAudiocomLinkUrl(value: unknown): string {
+export function assertAudiocomLinkUrl(value: unknown, configuration?: AudiocomExternalConfiguration): string {
 	try {
 		if (typeof value !== 'string' || value.length > 8192 || value.includes('\\')) throw new TypeError();
+		const configured = configuration ? assertAudiocomExternalProvider(configuration.provider, configuration.backendOrigin) : null;
 		const url = new URL(value);
 		if (url.username || url.password || url.search || url.hash) throw new TypeError();
-		const match = /^https:\/\/[^/?#]+([^?#]*)$/iu.exec(value);
+		const match = /^https?:\/\/[^/?#]+([^?#]*)$/iu.exec(value);
 		if (!match) throw new TypeError();
 		const rawPath = match[1] || '/';
-		const provider = url.origin === 'https://audio.com' && providerPage(rawPath);
+		const archivePage = configured && /^\/public\/audio\/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/iu.test(rawPath);
+		const provider = url.origin === (configured?.webOrigin ?? 'https://audio.com') && (providerPage(rawPath) || archivePage);
 		const license = url.origin === 'https://creativecommons.org'
 			&& /^(?:\/publicdomain\/zero\/1\.0\/|\/licenses\/by(?:-nc)?(?:-sa|-nd)?\/4\.0\/)$/u.test(rawPath);
 		if (!provider && !license) throw new TypeError();

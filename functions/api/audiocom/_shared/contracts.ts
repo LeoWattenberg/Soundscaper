@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { OAuthHttpError } from './oauth-http.ts';
+import { DEFAULT_AUDIOCOM_PROVIDER, trustedProviderHookUrl, trustedProviderMediaUrl, trustedProviderUploadUrl, type AudiocomProviderConfiguration } from './provider-config.ts';
 
 export const MAX_UPLOAD_BYTES = 100_000_000;
 export const LICENSES = ['none', 'arr', 'cc-0', 'cc-by', 'cc-by-sa', 'cc-by-nc', 'cc-by-nc-sa', 'cc-by-nd', 'cc-by-nc-nd'] as const;
@@ -28,10 +29,10 @@ export interface UploadInput {
 	readonly name: string;
 	readonly size: number;
 }
-export function normalizeAudio(value: unknown): AudiocomAudio {
+export function normalizeAudio(value: unknown, provider = DEFAULT_AUDIOCOM_PROVIDER): AudiocomAudio {
 	const source = record(value);
 	const id = text(source.id, 64);
-	if (!/^[0-9]{1,32}$/u.test(id)) invalid();
+	if (!(provider.kind === 'audiocity' ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u : /^[0-9]{1,32}$/u).test(id)) invalid();
 	const username = text(source.username, 256);
 	const slug = text(source.slug, 512);
 	const license = text(source.license, 32);
@@ -42,20 +43,25 @@ export function normalizeAudio(value: unknown): AudiocomAudio {
 	const playback = text(play.url, 4096, true);
 	return {
 		id, title: text(source.title, 1024), authorName: text(source.author_name, 256, true), username,
-		url: `https://audio.com/${encodeURIComponent(username)}/audio/${encodeURIComponent(slug)}`,
+		url: provider.kind === 'audiocity' ? `${provider.webOrigin}/public/audio/${id}` : `https://audio.com/${encodeURIComponent(username)}/audio/${encodeURIComponent(slug)}`,
 		description: text(source.description, 65_536, true), license, isDownloadable: source.is_downloadable,
 		durationSeconds: Number(play.duration) / 1000,
-		...(playback ? { previewUrl: `/api/audiocom/preview?url=${encodeURIComponent(trustedAssetUrl(playback).href)}` } : {}),
+		...(playback ? { previewUrl: `/api/audiocom/preview?url=${encodeURIComponent(trustedAssetUrl(playback, provider).href)}` } : {}),
 	};
 }
-export function trustedAssetUrl(value: unknown): URL {
+export function trustedAssetUrl(value: unknown, provider = DEFAULT_AUDIOCOM_PROVIDER): URL {
+	if (provider.kind === 'audiocity') return trustedProviderMediaUrl(value, provider);
 	const url = parseUrl(value);
 	const allowed = (url.hostname === 's3.audio.com' && url.pathname.startsWith('/audio/'))
 		|| (url.hostname === 's3.ustatik.com' && url.pathname.startsWith('/audio.com.audio/'));
 	if (!allowed) invalid();
 	return url;
 }
-export function trustedHookUrl(value: unknown): URL {
+export function trustedUploadUrl(value: unknown, provider: AudiocomProviderConfiguration): URL {
+	return provider.kind === 'audiocity' ? trustedProviderUploadUrl(value, provider) : trustedAssetUrl(value);
+}
+export function trustedHookUrl(value: unknown, provider = DEFAULT_AUDIOCOM_PROVIDER, kind: 'success' | 'fail' = 'success'): URL {
+	if (provider.kind === 'audiocity') return trustedProviderHookUrl(value, provider, kind);
 	const url = parseUrl(value);
 	if (url.hostname !== 'api.audio.com' || url.pathname.startsWith('/auth/')) invalid();
 	return url;

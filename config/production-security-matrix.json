@@ -1770,7 +1770,7 @@
 			"id": "authenticated-client-to-audiocom-proxy",
 			"from": "Soundscaper web client or packaged main-process proxy holding an opaque Soundscaper session, and audio.com OAuth/API/CDN responses",
 			"to": "Cloudflare Pages audio.com Functions, provider-specific encrypted D1 grants, and selected provider upload destinations",
-			"data": "OAuth state and PKCE proof, web cookie or desktop bearer capability, bounded search metadata, public playback URLs and audio bytes, selected upload bytes and publication metadata",
+			"data": "OAuth state and PKCE proof, web cookie or desktop bearer capability, bounded search metadata, public playback URLs and audio bytes, selected upload bytes and publication metadata, explicitly selected standalone AUP3/AUP4 archive bytes and revision identifiers on configured Audiocity deployments",
 			"entryPoints": [
 				"functions/api/audiocom/oauth/start.ts",
 				"functions/api/audiocom/oauth/callback.ts",
@@ -1780,7 +1780,9 @@
 				"functions/api/audiocom/library.ts",
 				"functions/api/audiocom/preview.ts",
 				"functions/api/audiocom/uploads.ts",
-				"desktop/audiocom-integration.ts"
+				"desktop/audiocom-integration.ts",
+				"functions/api/audiocom/projects/index.ts",
+				"functions/api/audiocom/projects/download.ts"
 			],
 			"evidence": [
 				{
@@ -5570,7 +5572,7 @@
 			"currentControls": [
 				{
 					"id": "bounded-audiocom-oauth-media-proxy",
-					"summary": "The audio.com Pages namespace admits only canonical production, Pages, or explicitly enabled loopback hosts; trusted Soundscaper web, desktop, or current same-origin browser Origins; closed methods, bounded JSON, search parameters, upload metadata, and session transports. Mutations reject cross-site fetch metadata; CORS is not client authentication. OAuth uses ten-minute random state and handoff capabilities, single-use state exchange, and PKCE S256 with an encrypted verifier; fixed https://api.audio.com token/API targets disable redirects and apply ten-second control-request deadlines. D1 stores provider tokens and polling session secrets only as AES-256-GCM ciphertext with provider- and field-specific authenticated data; browser sessions use Secure HttpOnly SameSite=Strict cookies and desktop sessions use opaque hashed Soundscaper capabilities. Rolling sessions expire after 30 days, refresh rotation uses generation-fenced leases, and disconnect removes orphan grants. No public userinfo endpoint is invented or account identity inferred. Uploads require supported raw audio of exactly 1 through 100,000,000 bytes with bounded metadata; only provider-returned policies on exact HTTPS s3.audio.com/audio/ or s3.ustatik.com/audio.com.audio/ paths receive bytes, and provider OAuth credentials are never sent to storage. The server awaits verified stream completion before the POST success hook; failure and cancellation attempt the provider DELETE cleanup hook with an independent ten-second timeout. Preview requests require a valid application session, pin the same exact CDN hosts and paths, block redirects, accept only audio MIME responses, enforce simple byte ranges, and cap declared and observed bytes at 128 MiB. JSON responses are bounded and normalized, omit signed upload policies and OAuth credentials, and use no-store and nosniff. Electron main holds the opaque capability outside renderer authority, captures it from polling responses, strips renderer credentials, exposes closed routes and an exact authorization-URL opener, and persists only with an admitted safeStorage backend. The integration has no Audacity project storage or retrieval route and no original source download route in the regular public API. Backend and desktop tests prove state replay and handoff rejection, encrypted PKCE and token confinement, refresh fencing, session transport admission, fixed destinations, exact upload byte checks, cancellation cleanup, range handling, and bounded response failure; they do not establish live-provider upload success.",
+					"summary": "The audio.com Pages namespace admits only canonical production, Pages, or explicitly enabled loopback hosts; trusted Soundscaper web, desktop, or current same-origin browser Origins; closed methods, bounded JSON, search parameters, upload metadata, and session transports. Mutations reject cross-site fetch metadata; CORS is not client authentication. OAuth uses ten-minute random state and handoff capabilities, single-use state exchange, and PKCE S256 with an encrypted verifier; the default https://api.audio.com token/API targets disable redirects and apply ten-second control-request deadlines. An explicit administrator-configured Audiocity provider pins one API, authorization and website origin; HTTP is restricted to enabled loopback development. OAuth requests public projects only for Audiocity, and origin-bound attempt identifiers prevent grants being forwarded after a provider change. The browser and Electron main validate authorization and content links against configuration from their fixed Soundscaper backend, never a renderer-selected origin. D1 stores provider tokens and polling session secrets only as AES-256-GCM ciphertext with provider- and field-specific authenticated data; browser sessions use Secure HttpOnly SameSite=Strict cookies and desktop sessions use opaque hashed Soundscaper capabilities. Rolling sessions expire after 30 days, refresh rotation uses generation-fenced leases, and disconnect removes orphan grants. No public userinfo endpoint is invented or account identity inferred. Uploads require supported raw audio of exactly 1 through 100,000,000 bytes with bounded metadata; only provider-returned policies on exact HTTPS s3.audio.com/audio/ or s3.ustatik.com/audio.com.audio/ paths receive bytes, and provider OAuth credentials are never sent to storage. Configured Audiocity transfers admit only exact same-origin UUID upload/hook and signed media paths; discovery must match that origin and advertise archive formats and byte ceilings. The server awaits verified stream completion before the POST success hook; failure and cancellation attempt the provider DELETE cleanup hook with an independent ten-second timeout. Preview requests require a valid application session, pin the same exact CDN hosts and paths, block redirects, accept only audio MIME responses, enforce simple byte ranges, and cap declared and observed bytes at 128 MiB. JSON responses are bounded and normalized, omit signed upload policies and OAuth credentials, and use no-store and nosniff. Electron main holds the opaque capability outside renderer authority, captures it from polling responses, strips renderer credentials, exposes closed routes and an exact authorization-URL opener, and persists only with an admitted safeStorage backend. The regular public audio.com API has no Audacity project storage or retrieval and no original source download route. Configured Audiocity archive routes require project-scoped sessions, list only whole-file transport, and stream selected standalone AUP3/AUP4 files of 16 through 100,000,000 bytes. Completion requires verified exact bytes, a SQLite header, the storage success hook and snapshot synchronization; downloads select a completed revision with its own format and bounded exact length. Native block snapshots and automatic serialization of the open project are excluded. Backend and desktop tests prove state replay and handoff rejection, encrypted PKCE and token confinement, refresh fencing, session transport admission, fixed destinations, exact upload byte checks, cancellation cleanup, range handling, and bounded response failure; they do not establish live audio.com upload success. A separate disposable local integration harness exercises real Pages Functions and D1, an Audiocity server, cross-origin PKCE consent, audio search/upload/range playback, and whole-file archive upload/download followed by the existing editor importer.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -5643,6 +5645,42 @@
 						{
 							"kind": "test",
 							"path": "tests/production-security-audiocom-proxy.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/provider-config.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/provider-discovery.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/project-handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/project-contracts.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-provider.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-project-handlers.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-audiocity-provider.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audiocity/audio-editor-audiocity.spec.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/audiocity-validation-server.mjs"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -5651,7 +5689,7 @@
 			"residualRisks": [
 				{
 					"id": "audiocom-deployment-and-live-provider-proof",
-					"exposure": "The repository does not provision or verify a production rate-limit or abuse-monitoring rule for /api/audiocom/*. Authenticated callers can still exhaust OAuth, refresh, search, concurrent stream, upload, egress or account quotas. The registered application and its real signed-upload destination, hook authorization, quota responses, and processing completion still require an authenticated deployed smoke test; fixtures do not prove a successful live upload.",
+					"exposure": "The repository does not provision or verify a production rate-limit or abuse-monitoring rule for /api/audiocom/*. Authenticated callers can still exhaust OAuth, refresh, search, concurrent stream, upload, egress or account quotas. The registered application and its real signed-upload destination, hook authorization, quota responses, and processing completion still require an authenticated deployed smoke test; fixtures do not prove a successful live upload. Local Audiocity validation does not establish production audio.com readiness or native Audacity desktop compatibility.",
 					"requiredControl": "Retain deployment evidence for active namespace-specific request and concurrency limits and monitoring; complete a registered-application smoke test covering OAuth, upload policy PUT and hooks, account limits, processing completion, preview ranges, and disconnect before claiming provider-operational readiness.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": [
@@ -5661,7 +5699,7 @@
 				},
 				{
 					"id": "audiocom-media-transfer-lifecycle",
-					"exposure": "Audio upload and preview transfers propagate request cancellation and enforce byte ceilings, but have no proxy-owned streamed-body idle or total deadline; CDN response-header latency is also bounded only by the request and platform lifecycle. Allowed-host audio MIME does not authenticate media structure or a digest. Upload creation is non-idempotent: an indeterminate response or retry can duplicate remote audio, and cleanup after cancellation is best-effort, so incomplete or already accepted remote audio can remain.",
+					"exposure": "Audio and archive upload/download and preview transfers propagate request cancellation and enforce byte ceilings, but have no proxy-owned streamed-body idle or total deadline; CDN response-header latency is also bounded only by the request and platform lifecycle. Allowed-host audio MIME does not authenticate media structure or a digest. Upload creation is non-idempotent: an indeterminate response or retry can duplicate remote audio or archive projects, and cleanup after cancellation is best-effort, so incomplete or already accepted remote audio can remain.",
 					"requiredControl": "Before claiming bounded media elapsed time or retry-safe delivery, enforce and test transfer lifecycle deadlines and reconcile ambiguous provider outcomes before retry; retain the CDN trust dependency unless bytes are authenticated against trusted metadata, and expose unresolved remote cleanup to the user.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": [

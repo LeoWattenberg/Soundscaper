@@ -1,8 +1,10 @@
 # audio.com integration
 
 The menu-opened audio.com panel searches listed audio, previews playback, and uploads supported audio files. The backend also provides
-a route to list owned audio. The integration uses only the
+a route to list owned audio. The default provider uses the
 [public v1 API](https://api.audio.com/v1/docs), checked on 2026-10-15.
+An administrator can select a self-hosted Audiocity server, which additionally
+advertises whole-file AUP3/AUP4 archive storage.
 
 ## Deployment
 
@@ -25,8 +27,61 @@ a route to list owned audio. The integration uses only the
    `AUDIOCOM_LOCAL_DEVELOPMENT=1` admits loopback HTTP for local tests. Sign-in
    starts are disabled on Pages preview hosts.
 
-No application registration, schema migration, remote upload, or deployment is
-performed automatically by the implementation.
+No production application registration, schema migration, remote upload, or
+deployment is performed automatically by the integration.
+
+## Validate against Audiocity locally
+
+With dependencies installed in both checkouts and Audiocity at `../audiocity`
+(or `SCAPE_AUDIOCITY_CHECKOUT`), run:
+
+```sh
+npm run build
+npx playwright test --config playwright.audiocity.config.mjs
+```
+
+The browser harness starts its own Audiocity process, disposable data directory,
+registered public OAuth client, local D1 database and Soundscaper Pages preview.
+It uses editor port 4325 and Audiocity port 8091; `PLAYWRIGHT_PORT` and
+`SCAPE_AUDIOCITY_PORT` override them. The test performs real OAuth authorization,
+upload, search, range playback and project archive transfers against the local
+HTTP server. It does not contact audio.com or use production credentials. To keep
+a disposable validation server running for manual inspection, run
+`node scripts/audiocity-validation-server.mjs`; open its printed editor URL and
+sign in as `soundscaper-validation@example.test` with the test-only password
+`soundscaper-audiocity-test-only-password`. Stop it after validation. Its generated
+configuration and credentials stay in ignored temporary files and are removed on exit.
+
+For an existing local Audiocity instance, configure these backend variables:
+
+```text
+AUDIOCOM_PROVIDER=audiocity
+AUDIOCOM_API_ORIGIN=http://127.0.0.1:8088
+AUDIOCOM_LOCAL_DEVELOPMENT=1
+AUDIOCOM_CLIENT_ID=<registered-client-id>
+AUDIOCOM_OAUTH_MASTER_KEY=v1:<base64url-32-random-bytes>
+```
+
+Register a public client once at that server's `/auth/client`, supplying
+`client_name`, `token_endpoint_auth_method: "none"`, and `redirect_uris` containing
+the exact editor callback URL, for example
+`http://127.0.0.1:4325/api/audiocom/oauth/callback`. Use its returned `client_id`;
+do not copy Audacity's compatibility client secret or audio.com's credentials.
+Keep the master key in ignored `.dev.vars` or the deployment secret store, and
+apply the same local D1 migrations as the default provider. The editor and
+callback must use the same hostname and port. HTTP is admitted only for an
+explicitly enabled loopback development origin. Hosted Audiocity origins require
+HTTPS, with no URL path, credentials, query or fragment.
+
+The provider is fixed by administrator environment configuration. Requests and
+browser preferences cannot change it. `AUDIOCOM_API_ORIGIN` is rejected unless
+`AUDIOCOM_PROVIDER=audiocity`; the default retains audio.com's exact API and CDN
+pins. API, OAuth, capability hooks and media for Audiocity use the one configured
+origin with their exact route and capability shapes. Changing providers or their
+origin requires reconnecting; existing grants cannot be sent to another issuer.
+Audiocity authorization requests `public projects`, rather than the administrative
+`all` scope. Discovery at `/.well-known/audiocity` supplies archive formats and
+transfer limits; unadvertised project transports stay disabled.
 
 ## Public contracts
 
@@ -39,7 +94,7 @@ PKCE verifiers are encrypted with AES-GCM and provider-specific authenticated da
 in D1. Refresh-token rotation is serialized with a D1 lease.
 
 - `POST /oauth/start`: JSON `{client:'web'|'desktop'}` returns an attempt,
-  handoff capability, expiry, and authorization URL with `public` scope and S256.
+  handoff capability, expiry, and authorization URL with the configured provider's scope and S256.
 - `GET /oauth/callback`: exchanges the code server-side, verifies state, and
   returns a close-window page. No private account endpoint is called: the public
   API has no userinfo route, so sessions do not invent account identity.
@@ -62,11 +117,27 @@ in D1. Refresh-token rotation is serialized with a D1 lease.
   The server creates an upload policy, streams exactly the declared bytes to its
   pinned storage URL, and invokes the policy's POST success hook. Failure or
   cancellation invokes the DELETE failure hook with an independent timeout.
-  The response is `{audio,processing:true}`; completion of transcoding is not
-  claimed. Signed upload URLs and hooks remain server-side.
-- `GET /usage` reports a 100,000,000-byte application upload cap, audio.com's
-  1 GiB provider cap, and `projectStorageSupported:false`. The local cap matches
-  the existing request proxy limit; it does not represent account quota.
+  The audio.com response is `{audio,processing:true}`; completion of transcoding
+  is not claimed. Audiocity commits the preserved original synchronously and
+  returns `processing:false`, refreshing ready playback metadata when available.
+  A failed metadata refresh does not make the committed upload retryable. Signed
+  upload URLs and hooks remain server-side.
+- `GET /usage` reports the public provider configuration and upload limits. For
+  audio.com these are a 100,000,000-byte application cap, the provider's 1 GiB cap,
+  and `projectStorageSupported:false`. For Audiocity it discovers the provider cap
+  and advertised `projectFormats`; the application cap is the smaller of that
+  value and 100,000,000. Limits describe transfers, rather than account quota.
+- `GET /projects?page=1` lists the connected owner's whole-file Audiocity projects
+  and latest synchronized revision. `POST /projects?name=...&format=aup3|aup4`
+  streams a complete project file with `application/octet-stream`, the filename
+  and exact length headers above, and the same 100 MB application ceiling.
+  The proxy checks the SQLite signature, completes the signed transfer, then
+  synchronizes the archive revision. Only advertised archive formats are admitted.
+- `GET /projects/download?id=...&snapshotId=...` retrieves an owner's completed
+  whole-file archive revision through a pinned signed media URL, as an attachment
+  with the same size ceiling. Native block snapshots are excluded. The server
+  preserves archive bytes; it does not translate project versions or reconstruct
+  an archive from native Audacity metadata and blocks.
 
 ## Public API boundaries
 
@@ -76,10 +147,13 @@ visibility. **Unlisted audio remains accessible to anyone with its link.**
 
 The regular API has 19 audio, collection, embed, and search endpoints. It does
 **not expose Audacity project upload, listing, or retrieval**, and does not expose
-original source downloads. `.aup`, `.aup3`, `.aup4`, and `.scape` uploads are rejected.
+original source downloads. The regular audio upload route rejects `.aup`, `.aup3`,
+`.aup4`, and `.scape`; supported Audiocity archives use the separate project route.
 The panel offers playback and the provider page; it does not treat a transcoded
 preview as an original editable source or bypass download/license controls.
-Audacity's private project-sync endpoints are deliberately outside this feature.
+The audio.com provider does not call Audacity's private project-sync endpoints.
+Audiocity archive support uses its explicit whole-file extension, separately from
+its native block synchronization transport.
 
 Provider-account OAuth, upload policy destinations, hook authorization, account
 quotas, and processing completion still require an authenticated staging smoke

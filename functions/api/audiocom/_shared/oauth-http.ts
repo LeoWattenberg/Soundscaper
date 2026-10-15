@@ -5,6 +5,8 @@ import type { D1DatabaseLike } from './oauth-repository.ts';
 
 export type AudiocomOAuthEnv = Readonly<{
 	FREESOUND_OAUTH_DB?: D1DatabaseLike;
+	AUDIOCOM_PROVIDER?: string;
+	AUDIOCOM_API_ORIGIN?: string;
 	AUDIOCOM_CLIENT_ID?: string;
 	AUDIOCOM_CLIENT_SECRET?: string;
 	AUDIOCOM_OAUTH_MASTER_KEY?: string;

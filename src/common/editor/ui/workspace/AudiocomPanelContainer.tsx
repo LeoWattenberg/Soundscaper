@@ -8,6 +8,7 @@ import {
 	audiocomPanelSession,
 	type AudiocomPanelSession,
 } from '../../controller/import/audiocom-panel-session.ts';
+import { createAudiocomProjectArchives, type AudiocomArchiveSaveRequest } from '../../controller/import/audiocom-project-archives.ts';
 import AudiocomPanel from './AudiocomPanel.tsx';
 
 export interface AudiocomPanelContainerProps {
@@ -19,15 +20,23 @@ export interface AudiocomPanelContainerProps {
 	readonly blocked?: boolean;
 	readonly panelActive?: boolean;
 	readonly session?: AudiocomPanelSession;
+	readonly fileService?: Readonly<{ saveFile(request: AudiocomArchiveSaveRequest): Promise<unknown> }>;
 }
 
 export default function AudiocomPanelContainer({
-	controller, snapshot, copy, locale, disabled = false, panelActive = true, session: providedSession,
+	controller, snapshot, copy, locale, disabled = false, panelActive = true, session: providedSession, fileService,
 }: AudiocomPanelContainerProps) {
 	const session = useMemo(() => providedSession ?? (controller ? audiocomPanelSession(controller) : createAudiocomPanelSession()),
 		[controller, providedSession]);
 	const state = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-	const localizedCopy = useMemo(() => audiocomCopy(locale ?? snapshot.locale, copy), [copy, locale, snapshot.locale]);
+	const archives = useMemo(() => createAudiocomProjectArchives({ saveFile: fileService ? request => fileService.saveFile(request) : undefined,
+		onAuthenticationExpired: () => { void session.disconnect(); } }), [fileService, session]);
+	const archiveState = useSyncExternalStore(archives.subscribe, archives.getSnapshot, archives.getSnapshot);
+	const localizedCopy = useMemo(() => {
+		const resolved = audiocomCopy(locale ?? snapshot.locale, copy);
+		return archiveState.provider?.kind === 'audiocity'
+			? Object.fromEntries(Object.entries(resolved).map(([key, value]) => [key, value.replaceAll('audio.com', 'Audiocity')])) : resolved;
+	}, [copy, locale, snapshot.locale, archiveState.provider]);
 	const [linkError, setLinkError] = useState('');
 	const openLink = useCallback((url: string) => {
 		setLinkError('');
@@ -52,13 +61,17 @@ export default function AudiocomPanelContainer({
 	}, [controller, providedSession, session]);
 	useEffect(() => session.setActive(panelActive), [panelActive, session]);
 	useEffect(() => session.setListeningPreferences(gain, outputDevice), [gain, outputDevice, session]);
+	useEffect(() => { void archives.initialize(); return () => archives.dispose(); }, [archives]);
+	useEffect(() => { void archives.setConnected(state.auth.status === 'connected'); }, [archives, state.auth.status]);
 	return <AudiocomPanel copy={localizedCopy} state={state} disabled={disabled} linkError={linkError}
 		onOpenLink={globalThis.location?.protocol === 'soundscaper-app:' ? openLink : undefined}
 		onSearch={(request) => { void session.search(request); }}
 		onPreview={(id) => { void session.preview(id); }} onStopPreview={session.stopPreview}
 		onConnect={() => { void session.connect(); }} onDisconnect={() => { void session.disconnect(); }}
 		onUploadFiles={(files) => { session.enqueueFiles(files); }} onPublish={session.publish}
-		onRetry={session.retry} onCancel={session.cancel} onRemove={session.remove} />;
+		onRetry={session.retry} onCancel={session.cancel} onRemove={session.remove}
+		archives={{ state: archiveState, onRefresh: page => { void archives.refresh(page); }, onUpload: file => { void archives.upload(file); },
+			onDownload: project => { void archives.download(project); }, onCancel: archives.cancel }} />;
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {

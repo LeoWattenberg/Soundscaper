@@ -11,6 +11,7 @@ import type {
 } from '../../controller/import/audiocom-panel-session.ts';
 import AudiocomUploadArea from './AudiocomUploadArea.tsx';
 import AudiocomLink from './AudiocomLink.tsx';
+import AudiocomProjectArchives, { type AudiocomProjectArchivesProps } from './AudiocomProjectArchives.tsx';
 import '../audio-editor-design-system/06a-panels-audiocom.css';
 
 export interface AudiocomPanelProps {
@@ -29,11 +30,12 @@ export interface AudiocomPanelProps {
 	readonly onRetry: (id: string) => void;
 	readonly onCancel: (id: string) => void;
 	readonly onRemove: (id: string) => void;
+	readonly archives?: Omit<AudiocomProjectArchivesProps, 'copy' | 'disabled'>;
 }
 
 export default function AudiocomPanel({
 	copy, state, disabled = false, linkError, onOpenLink, onSearch, onPreview, onStopPreview,
-	onConnect, onDisconnect, onUploadFiles, onPublish, onRetry, onCancel, onRemove,
+	onConnect, onDisconnect, onUploadFiles, onPublish, onRetry, onCancel, onRemove, archives,
 }: AudiocomPanelProps) {
 	const [query, setQuery] = useState(state.search.query);
 	useEffect(() => setQuery(state.search.query), [state.search.query]);
@@ -75,7 +77,7 @@ export default function AudiocomPanel({
 				onClick={() => onSearch({ query: state.search.query, page: state.search.page + 1 })}>{copy.nextPage}</Button>
 		</nav> : null}
 		<p className="kw-audio-editor__audiocom-credit">
-			{copy.resultsProvidedBy}{' '}<AudiocomLink href="https://audio.com/" onOpen={onOpenLink}>{copy.siteName}</AudiocomLink>{' · '}
+			{copy.resultsProvidedBy}{' '}<AudiocomLink href={archives?.state.provider?.webOrigin ?? 'https://audio.com/'} onOpen={onOpenLink}>{copy.siteName}</AudiocomLink>{' · '}
 			{connected ? <>
 				<span>{state.auth.user?.username
 					? copy.connectedAs.replaceAll('{username}', state.auth.user.username) : copy.connected}</span>{' '}
@@ -86,8 +88,10 @@ export default function AudiocomPanel({
 					{state.auth.status === 'connecting' ? copy.connecting : copy.connect}
 				</button>}
 		</p>
+		{archives?.state.provider?.kind === 'audiocity' ? <p className="kw-audio-editor__audiocom-note">{copy.providerServer}{' '}{archives.state.provider.webOrigin}</p> : null}
 		{connected ? <AudiocomUploadArea copy={copy} disabled={disabled} queue={state.uploadQueue}
 			onFiles={onUploadFiles} onPublish={onPublish} onRetry={onRetry} onCancel={onCancel} onRemove={onRemove} onOpenLink={onOpenLink} /> : null}
+		{connected && archives?.state.supported ? <AudiocomProjectArchives {...archives} copy={copy} disabled={disabled} /> : null}
 	</section>;
 }
 

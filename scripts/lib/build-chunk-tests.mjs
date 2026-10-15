@@ -163,7 +163,7 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 /** Helpers reached only by optional surfaces; broad UI ownership must not hoist them. */
 const deferredSurfaceHelpers = String.raw`ui[\\/](?:clip-spreadsheet[\\/][^\\/]+|(?:AdmMetadataFields|BextMetadataFields|adm-metadata-editor-model|bext-metadata-editor-model|desktop-speed-warmup|export-channel-matrix|export-dialog-output-options|export-dialog-initial-settings|use-export-dialog-output|label-export-dialog-model|delivery-batch-dialog-model|audio-warp-dialog-model|take-comp-dialog-model|video-keyframe-dialog-input|video-retime-exact-map-input|ParametricEqNumericInput|useParametricEqSpectrum)\.[jt]sx?|skins[\\/](?:SkinCarousel|SkinPreferences|appearance-previews)\.tsx?|workspace[\\/]freesound-media-url\.ts)`;
 
-const audiocomOptionalModule = String.raw`(?:controller[\\/]import[\\/](?:internal[\\/])?audiocom-(?:panel-session|api-client|upload-queue)\.ts|ui[\\/](?:workspace[\\/]Audiocom(?:Panel(?:Container)?|UploadArea|PublishDialog|Link)\.tsx|audio-editor-design-system[\\/]06a-panels-audiocom\.css))`;
+const audiocomOptionalModule = String.raw`(?:controller[\\/]import[\\/](?:internal[\\/])?audiocom-(?:panel-session|api-client|upload-queue|provider|project-archives|project-archive-client)\.ts|ui[\\/](?:workspace[\\/]Audiocom(?:Panel(?:Container)?|UploadArea|PublishDialog|Link|ProjectArchives)\.tsx|audio-editor-design-system[\\/]06a-panels-audiocom\.css))`;
 
 /** Menu-opened UI, panel-only domain helpers, and deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(

@@ -84,7 +84,7 @@ export function createAudiocomUploadQueue(
 			if (entries.size + files.length > 50) throw new Error('The audio.com upload queue holds at most 50 files.');
 			for (const file of files) {
 				if (!(file instanceof File) || !/\.(?:wav|mp3|flac|wv|aif|aiff|ogg|oga|m4a)$/iu.test(file.name)) {
-					throw new Error('Choose a supported audio file. Audacity projects are not supported by this API.');
+					throw new Error('Choose a supported audio file. Use Project archives for project files when your server supports them.');
 				}
 				if (file.size < 1 || file.size > MAXIMUM_BYTES) throw new Error('audio.com uploads in Soundscaper must be between 1 byte and 100 MB.');
 			}

@@ -4,6 +4,7 @@ import { decryptOAuthSecret } from './oauth-crypto.ts';
 import { configuredSecret, OAuthHttpError, readUpstreamJson, type AudiocomOAuthFunctionContext } from './oauth-http.ts';
 import type { OAuthHandlerDependencies } from './oauth-handlers.ts';
 import type { OAuthGrantRecord } from './oauth-repository.ts';
+import { providerConfiguration } from './provider-config.ts';
 
 export async function exchangeAuthorizationCode(context: AudiocomOAuthFunctionContext, code: string, verifier: string, dependencies: OAuthHandlerDependencies): Promise<AudiocomTokenPair> {
 	return tokenRequest(context, {
@@ -20,7 +21,7 @@ export async function refreshAccessToken(context: AudiocomOAuthFunctionContext, 
 async function tokenRequest(context: AudiocomOAuthFunctionContext, fields: Record<string, string>, dependencies: OAuthHandlerDependencies): Promise<AudiocomTokenPair> {
 	const form = new URLSearchParams({ ...fields, client_id: configuredSecret(context.env.AUDIOCOM_CLIENT_ID, 'OAuth client') });
 	if (context.env.AUDIOCOM_CLIENT_SECRET?.trim()) form.set('client_secret', configuredSecret(context.env.AUDIOCOM_CLIENT_SECRET, 'OAuth client secret'));
-	const response = await (dependencies.fetchImpl ?? fetch)('https://api.audio.com/auth/token', {
+	const response = await (dependencies.fetchImpl ?? fetch)(new URL('/auth/token', providerConfiguration(context.env).apiOrigin), {
 		method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
 		body: form.toString(), redirect: 'manual', signal: AbortSignal.any([context.request.signal, AbortSignal.timeout(10_000)]),
 	});
@@ -28,7 +29,7 @@ async function tokenRequest(context: AudiocomOAuthFunctionContext, fields: Recor
 		if (fields.grant_type === 'refresh_token' && [400, 401].includes(response.status)) throw new OAuthHttpError(401, 'authentication_expired', 'Reconnect audio.com to continue.');
 		throw new OAuthHttpError(502, 'authorization_failed', 'audio.com rejected the authorization response.');
 	}
-	try { return normalizeTokenPair(await readUpstreamJson(response)); }
+	try { return normalizeTokenPair(await readUpstreamJson(response), providerConfiguration(context.env).scope.split(' ')); }
 	catch (error) {
 		if (error instanceof AudiocomOAuthContractError) throw new OAuthHttpError(502, 'invalid_upstream_response', 'audio.com returned invalid authorization data.');
 		throw error;

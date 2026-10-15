@@ -13,7 +13,8 @@ import {
 } from '../src/common/editor/controller/import/audiocom-panel-session.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-test('audio.com container forwards listening preferences, actions, visibility, and owner cleanup', async () => {
+test('audio.com container forwards listening preferences, actions, visibility, and owner cleanup', async context => {
+	context.mock.method(globalThis, 'fetch', async () => Response.json({ data: { projectStorageSupported: false } }));
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -58,7 +59,8 @@ test('audio.com container forwards listening preferences, actions, visibility, a
 	}
 });
 
-test('closing and reopening the owner panel retains search and queued files without reconnecting', async () => {
+test('closing and reopening the owner panel retains search and queued files without reconnecting', async context => {
+	context.mock.method(globalThis, 'fetch', async () => Response.json({ data: { projectStorageSupported: false } }));
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;

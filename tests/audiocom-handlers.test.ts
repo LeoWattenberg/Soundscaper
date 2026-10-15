@@ -5,6 +5,7 @@ import { handleAudiocomSearchRequest, handleAudiocomUploadRequest, handleAudioco
 import { encryptOAuthSecret, hashCapability } from '../functions/api/audiocom/_shared/oauth-crypto.ts';
 import { encodeBase64Url } from '../functions/api/freesound/_shared/oauth-crypto.ts';
 import type { AudiocomOAuthFunctionContext } from '../functions/api/audiocom/_shared/oauth-http.ts';
+import { DEFAULT_AUDIOCOM_PROVIDER } from '../functions/api/audiocom/_shared/provider-config.ts';
 import { MemoryAudiocomOAuthRepository } from './helpers/audiocom-oauth-memory-repository.ts';
 const NOW = Date.UTC(2026, 9, 15);
 const TOKEN = 't'.repeat(43);
@@ -149,7 +150,7 @@ test('audio.com preview rejects redirects, non-audio and oversized content', asy
 });
 test('audio.com usage exposes the application limit and explicitly excludes project storage', async () => {
 	const response = await handleAudiocomUsageRequest(context(request('usage')));
-	assert.deepEqual(await response.json(), { data: { maximumUploadBytes: 100000000, providerMaximumUploadBytes: 1073741824, projectStorageSupported: false } });
+	assert.deepEqual(await response.json(), { data: { maximumUploadBytes: 100000000, providerMaximumUploadBytes: 1073741824, projectStorageSupported: false, projectFormats: [], provider: DEFAULT_AUDIOCOM_PROVIDER } });
 });
 
 test('audio.com cancelled upload uses a fresh cleanup signal and does not invoke success', async () => {

@@ -167,6 +167,7 @@ async function mockAudiocom(page, options = {}) {
 		const request = route.request();
 		const url = new URL(request.url());
 		const data = value => route.fulfill({ json: { data: value } });
+		if (url.pathname === '/api/audiocom/usage') return data({ maximumUploadBytes: 100_000_000, projectStorageSupported: false });
 		if (url.pathname === '/api/audiocom/oauth/session') {
 			requests.sessions += 1;
 			if (request.method() === 'DELETE') { connected = false; requests.disconnects += 1; }
