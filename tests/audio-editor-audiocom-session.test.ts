@@ -156,3 +156,24 @@ test('changing the selected server disposes stale work, clears queues, and repla
 	assert.notEqual(restored, previous); assert.notEqual(restored, changed);
 	restored.dispose();
 });
+
+test('owner preference changes stop a hidden panel immediately and remove its cached session and subscription', async () => {
+	let origin = 'https://api.audio.com'; let notify = (): void => {}; let unsubscribed = 0;
+	let signal: AbortSignal | undefined;
+	let release!: (value: { results: typeof RESULT[]; page: number; hasNext: boolean }) => void;
+	const owner = {
+		getSnapshot: () => ({ disposed: false, preferences: { advanced: { audioComServerUrl: origin } } }),
+		subscribe: (listener: () => void) => { notify = listener; return () => { unsubscribed++; }; },
+	};
+	const previous = audiocomPanelSession(owner, { client: client({ search: (_request, selected) => {
+		signal = selected; return new Promise(resolve => { release = resolve; });
+	} }) });
+	await previous.initialize(); const searching = previous.search({ query: 'forest', page: 1 });
+	origin = 'https://audio.example.org'; notify();
+	assert.equal(signal?.aborted, true); assert.equal(unsubscribed, 1);
+	const changed = audiocomPanelSession(owner, { apiOrigin: origin, client: client({ session: async () => ({ connected: false }) }) });
+	assert.notEqual(previous, changed);
+	release({ results: [RESULT], page: 1, hasNext: false }); await searching;
+	await changed.initialize(); assert.equal(changed.getSnapshot().auth.status, 'disconnected');
+	assert.deepEqual(changed.getSnapshot().search.results, []); changed.dispose();
+});

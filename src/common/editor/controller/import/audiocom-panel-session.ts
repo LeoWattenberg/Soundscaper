@@ -142,7 +142,9 @@ export function audiocomPanelSession(owner: object, options: AudiocomPanelSessio
 	if (typeof lifecycle.getSnapshot === 'function' && typeof lifecycle.subscribe === 'function') {
 		const check = (): void => {
 			const value = lifecycle.getSnapshot?.();
-			if (value && typeof value === 'object' && 'disposed' in value && value.disposed === true) {
+			if (!value || typeof value !== 'object') return;
+			const selected = selectedOwnerOrigin(value);
+			if ('disposed' in value && value.disposed === true || selected !== undefined && selected !== apiOrigin) {
 				session.dispose(); entry.unsubscribe?.();
 				if (ownerSessions.get(owner) === entry) ownerSessions.delete(owner);
 			}
@@ -151,4 +153,12 @@ export function audiocomPanelSession(owner: object, options: AudiocomPanelSessio
 		check();
 	}
 	return session;
+}
+
+function selectedOwnerOrigin(value: object): string | undefined {
+	const preferences = 'preferences' in value ? value.preferences : undefined;
+	if (!preferences || typeof preferences !== 'object') return undefined;
+	const advanced = 'advanced' in preferences ? preferences.advanced : undefined;
+	if (!advanced || typeof advanced !== 'object' || !('audioComServerUrl' in advanced)) return undefined;
+	return typeof advanced.audioComServerUrl === 'string' ? advanced.audioComServerUrl : undefined;
 }
