@@ -2,16 +2,19 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `99183fd6c`, including the reviewed native shutdown repair,
+is source `658c41be8`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
 expression ownership and source spans at final export; M09 has an animated-camera
 reference with independent projection and pixel controls.
+M10 now retains captured native inputs during compatible saved updates and
+retains failed physical cleanup handles for retry.
 Its combined gates remain open.
-The failed ordinary browser capture uses frozen source
-`328cae02fb961d87524a6bcb37c54800b3ae7026` on
-`feat/motionscaper-final-validation`. This status records fresh validation on
+The failed ordinary browser capture used frozen source
+`328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
+`feat/motionscaper-final-validation` checkout and merged branch were removed
+after source and artifact preservation. This status records fresh validation on
 2026-10-15. A fresh complete ordinary browser run is active on clean source
 `3e8b3e9420aeda3353158ab9400461c5af1a2980`. Each result qualifies only its stated
 source and workload; none marks a milestone complete or certifies a release.
@@ -95,13 +98,15 @@ source-328 ledger below into a pass.
 | Animated camera reference, `99183fd6c` | Independent world/projection values, frozen-subject and frozen-camera pixel controls, arbitrary seeks and matching-quality host preview/export pass. The menu-authored Chromium camera workflow checks independently predicted pixels, save/reopen and PNG delivery. The native fixture now animates its camera while retaining its lighting/shadow/shutter/lens checks; a fresh packaged run remains pending. This strengthens test evidence without changing renderer math. |
 | Passive spectral-gesture observation, `8cc261339` | The three original Chromium workflows passed once with bounded passive pointer observation, no original assertion/timeout changes and no application repair. All captured brush releases arrived; no observation overflow or page error occurred. The separate origin/one-worker observation does not explain or clear the full-run failures. |
 | Original browser MP4 observation, `8cc261339` | The unchanged single Chromium case failed its original pixel bound: second-frame blue was 169 against expected 191, an error of 22 versus the limit of 20. Packet/container checks reached the pixel loop. The earlier selector-only attempt executed zero cases and remains a separate preparation failure. Source/site guards and process closure passed; encoded bytes and native planes were not retained by the original case, so no producer, muxer or presentation cause is established. |
+| Retained MP4 file/presentation diagnosis, `8cc261339` | An additive capture reproduced the same original 22-versus-20 failure and retained the actual producer RGBA, encoded MP4, native decoded planes/tags and reconstructed same-plane Canvas control. Independent static FFmpeg decoding of that exact file matches all six complete visible plane hashes, twelve sampled Y/U/V values, timestamps and Rec.709 limited-range tags. Independent matrix and inverse-transfer arithmetic puts the sampled file colors within the original sRGB limit; actual and same-plane Canvas retain the failed presentation values. The original case remains failed. A narrow test-oracle correction is in progress; no production encoder change or relaxed color limit is claimed. |
 | Fresh handbook attempt, `8cc261339` | Interrupted and failed: the small-command observer reached its 64 cumulative-process cap after 14 visible desktop passes, before complete report/teardown. This is not a 32-case pass. Independent salvage verified source/build custody, absence of all 63 recorded identities and owned sessions/daemon/port, then removed only the stale scoped preview lock. A suitable whole-suite observer is being prepared for a later final-source run. |
 | Retained mixed-image reopening, `cbf09f9ea` | The unchanged workflow passed Chromium, Firefox and WebKit, without skips or retries. Per-file read serialization fixes the reproduced same-worker exclusive OPFS lock collision; the retained image was intact. This does not claim cross-worker or read/write arbitration. |
 | Complete linked/dual-origin suites, `19bc434e8` | Closed failed: 34/36 linked cases and 8/9 dual-origin cases passed. Firefox failures were image reopening and an absent-host GPU assertion; WebKit lost the archive of a two-download pair. All three first linked-editor/offline/export workflows passed. |
 | Fresh complete linked/dual-origin suites, `c61839c8d` | Closed failed: 34/36 linked and all 9/9 dual-origin cases passed. Chromium failed on a native-export audio-clock gap; WebKit failed while waiting for Resume to adopt a saved revision. Firefox passed all linked cases. GPU/loss/restore checks passed on capable hosts. |
 | Native linked-export variants, `c38e0c2a2` | Both unchanged variants passed in all three engines: six cases, without skips or retries. Native PCM delivery now keeps its capture clock running under bounded backpressure; deterministic controls still reject actual clock loss and blocked sinks. This earlier focused result alone did not close the full suites. |
 | Complete linked/dual-origin suites, `1887abecc` | Passed all 36 linked and nine dual-origin cases across Chromium, Firefox and WebKit, without failures, skips or retries. All three first linked-editor/offline/export workflows passed with real exports and retained current-release bodies. Chrome I420 and WebKit NV12 plane checks passed; Firefox's native BGRX result remains plane-unqualified. The separate Chromium absolute-HTML blue-241 limitation is retained. |
-| Concurrent saved-update/export regression, application base `b594cb562` | New controller and actual browser native-consumer regressions fail: compatible revision B is durably accepted while A's export is active, but the same-owner adoption cancels A. The browser pauses its first real float-picture IPC write and confirms B's saved digest and history before observing cancellation. The repair is in progress; earlier serial/disconnected exports do not close this coupled M10 gate. |
+| Concurrent saved-update/export regression, application base `b594cb562` | New controller and actual browser native-consumer regressions fail: compatible revision B is durably accepted while A's export is active, but the same-owner adoption cancels A. The browser pauses its first real float-picture IPC write and confirms B's saved digest and history before observing cancellation. These failed regressions remain retained; earlier serial/disconnected exports did not close this coupled M10 gate. |
+| Concurrent saved-update/export and cleanup repair, `d7d694fd0` | The corrected workflow passes Chromium, Firefox and WebKit without retries/skips: B is durably accepted while A's first picture write is held; A retains all captured picture/PCM/original bytes, the later export contains B, and asynchronous input cleanup blocks publication. Controller controls retain strict cancellation for actual owner/authoring changes and duplicate-offer behavior. Fault-injected closes in the real engine and owned-worker disposal reproduce lost cleanup handles; the repair retains and retries those handles while public use stays disposed. Focused Node, strict types, lint, architecture and fresh Frame/Motion builds pass. The earlier scaled-fixture oracle and wrong-build setup failures remain separate failures; the final opaque fixture keeps exact all-pixel/frame/PCM bounds. This is a controlled browser IPC sink, not a fresh installed-codec or complete integrated gate. |
 | Required five-workflow Linux aggregate, `1a788b61b` | Passed launch, scene, authored title, successor picture/PCM and saved-file link workflows. The authored workflow covers actual New, shape/text authoring, native Save, preview and cancellation/retry. Its decoded RGB error was 3.93/1023 against the unchanged eight-code limit; alpha was exact. The complete five-workflow aggregate admits Linux x64 only; other targets remain open. |
 | Fresh five-workflow Linux aggregate, `1202edeba` | Closed successfully with all five source-bound markers, source/artifact guards and final absence of all 74 recorded process identities. Independent completed-evidence audit passed without replay. The unchanged legacy launch/scene/successor scripts await Electron closure without retaining its numeric code/signal; strict command closure must not be described as a new per-Electron exit-code assertion. |
 | Six unchanged WebKit regression workflows, `cbf09f9ea` | Punch, three tempo workflows, musical selection and configurable-effects search passed, without skips or retries. Non-reproduction does not establish the causes of their earlier failures. |
@@ -166,6 +171,19 @@ It distinguishes the final committed checks from earlier browser bytes; no new
 native package run is claimed. The failed original MP4 observation is
 `encoder-original-case-observation-8cc261339-selector-corrected/qualification.json`,
 SHA-256 `78c3083b2e227f252aff1b4a901e0ee477fdd4b455a70d7f46cbf9ae9a53b7fa`.
+The additive MP4 capture is
+`encoder-additive-capture-proposal-8cc261339/qualification.json`, SHA-256
+`abc0bc8c6d2d7054f6643784125e939e560e9d69566525f295b40a0c99114519`;
+the independent fixed-file decode is
+`encoder-fixed-file-decode-8cc261339/qualification.json`, SHA-256
+`8c3625ab2ec98d1dee1654ec0797aca9509c7df0cd42452854b70413730382c4`.
+The M10 repair qualification is
+`m10-concurrent-linked-export-b594/qualification-v2.json`, SHA-256
+`4214c9bf2e7d5885acba74de62a102fe2f412d58a0f548f8a2cb9526b6b242a6`.
+It retains the causal cancellation/duplicate/cleanup regressions, 68 focused
+checks and 21 existing worker controls on source `5de0ab2ae`, plus 14 controls
+and the three-engine browser pass on the final opaque-fixture source
+`d7d694fd0`. Its fresh site evidence names that same final source.
 The browser duration receipt is
 `current-fa680-sustained-browser/workload/qualification-receipt.json`, SHA-256
 `d7694f821c83982d65007b4852d55ab172b4fefc6539b4b9d865f9c789c45e07`;
@@ -353,9 +371,17 @@ source `a92368082`; all seven prefix trees and 172 files remained unchanged.
 The native receipt retains its original `f66040509` identity. These phases did
 not stage or package a desktop application, run the GUI or change its sandbox.
 
-Integration preserves each original repair commit in Git ancestry. Eight
-finished auxiliary worktrees were removed after their commits were merged;
-remaining worktrees stay below the ten-worktree limit. No source, dependency,
+Integration preserves each original repair commit in Git ancestry. Finished
+auxiliary worktrees are removed after preservation. The obsolete source-328
+checkout was removed with normal Git commands after verifying all 19,229 tracked
+source files and preserving 62,012 generated files (13,559,200,803 bytes),
+including all sixteen historical sandbox inodes. Six owned worktrees remain.
+The retirement receipt is
+`frozen-328-retirement-execution-v3-20261015/actual-tool-closure.json`, SHA-256
+`20e3e8ac7be948095b5c048f70c9fdfb3573676f36cde3c38f7ae6042f5e69d3`.
+Old absolute paths and workspace symlinks are historical; raw coverage remains
+unadmitted. Held current package and ordinary-suite inputs are unchanged.
+No source, dependency,
 site or packaged bytes used by the completed frozen capture were changed.
 
 The retained evidence includes `gates/static-result.json`, all five

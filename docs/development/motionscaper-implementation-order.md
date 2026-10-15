@@ -79,9 +79,11 @@ static gates passed through source `8cc261339`, and the complete Node gate
 passed on `17b8a6964`. The current full browser run has failures and remains
 active. The later M06 keyboard repair and animated multilingual-title workflow
 have focused evidence across all three engines. M08 final-export diagnostics and
-an animated M09 camera reference now have focused checks. A new coupled M10
-regression reproduces compatible saved updates cancelling an active export;
-that repair remains in progress. Combined coverage acceptance,
+an animated M09 camera reference now have focused checks. The coupled M10
+saved-update/export regression is repaired and passes all three browser engines;
+captured picture, PCM and originals remain pinned until cleanup completes.
+Failed physical cleanup retains its retry capability. These focused results do
+not close the combined gates. Combined coverage acceptance,
 remaining regressions, maximum-workload and external gates remain open.
 Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
@@ -185,7 +187,12 @@ offers, bounded streamed closure verification, compatible/pending update and
 Undo/Resume rules, and atomic receiver-owned successor storage with retained
 historical revisions, with atomic owning-project/history CAS and private
 preparations. Saved-revision picture and PCM adapters use the shared scene and
-retained bytes after offline receiver reopen. The explicit successor browser
+retained bytes after offline receiver reopen. An active native delivery retains
+its captured revision and independent audio resources when a compatible saved
+revision is accepted. Focused controller and three-engine browser checks cover
+the concurrent update, exact old/new picture and PCM, retained originals and
+cleanup before publication; failed physical cleanup remains retryable.
+The explicit successor browser
 shell exposes composition connections through File, with paired picture/PCM
 placement, atomic editing and Undo/Redo, and lazy exact preview/delivery.
 Authenticated generated video sources pass the actual Frame finishing exporter
