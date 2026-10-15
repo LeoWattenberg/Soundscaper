@@ -19,6 +19,7 @@ import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from './photo-library
 import type { PhotoMediaCubeLutResourcesV1, PhotoMediaCubeLutResourceOwnerV1 } from './photo-media-cube-lut-resources-v1.ts';
 import type { PhotoMediaMaskRasterResourcesV1, PhotoMediaMaskRasterResourceOwnerV1 } from './photo-media-mask-raster-resources-v1.ts';
 import type { PhotoCullingPreviewCachePortCurrentV1 } from '../preview/photo-culling-preview-cache-current-v1.ts';
+import type { PhotoHdrPreviewCachePortCurrentV1 } from '../preview/photo-hdr-preview-cache-current-v1.ts';
 
 export const PHOTO_MEDIA_NAMESPACES_V1 = Object.freeze({
 	databaseName: 'lightscaper-photo-media-v2',
@@ -70,6 +71,7 @@ export class PhotoMediaStoreV1 {
 	readonly #owned = new Set<Promise<unknown>>();
 	#previewCache: PhotoPreviewCachePortV1 | null = null;
 	#cullingPreviewCache: Promise<Readonly<PhotoCullingPreviewCachePortCurrentV1>> | null = null;
+	#hdrPreviewCache: Promise<Readonly<PhotoHdrPreviewCachePortCurrentV1>> | null = null;
 	#cubeLutResources: Promise<Readonly<PhotoMediaCubeLutResourcesV1>> | null = null;
 	#cubeLutOwner: Readonly<PhotoMediaCubeLutResourceOwnerV1> | null = null;
 	#maskRasterResources: Promise<Readonly<PhotoMediaMaskRasterResourcesV1>> | null = null;
@@ -184,6 +186,23 @@ export class PhotoMediaStoreV1 {
 			});
 		});
 		return this.#cullingPreviewCache;
+	}
+
+	/** HDR previews share disposable capacity and selected custody, with their
+	 * own recipe rather than widening the permanent Original preview reader. */
+	getHdrPreviewCacheCurrentV1(): Promise<Readonly<PhotoHdrPreviewCachePortCurrentV1>> {
+		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
+		this.#hdrPreviewCache ??= this.#own(async () => {
+			const { PhotoHdrPreviewCacheCurrentV1 } = await import('../preview/photo-hdr-preview-cache-current-v1.ts');
+			this.#assertAccepting();
+			const cache = new PhotoHdrPreviewCacheCurrentV1(this.#media.createBinaryDerivativeCache(PHOTO_PREVIEW_CACHE_PROFILE_V1));
+			return Object.freeze({
+				load: (...args: Parameters<PhotoHdrPreviewCachePortCurrentV1['load']>) => this.#own(() => cache.load(...args)),
+				store: (...args: Parameters<PhotoHdrPreviewCachePortCurrentV1['store']>) => this.#own(() => cache.store(...args)),
+				trim: (...args: Parameters<PhotoHdrPreviewCachePortCurrentV1['trim']>) => this.#own(() => cache.trim(...args)),
+			});
+		});
+		return this.#hdrPreviewCache;
 	}
 
 	/** Fixed scoped LUT capabilities; the selected guard and connection stay private. */

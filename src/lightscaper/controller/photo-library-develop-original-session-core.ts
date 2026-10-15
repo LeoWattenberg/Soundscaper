@@ -26,7 +26,8 @@ export type PhotoOriginalSessionPhoto = Pick<PhotoDocumentV1, 'id' | 'catalogId'
 /** Internal lifetime machinery; public named owners supply their fixed full-document admission. */
 export function createPhotoLibraryDevelopOriginalSessionCore(host: PhotoLibraryDevelopOriginalSessionHostCore,
 	normalizePhoto: (value: unknown) => PhotoOriginalSessionPhoto, defaultDecoder = withPhotoOriginalFrameV1,
-	admitSource: (binding: Readonly<PhotoPreviewOriginalBindingV1>) => void = admitByteSource): Readonly<PhotoLibraryDevelopOriginalPortV1> {
+	admitSource: (binding: Readonly<PhotoPreviewOriginalBindingV1>) => void = admitByteSource,
+	normalizeBinding: (value: unknown, original: PhotoOriginalV1) => Readonly<PhotoPreviewOriginalBindingV1> = normalizePhotoPreviewOriginalBindingV1): Readonly<PhotoLibraryDevelopOriginalPortV1> {
 	const repository = host.repository, reader = repository.loadPhoto, initialize = host.ready;
 	const operation = host.operation, originalReader = host.loadOriginal, decode = host.withFrame ?? defaultDecoder;
 	for (const method of [reader, initialize, operation, originalReader, decode]) {
@@ -55,8 +56,8 @@ export function createPhotoLibraryDevelopOriginalSessionCore(host: PhotoLibraryD
 					return photo;
 				};
 				const photo = await read(), originalIdentity = JSON.stringify(photo.original);
-				const binding = normalizePhotoPreviewOriginalBindingV1({ catalogId, photoId, originalId: photo.original.id, storageKey: photo.original.storageKey,
-					contentSha256: photo.original.contentSha256, byteLength: photo.original.byteLength, width: photo.original.width, height: photo.original.height });
+				const binding = normalizeBinding({ catalogId, photoId, originalId: photo.original.id, storageKey: photo.original.storageKey,
+					contentSha256: photo.original.contentSha256, byteLength: photo.original.byteLength, width: photo.original.width, height: photo.original.height }, photo.original);
 				admitSource(binding);
 				const current = async () => {
 					if (JSON.stringify((await read()).original) !== originalIdentity) throw new PhotoCatalogRevisionConflictError('photo');

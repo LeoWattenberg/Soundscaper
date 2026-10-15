@@ -9,12 +9,14 @@ import { canonicalMediaContentBlob } from '../../common/editor/storage/media-con
 import { withDecodedRawOriginalV1 } from '../../common/editor/raw/libraw-runtime-v1.ts';
 import { probeRawSourceV1, rawFlipExifOrientationV1 } from '../../common/editor/raw/raw-source-v1.ts';
 import type { OpenFramescaperBrowserNativeImageV1 } from '../../common/editor/timeline-image-native-decode-v1.ts';
-import { normalizePhotoPreviewOriginalBindingV1, type PhotoPreviewOriginalBindingV1 } from './photo-preview-plan-v1.ts';
+import type { PhotoPreviewOriginalBindingV1 } from './photo-preview-plan-v1.ts';
 import { withPhotoOriginalFrameV1, type PhotoOriginalFrameProvenanceV1 } from './photo-original-frame-v1.ts';
+import { isPhotoHdrOriginalBindingCurrentV1, normalizePhotoOriginalBindingCurrentV1 } from './photo-original-binding-current-v1.ts';
+import { admitPhotoOriginalHdrBindingCurrentV1, withPhotoOriginalHdrFrameCurrentV1, type PhotoOriginalHdrFramePortsCurrentV1 } from './photo-original-hdr-frame-current-v1.ts';
 
 export const PHOTO_ORIGINAL_CURRENT_SOURCE_LIMITS_V1 = Object.freeze({ maximumSidePixels: 8192,
 	maximumPixels: 16_777_216, maximumBytes: 134_217_728 });
-export interface PhotoOriginalFramePortsCurrentV1 {
+export interface PhotoOriginalFramePortsCurrentV1 extends PhotoOriginalHdrFramePortsCurrentV1 {
 	readonly openImage?: OpenFramescaperBrowserNativeImageV1;
 	readonly withRawFrame?: typeof withDecodedRawOriginalV1;
 }
@@ -23,7 +25,9 @@ function check(signal?: AbortSignal): void { if (signal) Reflect.apply(CHECK, si
 
 /** Conservative Current source preflight before loading any retained body. */
 export function admitPhotoOriginalFrameBindingCurrentV1(binding: Readonly<PhotoPreviewOriginalBindingV1>): void {
-	planPixelFrameV1({ schemaVersion: 1, width: binding.width, height: binding.height,
+	const admitted = normalizePhotoOriginalBindingCurrentV1(binding);
+	if (isPhotoHdrOriginalBindingCurrentV1(admitted)) { admitPhotoOriginalHdrBindingCurrentV1(admitted); return; }
+	planPixelFrameV1({ schemaVersion: 1, width: admitted.width, height: admitted.height,
 		sampleFormat: 'unorm16', primaries: 'srgb', transfer: 'linear' }, PHOTO_ORIGINAL_CURRENT_SOURCE_LIMITS_V1);
 }
 
@@ -33,13 +37,21 @@ export async function withPhotoOriginalFrameCurrentV1<Result>(value: unknown,
 	consume: (frame: PixelFrameV1, provenance: Readonly<PhotoOriginalFrameProvenanceV1>) => Promise<Result>,
 	dependencies: Readonly<PhotoOriginalFramePortsCurrentV1> = {}): Promise<Result> {
 	const input = record(value, 'Current photo original frame request', ['binding', 'body', 'signal'], ['binding', 'body']);
-	const binding = normalizePhotoPreviewOriginalBindingV1(field(input, 'binding', 'Current photo original frame request'));
+	const binding = normalizePhotoOriginalBindingCurrentV1(field(input, 'binding', 'Current photo original frame request'));
 	admitPhotoOriginalFrameBindingCurrentV1(binding);
 	const external = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'Current photo original frame request') : undefined;
 	if (external !== undefined) Reflect.apply(CHECK, external, []);
 	const callerSignal = external as AbortSignal | undefined;
 	if (typeof consume !== 'function') throw new TypeError('Current Original requires a scoped consumer.');
-	const ports = record(dependencies, 'Current Original ports', ['openImage', 'withRawFrame'], []);
+	const ports = record(dependencies, 'Current Original ports', ['openImage', 'withRawFrame', 'withHdrFrame'], []);
+	const hdr = Object.hasOwn(ports, 'withHdrFrame') ? field(ports, 'withHdrFrame', 'Current Original ports') : undefined;
+	if (Object.hasOwn(ports, 'withHdrFrame') && typeof hdr !== 'function') throw new TypeError('Current HDR Original requires an inert decoder capability.');
+	const hdrDecoder = typeof hdr === 'function' ? hdr : undefined;
+	if (isPhotoHdrOriginalBindingCurrentV1(binding)) return withPhotoOriginalHdrFrameCurrentV1({ binding,
+		body: field(input, 'body', 'Current photo original frame request'), ...(callerSignal ? { signal: callerSignal } : {}) }, consume,
+		hdrDecoder ? { withHdrFrame: <Value>(request: Parameters<NonNullable<PhotoOriginalHdrFramePortsCurrentV1['withHdrFrame']>>[0],
+			accept: (view: Parameters<Parameters<NonNullable<PhotoOriginalHdrFramePortsCurrentV1['withHdrFrame']>>[1]>[0]) => Value | Promise<Value>) =>
+			Reflect.apply(hdrDecoder, dependencies, [request, accept]) as Promise<Value> } : {});
 	const raw = Object.hasOwn(ports, 'withRawFrame') ? field(ports, 'withRawFrame', 'Current Original ports') : withDecodedRawOriginalV1;
 	const open = Object.hasOwn(ports, 'openImage') ? field(ports, 'openImage', 'Current Original ports') : undefined;
 	if (typeof raw !== 'function' || (Object.hasOwn(ports, 'openImage') && typeof open !== 'function')) throw new TypeError('Current Original requires inert native decoder capabilities.');

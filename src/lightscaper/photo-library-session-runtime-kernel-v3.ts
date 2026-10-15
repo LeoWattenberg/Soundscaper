@@ -108,7 +108,8 @@ export async function createPhotoLibrarySessionForProfileV1(profile: 'legacy2' |
 						loadOriginal: (key: string, admitted: AbortSignal) => loadOriginal(key, { signal: admitted }), cache: selectedMedia.getPreviewCache() };
 					if (profile === 'current3') {
 						const { PhotoPreviewSchedulerCurrentV1 } = await import('./preview/photo-preview-scheduler-current-v1.ts');
-						return new PhotoPreviewSchedulerCurrentV1({ ...preview, cullingCache: await selectedMedia.getCullingPreviewCacheCurrentV1() });
+						return new PhotoPreviewSchedulerCurrentV1({ ...preview, cullingCache: await selectedMedia.getCullingPreviewCacheCurrentV1(),
+							hdrCache: await selectedMedia.getHdrPreviewCacheCurrentV1() });
 					}
 					const { PhotoPreviewSchedulerV2 } = await import('./preview/photo-preview-scheduler-v2.ts');
 					return new PhotoPreviewSchedulerV2(preview); },

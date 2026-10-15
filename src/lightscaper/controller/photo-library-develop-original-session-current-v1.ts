@@ -5,6 +5,7 @@ import type { PhotoCatalogRepositoryCurrentV1 } from '../catalog/photo-catalog-r
 import { normalizePhotoDocumentCurrentV1 } from '../catalog/photo-document-current-v1.ts';
 import { createPhotoLibraryDevelopOriginalSessionCore, type PhotoLibraryDevelopOriginalSessionHostCore } from './photo-library-develop-original-session-core.ts';
 import { admitPhotoOriginalFrameBindingCurrentV1, withPhotoOriginalFrameCurrentV1 } from '../preview/photo-original-frame-current-v1.ts';
+import { capturePhotoOriginalBindingCurrentV1 } from '../preview/photo-original-binding-current-v1.ts';
 
 export interface PhotoLibraryDevelopOriginalSessionHostCurrentV1 extends PhotoLibraryDevelopOriginalSessionHostCore {
 	readonly repository: Pick<PhotoCatalogRepositoryCurrentV1, 'loadPhoto'>;
@@ -12,5 +13,5 @@ export interface PhotoLibraryDevelopOriginalSessionHostCurrentV1 extends PhotoLi
 /** Fully admit the current Photo before projecting its immutable original identity. */
 export function createPhotoLibraryDevelopOriginalSessionCurrentV1(host: PhotoLibraryDevelopOriginalSessionHostCurrentV1): Readonly<PhotoLibraryDevelopOriginalPortV1> {
 	return createPhotoLibraryDevelopOriginalSessionCore(host, normalizePhotoDocumentCurrentV1,
-		withPhotoOriginalFrameCurrentV1, admitPhotoOriginalFrameBindingCurrentV1);
+		withPhotoOriginalFrameCurrentV1, admitPhotoOriginalFrameBindingCurrentV1, capturePhotoOriginalBindingCurrentV1);
 }
