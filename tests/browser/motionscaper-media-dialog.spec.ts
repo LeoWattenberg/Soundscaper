@@ -98,16 +98,25 @@ test('German media admission and invalid-file feedback remain reachable from the
 
 test('unavailable audio output stays inside the preview error and retry workflow', async ({ page }: { page: Page }) => {
 	const failures: string[] = []; page.on('pageerror', (error) => failures.push(error.message));
-	await page.addInitScript(() => { Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: class {
-		constructor() { throw new Error('Audio output unavailable'); }
+	await page.addInitScript(() => { const scope = globalThis as unknown as { audioContextConstructions: number }; scope.audioContextConstructions = 0;
+		Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: class {
+		constructor() { scope.audioContextConstructions++; throw new Error('Audio output unavailable'); }
 	} }); });
 	await page.goto('/embed/en/'); await menu(page, 'File', 'New Composition');
 	await page.getByRole('button', { name: 'Create', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
 	await menu(page, 'File', 'Import Media');
 	await page.getByLabel('Media file', { exact: true }).setInputFiles({ name: 'Tone.wav', mimeType: 'audio/wav', buffer: Buffer.from(motionWavFixture()) });
 	await expect(page.getByRole('dialog')).toHaveCount(0); await menu(page, 'View', 'Composition Preview');
+	const dialog = page.getByRole('dialog', { name: 'Composition Preview', exact: true }); const canvas = dialog.locator('canvas');
+	const constructions = () => page.evaluate(() => (globalThis as unknown as { audioContextConstructions: number }).audioContextConstructions);
+	await expect(canvas).toHaveAttribute('data-motion-frame', '0'); await expect(dialog.getByRole('alert')).toHaveCount(0); expect(await constructions()).toBe(0);
+	await dialog.getByLabel('Frame', { exact: true }).fill('1'); await expect(canvas).toHaveAttribute('data-motion-frame', '1'); expect(await constructions()).toBe(0);
+	await dialog.getByRole('button', { name: 'Play', exact: true }).click();
 	await expect(page.getByRole('alert')).toContainText('Audio output unavailable');
+	expect(await constructions()).toBe(1);
 	await page.getByRole('button', { name: 'Retry', exact: true }).click();
-	await expect(page.getByRole('alert')).toContainText('Audio output unavailable'); expect(failures).toEqual([]);
+	await expect(canvas).toHaveAttribute('data-motion-frame', '0'); await expect(dialog.getByRole('alert')).toHaveCount(0); expect(await constructions()).toBe(1);
+	await dialog.getByRole('button', { name: 'Play', exact: true }).click();
+	await expect(page.getByRole('alert')).toContainText('Audio output unavailable'); expect(await constructions()).toBe(2); expect(failures).toEqual([]);
 	await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
 });

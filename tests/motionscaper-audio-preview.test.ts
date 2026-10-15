@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { createMotionAudioPreview, type MotionAudioPlaybackOutput } from '../src/common/editor/controller/track-audio/motion-audio-preview.ts';
 import { createMotionscaperRevision } from '../src/common/editor/motion-project-revision.ts';
 import { createMotionscaperProject } from '../src/motionscaper/editor-project.ts';
@@ -20,6 +20,73 @@ function fixtures(decode?: (request: MotionAudioBlockRequest, signal?: AbortSign
 	return { mixer, output, scheduled, requests, setTime(value: number) { time = value; }, closed: () => closed };
 }
 function block(request: MotionAudioBlockRequest): MotionAudioMixBlock { return { ...request, startSample: normalizeRational(request.startSample), interleaved: new Float32Array(request.sampleCount * request.channels), projectId: revision.projectId, revision: revision.revision, revisionDigest: revision.digest }; }
+
+function installAudioContext(t: TestContext, create: () => AudioContext): void {
+	const previous = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
+	Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: function () { return create(); } });
+	t.after(() => { if (previous) Object.defineProperty(globalThis, 'AudioContext', previous); else Reflect.deleteProperty(globalThis, 'AudioContext'); });
+}
+function webContext(sampleRate = 11025) {
+	let time = 10, resumes = 0, closes = 0;
+	const starts: number[] = [], buffers: Array<{ channels: number; count: number; rate: number }> = [];
+	const context = { sampleRate, get currentTime() { return time; }, destination: {},
+		resume() { resumes++; return Promise.resolve(); }, close() { closes++; return Promise.resolve(); },
+		createBuffer(channels: number, count: number, rate: number) {
+			buffers.push({ channels, count, rate }); const data = Array.from({ length: channels }, () => new Float32Array(count));
+			return { getChannelData: (channel: number) => data[channel]! };
+		},
+		createBufferSource() { return { buffer: null, onended: null, connect() {}, disconnect() {}, start(when: number) { starts.push(when); }, stop() {} }; },
+	} as unknown as AudioContext;
+	return { context, starts, buffers, setTime(value: number) { time = value; }, resumes: () => resumes, closes: () => closes };
+}
+
+test('M05 visual-only preview clock, pause and disposal never construct a default AudioContext', async (t) => {
+	let constructions = 0;
+	installAudioContext(t, () => { constructions++; throw new Error('Visual preview must not open audio output.'); });
+	const fixture = fixtures(); const preview = createMotionAudioPreview({ mixer: fixture.mixer });
+	assert.equal(preview.clock.now(), 0); assert.deepEqual(preview.snapshot(), { status: 'paused', position: { num: 0, den: 1 }, queuedBlocks: 0, underruns: 0, error: null });
+	preview.pause(); assert.equal(preview.clock.now(), 0);
+	await assert.rejects(preview.play({ ...range, compositionId: 'missing' }), /missing/u);
+	await assert.rejects(preview.play({ ...range, startTime: 2, endTime: 1 }), /range/u);
+	preview.dispose(); preview.dispose();
+	assert.equal(constructions, 0); assert.equal(fixture.requests.length, 0); assert.equal(preview.snapshot().status, 'disposed'); assert.equal(preview.clock.now(), 0);
+});
+
+test('M05 first valid play opens and resumes once before yielding, using the actual context sample rate', async (t) => {
+	const audio = webContext(); let constructions = 0;
+	installAudioContext(t, () => { constructions++; return audio.context; });
+	const fixture = fixtures(); const preview = createMotionAudioPreview({ mixer: fixture.mixer, blockSamples: 256, maximumQueuedBlocks: 2 });
+	assert.equal(constructions, 0);
+	const request = { compositionId: 'main', startTime: { num: 1, den: 3 }, endTime: { num: 2, den: 3 } };
+	const playing = preview.play(request); assert.equal(constructions, 1); assert.equal(audio.resumes(), 1);
+	await playing;
+	assert.deepEqual(fixture.requests.map((value) => ({ rate: value.sampleRate, start: value.startSample })), [{ rate: 11025, start: { num: 3675, den: 1 } }, { rate: 11025, start: { num: 3931, den: 1 } }]);
+	assert.deepEqual(audio.buffers, [{ channels: 2, count: 256, rate: 11025 }, { channels: 2, count: 256, rate: 11025 }]);
+	audio.setTime(audio.starts[0]! + 176 / 11025);
+	assert.equal(preview.clock.now(), 176 / 11025 * 1000); assert.deepEqual(preview.snapshot().position, { num: 3851, den: 11025 });
+	preview.pause(); const held = preview.clock.now(); audio.setTime(20); assert.equal(preview.clock.now(), held);
+	await preview.play(request); assert.equal(constructions, 1); assert.equal(audio.resumes(), 2);
+	preview.dispose(); preview.dispose(); assert.equal(audio.closes(), 1);
+});
+
+test('M05 unavailable default audio output fails at Play, preserves the error and can retry', async (t) => {
+	const unavailable = new Error('Audio output unavailable'), failures: Error[] = []; const audio = webContext(); let constructions = 0;
+	installAudioContext(t, () => { if (++constructions === 1) throw unavailable; return audio.context; });
+	const fixture = fixtures(); const preview = createMotionAudioPreview({ mixer: fixture.mixer, onError: (error) => failures.push(error) });
+	await assert.rejects(preview.play(range), (error: unknown) => error === unavailable);
+	assert.deepEqual(failures, [unavailable]); assert.equal(preview.snapshot().status, 'error'); assert.equal(preview.snapshot().error, unavailable.message);
+	assert.equal(fixture.requests.length, 0); assert.equal(audio.closes(), 0);
+	await preview.play(range); assert.equal(constructions, 2); assert.equal(preview.snapshot().status, 'playing'); assert.equal(preview.snapshot().error, null);
+	preview.dispose(); assert.equal(audio.closes(), 1);
+});
+
+test('M05 supplied output stays owned before Play and a supplied context is never closed', async (t) => {
+	installAudioContext(t, () => { throw new Error('Supplied resources must not construct default output.'); });
+	const fixture = fixtures(); const unplayed = createMotionAudioPreview({ mixer: fixture.mixer, output: fixture.output });
+	unplayed.dispose(); assert.equal(fixture.closed(), true);
+	const audio = webContext(); const preview = createMotionAudioPreview({ mixer: fixture.mixer, context: audio.context });
+	assert.equal(preview.clock.now(), 0); await preview.play(range); preview.dispose(); assert.equal(audio.resumes(), 1); assert.equal(audio.closes(), 0);
+});
 
 test('M05 preview primes a bounded queue before starting and its video clock follows only the audio sample clock', async () => {
 	const fixture = fixtures(); const preview = createMotionAudioPreview({ mixer: fixture.mixer, output: fixture.output, blockSamples: 256, maximumQueuedBlocks: 3 });
