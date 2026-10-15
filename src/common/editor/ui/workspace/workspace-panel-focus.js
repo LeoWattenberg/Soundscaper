@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createWorkspaceFocusRequest } from '../../controller/composition/workspace-focus-request.ts';
 import { workspacePanelRestoresCaptureFocus } from './workspace-product-panel-runtime.ts';
 
 export const FOCUS_ATTEMPTS = 30;
@@ -15,8 +16,10 @@ export const FOCUS_ATTEMPTS = 30;
  * @param {unknown} [previous] the element the change was made from, if any
  */
 function focusWhenMounted(ownerDocument, selector, previous = null) {
+	const ownsFocus = createWorkspaceFocusRequest(ownerDocument, previous);
 	let attempts = FOCUS_ATTEMPTS;
 	const restore = () => {
+		if (!ownsFocus()) return;
 		const candidates = ownerDocument.querySelectorAll
 			? [...ownerDocument.querySelectorAll(selector)]
 			: [ownerDocument.querySelector(selector)];
