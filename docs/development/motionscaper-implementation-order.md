@@ -124,7 +124,19 @@ an eager output allocation when opening or seeking the visual preview. All
 pass on that source. Its fresh unchanged-limit duration run completed the entire
 300-frame preview/PNG/WebM/cancel/retry workflow, then failed during the
 1,200-frame preview: RSS exceeded 2 GiB by 1,724,416 bytes. Long exports and the
-duration-tail comparison were not reached; the browser gate remains failed.
+duration-tail comparison were not reached; that invocation remains failed.
+The observer now retains already-returned backing/embedder and Linux
+private/shared memory details (`036899f59`), without extra requests or changed
+limits. All 1,179 Motion Node cases, full repository lint, strict Node-test
+types, architecture/size checks and normal three-product builds pass on that
+source. One fresh duration run passed both 300 and 1,200 frames, including all
+preview/output/reference/cancel/retry/tail/cleanup checks. Its peak RSS was
+2,029,117,440 bytes; all optional accounting fields were available. This is a
+fixed software-profile pass, not an explanation of the earlier refusals or
+complete application-browser/coverage acceptance.
+Current-source Linux Motion and successor stages and unsigned directory
+packages also pass resource verification, reusing the authenticated native
+helper. Their installed GUI qualification has not yet run.
 Maximum-workload fixtures, independent oracles and the bounded native driver
 (`a4e851dc3`) are integrated as `2978ab0cc`. Installed source `322c8a6b1` passed
 64×64 shutter/lens sampling, 64 contributing planes and 32 lights. The

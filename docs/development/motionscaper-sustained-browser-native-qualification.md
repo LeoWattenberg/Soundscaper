@@ -1,7 +1,7 @@
 # Controlled browser and Linux duration qualification
 
 Status: maintained harness and fixed acceptance policy. Source-attributed results,
-including the current native pass and browser memory refusal, are recorded in
+including fixed-profile passes and earlier memory refusals, are recorded in
 [final integration status](motionscaper-final-integration-validation.md).
 The policy identifier is `motion-browser-linux-duration-v1`. Its numeric
 authority is `scripts/performance/motionscaper-sustained-plan.ts`. A reviewed
@@ -101,6 +101,13 @@ application objects. Neither forced GC nor a heap snapshot is used. Missing
 worker/isolate or WASM evidence refuses that measurement gate; RSS alone must
 not be relabeled WASM evidence. Worker disposal and disappearance are recorded
 separately from allocator capacity, which may remain resident in the main page.
+
+The observer also retains optional backing-storage/embedder bytes from the same
+`Runtime.getHeapUsage` response and private/shared/anonymous/file accounting
+from the same Linux rollup read. Every field is either available with bytes or
+explicitly unavailable; missing values are never zero. These categories can
+overlap and do not prove allocation ownership. They add no request, memory gate,
+GC operation or admission substitute. Historical logs are not backfilled.
 
 Browser WebM and native MOV indexes legitimately grow with frame/packet count.
 The existing 32,768-entry admissions remain unchanged. This profile has at most

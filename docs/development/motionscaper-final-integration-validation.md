@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `2978ab0cc`, including the reviewed native shutdown repair,
+is source `036899f59`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -22,7 +22,12 @@ the original limit error; the fix changes no memory limit or application code.
 Preview audio now opens its default output on Play, preserving visual-only
 preview without an eager AudioContext. The separate native maximum-workload
 fixtures, oracles and bounded driver are integrated. Their functional passes
-and memory refusals remain separate below. Combined gates remain open.
+and memory refusals remain separate below. Optional backing/embedder and Linux
+private/shared accounting is retained from measurements already collected;
+missing optional data is explicit, never inferred as zero. One fresh unchanged
+browser-duration run passed both controlled durations on that source. Earlier
+failures remain recorded, without an inferred allocation cause. Combined gates
+remain open.
 The failed ordinary browser capture used frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
 `feat/motionscaper-final-validation` checkout and merged branch were removed
@@ -97,6 +102,10 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
+| Current Motion tests and static components, `036899f59` | Passed all 1,179 Motion cases in 271 files, with no failures, skips or test heap override. Full repository lint passed all 12,177 files; the full strict Node-test compilation, maintained tooling types, architecture/controller/size checks and normal three-product hidden-map builds also passed. Startup tightening changed no budget. The post-audit verified 52,115 inputs, absence of all 300 observed identities/root sessions and 299 stable raw profiles; coverage remains unparsed and unadmitted. This is not a fresh complete all-product Node or canonical static-gate pass. |
+| Optional memory-accounting diagnostics, `036899f59` | Two original observer paths first reproduced dropping valid detail fields. The fix retains backing storage/embedder bytes and eight Linux private/shared/anonymous/file categories from the existing responses and rollup reads. All 87 focused controls passed, including unchanged request/read counts, required-field refusals, missing/malformed/duplicate optional data and original cap/ownership checks. Optional absence is unavailable, not zero; overlapping categories do not prove allocation ownership. No application, policy, dependency or assistance-runtime bytes changed. |
+| Current controlled-duration browser profile, `036899f59` | One run passed both 300 and 1,200 frames: real preview, PNG/WebM, independent picture/timestamp/bounded lossy Opus references, cancellation/retry, memory tails and cleanup. All 545 memory rows were audited; peak whole-application RSS/PSS was 2,029,117,440/966,450,176 bytes, with a maximum sample gap of 438.226 ms. All new accounting fields were available. Both applications closed 0/null with no cleanup errors; all 46 recorded/session identities were absent, 52,115 inputs and 2,293 site/map bodies were unchanged, and port 4974 was free. Original limits, launch flags and assertions stayed unchanged, without GC, heap override or an additional workload invocation. This fixed Chromium software-profile pass does not explain or reinterpret earlier failures, qualify native maximum workloads or close the complete application browser gate. |
+| Current Linux native staging/packages, `036899f59` | All six maintained helper-verification, Motion/successor staging, unsigned directory-packaging and resource-verification phases passed. The existing authenticated `f66040509` helper was reused through the maintained verifier; no native/reference compilation or GUI/decoder invocation occurred. Fresh stage/package inventories contain 1,946 files. All 16 recorded identities and six phase sessions were absent; source/npm/prefix and held old-package guards passed. Fresh sandbox copies remain ordinary user copies, and both previously installed privileged helpers are unchanged. These artifacts are held for installed testing; this is not a current native functional or maximum-workload pass. |
 | Complete static gate, `a1a58bf4e` | Passed full lint, types, architecture, audits, documentation and production build with the command-local 12 GiB compiler heap. Exact source and all 85 observed process identities closed; startup tightening found no ceiling to lower. The later polling repair retains its own checks and exact test-byte attribution. |
 | All five exhaustive Node partitions, `a1a58bf4e` | Passed: 27,352 tests, 27,338 passed, zero failures/cancellations and 14 declared skips. All 1,121 Motion cases and the three previously failed nightly packaging assertions pass in the same exhaustive batch. Source/staged inputs, observed process closure and stable raw-profile inventories passed; raw coverage remains unparsed and unadmitted. No Node heap override was set. |
 | Complete static gate, `322c8a6b1` | Passed full lint, types, architecture, audits, documentation and production build, with the explicit 12 GiB compiler heap confined to this command. Source and observed process closure passed. Startup tightening found no ceiling to lower. |
@@ -156,6 +165,23 @@ source-328 ledger below into a pass.
 | Native shutdown repair, `d49ce710f` | The observer sends graceful termination to the application owner first and awaits closure before authenticated residual cleanup. Nine new controls and 93 combined observer/CDP regressions passed, including a real parent/dependent process control. Strict application exit and signal refusals remain unchanged. |
 | Controlled-duration native workflow, `1202edeba` | Passed both 300- and 1,200-frame preview/ProRes workloads, cancellation/retry at each duration and all six independently decoded MOV references. All 449 memory rows and 81 real encoder observations were audited; peak whole-application RSS/PSS was 1,075,535,872/625,772,544 bytes. Exact PCM, contiguous timestamps, picture/alpha bounds, memory tails and final process absence passed. This qualifies the fixed Linux x64 profile, not maximum workloads or other hosts. |
 | Complete accepted coverage union and external matrix | Open. Failed raw profiles remain unparsed and unadmitted; no coverage floor, startup ceiling, timeout, color bound or signal bound was weakened. No installed AE environment is available. |
+
+The current diagnostic implementation is pinned by
+`memory-detail-diagnostics-6fd47e0a0/qualification.json`, SHA-256
+`fa1b01506cb543f1f1c55f1c3c5c6e82d28caf2e76d607332273faa70bbea125`.
+The complete Motion partition and full Node-test type check are recorded in
+`current-036899f59-node-motion/qualification.json`, SHA-256
+`b83ad633069cc1e0d7b3a311bb2e5c2652110d113d11de12918a48c664275a0d`.
+The normal product-build receipt is
+`current-036899f59-browser-preview/build-qualification.json`, SHA-256
+`e0f52319b6fcb5d3bec9cd0f0304bd42a936fb7cd26a2c0ac086d875008123a1`.
+The single passing duration observation and its cleanup/accounting audit are
+`current-036899f59-sustained-browser/qualification.json`, SHA-256
+`d6730658fa9800278051e4ca78f18a8e1daae8e5026ba6386201d7bb00d8dd68`.
+The current-source unsigned native package preparation is
+`current-036899f59-native-qualification/completed-qualification.json`, SHA-256
+`1e039538742a2f0ebb65274e20bc9eeddd782ddd353d2bc0a26c44799ccaff70`.
+These receipts retain their individual scopes and do not promote a milestone.
 
 The preceding complete Node run failed. Its receipt is
 `current-322c8a6b1-node/closed.json`, SHA-256
