@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudiocomOAuthClientKind, AudiocomOAuthUser } from './oauth-contracts.ts';
+import { parseStoredProviderBinding, type AudiocomOAuthProviderBinding } from './oauth-provider-binding-contracts.ts';
 
 export type OAuthAttemptStatus = 'pending' | 'exchanging' | 'connected' | 'denied' | 'failed';
 
 export interface OAuthAttemptRecord {
+	readonly provider?: AudiocomOAuthProviderBinding;
 	readonly id: string;
 	readonly stateHash: string;
 	readonly pkceVerifierCiphertext: string;
@@ -20,6 +22,7 @@ export interface OAuthAttemptRecord {
 }
 
 export interface OAuthGrantRecord {
+	readonly provider?: AudiocomOAuthProviderBinding;
 	readonly id: string;
 	readonly user: AudiocomOAuthUser;
 	readonly accessTokenCiphertext: string;
@@ -40,6 +43,7 @@ export interface OAuthSessionRecord {
 }
 
 export interface OAuthGrantWrite {
+	readonly provider?: AudiocomOAuthProviderBinding;
 	readonly id: string;
 	readonly user: AudiocomOAuthUser;
 	readonly accessTokenCiphertext: string;
@@ -140,8 +144,8 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 	public async createAttempt(attempt: OAuthAttemptRecord): Promise<void> {
 		await this.#database.prepare(`
 			INSERT INTO audiocom_oauth_attempts (
-				id, state_hash, pkce_verifier_ciphertext, handoff_hash, client_kind, status, created_at, expires_at
-			) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+				id, state_hash, pkce_verifier_ciphertext, handoff_hash, client_kind, status, created_at, expires_at, provider_binding
+			) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
 		`).bind(
 			attempt.id,
 			attempt.stateHash,
@@ -150,13 +154,14 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 			attempt.clientKind,
 			attempt.createdAt,
 			attempt.expiresAt,
+			attempt.provider === undefined ? null : JSON.stringify(parseStoredProviderBinding(attempt.provider)),
 		).run();
 	}
 
 	public async findAttemptById(id: string): Promise<OAuthAttemptRecord | null> {
 		return attemptRecord(await this.reader.prepare(`
 			SELECT id, state_hash, pkce_verifier_ciphertext, handoff_hash, client_kind, status, grant_id, error_code,
-				session_token_hash, session_token_ciphertext, created_at, expires_at
+				session_token_hash, session_token_ciphertext, created_at, expires_at, provider_binding
 			FROM audiocom_oauth_attempts WHERE id = ?
 		`).bind(id).first());
 	}
@@ -164,7 +169,7 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 	public async findAttemptByStateHash(stateHash: string): Promise<OAuthAttemptRecord | null> {
 		return attemptRecord(await this.reader.prepare(`
 			SELECT id, state_hash, pkce_verifier_ciphertext, handoff_hash, client_kind, status, grant_id, error_code,
-				session_token_hash, session_token_ciphertext, created_at, expires_at
+				session_token_hash, session_token_ciphertext, created_at, expires_at, provider_binding
 			FROM audiocom_oauth_attempts WHERE state_hash = ?
 		`).bind(stateHash).first());
 	}
@@ -182,8 +187,8 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 			this.#database.prepare(`
 				INSERT INTO audiocom_oauth_grants (
 					id, audiocom_user_id, username, access_token_ciphertext, refresh_token_ciphertext,
-					access_expires_at, authorization_started_at, refresh_generation, created_at, updated_at
-				) SELECT ?, ?, ?, ?, ?, ?, a.created_at, 0, ?, ?
+					access_expires_at, authorization_started_at, refresh_generation, created_at, updated_at, provider_binding
+				) SELECT ?, ?, ?, ?, ?, ?, a.created_at, 0, ?, ?, ?
 				FROM audiocom_oauth_attempts a WHERE a.id = ? AND a.status = 'exchanging'
 				ON CONFLICT(audiocom_user_id) DO UPDATE SET
 					-- An opaque authorization ID replaces account identity: the public
@@ -191,6 +196,7 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 					username = excluded.username,
 					access_token_ciphertext = excluded.access_token_ciphertext,
 					refresh_token_ciphertext = excluded.refresh_token_ciphertext,
+					provider_binding = excluded.provider_binding,
 					access_expires_at = excluded.access_expires_at,
 					authorization_started_at = excluded.authorization_started_at,
 					refresh_generation = audiocom_oauth_grants.refresh_generation + 1,
@@ -207,6 +213,7 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 				grant.accessExpiresAt,
 				now,
 				now,
+				grant.provider === undefined ? null : JSON.stringify(parseStoredProviderBinding(grant.provider)),
 				id,
 			),
 			this.#database.prepare(`
@@ -266,7 +273,7 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 			SELECT s.token_hash, s.grant_id, s.client_kind, s.created_at AS session_created_at,
 				s.expires_at AS session_expires_at, g.audiocom_user_id, g.username,
 				g.access_token_ciphertext, g.refresh_token_ciphertext, g.access_expires_at,
-				g.refresh_generation, g.refresh_lease_owner, g.refresh_lease_expires_at
+				g.refresh_generation, g.refresh_lease_owner, g.refresh_lease_expires_at, g.provider_binding
 			FROM audiocom_oauth_sessions s
 			JOIN audiocom_oauth_grants g ON g.id = s.grant_id
 			WHERE s.token_hash = ? AND s.expires_at > ?
@@ -308,7 +315,7 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 		return grantRecord(await this.reader.prepare(`
 			SELECT id, audiocom_user_id, username, access_token_ciphertext,
 				refresh_token_ciphertext, access_expires_at, refresh_generation,
-				refresh_lease_owner, refresh_lease_expires_at
+				refresh_lease_owner, refresh_lease_expires_at, provider_binding
 			FROM audiocom_oauth_grants WHERE id = ?
 		`).bind(id).first());
 	}
@@ -367,7 +374,9 @@ export class D1AudiocomOAuthRepository implements AudiocomOAuthRepository {
 
 function attemptRecord(row: Record<string, unknown> | null): OAuthAttemptRecord | null {
 	if (row === null) return null;
+	const provider = parseStoredProviderBinding(row.provider_binding);
 	return {
+		...(provider === undefined ? {} : { provider }),
 		id: stringField(row, 'id'),
 		stateHash: stringField(row, 'state_hash'),
 		pkceVerifierCiphertext: stringField(row, 'pkce_verifier_ciphertext'),
@@ -385,7 +394,9 @@ function attemptRecord(row: Record<string, unknown> | null): OAuthAttemptRecord 
 
 function grantRecord(row: Record<string, unknown> | null): OAuthGrantRecord | null {
 	if (row === null) return null;
+	const provider = parseStoredProviderBinding(row.provider_binding);
 	return {
+		...(provider === undefined ? {} : { provider }),
 		id: stringField(row, 'id'),
 		user: {
 			id: stringField(row, 'audiocom_user_id'),
