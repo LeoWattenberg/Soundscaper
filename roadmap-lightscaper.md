@@ -770,6 +770,25 @@ before opening the editor; that broader legacy qualification remains deferred.
 L3–L6 exit gates remain in progress; L7–L9 and final inter-slice qualification
 remain pending.
 
+Current3 Develop qualification now includes nine bounded, seeded properties
+with 230 generated trials over native history, snapshots, undo/redo, selective
+sync, preset JSON and fragmented preset packs, colliding local identities,
+native preset reopening, malformed metadata and retained LUT/brush custody.
+A 50-case matrix covers every current adjustment family across its supported
+process versions, comparing repeated Photo proxy rendering, full resolution,
+lossless PNG export and the authenticated Frame adapter. Process3 independently
+checks original-space Clone ordering before each operation; source alpha
+includes zero, one, partial and opaque samples. Forty Current3 raster cases
+combine PNG/JPEG, five sizing modes, capture/strip metadata and sidecar off/on,
+with literal pixel/dimension expectations, delivered metadata and Sidecar2
+readback, unchanged originals and joined buffer retirement. The focused
+qualification passes 198 cases in 15 Lightscaper test files. Node JPEG encoder
+input is exact, but its controlled canvas returns structural bytes; the full
+native browser codec/settings matrix remains separate L5 qualification.
+The [Current conformance contract](docs/architecture/lightscaper-current-conformance.md)
+records the scope and limits. L3–L6 exit gates remain in progress; L7–L9 and
+final inter-slice qualification remain pending.
+
 ### Exit gate
 
 - New mask node kinds pass property tests and goldens and are authorable from
