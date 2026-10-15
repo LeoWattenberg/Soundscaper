@@ -95,3 +95,24 @@ test('native select-all before pending Amplify headroom completion replaces the 
 		expect((await read(page)).sameField).toBe(true);
 	} finally { await retain(page, info, checkpoints); }
 });
+
+test('native number selection without keydown before pending Amplify headroom replaces the draft with exactly six', async ({ page }, info) => {
+	const checkpoints: unknown[] = [];
+	const gain = await mount(page);
+	try {
+		await expect(gain).toHaveAttribute('type', 'number');
+		// Playwright's native number fill selects and focuses before insertText.
+		await gain.evaluate((input: HTMLInputElement) => { input.select(); input.focus(); });
+		await expect.poll(async () => (await read(page)).events.some(event => event.event === 'select')).toBe(true);
+		checkpoints.push({ stage: 'native-number-select-before-pcm', ...await read(page) });
+		await finishScan(page);
+		checkpoints.push({ stage: 'scan-completed-before-insert', ...await read(page) });
+		await page.keyboard.insertText('6');
+		await gain.blur();
+		checkpoints.push({ stage: 'native-insert-and-blur', ...await read(page) });
+		expect((await read(page)).events.filter(event => event.event === 'keydown')).toEqual([]);
+		await expect(gain).toHaveValue('6');
+		await expect.poll(async () => (await read(page)).gainDb).toBe(6);
+		expect((await read(page)).sameField).toBe(true);
+	} finally { await retain(page, info, checkpoints); }
+});
