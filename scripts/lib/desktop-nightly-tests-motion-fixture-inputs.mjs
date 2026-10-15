@@ -23,6 +23,7 @@ export const NIGHTLY_MOTION_FIXTURE_INPUTS = Object.freeze([
 	'tests/helpers/motionscaper-ae-scene-fixture.ts',
 	'tests/helpers/motionscaper-ae-shape-fixture.ts',
 	'tests/helpers/motionscaper-ae-text-fixture.ts',
+	'tests/helpers/motionscaper-concurrent-export-fixture.ts',
 	'tests/helpers/motionscaper-mixed-preview-fixture.ts',
 	'tests/helpers/motionscaper-opaque-archive.ts',
 	'tests/helpers/motionscaper-successor-native-fixture.ts',
