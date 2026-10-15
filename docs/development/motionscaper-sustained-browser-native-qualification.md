@@ -261,3 +261,41 @@ receipt is written unless both durations, every phase and cleanup pass.
 These gates qualify only this Chromium/Linux software-rendered project at these
 two durations. Maximum geometry, maximum duration, concurrent jobs, macOS,
 Windows, hardware acceleration and installed After Effects remain outside it.
+
+## Separate native maximum-workload checks
+
+`scripts/motionscaper-maximum-native-smoke.mjs` drives four distinct installed
+Linux software profiles through the production menus and native encoder. They
+do not replace or reinterpret the fixed 300/1,200-frame policy above:
+
+| Profile | Authored boundary | Observation deadline |
+| --- | --- | ---: |
+| Index | 32,768 pictures at 16×16, 30 fps, with 52,428,800 stereo PCM sample frames | 1,800 seconds |
+| Quality | 64 shutter ×64 lens samples, real lighting/shadows, two 64×64 pictures | 600 seconds |
+| Planes | 64 contributing translucent depth planes at 1,024×1,024 | 600 seconds |
+| Lights | 32 positive shadow lights at 32×32 | 600 seconds |
+
+The index case exercises the public 32,769-frame refusal before physical
+destination creation, partial-upload cancellation and same-revision retry.
+Early refusal/cancellation has custody checks; sampled memory claims cover
+selected previews and full publication/retry. Cadence, maximum sample gap and
+absolute memory limits reuse the fixed policy unchanged. Index retention
+compares frames 120–180 with the final 60-frame window of this one render,
+requiring at least three genuine captures per window. The respective
+RSS/PSS/JS-heap/WASM growth limits remain 128/64/64/32 MiB. This is a separate
+within-render comparison, not the fixed short-versus-long duration comparison.
+
+The separate compiled reference decoder checks every timestamp and streams all
+PCM through the independent sample/channel oracle. It retains only selected
+float pictures (first/middle/last for index). The 512 MiB output admission, 64 KiB read
+windows and original native color/alpha bounds stay unchanged. Qualification
+process memory remains excluded from application memory. Refusal controls cover
+the combined quality-work budget, 65 planes and 33 lights before raster
+acquisition; those controls are not installed-app maximum-case passes.
+
+The first installed runs passed the quality, planes and lights cases. Index
+publication completed, but its PSS growth exceeded the unchanged 64 MiB limit.
+A later file-only check passed the preserved movie's timestamps, exact PCM and
+selected pictures. That check does not change the failed memory outcome.
+Exact sources, receipts and scope are recorded in the
+[final integration status](motionscaper-final-integration-validation.md).

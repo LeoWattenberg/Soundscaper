@@ -117,10 +117,23 @@ diagnostics passed with original assertions and timeouts; they did not reproduce
 or explain the earlier meter, spectral-menu, EQ and timeline failures.
 A separate single-run diagnostic again exceeded the same RSS ceiling, by
 9,338,880 bytes. Its later snapshot retained all 16 process records, with 12 CDP
-roles identified; it does not establish the allocation cause. Maximum-workload
-fixtures, independent oracles and a bounded native driver are committed on an
-auxiliary branch (`a4e851dc3`), with 17 focused checks passing. Installed maximum
-workloads remain unexecuted at this checkpoint.
+roles identified; it does not establish the allocation cause.
+Preview audio now opens its default AudioContext on Play (`d78e8401c`), avoiding
+an eager output allocation when opening or seeking the visual preview. All
+1,131 Motion Node cases and 15 focused browser cases across the three engines
+pass on that source. Its fresh unchanged-limit duration run completed the entire
+300-frame preview/PNG/WebM/cancel/retry workflow, then failed during the
+1,200-frame preview: RSS exceeded 2 GiB by 1,724,416 bytes. Long exports and the
+duration-tail comparison were not reached; the browser gate remains failed.
+Maximum-workload fixtures, independent oracles and the bounded native driver
+(`a4e851dc3`) are integrated as `2978ab0cc`. Installed source `322c8a6b1` passed
+64×64 shutter/lens sampling, 64 contributing planes and 32 lights. The
+32,768-frame export completed but failed its unchanged 64 MiB PSS-growth limit
+by 3,879,424 bytes. Separate file-only verification passed every timestamp,
+all 52,428,800 stereo PCM sample frames and selected pictures of that retained
+movie; it does not clear the memory failure. Two Conform diagnostic runs passed
+the original workflow without reproducing its historical 15-second failure;
+the second retained all 25 activation-phase pairs. No activation fix is claimed.
 The current fixed Linux native-duration profile passed both 300 and 1,200 frames,
 including preview/ProRes, upload/encoder cancellation and retry, independent
 picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
