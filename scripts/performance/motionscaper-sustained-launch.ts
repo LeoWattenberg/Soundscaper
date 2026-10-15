@@ -9,9 +9,15 @@ import { readMotionProcessIdentity, sampleMotionOwnedProcesses } from './motions
 import type { MotionProcessIdentity } from './motionscaper-sustained-process.ts';
 import { shutdownMotionSustainedApplication } from './motionscaper-sustained-shutdown.ts';
 
-export async function motionSustainedIdentityAlive(identity: MotionProcessIdentity): Promise<boolean> {
-	try { return (await readMotionProcessIdentity(identity.pid)).startTicks === identity.startTicks; }
-	catch (error) { if (error && typeof error === 'object' && Reflect.get(error, 'code') === 'ENOENT') return false; throw error; }
+export async function motionSustainedIdentityAlive(identity: MotionProcessIdentity,
+	readIdentity: typeof readMotionProcessIdentity = readMotionProcessIdentity): Promise<boolean> {
+	try { return (await readIdentity(identity.pid)).startTicks === identity.startTicks; }
+	catch (error) {
+		const code: unknown = error && typeof error === 'object' ? Reflect.get(error, 'code') : null;
+		// Linux can report ESRCH when the task vanishes after its /proc entry was opened.
+		if (code === 'ENOENT' || code === 'ESRCH') return false;
+		throw error;
+	}
 }
 export async function waitMotionSustainedGone(identities: readonly MotionProcessIdentity[]): Promise<void> {
 	const deadline = performance.now() + 10000;
