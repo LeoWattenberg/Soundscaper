@@ -17,7 +17,8 @@ advertises whole-file AUP3/AUP4 archive storage.
 2. Configure Pages secrets `AUDIOCOM_CLIENT_ID` and `AUDIOCOM_OAUTH_MASTER_KEY`.
    The latter is `v1:` followed by the unpadded base64url encoding of 32 random
    bytes. Configure `AUDIOCOM_CLIENT_SECRET` only for a confidential registration
-   using `client_secret_post`. The browser never receives these secrets.
+   using `client_secret_post`. The master key and optional client secret remain
+   server-side; the public client ID appears in the authorization URL.
 3. Apply `migrations/freesound-oauth/0002_audiocom.sql` to the existing
    `FREESOUND_OAUTH_DB` binding. audio.com uses separate `audiocom_oauth_*` tables;
    it does not reuse Freesound grants or encryption keys. Both migrations can be
@@ -190,7 +191,19 @@ The audio.com provider does not call Audacity's private project-sync endpoints.
 Audiocity archive support uses its explicit whole-file extension, separately from
 its native block synchronization transport.
 
-Provider-account OAuth, upload policy destinations, hook authorization, account
-quotas, and processing completion still require an authenticated staging smoke
-test with the deployed registered application; unit/browser fixtures do not
-claim a successful live upload.
+The registered PR preview passed an authenticated audio.com smoke test on
+2026-10-15: OAuth consent and polling, panel search, ranged playback, a two-second
+unlisted WAV upload from the panel, processing completion, playback of the
+processed upload, provider deletion, and application disconnect. The live upload
+policy uses the Wasabi source destination above. audio.com returns a one-year
+access-token lifetime; the application accepts it and refreshes within seven days.
+This smoke test does not qualify account quota failures, concurrency, or production
+rate limiting. Production still requires its own registration and configuration.
+
+A separate, manually authorized experiment also completed native Audacity
+metadata and WavPack block synchronization against audio.com, downloaded the
+result, reconstructed an AUP3 file, and removed the test project. This is not the
+whole-file archive transport exposed by the panel. See the
+[native project-sync investigation](../../../docs/research/audio-com-project-sync.md)
+for the token-scope distinction, wire format, verified results, and remaining
+adapter work. Ordinary panel sign-in continues to request only `public`.

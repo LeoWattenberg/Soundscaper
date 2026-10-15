@@ -20,7 +20,7 @@ test('OAuth operator diagnostics report rejected status without logging provider
 
 test('valid long-lived bearer responses refresh within the application limit and accept case-insensitive token types', () => {
 	for (const token_type of ['Bearer', 'bearer', 'BEARER']) {
-		const pair = normalizeTokenPair({ token_type, access_token: 'access', refresh_token: 'refresh', expires_in: 2_592_000, scope: 'public' });
+		const pair = normalizeTokenPair({ token_type, access_token: 'access', refresh_token: 'refresh', expires_in: 31_536_000, scope: 'public' });
 		assert.equal(pair.expiresInSeconds, 604_800);
 	}
 });

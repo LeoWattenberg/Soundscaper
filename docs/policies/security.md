@@ -907,18 +907,19 @@ snapshots and automatic serialization of the open project are excluded. Backend
 and desktop tests prove state replay and handoff rejection, encrypted PKCE and
 token confinement, refresh fencing, session transport admission, fixed
 destinations, exact upload byte checks, cancellation cleanup, range handling,
-and bounded response failure; they do not establish live audio.com upload
-success. A separate disposable local integration harness exercises real Pages
-Functions and D1, an Audiocity server, cross-origin PKCE consent, audio
-search/upload/range playback, and whole-file archive upload/download followed by
-the existing editor importer.
+and bounded response failure; fixtures alone do not establish live audio.com
+upload success. A registered preview smoke test on 2026-10-15 separately
+confirmed browser consent and polling, panel search, ranged playback, an
+unlisted two-second WAV upload through processing completion and playback,
+provider deletion, and application disconnect; it does not qualify account quota
+failures or production abuse controls. A separate disposable local integration
+harness exercises real Pages Functions and D1, an Audiocity server, cross-origin
+PKCE consent, audio search/upload/range playback, and whole-file archive
+upload/download followed by the existing editor importer.
 <!-- /policy-narrative:bounded-audiocom-oauth-media-proxy -->
 
-Deployment abuse limits and a registered-application live upload smoke test,
-streamed-body lifetime bounds, indeterminate non-idempotent upload outcomes,
-and best-effort cancellation cleanup remain open. The
-[control register](../../config/production-security-matrix.json) records the
-required controls and acceptance criteria in
+The [control register](../../config/production-security-matrix.json) records
+the remaining deployment and media lifecycle controls and acceptance criteria in
 `audiocom-deployment-and-live-provider-proof` and
 `audiocom-media-transfer-lifecycle`.
 
