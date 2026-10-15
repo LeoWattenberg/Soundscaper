@@ -68,15 +68,18 @@ export async function handleOAuthEndpoint(
 
 export function assertAllowedHost(url: URL, env: AudiocomOAuthEnv): void {
 	const production = url.protocol === 'https:' && url.hostname === 'soundscaper.org' && url.port === '';
-	const preview = url.protocol === 'https:'
-		&& (url.hostname === 'soundscaper.pages.dev' || url.hostname.endsWith('.soundscaper.pages.dev'))
-		&& url.port === '';
+	const preview = isSoundscaperPreviewUrl(url);
 	const local = env.AUDIOCOM_LOCAL_DEVELOPMENT === '1'
 		&& url.protocol === 'http:'
 		&& (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
 	if (!production && !preview && !local) {
 		throw new OAuthHttpError(404, 'not_found', 'The requested route was not found.');
 	}
+}
+
+export function isSoundscaperPreviewUrl(url: URL): boolean {
+	return url.protocol === 'https:' && url.port === ''
+		&& /^(?:[a-z0-9-]+\.)?soundscaper-5ki\.pages\.dev$/u.test(url.hostname);
 }
 
 export function allowedCorsOrigin(request: Request): string | null {

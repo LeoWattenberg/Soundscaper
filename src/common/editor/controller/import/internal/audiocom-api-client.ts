@@ -105,8 +105,17 @@ export function assertAudiocomAuthorizationUrl(value: string, location?: Pick<Lo
 	const redirect = url.searchParams.get('redirect_uri');
 	const local = location && /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/u.test(location.origin)
 		? `${location.origin}${PREFIX}oauth/callback` : null;
-	if (redirect !== `https://soundscaper.org${PREFIX}oauth/callback` && redirect !== local) throw new Error('Invalid audio.com authorization callback.');
+	const preview = location && isPreviewOrigin(location.origin);
+	const previewCallback = redirect ? new URL(redirect) : null;
+	const validPreview = preview && previewCallback && isPreviewOrigin(previewCallback.origin)
+		&& !previewCallback.username && !previewCallback.password && !previewCallback.search && !previewCallback.hash
+		&& previewCallback.pathname === `${PREFIX}oauth/callback`;
+	if (preview ? !validPreview : redirect !== `https://soundscaper.org${PREFIX}oauth/callback` && redirect !== local) throw new Error('Invalid audio.com authorization callback.');
 	return url.href;
+}
+
+function isPreviewOrigin(origin: string): boolean {
+	return /^https:\/\/(?:[a-z0-9-]+\.)?soundscaper-5ki\.pages\.dev$/u.test(origin);
 }
 
 function reserveAuthorization(desktop: boolean, location: Pick<Location, 'origin' | 'protocol'> | undefined, provider: () => AudiocomProvider): AudiocomAuthorizationReservation {

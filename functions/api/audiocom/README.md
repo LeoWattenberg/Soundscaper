@@ -24,11 +24,43 @@ advertises whole-file AUP3/AUP4 archive storage.
    applied with `npx wrangler d1 migrations apply FREESOUND_OAUTH_DB --remote`.
 4. The optional `AUDIOCOM_OAUTH_REDIRECT_URI` must have the exact callback path
    above on `https://soundscaper.org` (no query, fragment, credentials or port).
-   `AUDIOCOM_LOCAL_DEVELOPMENT=1` admits loopback HTTP for local tests. Sign-in
-   starts are disabled on Pages preview hosts.
+   `AUDIOCOM_LOCAL_DEVELOPMENT=1` admits same-origin loopback HTTP for local tests.
 
 No production application registration, schema migration, remote upload, or
 deployment is performed automatically by the integration.
+
+### PR previews
+
+The Pages project is `soundscaper`, with hostname `soundscaper-5ki.pages.dev`.
+Its preview environment uses the separate `soundscaper-audiocom-preview` D1
+database configured in `wrangler.jsonc`; production keeps its existing binding.
+Apply both migrations to preview with:
+
+```sh
+npx wrangler d1 migrations apply FREESOUND_OAUTH_DB --remote --env preview
+```
+
+Preview sign-in requires an explicitly configured, registered callback on this
+Pages project. The current preview client is registered for
+`https://feat-audio-com-integration.soundscaper-5ki.pages.dev/api/audiocom/oauth/callback`.
+Its client ID, independent encryption key, and exact redirect URI are stored as
+`AUDIOCOM_CLIENT_ID`, `AUDIOCOM_OAUTH_MASTER_KEY`, and
+`AUDIOCOM_OAUTH_REDIRECT_URI` in the Pages **preview** secret store. Secrets and
+registration responses must never be committed. An administrator can register a
+public client at `/auth/client` with `token_endpoint_auth_method: "none"`,
+`scope: "public"`, and the exact `redirect_uris`, then provision these secrets
+with `npx wrangler pages secret bulk <protected-json-file> --project-name
+soundscaper --env preview`.
+
+Cloudflare deploys this repository's PR branches automatically. Both immutable
+deployment URLs and branch aliases can initiate authorization; the provider
+returns to the stable registered branch callback. The original editor polls its
+own origin and receives a host-only session cookie there. Preview starts without
+an explicit preview callback, callbacks on other Pages projects, and production
+callbacks from previews are rejected. The callback deployment and originating
+deployment must use the same preview database, key, and client registration.
+Changing the configured branch callback requires registering the new exact URI
+and redeploying. These preview credentials do not configure production OAuth.
 
 ## Validate against Audiocity locally
 

@@ -5,11 +5,12 @@ import { configuredSecret, OAuthHttpError, readUpstreamJson, type AudiocomOAuthF
 import type { OAuthHandlerDependencies } from './oauth-handlers.ts';
 import type { OAuthGrantRecord } from './oauth-repository.ts';
 import { providerConfiguration } from './provider-config.ts';
+import { oauthRedirectUri } from './oauth-application.ts';
 
 export async function exchangeAuthorizationCode(context: AudiocomOAuthFunctionContext, code: string, verifier: string, dependencies: OAuthHandlerDependencies): Promise<AudiocomTokenPair> {
 	return tokenRequest(context, {
 		grant_type: 'authorization_code', code, code_verifier: verifier,
-		redirect_uri: context.env.AUDIOCOM_OAUTH_REDIRECT_URI?.trim() || new URL('/api/audiocom/oauth/callback', context.request.url).href,
+		redirect_uri: oauthRedirectUri(context),
 	}, dependencies);
 }
 export async function refreshAccessToken(context: AudiocomOAuthFunctionContext, grant: OAuthGrantRecord, masterKey: string, dependencies: OAuthHandlerDependencies): Promise<AudiocomTokenPair> {

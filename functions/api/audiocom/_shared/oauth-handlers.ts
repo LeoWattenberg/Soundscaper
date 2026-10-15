@@ -32,6 +32,7 @@ import {
 } from './oauth-repository.ts';
 
 import { providerConfiguration } from './provider-config.ts';
+import { oauthRedirectUri } from './oauth-application.ts';
 
 export interface OAuthHandlerDependencies {
 	readonly repository?: AudiocomOAuthRepository;
@@ -57,7 +58,7 @@ export async function handleAudiocomOAuthStartRequest(
 	dependencies: OAuthHandlerDependencies = {},
 ): Promise<Response> {
 	return handleOAuthEndpoint(context, ['POST'], async (admission) => {
-		assertOAuthStartEnvironment(context);
+		const redirectUri = oauthRedirectUri(context);
 		const input = parseOAuthStartInput(await readJsonBody(context.request));
 		assertClientOrigin(input.client, admission.corsOrigin);
 		const clientId = configuredSecret(context.env.AUDIOCOM_CLIENT_ID, 'OAuth client');
@@ -90,7 +91,7 @@ export async function handleAudiocomOAuthStartRequest(
 		authorizeUrl.searchParams.set('scope', providerConfiguration(context.env).scope);
 		authorizeUrl.searchParams.set('code_challenge_method', 'S256');
 		authorizeUrl.searchParams.set('code_challenge', await hashCapability(verifier));
-		authorizeUrl.searchParams.set('redirect_uri', oauthRedirectUri(context));
+		authorizeUrl.searchParams.set('redirect_uri', redirectUri);
 		return oauthJson({ data: {
 			attemptId,
 			handoffToken,
@@ -108,6 +109,9 @@ export async function handleAudiocomOAuthCallbackRequest(
 		assertAllowedHost(new URL(context.request.url), context.env);
 		if (context.request.method !== 'GET') {
 			throw new OAuthHttpError(405, 'method_not_allowed', 'The request method is not supported.', { Allow: 'GET' });
+		}
+		if (new URL(context.request.url).origin !== new URL(oauthRedirectUri(context)).origin) {
+			throw new OAuthHttpError(400, 'invalid_callback', 'The audio.com authorization callback origin is invalid.');
 		}
 		const query = new URL(context.request.url).searchParams;
 		for (const key of query.keys()) {
@@ -377,17 +381,6 @@ function assertClientOrigin(client: 'web' | 'desktop', corsOrigin: string | null
 	}
 }
 
-function assertOAuthStartEnvironment(context: AudiocomOAuthFunctionContext): void {
-	const url = new URL(context.request.url);
-	const production = url.protocol === 'https:' && url.hostname === 'soundscaper.org' && url.port === '';
-	const local = context.env.AUDIOCOM_LOCAL_DEVELOPMENT === '1'
-		&& url.protocol === 'http:'
-		&& (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
-	if (!production && !local) {
-		throw new OAuthHttpError(503, 'oauth_unavailable_in_preview', 'Audiocom sign-in is unavailable in previews.');
-	}
-}
-
 function nowFrom(dependencies: OAuthHandlerDependencies): number {
 	const now = dependencies.now?.() ?? Date.now();
 	if (!Number.isSafeInteger(now) || now < 0) throw new TypeError('The OAuth clock returned an invalid value.');
@@ -396,28 +389,6 @@ function nowFrom(dependencies: OAuthHandlerDependencies): number {
 
 function oauthMasterKey(context: AudiocomOAuthFunctionContext): string {
 	return configuredSecret(context.env.AUDIOCOM_OAUTH_MASTER_KEY, 'encryption key');
-}
-
-function oauthRedirectUri(context: AudiocomOAuthFunctionContext): string {
-	const configured = context.env.AUDIOCOM_OAUTH_REDIRECT_URI?.trim();
-	const candidate = configured === undefined || configured === ''
-		? new URL('/api/audiocom/oauth/callback', context.request.url).href
-		: configured;
-	let url: URL;
-	try {
-		url = new URL(candidate);
-	} catch {
-		throw new OAuthHttpError(503, 'service_unavailable', 'Audiocom OAuth redirect is not configured.');
-	}
-	const local = context.env.AUDIOCOM_LOCAL_DEVELOPMENT === '1'
-		&& url.protocol === 'http:'
-		&& (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
-	if ((!local && (url.protocol !== 'https:' || url.hostname !== 'soundscaper.org'))
-		|| (!local && url.port !== '') || url.username !== '' || url.password !== '' || url.hash !== '' || url.search !== ''
-		|| url.pathname !== '/api/audiocom/oauth/callback') {
-		throw new OAuthHttpError(503, 'service_unavailable', 'Audiocom OAuth redirect is not configured.');
-	}
-	return url.href;
 }
 
 function callbackValue(value: string | null, label: string, maximumLength: number): string {

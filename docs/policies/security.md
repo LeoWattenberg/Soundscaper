@@ -854,14 +854,18 @@ outcome can create another pending Freesound upload.
 `authenticated-client-to-audiocom-proxy` boundary.
 
 <!-- policy-narrative:bounded-audiocom-oauth-media-proxy -->
-The audio.com Pages namespace admits only canonical production, Pages, or
-explicitly enabled loopback hosts; trusted Soundscaper web, desktop, or current
-same-origin browser Origins; closed methods, bounded JSON, search parameters,
-upload metadata, and session transports. Mutations reject cross-site fetch
-metadata; CORS is not client authentication. OAuth uses ten-minute random state
-and handoff capabilities, single-use state exchange, and PKCE S256 with an
-encrypted verifier; the default https://api.audio.com token/API targets disable
-redirects and apply ten-second control-request deadlines. An explicit
+The audio.com Pages namespace admits only canonical production, the owned
+soundscaper-5ki.pages.dev project, or explicitly enabled loopback hosts; trusted
+Soundscaper web, desktop, or current same-origin browser Origins; closed
+methods, bounded JSON, search parameters, upload metadata, and session
+transports. Mutations reject cross-site fetch metadata; CORS is not client
+authentication. OAuth uses ten-minute random state and handoff capabilities,
+single-use state exchange, and PKCE S256 with an encrypted verifier. Preview
+sign-in requires an explicit registered callback on that same Pages project,
+isolated preview D1 and secrets, and a callback-origin check; the original
+editor polls on its own host and receives a host-only cookie. Production cannot
+use a preview callback; the default https://api.audio.com token/API targets
+disable redirects and apply ten-second control-request deadlines. An explicit
 administrator-configured Audiocity provider pins one API, authorization and
 website origin; HTTP is restricted to enabled loopback development. OAuth
 requests public projects only for Audiocity, and origin-bound attempt

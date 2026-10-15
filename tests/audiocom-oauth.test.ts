@@ -67,7 +67,7 @@ test('audio.com refuses foreign mutation origins and preview sign-in', async () 
 	const repository = new MemoryAudiocomOAuthRepository();
 	const foreign = new Request('https://soundscaper.org/api/audiocom/oauth/start', { method: 'POST', headers: { Origin: 'https://evil.test', 'Content-Type': 'application/json' }, body: '{"client":"web"}' });
 	assert.equal((await handleAudiocomOAuthStartRequest(context(foreign), { repository })).status, 403);
-	const preview = new Request('https://preview.soundscaper.pages.dev/api/audiocom/oauth/start', { method: 'POST', headers: { Origin: 'https://preview.soundscaper.pages.dev', 'Content-Type': 'application/json' }, body: '{"client":"web"}' });
+	const preview = new Request('https://preview.soundscaper-5ki.pages.dev/api/audiocom/oauth/start', { method: 'POST', headers: { Origin: 'https://preview.soundscaper-5ki.pages.dev', 'Content-Type': 'application/json' }, body: '{"client":"web"}' });
 	assert.equal((await handleAudiocomOAuthStartRequest(context(preview), { repository })).status, 503);
 });
 test('audio.com pending attempts require the matching handoff secret', async () => {
