@@ -25,7 +25,12 @@ export default function MotionPlaneEditor({ copy, geometry, bounds, selected, di
 	};
 	const finish = (cancelled: boolean) => { const active = drag.current; drag.current = null; onPreview(null); if (active?.changed && !cancelled) onCommit(active.point.id, active.value); };
 	const keyboard = (event: KeyboardEvent<SVGCircleElement>, point: MotionPlanePoint) => {
-		if (disabled || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+		if (disabled) return;
+		if (event.key === 'Enter' || event.key === ' ') {
+			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
+			event.preventDefault(); if (!event.repeat) onSelect(point.id); return;
+		}
+		if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
 		event.preventDefault(); const amount = event.shiftKey ? 10 : 1; onSelect(point.id);
 		onCommit(point.id, [point.point[0] + (event.key === 'ArrowLeft' ? -amount : event.key === 'ArrowRight' ? amount : 0), point.point[1] + (event.key === 'ArrowUp' ? -amount : event.key === 'ArrowDown' ? amount : 0)]);
 	};

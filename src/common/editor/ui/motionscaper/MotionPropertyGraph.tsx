@@ -46,7 +46,12 @@ export default function MotionPropertyGraph({ copy, property, channel, duration,
 		onCommit(() => { if (active.error) throw active.error; if (!active.result) throw new Error('The graph edit is unavailable.'); return active.result; });
 	};
 	const keyboard = (event: KeyboardEvent<SVGCircleElement>, target: Target) => {
-		if (disabled || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+		if (disabled) return;
+		if (target.kind === 'key' && (event.key === 'Enter' || event.key === ' ')) {
+			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
+			event.preventDefault(); if (!event.repeat) onSelect([target.from]); return;
+		}
+		if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
 		event.preventDefault(); const amount = event.shiftKey ? 10 : 1;
 		onCommit(() => apply(target, graphNumber(target.from) + (event.key === 'ArrowLeft' ? -amount : event.key === 'ArrowRight' ? amount : 0), target.value + (event.key === 'ArrowUp' ? amount : event.key === 'ArrowDown' ? -amount : 0)));
 	};
