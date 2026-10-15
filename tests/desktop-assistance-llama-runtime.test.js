@@ -56,16 +56,20 @@ test('the completion patch honors disabled reasoning and keeps status text out o
 	assert.throws(() => patchLlamaCppCompletion(`${source}\n${source}`), /exact source/u);
 });
 
-test('llama packaging builds a static CPU completion helper without optional downloads', () => {
+test('llama packaging embeds Metal on macOS and keeps static CPU fallback without optional downloads', () => {
 	for (const [targetId, platform, architecture] of [
 		['linux-x64', 'linux', 'x64'], ['linux-arm64', 'linux', 'arm64'],
 		['mac-arm64', 'darwin', 'arm64'], ['win-x64', 'win32', 'x64'], ['win-arm64', 'win32', 'x64'],
 	]) {
 		const plan = desktopLlamaCppBuildPlan({ targetId, platform, architecture });
+		assert.deepEqual(plan.executionProviders, platform === 'darwin' ? ['metal', 'cpu'] : ['cpu']);
+		assert.ok(plan.configureArgs.includes(`-DGGML_METAL=${platform === 'darwin' ? 'ON' : 'OFF'}`));
+		assert.equal(plan.configureArgs.includes('-DGGML_METAL_EMBED_LIBRARY=ON'), platform === 'darwin');
+		assert.equal(plan.configureArgs.filter((flag) => flag.startsWith('-DGGML_METAL=')).length, 1);
 		assert.equal(plan.target, 'llama-completion');
 		assert.equal(plan.executable, `llama-completion${platform === 'win32' ? '.exe' : ''}`);
 		for (const flag of ['BUILD_SHARED_LIBS', 'GGML_NATIVE', 'GGML_BACKEND_DL', 'GGML_OPENMP',
-			'GGML_CUDA', 'GGML_METAL', 'GGML_ACCELERATE', 'GGML_BLAS', 'GGML_CPU_HBM',
+			'GGML_CUDA', 'GGML_VULKAN', 'GGML_ACCELERATE', 'GGML_BLAS', 'GGML_CPU_HBM',
 			'GGML_CPU_ALL_VARIANTS', 'LLAMA_OPENSSL', 'LLAMA_SUBPROCESS',
 			'LLAMA_BUILD_SERVER', 'LLAMA_BUILD_UI', 'LLAMA_USE_PREBUILT_UI', 'LLAMA_LLGUIDANCE']) {
 			assert.ok(plan.configureArgs.includes(`-D${flag}=OFF`), `${targetId}: ${flag}`);

@@ -95,7 +95,8 @@ export async function stageDesktopWhisperCppRuntime({
 		const { archived: archivedCompiler, buildReceipt: buildCompiler } = whisperCompilerProvenance(compiler, platform);
 		const notices = await desktopWhisperCppNotices({ sourceRoot: source, platform, compiler });
 		const provenance = {
-			schemaVersion: 1, recipeId: 'whisper-cpp-cpu-package-build-v1', targetId,
+			schemaVersion: 1, recipeId: platform === 'darwin' ? 'whisper-cpp-metal-package-build-v1' : 'whisper-cpp-cpu-package-build-v1',
+			targetId, executionProviders: plan.executionProviders,
 			source: { url: SOURCE_URL, commit: COMMIT, sha256: SOURCE_SHA256 },
 			cmakeVersion, compiler: archivedCompiler, sourceDateEpoch: Number(environment.SOURCE_DATE_EPOCH),
 			configureArgs: plan.configureArgs,
@@ -125,14 +126,15 @@ export async function stageDesktopWhisperCppRuntime({
 			const bytes = await readFile(join(targetRoot, path));
 			return { path, byteLength: bytes.byteLength, sha256: hash(bytes), executable: path === plan.executable };
 		}));
-		const target = { id: targetId, status: 'authenticated', entrypoint: plan.executable, files };
+		const target = { id: targetId, status: 'authenticated', entrypoint: plan.executable,
+			executionProviders: plan.executionProviders, files };
 		return {
 			manifest: {
 				schemaVersion: 1, familyId: 'whisper-cpp', runtimeVersion: VERSION,
 				source: { url: `https://github.com/ggml-org/whisper.cpp/releases/tag/${VERSION}`, revision: VERSION },
 				executionProvider: 'cpu', runtimePrefix: `assistance/whisper-cpp/${VERSION}`,
 				targets: TARGETS.map((id) => id === targetId ? target : {
-					id, status: 'package-generated', packageBehavior: 'The CPU runtime is compiled and verified by its own target package build.',
+					id, status: 'package-generated', packageBehavior: 'The runtime and its available execution providers are compiled and verified by its own target package build.',
 				}),
 			},
 			summary: { familyId: 'whisper-cpp', targetId, runtimeVersion: VERSION, provenance, buildCompiler,
@@ -160,15 +162,20 @@ export function desktopWhisperCppBuildPlan({ targetId, platform, architecture })
 		throw new Error('Whisper requires a native package runner or the Windows ARM64 CMake target.');
 	}
 	const configureArgs = ['-DCMAKE_BUILD_TYPE=Release', '-DWHISPER_BUILD_EXAMPLES=ON',
-		...DISABLED_OPTIONS.map((name) => `-D${name}=OFF`)];
+		...DISABLED_OPTIONS.filter((name) => platform !== 'darwin' || name !== 'GGML_METAL')
+			.map((name) => `-D${name}=OFF`)];
 	if (platform === 'win32') configureArgs.push('-A', targetId === 'win-arm64' ? 'ARM64' : 'x64',
 		'-DCMAKE_POLICY_DEFAULT_CMP0091=NEW', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DCMAKE_EXE_LINKER_FLAGS=/Brepro',
 		'-DCMAKE_C_FLAGS=/Brepro', '-DCMAKE_CXX_FLAGS=/Brepro /EHsc');
 	// ggml rejects MSVC on ARM; ClangCL uses the same Windows SDK and static CRT.
 	if (targetId === 'win-arm64') configureArgs.push('-T', 'ClangCL');
-	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64');
+	// Embed ggml's Metal shader source in the authenticated executable; no writable
+	// adjacent shader library or external GPU runtime is needed. The CPU backend stays linked.
+	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64',
+		'-DGGML_METAL=ON', '-DGGML_METAL_EMBED_LIBRARY=ON');
+	const executionProviders = platform === 'darwin' ? ['metal', 'cpu'] : ['cpu'];
 	if (platform === 'linux') configureArgs.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++');
-	return { targetId, executable: platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli', configureArgs };
+	return { targetId, executionProviders, executable: platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli', configureArgs };
 }
 
 async function authenticatedArchive(cache) {

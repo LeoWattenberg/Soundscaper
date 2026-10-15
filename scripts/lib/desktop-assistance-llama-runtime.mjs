@@ -43,14 +43,19 @@ export function desktopLlamaCppBuildPlan({ targetId, platform, architecture }) {
 	}
 	const configureArgs = ['-DCMAKE_BUILD_TYPE=Release', '-DLLAMA_BUILD_COMMON=ON', '-DLLAMA_BUILD_TOOLS=ON',
 		'-DLLAMA_BUILD_NUMBER=10509', `-DLLAMA_BUILD_COMMIT=${COMMIT}`,
-		...DISABLED_OPTIONS.map((name) => `-D${name}=OFF`)];
+		...DISABLED_OPTIONS.filter((name) => platform !== 'darwin' || name !== 'GGML_METAL')
+			.map((name) => `-D${name}=OFF`)];
 	if (platform === 'win32') configureArgs.push('-A', targetId === 'win-arm64' ? 'ARM64' : 'x64',
 		'-DCMAKE_POLICY_DEFAULT_CMP0091=NEW', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded',
 		'-DCMAKE_EXE_LINKER_FLAGS=/Brepro', '-DCMAKE_C_FLAGS=/Brepro', '-DCMAKE_CXX_FLAGS=/Brepro /EHsc');
 	if (targetId === 'win-arm64') configureArgs.push('-T', 'ClangCL');
-	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64');
+	// Embed ggml's Metal shader source in the authenticated executable; no writable
+	// adjacent shader library or external GPU runtime is needed. The CPU backend stays linked.
+	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64',
+		'-DGGML_METAL=ON', '-DGGML_METAL_EMBED_LIBRARY=ON');
+	const executionProviders = platform === 'darwin' ? ['metal', 'cpu'] : ['cpu'];
 	if (platform === 'linux') configureArgs.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++');
-	return { targetId, target: 'llama-completion', executable: platform === 'win32' ? 'llama-completion.exe' : 'llama-completion', configureArgs };
+	return { targetId, executionProviders, target: 'llama-completion', executable: platform === 'win32' ? 'llama-completion.exe' : 'llama-completion', configureArgs };
 }
 
 export async function createLlamaBuildWorkDirectory({ cacheRoot, targetId, platform = process.platform }) {
@@ -75,7 +80,7 @@ export function llamaCompilerProvenance(compiler, platform) {
 	return { archived: { ...compiler, version }, buildReceipt: compiler };
 }
 
-/** Compile authenticated CPU source, then bind the actual executable and notices. */
+/** Compile authenticated source with target backends, then bind the executable and notices. */
 export async function stageDesktopLlamaCppRuntime({
 	targetId, runtimeRoot, cacheRoot, platform = process.platform, architecture = process.arch,
 }) {
@@ -107,7 +112,8 @@ export async function stageDesktopLlamaCppRuntime({
 		const { archived: archivedCompiler, buildReceipt: buildCompiler } = llamaCompilerProvenance(compiler, platform);
 		const notices = await desktopLlamaCppNotices({ sourceRoot: source, platform, compiler });
 		const provenance = {
-			schemaVersion: 1, recipeId: 'llama-cpp-cpu-package-build-v1', targetId,
+			schemaVersion: 1, recipeId: platform === 'darwin' ? 'llama-cpp-metal-package-build-v1' : 'llama-cpp-cpu-package-build-v1',
+			targetId, executionProviders: plan.executionProviders,
 			source: { url: SOURCE_URL, commit: COMMIT, sha256: SOURCE_SHA256, byteLength: SOURCE_BYTES },
 			cmakeVersion, compiler: archivedCompiler, sourceDateEpoch: Number(SOURCE_DATE_EPOCH), configureArgs: plan.configureArgs,
 			notices: notices.map(({ path, bytes, sources }) => ({ path, sources, byteLength: bytes.byteLength, sha256: hash(bytes) })),
@@ -139,8 +145,8 @@ export async function stageDesktopLlamaCppRuntime({
 				source: { url: 'https://github.com/ggml-org/llama.cpp', revision: LLAMA_RUNTIME_VERSION },
 				executionProvider: 'cpu', runtimePrefix: `assistance/llama-cpp/${LLAMA_RUNTIME_VERSION}`,
 				targets: LLAMA_RUNTIME_BUILD_TARGETS.map((id) => id === targetId
-					? { id, status: 'authenticated', entrypoint: plan.executable, files }
-					: { id, status: 'package-generated', packageBehavior: 'The CPU runtime is compiled and verified by its own target package build.' }),
+					? { id, status: 'authenticated', entrypoint: plan.executable, executionProviders: plan.executionProviders, files }
+					: { id, status: 'package-generated', packageBehavior: 'The runtime and its available execution providers are compiled and verified by its own target package build.' }),
 			},
 			summary: { familyId: 'llama-cpp', targetId, runtimeVersion: LLAMA_RUNTIME_VERSION, provenance, buildCompiler,
 				files, installedBytes: files.reduce((total, file) => total + file.byteLength, 0) },
