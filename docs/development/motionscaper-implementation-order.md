@@ -78,7 +78,10 @@ Substantial implementations and focused browser/native workflows pass. Complete
 static gates passed through source `8cc261339`, and the complete Node gate
 passed on `17b8a6964`. The current full browser run has failures and remains
 active. The later M06 keyboard repair and animated multilingual-title workflow
-have focused evidence across all three engines. Combined coverage acceptance,
+have focused evidence across all three engines. M08 final-export diagnostics and
+an animated M09 camera reference now have focused checks. A new coupled M10
+regression reproduces compatible saved updates cancelling an active export;
+that repair remains in progress. Combined coverage acceptance,
 remaining regressions, maximum-workload and external gates remain open.
 Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
