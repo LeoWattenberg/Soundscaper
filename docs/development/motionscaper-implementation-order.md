@@ -75,15 +75,20 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass. The
-complete static gate passed on source `bbb172047`, including lint, types,
-architecture, audits, documentation and production build. Its changes from
-`036899f59` are three documentation files. The latest complete Node gate passes on
-`a1a58bf4e`: 27,338 passed, zero failures and 14 declared skips, including all
-1,121 Motion cases. The one-entry nightly-fixture repair passes the same
-exhaustive batch that previously failed three assertions; the failed older run
-remains separately recorded. The complete 32-case handbook browser gate passed
-on `322c8a6b1`. A fresh complete application browser run is active on that
-source. The older complete run on `3e8b3e942` is closed failed: 7,215 passed,
+latest complete static attempt on `2f1ffce7f` failed the FFmpeg runtime audit
+because its isolated worktree used a package-metadata symlink. Full lint, types
+and architecture passed; later documentation checks and the build were not reached.
+The earlier complete static pass on `bbb172047` remains source-attributed.
+All five latest Node partitions on `2f1ffce7f` closed: 27,433 passed, one failed
+and 14 skipped out of 27,448 tests. All 1,212 Motion cases passed. The sole
+failure is common-2's nightly-payload import closure. Its native range-touch input
+repair (`2f4eb36b7`, integrated as `59c4045b1`) passed 19 focused checks; it does
+not replace the failed full run. The earlier full Node pass on `a1a58bf4e`
+remains separate. The complete 32-case handbook browser gate passed on
+`322c8a6b1`. That source's complete ordinary browser run closed failed:
+7,228 passed, 48 failed and 287 skipped. The Motion-named subset passed 436
+cases with two declared skips; this does not qualify shared behavior or the
+whole suite. The older complete run on `3e8b3e942` remains failed: 7,215 passed,
 40 failed and 287 skipped. The fresh linked suite
 passed 38 of 39 cases, with one Chromium transient-playback polling failure;
 the separate nine-case dual-origin suite passed all three engines. A sampling
@@ -103,7 +108,7 @@ saved-update/export regression is repaired and passes all three browser engines;
 captured picture, PCM and originals remain pinned until cleanup completes.
 Failed physical cleanup retains its retry capability. These focused results do
 not close the combined gates. Combined coverage acceptance,
-remaining regressions, maximum-workload and external gates remain open.
+remaining regressions, broader workload/host and external gates remain open.
 The controlled browser-duration check on `322c8a6b1` failed its existing memory ceiling
 before completing the first preview frame; the rejected sample was not retained,
 so the exact failing operand remains unknown. Two asynchronous touch-test
@@ -146,7 +151,7 @@ duration invocation failed during the 300-frame encoder-cancellation retry:
 the save chooser remained open after selection. The 1,200-frame workload and
 independent output checks were not reached. Source, package, output-preservation
 and process-closure audits passed; the chooser cause remains unknown. Current
-maximum workloads still need their separate evidence. Bounded passive chooser
+maximum profiles passed separately as recorded below. Bounded passive chooser
 observations now retain window, owner, focus and phase evidence for future runs;
 27 offline controls pass with original actions and predicates unchanged. A
 separate liveness repair treats a vanished `/proc` ESRCH read as absence; all
@@ -158,7 +163,15 @@ Maximum-workload fixtures, independent oracles and the bounded native driver
 32,768-frame export completed but failed its unchanged 64 MiB PSS-growth limit
 by 3,879,424 bytes. Separate file-only verification passed every timestamp,
 all 52,428,800 stereo PCM sample frames and selected pictures of that retained
-movie; it does not clear the memory failure. Two Conform diagnostic runs passed
+movie; it does not clear the memory failure. All four original maximum profiles
+then passed once each on `036899f59`, with unchanged actions, memory limits and
+deadlines: shutter/lens quality with real shadows, 64 planes, 32 lights and the
+32,768-frame index. The index passed refusal, cancellation/original-revision
+retry, contiguous timestamps, exact stereo PCM and retained-memory checks;
+PSS growth was 38,149,120 bytes against the unchanged 67,108,864-byte ceiling.
+All source/package/helper/prefix and process/writer checks passed. This is
+separate fixed Linux x64 software-profile evidence, not a cause or retrospective
+clearance of the earlier failure. Two Conform diagnostic runs passed
 the original workflow without reproducing its historical 15-second failure;
 the second retained all 25 activation-phase pairs. No activation fix is claimed.
 Earlier installed source `322c8a6b1` passed both 300 and 1,200 native frames,
@@ -221,7 +234,8 @@ memory tails and cleanup. The earlier c80 native success has lost receipts and
 remains historical. Source `322c8a6b1` also passed this complete fixed native
 profile, with all six independently decoded MOVs and 427 audited memory rows.
 Its separate browser attempt failed the existing memory ceiling before completing
-a preview frame. Maximum-workload and broader host evidence remain pending.
+a preview frame. The four current maximum profiles have separate evidence above;
+broader combinations and host qualification remain open.
 Preview and render leases retain bounded digest-bound font providers.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and
@@ -382,8 +396,8 @@ actual Chromium, Firefox and Linux WebKit workflows covering keyboard menus,
 retained fonts, authored keys, Save/reopen, same-engine PNG/preview and offline
 reopen with the origin shut down. Chromium and Firefox produce actual VP9 WebM;
 Linux WebKit refuses before an independently reproduced native encoder crash.
-Different engines' whole-frame hashes are not claimed identical. Maximum
-workloads, full existing-product regression, hardware GPU, macOS Safari and
+Different engines' whole-frame hashes are not claimed identical. Broader maximum
+combinations, full existing-product regression, hardware GPU, macOS Safari and
 credentialed native distribution still require their own gates.
 The capability register owns Motion's independent workspace and bounded claims.
 Own Pages tables, stable-release and source-bound deployment preparation exist;
@@ -397,8 +411,8 @@ The current [composition link foundations](motionscaper-composition-links.md)
 declare M10's revision, closure, history and rendering authority. Fresh
 bounded Linux delivery, complete linked/dual-origin suites and fixed native
 duration have source-attributed evidence in the final validation status.
-Combined regression/coverage acceptance, maximum workloads, remaining targets
-and hardware qualification remain open.
+Combined regression/coverage acceptance, broader workload combinations, remaining
+targets and hardware qualification remain open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
