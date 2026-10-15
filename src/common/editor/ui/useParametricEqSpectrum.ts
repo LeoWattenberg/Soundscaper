@@ -95,7 +95,10 @@ function drawSpectrumCanvas(
 		let db = -120;
 		for (let bin = first; bin < end; bin++) if (Number.isFinite(values[bin])) db = Math.max(db, values[bin]!);
 		const y = height * (1 - clamp((db + 120) / 120, 0, 1));
-		context.lineTo(pixel, y);
+		// Paint the pooled interval at its peak height. A single vertex makes a
+		// narrow triangle whose antialiased pixels can hide that retained level.
+		context.lineTo(Math.max(0, pixel - 1), y);
+		context.lineTo(Math.min(width, pixel + 1), y);
 	}
 	context.lineTo(width, height);
 	context.closePath();

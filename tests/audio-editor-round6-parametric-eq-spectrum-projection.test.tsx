@@ -6,7 +6,7 @@ import React, { act } from 'react';
 import { useParametricEqSpectrum } from '../src/common/editor/ui/useParametricEqSpectrum.ts';
 import { installReactTestDom, ReactTestElement } from './helpers/react-test-dom.ts';
 
-async function draw(bin: number, nativeRate: number, width = 800): Promise<readonly (readonly [number, number])[]> {
+async function draw(bin: number, nativeRate: number, width = 800, peakDb = -12): Promise<readonly (readonly [number, number])[]> {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -27,7 +27,7 @@ async function draw(bin: number, nativeRate: number, width = 800): Promise<reado
 	function View(): React.ReactElement {
 		const refs = useParametricEqSpectrum({ sampleRate: 48_000, showInput: true, showOutput: false,
 			readSpectrum: (_source, values) => {
-				values.fill(-120); if (bin >= 0) values[bin] = -12;
+				values.fill(-120); if (bin >= 0) values[bin] = peakDb;
 				return { sampleRate: nativeRate, fftSize: 4096, frequencyBinCount: 2048 };
 			} });
 		return <><canvas ref={refs.inputCanvasRef} data-spectrum-input="true" /><canvas ref={refs.outputCanvasRef} /></>;
@@ -67,4 +67,23 @@ test('the EQ spectrum positions FFT bins by the analyser native clock', async ()
 test('the EQ spectrum retains digital silence at its original floor', async () => {
 	const points = await draw(-1, 48_000);
 	assert.equal(Math.min(...points.map(([, y]) => y)), 100);
+});
+
+for (const nativeRate of [44_100, 48_000]) test(`a narrow EQ peak fills its pooled pixel column at ${nativeRate} Hz`, async () => {
+	const points = await draw(1667, nativeRate, 880, -30);
+	const peak = points.filter(([, y]) => Math.abs(y - 25) < 1e-9);
+	assert.ok(peak.length >= 2, 'a retained FFT peak must not collapse into a triangular vertex');
+	assert.ok(peak.some(([x, y], index) => peak[index + 1]?.[0] === x + 2 && peak[index + 1]?.[1] === y),
+		'the entire two-pixel FFT interval must paint at its retained peak height');
+	const expected = Math.log((1667 * nativeRate / 4096) / 10) / Math.log(23_520 / 10) * 879;
+	assert.ok(Math.abs((peak[0]![0] + peak.at(-1)![0]) / 2 - expected) < 4);
+});
+
+test('EQ spectrum peak columns clip at both canvas edges', async () => {
+	for (const [bin, width, boundary] of [[0, 880, 0], [2006, 881, 881], [1667, 1, 1]] as const) {
+		const points = await draw(bin, 48_000, width, -30);
+		const peak = points.filter(([, y]) => Math.abs(y - 25) < 1e-9);
+		assert.ok(peak.some(([x]) => x === boundary), `peak must paint at the clipped ${boundary} boundary`);
+		assert.ok(points.every(([x]) => x >= 0 && x <= width), 'columns must not paint outside the canvas');
+	}
 });
