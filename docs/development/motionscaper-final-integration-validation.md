@@ -2,9 +2,10 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `75bba7a0a`, including the reviewed native shutdown repair,
+is source `69fb0bc60`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
-deferred panel focus ownership.
+deferred panel focus ownership. M06 also includes graph/path keyboard activation
+and stronger animated multilingual-title delivery checks.
 Its combined gates remain open.
 The failed ordinary browser capture uses frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026` on
@@ -77,15 +78,19 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
-| Complete static gate, `17b8a6964` | Passed full lint, types, architecture, audits, documentation and builds, with an 8 GiB Node heap. Source and observed process closure were verified. Subsequent changes retain their own focused checks; this result is not retagged to newer source. |
+| Complete static gate, `8cc261339` | Passed full lint, types, architecture, audits, documentation and builds, with an explicit 12 GiB compiler heap. Source and observed process closure were verified. The later M06 changes retain their own focused checks; this result is not retagged to newer source. |
 | All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
 | Paired-download test repair, `b2688a52d` | All five original test-file cases passed after waiting for the existing action's completion across its release timer and MessageChannel task. Exact filenames and blob retention/revocation assertions remain unchanged. Strict types, changed-file lint and size checks passed. This focused result does not replace the failed whole Node gate. |
 | Desktop deadline diagnosis, `3e8b3e942` | Two bounded passive observations passed with exact PCM and no deadline fault. Neither reproduced the historical failure. The first omitted the gate's coverage/loaders; the second restored them but added an unproven 8 GiB heap setting. The cause remains unknown and no production repair is claimed. |
-| Fresh complete ordinary browser run, `3e8b3e942` | Active: all 7,542 discovered cases, 2,514 per engine, four workers and zero retries. Chromium's Import/Split shortcut case timed out waiting for its file chooser; the run continues. Fresh sites/maps and exact source/dependency/browser inputs were verified. No terminal result or coverage acceptance is claimed yet. |
+| Fresh complete ordinary browser run, `3e8b3e942` | Active: all 7,542 discovered cases, 2,514 per engine, four workers and zero retries. Observed Chromium failures include the Import chooser, spectral handles, playback, image delivery and missing independent FCPXML/EDL readers. The absent reader is a checkout prerequisite error; verified copies are prepared for a later run without modifying this held invocation. No terminal result or coverage acceptance is claimed yet. |
 | Passive Import/Split observation, `3e8b3e942` | The original single Chromium workflow passed once with bounded passive focus/key observation. All 63 recorded events fit the cap, and the shortcut opened its chooser. No focus steal was observed. This changes scheduling and does not reproduce or explain the full-run timeout. |
 | Deferred panel focus repair, `01e0f3d55` | Deterministic controls reproduced an older queued handoff overriding a newer user focus choice. The fix retires superseded requests while preserving trigger restoration and the original 30-frame mount bound. All 71 focused cases, eight dispatch controls, strict types, lint, architecture and build passed. The default-heap test typecheck exhausted memory; its explicit 12 GiB retry passed. This proves a separate focus defect and does not establish the cause of the browser Import timeout. |
 | Saved-kind and mixed-rate consumer contracts, `82c9aaa3f` / `bcdc43f1f` | New controls preserve all ten layer kinds, animated property kinds and exact asset bodies through store/archive reopen; an authored rational-clock/pixel oracle agrees across actual preview playback, shuffled seeks, export, saved links and Frame thumbnails. These are Node/CPU and instrumented-IndexedDB checks, not physical-browser durability or codec qualification. Four final focused cases passed after repairing an existing test's missing temporary-directory parent. The initial auxiliary Motion shard remains failed: 1,094/1,096 passed, one setup failure and one native-artifact skip. |
+| Animated multilingual title, `cf8717b6d` | The strengthened original workflow passed Chromium, Firefox and WebKit once each. It authors English/Arabic text and animated title placement, checks Undo/Redo and retained font/shaping after reopen, and delivers 16 PNG frames; differing frames 0 and 15 each match reopened preview within the unchanged one-code bound. Three new scale/rotation/tracking controls and 13 combined Node cases passed unchanged application code. Strict types and final lint passed; earlier setup/type and default-heap lint failures remain retained. |
+| Graph/path keyboard repair, `e13c9f4bb` | Real component and Chromium controls reproduced Enter/Space failing to select focused SVG buttons. The fix selects without authoring or adding Undo history, while preserving disabled/modified/IME/repeat and existing arrow behavior. All 38 combined Node checks, 12 new cases across three browser engines and four existing Chromium workflows passed, with strict types, lint, size and Motion builds. |
+| Passive spectral-gesture observation, `8cc261339` | The three original Chromium workflows passed once with bounded passive pointer observation, no original assertion/timeout changes and no application repair. All captured brush releases arrived; no observation overflow or page error occurred. The separate origin/one-worker observation does not explain or clear the full-run failures. |
+| Fresh handbook attempt, `8cc261339` | Interrupted and failed: the small-command observer reached its 64 cumulative-process cap after 14 visible desktop passes, before complete report/teardown. This is not a 32-case pass. Independent salvage verified source/build custody, absence of all 63 recorded identities and owned sessions/daemon/port, then removed only the stale scoped preview lock. A suitable whole-suite observer is being prepared for a later final-source run. |
 | Retained mixed-image reopening, `cbf09f9ea` | The unchanged workflow passed Chromium, Firefox and WebKit, without skips or retries. Per-file read serialization fixes the reproduced same-worker exclusive OPFS lock collision; the retained image was intact. This does not claim cross-worker or read/write arbitration. |
 | Complete linked/dual-origin suites, `19bc434e8` | Closed failed: 34/36 linked cases and 8/9 dual-origin cases passed. Firefox failures were image reopening and an absent-host GPU assertion; WebKit lost the archive of a two-download pair. All three first linked-editor/offline/export workflows passed. |
 | Fresh complete linked/dual-origin suites, `c61839c8d` | Closed failed: 34/36 linked and all 9/9 dual-origin cases passed. Chromium failed on a native-export audio-clock gap; WebKit failed while waiting for Resume to adopt a saved revision. Firefox passed all linked cases. GPU/loss/restore checks passed on capable hosts. |
@@ -109,7 +114,9 @@ It verified 51,372 input pins, absence of all 5,239 recorded PID/start identitie
 and empty root sessions, plus 5,261 stable raw profiles (13,198,215,341 bytes).
 The lifetime census was sampled; it does not prove every unobserved detached
 process birth. These raw profiles have not been parsed or admitted as coverage.
-The latest static receipt is `current-17b8a6964-static/closed.json`, SHA-256
+The latest static receipt is `current-8cc261339-static/closed.json`, SHA-256
+`a1ae50b382907f7c7d761b6d7792f3b9a43253a47b048d7dababf282334edc7e`.
+The preceding complete static receipt is `current-17b8a6964-static/closed.json`, SHA-256
 `9d407f85397bde43b02c38ee46f974bfb6b5cd359b768a3faaeb9bb977bff892`.
 The earlier failed Node receipt is `current-3e8b3e942-node/closed.json`, SHA-256
 `64ad72571cdc144cf707071bd25105b89331230d6f27d7080ed775aa5a17fda3`.
@@ -141,6 +148,11 @@ The new saved-kind/consumer qualification is
 The focus repair qualification is
 `m12-panel-focus-ownership-17b8/qualification.json`, SHA-256
 `c7a947d1c7c611130928ad95b5273c7d4891b33345ef06041f5c5a0cacc210de`.
+The animated-title qualification is `m06-title-animation-proof-8cc/qualification.json`,
+SHA-256 `c37557c656134e72f9d82725e23500533556539cf83583c9f3761a06412a65e3`.
+The graph/path repair qualification is
+`graph-keyboard-repair-8cc261339/qualification.json`, SHA-256
+`03fc3dfb1697cf1da33b5d928331808b2e250d67a3dba43de5bf88698cfd7ca5`.
 The browser duration receipt is
 `current-fa680-sustained-browser/workload/qualification-receipt.json`, SHA-256
 `d7694f821c83982d65007b4852d55ab172b4fefc6539b4b9d865f9c789c45e07`;
@@ -259,6 +271,17 @@ evidence for the historical gap; callback coverage and the cause remain open.
 Its terminal receipt is
 `webkit-eq-mixed-join-328cae02f-cpu12-15/run/closed.json`, SHA-256
 `e66d777bde5238923c1d05151d80ad3eaad19c5012caa9b127916f2146a7ca0a`.
+The installed Playwright wrapper made that selector lexical; consuming the
+same lexical binding fixed the external injector. Three old-source controls
+failed and all 74 corrected pure controls passed before one new actual run.
+That run passed its original body and complete diagnostic admission: 371
+128-frame quanta over frames 21,248–68,736 and the actual intermediate join
+showed no upstream, EQ, additive, downstream or cancellation loss. Independent
+recomputation and custody/cleanup checks passed. This is **non-reproduction**;
+the worklet cost clock was unavailable, so cost and historical causation remain
+unqualified. The completed review is
+`eq-lexical-completed-independent-audit-20261015/audit.json`, SHA-256
+`52fb326a79c50a79113825cf9cac39ce23c80e1ed03491b28fc5d049be3c2a87`.
 
 Supplemental M10 execution reached actual connection, update, Undo/Resume,
 Conform, portable Save/Open and matching blue preview in Firefox. Delivered MP4

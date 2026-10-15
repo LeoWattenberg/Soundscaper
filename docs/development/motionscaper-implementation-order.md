@@ -75,8 +75,10 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass. Complete
-static and Node gates passed on source `17b8a6964`; the current full browser run
-has an Import-shortcut timeout and remains active. Combined coverage acceptance,
+static gates passed through source `8cc261339`, and the complete Node gate
+passed on `17b8a6964`. The current full browser run has failures and remains
+active. The later M06 keyboard repair and animated multilingual-title workflow
+have focused evidence across all three engines. Combined coverage acceptance,
 remaining regressions, maximum-workload and external gates remain open.
 Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
