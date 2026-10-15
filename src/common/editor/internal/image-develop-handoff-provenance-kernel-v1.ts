@@ -9,7 +9,7 @@ import { normalizeImageDevelopStateThroughV3 } from '../imaging/image-develop-st
 import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../imaging/image-develop-state-v4.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../imaging/image-develop-state-v2.ts';
 
-type Profile = 'legacy1' | 'current2' | 'current4';
+type Profile = 'legacy1' | 'current2' | 'current4' | 'current-hdr4';
 export type ImageDevelopHandoffOriginForProfileV1<Mode extends Profile> = Readonly<{
 	schemaFamily: 'lightscaper'; schemaVersion: Mode extends 'legacy1' ? 1 | 2 : 1 | 2 | 3; catalogId: string; photoId: string; revision: number;
 	versionId: string; versionKind: 'master' | 'virtual-copy'; versionName: string; versionCreatedAt: string;
@@ -54,7 +54,8 @@ export function normalizeImageDevelopHandoffProvenanceForProfileV1<Mode extends 
 	const original = record(field(input, 'original', 'image handoff provenance'), 'image handoff original', ['exactName', 'sha256', 'byteLength']);
 	return Object.freeze({ schemaVersion: version as ImageDevelopHandoffProvenanceForProfileV1<Mode>['schemaVersion'], kind: 'image-develop-handoff', origin: origin(profile, field(input, 'origin', 'image handoff provenance')),
 		original: Object.freeze({ exactName: readExactSafeVisualText(field(original, 'exactName', 'image handoff original'), 'image handoff exact filename', 512, false),
-			sha256: digest(field(original, 'sha256', 'image handoff original')), byteLength: integer(field(original, 'byteLength', 'image handoff original'), 1, 64 * 1024 * 1024) }),
+			sha256: digest(field(original, 'sha256', 'image handoff original')), byteLength: integer(field(original, 'byteLength', 'image handoff original'), 1,
+				(profile === 'current-hdr4' ? 196 : 64) * 1024 * 1024) }),
 		developSha256: digest(field(input, 'developSha256', 'image handoff provenance')) });
 }
 
@@ -102,7 +103,7 @@ function timestamp(value: unknown): string {
 }
 
 function assertProfile(value: unknown): void {
-	if (value !== 'legacy1' && value !== 'current2' && value !== 'current4') throw new RangeError('Unsupported fixed image provenance profile.');
+	if (value !== 'legacy1' && value !== 'current2' && value !== 'current4' && value !== 'current-hdr4') throw new RangeError('Unsupported fixed image provenance profile.');
 }
 function developForProfile(profile: Profile, value: unknown): ImageDevelopStateThroughV4 {
 	return profile === 'legacy1' ? normalizeImageDevelopStateV1OrV2(value)
