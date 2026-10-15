@@ -18,6 +18,7 @@ import type { PhotoManagedImportPortsV2 } from '../../import/managed-import-port
 import type { PhotoManagedImportPortsCurrentV1 } from '../../import/managed-import-ports-current-v1.ts';
 import type { PhotoManagedImportReceiptV1 } from '../../import/managed-import-ports-v1.ts';
 import { preparePhotoImportGestureV1 } from '../../import/photo-import-preparation-v1.ts';
+import { preparePhotoImportGestureCurrentV1 } from '../../import/photo-import-preparation-current-v1.ts';
 import { applyPhotoImportSettingsV1, planPhotoImportSettingsV1 } from '../../import/photo-import-settings-v1.ts';
 import { borrowPhotoImportDevelopPresetV2 } from '../../import/photo-import-develop-preset-v2.ts';
 import { borrowPhotoImportDevelopPresetCurrentV1 } from '../../import/photo-import-develop-preset-current-v1.ts';
@@ -50,7 +51,7 @@ export function createPhotoLibrarySessionImportForProfileV1(profile: 'current3',
 export function createPhotoLibrarySessionImportForProfileV1(profile: 'legacy2' | 'current3', host: Host): Import<LegacyRequest | CurrentRequest> {
 	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported fixed photo import profile.');
 	const { ports, managed, presetSettings, mutate, resetReady } = host;
-	const prepare = ports.prepare ?? preparePhotoImportGestureV1, legacyImport = ports.importPhotos ?? importManagedPhotosV2;
+	const prepare = ports.prepare ?? (profile === 'current3' ? preparePhotoImportGestureCurrentV1 : preparePhotoImportGestureV1), legacyImport = ports.importPhotos ?? importManagedPhotosV2;
 	const createIdentity = ports.createId ?? (() => crypto.randomUUID()), now = ports.now ?? (() => new Date().toISOString());
 	const luts = profile === 'current3' ? ports.cubeLutResources : undefined, brushes = profile === 'current3' ? ports.maskRasterResources : undefined;
 	const resources = Object.freeze({ cubeLutResources: async () => {

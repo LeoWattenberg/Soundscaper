@@ -6,6 +6,8 @@ import type { PhotoLibraryDevelopSettingsV3 } from '../../../photo-library-devel
 import type { LoadPhotoLibraryDevelopProxyRuntimeV3, PhotoLibraryDevelopProxyRuntimeV3 } from '../../../photo-library-develop-proxy-port-v3.ts';
 import type { PhotoLibraryDevelopOriginalPortV1 } from '../../../photo-library-develop-original-port-v1.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../../../photo-library-develop-full-resolution-port-v1.ts';
+import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../../photo-library-develop-linear-port-v1.ts';
+import { presentPhotoDevelopLinearV1 } from './photo-library-develop-linear-presentation-v1.ts';
 import { normalizeImageDevelopStateV1OrV2 } from '../../../imaging/image-develop-state-v2.ts';
 import { readPixelFrameV1, type PixelFrameV1 } from '../../../imaging/pixel-frame-contract-v1.ts';
 import { withPixelFrameBodyV1 } from '../../../imaging/pixel-frame-body-v1.ts';
@@ -182,7 +184,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 			const rendered = await this.#ports.withOriginalFrame({ schemaVersion: 1, photoId: view.photoId, expectedRevision: view.revision! }, async source => {
 				check(signal);
 				if (source.photoId !== view.photoId || source.revision !== view.revision) throw new Error('Develop original changed its requested identity or revision.');
-				const frame = readPixelFrameV1(source.frame, PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source);
+				const frame = readPixelFrameV1(source.frame, this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source);
 				return this.#profile === 'current3' ? this.#presentCurrent(view, frame, runtime, signal) : this.#present(view, frame, runtime, signal);
 			}, { signal });
 			check(signal); if (this.#view === view && rendered) this.#publish({ status: 'ready', ...rendered, error: null }); return;
@@ -230,6 +232,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 		check(signal); return completed;
 	}
 	async #presentCurrent(view: Readonly<PhotoDevelopPresentationViewKernelV1>, frame: PixelFrameV1, runtime: Readonly<PhotoLibraryDevelopProxyRuntimeV3>, signal: AbortSignal): Promise<Rendered | null> {
+		if (frame.descriptor.sampleFormat !== 'unorm8') return presentPhotoDevelopLinearV1(view, frame, runtime, signal, this.#ports.paint, () => this.#view === view);
 		const resolution = view.resolution ?? 'proxy', full = PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1;
 		const before = await createPixelFrameHistogramV1(frame, { limits: full.source, signal }); check(signal);
 		const beforeExtent = await withRepairPixelFrameLifetimeV1(async owner => {

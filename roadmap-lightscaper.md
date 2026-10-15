@@ -146,15 +146,16 @@ Frame sources, native save/reopen/export, and reverse Photo3 publication.
 The import dialog also selects an ordinary Frame still's timeline or Project Bin
 placement explicitly. Manual collections, smart collections, and saved filters
 download as editable Frame sequences in native query order. The remaining L5
-export and cross-product qualification gates are open. Raw and desktop
-capabilities remain disabled.
+export and cross-product qualification gates are open. Current RAW menu import
+and bounded global development are implemented; external decoder publication
+and desktop capabilities remain pending.
 
 | Area | Current capability |
 | --- | --- |
 | Product seam | Three-product registry, separate-origin routes and independently built sites, per-product profiles/capabilities/PWA/i18n, registry-driven switching, and product-owned test shards. Lightscaper desktop wiring waits for L8. |
 | Imaging engine | Shared parametric video effects, managed SDR color with linear-light grade math and `.cube` LUTs, mask graphs, visual presets, and keyframe curves. Wider primaries/transfers remain recognized by the schema and refused at render admission. |
 | Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
-| Pixel interchange | A versioned descriptor admits sample formats, primaries, and transfer independently. Current processing admits `unorm8` sRGB; deeper buffers and wider processing wait for L7. |
+| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 global development; broader deep processing and wide-gamut output remain L7 work. |
 | Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
 | Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. |
 | Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
@@ -163,8 +164,9 @@ capabilities remain disabled.
 
 Architectural constraints that still drive the sequence:
 
-- current image processing admits only static 8-bit sRGB input; raw and deep
-  color must widen admission and evaluation through the L2 contracts in L7;
+- the established byte route remains exact; Current RAW processing widens the
+  L2 contracts explicitly, with deep geometry, spatial effects, LUTs, local
+  adjustments, repairs and wider output still pending in L7;
 - original custody and catalog persistence have separate owners and must
   reconcile interrupted publication before a library is exposed;
 - catalog-scale browsing uses bounded indexed pages rather than whole-project
@@ -818,13 +820,16 @@ there.
   Float32 plane, implements identity, white balance and the full tone ladder,
   and preserves signed/HDR and tiny normal/subnormal values. Current byte
   presentation and permanent legacy routes keep their existing contracts.
-  Deep ingestion and the remaining adjustment, geometry, mask, repair and
-  display/output stages remain pending; this foundation does not claim that
-  current Photo Original decoding or Frame packs produce deep samples.
-  The selected Lightscaper regression passes 2,776 cases in 311 files, and four
-  English/German Chromium/Firefox workflows retain native repaired Photo
-  preview, brush editing, saved history and reload. The Lightscaper build keeps
-  its 52-request product graph and the existing chunk ceilings.
+  Current RAW ingestion now supplies genuine native words to a separate
+  Float32 global route: white balance, tone, chroma, black-and-white mix, HSL,
+  point/parametric curves and color wheels. Conversion to encoded RGBA8 occurs
+  at the disposable display boundary. Original bytes and scalar history remain
+  separate; byte FramePack1 keeps its existing meaning. Deep geometry, spatial
+  effects, LUTs, local adjustments, repairs and output remain unfinished.
+  The first foundation qualified 2,776 cases in 311 files, with four
+  English/German Chromium/Firefox workflows retaining native repaired Photo
+  preview, brush editing, saved history and reload. The Current RAW build uses
+  a 53-request product graph, six initial requests and the existing chunk ceilings.
 - **Web Core — In progress:** the
   [RAW decoder foundation](docs/architecture/lightscaper-raw-decoder.md) builds
   pinned LibRaw 0.22.2 under its LGPL-2.1 option into an 876,336-byte WASM
@@ -835,11 +840,18 @@ there.
   greater-than-byte precision/orientation and a digest-pinned CC0 Canon CRW
   with its real embedded JPEG. The fixed neutral baseline is native linear
   sRGB16; it does not claim unclipped camera HDR or broad camera support.
-  RAW import UI, durable Original/Frame integration, highlight recovery,
-  culling integration and external runtime/source publication remain pending.
-  The foundation passes 31 focused Node cases and four Chromium/Firefox
-  worker cases; the selected Lightscaper regression passes 2,807 cases in
-  315 files. L7's remaining contracts and exit gates remain incomplete.
+  File → Import now admits signature-qualified DNG and CRW into the selected
+  Current library, preserving exact Original bodies, hashes, custody and native
+  oriented dimensions. Authenticated Original reads regenerate native RGBA16;
+  no deep plane is stored in byte FramePack1. Chromium and Firefox workflows
+  prove actual menu import, thumbnails, native-depth white balance/exposure,
+  Save and reload with unchanged Original bytes. All six RAW browser cases
+  pass: two full-menu workflows and four native-worker cases across those
+  browsers. The selected Lightscaper Node regression passes 2,845 cases in
+  319 files, including pinned Canon CRW import through the actual native worker. The browser decoder
+  fetch uses the exact pinned artifact; external asset publication is still
+  pending. RAW export/handoff, RAW-specific culling, broader camera coverage,
+  highlight recovery, wider L7 processing, L8 and L9 remain unfinished.
 - **Web Enhanced — Planned:** GPU evaluation of the develop stack where
   capability-detected, with the CPU path as the conformance oracle under
   recorded tolerance budgets.

@@ -15,6 +15,7 @@ import PhotoImportDevelopPresetsV2 from '../PhotoImportDevelopPresetsV2.tsx';
 import PhotoImportDevelopPresetsCurrentV1 from '../PhotoImportDevelopPresetsCurrentV1.tsx';
 import { detachPhotoLibraryImportGestureV2 } from '../photo-library-workflow-import-v2.ts';
 import { detachPhotoLibraryImportGestureCurrentV1 } from '../photo-library-workflow-import-current-v1.ts';
+import { RAW_SOURCE_FILE_ACCEPT_V1 } from '../../../raw/raw-source-v1.ts';
 
 export type PhotoImportDialogKernelPropsV1 = (PhotoImportDialogPropsV2 & { readonly profile: 'legacy2' })
 	| (PhotoImportDialogPropsCurrentV1 & { readonly profile: 'current3' });
@@ -88,7 +89,7 @@ export default function PhotoImportDialogKernelV1(props: PhotoImportDialogKernel
 		initialFocus="input[type=file]" closeOnOutside={false}>
 		<form onSubmit={submit} data-photo-import-form>
 			{(failure ?? props.error) && <p role="alert">{failure ?? props.error}</p>}
-			<label>{props.filesLabel}<input ref={input} type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
+			<label>{props.filesLabel}<input ref={input} type="file" multiple accept={`image/jpeg,image/png,image/gif,image/webp,image/bmp${props.profile === 'current3' ? `,${RAW_SOURCE_FILE_ACCEPT_V1}` : ''}`}
 				disabled={locked} onChange={() => { setSelectedCount(input.current?.files?.length ?? 0); }} /></label>
 			<PhotoImportOptions value={settings} onChange={setSettings} busy={locked} copy={props.copy}>
 				<PhotoImportPresetControls value={settings} onChange={setSettings} busy={locked} copy={props.copy}

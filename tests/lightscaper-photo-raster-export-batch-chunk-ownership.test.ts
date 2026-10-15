@@ -15,7 +15,8 @@ const SESSIONS = ['src/lightscaper/controller/photo-library-session-v2.ts', 'src
 const SESSION_KERNEL = 'src/lightscaper/controller/photo-library-session-kernel-v2.ts';
 const SESSION_EXPORTS = 'src/lightscaper/controller/photo-library-session-export-sidecar.ts';
 const COPY = ['lightscaper-photo-batch-export-menu-copy', 'lightscaper-photo-batch-export-copy', 'lightscaper-photo-export-presets-copy'];
-const moduleSource = (path: string) => transformSync(readFileSync(path, 'utf8'), { loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : 'js', format: 'esm' }).code;
+const moduleSource = (path: string) => transformSync(readFileSync(path, 'utf8'), { sourcefile: path,
+	loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : path.endsWith('.json') ? 'json' : 'js', format: 'esm' }).code;
 test('batch menu and optional full labels have exact isolated nonrecursive owners', () => {
 	for (const owner of COPY) {
 		const path = `src/common/i18n/${owner}.ts`;

@@ -35,7 +35,7 @@ export default function LightscaperBootstrap(props: LightscaperAppPropsCurrentV1
 	const loadMetadataQueryRuntime = useCallback(async () => (await import('../photo-metadata-query-ui-runtime.ts')).PHOTO_METADATA_QUERY_RUNTIME_V2, []);
 	const loadSavedFilterRuntime = useCallback(async () => (await import('../photo-saved-filter-ui-runtime-v1.ts')).PHOTO_SAVED_FILTER_RUNTIME_V1, []);
 	const loadDevelopProxyRuntime = useCallback<CreatePhotoLibraryDevelopProxyRuntimeV3>(async (source, maskSource) => {
-		return (await import('../photo-develop-render-runtime-v3.ts')).createPhotoDevelopRenderRuntimeV3({ source,
+		return (await import('../photo-develop-render-runtime-current-v1.ts')).createPhotoDevelopRenderRuntimeCurrentV1({ source,
 			...(maskSource === undefined ? {} : { maskSource }) });
 	}, []);
 	return <LightscaperAppCurrentV1 locale={props.locale} createSession={suppliedSession ?? createSession}

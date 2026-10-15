@@ -60,20 +60,32 @@ therefore refuses; a distinct consumer failure and retirement failure both
 survive, with the exact consumer failure first. Caller source storage remains
 unchanged. No working plane enters the catalog or history.
 
-## Existing consumers and remaining activation
+## Current RAW activation and remaining processing
 
-Current byte presentation accepts the known optional linear runtime method
-while retaining only its existing two byte methods. It does not invoke or
-inspect the unused callable. Accessors, non-functions and unrelated children
-remain invalid. Permanent legacy2 presentation retains its two-method contract.
-The new allocation, arithmetic and flat profile contract remain in the existing
-optional Develop recipe chunk, outside eager catalog startup.
+The original `withLinearWorkingFrame` foundation keeps its white-balance/tone
+contract. The active `createPhotoDevelopRenderRuntimeCurrentV1` composition
+delegates byte input to the unchanged V3 renderer and sends native linear word
+or float input to `withImageDevelopLinearCurrentV1`. That Current owner adds
+chroma, black-and-white mix, HSL, point/parametric curves and color wheels to
+white balance and tone, using the same owned Float32 working plane. Encoded
+color families use extended sRGB arithmetic without a byte quantizer between
+stages. Unsupported families, geometry, masks/bindings and enabled repairs
+remain explicit refusals.
 
-Current Photo Original decoding and Frame canonical packs still produce RGBA8.
-Native deep ingestion, the rest of the Develop stack, geometry, masks, repairs,
-display/output conversion, RAW decoding and wide-gamut support remain L7 work.
-No new UI control is introduced by this backend slice; eventual RAW activation
-must use the existing menu-owned import/develop paths.
+The [Current RAW workflow](lightscaper-raw-decoder.md) uses the existing File
+menu to retain DNG/CRW Original bytes and supply authenticated native RGBA16 to
+development. Native decoder workers retire before the Float32 render starts.
+Only the final thumbnail/histogram/canvas boundary transfers linear samples to
+encoded RGBA8; those display bytes never feed the deep Develop stack. Save and
+reload retain recipes beside the immutable Original. Byte FramePack1 remains
+unchanged and does not carry deep samples. Chromium and Firefox qualify the
+actual menu → import → white balance/exposure → Save/reload loop.
+
+Deep spatial effects, geometry, LUTs, local adjustments, repair evaluation,
+RAW raster export and cross-product handoff remain L7 work, alongside wide
+gamut and the wider milestone exit gates. The external RAW runtime/source
+publication and broader camera qualification are also pending. Lightscaper and
+L7 are not complete.
 
 No assistance runtime closure or runtime asset changes. A manual **Update AI
 assets** run is not required.

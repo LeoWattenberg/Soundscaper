@@ -7,7 +7,7 @@ import { PhotoCatalogRevisionConflictError } from '../catalog/repository-types.t
 import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository-v1.ts';
 import { field, id, integer, record } from '../catalog/value-validation.ts';
 import { withPhotoOriginalFrameV1 } from '../preview/photo-original-frame-v1.ts';
-import { normalizePhotoPreviewOriginalBindingV1, PHOTO_PREVIEW_SOURCE_LIMITS_V1 } from '../preview/photo-preview-plan-v1.ts';
+import { normalizePhotoPreviewOriginalBindingV1, PHOTO_PREVIEW_SOURCE_LIMITS_V1, type PhotoPreviewOriginalBindingV1 } from '../preview/photo-preview-plan-v1.ts';
 
 export interface PhotoLibraryDevelopOriginalSessionHostCore {
 	readonly repository: Readonly<{ loadPhoto: (catalogId: string, photoId: string) => Promise<unknown | null> }>;
@@ -25,9 +25,10 @@ export type PhotoOriginalSessionPhoto = Pick<PhotoDocumentV1, 'id' | 'catalogId'
 
 /** Internal lifetime machinery; public named owners supply their fixed full-document admission. */
 export function createPhotoLibraryDevelopOriginalSessionCore(host: PhotoLibraryDevelopOriginalSessionHostCore,
-	normalizePhoto: (value: unknown) => PhotoOriginalSessionPhoto): Readonly<PhotoLibraryDevelopOriginalPortV1> {
+	normalizePhoto: (value: unknown) => PhotoOriginalSessionPhoto, defaultDecoder = withPhotoOriginalFrameV1,
+	admitSource: (binding: Readonly<PhotoPreviewOriginalBindingV1>) => void = admitByteSource): Readonly<PhotoLibraryDevelopOriginalPortV1> {
 	const repository = host.repository, reader = repository.loadPhoto, initialize = host.ready;
-	const operation = host.operation, originalReader = host.loadOriginal, decode = host.withFrame ?? withPhotoOriginalFrameV1;
+	const operation = host.operation, originalReader = host.loadOriginal, decode = host.withFrame ?? defaultDecoder;
 	for (const method of [reader, initialize, operation, originalReader, decode]) {
 		if (typeof method !== 'function') throw new TypeError('Complete original pixel read capabilities are required.');
 	}
@@ -56,8 +57,7 @@ export function createPhotoLibraryDevelopOriginalSessionCore(host: PhotoLibraryD
 				const photo = await read(), originalIdentity = JSON.stringify(photo.original);
 				const binding = normalizePhotoPreviewOriginalBindingV1({ catalogId, photoId, originalId: photo.original.id, storageKey: photo.original.storageKey,
 					contentSha256: photo.original.contentSha256, byteLength: photo.original.byteLength, width: photo.original.width, height: photo.original.height });
-				admitPixelFrameV1({ schemaVersion: 1, width: binding.width, height: binding.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' },
-					{ limits: PHOTO_PREVIEW_SOURCE_LIMITS_V1 });
+				admitSource(binding);
 				const current = async () => {
 					if (JSON.stringify((await read()).original) !== originalIdentity) throw new PhotoCatalogRevisionConflictError('photo');
 				};
@@ -71,4 +71,8 @@ export function createPhotoLibraryDevelopOriginalSessionCore(host: PhotoLibraryD
 			}, signal]) as Promise<Result>;
 		},
 	} satisfies PhotoLibraryDevelopOriginalPortV1);
+}
+function admitByteSource(binding: Readonly<PhotoPreviewOriginalBindingV1>): void {
+	admitPixelFrameV1({ schemaVersion: 1, width: binding.width, height: binding.height,
+		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, { limits: PHOTO_PREVIEW_SOURCE_LIMITS_V1 });
 }

@@ -3,6 +3,7 @@
 import type { PixelFrameV1 } from '../imaging/pixel-frame-contract-v1.ts';
 
 export type RawDecodedFrameV1 = Extract<PixelFrameV1, { descriptor: { sampleFormat: 'unorm16' } }>;
+export interface RawDecodedOriginalV1 { readonly frame: RawDecodedFrameV1; readonly rawFlip: number; }
 export interface RawEmbeddedPreviewV1 {
 	readonly type: 'jpeg' | 'bitmap';
 	readonly width: number;
@@ -31,22 +32,32 @@ type Native = Readonly<{ memory: WebAssembly.Memory; calls: Readonly<Record<Func
  * independently checks its native ABI, imports and actual allocations. No handle
  * or view of the Wasm heap escapes its destroy-and-wipe boundary. */
 export function decodeLibRawWasmV1(module: WebAssembly.Module, bytes: Uint8Array<ArrayBuffer>): RawDecodedFrameV1 {
+	return withNative(module, bytes, decodeFrame);
+}
+
+/** The orientation scalar and pixels come from the same private native instance. */
+export function decodeLibRawOriginalWasmV1(module: WebAssembly.Module, bytes: Uint8Array<ArrayBuffer>): Readonly<RawDecodedOriginalV1> {
 	return withNative(module, bytes, native => {
-		status(native, 'raw_decode');
-		const width = dimension(native, 'raw_output_width'), height = dimension(native, 'raw_output_height');
-		const count = pixelCount(width, height);
-		if (integer(native, 'raw_output_channels') !== 3 || integer(native, 'raw_output_bits') !== 16) throw new TypeError('LibRaw requires native RGB16 output.');
-		const length = integer(native, 'raw_output_bytes');
-		if (length !== count * 6) throw new RangeError('LibRaw RGB16 output length does not match its geometry.');
-		const pointer = integer(native, 'raw_output_ptr'), source = span(native, pointer, length, 2);
-		const words = new NativeWords(source.buffer, source.byteOffset, count * 3), pixels = new NativeWords(count * 4);
-		for (let pixel = 0; pixel < count; pixel++) {
-			pixels[pixel * 4] = words[pixel * 3]!; pixels[pixel * 4 + 1] = words[pixel * 3 + 1]!;
-			pixels[pixel * 4 + 2] = words[pixel * 3 + 2]!; pixels[pixel * 4 + 3] = 65_535;
-		}
-		return Object.freeze({ descriptor: Object.freeze({ schemaVersion: 1, width, height,
-			sampleFormat: 'unorm16', primaries: 'srgb', transfer: 'linear' }), pixels });
+		const rawFlip = integer(native, 'raw_flip');
+		if (rawFlip > 7) throw new RangeError('LibRaw Original requires a bounded native orientation.');
+		return Object.freeze({ frame: decodeFrame(native), rawFlip });
 	});
+}
+function decodeFrame(native: Native): RawDecodedFrameV1 {
+	status(native, 'raw_decode');
+	const width = dimension(native, 'raw_output_width'), height = dimension(native, 'raw_output_height');
+	const count = pixelCount(width, height);
+	if (integer(native, 'raw_output_channels') !== 3 || integer(native, 'raw_output_bits') !== 16) throw new TypeError('LibRaw requires native RGB16 output.');
+	const length = integer(native, 'raw_output_bytes');
+	if (length !== count * 6) throw new RangeError('LibRaw RGB16 output length does not match its geometry.');
+	const pointer = integer(native, 'raw_output_ptr'), source = span(native, pointer, length, 2);
+	const words = new NativeWords(source.buffer, source.byteOffset, count * 3), pixels = new NativeWords(count * 4);
+	for (let pixel = 0; pixel < count; pixel++) {
+		pixels[pixel * 4] = words[pixel * 3]!; pixels[pixel * 4 + 1] = words[pixel * 3 + 1]!;
+		pixels[pixel * 4 + 2] = words[pixel * 3 + 2]!; pixels[pixel * 4 + 3] = 65_535;
+	}
+	return Object.freeze({ descriptor: Object.freeze({ schemaVersion: 1, width, height,
+		sampleFormat: 'unorm16', primaries: 'srgb', transfer: 'linear' }), pixels });
 }
 
 export function readLibRawEmbeddedPreviewWasmV1(module: WebAssembly.Module, bytes: Uint8Array<ArrayBuffer>): RawEmbeddedPreviewV1 | null {
@@ -74,7 +85,7 @@ export function readLibRawEmbeddedPreviewWasmV1(module: WebAssembly.Module, byte
 	});
 }
 
-function withNative<Result extends RawDecodedFrameV1 | RawEmbeddedPreviewV1 | null>(module: WebAssembly.Module,
+function withNative<Result extends RawDecodedFrameV1 | RawDecodedOriginalV1 | RawEmbeddedPreviewV1 | null>(module: WebAssembly.Module,
 	bytes: Uint8Array<ArrayBuffer>, consume: (native: Native) => Result): Result {
 	let memory: WebAssembly.Memory | undefined, native: Native | undefined;
 	let outcome: { value: Result } | { error: unknown };
@@ -105,7 +116,7 @@ function withNative<Result extends RawDecodedFrameV1 | RawEmbeddedPreviewV1 | nu
 	try { if (memory) { boundedMemory(memory); new NativeBytes(memory.buffer).fill(0); } } catch (error) { failures.push(error); }
 	if (failures.length) {
 		if ('value' in outcome && outcome.value) {
-			const bytes = 'pixels' in outcome.value ? outcome.value.pixels : outcome.value.bytes;
+			const bytes = 'frame' in outcome.value ? outcome.value.frame.pixels : 'pixels' in outcome.value ? outcome.value.pixels : outcome.value.bytes;
 			new NativeBytes(bytes.buffer).fill(0);
 		}
 		if (failures.length === 1) throw failures[0];

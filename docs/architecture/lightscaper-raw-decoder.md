@@ -1,10 +1,42 @@
-# Lightscaper RAW decoder foundation
+# Lightscaper RAW decoding and Current workflow
 
-The L7 decoder foundation is a real LibRaw WASM service. It does not yet make
-RAW import reachable in the editor. Catalog import, Original/Frame storage,
-develop-stack routing, wide-gamut delivery, and camera-model qualification
-remain later L7/L9 work. Existing byte-based import continues to use its current
-path.
+The Current editor's File → Import workflow accepts DNG and Canon CRW through
+the real LibRaw WASM service. It retains the exact Original and regenerates
+native linear RGBA16 for global development, thumbnails and display. The
+existing raster and permanent legacy routes retain their byte contracts.
+Deep geometry, spatial effects, LUTs, local adjustments, repairs, RAW
+export/handoff and wider L7–L9 work remain incomplete. The externally hosted
+decoder and corresponding source still require publication.
+
+## Import, development and custody
+
+`raw-source-v1.ts` qualifies a bounded TIFF DNGVersion declaration or CIFF
+HEAPCCDR header. Filename extensions and File MIME hints do not authorize a
+decoder. Current preparation snapshots each File once, hashes it, and keeps
+an immutable Blob before native decoding. The native callback supplies actual
+oriented dimensions and the source flip scalar. DNG descriptive metadata uses
+the existing bounded TIFF reader; unsupported CRW descriptive fields remain
+unknown. Canonical Original MIME is `image/x-adobe-dng` or `image/x-canon-crw`.
+
+The selected Current Session publishes through its existing catalog writer,
+Original deduplication, custody roots, import intent and native ACK recovery.
+The Original1/Photo contracts need no schema change. A RAW preparation outcome
+has no byte FramePack1 artifact: that format remains canonical RGBA8. Retained
+RAW bytes are the authenticated regeneration source; no deep working plane is
+persisted in the catalog or history.
+
+Current Original reads verify body length/hash, native geometry and the
+selected Photo revision before and after borrowed delivery. The active
+Current renderer normalizes native words directly into Float32 and applies
+white balance, tone ladder, chroma, black-and-white mix, HSL, point/parametric
+curves and color wheels in authored order. Stage results round in Float32;
+there is no RGBA8 working intermediate. Unsupported deep stages refuse
+explicitly. The [linear working contract](lightscaper-linear-working.md)
+describes the processing boundary.
+
+Encoded RGBA8 is created only for disposable thumbnails, histograms and canvas
+presentation. Develop saves scalar recipes beside the unchanged Original.
+RAW-specific export, Frame handoff and culling integration remain pending.
 
 ## Decode contract
 
@@ -21,7 +53,9 @@ The fixed neutral decode uses native 16-bit output, linear gamma, sRGB
 primaries, AHD demosaic, no auto-brightening, no automatic/camera white balance,
 and the file's orientation. Alpha is opaque. The result retains precision beyond
 an 8-bit preview; it is not an unclipped camera-space float/HDR promise.
-Embedded previews carry their original native flip scalar and encoding. A
+Scoped Original decoding also returns the flip from the same native instance;
+the existing pixels-only API retains its contract. Embedded previews carry
+their original native flip scalar and encoding. A
 missing preview returns `null` and never silently develops a replacement.
 
 Input is limited to 64 MiB. Images must fit 8192 pixels per side and
@@ -97,9 +131,23 @@ Its tests exercise actual camera compression and JPEG-preview extraction; a
 lens-cap capture provides no scene-color accuracy evidence. These two fixtures
 do not establish broad camera support.
 
-The foundation passes 31 focused Node cases and four actual-worker browser
-cases across Chromium and Firefox. Those browser cases verify the entire
+The decoder foundation passed 31 focused Node cases and four actual-worker
+browser cases across Chromium and Firefox. Those browser cases verify the entire
 oriented RGBA16 plane, greater-than-byte precision, absent-preview behavior,
 corrupt input refusal and scoped output wiping. The selected Lightscaper Node
-regression passes 2,807 cases across 315 files. These checks qualify the decoder
-foundation, not the still-pending editor RAW import workflow or full L7 exit.
+regression at that foundation passed 2,807 cases across 315 files.
+
+Current workflow qualification adds real selected-library DNG and pinned CRW
+imports, exact Original/custody and fresh-session recovery, native orientation,
+deep-buffer retirement and interruption around native publication. The CRW
+import verifies its actual 3088×2056 output and leaves unavailable descriptive
+metadata unknown. Chromium and Firefox also run the actual File menu, import
+an owned DNG with an incorrect raster MIME hint, display its thumbnail, apply
+white balance and exposure through native-depth processing, Save and reload.
+Independent native words and full display-plane literals accompany unchanged
+Original bytes and content tokens. These browser tests route only the
+manifest-pinned decoder bytes at the real asset URL; they do not replace app
+code, the decoder or its worker. All six RAW browser cases pass across those
+two browsers: two complete menu workflows and four decoder-worker cases.
+They prove that workflow under those tested
+conditions, without claiming external publication, camera breadth or L7 exit.

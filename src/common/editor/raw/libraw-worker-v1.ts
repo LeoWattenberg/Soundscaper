@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
-import { decodeLibRawWasmV1, readLibRawEmbeddedPreviewWasmV1 } from './libraw-wasm-instance-v1.ts';
+import { decodeLibRawOriginalWasmV1, decodeLibRawWasmV1, readLibRawEmbeddedPreviewWasmV1 } from './libraw-wasm-instance-v1.ts';
 
 const scope = globalThis as unknown as {
 	onmessage: ((event: Readonly<{ data: unknown }>) => void) | null;
@@ -24,6 +24,9 @@ scope.onmessage = event => {
 		if (kind === 'decode') {
 			const frame = decodeLibRawWasmV1(module, admittedInput); output = frame.pixels.buffer;
 			response = { schemaVersion: 1, kind: 'frame', frame };
+		} else if (kind === 'original') {
+			const original = decodeLibRawOriginalWasmV1(module, admittedInput); output = original.frame.pixels.buffer;
+			response = { schemaVersion: 1, kind: 'original', frame: original.frame, rawFlip: original.rawFlip };
 		} else if (kind === 'preview') {
 			const preview = readLibRawEmbeddedPreviewWasmV1(module, admittedInput); output = preview?.bytes.buffer;
 			response = { schemaVersion: 1, kind: 'preview', preview };

@@ -3,9 +3,9 @@
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
 import { readPixelFrameV1 } from '../imaging/pixel-frame-contract-v1.ts';
 import { loadLibRawModuleV1 } from './libraw-runtime-asset-v1.ts';
-import type { RawDecodedFrameV1, RawEmbeddedPreviewV1 } from './libraw-wasm-instance-v1.ts';
+import type { RawDecodedFrameV1, RawDecodedOriginalV1, RawEmbeddedPreviewV1 } from './libraw-wasm-instance-v1.ts';
 
-export type { RawDecodedFrameV1, RawEmbeddedPreviewV1 } from './libraw-wasm-instance-v1.ts';
+export type { RawDecodedFrameV1, RawDecodedOriginalV1, RawEmbeddedPreviewV1 } from './libraw-wasm-instance-v1.ts';
 type WorkerEvent = Readonly<{ data?: unknown }>;
 type Listener = (event: WorkerEvent) => void;
 type EventName = 'message' | 'error' | 'messageerror';
@@ -38,12 +38,16 @@ export function withDecodedRawFrameV1<Result>(value: unknown, consume: (frame: R
 	options: Readonly<LibRawRuntimeOptionsV1> = {}): Promise<Result> {
 	return withJob(value, 'decode', consume, readFrame, options);
 }
+export function withDecodedRawOriginalV1<Result>(value: unknown, consume: (view: Readonly<RawDecodedOriginalV1>) => Result | Promise<Result>,
+	options: Readonly<LibRawRuntimeOptionsV1> = {}): Promise<Result> {
+	return withJob(value, 'original', consume, readOriginal, options);
+}
 export function withRawEmbeddedPreviewV1<Result>(value: unknown, consume: (preview: RawEmbeddedPreviewV1 | null) => Result | Promise<Result>,
 	options: Readonly<LibRawRuntimeOptionsV1> = {}): Promise<Result> {
 	return withJob(value, 'preview', consume, readPreview, options);
 }
 
-async function withJob<Value, Result>(value: unknown, kind: 'decode' | 'preview', consume: (value: Value) => Result | Promise<Result>,
+async function withJob<Value, Result>(value: unknown, kind: 'decode' | 'preview' | 'original', consume: (value: Value) => Result | Promise<Result>,
 	parse: (value: unknown) => Value, options: Readonly<LibRawRuntimeOptionsV1>): Promise<Result> {
 	const signalField = typeof value === 'object' && value !== null ? Object.getOwnPropertyDescriptor(value, 'signal') : undefined;
 	if (signalField && !Object.hasOwn(signalField, 'value')) throw new TypeError('RAW cancellation must be an own data property.');
@@ -74,7 +78,7 @@ async function withJob<Value, Result>(value: unknown, kind: 'decode' | 'preview'
 	throw new Error('RAW scope has no operation outcome.');
 }
 
-async function runWorker(module: WebAssembly.Module, bytes: Uint8Array<ArrayBuffer>, kind: 'decode' | 'preview',
+async function runWorker(module: WebAssembly.Module, bytes: Uint8Array<ArrayBuffer>, kind: 'decode' | 'preview' | 'original',
 	factory: () => LibRawWorkerPortV1, receiver: object, signal: unknown, check: () => void, receive: (value: unknown) => void): Promise<unknown> {
 	const worker: unknown = Reflect.apply(factory, receiver, []);
 	const terminate = captureMethod(worker, 'terminate');
@@ -123,8 +127,9 @@ async function runWorker(module: WebAssembly.Module, bytes: Uint8Array<ArrayBuff
 	throw new Error('RAW worker has no operation outcome.');
 }
 
-function readResponse(value: unknown, kind: 'frame' | 'preview') {
-	const input = record(value, 'RAW worker response', ['schemaVersion', 'kind', 'frame', 'preview', 'error'], ['schemaVersion', 'kind']);
+function readResponse(value: unknown, kind: 'frame' | 'preview' | 'original') {
+	const input = record(value, 'RAW worker response', kind === 'original' ? ['schemaVersion', 'kind', 'frame', 'rawFlip', 'error']
+		: ['schemaVersion', 'kind', 'frame', 'preview', 'error'], ['schemaVersion', 'kind']);
 	if (field(input, 'schemaVersion', 'RAW worker response') !== 1) throw new RangeError('Unsupported RAW worker response version.');
 	if (field(input, 'kind', 'RAW worker response') === 'error') {
 		record(value, 'RAW worker error response', ['schemaVersion', 'kind', 'error']);
@@ -134,11 +139,19 @@ function readResponse(value: unknown, kind: 'frame' | 'preview') {
 		throw new Error(message);
 	}
 	if (field(input, 'kind', 'RAW worker response') !== kind) throw new TypeError('RAW worker response does not match its operation.');
+	if (kind === 'original') return record(value, 'RAW worker Original response', ['schemaVersion', 'kind', 'frame', 'rawFlip']);
 	record(value, 'RAW worker success response', ['schemaVersion', 'kind', kind === 'frame' ? 'frame' : 'preview']);
 	return field(input, kind === 'frame' ? 'frame' : 'preview', 'RAW worker response');
 }
 function readFrame(value: unknown): RawDecodedFrameV1 {
-	const frame = readPixelFrameV1(readResponse(value, 'frame'), FRAME_LIMITS);
+	return readNativeFrame(readResponse(value, 'frame'));
+}
+function readOriginal(value: unknown): Readonly<RawDecodedOriginalV1> {
+	const input = readResponse(value, 'original') as Readonly<Record<string, unknown>>;
+	return Object.freeze({ frame: readNativeFrame(field(input, 'frame', 'RAW Original')), rawFlip: scalar(input, 'rawFlip', 0, 7) });
+}
+function readNativeFrame(value: unknown): RawDecodedFrameV1 {
+	const frame = readPixelFrameV1(value, FRAME_LIMITS);
 	if (frame.descriptor.sampleFormat !== 'unorm16' || frame.descriptor.primaries !== 'srgb' || frame.descriptor.transfer !== 'linear'
 		|| !(frame.pixels instanceof Uint16Array)) throw new TypeError('RAW worker requires linear sRGB RGBA16.');
 	privateOutput(frame.pixels);
