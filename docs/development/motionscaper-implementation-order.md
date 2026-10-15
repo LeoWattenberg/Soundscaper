@@ -103,6 +103,10 @@ before completing the first preview frame; the rejected sample was not retained,
 so the exact failing operand remains unknown. Two asynchronous touch-test
 assertions are repaired and all five original Chromium workflows pass, with
 native inputs and drag/Undo/Redo checks unchanged.
+The current fixed Linux native-duration profile passed both 300 and 1,200 frames,
+including preview/ProRes, upload/encoder cancellation and retry, independent
+picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
+not close the browser, maximum-workload or broader platform gates.
 Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
@@ -150,7 +154,10 @@ The later source `5ca4a2ea1` attempt failed shutdown after three 300-frame movie
 Source `1202edeba` subsequently passed the complete fixed native profile at both
 durations, including preview/ProRes, cancellation/retry, all six references,
 memory tails and cleanup. The earlier c80 native success has lost receipts and
-remains historical. Maximum-workload and broader host evidence remain pending.
+remains historical. Source `322c8a6b1` also passed this complete fixed native
+profile, with all six independently decoded MOVs and 427 audited memory rows.
+Its separate browser attempt failed the existing memory ceiling before completing
+a preview frame. Maximum-workload and broader host evidence remain pending.
 Preview and render leases retain bounded digest-bound font providers.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and

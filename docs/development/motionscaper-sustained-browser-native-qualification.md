@@ -1,7 +1,9 @@
 # Controlled browser and Linux duration qualification
 
-Status: harness preparation; no sustained browser or native result is recorded
-here. The policy identifier is `motion-browser-linux-duration-v1`. Its numeric
+Status: maintained harness and fixed acceptance policy. Source-attributed results,
+including the current native pass and browser memory refusal, are recorded in
+[final integration status](motionscaper-final-integration-validation.md).
+The policy identifier is `motion-browser-linux-duration-v1`. Its numeric
 authority is `scripts/performance/motionscaper-sustained-plan.ts`. A reviewed
 commit and SHA-256 of that file must be recorded before a run starts. A failed
 limit remains a failure; changing the profile requires a separately reviewed

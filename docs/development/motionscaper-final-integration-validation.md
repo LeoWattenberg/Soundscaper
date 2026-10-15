@@ -105,6 +105,7 @@ source-328 ledger below into a pass.
 | Mixed-preview polling repair, test bytes committed as `845991e83` | All six original cases passed once, two per engine. The retained failure trace shows a sampling gap across the authored bright image interval; the test now samples its same >80 real-playback condition every 50 ms. Original pixel bounds, 15-second expectation, real Play/Stop, reopen, New and error assertions remain unchanged. Strict types, changed lint, size and normal paired builds passed. The actual sites/run used `322c8a6b1` plus these exact held test bytes; this focused result does not replace the failed 39-case suite. |
 | Touch-console observation repair, `8a54866b2` | All five original Chromium cases passed once, including both interrupted native gestures and their drag/Undo/Redo checks. Two assertions now wait for the same exact console-event arrays through the existing five-second expectation; native inputs and 30-second case limits remain unchanged. Changed lint, browser types, size, normal three-product build and source/site/process/port/writer guards passed. This repairs test synchronization, without claiming a historical application cause or a complete browser-suite pass. |
 | Current controlled-duration browser profile, `322c8a6b1` | Closed failed at the existing memory ceiling during the first 300-frame preview. Five accepted samples all record zero completed frames; exports, cancellation/retry and 1,200 frames were not reached. The sampler threw before retaining the rejected row, so the exact offending RSS/PSS/heap/WASM operand is unknown. Fresh source/input/site, process, server and output-writer closure passed. No cap changed and no duration or memory-growth qualification is claimed. |
+| Current controlled-duration native profile, `322c8a6b1` | Passed both 300- and 1,200-frame preview/ProRes workloads, cancellation during upload and encoding, and retries. All six MOVs passed independent picture/alpha, contiguous timestamp and exact PCM checks. The audit verified all 427 memory rows, including 68 real encoder observations; peak whole-application RSS/PSS was 1,088,049,152/630,641,664 bytes and all memory-growth limits passed unchanged. Source/artifact and final process/writer closure passed. This qualifies the fixed Linux x64 software profile, not maximum workloads, other hosts or the failed browser profile. |
 | Complete static gate, `8cc261339` | Passed full lint, types, architecture, audits, documentation and builds, with an explicit 12 GiB compiler heap. Source and observed process closure were verified. The later M06 changes retain their own focused checks; this result is not retagged to newer source. |
 | All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
@@ -192,6 +193,18 @@ The failed current browser-duration closure is
 `current-322c8a6b1-sustained-browser/actual-tool-closure.json`, SHA-256
 `7a3dc3c81cfdeedc8bad546a3d965ceda3f39996ace867abfe66f92d656272fa`.
 It preserves the failed workload separately from its successful cleanup audit.
+
+The passing current native-duration closure is
+`current-322c8a6b1-sustained-native/actual-tool-closure.json`, SHA-256
+`9b1a36fad3e8c11e38b43f169c4a4121cbbeecfa67a594d30376d00f456eefc4`.
+Its completed-output and memory audit is
+`current-322c8a6b1-sustained-native/qualification-audit.json`, SHA-256
+`704f8772b6e64bafc1102f390034ad4ea9d4660e572e87fcec11c2e9b0839f91`.
+The combined handoff is `current-322c8a6b1-duration-completed-handoff.json`,
+SHA-256 `073057929da2d445a8ee94cea71b8a5fa608e25da7da4734392c896fecdcb5d0`.
+It keeps native success and browser failure separate. Final guards verified
+all 53 recorded native-run identities absent and unchanged original/copied outputs;
+the numerical audit reads the completed outputs without replaying the app.
 
 The preceding passing complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
 `d9fa8b9a9f9d18f0e4d9947a30c28cb88557e9812d97987f9b2a16882a382967`.
