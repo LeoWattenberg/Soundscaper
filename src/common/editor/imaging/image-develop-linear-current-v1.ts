@@ -14,6 +14,7 @@ import { writeLinearRepairsV1 } from './pixel-frame-linear-repair-v1.ts';
 import { writeLinearLensDistortionV1 } from './pixel-frame-linear-lens-distortion-v1.ts';
 import { writeLinearChromaticAberrationV1 } from './pixel-frame-linear-chromatic-aberration-v1.ts';
 import { writeLinearDefringeV1 } from './pixel-frame-linear-defringe-v1.ts';
+import { writeLinearOpticalVignetteV1 } from './pixel-frame-linear-optical-vignette-v1.ts';
 import { writeLinearLutStageV1 } from './image-develop-linear-lut-stage-v1.ts';
 import { withLinearMaskCoverageV1, blendLinearMaskCoverageV1 } from './pixel-frame-linear-mask-v1.ts';
 import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
@@ -69,7 +70,7 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 				const next = work ? await work() : undefined;
 				if (binding && (next || binding === prepared.selectedBinding)) await withLinearMaskCoverageV1(binding, current, async coverage => {
 					if (next) {
-						if (copiedChannels === 'unchanged') await blendDefringeMaskCurrentV1(current, next, coverage, signal);
+						if (copiedChannels === 'unchanged') await blendUnchangedMaskCurrentV1(current, next, coverage, signal);
 						else await blendLinearMaskCoverageV1(current, next, coverage, signal);
 						// CA's reference channels are literal copies. Fractional blend
 						// arithmetic must not turn their negative zero into positive zero.
@@ -102,6 +103,9 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 				}, { red: stage.red === 0, blue: stage.blue === 0 });
 				else if (stage.kind === 'defringe') await observe(stage.id, async () => {
 					const next = owner.floats(stage.plan.sampleCount); await writeLinearDefringeV1(stage.plan, current, next, signal); return next;
+				}, 'unchanged');
+				else if (stage.kind === 'optical-vignette') await observe(stage.id, async () => {
+					const next = owner.floats(stage.plan.sampleCount); await writeLinearOpticalVignetteV1(stage.plan, current, next, signal); return next;
 				}, 'unchanged');
 				else if (stage.kind === 'spatial') await observe(stage.id, async () => {
 					const next = owner.floats(current.pixels.length), scratch = owner.bytes(stage.plan.scratchBytes), backing = scratch.buffer;
@@ -136,12 +140,12 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 	});
 }
 
-/** Current defringe alone retains exact gate-zero/unchanged component bits.
+/** Current stages can retain exact gate-zero/unchanged component bits.
  * Compare the staged value before interpolation; the permanent shared blend
  * retains its original arithmetic. No plane or image-sized scratch is made. */
-async function blendDefringeMaskCurrentV1(source: Readonly<LinearWorkingPixelFrameV1>, target: Float32Array<ArrayBuffer>,
+async function blendUnchangedMaskCurrentV1(source: Readonly<LinearWorkingPixelFrameV1>, target: Float32Array<ArrayBuffer>,
 	coverage: Uint8Array<ArrayBuffer>, signal?: AbortSignal): Promise<void> {
-	if (target.length !== source.pixels.length || coverage.length * 4 !== target.length) throw new RangeError('Current defringe mask geometry changed.');
+	if (target.length !== source.pixels.length || coverage.length * 4 !== target.length) throw new RangeError('Current unchanged-component mask geometry changed.');
 	const backings = [source.pixels, target, coverage].map(view => {
 		const buffer = Reflect.apply(TYPED_BUFFER, view, []) as ArrayBuffer;
 		return { buffer, length: Number(Reflect.apply(BACKING_SIZE, buffer, [])) };
@@ -149,7 +153,7 @@ async function blendDefringeMaskCurrentV1(source: Readonly<LinearWorkingPixelFra
 	const check = () => {
 		checkRepairSignalV1(signal);
 		if (backings.some(({ buffer, length }) => length === 0 || Reflect.apply(BACKING_SIZE, buffer, []) !== length)) {
-			throw new TypeError('Current defringe mask storage was detached or changed.');
+			throw new TypeError('Current unchanged-component mask storage was detached or changed.');
 		}
 	};
 	const budget = new RepairTaskBudgetV1(check); check();
@@ -158,7 +162,7 @@ async function blendDefringeMaskCurrentV1(source: Readonly<LinearWorkingPixelFra
 		for (let channel = 0; channel < 3; channel++) {
 			const before = source.pixels[offset + channel]!, after = target[offset + channel]!;
 			const value = before === after || amount === 0 ? before : amount === 255 ? after : Math.fround(before + amount / 255 * (after - before));
-			if (!Number.isFinite(value)) throw new RangeError('Current defringe mask exceeds finite Float32 range.');
+			if (!Number.isFinite(value)) throw new RangeError('Current unchanged-component mask exceeds finite Float32 range.');
 			target[offset + channel] = value;
 		}
 		target[offset + 3] = source.pixels[offset + 3]!;

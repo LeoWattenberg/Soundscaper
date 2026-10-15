@@ -37,6 +37,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Lens distortion | `lens-distortion-v1` | 1 |
 | Luma Key | `luma-key` | 3 |
 | Noise reduction | `noise-reduction-v1` | 6 |
+| Optical vignette | `optical-vignette-v1` | 1 |
 | Outline | `outline` | 3 |
 | Parametric curves | `parametric-curves-v1` | 19 |
 | Pixelate | `pixelate` | 1 |
@@ -155,6 +156,7 @@ Defaults and limits come from the same definitions the editor validates against.
 | Noise reduction | Color | 0 | 0 to 100 | — |
 | Noise reduction | Color detail | 50 | 0 to 100 | — |
 | Noise reduction | Color smoothness | 50 | 0 to 100 | — |
+| Optical vignette | Amount | 0 | -100 to 100 | — |
 | Outline | Width | 4 | 0 to 16 | pixels |
 | Outline | Color | `#ffffff` | Any RGB color | — |
 | Outline | Opacity | 1 | 0 to 1 | — |

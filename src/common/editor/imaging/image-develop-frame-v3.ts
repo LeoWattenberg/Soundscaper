@@ -19,6 +19,8 @@ import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, prepareChromaticAberrationEffectV1
 import { withChromaticAberrationPixelFrameV1 } from './pixel-frame-chromatic-aberration-v1.ts';
 import { DEFRINGE_EFFECT_TYPE_V1, prepareDefringeEffectV1 } from '../video-defringe-v1.ts';
 import { withDefringePixelFrameV1 } from './pixel-frame-defringe-v1.ts';
+import { OPTICAL_VIGNETTE_EFFECT_TYPE_V1, prepareOpticalVignetteEffectV1 } from '../video-optical-vignette-v1.ts';
+import { withOpticalVignettePixelFrameV1 } from './pixel-frame-optical-vignette-v1.ts';
 
 export type ImageDevelopFrameOptionsV3 = ImageDevelopFrameOptionsV2;
 
@@ -61,6 +63,11 @@ export function withImageDevelopFrameFixedKernelV1<Result>(value: unknown,
 			return captureMaskRasterSourceV1(rawMaskSource);
 		},
 		prepareResourceStage(effect) {
+			if (mode === 'current' && effect.type === OPTICAL_VIGNETTE_EFFECT_TYPE_V1) {
+				const optical = prepareOpticalVignetteEffectV1(effect);
+				return optical.neutral ? null : (frame, signal, limits, accept) =>
+					withOpticalVignettePixelFrameV1({ frame, effect, ...(signal ? { signal } : {}) }, accept, { limits });
+			}
 			if (mode === 'current' && effect.type === DEFRINGE_EFFECT_TYPE_V1) {
 				const defringe = prepareDefringeEffectV1(effect);
 				return defringe.neutral ? null : (frame, signal, limits, accept) =>

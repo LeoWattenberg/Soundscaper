@@ -11,6 +11,7 @@ import { appendDetailSharpenFfmpegOperationV1 } from './video-sharpen-ffmpeg-v1.
 import { appendLensDistortionFfmpegOperationV1 } from './video-lens-distortion-ffmpeg-v1.ts';
 import { appendChromaticAberrationFfmpegOperationV1 } from './video-chromatic-aberration-ffmpeg-v1.ts';
 import { appendDefringeFfmpegOperationV1 } from './video-defringe-ffmpeg-v1.ts';
+import { appendOpticalVignetteFfmpegOperationV1 } from './video-optical-vignette-ffmpeg-v1.ts';
 
 type FilterOperation = Readonly<Record<string, unknown>>;
 
@@ -167,6 +168,7 @@ function appendAlphaUnderlay(context: VideoEffectGraphContext): void {
 
 export function appendVideoEffectOperation(context: VideoEffectGraphContext): void {
 	const { filters, inputLabel, outputLabel, operation } = context;
+	if (operation.kind === 'optical-vignette-v1') { appendOpticalVignetteFfmpegOperationV1(context); return; }
 	if (operation.kind === 'defringe-v1') { appendDefringeFfmpegOperationV1(context); return; }
 	if (operation.kind === 'chromatic-aberration-v1') { appendChromaticAberrationFfmpegOperationV1(context); return; }
 	if (operation.kind === 'lens-distortion-v1') { appendLensDistortionFfmpegOperationV1(context); return; }

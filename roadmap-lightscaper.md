@@ -937,7 +937,7 @@ there.
 - **Electron Enhanced — Planned:** native raw decode and preview services
   through the milestone-5 helper architecture, fail-closed, with the WASM
   path as fallback.
-- **Shared — In progress:** manual lens corrections (distortion, chromatic
+- **Shared — Done:** manual lens corrections (distortion, chromatic
   aberration, defringe, vignette) as shared effects. The first
   [manual distortion family](docs/architecture/lightscaper-lens-distortion.md)
   has bounded radial sampling, native linear and byte execution, ordered
@@ -960,10 +960,17 @@ there.
   Current byte/native processing, masks, PNG delivery, RAW Develop and editable
   Source2/3/4 handoffs retain the authored recipe and Original. Proxy editing
   evaluates its declared reduced neighborhood grid; Full/export use natural
-  resolution. Current qualification passes 3,258 selected Lightscaper cases in
-  374 files, including 42 focused defringe checks, and 26 Chromium/Firefox
-  browser cases across all three manual lens families. Optical vignette and
-  reviewed profile corrections remain open.
+  resolution. [Manual optical vignette](docs/architecture/lightscaper-optical-vignette.md)
+  now multiplies linear RGB by a smooth radial gain, retaining black, signed
+  native values and exact alpha. It uses its authored incoming-stage extent:
+  effect-list crop order is preserved, and legacy geometry still runs first.
+  Byte/native Current processing, masks, PNG, RAW and editable Source2/3/4
+  delivery share that contract; the existing artistic post-crop vignette keeps
+  its separate behavior. Current qualification passes 3,302 selected
+  Lightscaper cases in 379 files, including 44 focused optical checks, and 34
+  Chromium/Firefox browser cases across all four manual lens families.
+  Reviewed profile corrections and complete Photo Develop GPU conformance
+  remain open.
 - **Shared — Blocked on licensing:** profile-based lens corrections until a
   lens-profile database passes the licensing review.
 - **Shared — Blocked on licensing:** camera-matching color profiles until a

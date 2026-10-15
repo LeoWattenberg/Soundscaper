@@ -12,7 +12,7 @@ import PhotoDevelopCubeLutV2 from './PhotoDevelopCubeLutV2.tsx';
 import type { PhotoLibraryCubeLutPortV1 } from '../../photo-library-cube-lut-port-v1.ts';
 import { normalizePointCurvesParamsV1 } from '../../video-curves-v1.ts';
 
-const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'lens-distortion-v1', 'chromatic-aberration-v1', 'defringe-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1', 'noise-reduction-v1', 'grain-v1', 'texture-v1', 'dehaze-v1', 'cube-lut-profile-v1'] as const;
+const TYPES = ['white-balance-v1', 'tone-ladder-v1', 'develop-geometry-v1', 'lens-distortion-v1', 'chromatic-aberration-v1', 'defringe-v1', 'optical-vignette-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1', 'detail-sharpen-v1', 'post-crop-vignette-v1', 'clarity-v1', 'noise-reduction-v1', 'grain-v1', 'texture-v1', 'dehaze-v1', 'cube-lut-profile-v1'] as const;
 export default function PhotoDevelopEffectsV2(props: Readonly<{ effects: readonly VideoEffectLeafV2[]; owner: PhotoDevelopEffectsAuthoringPortV1;
 	messages: PhotoDevelopCopyV1; disabled: boolean; isCurrent: () => boolean; importCubeLut?: PhotoLibraryCubeLutPortV1['importFile'];
 	onImportPending: (pending: boolean) => void; registerImportRetirement: (retire: () => Promise<void>) => () => void }>) {

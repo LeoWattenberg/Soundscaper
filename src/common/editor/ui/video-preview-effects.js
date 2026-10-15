@@ -10,6 +10,7 @@ import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_EFFECT_CODE_V1, detailSha
 import { LENS_DISTORTION_EFFECT_TYPE_V1, LENS_DISTORTION_EFFECT_CODE_V1, lensDistortionPreviewPassV1 } from '../video-lens-distortion-v1.ts';
 import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, CHROMATIC_ABERRATION_EFFECT_CODE_V1, chromaticAberrationPreviewPassV1 } from '../video-chromatic-aberration-v1.ts';
 import { DEFRINGE_EFFECT_TYPE_V1, DEFRINGE_EFFECT_CODE_V1, defringePreviewPassV1 } from '../video-defringe-v1.ts';
+import { OPTICAL_VIGNETTE_EFFECT_TYPE_V1, OPTICAL_VIGNETTE_EFFECT_CODE_V1, opticalVignettePreviewPassV1 } from '../video-optical-vignette-v1.ts';
 import { VIDEO_PREVIEW_GEOMETRY_VERTEX_SHADER_SOURCE } from './video-preview-geometry-shader.ts';
 import { FRAGMENT_SHADER_SOURCE, MAX_GAUSSIAN_BLUR_PAIR_COUNT } from './video-preview-effects-shader.js';
 import { GLOBAL_DEVELOP_EFFECT_CODES_V1, globalDevelopPreviewPassV1, isGlobalDevelopEffectTypeV1 } from '../video-global-develop-v1.ts';
@@ -23,7 +24,7 @@ import { COLOR_WHEELS_EFFECT_TYPE_V1, COLOR_WHEELS_EFFECT_CODE_V1, colorWheelsPr
 
 export { MAX_GAUSSIAN_BLUR_PAIR_COUNT, VIDEO_PREVIEW_PIXELATE_GRID_SIZE } from './video-preview-effects-shader.js';
 
-export const EFFECT_PROGRAM_COUNT = 37;
+export const EFFECT_PROGRAM_COUNT = 38;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
 export const GAUSSIAN_BLUR_RENDER_SCALE = 2 / 3;
 const GAUSSIAN_BLUR_SIGMA_CALIBRATION = 0.85;
@@ -37,6 +38,7 @@ export const BLUR_KERNEL = Symbol('blurKernel');
 export const EFFECT_CODES = Object.freeze({
 	[CHROMATIC_ABERRATION_EFFECT_TYPE_V1]: CHROMATIC_ABERRATION_EFFECT_CODE_V1,
 	[DEFRINGE_EFFECT_TYPE_V1]: DEFRINGE_EFFECT_CODE_V1,
+	[OPTICAL_VIGNETTE_EFFECT_TYPE_V1]: OPTICAL_VIGNETTE_EFFECT_CODE_V1,
 	[LENS_DISTORTION_EFFECT_TYPE_V1]: LENS_DISTORTION_EFFECT_CODE_V1,
 	[GRAIN_EFFECT_TYPE_V1]: GRAIN_EFFECT_CODE_V1,
 	[TEXTURE_EFFECT_TYPE_V1]: TEXTURE_EFFECT_CODE_V1,
@@ -113,6 +115,7 @@ function gaussianBlurPass(sigma, renderScale, direction, kernel) {
  * Gaussian blur expands to two convolution passes.
  */
 export function videoEffectPasses(effect, previewScale = {}) {
+	if (effect.type === OPTICAL_VIGNETTE_EFFECT_TYPE_V1) { const pass = opticalVignettePreviewPassV1(effect); return pass ? [pass] : []; }
 	if (effect.type === DEFRINGE_EFFECT_TYPE_V1) { const pass = defringePreviewPassV1(effect); return pass ? [pass] : []; }
 	if (!effect) return [];
 	if (effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) { const pass = chromaticAberrationPreviewPassV1(effect); return pass ? [pass] : []; }

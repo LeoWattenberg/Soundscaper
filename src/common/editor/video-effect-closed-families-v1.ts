@@ -33,13 +33,15 @@ import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, CHROMATIC_ABERRATION_VIDEO_EFFECT_
 	normalizeChromaticAberrationParamsV1, serializeChromaticAberrationEffectToFfmpegV1 } from './video-chromatic-aberration-v1.ts';
 import { DEFRINGE_EFFECT_TYPE_V1, DEFRINGE_VIDEO_EFFECT_DEFINITION_V1, normalizeDefringeEffectV1,
 	normalizeDefringeParamsV1, serializeDefringeEffectToFfmpegV1 } from './video-defringe-v1.ts';
+import { OPTICAL_VIGNETTE_EFFECT_TYPE_V1, OPTICAL_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1, normalizeOpticalVignetteEffectV1,
+	normalizeOpticalVignetteParamsV1, serializeOpticalVignetteEffectToFfmpegV1 } from './video-optical-vignette-v1.ts';
 
 import type { VideoEffectParameterV1 } from './video-curve-types-v1.ts';
 
 interface Effect { readonly id:string; readonly type:string; readonly enabled:boolean; readonly params:Readonly<Record<string,VideoEffectParameterV1>> }
 type Operation = Readonly<{expression:string;preserveAlpha:true;kind?:string}> | Readonly<{kind:'image-geometry-v1';effect:ReturnType<typeof normalizeImageGeometryVideoEffectV1>}>
 	| NonNullable<ReturnType<typeof serializeLensDistortionEffectToFfmpegV1>> | NonNullable<ReturnType<typeof serializeChromaticAberrationEffectToFfmpegV1>>
-	| NonNullable<ReturnType<typeof serializeDefringeEffectToFfmpegV1>>;
+	| NonNullable<ReturnType<typeof serializeDefringeEffectToFfmpegV1>> | NonNullable<ReturnType<typeof serializeOpticalVignetteEffectToFfmpegV1>>;
 interface Family { readonly params:(value:unknown)=>Effect['params']; readonly effect:(value:unknown)=>Effect;
 	readonly serialize:(value:unknown)=>Operation|null; readonly create?: (value:unknown)=>Effect }
 
@@ -63,9 +65,12 @@ export const CLOSED_VIDEO_EFFECT_DEFINITIONS_V1 = Object.freeze({
 	[LENS_DISTORTION_EFFECT_TYPE_V1]:LENS_DISTORTION_VIDEO_EFFECT_DEFINITION_V1,
 	[CHROMATIC_ABERRATION_EFFECT_TYPE_V1]:CHROMATIC_ABERRATION_VIDEO_EFFECT_DEFINITION_V1,
 	[DEFRINGE_EFFECT_TYPE_V1]:DEFRINGE_VIDEO_EFFECT_DEFINITION_V1,
+	[OPTICAL_VIGNETTE_EFFECT_TYPE_V1]:OPTICAL_VIGNETTE_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 const FAMILIES = Object.freeze({
+	[OPTICAL_VIGNETTE_EFFECT_TYPE_V1]:{params:normalizeOpticalVignetteParamsV1,effect:normalizeOpticalVignetteEffectV1,serialize:serializeOpticalVignetteEffectToFfmpegV1,
+		create:(value:unknown)=>createClosedVideoEffect(OPTICAL_VIGNETTE_EFFECT_TYPE_V1,value,{name:'optical vignette creation',typeError:'Optical vignette creation requires its exact effect type.',normalizeParams:normalizeOpticalVignetteParamsV1,normalizeEffect:normalizeOpticalVignetteEffectV1})},
 	[DEFRINGE_EFFECT_TYPE_V1]:{params:normalizeDefringeParamsV1,effect:normalizeDefringeEffectV1,serialize:serializeDefringeEffectToFfmpegV1,
 		create:(value:unknown)=>createClosedVideoEffect(DEFRINGE_EFFECT_TYPE_V1,value,{name:'defringe creation',typeError:'Defringe creation requires its exact effect type.',normalizeParams:normalizeDefringeParamsV1,normalizeEffect:normalizeDefringeEffectV1})},
 	[CHROMATIC_ABERRATION_EFFECT_TYPE_V1]:{params:normalizeChromaticAberrationParamsV1,effect:normalizeChromaticAberrationEffectV1,serialize:serializeChromaticAberrationEffectToFfmpegV1,
