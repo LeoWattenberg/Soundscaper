@@ -119,6 +119,9 @@ documented 192 MiB JavaScript peak; decoder surfaces and retained Blob backing
 are accounted separately. The one-active-job limit prevents multiplying those
 working sets by the queue length.
 
-The current library and Develop workspace consume the selected Session's preview
-scheduler. Shared storage packaging does not change the assistance engine closure
-and requires no manual **Update AI assets** run.
+Current library culling consumes the selected Session's preview scheduler.
+Its opt-in [RAW camera preview](lightscaper-culling.md#current-raw-preview-source)
+uses a separate recipe within the same cache limits. Current Develop reads the
+authenticated Original through its separate native-depth reader. Shared storage
+packaging does not change the assistance engine closure and requires no manual
+**Update AI assets** run.

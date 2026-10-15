@@ -2,43 +2,58 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../common/editor/closed-domain-value.ts';
 import type { PhotoDocumentV1 } from '../catalog/types.ts';
-import { id, oneOf } from '../catalog/value-validation.ts';
+import { id } from '../catalog/value-validation.ts';
 import { withPhotoOriginalFrameV1 } from './photo-original-frame-v1.ts';
 import type { PhotoPreviewCachePortV1 } from './photo-preview-cache-v1.ts';
-import { planPhotoPreviewV1, type PhotoPreviewOriginalBindingV1, type PhotoPreviewTierV1 } from './photo-preview-plan-v1.ts';
-import { preparePhotoPreviewV1, type PreparedPhotoPreviewV1 } from './photo-preview-preparation-v1.ts';
+import { type PhotoPreviewPlanV1, type PhotoPreviewOriginalBindingV1, type PhotoPreviewTierV1 } from './photo-preview-plan-v1.ts';
+import { type PreparedPhotoPreviewV1 } from './photo-preview-preparation-v1.ts';
 
 export const PHOTO_PREVIEW_SCHEDULER_LIMITS_V1 = Object.freeze({ maximumQueuedIds: 64, maximumPendingRequests: 65, maximumActiveJobs: 1 });
 
-export interface PhotoPreviewSchedulerOptionsCore {
+export type PhotoPreviewPreparedCore = Pick<PreparedPhotoPreviewV1, 'key' | 'descriptor' | 'byteLength' | 'outputSha256' | 'body'>;
+export type PhotoPreviewCachePortCore<Prepared extends PhotoPreviewPreparedCore> = Omit<PhotoPreviewCachePortV1, 'load'> & {
+	load(plan: unknown, signal?: AbortSignal): Promise<Readonly<Prepared> | null>;
+};
+export interface PhotoPreviewRequestCore {
+	readonly photoId: string; readonly tier: PhotoPreviewTierV1; readonly signal?: AbortSignal; readonly variant: string;
+}
+export interface PhotoPreviewProtocolCore<Prepared extends PhotoPreviewPreparedCore, Plan extends { readonly key: string }> {
+	capture(value: unknown): PhotoPreviewRequestCore;
+	plan(binding: PhotoPreviewOriginalBindingV1, tier: PhotoPreviewTierV1, photo: PhotoPreviewSchedulerAdmittedPhoto, variant: string): Plan;
+	render(request: Readonly<{ plan: Plan; binding: PhotoPreviewOriginalBindingV1; body: unknown; signal: AbortSignal; variant: string }>,
+		regenerate: typeof withPhotoOriginalFrameV1): Promise<Readonly<Prepared>>;
+}
+
+export interface PhotoPreviewSchedulerOptionsCore<Prepared extends PhotoPreviewPreparedCore = PreparedPhotoPreviewV1> {
 	readonly catalogId: string;
 	readonly loadPhoto: (photoId: string) => Promise<unknown | null>;
 	readonly loadOriginal: (storageKey: string, signal: AbortSignal) => Promise<unknown>;
-	readonly cache: PhotoPreviewCachePortV1;
+	readonly cache: PhotoPreviewCachePortCore<Prepared>;
 	readonly regenerate?: typeof withPhotoOriginalFrameV1;
 }
 
-export type PhotoPreviewJobOutcomeV1 =
-	| Readonly<{ outcome: 'ready'; preview: Readonly<PreparedPhotoPreviewV1>; cache: 'hit' | 'stored' | 'transient';
+export type PhotoPreviewJobOutcomeV1<Prepared extends PhotoPreviewPreparedCore = PreparedPhotoPreviewV1> =
+	| Readonly<{ outcome: 'ready'; preview: Readonly<Prepared>; cache: 'hit' | 'stored' | 'transient';
 		persistenceError?: unknown; cleanupErrors?: readonly unknown[] }>
 	| Readonly<{ outcome: 'missing' | 'superseded' }>;
 
 export type PhotoPreviewSchedulerAdmittedPhoto = Pick<PhotoDocumentV1, 'kind' | 'id' | 'catalogId' | 'original'>;
 
-interface Subscriber {
-	readonly resolve: (value: PhotoPreviewJobOutcomeV1) => void;
+interface Subscriber<Prepared extends PhotoPreviewPreparedCore> {
+	readonly resolve: (value: PhotoPreviewJobOutcomeV1<Prepared>) => void;
 	readonly reject: (error: unknown) => void;
 	readonly signal?: AbortSignal;
 	readonly abort: () => void;
 	settled: boolean;
 }
 
-interface Job {
+interface Job<Prepared extends PhotoPreviewPreparedCore> {
 	readonly key: string;
 	readonly photoId: string;
 	readonly tier: PhotoPreviewTierV1;
 	readonly controller: AbortController;
-	readonly subscribers: Set<Subscriber>;
+	readonly subscribers: Set<Subscriber<Prepared>>;
+	readonly variant: string;
 }
 
 const addListener = EventTarget.prototype.addEventListener, removeListener = EventTarget.prototype.removeEventListener;
@@ -49,20 +64,22 @@ function check(signal: AbortSignal): void { Reflect.apply(throwIfAborted, signal
 function aborted(signal: AbortSignal): boolean { return Reflect.apply(nativeAborted, signal, []) === true; }
 
 /** Scalar demand queue; one callback-scoped native frame and one independent preview at a time. */
-export class PhotoPreviewSchedulerCore {
+export class PhotoPreviewSchedulerCore<Prepared extends PhotoPreviewPreparedCore = PreparedPhotoPreviewV1, Plan extends { readonly key: string } = PhotoPreviewPlanV1> {
 	readonly #catalogId: string;
+	readonly #protocol: PhotoPreviewProtocolCore<Prepared, Plan>;
 	readonly #normalizePhoto: (value: unknown) => PhotoPreviewSchedulerAdmittedPhoto;
-	readonly #ports: Readonly<Required<Omit<PhotoPreviewSchedulerOptionsCore, 'catalogId'>>>;
-	readonly #jobs = new Map<string, Job>();
-	readonly #queue: Job[] = [];
-	#active: Job | null = null;
-	#activeTask: Promise<PhotoPreviewJobOutcomeV1> | null = null;
+	readonly #ports: Readonly<Required<Omit<PhotoPreviewSchedulerOptionsCore<Prepared>, 'catalogId'>>>;
+	readonly #jobs = new Map<string, Job<Prepared>>();
+	readonly #queue: Job<Prepared>[] = [];
+	#active: Job<Prepared> | null = null;
+	#activeTask: Promise<PhotoPreviewJobOutcomeV1<Prepared>> | null = null;
 	#pendingRequests = 0;
 	#closed = false;
 	#closing: Promise<void> | null = null;
 
-	constructor(options: PhotoPreviewSchedulerOptionsCore, normalizePhoto: (value: unknown) => PhotoPreviewSchedulerAdmittedPhoto) {
-		this.#normalizePhoto = normalizePhoto;
+	constructor(options: PhotoPreviewSchedulerOptionsCore<Prepared>, normalizePhoto: (value: unknown) => PhotoPreviewSchedulerAdmittedPhoto,
+		protocol: PhotoPreviewProtocolCore<Prepared, Plan>) {
+		this.#normalizePhoto = normalizePhoto; this.#protocol = protocol;
 		const input = record(options, 'photo preview scheduler ports', ['catalogId', 'loadPhoto', 'loadOriginal', 'cache', 'regenerate'],
 			['catalogId', 'loadPhoto', 'loadOriginal', 'cache']);
 		this.#catalogId = id(field(input, 'catalogId', 'photo preview scheduler ports'), 'preview catalog ID');
@@ -76,38 +93,34 @@ export class PhotoPreviewSchedulerCore {
 		const configuredRegenerate = Object.hasOwn(input, 'regenerate') ? field(input, 'regenerate', 'photo preview scheduler ports') : undefined;
 		const regenerate = (configuredRegenerate ?? withPhotoOriginalFrameV1) as typeof withPhotoOriginalFrameV1;
 		if (typeof regenerate !== 'function') throw new TypeError('Photo preview requires an original frame factory.');
-		const loadPhoto = field(input, 'loadPhoto', 'photo preview scheduler ports') as PhotoPreviewSchedulerOptionsCore['loadPhoto'];
-		const loadOriginal = field(input, 'loadOriginal', 'photo preview scheduler ports') as PhotoPreviewSchedulerOptionsCore['loadOriginal'];
-		const load = field(cache, 'load', 'photo preview cache port') as PhotoPreviewCachePortV1['load'];
+		const loadPhoto = field(input, 'loadPhoto', 'photo preview scheduler ports') as PhotoPreviewSchedulerOptionsCore<Prepared>['loadPhoto'];
+		const loadOriginal = field(input, 'loadOriginal', 'photo preview scheduler ports') as PhotoPreviewSchedulerOptionsCore<Prepared>['loadOriginal'];
+		const load = field(cache, 'load', 'photo preview cache port') as PhotoPreviewCachePortCore<Prepared>['load'];
 		const store = field(cache, 'store', 'photo preview cache port') as PhotoPreviewCachePortV1['store'];
 		const trim = field(cache, 'trim', 'photo preview cache port') as PhotoPreviewCachePortV1['trim'];
 		this.#ports = Object.freeze({ loadPhoto: photoId => Reflect.apply(loadPhoto, options, [photoId]),
 			loadOriginal: (storageKey, signal) => Reflect.apply(loadOriginal, options, [storageKey, signal]),
 			cache: Object.freeze({ load: (plan, signal) => Reflect.apply(load, cache, [plan, signal]),
-				store: (value, signal) => Reflect.apply(store, cache, [value, signal]), trim: signal => Reflect.apply(trim, cache, [signal]) } satisfies PhotoPreviewCachePortV1), regenerate });
+				store: (value, signal) => Reflect.apply(store, cache, [value, signal]), trim: signal => Reflect.apply(trim, cache, [signal]) } satisfies PhotoPreviewCachePortCore<Prepared>), regenerate });
 	}
 
-	request(value: unknown): Promise<PhotoPreviewJobOutcomeV1> {
+	request(value: unknown): Promise<PhotoPreviewJobOutcomeV1<Prepared>> {
 		try {
 			if (this.#closed) throw closedError();
-			const request = record(value, 'photo preview job', ['photoId', 'tier', 'signal'], ['photoId', 'tier']);
-			const photoId = id(field(request, 'photoId', 'photo preview job'), 'preview photo ID');
-			const tier = oneOf(field(request, 'tier', 'photo preview job'), ['thumbnail', 'fit-screen'] as const, 'preview tier');
-			const signal = Object.hasOwn(request, 'signal') ? field(request, 'signal', 'photo preview job') : undefined;
-			if (signal !== undefined && !(signal instanceof AbortSignal)) throw new TypeError('Photo preview jobs require a cancellation signal.');
+			const { photoId, tier, signal, variant } = this.#protocol.capture(value);
 			if (signal) Reflect.apply(throwIfAborted, signal, []);
 			if (this.#closed) throw closedError();
 			if (this.#pendingRequests >= PHOTO_PREVIEW_SCHEDULER_LIMITS_V1.maximumPendingRequests) throw new RangeError('Photo preview request budget is full.');
-			const key = JSON.stringify([photoId, tier]), previous = this.#jobs.get(key);
+			const key = JSON.stringify([photoId, tier, variant]), previous = this.#jobs.get(key);
 			let job = previous && !aborted(previous.controller.signal) ? previous : null;
 			if (!job) {
 				if (this.#queue.length >= PHOTO_PREVIEW_SCHEDULER_LIMITS_V1.maximumQueuedIds) throw new RangeError('Photo preview queue is full.');
-				job = { key, photoId, tier, controller: new AbortController(), subscribers: new Set() };
+				job = { key, photoId, tier, variant, controller: new AbortController(), subscribers: new Set() };
 				this.#jobs.set(key, job); this.#queue.push(job);
 			}
 			const admitted = job;
-			const pending = new Promise<PhotoPreviewJobOutcomeV1>((resolve, reject) => {
-				const subscriber: Subscriber = { resolve, reject, signal, settled: false,
+			const pending = new Promise<PhotoPreviewJobOutcomeV1<Prepared>>((resolve, reject) => {
+				const subscriber: Subscriber<Prepared> = { resolve, reject, signal, settled: false,
 					abort: () => { this.#cancel(admitted, subscriber, signal ? Reflect.apply(abortReason, signal, []) : undefined); } };
 				admitted.subscribers.add(subscriber); this.#pendingRequests += 1;
 				if (signal) Reflect.apply(addListener, signal, ['abort', subscriber.abort, { once: true }]);
@@ -138,19 +151,18 @@ export class PhotoPreviewSchedulerCore {
 		if (this.#closed || this.#active) return;
 		const job = this.#queue.shift(); if (!job) return;
 		this.#active = job;
-		let resolve!: (value: PhotoPreviewJobOutcomeV1) => void, reject!: (error: unknown) => void;
-		const pending = new Promise<PhotoPreviewJobOutcomeV1>((accept, refuse) => { resolve = accept; reject = refuse; });
+		let resolve!: (value: PhotoPreviewJobOutcomeV1<Prepared>) => void, reject!: (error: unknown) => void;
+		const pending = new Promise<PhotoPreviewJobOutcomeV1<Prepared>>((accept, refuse) => { resolve = accept; reject = refuse; });
 		this.#activeTask = pending;
 		void pending.then(value => { this.#finish(job, value); }, error => { this.#finish(job, undefined, error); });
 		void this.#run(job).then(resolve, reject);
 	}
 
-	async #run(job: Job): Promise<PhotoPreviewJobOutcomeV1> {
+	async #run(job: Job<Prepared>): Promise<PhotoPreviewJobOutcomeV1<Prepared>> {
 		const signal = job.controller.signal, photo = await this.#current(job.photoId, signal);
 		if (!photo) return Object.freeze({ outcome: 'missing' });
 		const binding = originalBinding(photo);
-		const plan = planPhotoPreviewV1({ binding, source: { schemaVersion: 1, width: binding.width, height: binding.height,
-			sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, tier: job.tier });
+		const plan = this.#protocol.plan(binding, job.tier, photo, job.variant);
 		const cached = await this.#ports.cache.load(plan, signal); check(signal);
 		if (cached) {
 			if (cached.key !== plan.key) throw new RangeError('Photo preview cache returned another plan.');
@@ -158,7 +170,7 @@ export class PhotoPreviewSchedulerCore {
 			return Object.freeze({ outcome: 'ready', preview: cached, cache: 'hit' });
 		}
 		const body = await this.#ports.loadOriginal(binding.storageKey, signal); check(signal);
-		const preview = await this.#ports.regenerate({ binding, body, signal }, frame => preparePhotoPreviewV1({ plan, binding, frame, signal }));
+		const preview = await this.#protocol.render({ plan, binding, body, signal, variant: job.variant }, this.#ports.regenerate);
 		check(signal);
 		if (!await this.#matches(job.photoId, binding, signal)) return Object.freeze({ outcome: 'superseded' });
 		let cache: 'stored' | 'transient' = 'transient', persistenceError: unknown;
@@ -205,7 +217,7 @@ export class PhotoPreviewSchedulerCore {
 		return current !== null && JSON.stringify(originalBinding(current)) === JSON.stringify(binding);
 	}
 
-	#cancel(job: Job, subscriber: Subscriber, reason: unknown): void {
+	#cancel(job: Job<Prepared>, subscriber: Subscriber<Prepared>, reason: unknown): void {
 		if (subscriber.settled) return;
 		this.#settle(job, subscriber); subscriber.reject(reason);
 		if (!job.subscribers.size) {
@@ -215,7 +227,7 @@ export class PhotoPreviewSchedulerCore {
 		}
 	}
 
-	#finish(job: Job, value?: PhotoPreviewJobOutcomeV1, error?: unknown): void {
+	#finish(job: Job<Prepared>, value?: PhotoPreviewJobOutcomeV1<Prepared>, error?: unknown): void {
 		for (const subscriber of [...job.subscribers]) {
 			this.#settle(job, subscriber); if (value) subscriber.resolve(value); else subscriber.reject(error);
 		}
@@ -223,7 +235,7 @@ export class PhotoPreviewSchedulerCore {
 		this.#active = null; this.#activeTask = null; this.#start();
 	}
 
-	#settle(job: Job, subscriber: Subscriber): void {
+	#settle(job: Job<Prepared>, subscriber: Subscriber<Prepared>): void {
 		subscriber.settled = true; job.subscribers.delete(subscriber); this.#pendingRequests -= 1;
 		if (subscriber.signal) Reflect.apply(removeListener, subscriber.signal, ['abort', subscriber.abort]);
 	}

@@ -18,6 +18,8 @@ type WorkflowHook = (profile: 'legacy2' | 'current3', createSession?: CreatePhot
 	loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, renderer?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3) => PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1;
 const useWorkflowForProfile = usePhotoLibraryWorkflowForProfileV1 as WorkflowHook;
 import { lightscaperMenuEvents } from './lightscaper-menu-events.ts';
+import { usePhotoRawPreviewSourceCurrentV1 } from './use-photo-raw-preview-source-current-v1.ts';
+import PhotoRawPreviewSourceMenuCurrentV1 from './PhotoRawPreviewSourceMenuCurrentV1.tsx';
 import { usePhotoRasterExportEntry } from './use-photo-raster-export-entry.ts';
 import { usePhotoFramescaperHandoffEntry } from './use-photo-framescaper-handoff-entry.tsx';
 import { useCapturedMethod } from './use-lightscaper-captured-method.ts';
@@ -113,7 +115,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 			if (previewRetirement.current === retire) previewRetirement.current = null;
 		};
 	}, []);
-	const borrowedReadPreview = library.readPreview;
+	const rawPreview = usePhotoRawPreviewSourceCurrentV1(profile, generation, library.readPreview), borrowedReadPreview = rawPreview.readPreview;
 	const readPreviewAfterDrain = useCallback(async (...args: Parameters<typeof borrowedReadPreview>) => {
 		await previewDrain.current; return borrowedReadPreview(...args);
 	}, [borrowedReadPreview]);
@@ -419,6 +421,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 				<details name="lightscaper-application-menu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 					<summary className="application-header__menu-item">{copy.photoViewMenu}</summary>
 					<div className="lightscaper-menu-items">
+						{profile === 'current3' && <PhotoRawPreviewSourceMenuCurrentV1 locale={locale} source={rawPreview.source} disabled={restore.busy} onSelect={rawPreview.select} closeMenu={closeMenu} onKeyDown={menuKeyDown} onBlur={menuBlur} />}
 						<button type="button" disabled={restore.busy} aria-pressed={libraryVisible} onClick={toggleLibrary}>
 							{libraryVisible ? copy.photoHideLibrary : copy.photoShowLibrary}
 						</button>

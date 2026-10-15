@@ -85,5 +85,6 @@ This work changes no RAW compiler inputs or assistance runtime closure. It
 requires no manual **Update AI assets** run. [Editable RAW Frame
 handoff](lightscaper-raw-image-handoff.md) retains the authenticated Original and
 native receipt separately from its byte presentation cache. External RAW runtime
-publication, embedded-preview culling, wide-gamut output and other remaining
-roadmap work are separate.
+publication, wide-gamut output and other remaining roadmap work are separate.
+The opt-in [camera culling source](lightscaper-culling.md#current-raw-preview-source)
+never supplies raster export's native Original input.

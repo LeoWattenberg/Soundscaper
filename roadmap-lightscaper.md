@@ -163,7 +163,7 @@ pending.
 | Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
 | Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask, repair and output stages, with final PNG8/16 or JPEG8 delivery. Editable Source4 handoff regenerates native words from the authenticated Original; wide-gamut work remains open. |
 | Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
-| Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. |
+| Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. Current RAW culling offers a menu-selected camera preview source with neutral Original as default. |
 | Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
 | UI and platform | Shared design-system/dialog ownership, a product-owned photo shell, opt-in menu workflows, offline application shells, and the existing hardened Electron wrappers for Soundscaper and Framescaper. |
 | Gates | Sharded Node suites including Lightscaper, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and existing packaged desktop smokes. Performance reports are diagnostics. |
@@ -879,8 +879,8 @@ there.
   preview, explicit Process3 Clone, Project Bin thumbnails, Save/reopen and
   reverse Photo3 with unchanged Original bytes and custody. Separate product
   builds preserve the existing ceilings at 53 Lightscaper and 100 Framescaper
-  ready-graph requests, each with six initial requests. Culling integration and
-  wider output remain unfinished.
+  ready-graph requests, each with six initial requests. Current culling
+  integration is recorded below; wider output remains unfinished.
   The first foundation qualified 2,776 cases in 311 files, with four
   English/German Chromium/Firefox workflows retaining native repaired Photo
   preview, brush editing, saved history and reload. The preceding RAW/global
@@ -907,7 +907,18 @@ there.
   regression passed 2,845 cases in 319 files, including pinned Canon CRW import
   through the actual native worker. The browser decoder
   fetch uses the exact pinned artifact; external asset publication is still
-  pending. RAW-specific culling, broader camera coverage,
+  pending. Current [RAW culling](docs/architecture/lightscaper-culling.md#current-raw-preview-source)
+  now offers View → RAW preview source, with neutral Original as default and
+  camera embedded JPEG by explicit choice. Camera dimensions and crop remain
+  independent of the Original; missing or explicitly unsupported previews fall
+  back sequentially. Both choices share the bounded queue and presenter, while
+  distinct cache recipes retain the existing paired storage and custody limits.
+  Develop, export and handoff keep their authenticated native Original readers.
+  The selected Lightscaper regression passes 3068 cases in 353 files; four
+  English/German Chromium/Firefox workflows qualify actual camera pixels,
+  cache reuse, culling saves, native Develop and reload. The Lightscaper build
+  retains 53 ready-graph requests and six initial requests within existing
+  ceilings. Broader camera coverage,
   highlight recovery, wide-gamut/soft-proof output, GPU/native execution,
   lens/camera profiles, HDR merge, L8 and L9 remain unfinished. Current native
   Develop and raster export qualification is recorded above; remaining L3–L6

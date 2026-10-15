@@ -7,8 +7,10 @@ existing raster and permanent legacy routes retain their byte contracts.
 The Current Float32 stack now includes geometry, seven spatial families,
 authenticated LUTs, local adjustments and Original-space Clone/Heal. Expanded
 workflow qualification is recorded with the native output and handoff contracts.
-RAW-specific culling and wider L7–L9 work remain incomplete. The externally hosted decoder and corresponding source
-still require publication.
+Current [RAW culling](lightscaper-culling.md#current-raw-preview-source) offers
+camera embedded previews through the View menu, with neutral Original as the
+default. Wider L7–L9 work remains incomplete. The externally hosted decoder and
+corresponding source still require publication.
 
 ## Import, development and custody
 
@@ -58,8 +60,9 @@ publication to Save. Close joins preview retirement. Current native
 [raster export](lightscaper-native-raster-export.md) and editable
 [Frame handoff](lightscaper-raw-image-handoff.md) regenerate the authenticated
 Original; FramePack1 carries only a disposable byte presentation cache.
-RAW-specific culling integration remains pending, as do highlight recovery,
-wide-gamut output, GPU/native processing, lens profiles and HDR merge.
+Camera embedded previews serve only opted-in culling and fall back sequentially
+to neutral Original when absent or explicitly unsupported. Highlight recovery,
+wide-gamut output, GPU/native processing, lens profiles and HDR merge remain open.
 
 ## Decode contract
 

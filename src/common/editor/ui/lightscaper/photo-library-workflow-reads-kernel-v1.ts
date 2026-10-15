@@ -65,7 +65,7 @@ async function admitCurrent(profile: 'legacy2' | 'current3', owner: PhotoLibrary
 function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, renderer, createSession, loadBackupSaveRuntime, createDevelopProxyRuntime }: PhotoLibraryWorkflowReadOwnersKernelV1) {
 	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unknown selected photo read profile.');
 	const readPreview = useCallback(async (photoId: string, tier: PhotoLibraryPreviewTierV1,
-		options: Readonly<{ signal?: AbortSignal }> = {}) => {
+		options: Readonly<import('../../photo-library-session-port-current-v1.ts').PhotoLibraryPreviewReadOptionsCurrentV1> = {}) => {
 		const current = slot.current;
 		if (!current?.live || current.proxyFactory !== createDevelopProxyRuntime || current.proxyFactory !== renderer.current || current.factory !== createSession || current.factory !== factory.current
 			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current || current.proxyFactory !== renderer.current) {
@@ -74,7 +74,7 @@ function useReads(profile: 'legacy2' | 'current3', { slot, factory, loader, rend
 		const signal = options.signal ? AbortSignal.any([options.signal, current.lifetime.signal]) : current.lifetime.signal;
 		check(signal);
 		const owner = await acquire(profile, current); check(signal);
-		const result = await owner.readPreview(photoId, tier, { signal }); check(signal);
+		const result = await owner.readPreview(photoId, tier, { signal, ...(options.rawPreviewSource === undefined ? {} : { rawPreviewSource: options.rawPreviewSource }) }); check(signal);
 		return result;
 	}, [profile, createSession, createDevelopProxyRuntime, loadBackupSaveRuntime]);
 	const withOriginalFrame = useCallback<PhotoLibraryDevelopOriginalPortV1['withFrame']>(async (request, consume, options = {}) => {

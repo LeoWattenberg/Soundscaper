@@ -172,3 +172,50 @@ retirement without losing the acknowledged save.
 Library stacks have their separate grouping and archive owners; per-photo
 develop versions are not library groups. The full L3 keyboard loop remains
 open until its remaining integration gates pass.
+
+## Current RAW preview source
+
+View → RAW preview source selects neutral Original by default and offers camera
+embedded preview by explicit choice. This preference belongs to the current
+Session generation and resets when that generation changes or the app reloads.
+It affects the existing culling presenter, including thumbnails, filmstrip,
+loupe, Compare and Survey. Develop, export and handoff continue to authenticate
+the retained Original through their separate native-depth readers.
+
+The camera producer authenticates the complete Original before and after native
+preview extraction. An embedded JPEG retains its independent crop and extent;
+the JPEG EXIF orientation and native RAW flip compose without rotating twice.
+The image fits inside the Original-derived 512-pixel thumbnail or 2048-pixel
+fit-screen target using centered nearest sampling and opaque-black padding.
+Missing previews and explicitly unsupported bitmap representations fall back to
+neutral Original only after native extraction and JPEG work have retired.
+Corruption, cancellation and cleanup failures remain errors. The neutral
+fallback samples directly from the Original extent without a second fit.
+
+Both choices share the existing bounded scheduler: one active job, at most 64
+queued jobs and 65 pending subscribers. Source changes cancel and join prior
+presentation demand before another acquisition. The camera recipe includes the
+immutable Original binding, requested source and pinned LibRaw/orientation/fit
+policy; it has a distinct key from the permanent neutral recipe. Both reuse the
+same paired payload/inventory storage, private Original-content token fence,
+128-MiB capacity and 1024-entry limit. A warm cache hit needs no RAW worker.
+No additional catalog schema, persisted probe row or durable preference is added.
+
+The producer's conservative one-GiB admission includes borrowed/private Original
+storage, the bounded native heap and embedded payload, JPEG planes and a reserve.
+Preparation separately bounds its source backing, snapshot, output and Blob at
+192 MiB. These are separate phase limits, not a whole-application heap claim.
+Temporary native/JPEG planes are wiped and native owners are joined before the
+final scoped consumer. The oriented culling frame is wiped when that callback
+settles; the existing presenter owns the settled display surfaces.
+
+The selected Lightscaper regression passes 3068 cases across 353 files. Four
+English/German Chromium/Firefox workflows use the actual menu, selected library,
+RAW worker and decoder with the exact pinned WASM fetch routed locally. The
+independent native/JPEG oracles check the real Canon D60's 2048×1360 embedded
+JPEG against its 3088×2056 Original, exact thumbnail/loupe pixels, cache reuse,
+rating/flag saves, native RAW Develop and reload without changing Original
+custody. Node tests additionally cover all 64 JPEG-EXIF/RAW-orientation pairs,
+sequential no-preview fallback, stale bindings, cancellation, physical retirement
+and Session Close during a held cache read. This does not qualify broader camera
+support, external RAW asset publication or the remaining L3/L7 exit gates.

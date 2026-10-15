@@ -101,5 +101,7 @@ inter-slice qualification remain separate roadmap work.
 
 This slice uses the existing pinned LibRaw runtime and does not change native
 runtime bytes or the assistance runtime closure. External RAW asset publication,
-broader camera qualification, culling previews, wide gamut, highlight recovery,
-GPU/native execution and the remaining roadmap exit gates are separate work.
+broader camera qualification, wide gamut, highlight recovery, GPU/native execution
+and the remaining roadmap exit gates are separate work. Opt-in
+[camera culling previews](lightscaper-culling.md#current-raw-preview-source) stay
+outside the authenticated Original and native receipt used by handoff.

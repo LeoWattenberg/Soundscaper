@@ -168,9 +168,10 @@ qualification covers the actual menu → import → white balance/exposure →
 Save/reload loop. Qualification of the expanded multistage workflow is in
 progress; this document does not claim its final suite or browser result.
 
-RAW-specific culling remains pending. Highlight recovery, wider primaries/output,
-soft proofing, GPU/native execution, lens/camera profiles and HDR merge are
-separate unfinished work.
+[RAW camera culling](lightscaper-culling.md#current-raw-preview-source) uses a
+separate opt-in display source; it never supplies this working stack. Highlight
+recovery, wider primaries/output, soft proofing, GPU/native execution,
+lens/camera profiles and HDR merge are separate unfinished work.
 External RAW runtime/source publication, broader camera qualification, the
 remaining L3–L6 gates, L7 exit, desktop L8 and owner-QA L9 remain open.
 

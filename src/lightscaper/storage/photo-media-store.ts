@@ -18,6 +18,7 @@ import { PhotoPreviewCacheV1, PHOTO_PREVIEW_CACHE_PROFILE_V1, type PhotoPreviewC
 import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from './photo-library-location-v2.ts';
 import type { PhotoMediaCubeLutResourcesV1, PhotoMediaCubeLutResourceOwnerV1 } from './photo-media-cube-lut-resources-v1.ts';
 import type { PhotoMediaMaskRasterResourcesV1, PhotoMediaMaskRasterResourceOwnerV1 } from './photo-media-mask-raster-resources-v1.ts';
+import type { PhotoCullingPreviewCachePortCurrentV1 } from '../preview/photo-culling-preview-cache-current-v1.ts';
 
 export const PHOTO_MEDIA_NAMESPACES_V1 = Object.freeze({
 	databaseName: 'lightscaper-photo-media-v2',
@@ -68,6 +69,7 @@ export class PhotoMediaStoreV1 {
 	readonly #guardedPort: StorageRepositoryPort;
 	readonly #owned = new Set<Promise<unknown>>();
 	#previewCache: PhotoPreviewCachePortV1 | null = null;
+	#cullingPreviewCache: Promise<Readonly<PhotoCullingPreviewCachePortCurrentV1>> | null = null;
 	#cubeLutResources: Promise<Readonly<PhotoMediaCubeLutResourcesV1>> | null = null;
 	#cubeLutOwner: Readonly<PhotoMediaCubeLutResourceOwnerV1> | null = null;
 	#maskRasterResources: Promise<Readonly<PhotoMediaMaskRasterResourcesV1>> | null = null;
@@ -165,6 +167,23 @@ export class PhotoMediaStoreV1 {
 			});
 		}
 		return this.#previewCache;
+	}
+
+	/** Current culling has a distinct recipe while sharing the same bounded
+	 * disposable cache profile, selected guard and Original-content fence. */
+	getCullingPreviewCacheCurrentV1(): Promise<Readonly<PhotoCullingPreviewCachePortCurrentV1>> {
+		try { this.#assertAccepting(); } catch (error) { return Promise.reject(error); }
+		this.#cullingPreviewCache ??= this.#own(async () => {
+			const { PhotoCullingPreviewCacheCurrentV1 } = await import('../preview/photo-culling-preview-cache-current-v1.ts');
+			this.#assertAccepting();
+			const cache = new PhotoCullingPreviewCacheCurrentV1(this.#media.createBinaryDerivativeCache(PHOTO_PREVIEW_CACHE_PROFILE_V1));
+			return Object.freeze({
+				load: (...args: Parameters<PhotoCullingPreviewCachePortCurrentV1['load']>) => this.#own(() => cache.load(...args)),
+				store: (...args: Parameters<PhotoCullingPreviewCachePortCurrentV1['store']>) => this.#own(() => cache.store(...args)),
+				trim: (...args: Parameters<PhotoCullingPreviewCachePortCurrentV1['trim']>) => this.#own(() => cache.trim(...args)),
+			});
+		});
+		return this.#cullingPreviewCache;
 	}
 
 	/** Fixed scoped LUT capabilities; the selected guard and connection stay private. */

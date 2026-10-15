@@ -43,6 +43,7 @@ import { normalizePhotoLibraryDefinitionReadRequestV1, normalizePhotoLibraryDefi
 import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipMutationV1,
 	} from './photo-library-memberships-v1.ts';
 import { readPhotoLibraryMembershipsV2, applyPhotoLibraryMembershipsV2 } from './photo-library-memberships-v2.ts';
+import { preparePhotoLibraryPreviewReadKernelV2, projectPhotoLibraryPreviewOutcomeKernelV2 } from './internal/photo-library-preview-read-kernel-v2.ts';
 import type { PhotoLibraryPreviewSchedulerPortV2, PhotoLibrarySessionPortsV2 } from './photo-library-session-ports-v2.ts';
 import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request.ts';
 import { createPhotoLibraryDevelopImportSessionV2 } from './photo-library-develop-import-session-v2.ts';
@@ -357,7 +358,7 @@ export class PhotoLibrarySessionKernelV2 {
 
 	async readPreview(photoId: string, tier: PhotoLibraryPreviewTierV1,
 		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryPreviewOutcomeV1> {
-		const key = id(photoId, 'photo ID'), admittedTier = oneOf(tier, ['thumbnail', 'fit-screen'] as const, 'preview tier');
+		const request = preparePhotoLibraryPreviewReadKernelV2(this.#current, photoId, tier, options);
 		return this.#operation(async signal => {
 			const catalogId = await this.#ready(); check(signal);
 			if (!this.#ports.createPreviewScheduler) throw new Error('Photo preview is unavailable.');
@@ -367,16 +368,11 @@ export class PhotoLibrarySessionKernelV2 {
 				void pending.catch(() => { if (this.#previews === pending) this.#previews = null; });
 			}
 			const scheduler = await this.#previews; check(signal);
-			const result = await scheduler.request({ photoId: key, tier: admittedTier, signal });
+			const result = await scheduler.request({ photoId: request.photoId, tier: request.tier, signal,
+				...(request.rawPreviewSource === undefined ? {} : { rawPreviewSource: request.rawPreviewSource }) });
 			check(signal);
-			if (result.outcome !== 'ready') return Object.freeze({ outcome: result.outcome });
-			const notices: Array<'persistence-failed' | 'cleanup-failed'> = [];
-			if (result.cache === 'transient' || result.persistenceError !== undefined) notices.push('persistence-failed');
-			if (result.cleanupErrors?.length) notices.push('cleanup-failed');
-			return Object.freeze({ outcome: 'ready', cache: result.cache, notices: Object.freeze(notices),
-				preview: Object.freeze({ photoId: key, tier: admittedTier, descriptor: result.preview.descriptor,
-					byteLength: result.preview.byteLength, outputSha256: result.preview.outputSha256, body: result.preview.body }) });
-		}, options.signal);
+			return projectPhotoLibraryPreviewOutcomeKernelV2(result, request.photoId, request.tier);
+		}, request.signal);
 	}
 
 	async readPage(options: Readonly<{ cursor?: string | null; signal?: AbortSignal }> = {}): Promise<PhotoLibraryPageV1> {

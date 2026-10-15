@@ -104,10 +104,14 @@ export async function createPhotoLibrarySessionForProfileV1(profile: 'legacy2' |
 					loadOriginal: async (original, admitted) => { await selectedMedia.verifyOriginal(original, admitted); assertNotAborted(admitted);
 						return loadOriginal(original.storageKey, { signal: admitted, expectedSize: original.byteLength }); } },
 				createPreviewScheduler: async id => {
-					const Scheduler = profile === 'current3' ? (await import('./preview/photo-preview-scheduler-current-v1.ts')).PhotoPreviewSchedulerCurrentV1
-						: (await import('./preview/photo-preview-scheduler-v2.ts')).PhotoPreviewSchedulerV2;
-					return new Scheduler({ catalogId: id, loadPhoto: photoId => selectedCatalog.loadPhoto(id, photoId),
-						loadOriginal: (key, admitted) => loadOriginal(key, { signal: admitted }), cache: selectedMedia.getPreviewCache() }); },
+					const preview = { catalogId: id, loadPhoto: (photoId: string) => selectedCatalog.loadPhoto(id, photoId),
+						loadOriginal: (key: string, admitted: AbortSignal) => loadOriginal(key, { signal: admitted }), cache: selectedMedia.getPreviewCache() };
+					if (profile === 'current3') {
+						const { PhotoPreviewSchedulerCurrentV1 } = await import('./preview/photo-preview-scheduler-current-v1.ts');
+						return new PhotoPreviewSchedulerCurrentV1({ ...preview, cullingCache: await selectedMedia.getCullingPreviewCacheCurrentV1() });
+					}
+					const { PhotoPreviewSchedulerV2 } = await import('./preview/photo-preview-scheduler-v2.ts');
+					return new PhotoPreviewSchedulerV2(preview); },
 				closeResources };
 			return profile === 'current3' ? new PhotoLibrarySessionCurrentV1(ports) : new PhotoLibrarySessionV2(ports as PhotoLibrarySessionPortsV2);
 		} catch (primary) {

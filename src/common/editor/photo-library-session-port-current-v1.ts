@@ -9,9 +9,17 @@ import type { PhotoLibraryImageReceivePortV2 } from './photo-library-image-recei
 import type { PhotoLibraryCollectionHandoffPortV2 } from './photo-library-collection-handoff-port-v2.ts';
 import type { PhotoLibraryDevelopImportPortCurrentV1 } from './photo-library-develop-import-port-current-v1.ts';
 import type { PhotoLibraryExportPresetsPortCurrentV1 } from './photo-library-export-presets-port-current-v1.ts';
+import type { PhotoLibraryPreviewTierV1, PhotoLibraryPreviewOutcomeV1 } from './photo-library-session-port-v1.ts';
+
+export type PhotoLibraryRawPreviewSourceCurrentV1 = 'neutral-original' | 'camera-embedded';
+export interface PhotoLibraryPreviewReadOptionsCurrentV1 {
+	readonly signal?: AbortSignal;
+	readonly rawPreviewSource?: PhotoLibraryRawPreviewSourceCurrentV1;
+}
 
 /** Current Develop settings with unchanged scalar library and organization capabilities. */
-export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessionPortV2, 'develop'> {
+export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessionPortV2, 'develop' | 'readPreview'> {
+	readPreview(photoId: string, tier: PhotoLibraryPreviewTierV1, options?: Readonly<PhotoLibraryPreviewReadOptionsCurrentV1>): Promise<PhotoLibraryPreviewOutcomeV1>;
 	readonly develop: Readonly<PhotoLibraryDevelopPortV3>;
 	/** Whole Current Photo admission; inherited batch rename methods remain strict Photo1/2. */
 	readonly batchRenameCurrent?: Readonly<PhotoLibraryBatchRenamePortV1>;
