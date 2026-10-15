@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { planPixelFrameV1, type PixelFrameDescriptorV1 } from './pixel-frame-contract-v1.ts';
-
-export type LinearKernelDescriptorV1 = Readonly<PixelFrameDescriptorV1 & { sampleFormat: 'float32'; transfer: 'linear'; primaries: 'srgb' | 'bt709' }>;
-export const LINEAR_KERNEL_LIMITS_V1 = Object.freeze({ maximumSidePixels: 8192, maximumPixels: 16_777_216, maximumBytes: 268_435_456 });
+import { captureLinearKernelDescriptorV1, type LinearKernelDescriptorV1 } from './linear-kernel-descriptor-v1.ts';
+export { captureLinearKernelDescriptorV1, LINEAR_KERNEL_LIMITS_V1, type LinearKernelDescriptorV1 } from './linear-kernel-descriptor-v1.ts';
 const NativeFloat = Float32Array, NativeBytes = Uint8Array;
 const TYPED = Object.getPrototypeOf(NativeBytes.prototype) as object;
 const TAG = Object.getOwnPropertyDescriptor(TYPED, Symbol.toStringTag)!.get!;
@@ -11,14 +9,6 @@ const OFFSET = Object.getOwnPropertyDescriptor(TYPED, 'byteOffset')!.get!;
 const LENGTH = Object.getOwnPropertyDescriptor(TYPED, 'byteLength')!.get!;
 const SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
 const RESIZABLE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable')?.get;
-
-export function captureLinearKernelDescriptorV1(value: unknown): LinearKernelDescriptorV1 {
-	const { descriptor } = planPixelFrameV1(value, LINEAR_KERNEL_LIMITS_V1);
-	if (descriptor.sampleFormat !== 'float32' || descriptor.transfer !== 'linear' || (descriptor.primaries !== 'srgb' && descriptor.primaries !== 'bt709')) {
-		throw new RangeError('Linear kernels require native Float32 linear sRGB/BT709.');
-	}
-	return descriptor as LinearKernelDescriptorV1;
-}
 
 function capture(value: unknown, tag: 'Float32Array' | 'Uint8Array', expectedBytes: number) {
 	if (Reflect.apply(TAG, value, []) !== tag) throw new TypeError('Linear kernel requires its native typed plane.');
