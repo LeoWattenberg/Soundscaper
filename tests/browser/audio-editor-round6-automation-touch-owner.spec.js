@@ -51,7 +51,7 @@ for (const { interrupted, distance } of [{ interrupted: false, distance: 12 }, {
 		const second = { x: originBox.x + originBox.width / 2, y: originBox.y + originBox.height / 2, id: 2 };
 		await native.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [middle, second] });
 		await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [second] });
-		expect(releasedPointers).toEqual(['automation-touch-release false']);
+		await expect.poll(() => releasedPointers).toEqual(['automation-touch-release false']);
 	}
 	await native.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [final] });
 	await native.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
