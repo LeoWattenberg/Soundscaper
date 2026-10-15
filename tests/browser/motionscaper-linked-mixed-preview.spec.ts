@@ -49,7 +49,7 @@ for (const adjustment of [false, true]) test(`successor File Open displays compl
 	const first = await picture(page); expect(first[0]).toBeGreaterThan(150); expect(first[1]).toBeGreaterThan(10);
 	expect(first[12]).toBeGreaterThan(30); expect(first[12]).toBeLessThan(80); expect(first[15]).toBe(255);
 	await page.getByRole('button', { name: 'Play', exact: true }).click();
-	await expect.poll(async () => (await picture(page))[12]).toBeGreaterThan(80);
+	await expect.poll(async () => (await picture(page))[12], { intervals: [50] }).toBeGreaterThan(80);
 	await page.getByRole('button', { name: 'Stop', exact: true }).click();
 	await expect.poll(() => picture(page)).toEqual(first);
 	await page.reload(); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
