@@ -2,6 +2,7 @@
 import type { Page } from '@playwright/test';
 import { motionWavFixture } from '../helpers/motion-media-fixture.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { assertMotionPngDeliveryMatchesPreview, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 async function menu(page: Page, top: string, command: string): Promise<void> { await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: command, exact: true }).click(); }
 async function close(page: Page): Promise<void> { await expect(page.getByRole('button', { name: 'Close', exact: true }).last()).toBeEnabled(); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0); }
 async function create(page: Page): Promise<void> {
@@ -34,6 +35,28 @@ test('invalid expression source remains editable with source diagnostics and exp
 	await menu(page, 'Layer', 'Expressions'); await dialog.getByRole('combobox', { name: 'Property', exact: true }).selectOption('transform.opacity');
 	await dialog.getByLabel('Expression source', { exact: true }).fill('1 / 0'); await dialog.getByRole('button', { name: 'Apply Expression', exact: true }).click(); await dialog.getByRole('button', { name: 'Evaluate Expression', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('transform.opacity'); await expect(dialog.getByRole('alert')).toContainText('Source position');
 	await dialog.getByLabel('Expression source', { exact: true }).fill('0.5'); await expect(dialog.locator('[data-motion-expression-diagnostic]')).toHaveCount(0); await dialog.getByRole('button', { name: 'Apply Expression', exact: true }).click(); await dialog.getByRole('button', { name: 'Evaluate Expression', exact: true }).click(); await expect(dialog.locator('[data-motion-expression-result]')).toHaveText('0.5'); await close(page); expect(await opacity(page, 0)).toBe(128);
+});
+
+for (const source of ['window.fetch("/")', '1 / 0']) test(`final export refuses retained ${source} with actionable diagnostics before correction and retry`, async ({ page }) => {
+	await page.addInitScript(() => { Object.defineProperty(globalThis, 'showSaveFilePicker', { value: undefined, configurable: true }); });
+	const downloads: string[] = []; page.on('download', download => { downloads.push(download.suggestedFilename()); });
+	await create(page); await menu(page, 'Layer', 'Expressions'); const expression = page.getByRole('dialog', { name: 'Expressions', exact: true });
+	await expression.getByRole('combobox', { name: 'Property', exact: true }).selectOption('transform.opacity'); await expression.getByLabel('Expression source', { exact: true }).fill(source);
+	await expression.getByLabel('Expression enabled', { exact: true }).check(); await expression.getByRole('button', { name: 'Apply Expression', exact: true }).click(); await close(page);
+	await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); await page.reload();
+	await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Untitled Composition', exact: true }).click();
+	await menu(page, 'File', 'Render'); const render = page.getByRole('dialog', { name: 'Render Composition', exact: true });
+	await render.getByLabel('End frame (exclusive)', { exact: true }).fill('1'); await render.getByRole('button', { name: 'Render', exact: true }).click();
+	await expect(render.getByRole('alert')).toContainText('transform.opacity'); await expect(render.getByRole('alert')).toContainText('New Solid'); await expect(render.getByRole('alert')).toContainText('Source position');
+	await expect(render.getByRole('button', { name: 'Render', exact: true })).toBeEnabled(); await expect(render.getByRole('status')).not.toHaveText('Render complete'); expect(downloads).toEqual([]); await close(page);
+	await menu(page, 'File', 'Render Queue'); const queued = page.getByRole('dialog', { name: 'Render Queue', exact: true }).locator('[data-motion-render-job]');
+	await expect(queued.getByRole('status')).toHaveText('Failed'); await expect(queued).toContainText('New Solid transform.opacity'); await expect(queued.getByRole('button', { name: 'Download Again', exact: true })).toHaveCount(0); await close(page);
+	await menu(page, 'Layer', 'Expressions'); await expression.getByRole('combobox', { name: 'Property', exact: true }).selectOption('transform.opacity');
+	await expect(expression.getByLabel('Expression source', { exact: true })).toHaveValue(source); await expect(expression.getByLabel('Expression enabled', { exact: true })).toBeChecked();
+	await expression.getByLabel('Expression source', { exact: true }).fill('0.5'); await expression.getByRole('button', { name: 'Apply Expression', exact: true }).click();
+	await expression.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(expression.getByLabel('Expression source', { exact: true })).toHaveValue(source);
+	await expression.getByRole('button', { name: 'Redo', exact: true }).click(); await expect(expression.getByLabel('Expression source', { exact: true })).toHaveValue('0.5'); await close(page);
+	const frames = await snapshotMotionPreviewFrames(page, [0]); expect(frames.get(0)![3]).toBe(128); await assertMotionPngDeliveryMatchesPreview(page, frames); expect(downloads).toHaveLength(1);
 });
 
 test('retained PCM amplitude can be authored and baked while cancellation preserves the live expression', async ({ page }: { page: Page }) => {

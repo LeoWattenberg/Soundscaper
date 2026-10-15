@@ -4,8 +4,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { motionLayerProperties } from '../../motion-project-graph.ts';
-import { MotionExpressionError } from '../../motion-expression-ast.ts';
-import { MotionExpressionPropertyError } from '../../motion-expression-runtime.ts';
+import { motionExpressionErrorMessage } from '../../motion-expression-error-message.ts';
 import { diagnoseMotionExpression } from '../../motion-expression-parser.ts';
 import type { MotionExpression, MotionProperty } from '../../motion-property.ts';
 import { motionCompositionWorkArea } from '../../motion-composition-work-area.ts';
@@ -32,8 +31,7 @@ export default function MotionExpressionDialog(props: Props) {
 	const entry = owners.find(({ owner }) => owner.id === ownerId) ?? owners[0]; const properties = entry ? motionLayerProperties(entry.owner) : [];
 	const property = properties.find((value) => value.stablePath === path) ?? properties[0]; const disabled = busy || working;
 	const failed = (failure: unknown) => {
-		const owner = failure instanceof MotionExpressionPropertyError ? project.compositions.find(({ id }) => id === failure.compositionId)?.layers.find(({ id }) => id === failure.layerId) : null;
-		setError(failure instanceof MotionExpressionError ? `${owner?.name ?? ''} ${failure instanceof MotionExpressionPropertyError ? failure.propertyPath : ''}: ${copy.motionscaperExpressionDiagnostic} ${failure.diagnostic.start + 1}–${failure.diagnostic.end + 1}: ${failure.message}` : failure instanceof Error ? failure.message : copy.motionscaperFailed!);
+		setError(motionExpressionErrorMessage(failure, project, copy.motionscaperExpressionDiagnostic) ?? (failure instanceof Error ? failure.message : copy.motionscaperFailed!));
 	};
 	const run = async (operation: () => Promise<void>) => { setError(null); setWorking(true); try { await operation(); } catch (failure) { failed(failure); } finally { setWorking(false); } };
 	return <AudioEditorDialogShell title={copy.motionscaperExpressions} onClose={disabled ? undefined : onClose} width={960} initialFocus="[data-motion-expression-source]" bodyClassName="kw-audio-editor-dialog__body audio-editor-controlled-dialog__body motionscaper-property-body"

@@ -10,6 +10,7 @@ import type { MotionscaperProject } from '../../../../motionscaper/editor-projec
 import type { MotionscaperDeliveryQueue } from '../../../../motionscaper/editor-delivery-queue.ts';
 import { chooseMotionRenderDestination, downloadMotionRender } from './motion-render-download.ts';
 import { motionCompositionHasAudio } from '../../motion-composition-audio.ts';
+import { motionExpressionErrorMessage } from '../../motion-expression-error-message.ts';
 import { motionscaperDesktopDelivery } from '../../../../motionscaper/desktop-delivery-adapter.ts';
 import type { MOTION_PRORES_DELIVERY_PROFILE } from '../../../../motionscaper/desktop-delivery-contract.ts';
 
@@ -56,7 +57,7 @@ export default function MotionRenderDialog({ copy, project, queue, onClose }: Re
 			if (mounted.current) setComplete(true);
 		} catch (failure) {
 			if (writable) { try { await writable.abort(failure); } catch (cleanup) { if (mounted.current) setError(cleanup instanceof Error ? cleanup.message : copy.motionscaperFailed); } }
-			if (mounted.current && !(failure instanceof DOMException && failure.name === 'AbortError')) setError(failure instanceof Error ? failure.message : copy.motionscaperFailed!);
+			if (mounted.current && !(failure instanceof DOMException && failure.name === 'AbortError')) setError(motionExpressionErrorMessage(failure, project, copy.motionscaperExpressionDiagnostic) ?? (failure instanceof Error ? failure.message : copy.motionscaperFailed!));
 		} finally { cancellation.current = null; if (mounted.current) setBusy(false); }
 	};
 	const empty = firstFrame === endFrame;

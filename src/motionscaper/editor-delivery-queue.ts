@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { aggregateScapeErrors } from '../common/editor/scape-abort.ts';
+import { motionExpressionErrorMessage } from '../common/editor/motion-expression-error-message.ts';
 import { pendingMotionDeliveryCleanup, type MotionDeliveryCleanupFailure } from '../common/editor/motion-delivery-cleanup.ts';
 import { createMotionRenderQueue } from '../common/editor/controller/export/motion-render-pipeline.ts';
 import { createMotionscaperRevision } from './editor-project-revision.ts';
@@ -101,7 +102,7 @@ export class MotionscaperDeliveryQueue {
 					try { if (!handedToDelivery) await job.intent.writable?.abort(error); } catch (failure) { failures.push(failure); job.cleanupRequired = true; }
 					const failure = aggregateScapeErrors(error, failures, 'Motion render admission and destination cleanup failed.');
 					job.cleanup = pendingMotionDeliveryCleanup(failure); job.cleanupRequired ||= job.cleanup.length > 0;
-					this.#update(job, { status: job.controller.signal.aborted ? 'cancelled' : 'failed', error: failure instanceof Error ? failure.message : String(failure), cleanupRequired: job.cleanupRequired }); job.reject(failure);
+					this.#update(job, { status: job.controller.signal.aborted ? 'cancelled' : 'failed', error: motionExpressionErrorMessage(failure, job.intent.project) ?? (failure instanceof Error ? failure.message : String(failure)), cleanupRequired: job.cleanupRequired }); job.reject(failure);
 				} finally { this.#active = null; }
 			}
 		} finally { this.#draining = null; }
