@@ -2,8 +2,10 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `b2688a52d`, including the reviewed native shutdown repair and a
-paired-download test synchronization repair. Its combined gates remain open.
+is source `75bba7a0a`, including the reviewed native shutdown repair,
+paired-download synchronization, saved-kind/cross-consumer contract tests and
+deferred panel focus ownership.
+Its combined gates remain open.
 The failed ordinary browser capture uses frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026` on
 `feat/motionscaper-final-validation`. This status records fresh validation on
@@ -75,18 +77,22 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
-| Complete static gate, `3e8b3e942` | Passed full lint, types, architecture, audits, documentation and builds, with an 8 GiB Node heap. Subsequent observer/test changes have focused strict type and lint checks; a complete accepted combined gate remains required. |
+| Complete static gate, `17b8a6964` | Passed full lint, types, architecture, audits, documentation and builds, with an 8 GiB Node heap. Source and observed process closure were verified. Subsequent changes retain their own focused checks; this result is not retagged to newer source. |
+| All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
 | Paired-download test repair, `b2688a52d` | All five original test-file cases passed after waiting for the existing action's completion across its release timer and MessageChannel task. Exact filenames and blob retention/revocation assertions remain unchanged. Strict types, changed-file lint and size checks passed. This focused result does not replace the failed whole Node gate. |
 | Desktop deadline diagnosis, `3e8b3e942` | Two bounded passive observations passed with exact PCM and no deadline fault. Neither reproduced the historical failure. The first omitted the gate's coverage/loaders; the second restored them but added an unproven 8 GiB heap setting. The cause remains unknown and no production repair is claimed. |
-| Fresh complete ordinary browser run, `3e8b3e942` | Active: all 7,542 discovered cases, 2,514 per engine, four workers and zero retries. Fresh sites/maps and exact source/dependency/browser inputs were verified. No terminal result or coverage acceptance is claimed yet. |
+| Fresh complete ordinary browser run, `3e8b3e942` | Active: all 7,542 discovered cases, 2,514 per engine, four workers and zero retries. Chromium's Import/Split shortcut case timed out waiting for its file chooser; the run continues. Fresh sites/maps and exact source/dependency/browser inputs were verified. No terminal result or coverage acceptance is claimed yet. |
+| Passive Import/Split observation, `3e8b3e942` | The original single Chromium workflow passed once with bounded passive focus/key observation. All 63 recorded events fit the cap, and the shortcut opened its chooser. No focus steal was observed. This changes scheduling and does not reproduce or explain the full-run timeout. |
+| Deferred panel focus repair, `01e0f3d55` | Deterministic controls reproduced an older queued handoff overriding a newer user focus choice. The fix retires superseded requests while preserving trigger restoration and the original 30-frame mount bound. All 71 focused cases, eight dispatch controls, strict types, lint, architecture and build passed. The default-heap test typecheck exhausted memory; its explicit 12 GiB retry passed. This proves a separate focus defect and does not establish the cause of the browser Import timeout. |
+| Saved-kind and mixed-rate consumer contracts, `82c9aaa3f` / `bcdc43f1f` | New controls preserve all ten layer kinds, animated property kinds and exact asset bodies through store/archive reopen; an authored rational-clock/pixel oracle agrees across actual preview playback, shuffled seeks, export, saved links and Frame thumbnails. These are Node/CPU and instrumented-IndexedDB checks, not physical-browser durability or codec qualification. Four final focused cases passed after repairing an existing test's missing temporary-directory parent. The initial auxiliary Motion shard remains failed: 1,094/1,096 passed, one setup failure and one native-artifact skip. |
 | Retained mixed-image reopening, `cbf09f9ea` | The unchanged workflow passed Chromium, Firefox and WebKit, without skips or retries. Per-file read serialization fixes the reproduced same-worker exclusive OPFS lock collision; the retained image was intact. This does not claim cross-worker or read/write arbitration. |
 | Complete linked/dual-origin suites, `19bc434e8` | Closed failed: 34/36 linked cases and 8/9 dual-origin cases passed. Firefox failures were image reopening and an absent-host GPU assertion; WebKit lost the archive of a two-download pair. All three first linked-editor/offline/export workflows passed. |
 | Fresh complete linked/dual-origin suites, `c61839c8d` | Closed failed: 34/36 linked and all 9/9 dual-origin cases passed. Chromium failed on a native-export audio-clock gap; WebKit failed while waiting for Resume to adopt a saved revision. Firefox passed all linked cases. GPU/loss/restore checks passed on capable hosts. |
 | Native linked-export variants, `c38e0c2a2` | Both unchanged variants passed in all three engines: six cases, without skips or retries. Native PCM delivery now keeps its capture clock running under bounded backpressure; deterministic controls still reject actual clock loss and blocked sinks. This earlier focused result alone did not close the full suites. |
 | Complete linked/dual-origin suites, `1887abecc` | Passed all 36 linked and nine dual-origin cases across Chromium, Firefox and WebKit, without failures, skips or retries. All three first linked-editor/offline/export workflows passed with real exports and retained current-release bodies. Chrome I420 and WebKit NV12 plane checks passed; Firefox's native BGRX result remains plane-unqualified. The separate Chromium absolute-HTML blue-241 limitation is retained. |
 | Required five-workflow Linux aggregate, `1a788b61b` | Passed launch, scene, authored title, successor picture/PCM and saved-file link workflows. The authored workflow covers actual New, shape/text authoring, native Save, preview and cancellation/retry. Its decoded RGB error was 3.93/1023 against the unchanged eight-code limit; alpha was exact. The complete five-workflow aggregate admits Linux x64 only; other targets remain open. |
-| Fresh five-workflow Linux aggregate, `1202edeba` | Closed successfully with all five source-bound markers, source/artifact guards and final absence of all 74 recorded process identities. Independent completed-evidence audit is pending. The unchanged legacy launch/scene/successor scripts await Electron closure without retaining its numeric code/signal; strict command closure must not be described as a new per-Electron exit-code assertion. |
+| Fresh five-workflow Linux aggregate, `1202edeba` | Closed successfully with all five source-bound markers, source/artifact guards and final absence of all 74 recorded process identities. Independent completed-evidence audit passed without replay. The unchanged legacy launch/scene/successor scripts await Electron closure without retaining its numeric code/signal; strict command closure must not be described as a new per-Electron exit-code assertion. |
 | Six unchanged WebKit regression workflows, `cbf09f9ea` | Punch, three tempo workflows, musical selection and configurable-effects search passed, without skips or retries. Non-reproduction does not establish the causes of their earlier failures. |
 | Controlled-duration browser workflow, `fa68087f7` | Passed both 300- and 1,200-frame workloads: preview, PNG/WebM output, independent picture/timestamp/audio checks, actual cancellation/retry, memory limits and cleanup. All 591 memory rows were audited; peak RSS was 2,078,101,504 bytes, below the unchanged 2 GiB bound. This qualifies the fixed software Chromium profile, not maximum workloads or other hosts. |
 | Controlled-duration native workflow, `fa68087f7` | Closed failed after generating the 300-frame movie, when encoder identity/argv observation was rejected. Fourteen real encoder-memory observations exceeded the unchanged minimum of three. Output-only diagnosis subsequently passed selected pictures, all timestamps and exact PCM, but cannot qualify that failed invocation, which did not complete cancellation/retry, 1,200 frames or the memory comparison. |
@@ -95,10 +101,20 @@ source-328 ledger below into a pass.
 | Controlled-duration native workflow, `1202edeba` | Passed both 300- and 1,200-frame preview/ProRes workloads, cancellation/retry at each duration and all six independently decoded MOV references. All 449 memory rows and 81 real encoder observations were audited; peak whole-application RSS/PSS was 1,075,535,872/625,772,544 bytes. Exact PCM, contiguous timestamps, picture/alpha bounds, memory tails and final process absence passed. This qualifies the fixed Linux x64 profile, not maximum workloads or other hosts. |
 | Complete accepted coverage union and external matrix | Open. Failed raw profiles remain unparsed and unadmitted; no coverage floor, startup ceiling, timeout, color bound or signal bound was weakened. No installed AE environment is available. |
 
-The exhaustive Node receipt is `current-3e8b3e942-node/closed.json`, SHA-256
+The latest complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
+`d9fa8b9a9f9d18f0e4d9947a30c28cb88557e9812d97987f9b2a16882a382967`.
+Its post-audit is `current-17b8a6964-node/post-audit.json`, SHA-256
+`15b7c1b0533f16d2f3974019b5f0ec29bc26fb5957193f94d52a3acb10f338df`.
+It verified 51,372 input pins, absence of all 5,239 recorded PID/start identities
+and empty root sessions, plus 5,261 stable raw profiles (13,198,215,341 bytes).
+The lifetime census was sampled; it does not prove every unobserved detached
+process birth. These raw profiles have not been parsed or admitted as coverage.
+The latest static receipt is `current-17b8a6964-static/closed.json`, SHA-256
+`9d407f85397bde43b02c38ee46f974bfb6b5cd359b768a3faaeb9bb977bff892`.
+The earlier failed Node receipt is `current-3e8b3e942-node/closed.json`, SHA-256
 `64ad72571cdc144cf707071bd25105b89331230d6f27d7080ed775aa5a17fda3`.
 All five commands closed, source and staged helper bytes remained unchanged,
-and all observed owned process identities were gone. The newer static receipt is
+and all observed owned process identities were gone. Its static receipt is
 `current-3e8b3e942-static/closed.json`, SHA-256
 `696732565f03678b1cae919d7866563aca8a6c26e4c46791de565f54ddab5b08`.
 The paired-download test qualification is
@@ -116,6 +132,15 @@ SHA-256 `ee88688b4c5b7ac716c90c48c586daef28f63e57c11089b7d5f90fa52f7f3c5d`;
 its actual tool closure and post-run audit are retained in
 `current-1202edeba-native-qualification/aggregate-command/outer-tool-closure.json`,
 SHA-256 `b8a597a4de2f61198c4cac38228936b70a1d5438a6fefbb0e518528cbab16126`.
+Its independent completed-evidence review is
+`current-1202edeba-native-qualification/aggregate-command/independent-duration-audit-final.json`,
+SHA-256 `86afe81fa51e9517e7c32c134f417d10ba12de7d80911c361e942617a9e04c00`.
+The new saved-kind/consumer qualification is
+`early-contract-tests-17b8a6964/qualification-final.json`, SHA-256
+`61d4fbcf9361f89518bd7de20ecf8fbbff3cd89074aeb89ad59fc32c7d5b3b9e`.
+The focus repair qualification is
+`m12-panel-focus-ownership-17b8/qualification.json`, SHA-256
+`c7a947d1c7c611130928ad95b5273c7d4891b33345ef06041f5c5a0cacc210de`.
 The browser duration receipt is
 `current-fa680-sustained-browser/workload/qualification-receipt.json`, SHA-256
 `d7694f821c83982d65007b4852d55ab172b4fefc6539b4b9d865f9c789c45e07`;
@@ -223,12 +248,17 @@ frame continuity guards passed. A read-only audit found no persistent EQ
 history reset. Synchronous audio-thread coefficient rebuilding and upstream
 chunk starvation remain possible causes. The passing ScriptProcessor checks
 therefore do not qualify native continuity or resolve the original failures.
-An external additive observer is prepared with 53 passing pure controls, exact
-original-test/response inverses and 188 verified input pins. It retains both
-legitimate master contributors, including the empty track, and refuses unknown
-geometry, automation, missing native coverage or excessive sum residuals.
-No actual browser run of that observer has occurred; its callback availability,
-scheduling cost and the historical failure's cause remain unqualified.
+The first prepared additive observer was refused before execution because it
+selected the final destination instead of the intermediate two-input join.
+A corrected preparation retained the original 53 controls and passed 71 added
+controls, with 286 input pins and independent review. Its single actual WebKit
+diagnostic closed failed: the original test body passed, but diagnostic admission
+found the injected selector missing and no additive observer. Source/site guards
+and process closure passed. This instrumentation failure provides no causal
+evidence for the historical gap; callback coverage and the cause remain open.
+Its terminal receipt is
+`webkit-eq-mixed-join-328cae02f-cpu12-15/run/closed.json`, SHA-256
+`e66d777bde5238923c1d05151d80ad3eaad19c5012caa9b127916f2146a7ca0a`.
 
 Supplemental M10 execution reached actual connection, update, Undo/Resume,
 Conform, portable Save/Open and matching blue preview in Firefox. Delivered MP4

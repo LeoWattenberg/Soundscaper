@@ -74,9 +74,11 @@ package complete.
 ### Implementation status
 
 M01–M12 are **In progress**; named implementations do not close release gates.
-Substantial implementations and focused browser/native workflows pass; the
-current combined acceptance, remaining regressions, maximum-workload and external gates
-remain open. Installed After Effects validation is unavailable.
+Substantial implementations and focused browser/native workflows pass. Complete
+static and Node gates passed on source `17b8a6964`; the current full browser run
+has an Import-shortcut timeout and remains active. Combined coverage acceptance,
+remaining regressions, maximum-workload and external gates remain open.
+Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
 history, deterministic evaluation, streamed `.mscape` archives, durable
