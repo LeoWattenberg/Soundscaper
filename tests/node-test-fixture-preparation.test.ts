@@ -22,12 +22,13 @@ interface PreparationRecord {
 
 const CONTROL_SOURCE = String.raw`
 import assert from 'node:assert/strict';
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, appendFile, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 
 const control = process.env.SCAPE_FAKE_NODE_FIXTURE_CONTROL;
-const failed = process.env.SCAPE_FAKE_NODE_FIXTURE_MODE === 'failure';
+const mode = process.env.SCAPE_FAKE_NODE_FIXTURE_MODE;
+const failedLabel = mode === 'failure' ? 'openfx' : mode === 'desktop-failure' ? 'desktop' : null;
 async function until(predicate) {
 	const deadline = Date.now() + 5_000;
 	while (!await predicate()) {
@@ -47,16 +48,18 @@ export async function prepare(label, directory) {
 	assert.equal(process.env.SCAPE_NODE_TEST_OPENFX_FIXTURE, undefined);
 	assert.equal(process.env.SCAPE_NODE_TEST_DESKTOP_RUNTIME_FIXTURE, undefined);
 	assert.equal(process.env.SCAPE_NODE_TEST_NATIVE_FIXTURE, undefined);
+	if (label === 'desktop') await appendFile(join(control, 'desktop.compilations'), 'compiled\n');
 	await writeFile(join(control, label + '.started'), JSON.stringify({ pid: process.pid, directory }));
 	const sibling = label === 'openfx' ? 'desktop' : 'openfx';
 	await until(() => exists(join(control, sibling + '.started')));
-	if (failed && label === 'openfx') {
-		await writeFile(join(control, 'openfx.finished'), 'failed');
+	if (label === failedLabel) {
+		await writeFile(join(control, label + '.finished'), 'failed');
 		process.exitCode = 1;
 		return;
 	}
-	if (failed) {
-		const other = JSON.parse(await readFile(join(control, 'openfx.started'), 'utf8'));
+	if (failedLabel !== null) {
+		await until(() => exists(join(control, failedLabel + '.started')));
+		const other = JSON.parse(await readFile(join(control, failedLabel + '.started'), 'utf8'));
 		await until(() => !running(other.pid));
 		// The first compiler has exited; neither fixture may be removed yet.
 		await access(directory);
@@ -84,13 +87,13 @@ async function exists(path: string): Promise<boolean> {
 	}
 }
 
-async function fixture(context: test.TestContext, mode: 'success' | 'failure', external = false) {
+async function fixture(context: test.TestContext, mode: 'success' | 'failure' | 'desktop-failure', external: boolean | 'incompatible' | 'corrupt' = false) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-fixture-runner-test-'));
 	let runnerChild: ChildProcess | undefined = undefined;
 	let completion: Promise<{ code: number | null; signal: NodeJS.Signals | null }> | undefined = undefined;
 	context.after(async () => {
 		if (runnerChild) {
-			await Promise.all(['desktop', 'native'].map(label => writeFile(join(root, label + '.release'), 'cleanup release')));
+			await Promise.all(['openfx', 'desktop', 'native'].map(label => writeFile(join(root, label + '.release'), 'cleanup release')));
 			if (running(runnerChild)) runnerChild.kill();
 			await completion?.catch(() => undefined);
 		}
@@ -144,11 +147,14 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure', e
 		].join('\n')),
 		writeFile(join(root, 'scripts/lib/node-test-desktop-runtime-artifact.ts'), [
 			"import assert from 'node:assert/strict';",
-			"import { readFileSync, writeFileSync } from 'node:fs';",
+			"import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';",
 			"import { join } from 'node:path';",
+			'export class DesktopRuntimeFixtureCompatibilityError extends Error {}',
 			'export const validateDesktopRuntimeTestArtifact = ({ repositoryRoot, fixtureRoot }) => {',
+			'\tappendFileSync(join(repositoryRoot, "artifact-attempts"), "checked\\n");',
 			'\tassert.equal(repositoryRoot, process.env.SCAPE_FAKE_NODE_FIXTURE_CONTROL);',
 			'\tassert.equal(readFileSync(join(fixtureRoot, "ready"), "utf8"), "desktop");',
+			'\tif (readFileSync(join(fixtureRoot, "producer-image"), "utf8") !== process.env.ImageVersion) throw new DesktopRuntimeFixtureCompatibilityError("runner image differs");',
 			'\twriteFileSync(join(repositoryRoot, "artifact-validated"), fixtureRoot);',
 			'};',
 		].join('\n')),
@@ -172,6 +178,7 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure', e
 	]);
 	const environment: NodeJS.ProcessEnv = {
 		...process.env, [CONTROL_ENV]: root, [MODE_ENV]: mode,
+		ImageVersion: external === 'incompatible' || external === 'corrupt' ? '20261004.327.1' : '20261012.334.1',
 		[OPENFX_ENV]: 'stale-openfx-fixture', [DESKTOP_ENV]: 'stale-desktop-fixture', [NATIVE_ENV]: 'stale-native-fixture',
 	};
 	delete environment.NODE_V8_COVERAGE;
@@ -179,8 +186,9 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure', e
 	const externalRoot = join(root, 'downloaded');
 	if (external) {
 		await mkdir(externalRoot);
-		await writeFile(join(externalRoot, 'ready'), 'desktop');
-		await writeFile(join(root, 'desktop.started'), JSON.stringify({ pid: process.pid, directory: externalRoot }));
+		await writeFile(join(externalRoot, 'ready'), external === 'corrupt' ? 'corrupt' : 'desktop');
+		await writeFile(join(externalRoot, 'producer-image'), '20261012.334.1');
+		if (external === true) await writeFile(join(root, 'desktop.started'), JSON.stringify({ pid: process.pid, directory: externalRoot }));
 	}
 	const child = spawn(process.execPath, [join(root, 'scripts/run-node-tests.mjs'), ...external ? [`--desktop-runtime-fixture=${externalRoot}`] : []], {
 		cwd: root, env: environment, stdio: ['ignore', 'pipe', 'pipe'],
@@ -195,7 +203,7 @@ async function fixture(context: test.TestContext, mode: 'success' | 'failure', e
 	});
 	completion = completed;
 	void completed.catch(() => undefined);
-	return { root, child, completed, output };
+	return { root, child, completed, output, externalRoot };
 }
 
 function running(child: ChildProcess): boolean {
@@ -241,4 +249,41 @@ test('an explicit workflow fixture is authenticated before reuse and survives ru
 	assert.equal(await readFile(join(run.root, 'artifact-validated'), 'utf8'), desktop.directory);
 	assert.equal(await readFile(join(desktop.directory, 'ready'), 'utf8'), 'desktop');
 	for (const label of ['openfx', 'native']) await assert.rejects(access((await record(run.root, label)).directory), { code: 'ENOENT' });
+});
+
+test('a different runner image declines the borrowed artifact and compiles exactly one owned fresh runtime', { timeout: 15_000 }, async context => {
+	const run = await fixture(context, 'success', 'incompatible');
+	assert.deepEqual(await run.completed, { code: 0, signal: null }, run.output.join(''));
+	const desktop = await record(run.root, 'desktop');
+	assert.notEqual(desktop.directory, run.externalRoot);
+	assert.equal(await readFile(join(run.root, 'desktop.compilations'), 'utf8'), 'compiled\n');
+	assert.equal(await readFile(join(run.root, 'artifact-attempts'), 'utf8'), 'checked\n');
+	const consumer: unknown = JSON.parse(await readFile(join(run.root, 'consumer'), 'utf8'));
+	assert.ok(consumer && typeof consumer === 'object' && 'desktop' in consumer && consumer.desktop === desktop.directory);
+	assert.equal(await readFile(join(run.externalRoot, 'ready'), 'utf8'), 'desktop');
+	assert.equal(await exists(join(run.root, 'artifact-validated')), false);
+	for (const label of ['openfx', 'desktop', 'native']) await assert.rejects(access((await record(run.root, label)).directory), { code: 'ENOENT' });
+});
+
+test('a failed fallback compile waits for siblings and leaves the borrowed artifact untouched', { timeout: 15_000 }, async context => {
+	const run = await fixture(context, 'desktop-failure', 'incompatible');
+	try {
+		await waitFor(async () => await exists(join(run.root, 'openfx.held')) && await exists(join(run.root, 'native.held')), 'both sibling compilers retained after fallback failure', { turns: 1_000, delayMs: 5 });
+		assert.equal(running(run.child), true);
+		assert.equal(await exists(join(run.root, 'consumer')), false);
+	} finally {
+		await Promise.all(['openfx', 'native'].map(label => writeFile(join(run.root, label + '.release'), 'finish sibling')));
+	}
+	assert.deepEqual(await run.completed, { code: 1, signal: null }, run.output.join(''));
+	assert.equal(await readFile(join(run.externalRoot, 'ready'), 'utf8'), 'desktop');
+	assert.equal(await exists(join(run.root, 'consumer')), false);
+	for (const label of ['openfx', 'desktop', 'native']) await assert.rejects(access((await record(run.root, label)).directory), { code: 'ENOENT' });
+});
+
+test('corrupt bytes remain fatal despite a different image and never start fallback preparation', { timeout: 15_000 }, async context => {
+	const run = await fixture(context, 'success', 'corrupt');
+	assert.deepEqual(await run.completed, { code: 1, signal: null }, run.output.join(''));
+	for (const label of ['openfx', 'desktop', 'native']) assert.equal(await exists(join(run.root, label + '.started')), false);
+	assert.equal(await exists(join(run.root, 'consumer')), false);
+	assert.equal(await readFile(join(run.externalRoot, 'ready'), 'utf8'), 'corrupt');
 });

@@ -23,7 +23,7 @@ import {
 import { OPENFX_TEST_FIXTURE_ENV, openFxTestFixtureArtifacts } from './lib/node-test-openfx-fixture.ts';
 import { NATIVE_TEST_FIXTURE_ENV } from './lib/node-native-test-fixtures.ts';
 import { selectedNativeTestFixtures } from './lib/node-native-test-fixture-recipes.ts';
-import { validateDesktopRuntimeTestArtifact } from './lib/node-test-desktop-runtime-artifact.ts';
+import { DesktopRuntimeFixtureCompatibilityError, validateDesktopRuntimeTestArtifact } from './lib/node-test-desktop-runtime-artifact.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const argv = process.argv.slice(2);
@@ -79,8 +79,13 @@ try {
 		// Authenticate a workflow artifact before starting sibling preparations.
 		if (desktopRuntimeFixtureDirectory === null && desktopFixtureArgument !== undefined && needsDesktopRuntimeTestFixture(batch)) {
 			const fixtureRoot = resolve(root, desktopFixtureArgument.slice('--desktop-runtime-fixture='.length));
-			validateDesktopRuntimeTestArtifact({ repositoryRoot: root, fixtureRoot });
-			desktopRuntimeFixtureDirectory = fixtureRoot;
+			try {
+				validateDesktopRuntimeTestArtifact({ repositoryRoot: root, fixtureRoot });
+				desktopRuntimeFixtureDirectory = fixtureRoot;
+			} catch (error) {
+				if (!(error instanceof DesktopRuntimeFixtureCompatibilityError)) throw error;
+				console.warn(`${error.message} Compiling a fresh desktop test runtime on this runner.`);
+			}
 		}
 		const preparations = [];
 		if (nativeFixtureDirectory === null && selectedNativeTestFixtures(batch, env, true).length > 0) {

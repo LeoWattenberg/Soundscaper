@@ -13,6 +13,11 @@ import { fileDigest, verifyInputTree } from './verified-ci-input-tree.ts';
 interface ArtifactOptions { readonly repositoryRoot: string; readonly fixtureRoot: string; }
 type IdentifySource = (repositoryRoot: string) => string;
 
+/** A valid artifact from another checkout, toolchain or runner image is not reusable. */
+export class DesktopRuntimeFixtureCompatibilityError extends Error {
+	override readonly name = 'DesktopRuntimeFixtureCompatibilityError';
+}
+
 /** This artifact is compiled anew for one workflow, never restored across source revisions. */
 export async function prepareDesktopRuntimeTestArtifact(options: ArtifactOptions, compile: CompileRuntime = compileDesktopProjectLibraryRuntime, identify: IdentifySource = desktopRuntimeFixtureSourceIdentity): Promise<void> {
 	const identity = identify(options.repositoryRoot);
@@ -27,10 +32,11 @@ export async function prepareDesktopRuntimeTestArtifact(options: ArtifactOptions
 
 export function validateDesktopRuntimeTestArtifact(options: ArtifactOptions, identify: IdentifySource = desktopRuntimeFixtureSourceIdentity): void {
 	const manifest = readDesktopRuntimeFixtureManifestFile(options.fixtureRoot);
-	if (manifest.repositoryRoot !== resolve(options.repositoryRoot) || manifest.inputIdentity === null || manifest.inputIdentity !== identify(options.repositoryRoot)) {
-		throw new Error('Desktop fixture source or toolchain differs from this checkout.');
-	}
+	if (manifest.inputIdentity === null) throw new Error('Desktop fixture lacks authenticated source identity.');
 	if (!verifyInputTree(desktopRuntimeFixtureTree(options.fixtureRoot, manifest.inputIdentity, manifest.files))) throw new Error('Desktop fixture runtime bytes differ from their fresh compilation.');
+	if (manifest.repositoryRoot !== resolve(options.repositoryRoot) || manifest.inputIdentity !== identify(options.repositoryRoot)) {
+		throw new DesktopRuntimeFixtureCompatibilityError('Desktop fixture source or toolchain differs from this checkout.');
+	}
 }
 
 /** Conservative input closure: source, recipes, configuration, payloads and actual compiler bytes. */
