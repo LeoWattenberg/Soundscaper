@@ -87,7 +87,11 @@ passed 38 of 39 cases, with one Chromium transient-playback polling failure;
 the separate nine-case dual-origin suite passed all three engines. A sampling
 repair then passed all six original mixed-preview cases with unchanged pixel
 limits and timeouts. That focused result does not replace the failed full linked
-run. The fresh Linux five-workflow aggregate passed with an external Xvfb launcher that waits
+run. The newer complete linked suite on `453f03c4b` also passed all six mixed
+cases and finished with 38/39 passes. Its sole failure is now Chromium's Conform
+review wait while project activation remained pending; all Firefox/WebKit cases
+and source/site/process/writer guards passed. The activation delay is unresolved.
+The fresh Linux five-workflow aggregate passed with an external Xvfb launcher that waits
 for its owned child; this qualifies only the tested software-rendered x64
 profile. The earlier strict aggregate failure remains recorded. The M06
 keyboard repair and animated multilingual-title workflow
@@ -98,7 +102,7 @@ captured picture, PCM and originals remain pinned until cleanup completes.
 Failed physical cleanup retains its retry capability. These focused results do
 not close the combined gates. Combined coverage acceptance,
 remaining regressions, maximum-workload and external gates remain open.
-The current controlled browser-duration check failed its existing memory ceiling
+The controlled browser-duration check on `322c8a6b1` failed its existing memory ceiling
 before completing the first preview frame; the rejected sample was not retained,
 so the exact failing operand remains unknown. Two asynchronous touch-test
 assertions are repaired and all five original Chromium workflows pass, with
@@ -106,6 +110,11 @@ native inputs and drag/Undo/Redo checks unchanged.
 The sampler now retains the exact rejected operands on future memory refusals,
 with the original limits unchanged; all 1,127 Motion tests pass on `7ae10f1b0`.
 This diagnostic repair does not resolve or reinterpret the failed browser run.
+A fresh unchanged-limit run on `7ae10f1b0` retained the rejecting operands:
+aggregate RSS exceeded 2 GiB by 7,041,024 bytes, while PSS, JS heap and WASM stayed
+within their limits. Allocation cause remains unknown. Four additive browser
+diagnostics passed with original assertions and timeouts; they did not reproduce
+or explain the earlier meter, spectral-menu, EQ and timeline failures.
 The current fixed Linux native-duration profile passed both 300 and 1,200 frames,
 including preview/ProRes, upload/encoder cancellation and retry, independent
 picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
