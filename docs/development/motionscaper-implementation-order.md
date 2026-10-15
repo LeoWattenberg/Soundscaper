@@ -75,7 +75,7 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass; the
-current combined acceptance, remaining regressions, native duration and external gates
+current combined acceptance, remaining regressions, maximum-workload and external gates
 remain open. Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
@@ -118,10 +118,12 @@ measure worker preview, retained PCM and physical browser/native output as
 duration grows. Fresh source `fa68087f7` passed the fixed 300/1,200-frame
 software Chromium profile, including independent output, cancellation/retry,
 memory and cleanup checks. Its native workload failed encoder observation after
-300-frame delivery; output-only picture, timestamp and exact PCM checks passed,
-but complete native duration qualification remains open. The earlier c80 native
-success has lost receipts and remains historical. Maximum-workload evidence
-remains pending.
+300-frame delivery; output-only picture, timestamp and exact PCM checks passed.
+The later source `5ca4a2ea1` attempt failed shutdown after three 300-frame movies.
+Source `1202edeba` subsequently passed the complete fixed native profile at both
+durations, including preview/ProRes, cancellation/retry, all six references,
+memory tails and cleanup. The earlier c80 native success has lost receipts and
+remains historical. Maximum-workload and broader host evidence remain pending.
 Preview and render leases retain bounded digest-bound font providers.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and
@@ -261,7 +263,14 @@ Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-Fresh source `3736103f0` Motion Node tests passed all 1,066 cases without skips.
+Fresh source `3e8b3e942` Motion Node tests passed all 1,086 cases without skips.
+The complete five-partition run failed two existing-product/cross-product cases:
+desktop AudioWorklet deadline admission and paired-download test synchronization.
+The latter has a focused test repair; the desktop failure's cause remains unknown.
+Source `1887abecc` subsequently qualified all 45 linked/dual-origin browser cases
+without skips or retries. Source `1202edeba` qualified both fixed native duration
+workloads, with all six MOV references, memory samples and cleanup audited.
+These source-attributed results do not replace complete combined acceptance.
 The complete source-328 browser run passed all 139 Motion-named Chromium cases
 but failed existing-product workflows; current combined acceptance remains open.
 These results do not close a package; complete accepted coverage remains pending.
@@ -283,9 +292,10 @@ After Effects pixel parity.
 
 The current [composition link foundations](motionscaper-composition-links.md)
 declare M10's revision, closure, history and rendering authority. Fresh
-bounded Linux delivery has source-attributed evidence in the final validation
-status; full linked-suite acceptance, native duration, remaining target and
-hardware qualification remain open.
+bounded Linux delivery, complete linked/dual-origin suites and fixed native
+duration have source-attributed evidence in the final validation status.
+Combined regression/coverage acceptance, maximum workloads, remaining targets
+and hardware qualification remain open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
