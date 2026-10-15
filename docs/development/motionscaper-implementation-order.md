@@ -74,6 +74,19 @@ package complete.
 ### Implementation status
 
 M01–M12 are **In progress**; named implementations do not close release gates.
+The final scope audit found two locale seams and missing generated Motion copy.
+The editor admission fix (`2e10bc63e`) now covers all ten Motion copy owners and
+the shared effect labels it consumes. Its actual loader/resolver regression
+failed before the fix; all 18 focused controls, strict types, lint and size
+checks pass. French authoring (`333aa48c1`) adds all 732 Motion/bridge strings and
+both Motion handbook pages through the maintained writers and validators,
+preserving the 4,019 existing catalog entries. The separate bridge locale fix
+and wider generated-language work remain in progress. The new
+incompatible-morph UI case (`ce13106ed`) has static checks only; browser runtime
+proof is pending. Codec tests (`4fa4b3450`) now retain their actual encoded or
+refused branch, parsed facts and output bytes; no new encoding result is claimed.
+These changes require fresh applicable final gates; the earlier results below
+retain their exact source attribution.
 Substantial implementations and focused browser/native workflows pass. The
 complete static gate on `c6033a71a` passed full lint, types, architecture,
 audits, documentation and production build, with the 12 GiB heap confined to
@@ -101,9 +114,15 @@ Motion/successor staging, unsigned directory packaging and resource verification
 All 1,946 generated files and the source/npm/prefix/prior-package guards passed;
 17 recorded identities and six sessions were absent. At that preparation boundary,
 the new packaged sandbox helpers were ordinary user-owned 0755 copies. This gate
-ran no native/reference compiler, decoder or application workflow. Complete
-current-source browser, installed aggregate, duration and maximum gates remain
-open, along with external AE/platform qualification.
+ran no native/reference compiler, decoder or application workflow. The later
+five-workflow installed aggregate on `c6033a71a` passed with 74 recorded identities
+and seven sessions absent. Its separate broad-substring observer refusal remains
+recorded with an unproven cause; the exact-scope reconciliation passed without
+application replay. The same source's native 300/1,200-frame duration gate and
+independent audit passed all six MOV picture/alpha, PCM and timestamp checks,
+467 raw memory rows and 75 genuine encoder observations. Original memory limits
+and cleanup gates passed. Browser, maximum and external AE/platform gates remain
+open; none of these results qualifies later application changes.
 The complete 32-case handbook browser gate passed on
 `322c8a6b1`. That source's complete ordinary browser run closed failed:
 7,228 passed, 48 failed and 287 skipped. The Motion-named subset passed 436

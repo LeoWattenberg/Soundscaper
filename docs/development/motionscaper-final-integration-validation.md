@@ -1,8 +1,12 @@
 # Motionscaper final integration status
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
-`feat/motionscaper` in the main Motionscaper worktree. Latest reviewed application
-integration is source `8b2325853`, including native-selection draft ownership,
+`feat/motionscaper` in the main Motionscaper worktree. Latest local integration
+is `da9cefedc`, including the catalog-owner admission fix (`2e10bc63e`), generated
+French UI/handbook copy (`333aa48c1`) and test-only morph/codec evidence additions.
+The bridge locale fix and remaining generated languages are in progress; fresh
+applicable final gates have not run on this integration. Earlier application
+source `8b2325853` includes native-selection draft ownership,
 the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
@@ -61,9 +65,12 @@ success from a progress marker, an earlier source's result or generated files.
 ## Implementation and acceptance are separate
 
 The [owning implementation order](motionscaper-implementation-order.md) makes
-all twelve packages required for first release. A read-only source audit locates
-the named implementation paths below. It establishes no additional wholly
-missing named local deliverable, but it is not an exhaustive correctness proof.
+all twelve packages required for first release. The latest read-only scope audit
+maps 68 requirement groups to their owning sources. It found the editor catalog
+admission omission (now fixed), a separate EN/DE-only bridge locale path (in
+progress), and missing generated Motion translations. The first French set is
+complete; remaining languages and browser proof are open. This is not an
+exhaustive correctness proof.
 The original completion gates remain unchanged.
 
 | Package | Implemented local paths | Acceptance still needed |
@@ -98,6 +105,33 @@ register activation, hosted deployment, dispatch or publication was performed
 by this recovery.
 
 ## Latest integrated validation
+
+The latest locale/morph/codec additions are separate from the frozen `c6033a71a`
+full-gate evidence. The catalog fix retained its two failing pre-fix cases and
+passed 18 focused controls, strict application/test types, changed lint and size.
+After integration, all four catalog tests pass against the normal loader and
+resolver. French has 732 current new Motion/bridge entries, with existing human,
+Audacity and machine entries preserved, and both Motion handbook pages validate
+current. A separate whole-French strict handbook check reported nine stale
+pages and two missing navigation entries; it remains failed and is not a claim
+against the two new Motion pages. The morph case has browser types/lint/size
+only, and the codec evidence change has browser types/lint only; both await the
+fresh browser run. The old browser preparation remains unarmed. Its canonical
+source expectation was released before the later application changes; the
+original `c6033a71a` sites, maps, readers and source remain held unchanged.
+
+The frozen `c6033a71a` Linux software native aggregate receipt is
+`current-c6033a71a-native-qualification-v2/aggregate-audit/qualification.json`,
+SHA-256 `5f535ea28d4c878a759a1f0c145c63fbafdf842ac0eb2bb0d350b7cc2f6809ca`.
+The later duration receipt is `current-c6033a71a-sustained-native/qualification.json`,
+SHA-256 `2b79175e7d420672cd7f3d9dbe45040053d894aaadc58cfb146018a03b9d749b`.
+Its independent existing-output audit recomputed 467 memory rows, 75 genuine
+encoder rows and every decoded PCM/PTS oracle for the six MOVs, with changing
+authored pictures at three positions per output. Peak application RSS/PSS was
+1,000,865,792/622,234,624 bytes; original absolute, tail, cadence and cleanup
+limits passed. All 54 recorded workload identities and 22 sessions were absent.
+These receipts qualify only application `c6033a71a`; the earlier failed runs,
+aggregate observer refusal and other-host/maximum/AE limits remain separate.
 
 All twelve packages remain **In progress**. The complete implementation and a
 passing focused workflow are distinct from the required combined acceptance.
