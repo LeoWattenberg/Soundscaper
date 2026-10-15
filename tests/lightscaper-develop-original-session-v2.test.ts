@@ -52,7 +52,7 @@ test('current original reading admits real Photo1/2 without loading LUTs or chan
 			assert.equal(f.calls.closes, 1); return [...view.frame.pixels];
 		});
 		assert.deepEqual(result, [7, 19, 233, 255]); assert.equal(borrowed[0]!.pixels.every(byte => byte === 0), true);
-		assert.deepEqual(f.calls, { reads: 4, bodies: 1, opens: 1, closes: 1 });
+		assert.deepEqual(f.calls, { reads: 5, bodies: 1, opens: 1, closes: 1 });
 	}
 	const current = fixture();
 	const oldHost = { ...current.host, repository: { loadPhoto: async () => queryPhotoV1() } };

@@ -373,13 +373,21 @@ sync — entirely on shared effects.
   the ML fence applies only to ML-based implementations.
 - **Web Core — In progress:** proxy develop: adjustments evaluated on
   preview-resolution derivatives with the full-resolution render reserved for
-  zoom and export, within recorded latency budgets.
+  zoom and export, within recorded latency budgets. The Current
+  [native proxy path](docs/architecture/lightscaper-native-proxy.md) now samples
+  the authenticated Original into a bounded same-format proxy before evaluating
+  the unchanged recipe. Native words/floats retain their precision; spatial,
+  repair and mask operations use the declared proxy grid. Full zoom, export and
+  handoff keep natural resolution. Final publication rechecks the Photo revision
+  after joined decoder retirement. Broader latency and exit qualification remain
+  open.
 
 ### Exit gate
 
 - Every operation has golden frames proving determinism across runs and
-  byte-equal preview and export renders apart from declared output-only
-  steps.
+  byte-equal full-resolution preview and export renders apart from declared
+  output-only steps. Editing proxies retain the evaluation exception in the
+  product invariants above.
 - Every new shared effect is authorable and renderable in a Framescaper test
   in the same suite run.
 - History, snapshots, sync, and presets pass property tests over generated

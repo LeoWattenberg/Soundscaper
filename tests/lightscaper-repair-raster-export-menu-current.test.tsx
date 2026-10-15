@@ -150,20 +150,27 @@ test('Current File export waits for the held actual cached Develop preview Close
 		masks: [{ schemaVersion: 1, id: 'brush', kind: 'mask', inputs: [{ name: 'alpha', kind: 'alpha', sourceRef: installed.reference.storageKey }],
 			nodes: [{ id: 'alpha', kind: 'alpha', inputName: 'alpha' }], outputNodeId: 'alpha' }], maskBindings: [{ maskId: 'brush', effectId: 'invert' }] });
 	const before = await f.inspect(), frames: number[][] = [], scopes: PhotoLibraryDevelopProxyViewV3['frame']['pixels'][] = [], signals: AbortSignal[] = [];
-	const actual = f.runtime, full = actual.withFullResolution; let calls = 0;
-	const runtime: PhotoLibraryDevelopProxyRuntimeV3 = { withProxy: (request, consume) => actual.withProxy(request, consume),
-		async withFullResolution<Result>(request: Readonly<PhotoLibraryDevelopFrameRequestV3>, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>): Promise<Result> {
-			return Reflect.apply(full, actual, [request, async (view: PhotoLibraryDevelopProxyViewV3) => {
-				calls++; frames.push([...view.frame.pixels]); scopes.push(view.frame.pixels); signals.push(request.signal);
-				if (calls === 1) { entered.resolve(); await release.promise; } request.signal.throwIfAborted(); return consume(view);
-			}]) as Promise<Result>;
-		} };
+	const actual = f.runtime, proxy = actual.withProxy, full = actual.withFullResolution, phases: ('proxy' | 'full')[] = []; let calls = 0;
+	const render = <Result,>(phase: 'proxy' | 'full', request: Readonly<PhotoLibraryDevelopFrameRequestV3>,
+		consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>): Promise<Result> => {
+		if (phase === 'full') {
+			assert.deepEqual(phases, ['proxy']); assert.equal(signals[0]!.aborted, true);
+			assert.ok(scopes[0]!.every(value => value === 0), 'Export cannot borrow the cached renderer before proxy retirement physically joins.');
+		}
+		return Reflect.apply(phase === 'proxy' ? proxy : full, actual, [request, async (view: PhotoLibraryDevelopProxyViewV3) => {
+			calls++; phases.push(phase); frames.push([...view.frame.pixels]); scopes.push(view.frame.pixels); signals.push(request.signal);
+			if (phase === 'proxy') { assert.equal(calls, 1); entered.resolve(); await release.promise; }
+			request.signal.throwIfAborted(); return consume(view);
+		}]) as Promise<Result>;
+	};
+	const runtime: PhotoLibraryDevelopProxyRuntimeV3 = { withProxy: (request, consume) => render('proxy', request, consume),
+		withFullResolution: (request, consume) => render('full', request, consume) };
 	const request = f.request(), saveRuntime: PhotoLibraryBackupSaveRuntimeV1 = { maximumStreamingBytes: 536870912, prepareSave: request.prepareSave, saveFile: request.saveFile };
 	const ui = await exportHost(f, saveRuntime, runtime);
 	try {
 		await ui.selectAll(); await ui.click(ui.button('Develop…'));
 		await waitFor(async () => { await act(async () => { await settle(); }); return calls === 1 || ui.dom.find('[role="alert"]') !== null; }, 'actual cached Develop renderer borrow');
-		assert.equal(calls, 1); await entered.promise; assert.deepEqual(frames[0], [0, 255, 255, 255, 255, 0, 0, 255, 0, 0, 0, 255]);
+		assert.equal(calls, 1); assert.deepEqual(phases, ['proxy']); await entered.promise; assert.deepEqual(frames[0], [0, 255, 255, 255, 255, 0, 0, 255, 0, 0, 0, 255]);
 		const workspace = ui.dom.one('[data-photo-develop-workspace]'), close = workspace.querySelectorAll('button').filter(node => node.textContent === 'Close').at(-1); assert.ok(close);
 		await ui.click(close); assert.equal(signals[0]!.aborted, true); assert.ok(scopes[0]!.some(value => value !== 0));
 		await ui.click(ui.dom.one('[data-photo-png-export-menu]')); assert.equal(ui.dom.find('[data-photo-png-export-dialog]'), null);
@@ -172,7 +179,9 @@ test('Current File export waits for the held actual cached Develop preview Close
 		await ui.click(ui.dom.one('[data-photo-png-export-menu]'));
 		await waitFor(async () => { await act(async () => { await settle(); }); return ui.dom.find('[data-photo-png-export-save]') !== null && !reactProps(ui.dom.one('[data-photo-png-export-save]')).disabled; }, 'Current PNG readiness after joined preview');
 		await ui.click(ui.dom.one('[data-photo-png-export-save]')); await waitFor(async () => { await act(async () => { await settle(); }); return f.outputs.length === 1; }, 'actual Current PNG delivery');
-		assert.equal(calls, 2); assert.equal(ui.factories(), 1); assert.deepEqual([...decodePng(f.outputs[0]!.bytes).pixels], frames[0]); assert.deepEqual(await f.inspect(), before);
+		assert.equal(calls, 2); assert.deepEqual(phases, ['proxy', 'full']); assert.equal(ui.factories(), 1);
+		assert.deepEqual([...decodePng(f.outputs[0]!.bytes).pixels], frames[0]); assert.ok(scopes.every(scope => scope.every(value => value === 0)));
+		assert.deepEqual(await f.inspect(), before);
 	} finally { release.resolve(); await ui.dispose(); await f.close(); }
 });
 

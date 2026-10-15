@@ -8,7 +8,7 @@ export const imagingChunkGroups = [{
 	// Native word/float processing is reached by opted-in Develop consumers.
 	// Inert descriptors and scalar memory planning stay with image contracts.
 	name: 'editor-native-image-develop',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-develop-linear-(?:frame|owner|current|lut-stage|plan)-v1|image-repair-spots-native-current-v1|pixel-frame-linear-[^\\/]+-v1|linear-(?:kernel-planes|spatial-(?:noise|neighborhood)|output-sampling)-v1)\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-develop-linear-(?:frame|owner|current|lut-stage|plan)-v1|native-develop-proxy-source-current-v1|image-repair-spots-native-current-v1|pixel-frame-linear-[^\\/]+-v1|linear-(?:kernel-planes|spatial-(?:noise|neighborhood)|output-sampling)-v1)\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,

@@ -11,11 +11,7 @@ import { createPhotoDevelopRenderRuntimeV3 } from './photo-develop-render-runtim
 import type { PhotoDevelopFrameOptionsV3 } from './controller/photo-develop-frame-v3.ts';
 import { capturePhotoCubeLutSource } from './controller/photo-cube-lut-source-binding.ts';
 import { captureMaskRasterSourceV1 } from '../common/editor/imaging/mask-raster-source-scope-v1.ts';
-
-const PROXY = Object.freeze({
-	source: Object.freeze({ maximumSidePixels: 2048, maximumPixels: 4_194_304, maximumBytes: 67_108_864 }),
-	render: Object.freeze({ maximumSidePixels: 4096, maximumPixels: 8_388_608, maximumBytes: 134_217_728 }),
-});
+import { withPhotoDevelopProxyCurrentV1, PHOTO_DEVELOP_PROXY_PROFILE_CURRENT_V1 } from './photo-develop-proxy-current-v1.ts';
 
 /** Active composition widens native depth. The permanent V3 renderer remains
  * the exact byte implementation; deep color stays Float32 through development.
@@ -28,12 +24,13 @@ export function createPhotoDevelopRenderRuntimeCurrentV1(optionsValue: PhotoDeve
 		...(mask === undefined ? {} : { maskSource: captureMaskRasterSourceV1(mask) }) });
 	const byte = createPhotoDevelopRenderRuntimeV3(options);
 	return Object.freeze({ withLinearWorkingFrame: byte.withLinearWorkingFrame,
-		withProxy: <Result>(request: Readonly<PhotoLibraryDevelopFrameRequestV3>, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) => render('proxy', request, consume, byte, options),
+		withProxy: <Result>(request: Readonly<PhotoLibraryDevelopFrameRequestV3>, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) =>
+			withPhotoDevelopProxyCurrentV1(request, consume, (value, accept) => render('proxy', value, accept, byte, options), options),
 		withFullResolution: <Result>(request: Readonly<PhotoLibraryDevelopFrameRequestV3>, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) => render('full', request, consume, byte, options),
 	});
 }
 
-async function render<Result>(resolution: 'proxy' | 'full', request: Readonly<PhotoLibraryDevelopFrameRequestV3>,
+async function render<Result>(resolution: 'proxy' | 'full', request: unknown,
 	consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>, byte: Readonly<PhotoLibraryDevelopProxyRuntimeV3>, options: PhotoDevelopFrameOptionsV3): Promise<Result> {
 	const signalField = typeof request === 'object' && request !== null ? Object.getOwnPropertyDescriptor(request, 'signal') : undefined;
 	if (signalField && !Object.hasOwn(signalField, 'value')) throw new TypeError('Current render signal must be an own data property.');
@@ -45,9 +42,9 @@ async function render<Result>(resolution: 'proxy' | 'full', request: Readonly<Ph
 	const descriptor = field(raw as Readonly<Record<string, unknown>>, 'descriptor', 'Current render source');
 	const metadata = record(descriptor, 'Current render descriptor', ['schemaVersion', 'width', 'height', 'sampleFormat', 'primaries', 'transfer']);
 	if (field(metadata, 'sampleFormat', 'Current render descriptor') === 'unorm8') {
-		return resolution === 'full' ? byte.withFullResolution(request, consume) : byte.withProxy(request, consume);
+		return Reflect.apply(resolution === 'full' ? byte.withFullResolution : byte.withProxy, byte, [request, consume]) as Promise<Result>;
 	}
-	const profile = resolution === 'full' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1 : PROXY;
+	const profile = resolution === 'full' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1 : PHOTO_DEVELOP_PROXY_PROFILE_CURRENT_V1;
 	return withImageDevelopLinearCurrentV1(request, async (frame, maskOverlay) => {
 		const histogram = await withLinearPixelFrameDisplayV1({ frame, ...(signal ? { signal } : {}) },
 			encoded => createPixelFrameHistogramV1(encoded, { ...(signal ? { signal } : {}) }), 'full');

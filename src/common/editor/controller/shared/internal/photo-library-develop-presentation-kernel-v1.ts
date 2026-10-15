@@ -234,19 +234,19 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 	async #presentCurrent(view: Readonly<PhotoDevelopPresentationViewKernelV1>, frame: PixelFrameV1, runtime: Readonly<PhotoLibraryDevelopProxyRuntimeV3>, signal: AbortSignal): Promise<Rendered | null> {
 		if (frame.descriptor.sampleFormat !== 'unorm8') return presentPhotoDevelopLinearV1(view, frame, runtime, signal, this.#ports.paint, () => this.#view === view);
 		const resolution = view.resolution ?? 'proxy', full = PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1;
-		const before = await createPixelFrameHistogramV1(frame, { limits: full.source, signal }); check(signal);
-		const beforeExtent = await withRepairPixelFrameLifetimeV1(async owner => {
+		const original = await withRepairPixelFrameLifetimeV1(async owner => {
 			const pixels = frame.pixels;
 			if (frame.descriptor.sampleFormat !== 'unorm8' || !(pixels instanceof Uint8Array || pixels instanceof Uint8ClampedArray)) throw new TypeError('Current Original requires encoded RGBA8.');
 			// Full Before alone owns an F copy; proxy owns only its fitted plane.
 			const protectedFrame = resolution === 'full' ? { descriptor: frame.descriptor, pixels: owner.copy(pixels, frame.descriptor.width * frame.descriptor.height * 4) } : frame;
-			return withPhotoDevelopDisplayFrameV1({ frame: protectedFrame, signal }, display => {
+			return withPhotoDevelopDisplayFrameV1({ frame: protectedFrame, signal }, async display => {
+				const histogram = await createPixelFrameHistogramV1(display.frame, { limits: full.source, signal }); check(signal);
 				check(signal); this.#ports.paint(view.before, display.frame, { limits: full.source, signal }); check(signal);
-				return Object.freeze({ width: display.frame.descriptor.width, height: display.frame.descriptor.height });
+				return { histogram, extent: Object.freeze({ width: display.frame.descriptor.width, height: display.frame.descriptor.height }) };
 			}, resolution);
 		});
 		check(signal); let completed: Rendered | null = null;
-		await runtime.withFullResolution({ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, async output => {
+		await runtime[resolution === 'full' ? 'withFullResolution' : 'withProxy']({ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, async output => {
 			check(signal); if (this.#view !== view) return;
 			if (view.maskOverlay && (!output.maskOverlay || output.maskOverlay.maskId !== view.maskOverlay.maskId || output.maskOverlay.effectId !== view.maskOverlay.effectId)) {
 				throw new RangeError('Mask coverage does not match the selected adjustment.');
@@ -256,7 +256,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 				check(signal); if (this.#view !== view) return;
 				this.#ports.paint(view.after, display.frame, { limits: full.render, signal }); check(signal);
 				if (display.overlay && view.overlay) { this.#ports.paint(view.overlay, display.overlay, { limits: full.render, signal }); check(signal); }
-				completed = Object.freeze({ before, after: output.histogram, extent: Object.freeze({ before: beforeExtent,
+				completed = Object.freeze({ before: original.histogram, after: output.histogram, extent: Object.freeze({ before: original.extent,
 					after: Object.freeze({ width: display.frame.descriptor.width, height: display.frame.descriptor.height }) }) });
 			}, resolution);
 		});

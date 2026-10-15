@@ -11,6 +11,7 @@ import { createPhotoLibraryDevelopOriginalSessionCurrentV1 } from '../src/lights
 import { withPhotoOriginalFrameV1 } from '../src/lightscaper/preview/photo-original-frame-v1.ts';
 import { PhotoLibrarySessionLifetime } from '../src/lightscaper/controller/photo-library-session-lifetime.ts';
 import { createPhotoDevelopRenderRuntimeV3 } from '../src/lightscaper/photo-develop-render-runtime-v3.ts';
+import { createPhotoDevelopRenderRuntimeCurrentV1 } from '../src/lightscaper/photo-develop-render-runtime-current-v1.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../src/lightscaper/catalog/photo-document-current-v1.ts';
 import { applyPhotoCommandCurrentV1 } from '../src/lightscaper/controller/photo-commands-current-v1.ts';
 import { defaultImageDevelopStateV2 } from '../src/common/editor/imaging/image-develop-state-v2.ts';
@@ -57,21 +58,54 @@ async function entered(work: Promise<unknown>, marker: Promise<void>) {
 	await Promise.race([marker, work.then(() => { assert.fail('Presentation settled before its native borrow entered.'); }, (error: unknown) => { throw error; })]);
 }
 
-test('Current proxy authenticates a larger-than-2048 Original and repairs full donor pixels before fitting only displayed frames', async () => {
+test('Current full resolution authenticates a larger-than-2048 Original and preserves exact full donor repair pixels', async () => {
 	const pixels = Array.from({ length: 2050 }, (_, index) => index === 0 ? [255, 0, 0, 255] : index === 1 ? [0, 0, 255, 255] : [0, 0, 0, 255]).flat();
-	const f = original(pixels, recipe(2050)), target = targets(), painted = new Map<HTMLCanvasElement, number[]>(), runtime = createPhotoDevelopRenderRuntimeV3();
+	const f = original(pixels, recipe(2050)), target = targets(), painted = new Map<HTMLCanvasElement, number[]>(), runtime = createPhotoDevelopRenderRuntimeCurrentV1();
 	let cached = 0, full = 0; const observed: PhotoLibraryDevelopProxyRuntimeV3 = { withProxy() { assert.fail('A proxy donor was used'); },
 		withFullResolution(value, consume) { full++; assert.equal(value.frame.descriptor.width, 2050); return runtime.withFullResolution(value, consume); } };
 	const owner = new PhotoLibraryDevelopPresentationCurrentV1({ withOriginalFrame: (value, consume, options) => f.port.withFrame(value, consume, options),
 		readPreview: async () => { cached++; return { outcome: 'missing' }; }, loadProxy: async () => observed,
 		paint(canvas, frame) { painted.set(canvas, [...frame.pixels]); return { width: frame.descriptor.width, height: frame.descriptor.height, byteLength: frame.pixels.byteLength }; }, clear() {} });
 	try {
-		owner.setView(request(f, target)); await owner.drain(); assert.equal(owner.snapshot().status, 'ready');
-		assert.deepEqual(owner.snapshot().extent, { before: { width: 2048, height: 1 }, after: { width: 2048, height: 1 } });
+		owner.setView(request(f, target, 'full')); await owner.drain(); assert.equal(owner.snapshot().status, 'ready');
+		assert.deepEqual(owner.snapshot().extent, { before: { width: 2050, height: 1 }, after: { width: 2050, height: 1 } });
 		assert.deepEqual(painted.get(target.before)?.slice(0, 12), [255, 0, 0, 255, 0, 0, 255, 255, 0, 0, 0, 255]);
 		assert.deepEqual(painted.get(target.after)?.slice(0, 12), [255, 0, 0, 255, 255, 0, 0, 255, 0, 0, 0, 255]);
 		assert.equal(cached, 0); assert.equal(full, 1); assert.equal(f.calls.originals, 1); assert.equal(f.calls.decoderClosed, 1);
 		assert.ok(f.borrowed.every(value => value.every(byte => byte === 0))); assert.deepEqual(new Uint8Array(await f.seed.original.arrayBuffer()), f.bytes);
+	} finally { await owner.close(); await f.close(); }
+});
+
+test('Current proxy authenticates the full Original but evaluates unchanged normalized Clone on its own nearest grid', async () => {
+	const width = 2050, pixels = Array.from({ length: width }, (_, x) => x === 1024 ? [255, 0, 0, 255] : x === 1 ? [0, 0, 255, 255] : [0, 0, 0, 255]).flat();
+	const state = replaceImageDevelopRepairSpotsV1(defaultImageDevelopStateV2(), { schemaVersion: 1, spots: [{ ...clone(width), source: { x: 1024.5 / width, y: .5 } }] });
+	const f = original(pixels, state), target = targets(), painted = new Map<HTMLCanvasElement, number[]>(), runtime = createPhotoDevelopRenderRuntimeCurrentV1();
+	let proxies = 0, cached = 0;
+	const observed: PhotoLibraryDevelopProxyRuntimeV3 = {
+		withProxy(value, consume) {
+			proxies++; assert.equal(value.frame.descriptor.width, width); assert.deepEqual(value.develop, state);
+			return runtime.withProxy(value, consume);
+		},
+		withFullResolution() { assert.fail('Proxy presentation must not render the full adjustment grid.'); },
+	};
+	const owner = new PhotoLibraryDevelopPresentationCurrentV1({ withOriginalFrame: (value, consume, options) => f.port.withFrame(value, consume, options),
+		readPreview: async () => { cached++; return { outcome: 'missing' }; }, loadProxy: async () => observed,
+		paint(canvas, frame) { painted.set(canvas, [...frame.pixels]); return { width: frame.descriptor.width, height: frame.descriptor.height, byteLength: frame.pixels.byteLength }; }, clear() {} });
+	try {
+		owner.setView(request(f, target)); await owner.drain(); assert.equal(owner.snapshot().status, 'ready');
+		assert.deepEqual(owner.snapshot().extent, { before: { width: 2048, height: 1 }, after: { width: 2048, height: 1 } });
+		// floor(x*2050/2048) jumps1023→1025, omitting the lone red donor1024.
+		// The unchanged normalized Clone therefore borrows black on the proxy,
+		// while the full-resolution control above retains actual donor pixels.
+		assert.deepEqual(painted.get(target.before)?.slice(0, 12), [0, 0, 0, 255, 0, 0, 255, 255, 0, 0, 0, 255]);
+		assert.deepEqual(painted.get(target.after)?.slice(0, 12), [0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255]);
+		assert.equal(proxies, 1); assert.equal(cached, 0); assert.equal(f.calls.originals, 1); assert.equal(f.calls.decoderClosed, 1);
+		assert.ok(f.borrowed.every(value => value.every(byte => byte === 0))); assert.deepEqual(new Uint8Array(await f.seed.original.arrayBuffer()), f.bytes);
+		await f.port.withFrame({ schemaVersion: 1, photoId: f.photo.id, expectedRevision: f.photo.revision }, view =>
+			runtime.withFullResolution({ frame: view.frame, develop: state, signal: new AbortController().signal }, output => {
+				assert.equal(output.frame.descriptor.width, width); assert.deepEqual([...output.frame.pixels.subarray(4, 8)], [255, 0, 0, 255]);
+			}));
+		assert.equal(f.calls.originals, 2); assert.equal(f.calls.decoderClosed, 2); assert.ok(f.borrowed.every(value => value.every(byte => byte === 0)));
 	} finally { await owner.close(); await f.close(); }
 });
 

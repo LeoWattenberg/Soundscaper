@@ -105,6 +105,11 @@ range. Every completed stage rounds into finite Float32 storage.
 
 ## Native local adjustments and repair UI
 
+The Current [Develop proxy path](lightscaper-native-proxy.md) samples native words
+or floats before these stages. Proxy-grid evaluation preserves the complete
+recipe and resource authority; full zoom, export and handoff retain natural
+resolution. No full Float32 source capture is needed to create the proxy.
+
 Procedural, luminance-range, color-range and authenticated brush masks use the
 shared graph calculations. Only coverage uses the existing byte mask planes.
 Luminance and color selection sample the incoming Float32 adjustment stage

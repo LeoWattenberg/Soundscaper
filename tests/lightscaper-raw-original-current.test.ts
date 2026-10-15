@@ -86,7 +86,7 @@ test('Current OriginalSession lends native linear word pixels from its genuine r
 			const low = view.frame.pixels[(8 * 32 + 8) * 4]!, high = view.frame.pixels[(8 * 32 + 24) * 4]!;
 			assert.ok(high > low); assert.equal(Math.floor(high / 257), Math.floor(low / 257)); return 'native-original';
 		});
-		assert.equal(result, 'native-original'); assert.equal(session.calls.bodies, 1); assert.equal(session.calls.reads, 4);
+		assert.equal(result, 'native-original'); assert.equal(session.calls.bodies, 1); assert.equal(session.calls.reads, 5);
 		assert.equal(native.calls.raw, 1); assert.ok(new Uint8Array(native.captured[0]!).every(byte => byte === 0));
 		assert.deepEqual(new Uint8Array(await f.body.arrayBuffer()), f.bytes);
 	} finally { await native.close(); }

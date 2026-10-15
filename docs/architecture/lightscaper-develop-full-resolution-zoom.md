@@ -12,8 +12,8 @@ The selected Session's optional `develop.original` capability lends an
 authenticated, oriented original frame only during its consumer. A request
 binds the expected photo revision. The owner checks the complete immutable
 original binding and revision after body loading, before delivery and after
-the consumer settles. A stale read refuses before native decoding. The
-existing original-frame owner verifies compressed bytes, digest and EXIF
+the consumer settles and after decoder retirement. A stale read refuses before
+native decoding. The existing original-frame owner verifies compressed bytes, digest and EXIF
 orientation and clears every temporary backing after settlement.
 
 Full-resolution processing uses the same ordered shared-effect and natural
@@ -23,6 +23,15 @@ Natural outputs may reach 16,384 pixels per side, 67,108,864 pixels and
 256 MiB. Admission precedes allocation. These per-frame limits are separate
 from measured latency and total working-set budgets; derivative limits stay
 at 2048-source/4096-output sides and 16/32 MiB.
+
+The Current editor's [native proxy owner](lightscaper-native-proxy.md) retains
+word/float sample precision while reducing the Original before adjustments.
+Its native proxy profile permits 64 MiB of source and 128 MiB of natural render
+storage at the same pixel/side limits. Proxy spatial and repair operations use
+the proxy grid with the unchanged saved recipe; full inspection stays exact.
+Current native Full processing admits 8192 pixels per side, 16,777,216 pixels
+and 256 MiB per source or rendered plane, subject to its separate 768-MiB
+aggregate processing budget.
 
 Presentation retains scalar histograms and extents. Source, stage and native
 canvas backings have separate lifetimes. Changing resolution, photo,

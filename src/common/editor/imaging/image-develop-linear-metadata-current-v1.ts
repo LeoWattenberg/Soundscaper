@@ -27,6 +27,7 @@ import { preparePostCropVignetteEffectV1 } from '../video-post-crop-vignette-v1.
 
 export const CURRENT_LINEAR_WORKING_BYTES_V1 = 768 * 1024 * 1024;
 const PROFILES = ['unorm16', 'float32'].flatMap(sampleFormat => ['srgb', 'bt709'].map(primaries => ({ sampleFormat, primaries, transfer: 'linear' })));
+const PROXY_PROFILES = [...PROFILES, { sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }];
 const COLORS = new Set(['white-balance-v1', 'tone-ladder-v1', 'chroma-v1', 'black-white-mix-v1', 'hsl-mixer-v1', 'point-curves-v1', 'parametric-curves-v1', 'color-wheels-v1']);
 type Effect = ReturnType<typeof normalizeImageDevelopStateCurrentV1>['effects'][number];
 type Reference = NonNullable<ReturnType<typeof cubeLutProfileResourceRequirementV1>>;
@@ -40,14 +41,24 @@ export type LinearDevelopMetadataStageCurrentV1 = Readonly<{ kind: 'geometry'; g
  * execution. It imports no native writer or executable prepared identity and
  * never reads source pixels or resource bodies. */
 export function prepareLinearDevelopMetadataCurrentV1(value: unknown, profileValue: ImageDevelopFrameProfile, optionsValue: ImageDevelopFrameOptionsV3) {
+	return prepareDevelopMetadata(value, profileValue, optionsValue, false);
+}
+
+/** Proxy admission shares the complete recipe/resource plan. Encoded byte
+ * execution is conservatively charged as Float32 without converting pixels. */
+export function prepareDevelopProxyMetadataCurrentV1(value: unknown, profileValue: ImageDevelopFrameProfile, optionsValue: ImageDevelopFrameOptionsV3) {
+	return prepareDevelopMetadata(value, profileValue, optionsValue, true);
+}
+
+function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameProfile, optionsValue: ImageDevelopFrameOptionsV3, proxy: boolean) {
 	const input = record(value, 'Current linear Develop', ['frame', 'develop', 'signal', 'maskOverlay'], ['frame', 'develop']);
 	const develop = normalizeImageDevelopStateCurrentV1(field(input, 'develop', 'Current linear Develop'));
 	const profile = captureImageDevelopFrameProfileV3(profileValue);
 	const options = record(optionsValue, 'Current linear resource options', ['source', 'maskSource'], []);
 	const raw = field(input, 'frame', 'Current linear Develop');
 	if (typeof raw !== 'object' || raw === null) throw new TypeError('Current linear Develop requires a source frame.');
-	const sourcePlan = admitPixelFrameV1(field(raw as Readonly<Record<string, unknown>>, 'descriptor', 'Current linear source'), { profiles: PROFILES, limits: profile.source });
-	const descriptor = captureLinearKernelDescriptorV1({ ...sourcePlan.descriptor, sampleFormat: 'float32' });
+	const sourcePlan = admitPixelFrameV1(field(raw as Readonly<Record<string, unknown>>, 'descriptor', 'Current linear source'), { profiles: proxy ? PROXY_PROFILES : PROFILES, limits: profile.source });
+	const descriptor = captureLinearKernelDescriptorV1({ ...sourcePlan.descriptor, sampleFormat: 'float32', transfer: 'linear' });
 	planPixelFrameV1(descriptor, profile.render);
 	const selection = Object.hasOwn(input, 'maskOverlay') ? prepareImageDevelopMaskOverlaySelectionV1(field(input, 'maskOverlay', 'Current linear Develop')) : undefined;
 	const projection = normalizeImageDevelopStateV2({ processVersion: 2, effects: develop.effects, geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings });
@@ -92,7 +103,10 @@ export function prepareLinearDevelopMetadataCurrentV1(value: unknown, profileVal
 				const active = spatial.enabled && !spatial.neutral; if (active) charge(current.width * current.height * 16);
 				stages.push(Object.freeze({ kind: 'spatial', effect, active }));
 			} else {
-				if (!COLORS.has(effect.type)) throw new RangeError('Unsupported linear color develop family.');
+				if (!COLORS.has(effect.type)) {
+					if (sourcePlan.descriptor.sampleFormat !== 'unorm8' || effect.enabled) throw new RangeError('Unsupported linear color develop family.');
+					stages.push(Object.freeze({ kind: 'noop', id: effect.id })); continue;
+				}
 				if (masks.plan.bindings.some(binding => binding.effectId === effect.id)) charge(current.width * current.height * 16);
 				stages.push(Object.freeze({ kind: 'color', effect }));
 			}

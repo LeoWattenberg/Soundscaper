@@ -63,11 +63,14 @@ export function createPhotoLibraryDevelopOriginalSessionCore(host: PhotoLibraryD
 				};
 				const body = await loadOriginal(photo.original, admitted); check(admitted);
 				await current(); check(admitted);
-				return Reflect.apply(decode, host, [{ binding, body, signal: admitted }, async (frame: PhotoLibraryDevelopOriginalFrameV1['frame']) => {
+				const result = await (Reflect.apply(decode, host, [{ binding, body, signal: admitted }, async (frame: PhotoLibraryDevelopOriginalFrameV1['frame']) => {
 					await current(); check(admitted);
 					const result = await consume(Object.freeze({ photoId, revision: expectedRevision, frame }));
 					check(admitted); await current(); check(admitted); return result;
-				}]) as Promise<Result>;
+				}]) as Promise<Result>);
+				// Decoder retirement may itself await native work. Publication still
+				// belongs to this revision after every frame has physically retired.
+				check(admitted); await current(); check(admitted); return result;
 			}, signal]) as Promise<Result>;
 		},
 	} satisfies PhotoLibraryDevelopOriginalPortV1);

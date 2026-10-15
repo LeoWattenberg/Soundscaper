@@ -26,9 +26,9 @@ export async function presentPhotoDevelopLinearV1(view: Readonly<PhotoDevelopPre
 			return Object.freeze({ width: display.frame.descriptor.width, height: display.frame.descriptor.height });
 		}, resolution);
 		return { histogram, extent };
-	}, 'full');
+	}, resolution);
 	check(); let completed: Rendered | null = null;
-	await runtime.withFullResolution({ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, async output => {
+	await runtime[resolution === 'full' ? 'withFullResolution' : 'withProxy']({ frame, develop: view.develop, signal, ...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }, async output => {
 		check(); if (!current()) return;
 		if (view.maskOverlay && (!output.maskOverlay || output.maskOverlay.maskId !== view.maskOverlay.maskId || output.maskOverlay.effectId !== view.maskOverlay.effectId)) {
 			throw new RangeError('Native mask coverage does not match the selected adjustment.');
