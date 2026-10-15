@@ -7,6 +7,7 @@ import { chromium } from '@playwright/test';
 import { MotionSustainedCdp } from './motionscaper-sustained-cdp.ts';
 import { readMotionProcessIdentity, sampleMotionOwnedProcesses } from './motionscaper-sustained-observation.ts';
 import type { MotionProcessIdentity } from './motionscaper-sustained-process.ts';
+import { shutdownMotionSustainedApplication } from './motionscaper-sustained-shutdown.ts';
 
 export async function motionSustainedIdentityAlive(identity: MotionProcessIdentity): Promise<boolean> {
 	try { return (await readMotionProcessIdentity(identity.pid)).startTicks === identity.startTicks; }
@@ -58,24 +59,19 @@ export async function launchMotionSustainedApplication(options: Readonly<{
 	const cleanup = async () => {
 		const errors: unknown[] = [];
 		if (owner && !await motionSustainedIdentityAlive(owner)) errors.push(new Error('Application owner disappeared before requested cleanup.'));
-		const signalOwned = async (signal: NodeJS.Signals) => {
-			for (const identity of [...previous, ...(owner ? [owner] : [])]) {
-				try { if (await motionSustainedIdentityAlive(identity)) process.kill(identity.pid, signal); } catch (error) { errors.push(error); }
-			}
-			if (!owner) child.kill(signal); // The actual ChildProcess still owns startup before /proc admission.
-		};
-		const kill = setTimeout(() => { void signalOwned('SIGKILL'); }, 10000);
-		try { if (owner) retainProcessIdentities((await sampleMotionOwnedProcesses(owner, previous)).processes.map(value => value.identity)); } catch (error) { errors.push(error); }
-		try { await cdp?.close(); } catch (error) { errors.push(error); }
-		try { await browser?.close(); } catch (error) { errors.push(error); }
-		await signalOwned('SIGTERM');
-		const close = await closed; clearTimeout(timer);
-		if (!(close.code === 0 && close.signal === null) && !(close.code === null && close.signal === 'SIGTERM')) errors.push(new Error('Application closed with an unqualified exit code or signal.'));
+		const shutdown = await shutdownMotionSustainedApplication({ owner, retained: () => previous, closed,
+			prepare: async () => {
+				try { if (owner) retainProcessIdentities((await sampleMotionOwnedProcesses(owner, previous)).processes.map(value => value.identity)); } catch (error) { errors.push(error); }
+				try { await cdp?.close(); } catch (error) { errors.push(error); }
+				try { await browser?.close(); } catch (error) { errors.push(error); }
+			},
+			isAlive: motionSustainedIdentityAlive, send: (identity, signal) => { process.kill(identity.pid, signal); },
+			signalUnadmitted: signal => { child.kill(signal); }, waitGone: waitMotionSustainedGone,
+		});
+		const close = shutdown.exit; errors.push(...shutdown.errors); clearTimeout(timer);
 		await write; await log.close();
-		try { await waitMotionSustainedGone(previous); } catch { await signalOwned('SIGKILL'); try { await waitMotionSustainedGone(previous); } catch (error) { errors.push(error); } }
-		clearTimeout(kill);
 		const receipt = { executable: options.executable, args, cwd: options.cwd, owner, startedAt, closedAt: new Date().toISOString(),
-			...close, descendants: previous, failure: failure ? String(failure) : null, cleanupErrors: errors.map(String) };
+			...close, descendants: previous, shutdownSignals: shutdown.signals, failure: failure ? String(failure) : null, cleanupErrors: errors.map(String) };
 		await writeFile(join(options.directory, 'application-closure.json'), `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx' });
 		if (errors.length || failure) throw new AggregateError([...(failure ? [failure] : []), ...errors], 'Application cleanup/observation failed.');
 		return receipt;
