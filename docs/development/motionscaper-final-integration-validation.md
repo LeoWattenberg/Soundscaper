@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed application
-integration is source `036899f59`, including the reviewed native shutdown repair,
+integration is source `b91204a52`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -27,7 +27,9 @@ private/shared accounting is retained from measurements already collected;
 missing optional data is explicit, never inferred as zero. One fresh unchanged
 browser-duration run passed both controlled durations on that source. Earlier
 failures remain recorded, without an inferred allocation cause. Combined gates
-remain open.
+remain open. The shared Amplify field also reserves native select-all intent
+before pending automatic headroom can replace the selection. Its real-controller
+regression and untouched-field control pass across all three browser engines.
 The failed ordinary browser capture used frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
 `feat/motionscaper-final-validation` checkout and merged branch were removed
@@ -102,6 +104,7 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
+| Shared Amplify draft reservation, `3330272ef`, integrated as `b91204a52` | A real-controller Firefox case reproduced late headroom replacing a native select-all draft before insertion. Five production lines reserve existing draft ownership on unmodified Ctrl/Cmd+A. All 11 Amplify controls and three existing blur/keyboard controls pass; the untouched-field and native-select-all cases pass in Chromium, Firefox and WebKit with original bounds and no retries. Strict types, changed lint, size, normal hidden-map build and startup checks pass. All 83 recorded identities were absent; source, browser and installed-package guards passed. Earlier build-output-admission, lint-owner deadline and default-heap compiler failures remain separately retained. This establishes the reproduced keyboard case, not the cause or repair of the historical full-suite Amplify failure. |
 | Complete static gate, `bbb172047` | Passed the maintained `npm run check:static`: full lint, all source/test/tooling types, architecture/size, audits, handbook checks/build and production build. The 12 GiB heap was confined to this static command. All 89 observed PID/start identities and the root session were absent; source remained clean. Startup tightening found no ceiling to lower. Source changes from `036899f59` are three documentation files. This is not a full Node, browser, native-host matrix or coverage pass; existing pending native interoperability audit statuses retain their meaning. |
 | Current Motion tests and static components, `036899f59` | Passed all 1,179 Motion cases in 271 files, with no failures, skips or test heap override. Full repository lint passed all 12,177 files; the full strict Node-test compilation, maintained tooling types, architecture/controller/size checks and normal three-product hidden-map builds also passed. Startup tightening changed no budget. The post-audit verified 52,115 inputs, absence of all 300 observed identities/root sessions and 299 stable raw profiles; coverage remains unparsed and unadmitted. This is not a fresh complete all-product Node or canonical static-gate pass. |
 | Optional memory-accounting diagnostics, `036899f59` | Two original observer paths first reproduced dropping valid detail fields. The fix retains backing storage/embedder bytes and eight Linux private/shared/anonymous/file categories from the existing responses and rollup reads. All 87 focused controls passed, including unchanged request/read counts, required-field refusals, missing/malformed/duplicate optional data and original cap/ownership checks. Optional absence is unavailable, not zero; overlapping categories do not prove allocation ownership. No application, policy, dependency or assistance-runtime bytes changed. |
@@ -193,6 +196,9 @@ The complete static gate is
 The failed current-source native-duration invocation and file-only closure are
 `current-036899f59-sustained-native/actual-tool-closure.json`, SHA-256
 `62d7682bc2b8a38274c76b87c03825a0b6c361165331931a8e732faa230fe14a`.
+The shared Amplify repair and its build/browser/input/process audit are
+`amplify-selection-intent-fix-bbb172047-20261015/qualification.json`, SHA-256
+`628ae7e3c0f392f8583884519932fc9145ce3e57f3e4d2f3220fc68ec3f45b37`.
 These receipts retain their individual scopes and do not promote a milestone.
 
 The preceding complete Node run failed. Its receipt is

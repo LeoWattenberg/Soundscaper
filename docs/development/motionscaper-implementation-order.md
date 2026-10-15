@@ -160,6 +160,12 @@ Earlier installed source `322c8a6b1` passed both 300 and 1,200 native frames,
 including preview/ProRes, upload/encoder cancellation and retry, independent
 picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
 not close the browser, maximum-workload or broader platform gates.
+The shared Amplify field now reserves native select-all draft intent before
+pending automatic headroom can replace it (`3330272ef`, integrated as
+`b91204a52`). Eleven Amplify controls, three existing keyboard/blur controls and
+both real-controller browser cases in all three engines pass, as do strict
+types, changed lint and the normal build. This fixes the reproduced keyboard
+case; the historical full-suite Amplify failure has no established cause.
 Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
