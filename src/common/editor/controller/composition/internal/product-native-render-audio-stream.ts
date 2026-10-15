@@ -51,6 +51,8 @@ export async function renderProductNativeAudioToSink<Buffers>(
 				dependencies.assertCurrent();
 			},
 			maximumPendingChunks: 2, backpressureHighWaterChunks: 1,
+			// Exact delivery keeps a continuous clock; producer credits still bound slow sinks.
+			suspendForBackpressure: false,
 		});
 		dependencies.assertCurrent();
 		return exactResult(result);
