@@ -142,6 +142,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
 	{ source: 'vendor/audacity-design-system/tokens', destination: 'vendor/audacity-design-system/tokens', kind: 'directory', label: 'design-system tokens used by browser assertions' },
 	{ source: 'vendor/audacity-design-system/components/src/utils/roseus-colormap.ts', destination: 'vendor/audacity-design-system/components/src/utils/roseus-colormap.ts', kind: 'file', label: 'spectrogram painter browser harness colormap' },
+	{ source: 'vendor/audacity-design-system/components/src/Slider/native-range-touch-owner.ts', destination: 'vendor/audacity-design-system/components/src/Slider/native-range-touch-owner.ts', kind: 'file', label: 'native range touch ownership used by browser fixtures' },
 	{ source: 'handbook/guides', destination: 'handbook/guides', kind: 'directory', label: 'handbook guide step data the browser suite replays' },
 	{ source: 'handbook/src/content/docs/reference/macro-programs.md', destination: 'handbook/src/content/docs/reference/macro-programs.md', kind: 'file', label: 'macro-program reference the browser suite replays' },
 	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md', 'handbook']) },
