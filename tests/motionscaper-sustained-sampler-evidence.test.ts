@@ -9,6 +9,7 @@ import { startMotionSustainedSampler } from '../scripts/performance/motionscaper
 import type { MotionSustainedTelemetry } from '../scripts/performance/motionscaper-sustained-cdp.ts';
 import type { MotionOwnedMemorySample } from '../scripts/performance/motionscaper-sustained-observation.ts';
 import type { MotionSustainedMemorySample } from '../scripts/performance/motionscaper-sustained-plan.ts';
+import { motionCdpMemoryDetails, motionProcessMemoryDetails } from '../scripts/performance/motionscaper-sustained-memory-details.ts';
 
 const MIB = 1024 * 1024;
 const owner = { pid: 700001, parentPid: 1, startTicks: '101' };
@@ -39,7 +40,7 @@ function procFixture(context: TestContext, memory: readonly [Memory, Memory]): v
 }
 function target(patch: Partial<MotionSustainedTelemetry> = {}): MotionSustainedTelemetry {
 	return { observedAt: new Date().toISOString(), monotonicMs: performance.now(), targetId: 'page', sessionId: 'page-session',
-		type: 'page', url: 'about:blank', usedHeapBytes: 1, totalHeapBytes: 2, wasmCapacityBytes: [],
+		type: 'page', url: 'about:blank', usedHeapBytes: 1, totalHeapBytes: 2, heapDetails: motionCdpMemoryDetails({}), wasmCapacityBytes: [],
 		workerName: '', workerFrames: 0, backend: null, revision: null, ...patch };
 }
 async function rows(path: string): Promise<readonly Row[]> {
@@ -67,7 +68,7 @@ test('Motion sampler retains the exact rejected process/isolate operands and eve
 		const row = recorded[0]!;
 		assert.equal(row.phase, 'synthetic-memory-refusal');
 		assert.deepEqual(retained, [owner, child]);
-		assert.deepEqual(row.memory.processes, memory.map((value, index) => ({ identity: [owner, child][index], ...value })));
+		assert.deepEqual(row.memory.processes, memory.map((value, index) => ({ identity: [owner, child][index], ...value, details: motionProcessMemoryDetails('') })));
 		assert.equal(row.memory.rssBytes, 2304 * MIB); assert.equal(row.memory.pssBytes, 1664 * MIB);
 		assert.deepEqual(row.targets, observed);
 		assert.equal(row.summary.completedFrames, 0); assert.equal(row.summary.telemetrySequence, 1);

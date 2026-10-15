@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { motionWasmObservationSource } from './motionscaper-sustained-wasm-observation.ts';
 import { MOTION_SUSTAINED_PLAN as plan } from './motionscaper-sustained-plan.ts';
+import { motionCdpMemoryDetails, type MotionCdpMemoryDetails } from './motionscaper-sustained-memory-details.ts';
 
 type Fields = Readonly<Record<string, unknown>>;
 function fields(value: unknown): Fields {
@@ -16,6 +17,7 @@ export interface MotionSustainedTarget {
 export interface MotionSustainedTelemetry {
 	readonly observedAt: string; readonly monotonicMs: number; readonly targetId: string; readonly sessionId: string;
 	readonly type: string; readonly url: string; readonly usedHeapBytes: number; readonly totalHeapBytes: number;
+	readonly heapDetails: MotionCdpMemoryDetails;
 	readonly wasmCapacityBytes: readonly number[]; readonly workerName: string; readonly workerFrames: number;
 	readonly backend: string | null; readonly revision: number | null;
 }
@@ -130,6 +132,7 @@ export class MotionSustainedCdp {
 			const backend = value.backend === null ? null : text(value.backend), revision = value.revision === null ? null : bytes(value.revision);
 			observations.push({ targetId: target.targetId, sessionId: target.sessionId, type: target.type, url: target.url,
 				observedAt: new Date().toISOString(), monotonicMs: performance.now(), usedHeapBytes: bytes(heap.usedSize), totalHeapBytes: bytes(heap.totalSize),
+				heapDetails: motionCdpMemoryDetails(heap),
 				wasmCapacityBytes: value.capacityBytes.map(bytes), workerName: text(value.workerName), workerFrames: bytes(value.frames), backend, revision });
 		}
 		return observations;

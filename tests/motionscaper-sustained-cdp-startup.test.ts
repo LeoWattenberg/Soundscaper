@@ -11,6 +11,7 @@ class StartupSocket extends EventTarget {
 	readonly sent: Request[] = []; readonly contexts = new Map<string, Context>();
 	readonly scripts = new Map<string, string>(); readonly enabledPages = new Set<string>(); readonly deferred = new Map<string, Request>();
 	closed = false; closeCalls = 0; wrongSession = false; failScript = false;
+	heap: Record<string, unknown> = { usedSize: 1024, totalSize: 2048 };
 	constructor() { super(); StartupSocket.latest = this; queueMicrotask(() => this.dispatchEvent(new Event('open'))); }
 	message(value: unknown): void { this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(value) })); }
 	reply(request: Request, result: unknown = {}, error?: string): void {
@@ -41,7 +42,7 @@ class StartupSocket extends EventTarget {
 			// The first application statement allocates memory. Later injection cannot recover it.
 			runInContext('globalThis.firstMemory = new WebAssembly.Memory({initial: 1});', context);
 		}
-		if (request.method === 'Runtime.getHeapUsage') { this.reply(request, { usedSize: 1024, totalSize: 2048 }); return; }
+		if (request.method === 'Runtime.getHeapUsage') { this.reply(request, this.heap); return; }
 		this.reply(request);
 	}
 	attach(type: 'page' | 'worker'): string {
@@ -131,4 +132,40 @@ test('Motion sustained page registration observes the first WASM allocation in e
 	assert.equal(socket.sent.filter(request => request.method === 'Page.addScriptToEvaluateOnNewDocument').length, 1);
 	assert.equal(socket.sent.filter(request => request.method === 'Runtime.evaluate').length, 1, 'Only the snapshot evaluates after navigation; never late observer installation.');
 	await observer.close();
+});
+
+test('Motion sustained CDP retains optional backing/embedder bytes from the existing heap response', async t => {
+	install(t); const observer = await MotionSustainedCdp.connect(endpoint), socket = StartupSocket.latest;
+	try {
+		socket.heap = { usedSize: 1024, totalSize: 2048, backingStorageSize: 8192, embedderHeapUsedSize: 4096 };
+		socket.attach('page'); const samples = await observer.sample();
+		assert.deepEqual(Reflect.get(samples[0]!, 'heapDetails'), {
+			backingStorageBytes: { status: 'available', bytes: 8192 }, embedderHeapBytes: { status: 'available', bytes: 4096 },
+		});
+		assert.equal(samples[0]!.usedHeapBytes, 1024); assert.equal(samples[0]!.totalHeapBytes, 2048);
+		assert.equal(socket.sent.filter(request => request.method === 'Runtime.getHeapUsage').length, 1);
+		assert.equal(socket.sent.filter(request => request.method === 'Runtime.evaluate').length, 1);
+	} finally { await observer.close(); }
+});
+
+test('Motion sustained CDP marks missing or malformed optional bytes unavailable without changing required observations', async t => {
+	install(t); const observer = await MotionSustainedCdp.connect(endpoint), socket = StartupSocket.latest;
+	try {
+		socket.attach('page');
+		const absent = (await observer.sample())[0]!;
+		assert.deepEqual(absent.heapDetails, {
+			backingStorageBytes: { status: 'unavailable', reason: 'not-reported' }, embedderHeapBytes: { status: 'unavailable', reason: 'not-reported' },
+		});
+		socket.heap = { ...socket.heap, backingStorageSize: null, embedderHeapUsedSize: '4096' };
+		const invalid = (await observer.sample())[0]!;
+		assert.deepEqual(invalid.heapDetails, {
+			backingStorageBytes: { status: 'unavailable', reason: 'invalid' }, embedderHeapBytes: { status: 'unavailable', reason: 'invalid' },
+		});
+		assert.equal(invalid.usedHeapBytes, absent.usedHeapBytes); assert.equal(invalid.totalHeapBytes, absent.totalHeapBytes);
+		assert.equal(socket.sent.filter(request => request.method === 'Runtime.getHeapUsage').length, 2);
+		for (const field of ['usedSize', 'totalSize']) {
+			socket.heap = { usedSize: 1024, totalSize: 2048, [field]: -1, backingStorageSize: 0, embedderHeapUsedSize: 0 };
+			await assert.rejects(observer.sample(), /Invalid CDP memory measurement/u);
+		}
+	} finally { await observer.close(); }
 });

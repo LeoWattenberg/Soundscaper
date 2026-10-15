@@ -37,6 +37,34 @@ function normal(path: string): string {
 	throw new Error(`Unexpected synthetic read: ${path}`);
 }
 
+test('Motion process sampling retains optional accounting from the same owned rollup read', async context => {
+	let reads = 0;
+	procFixture(context, path => {
+		if (path.endsWith('/smaps_rollup')) { reads++; return `${memory}Private_Clean: 1 kB\nPrivate_Dirty: 2 kB\nShared_Clean: 3 kB\nShared_Dirty: 0 kB\nAnonymous: 2 kB\nPss_Anon: 2 kB\nPss_File: 1 kB\nPss_Shmem: 1 kB\n`; }
+		return normal(path);
+	});
+	const sampled = await sampleMotionOwnedProcesses(root, []);
+	assert.equal(reads, 2, 'There must still be one rollup read per owned identity.');
+	assert.deepEqual(Reflect.get(sampled.processes[0]!, 'details'), {
+		privateCleanBytes: { status: 'available', bytes: 1024 }, privateDirtyBytes: { status: 'available', bytes: 2048 },
+		sharedCleanBytes: { status: 'available', bytes: 3072 }, sharedDirtyBytes: { status: 'available', bytes: 0 },
+		anonymousBytes: { status: 'available', bytes: 2048 }, pssAnonymousBytes: { status: 'available', bytes: 2048 },
+		pssFileBytes: { status: 'available', bytes: 1024 }, pssSharedMemoryBytes: { status: 'available', bytes: 1024 },
+	});
+	assert.equal(sampled.rssBytes, 16384); assert.equal(sampled.pssBytes, 8192);
+});
+
+test('Motion process optional failures remain explicit and cannot replace required RSS/PSS', async context => {
+	procFixture(context, path => path.endsWith('/smaps_rollup') ? `${memory}Private_Clean: 1 kB\nPrivate_Clean: 2 kB\nPss_File: invalid\n` : normal(path));
+	const sampled = await sampleMotionOwnedProcesses(root, []);
+	assert.equal(sampled.rssBytes, 16384); assert.equal(sampled.pssBytes, 8192);
+	for (const process of sampled.processes) {
+		assert.deepEqual(process.details.privateCleanBytes, { status: 'unavailable', reason: 'duplicate' });
+		assert.deepEqual(process.details.pssFileBytes, { status: 'unavailable', reason: 'invalid' });
+		assert.deepEqual(process.details.anonymousBytes, { status: 'unavailable', reason: 'not-reported' });
+	}
+});
+
 for (const code of ['ENOENT', 'ESRCH']) {
 	test(`Motion /proc census tolerates ${code} for a vanished foreign task without losing live owned memory`, async context => {
 		procFixture(context, path => { if (path === `/proc/${foreign.pid}/stat`) throw procError(code); return normal(path); });

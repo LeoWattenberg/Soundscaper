@@ -7,8 +7,9 @@ import { join } from 'node:path';
 import { startMotionSustainedSampler } from '../scripts/performance/motionscaper-sustained-sampler.ts';
 import { readMotionProcessIdentity } from '../scripts/performance/motionscaper-sustained-observation.ts';
 import type { MotionSustainedTelemetry } from '../scripts/performance/motionscaper-sustained-cdp.ts';
+import { motionCdpMemoryDetails } from '../scripts/performance/motionscaper-sustained-memory-details.ts';
 const target = (): MotionSustainedTelemetry => ({ observedAt: new Date().toISOString(), monotonicMs: performance.now(), targetId: 'page', sessionId: 'session',
-	type: 'page', url: 'about:blank', usedHeapBytes: 1, totalHeapBytes: 2, wasmCapacityBytes: [], workerName: '', workerFrames: 0, backend: null, revision: null });
+	type: 'page', url: 'about:blank', usedHeapBytes: 1, totalHeapBytes: 2, heapDetails: motionCdpMemoryDetails({}), wasmCapacityBytes: [], workerName: '', workerFrames: 0, backend: null, revision: null });
 test('Motionscaper sustained sampler retains an in-flight sampling failure during stop', async () => {
 	const directory = await mkdtemp(join(tmpdir(), 'motion-sampler-'));
 	try {

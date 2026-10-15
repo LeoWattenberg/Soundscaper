@@ -4,6 +4,7 @@ import { constants } from 'node:fs';
 import { lstat, open, readFile, readdir } from 'node:fs/promises';
 import { MOTION_SUSTAINED_PLAN as plan } from './motionscaper-sustained-plan.ts';
 import { parseMotionProcessStat, parseMotionProcessMemory, selectMotionOwnedProcesses, type MotionProcessIdentity } from './motionscaper-sustained-process.ts';
+import { motionProcessMemoryDetails, type MotionProcessMemoryDetails } from './motionscaper-sustained-memory-details.ts';
 
 // These catches surround /proc reads only; a task can vanish after open but before read.
 function missing(error: unknown): boolean {
@@ -16,7 +17,7 @@ export async function readMotionProcessIdentity(pid: number): Promise<MotionProc
 }
 export interface MotionOwnedMemorySample {
 	readonly observedAt: string; readonly monotonicMs: number; readonly rssBytes: number; readonly pssBytes: number;
-	readonly processes: readonly Readonly<{ identity: MotionProcessIdentity; rssBytes: number; pssBytes: number }>[];
+	readonly processes: readonly Readonly<{ identity: MotionProcessIdentity; rssBytes: number; pssBytes: number; details: MotionProcessMemoryDetails }>[];
 }
 export async function sampleMotionOwnedProcesses(root: MotionProcessIdentity, previous: readonly MotionProcessIdentity[]): Promise<MotionOwnedMemorySample> {
 	const names = (await readdir('/proc')).filter(name => /^[1-9]\d*$/u.test(name));
@@ -33,9 +34,10 @@ export async function sampleMotionOwnedProcesses(root: MotionProcessIdentity, pr
 	const processes: MotionOwnedMemorySample['processes'][number][] = [];
 	for (const identity of owned) {
 		try {
-			const memory = parseMotionProcessMemory(await readFile(`/proc/${identity.pid}/smaps_rollup`, 'utf8'));
+			const rollup = await readFile(`/proc/${identity.pid}/smaps_rollup`, 'utf8');
+			const memory = parseMotionProcessMemory(rollup);
 			const current = await readMotionProcessIdentity(identity.pid);
-			if (current.startTicks === identity.startTicks) processes.push({ identity, ...memory });
+			if (current.startTicks === identity.startTicks) processes.push({ identity, ...memory, details: motionProcessMemoryDetails(rollup) });
 		} catch (error) { if (!missing(error)) throw error; }
 	}
 	return { observedAt: new Date().toISOString(), monotonicMs: performance.now(), processes,
