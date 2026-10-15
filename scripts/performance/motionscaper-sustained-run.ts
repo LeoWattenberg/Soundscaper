@@ -145,7 +145,7 @@ async function qualify(config: Config, inputPin: Awaited<ReturnType<typeof hashM
 				} else {
 					const result = await renderMotionSustainedNative(application, { frames, directory, revisionDigest: fixture.revision.digest, helperPath, choose: chooser! });
 					phases.prores = result.measured; application.retainProcessIdentities(result.measured.processIdentities);
-					outputs.push({ kind: 'prores', path: result.path, encoder: result.encoder });
+					outputs.push({ kind: 'prores', path: result.path, encoder: result.encoder, encoderObservation: result.encoderObservation });
 					for (const phase of ['native-upload', 'native-encode'] as const) cancellations.push(await qualifyMotionSustainedCancellation(application,
 						{ directory, frames, revisionDigest: fixture.revision.digest, phase, chooseNative: chooser }));
 				}
