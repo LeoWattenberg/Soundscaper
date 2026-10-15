@@ -2,10 +2,10 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest local integration
-is `f125ba024`, including the catalog-owner admission fix (`2e10bc63e`), bridge
-locale repair (`3ad4bda4e`), 22 generated UI/handbook languages and test-only
-morph/codec evidence additions. Four generated-language integrations remain
-open; fresh applicable final gates have not run on this integration. Earlier application
+is `f6eb44aa9`, including the catalog-owner admission fix (`2e10bc63e`), bridge
+locale repair (`3ad4bda4e`), all 26 generated UI/handbook languages and test-only
+morph/codec evidence additions. Fresh applicable final gates have not run on
+this integration. Earlier application
 source `8b2325853` includes native-selection draft ownership,
 the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
@@ -68,8 +68,8 @@ The [owning implementation order](motionscaper-implementation-order.md) makes
 all twelve packages required for first release. The latest read-only scope audit
 maps 68 requirement groups to their owning sources. It found the editor catalog
 admission omission and separate EN/DE-only bridge locale path (both now fixed),
-and missing generated Motion translations. Twenty-two languages are integrated;
-the remaining four and fresh browser proof are open. This is not an
+and missing generated Motion translations. Both seams and all 26 scoped
+translations are integrated; fresh browser proof is open. This is not an
 exhaustive correctness proof.
 The original completion gates remain unchanged.
 
@@ -116,14 +116,17 @@ combined catalog/locale/lifetime controls pass, and a normal TSX-loader probe
 resolves the nine actual French bridge labels. Its new cross-origin browser
 case has static checks only; runtime proof remains pending.
 
-The integrated generated languages are ar, cs, el, es, fa, fi, fr, id, it, ja,
-ko, nl, pl, pt-BR, pt-PT, ro, ru, tr, uk, vi, zh-CN and zh-TW. They contain
-16,104 new Motion/bridge entries and 44 Motion handbook pages. Every locale's
+The integrated generated languages are ar, cs, el, es, fa, fi, fr, gl, he, hi,
+hy, id, it, ja, ko, nl, pl, pt-BR, pt-PT, ro, ru, tr, uk, vi, zh-CN and zh-TW.
+They contain 19,032 new Motion/bridge entries and 52 Motion handbook pages. Every locale's
 41 exact packet answers passed the normal writer with no skipped keys, strict
 catalog checks passed, and both new pages validate current. Existing human,
 Audacity and machine entries, unrelated catalogs and the loader index were
-preserved. The four remaining integrations are gl, he, hi and hy. This qualifies
-the scoped Motion content, not all pre-existing handbook translations.
+preserved. Root independently matched all 78 final files against the writer's
+handoff and checked all 104,494 prior entries against the original source.
+The frozen handoff is `motionscaper-translation-authoring-14adf0eeb-20261015/translation-final-handoff.json`,
+SHA-256 `ba3fbc766328070a1a98f6d6a31e358f128c8ff7cf25766144006ad05ec722b0`.
+This qualifies the scoped Motion content, not all pre-existing handbook translations.
 A separate whole-French strict handbook check reported nine stale
 pages and navigation at 31/33 current; it remains failed and is not a claim
 against the two new Motion pages. The morph case has browser types/lint/size

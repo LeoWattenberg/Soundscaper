@@ -82,11 +82,12 @@ checks pass. The bridge locale fix (`3ad4bda4e`) also admits complete catalog
 tags, retains them through both bridge windows and resolves late-arriving copy
 without reconnecting. Its 13 combined catalog/locale/lifetime controls pass;
 the real French cross-origin case awaits the fresh browser run.
-Integration `f125ba024` contains 22 generated languages, adding 16,104 current
-Motion/bridge strings and 44 Motion handbook pages through the maintained
+Integration `f6eb44aa9` contains all 26 generated languages, adding 19,032 current
+Motion/bridge strings and 52 Motion handbook pages through the maintained
 writers and validators. Each language adds 732 keys while preserving its 4,019
-prior entries, the other catalogs and loader index. The remaining four language
-integrations are open; whole-language handbook completeness is not claimed.
+prior entries, the other catalogs and loader index. The final handoff contains
+exactly 78 translation files; root independently matched their bytes and all
+104,494 prior entries. Whole-language handbook completeness is not claimed.
 The new
 incompatible-morph UI case (`ce13106ed`) has static checks only; browser runtime
 proof is pending. Codec tests (`4fa4b3450`) now retain their actual encoded or
