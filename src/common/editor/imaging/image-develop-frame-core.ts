@@ -40,6 +40,8 @@ import { admitImageDevelopBrushMaskAuthorityV1, prepareImageDevelopBrushMasksV1 
 import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
 import type { MaskRasterSourcePortV1 } from './mask-raster-source-port-v1.ts';
 import { captureImageDevelopFrameProfileV3, ImageDevelopFrameOwnedPixelsV1, retireImageDevelopFrameFailureV1 } from './image-develop-frame-owned-pixels-v1.ts';
+import { admitImageDevelopMaskAuthorityCurrentV1, prepareImageDevelopBrushMasksCurrentV1, assertImageDevelopMaskOverlayBudgetCurrentV1 } from './image-develop-mask-plan-current-v1.ts';
+import { withProjectedImageDevelopMaskCoverageCurrentV1 } from './image-develop-mask-overlay-current-v1.ts';
 
 export interface ImageDevelopFrameStageInput {
 	readonly descriptor: Readonly<PixelFrameDescriptorV1>;
@@ -63,6 +65,8 @@ export type ImageDevelopFrameStage = (frame: ImageDevelopFramePixels, signal: Ab
 export type ImageDevelopFrameOriginalStage = (frame: ImageDevelopFrameStageInput, signal: AbortSignal | undefined,
 	accept: (frame: ImageDevelopFrameStageInput) => void) => Promise<void>;
 export interface ImageDevelopFramePolicy {
+	/** Fixed Current successor; permanent facades never opt into radial suffixes. */
+	readonly currentMaskProjection?: true;
 	readonly normalizeDevelop: (value: unknown) => ImageDevelopStateV1 | ImageDevelopStateV2;
 	readonly prepareRequestOptions?: () => void;
 	/** Hosts opt in with an independently captured immutable-body source. */
@@ -92,11 +96,12 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 	}
 	const normalized = metadata(() => policy.normalizeDevelop(field(input, 'develop', 'photo develop proxy')));
 	const usesOriginalStage = policy.hasOriginalStage?.() ?? Boolean(policy.prepareOriginalStage);
-	const capturedProfile = usesOriginalStage ? metadata(() => captureImageDevelopFrameProfileV3(profile)) : profile;
+	const capturedProfile = usesOriginalStage || policy.currentMaskProjection ? metadata(() => captureImageDevelopFrameProfileV3(profile)) : profile;
 	let maskSource: Readonly<MaskRasterSourcePortV1> | undefined;
 	try { maskSource = policy.prepareMaskSource?.(normalized); } catch (error) { check(); throw error; }
 	check();
-	const develop = metadata(() => maskSource ? admitImageDevelopBrushMaskAuthorityV1(normalized) : admitImageDevelopMaskAuthorityV1(normalized));
+	const develop = metadata(() => policy.currentMaskProjection ? admitImageDevelopMaskAuthorityCurrentV1(normalized, maskSource !== undefined)
+		: maskSource ? admitImageDevelopBrushMaskAuthorityV1(normalized) : admitImageDevelopMaskAuthorityV1(normalized));
 	const rawOverlay = metadata(() => Object.hasOwn(input, 'maskOverlay') ? field(input, 'maskOverlay', 'photo develop proxy') : undefined);
 	const selection = metadata(() => rawOverlay === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawOverlay));
 	const serialized = JSON.stringify(develop), maximum = IMAGE_DEVELOP_LIMITS_V1.maximumBytes;
@@ -121,14 +126,15 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 	});
 	const admitted = metadata(() => admitPixelFrameV1(descriptor, { limits: capturedProfile.source }));
 	const originalStage = usesOriginalStage ? metadata(() => policy.prepareOriginalStage?.(admitted.descriptor, capturedProfile.source)) : undefined;
-	const brushPlan = metadata(() => maskSource ? prepareImageDevelopBrushMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, capturedProfile.render, selection) : undefined);
+	const brushPlan = metadata(() => policy.currentMaskProjection ? prepareImageDevelopBrushMasksCurrentV1(develop, admitted.descriptor.width, admitted.descriptor.height, capturedProfile.render, selection)
+		: maskSource ? prepareImageDevelopBrushMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, capturedProfile.render, selection) : undefined);
 	const masks = metadata(() => brushPlan?.plan ?? planImageDevelopMasksV1(develop, admitted.descriptor.width, admitted.descriptor.height, capturedProfile.render));
 	const selectedBinding = selection && masks.bindings.find(binding => binding.maskId === selection.maskId && binding.effectId === selection.effectId);
 	if (selection && !selectedBinding) throw new RangeError('Mask overlay requires one retained mask/effect binding.');
 	if (selectedBinding) {
 		const retainedBytes = masks.width * masks.height;
 		if (Math.max(masks.maximumWorkingBytes + retainedBytes, retainedBytes * 5) > IMAGE_DEVELOP_MASK_WORKING_LIMIT_V1) throw new RangeError('Retained mask overlay exceeds its working byte budget.');
-		metadata(() => { assertImageDevelopMaskOverlayBudgetV1(selectedBinding, retainedBytes); });
+		metadata(() => { (policy.currentMaskProjection ? assertImageDevelopMaskOverlayBudgetCurrentV1 : assertImageDevelopMaskOverlayBudgetV1)(selectedBinding, retainedBytes); });
 	}
 	raw ??= metadata(() => record(rawValue, 'photo proxy source', ['descriptor', 'pixels']));
 	const source = metadata(() => readPixelFrameV1({ descriptor: admitted.descriptor, pixels: field(raw!, 'pixels', 'photo proxy source') }, capturedProfile.source));
@@ -137,7 +143,7 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		if (!(pixels instanceof Uint8Array || pixels instanceof Uint8ClampedArray)) throw new TypeError('Repair prepass requires native UNORM8 pixels.');
 		return Object.freeze({ descriptor: source.descriptor, pixels });
 	}) : undefined;
-	const owner = originalStage ? new ImageDevelopFrameOwnedPixelsV1() : undefined;
+	const owner = originalStage || policy.currentMaskProjection ? new ImageDevelopFrameOwnedPixelsV1() : undefined;
 	let retirementOrder: () => readonly (ArrayBuffer | undefined)[] = () => [];
 	const execute = async (): Promise<Result> => {
 		// The callback copies exactly one F while the repair owner is live (4F+S).
@@ -145,7 +151,7 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		// selected brush scope overlapping the original/scratch/kernel output.
 		let current: ImageDevelopFramePixels = originalStage && owner && originalSource
 			? await owner.stage(accept => originalStage(originalSource, signal as AbortSignal | undefined, accept))
-			: Object.freeze({ descriptor: source.descriptor, pixels: new Uint8Array(source.pixels) });
+			: Object.freeze({ descriptor: source.descriptor, pixels: owner ? owner.copy(new Uint8Array(source.pixels.buffer, source.pixels.byteOffset, source.pixels.byteLength)) : new Uint8Array(source.pixels) });
 		let owned = owner ? owner.buffer(current.pixels) : current.pixels.buffer;
 		let maskOverlay: Readonly<ImageDevelopMaskOverlayViewV1> | undefined;
 		let maskOverlayBacking: ArrayBuffer | undefined;
@@ -163,7 +169,7 @@ export async function withImageDevelopFrameCore<Result>(value: unknown,
 		};
 		const observe = async (binding: Readonly<ImageDevelopMaskBindingPlanV1>, coverage: Uint8Array<ArrayBuffer>) => {
 			if (binding !== selectedBinding) return;
-			await withProjectedImageDevelopMaskCoverageV1(binding, coverage, view => {
+			await (policy.currentMaskProjection ? withProjectedImageDevelopMaskCoverageCurrentV1 : withProjectedImageDevelopMaskCoverageV1)(binding, coverage, view => {
 				const retained = owner ? owner.copy(view.coverage, 'overlay coverage') : new Uint8Array(view.coverage); maskOverlayBacking = owner ? owner.buffer(retained) : retained.buffer;
 				maskOverlay = Object.freeze({ ...view, coverage: retained });
 			}, capturedProfile, signal as AbortSignal | undefined);

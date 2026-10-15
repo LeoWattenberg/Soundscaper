@@ -2,16 +2,14 @@
 import { normalizeFramescaperImageSourceCurrentV1, framescaperImageSourceResourceReferencesCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import { normalizeImageDevelopStateV2 } from '../common/editor/imaging/image-develop-state-v2.ts';
 import { planImageDevelopRepairSpotsV1 } from '../common/editor/imaging/image-develop-repair-plan-v1.ts';
-import { withFramescaperImageDevelopFrameV3 } from './timeline-image-develop-frame-v3.ts';
+import { withFramescaperImageDevelopFrameForProfileV1 } from './internal/timeline-image-develop-frame-kernel-v1.ts';
 import { createFramescaperMaskRasterSourceTimelineImageV1 } from './timeline-image-mask-raster-source-v1.ts';
 import type { FramescaperImageFramePackReaderV1 } from '../common/editor/timeline-image-frame-pack-v1.ts';
 import type { PixelFrameV1 } from '../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../common/editor/video-image-geometry-v1.ts';
 import { planImageGeometryV1 } from '../common/editor/imaging/image-geometry-plan-v1.ts';
-import { planImageDevelopMasksV1, planAdmittedImageDevelopMasksV1 } from '../common/editor/imaging/image-develop-mask-plan-v1.ts';
-import { admitImageDevelopBrushMaskAuthorityV1 } from '../common/editor/imaging/image-develop-brush-mask-v1.ts';
+import { prepareImageDevelopBrushMasksCurrentV1 } from '../common/editor/imaging/image-develop-mask-plan-current-v1.ts';
 import { FRAMESCAPER_IMAGE_MODEL_LIMITS_V1 as IMAGE_LIMITS } from '../common/editor/timeline-image-model.ts';
-import { withFramescaperImageDevelopFrameV2 } from './timeline-image-develop-frame-v2.ts';
 import { createFramescaperCubeLutSourceFinishing } from './cube-lut-source-finishing.ts';
 import { scaleFramescaperImageRgbaTimelineImage,
 	framescaperImageDimensionsTimelineImage, type FramescaperStoredImageAssetStoreTimelineImage,
@@ -38,8 +36,7 @@ export function framescaperEditableImageWorkingBytes(source: FramescaperCurrentI
 	const computation = source.develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: source.develop.effects,
 		geometry: source.develop.geometry, masks: source.develop.masks, maskBindings: source.develop.maskBindings }) : source.develop;
 	const repair = source.develop.processVersion === 3 ? planImageDevelopRepairSpotsV1(source.develop.repairs, source.canonical.width, source.canonical.height) : undefined;
-	const masks = source.schemaVersion === 3 ? planAdmittedImageDevelopMasksV1(admitImageDevelopBrushMaskAuthorityV1(computation), source.canonical.width, source.canonical.height, PIXEL_LIMITS)
-		: planImageDevelopMasksV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
+	const masks = prepareImageDevelopBrushMasksCurrentV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	let width = source.canonical.width, height = source.canonical.height, maximum = BigInt(width) * BigInt(height) * 4n;
 	const geometry = (value: Parameters<typeof planImageGeometryV1>[0]) => {
 		const planned = planImageGeometryV1(value, width, height); width = planned.width; height = planned.height;
@@ -55,8 +52,9 @@ export function framescaperEditableImageWorkingBytes(source: FramescaperCurrentI
 		const bytes = BigInt(reference.byteLength) * 3n + BigInt(reference.size) ** 3n * 3n * 8n * 2n;
 		if (bytes > resourceBytes) resourceBytes = bytes;
 	}
-	for (const reference of resources.brushes) resourceBytes = resourceBytes > BigInt(reference.byteLength) * 3n ? resourceBytes : BigInt(reference.byteLength) * 3n;
-	const downstream = BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + maximum * 4n + resourceBytes + BigInt(masks.maximumWorkingBytes) + 4_096n;
+	// Brush peak includes every reachable retained alpha, complete largest-body
+	// authentication and graph work. The LUT parser reserve remains separate.
+	const downstream = BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + maximum * 4n + resourceBytes + BigInt(masks.peakWorkingBytes) + 4_096n;
 	// The known repair phase is four full planes plus scratch. Kernel retirement
 	// precedes resource admission; downstream cache/range/canvas counts remain separate.
 	return repair && BigInt(repair.stageWorkingBytes) > downstream ? BigInt(repair.stageWorkingBytes) : downstream;
@@ -102,8 +100,8 @@ export async function openFramescaperCurrentImageFrameSource(store: FramescaperS
 				if (index !== 0) return Promise.reject(new RangeError('Editable image has exactly one static frame.'));
 				return native.run(async admitted => {
 					let staged: Uint8Array<ArrayBuffer> | undefined;
-					try { const run = source.schemaVersion === 2 ? withFramescaperImageDevelopFrameV2 : withFramescaperImageDevelopFrameV3;
-						return await run({ source, read: native.read, ...(source.schemaVersion === 3 ? { assertCurrent: check } : {}), ...(admitted === undefined ? {} : { signal: admitted }) },
+					try {
+						return await withFramescaperImageDevelopFrameForProfileV1(source.schemaVersion === 2 ? 'active2' : 'active3', { source, read: native.read, ...(source.schemaVersion === 3 ? { assertCurrent: check } : {}), ...(admitted === undefined ? {} : { signal: admitted }) },
 							view => { staged = view.frame.pixels.slice(); return staged; }, source.schemaVersion === 2 ? { source: lut } : { source: lut, maskSource: mask });
 					} catch (error) { if (staged) wipe(staged); throw error; }
 				}, external, true);

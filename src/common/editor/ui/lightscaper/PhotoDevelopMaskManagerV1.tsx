@@ -8,6 +8,7 @@ import type { ImageDevelopMaskManagementCommandV3 } from '../../imaging/image-de
 import { normalizeImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import { manageImageDevelopMasksCurrentV1 } from '../../imaging/image-develop-mask-management-current-v1.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1 } from '../../video-lens-distortion-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { VideoMaskMatteGraphV1OrV2 } from '../../video-mask-matte-name-v2.ts';
@@ -58,7 +59,7 @@ export default function PhotoDevelopMaskManagerV1(props: PhotoDevelopMaskManager
 		// its scalar presentation before a parent render changes that event fence.
 		Reflect.apply(callback, props, [next.draft, choice]);
 	};
-	const effects = form.draft.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1);
+	const effects = form.draft.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== LENS_DISTORTION_EFFECT_TYPE_V1);
 	const selected = form.draft.masks.find(mask => mask.id === form.maskId);
 	const operands = form.draft.masks.filter(mask => mask.id !== form.maskId);
 	const operand = operands.find(mask => mask.id === form.operandMaskId);
@@ -168,6 +169,6 @@ function graphLabel(graph: VideoMaskMatteGraphV1OrV2): string { return graph.sch
 function presentationChoice(form: Form, available?: boolean): Readonly<PhotoDevelopMaskOverlaySelectionV1> | null {
 	if (available === false || !form.showOverlay || !form.draft.masks.some(mask => mask.id === form.maskId)
 		|| !form.draft.maskBindings.some(binding => binding.maskId === form.maskId && binding.effectId === form.overlayEffect)
-		|| !form.draft.effects.some(effect => effect.id === form.overlayEffect && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1)) return null;
+		|| !form.draft.effects.some(effect => effect.id === form.overlayEffect && effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== LENS_DISTORTION_EFFECT_TYPE_V1)) return null;
 	return Object.freeze({ maskId: form.maskId, effectId: form.overlayEffect, ...(form.displayMode === 'grayscale' ? { displayMode: form.displayMode } : {}) });
 }

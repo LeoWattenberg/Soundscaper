@@ -53,7 +53,7 @@ export const imagingChunkGroups = [{
 	// Natural-size recipe evaluation is opened by Develop/export and handoff
 	// consumers, independently of the inert image contracts loaded at startup.
 	name: 'editor-image-develop-recipe',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]image-develop-frame-(?:core|v2|v3)\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]image-develop-frame-(?:core|v2|v3|current-v1)\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,
@@ -86,7 +86,7 @@ export const imagingChunkGroups = [{
 	includeDependenciesRecursively: false,
 }, {
 	name: 'editor-imaging',
-	test: /src[\\/]common[\\/]editor[\\/](?:imaging[\\/][^\\/]+\.ts|(?:photo-library-develop-linear-port-v1|image-import-admission|image-format-signature|image-decoder-routing|video-effects-v2|video-color-(?:cube-lut-v27|management-v27|byte-encoding)|video-global-develop-v1|video-color-wheels-(?:v1|scalar-v1)|video-chroma-develop-v1|video-black-white-mix-v1|video-hsl-mixer-v1|video-curves-v1|video-sharpen-(?:v1|ffmpeg-v1)|video-post-crop-vignette-(?:v1|ffmpeg-v1)|video-clarity-(?:v1|ffmpeg-v1)|video-noise-reduction-(?:v1|ffmpeg-v1)|video-grain-(?:v1|ffmpeg-v1)|video-texture-(?:v1|ffmpeg-v1)|video-dehaze-(?:v1|ffmpeg-v1)|video-original-alpha-ffmpeg-v1|video-effect-closed-(?:creation|families-v1)|video-curve-(?:types|transfer)-v1|video-image-geometry-(?:v1|ffmpeg-v1)|video-mask-matte-v24|video-visual-model-v24|video-visual-preset-v24|timeline-image-(?:model(?:-(?:v[234]|current-v1))?|pack-source-current-v1|raw-(?:receipt-v1|original-plan-current-v1)|frame-pack-v1(?:-layout)?|native-decode-v1|browser-native-port|conversion-receipt-v1))\.ts|(?:internal[\\/]timeline-image-model-editable-kernel-v1|(?:internal[\\/])?image-develop-handoff-provenance-(?:v[12]|current-v1|kernel-v1))\.ts|video-effects\.js)$/,
+	test: /src[\\/]common[\\/]editor[\\/](?:imaging[\\/][^\\/]+\.ts|(?:photo-library-develop-linear-port-v1|image-import-admission|image-format-signature|image-decoder-routing|video-effects-v2|video-color-(?:cube-lut-v27|management-v27|byte-encoding)|video-global-develop-v1|video-color-wheels-(?:v1|scalar-v1)|video-chroma-develop-v1|video-black-white-mix-v1|video-hsl-mixer-v1|video-curves-v1|video-lens-distortion-(?:v1|ffmpeg-v1)|video-sharpen-(?:v1|ffmpeg-v1)|video-post-crop-vignette-(?:v1|ffmpeg-v1)|video-clarity-(?:v1|ffmpeg-v1)|video-noise-reduction-(?:v1|ffmpeg-v1)|video-grain-(?:v1|ffmpeg-v1)|video-texture-(?:v1|ffmpeg-v1)|video-dehaze-(?:v1|ffmpeg-v1)|video-original-alpha-ffmpeg-v1|video-effect-closed-(?:creation|families-v1)|video-curve-(?:types|transfer)-v1|video-image-geometry-(?:v1|ffmpeg-v1)|video-mask-matte-v24|video-visual-model-v24|video-visual-preset-v24|timeline-image-(?:model(?:-(?:v[234]|current-v1))?|pack-source-current-v1|raw-(?:receipt-v1|original-plan-current-v1)|frame-pack-v1(?:-layout)?|native-decode-v1|browser-native-port|conversion-receipt-v1))\.ts|(?:internal[\\/]timeline-image-model-editable-kernel-v1|(?:internal[\\/])?image-develop-handoff-provenance-(?:v[12]|current-v1|kernel-v1))\.ts|video-effects\.js)$/,
 	priority: 66,
 	minSize: 0,
 	maxSize: 400_000,

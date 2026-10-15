@@ -32,6 +32,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Glow | `glow` | 3 |
 | Grain | `grain-v1` | 4 |
 | HSL mixer | `hsl-mixer-v1` | 24 |
+| Lens distortion | `lens-distortion-v1` | 1 |
 | Luma Key | `luma-key` | 3 |
 | Noise reduction | `noise-reduction-v1` | 6 |
 | Outline | `outline` | 3 |
@@ -137,6 +138,7 @@ Defaults and limits come from the same definitions the editor validates against.
 | HSL mixer | Blue lightness | 0 | -100 to 100 | — |
 | HSL mixer | Purple lightness | 0 | -100 to 100 | — |
 | HSL mixer | Magenta lightness | 0 | -100 to 100 | — |
+| Lens distortion | Amount | 0 | -100 to 100 | — |
 | Luma Key | Mode | Dark | Dark; Bright | — |
 | Luma Key | Cutoff | 0.2 | 0 to 1 | — |
 | Luma Key | Softness | 0.1 | 0 to 1 | — |

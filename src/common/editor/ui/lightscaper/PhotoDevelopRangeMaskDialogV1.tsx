@@ -7,6 +7,7 @@ import { photoDevelopCopy } from '../../../i18n/lightscaper-develop-copy.ts';
 import { replaceImageDevelopLocalMasksCurrentV1 } from '../../imaging/image-develop-mask-management-current-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1 } from '../../video-lens-distortion-v1.ts';
 import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
 import type { PhotoDevelopMaskOverlaySelectionV1 } from './PhotoDevelopGradientDialogV1.tsx';
 
@@ -35,7 +36,7 @@ export default function PhotoDevelopRangeMaskDialogV1(props: PhotoDevelopRangeMa
 	const presented = () => live.current && latest.current === props && rendered.current === form && !props.disabled && props.isCurrent();
 	const current = () => presented() && form.kind === kind;
 	const update = (next: Form) => { if (current()) { setForm(next); setError(false); } };
-	const effects = props.develop.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1);
+	const effects = props.develop.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== LENS_DISTORTION_EFFECT_TYPE_V1);
 	const ranges = props.develop.masks.filter(mask => mask.inputs.length === 0 && mask.nodes.length === 1
 		&& mask.nodes[0]?.kind === kind && mask.nodes[0].id === mask.outputNodeId);
 	const label = (type: string) => { const definition = videoEffectDefinitionV2(type); return messages.shared[definition.labelKey] ?? definition.label; };

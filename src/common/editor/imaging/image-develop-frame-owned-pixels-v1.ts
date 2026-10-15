@@ -37,6 +37,11 @@ export function captureImageDevelopFrameProfileV3(value: unknown): Readonly<Imag
 export class ImageDevelopFrameOwnedPixelsV1 {
 	readonly #backings = new Map<ArrayBuffer, Readonly<{ length: number; role: string }>>();
 
+	bytes(length: number, role = 'pixels'): Uint8Array<ArrayBuffer> {
+		if (!Number.isSafeInteger(length) || length < 0) throw new RangeError('Develop backing requires a bounded byte length.');
+		const pixels = new NativeBytes(length), buffer = this.buffer(pixels);
+		this.#backings.set(buffer, Object.freeze({ length, role })); return pixels;
+	}
 	copy(source: Uint8Array<ArrayBuffer> | Uint8ClampedArray<ArrayBuffer>, role = 'pixels'): Uint8Array<ArrayBuffer> {
 		const buffer = Reflect.apply(BUFFER, source, []) as ArrayBuffer;
 		const offset = Number(Reflect.apply(OFFSET, source, [])), length = Number(Reflect.apply(LENGTH, source, []));

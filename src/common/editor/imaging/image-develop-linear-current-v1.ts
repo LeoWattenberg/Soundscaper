@@ -11,10 +11,12 @@ import { writeLinearColorChannelsV1 } from './pixel-frame-linear-color-v1.ts';
 import { writeLinearGeometryV1 } from './pixel-frame-linear-geometry-v1.ts';
 import { writeLinearSpatialEffectV1 } from './pixel-frame-linear-spatial-v1.ts';
 import { writeLinearRepairsV1 } from './pixel-frame-linear-repair-v1.ts';
+import { writeLinearLensDistortionV1 } from './pixel-frame-linear-lens-distortion-v1.ts';
 import { writeLinearLutStageV1 } from './image-develop-linear-lut-stage-v1.ts';
 import { withLinearMaskCoverageV1, blendLinearMaskCoverageV1 } from './pixel-frame-linear-mask-v1.ts';
 import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
-import { withProjectedImageDevelopMaskCoverageV1, type ImageDevelopMaskOverlayViewV1 } from './image-develop-mask-overlay-v1.ts';
+import type { ImageDevelopMaskOverlayViewV1 } from './image-develop-mask-overlay-v1.ts';
+import { withProjectedImageDevelopMaskCoverageCurrentV1 } from './image-develop-mask-overlay-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
 
 const TYPED_BUFFER = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), 'buffer')!.get!;
@@ -64,7 +66,7 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 				const next = work ? await work() : undefined;
 				if (binding && (next || binding === prepared.selectedBinding)) await withLinearMaskCoverageV1(binding, current, async coverage => {
 					if (next) await blendLinearMaskCoverageV1(current, next, coverage, signal);
-					if (binding === prepared.selectedBinding) await withProjectedImageDevelopMaskCoverageV1(binding, coverage, view => {
+					if (binding === prepared.selectedBinding) await withProjectedImageDevelopMaskCoverageCurrentV1(binding, coverage, view => {
 						const copy = owner.bytes(view.coverage.length); Uint8Array.prototype.set.call(copy, view.coverage);
 						overlay = Object.freeze({ ...view, coverage: copy });
 					}, prepared.profile, signal);
@@ -73,7 +75,9 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 			};
 			for (const stage of prepared.stages) {
 				check();
-				if (stage.kind === 'geometry') {
+				if (stage.kind === 'lens-distortion') {
+					const next = owner.floats(stage.plan.sampleCount); await writeLinearLensDistortionV1(stage.plan, current, next, signal); replace(next);
+				} else if (stage.kind === 'geometry') {
 					const next = owner.floats(stage.plan.sampleCount); await writeLinearGeometryV1(stage.plan, current, next, signal); replace(next, stage.plan.descriptor);
 				} else if (stage.kind === 'spatial') await observe(stage.id, async () => {
 					const next = owner.floats(current.pixels.length), scratch = owner.bytes(stage.plan.scratchBytes), backing = scratch.buffer;

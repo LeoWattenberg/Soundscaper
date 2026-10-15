@@ -11,7 +11,7 @@ import { readClosedDomainRecord as record, readClosedDomainField as field } from
 import { collectFramescaperImageProjectResourcesCurrentV1 } from '../../common/editor/video-cube-lut-project-references-current-v1.ts';
 import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
 import { normalizeImageDevelopStateV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
-import { withImageDevelopFrameV3 } from '../../common/editor/imaging/image-develop-frame-v3.ts';
+import { withImageDevelopFrameCurrentV1 } from '../../common/editor/imaging/image-develop-frame-current-v1.ts';
 import { withImageDevelopLinearCurrentV1 } from '../../common/editor/imaging/image-develop-linear-current-v1.ts';
 import { withLinearPixelFrameDisplayV1 } from '../../common/editor/imaging/pixel-frame-linear-display-v1.ts';
 import { createPixelFrameHistogramV1 } from '../../common/editor/imaging/pixel-frame-histogram-v1.ts';
@@ -19,7 +19,7 @@ import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../common/editor/photo-librar
 import { prepareFramescaperRawImageWorkingCurrentV1, FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1 } from './timeline-image-raw-working-plan-current-v1.ts';
 import type { ImageDevelopFrameViewV1 } from '../../common/editor/imaging/image-develop-frame-core.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1, type ImageDevelopMaskOverlaySelectionV1 } from '../../common/editor/imaging/image-develop-mask-overlay-v1.ts';
-import { prepareImageDevelopBrushMasksV1 } from '../../common/editor/imaging/image-develop-brush-mask-v1.ts';
+import { prepareImageDevelopBrushMasksCurrentV1 } from '../../common/editor/imaging/image-develop-mask-plan-current-v1.ts';
 import { planImageDevelopRepairSpotsV1 } from '../../common/editor/imaging/image-develop-repair-plan-v1.ts';
 import { planImageGeometryV1 } from '../../common/editor/imaging/image-geometry-plan-v1.ts';
 import { planPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
@@ -40,9 +40,6 @@ export interface FramescaperImageDevelopDraftFrameHostCurrentV1 {
 }
 const PIXELS = Object.freeze({ maximumSidePixels: 8192, maximumPixels: 16_777_216, maximumBytes: 67_108_864 });
 const PROFILE = Object.freeze({ source: PIXELS, render: PIXELS });
-const BUFFER = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype) as object, 'buffer')!.get!;
-const SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
-const FILL = Uint8Array.prototype.fill;
 
 /** The selected Session supplies its already registered exclusive operation and
  * immutable canonical scope. This private owner borrows resources and creates
@@ -111,12 +108,13 @@ async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurr
 							const histogram = await createPixelFrameHistogramV1(display, { limits: PIXELS, signal }); check();
 							const result = await consume(Object.freeze({ frame: Object.freeze({ descriptor: display.descriptor, pixels: display.pixels }), histogram, ...(overlay ? { maskOverlay: overlay } : {}) })); check(); return result;
 						}, 'full'), PHOTO_DEVELOP_LINEAR_LIMITS_V1, { source: luts, maskSource }) };
-				} else outcome = { value: await withImageDevelopFrameV3({ frame, develop, signal, ...(selection ? { maskOverlay: selection } : {}) },
+				} else outcome = { value: await withImageDevelopFrameCurrentV1({ frame, develop, signal, ...(selection ? { maskOverlay: selection } : {}) },
 					async view => {
 						check(); const natural = source.schemaVersion === 1 ? source.canonical : source.developed;
 						if (view.frame.descriptor.width !== natural.width || view.frame.descriptor.height !== natural.height) throw new RangeError('Frame draft natural output differs from its admitted source dimensions.');
-						const result = develop.processVersion === 3
-							? await consume(view) : await withPhysicalRetirement(view, consume, signal);
+						// The fixed Current byte owner certifies every process version's
+						// backing once, preserving the exact primary failure on transfer.
+						const result = await consume(view);
 						check(); return result;
 					}, PROFILE, { source: luts, maskSource }) };
 			} catch (error) { outcome = { error }; }
@@ -149,7 +147,7 @@ function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelo
 		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, PIXELS);
 	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: develop.effects,
 		geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
-	const masks = prepareImageDevelopBrushMasksV1(computation, source.canonical.width, source.canonical.height, PIXELS, selection);
+	const masks = prepareImageDevelopBrushMasksCurrentV1(computation, source.canonical.width, source.canonical.height, PIXELS, selection);
 	const repairs = develop.processVersion === 3 ? planImageDevelopRepairSpotsV1(develop.repairs, source.canonical.width, source.canonical.height) : undefined;
 	let width = source.canonical.width, height = source.canonical.height, maximum = BigInt(width) * BigInt(height) * 4n;
 	const geometry = (value: Parameters<typeof planImageGeometryV1>[0]) => {
@@ -180,22 +178,4 @@ function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelo
 	// this temporary snapshot, authentication copy and renderer are borrowed.
 	const authoring = temporaryBodyBytes ? 64n * 1024n * 1024n + BigInt(temporaryBodyBytes) * 3n : 0n;
 	if (BigInt(source.assetByteLength) * 3n + peak + authoring > 512n * 1024n * 1024n) throw new RangeError('Frame draft rendering exceeds its 512 MiB working byte bound.');
-}
-
-/** Process3's shared renderer certifies its own backings. Older local drafts
- * need the same physical certification even though their shared kernel only
- * wipes still-attached buffers. Never inspect opaque consumer failures. */
-async function withPhysicalRetirement<Result>(view: Readonly<ImageDevelopFrameViewV1>,
-	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, signal?: AbortSignal): Promise<Result> {
-	const buffers = [view.frame.pixels, ...(view.maskOverlay ? [view.maskOverlay.coverage] : [])].map(bytes => {
-		const backing = Reflect.apply(BUFFER, bytes, []) as ArrayBuffer; return { backing, length: Number(Reflect.apply(SIZE, backing, [])) };
-	});
-	let outcome: { value: Result } | { error: unknown };
-	try { const value = await consume(view); checkFramescaperNativeImageSignalCurrentV1(signal); outcome = { value }; }
-	catch (error) { let primary = error; try { checkFramescaperNativeImageSignalCurrentV1(signal); } catch (reason) { primary = reason; } outcome = { error: primary }; }
-	await retireFramescaperNativeImageCurrentV1('error' in outcome ? outcome : undefined, buffers.map(({ backing, length }) => () => {
-		if (Number(Reflect.apply(SIZE, backing, [])) !== length) throw new TypeError('Frame draft backing was detached or changed before physical retirement.');
-		Reflect.apply(FILL, new Uint8Array(backing), [0]);
-	}));
-	if ('error' in outcome) throw outcome.error; return outcome.value;
 }

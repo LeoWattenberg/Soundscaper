@@ -13,6 +13,7 @@ import type { ImageDevelopFrameViewV1 } from '../../common/editor/imaging/image-
 import { planImageDevelopMasksV1, planAdmittedImageDevelopMasksV1 } from '../../common/editor/imaging/image-develop-mask-plan-v1.ts';
 import { admitImageDevelopBrushMaskAuthorityV1 } from '../../common/editor/imaging/image-develop-brush-mask-v1.ts';
 import { planImageDevelopRepairSpotsV1 } from '../../common/editor/imaging/image-develop-repair-plan-v1.ts';
+import { prepareImageDevelopBrushMasksCurrentV1 } from '../../common/editor/imaging/image-develop-mask-plan-current-v1.ts';
 
 const CHECK = AbortSignal.prototype.throwIfAborted, FILL = Uint8Array.prototype.fill;
 const SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
@@ -20,20 +21,22 @@ const PIXEL_LIMITS = Object.freeze({ maximumSidePixels: LIMITS.maximumDimension,
 const PROFILE = Object.freeze({ source: PIXEL_LIMITS, render: PIXEL_LIMITS });
 
 /** Fixed profiles share one immutable pack borrow; no editable metadata projection escapes. */
-export async function withFramescaperImageDevelopFrameForProfileV1<Result>(profile: 'legacy2' | 'current3', value: unknown,
+export async function withFramescaperImageDevelopFrameForProfileV1<Result>(profile: 'legacy2' | 'current3' | 'active2' | 'active3', value: unknown,
 	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>, optionsValue: ImageDevelopFrameOptionsV2): Promise<Result> {
-	if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported Frame image execution profile.');
+	if (profile !== 'legacy2' && profile !== 'current3' && profile !== 'active2' && profile !== 'active3') throw new TypeError('Unsupported Frame image execution profile.');
+	const source2 = profile === 'legacy2' || profile === 'active2', active = profile === 'active2' || profile === 'active3';
 	const input = record(value, 'Frame editable image request', ['source', 'read', 'assertCurrent', 'signal'], ['source', 'read']);
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'Frame editable image request') : undefined;
 	if (signal !== undefined) assertSignal(signal);
 	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
 	check(); if (typeof consume !== 'function') throw new TypeError('Editable image delivery requires a scoped consumer.');
-	const source = profile === 'legacy2' ? normalizeFramescaperImageSourceV2(field(input, 'source', 'Frame editable image request'))
+	const source = source2 ? normalizeFramescaperImageSourceV2(field(input, 'source', 'Frame editable image request'))
 		: normalizeFramescaperImageSourceV3(field(input, 'source', 'Frame editable image request'));
 	const computation = source.develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2,
 		effects: source.develop.effects, geometry: source.develop.geometry, masks: source.develop.masks, maskBindings: source.develop.maskBindings }) : source.develop;
 	if (source.develop.processVersion === 3) planImageDevelopRepairSpotsV1(source.develop.repairs, source.canonical.width, source.canonical.height);
-	if (source.schemaVersion === 3) planAdmittedImageDevelopMasksV1(admitImageDevelopBrushMaskAuthorityV1(computation), source.canonical.width, source.canonical.height, PIXEL_LIMITS);
+	if (active) prepareImageDevelopBrushMasksCurrentV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
+	else if (source.schemaVersion === 3) planAdmittedImageDevelopMasksV1(admitImageDevelopBrushMaskAuthorityV1(computation), source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	else planImageDevelopMasksV1(computation, source.canonical.width, source.canonical.height, PIXEL_LIMITS);
 	const rawRead = field(input, 'read', 'Frame editable image request');
 	if (typeof rawRead !== 'function') throw new TypeError('Editable image requires an authenticated range reader.');
@@ -41,7 +44,7 @@ export async function withFramescaperImageDevelopFrameForProfileV1<Result>(profi
 	if (rawCurrent !== undefined && typeof rawCurrent !== 'function') throw new TypeError('Editable image currentness requires a method.');
 	const current = async () => { check(); if (rawCurrent) await Reflect.apply(rawCurrent, value, []); check(); };
 	const read = (offset: number, length: number) => Reflect.apply(rawRead, value, [offset, length]) as Uint8Array | Promise<Uint8Array>;
-	const options = record(optionsValue, 'Frame image resource options', profile === 'legacy2' ? ['source'] : ['source', 'maskSource'], []);
+	const options = record(optionsValue, 'Frame image resource options', source2 ? ['source'] : ['source', 'maskSource'], []);
 	const references = source.schemaVersion === 2 ? { luts: framescaperImageSourceResourceReferencesV2(source), brushes: [] }
 		: framescaperImageSourceResourceReferencesV3(source);
 	const lutSource = references.luts.length ? captureCubeLutSourceV1(field(options, 'source', 'Frame image LUT source')) : undefined;
@@ -51,7 +54,8 @@ export async function withFramescaperImageDevelopFrameForProfileV1<Result>(profi
 	// Capture full metadata and both resource receivers before this optional
 	// execution entry can yield. Legacy recipes keep their exact shared V2 path.
 	await current();
-	const run = profile === 'current3' && source.develop.processVersion === 3
+	const run = active ? (await import('../../common/editor/imaging/image-develop-frame-current-v1.ts')).withImageDevelopFrameCurrentV1
+		: profile === 'current3' && source.develop.processVersion === 3
 		? (await import('../../common/editor/imaging/image-develop-frame-v3.ts')).withImageDevelopFrameV3
 		: (await import('../../common/editor/imaging/image-develop-frame-v2.ts')).withImageDevelopFrameV2;
 	await current();

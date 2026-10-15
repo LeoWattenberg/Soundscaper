@@ -16,6 +16,7 @@ import { replaceImageDevelopLocalMasksCurrentV1 } from '../../imaging/image-deve
 import type { BrushMaskPointV1, BrushMaskStrokeV1 } from '../../imaging/brush-mask-plane-v1.ts';
 import { videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 } from '../../video-image-geometry-v1.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1 } from '../../video-lens-distortion-v1.ts';
 import type { PhotoDevelopMaskOverlaySelectionV1 } from '../lightscaper/PhotoDevelopGradientDialogV1.tsx';
 import { paintPixelFrameCanvasV1, clearPixelFrameCanvasV1 } from '../../imaging/pixel-frame-canvas-presenter-v1.ts';
 import '../lightscaper/photo-develop-brush-mask.css';
@@ -175,7 +176,7 @@ export default function ImageBrushMaskEditorV1<Receipt extends ImageBrushMaskRes
 		if (preview.snapshot().status !== 'idle') void preview.pause().catch((error: unknown) => { rememberedFailure.current = { value: error }; setFailure(true); });
 		if (canvas.current) try { clearPixelFrameCanvasV1(canvas.current); } catch (error) { rememberedFailure.current = { value: error }; }
 	});
-	const effects = props.develop.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1);
+	const effects = props.develop.effects.filter(effect => effect.type !== IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 && effect.type !== LENS_DISTORTION_EFFECT_TYPE_V1);
 	const masks = props.develop.masks.filter(brushGraph);
 	const label = (type: string) => { const definition = videoEffectDefinitionV2(type); return words.shared[definition.labelKey] ?? definition.label; };
 	const update = (value: Form) => { if (generation.renderer ? current() : interactive()) { rendered.current = value; setForm(value); setFailure(false); } };

@@ -8,7 +8,7 @@ import type { ImageDevelopFrameOptionsV3 } from './image-develop-frame-v3.ts';
 import { admitPixelFrameV1 } from './pixel-frame-admission-v1.ts';
 import { planPixelFrameV1 } from './pixel-frame-contract-v1.ts';
 import { captureLinearKernelDescriptorV1, type LinearKernelDescriptorV1 } from './linear-kernel-descriptor-v1.ts';
-import { prepareImageDevelopBrushMasksV1 } from './image-develop-brush-mask-v1.ts';
+import { prepareImageDevelopBrushMasksCurrentV1 } from './image-develop-mask-plan-current-v1.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1 } from './image-develop-mask-overlay-v1.ts';
 import { captureMaskRasterSourceV1 } from './mask-raster-source-scope-v1.ts';
 import { captureCubeLutSourceV1 } from './cube-lut-source-scope-v1.ts';
@@ -24,6 +24,7 @@ import { prepareGrainEffectV1 } from '../video-grain-v1.ts';
 import { prepareTextureEffectV1 } from '../video-texture-v1.ts';
 import { prepareDehazeEffectV1 } from '../video-dehaze-v1.ts';
 import { preparePostCropVignetteEffectV1 } from '../video-post-crop-vignette-v1.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1, prepareLensDistortionEffectV1 } from '../video-lens-distortion-v1.ts';
 
 export const CURRENT_LINEAR_WORKING_BYTES_V1 = 768 * 1024 * 1024;
 const PROFILES = ['unorm16', 'float32'].flatMap(sampleFormat => ['srgb', 'bt709'].map(primaries => ({ sampleFormat, primaries, transfer: 'linear' })));
@@ -32,6 +33,7 @@ const COLORS = new Set(['white-balance-v1', 'tone-ladder-v1', 'chroma-v1', 'blac
 type Effect = ReturnType<typeof normalizeImageDevelopStateCurrentV1>['effects'][number];
 type Reference = NonNullable<ReturnType<typeof cubeLutProfileResourceRequirementV1>>;
 export type LinearDevelopMetadataStageCurrentV1 = Readonly<{ kind: 'geometry'; geometry: Readonly<ImageGeometryV1>; descriptor: LinearKernelDescriptorV1 }>
+	| Readonly<{ kind: 'lens-distortion'; amount: number }>
 	| Readonly<{ kind: 'spatial'; effect: Effect; active: boolean }>
 	| Readonly<{ kind: 'color'; effect: Effect }>
 	| Readonly<{ kind: 'lut'; id: string; reference: Reference }>
@@ -62,7 +64,7 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 	planPixelFrameV1(descriptor, profile.render);
 	const selection = Object.hasOwn(input, 'maskOverlay') ? prepareImageDevelopMaskOverlaySelectionV1(field(input, 'maskOverlay', 'Current linear Develop')) : undefined;
 	const projection = normalizeImageDevelopStateV2({ processVersion: 2, effects: develop.effects, geometry: develop.geometry, masks: develop.masks, maskBindings: develop.maskBindings });
-	const masks = prepareImageDevelopBrushMasksV1(projection, descriptor.width, descriptor.height, profile.render, selection);
+	const masks = prepareImageDevelopBrushMasksCurrentV1(projection, descriptor.width, descriptor.height, profile.render, selection);
 	const maskSource = Object.hasOwn(options, 'maskSource') ? captureMaskRasterSourceV1(field(options, 'maskSource', 'Current linear resource options')) : undefined;
 	if (masks.references.length && !maskSource) throw new RangeError('Native brush masks require authenticated source authority.');
 	const selectedBinding = selection && masks.plan.bindings.find(binding => binding.maskId === selection.maskId && binding.effectId === selection.effectId);
@@ -88,7 +90,11 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 	if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) geometry(legacy);
 	let source: ReturnType<typeof captureCubeLutSourceV1> | undefined;
 	for (const effect of develop.effects) {
-		if (effect.type === 'develop-geometry-v1') {
+		if (effect.type === LENS_DISTORTION_EFFECT_TYPE_V1) {
+			const lens = prepareLensDistortionEffectV1(effect);
+			if (lens.enabled && !lens.neutral) { charge(current.width * current.height * 16); stages.push(Object.freeze({ kind: 'lens-distortion', amount: lens.amount })); }
+			else stages.push(Object.freeze({ kind: 'noop', id: lens.id }));
+		} else if (effect.type === 'develop-geometry-v1') {
 			if (effect.enabled) geometry(imageGeometryForVideoEffectV1(effect, current.width, current.height));
 		} else if (effect.type === 'cube-lut-profile-v1') {
 			const reference = cubeLutProfileResourceRequirementV1(prepareCubeLutProfileResourcePlanV1(effect));

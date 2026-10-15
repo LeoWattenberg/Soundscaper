@@ -13,6 +13,8 @@ import { captureMaskRasterSourceV1 } from './mask-raster-source-scope-v1.ts';
 import { admitImageDevelopBrushMaskAuthorityV1 } from './image-develop-brush-mask-v1.ts';
 import { withImageDevelopFrameCore, type ImageDevelopFrameProfile, type ImageDevelopFrameViewV1 } from './image-develop-frame-core.ts';
 import { captureImageDevelopCubeLutSourceV2, type ImageDevelopFrameOptionsV2 } from './image-develop-frame-v2.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1, prepareLensDistortionEffectV1 } from '../video-lens-distortion-v1.ts';
+import { withLensDistortionPixelFrameV1 } from './pixel-frame-lens-distortion-v1.ts';
 
 export type ImageDevelopFrameOptionsV3 = ImageDevelopFrameOptionsV2;
 
@@ -23,10 +25,19 @@ export type ImageDevelopFrameOptionsV3 = ImageDevelopFrameOptionsV2;
 export function withImageDevelopFrameV3<Result>(value: unknown,
 	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>,
 	profile: ImageDevelopFrameProfile, optionsValue: ImageDevelopFrameOptionsV3 = {}): Promise<Result> {
+	return withImageDevelopFrameFixedKernelV1(value, consume, profile, optionsValue, 'legacy');
+}
+
+/** Private fixed composition. Public permanent V3 always selects legacy. */
+export function withImageDevelopFrameFixedKernelV1<Result>(value: unknown,
+	consume: (view: Readonly<ImageDevelopFrameViewV1>) => Result | Promise<Result>,
+	profile: ImageDevelopFrameProfile, optionsValue: ImageDevelopFrameOptionsV3, mode: 'legacy' | 'current'): Promise<Result> {
+	if (mode !== 'legacy' && mode !== 'current') throw new TypeError('Unsupported fixed byte composition mode.');
 	let develop: Readonly<ImageDevelopStateV3> | undefined;
 	let rawSource: unknown, rawMaskSource: unknown;
 	let captured: Readonly<CubeLutSourcePortV1> | undefined;
 	return withImageDevelopFrameCore(value, consume, profile, {
+		...(mode === 'current' ? { currentMaskProjection: true as const } : {}),
 		normalizeDevelop(value) {
 			const current = normalizeImageDevelopStateCurrentV1(value);
 			if (current.processVersion !== 3) return current;
@@ -46,6 +57,11 @@ export function withImageDevelopFrameV3<Result>(value: unknown,
 			return captureMaskRasterSourceV1(rawMaskSource);
 		},
 		prepareResourceStage(effect) {
+			if (mode === 'current' && effect.type === LENS_DISTORTION_EFFECT_TYPE_V1) {
+				const lens = prepareLensDistortionEffectV1(effect);
+				return lens.neutral ? null : (frame, signal, limits, accept) =>
+					withLensDistortionPixelFrameV1({ frame, amount: lens.amount, ...(signal ? { signal } : {}) }, accept, { limits });
+			}
 			if (effect.type !== CUBE_LUT_PROFILE_EFFECT_TYPE_V1) return undefined;
 			const reference = cubeLutProfileResourceRequirementV1(prepareCubeLutProfileResourcePlanV1(effect));
 			if (reference === null) return null;

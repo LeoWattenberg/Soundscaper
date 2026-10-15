@@ -28,6 +28,8 @@ import { withGeometryPixelFrameV1 } from '../common/editor/imaging/pixel-frame-g
 import { admitPixelFrameV1 } from '../common/editor/imaging/pixel-frame-admission-v1.ts';
 import { normalizeVideoEffect, videoEffectDefinition, VIDEO_EFFECT_TYPES } from '../common/editor/video-effects.js';
 import { readPixelFrameV1 } from '../common/editor/imaging/pixel-frame-contract-v1.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1, normalizeLensDistortionEffectV1 } from '../common/editor/video-lens-distortion-v1.ts';
+import { withLensDistortionPixelFrameV1 } from '../common/editor/imaging/pixel-frame-lens-distortion-v1.ts';
 
 const CHECK_ABORT = AbortSignal.prototype.throwIfAborted;
 const GEOMETRY_LIMITS = Object.freeze({ maximumSidePixels: 65_536, maximumPixels: 33_554_432, maximumBytes: 128 * 1024 * 1024 });
@@ -42,6 +44,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	// A valid owning project is already bounded by the 100,000-node interchange ceiling.
 	const admitted = readClosedDomainArray(effects, 'Frame browser effects', 0, 100_000).map(value => {
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === LENS_DISTORTION_EFFECT_TYPE_V1) return normalizeLensDistortionEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return normalizePostCropVignetteEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === CLARITY_EFFECT_TYPE_V1) return normalizeClarityEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === NOISE_REDUCTION_EFFECT_TYPE_V1) return normalizeNoiseReductionEffectV1(value);
@@ -59,11 +62,13 @@ export async function applyVideoExactBrowserEffectsFinishing(
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
 	const sourceFrame = readAdmittedFrame(frame, signal);
-	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === DEHAZE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === TEXTURE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === GRAIN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CLARITY_EFFECT_TYPE_V1)) {
+	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === LENS_DISTORTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DEHAZE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === TEXTURE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === GRAIN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CLARITY_EFFECT_TYPE_V1)) {
 		let current = clone(sourceFrame);
 		try {
 			for (const effect of admitted) {
 				throwIfAborted(signal);
+				const lens = Object.getOwnPropertyDescriptor(effect, 'type')?.value === LENS_DISTORTION_EFFECT_TYPE_V1 ? normalizeLensDistortionEffectV1(effect) : null;
+				if (lens && (!lens.enabled || lens.params.amount === 0)) continue;
 				const geometry = Object.getOwnPropertyDescriptor(effect, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1
 					? normalizeImageGeometryVideoEffectV1(effect) : null;
 				if (geometry && !geometry.enabled) continue;
@@ -74,7 +79,9 @@ export async function applyVideoExactBrowserEffectsFinishing(
 				const texture = Object.getOwnPropertyDescriptor(effect, 'type')?.value === TEXTURE_EFFECT_TYPE_V1;
 				const dehaze = Object.getOwnPropertyDescriptor(effect, 'type')?.value === DEHAZE_EFFECT_TYPE_V1;
 				const vignette = Object.getOwnPropertyDescriptor(effect, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1;
-				const next = vignette ? await cloneScopedOutput(consume => withPostCropVignettePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+				const next = lens ? await cloneScopedOutput(consume => withLensDistortionPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, amount: lens.params.amount, signal }, consume, { limits: GEOMETRY_LIMITS }))
+					: vignette ? await cloneScopedOutput(consume => withPostCropVignettePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS })) : detail ? await cloneScopedOutput(consume => withDetailSharpenPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
 					: clarity ? await cloneScopedOutput(consume => withClarityPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,

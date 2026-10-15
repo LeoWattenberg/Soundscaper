@@ -6,6 +6,7 @@ import { prepareLinearColorEffectsV1 } from './pixel-frame-linear-color-v1.ts';
 import { prepareLinearGeometryV1 } from './pixel-frame-linear-geometry-v1.ts';
 import { prepareLinearSpatialEffectV1 } from './pixel-frame-linear-spatial-v1.ts';
 import { prepareLinearRepairsV1 } from './pixel-frame-linear-repair-v1.ts';
+import { prepareLinearLensDistortionV1 } from './pixel-frame-linear-lens-distortion-v1.ts';
 import type { cubeLutProfileResourceRequirementV1 } from '../video-cube-lut-profile-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../video-color-management-v27.ts';
 import { prepareLinearDevelopMetadataCurrentV1 } from './image-develop-linear-metadata-current-v1.ts';
@@ -16,6 +17,7 @@ type Spatial = ReturnType<typeof prepareLinearSpatialEffectV1>;
 type Color = ReturnType<typeof prepareLinearColorEffectsV1>;
 type Reference = NonNullable<ReturnType<typeof cubeLutProfileResourceRequirementV1>>;
 export type LinearDevelopStageV1 = Readonly<{ kind: 'geometry'; plan: Geometry }>
+	| Readonly<{ kind: 'lens-distortion'; plan: ReturnType<typeof prepareLinearLensDistortionV1> }>
 	| Readonly<{ kind: 'spatial'; id: string; plan: Spatial }>
 	| Readonly<{ kind: 'color'; id: string; effects: Color }>
 	| Readonly<{ kind: 'lut'; id: string; reference: Reference; grade: ReturnType<typeof normalizeVideoColorGradeV1> }>
@@ -35,6 +37,7 @@ export function prepareLinearDevelopCurrentV1(value: unknown, profileValue: Imag
 	let current = descriptor;
 	for (const stage of metadata.stages) {
 		switch (stage.kind) {
+			case 'lens-distortion': stages.push(Object.freeze({ kind: 'lens-distortion', plan: prepareLinearLensDistortionV1(stage.amount, current, profile.render) })); break;
 			case 'geometry': {
 				const plan = prepareLinearGeometryV1(stage.geometry, current, profile.render);
 				stages.push(Object.freeze({ kind: 'geometry', plan })); current = plan.descriptor; break;
