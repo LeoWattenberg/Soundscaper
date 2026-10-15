@@ -8,7 +8,7 @@ import {
 import {
 	renderProductNativeAudioToSink,
 	type ProductNativeRenderAudioStreamDependencies,
-} from './internal/product-native-render-audio-stream.ts';
+} from './product-native-render-audio-stream.ts';
 import {
 	EDITOR_PROJECT_TASK_SCOPE,
 	EditorProjectChangedError,

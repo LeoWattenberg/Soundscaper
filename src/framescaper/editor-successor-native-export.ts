@@ -4,7 +4,7 @@ import { normalizeFramescaperSuccessorProject } from './editor-project-successor
 import { assertFramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
 import { consumeFramescaperVideoFrames } from './video-export-frame-consumer.ts';
 import { createFramescaperSuccessorNativeSink } from './editor-successor-native-delivery-adapter.ts';
-import { framescaperSuccessorNativePlan, type FramescaperSuccessorNativeDelivery, type FramescaperSuccessorNativePlan } from './editor-successor-native-delivery-contract.ts';
+import { framescaperSuccessorNativePlan, type FramescaperSuccessorNativeDelivery, type FramescaperSuccessorNativePlan, type FramescaperSuccessorNativeReceipt } from './editor-successor-native-delivery-contract.ts';
 import { prepareFramescaperSuccessorNativePicture } from './editor-successor-native-picture.ts';
 import { streamFramescaperSuccessorNativeAudio } from './editor-successor-native-audio.ts';
 import type { framescaperSuccessorControllerContext } from './editor-successor-controller.ts';
@@ -15,12 +15,13 @@ export async function exportFramescaperSuccessorNative(context: Context, options
 	readonly onProgress?: (completed: number, total: number) => void;
 }) {
 	const environment = assertFramescaperSuccessorEnvironment(context.environment);
-	const operation = context.nativeInput.begin(); const signal = options.signal ? AbortSignal.any([operation.signal, options.signal]) : operation.signal;
+	const operation = context.nativeInput.begin({ signal: options.signal }); const signal = options.signal ? AbortSignal.any([operation.signal, options.signal]) : operation.signal;
 	const current = () => { signal.throwIfAborted(); operation.assertCurrent(); };
 	let picture: Awaited<ReturnType<typeof prepareFramescaperSuccessorNativePicture>> | null = null;
 	const delivery: { sink: Awaited<ReturnType<typeof createFramescaperSuccessorNativeSink>>; plan: FramescaperSuccessorNativePlan | null } = { sink: null, plan: null };
+	let primary: unknown, failed = false; let result: FramescaperSuccessorNativeReceipt | null = null;
 	try {
-		current(); const project = normalizeFramescaperSuccessorProject(operation.project);
+		current(); await operation.prepare(); const project = normalizeFramescaperSuccessorProject(operation.project);
 		if (typeof project.sampleRate !== 'number') throw new Error('Frame native export requires an exact project sample rate.');
 		if (!project.primarySequenceId) throw new Error('Choose a primary Frame sequence before native export.');
 		picture = await prepareFramescaperSuccessorNativePicture({ environment, project, canvas: options.canvas, signal, assertCurrent: current });
@@ -42,15 +43,22 @@ export async function exportFramescaperSuccessorNative(context: Context, options
 				}
 			} finally { rgba.fill(0); }
 		});
-		if (!delivery.sink) return null;
-		if (delivery.sink.audio && delivery.plan) {
-			const projection = environment.playback.projectForPlayback(project).project;
-			await streamFramescaperSuccessorNativeAudio({ operation, project: projection, plan: delivery.plan, audio: delivery.sink.audio, signal, assertCurrent: current });
+		if (delivery.sink) {
+			if (delivery.sink.audio && delivery.plan) {
+				const projection = environment.playback.projectForPlayback(project).project;
+				await streamFramescaperSuccessorNativeAudio({ operation, project: projection, plan: delivery.plan, audio: delivery.sink.audio, signal, assertCurrent: current });
+			}
+			picture.release(); picture = null; await operation.releaseMedia(); current();
+			result = await delivery.sink.finish(signal);
 		}
-		picture.release(); picture = null; current();
-		return await delivery.sink.finish(signal);
 	} catch (error) {
-		try { await delivery.sink?.abort(error); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Frame native delivery and cleanup failed.', { cause: cleanup }); }
-		throw error;
-	} finally { try { picture?.release(); } finally { operation.finish(); } }
+		failed = true; primary = error;
+		try { await delivery.sink?.abort(error); } catch (cleanup) { primary = new AggregateError([error, cleanup], 'Frame native delivery and cleanup failed.', { cause: cleanup }); }
+	}
+	const failures: unknown[] = [];
+	try { picture?.release(); } catch (error) { failures.push(error); }
+	try { await operation.finish(); } catch (error) { failures.push(error); }
+	if (failures.length) throw new AggregateError([...(failed ? [primary] : []), ...failures], 'Frame native export input cleanup failed.', { cause: failed ? primary : failures[0] });
+	if (failed) throw primary;
+	return result;
 }
