@@ -2,11 +2,12 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `af41c31cdfcbd2ac64fd412c599e7c4d229f12d0`; its combined gates remain
+is source `5ca4a2ea1282a3f3f48ce3b2a14d75500f033a6d`; its combined gates remain
 open. The separate ordinary browser capture uses frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026` on
 `feat/motionscaper-final-validation`. This status records fresh validation on
-2026-10-13. Its results do not qualify the newer combined implementation,
+2026-10-15. Each result qualifies only its stated source and workload; none
+qualifies the newer combined implementation,
 mark any milestone complete or certify a release.
 
 ## Evidence boundary
@@ -73,23 +74,36 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
-| Complete static gate, `19bc434e8` | Passed full lint, types, architecture, audits, documentation and builds. Later source changes still need their applicable gates. |
+| Complete static gate, `fa68087f7` | Passed full lint, types, architecture, audits, documentation and builds, with an 8 GiB Node heap. Later source changes still need their applicable gates. |
 | All five exhaustive Node partitions, `cbf09f9ea` | Closed failed: 27,226 tests, 27,211 passed, one failure and 14 declared skips. Motion's 1,032 tests passed without skips, including real pinned-helper MOV decoding. The sole failure was a stale synthetic Baseline AVC fixture after the owning producer began requiring Main; its corrected fixture and stronger container checks subsequently passed 14 focused checks. A fresh complete accepted Node gate remains required. |
+| Motion Node partition, `3736103f0` | Passed all 1,066 tests without skips, including the required Linux native-helper gate. This is one partition, not a fresh complete repository result. |
 | Retained mixed-image reopening, `cbf09f9ea` | The unchanged workflow passed Chromium, Firefox and WebKit, without skips or retries. Per-file read serialization fixes the reproduced same-worker exclusive OPFS lock collision; the retained image was intact. This does not claim cross-worker or read/write arbitration. |
 | Complete linked/dual-origin suites, `19bc434e8` | Closed failed: 34/36 linked cases and 8/9 dual-origin cases passed. Firefox failures were image reopening and an absent-host GPU assertion; WebKit lost the archive of a two-download pair. All three first linked-editor/offline/export workflows passed. |
-| Fresh complete linked/dual-origin suites, `c61839c8d` | In progress after integrated OPFS, native-host witness and download scheduling repairs. Chromium's complete linked partition closed with 11/12 passing and a new realtime audio-clock gap during native export; all its GPU/loss/restore checks passed. Remaining partitions and causal diagnosis are open. |
-| Maintained authored-title Linux workflow, `9173a2063` | Passed actual New, shape/text authoring, native Save, preview, export cancellation/retry and independent ProRes decoding. A normal Tab releases GTK filename completion before the original single Save click. Two-frame RGB error was 3.93/1023 against the unchanged eight-code limit; alpha was exact. Registration in the required complete aggregate remains in progress. |
+| Fresh complete linked/dual-origin suites, `c61839c8d` | Closed failed: 34/36 linked and all 9/9 dual-origin cases passed. Chromium failed on a native-export audio-clock gap; WebKit failed while waiting for Resume to adopt a saved revision. Firefox passed all linked cases. GPU/loss/restore checks passed on capable hosts. |
+| Native linked-export variants, `c38e0c2a2` | Both unchanged variants passed in all three engines: six cases, without skips or retries. Native PCM delivery now keeps its capture clock running under bounded backpressure; deterministic controls still reject actual clock loss and blocked sinks. Full linked-suite acceptance remains open. |
+| Required five-workflow Linux aggregate, `1a788b61b` | Passed launch, scene, authored title, successor picture/PCM and saved-file link workflows. The authored workflow covers actual New, shape/text authoring, native Save, preview and cancellation/retry. Its decoded RGB error was 3.93/1023 against the unchanged eight-code limit; alpha was exact. The complete five-workflow aggregate admits Linux x64 only; other targets remain open. |
 | Six unchanged WebKit regression workflows, `cbf09f9ea` | Punch, three tempo workflows, musical selection and configurable-effects search passed, without skips or retries. Non-reproduction does not establish the causes of their earlier failures. |
-| Controlled-duration browser workflow, `cbf09f9ea` | Closed failed on command-observer process-stat admission. Original validation and cleanup remain enforced; a later evidence-only repair retains the refused stat for diagnosis. The duration gate is not qualified. |
-| Controlled-duration native workflow, `cbf09f9ea` | Closed failed after 300-frame preview/export because the general sampler captured only two real encoder-memory observations, below the unchanged requirement of three. A separate bounded encoder observer is in development. The 1,200-frame run and complete duration gate remain unqualified. |
+| Controlled-duration browser workflow, `fa68087f7` | Passed both 300- and 1,200-frame workloads: preview, PNG/WebM output, independent picture/timestamp/audio checks, actual cancellation/retry, memory limits and cleanup. All 591 memory rows were audited; peak RSS was 2,078,101,504 bytes, below the unchanged 2 GiB bound. This qualifies the fixed software Chromium profile, not maximum workloads or other hosts. |
+| Controlled-duration native workflow, `fa68087f7` | Closed failed after generating the 300-frame movie, when encoder identity/argv observation was rejected. Fourteen real encoder-memory observations exceeded the unchanged minimum of three. Output-only diagnosis subsequently passed selected pictures, all timestamps and exact PCM, but cannot qualify the failed workload. Cancellation/retry, 1,200 frames and the complete memory comparison remain open. |
+| Native observer repair and fresh preparation, `5ca4a2ea1` | Integrated deterministic terminal-process race controls preserve live identity and memory refusals. Fresh normal reference/stage/package preparation passed; the new complete native duration workload has not yet run. The previous rejected identity operands were not captured, so its historical cause remains unproven. |
 | Complete accepted coverage union and external matrix | Open. Failed raw profiles remain unparsed and unadmitted; no coverage floor, startup ceiling, timeout, color bound or signal bound was weakened. No installed AE environment is available. |
 
 The exhaustive Node receipt is `current-cbf09-node/closed.json`, SHA-256
 `b4114a584812dfcee0b8d72c193ebd73d433e765402639d1bdb327ae2f31546d`.
 All five commands closed, source and staged helper bytes remained unchanged,
-and all observed owned process identities were gone. The maintained authored
-receipt is `current-9173-native-qualification/authored-command/outer-tool-closure.json`,
-SHA-256 `7e3aa68474dac446141f06cd1e6baabb153682a5ab8d73e34f55dcf0bb8f5459`.
+and all observed owned process identities were gone. The newer static receipt is
+`current-fa680-static/closed.json`, SHA-256
+`fed220729013ce9c28cd464d2a6cd7e7a5f3008b7fcef8937e31f2979c5f3da6`;
+the Motion partition receipt is `current-3736103f-motion-node/closed.json`, SHA-256
+`b122ee85497306e9a51250f85568f2785c12fb2150b487f574e78da1d6cbaf04`.
+The five-workflow aggregate closure is
+`current-1a788b61b-native-qualification/aggregate-recorder-command/outer-tool-closure.json`,
+SHA-256 `c43cf8e6cd48d586ca1b2aa6e88b0cb6bfd64551d14f5d79bf3b6ed205ece604`.
+The browser duration receipt is
+`current-fa680-sustained-browser/workload/qualification-receipt.json`, SHA-256
+`d7694f821c83982d65007b4852d55ab172b4fefc6539b4b9d865f9c789c45e07`;
+its independent audit is `current-fa680-sustained-browser/qualification-audit.json`,
+SHA-256 `9768301276c6fe9a0fc1aa3554d216af4ff2fb7b36bd69fe5186710e0278c59d`.
 Native package custody preserves the original sandbox bytes/inodes and records
 changes to historical package metadata; older packages are not silently
 requalified after those changes.
@@ -97,6 +111,10 @@ requalified after those changes.
 The duration profile is **300 and 1,200 frames**, or ten and forty seconds at
 30 fps, not 300 and 1,200 seconds. Its fixed picture, PCM, memory, timing and
 cleanup requirements remain unchanged.
+Earlier source `cbf09f9ea` duration attempts remain failed: the browser command
+observer rejected process-stat admission, and the native observer captured only
+two encoder-memory rows. The later browser pass and native failure above are
+separate runs, not replacements for those historical outcomes.
 
 ## Frozen source-328 gate ledger
 

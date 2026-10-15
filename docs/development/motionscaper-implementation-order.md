@@ -75,7 +75,7 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass; the
-current combined acceptance, remaining regressions, duration and external gates
+current combined acceptance, remaining regressions, native duration and external gates
 remain open. Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
@@ -115,9 +115,13 @@ authenticated PCM24 audio. Other desktop targets remain unqualified. Flat MOV
 delivery admits at most 32,768 frames so its retained sample index is bounded.
 The [sustained drivers](motionscaper-sustained-browser-native-qualification.md)
 measure worker preview, retained PCM and physical browser/native output as
-duration grows. The c80 native 300/1,200-frame success was reported before the
-reboot; its receipts are lost. The c80 browser verifier failed; source 328 fixes
-its loader, but fresh qualification and maximum-workload evidence remain pending.
+duration grows. Fresh source `fa68087f7` passed the fixed 300/1,200-frame
+software Chromium profile, including independent output, cancellation/retry,
+memory and cleanup checks. Its native workload failed encoder observation after
+300-frame delivery; output-only picture, timestamp and exact PCM checks passed,
+but complete native duration qualification remains open. The earlier c80 native
+success has lost receipts and remains historical. Maximum-workload evidence
+remains pending.
 Preview and render leases retain bounded digest-bound font providers.
 M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
 clipboard commands, and exact source timing. Opt-in value/speed graphs and
@@ -162,9 +166,10 @@ light, shadow, shutter and lens quality. Software preview and decoded ProRes agr
 within declared color/alpha bounds and retain exact rational frame timestamps.
 Hardware GPU and remaining native platform qualification remain open.
 The [Linux package CI gate](motionscaper-linux-ci-qualification.md) now requires
-real native launch, this authored scene and offline successor picture/PCM
-delivery for candidate/nightly Linux artifacts. A complete local x64 aggregate
-produced all four source-bound receipts. ARM64 execution and other targets
+real native launch, this authored scene, authored title, offline successor
+picture/PCM delivery and saved-file links for candidate/nightly Linux artifacts.
+A complete local x64 aggregate on `1a788b61b` produced all five required
+source-bound receipts. The complete aggregate admits x64; ARM64 and other targets
 still need actual receipts; configuring those jobs does not qualify them.
 M10 has versioned composition
 offers, bounded streamed closure verification, compatible/pending update and
@@ -256,8 +261,9 @@ Installed-AE settings/cancellation/color/alpha and actual export/re-import
 reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
 preview and save/reopen workflow; retained font and gradient authoring pass
 Chromium pixel/history workflows.
-Fresh source-328 Motion Node tests passed all 953 cases. All 139 Motion-named
-Chromium cases passed within an unfinished full run with other-product failures.
+Fresh source `3736103f0` Motion Node tests passed all 1,066 cases without skips.
+The complete source-328 browser run passed all 139 Motion-named Chromium cases
+but failed existing-product workflows; current combined acceptance remains open.
 These results do not close a package; complete accepted coverage remains pending.
 The [platform fixture](motionscaper-platform-qualification.md) passes twelve
 actual Chromium, Firefox and Linux WebKit workflows covering keyboard menus,
@@ -277,8 +283,9 @@ After Effects pixel parity.
 
 The current [composition link foundations](motionscaper-composition-links.md)
 declare M10's revision, closure, history and rendering authority. Fresh
-bounded Linux delivery has source-328 evidence; full browser editing,
-duration, remaining target and hardware qualification remain open.
+bounded Linux delivery has source-attributed evidence in the final validation
+status; full linked-suite acceptance, native duration, remaining target and
+hardware qualification remain open.
 
 During implementation, run only Motionscaper-specific tests. Run the complete
 repository and existing-product regression gates at M12. Keep at most ten
