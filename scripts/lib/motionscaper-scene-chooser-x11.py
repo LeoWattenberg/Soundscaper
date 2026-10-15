@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Select a scene-owned project/movie path in the real Motion GTK chooser on X11."""
 import ctypes
+import os
 import sys
 import time
 from motionscaper_native_chooser_paths import validate_arguments
+from motionscaper_chooser_observation import MotionChooserObservation
 
 try:
     selected_path, saving = validate_arguments(sys.argv[1:])
@@ -45,10 +47,14 @@ class XWindowAttributes(ctypes.Structure):
 
 x11.XGetWindowAttributes.argtypes = [ptr, window, ctypes.POINTER(XWindowAttributes)]
 errors = []
+observation = None
 error_callback = ctypes.CFUNCTYPE(ctypes.c_int, ptr, ctypes.POINTER(XError))
 
 @error_callback
 def handle_error(_display, event):
+    if observation and observation.owns_display(event.contents.display):
+        observation.x_error(event.contents)
+        return 0
     # The chooser can disappear between XQueryTree and XFetchName during polling.
     if event.contents.error_code != 3:
         errors.append(event.contents.error_code)
@@ -59,6 +65,7 @@ x11.XSetErrorHandler(handle_error)
 display = x11.XOpenDisplay(None)
 if not display:
     raise SystemExit("Packaged native chooser qualification requires an X11 display.")
+observation = MotionChooserObservation(x11, XWindowAttributes, os.environ.get("DISPLAY"), dialog_title)
 
 def find_dialog(current, depth=0):
     if depth > 8:
@@ -104,9 +111,11 @@ try:
             time.sleep(0.05)
     if not target:
         raise RuntimeError("The real native Motionscaper file chooser did not open.")
+    observation.record("target-found", target)
     x11.XRaiseWindow(display, target)
     x11.XSetInputFocus(display, target, 1, 0)
     x11.XFlush(display)
+    observation.record("focused", target)
     time.sleep(0.2)
     chord(ord("l"))
     x11.XFlush(display)
@@ -125,6 +134,7 @@ try:
             key(0xFFE1, False)
     x11.XFlush(display)
     time.sleep(0.6)
+    observation.record("confirming", target)
     # GTK's explicit Open mnemonic confirms the location entry, whose Return
     # handling can defer to asynchronous filename completion.
     key(0xFFE9, True)
@@ -135,10 +145,13 @@ try:
     deadline = time.monotonic() + 5
     while find_dialog(x11.XDefaultRootWindow(display)):
         if time.monotonic() >= deadline:
+            observation.record("timeout", target)
             raise RuntimeError("Native file chooser remained open after selection.")
         time.sleep(0.05)
+    observation.record("closed", target)
     if errors:
         raise RuntimeError("Native chooser X11 request failed: " + str(errors))
     print("MOTIONSCAPER_NATIVE_FILE_CHOOSER_SELECTED")
 finally:
+    observation.close()
     x11.XCloseDisplay(display)
