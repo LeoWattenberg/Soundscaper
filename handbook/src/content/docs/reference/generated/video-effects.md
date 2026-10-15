@@ -21,6 +21,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | --- | --- | --- |
 | Black-and-white mix | `black-white-mix-v1` | 8 |
 | Chroma Key | `chroma-key` | 3 |
+| Chromatic aberration | `chromatic-aberration-v1` | 2 |
 | Clarity | `clarity-v1` | 1 |
 | Color Adjust | `color-adjust` | 5 |
 | Color grading wheels | `color-wheels-v1` | 9 |
@@ -66,6 +67,8 @@ Defaults and limits come from the same definitions the editor validates against.
 | Chroma Key | Key color | `#00ff00` | Any RGB color | — |
 | Chroma Key | Similarity | 0.1 | 0.01 to 1 | — |
 | Chroma Key | Softness | 0.1 | 0 to 1 | — |
+| Chromatic aberration | Red | 0 | -100 to 100 | — |
+| Chromatic aberration | Blue | 0 | -100 to 100 | — |
 | Clarity | Amount | 0 | -100 to 100 | — |
 | Color Adjust | Brightness | 0 | -1 to 1 | — |
 | Color Adjust | Contrast | 1 | 0 to 2 | — |

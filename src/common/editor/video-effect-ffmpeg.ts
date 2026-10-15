@@ -9,6 +9,7 @@ import { imageGeometryVideoFfmpegFilterV1 } from './video-image-geometry-ffmpeg-
 import { appendPostCropVignetteFfmpegOperationV1 } from './video-post-crop-vignette-ffmpeg-v1.ts';
 import { appendDetailSharpenFfmpegOperationV1 } from './video-sharpen-ffmpeg-v1.ts';
 import { appendLensDistortionFfmpegOperationV1 } from './video-lens-distortion-ffmpeg-v1.ts';
+import { appendChromaticAberrationFfmpegOperationV1 } from './video-chromatic-aberration-ffmpeg-v1.ts';
 
 type FilterOperation = Readonly<Record<string, unknown>>;
 
@@ -165,6 +166,7 @@ function appendAlphaUnderlay(context: VideoEffectGraphContext): void {
 
 export function appendVideoEffectOperation(context: VideoEffectGraphContext): void {
 	const { filters, inputLabel, outputLabel, operation } = context;
+	if (operation.kind === 'chromatic-aberration-v1') { appendChromaticAberrationFfmpegOperationV1(context); return; }
 	if (operation.kind === 'lens-distortion-v1') { appendLensDistortionFfmpegOperationV1(context); return; }
 	if (operation.kind === 'post-crop-vignette-v1') { appendPostCropVignetteFfmpegOperationV1(context); return; }
 	if (operation.kind === 'clarity-v1') { appendClarityFfmpegOperationV1(context); return; }

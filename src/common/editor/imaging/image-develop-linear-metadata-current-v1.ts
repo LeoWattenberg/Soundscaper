@@ -25,6 +25,7 @@ import { prepareTextureEffectV1 } from '../video-texture-v1.ts';
 import { prepareDehazeEffectV1 } from '../video-dehaze-v1.ts';
 import { preparePostCropVignetteEffectV1 } from '../video-post-crop-vignette-v1.ts';
 import { LENS_DISTORTION_EFFECT_TYPE_V1, prepareLensDistortionEffectV1 } from '../video-lens-distortion-v1.ts';
+import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, prepareChromaticAberrationEffectV1 } from '../video-chromatic-aberration-v1.ts';
 
 export const CURRENT_LINEAR_WORKING_BYTES_V1 = 768 * 1024 * 1024;
 const PROFILES = ['unorm16', 'float32'].flatMap(sampleFormat => ['srgb', 'bt709'].map(primaries => ({ sampleFormat, primaries, transfer: 'linear' })));
@@ -34,6 +35,7 @@ type Effect = ReturnType<typeof normalizeImageDevelopStateCurrentV1>['effects'][
 type Reference = NonNullable<ReturnType<typeof cubeLutProfileResourceRequirementV1>>;
 export type LinearDevelopMetadataStageCurrentV1 = Readonly<{ kind: 'geometry'; geometry: Readonly<ImageGeometryV1>; descriptor: LinearKernelDescriptorV1 }>
 	| Readonly<{ kind: 'lens-distortion'; amount: number }>
+	| Readonly<{ kind: 'chromatic-aberration'; id: string; red: number; blue: number }>
 	| Readonly<{ kind: 'spatial'; effect: Effect; active: boolean }>
 	| Readonly<{ kind: 'color'; effect: Effect }>
 	| Readonly<{ kind: 'lut'; id: string; reference: Reference }>
@@ -90,7 +92,13 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 	if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) geometry(legacy);
 	let source: ReturnType<typeof captureCubeLutSourceV1> | undefined;
 	for (const effect of develop.effects) {
-		if (effect.type === LENS_DISTORTION_EFFECT_TYPE_V1) {
+		if (effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) {
+			const correction = prepareChromaticAberrationEffectV1(effect);
+			if (correction.enabled && !correction.neutral) {
+				charge(current.width * current.height * 16);
+				stages.push(Object.freeze({ kind: 'chromatic-aberration', id: correction.id, red: correction.red, blue: correction.blue }));
+			} else stages.push(Object.freeze({ kind: 'noop', id: correction.id }));
+		} else if (effect.type === LENS_DISTORTION_EFFECT_TYPE_V1) {
 			const lens = prepareLensDistortionEffectV1(effect);
 			if (lens.enabled && !lens.neutral) { charge(current.width * current.height * 16); stages.push(Object.freeze({ kind: 'lens-distortion', amount: lens.amount })); }
 			else stages.push(Object.freeze({ kind: 'noop', id: lens.id }));

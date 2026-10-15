@@ -944,12 +944,19 @@ there.
   Current mask coverage transport and existing Photo/Frame authoring entry
   points. Full-resolution delivery preserves the unchanged recipe and Original;
   proxy editing uses its declared reduced grid. Shared video preview and FFmpeg
-  have explicit execution routes. The selected Lightscaper regression passes
-  3,171 cases in 364 files, including 65 focused distortion checks. Eight
-  Chromium/Firefox browser cases qualify English/German menu authoring,
-  persistence, Original custody and native GPU pixels. Both Lightscaper and
-  Frame builds retain the existing graph and chunk ceilings. Chromatic
-  aberration, defringe, optical vignette and profile corrections remain open.
+  have explicit execution routes. Both Lightscaper and Frame builds retain the
+  existing graph and chunk ceilings.
+  [Manual chromatic correction](docs/architecture/lightscaper-chromatic-aberration.md)
+  now adds independent red/blue radial controls while retaining the green/alpha
+  reference grid. Current byte/native execution, local masks, PNG delivery and
+  editable Source2/3/4 handoffs preserve the authored recipe and Original.
+  Signed-displacement sampling retains tiny supported weights; exact WebGL2
+  texel reads avoid filtered alpha leakage. Its finite GPU corpus has recorded
+  preview precision limits; complete Photo Develop GPU conformance remains open.
+  This qualification passes 3,216 selected Lightscaper cases in 369 files,
+  including 45 focused correction checks, and 18 Chromium/Firefox browser cases
+  across both manual lens families. Defringe, optical vignette and reviewed
+  profile corrections remain open.
 - **Shared — Blocked on licensing:** profile-based lens corrections until a
   lens-profile database passes the licensing review.
 - **Shared — Blocked on licensing:** camera-matching color profiles until a

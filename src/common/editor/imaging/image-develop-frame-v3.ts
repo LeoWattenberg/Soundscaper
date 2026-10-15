@@ -15,6 +15,8 @@ import { withImageDevelopFrameCore, type ImageDevelopFrameProfile, type ImageDev
 import { captureImageDevelopCubeLutSourceV2, type ImageDevelopFrameOptionsV2 } from './image-develop-frame-v2.ts';
 import { LENS_DISTORTION_EFFECT_TYPE_V1, prepareLensDistortionEffectV1 } from '../video-lens-distortion-v1.ts';
 import { withLensDistortionPixelFrameV1 } from './pixel-frame-lens-distortion-v1.ts';
+import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, prepareChromaticAberrationEffectV1 } from '../video-chromatic-aberration-v1.ts';
+import { withChromaticAberrationPixelFrameV1 } from './pixel-frame-chromatic-aberration-v1.ts';
 
 export type ImageDevelopFrameOptionsV3 = ImageDevelopFrameOptionsV2;
 
@@ -57,6 +59,11 @@ export function withImageDevelopFrameFixedKernelV1<Result>(value: unknown,
 			return captureMaskRasterSourceV1(rawMaskSource);
 		},
 		prepareResourceStage(effect) {
+			if (mode === 'current' && effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) {
+				const correction = prepareChromaticAberrationEffectV1(effect);
+				return correction.neutral ? null : (frame, signal, limits, accept) =>
+					withChromaticAberrationPixelFrameV1({ frame, red: correction.red, blue: correction.blue, ...(signal ? { signal } : {}) }, accept, { limits });
+			}
 			if (mode === 'current' && effect.type === LENS_DISTORTION_EFFECT_TYPE_V1) {
 				const lens = prepareLensDistortionEffectV1(effect);
 				return lens.neutral ? null : (frame, signal, limits, accept) =>

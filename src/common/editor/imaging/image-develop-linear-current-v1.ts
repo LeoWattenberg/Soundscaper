@@ -12,6 +12,7 @@ import { writeLinearGeometryV1 } from './pixel-frame-linear-geometry-v1.ts';
 import { writeLinearSpatialEffectV1 } from './pixel-frame-linear-spatial-v1.ts';
 import { writeLinearRepairsV1 } from './pixel-frame-linear-repair-v1.ts';
 import { writeLinearLensDistortionV1 } from './pixel-frame-linear-lens-distortion-v1.ts';
+import { writeLinearChromaticAberrationV1 } from './pixel-frame-linear-chromatic-aberration-v1.ts';
 import { writeLinearLutStageV1 } from './image-develop-linear-lut-stage-v1.ts';
 import { withLinearMaskCoverageV1, blendLinearMaskCoverageV1 } from './pixel-frame-linear-mask-v1.ts';
 import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
@@ -61,11 +62,26 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 			owner.retire(backing); replace(next);
 		}
 		const render = async (scope?: Readonly<MaskRasterSourceScopeV1>): Promise<Result> => {
-			const observe = async (id: string, work?: () => Promise<Float32Array<ArrayBuffer>>) => {
+			const observe = async (id: string, work?: () => Promise<Float32Array<ArrayBuffer>>,
+				copiedChannels?: Readonly<{ red: boolean; blue: boolean }>) => {
 				const binding = prepared.masks.plan.bindings.find(binding => binding.effectId === id);
 				const next = work ? await work() : undefined;
 				if (binding && (next || binding === prepared.selectedBinding)) await withLinearMaskCoverageV1(binding, current, async coverage => {
-					if (next) await blendLinearMaskCoverageV1(current, next, coverage, signal);
+					if (next) {
+						await blendLinearMaskCoverageV1(current, next, coverage, signal);
+						// CA's reference channels are literal copies. Fractional blend
+						// arithmetic must not turn their negative zero into positive zero.
+						if (copiedChannels) {
+							const budget = new RepairTaskBudgetV1(check);
+							for (let offset = 0; offset < next.length; offset += 4) {
+								next[offset + 1] = current.pixels[offset + 1]!;
+								if (copiedChannels.red) next[offset] = current.pixels[offset]!;
+								if (copiedChannels.blue) next[offset + 2] = current.pixels[offset + 2]!;
+								if (budget.visit()) await budget.yield();
+							}
+							check();
+						}
+					}
 					if (binding === prepared.selectedBinding) await withProjectedImageDevelopMaskCoverageCurrentV1(binding, coverage, view => {
 						const copy = owner.bytes(view.coverage.length); Uint8Array.prototype.set.call(copy, view.coverage);
 						overlay = Object.freeze({ ...view, coverage: copy });
@@ -79,7 +95,10 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 					const next = owner.floats(stage.plan.sampleCount); await writeLinearLensDistortionV1(stage.plan, current, next, signal); replace(next);
 				} else if (stage.kind === 'geometry') {
 					const next = owner.floats(stage.plan.sampleCount); await writeLinearGeometryV1(stage.plan, current, next, signal); replace(next, stage.plan.descriptor);
-				} else if (stage.kind === 'spatial') await observe(stage.id, async () => {
+				} else if (stage.kind === 'chromatic-aberration') await observe(stage.id, async () => {
+					const next = owner.floats(stage.plan.sampleCount); await writeLinearChromaticAberrationV1(stage.plan, current, next, signal); return next;
+				}, { red: stage.red === 0, blue: stage.blue === 0 });
+				else if (stage.kind === 'spatial') await observe(stage.id, async () => {
 					const next = owner.floats(current.pixels.length), scratch = owner.bytes(stage.plan.scratchBytes), backing = scratch.buffer;
 					await writeLinearSpatialEffectV1(stage.plan, current.pixels, next, scratch, signal); owner.retire(backing); return next;
 				});

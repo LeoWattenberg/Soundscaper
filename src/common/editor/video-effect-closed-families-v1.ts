@@ -29,12 +29,14 @@ import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_VIDEO_EFFECT_DEFINITION
 	normalizeBlackWhiteMixEffectV1, normalizeBlackWhiteMixParamsV1, serializeBlackWhiteMixEffectToFfmpegV1 } from './video-black-white-mix-v1.ts';
 import { LENS_DISTORTION_EFFECT_TYPE_V1, LENS_DISTORTION_VIDEO_EFFECT_DEFINITION_V1, normalizeLensDistortionEffectV1,
 	normalizeLensDistortionParamsV1, serializeLensDistortionEffectToFfmpegV1 } from './video-lens-distortion-v1.ts';
+import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, CHROMATIC_ABERRATION_VIDEO_EFFECT_DEFINITION_V1, normalizeChromaticAberrationEffectV1,
+	normalizeChromaticAberrationParamsV1, serializeChromaticAberrationEffectToFfmpegV1 } from './video-chromatic-aberration-v1.ts';
 
 import type { VideoEffectParameterV1 } from './video-curve-types-v1.ts';
 
 interface Effect { readonly id:string; readonly type:string; readonly enabled:boolean; readonly params:Readonly<Record<string,VideoEffectParameterV1>> }
 type Operation = Readonly<{expression:string;preserveAlpha:true;kind?:string}> | Readonly<{kind:'image-geometry-v1';effect:ReturnType<typeof normalizeImageGeometryVideoEffectV1>}>
-	| NonNullable<ReturnType<typeof serializeLensDistortionEffectToFfmpegV1>>;
+	| NonNullable<ReturnType<typeof serializeLensDistortionEffectToFfmpegV1>> | NonNullable<ReturnType<typeof serializeChromaticAberrationEffectToFfmpegV1>>;
 interface Family { readonly params:(value:unknown)=>Effect['params']; readonly effect:(value:unknown)=>Effect;
 	readonly serialize:(value:unknown)=>Operation|null; readonly create?: (value:unknown)=>Effect }
 
@@ -56,9 +58,12 @@ export const CLOSED_VIDEO_EFFECT_DEFINITIONS_V1 = Object.freeze({
 	[TEXTURE_EFFECT_TYPE_V1]:TEXTURE_VIDEO_EFFECT_DEFINITION_V1,
 	[DEHAZE_EFFECT_TYPE_V1]:DEHAZE_VIDEO_EFFECT_DEFINITION_V1,
 	[LENS_DISTORTION_EFFECT_TYPE_V1]:LENS_DISTORTION_VIDEO_EFFECT_DEFINITION_V1,
+	[CHROMATIC_ABERRATION_EFFECT_TYPE_V1]:CHROMATIC_ABERRATION_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 const FAMILIES = Object.freeze({
+	[CHROMATIC_ABERRATION_EFFECT_TYPE_V1]:{params:normalizeChromaticAberrationParamsV1,effect:normalizeChromaticAberrationEffectV1,serialize:serializeChromaticAberrationEffectToFfmpegV1,
+		create:(value:unknown)=>createClosedVideoEffect(CHROMATIC_ABERRATION_EFFECT_TYPE_V1,value,{name:'chromatic aberration creation',typeError:'Chromatic aberration creation requires its exact effect type.',normalizeParams:normalizeChromaticAberrationParamsV1,normalizeEffect:normalizeChromaticAberrationEffectV1})},
 	[LENS_DISTORTION_EFFECT_TYPE_V1]:{params:normalizeLensDistortionParamsV1,effect:normalizeLensDistortionEffectV1,serialize:serializeLensDistortionEffectToFfmpegV1,
 		create:(value:unknown)=>createClosedVideoEffect(LENS_DISTORTION_EFFECT_TYPE_V1,value,{name:'lens distortion creation',typeError:'Lens distortion creation requires its exact effect type.',normalizeParams:normalizeLensDistortionParamsV1,normalizeEffect:normalizeLensDistortionEffectV1})},
 	'white-balance-v1':{params:(value:unknown)=>normalizeGlobalDevelopParamsV1('white-balance-v1',value),effect:normalizeGlobalDevelopEffectV1,serialize:serializeGlobalDevelopEffectToFfmpegV1},
