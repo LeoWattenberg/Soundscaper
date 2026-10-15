@@ -115,6 +115,12 @@ aggregate RSS exceeded 2 GiB by 7,041,024 bytes, while PSS, JS heap and WASM sta
 within their limits. Allocation cause remains unknown. Four additive browser
 diagnostics passed with original assertions and timeouts; they did not reproduce
 or explain the earlier meter, spectral-menu, EQ and timeline failures.
+A separate single-run diagnostic again exceeded the same RSS ceiling, by
+9,338,880 bytes. Its later snapshot retained all 16 process records, with 12 CDP
+roles identified; it does not establish the allocation cause. Maximum-workload
+fixtures, independent oracles and a bounded native driver are committed on an
+auxiliary branch (`a4e851dc3`), with 17 focused checks passing. Installed maximum
+workloads remain unexecuted at this checkpoint.
 The current fixed Linux native-duration profile passed both 300 and 1,200 frames,
 including preview/ProRes, upload/encoder cancellation and retry, independent
 picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
