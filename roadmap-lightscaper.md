@@ -931,6 +931,17 @@ there.
   lens/camera profiles, HDR merge, L8 and L9 remain unfinished. Current native
   Develop and raster export qualification is recorded above; remaining L3–L6
   exit gates and L7 completion remain open.
+  A separate [RAW recovery decoder foundation](docs/architecture/lightscaper-raw-recovery.md)
+  now provides fixed headroom and highlight-reconstruction profiles with signed
+  linear Float32 capture before RGB16 clipping. Its 871,145-byte ABI2 artifact
+  reproduces exactly from the separate corresponding-source archive in a fresh
+  pinned compiler container. Owned sensor controls prove recovered channel
+  variation, stable midtones and retained headroom through the actual native
+  decoder and production worker. The selected Lightscaper regression passes
+  3,329 checks in 383 files, including 27 recovery checks. ABI1 and canonical
+  Source4 receipts remain unchanged. Existing-menu Current Develop, proxy,
+  Full, export and editable Frame integration of recovery remain pending;
+  highlight recovery is not yet a completed product feature.
 - **Web Enhanced — Planned:** GPU evaluation of the develop stack where
   capability-detected, with the CPU path as the conformance oracle under
   recorded tolerance budgets.
