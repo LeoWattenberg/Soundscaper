@@ -94,8 +94,12 @@ function ports(profile: PhotoDevelopPresentationProfileV1, value: PhotoDevelopPr
 		clear: clear === undefined ? clearPixelFrameCanvasV1 : pin<typeof clearPixelFrameCanvasV1>(clear, value) });
 }
 
-function captureRuntime(value: Readonly<PhotoLibraryDevelopProxyRuntimeV3>): Readonly<PhotoLibraryDevelopProxyRuntimeV3> {
-	const input = record(value, 'develop runtime', ['withProxy', 'withFullResolution']);
+function captureRuntime(profile: PhotoDevelopPresentationProfileV1, value: Readonly<PhotoLibraryDevelopProxyRuntimeV3>): Readonly<PhotoLibraryDevelopProxyRuntimeV3> {
+	const methods = ['withProxy', 'withFullResolution'];
+	const input = record(value, 'develop runtime', profile === 'current3' ? [...methods, 'withLinearWorkingFrame'] : methods, methods);
+	if (Object.hasOwn(input, 'withLinearWorkingFrame') && typeof field(input, 'withLinearWorkingFrame', 'develop runtime') !== 'function') {
+		throw new TypeError('Linear working delivery requires an own runtime method.');
+	}
 	return Object.freeze({ withProxy: pin<PhotoLibraryDevelopProxyRuntimeV3['withProxy']>(field(input, 'withProxy', 'develop runtime'), value),
 		withFullResolution: pin<PhotoLibraryDevelopProxyRuntimeV3['withFullResolution']>(field(input, 'withFullResolution', 'develop runtime'), value) });
 }
@@ -173,7 +177,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 		try { await this.#ports.beforePresent; } catch (error) { this.#remember(error); throw error; }
 		check(signal);
 		if (this.#profile === 'current3' || view.resolution === 'full') {
-			const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(loaded); check(signal);
+			const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(this.#profile, loaded); check(signal);
 			if (!this.#ports.withOriginalFrame) throw new Error('Full-resolution development is unavailable.');
 			const rendered = await this.#ports.withOriginalFrame({ schemaVersion: 1, photoId: view.photoId, expectedRevision: view.revision! }, async source => {
 				check(signal);
@@ -186,7 +190,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 		const result = await this.#ports.readPreview!(view.photoId, 'fit-screen', { signal }); check(signal);
 		if (result.outcome !== 'ready') { if (this.#view === view) this.#publish({ status: 'missing' }); return; }
 		if (result.preview.photoId !== view.photoId || result.preview.tier !== 'fit-screen') throw new Error('Develop source changed its requested identity.');
-		const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(loaded); check(signal);
+		const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(this.#profile, loaded); check(signal);
 		const { descriptor, byteLength, outputSha256, body } = result.preview;
 		const rendered = await this.#ports.stage({ descriptor, byteLength, outputSha256, body, signal }, frame => this.#present(view, frame, runtime, signal), { limits: SOURCE });
 		check(signal); if (this.#view === view && rendered) this.#publish({ status: 'ready', ...rendered, error: null });

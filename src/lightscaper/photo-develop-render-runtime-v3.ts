@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { PhotoLibraryDevelopProxyRuntimeV3 } from '../common/editor/photo-library-develop-proxy-port-v3.ts';
+import { PHOTO_DEVELOP_LINEAR_LIMITS_V1, type PhotoLibraryDevelopLinearRuntimeV1 } from '../common/editor/photo-library-develop-linear-port-v1.ts';
+import { withImageDevelopLinearFrameV1 } from '../common/editor/imaging/image-develop-linear-frame-v1.ts';
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../common/editor/closed-domain-value.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../common/editor/photo-library-develop-full-resolution-port-v1.ts';
 import { readPixelFrameV1 } from '../common/editor/imaging/pixel-frame-contract-v1.ts';
@@ -10,13 +12,14 @@ import { capturePhotoCubeLutSource } from './controller/photo-cube-lut-source-bi
 import { captureMaskRasterSourceV1 } from '../common/editor/imaging/mask-raster-source-scope-v1.ts';
 
 /** Pin selected resources before any original borrower or runtime operation yields. */
-export function createPhotoDevelopRenderRuntimeV3(optionsValue: PhotoDevelopFrameOptionsV3 = {}): Readonly<PhotoLibraryDevelopProxyRuntimeV3> {
+export function createPhotoDevelopRenderRuntimeV3(optionsValue: PhotoDevelopFrameOptionsV3 = {}): Readonly<PhotoLibraryDevelopProxyRuntimeV3 & PhotoLibraryDevelopLinearRuntimeV1> {
 	const input = record(optionsValue, 'Photo develop runtime options', ['source', 'maskSource'], []);
 	const raw = Object.hasOwn(input, 'source') ? field(input, 'source', 'Photo develop runtime source') : undefined;
 	const mask = Object.hasOwn(input, 'maskSource') ? field(input, 'maskSource', 'Photo develop runtime mask source') : undefined;
 	const options = Object.freeze({ ...(raw === undefined ? {} : { source: capturePhotoCubeLutSource(raw) }),
 		...(mask === undefined ? {} : { maskSource: captureMaskRasterSourceV1(mask) }) });
-	return Object.freeze<PhotoLibraryDevelopProxyRuntimeV3>({
+	return Object.freeze<PhotoLibraryDevelopProxyRuntimeV3 & PhotoLibraryDevelopLinearRuntimeV1>({
+		withLinearWorkingFrame: (request, consume) => withImageDevelopLinearFrameV1(request, consume, PHOTO_DEVELOP_LINEAR_LIMITS_V1),
 		withProxy: (request, consume) => withPhotoDevelopProxyFrameV3(request,
 			view => consume({ frame: readPixelFrameV1(view.frame, PHOTO_DEVELOP_PROXY_LIMITS_V1.render), histogram: view.histogram,
 				...(view.maskOverlay ? { maskOverlay: view.maskOverlay } : {}) }), options),

@@ -183,7 +183,7 @@ Architectural constraints that still drive the sequence:
 | L4. Develop: global adjustments | **In progress** | Deliver the parametric develop loop on shared effects. |
 | L5. Export and handoff | **In progress** | Close the import → develop → export loop and the cross-product paths. |
 | L6. Local adjustments and repair | **In progress** | Add masked adjustments and parametric healing. |
-| L7. Raw and deep color | **Planned** | Activate deep processing, raw decode, and wide-gamut output. |
+| L7. Raw and deep color | **In progress** | Activate deep processing, raw decode, and wide-gamut output. |
 | L8. Desktop tier | **Planned** | Package the desktop product and add-in-place libraries. |
 | L9. Owner QA and diagnostics | **Planned** | Exercise the coherent product, improve diagnostics, and record optional observations without a certification gate. |
 
@@ -787,7 +787,8 @@ input is exact, but its controlled canvas returns structural bytes; the full
 native browser codec/settings matrix remains separate L5 qualification.
 The [Current conformance contract](docs/architecture/lightscaper-current-conformance.md)
 records the scope and limits. L3–L6 exit gates remain in progress; L7–L9 and
-final inter-slice qualification remain pending.
+final inter-slice qualification remain unfinished, with the first L7 foundation
+now in progress below.
 
 ### Exit gate
 
@@ -808,10 +809,22 @@ raw decode, and wide-gamut output, all through the contracts L2 fixed —
 export widens through the existing L5 paths without new milestone scope
 there.
 
-- **Shared — Planned:** `unorm16` and `float32` admitted through the L2
+- **Shared — In progress:** `unorm16` and `float32` admitted through the L2
   contract with a linear working space for the develop stack; goldens
   re-pinned at depth; the 8-bit path remains the conformance baseline within
   declared tolerances; no schema change occurs, by design.
+  The first [linear working route](docs/architecture/lightscaper-linear-working.md)
+  directly normalizes native words or copies native floats into one bounded
+  Float32 plane, implements identity, white balance and the full tone ladder,
+  and preserves signed/HDR and tiny normal/subnormal values. Current byte
+  presentation and permanent legacy routes keep their existing contracts.
+  Deep ingestion and the remaining adjustment, geometry, mask, repair and
+  display/output stages remain pending; this foundation does not claim that
+  current Photo Original decoding or Frame packs produce deep samples.
+  The selected Lightscaper regression passes 2,776 cases in 311 files, and four
+  English/German Chromium/Firefox workflows retain native repaired Photo
+  preview, brush editing, saved history and reload. The Lightscaper build keeps
+  its 52-request product graph and the existing chunk ceilings.
 - **Web Core — Planned:** raw decode through a licensed WASM decoder
   (candidate: LibRaw, subject to the licensing review) as a pinned runtime
   asset outside the Pages bundle on the FFmpeg-runtime pattern — pinned
