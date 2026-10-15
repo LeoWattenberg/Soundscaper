@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import type { createAudioEditorController } from '../common/editor/app.js';
 import type { MotionAsset } from '../common/editor/motion-asset.ts';
 import type { MotionAssetBody } from '../common/editor/motion-asset-body.ts';
@@ -6,7 +7,7 @@ import { normalizeMotionCompositionOffer, createMotionCompositionOffer } from '.
 import { createStableId } from '../common/editor/stable-id.js';
 import { createFramescaperCompositionLink } from './editor-project-successor-link.ts';
 import { createFramescaperCompositionPlacement } from './editor-composition-link-placement.ts';
-import { normalizeFramescaperSuccessorProject } from './editor-project-successor.ts';
+import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject } from './editor-project-successor.ts';
 import { executeFramescaperSuccessorHistory, undoFramescaperSuccessorHistory, redoFramescaperSuccessorHistory, normalizeFramescaperSuccessorHistory, type FramescaperSuccessorHistory } from './editor-project-successor-history.ts';
 import { retainFramescaperSuccessorMediaHistory } from './editor-project-successor-media-roots.ts';
 import type { FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
@@ -18,9 +19,10 @@ interface ReceiveOptions { readonly readAsset: (asset: MotionAsset, signal?: Abo
 /** Receive and history publication share the owner CAS. Live editor intent is adopted only after durable success. */
 export function createFramescaperCompositionLinkSession(options: Readonly<{
 	controller: ReturnType<typeof createAudioEditorController>; environment: FramescaperSuccessorEnvironment; session: FramescaperSuccessorSession;
+	adoptSavedRevision?: (before: FramescaperSuccessorProject, receipt: FramescaperCompositionLinkOwnerReceipt, adopt: () => Promise<unknown>) => Promise<void>;
 }>) {
 	const { controller, environment: env, session } = options; let pending = 0; let tail = Promise.resolve();
-	type Build = (history: FramescaperSuccessorHistory) => Promise<{ history: FramescaperSuccessorHistory; prepared?: PreparedPublication }>;
+	type Build = (history: FramescaperSuccessorHistory) => Promise<{ history: FramescaperSuccessorHistory; prepared?: PreparedPublication; compatibleSavedUpdate?: boolean; unchangedSavedRevision?: boolean }>;
 	function publish(build: Build): Promise<FramescaperCompositionLinkOwnerReceipt> {
 		if (pending >= 16) return Promise.reject(new Error('Wait for the queued composition changes before adding another.'));
 		const ownerId = controller.project?.id; pending++;
@@ -44,7 +46,10 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 			const commit = { expectedOwnerDigest, project: candidate.history.present, history: candidate.history, writeFence: env.controllerStore.ownerWriteFence(current.id) };
 			const receipt = prepared ? await prepared.commit(commit) : await env.owners.saveOwner(commit.project, expectedOwnerDigest, commit.history, { writeFence: commit.writeFence });
 			prepared = undefined; env.controllerStore.acceptOwnerReceipt(receipt); fence.acceptHistory(receipt.history); fence.release(); fence = null;
-			await controller.actions.project.openById(current.id, { adoptSessionRevision: true }); return receipt;
+			if (candidate.unchangedSavedRevision && sameProjectSnapshot(current, receipt.project)) return receipt;
+			const adopt = async () => await controller.actions.project.openById(current.id, { adoptSessionRevision: true });
+			if (candidate.compatibleSavedUpdate && options.adoptSavedRevision) await options.adoptSavedRevision(current, receipt, adopt); else await adopt();
+			return receipt;
 		} catch (error) {
 			if (prepared) { try { await prepared.rollback(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Composition publication and cleanup failed.', { cause: cleanup }); } }
 			throw error;
@@ -62,13 +67,13 @@ export function createFramescaperCompositionLinkSession(options: Readonly<{
 				const sourceId = prior?.sourceId ?? createStableId('composition');
 				const prepared = await env.owners.prepareReceive(project.id, sourceId, offer, receive);
 				try {
-					if (prior?.acceptedDigest === prepared.state.accepted.revision.digest) return { history, prepared };
+					if (prior?.acceptedDigest === prepared.state.accepted.revision.digest) return { history, prepared, unchangedSavedRevision: true };
 					const accepted = prepared.state.accepted;
 					const command = prior ? { type: 'composition-link/replace', sourceId, expectedDigest: prior.acceptedDigest,
 						link: createFramescaperCompositionLink(sourceId, accepted.compositionId, accepted.revision, { audioSourceId: prior.audioSourceId }), commands: [] }
 						: createFramescaperCompositionPlacement({ project, offer: accepted, sourceId, audioSourceId: createStableId('composition-audio'),
 							videoTrackId: createStableId('track'), audioTrackId: createStableId('track'), videoClipId: createStableId('clip'), audioClipId: createStableId('clip'), avLinkId: createStableId('av') });
-					return { history: executeFramescaperSuccessorHistory(history, command), prepared };
+					return { history: executeFramescaperSuccessorHistory(history, command), prepared, compatibleSavedUpdate: Boolean(prior && !prepared.state.paused && prepared.state.pending === null) };
 				} catch (error) { return rollback(prepared, error); }
 			});
 		},

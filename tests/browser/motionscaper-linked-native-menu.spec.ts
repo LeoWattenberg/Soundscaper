@@ -97,3 +97,49 @@ for (const unavailablePreview of [false, true]) test(`native successor File expo
 		await expect(page.locator('[data-video-preview-cpu-canvas]')).toHaveJSProperty('width', 0);
 	}
 });
+
+test('M10 native export pins picture PCM and originals while a compatible saved revision is accepted', async ({ page }) => {
+	const { motionscaperConcurrentExportFixtures } = await import('../helpers/motionscaper-concurrent-export-fixture.ts');
+	const { installMotionConcurrentExportBridge, motionConcurrentExportState, motionConcurrentOwner } = await import('./helpers/motionscaper-concurrent-export-bridge.ts');
+	const { openMotionNativeFrameReader } = await import('../../src/common/editor/motion-native-frame-carrier-v1.ts');
+	const { openMotionNativePcmReader, motionNativePcmPlan } = await import('../../src/common/editor/motion-native-pcm-carrier-v1.ts');
+	const { createBlobScapeArchiveByteSource } = await import('../../src/common/editor/scape-archive-byte-source.ts');
+	const fixtures = await motionscaperConcurrentExportFixtures();
+	await installMotionConcurrentExportBridge(page, fixtures.map(value => value.archive));
+	await page.goto('/embed/en/'); await expect(page.locator('[data-audio-editor-bound="true"]')).toBeVisible();
+	await menu(page, 'File', 'Linked compositions…'); await page.getByRole('button', { name: 'Choose saved .mscape file', exact: true }).click();
+	await expect(page.getByText('Concurrent revision 0', { exact: true }).first()).toBeVisible(); await close(page);
+	const firstOwner = await motionConcurrentOwner(page); expect(firstOwner.acceptedDigest).toBe(fixtures[0]!.snapshot.digest);
+	await menu(page, 'File', 'Export sequence as ProRes 4444…'); const dialog = page.locator('[data-frame-native-delivery]');
+	await dialog.getByRole('button', { name: 'Choose destination and export', exact: true }).click();
+	await expect.poll(async () => (await motionConcurrentExportState(page)).paused).toBe(true);
+	await page.evaluate(() => (globalThis as unknown as { motionConcurrentFixture: { update(): void } }).motionConcurrentFixture.update());
+	await expect.poll(async () => (await motionConcurrentOwner(page)).acceptedDigest).toBe(fixtures[1]!.snapshot.digest);
+	const updated = await motionConcurrentOwner(page); expect(updated.undoSteps).toBe(firstOwner.undoSteps + 1);
+	expect((await motionConcurrentExportState(page)).commits).toBe(0);
+	expect((await motionConcurrentExportState(page)).cancels).toBe(0);
+	await page.evaluate(() => (globalThis as unknown as { motionConcurrentFixture: { release(): void } }).motionConcurrentFixture.release());
+	await expect.poll(async () => (await motionConcurrentExportState(page)).cleanupPaused).toBe(true);
+	expect((await motionConcurrentExportState(page)).commits, 'actual asynchronous audio-context cleanup precedes publication').toBe(0);
+	await page.evaluate(() => (globalThis as unknown as { motionConcurrentFixture: { releaseCleanup(): void } }).motionConcurrentFixture.releaseCleanup());
+	await expect(dialog.getByRole('status')).toContainText('Saved Concurrent.mov', { timeout: 30000 }); await expect(dialog.getByRole('alert')).toHaveCount(0);
+	await close(page); await menu(page, 'File', 'Export sequence as ProRes 4444…');
+	await dialog.getByRole('button', { name: 'Choose destination and export', exact: true }).click();
+	await expect(dialog.getByRole('status')).toContainText('Saved Concurrent.mov', { timeout: 30000 });
+	const state = await motionConcurrentExportState(page); expect(state.commits).toBe(2); expect(state.cancels).toBe(0); expect(state.captures).toHaveLength(2);
+	expect(state.captures[0]!.plan.identity.revisionDigest).toBe(firstOwner.ownerProjectDigest);
+	expect(state.captures[1]!.plan.identity.revisionDigest).toBe(updated.ownerProjectDigest);
+	for (const [version, capture] of state.captures.entries()) {
+		const identity = { projectId: capture.plan.identity.projectId, revisionDigest: capture.plan.identity.revisionDigest, compositionId: capture.plan.identity.sequenceId };
+		const frames = await openMotionNativeFrameReader(createBlobScapeArchiveByteSource(new Blob([new Uint8Array(capture.picture)])), identity);
+		for (let frame = 0; frame < 3; frame++) {
+			const surface = await frames.read(frame), expected = version === 0 ? [1, 0, 0, 1] : [0, 0, 1, 1];
+			for (let index = 0; index < surface.pixels.length; index++) expect(surface.pixels[index]).toBeCloseTo(expected[index % 4]!, 6);
+		}
+		const audio = await openMotionNativePcmReader(createBlobScapeArchiveByteSource(new Blob([new Uint8Array(capture.audio)])), motionNativePcmPlan({ ...capture.plan, identity }, { sampleRate: 48000, channels: 2 }));
+		for (const offset of [0, 4096]) { const block = await audio.read(offset); for (let index = 0; index < block.length; index++) expect(block[index]).toBeCloseTo(fixtures[version]!.samples[index % 2]!, 6); }
+	}
+	const retained = await motionConcurrentOwner(page); expect(retained.acceptedDigest).toBe(fixtures[1]!.snapshot.digest);
+	for (const fixture of fixtures) for (const asset of fixture.originals) expect(retained.assets).toContainEqual({ sha256: asset.sha256, byteLength: asset.byteLength, actualSha256: asset.sha256 });
+	await test.info().attach('concurrent-pinned-exports.json', { body: JSON.stringify({ firstOwner, updated, retained, state }), contentType: 'application/json' });
+});
