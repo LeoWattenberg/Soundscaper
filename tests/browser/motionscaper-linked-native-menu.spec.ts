@@ -126,7 +126,9 @@ test('M10 native export pins picture PCM and originals while a compatible saved 
 	await close(page); await menu(page, 'File', 'Export sequence as ProRes 4444…');
 	await dialog.getByRole('button', { name: 'Choose destination and export', exact: true }).click();
 	await expect(dialog.getByRole('status')).toContainText('Saved Concurrent.mov', { timeout: 30000 });
-	const state = await motionConcurrentExportState(page); expect(state.commits).toBe(2); expect(state.cancels).toBe(0); expect(state.captures).toHaveLength(2);
+	const state = await motionConcurrentExportState(page);
+	await test.info().attach('concurrent-native-capture.json', { body: JSON.stringify({ firstOwner, updated, state }), contentType: 'application/json' });
+	expect(state.commits).toBe(2); expect(state.cancels).toBe(0); expect(state.captures).toHaveLength(2);
 	expect(state.captures[0]!.plan.identity.revisionDigest).toBe(firstOwner.ownerProjectDigest);
 	expect(state.captures[1]!.plan.identity.revisionDigest).toBe(updated.ownerProjectDigest);
 	for (const [version, capture] of state.captures.entries()) {
@@ -141,5 +143,5 @@ test('M10 native export pins picture PCM and originals while a compatible saved 
 	}
 	const retained = await motionConcurrentOwner(page); expect(retained.acceptedDigest).toBe(fixtures[1]!.snapshot.digest);
 	for (const fixture of fixtures) for (const asset of fixture.originals) expect(retained.assets).toContainEqual({ sha256: asset.sha256, byteLength: asset.byteLength, actualSha256: asset.sha256 });
-	await test.info().attach('concurrent-pinned-exports.json', { body: JSON.stringify({ firstOwner, updated, retained, state }), contentType: 'application/json' });
+	await test.info().attach('concurrent-pinned-exports.json', { body: JSON.stringify({ firstOwner, updated, retained }), contentType: 'application/json' });
 });
