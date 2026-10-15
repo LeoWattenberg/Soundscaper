@@ -2,7 +2,8 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed application
-integration is source `b91204a52`, including the reviewed native shutdown repair,
+integration is source `8b2325853`, including native-selection draft ownership,
+the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -105,9 +106,12 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
-| Complete static attempt, `2f1ffce7f` | Closed failed at the FFmpeg runtime audit: the isolated worktree's `node_modules/@ffmpeg/core/package.json` was a symlink refused by the existing regular-file guard. Full lint, source/product/test/browser/tooling types and architecture passed. Remaining audits, documentation checks and the build were not reached. All 56 recorded/session identities closed; canonical package bytes/metadata and own aliases were unchanged. This isolated dependency-topology refusal does not establish an application defect or a complete static pass. |
+| Native Amplify selection, `2934d6a70`, integrated as `8b2325853` | A real-controller case reproduced native number selection without keydown being replaced by late automatic headroom. Native selection now reserves the existing Amplify draft. All 22 directly relevant unit controls and nine component cases passed across Chromium, Firefox and WebKit, retaining untouched automatic headroom, keyboard selection and exact replacement with six. Original 30-second case/5-second assertion bounds and zero retries remain. Focused strict types, changed lint and size passed; all 37 recorded identities/four sessions were absent and input/link guards passed. The earlier controlled failure remains failed; the historical guide failure cause remains unproven. These focused results postdate the `db4e586d0` complete gates and do not retag them. |
+| Complete static gate, `db4e586d0` | Passed the unchanged complete `npm run check:static`: full lint, all source/product/test/browser/tooling types, architecture, audits, documentation and production build, within the original 1,200-second deadline and static-only 12 GiB heap. The isolated worktree uses a verified real copy of the unchanged five-file `@ffmpeg/core` package; no audit or budget was weakened. All 31,992 canonical package bodies/metadata, 85 symlink targets and five owned core files were unchanged. All 90 sampled PID/start identities and root/outer sessions were absent; inaccessible process observations remain explicit. Startup tightening changed no budget. This does not replace the earlier failed static attempt or qualify the complete Node, browser, native-host matrix or coverage gates. |
+| All five exhaustive Node partitions, `db4e586d0` | Passed: 27,448 tests, 27,434 passed, zero failures/cancellations and 14 declared skips; all 1,212 Motion cases passed. The unchanged maintained partitions used their original deadlines, native prerequisites and default runtime heap, without retries. All 51,414 declared input records were stable, and all 5,335 recorded PID/start identities and five authenticated root sessions were absent; sampled-census limitations remain explicit. Two identical inventories retained 5,272 raw profiles totaling 13,268,876,015 bytes, unparsed and unadmitted as coverage. The earlier failed `2f1ffce7f` run remains unchanged; this is not browser, native application or release qualification. |
+| Complete static attempt, `2f1ffce7f` | Closed failed at the FFmpeg runtime audit: the isolated worktree's `node_modules/@ffmpeg/core` package-directory symlink was refused while reading its `package.json` by the existing regular-file guard. Full lint, source/product/test/browser/tooling types and architecture passed. Remaining audits, documentation checks and the build were not reached. All 56 recorded/session identities closed; canonical package bytes/metadata and own aliases were unchanged. This isolated dependency-topology refusal does not establish an application defect or a complete static pass. |
 | All five exhaustive Node partitions, `2f1ffce7f` | Closed failed: 27,448 tests, 27,433 passed, one failed and 14 declared skips. Common-2's sole failure is nightly-payload import closure for the native range-touch owner; the other four partitions and all 1,212 Motion cases passed. Post-audit verified 51,414 source/installed inputs, empty recorded/root sessions and 5,278 stable raw profiles totaling 13,271,131,217 bytes. Coverage remains unparsed and unadmitted; no Node heap override or retry was used. |
-| Nightly range-touch staging repair, `2f4eb36b7`, integrated as `59c4045b1` | Adds the existing native range-touch owner to the nightly payload and its staging fixture. All 19 directly relevant staging/import/refusal checks passed without skips, along with changed lint, size and diff checks. Application, dependency and assistance-runtime bytes are unchanged. This focused pass does not replace the failed complete Node run; a new integrated gate remains required. |
+| Nightly range-touch staging repair, `2f4eb36b7`, integrated as `59c4045b1` | Adds the existing native range-touch owner to the nightly payload and its staging fixture. All 19 directly relevant staging/import/refusal checks passed without skips, along with changed lint, size and diff checks. Application, dependency and assistance-runtime bytes are unchanged. This focused pass does not replace the failed complete Node run; the later integrated `db4e586d0` gate retains its own result. |
 | Native chooser observations, `d7dc53145`, integrated as `60afc104a` | Twenty new offline controls and seven existing chooser controls pass. The maintained driver now emits at most four passive records/8 KiB with actual display identifier, target/candidate window identities, owner PID, focus and phase timestamps. Passive X11 errors are isolated by display identity. Removing only observation additions restores the original driver AST; actions, deadlines and pass/fail predicates stay unchanged. Tooling/focused test types, changed lint and size pass. No live application, chooser, compiler or decoder replay occurred; the failed native invocation remains failed and its cause remains unknown. |
 | Vanished-process liveness reads, `edfe0ae3f`, integrated as `2960d5449` | Two deterministic tests reproduced treating a vanished `/proc` ESRCH read as a cleanup error. The liveness check now treats only ENOENT/ESRCH reads as absence, matching the existing process samplers. All 29 shutdown/observation controls, strict tooling/full test types, changed lint and size pass. Recycled identities remain excluded; malformed/permission/unknown read errors and signalling errors remain failures. All 18 recorded identities/owners were absent. No application replay, chooser repair or retrospective native-duration pass is claimed. |
 | Shared Amplify draft reservation, `3330272ef`, integrated as `b91204a52` | A real-controller Firefox case reproduced late headroom replacing a native select-all draft before insertion. Five production lines reserve existing draft ownership on unmodified Ctrl/Cmd+A. All 11 Amplify controls and three existing blur/keyboard controls pass; the untouched-field and native-select-all cases pass in Chromium, Firefox and WebKit with original bounds and no retries. Strict types, changed lint, size, normal hidden-map build and startup checks pass. All 83 recorded identities were absent; source, browser and installed-package guards passed. Earlier build-output-admission, lint-owner deadline and default-heap compiler failures remain separately retained. This establishes the reproduced keyboard case, not the cause or repair of the historical full-suite Amplify failure. |
@@ -215,12 +219,21 @@ The vanished-process read repair is
 The four current maximum profiles and completed output/memory/closure audits are
 `current-036899f59-native-maximum-preparation/qualification.json`, SHA-256
 `b34f1aa1b3ba177aed1218c6dd77a8d6ac171e1fe4b10669c0b6b8890f80783f`.
+The native-selection repair qualification is
+`amplify-native-selection-db4-20261015/qualification.json`, SHA-256
+`c54d349cc83f6ef6b574265bea4c4ace52422ded817e892c598ed874551e9977`.
+The complete all-five Node gate on `db4e586d0` is
+`current-db4e586d0-node/qualification.json`, SHA-256
+`baf7db57edfb6fc0519049a55bfc11889848daace4f8404df572191a7f43757b`.
 The latest failed complete Node post-audit is
 `current-2f1ffce7f-node/post-audit.json`, SHA-256
 `d2bda9b97d453573633bd4b53736bfe17f6aded9062ce51411fc200bd14a7723`.
 Its focused staging repair is
 `nightly-range-touch-input-2f1ffce7f-20261015/qualification.json`, SHA-256
 `7cf3cb63e53b5a9474e611a23a24c13571f875a1974313d912ff1ba04fca73c3`.
+The complete static gate on `db4e586d0` is
+`current-db4e586d0-static/qualification.json`, SHA-256
+`08b2ce1890c38866763dfc88c5c8d075f942ac154559bf5ea6aadab69a1c42b9`.
 The latest failed static attempt is
 `current-2f1ffce7f-static/qualification.json`, SHA-256
 `0d386c07ebcd4654f09c8e69cd39c88ba0b829bc5c31c2352b984f850edb0136`.
