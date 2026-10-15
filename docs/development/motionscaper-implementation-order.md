@@ -75,23 +75,36 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass. The
-complete static gate on `db4e586d0` passed full lint, types, architecture,
+complete static gate on `c6033a71a` passed full lint, types, architecture,
 audits, documentation and production build, with the 12 GiB heap confined to
 that static command. Source/package, owned-copy, process and output guards
-passed; startup tightening changed no budget. The earlier `2f1ffce7f` package-directory
+passed; startup tightening changed no budget. The earlier `db4e586d0` static
+pass remains separately attributed. The earlier `2f1ffce7f` package-directory
 symlink refusal remains failed and source-attributed.
-All five exhaustive Node partitions on `db4e586d0` passed: 27,434 passed,
-zero failed or cancelled and 14 declared skips out of 27,448 tests. All 1,212
+All five exhaustive Node partitions on `c6033a71a` passed: 27,442 passed,
+zero failed or cancelled and 14 declared skips out of 27,456 tests. All 1,212
 Motion cases passed. Input, sampled-process and stable raw-profile guards
 passed, without a Node test heap override; coverage remains unparsed and
-unadmitted. The earlier `2f1ffce7f` run remains failed with 27,433 passes,
+unadmitted. The current receipt is `current-c6033a71a-node/qualification.json`.
+The earlier `db4e586d0` gate remains separately passed with 27,434 passes,
+zero failures and 14 declared skips out of 27,448 tests.
+The earlier `2f1ffce7f` run remains failed with 27,433 passes,
 one nightly-payload import-closure failure and 14 skips. Earlier source-attributed
 Node passes remain separate. The later native-selection draft repair (`2934d6a70`,
 integrated as `8b2325853`) passed 22 unit controls and nine component cases across
 Chromium, Firefox and WebKit. Untouched automatic headroom and exact native/keyboard
 replacement pass; the controlled earlier failure remains failed and the historical
 guide cause remains unproven. Those focused results postdate the `db4e586d0`
-complete gates and retain separate source attribution. The complete 32-case handbook browser gate passed on
+complete gates and retain separate source attribution.
+Six native preparation phases on `c6033a71a` passed helper verification,
+Motion/successor staging, unsigned directory packaging and resource verification.
+All 1,946 generated files and the source/npm/prefix/prior-package guards passed;
+17 recorded identities and six sessions were absent. At that preparation boundary,
+the new packaged sandbox helpers were ordinary user-owned 0755 copies. This gate
+ran no native/reference compiler, decoder or application workflow. Complete
+current-source browser, installed aggregate, duration and maximum gates remain
+open, along with external AE/platform qualification.
+The complete 32-case handbook browser gate passed on
 `322c8a6b1`. That source's complete ordinary browser run closed failed:
 7,228 passed, 48 failed and 287 skipped. The Motion-named subset passed 436
 cases with two declared skips; this does not qualify shared behavior or the
