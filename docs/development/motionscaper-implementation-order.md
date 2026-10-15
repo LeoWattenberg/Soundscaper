@@ -94,6 +94,16 @@ proof is pending. Codec tests (`4fa4b3450`) now retain their actual encoded or
 refused branch, parsed facts and output bytes; no new encoding result is claimed.
 These changes require fresh applicable final gates; the earlier results below
 retain their exact source attribution.
+The full gates on `361418fee` closed failed: Node reported 27,406 passes,
+45 failures and 17 skips, with all 1,224 Motion cases passing. Forty-four
+failures reached missing reference-reader or dependency-path prerequisites;
+one caught the expanded Hindi catalog's chunk size. The static gate also
+refused seven oversized locale chunks. Repair `802026569` separates complete
+catalogs into lazy core/Motion owners. Its production-bundler test round-trips
+all 59 catalogs, and the normal application build passes with a largest chunk
+of 486,512 bytes and its startup graph within the unchanged limits. The test
+environment repair and fresh full gates remain required; neither failed gate
+is promoted by these focused results.
 Substantial implementations and focused browser/native workflows pass. The
 complete static gate on `c6033a71a` passed full lint, types, architecture,
 audits, documentation and production build, with the 12 GiB heap confined to

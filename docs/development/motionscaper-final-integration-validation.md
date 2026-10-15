@@ -2,10 +2,11 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest local integration
-is `f6eb44aa9`, including the catalog-owner admission fix (`2e10bc63e`), bridge
+includes the catalog-owner admission fix (`2e10bc63e`), bridge
 locale repair (`3ad4bda4e`), all 26 generated UI/handbook languages and test-only
-morph/codec evidence additions. Fresh applicable final gates have not run on
-this integration. Earlier application
+morph/codec evidence additions. Full gates at `361418fee` closed failed;
+catalog bundling repair `802026569` has focused validation, with fresh full
+gates and the test-prerequisite repair still pending. Earlier application
 source `8b2325853` includes native-selection draft ownership,
 the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
@@ -105,6 +106,38 @@ register activation, hosted deployment, dispatch or publication was performed
 by this recovery.
 
 ## Latest integrated validation
+
+The complete five-partition Node gate on `361418fee` closed with 27,468 tests:
+27,406 passed, 45 failed, 17 skipped and none cancelled. All 1,224 Motion cases
+passed. Forty-four failures reached missing XML/media readers or dependency
+path prerequisites; the remaining failure caught the Hindi catalog's size.
+The complete static gate passed lint, types, architecture, audits and handbook
+checks/build, then refused seven chunks above 500,000 bytes: hi 620,842,
+el 569,154, hy 560,418, ru 556,845, uk 550,597, fa 511,766 and ar 501,085.
+Both outcome-agnostic closure audits passed. These full gates remain failed;
+their raw coverage remains opaque and unadmitted.
+
+Repair `802026569` keeps each committed catalog and the generated loader index
+intact while giving its core and Motion entries separate lazy build owners.
+The production-bundler regression round-trips all 59 complete catalogs,
+including their provenance, and checks every emitted chunk below 490,000 bytes.
+It also verifies that catalog data stays outside the initial static graph and
+that locale fragments do not enlarge the boot preload list. All three controls
+and changed-file lint pass. The first application build caught a 657-byte
+startup-budget excess from static fragment imports; that failure is retained.
+Awaiting fragment imports inside the selected locale fixes that regression.
+The subsequent normal Soundscaper build passes all presentation, asset and
+chunk guards: 567 JavaScript chunks, largest 486,512 bytes. Its initial graph
+has six requests, 253,662 raw bytes and 69,341 Brotli bytes; the normal startup
+ratchet found no ceiling to tighten. This validates the repair, not the full
+Node/static/browser/native release gates. The test worktree still needs its
+physical dependency directory and authenticated reference readers before the
+next full Node run.
+
+The failed Node receipt is `current-361418fee-node-final/qualification.json`,
+SHA-256 `3a70a35ee275be7e08ee30cc8d913e6e7c3ddee36ca0c73cf3cf47d644c96b1c`.
+The failed static receipt is `current-361418fee-static/qualification.json`,
+SHA-256 `c92bce18f7bc891a9d5762eb4ee6fa843cdc821cd8f377e8bebe203e18d2496d`.
 
 The latest locale/morph/codec additions are separate from the frozen `c6033a71a`
 full-gate evidence. The catalog fix retained its two failing pre-fix cases and
