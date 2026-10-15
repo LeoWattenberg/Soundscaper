@@ -89,6 +89,8 @@ belong in Git history, not in the maintained documentation set.
 
 ## Look up evidence and reference material
 
+- [audio.com native project sync](research/audio-com-project-sync.md) records
+  the authorization scopes, metadata/block wire format, and adapter boundary.
 - [Audacity effect parameters](reference/audacity-effect-parameters.md) records
   the AUP4 parameter audit.
 - [Interchange conformance](reference/interchange-conformance.md) explains the

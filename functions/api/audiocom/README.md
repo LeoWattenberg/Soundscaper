@@ -6,6 +6,25 @@ a route to list owned audio. The default provider uses the
 An administrator can select a self-hosted Audiocity server, which additionally
 advertises whole-file AUP3/AUP4 archive storage.
 
+## Server preferences
+
+audio.com is always the editor's default server, including when loading older
+preferences. Open **Edit → Preferences → Advanced**, enter the **Server URL**
+of an Audiocity instance, and save to select it for this browser or desktop
+profile. **Use audio.com** restores `https://api.audio.com`. The panel remains an
+opt-in entry under **Window → audio.com**.
+
+The selected server must be a public HTTPS origin reachable by the Soundscaper
+service. A local HTTP Audiocity server works with a locally running Soundscaper
+Pages server that explicitly enables local development. Cloudflare cannot use
+the browser's localhost address to reach a server on the user's computer.
+
+Each custom connection dynamically registers its own public OAuth client with
+the selected server. No administrator redeploy, shared client secret, or manual
+client ID entry is needed. Saving another server cancels the previous panel's
+search, preview and queued uploads, including when the panel is closed, and
+requires reconnecting. Existing provider credentials never follow the selection.
+
 ## Deployment
 
 1. Register an OAuth client with audio.com for Soundscaper, including the exact
@@ -19,10 +38,12 @@ advertises whole-file AUP3/AUP4 archive storage.
    bytes. Configure `AUDIOCOM_CLIENT_SECRET` only for a confidential registration
    using `client_secret_post`. The master key and optional client secret remain
    server-side; the public client ID appears in the authorization URL.
-3. Apply `migrations/freesound-oauth/0002_audiocom.sql` to the existing
+3. Apply the audio.com migrations starting at `0002_audiocom.sql` to the existing
    `FREESOUND_OAUTH_DB` binding. audio.com uses separate `audiocom_oauth_*` tables;
    it does not reuse Freesound grants or encryption keys. Both migrations can be
    applied with `npx wrangler d1 migrations apply FREESOUND_OAUTH_DB --remote`.
+   Migration `0003_audiocom_provider_binding.sql` adds nullable issuer/client
+   bindings to attempts and grants without replacing existing records.
 4. The optional `AUDIOCOM_OAUTH_REDIRECT_URI` must have the exact callback path
    above on `https://soundscaper.org` (no query, fragment, credentials or port).
    `AUDIOCOM_LOCAL_DEVELOPMENT=1` admits same-origin loopback HTTP for local tests.
@@ -30,12 +51,16 @@ advertises whole-file AUP3/AUP4 archive storage.
 No production application registration, schema migration, remote upload, or
 deployment is performed automatically by the integration.
 
+The production public client and independent encryption key were provisioned on
+2026-10-15 with the exact `soundscaper.org` callback. Migrations 0002 and 0003 were
+applied to the production binding; preview has its separate database and key.
+
 ### PR previews
 
 The Pages project is `soundscaper`, with hostname `soundscaper-5ki.pages.dev`.
 Its preview environment uses the separate `soundscaper-audiocom-preview` D1
 database configured in `wrangler.jsonc`; production keeps its existing binding.
-Apply both migrations to preview with:
+Apply all pending migrations to preview with:
 
 ```sh
 npx wrangler d1 migrations apply FREESOUND_OAUTH_DB --remote --env preview
@@ -85,33 +110,31 @@ sign in as `soundscaper-validation@example.test` with the test-only password
 `soundscaper-audiocity-test-only-password`. Stop it after validation. Its generated
 configuration and credentials stay in ignored temporary files and are removed on exit.
 
-For an existing local Audiocity instance, configure these backend variables:
+For a locally running Soundscaper Pages server, configure these backend variables:
 
 ```text
-AUDIOCOM_PROVIDER=audiocity
-AUDIOCOM_API_ORIGIN=http://127.0.0.1:8088
 AUDIOCOM_LOCAL_DEVELOPMENT=1
-AUDIOCOM_CLIENT_ID=<registered-client-id>
 AUDIOCOM_OAUTH_MASTER_KEY=v1:<base64url-32-random-bytes>
 ```
 
-Register a public client once at that server's `/auth/client`, supplying
-`client_name`, `token_endpoint_auth_method: "none"`, and `redirect_uris` containing
-the exact editor callback URL, for example
-`http://127.0.0.1:4325/api/audiocom/oauth/callback`. Use its returned `client_id`;
-do not copy Audacity's compatibility client secret or audio.com's credentials.
+Select `http://127.0.0.1:8088` in Advanced preferences. Soundscaper registers a
+public client at `/auth/client` using its exact local callback, for example
+`http://127.0.0.1:4325/api/audiocom/oauth/callback`; do not copy Audacity's
+compatibility client secret or audio.com's credentials.
 Keep the master key in ignored `.dev.vars` or the deployment secret store, and
 apply the same local D1 migrations as the default provider. The editor and
 callback must use the same hostname and port. HTTP is admitted only for an
 explicitly enabled loopback development origin. Hosted Audiocity origins require
 HTTPS, with no URL path, credentials, query or fragment.
 
-The provider is fixed by administrator environment configuration. Requests and
-browser preferences cannot change it. `AUDIOCOM_API_ORIGIN` is rejected unless
-`AUDIOCOM_PROVIDER=audiocity`; the default retains audio.com's exact API and CDN
-pins. API, OAuth, capability hooks and media for Audiocity use the one configured
-origin with their exact route and capability shapes. Changing providers or their
-origin requires reconnecting; existing grants cannot be sent to another issuer.
+Client requests carry `X-Audiocom-Api-Origin`, defaulting to audio.com regardless
+of legacy deployment overrides. The backend validates the selection and pins the
+issuer, registered public client ID, scope and callback in D1 attempts and grants.
+Callbacks and refresh use this persisted binding. Authenticated requests must
+match the selected issuer; headerless audio-element previews use their grant's
+issuer. The default retains audio.com's exact API and CDN pins. API, OAuth,
+capability hooks and media for Audiocity use one origin with exact route and
+capability shapes. Changing origin requires reconnecting.
 Audiocity authorization requests `public projects`, rather than the administrative
 `all` scope. Discovery at `/.well-known/audiocity` supplies archive formats and
 transfer limits; unadvertised project transports stay disabled.

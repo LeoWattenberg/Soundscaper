@@ -865,22 +865,31 @@ sign-in requires an explicit registered callback on that same Pages project,
 isolated preview D1 and secrets, and a callback-origin check; the original
 editor polls on its own host and receives a host-only cookie. Production cannot
 use a preview callback; the default https://api.audio.com token/API targets
-disable redirects and apply ten-second control-request deadlines. An explicit
-administrator-configured Audiocity provider pins one API, authorization and
-website origin; HTTP is restricted to enabled loopback development. OAuth
-requests public projects only for Audiocity, and origin-bound attempt
-identifiers prevent grants being forwarded after a provider change. The browser
-and Electron main validate authorization and content links against configuration
-from their fixed Soundscaper backend, never a renderer-selected origin. D1
-stores provider tokens and polling session secrets only as AES-256-GCM
-ciphertext with provider- and field-specific authenticated data; browser
-sessions use Secure HttpOnly SameSite=Strict cookies and desktop sessions use
-opaque hashed Soundscaper capabilities. Rolling sessions expire after 30 days,
-refresh rotation uses generation-fenced leases, and disconnect removes orphan
-grants. No public userinfo endpoint is invented or account identity inferred.
-Uploads require supported raw audio of exactly 1 through 100,000,000 bytes with
-bounded metadata; only provider-returned policies on exact HTTPS
-s3.audio.com/audio/, s3.ustatik.com/audio.com.audio/, or
+disable redirects and apply ten-second control-request deadlines. audio.com is
+the default. An opt-in Advanced preference chooses a custom Audiocity server
+through a validated origin header; custom origins require public HTTPS, with
+HTTP loopback restricted to an explicitly enabled local Soundscaper server. Each
+custom OAuth attempt registers its own public client with a fixed Soundscaper
+callback; the default client secret is never sent to a custom server. D1
+persists the issuer, public client ID, scope and callback on each attempt and
+grant, so headerless callbacks and refresh use the authorized binding, while a
+changed selection requires reconnecting. Headerless audio previews derive their
+issuer from the authenticated grant. OAuth requests public projects only for
+Audiocity, and origin-bound attempt identifiers and persisted bindings prevent
+grants being forwarded after a provider change. The browser and Electron main
+validate authorization and content links against configuration returned by their
+fixed Soundscaper backend and matched to the explicit server selection. Electron
+main captures only successfully validated server-issued provider metadata, and
+changing preferences disposes stale searches, previews, uploads and archive
+transfers even while the panel is closed. D1 stores provider tokens and polling
+session secrets only as AES-256-GCM ciphertext with provider- and field-specific
+authenticated data; browser sessions use Secure HttpOnly SameSite=Strict cookies
+and desktop sessions use opaque hashed Soundscaper capabilities. Rolling
+sessions expire after 30 days, refresh rotation uses generation-fenced leases,
+and disconnect removes orphan grants. No public userinfo endpoint is invented or
+account identity inferred. Uploads require supported raw audio of exactly 1
+through 100,000,000 bytes with bounded metadata; only provider-returned policies
+on exact HTTPS s3.audio.com/audio/, s3.ustatik.com/audio.com.audio/, or
 s3.eu-central-1.wasabisys.com/audio.com.audio/source/ paths receive bytes. The
 Wasabi source destination is upload-only and does not broaden playback or
 source-download authority, and provider OAuth credentials are never sent to
