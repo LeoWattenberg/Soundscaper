@@ -8,12 +8,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import { shutdownMotionSustainedApplication } from '../scripts/performance/motionscaper-sustained-shutdown.ts';
 import { readMotionProcessIdentity } from '../scripts/performance/motionscaper-sustained-observation.ts';
-import type { MotionProcessIdentity } from '../scripts/performance/motionscaper-sustained-process.ts';
+import { motionSustainedIdentityAlive } from '../scripts/performance/motionscaper-sustained-launch.ts';
+import { parseMotionProcessStat, type MotionProcessIdentity } from '../scripts/performance/motionscaper-sustained-process.ts';
 
-async function alive(identity: MotionProcessIdentity) {
-	try { return (await readMotionProcessIdentity(identity.pid)).startTicks === identity.startTicks; }
-	catch (error) { if (Reflect.get(error as object, 'code') === 'ENOENT') return false; throw error; }
-}
+const alive = (identity: MotionProcessIdentity) => motionSustainedIdentityAlive(identity);
 async function gone(identities: readonly MotionProcessIdentity[]) {
 	const deadline = performance.now() + 3000;
 	while ((await Promise.all(identities.map(alive))).some(Boolean)) {
@@ -52,6 +50,62 @@ function options(overrides: Partial<Parameters<typeof shutdownMotionSustainedApp
 	return { owner, retained: () => [owner, dependent], prepare: async () => undefined, closed: Promise.resolve({ code: 0, signal: null }),
 		isAlive: async () => true, send: () => undefined, signalUnadmitted: () => { throw new Error('Unadmitted authority was not expected.'); }, waitGone: async () => undefined, ...overrides };
 }
+for (const code of ['ENOENT', 'ESRCH']) {
+	test(`Motion sustained identity treats a vanished /proc read ${code} as absent`, async () => {
+		const error = Object.assign(new Error('The observed process vanished.'), { code });
+		assert.equal(await motionSustainedIdentityAlive(dependent, async pid => {
+			assert.equal(pid, dependent.pid); throw error;
+		}), false);
+	});
+}
+test('Motion sustained identity accepts its current start ticks and excludes a recycled PID', async () => {
+	const requests: number[] = [];
+	for (const [startTicks, expected] of [[dependent.startTicks, true], ['9001', false]] as const) {
+		assert.equal(await motionSustainedIdentityAlive(dependent, async pid => {
+			requests.push(pid); return { ...dependent, startTicks };
+		}), expected);
+	}
+	assert.deepEqual(requests, [dependent.pid, dependent.pid]);
+});
+for (const error of [Object.assign(new Error('Permission denied.'), { code: 'EACCES' }),
+	Object.assign(new Error('Invalid read.'), { code: 'EINVAL' }), new Error('Unexpected observation failure.'),
+	{ code: 'OTHER', message: 'Unknown failure.' }, 'unknown failure', null, undefined]) {
+	test(`Motion sustained identity propagates other observation errors unchanged: ${String(error)}`, async () => {
+		await assert.rejects(motionSustainedIdentityAlive(dependent, () => Promise.reject(error)), actual => actual === error);
+	});
+}
+test('Motion sustained identity propagates malformed /proc data instead of declaring the process absent', async () => {
+	await assert.rejects(motionSustainedIdentityAlive(dependent, async () => parseMotionProcessStat('malformed /proc stat')),
+		{ message: 'Invalid Linux process stat.' });
+});
+test('Motion shutdown skips a vanished residual /proc read and recycled PID while retiring a current residual', async () => {
+	const vanished = { pid: 700003, parentPid: owner.pid, startTicks: '103' };
+	const recycled = { pid: 700004, parentPid: owner.pid, startTicks: '104' };
+	const current = new Map([owner, dependent].map(identity => [identity.pid, identity]));
+	const sent: number[] = [];
+	const readIdentity = async (pid: number): Promise<MotionProcessIdentity> => {
+		if (pid === vanished.pid) throw Object.assign(new Error('Gone after /proc open.'), { code: 'ESRCH' });
+		if (pid === recycled.pid) return { ...recycled, startTicks: '999' };
+		const identity = current.get(pid);
+		if (!identity) throw Object.assign(new Error('Gone before /proc open.'), { code: 'ENOENT' });
+		return identity;
+	};
+	const isAlive = (identity: MotionProcessIdentity) => motionSustainedIdentityAlive(identity, readIdentity);
+	const result = await shutdownMotionSustainedApplication(options({ retained: () => [owner, dependent, vanished, recycled], isAlive,
+		send: identity => { sent.push(identity.pid); current.delete(identity.pid); },
+		waitGone: async identities => { assert.deepEqual(await Promise.all(identities.map(isAlive)), identities.map(() => false)); },
+	}));
+	assert.deepEqual(result.errors, []);
+	assert.deepEqual(sent, [owner.pid, dependent.pid]);
+	assert.deepEqual(result.signals.map(value => [value.identity?.pid, value.phase]),
+		[[owner.pid, 'graceful-owner'], [dependent.pid, 'residual-descendants']]);
+});
+test('Motion shutdown retains ESRCH thrown by signalling a still-authenticated process', async () => {
+	const failure = Object.assign(new Error('Signal failed after identity admission.'), { code: 'ESRCH' });
+	const result = await shutdownMotionSustainedApplication(options({ send: () => { throw failure; } }));
+	assert.deepEqual(result.errors, [failure, failure]);
+	assert.ok(result.signals.every(value => value.result === String(failure)));
+});
 test('Motion shutdown waits for owner closure before signalling an authenticated residual and excludes a recycled identity', async () => {
 	let close!: () => void, requested!: () => void;
 	const closed = new Promise<{ code: 0; signal: null }>(resolve => { close = () => resolve({ code: 0, signal: null }); });
