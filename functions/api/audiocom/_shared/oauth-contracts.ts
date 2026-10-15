@@ -6,7 +6,9 @@ export interface AudiocomTokenPair {
 	readonly refreshToken: string;
 	readonly expiresInSeconds: number;
 }
-export class AudiocomOAuthContractError extends Error {}
+export class AudiocomOAuthContractError extends Error {
+	constructor(message: string, readonly diagnosticCode = 'invalid_upstream_response') { super(message); }
+}
 
 export function parseOAuthStartInput(value: unknown): Readonly<{ client: AudiocomOAuthClientKind }> {
 	const source = exact(value, ['client']);
@@ -19,15 +21,17 @@ export function parseOAuthPollInput(value: unknown): Readonly<{ attemptId: strin
 }
 export function normalizeTokenPair(value: unknown, requiredScopes: readonly string[] = ['public']): AudiocomTokenPair {
 	const source = record(value);
-	if (source.token_type !== 'Bearer' && source.token_type !== 'bearer') throw new AudiocomOAuthContractError('Invalid OAuth token type.');
-	if (typeof source.scope === 'string' && requiredScopes.some(scope => !(source.scope as string).split(' ').includes(scope))) throw new AudiocomOAuthContractError('Missing requested OAuth scope.');
-	if (!Number.isSafeInteger(source.expires_in) || Number(source.expires_in) < 60 || Number(source.expires_in) > 604_800) {
-		throw new AudiocomOAuthContractError('Invalid OAuth expiry.');
+	if (typeof source.token_type !== 'string' || source.token_type.toLowerCase() !== 'bearer') throw new AudiocomOAuthContractError('Invalid OAuth token type.', 'oauth_token_type_invalid');
+	if (typeof source.scope === 'string' && requiredScopes.some(scope => !(source.scope as string).split(' ').includes(scope))) throw new AudiocomOAuthContractError('Missing requested OAuth scope.', 'oauth_token_scope_missing');
+	if (!Number.isSafeInteger(source.expires_in) || Number(source.expires_in) < 60) {
+		throw new AudiocomOAuthContractError('Invalid OAuth expiry.', 'oauth_token_expiry_invalid');
 	}
-	return { accessToken: credential(source.access_token), refreshToken: credential(source.refresh_token), expiresInSeconds: Number(source.expires_in) };
+	// A longer issuer lifetime is valid. Refresh conservatively within one week
+	// rather than rejecting the authorization or extending local session policy.
+	return { accessToken: credential(source.access_token), refreshToken: credential(source.refresh_token), expiresInSeconds: Math.min(Number(source.expires_in), 604_800) };
 }
 function credential(value: unknown): string {
-	if (typeof value !== 'string' || value.length < 1 || value.length > 8192 || /[\r\n]/u.test(value)) throw new AudiocomOAuthContractError('Invalid OAuth credentials.');
+	if (typeof value !== 'string' || value.length < 1 || value.length > 8192 || /[\r\n]/u.test(value)) throw new AudiocomOAuthContractError('Invalid OAuth credentials.', 'oauth_token_credentials_invalid');
 	return value;
 }
 function capability(value: unknown): string {

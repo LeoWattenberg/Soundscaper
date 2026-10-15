@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exchangeAuthorizationCode } from '../functions/api/audiocom/_shared/oauth-provider.ts';
+import { normalizeTokenPair } from '../functions/api/audiocom/_shared/oauth-contracts.ts';
 
 const context = { request: new Request('https://soundscaper.org/api/audiocom/oauth/callback'), env: { AUDIOCOM_CLIENT_ID: 'client' }, params: {} };
 
@@ -15,6 +16,13 @@ test('OAuth operator diagnostics report rejected status without logging provider
 	assert.match(output, /audiocom_oauth_token_rejected/u);
 	assert.match(output, /400/u);
 	assert.doesNotMatch(output, /private-code|private-verifier|error_description/u);
+});
+
+test('valid long-lived bearer responses refresh within the application limit and accept case-insensitive token types', () => {
+	for (const token_type of ['Bearer', 'bearer', 'BEARER']) {
+		const pair = normalizeTokenPair({ token_type, access_token: 'access', refresh_token: 'refresh', expires_in: 2_592_000, scope: 'public' });
+		assert.equal(pair.expiresInSeconds, 604_800);
+	}
 });
 
 test('malformed token diagnostics retain only field types and numeric expiry', async t => {
