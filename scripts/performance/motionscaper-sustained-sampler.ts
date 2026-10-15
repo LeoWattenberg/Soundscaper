@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { open } from 'node:fs/promises';
+import { open, type FileHandle } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { MotionSustainedCdp, MotionSustainedTelemetry } from './motionscaper-sustained-cdp.ts';
-import { sampleMotionOwnedProcesses } from './motionscaper-sustained-observation.ts';
+import { sampleMotionOwnedProcesses, type MotionOwnedMemorySample } from './motionscaper-sustained-observation.ts';
 import { MOTION_SUSTAINED_PLAN as plan, type MotionSustainedMemorySample } from './motionscaper-sustained-plan.ts';
 import type { MotionProcessIdentity } from './motionscaper-sustained-process.ts';
 
@@ -52,7 +52,11 @@ export async function startMotionSustainedSampler(options: Readonly<{
 			wasmCapacityBytes: targets.flatMap(target => target.wasmCapacityBytes) };
 		if (value.rssBytes > plan.maximumRssBytes || value.pssBytes > plan.maximumPssBytes
 			|| value.isolateUsedHeapBytes.some(bytes => bytes > plan.maximumIsolateHeapBytes)
-			|| value.wasmCapacityBytes.some(bytes => bytes > plan.maximumWasmCapacityBytes)) throw new Error('Declared memory ceiling exceeded.');
+			|| value.wasmCapacityBytes.some(bytes => bytes > plan.maximumWasmCapacityBytes)) {
+			const error = new Error('Declared memory ceiling exceeded.');
+			await retainMemoryRejection(output, options.logPath, { phase: options.phase, memory, targets, summary: value }, error);
+			throw error;
+		}
 		if (samples.length && value.elapsedMs - samples.at(-1)!.elapsedMs > plan.maximumSampleGapMs) throw new Error('Declared process/telemetry cadence exceeded.');
 		await output.write(`${JSON.stringify({ phase: options.phase, memory, targets, summary: value })}\n`);
 		samples.push(value); telemetry.push(...targets);
@@ -80,4 +84,38 @@ export async function startMotionSustainedSampler(options: Readonly<{
 		assertHealthy() { if (failure) throw failure; },
 		stop(): Promise<MotionSustainedPhaseSamples> { return stopped ??= stop(); },
 	};
+}
+
+type MemoryCeiling = 'maximumRssBytes' | 'maximumPssBytes' | 'maximumIsolateHeapBytes' | 'maximumWasmCapacityBytes';
+interface MemoryViolation {
+	readonly cap: MemoryCeiling; readonly actualBytes: number; readonly maximumBytes: number; readonly index?: number;
+}
+function ceilingViolations(value: MotionSustainedMemorySample): readonly MemoryViolation[] {
+	const violations: MemoryViolation[] = [];
+	const check = (cap: MemoryCeiling, actualBytes: number, index?: number): void => {
+		if (actualBytes > plan[cap]) violations.push({ cap, actualBytes, maximumBytes: plan[cap], ...(index === undefined ? {} : { index }) });
+	};
+	check('maximumRssBytes', value.rssBytes); check('maximumPssBytes', value.pssBytes);
+	value.isolateUsedHeapBytes.forEach((bytes, index) => check('maximumIsolateHeapBytes', bytes, index));
+	value.wasmCapacityBytes.forEach((bytes, index) => check('maximumWasmCapacityBytes', bytes, index));
+	return violations;
+}
+
+/** A terminal rejection is evidence, never an accepted sample or a reason to retry. */
+async function retainMemoryRejection(output: FileHandle, logPath: string, row: Readonly<{
+	phase: string; memory: MotionOwnedMemorySample; targets: readonly MotionSustainedTelemetry[]; summary: MotionSustainedMemorySample;
+}>, refusal: Error): Promise<void> {
+	let operation = 'serialize';
+	try {
+		const bytes = Buffer.from(`${JSON.stringify({ ...row, rejection: { message: refusal.message, violations: ceilingViolations(row.summary) } })}\n`);
+		if (bytes.byteLength > plan.maximumOutputBytes) throw new Error('Rejected sample evidence exceeds the existing output admission.');
+		operation = 'write';
+		const written = await output.write(bytes);
+		if (written.bytesWritten !== bytes.byteLength) throw new Error('Rejected sample evidence write was incomplete.');
+		operation = 'sync'; await output.sync();
+	} catch (error) {
+		const message = String(error);
+		Object.assign(refusal, { memoryEvidence: { complete: false, logPath, operation,
+			error: message.slice(0, 512), errorTruncated: message.length > 512 } });
+	}
 }
