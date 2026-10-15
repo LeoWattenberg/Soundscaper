@@ -62,3 +62,46 @@ test('path topology and morph edits survive undo and save/reopen', async ({ page
 	await dialog.getByRole('combobox', { name: 'Property', exact: true }).selectOption({ label: 'Shape 1: Path' }); await dialog.getByRole('combobox', { name: 'Path edit target', exact: true }).selectOption('key');
 	await dialog.getByLabel('Local frame', { exact: true }).fill('15'); await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '90');
 });
+test('incompatible morph paste preserves the path and leaves the preceding topology edit first in undo', async ({ page }: { page: Page }) => {
+	await create(page); const dialog = page.getByRole('dialog', { name: 'Paths and Motion', exact: true });
+	await dialog.getByRole('combobox', { name: 'Property', exact: true }).selectOption({ label: 'Shape 1: Path' });
+	const anchors = dialog.locator('[data-motion-plane-kind="anchor"]'), keys = dialog.locator('[data-motion-path-keyframe]');
+	await expect(anchors).toHaveCount(4);
+	await dialog.getByRole('combobox', { name: 'Path edit target', exact: true }).selectOption('key');
+	await dialog.getByRole('button', { name: 'Set Path Keyframe', exact: true }).click();
+	await dialog.getByLabel('Local frame', { exact: true }).fill('30'); await dialog.locator('[data-motion-plane-point="vertex:1"]').click();
+	await dialog.getByLabel('Point X', { exact: true }).fill('140'); await dialog.getByRole('button', { name: 'Apply Point', exact: true }).click();
+	await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '140');
+	await dialog.getByRole('checkbox', { name: 'Keyframe 0', exact: true }).check();
+	await dialog.getByRole('button', { name: 'Copy Keyframes', exact: true }).click();
+	// The clipboard keeps four vertices; insertion changes the base and both authored keys to five.
+	await dialog.locator('[data-motion-plane-point="vertex:0"]').click(); await dialog.getByRole('button', { name: 'Insert Path Point', exact: true }).click();
+	await expect(anchors).toHaveCount(5); await dialog.getByLabel('Local frame', { exact: true }).fill('15');
+	await expect(dialog.locator('[data-motion-plane-point="vertex:2"]')).toHaveAttribute('data-motion-point-x', '90');
+	const beforePaste = await anchors.evaluateAll((points) => points.map((point) => ['data-motion-plane-point', 'data-motion-point-x', 'data-motion-point-y'].map((name) => point.getAttribute(name))));
+	await dialog.getByRole('button', { name: 'Paste Keyframes', exact: true }).click();
+	await expect(dialog.getByRole('alert')).toHaveText('The edit could not be applied. Animated path topology must match its base path.');
+	await expect(anchors).toHaveCount(5); await expect(keys).toHaveCount(2);
+	expect(await anchors.evaluateAll((points) => points.map((point) => ['data-motion-plane-point', 'data-motion-point-x', 'data-motion-point-y'].map((name) => point.getAttribute(name))))).toEqual(beforePaste);
+	await expect(dialog.getByRole('checkbox', { name: 'Keyframe 0', exact: true })).toHaveCount(1);
+	await expect(dialog.getByRole('checkbox', { name: 'Keyframe 30', exact: true })).toHaveCount(1);
+	await expect(dialog.getByRole('checkbox', { name: 'Keyframe 15', exact: true })).toHaveCount(0);
+	for (const [frame, x] of [['0', '40'], ['30', '140'], ['15', '90']] as const) {
+		await dialog.getByLabel('Local frame', { exact: true }).fill(frame);
+		await expect(dialog.locator('[data-motion-plane-point="vertex:2"]')).toHaveAttribute('data-motion-point-x', x);
+	}
+	// A refused paste creates no history entry: the first Undo must remove the earlier insertion.
+	await dialog.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(anchors).toHaveCount(4); await expect(keys).toHaveCount(2);
+	await expect(dialog.locator('[data-motion-plane-point="vertex:1"]')).toHaveAttribute('data-motion-point-x', '90');
+	await dialog.getByRole('button', { name: 'Redo', exact: true }).click(); await expect(anchors).toHaveCount(5); await expect(keys).toHaveCount(2);
+	await expect(dialog.locator('[data-motion-plane-point="vertex:2"]')).toHaveAttribute('data-motion-point-x', '90');
+	await expect(dialog.getByRole('button', { name: 'Close', exact: true }).last()).toBeEnabled(); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
+	await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); await page.reload();
+	await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Untitled Composition', exact: true }).click(); await menu(page, 'Layer', 'Paths and Motion');
+	await dialog.getByRole('combobox', { name: 'Property', exact: true }).selectOption({ label: 'Shape 1: Path' });
+	await dialog.getByRole('combobox', { name: 'Path edit target', exact: true }).selectOption('key'); await dialog.getByLabel('Local frame', { exact: true }).fill('15');
+	await expect(anchors).toHaveCount(5); await expect(keys).toHaveCount(2);
+	await expect(dialog.getByRole('checkbox', { name: 'Keyframe 0', exact: true })).toHaveCount(1);
+	await expect(dialog.getByRole('checkbox', { name: 'Keyframe 30', exact: true })).toHaveCount(1);
+	await expect(dialog.locator('[data-motion-plane-point="vertex:2"]')).toHaveAttribute('data-motion-point-x', '90');
+});
