@@ -2,6 +2,7 @@
 
 import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { FREESOUND_ATTRIBUTION_ENGLISH_COPY } from '../../src/common/i18n/freesound-attribution-copy.js';
+import { AUDIOCOM_COPY_BY_LOCALE } from '../../src/common/i18n/audiocom-copy.ts';
 
 const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBUTION_ENGLISH_COPY)
 	.map(([key, value]) => [`ui.freesoundAttribution.${key}`, value]));
@@ -10,4 +11,5 @@ const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBU
 export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...EDITOR_ENGLISH_COPY,
 	...freesoundAttribution,
+	...Object.fromEntries(Object.entries(AUDIOCOM_COPY_BY_LOCALE.en).map(([key, value]) => [`ui.audiocom.${key}`, value])),
 });

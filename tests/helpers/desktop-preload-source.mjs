@@ -17,7 +17,7 @@ export async function readDesktopPreloadSource(transformedSource = null) {
 		plugins: [{
 			name: 'desktop-preload-runtime-source',
 			setup(builder) {
-				builder.onResolve({ filter: /\/project-library-runtime\/desktop\/(ara|blender)-preload\.js$/ }, (args) => ({
+				builder.onResolve({ filter: /\/project-library-runtime\/desktop\/(?:(?:ara|blender)-preload|audiocom-(?:authorization|links))\.js$/ }, (args) => ({
 					path: fileURLToPath(new URL(`../../desktop/${args.path.split('/').at(-1).replace(/\.js$/u, '.ts')}`, import.meta.url)),
 				}));
 			},

@@ -9,7 +9,7 @@ qualify, attest to, or sign off a release. Historical “qualified” and
 “admitted” wording in retained version narratives means only that a bounded
 technical input or operation passed its named checks.
 
-The model is grounded on 2026-10-02. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-10-15. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## 1.0 project-identity boundary
 
@@ -79,6 +79,7 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 | `public-browser-to-desktop-release-redirect` | Browser visitor following a desktop download link | Product Pages download Function and GitHub's public release listing | Accept only product hosts and safe methods, bound the upstream lookup, and redirect only to a published release with that product's installer. |
 | `public-client-to-freesound-proxy` | Public browsers, packaged Soundscaper clients, and other network callers | Pages Functions and their server-only Freesound credential | Admit only fixed read routes and bounded inputs, and never expose or forward the credential outside the fixed API origin. |
 | `authenticated-client-to-freesound-proxy` | Soundscaper web client or packaged main-process proxy holding an opaque session | OAuth/media Functions, D1 token store, and server-held OAuth credentials | Bind exact session transport and origin to closed OAuth, original-download, upload, and publication routes without exposing tokens to the renderer. |
+| `authenticated-client-to-audiocom-proxy` | Soundscaper web client or packaged main holding an opaque session, and provider OAuth/API/CDN responses | Pages audio.com Functions, encrypted D1 grants, and approved provider upload storage | Bind state, encrypted PKCE, session transport and publication metadata to closed routes and pinned provider destinations without exposing credentials. |
 | `freesound-upstream-to-proxy` | Freesound OAuth/API, original-file, upload, and CDN preview responses | Owned OAuth/media contracts and bounded streams | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
 | `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
 | `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
@@ -846,6 +847,56 @@ after transfer begins. Original bytes have no end-to-end digest check, and an
 interrupted upload is non-idempotent: retrying after an ambiguous upstream
 outcome can create another pending Freesound upload.
 <!-- /policy-narrative:freesound-authenticated-media-lifecycle -->
+
+### audio.com API proxy
+
+`audiocom-proxy-boundary` is **partial** at the
+`authenticated-client-to-audiocom-proxy` boundary.
+
+<!-- policy-narrative:bounded-audiocom-oauth-media-proxy -->
+The audio.com Pages namespace admits only canonical production, Pages, or
+explicitly enabled loopback hosts; trusted Soundscaper web, desktop, or current
+same-origin browser Origins; closed methods, bounded JSON, search parameters,
+upload metadata, and session transports. Mutations reject cross-site fetch
+metadata; CORS is not client authentication. OAuth uses ten-minute random state
+and handoff capabilities, single-use state exchange, and PKCE S256 with an
+encrypted verifier; fixed https://api.audio.com token/API targets disable
+redirects and apply ten-second control-request deadlines. D1 stores provider
+tokens and polling session secrets only as AES-256-GCM ciphertext with provider-
+and field-specific authenticated data; browser sessions use Secure HttpOnly
+SameSite=Strict cookies and desktop sessions use opaque hashed Soundscaper
+capabilities. Rolling sessions expire after 30 days, refresh rotation uses
+generation-fenced leases, and disconnect removes orphan grants. No public
+userinfo endpoint is invented or account identity inferred. Uploads require
+supported raw audio of exactly 1 through 100,000,000 bytes with bounded
+metadata; only provider-returned policies on exact HTTPS s3.audio.com/audio/ or
+s3.ustatik.com/audio.com.audio/ paths receive bytes, and provider OAuth
+credentials are never sent to storage. The server awaits verified stream
+completion before the POST success hook; failure and cancellation attempt the
+provider DELETE cleanup hook with an independent ten-second timeout. Preview
+requests require a valid application session, pin the same exact CDN hosts and
+paths, block redirects, accept only audio MIME responses, enforce simple byte
+ranges, and cap declared and observed bytes at 128 MiB. JSON responses are
+bounded and normalized, omit signed upload policies and OAuth credentials, and
+use no-store and nosniff. Electron main holds the opaque capability outside
+renderer authority, captures it from polling responses, strips renderer
+credentials, exposes closed routes and an exact authorization-URL opener, and
+persists only with an admitted safeStorage backend. The integration has no
+Audacity project storage or retrieval route and no original source download
+route in the regular public API. Backend and desktop tests prove state replay
+and handoff rejection, encrypted PKCE and token confinement, refresh fencing,
+session transport admission, fixed destinations, exact upload byte checks,
+cancellation cleanup, range handling, and bounded response failure; they do not
+establish live-provider upload success.
+<!-- /policy-narrative:bounded-audiocom-oauth-media-proxy -->
+
+Deployment abuse limits and a registered-application live upload smoke test,
+streamed-body lifetime bounds, indeterminate non-idempotent upload outcomes,
+and best-effort cancellation cleanup remain open. The
+[control register](../../config/production-security-matrix.json) records the
+required controls and acceptance criteria in
+`audiocom-deployment-and-live-provider-proof` and
+`audiocom-media-transfer-lifecycle`.
 
 ### Electron renderer, IPC, and filesystem capabilities
 

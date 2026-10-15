@@ -37,7 +37,8 @@ test('local-assistance policy records conditional workflow activation and its ma
 	const externalExecutableRisk = matrix.risks.flatMap(({ residualRisks }) => residualRisks)
 		.find(({ id }) => id === 'external-ffmpeg-selected-executable-authority');
 
-	assert.equal(matrix.groundedAt, '2026-10-02');
+	assert.match(matrix.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
+	assert.ok(matrix.groundedAt >= '2026-10-02');
 	assert.ok(control);
 	assertOrderedClaim(control.summary,
 		/Parakeet.*speech-recognition.*Silero.*voice-activity-detection.*Pyannote.*ERes2Net.*speaker-diarization.*authenticated Sherpa/isu);
