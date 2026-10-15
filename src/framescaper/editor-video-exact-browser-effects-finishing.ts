@@ -32,6 +32,8 @@ import { LENS_DISTORTION_EFFECT_TYPE_V1, normalizeLensDistortionEffectV1 } from 
 import { withLensDistortionPixelFrameV1 } from '../common/editor/imaging/pixel-frame-lens-distortion-v1.ts';
 import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, normalizeChromaticAberrationEffectV1 } from '../common/editor/video-chromatic-aberration-v1.ts';
 import { withChromaticAberrationPixelFrameV1 } from '../common/editor/imaging/pixel-frame-chromatic-aberration-v1.ts';
+import { DEFRINGE_EFFECT_TYPE_V1, normalizeDefringeEffectV1 } from '../common/editor/video-defringe-v1.ts';
+import { withDefringePixelFrameV1 } from '../common/editor/imaging/pixel-frame-defringe-v1.ts';
 
 const CHECK_ABORT = AbortSignal.prototype.throwIfAborted;
 const GEOMETRY_LIMITS = Object.freeze({ maximumSidePixels: 65_536, maximumPixels: 33_554_432, maximumBytes: 128 * 1024 * 1024 });
@@ -46,6 +48,7 @@ export async function applyVideoExactBrowserEffectsFinishing(
 	// A valid owning project is already bounded by the 100,000-node interchange ceiling.
 	const admitted = readClosedDomainArray(effects, 'Frame browser effects', 0, 100_000).map(value => {
 		const effect = readClosedDomainRecord(value, 'Frame browser effect', ['id', 'type', 'enabled', 'params']);
+		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === DEFRINGE_EFFECT_TYPE_V1) return normalizeDefringeEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) return normalizeChromaticAberrationEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === LENS_DISTORTION_EFFECT_TYPE_V1) return normalizeLensDistortionEffectV1(value);
 		if (readClosedDomainField(effect, 'type', 'Frame browser effect') === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) return normalizePostCropVignetteEffectV1(value);
@@ -65,11 +68,13 @@ export async function applyVideoExactBrowserEffectsFinishing(
 			? normalizeGlobalDevelopEffectV1(value) : readLegacyEffect(effect);
 	});
 	const sourceFrame = readAdmittedFrame(frame, signal);
-	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === CHROMATIC_ABERRATION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === LENS_DISTORTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DEHAZE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === TEXTURE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === GRAIN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CLARITY_EFFECT_TYPE_V1)) {
+	if (admitted.some(value => Object.getOwnPropertyDescriptor(value, 'type')?.value === DEFRINGE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CHROMATIC_ABERRATION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === LENS_DISTORTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DEHAZE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === TEXTURE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === GRAIN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === NOISE_REDUCTION_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === DETAIL_SHARPEN_EFFECT_TYPE_V1 || Object.getOwnPropertyDescriptor(value, 'type')?.value === CLARITY_EFFECT_TYPE_V1)) {
 		let current = clone(sourceFrame);
 		try {
 			for (const effect of admitted) {
 				throwIfAborted(signal);
+				const defringe = Object.getOwnPropertyDescriptor(effect, 'type')?.value === DEFRINGE_EFFECT_TYPE_V1 ? normalizeDefringeEffectV1(effect) : null;
+				if (defringe && (!defringe.enabled || defringe.params.purple === 0 && defringe.params.green === 0)) continue;
 				const chromatic = Object.getOwnPropertyDescriptor(effect, 'type')?.value === CHROMATIC_ABERRATION_EFFECT_TYPE_V1 ? normalizeChromaticAberrationEffectV1(effect) : null;
 				if (chromatic && (!chromatic.enabled || chromatic.params.red === 0 && chromatic.params.blue === 0)) continue;
 				const lens = Object.getOwnPropertyDescriptor(effect, 'type')?.value === LENS_DISTORTION_EFFECT_TYPE_V1 ? normalizeLensDistortionEffectV1(effect) : null;
@@ -84,7 +89,9 @@ export async function applyVideoExactBrowserEffectsFinishing(
 				const texture = Object.getOwnPropertyDescriptor(effect, 'type')?.value === TEXTURE_EFFECT_TYPE_V1;
 				const dehaze = Object.getOwnPropertyDescriptor(effect, 'type')?.value === DEHAZE_EFFECT_TYPE_V1;
 				const vignette = Object.getOwnPropertyDescriptor(effect, 'type')?.value === POST_CROP_VIGNETTE_EFFECT_TYPE_V1;
-				const next = chromatic ? await cloneScopedOutput(consume => withChromaticAberrationPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+				const next = defringe ? await cloneScopedOutput(consume => withDefringePixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
+					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, effect, signal }, consume, { limits: GEOMETRY_LIMITS }))
+					: chromatic ? await cloneScopedOutput(consume => withChromaticAberrationPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, red: chromatic.params.red, blue: chromatic.params.blue, signal }, consume, { limits: GEOMETRY_LIMITS }))
 					: lens ? await cloneScopedOutput(consume => withLensDistortionPixelFrameV1({ frame: { descriptor: { schemaVersion: 1, width: current.width,
 					height: current.height, sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: current.pixels }, amount: lens.params.amount, signal }, consume, { limits: GEOMETRY_LIMITS }))

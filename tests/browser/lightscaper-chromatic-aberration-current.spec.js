@@ -148,7 +148,7 @@ function chromaticOracle(source, width, height, red, blue, enabled) {
 	return output;
 }
 function nativeFacts(value, source, active) {
-	expect(value.passCodes).toEqual(active ? [35] : []); expect(value.programCount).toBe(36); expect(value.caProgramLinked).toBe(true);
+	expect(value.passCodes).toEqual(active ? [35] : []); expect(value.programCount).toBe(37); expect(value.caProgramLinked).toBe(true);
 	expect(value.nativeWebgl2).toBe(true); expect(value.nativeReadbacks).toBe(1); expect(value.glError).toBe(0); expect(value.before).toEqual(source); expect(value.source).toEqual(source); expect(value.ownedBuffersRetired).toBe(true);
 }
 async function nativeCapability(page, browserName) {

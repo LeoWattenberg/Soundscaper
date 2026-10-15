@@ -953,10 +953,17 @@ there.
   Signed-displacement sampling retains tiny supported weights; exact WebGL2
   texel reads avoid filtered alpha leakage. Its finite GPU corpus has recorded
   preview precision limits; complete Photo Develop GPU conformance remains open.
-  This qualification passes 3,216 selected Lightscaper cases in 369 files,
-  including 45 focused correction checks, and 18 Chromium/Firefox browser cases
-  across both manual lens families. Defringe, optical vignette and reviewed
-  profile corrections remain open.
+  [Manual defringe](docs/architecture/lightscaper-defringe.md) now adds separate
+  purple/green strengths and an edge threshold. Immutable alpha-supported
+  neighborhood statistics suppress local color excess while retaining flat
+  regions, alpha, transparent hidden color and unchanged native components.
+  Current byte/native processing, masks, PNG delivery, RAW Develop and editable
+  Source2/3/4 handoffs retain the authored recipe and Original. Proxy editing
+  evaluates its declared reduced neighborhood grid; Full/export use natural
+  resolution. Current qualification passes 3,258 selected Lightscaper cases in
+  374 files, including 42 focused defringe checks, and 26 Chromium/Firefox
+  browser cases across all three manual lens families. Optical vignette and
+  reviewed profile corrections remain open.
 - **Shared — Blocked on licensing:** profile-based lens corrections until a
   lens-profile database passes the licensing review.
 - **Shared — Blocked on licensing:** camera-matching color profiles until a

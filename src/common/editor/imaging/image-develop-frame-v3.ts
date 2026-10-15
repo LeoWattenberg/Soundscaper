@@ -17,6 +17,8 @@ import { LENS_DISTORTION_EFFECT_TYPE_V1, prepareLensDistortionEffectV1 } from '.
 import { withLensDistortionPixelFrameV1 } from './pixel-frame-lens-distortion-v1.ts';
 import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, prepareChromaticAberrationEffectV1 } from '../video-chromatic-aberration-v1.ts';
 import { withChromaticAberrationPixelFrameV1 } from './pixel-frame-chromatic-aberration-v1.ts';
+import { DEFRINGE_EFFECT_TYPE_V1, prepareDefringeEffectV1 } from '../video-defringe-v1.ts';
+import { withDefringePixelFrameV1 } from './pixel-frame-defringe-v1.ts';
 
 export type ImageDevelopFrameOptionsV3 = ImageDevelopFrameOptionsV2;
 
@@ -59,6 +61,11 @@ export function withImageDevelopFrameFixedKernelV1<Result>(value: unknown,
 			return captureMaskRasterSourceV1(rawMaskSource);
 		},
 		prepareResourceStage(effect) {
+			if (mode === 'current' && effect.type === DEFRINGE_EFFECT_TYPE_V1) {
+				const defringe = prepareDefringeEffectV1(effect);
+				return defringe.neutral ? null : (frame, signal, limits, accept) =>
+					withDefringePixelFrameV1({ frame, effect, ...(signal ? { signal } : {}) }, accept, { limits });
+			}
 			if (mode === 'current' && effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) {
 				const correction = prepareChromaticAberrationEffectV1(effect);
 				return correction.neutral ? null : (frame, signal, limits, accept) =>

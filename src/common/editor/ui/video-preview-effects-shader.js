@@ -8,6 +8,7 @@ import { DEHAZE_GLSL_V1 } from './video-preview-dehaze-v1.ts';
 import { DETAIL_SHARPEN_GLSL_V1 } from './video-preview-sharpen-v1.ts';
 import { LENS_DISTORTION_GLSL_V1 } from './video-preview-lens-distortion-v1.ts';
 import { CHROMATIC_ABERRATION_GLSL_V1 } from './video-preview-chromatic-aberration-v1.ts';
+import { DEFRINGE_GLSL_V1 } from './video-preview-defringe-v1.ts';
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
 import { CHROMA_DEVELOP_GLSL_V1 } from '../video-chroma-develop-v1.ts';
 import { HSL_MIXER_GLSL_V1 } from '../video-hsl-mixer-v1.ts';
@@ -52,6 +53,7 @@ ${DEHAZE_GLSL_V1}
 ${DETAIL_SHARPEN_GLSL_V1}
 ${LENS_DISTORTION_GLSL_V1}
 ${CHROMATIC_ABERRATION_GLSL_V1}
+${DEFRINGE_GLSL_V1}
 ${GLOBAL_DEVELOP_GLSL_V1}
 ${CHROMA_DEVELOP_GLSL_V1}
 ${BLACK_WHITE_MIX_GLSL_V1}
@@ -130,6 +132,7 @@ void main() {
 	if (u_effect == 33) { out_color = dehaze_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 34) { out_color = lens_distortion_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 35) { out_color = chromatic_aberration_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
+	if (u_effect == 36) { out_color = defringe_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 27) { out_color = detail_sharpen_render(content_uv) * vec4(1.0,1.0,1.0,u_opacity); return; }
 	if (u_effect == 20) { out_color = geometry_render(content_uv) * vec4(1.0, 1.0, 1.0, u_opacity); return; }
 	vec4 color = u_effect == 0 ? sample_frame(v_uv) : sample_content(content_uv);

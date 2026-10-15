@@ -26,6 +26,7 @@ This scalar process preserves its own exact byte contract. Legacy managed GradeV
 | Color Adjust | `color-adjust` | 5 |
 | Color grading wheels | `color-wheels-v1` | 9 |
 | Crop and perspective (contain) | `develop-geometry-v1` | 17 |
+| Defringe | `defringe-v1` | 3 |
 | Dehaze | `dehaze-v1` | 1 |
 | Detail sharpening | `detail-sharpen-v1` | 2 |
 | Drop Shadow | `drop-shadow` | 5 |
@@ -101,6 +102,9 @@ Defaults and limits come from the same definitions the editor validates against.
 | Crop and perspective (contain) | Bottom right Y | 1 | 0 to 1 | — |
 | Crop and perspective (contain) | Bottom left X | 0 | 0 to 1 | — |
 | Crop and perspective (contain) | Bottom left Y | 1 | 0 to 1 | — |
+| Defringe | Purple | 0 | 0 to 100 | — |
+| Defringe | Green | 0 | 0 to 100 | — |
+| Defringe | Edge threshold | 25 | 0 to 100 | — |
 | Dehaze | Amount | 0 | -100 to 100 | — |
 | Detail sharpening | Amount | 100 | 0 to 200 | — |
 | Detail sharpening | Threshold | 0 | 0 to 255 | — |

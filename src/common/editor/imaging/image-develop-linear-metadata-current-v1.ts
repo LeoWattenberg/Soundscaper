@@ -26,6 +26,7 @@ import { prepareDehazeEffectV1 } from '../video-dehaze-v1.ts';
 import { preparePostCropVignetteEffectV1 } from '../video-post-crop-vignette-v1.ts';
 import { LENS_DISTORTION_EFFECT_TYPE_V1, prepareLensDistortionEffectV1 } from '../video-lens-distortion-v1.ts';
 import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, prepareChromaticAberrationEffectV1 } from '../video-chromatic-aberration-v1.ts';
+import { DEFRINGE_EFFECT_TYPE_V1, prepareDefringeEffectV1 } from '../video-defringe-v1.ts';
 
 export const CURRENT_LINEAR_WORKING_BYTES_V1 = 768 * 1024 * 1024;
 const PROFILES = ['unorm16', 'float32'].flatMap(sampleFormat => ['srgb', 'bt709'].map(primaries => ({ sampleFormat, primaries, transfer: 'linear' })));
@@ -36,6 +37,7 @@ type Reference = NonNullable<ReturnType<typeof cubeLutProfileResourceRequirement
 export type LinearDevelopMetadataStageCurrentV1 = Readonly<{ kind: 'geometry'; geometry: Readonly<ImageGeometryV1>; descriptor: LinearKernelDescriptorV1 }>
 	| Readonly<{ kind: 'lens-distortion'; amount: number }>
 	| Readonly<{ kind: 'chromatic-aberration'; id: string; red: number; blue: number }>
+	| Readonly<{ kind: 'defringe'; effect: Effect; active: boolean }>
 	| Readonly<{ kind: 'spatial'; effect: Effect; active: boolean }>
 	| Readonly<{ kind: 'color'; effect: Effect }>
 	| Readonly<{ kind: 'lut'; id: string; reference: Reference }>
@@ -92,7 +94,11 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 	if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) geometry(legacy);
 	let source: ReturnType<typeof captureCubeLutSourceV1> | undefined;
 	for (const effect of develop.effects) {
-		if (effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) {
+		if (effect.type === DEFRINGE_EFFECT_TYPE_V1) {
+			const defringe = prepareDefringeEffectV1(effect), active = defringe.enabled && !defringe.neutral;
+			if (active) charge(current.width * current.height * 16);
+			stages.push(Object.freeze({ kind: 'defringe', effect, active }));
+		} else if (effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) {
 			const correction = prepareChromaticAberrationEffectV1(effect);
 			if (correction.enabled && !correction.neutral) {
 				charge(current.width * current.height * 16);

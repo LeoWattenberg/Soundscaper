@@ -13,6 +13,7 @@ import { writeLinearSpatialEffectV1 } from './pixel-frame-linear-spatial-v1.ts';
 import { writeLinearRepairsV1 } from './pixel-frame-linear-repair-v1.ts';
 import { writeLinearLensDistortionV1 } from './pixel-frame-linear-lens-distortion-v1.ts';
 import { writeLinearChromaticAberrationV1 } from './pixel-frame-linear-chromatic-aberration-v1.ts';
+import { writeLinearDefringeV1 } from './pixel-frame-linear-defringe-v1.ts';
 import { writeLinearLutStageV1 } from './image-develop-linear-lut-stage-v1.ts';
 import { withLinearMaskCoverageV1, blendLinearMaskCoverageV1 } from './pixel-frame-linear-mask-v1.ts';
 import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
@@ -63,15 +64,16 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 		}
 		const render = async (scope?: Readonly<MaskRasterSourceScopeV1>): Promise<Result> => {
 			const observe = async (id: string, work?: () => Promise<Float32Array<ArrayBuffer>>,
-				copiedChannels?: Readonly<{ red: boolean; blue: boolean }>) => {
+				copiedChannels?: Readonly<{ red: boolean; blue: boolean }> | 'unchanged') => {
 				const binding = prepared.masks.plan.bindings.find(binding => binding.effectId === id);
 				const next = work ? await work() : undefined;
 				if (binding && (next || binding === prepared.selectedBinding)) await withLinearMaskCoverageV1(binding, current, async coverage => {
 					if (next) {
-						await blendLinearMaskCoverageV1(current, next, coverage, signal);
+						if (copiedChannels === 'unchanged') await blendDefringeMaskCurrentV1(current, next, coverage, signal);
+						else await blendLinearMaskCoverageV1(current, next, coverage, signal);
 						// CA's reference channels are literal copies. Fractional blend
 						// arithmetic must not turn their negative zero into positive zero.
-						if (copiedChannels) {
+						if (copiedChannels && copiedChannels !== 'unchanged') {
 							const budget = new RepairTaskBudgetV1(check);
 							for (let offset = 0; offset < next.length; offset += 4) {
 								next[offset + 1] = current.pixels[offset + 1]!;
@@ -98,6 +100,9 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 				} else if (stage.kind === 'chromatic-aberration') await observe(stage.id, async () => {
 					const next = owner.floats(stage.plan.sampleCount); await writeLinearChromaticAberrationV1(stage.plan, current, next, signal); return next;
 				}, { red: stage.red === 0, blue: stage.blue === 0 });
+				else if (stage.kind === 'defringe') await observe(stage.id, async () => {
+					const next = owner.floats(stage.plan.sampleCount); await writeLinearDefringeV1(stage.plan, current, next, signal); return next;
+				}, 'unchanged');
 				else if (stage.kind === 'spatial') await observe(stage.id, async () => {
 					const next = owner.floats(current.pixels.length), scratch = owner.bytes(stage.plan.scratchBytes), backing = scratch.buffer;
 					await writeLinearSpatialEffectV1(stage.plan, current.pixels, next, scratch, signal); owner.retire(backing); return next;
@@ -129,4 +134,35 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 		};
 		return prepared.maskSource ? withMaskRasterSourceScopeV1(prepared.masks.references, prepared.masks.retainedStorageKeys, prepared.maskSource, render, signal) : render();
 	});
+}
+
+/** Current defringe alone retains exact gate-zero/unchanged component bits.
+ * Compare the staged value before interpolation; the permanent shared blend
+ * retains its original arithmetic. No plane or image-sized scratch is made. */
+async function blendDefringeMaskCurrentV1(source: Readonly<LinearWorkingPixelFrameV1>, target: Float32Array<ArrayBuffer>,
+	coverage: Uint8Array<ArrayBuffer>, signal?: AbortSignal): Promise<void> {
+	if (target.length !== source.pixels.length || coverage.length * 4 !== target.length) throw new RangeError('Current defringe mask geometry changed.');
+	const backings = [source.pixels, target, coverage].map(view => {
+		const buffer = Reflect.apply(TYPED_BUFFER, view, []) as ArrayBuffer;
+		return { buffer, length: Number(Reflect.apply(BACKING_SIZE, buffer, [])) };
+	});
+	const check = () => {
+		checkRepairSignalV1(signal);
+		if (backings.some(({ buffer, length }) => length === 0 || Reflect.apply(BACKING_SIZE, buffer, []) !== length)) {
+			throw new TypeError('Current defringe mask storage was detached or changed.');
+		}
+	};
+	const budget = new RepairTaskBudgetV1(check); check();
+	for (let offset = 0; offset < target.length; offset += 4) {
+		const amount = coverage[offset / 4]!;
+		for (let channel = 0; channel < 3; channel++) {
+			const before = source.pixels[offset + channel]!, after = target[offset + channel]!;
+			const value = before === after || amount === 0 ? before : amount === 255 ? after : Math.fround(before + amount / 255 * (after - before));
+			if (!Number.isFinite(value)) throw new RangeError('Current defringe mask exceeds finite Float32 range.');
+			target[offset + channel] = value;
+		}
+		target[offset + 3] = source.pixels[offset + 3]!;
+		if (budget.visit()) await budget.yield();
+	}
+	check();
 }

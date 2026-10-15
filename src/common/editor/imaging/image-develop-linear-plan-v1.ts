@@ -8,6 +8,7 @@ import { prepareLinearSpatialEffectV1 } from './pixel-frame-linear-spatial-v1.ts
 import { prepareLinearRepairsV1 } from './pixel-frame-linear-repair-v1.ts';
 import { prepareLinearLensDistortionV1 } from './pixel-frame-linear-lens-distortion-v1.ts';
 import { prepareLinearChromaticAberrationV1 } from './pixel-frame-linear-chromatic-aberration-v1.ts';
+import { prepareLinearDefringeV1 } from './pixel-frame-linear-defringe-v1.ts';
 import type { cubeLutProfileResourceRequirementV1 } from '../video-cube-lut-profile-v1.ts';
 import { normalizeVideoColorGradeV1 } from '../video-color-management-v27.ts';
 import { prepareLinearDevelopMetadataCurrentV1 } from './image-develop-linear-metadata-current-v1.ts';
@@ -20,6 +21,7 @@ type Reference = NonNullable<ReturnType<typeof cubeLutProfileResourceRequirement
 export type LinearDevelopStageV1 = Readonly<{ kind: 'geometry'; plan: Geometry }>
 	| Readonly<{ kind: 'lens-distortion'; plan: ReturnType<typeof prepareLinearLensDistortionV1> }>
 	| Readonly<{ kind: 'chromatic-aberration'; id: string; red: number; blue: number; plan: ReturnType<typeof prepareLinearChromaticAberrationV1> }>
+	| Readonly<{ kind: 'defringe'; id: string; plan: ReturnType<typeof prepareLinearDefringeV1> }>
 	| Readonly<{ kind: 'spatial'; id: string; plan: Spatial }>
 	| Readonly<{ kind: 'color'; id: string; effects: Color }>
 	| Readonly<{ kind: 'lut'; id: string; reference: Reference; grade: ReturnType<typeof normalizeVideoColorGradeV1> }>
@@ -39,6 +41,10 @@ export function prepareLinearDevelopCurrentV1(value: unknown, profileValue: Imag
 	let current = descriptor;
 	for (const stage of metadata.stages) {
 		switch (stage.kind) {
+			case 'defringe': {
+				const plan = prepareLinearDefringeV1(stage.effect, current, profile.render);
+				stages.push(stage.active ? Object.freeze({ kind: 'defringe', id: stage.effect.id, plan }) : Object.freeze({ kind: 'noop', id: stage.effect.id })); break;
+			}
 			case 'chromatic-aberration': stages.push(Object.freeze({ kind: 'chromatic-aberration', id: stage.id, red: stage.red, blue: stage.blue,
 				plan: prepareLinearChromaticAberrationV1(stage.red, stage.blue, current, profile.render) })); break;
 			case 'lens-distortion': stages.push(Object.freeze({ kind: 'lens-distortion', plan: prepareLinearLensDistortionV1(stage.amount, current, profile.render) })); break;

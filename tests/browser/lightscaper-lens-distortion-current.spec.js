@@ -131,7 +131,7 @@ function lensOracle(source, width, height, amount) {
 	return output;
 }
 function nativeFacts(value, source, active) {
-	expect(value.passCodes).toEqual(active ? [34] : []); expect(value.programCount).toBe(36); expect(value.lensProgramLinked).toBe(true);
+	expect(value.passCodes).toEqual(active ? [34] : []); expect(value.programCount).toBe(37); expect(value.lensProgramLinked).toBe(true);
 	expect(value.nativeWebgl2).toBe(true); expect(value.nativeReadbacks).toBe(1); expect(value.glError).toBe(0);
 	expect(value.before).toEqual(source); expect(value.source).toEqual(source); expect(value.ownedBuffersRetired).toBe(true);
 }
