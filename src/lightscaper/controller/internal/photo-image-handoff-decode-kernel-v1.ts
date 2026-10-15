@@ -16,6 +16,7 @@ import { id, integer } from '../../catalog/value-validation.ts';
 import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.ts';
 import { createPhotoImageHandoffSourceForProfileV1, assertHandoffProfile, type HandoffProfile, type PhotoImageHandoffSourceForProfileV1 } from './photo-image-handoff-model-kernel-v1.ts';
 import { parsePhotoExportSidecarCurrentV1, serializePhotoExportSidecarCurrentV1 } from '../../catalog/photo-export-sidecar-current-v1.ts';
+import { probeRawSourceV1 } from '../../../common/editor/raw/raw-source-v1.ts';
 
 const READ = Blob.prototype.arrayBuffer;
 const SIZE = Object.getOwnPropertyDescriptor(Blob.prototype, 'size')!.get!;
@@ -67,6 +68,15 @@ export async function decodePhotoImageHandoffSourceForProfileV1(profile: Handoff
 			try {
 				Reflect.apply(CHECK, joined, []);
 				if (bytes.byteLength !== facts.original.byteLength || bytesToHex(sha256(bytes)) !== facts.original.contentSha256) throw new Error('Photo image decode original SHA-256 binding changed.');
+				if (profile === 'current3' && probeRawSourceV1(bytes)) {
+					const { decodePhotoRawImageHandoffPackCurrentV1 } = await import('./photo-image-handoff-raw-current-v1.ts');
+					const result = await decodePhotoRawImageHandoffPackCurrentV1(bytes,
+						{ ...original, mimeType: original.mimeType as string, hasAlpha: original.hasAlpha as boolean }, joined);
+					packed = result.publication.bytes; Reflect.apply(CHECK, joined, []);
+					return await createPhotoImageHandoffSourceForProfileV1(profile, { sourceId, factsJson,
+						original: { ...original, mimeType: original.mimeType as string, hasAlpha: original.hasAlpha as boolean },
+						pack: result.publication, raw: result.raw, signal: joined });
+				}
 				const admission = admitPhotoSourceV1(bytes), metadata = readImageMetadataV1(bytes), orientation = metadata.exif?.orientation ?? 1;
 				const swapped = [5, 6, 7, 8].includes(orientation);
 				if (original.width !== (swapped ? admission.height : admission.width) || original.height !== (swapped ? admission.width : admission.height)

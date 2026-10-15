@@ -8,10 +8,11 @@ function owner(path: string) {
 	return chunkGroupForModulePath(path);
 }
 
-test('Current Lightscaper handoff schema kernels retain the established shared editor domain owner', () => {
-	for (const name of ['timeline-image-model-editable-kernel-v1', 'image-develop-handoff-provenance-kernel-v1', 'video-cube-lut-project-references-kernel-v1']) {
+test('Current Lightscaper handoff schemas share image metadata ownership while project LUT references retain their domain', () => {
+	for (const [name, expected] of [['timeline-image-model-editable-kernel-v1', 'editor-imaging'],
+		['image-develop-handoff-provenance-kernel-v1', 'editor-imaging'], ['video-cube-lut-project-references-kernel-v1', 'editor-domain']] as const) {
 		for (const prefix of ['/workspace/src/common/editor/internal/', 'D:\\workspace\\src\\common\\editor\\internal\\']) {
-			assert.equal(owner(`${prefix}${name}.ts`), 'editor-domain', name);
+			assert.equal(owner(`${prefix}${name}.ts`), expected, name);
 		}
 	}
 });

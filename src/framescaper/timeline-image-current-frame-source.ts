@@ -19,6 +19,7 @@ import { scaleFramescaperImageRgbaTimelineImage,
 import { openFramescaperNativePackOwnerCurrentV1, captureFramescaperNativeImageLoadCurrentV1,
 	assertFramescaperNativeImageSignalCurrentV1, checkFramescaperNativeImageSignalCurrentV1, retireFramescaperNativeImageCurrentV1,
 	type FramescaperNativePackOwnerCurrentV1 } from './internal/timeline-image-native-pack-owner-current-v1.ts';
+import { prepareFramescaperRawImageWorkingCurrentV1 } from './internal/timeline-image-raw-working-plan-current-v1.ts';
 
 const FILL = Uint8Array.prototype.fill;
 const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
@@ -32,6 +33,7 @@ export interface FramescaperCurrentImageFrameReader extends FramescaperImageFram
  * plane, and at most four simultaneous recipe/staged-output planes. Kernel
  * computation/native Blob storage remain owned by their existing owners. */
 export function framescaperEditableImageWorkingBytes(source: FramescaperCurrentImageSourceTimelineImage): bigint {
+	if (source.schemaVersion === 4) return prepareFramescaperRawImageWorkingCurrentV1(source).recipeWorkingBytes;
 	if (source.schemaVersion === 1) return 0n;
 	const computation = source.develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: source.develop.effects,
 		geometry: source.develop.geometry, masks: source.develop.masks, maskBindings: source.develop.maskBindings }) : source.develop;
@@ -70,6 +72,8 @@ export async function openFramescaperCurrentImageFrameSource(store: FramescaperS
 	assertFramescaperNativeImageSignalCurrentV1(signal);
 	if (purpose !== 'preview' && purpose !== 'canonical-authoring') throw new TypeError('Unknown fixed current image reader purpose.');
 	const source = normalizeFramescaperImageSourceCurrentV1(sourceValue);
+	if (source.schemaVersion === 4) return (await import('./internal/timeline-image-raw-frame-source-current-v1.ts'))
+		.openFramescaperRawImageFrameSourceCurrentV1(store, source, signal, admitMetadata, purpose);
 	const extra = framescaperEditableImageWorkingBytes(source);
 	if (source.schemaVersion !== 1 && BigInt(source.assetByteLength) * 3n + extra > 512n * 1024n * 1024n) {
 		throw new RangeError('Editable image exceeds its 512 MiB working byte bound.');

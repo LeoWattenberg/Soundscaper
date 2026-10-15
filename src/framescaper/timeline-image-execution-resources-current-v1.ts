@@ -4,6 +4,7 @@ import { FRAMESCAPER_IMAGE_FRAME_PACK_MAXIMUM_CHUNK_BYTES } from '../common/edit
 import type { FramescaperImageClipV1 } from '../common/editor/timeline-image-model.ts';
 import type { FramescaperCurrentImageSourceTimelineImage } from './editor-selected-timeline-image-image-frame-source.ts';
 import { framescaperEditableImageWorkingBytes } from './timeline-image-current-frame-source.ts';
+import { FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 } from './internal/timeline-image-raw-working-plan-current-v1.ts';
 
 const MAXIMUM_ACTIVE_IMAGE_ASSETS = 512;
 const MAXIMUM_ACTIVE_IMAGE_ASSET_BYTES = 512 * 1024 * 1024;
@@ -51,10 +52,11 @@ export async function admitImageExecutionResources(
 		maximumAssetBytes = maximumBigInt(maximumAssetBytes, assetBytes);
 		recipeWorkingBytes = maximumBigInt(recipeWorkingBytes, framescaperEditableImageWorkingBytes(source));
 	}
-	const maximum = BigInt(MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
+	const nativeRaw = [...sources.values()].some(source => source.schemaVersion === 4);
+	const maximum = BigInt(nativeRaw ? FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 : MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
 	const inputBytes = snapshotBytes + maximumAssetBytes + rangeReadChunkBytes();
 	if (recipeWorkingBytes && inputBytes + recipeWorkingBytes > maximum) throw new RangeError('Editable image recipe exceeds its export working byte bound.');
-	await confirmFileSizeWarning(Number(inputBytes), MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES, 'Video export image snapshots', options);
+	await confirmFileSizeWarning(Number(inputBytes), Number(maximum), 'Video export image snapshots', options);
 	// Confirmed large input snapshots keep the frame and decoder workspace budget.
 	const maximumWorkingBytes = inputBytes > maximum ? inputBytes + maximum : maximum;
 	return Object.freeze({ maximumAssetBytes, snapshotBytes, recipeWorkingBytes, maximumWorkingBytes });

@@ -24,6 +24,7 @@ export interface FramescaperImageDevelopOwnerSurfacePropsV1 {
 type Port = NonNullable<ReturnType<typeof framescaperImageDevelopAuthoringForCurrentV1>>;
 type Session = Awaited<ReturnType<Port['open']>>;
 interface NativeSession {
+	readonly nativeCurrent?: true;
 	readonly value: Session;
 	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
@@ -125,6 +126,7 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 	};
 	if (!scope || !presented(scope)) return null;
 	if (scope.native && !view.failed && !view.closing) return <FramescaperImageDevelopSurfaceV1 kind={props.kind} locale={props.locale}
+		nativeCurrent={scope.native.nativeCurrent}
 		develop={scope.native.develop} withOriginalFrame={scope.native.withOriginalFrame} disabled={props.disabled} isCurrent={current}
 		withDraftFrame={scope.native.withDraftFrame}
 		brushMasks={scope.native.brushMasks} withBrushDraftFrame={scope.native.withBrushDraftFrame}
@@ -138,6 +140,8 @@ export default function FramescaperImageDevelopOwnerSurfaceV1(props: Framescaper
 }
 
 function captureSession(value: Session): NativeSession {
+	const native = Object.getOwnPropertyDescriptor(value, 'nativeCurrent');
+	if (native && (!Object.hasOwn(native, 'value') || native.value !== true)) throw new TypeError('Invalid selected native image authoring policy.');
 	const current = value.isCurrent, withOriginalFrame = value.withOriginalFrame, apply = value.apply, close = value.closeAndJoin;
 	const draft = Object.getOwnPropertyDescriptor(value, 'withDraftFrame');
 	if (draft && (!Object.hasOwn(draft, 'value') || draft.value !== undefined && typeof draft.value !== 'function')) throw new TypeError('Invalid selected image draft renderer.');
@@ -166,6 +170,7 @@ function captureSession(value: Session): NativeSession {
 	if ([current, withOriginalFrame, apply, close].some(method => typeof method !== 'function')) throw new TypeError('Invalid selected image authoring owner.');
 	let closing: Promise<void> | null = null;
 	return { value, develop: value.develop,
+		...(native ? { nativeCurrent: true as const } : {}),
 		...(capturedDraft ? { withDraftFrame: capturedDraft } : {}),
 		...(brushMasks ? { brushMasks } : {}), ...(capturedBrushDraft ? { withBrushDraftFrame: capturedBrushDraft } : {}),
 		isCurrent: () => Reflect.apply(current, value, []) === true,

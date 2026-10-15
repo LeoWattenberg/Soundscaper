@@ -82,6 +82,8 @@ the real menu, selected catalog, renderer, worker and codecs; only the exact
 manifest-pinned WASM fetch is routed locally.
 
 This work changes no RAW compiler inputs or assistance runtime closure. It
-requires no manual **Update AI assets** run. External RAW runtime publication,
-editable RAW Frame handoff, embedded-preview culling, wide-gamut output and
-other remaining roadmap work are separate.
+requires no manual **Update AI assets** run. [Editable RAW Frame
+handoff](lightscaper-raw-image-handoff.md) retains the authenticated Original and
+native receipt separately from its byte presentation cache. External RAW runtime
+publication, embedded-preview culling, wide-gamut output and other remaining
+roadmap work are separate.

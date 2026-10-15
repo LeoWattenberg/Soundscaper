@@ -193,7 +193,7 @@ export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendo
 // The renderer/main video contract is a shared codec leaf. Reachability places
 // it in the Framescaper bootstrap and makes the desktop codec runtime import
 // that bootstrap back, so it needs the same non-recursive owner as codec leaves.
-export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-(?:video-codec-operation|audio-codec-(?:capability|operation))-contract\.ts$)/;
+export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-(?:video-codec-operation|audio-codec-(?:capability|operation))-contract\.ts$|(?:^|[\\/])config[\\/]lightscaper-libraw-runtime-manifest\.json$)/;
 export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:selection-effect-chain-contract\.ts|audacity-effects[\\/](?:(?:contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|(?:audacity-dynamics-lookahead|pcm-channel-validation|reverb-parameters)\.ts)|first-party-effects[\\/](?:(?:bitcrusher|parametric-eq)[\\/]definition\.js|dynamics[\\/]definition\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)|nyquist[\\/](?:(?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|audio-budget\.ts)|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
@@ -371,7 +371,7 @@ export const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/
 
 /** Timeline-image features, their captured native LUT reader and runtime projections. */
 export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
-	/src[\\/]framescaper[\\/](?:(?:internal[\\/]timeline-image-(?:develop-frame-kernel|native-pack-owner-current)-v1|timeline-image-[^\\/]+|cube-lut-source-finishing)\.ts$|editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
+	/src[\\/]framescaper[\\/](?:(?:internal[\\/]timeline-image-(?:develop-frame-kernel|native-pack-owner-current|raw-working-plan-current)-v1|editor-scape-asset-plan-finishing|timeline-image-[^\\/]+|cube-lut-source-finishing)\.ts$|editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
 
 
 /**

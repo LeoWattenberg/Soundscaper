@@ -14,6 +14,8 @@ import { createPhotoNativeImagePortV1 } from '../../import/photo-native-image-po
 import { admitPhotoSourceV1 } from '../../import/photo-source-admission-v1.ts';
 import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-preset-read-v2.ts';
 import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.ts';
+import { preparePhotoFramescaperHandoffRawOriginalCurrentV1 } from './photo-framescaper-handoff-raw-original-current-v1.ts';
+import type { FramescaperRawImageOriginalPortsCurrentV1 } from '../../../common/editor/timeline-image-raw-pack-current-v1.ts';
 
 export interface PhotoFramescaperHandoffOriginalRequestForProfileV1 {
 	readonly source: Readonly<EditableSource>; readonly originalBlob: Blob;
@@ -34,9 +36,10 @@ function digest(bytes: Uint8Array): string { return bytesToHex(sha256(bytes)); }
  * escapes. Supplier pixels remain supplier-owned until the static adapter
  * publishes its independently owned canonical snapshot. */
 export async function preparePhotoFramescaperHandoffOriginalForProfileV1(profile: HandoffProfile, value: Readonly<PhotoFramescaperHandoffOriginalRequestForProfileV1>,
-	dependencies: Readonly<{ openImage?: OpenFramescaperBrowserNativeImageV1 }> = {}): Promise<Readonly<PhotoFramescaperHandoffOriginalV1>> {
+	dependencies: Readonly<{ openImage?: OpenFramescaperBrowserNativeImageV1 }> & FramescaperRawImageOriginalPortsCurrentV1 = {}): Promise<Readonly<PhotoFramescaperHandoffOriginalV1>> {
 	assertHandoffProfile(profile); const label = 'Photo handoff original', input = record(value, label, ['source', 'originalBlob', 'canonicalFrameSha256', 'signal'], ['source', 'originalBlob', 'canonicalFrameSha256']);
 	const source = normalizeEditableSourceForProfileV1(profile, field(input, 'source', label));
+	if (profile === 'current3' && source.schemaVersion === 4) return preparePhotoFramescaperHandoffRawOriginalCurrentV1(value, dependencies);
 	const canonical = field(input, 'canonicalFrameSha256', label);
 	if (typeof canonical !== 'string' || !/^[a-f0-9]{64}$/u.test(canonical)) throw new TypeError('Photo handoff requires an authenticated canonical frame SHA-256.');
 	const { signal: caller } = readPhotoDevelopSignalOptionsV2(Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal', label) } : {});

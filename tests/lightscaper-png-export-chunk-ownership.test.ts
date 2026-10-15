@@ -61,6 +61,17 @@ test('full PNG export labels stay optional while the menu label uses existing ph
 	assert.ok(EAGER_CHUNK_GROUPS.has('lightscaper-editor-copy'));
 });
 
+test('Light actual Current image graph retains the complete runtime JSON manifest as executable module data', async () => {
+	const manifest = 'config/lightscaper-libraw-runtime-manifest.json';
+	const reached = runtimeClosure('src/common/editor/timeline-image-model-current-v1.ts');
+	assert.ok(reached.has(manifest), 'The real static RAW receipt dependency must remain in the graph.');
+	const path = resolve(ROOT, manifest), source = runtimeSource(path);
+	assert.deepEqual(staticRelativeDependencies(source), [], 'The manifest contributes data without fabricated source dependencies.');
+	const compiled = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`) as { readonly default: unknown };
+	const expected: unknown = JSON.parse(readFileSync(path, 'utf8'));
+	assert.deepEqual(compiled.default, expected, 'JSON transformation must retain the actual pinned decoder metadata.');
+});
+
 for (const entry of ['src/lightscaper/ui/LightscaperBootstrap.tsx',
 	'src/common/editor/ui/lightscaper/PhotoImportDialogV2.tsx', 'src/lightscaper/controller/photo-library-backup-v5.ts']) {
 	test(`real photo entry ${entry} does not load PNG bytes through shared image co-owners`, () => {
@@ -114,7 +125,7 @@ function runtimeSource(path: string): string {
 	let source = RUNTIME_SOURCE.get(path);
 	if (source === undefined) {
 		source = transformSync(readFileSync(path, 'utf8'), {
-			loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : path.endsWith('.jsx') ? 'jsx' : 'js', format: 'esm',
+			loader: path.endsWith('.tsx') ? 'tsx' : path.endsWith('.ts') ? 'ts' : path.endsWith('.jsx') ? 'jsx' : path.endsWith('.json') ? 'json' : 'js', format: 'esm',
 		}).code;
 		RUNTIME_SOURCE.set(path, source);
 	}

@@ -68,11 +68,24 @@ export default function ImageRepairSpotsEditorV1(props: ImageRepairSpotsEditorPr
 			void (async () => {
 				// Cache the join before native listeners can synchronously reenter.
 				generation.stop.abort();
-				await joinPhotoLibraryRetirementV1([before, owner.cancelAndJoin(), opening.catch(nativeCancellation), painting.then(() => undefined, nativeCancellation)]);
-				if (activeToken.current === generation.token && canvas.current) clearPixelFrameCanvasV1(canvas.current);
+				const joining = joinPhotoLibraryRetirementV1([before, owner.cancelAndJoin(), opening.catch(nativeCancellation), painting.then(() => undefined, nativeCancellation)]);
+				if (!nativeCurrent) {
+					await joining; if (activeToken.current === generation.token && canvas.current) clearPixelFrameCanvasV1(canvas.current); return;
+				}
+				// A failed native display still owns a canvas and its outer selected
+				// Session. Join first, then physically clear without hiding either
+				// an opaque operation failure or a distinct cleanup failure.
+				let failed: Readonly<{ error: unknown }> | undefined;
+				try { await joining; } catch (error) { failed = { error }; }
+				try { if (activeToken.current === generation.token && canvas.current) clearPixelFrameCanvasV1(canvas.current); }
+				catch (cleanup) {
+					if (failed && !Object.is(failed.error, cleanup)) throw new AggregateError([failed.error, cleanup], 'Native repair display retirement failed.', { cause: cleanup });
+					throw cleanup;
+				}
+				if (failed) throw failed.error;
 			})().then(resolve, reject); return closing;
 		};
-	}, [generation, owner]);
+	}, [generation, owner, nativeCurrent]);
 	useLayoutEffect(() => {
 		let mounted = true; live.current = true;
 		const unsubscribe = owner.snapshot().closed ? () => undefined : owner.subscribe(value => { if (mounted) setState({ owner, value }); });
@@ -119,13 +132,24 @@ export default function ImageRepairSpotsEditorV1(props: ImageRepairSpotsEditorPr
 		if (selected) try { owner.update(spot(next, selected.id)); } catch { if (current()) setFailure(true); }
 	};
 	const apply = () => {
-		if (!interactive() || drag.current) return;
+		if (!interactive() || drag.current || nativeCurrent && failure) return;
 		try { if (selected) owner.update(spot(form, selected.id)); }
 		catch { setFailure(true); return; }
 		void owner.apply().then(value => { if (current()) props.onApply(value); }, () => { if (current()) setFailure(true); });
 	};
-	const close = () => { if (!presentationCurrent() || generation.retirement.begun) return;
-		void retire().then(() => { if (presentationCurrent()) props.onClose(); }, () => { if (presentationCurrent()) setFailure(true); }); };
+	const close = () => {
+		if (!nativeCurrent) { if (!presentationCurrent() || generation.retirement.begun) return;
+			void retire().then(() => { if (presentationCurrent()) props.onClose(); }, () => { if (presentationCurrent()) setFailure(true); }); return; }
+		const sameGeneration = () => live.current && activeToken.current === generation.token && latest.current.withOriginalFrame === withOriginalFrame
+			&& latest.current.develop === develop && latest.current.nativeCurrent === nativeCurrent;
+		if (!sameGeneration() || generation.retirement.begun) return;
+		const dismiss = () => { if (sameGeneration()) Reflect.apply(latest.current.onClose, latest.current, []); };
+		// The rejected retirement remains observable through the registered child
+		// promise. User Close always hands the joined scope to its outer owner,
+		// which must retire the native reader before resuming preview.
+		void retire().then(dismiss, () => { if (sameGeneration()) setFailure(true); dismiss(); })
+			.catch(() => { if (sameGeneration()) setFailure(true); });
+	};
 	const position = (event: PointerEvent<HTMLCanvasElement>) => {
 		const box = event.currentTarget.getBoundingClientRect(); if (box.width <= 0 || box.height <= 0) throw new RangeError('Original display has no content extent.');
 		return { x: Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)), y: Math.max(0, Math.min(1, (event.clientY - box.top) / box.height)) };
@@ -190,7 +214,7 @@ export default function ImageRepairSpotsEditorV1(props: ImageRepairSpotsEditorPr
 			<label>{text.threshold}<input type="number" min={0} max={1} step="any" aria-label={text.threshold} value={threshold} disabled={disabled || !visualize}
 				onChange={event => { if (!interactive()) return; try { fraction(event.currentTarget.value); setThreshold(event.currentTarget.value); setPainted(null); setFailure(false); } catch { setFailure(true); } }} /></label>
 			<p>{text.edgeHelp}</p>{(!snapshot.ready || snapshot.busy) && <p role="status">{text.working}</p>}{failure && <p role="alert">{text.invalid} {text.failed}</p>}
-			<div className="lightscaper-develop-actions"><button type="button" disabled={disabled || Boolean(drag.current)} onClick={apply}>{text.apply}</button><button type="button" onClick={close}>{text.close}</button></div>
+			<div className="lightscaper-develop-actions"><button type="button" disabled={disabled || Boolean(drag.current) || Boolean(nativeCurrent && failure)} onClick={apply}>{text.apply}</button><button type="button" onClick={close}>{text.close}</button></div>
 		</div>
 	</AudioEditorDialogShell>;
 }

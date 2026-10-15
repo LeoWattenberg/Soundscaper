@@ -26,11 +26,12 @@ import { assertHandoffProfile, assertPhotoDevelopHandoffMasksForProfileV1, hando
 import { withPhotoImageHandoffScopedSourcesForProfileV1 } from './photo-library-image-handoff-kernel-v1.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { withFramescaperRawImageOriginalCurrentV1 } from '../../../common/editor/timeline-image-raw-pack-current-v1.ts';
 export interface PhotoFramescaperHandoffReadRequestV1 { readonly archive: Blob; readonly sourceId: string; readonly imageClipId?: string; readonly signal?: AbortSignal }
 export interface PhotoFramescaperHandoffReadViewForProfileV1 {
 	readonly schemaVersion: 1 | 2; readonly projectId: string; readonly projectRevision: number;
 	readonly source: Readonly<EditableSource>; readonly originalBlob: Blob;
-	/** Authenticated original canonical RGBA, before the editable recipe. */
+	/** Pre-recipe canonical digest: RGBA8 for raster, native RGBA16BE for RAW. */
 	readonly canonicalFrameSha256: string;
 	readonly lutReferences: readonly Readonly<VideoCubeLutReferenceV1>[]; readonly signal: AbortSignal;
 	readonly withLutBytes: CubeLutSourcePortV1['withBytes'];
@@ -74,7 +75,7 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 			});
 			if (admitted.readOnly) throw new RangeError('Photo editable archive requires a current Frame project.');
 			const project = cloneFramescaperProject(PROFILE, admitted.project);
-			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && source.schemaVersion === 3)) throw new RangeError('Legacy editable archive read refuses Source3.');
+			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) throw new RangeError('Legacy editable archive read refuses successor sources.');
 			const selected = project.sources.find(value => value.id === sourceId);
 			if (!selected) throw new ReferenceError('The selected editable image source is missing.');
 			const ordinary = selected.kind === 'image' && selected.schemaVersion === 1;
@@ -99,6 +100,12 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 			const pack = await readBody(envelope, descriptor, signal);
 			let originalBlob: Blob, canonicalFrameSha256: string;
 			try {
+				if (sourceFacts.schemaVersion === 4) {
+					const original = await withFramescaperRawImageOriginalCurrentV1({ source: sourceFacts, signal,
+						read: (offset, length) => Reflect.apply(RANGE, pack, [offset, offset + length]) as Uint8Array<ArrayBuffer> }, view =>
+						Object.freeze(new Blob([view.originalBytes], { type: sourceFacts.original.mimeType ?? '' })));
+					originalBlob = original; canonicalFrameSha256 = sourceFacts.raw.pixelsSha256;
+				} else {
 				const projection = timelineImageArchivePackProjection(framescaperProjectTimelineImageFoundationShapeAssistance({ ...project, sources: [sourceFacts] }));
 				const packedSource = projection.sources[0];
 				if (packedSource?.kind !== 'image' || packedSource.schemaVersion !== 1) throw new Error('The selected editable image pack projection is missing.');
@@ -118,6 +125,7 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 				const frame = await reader.readFrame(0);
 				try { check(signal); canonicalFrameSha256 = bytesToHex(sha256(frame)); }
 				finally { wipe(frame); }
+				}
 			} finally { wipe(pack); }
 			const source = editable ?? promotePhotoFramescaperImageSourceV1({ source: sourceFacts,
 				origin: { schemaFamily: 'framescaper', schemaVersion: 1, projectId: project.id, revision: project.revision,
@@ -247,7 +255,7 @@ export async function inspectPhotoFramescaperHandoffSourcesForProfileV1(profile:
 			});
 			if (admitted.readOnly) throw new RangeError('Photo editable archive requires a current Frame project.');
 			const project = cloneFramescaperProject(PROFILE, admitted.project);
-			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && source.schemaVersion === 3)) throw new RangeError('Legacy editable archive inspection refuses Source3.');
+			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) throw new RangeError('Legacy editable archive inspection refuses successor sources.');
 			validateTimelineImageCurrentArchiveAssets(framescaperProjectTimelineImageFoundationShapeAssistance(project), envelope.manifest);
 			const sources: Readonly<PhotoFramescaperHandoffSourceChoiceForProfileV1>[] = []; let unsupportedImageCount = 0;
 			for (const candidate of project.sources) {

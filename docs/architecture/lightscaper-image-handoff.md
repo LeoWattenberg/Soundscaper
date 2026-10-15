@@ -11,6 +11,10 @@ Develop process and ordered recipe, its natural output dimensions, and origin
 provenance. The archive retains the original and canonical image pack together
 with every referenced LUT, including disabled effects. Canonical pixels describe
 the original before Develop; the saved recipe remains separate and editable.
+Current RAW handoff uses [Source4 native Original authority](lightscaper-raw-image-handoff.md):
+the DNG/CRW and unchanged saved recipe remain editable, while pack pixels are a
+disposable presentation cache. Frame regenerates authenticated native words
+before Float32 Develop, native Save/reopen and reverse Photo3 receive.
 The single-photo transfer carries one saved version. Full photo history and
 catalog definitions stay in the sender's library.
 
@@ -24,9 +28,10 @@ the native ID tie-break. Stack collapsing does not omit matching photos.
 
 Each matching photo becomes a distinct editable source and timeline clip, even
 when photos share an original. The source retains its active saved version's
-process1 or process2 recipe, original, provenance, natural output dimensions,
-and referenced LUTs, including disabled effects. The canonical pixels remain
-the original before Develop. Clips are contiguous in a 30-fps sequence using
+process1, process2 or Current process3 recipe, original, provenance, natural
+output dimensions, LUTs and Current brush resources, including disabled and
+unused declarations. RAW and raster placements may share a sequence. Clips are
+contiguous in a 30-fps sequence using
 the canonical still duration. Ordering and duration presets remain optional
 future work. The sender's originals, versions, history, and collections remain
 unchanged; the archive carries the selected versions, not full photo histories
@@ -70,7 +75,9 @@ claimed canonical dimensions alone cannot authorize a destination write.
 
 The fixed archive input and expanded envelope limit is 256 MiB; selected pack
 plus unique LUT bodies are limited to 128 MiB, and the original to 64 MiB.
-Current processing admits one static 8-bit sRGB frame. These are admission and
+Raster processing admits one static 8-bit sRGB frame. The explicit Current
+Source4 route verifies native linear sRGB16 against its retained RAW receipt,
+preserving process1/2/3 and publishing Photo3. These are admission and
 per-owner bounds, not an aggregate ZIP/native memory estimate. Cancellation and
 close join all outstanding ZIP, native, resource, and publication consumers.
 

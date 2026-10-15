@@ -21,7 +21,7 @@ export function collectCubeLutProjectResourcesForProfileV1(profile: 'legacy2' | 
 	const binValue = optional(project, 'projectBin');
 	const references = new Map<string, Readonly<VideoCubeLutReferenceV1>>();
 	const identities = new Map<string, string>(), brushes = new Map<string, Readonly<BrushMaskResourceReferenceV1>>();
-	let current3 = false;
+	let currentTransport = false;
 	const imageRecipes: unknown[] = [], clipRecipes: ReturnType<typeof normalizeCubeLutProfileEffectV1>[] = [];
 	const sources = optional(project, 'sources');
 	if (sources !== undefined) for (const raw of readClosedDomainArray(sources, 'Cube LUT project sources', 0, 100_000)) {
@@ -31,7 +31,7 @@ export function collectCubeLutProjectResourcesForProfileV1(profile: 'legacy2' | 
 			const image = normalizeFramescaperImageSourceV1OrV2(source);
 			if (image.schemaVersion === 2) for (const reference of framescaperImageSourceResourceReferencesV2(image)) add(reference);
 		} else {
-			const image = normalizeFramescaperImageSourceCurrentV1(source); current3 ||= image.schemaVersion === 3;
+			const image = normalizeFramescaperImageSourceCurrentV1(source); currentTransport ||= image.schemaVersion === 3 || image.schemaVersion === 4;
 			if (image.schemaVersion !== 1) imageRecipes.push(image.develop);
 			const closure = framescaperImageSourceResourceReferencesCurrentV1(image);
 			for (const reference of closure.luts) add(reference);
@@ -52,7 +52,7 @@ export function collectCubeLutProjectResourcesForProfileV1(profile: 'legacy2' | 
 			}
 		}
 	}
-	if (current3) {
+	if (currentTransport) {
 		// The actual Current owner checks cross-source SHA identity and the complete
 		// combined scalar capacity before any native body admission. Clip effects
 		// are admitted only as private computational resource declarations.

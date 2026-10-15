@@ -13,7 +13,12 @@ import { createVideoTrack } from '../../../common/editor/project-media-factory.t
 import { openFramescaperImageFramePackV1, type FramescaperImageFramePackPublicationV1 } from '../../../common/editor/timeline-image-frame-pack-v1.ts';
 import { normalizeFramescaperImageSourceCurrentV1, type FramescaperImageSourceCurrentV1 } from '../../../common/editor/timeline-image-model-current-v1.ts';
 import { framescaperImageSourceResourceReferencesV2, normalizeFramescaperImageSourceV2 } from '../../../common/editor/timeline-image-model-v2.ts';
-import { framescaperImageSourceResourceReferencesV3 } from '../../../common/editor/timeline-image-model-v3.ts';
+import { framescaperImageSourceResourceReferencesCurrentV1 } from '../../../common/editor/timeline-image-model-current-v1.ts';
+import { normalizeFramescaperRawOriginalReceiptV1, type FramescaperRawOriginalReceiptV1 } from '../../../common/editor/timeline-image-raw-receipt-v1.ts';
+import { framescaperImagePackSourceCurrentV1 } from '../../../common/editor/timeline-image-pack-source-current-v1.ts';
+import { encodeFramescaperImageConversionReceiptV1 } from '../../../common/editor/timeline-image-conversion-receipt-v1.ts';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { FRAMESCAPER_IMAGE_ASSET_MIME_TYPE, FRAMESCAPER_IMAGE_MODEL_LIMITS_V1, FRAMESCAPER_IMAGE_TICKS_PER_SECOND } from '../../../common/editor/timeline-image-model.ts';
 import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, imageGeometryForVideoEffectV1 } from '../../../common/editor/video-image-geometry-v1.ts';
 import { applyFramescaperProjectCommand } from '../../../framescaper/editor-project-commands.ts';
@@ -34,11 +39,11 @@ export type EditableSource = Exclude<FramescaperImageSourceCurrentV1, { readonly
 export function assertHandoffProfile(profile: unknown): asserts profile is HandoffProfile { if (profile !== 'legacy2' && profile !== 'current3') throw new TypeError('Unsupported fixed Photo image handoff profile.'); }
 export function normalizeEditableSourceForProfileV1(profile: HandoffProfile, value: unknown): Readonly<EditableSource> {
 	assertHandoffProfile(profile); const source = profile === 'legacy2' ? normalizeFramescaperImageSourceV2(value) : normalizeFramescaperImageSourceCurrentV1(value);
-	if (source.schemaVersion === 1) throw new TypeError('Editable handoff requires a real Source2 or Source3.'); return source;
+	if (source.schemaVersion === 1) throw new TypeError('Editable handoff requires a real Source2, Source3 or Source4.'); return source;
 }
 export function handoffResourceReferencesForProfileV1(profile: HandoffProfile, source: Readonly<EditableSource>) {
 	assertHandoffProfile(profile);
-	if (source.schemaVersion === 3) { if (profile !== 'current3') throw new RangeError('Legacy handoff refuses Source3.'); return framescaperImageSourceResourceReferencesV3(source); }
+	if (source.schemaVersion === 3 || source.schemaVersion === 4) { if (profile !== 'current3') throw new RangeError('Legacy handoff refuses Current image sources.'); return framescaperImageSourceResourceReferencesCurrentV1(source); }
 	return Object.freeze({ luts: framescaperImageSourceResourceReferencesV2(source), brushes: Object.freeze([]) });
 }
 const PIXEL_LIMITS = Object.freeze({ maximumSidePixels: FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumDimension,
@@ -61,17 +66,24 @@ export interface PhotoImageHandoffSourceRequestV1 {
 	readonly pack: Readonly<FramescaperImageFramePackPublicationV1>;
 	readonly signal?: AbortSignal;
 }
+export interface PhotoImageHandoffSourceRequestCurrentV1 extends PhotoImageHandoffSourceRequestV1 {
+	readonly raw?: Readonly<FramescaperRawOriginalReceiptV1>;
+}
 export interface PhotoImageHandoffSourceForProfileV1 {
 	readonly source: Readonly<EditableSource>;
 	readonly body: Blob;
 }
 const CHECK = AbortSignal.prototype.throwIfAborted;
+const BUFFER = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), 'buffer')!.get!;
+const BYTE_LENGTH = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), 'byteLength')!.get!;
+const BACKING_LENGTH = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
 
 /** The internal pack producer owns decoding; this owner binds its authenticated
  * pack to the complete selected saved facts before an archive can consume it. */
-export async function createPhotoImageHandoffSourceForProfileV1(profile: HandoffProfile, value: PhotoImageHandoffSourceRequestV1): Promise<Readonly<PhotoImageHandoffSourceForProfileV1>> {
+export async function createPhotoImageHandoffSourceForProfileV1(profile: HandoffProfile, value: PhotoImageHandoffSourceRequestCurrentV1): Promise<Readonly<PhotoImageHandoffSourceForProfileV1>> {
 	assertHandoffProfile(profile); const label = 'Photo image handoff source';
-	const input = record(value, label, ['sourceId', 'factsJson', 'original', 'pack', 'signal'], ['sourceId', 'factsJson', 'original', 'pack']);
+	const input = record(value, label, ['sourceId', 'factsJson', 'original', 'pack', 'signal', ...(profile === 'current3' ? ['raw'] : [])], ['sourceId', 'factsJson', 'original', 'pack']);
+	const raw = Object.hasOwn(input, 'raw') ? normalizeFramescaperRawOriginalReceiptV1(field(input, 'raw', label)) : undefined;
 	const caller = Object.hasOwn(input, 'signal') ? field(input, 'signal', label) : undefined;
 	if (caller !== undefined && (!(caller instanceof AbortSignal) || Object.getPrototypeOf(caller) !== AbortSignal.prototype
 		|| ['aborted', 'reason', 'throwIfAborted', 'addEventListener', 'removeEventListener'].some(key => Object.hasOwn(caller, key)))) {
@@ -96,33 +108,39 @@ export async function createPhotoImageHandoffSourceForProfileV1(profile: Handoff
 	if (read('width') !== field(original, 'width', 'Photo image original geometry') || read('height') !== field(original, 'height', 'Photo image original geometry')
 		|| read('hasAlpha') !== field(original, 'hasAlpha', 'Photo image original geometry')) throw new Error('Photo image decoded original geometry or alpha binding changed.');
 	const sourceId = field(input, 'sourceId', label), develop = facts.version.develop;
-	const successor = profile === 'current3' && (facts.photoSchemaVersion === 3 || develop.masks.some(graph => graph.inputs.length > 0));
+	const successor = profile === 'current3' && (raw !== undefined || facts.photoSchemaVersion === 3 || develop.masks.some(graph => graph.inputs.length > 0));
 	const provenance = (successor ? createImageDevelopHandoffProvenanceV2 : createImageDevelopHandoffProvenanceV1)({ develop,
 		original: { exactName: facts.original.fileName, sha256: facts.original.contentSha256, byteLength: facts.original.byteLength },
 		origin: { schemaFamily: 'lightscaper', schemaVersion: facts.photoSchemaVersion, catalogId: facts.binding.catalogId, photoId: facts.binding.photoId,
 			revision: facts.binding.revision, versionId: facts.version.id, versionKind: facts.version.kind, versionName: facts.version.name, versionCreatedAt: facts.version.createdAt } });
 	const mimeType = field(original, 'mimeType', 'Photo image original geometry');
-	const source = normalizeEditableSourceForProfileV1(profile, { schemaVersion: successor ? 3 : 2, kind: 'image', id: sourceId, storageKey: sourceId,
+	const source = normalizeEditableSourceForProfileV1(profile, { schemaVersion: raw ? 4 : successor ? 3 : 2, kind: 'image', id: sourceId, storageKey: sourceId,
 		name: facts.version.name, mimeType: FRAMESCAPER_IMAGE_ASSET_MIME_TYPE, contentSha256: read('contentSha256'), assetByteLength: read('assetByteLength'),
 		conversionReceiptSha256: read('conversionReceiptSha256'),
-		original: { fileName: facts.original.fileName.normalize('NFC'), mimeType, recognizedFormat: format(mimeType), byteLength: facts.original.byteLength, sha256: facts.original.contentSha256 },
+		original: { fileName: facts.original.fileName.normalize('NFC'), mimeType, recognizedFormat: raw ? rawFormat(mimeType) : format(mimeType), byteLength: facts.original.byteLength, sha256: facts.original.contentSha256 },
 		canonical: { width: read('width'), height: read('height'), hasAlpha: read('hasAlpha'), frameCount: read('frameCount'), durationTicks: read('durationTicks'), timingMode: read('timingMode') },
-		develop, developed: natural(develop, read('width'), read('height')), provenance });
+		develop, developed: natural(develop, read('width'), read('height')), provenance, ...(raw ? { raw } : {}) });
 	assertPhotoDevelopHandoffMasksForProfileV1(profile, develop, source.canonical.width, source.canonical.height);
 	handoffResourceReferencesForProfileV1(profile, source); // Conflicting disabled resources must also refuse.
 	const bytes = read('bytes');
 	if (!(bytes instanceof Uint8Array) || Object.getPrototypeOf(bytes) !== Uint8Array.prototype) throw new TypeError('Photo image pack requires native bytes.');
-	if (bytes.byteLength !== source.assetByteLength) throw new RangeError('Photo image pack byte length differs from its admitted binding.');
-	if (BigInt(source.assetByteLength) * 3n + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 8n > 512n * 1024n * 1024n) {
+	const byteLength = source.schemaVersion === 4 ? Number(Reflect.apply(BYTE_LENGTH, bytes, [])) : bytes.byteLength;
+	if (byteLength !== source.assetByteLength) throw new RangeError('Photo image pack byte length differs from its admitted binding.');
+	const peak = source.schemaVersion === 4 ? BigInt(Reflect.apply(BACKING_LENGTH, Reflect.apply(BUFFER, bytes, []), []) as number) + BigInt(source.assetByteLength) * 2n
+		+ BigInt(source.original.byteLength) + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 8n + 32n * 1024n * 1024n
+		: BigInt(source.assetByteLength) * 3n + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 8n;
+	if (peak > BigInt(source.schemaVersion === 4 ? 1024 : 512) * 1024n * 1024n) {
 		throw new RangeError('Photo image handoff pack exceeds its working byte bound.');
+	}
+	if (raw && bytesToHex(sha256(encodeFramescaperImageConversionReceiptV1({ schemaVersion: 1, kind: 'raw-original', raw }))) !== source.conversionReceiptSha256) {
+		throw new Error('RAW image handoff pack receipt differs from its native Original facts.');
 	}
 	// Blob construction snapshots writable producer bytes before the first yield.
 	const body = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: FRAMESCAPER_IMAGE_ASSET_MIME_TYPE });
 	const snapshot = new Uint8Array(await Blob.prototype.arrayBuffer.call(body));
 	try {
 		check();
-		const { develop: _develop, developed: _developed, provenance: _provenance, ...base } = source;
-		const reader = await openFramescaperImageFramePackV1({ source: { ...base, schemaVersion: 1 },
+		const reader = await openFramescaperImageFramePackV1({ source: framescaperImagePackSourceCurrentV1(source),
 			read: (offset, length) => { check(); return snapshot.slice(offset, offset + length); } });
 		// Our snapshot is immutable. Receive and wipe the decoded plane before
 		// the final cancellation fence can reject after its last range read.
@@ -137,6 +155,11 @@ function format(value: unknown): string {
 		throw new RangeError('Photo image handoff original MIME has no admitted static route.');
 	}
 	return value.slice(6);
+}
+function rawFormat(value: unknown): 'dng' | 'crw' {
+	if (value === 'image/x-adobe-dng') return 'dng';
+	if (value === 'image/x-canon-crw') return 'crw';
+	throw new RangeError('RAW image handoff original MIME has no admitted native route.');
 }
 function natural(develop: ImageDevelopStateCurrentV1, width: unknown, height: unknown) {
 	if (typeof width !== 'number' || typeof height !== 'number') throw new TypeError('Photo image handoff requires natural original dimensions.');
@@ -203,7 +226,7 @@ export function createPhotoFramescaperHandoffPhotoForProfileV1(profile: HandoffP
 		name: origin.schemaFamily === 'lightscaper' ? origin.versionName : frameMasterName(source.name),
 		createdAt: origin.schemaFamily === 'lightscaper' ? origin.versionCreatedAt : createdAt, develop: source.develop };
 	const versions = virtual ? [{ id: masterVersionId, kind: 'master', name: 'Original', createdAt, develop: defaultPhotoDevelopV1() }, selected] : [selected];
-	const photo = (profile === 'current3' ? normalizePhotoDocumentCurrentV1 : normalizePhotoDocumentV1OrV2)({ schemaFamily: 'lightscaper', schemaVersion: source.schemaVersion === 3 ? 3 : source.develop.processVersion, kind: 'photo',
+	const photo = (profile === 'current3' ? normalizePhotoDocumentCurrentV1 : normalizePhotoDocumentV1OrV2)({ schemaFamily: 'lightscaper', schemaVersion: source.schemaVersion === 3 || source.schemaVersion === 4 ? 3 : source.develop.processVersion, kind: 'photo',
 		id: photoId, catalogId: catalog.id, revision: 0,
 		original: { schemaVersion: 1, kind: 'still', id: originalId, name: source.provenance.original.exactName,
 			mimeType: source.original.mimeType, storageKey, contentSha256: source.original.sha256, byteLength: source.original.byteLength,

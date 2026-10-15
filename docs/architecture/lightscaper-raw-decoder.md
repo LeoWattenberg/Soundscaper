@@ -6,8 +6,8 @@ native linear RGBA16 for development, thumbnails and display. The
 existing raster and permanent legacy routes retain their byte contracts.
 The Current Float32 stack now includes geometry, seven spatial families,
 authenticated LUTs, local adjustments and Original-space Clone/Heal. Expanded
-workflow qualification is in progress. RAW export/handoff and wider L7–L9
-work remain incomplete. The externally hosted decoder and corresponding source
+workflow qualification is recorded with the native output and handoff contracts.
+RAW-specific culling and wider L7–L9 work remain incomplete. The externally hosted decoder and corresponding source
 still require publication.
 
 ## Import, development and custody
@@ -54,8 +54,11 @@ Encoded RGBA8 is created only for disposable thumbnails, histograms and canvas
 presentation. Develop saves scalar recipes beside the unchanged Original.
 The opted-in Current Develop Settings repair entry previews native Original
 pixels, applies local Clone/Heal changes to the draft, and leaves durable
-publication to Save. Close joins preview retirement. RAW-specific export,
-Frame handoff and culling integration remain pending, as do highlight recovery,
+publication to Save. Close joins preview retirement. Current native
+[raster export](lightscaper-native-raster-export.md) and editable
+[Frame handoff](lightscaper-raw-image-handoff.md) regenerate the authenticated
+Original; FramePack1 carries only a disposable byte presentation cache.
+RAW-specific culling integration remains pending, as do highlight recovery,
 wide-gamut output, GPU/native processing, lens profiles and HDR merge.
 
 ## Decode contract

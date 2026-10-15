@@ -10,6 +10,7 @@ import {
 import { normalizeFramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import type { FramescaperCurrentImageSourceTimelineImage } from './editor-selected-timeline-image-image-frame-source.ts';
 import { framescaperEditableImageWorkingBytes } from './timeline-image-current-frame-source.ts';
+import { FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 } from './internal/timeline-image-raw-working-plan-current-v1.ts';
 
 /** timelineImage image-route ceiling; inherited finishing media keeps independent resource ownership. */
 export const FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_WORKING_BYTES_TIMELINE_IMAGE = 512 * 1024 * 1024;
@@ -173,8 +174,10 @@ function admit(
 		+ resources.retainedFrameBytes + resources.drawableBackingBytes
 		+ resources.requestOutputBytes + resources.uniqueFrameCacheBytes
 		+ transientRangeBytes + maximumRawFrameBytes + resources.transientScaledFrameBytes;
-	if (totalBytes > BigInt(FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_WORKING_BYTES_TIMELINE_IMAGE)) {
-		throw new RangeError(`timelineImage image ${route} exceeds its 512 MiB working byte bound.`);
+	const nativeRaw = [...admitted.sources.values()].some(context => context.source.schemaVersion === 4);
+	const maximum = nativeRaw ? FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 : FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_WORKING_BYTES_TIMELINE_IMAGE;
+	if (totalBytes > BigInt(maximum)) {
+		throw new RangeError(`timelineImage image ${route} exceeds its ${nativeRaw ? '1 GiB' : '512 MiB'} working byte bound.`);
 	}
 	return Object.freeze({
 		sourceCount: admitted.sources.size,

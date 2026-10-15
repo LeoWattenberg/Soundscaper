@@ -16,6 +16,7 @@ import type { WithImageRepairSpotsOriginalFrameV1 } from '../common/editor/contr
 import { suspendVideoPreviewForAuthoringV1 } from '../common/editor/controller/clip-video/video-preview-authoring-suspension-v1.ts';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import { readClosedDomainRecord, readClosedDomainField } from '../common/editor/closed-domain-value.ts';
+import { prepareFramescaperRawImageWorkingCurrentV1, FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1 } from './internal/timeline-image-raw-working-plan-current-v1.ts';
 
 interface Controller {
 	readonly project: unknown;
@@ -23,6 +24,7 @@ interface Controller {
 	readonly actions: Readonly<{ edit: Readonly<{ commit(command: FramescaperImageSourceSetCommandTimelineImage): unknown }> }>;
 }
 export interface FramescaperImageDevelopAuthoringSessionCurrentV1 {
+	readonly nativeCurrent?: true;
 	readonly sourceName: string;
 	readonly develop: Readonly<ImageDevelopStateCurrentV1>;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
@@ -76,7 +78,8 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 		const source = clip && project.sources.find(item => item.id === clip.sourceId);
 		if (!clip || clip.kind !== 'image' || !source || source.kind !== 'image') throw new Error('Image Develop requires a selected static image.');
 		const develop = source.schemaVersion === 1 ? defaultImageDevelopStateV1() : source.develop;
-		if (BigInt(source.assetByteLength) * 3n + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + 4_096n > 512n * 1024n * 1024n) {
+		if (source.schemaVersion === 4) prepareFramescaperRawImageWorkingCurrentV1(source, { authoringBytes: FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1 });
+		else if (BigInt(source.assetByteLength) * 3n + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 4n + 4_096n > 512n * 1024n * 1024n) {
 			throw new RangeError('Frame Original authoring exceeds its 512 MiB working byte bound.');
 		}
 		const [{ prepareFramescaperImageDevelopSourceCurrentV1 }, { prepareImageDevelopMaskOverlaySelectionV1 },
@@ -179,6 +182,7 @@ export function bindFramescaperImageDevelopAuthoringCurrentV1(options: Readonly<
 			finally { await retireFramescaperNativeImageCurrentV1(outcome, [() => captured.retire()]); }
 		}, callerOptions);
 		return Object.freeze<FramescaperImageDevelopAuthoringSessionCurrentV1>({ sourceName: source.name, develop, withOriginalFrame, withDraftFrame, withBrushDraftFrame,
+			...(source.schemaVersion === 4 ? { nativeCurrent: true as const } : {}),
 			...(brushOwner ? { brushMasks: brushOwner.port } : {}), isCurrent,
 			apply(next) {
 				current(); if (pending.size) throw new Error('Frame image work must join before Apply.');

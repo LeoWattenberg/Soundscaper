@@ -190,7 +190,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 	async delete(projectId: string): Promise<void> { await this.#delegate.delete(projectId); }
 
 	async #prepareSave(project: FramescaperProject): Promise<void> {
-		if (!project.sources.some(source => source.kind === 'image' && source.schemaVersion === 3)) return;
+		if (!project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) return;
 		if (!this.#scapeImages) throw new Error('Current Frame save requires its actual native resource owner.');
 		await this.#scapeImages.prepareSave(project);
 	}
@@ -260,9 +260,11 @@ function imageAuthority(project: FramescaperProject): ReadonlyMap<string, string
 	for (const source of project.sources as readonly Readonly<Record<string, unknown>>[]) {
 		if (source.kind !== 'image') continue;
 		const { name: _name, ...authority } = source;
-		if (source.schemaVersion === 2 || source.schemaVersion === 3) {
+		if (source.schemaVersion === 2 || source.schemaVersion === 3 || source.schemaVersion === 4) {
 			const { develop: _develop, developed: _developed, provenance: _provenance, ...pack } = authority;
-			result.set(String(source.id), JSON.stringify({ ...pack, schemaVersion: 1 }));
+			// RAW receipt stays immutable with its retained Original; only recipe
+			// and provenance can change in an ordinary Source4 authoring save.
+			result.set(String(source.id), JSON.stringify({ ...pack, schemaVersion: source.schemaVersion === 4 ? 4 : 1 }));
 		} else result.set(String(source.id), JSON.stringify(authority));
 	}
 	return result;

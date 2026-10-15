@@ -28,6 +28,8 @@ import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-pre
 import { decodePhotoImageHandoffSourceForProfileV1 } from './photo-image-handoff-decode-kernel-v1.ts';
 import { createPhotoFramescaperCollectionHandoffProjectForProfileV1 } from './photo-framescaper-collection-handoff-project-kernel-v1.ts';
 import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.ts';
+import { prepareLinearDevelopCurrentV1 } from '../../../common/editor/imaging/image-develop-linear-plan-v1.ts';
+import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../../common/editor/photo-library-develop-linear-port-v1.ts';
 
 export interface PhotoFramescaperCollectionHandoffArchiveRequestForProfileV1 {
 	readonly capture: Readonly<PhotoLibraryCollectionHandoffPortV1 | PhotoLibraryCollectionHandoffPortV2>; readonly binding: Readonly<PhotoLibraryCollectionHandoffRequestV1>; readonly signal?: AbortSignal;
@@ -113,11 +115,15 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveForProfileV1
 				|| field(original, 'byteLength', label) !== facts.original.byteLength) throw new Error('Collection archive original binding changed.');
 			const detached = Object.freeze({ exactName: facts.original.fileName, contentSha256: facts.original.contentSha256,
 				byteLength: integer(facts.original.byteLength, 1, 64 * 1024 * 1024, 'collection original byte length'),
-				mimeType: oneOf(field(original, 'mimeType', label), ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'] as const, 'collection original MIME'),
+				mimeType: oneOf(field(original, 'mimeType', label), ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp',
+					...(profile === 'current3' ? ['image/x-adobe-dng', 'image/x-canon-crw'] as const : [])] as const, 'collection original MIME'),
 				width: integer(field(original, 'width', label), 1, 8192, 'original width'), height: integer(field(original, 'height', label), 1, 8192, 'original height'),
 				hasAlpha: boolean(field(original, 'hasAlpha', label), 'original alpha') });
 			assertPhotoDevelopHandoffMasksForProfileV1(profile, facts.version.develop, detached.width, detached.height);
-			if (profile === 'current3') admitCurrentWork(facts.version.develop, detached.width, detached.height, detached.byteLength);
+			if (profile === 'current3') {
+				if (detached.mimeType === 'image/x-adobe-dng' || detached.mimeType === 'image/x-canon-crw') admitRawCurrentWork(facts.version.develop, detached.width, detached.height, detached.byteLength);
+				else admitCurrentWork(facts.version.develop, detached.width, detached.height, detached.byteLength);
+			}
 			factsBytes += new TextEncoder().encode(JSON.stringify({ catalogId, photoId, versionId, revision, original: detached })).byteLength;
 			if (factsBytes > MAXIMUM_FACTS) throw new RangeError('Collection archive exceeds its fixed facts capacity.');
 			closure.addDevelop(facts.version.develop);
@@ -203,6 +209,22 @@ function createClosure(profile: HandoffProfile) {
 	return { addDevelop: legacy.addDevelop, finish: (): Readonly<PhotoResourceReferencesCurrentV1> => Object.freeze({ luts: legacy.finish(), brushes: Object.freeze([]) }) };
 }
 function developResources(profile: HandoffProfile, develop: unknown) { const closure = createClosure(profile); closure.addDevelop(develop); return closure.finish(); }
+
+/** Metadata-only preparation cannot borrow bodies. Actual RAW signature,
+ * receipt and native pixels are proved later by the owning decoder/audits.
+ * Reserve the whole retained collection capacity in both serial phases. */
+const RAW_METADATA_ONLY = Object.freeze({ async withBytes<Result>(): Promise<Result> {
+	throw new TypeError('Collection RAW metadata preparation cannot read a resource body.');
+} });
+function admitRawCurrentWork(develop: Readonly<ImageDevelopStateCurrentV1>, width: number, height: number, originalBytes: number): void {
+	const prepared = prepareLinearDevelopCurrentV1({ frame: { descriptor: { schemaVersion: 1, width, height,
+		sampleFormat: 'unorm16', primaries: 'srgb', transfer: 'linear' } }, develop }, PHOTO_DEVELOP_LINEAR_LIMITS_V1,
+	{ source: RAW_METADATA_ONLY, maskSource: RAW_METADATA_ONLY });
+	const original = BigInt(originalBytes), retained = BigInt(MAXIMUM_BODIES), reserve = 32n * 1024n * 1024n;
+	const decode = retained + original * 3n + (512n + 128n) * 1024n * 1024n + reserve;
+	const render = retained + original * 2n + BigInt(prepared.peakWorkingBytes) + reserve;
+	if (decode > 1024n * 1024n * 1024n || render > 1024n * 1024n * 1024n) throw new RangeError('Collection native RAW image exceeds its working byte capacity.');
+}
 
 /** Pure admission of the canonical repair stage and every downstream mask,
  * geometry and declared resource. The mandatory pack prefix is a lower bound;

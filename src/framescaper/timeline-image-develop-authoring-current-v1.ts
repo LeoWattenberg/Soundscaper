@@ -6,6 +6,8 @@ import type { FramescaperImageSourceSetCommandTimelineImage } from './editor-pro
 import { framescaperEditableImageWorkingBytes } from './timeline-image-current-frame-source.ts';
 import { normalizeFramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import { normalizeFramescaperImageSourceV3 } from '../common/editor/timeline-image-model-v3.ts';
+import { normalizeFramescaperImageSourceV4 } from '../common/editor/timeline-image-model-v4.ts';
+import { prepareFramescaperRawImageWorkingCurrentV1 } from './internal/timeline-image-raw-working-plan-current-v1.ts';
 import { collectFramescaperImageProjectResourcesCurrentV1 } from '../common/editor/video-cube-lut-project-references-current-v1.ts';
 import { createImageDevelopHandoffProvenanceV2 } from '../common/editor/image-develop-handoff-provenance-v2.ts';
 import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../common/editor/imaging/image-develop-state-current-v1.ts';
@@ -31,17 +33,19 @@ export function prepareFramescaperImageDevelopSourceCurrentV1(projectValue: unkn
 	collectFramescaperImageProjectResourcesCurrentV1(project);
 	const develop = normalizeImageDevelopStateCurrentV1(developValue), previous = source.schemaVersion === 1 ? defaultImageDevelopStateV1() : source.develop;
 	const unchanged = JSON.stringify(develop) === JSON.stringify(previous);
-	const next = unchanged ? source : normalizeFramescaperImageSourceV3({ ...source, schemaVersion: 3, develop,
+	const nextValue = { ...source, schemaVersion: source.schemaVersion === 4 ? 4 : 3, develop,
 		developed: natural(develop, source.canonical.width, source.canonical.height),
 		provenance: createImageDevelopHandoffProvenanceV2({ develop,
 			original: { exactName: source.schemaVersion === 1 ? source.original.fileName : source.provenance.original.exactName,
 				sha256: source.original.sha256, byteLength: source.original.byteLength },
 			origin: { schemaFamily: 'framescaper', schemaVersion: 1, projectId: project.id, revision: project.revision,
-				sourceId: source.id, sequenceId: clip.sequenceId, clipId: clip.id } }) });
+				sourceId: source.id, sequenceId: clip.sequenceId, clipId: clip.id } }) };
+	const next = unchanged ? source : source.schemaVersion === 4 ? normalizeFramescaperImageSourceV4(nextValue) : normalizeFramescaperImageSourceV3(nextValue);
 	// Close the complete next project namespace, including declarations in other
 	// sources and disabled/unused inputs, before the command can reach a writer.
 	collectFramescaperImageProjectResourcesCurrentV1({ ...project, sources: project.sources.map(value => value.id === source.id ? next : value) });
-	if (BigInt(next.assetByteLength) * 3n + framescaperEditableImageWorkingBytes(next) > 512n * 1024n * 1024n) {
+	if (next.schemaVersion === 4) prepareFramescaperRawImageWorkingCurrentV1(next);
+	else if (BigInt(next.assetByteLength) * 3n + framescaperEditableImageWorkingBytes(next) > 512n * 1024n * 1024n) {
 		throw new RangeError('Image Develop exceeds its 512 MiB working byte bound.');
 	}
 	return Object.freeze({ type: 'image-source/set', sourceId: source.id, expectedSource: source, source: next });

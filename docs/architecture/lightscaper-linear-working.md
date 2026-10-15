@@ -155,17 +155,22 @@ failures. Working pixels, coverage and scratch are never persisted.
 The [Current RAW workflow](lightscaper-raw-decoder.md) uses the existing File
 menu to retain DNG/CRW Original bytes and supply authenticated native RGBA16 to
 development. Native decoder workers retire before the Float32 render starts.
-Only the final thumbnail/histogram/canvas boundary transfers linear samples to
+The final thumbnail/histogram/canvas boundary transfers linear samples to
 encoded RGBA8; those display bytes never feed the deep Develop stack. Save and
-reload retain recipes beside the immutable Original. Byte FramePack1 remains
-unchanged and does not carry deep samples. The earlier Chromium and Firefox
+reload retain recipes beside the immutable Original. [Current native raster
+export](lightscaper-native-raster-export.md) keeps Float32 samples through output
+stages and encodes PNG8, PNG16 or JPEG only at delivery. [Editable RAW Frame
+handoff](lightscaper-raw-image-handoff.md) retains the Original, native receipt
+and unchanged recipe as Source4. Frame regenerates authenticated native words
+before Develop; byte FramePack1 remains unchanged and carries a presentation
+cache rather than a persisted deep plane. The earlier Chromium and Firefox
 qualification covers the actual menu → import → white balance/exposure →
 Save/reload loop. Qualification of the expanded multistage workflow is in
 progress; this document does not claim its final suite or browser result.
 
-RAW raster export, cross-product RAW handoff and RAW-specific culling remain
-pending. Highlight recovery, wider primaries/output, soft proofing, GPU/native
-execution, lens/camera profiles and HDR merge are separate unfinished work.
+RAW-specific culling remains pending. Highlight recovery, wider primaries/output,
+soft proofing, GPU/native execution, lens/camera profiles and HDR merge are
+separate unfinished work.
 External RAW runtime/source publication, broader camera qualification, the
 remaining L3–L6 gates, L7 exit, desktop L8 and owner-QA L9 remain open.
 

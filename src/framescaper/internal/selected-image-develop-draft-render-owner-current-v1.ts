@@ -12,6 +12,11 @@ import { collectFramescaperImageProjectResourcesCurrentV1 } from '../../common/e
 import { normalizeImageDevelopStateCurrentV1, type ImageDevelopStateCurrentV1 } from '../../common/editor/imaging/image-develop-state-current-v1.ts';
 import { normalizeImageDevelopStateV2 } from '../../common/editor/imaging/image-develop-state-v2.ts';
 import { withImageDevelopFrameV3 } from '../../common/editor/imaging/image-develop-frame-v3.ts';
+import { withImageDevelopLinearCurrentV1 } from '../../common/editor/imaging/image-develop-linear-current-v1.ts';
+import { withLinearPixelFrameDisplayV1 } from '../../common/editor/imaging/pixel-frame-linear-display-v1.ts';
+import { createPixelFrameHistogramV1 } from '../../common/editor/imaging/pixel-frame-histogram-v1.ts';
+import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../common/editor/photo-library-develop-linear-port-v1.ts';
+import { prepareFramescaperRawImageWorkingCurrentV1, FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1 } from './timeline-image-raw-working-plan-current-v1.ts';
 import type { ImageDevelopFrameViewV1 } from '../../common/editor/imaging/image-develop-frame-core.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1, type ImageDevelopMaskOverlaySelectionV1 } from '../../common/editor/imaging/image-develop-mask-overlay-v1.ts';
 import { prepareImageDevelopBrushMasksV1 } from '../../common/editor/imaging/image-develop-brush-mask-v1.ts';
@@ -97,7 +102,16 @@ async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurr
 			let outcome: { value: Result } | { error: unknown };
 			try {
 				check(); if (frame.descriptor.width !== source.canonical.width || frame.descriptor.height !== source.canonical.height) throw new RangeError('Frame draft Original differs from its exact canonical source.');
-				outcome = { value: await withImageDevelopFrameV3({ frame, develop, signal, ...(selection ? { maskOverlay: selection } : {}) },
+				if (source.schemaVersion === 4) {
+					if (frame.descriptor.sampleFormat !== 'unorm16' || frame.descriptor.transfer !== 'linear' || frame.descriptor.primaries !== 'srgb') throw new TypeError('Frame RAW draft requires its authenticated native Original words.');
+					outcome = { value: await withImageDevelopLinearCurrentV1({ frame, develop, signal, ...(selection ? { maskOverlay: selection } : {}) },
+						(output, overlay) => withLinearPixelFrameDisplayV1({ frame: output, signal }, async display => {
+							check(); if (display.descriptor.width !== source.developed.width || display.descriptor.height !== source.developed.height) throw new RangeError('Frame RAW draft natural output differs from its admitted source dimensions.');
+							if (!(display.pixels instanceof Uint8Array)) throw new TypeError('Frame RAW draft display requires canonical RGBA8.');
+							const histogram = await createPixelFrameHistogramV1(display, { limits: PIXELS, signal }); check();
+							const result = await consume(Object.freeze({ frame: Object.freeze({ descriptor: display.descriptor, pixels: display.pixels }), histogram, ...(overlay ? { maskOverlay: overlay } : {}) })); check(); return result;
+						}, 'full'), PHOTO_DEVELOP_LINEAR_LIMITS_V1, { source: luts, maskSource }) };
+				} else outcome = { value: await withImageDevelopFrameV3({ frame, develop, signal, ...(selection ? { maskOverlay: selection } : {}) },
 					async view => {
 						check(); const natural = source.schemaVersion === 1 ? source.canonical : source.developed;
 						if (view.frame.descriptor.width !== natural.width || view.frame.descriptor.height !== natural.height) throw new RangeError('Frame draft natural output differs from its admitted source dimensions.');
@@ -116,6 +130,21 @@ async function withDraft<Result>(host: FramescaperImageDevelopDraftFrameHostCurr
 function preflight(source: FramescaperImageSourceCurrentV1, develop: ImageDevelopStateCurrentV1,
 	selection: Readonly<ImageDevelopMaskOverlaySelectionV1> | undefined,
 	references: ReturnType<typeof collectFramescaperImageProjectResourcesCurrentV1>, temporaryBodyBytes = 0): void {
+	if (source.schemaVersion === 4) {
+		const plan = prepareFramescaperRawImageWorkingCurrentV1(source, { develop, ...(selection ? { maskOverlay: selection } : {}),
+			authoringBytes: FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1, temporaryBodyBytes });
+		// Complete project declarations authenticate before the Original borrow.
+		// Their peak is separate from decoding and Current render resource scopes.
+		let authentication = 0n;
+		for (const reference of references.luts) {
+			const bytes = BigInt(reference.byteLength) * 3n + BigInt(reference.size) ** 3n * 48n;
+			if (bytes > authentication) authentication = bytes;
+		}
+		for (const reference of references.brushes) { const bytes = BigInt(reference.byteLength) * 3n; if (bytes > authentication) authentication = bytes; }
+		const peak = BigInt(source.assetByteLength) * 3n + authentication + BigInt(FRAMESCAPER_RAW_IMAGE_AUTHORING_BYTES_CURRENT_V1) + BigInt(temporaryBodyBytes) * 3n;
+		if (peak > BigInt(plan.maximumWorkingBytes)) throw new RangeError('Frame RAW draft authentication exceeds its 1 GiB working byte bound.');
+		return;
+	}
 	planPixelFrameV1({ schemaVersion: 1, width: source.canonical.width, height: source.canonical.height,
 		sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, PIXELS);
 	const computation = develop.processVersion === 3 ? normalizeImageDevelopStateV2({ processVersion: 2, effects: develop.effects,

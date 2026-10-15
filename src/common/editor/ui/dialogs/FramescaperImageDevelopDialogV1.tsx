@@ -9,6 +9,7 @@ import type { ImageBrushMaskResourceAcknowledgementV1, ImageBrushMaskResourcePor
 import FramescaperImageBrushMaskEditorV1 from './FramescaperImageBrushMaskEditorV1.tsx';
 
 export interface FramescaperImageDevelopDialogPropsV1 {
+	readonly nativeCurrent?: true;
 	readonly kind: 'repairs' | 'masks' | 'brush';
 	readonly develop: ImageDevelopStateCurrentV1;
 	readonly withOriginalFrame: WithImageRepairSpotsOriginalFrameV1;
@@ -38,7 +39,7 @@ export default function FramescaperImageDevelopDialogV1(props: FramescaperImageD
 			withBrushDraftFrame={props.withBrushDraftFrame} isCurrent={props.isCurrent} onApply={apply} onClose={close} registerRetirement={props.registerRetirement} />;
 	}
 	return props.kind === 'repairs'
-		? <ImageRepairSpotsEditorV1 develop={props.develop} withOriginalFrame={props.withOriginalFrame} locale={props.locale} disabled={props.disabled}
+		? <ImageRepairSpotsEditorV1 develop={props.develop} withOriginalFrame={props.withOriginalFrame} locale={props.locale} disabled={props.disabled} nativeCurrent={props.nativeCurrent}
 			isCurrent={props.isCurrent} onApply={apply} onClose={close} registerRetirement={props.registerRetirement} />
 		: <FramescaperImageDevelopMaskEditorV1 develop={props.develop} locale={props.locale} disabled={props.disabled} withDraftFrame={props.withDraftFrame}
 			isCurrent={props.isCurrent} onApply={apply} onClose={close} registerRetirement={props.registerRetirement} />;

@@ -143,6 +143,8 @@ remain in progress. File-menu archive handoff exports a saved editable photo and
 receives it into the selected library with authenticated Original, LUT, and brush
 bodies. Current single-photo handoff preserves repaired recipes through editable
 Frame sources, native save/reopen/export, and reverse Photo3 publication.
+RAW originals now use editable Source4, retaining native receipt and precision
+through that same menu-owned round trip and mixed collection sequences.
 The import dialog also selects an ordinary Frame still's timeline or Project Bin
 placement explicitly. Manual collections, smart collections, and saved filters
 download as editable Frame sequences in native query order. The remaining L5
@@ -159,7 +161,7 @@ pending.
 | Product seam | Three-product registry, separate-origin routes and independently built sites, per-product profiles/capabilities/PWA/i18n, registry-driven switching, and product-owned test shards. Lightscaper desktop wiring waits for L8. |
 | Imaging engine | Shared parametric video effects, managed SDR color with linear-light grade math and `.cube` LUTs, mask graphs, visual presets, and keyframe curves. Wider primaries/transfers remain recognized by the schema and refused at render admission. |
 | Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
-| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask, repair and output stages, with final PNG8/16 or JPEG8 delivery; editable RAW handoff and wide-gamut work remain open. |
+| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask, repair and output stages, with final PNG8/16 or JPEG8 delivery. Editable Source4 handoff regenerates native words from the authenticated Original; wide-gamut work remains open. |
 | Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
 | Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. |
 | Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
@@ -170,7 +172,7 @@ Architectural constraints that still drive the sequence:
 
 - the established byte route remains exact; Current RAW processing uses the
   same L2 contracts, with native stage ownership and aggregate memory admission;
-  RAW export/handoff, highlight recovery and wider output remain pending in L7;
+  highlight recovery and wider output remain pending in L7;
 - original custody and catalog persistence have separate owners and must
   reconcile interrupted publication before a library is exposed;
 - catalog-scale browsing uses bounded indexed pages rather than whole-project
@@ -431,7 +433,11 @@ photo work moves between products without loss.
   Photo/process provenance through editable Source2/3, selected LUT and brush
   declarations, and native query order. Complete retained resources are
   authenticated before Original acquisition; inactive histories stay in the
-  sender. Full cross-product and export-matrix qualification remains open.
+  sender. Current RAW single and mixed collection handoff uses Source4 with
+  exact Original, decoder receipt and selected recipe; Frame native Develop,
+  Clone/Heal, Save/reopen and reverse Photo3 regenerate native words rather than
+  developing the byte presentation cache. Full cross-product and export-matrix
+  qualification remains open.
 - **Shared — Optional:** ordering and per-photo duration presets for the
   handed-off sequence.
 
@@ -846,7 +852,7 @@ there.
   parser/transient work, without claiming an exact JavaScript heap bound.
   Oversized combinations refuse. The byte helpers retain their existing
   arithmetic; a factored shared coverage generator keeps the byte wrapper's
-  profile unchanged. The selected Lightscaper regression passes 2,970 cases in
+  profile unchanged. The native export qualification passed 2,970 cases in
   335 files. Chromium and Firefox pass the real RAW menu workflow through Clone,
   masked tone, sharpening, rotated crop, Save and reload, with full-plane pixel
   comparisons and unchanged authenticated Originals. Together with import and
@@ -860,7 +866,21 @@ there.
   through an explicit Current container policy. The output owner charges held
   Original/rendered/resource storage, replacing planes and the codec under a
   one-GiB aggregate bound and enforces the reduced codec return capacity.
-  Editable RAW handoff, culling integration and wider output remain unfinished.
+  [Editable RAW handoff](docs/architecture/lightscaper-raw-image-handoff.md)
+  now preserves process1/2/3 in Source4 and re-proves the retained Original,
+  same-instance native orientation and opaque RGBA16 word digest before Frame
+  Develop, archive/native publication and reverse Photo3 receive. FramePack1
+  remains unchanged; its RGBA8 cache never supplies native authoring inputs.
+  Single and mixed RAW/raster sequences retain complete LUT/brush closure,
+  selected order and separate placement, with phasewise one-GiB admission.
+  Scalar import preflight binds exact receipt and memory bounds before staging.
+  The selected Lightscaper regression passes 3,030 cases in 347 files. Two real
+  Chromium/Firefox round trips cover a named Process2 mask, native Frame
+  preview, explicit Process3 Clone, Project Bin thumbnails, Save/reopen and
+  reverse Photo3 with unchanged Original bytes and custody. Separate product
+  builds preserve the existing ceilings at 53 Lightscaper and 100 Framescaper
+  ready-graph requests, each with six initial requests. Culling integration and
+  wider output remain unfinished.
   The first foundation qualified 2,776 cases in 311 files, with four
   English/German Chromium/Firefox workflows retaining native repaired Photo
   preview, brush editing, saved history and reload. The preceding RAW/global
@@ -887,7 +907,7 @@ there.
   regression passed 2,845 cases in 319 files, including pinned Canon CRW import
   through the actual native worker. The browser decoder
   fetch uses the exact pinned artifact; external asset publication is still
-  pending. Editable RAW handoff, RAW-specific culling, broader camera coverage,
+  pending. RAW-specific culling, broader camera coverage,
   highlight recovery, wide-gamut/soft-proof output, GPU/native execution,
   lens/camera profiles, HDR merge, L8 and L9 remain unfinished. Current native
   Develop and raster export qualification is recorded above; remaining L3–L6
