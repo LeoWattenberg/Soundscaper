@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EngineRenderToSinkOptions } from '../../../engine/public-api.ts';
-import type { ProductNativeRenderInputOperation } from '../product-native-render-input-authority.ts';
+import type { EngineRenderToSinkOptions } from '../../engine/public-api.ts';
+import type { ProductNativeRenderInputOperation } from './product-native-render-input-authority.ts';
 
 type Sink = Parameters<NonNullable<ProductNativeRenderInputOperation['renderAudioToSink']>>[2];
 type Result = Awaited<ReturnType<NonNullable<ProductNativeRenderInputOperation['renderAudioToSink']>>>;

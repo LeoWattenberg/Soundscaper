@@ -3,7 +3,7 @@ import { canonicalJsonSha256 } from '../common/canonical-json-sha256.ts';
 import { createAudioEditorEngine } from '../common/editor/engine/runtime-class.ts';
 import { ClipTimePitchRenderCacheCoordinator, clipNeedsTimePitchRender } from '../common/editor/clip-time-pitch-cache.js';
 import { createStoredChunkProvider, isStoredSourceMetadata, isStreamableStoredSource } from '../common/editor/controller/source/source-audio.ts';
-import { renderProductNativeAudioToSink } from '../common/editor/controller/composition/internal/product-native-render-audio-stream.ts';
+import { renderProductNativeAudioToSink } from '../common/editor/controller/composition/product-native-render-audio-stream.ts';
 import type { ProductNativeRenderInputOperation } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { MotionDeliveryCleanupFailure } from '../common/editor/motion-delivery-cleanup.ts';
 import { createFramescaperCompositionPcmSource } from './editor-composition-link-pcm-source.ts';

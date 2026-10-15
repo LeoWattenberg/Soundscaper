@@ -6,7 +6,7 @@ import type { ProductNativeRenderInputOperation } from '../common/editor/control
 import type { FramescaperCompositionLinkOwnerReceipt } from './editor-composition-link-owner-repository.ts';
 import type { FramescaperSuccessorEnvironment } from './editor-project-successor-environment.ts';
 import { normalizeFramescaperSuccessorProject, type FramescaperSuccessorProject } from './editor-project-successor.ts';
-import { createFramescaperSuccessorNativeAudioLease } from './editor-successor-native-audio-lease.ts';
+import type { createFramescaperSuccessorNativeAudioLease } from './editor-successor-native-audio-lease.ts';
 
 type Controller = ReturnType<typeof createAudioEditorController>;
 export interface FramescaperSuccessorNativeInputOperation extends Omit<ProductNativeRenderInputOperation, 'finish'> {
@@ -24,6 +24,7 @@ export function createFramescaperSuccessorNativeInput(controller: Controller, en
 	const nativeInput = Object.freeze({ begin(options: Readonly<{ signal?: AbortSignal }> = {}): FramescaperSuccessorNativeInputOperation {
 		if (active) { active.abort(new DOMException('The native export was superseded.', 'AbortError')); throw new Error('Finish native export cleanup before starting another export.'); }
 		const project = normalizeFramescaperSuccessorProject(controller.project), abort = new AbortController();
+		const pcmDigest = canonicalJsonSha256(environment.playback.projectForPlayback(project).project);
 		let token = controller.captureProjectGeneration(project.id), expected = canonicalJsonSha256(project), reference = controller.project;
 		let adopting: { before: object; after: string; adopted: object | null } | null = null, finished = false;
 		const cancel = (reason: unknown) => { abort.abort(reason); };
@@ -42,7 +43,19 @@ export function createFramescaperSuccessorNativeInput(controller: Controller, en
 			} else { controller.assertProjectGeneration(token); if (value !== reference) throw new EditorProjectChangedError(); }
 		};
 		const unsubscribe = controller.subscribe(() => { try { assertCurrent(); } catch (error) { cancel(error); } });
-		const audio = createFramescaperSuccessorNativeAudioLease(environment, project, abort.signal, assertCurrent, () => { if (finished && active === owner) active = null; });
+		let audio: ReturnType<typeof createFramescaperSuccessorNativeAudioLease> | null = null, preparing: Promise<void> | null = null;
+		const prepare = async () => {
+			assertCurrent(); preparing ??= (async () => {
+				const { createFramescaperSuccessorNativeAudioLease } = await import('./editor-successor-native-audio-lease.ts'); assertCurrent();
+				audio = createFramescaperSuccessorNativeAudioLease(environment, project, abort.signal, assertCurrent, () => { if (finished && active === owner) active = null; });
+				await audio.prepare();
+			})(); await preparing;
+		};
+		const releaseMedia = async () => { if (preparing) await preparing.catch(() => undefined); await audio?.release(); };
+		const renderAudioToSink: NonNullable<ProductNativeRenderInputOperation['renderAudioToSink']> = async (project, range, sink) => {
+			if (canonicalJsonSha256(project) !== pcmDigest) throw new Error('The native PCM request differs from its captured project.');
+			await prepare(); if (!audio) throw new Error('Pinned native PCM inputs are absent.'); return audio.renderAudioToSink(project, range, sink);
+		};
 		const owner: Active = { abort: cancel, permit(before, after) {
 			assertCurrent(); if (adopting || canonicalJsonSha256(before) !== expected) throw new EditorProjectChangedError();
 			if (!reference) throw new EditorProjectChangedError();
@@ -58,11 +71,11 @@ export function createFramescaperSuccessorNativeInput(controller: Controller, en
 			};
 		} };
 		active = owner;
-		return Object.freeze({ project, signal: abort.signal, assertCurrent, prepare: audio.prepare, releaseMedia: audio.release,
-			renderAudio: async () => { throw new Error('Captured Frame export requires bounded PCM streaming.'); }, renderAudioToSink: audio.renderAudioToSink,
+		return Object.freeze({ project, signal: abort.signal, assertCurrent, prepare, releaseMedia,
+			renderAudio: async () => { throw new Error('Captured Frame export requires bounded PCM streaming.'); }, renderAudioToSink,
 			async finish() {
-				finished = true; unsubscribe(); options.signal?.removeEventListener('abort', cancelFromCaller);
-				await audio.release(); if (active === owner) active = null;
+				finished = true; unsubscribe(); cancel(new DOMException('The native export input finished.', 'AbortError')); options.signal?.removeEventListener('abort', cancelFromCaller);
+				await releaseMedia(); if (active === owner) active = null;
 			},
 		});
 	} });

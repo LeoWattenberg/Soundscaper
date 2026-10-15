@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
-import { renderProductNativeAudioToSink } from '../src/common/editor/controller/composition/internal/product-native-render-audio-stream.ts';
+import { renderProductNativeAudioToSink } from '../src/common/editor/controller/composition/product-native-render-audio-stream.ts';
 import { MotionNativeCaptureNode, MotionNativeClockContext, motionNativeClockSample } from './helpers/motionscaper-native-clock-fixture.ts';
 
 test('Motion native PCM preserves every sample without a sink-driven suspend/resume boundary', async () => {
