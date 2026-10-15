@@ -2,6 +2,16 @@
 
 import { resolveEditorCopyScope } from './editor-copy-scope.ts';
 import { localeLanguage } from './locale.js';
+import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js';
+import { MOTIONSCAPER_SCENE_COPY_BY_LOCALE } from './editor-motionscaper-scene-copy.ts';
+import { MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE } from './editor-motionscaper-appearance-copy.ts';
+import { MOTIONSCAPER_CANVAS_COPY_BY_LOCALE } from './editor-motionscaper-canvas-copy.ts';
+import { MOTIONSCAPER_QUEUE_COPY_BY_LOCALE } from './editor-motionscaper-queue-copy.ts';
+import { MOTIONSCAPER_IMPORT_COPY_BY_LOCALE } from './editor-motionscaper-import-copy.ts';
+import { MOTIONSCAPER_UPDATES_COPY_BY_LOCALE } from './editor-motionscaper-updates-copy.ts';
+import { MOTIONSCAPER_LINK_COPY_BY_LOCALE } from './editor-motionscaper-link-copy.ts';
+import { MOTIONSCAPER_AE_COPY_BY_LOCALE } from './editor-motionscaper-ae-copy.ts';
+import { MOTIONSCAPER_TRACKING_COPY_BY_LOCALE } from './editor-motionscaper-tracking-copy.ts';
 
 const ENTRIES = [
 	['motionscaperHelpMenu', 'Help', 'Hilfe'],
@@ -443,9 +453,22 @@ export const MOTIONSCAPER_COPY_BY_LOCALE = Object.freeze({
 	en: Object.freeze(Object.fromEntries(ENTRIES.map(([key, en]) => [key, en]))),
 	de: Object.freeze(Object.fromEntries(ENTRIES.map(([key, , de]) => [key, de]))),
 });
-export const MOTIONSCAPER_CANONICAL_ENGLISH_COPY = Object.freeze(Object.fromEntries(
-	Object.entries(MOTIONSCAPER_COPY_BY_LOCALE.en).map(([key, source]) => [`ui.motionscaper.${key}`, source]),
-));
+/** Admit exactly the owners consumed by motionscaperCopy, using their registered keys. */
+export const MOTIONSCAPER_CANONICAL_ENGLISH_COPY: Readonly<Record<string, string>> = Object.freeze({
+	...VIDEO_EFFECT_COPY_BY_LOCALE.en,
+	...Object.fromEntries(([
+		['motionscaper', MOTIONSCAPER_COPY_BY_LOCALE.en],
+		['motionscaper-scene', MOTIONSCAPER_SCENE_COPY_BY_LOCALE.en],
+		['motionscaper-appearance', MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE.en],
+		['motionscaper-canvas', MOTIONSCAPER_CANVAS_COPY_BY_LOCALE.en],
+		['motionscaper-queue', MOTIONSCAPER_QUEUE_COPY_BY_LOCALE.en],
+		['motionscaper-import', MOTIONSCAPER_IMPORT_COPY_BY_LOCALE.en],
+		['motionscaper-updates', MOTIONSCAPER_UPDATES_COPY_BY_LOCALE.en],
+		['motionscaper-link', MOTIONSCAPER_LINK_COPY_BY_LOCALE.en],
+		['motionscaper-ae', MOTIONSCAPER_AE_COPY_BY_LOCALE.en],
+		['motionscaper-tracking', MOTIONSCAPER_TRACKING_COPY_BY_LOCALE.en],
+	] as const).flatMap(([owner, copy]) => Object.entries(copy).map(([key, source]) => [`ui.${owner}.${key}`, source]))),
+});
 
 export function resolveMotionscaperCopy(locale: string, overrides: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, string>> {
 	return resolveEditorCopyScope('motionscaper', localeLanguage(locale) === 'de'
