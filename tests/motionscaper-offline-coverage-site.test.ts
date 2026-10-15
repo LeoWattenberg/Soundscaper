@@ -14,6 +14,7 @@ import { createBrowserWebAssemblyAuthenticator } from '../scripts/lib/browser-we
 import { createMotionscaperOfflineSite } from './browser/helpers/motionscaper-offline-site.ts';
 
 test('offline Motion rehosting preserves exact closure and maps while authenticating its own temporary origin', async () => {
+	await mkdir(resolve('.wrangler'), { recursive: true });
 	const workspace = await mkdtemp(resolve('.wrangler/motion-offline-source-'));
 	const directory = join(workspace, 'motionscaper'); await mkdir(directory);
 	const source = { productId: 'motionscaper' as const, origin: 'http://127.0.0.1:4554', peerOrigin: 'http://127.0.0.1:4553', outputDirectory: relative(resolve('.'), directory).replaceAll('\\', '/') };
