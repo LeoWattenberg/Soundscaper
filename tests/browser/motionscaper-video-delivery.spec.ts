@@ -11,6 +11,7 @@ import type * as Project from '../../src/motionscaper/editor-project.ts';
 import type * as Request from '../../src/motionscaper/editor-render-task.ts';
 import type * as Pipeline from '../../src/common/editor/controller/export/motion-render-pipeline.ts';
 import type * as Property from '../../src/common/editor/motion-property.ts';
+import { recordMotionVideoEvidence } from './motionscaper-video-evidence.ts';
 
 const bundle = (): string => buildSync({ stdin: { contents: `
 	export { createMotionBrowserVideoSink } from '../../src/common/editor/controller/export/motion-browser-video.ts';
@@ -30,7 +31,7 @@ function expectAdmissionRefusal(refusal: string): void {
 }
 
 for (const format of ['mp4', 'webm'] as const) {
-	test(`M05 ${format} delivery round trips actual browser encoding, work-area timing and opaque linear coverage`, async ({ page }) => {
+	test(`M05 ${format} delivery round trips actual browser encoding, work-area timing and opaque linear coverage`, async ({ page }, testInfo) => {
 		await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
 		const result = await page.evaluate(async (format) => {
 			const fixture = (globalThis as unknown as { motionVideoFixture: typeof Video & typeof Surface & typeof Bunny }).motionVideoFixture;
@@ -59,10 +60,11 @@ for (const format of ['mp4', 'webm'] as const) {
 						await sample.copyTo(rgba, { format: 'RGBA' }); pixels.push([...rgba.subarray(0, 4)]);
 					} finally { sample.close(); }
 				}
-				return { supported: true as const, committed, timestamps, pixels, width: track.displayWidth, height: track.displayHeight,
+				return { supported: true as const, output: [...bytes], codec: track.codec, committed, timestamps, pixels, width: track.displayWidth, height: track.displayHeight,
 					duration: await input.computeDuration(), largestChunk: Math.max(...chunks.map((chunk) => chunk.byteLength)) };
 			} finally { input.dispose(); }
 		}, format);
+		await recordMotionVideoEvidence(testInfo, format, result);
 		if (!result.supported) { expectAdmissionRefusal(result.refusal); expect(result.destinationLocked).toBe(false); expect(result.chunks).toBe(0); expect(result.committed).toBe(false); return; }
 		expect(result.committed).toBe(true); expect(result.timestamps).toHaveLength(6);
 		expect([result.width, result.height]).toEqual([32, 32]);
@@ -76,7 +78,7 @@ for (const format of ['mp4', 'webm'] as const) {
 	});
 }
 
-test('M05 two-frame 30 fps WebM uses its declared millisecond resolution without changing authoring time', async ({ page }) => {
+test('M05 two-frame 30 fps WebM uses its declared millisecond resolution without changing authoring time', async ({ page }, testInfo) => {
 	await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
 	const result = await page.evaluate(async () => {
 		const fixture = (globalThis as unknown as { motionVideoFixture: typeof Video & typeof Surface & typeof Bunny & typeof Delivery }).motionVideoFixture;
@@ -88,16 +90,18 @@ test('M05 two-frame 30 fps WebM uses its declared millisecond resolution without
 		for (let index = 0; index < 2; index++) await sink.write({ index, time: { num: 7 + index, den: 30 }, duration: { num: 1, den: 30 },
 			surface: { ...fixture.createMotionSurface(32, 32, [1, 0, 0, 1]), consumedOperationIds: [] } });
 		const blob = await sink.finish(); if (!blob) throw new Error('Expected completed Blob output.');
-		const input = new fixture.Input({ source: new fixture.BufferSource(await blob.arrayBuffer()), formats: [fixture.WEBM] });
+		const bytes = new Uint8Array(await blob.arrayBuffer());
+		const input = new fixture.Input({ source: new fixture.BufferSource(bytes), formats: [fixture.WEBM] });
 		try {
 			const track = await input.getPrimaryVideoTrack(); if (!track) throw new Error('Missing video track.');
 			const timestamps: number[] = []; const durations: number[] = [];
 			for await (const sample of new fixture.VideoSampleSink(track).samples()) {
 				try { timestamps.push(sample.timestamp); durations.push(sample.duration); } finally { sample.close(); }
 			}
-			return { supported: true as const, timestamps, durations, duration: await input.computeDuration(), quantum: fixture.MOTION_WEBM_TIMECODE_QUANTUM_SECONDS };
+			return { supported: true as const, output: [...bytes], codec: track.codec, timestamps, durations, duration: await input.computeDuration(), quantum: fixture.MOTION_WEBM_TIMECODE_QUANTUM_SECONDS };
 		} finally { input.dispose(); }
 	});
+	await recordMotionVideoEvidence(testInfo, 'webm', result);
 	if (!result.supported) { expectAdmissionRefusal(result.refusal); return; }
 	expect(result.quantum).toBe(0.001);
 	expect(result.timestamps).toEqual([0, 0.033]); expect(result.durations).toEqual([0.033, 0.033]);
@@ -106,7 +110,7 @@ test('M05 two-frame 30 fps WebM uses its declared millisecond resolution without
 });
 
 for (const format of ['webm', 'mp4'] as const) {
-	test(`M05 ${format} consumes real mixed PCM and qualifies codec timing or explicit audio refusal`, async ({ page }) => {
+	test(`M05 ${format} consumes real mixed PCM and qualifies codec timing or explicit audio refusal`, async ({ page }, testInfo) => {
 		await page.goto('/en/'); await page.addScriptTag({ content: bundle() });
 		const result = await page.evaluate(async (format) => {
 			const fixture = (globalThis as unknown as { motionVideoFixture: typeof Video & typeof Surface & typeof Bunny & typeof Audio & typeof Project & typeof Request & typeof Pipeline & typeof Property }).motionVideoFixture;
@@ -151,10 +155,11 @@ for (const format of ['webm', 'mp4'] as const) {
 					} finally { sample.close(); }
 				}
 				let frames = 0; for await (const sample of new fixture.VideoSampleSink(video).samples()) { sample.close(); frames++; }
-				return { supported: true as const, first, last, count, rms: energy.map((value) => Math.sqrt(value / count)), peaks, frames,
+				return { supported: true as const, output: [...new Uint8Array(bytes)], videoCodec: video.codec, audioCodec: audio.codec, first, last, count, rms: energy.map((value) => Math.sqrt(value / count)), peaks, frames,
 					sampleRate: audio.sampleRate, channels: audio.numberOfChannels, duration: await input.computeDuration() };
 			} finally { input.dispose(); }
 		}, format);
+		await recordMotionVideoEvidence(testInfo, format, result);
 		if (!result.supported) { expectAdmissionRefusal(result.refusal); expect(result.destinationLocked).toBe(false); expect(result.chunks).toBe(0); expect(result.committed).toBe(false); return; }
 		expect(result.frames).toBe(30); expect([result.sampleRate, result.channels]).toEqual([48000, 2]);
 		expect(result.count).toBeGreaterThanOrEqual(48000); expect(result.count).toBeLessThan(50000);
