@@ -74,8 +74,10 @@ package complete.
 ### Implementation status
 
 M01–M12 are **In progress**; named implementations do not close release gates.
-Substantial implementations and focused browser/native workflows pass. Complete
-static gates passed on source `a1a58bf4e`. The complete Node gate now passes on
+Substantial implementations and focused browser/native workflows pass. The
+complete static gate passed on source `bbb172047`, including lint, types,
+architecture, audits, documentation and production build. Its changes from
+`036899f59` are three documentation files. The latest complete Node gate passes on
 `a1a58bf4e`: 27,338 passed, zero failures and 14 declared skips, including all
 1,121 Motion cases. The one-entry nightly-fixture repair passes the same
 exhaustive batch that previously failed three assertions; the failed older run
@@ -136,7 +138,11 @@ fixed software-profile pass, not an explanation of the earlier refusals or
 complete application-browser/coverage acceptance.
 Current-source Linux Motion and successor stages and unsigned directory
 packages also pass resource verification, reusing the authenticated native
-helper. Their installed GUI qualification has not yet run.
+helper. The five-workflow installed aggregate then passed native launch,
+animated scene, authored title, successor delivery and saved-file linking.
+Its output, source, package and process-closure audits passed. This qualifies
+the fixed Linux x64 software profile; the current native duration and maximum
+workloads still need their separate evidence.
 Maximum-workload fixtures, independent oracles and the bounded native driver
 (`a4e851dc3`) are integrated as `2978ab0cc`. Installed source `322c8a6b1` passed
 64×64 shutter/lens sampling, 64 contributing planes and 32 lights. The
