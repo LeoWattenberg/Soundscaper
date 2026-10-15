@@ -27,12 +27,24 @@ async function tokenRequest(context: AudiocomOAuthFunctionContext, fields: Recor
 		body: form.toString(), redirect: 'manual', signal: AbortSignal.any([context.request.signal, AbortSignal.timeout(10_000)]),
 	});
 	if (!response.ok) {
+		console.warn(JSON.stringify({ event: 'audiocom_oauth_token_rejected',
+			provider: providerConfiguration(context.env).kind, grantType: fields.grant_type, status: response.status }));
+		await response.body?.cancel();
 		if (fields.grant_type === 'refresh_token' && [400, 401].includes(response.status)) throw new OAuthHttpError(401, 'authentication_expired', 'Reconnect audio.com to continue.');
 		throw new OAuthHttpError(502, 'authorization_failed', 'audio.com rejected the authorization response.');
 	}
-	try { return normalizeTokenPair(await readUpstreamJson(response), providerConfiguration(context.env).scope.split(' ')); }
+	const value = await readUpstreamJson(response);
+	try { return normalizeTokenPair(value, providerConfiguration(context.env).scope.split(' ')); }
 	catch (error) {
-		if (error instanceof AudiocomOAuthContractError) throw new OAuthHttpError(502, 'invalid_upstream_response', 'audio.com returned invalid authorization data.');
+		if (error instanceof AudiocomOAuthContractError) {
+			const source = value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+			console.warn(JSON.stringify({ event: 'audiocom_oauth_token_invalid',
+				provider: providerConfiguration(context.env).kind, reason: error.message,
+				expiresInSeconds: Number.isSafeInteger(source.expires_in) ? source.expires_in : null,
+				fieldTypes: Object.fromEntries(['token_type', 'access_token', 'refresh_token', 'expires_in', 'scope'].map(key => [key, typeof source[key]])),
+			}));
+			throw new OAuthHttpError(502, 'invalid_upstream_response', 'audio.com returned invalid authorization data.');
+		}
 		throw error;
 	}
 }

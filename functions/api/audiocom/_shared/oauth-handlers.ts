@@ -159,7 +159,7 @@ export async function handleAudiocomOAuthCallbackRequest(
 			}, now);
 			if (!completed) throw new Error('The OAuth attempt changed while it was being completed.');
 		} catch (error) {
-			await repository.failAttempt(attempt.id, 'failed', 'authorization_failed', now);
+			await repository.failAttempt(attempt.id, 'failed', publicOAuthError(error).code, now);
 			throw error;
 		}
 		return callbackPage('Audiocom connected', 'You can close this window and return to Soundscaper.');
