@@ -18,9 +18,11 @@ test('Motion qualifiers keep own default stages and explicitly select separate p
 
 test('Motion CI cannot complete without every unique source-bound native workflow receipt', () => {
 	const revision = 'a'.repeat(40); const markers = MOTION_LINUX_QUALIFICATIONS.flatMap(phase => [...phase.markers]);
-	assert.equal(markers.length, 4);
+	assert.equal(markers.length, 5);
+	assert.ok(markers.includes('MOTIONSCAPER_AUTHORED_NATIVE_QUALIFIED'));
 	const output = markers.map(marker => `${marker} ${JSON.stringify({ sourceRevision: revision })}`).join('\n');
-	assert.equal(motionQualificationReceipts(output, markers, revision).length, 4);
+	assert.equal(motionQualificationReceipts(output, markers, revision).length, 5);
+	assert.throws(() => motionQualificationReceipts(output.split('\n').filter(line => !line.startsWith('MOTIONSCAPER_AUTHORED_NATIVE_QUALIFIED ')).join('\n'), markers, revision), /receipt/u);
 	assert.throws(() => motionQualificationReceipts('', markers, revision), /receipt/u);
 	assert.throws(() => motionQualificationReceipts(`${output}\n${output}`, markers, revision), /exactly one/u);
 	assert.throws(() => motionQualificationReceipts(output, markers, 'b'.repeat(40)), /source revision/u);

@@ -9,6 +9,8 @@ import { finishMotionSustainedRender, motionSustainedRenderProgress, openMotionS
 import { assertMotionSustainedNativeClean } from './motionscaper-sustained-cancel.ts';
 import { MOTION_SUSTAINED_PLAN as plan } from './motionscaper-sustained-plan.ts';
 import { motionSustainedCommand } from './motionscaper-sustained-command.ts';
+import { startMotionSustainedEncoderSampler } from './motionscaper-sustained-encoder-sampler.ts';
+import { hashMotionSustainedFile } from './motionscaper-sustained-observation.ts';
 
 type Application = Awaited<ReturnType<typeof launchMotionSustainedApplication>>;
 export function motionSustainedNativeChooser(root: string, directory: string) {
@@ -23,29 +25,29 @@ export async function renderMotionSustainedNative(application: Application, opti
 	frames: 300 | 1200; directory: string; revisionDigest: string; helperPath: string; choose(path: string): Promise<void>;
 }>) {
 	const dialog = await openMotionSustainedRender(application.page, 'prores', options.frames);
-	const observations: { monotonicMs: number; helpers: Awaited<ReturnType<Application['nativeHelpers']>> }[] = [];
 	const sampler = await startMotionSustainedSampler({ phase: 'prores', owner: application.owner, cdp: application.cdp,
 		retainProcesses: values => application.retainProcessIdentities(values),
-		logPath: join(options.directory, 'prores-memory.jsonl'), progress: async () => {
-			const helpers = await application.nativeHelpers();
-			for (const helper of helpers) {
-				assert.equal(helper.command.split('\0')[0], options.helperPath);
-				assert.ok(helper.rssBytes <= plan.maximumNativeHelperRssBytes && helper.pssBytes <= plan.maximumNativeHelperPssBytes, 'Actual encoder memory ceiling exceeded.');
-			}
-			assert.ok(helpers.length <= 1); if (helpers.length) observations.push({ monotonicMs: performance.now(), helpers });
-			return motionSustainedRenderProgress(dialog, options.frames);
-		} });
+		logPath: join(options.directory, 'prores-memory.jsonl'), progress: () => motionSustainedRenderProgress(dialog, options.frames) });
+	let encoder: Awaited<ReturnType<typeof startMotionSustainedEncoderSampler>> | undefined;
 	let stopped = false;
-	try {
+	const render = async () => {
+		encoder = await startMotionSustainedEncoderSampler({ owner: application.owner, helperPath: options.helperPath,
+			retainProcesses: values => application.retainProcessIdentities(values), logPath: join(options.directory, 'encoder-memory.jsonl') });
 		const path = join(options.directory, 'output.mov');
 		await dialog.getByRole('button', { name: 'Render', exact: true }).click(); await options.choose(path);
-		await Promise.race([expect(dialog.getByRole('status')).toHaveText('Render complete', { timeout: plan.maximumPhaseMs }), sampler.failed]);
+		await Promise.race([expect(dialog.getByRole('status')).toHaveText('Render complete', { timeout: plan.maximumPhaseMs }), sampler.failed, encoder.failed]);
+		const encoderMeasured = await encoder.stop(), observations = encoderMeasured.observations;
 		const measured = await sampler.stop(); stopped = true;
-		assert.ok(observations.length >= 3, 'Encoder phase lacks three real PID/start-bound observations.');
 		const first = observations[0]!.helpers[0]!.identity;
-		for (const observation of observations) assert.deepEqual(observation.helpers[0]!.identity, first);
 		await waitMotionSustainedGone([first]); await assertMotionSustainedNativeClean(options.directory);
 		await finishMotionSustainedRender(dialog); await removeMotionSustainedJob(application.page, options.revisionDigest);
-		return { path, measured, encoder: observations };
-	} finally { if (!stopped) await sampler.stop(); }
+		return { path, measured, encoder: observations, encoderObservation: { attemptedPeriodMs: encoderMeasured.attemptedPeriodMs,
+			attempts: encoderMeasured.attempts, log: await hashMotionSustainedFile(encoderMeasured.logPath) } };
+	};
+	const errors: unknown[] = []; let result: Awaited<ReturnType<typeof render>> | undefined;
+	try { result = await render(); } catch (error) { errors.push(error); }
+	const cleanup = await Promise.allSettled([...(encoder ? [encoder.stop()] : []), ...(!stopped ? [sampler.stop()] : [])]);
+	for (const closed of cleanup) if (closed.status === 'rejected' && !errors.includes(closed.reason)) errors.push(closed.reason);
+	if (errors.length || !result) throw new AggregateError(errors, 'Native render or sampler cleanup failed.');
+	return result;
 }

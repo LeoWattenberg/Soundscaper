@@ -8,10 +8,12 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { verifyMotionReferenceArtifact } from './lib/motionscaper-reference-artifact.ts';
 import { MOTION_NATIVE_TARGETS } from './lib/motionscaper-native-source.ts';
+import { requireMotionAuthoredAggregateTarget, runMotionAuthoredAggregate } from './lib/motionscaper-authored-aggregate.ts';
 
 export const MOTION_LINUX_QUALIFICATIONS = [
 	{ id: 'launch', script: 'motionscaper-launch-native-smoke.mjs', markers: ['MOTIONSCAPER_NATIVE_LAUNCH_QUALIFIED'] },
 	{ id: 'scene', script: 'motionscaper-scene-native-smoke.mjs', markers: ['MOTIONSCAPER_NATIVE_SCENE_QUALIFIED'] },
+	{ id: 'authored', script: 'motionscaper-authored-native-smoke.mjs', markers: ['MOTIONSCAPER_AUTHORED_NATIVE_QUALIFIED'] },
 	{ id: 'successor', script: 'motionscaper-successor-native-smoke.mjs', markers: ['FRAMESCAPER_SUCCESSOR_NATIVE_DELIVERY_QUALIFIED', 'FRAMESCAPER_SUCCESSOR_NATIVE_LINK_QUALIFIED'] },
 ] as const;
 
@@ -32,6 +34,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 	const string = (key: typeof names[number]): string => { const value = values[key]; if (typeof value !== 'string') throw new TypeError('Expected qualification argument.'); return value; };
 	const target = MOTION_NATIVE_TARGETS.find(value => value === string('target'));
 	if (process.platform !== 'linux' || target !== `linux-${process.arch}` || !process.env.DISPLAY) throw new Error('Qualification requires its native Linux target and X11.');
+	requireMotionAuthoredAggregateTarget(target);
 	const root = resolve(import.meta.dirname, '..'), nativeResult = resolve(string('native-result')), artifact = resolve(string('decoder-artifact')), output = resolve(string('output'));
 	const execute = promisify(execFile);
 	const revision = (await execute('git', ['rev-parse', 'HEAD'], { cwd: root, timeout: 10000 })).stdout.trim();
@@ -44,7 +47,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 	const receipts: Readonly<Record<string, unknown>>[] = [], logs = [];
 	for (const phase of MOTION_LINUX_QUALIFICATIONS) {
 		let stdout: string, stderr: string;
-		try { ({ stdout, stderr } = await execute(process.execPath, [join(root, 'scripts', phase.script)], { cwd: root, env, timeout: 360000, maxBuffer: 2 * 1024 * 1024 })); }
+		try {
+			({ stdout, stderr } = phase.id === 'authored'
+				? await runMotionAuthoredAggregate(root, output, env)
+				: await execute(process.execPath, [join(root, 'scripts', phase.script)], { cwd: root, env, timeout: 360000, maxBuffer: 2 * 1024 * 1024 }));
+		}
 		catch (error) {
 			const diagnostics = [String(error), ...['stdout', 'stderr'].map(key => error && typeof error === 'object' && typeof Reflect.get(error, key) === 'string' ? String(Reflect.get(error, key)) : '')].join('\n').slice(0, 4 * 1024 * 1024);
 			await writeFile(join(output, `${phase.id}-failed.txt`), diagnostics, { flag: 'wx' }); throw error;
