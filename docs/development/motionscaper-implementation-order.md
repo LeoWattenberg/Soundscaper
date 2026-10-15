@@ -103,6 +103,9 @@ before completing the first preview frame; the rejected sample was not retained,
 so the exact failing operand remains unknown. Two asynchronous touch-test
 assertions are repaired and all five original Chromium workflows pass, with
 native inputs and drag/Undo/Redo checks unchanged.
+The sampler now retains the exact rejected operands on future memory refusals,
+with the original limits unchanged; all 1,127 Motion tests pass on `7ae10f1b0`.
+This diagnostic repair does not resolve or reinterpret the failed browser run.
 The current fixed Linux native-duration profile passed both 300 and 1,200 frames,
 including preview/ProRes, upload/encoder cancellation and retry, independent
 picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does

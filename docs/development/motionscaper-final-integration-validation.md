@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `154374847`, including the reviewed native shutdown repair,
+is source `d5347085e`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -17,6 +17,8 @@ The nightly test payload now includes the concurrent-export fixture, repairing
 the three reproduced staging failures without changing application code.
 The mixed-preview test now samples the transient playback frame every 50 ms;
 its original six workflows pass across all three engines.
+The sustained sampler now retains a terminal rejected memory row before raising
+the original limit error; the fix changes no memory limit or application code.
 Its combined gates remain open.
 The failed ordinary browser capture used frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
@@ -106,6 +108,7 @@ source-328 ledger below into a pass.
 | Touch-console observation repair, `8a54866b2` | All five original Chromium cases passed once, including both interrupted native gestures and their drag/Undo/Redo checks. Two assertions now wait for the same exact console-event arrays through the existing five-second expectation; native inputs and 30-second case limits remain unchanged. Changed lint, browser types, size, normal three-product build and source/site/process/port/writer guards passed. This repairs test synchronization, without claiming a historical application cause or a complete browser-suite pass. |
 | Current controlled-duration browser profile, `322c8a6b1` | Closed failed at the existing memory ceiling during the first 300-frame preview. Five accepted samples all record zero completed frames; exports, cancellation/retry and 1,200 frames were not reached. The sampler threw before retaining the rejected row, so the exact offending RSS/PSS/heap/WASM operand is unknown. Fresh source/input/site, process, server and output-writer closure passed. No cap changed and no duration or memory-growth qualification is claimed. |
 | Current controlled-duration native profile, `322c8a6b1` | Passed both 300- and 1,200-frame preview/ProRes workloads, cancellation during upload and encoding, and retries. All six MOVs passed independent picture/alpha, contiguous timestamp and exact PCM checks. The audit verified all 427 memory rows, including 68 real encoder observations; peak whole-application RSS/PSS was 1,088,049,152/630,641,664 bytes and all memory-growth limits passed unchanged. Source/artifact and final process/writer closure passed. This qualifies the fixed Linux x64 software profile, not maximum workloads, other hosts or the failed browser profile. |
+| Memory-refusal evidence repair, `7ae10f1b0`, integrated as `d5347085e` | A new sampler-path test reproduced the original limit error with no rejected row. The repair retains one terminal row with all exceeded limits and exact process/isolate/WASM operands, then throws the same error. Accepted samples and numerical limits remain unchanged; write/sync/short-write failures retain bounded incomplete-evidence metadata. All 39 focused checks, strict test/browser/tooling types, changed lint and size checks passed. The complete Motion partition passed 1,127/1,127 with no skips or heap override. This is diagnostic coverage, not a new browser duration pass. |
 | Complete static gate, `8cc261339` | Passed full lint, types, architecture, audits, documentation and builds, with an explicit 12 GiB compiler heap. Source and observed process closure were verified. The later M06 changes retain their own focused checks; this result is not retagged to newer source. |
 | All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
@@ -205,6 +208,16 @@ SHA-256 `073057929da2d445a8ee94cea71b8a5fa608e25da7da4734392c896fecdcb5d0`.
 It keeps native success and browser failure separate. Final guards verified
 all 53 recorded native-run identities absent and unchanged original/copied outputs;
 the numerical audit reads the completed outputs without replaying the app.
+
+The sampler repair qualification is
+`sampler-memory-evidence-20261015/qualification.json`, SHA-256
+`4bf0e26ffcb6d4184460137a39e810b742a6c98e7f9ff73bbb384802ade12861`.
+Its post-audit verified 51,393 inputs, unchanged staged helper bytes, absence of
+all 489 recorded identities and stable raw coverage. Full input capture occurred
+after child launch while committed source was held; required native/Boost/prefix
+prerequisites were verified before launch. The 554 raw profiles remain unparsed
+and unadmitted. The original browser refusal remains failed with its offending
+operand unknown; no replacement profile is claimed by this qualification.
 
 The preceding passing complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
 `d9fa8b9a9f9d18f0e4d9947a30c28cb88557e9812d97987f9b2a16882a382967`.
