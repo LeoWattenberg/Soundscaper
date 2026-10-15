@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeAudio, parseUploadInput, trustedAssetUrl } from '../functions/api/audiocom/_shared/contracts.ts';
+import { normalizeAudio, parseUploadInput, trustedAssetUrl, trustedUploadUrl } from '../functions/api/audiocom/_shared/contracts.ts';
+import { DEFAULT_AUDIOCOM_PROVIDER } from '../functions/api/audiocom/_shared/provider-config.ts';
 
 const audio = {
 	id: '164620711711840702', title: 'Guitar', username: 'recorder', author_name: 'Recorder',
@@ -17,6 +18,16 @@ test('audio.com normalizes millisecond duration and proxies approved public play
 });
 test('audio.com does not invent playback for processing audio', () => {
 	assert.equal(normalizeAudio({ ...audio, play: { duration: 0, url: '', waveform: '' } }).previewUrl, undefined);
+});
+test('audio.com admits its Wasabi source bucket for signed uploads while preserving playback CDN pins', () => {
+	const source = 'https://s3.eu-central-1.wasabisys.com/audio.com.audio/source/23/24/example.wav?X-Amz-Signature=example';
+	assert.equal(trustedUploadUrl(source, DEFAULT_AUDIOCOM_PROVIDER).href, source);
+	assert.throws(() => trustedAssetUrl(source));
+	for (const url of [source.replace('eu-central-1', 'eu-central-2'), source.replace('/audio.com.audio/', '/other-bucket/'),
+		source.replace('/source/', '/private/'), source.replace('https:', 'http:'), source.replace('.com/', '.com:8443/'),
+		source.replace('https://', 'https://user@'), source.replace('.com/', '.com.evil.test/'), source.replace('/source/23/', '/source/../23/')]) {
+		assert.throws(() => trustedUploadUrl(url, DEFAULT_AUDIOCOM_PROVIDER), url);
+	}
 });
 test('audio.com rejects unknown licenses and unsafe playback destinations', () => {
 	assert.throws(() => normalizeAudio({ ...audio, license: 'invented' }));

@@ -147,7 +147,10 @@ in D1. Refresh-token rotation is serialized with a D1 lease.
   `X-Audiocom-Content-Length` (exact decimal bytes). Query parameters are `title`,
   `category`, `description`, `license`, `listed=0|1`, and `downloadable=0|1`.
   The server creates an upload policy, streams exactly the declared bytes to its
-  pinned storage URL, and invokes the policy's POST success hook. Failure or
+  pinned storage URL, and invokes the policy's POST success hook. In addition
+  to the CDN paths above, upload policies admit the exact Wasabi destination
+  `https://s3.eu-central-1.wasabisys.com/audio.com.audio/source/`; this source
+  bucket is not admitted for playback or source download. Failure or
   cancellation invokes the DELETE failure hook with an independent timeout.
   The audio.com response is `{audio,processing:true}`; completion of transcoding
   is not claimed. Audiocity commits the preserved original synchronously and

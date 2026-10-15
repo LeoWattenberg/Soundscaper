@@ -58,7 +58,10 @@ export function trustedAssetUrl(value: unknown, provider = DEFAULT_AUDIOCOM_PROV
 	return url;
 }
 export function trustedUploadUrl(value: unknown, provider: AudiocomProviderConfiguration): URL {
-	return provider.kind === 'audiocity' ? trustedProviderUploadUrl(value, provider) : trustedAssetUrl(value);
+	if (provider.kind === 'audiocity') return trustedProviderUploadUrl(value, provider);
+	const url = parseUrl(value);
+	if (url.hostname === 's3.eu-central-1.wasabisys.com' && url.pathname.startsWith('/audio.com.audio/source/')) return url;
+	return trustedAssetUrl(value);
 }
 export function trustedHookUrl(value: unknown, provider = DEFAULT_AUDIOCOM_PROVIDER, kind: 'success' | 'fail' = 'success'): URL {
 	if (provider.kind === 'audiocity') return trustedProviderHookUrl(value, provider, kind);

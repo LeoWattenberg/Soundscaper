@@ -83,7 +83,7 @@ test('audio.com upload streams raw bytes without OAuth headers to the policy and
 			if (url.pathname === '/v1/audio/create') {
 				assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer provider-secret');
 				assert.deepEqual(JSON.parse(String(init?.body)), { title: 'Rain', category: 'recording', description: 'Field', license: 'arr', is_listed: false, is_downloadable: false, mime: 'audio/wav', name: 'rain.wav', size: 4 });
-				return json({ audio, url: 'https://s3.audio.com/audio/12345678?signature=opaque', success: 'https://api.audio.com/v1/audio/upload/success?token=success', fail: 'https://api.audio.com/v1/audio/upload/fail?token=fail' }, 201);
+				return json({ audio, url: 'https://s3.eu-central-1.wasabisys.com/audio.com.audio/source/23/24/example.wav?signature=opaque', success: 'https://api.audio.com/audio/upload/success?token=success', fail: 'https://api.audio.com/audio/upload/fail?token=fail' }, 201);
 			}
 			assert.equal(new Headers(init?.headers).has('Authorization'), false);
 			if (init?.method === 'PUT') {
@@ -95,7 +95,7 @@ test('audio.com upload streams raw bytes without OAuth headers to the policy and
 		},
 	});
 	assert.equal(response.status, 201, await response.clone().text());
-	assert.deepEqual(calls, ['POST /v1/audio/create', 'PUT /audio/12345678', 'POST /v1/audio/upload/success']);
+	assert.deepEqual(calls, ['POST /v1/audio/create', 'PUT /audio.com.audio/source/23/24/example.wav', 'POST /audio/upload/success']);
 	const body = await response.text();
 	assert.equal(body.includes('signature=opaque'), false);
 	assert.equal(body.includes('token=success'), false);

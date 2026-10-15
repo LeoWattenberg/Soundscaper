@@ -880,35 +880,38 @@ refresh rotation uses generation-fenced leases, and disconnect removes orphan
 grants. No public userinfo endpoint is invented or account identity inferred.
 Uploads require supported raw audio of exactly 1 through 100,000,000 bytes with
 bounded metadata; only provider-returned policies on exact HTTPS
-s3.audio.com/audio/ or s3.ustatik.com/audio.com.audio/ paths receive bytes, and
-provider OAuth credentials are never sent to storage. Configured Audiocity
-transfers admit only exact same-origin UUID upload/hook and signed media paths;
-discovery must match that origin and advertise archive formats and byte
-ceilings. The server awaits verified stream completion before the POST success
-hook; failure and cancellation attempt the provider DELETE cleanup hook with an
-independent ten-second timeout. Preview requests require a valid application
-session, pin the same exact CDN hosts and paths, block redirects, accept only
-audio MIME responses, enforce simple byte ranges, and cap declared and observed
-bytes at 128 MiB. JSON responses are bounded and normalized, omit signed upload
-policies and OAuth credentials, and use no-store and nosniff. Electron main
-holds the opaque capability outside renderer authority, captures it from polling
-responses, strips renderer credentials, exposes closed routes and an exact
-authorization-URL opener, and persists only with an admitted safeStorage
-backend. The regular public audio.com API has no Audacity project storage or
-retrieval and no original source download route. Configured Audiocity archive
-routes require project-scoped sessions, list only whole-file transport, and
-stream selected standalone AUP3/AUP4 files of 16 through 100,000,000 bytes.
-Completion requires verified exact bytes, a SQLite header, the storage success
-hook and snapshot synchronization; downloads select a completed revision with
-its own format and bounded exact length. Native block snapshots and automatic
-serialization of the open project are excluded. Backend and desktop tests prove
-state replay and handoff rejection, encrypted PKCE and token confinement,
-refresh fencing, session transport admission, fixed destinations, exact upload
-byte checks, cancellation cleanup, range handling, and bounded response failure;
-they do not establish live audio.com upload success. A separate disposable local
-integration harness exercises real Pages Functions and D1, an Audiocity server,
-cross-origin PKCE consent, audio search/upload/range playback, and whole-file
-archive upload/download followed by the existing editor importer.
+s3.audio.com/audio/, s3.ustatik.com/audio.com.audio/, or
+s3.eu-central-1.wasabisys.com/audio.com.audio/source/ paths receive bytes. The
+Wasabi source destination is upload-only and does not broaden playback or
+source-download authority, and provider OAuth credentials are never sent to
+storage. Configured Audiocity transfers admit only exact same-origin UUID
+upload/hook and signed media paths; discovery must match that origin and
+advertise archive formats and byte ceilings. The server awaits verified stream
+completion before the POST success hook; failure and cancellation attempt the
+provider DELETE cleanup hook with an independent ten-second timeout. Preview
+requests require a valid application session, pin the same exact CDN hosts and
+paths, block redirects, accept only audio MIME responses, enforce simple byte
+ranges, and cap declared and observed bytes at 128 MiB. JSON responses are
+bounded and normalized, omit signed upload policies and OAuth credentials, and
+use no-store and nosniff. Electron main holds the opaque capability outside
+renderer authority, captures it from polling responses, strips renderer
+credentials, exposes closed routes and an exact authorization-URL opener, and
+persists only with an admitted safeStorage backend. The regular public audio.com
+API has no Audacity project storage or retrieval and no original source download
+route. Configured Audiocity archive routes require project-scoped sessions, list
+only whole-file transport, and stream selected standalone AUP3/AUP4 files of 16
+through 100,000,000 bytes. Completion requires verified exact bytes, a SQLite
+header, the storage success hook and snapshot synchronization; downloads select
+a completed revision with its own format and bounded exact length. Native block
+snapshots and automatic serialization of the open project are excluded. Backend
+and desktop tests prove state replay and handoff rejection, encrypted PKCE and
+token confinement, refresh fencing, session transport admission, fixed
+destinations, exact upload byte checks, cancellation cleanup, range handling,
+and bounded response failure; they do not establish live audio.com upload
+success. A separate disposable local integration harness exercises real Pages
+Functions and D1, an Audiocity server, cross-origin PKCE consent, audio
+search/upload/range playback, and whole-file archive upload/download followed by
+the existing editor importer.
 <!-- /policy-narrative:bounded-audiocom-oauth-media-proxy -->
 
 Deployment abuse limits and a registered-application live upload smoke test,
