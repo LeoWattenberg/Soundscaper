@@ -7,7 +7,7 @@ import type {
 } from './assistance-onnx-runtime-worker.ts';
 
 type SessionOptions = Parameters<AssistanceOnnxRuntimeModuleV1['InferenceSession']['create']>[1];
-type OnnxGpuProvider = 'coreml' | 'dml' | 'webgpu';
+type OnnxGpuProvider = 'coreml' | 'webgpu';
 
 export function createAssistanceOnnxAcceleratedRuntimeV1(
 	runtime: AssistanceOnnxRuntimeModuleV1,
@@ -15,7 +15,7 @@ export function createAssistanceOnnxAcceleratedRuntimeV1(
 	getSignal: () => AbortSignal | undefined = () => undefined,
 ): AssistanceOnnxRuntimeModuleV1 {
 	const providers = (descriptor.executionProviders ?? []).filter((provider): provider is OnnxGpuProvider =>
-		provider === 'coreml' || provider === 'dml' || provider === 'webgpu');
+		provider === 'coreml' || provider === 'webgpu');
 	if (!providers.length) return runtime;
 	return { Tensor: runtime.Tensor, InferenceSession: { create: async (path, settings) => {
 		const signal = getSignal();
@@ -25,7 +25,6 @@ export function createAssistanceOnnxAcceleratedRuntimeV1(
 			try {
 				native = await runtime.InferenceSession.create(path, {
 					...settings, executionProviders: [provider, 'cpu'],
-					...(provider === 'dml' ? { enableMemPattern: false, executionMode: 'sequential' as const } : {}),
 				});
 			} catch {
 				signal?.throwIfAborted();
@@ -81,7 +80,7 @@ function resilientSession(
 					return cpu.run(feeds);
 				}
 			});
-			// DirectML permits only one run at a time on a native session.
+			// Keep inference, retries, and release ordered on the native session.
 			tail = pending.catch(() => {});
 			return pending;
 		},

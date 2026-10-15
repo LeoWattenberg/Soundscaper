@@ -93,11 +93,6 @@
 						"sha256": "b99d6e63a8f84580e3321fbe7c7604ea3fdd584bb1d27b4c3e324ee8f6b187aa"
 					},
 					{
-						"path": "bin/napi-v6/win32/x64/DirectML.dll",
-						"byteLength": 18527584,
-						"sha256": "b3cd9ac57e096f4d91eacbae212e538ced46d74e7002630408d7e48a1eeca904"
-					},
-					{
 						"path": "bin/napi-v6/win32/x64/dxcompiler.dll",
 						"byteLength": 17986360,
 						"sha256": "fdfcaa6a935d1cfe06d17c3dfdbb82613d9fbb3f6422db816392574020769e65"
@@ -118,11 +113,6 @@
 						"path": "bin/napi-v6/win32/arm64/onnxruntime_binding.node",
 						"byteLength": 421688,
 						"sha256": "c2d03dbd1eb3e67a4f7e3dd5ae23a1e7d3d215861338266233965a2def5ee587"
-					},
-					{
-						"path": "bin/napi-v6/win32/arm64/DirectML.dll",
-						"byteLength": 18444640,
-						"sha256": "d7f1d28efa1010de6896613359ec2dabc095766cdc994183c6cd0cc3459eab34"
 					},
 					{
 						"path": "bin/napi-v6/win32/arm64/dxcompiler.dll",
@@ -279,6 +269,30 @@
 			"byteLength": 336906,
 			"sha256": "53d3fa5821ac016ac24dd35775c996efec86e2ae0841e9a3a5e146c0ae916845",
 			"destination": "licenses/ONNXRuntime-ThirdPartyNotices.txt"
+		},
+		{
+			"id": "directx-shader-compiler-license",
+			"kind": "file",
+			"url": "https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/b4711839eb9a87da7c3436d9b212e0492359fbbd/LICENSE.TXT",
+			"byteLength": 29241,
+			"sha256": "27a49e35d1da96eba18fba54bc882667ff0ff8c0254f16f2b6e165d605ba7df8",
+			"destination": "licenses/DirectXShaderCompiler-LICENSE"
+		},
+		{
+			"id": "directx-shader-compiler-notices",
+			"kind": "file",
+			"url": "https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/b4711839eb9a87da7c3436d9b212e0492359fbbd/ThirdPartyNotices.txt",
+			"byteLength": 11256,
+			"sha256": "19512a5d0a015ef16d167272c164da49a604614a786206212a80ad486ed0be6d",
+			"destination": "licenses/DirectXShaderCompiler-ThirdPartyNotices.txt"
+		},
+		{
+			"id": "directx-shader-compiler-release-notes",
+			"kind": "file",
+			"url": "https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/b4711839eb9a87da7c3436d9b212e0492359fbbd/docs/ReleaseNotes.md",
+			"byteLength": 10232,
+			"sha256": "2bd77a45dd400cf7c5d138d8dd3582afe4716c924d4cefd13f4fddc26ebcf9fb",
+			"destination": "licenses/DirectXShaderCompiler-ReleaseNotes.md"
 		}
 	]
 }

@@ -20,8 +20,8 @@ const PROVIDERS = Object.freeze({
 	'mac-arm64': ['coreml', 'webgpu', 'cpu'],
 	'linux-x64': ['webgpu', 'cpu'],
 	'linux-arm64': ['cpu'],
-	'win-x64': ['dml', 'webgpu', 'cpu'],
-	'win-arm64': ['dml', 'webgpu', 'cpu'],
+	'win-x64': ['webgpu', 'cpu'],
+	'win-arm64': ['webgpu', 'cpu'],
 });
 const PREFIX = 'assistance/onnxruntime-node/1.29.0';
 const ENTRYPOINT = 'node_modules/onnxruntime-node/dist/index.js';

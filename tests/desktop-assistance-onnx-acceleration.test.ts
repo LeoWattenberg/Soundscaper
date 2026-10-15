@@ -33,15 +33,14 @@ test('legacy authenticated runtime closures keep their CPU session options', asy
 });
 
 test('authenticated GPU providers are preferred with CPU operator fallback', async () => {
-	for (const provider of ['coreml', 'webgpu', 'dml'] as const) {
+	for (const provider of ['coreml', 'webgpu'] as const) {
 		const received: SessionOptions[] = [];
 		let released = 0;
 		const accelerated = createAssistanceOnnxAcceleratedRuntimeV1(runtime(async (_path, settings) => {
 			received.push(settings); return session(() => { released += 1; });
 		}), { executionProviders: [provider, 'cpu'] });
 		const result = await accelerated.InferenceSession.create('/model.onnx', CPU);
-		assert.deepEqual(received, [{ ...CPU, executionProviders: [provider, 'cpu'],
-			...(provider === 'dml' ? { enableMemPattern: false, executionMode: 'sequential' } : {}) }]);
+		assert.deepEqual(received, [{ ...CPU, executionProviders: [provider, 'cpu'] }]);
 		await result.release?.();
 		await result.release?.();
 		assert.equal(released, 1);

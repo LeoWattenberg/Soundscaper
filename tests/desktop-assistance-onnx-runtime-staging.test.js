@@ -79,17 +79,33 @@ test('ONNX upstream pins authenticate GPU provider closures with a CPU baseline 
 		assert.ok(target.files.some(({ path }) => path.endsWith('/onnxruntime_binding.node')));
 		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-LICENSE'));
 		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-ThirdPartyNotices.txt'));
-		assert.ok(target.files.every(({ path }) => !/\/script\/|cuda/u.test(path)));
+		for (const notice of ['LICENSE', 'ThirdPartyNotices.txt', 'ReleaseNotes.md']) {
+			assert.ok(target.files.some(({ path }) => path === `licenses/DirectXShaderCompiler-${notice}`));
+		}
+		assert.ok(target.files.every(({ path }) => !/\/script\/|cuda|DirectML/u.test(path)));
 		assert.deepEqual(target.executionProviders, targetId === 'mac-arm64' ? ['coreml', 'webgpu', 'cpu']
-			: targetId.startsWith('win-') ? ['dml', 'webgpu', 'cpu']
-				: targetId === 'linux-x64' ? ['webgpu', 'cpu'] : ['cpu']);
+			: targetId === 'linux-arm64' ? ['cpu'] : ['webgpu', 'cpu']);
 		if (targetId.startsWith('win-')) {
-			for (const library of ['DirectML.dll', 'dxcompiler.dll', 'dxil.dll']) {
+			for (const library of ['dxcompiler.dll', 'dxil.dll']) {
 				assert.ok(target.files.some(({ path }) => path.endsWith(`/${library}`)));
 			}
 		}
 		assert.ok(manifest.targets.filter(({ id }) => id !== targetId)
 			.every(({ status }) => status === 'package-generated'));
+	}
+});
+
+test('DXC license and applicability evidence are pinned to the bundled compiler source revision', () => {
+	const base = 'https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/b4711839eb9a87da7c3436d9b212e0492359fbbd/';
+	for (const [id, path] of [
+		['directx-shader-compiler-license', 'LICENSE.TXT'],
+		['directx-shader-compiler-notices', 'ThirdPartyNotices.txt'],
+		['directx-shader-compiler-release-notes', 'docs/ReleaseNotes.md'],
+	]) {
+		const source = payloads.sources.find((candidate) => candidate.id === id);
+		assert.equal(source.kind, 'file');
+		assert.equal(source.url, `${base}${path}`);
+		assert.match(source.sha256, /^[a-f\d]{64}$/u);
 	}
 });
 

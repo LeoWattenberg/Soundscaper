@@ -85,12 +85,10 @@ export interface AssistanceOnnxRuntimeModuleV1 {
 		create(
 			modelPath: string,
 			options: Readonly<{
-				executionProviders: readonly ('cpu' | 'coreml' | 'dml' | 'webgpu')[];
+				executionProviders: readonly ('cpu' | 'coreml' | 'webgpu')[];
 				graphOptimizationLevel: 'all';
 				interOpNumThreads: 1;
 				intraOpNumThreads: 4;
-				enableMemPattern?: false;
-				executionMode?: 'sequential';
 			}>,
 		): PromiseLike<AssistanceOnnxInferenceSessionV1>;
 	}>;
