@@ -66,7 +66,7 @@ async function fixture(t) {
 	};
 }
 
-test('ONNX upstream pins produce exact CPU manifests for all five desktop targets', () => {
+test('ONNX upstream pins authenticate GPU provider closures with a CPU baseline on all targets', () => {
 	assert.equal(payloads.sources[0].integrity,
 		'sha512-WjiVVB72riILz8HbYvxvmjKyE/WmkYoSfKY++axo5jAR609HQg8MwiG/HhShpTcJfmmAdzxxmB+MMST3A+SiPA==');
 	for (const targetId of TARGETS) {
@@ -79,7 +79,15 @@ test('ONNX upstream pins produce exact CPU manifests for all five desktop target
 		assert.ok(target.files.some(({ path }) => path.endsWith('/onnxruntime_binding.node')));
 		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-LICENSE'));
 		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-ThirdPartyNotices.txt'));
-		assert.ok(target.files.every(({ path }) => !/\/script\/|cuda|DirectML|dxcompiler|dxil/u.test(path)));
+		assert.ok(target.files.every(({ path }) => !/\/script\/|cuda/u.test(path)));
+		assert.deepEqual(target.executionProviders, targetId === 'mac-arm64' ? ['coreml', 'webgpu', 'cpu']
+			: targetId.startsWith('win-') ? ['dml', 'webgpu', 'cpu']
+				: targetId === 'linux-x64' ? ['webgpu', 'cpu'] : ['cpu']);
+		if (targetId.startsWith('win-')) {
+			for (const library of ['DirectML.dll', 'dxcompiler.dll', 'dxil.dll']) {
+				assert.ok(target.files.some(({ path }) => path.endsWith(`/${library}`)));
+			}
+		}
 		assert.ok(manifest.targets.filter(({ id }) => id !== targetId)
 			.every(({ status }) => status === 'package-generated'));
 	}

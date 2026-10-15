@@ -21,7 +21,7 @@ import {
 import {
 	assistanceOnnxRuntimeValueV1,
 	assertAssistanceOnnxVisualRuntimeJobV1,
-	createAssistanceOnnxVisualCpuSessionV1,
+	createAssistanceOnnxVisualSessionV1,
 	exactAssistanceOnnxOutputsV1,
 	exactAssistanceOnnxVisualArtifactsV1,
 	publishAssistanceOnnxVisualOutputV1,
@@ -131,7 +131,7 @@ async function embedFrames(
 	modelPath: string,
 ): Promise<readonly Float32Array[]> {
 	const source = await openAssistanceOnnxVisualFrameSourceV1(context.grant.inputs, context.signal);
-	const session = await createAssistanceOnnxVisualCpuSessionV1(
+	const session = await createAssistanceOnnxVisualSessionV1(
 		runtime, modelPath, VISION_INPUTS, VISION_OUTPUTS,
 	);
 	const vectors: Float32Array[] = [];
@@ -192,7 +192,7 @@ async function embedTexts(
 	for (const [index, text] of texts.entries()) {
 		inputIds.set(tokenizer.encode(text).inputIds, index * TEXT_SEQUENCE);
 	}
-	const session = await createAssistanceOnnxVisualCpuSessionV1(
+	const session = await createAssistanceOnnxVisualSessionV1(
 		runtime, modelPath, TEXT_INPUTS, TEXT_OUTPUTS,
 	);
 	try {

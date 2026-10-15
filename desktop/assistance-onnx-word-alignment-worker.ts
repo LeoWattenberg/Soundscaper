@@ -27,8 +27,8 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
@@ -112,7 +112,7 @@ async function executeWav2Vec2Alignment(
 		await loadRuntime(context.job.descriptor.entrypoint), WAV2VEC2_RUNTIME_ERRORS,
 	);
 	context.signal?.throwIfAborted();
-	const session = await createAssistanceOnnxCpuSessionV1(
+	const session = await createAssistanceOnnxSessionV1(
 		runtime, model.path, WAV2VEC2_SESSION_ERRORS,
 	);
 	try {
@@ -271,7 +271,7 @@ function logitsToLogProbabilities(
 }
 
 function assertRuntimeJob(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {
-	assertAssistanceOnnxCpuJobV1(context, 'word-alignment',
+	assertAssistanceOnnxJobV1(context, 'word-alignment',
 		'The wav2vec2 adapter received a foreign authenticated CPU job.');
 }
 

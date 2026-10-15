@@ -16,6 +16,7 @@ import {
 } from '../desktop/assistance-onnx-runtime-worker.ts';
 import { captureAssistanceRuntimeFamilyJobGrantV1 } from '../desktop/assistance-runtime-family-file-grants.ts';
 import { runAssistanceRuntimeFamilyWorkerJobV1 } from '../desktop/assistance-runtime-family-worker-entry.ts';
+import { createAssistanceOnnxSessionLeaseCacheV1 } from '../desktop/assistance-onnx-worker-common.ts';
 import { reviewAssistanceEmbeddingMatrixV1 } from '../src/common/editor/assistance/binary-formats-v1.ts';
 import { createAssistanceTranscript } from '../src/common/editor/assistance/transcript.ts';
 import { nomicTokenizerArtifactFixture } from './assistance-nomic-tokenizer-fixture.ts';
@@ -136,6 +137,68 @@ test('nomic query embedding uses the separate query prefix without fallback', as
 		execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime }),
 	});
 	assert.deepEqual(ids, [101n, 3945n, 1035n, 23032n, 1024n, 2424n, 2417n, 10165n, 102n]);
+});
+
+for (const mode of ['gpu', 'creation-failure', 'inference-failure'] as const) {
+	test(`nomic authenticated GPU jobs preserve resident sessions after ${mode}`, async (context) => {
+		const value = await fixture(context, 'query', 'find red bicycle');
+		const providers: string[] = [];
+		const releases: string[] = [];
+		const base = fakeRuntime(async (feeds) => hiddenState(feeds.input_ids!.dims[0]!, feeds.input_ids!.dims[1]!));
+		const runtime: AssistanceOnnxRuntimeModuleV1 = { Tensor: base.Tensor, InferenceSession: {
+			create: async (path, options) => {
+				const provider = options.executionProviders[0]!;
+				providers.push(provider);
+				if (provider === 'webgpu' && mode === 'creation-failure') throw new Error('GPU unavailable');
+				const native = await base.InferenceSession.create(path, { ...options, executionProviders: ['cpu'] });
+				return { ...native, run: async (feeds) => {
+					if (provider === 'webgpu' && mode === 'inference-failure') throw new Error('GPU device lost');
+					return native.run(feeds);
+				}, release: () => { releases.push(provider); } };
+			},
+		} };
+		const sessionCache = createAssistanceOnnxSessionLeaseCacheV1({ getRssBytes: () => 1 });
+		context.after(() => sessionCache.dispose());
+		const execute = createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime, sessionCache });
+		const job = { ...value.job, descriptor: { ...value.job.descriptor, executionProviders: ['webgpu', 'cpu'] as const } };
+		for (let index = 0; index < 2; index += 1) {
+			await writeFile(value.output, new Uint8Array());
+			await runAssistanceRuntimeFamilyWorkerJobV1({ job, execute });
+			assert.equal(reviewAssistanceEmbeddingMatrixV1(await readFile(value.output)).rowCount, 1);
+		}
+		assert.deepEqual(providers, mode === 'gpu' ? ['webgpu'] : ['webgpu', 'cpu']);
+		assert.deepEqual(releases, mode === 'inference-failure' ? ['webgpu'] : []);
+		await sessionCache.dispose();
+		assert.deepEqual(releases, mode === 'gpu' ? ['webgpu']
+			: mode === 'inference-failure' ? ['webgpu', 'cpu'] : ['cpu']);
+	});
+}
+
+test('a resident GPU session consults the current job signal before CPU retry', async (context) => {
+	const value = await fixture(context, 'query', 'find red bicycle');
+	const controller = new AbortController();
+	let creations = 0, runs = 0, releases = 0;
+	const base = fakeRuntime(async (feeds) => hiddenState(feeds.input_ids!.dims[0]!, feeds.input_ids!.dims[1]!));
+	const runtime: AssistanceOnnxRuntimeModuleV1 = { Tensor: base.Tensor, InferenceSession: {
+		create: async (path, options) => {
+			creations += 1;
+			const native = await base.InferenceSession.create(path, { ...options, executionProviders: ['cpu'] });
+			return { ...native, run: async (feeds) => {
+				runs += 1;
+				if (runs === 2) { controller.abort(); throw new Error('GPU device lost'); }
+				return native.run(feeds);
+			}, release: () => { releases += 1; } };
+		},
+	} };
+	const sessionCache = createAssistanceOnnxSessionLeaseCacheV1({ getRssBytes: () => 1 });
+	context.after(() => sessionCache.dispose());
+	const execute = createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime, sessionCache });
+	const job = { ...value.job, descriptor: { ...value.job.descriptor, executionProviders: ['webgpu', 'cpu'] as const } };
+	await runAssistanceRuntimeFamilyWorkerJobV1({ job, execute });
+	await writeFile(value.output, new Uint8Array());
+	await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({ job, execute, signal: controller.signal }), { name: 'AbortError' });
+	assert.equal(creations, 1, 'cancellation must prevent CPU fallback on a cached session');
+	assert.equal(releases, 1);
 });
 
 test('nomic adapter rejects model, tokenizer, graph, and tensor substitutions', async (context) => {

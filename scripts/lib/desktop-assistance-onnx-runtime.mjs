@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Reproducible CPU-only extraction of the exact upstream ONNX Runtime closure. */
+/** Reproducible extraction of the upstream ONNX Runtime CPU and GPU closure. */
 
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -14,6 +14,15 @@ import { extract } from 'tar';
 import pinnedPayloads from '../../config/assistance-onnx-runtime-payloads.json' with { type: 'json' };
 
 const TARGETS = Object.freeze(['mac-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64']);
+// These providers are bundled by the exact pinned upstream release. CUDA and
+// TensorRT require additional unbundled binaries and are deliberately absent.
+const PROVIDERS = Object.freeze({
+	'mac-arm64': ['coreml', 'webgpu', 'cpu'],
+	'linux-x64': ['webgpu', 'cpu'],
+	'linux-arm64': ['cpu'],
+	'win-x64': ['dml', 'webgpu', 'cpu'],
+	'win-arm64': ['dml', 'webgpu', 'cpu'],
+});
 const PREFIX = 'assistance/onnxruntime-node/1.29.0';
 const ENTRYPOINT = 'node_modules/onnxruntime-node/dist/index.js';
 const MAXIMUM_SOURCE_BYTES = 256 * 1024 * 1024;
@@ -41,6 +50,7 @@ export function createDesktopAssistanceOnnxManifest(targetId, payloads = pinnedP
 		runtimePrefix: PREFIX,
 		targets: TARGETS.map((id) => id === targetId ? {
 			id, status: 'authenticated', entrypoint: ENTRYPOINT, files,
+			executionProviders: [...PROVIDERS[id]],
 		} : {
 			id, status: 'package-generated',
 			packageBehavior: `The ${id} ONNX Runtime payload is generated and verified by its own target package build.`,

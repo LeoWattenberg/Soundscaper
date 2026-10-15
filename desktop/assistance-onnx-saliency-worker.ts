@@ -15,7 +15,7 @@ import {
 import {
 	assistanceOnnxRuntimeValueV1,
 	assertAssistanceOnnxVisualRuntimeJobV1,
-	createAssistanceOnnxVisualCpuSessionV1,
+	createAssistanceOnnxVisualSessionV1,
 	exactAssistanceOnnxOutputsV1,
 	exactAssistanceOnnxVisualArtifactsV1,
 	publishAssistanceOnnxVisualOutputV1,
@@ -57,7 +57,7 @@ async function executeSaliency(
 	const runtime = assistanceOnnxRuntimeValueV1(
 		await loadRuntime(context.job.descriptor.entrypoint),
 	);
-	const session = await createAssistanceOnnxVisualCpuSessionV1(
+	const session = await createAssistanceOnnxVisualSessionV1(
 		runtime, models.u2netp.path, INPUT_NAMES, OUTPUT_NAMES,
 	);
 	const frames: unknown[] = [];

@@ -21,8 +21,8 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
@@ -96,7 +96,7 @@ async function executeNomicTextEmbedding(
 	const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 		await loadRuntime(context.job.descriptor.entrypoint), NOMIC_RUNTIME_ERRORS,
 	);
-	const session = await createAssistanceOnnxCpuSessionV1(
+	const session = await createAssistanceOnnxSessionV1(
 		runtime, models.model_quantized.path, NOMIC_SESSION_ERRORS,
 	);
 	const vectors: Float32Array[] = [];
@@ -130,7 +130,7 @@ async function executeNomicTextEmbedding(
 }
 
 function assertRuntimeJob(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {
-	assertAssistanceOnnxCpuJobV1(context, 'text-embedding',
+	assertAssistanceOnnxJobV1(context, 'text-embedding',
 		'The nomic adapter received a foreign authenticated CPU job.');
 }
 

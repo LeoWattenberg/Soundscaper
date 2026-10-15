@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Shared CPU-session, runtime-validation, and single-output ONNX worker mechanics. */
+/** Shared session, runtime-validation, and single-output ONNX worker mechanics. */
 
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
@@ -69,6 +69,7 @@ export class AssistanceOnnxSessionLeaseCacheV1 {
 	}
 
 	get idleSessionCount(): number { return this.#active === null ? this.#entries.size : 0; }
+	get activeSignal(): AbortSignal | undefined { return this.#active?.signal; }
 
 	async runAuthenticated<Value>(context: AssistanceRuntimeFamilyWorkerExecutionContext, operation: () => Promise<Value>): Promise<Value> {
 		if (this.#closed) throw new Error('The ONNX session cache is closed.');
@@ -214,8 +215,8 @@ function lowerBound(value: number | undefined, ceiling: number, name: string): n
 
 type AssistanceOnnxOutputBody = Uint8Array | readonly Uint8Array[];
 
-/** Admit only the authenticated, task-bound CPU ONNX job; callers own their error wording. */
-export function assertAssistanceOnnxCpuJobV1(
+/** Admit only the authenticated, task-bound ONNX job with its CPU baseline; callers own their error wording. */
+export function assertAssistanceOnnxJobV1(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	task: AssistanceRuntimeFamilyTask,
 	errorMessage: string,
@@ -241,7 +242,7 @@ export function reviewAssistanceOnnxRuntimeModuleV1(
 	return candidate as AssistanceOnnxRuntimeModuleV1;
 }
 
-export async function createAssistanceOnnxCpuSessionV1(
+export async function createAssistanceOnnxSessionV1(
 	runtime: AssistanceOnnxRuntimeModuleV1,
 	modelPath: string,
 	errors: AssistanceOnnxSurfaceErrorsV1,

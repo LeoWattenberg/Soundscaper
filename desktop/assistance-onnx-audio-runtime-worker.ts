@@ -29,8 +29,8 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
@@ -154,7 +154,7 @@ async function executePanns(
 		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 			await loadRuntime(context.job.descriptor.entrypoint), AUDIO_RUNTIME_ERRORS,
 		);
-		const session = await createAssistanceOnnxCpuSessionV1(
+		const session = await createAssistanceOnnxSessionV1(
 			runtime, grant.models[0]!.path, AUDIO_SESSION_ERRORS,
 		);
 		try {
@@ -228,7 +228,7 @@ async function executeBeatThis(
 		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 			await loadRuntime(context.job.descriptor.entrypoint), AUDIO_RUNTIME_ERRORS,
 		);
-		const session = await createAssistanceOnnxCpuSessionV1(
+		const session = await createAssistanceOnnxSessionV1(
 			runtime, model.path, AUDIO_SESSION_ERRORS,
 		);
 		try {
@@ -278,7 +278,7 @@ function assertRuntimeJob(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	task: 'audio-tagging' | 'beat-tracking',
 ): void {
-	assertAssistanceOnnxCpuJobV1(context, task,
+	assertAssistanceOnnxJobV1(context, task,
 		`The ${task} adapter received a foreign authenticated CPU job.`);
 }
 

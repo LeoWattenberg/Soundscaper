@@ -91,6 +91,21 @@
 						"path": "bin/napi-v6/win32/x64/onnxruntime_binding.node",
 						"byteLength": 298296,
 						"sha256": "b99d6e63a8f84580e3321fbe7c7604ea3fdd584bb1d27b4c3e324ee8f6b187aa"
+					},
+					{
+						"path": "bin/napi-v6/win32/x64/DirectML.dll",
+						"byteLength": 18527584,
+						"sha256": "b3cd9ac57e096f4d91eacbae212e538ced46d74e7002630408d7e48a1eeca904"
+					},
+					{
+						"path": "bin/napi-v6/win32/x64/dxcompiler.dll",
+						"byteLength": 17986360,
+						"sha256": "fdfcaa6a935d1cfe06d17c3dfdbb82613d9fbb3f6422db816392574020769e65"
+					},
+					{
+						"path": "bin/napi-v6/win32/x64/dxil.dll",
+						"byteLength": 1508704,
+						"sha256": "c3845dfe2bd0af980ca12a33b364e13b4240582280167341e2a35d8fe5dee7a7"
 					}
 				],
 				"win-arm64": [
@@ -103,6 +118,21 @@
 						"path": "bin/napi-v6/win32/arm64/onnxruntime_binding.node",
 						"byteLength": 421688,
 						"sha256": "c2d03dbd1eb3e67a4f7e3dd5ae23a1e7d3d215861338266233965a2def5ee587"
+					},
+					{
+						"path": "bin/napi-v6/win32/arm64/DirectML.dll",
+						"byteLength": 18444640,
+						"sha256": "d7f1d28efa1010de6896613359ec2dabc095766cdc994183c6cd0cc3459eab34"
+					},
+					{
+						"path": "bin/napi-v6/win32/arm64/dxcompiler.dll",
+						"byteLength": 22285624,
+						"sha256": "4702369d4a751aa8813e4f81a1cd71079b1c8da1cd8c836c05b3709d95f66cf5"
+					},
+					{
+						"path": "bin/napi-v6/win32/arm64/dxil.dll",
+						"byteLength": 1769784,
+						"sha256": "5a09acc158f65c7fd5ef37629d290d40d0f8d2203c140d3fa6314f0d78d5f762"
 					}
 				]
 			}
