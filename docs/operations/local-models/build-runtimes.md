@@ -1,7 +1,7 @@
 # Building the desktop local-model runtimes
 
 Users install model weights from **Tools → Model Manager** and access operations
-through their menus. Installing a model also downloads its required CPU engine
+through their menus. Installing a model also downloads its required engine
 archive. If weights were preseeded or installed with an older application,
 the required engine downloads on first use. Users do not need Node.js, Python,
 CMake, or an inference server.
@@ -10,7 +10,7 @@ Windows installations also need the Microsoft Visual C++ Redistributable for
 their architecture (x64 or ARM64), required by the native ONNX libraries. Use
 [Microsoft's supported redistributable download](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170).
 
-`npm run desktop:prepare` builds and authenticates the CPU engines for the
+`npm run desktop:prepare` builds and authenticates the inference engines for the
 selected product and target, then creates five archives for that target. It
 places only their pinned distribution manifest in the application and removes
 the engine files from the installer staging tree. The same preparation is used
@@ -50,12 +50,21 @@ No model weights are bundled or downloaded during ordinary application builds.
 
 ONNX Runtime comes from the exact npm archives and file hashes in
 `config/assistance-onnx-runtime-payloads.json`. Packaging extracts the selected
-platform's CPU files without executing npm install scripts or downloading CUDA.
+platform's reviewed CPU and GPU files without executing npm install scripts or
+downloading CUDA. Windows also includes the digest-pinned DirectML and shader
+compiler libraries from that same archive. The target manifest declares CoreML
+and native WebGPU on macOS ARM64, DirectML and native WebGPU on Windows, native
+WebGPU on Linux x64, and CPU on Linux ARM64. Workers try these authenticated
+providers automatically for existing menu-invoked operations and retain CPU
+fallback when a GPU backend cannot initialize or execute the model.
 The runtime archive includes the upstream license and third-party notices.
 
 whisper.cpp comes from the pinned source archive recorded in
-`scripts/lib/desktop-assistance-whisper-runtime.mjs`. Its build disables GPU
-backends and host-specific CPU tuning. A small source-checked patch routes JSON
+`scripts/lib/desktop-assistance-whisper-runtime.mjs`. The macOS ARM64 Whisper and
+llama.cpp recipes enable Metal with embedded shader source while retaining the
+CPU backend. Other targets retain CPU builds. CUDA, Vulkan, and host-specific
+CPU tuning remain disabled. No separate shader download is needed. A small
+source-checked Whisper patch routes JSON
 through inherited stdout without reopening `CON` or `/dev/stdout`, which do not
 work with every Electron/Node process pipe. This preserves the existing
 bounded-output worker. Build provenance records the original source, patch,

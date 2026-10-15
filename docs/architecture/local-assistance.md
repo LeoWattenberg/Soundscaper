@@ -33,12 +33,32 @@ identities rather than filesystem or module paths.
 | Kokoro offline G2P | Frozen, authenticated pronunciation preprocessing for local text-to-speech |
 | External FFmpeg | Model-free fast shot detection through the separately admitted `scdet` command and live canary |
 
-Target packages generate and authenticate Sherpa ONNX 1.13.5, CPU-only ONNX
+Target packages generate and authenticate Sherpa ONNX 1.13.5, ONNX
 Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 closures for the five
 maintained desktop targets: macOS ARM64, Linux x64 and ARM64, and Windows x64
 and ARM64. The Windows ARM64 Sherpa addon and Kokoro G2P closure are built as
-package inputs. DirectML, CoreML, CUDA, WebGPU, and other GPU execution
-providers are not admitted by the current contract.
+package inputs. CPU inference remains available on every target. New runtime
+archives also authenticate optional GPU providers per target:
+
+| Engine | macOS ARM64 | Windows x64 / ARM64 | Linux x64 | Linux ARM64 |
+| --- | --- | --- | --- | --- |
+| ONNX Runtime | CoreML, native WebGPU | DirectML, native WebGPU | Native WebGPU | CPU |
+| whisper.cpp / llama.cpp | Embedded Metal | CPU | CPU | CPU |
+| Sherpa ONNX | CPU | CPU | CPU | CPU |
+
+Existing menu-invoked assistance operations prefer the installed archive's
+authenticated GPU providers, then CPU. Native WebGPU runs inside the desktop
+worker; this does not enable browser inference. Provider initialization or
+device-execution failures can fall back to CPU within the same authenticated
+runtime. Cancellation, invalid inputs, invalid outputs, and authentication
+failures do not permit retries. Older archives without provider metadata remain
+CPU-only, even on a GPU-capable machine. CUDA and Vulkan are not packaged.
+
+Accelerated provider metadata describes compiled support, not proof that a
+particular machine has a usable device or enough GPU memory. GPU behavior and
+performance need target-device validation. Publishing these runtime changes
+requires **Update AI assets** and refreshed desktop test runtime snapshots;
+existing snapshots continue to exercise their pinned CPU closures until refreshed.
 
 Each runtime family is lazy and isolated. Main owns its utility process,
 heartbeat, background scheduling priority, cancellation deadline, RSS

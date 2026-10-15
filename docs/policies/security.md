@@ -1504,22 +1504,22 @@ selected executable's ambient account authority. Authentication or executable
 loss returns typed unavailable; malformed actual detection remains hard.
 
 <!-- policy-narrative:local-assistance-runtime-diagnostics -->
-The Sherpa helper, CPU runtime-family hosts, and external-FFmpeg shot detector
-execute ordinary native code with ambient account authority. Exact payload,
-selected-file, model-artifact, and executable authentication plus supervision
-contain accidental faults but do not create an operating-system sandbox, close
-the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and
-long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR,
-PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with
-exact artifact identities and passing source-framework/ONNX comparisons. The
-conversion evidence directory also retains direct production-worker smoke
-results, separately from packaged Electron tests. Release preparation builds
-pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target
-closures and signs macOS native bytes. A protected ASAR distribution manifest
-binds immutable R2 archive length and SHA-256 plus every extracted file;
-Electron packages omit the native assistance payloads. Historical
-external-supply candidate statuses are not substitutes for those release
-identities. Model and runtime distribution require versioned notices and
+The Sherpa helper, CPU/GPU runtime-family hosts, and external-FFmpeg shot
+detector execute ordinary native code with ambient account authority. Exact
+payload, selected-file, model-artifact, and executable authentication plus
+supervision contain accidental faults but do not create an operating-system
+sandbox, close the FFmpeg hash-to-path/dynamic-library gaps, or establish
+aggregate CPU/RSS and long-session bounds. Retained Linux x64 conversions now
+authenticate TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2, and
+Dereverb Room, with exact artifact identities and passing source-framework/ONNX
+comparisons. The conversion evidence directory also retains direct
+production-worker smoke results, separately from packaged Electron tests.
+Release preparation builds pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa,
+and Kokoro G2P target closures and signs macOS native bytes. A protected ASAR
+distribution manifest binds immutable R2 archive length and SHA-256 plus every
+extracted file; Electron packages omit the native assistance payloads.
+Historical external-supply candidate statuses are not substitutes for those
+release identities. Model and runtime distribution require versioned notices and
 full-digest public read-back; explicit Model Manager installation fetches the
 model and required runtime, and first use of preseeded or previously installed
 weights may fetch a missing runtime. Execution rechecks the selected model and

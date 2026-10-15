@@ -110,9 +110,13 @@ training and jittery native timing make it unsuitable as the sole filler and
 karaoke authority. The planted-filler fixture, not a general reputation claim,
 decides which ASR a filler recipe may use.
 
-GTCRN, RNNoise, low-disk Whisper variants, GPU providers, and a fine-tuned
+GTCRN, RNNoise, low-disk Whisper variants, and a fine-tuned
 highlight classifier are not hidden prerequisites. They are outside the
 current offered set.
+
+GPU acceleration uses only the providers authenticated by each installed engine
+archive, with CPU fallback. It does not change model weights or their catalog
+identity; see the [runtime provider matrix](../architecture/local-assistance.md#runtime-boundary).
 
 ## Offered vision, search, and editorial models
 
