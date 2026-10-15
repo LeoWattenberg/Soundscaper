@@ -98,6 +98,11 @@ captured picture, PCM and originals remain pinned until cleanup completes.
 Failed physical cleanup retains its retry capability. These focused results do
 not close the combined gates. Combined coverage acceptance,
 remaining regressions, maximum-workload and external gates remain open.
+The current controlled browser-duration check failed its existing memory ceiling
+before completing the first preview frame; the rejected sample was not retained,
+so the exact failing operand remains unknown. Two asynchronous touch-test
+assertions are repaired and all five original Chromium workflows pass, with
+native inputs and drag/Undo/Redo checks unchanged.
 Installed After Effects validation is unavailable.
 Earlier results below are historical; fresh results and failures are recorded in
 [final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic

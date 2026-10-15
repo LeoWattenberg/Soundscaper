@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `5b58d636f`, including the reviewed native shutdown repair,
+is source `154374847`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -103,6 +103,8 @@ source-328 ledger below into a pass.
 | Corrected Linux native aggregate, `322c8a6b1` | Passed all five installed-package workflows: own-origin launch/file custody, animated camera/lighting, authored title, offline successor picture/PCM delivery and saved-file updates. A private copy of the Xvfb launcher now waits for its owned X server after the existing shutdown signal; six controlled launcher cases passed before this run. The strict owner and all source/artifact/process guards passed. This qualifies the tested Linux x64 software profile; the earlier aggregate failure and its unknown descendant executable remain recorded. |
 | Complete linked and dual-origin suites, `322c8a6b1` | Linked closed failed with 38/39 passes: Chromium 12/13, Firefox and WebKit 13/13 each. The sole failure is a transient real-playback pixel poll; its trace and failure artifacts are retained. Dual-origin passed all nine cases, three per engine. Both suites used one worker, no retries and unchanged assertions/timeouts; source/site/port/process/writer closure passed. This is not a complete linked-suite pass. |
 | Mixed-preview polling repair, test bytes committed as `845991e83` | All six original cases passed once, two per engine. The retained failure trace shows a sampling gap across the authored bright image interval; the test now samples its same >80 real-playback condition every 50 ms. Original pixel bounds, 15-second expectation, real Play/Stop, reopen, New and error assertions remain unchanged. Strict types, changed lint, size and normal paired builds passed. The actual sites/run used `322c8a6b1` plus these exact held test bytes; this focused result does not replace the failed 39-case suite. |
+| Touch-console observation repair, `8a54866b2` | All five original Chromium cases passed once, including both interrupted native gestures and their drag/Undo/Redo checks. Two assertions now wait for the same exact console-event arrays through the existing five-second expectation; native inputs and 30-second case limits remain unchanged. Changed lint, browser types, size, normal three-product build and source/site/process/port/writer guards passed. This repairs test synchronization, without claiming a historical application cause or a complete browser-suite pass. |
+| Current controlled-duration browser profile, `322c8a6b1` | Closed failed at the existing memory ceiling during the first 300-frame preview. Five accepted samples all record zero completed frames; exports, cancellation/retry and 1,200 frames were not reached. The sampler threw before retaining the rejected row, so the exact offending RSS/PSS/heap/WASM operand is unknown. Fresh source/input/site, process, server and output-writer closure passed. No cap changed and no duration or memory-growth qualification is claimed. |
 | Complete static gate, `8cc261339` | Passed full lint, types, architecture, audits, documentation and builds, with an explicit 12 GiB compiler heap. Source and observed process closure were verified. The later M06 changes retain their own focused checks; this result is not retagged to newer source. |
 | All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
@@ -182,6 +184,14 @@ It records the single linked-case failure separately from the nine-case pass.
 The focused mixed-preview repair qualification is
 `mixed-preview-poll-interval-fix-322c8a6b1/qualification.json`, SHA-256
 `01987cd60425229e375d288b92e00956ec239594037a16aaf6c1b5790cd9bcb2`.
+
+The touch-console qualification is
+`touch-console-observation-322c8a6b1/qualification.json`, SHA-256
+`1bf06fd480735ea6408c85b942cb81fb9d034732783cd3eceac20999f2db642a`.
+The failed current browser-duration closure is
+`current-322c8a6b1-sustained-browser/actual-tool-closure.json`, SHA-256
+`7a3dc3c81cfdeedc8bad546a3d965ceda3f39996ace867abfe66f92d656272fa`.
+It preserves the failed workload separately from its successful cleanup audit.
 
 The preceding passing complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
 `d9fa8b9a9f9d18f0e4d9947a30c28cb88557e9812d97987f9b2a16882a382967`.
@@ -464,6 +474,12 @@ preserved. All 32,077 installed-file counterparts and both current sandbox
 helpers remained unchanged. Its receipt is
 `authored-chooser-retirement-1202-20261015/retirement-final/retired.json`, SHA-256
 `b37f84bec66f320d0eb919dbbf15b9fd3326672476abbf1d4cbf75dbb317e0bd`.
+The later mixed-preview and old ordinary auxiliaries were also removed normally,
+with their source, generated bodies and unique caches retained. Their receipts are
+`mixed-preview-poll-interval-fix-322c8a6b1/retirement-final/retired.json`, SHA-256
+`1c8e8a4ccd5a12603f61f7df3d6a1f5561c9462a08a85b315ad150b401d8be07`, and
+`ordinary-current-retirement-3e8b3e942-20261015/retirement-final/retired.json`, SHA-256
+`43160ca807c2287313137c64b31be4680d876b35bd25f0cbdbf493d435d87b46`.
 The remaining active worktrees retain their own held inputs and outputs.
 
 The retained evidence includes `gates/static-result.json`, all five
