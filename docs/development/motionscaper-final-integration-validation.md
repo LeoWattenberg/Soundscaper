@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `703ca954b`, including the reviewed native shutdown repair,
+is source `5b58d636f`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -15,6 +15,8 @@ file colors, while retaining the original Canvas presentation measurements and
 same-plane controls at unchanged color limits.
 The nightly test payload now includes the concurrent-export fixture, repairing
 the three reproduced staging failures without changing application code.
+The mixed-preview test now samples the transient playback frame every 50 ms;
+its original six workflows pass across all three engines.
 Its combined gates remain open.
 The failed ordinary browser capture used frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
@@ -22,7 +24,8 @@ The failed ordinary browser capture used frozen source
 after source and artifact preservation. This status records fresh validation on
 2026-10-15. A fresh complete ordinary browser run is active on clean source
 `322c8a6b1c48a1efd0f4436d1f91b42323b0cf3c`; the older
-`3e8b3e9420aeda3353158ab9400461c5af1a2980` run also remains active. Each result qualifies only its stated
+`3e8b3e9420aeda3353158ab9400461c5af1a2980` run is closed failed
+with 7,215 passes, 40 failures and 287 declared skips. Each result qualifies only its stated
 source and workload; none marks a milestone complete or certifies a release.
 
 ## Evidence boundary
@@ -89,25 +92,30 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
+| Complete static gate, `a1a58bf4e` | Passed full lint, types, architecture, audits, documentation and production build with the command-local 12 GiB compiler heap. Exact source and all 85 observed process identities closed; startup tightening found no ceiling to lower. The later polling repair retains its own checks and exact test-byte attribution. |
+| All five exhaustive Node partitions, `a1a58bf4e` | Passed: 27,352 tests, 27,338 passed, zero failures/cancellations and 14 declared skips. All 1,121 Motion cases and the three previously failed nightly packaging assertions pass in the same exhaustive batch. Source/staged inputs, observed process closure and stable raw-profile inventories passed; raw coverage remains unparsed and unadmitted. No Node heap override was set. |
 | Complete static gate, `322c8a6b1` | Passed full lint, types, architecture, audits, documentation and production build, with the explicit 12 GiB compiler heap confined to this command. Source and observed process closure passed. Startup tightening found no ceiling to lower. |
 | All five exhaustive Node partitions, `322c8a6b1` | Closed failed: 27,352 tests, 27,335 passed, three failures and 14 declared skips. All three failures share the omitted concurrent-export fixture in nightly test payload membership. Common-1, Frame, Sound and all 1,121 Motion cases passed; the isolated common-2 desktop deadline probe also passed. Source/staged inputs, observed process closure and stable raw-profile inventories passed; coverage remains unparsed and unadmitted. |
 | Nightly fixture staging repair, `d75950a25`, integrated as `703ca954b` | The existing tests reproduced exactly the three packaging failures on the unchanged base. Adding one fixture path makes all 22 relevant payload/import/negative-omission and actual staging checks pass, without skips. Changed-file lint, size and diff checks passed. No application, dependency or assistance-runtime bytes changed. This focused result does not replace the failed complete Node run. |
 | Complete handbook browser gate, `322c8a6b1` | Passed all 32 maintained desktop/mobile Chrome cases once, four workers and no retries, with the original test/assertion timeouts. Source/build preservation and all observed process, daemon, port and output-writer guards passed. The known inaccessible sd-pam environment remains an explicit census limitation. |
-| Fresh complete ordinary browser run, `322c8a6b1` | Active: all 7,563 discovered cases, 2,521 per engine, four workers and zero retries. All 39,875 source/installed inputs, 74 preparation pins and 2,293 product site/map files were verified before launch. Independent FCPXML/EDL readers are included. No terminal outcome or coverage acceptance is claimed. |
+| Fresh complete ordinary browser run, `322c8a6b1` | Active: all 7,563 discovered cases, 2,521 per engine, four workers and zero retries. All 39,875 source/installed inputs, 74 preparation pins and 2,293 product site/map files were verified before launch. Independent FCPXML/EDL readers are included. Observed Chromium failures include desktop strip meters, spectral menu navigation, touch-event observation and EQ spectrum. No terminal outcome or coverage acceptance is claimed. |
 | Fresh Linux native staging/packages and aggregate, `322c8a6b1` | All eight native/reference build, staging, packaging and verification phases passed. The fresh application aggregate completed all five functional markers, including the animated-camera fixture, and its command exited zero. The strict outer gate nevertheless failed because an owned descendant was still live at command closure; cleanup left no recorded survivors or zombies. The descendant's executable was not captured, so its cause is unproven. This is a failed aggregate, not Linux acceptance. The same two previously installed sandbox-helper inodes were relocated with an audited journal; old installed metadata is explicitly historical and invalidated, while old bodies and receipts remain preserved. |
+| Corrected Linux native aggregate, `322c8a6b1` | Passed all five installed-package workflows: own-origin launch/file custody, animated camera/lighting, authored title, offline successor picture/PCM delivery and saved-file updates. A private copy of the Xvfb launcher now waits for its owned X server after the existing shutdown signal; six controlled launcher cases passed before this run. The strict owner and all source/artifact/process guards passed. This qualifies the tested Linux x64 software profile; the earlier aggregate failure and its unknown descendant executable remain recorded. |
+| Complete linked and dual-origin suites, `322c8a6b1` | Linked closed failed with 38/39 passes: Chromium 12/13, Firefox and WebKit 13/13 each. The sole failure is a transient real-playback pixel poll; its trace and failure artifacts are retained. Dual-origin passed all nine cases, three per engine. Both suites used one worker, no retries and unchanged assertions/timeouts; source/site/port/process/writer closure passed. This is not a complete linked-suite pass. |
+| Mixed-preview polling repair, test bytes committed as `845991e83` | All six original cases passed once, two per engine. The retained failure trace shows a sampling gap across the authored bright image interval; the test now samples its same >80 real-playback condition every 50 ms. Original pixel bounds, 15-second expectation, real Play/Stop, reopen, New and error assertions remain unchanged. Strict types, changed lint, size and normal paired builds passed. The actual sites/run used `322c8a6b1` plus these exact held test bytes; this focused result does not replace the failed 39-case suite. |
 | Complete static gate, `8cc261339` | Passed full lint, types, architecture, audits, documentation and builds, with an explicit 12 GiB compiler heap. Source and observed process closure were verified. The later M06 changes retain their own focused checks; this result is not retagged to newer source. |
 | All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
 | Paired-download test repair, `b2688a52d` | All five original test-file cases passed after waiting for the existing action's completion across its release timer and MessageChannel task. Exact filenames and blob retention/revocation assertions remain unchanged. Strict types, changed-file lint and size checks passed. This focused result does not replace the failed whole Node gate. |
 | Desktop deadline diagnosis, `3e8b3e942` | Two bounded passive observations passed with exact PCM and no deadline fault. Neither reproduced the historical failure. The first omitted the gate's coverage/loaders; the second restored them but added an unproven 8 GiB heap setting. The cause remains unknown and no production repair is claimed. |
-| Fresh complete ordinary browser run, `3e8b3e942` | Active: all 7,542 discovered cases, 2,514 per engine, four workers and zero retries. Observed Chromium failures include the Import chooser, spectral handles, playback, image delivery and missing independent FCPXML/EDL readers. The absent reader is a checkout prerequisite error; verified copies are prepared for a later run without modifying this held invocation. No terminal result or coverage acceptance is claimed yet. |
+| Complete ordinary browser run, `3e8b3e942` | Closed failed: 7,542 cases, 7,215 passed, 40 failed and 287 declared skips; no retries, flaky cases or global errors. Chromium failed 14 cases, Firefox five and WebKit 21. Missing independent FCPXML/EDL readers are a checkout prerequisite error, corrected only in the separate newer run. All 17,441 recorded identities and the root session are absent; source/site/port/writer guards passed. The 2,336 stable raw profiles remain unparsed and unadmitted. |
 | Passive Import/Split observation, `3e8b3e942` | The original single Chromium workflow passed once with bounded passive focus/key observation. All 63 recorded events fit the cap, and the shortcut opened its chooser. No focus steal was observed. This changes scheduling and does not reproduce or explain the full-run timeout. |
 | Deferred panel focus repair, `01e0f3d55` | Deterministic controls reproduced an older queued handoff overriding a newer user focus choice. The fix retires superseded requests while preserving trigger restoration and the original 30-frame mount bound. All 71 focused cases, eight dispatch controls, strict types, lint, architecture and build passed. The default-heap test typecheck exhausted memory; its explicit 12 GiB retry passed. This proves a separate focus defect and does not establish the cause of the browser Import timeout. |
 | Saved-kind and mixed-rate consumer contracts, `82c9aaa3f` / `bcdc43f1f` | New controls preserve all ten layer kinds, animated property kinds and exact asset bodies through store/archive reopen; an authored rational-clock/pixel oracle agrees across actual preview playback, shuffled seeks, export, saved links and Frame thumbnails. These are Node/CPU and instrumented-IndexedDB checks, not physical-browser durability or codec qualification. Four final focused cases passed after repairing an existing test's missing temporary-directory parent. The initial auxiliary Motion shard remains failed: 1,094/1,096 passed, one setup failure and one native-artifact skip. |
 | Animated multilingual title, `cf8717b6d` | The strengthened original workflow passed Chromium, Firefox and WebKit once each. It authors English/Arabic text and animated title placement, checks Undo/Redo and retained font/shaping after reopen, and delivers 16 PNG frames; differing frames 0 and 15 each match reopened preview within the unchanged one-code bound. Three new scale/rotation/tracking controls and 13 combined Node cases passed unchanged application code. Strict types and final lint passed; earlier setup/type and default-heap lint failures remain retained. |
 | Graph/path keyboard repair, `e13c9f4bb` | Real component and Chromium controls reproduced Enter/Space failing to select focused SVG buttons. The fix selects without authoring or adding Undo history, while preserving disabled/modified/IME/repeat and existing arrow behavior. All 38 combined Node checks, 12 new cases across three browser engines and four existing Chromium workflows passed, with strict types, lint, size and Motion builds. |
 | Expression export diagnostics, `97c002d67` | New real final-export cases reproduced missing layer/property/source-span context. Shared presentation now retains that context in Render and the pinned queue, including bounded cleanup-error aggregation without losing cleanup capabilities. Final 59 combined Node checks and two Chromium refusal/correction/reopen/PNG cases passed with strict types, lint, size and Motion build. The earlier 15-case browser pass predates the aggregate-message extension and remains separately attributed. |
-| Animated camera reference, `99183fd6c` | Independent world/projection values, frozen-subject and frozen-camera pixel controls, arbitrary seeks and matching-quality host preview/export pass. The menu-authored Chromium camera workflow checks independently predicted pixels, save/reopen and PNG delivery. The native fixture now animates its camera while retaining its lighting/shadow/shutter/lens checks; a fresh packaged run remains pending. This strengthens test evidence without changing renderer math. |
+| Animated camera reference, `99183fd6c` | Independent world/projection values, frozen-subject and frozen-camera pixel controls, arbitrary seeks and matching-quality host preview/export pass. The menu-authored Chromium camera workflow checks independently predicted pixels, save/reopen and PNG delivery. The native fixture now animates its camera while retaining its lighting/shadow/shutter/lens checks; the later `322c8a6b1` aggregate qualifies that fixture on Linux x64 software rendering. This strengthens test evidence without changing renderer math. |
 | Passive spectral-gesture observation, `8cc261339` | The three original Chromium workflows passed once with bounded passive pointer observation, no original assertion/timeout changes and no application repair. All captured brush releases arrived; no observation overflow or page error occurred. The separate origin/one-worker observation does not explain or clear the full-run failures. |
 | Original browser MP4 observation, `8cc261339` | The unchanged single Chromium case failed its original pixel bound: second-frame blue was 169 against expected 191, an error of 22 versus the limit of 20. Packet/container checks reached the pixel loop. The earlier selector-only attempt executed zero cases and remains a separate preparation failure. Source/site guards and process closure passed; encoded bytes and native planes were not retained by the original case, so no producer, muxer or presentation cause is established. |
 | Retained MP4 file/presentation diagnosis, `8cc261339` | An additive capture reproduced the same original 22-versus-20 failure and retained the actual producer RGBA, encoded MP4, native decoded planes/tags and reconstructed same-plane Canvas control. Independent static FFmpeg decoding of that exact file matches all six complete visible plane hashes, twelve sampled Y/U/V values, timestamps and Rec.709 limited-range tags. Independent matrix and inverse-transfer arithmetic puts the sampled file colors within the original sRGB limit; actual and same-plane Canvas retain the failed presentation values. The original case remains failed; no production encoder change or relaxed color limit is claimed. |
@@ -130,7 +138,7 @@ source-328 ledger below into a pass.
 | Controlled-duration native workflow, `1202edeba` | Passed both 300- and 1,200-frame preview/ProRes workloads, cancellation/retry at each duration and all six independently decoded MOV references. All 449 memory rows and 81 real encoder observations were audited; peak whole-application RSS/PSS was 1,075,535,872/625,772,544 bytes. Exact PCM, contiguous timestamps, picture/alpha bounds, memory tails and final process absence passed. This qualifies the fixed Linux x64 profile, not maximum workloads or other hosts. |
 | Complete accepted coverage union and external matrix | Open. Failed raw profiles remain unparsed and unadmitted; no coverage floor, startup ceiling, timeout, color bound or signal bound was weakened. No installed AE environment is available. |
 
-The latest complete Node run failed. Its receipt is
+The preceding complete Node run failed. Its receipt is
 `current-322c8a6b1-node/closed.json`, SHA-256
 `23d31d48a3bf55f381553740a605154a15f45760713c94035f4c2ef53a423f33`;
 its post-audit is `current-322c8a6b1-node/post-audit.json`, SHA-256
@@ -140,7 +148,7 @@ identities and five root sessions, and 5,283 stable raw profiles totaling
 13,267,533,253 bytes. These profiles remain unparsed and unadmitted.
 The staging-repair receipt is `nightly-concurrent-fixture-fix-322c8a6b/qualification.json`,
 SHA-256 `1b5dd31bdc0901477b8b4f798d69c4340fd75dde06f05234e0b8ae9567ad1b3b`.
-The latest static receipt is `current-322c8a6b1-static/closed.json`, SHA-256
+The preceding static receipt is `current-322c8a6b1-static/closed.json`, SHA-256
 `d54611d2f07b389398a60b9c7f9cac2e0a24b1402e41aeb8e046587b7511399f`.
 The complete handbook receipt is `handbook-final-browser-322c8a6b1/closed.json`,
 SHA-256 `67daed7548a0b8a017336d80365a32593e800eb9c70c5f4b01639f1ae49608b8`;
@@ -152,6 +160,28 @@ The fresh native build/package closure is
 Its helper relocation is
 `current-322c8a6b1-native-qualification/sandbox-custody/outer-tool-closure.json`,
 SHA-256 `ea51b0ea163ab5ce6b6658686c724cf47e359c20c91137513d7c708db05273e9`.
+
+The new complete static receipt is `current-a1a58bf4e-static/closed.json`,
+SHA-256 `4075f6155ef5eae5e9100d770d4467de61e46f9d89cf45ea1c27904857da1aed`.
+The closed failed ordinary run is
+`current-3e8b3e942-ordinary-preparation-v2/ordinary-run/actual-tool-closure.json`,
+SHA-256 `880f367c465ba8b40550cf82ecdaae24358cc80f62882d2c1b90525103d7fa20`.
+
+The new passing complete Node handoff is `current-a1a58bf4e-node/handoff.json`,
+SHA-256 `ea8e35eb59e519fd5c2a30e04eaa0a9d8c7a48a60f55c393c58ebb5b7f235b6e`.
+Its post-audit verified 51,392 inputs, absence of all 5,486 recorded identities
+and five root sessions, and 5,265 stable raw profiles (13,260,012,986 bytes).
+The profiles remain unparsed and unadmitted. The corrected native aggregate audit
+is `current-322c8a6b1-native-qualification/aggregate-wait-audit/actual-tool-closure.json`,
+SHA-256 `f99ef3ac8d1d1adee77b6cecfb75faa047d9dcce515cc171961faca0e1ea89b7`.
+The linked/dual-origin completed handoff is
+`current-322c8a6b1-linked-dual-preparation/completed-handoff.json`, SHA-256
+`e084e117cc5da5e157434e46b733f738cf5a156c78ed9e28e0ff6a9469bfd793`.
+It records the single linked-case failure separately from the nine-case pass.
+
+The focused mixed-preview repair qualification is
+`mixed-preview-poll-interval-fix-322c8a6b1/qualification.json`, SHA-256
+`01987cd60425229e375d288b92e00956ec239594037a16aaf6c1b5790cd9bcb2`.
 
 The preceding passing complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
 `d9fa8b9a9f9d18f0e4d9947a30c28cb88557e9812d97987f9b2a16882a382967`.
@@ -427,6 +457,14 @@ Old absolute paths and workspace symlinks are historical; raw coverage remains
 unadmitted. Held current package and ordinary-suite inputs are unchanged.
 No source, dependency,
 site or packaged bytes used by the completed frozen capture were changed.
+
+The merged authored-chooser auxiliary at source `1202edeba` and its branch were
+removed normally after its source, staged bodies and unique ignored file were
+preserved. All 32,077 installed-file counterparts and both current sandbox
+helpers remained unchanged. Its receipt is
+`authored-chooser-retirement-1202-20261015/retirement-final/retired.json`, SHA-256
+`b37f84bec66f320d0eb919dbbf15b9fd3326672476abbf1d4cbf75dbb317e0bd`.
+The remaining active worktrees retain their own held inputs and outputs.
 
 The retained evidence includes `gates/static-result.json`, all five
 `node/*-result.json` files, the handbook result, and

@@ -75,14 +75,22 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass. Complete
-static gates passed on source `322c8a6b1`, and the complete Node gate
-previously passed on `17b8a6964`. The newer complete Node run on `322c8a6b1`
-finished with 27,335 passes, three failures and 14 declared skips. All three
-failures share one omitted nightly-test fixture; the one-entry staging repair
-is integrated and passes all 22 relevant checks. That focused repair does not
-turn the failed full run into a pass. The complete 32-case handbook browser gate
-passed on `322c8a6b1`. A fresh complete application browser run is active on
-that source; the older run with failures also remains active. The M06 keyboard repair and animated multilingual-title workflow
+static gates passed on source `a1a58bf4e`. The complete Node gate now passes on
+`a1a58bf4e`: 27,338 passed, zero failures and 14 declared skips, including all
+1,121 Motion cases. The one-entry nightly-fixture repair passes the same
+exhaustive batch that previously failed three assertions; the failed older run
+remains separately recorded. The complete 32-case handbook browser gate passed
+on `322c8a6b1`. A fresh complete application browser run is active on that
+source. The older complete run on `3e8b3e942` is closed failed: 7,215 passed,
+40 failed and 287 skipped. The fresh linked suite
+passed 38 of 39 cases, with one Chromium transient-playback polling failure;
+the separate nine-case dual-origin suite passed all three engines. A sampling
+repair then passed all six original mixed-preview cases with unchanged pixel
+limits and timeouts. That focused result does not replace the failed full linked
+run. The fresh Linux five-workflow aggregate passed with an external Xvfb launcher that waits
+for its owned child; this qualifies only the tested software-rendered x64
+profile. The earlier strict aggregate failure remains recorded. The M06
+keyboard repair and animated multilingual-title workflow
 have focused evidence across all three engines. M08 final-export diagnostics and
 an animated M09 camera reference now have focused checks. The coupled M10
 saved-update/export regression is repaired and passes all three browser engines;
