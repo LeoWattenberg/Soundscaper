@@ -75,9 +75,14 @@ package complete.
 
 M01–M12 are **In progress**; named implementations do not close release gates.
 Substantial implementations and focused browser/native workflows pass. Complete
-static gates passed through source `8cc261339`, and the complete Node gate
-passed on `17b8a6964`. The current full browser run has failures and remains
-active. The later M06 keyboard repair and animated multilingual-title workflow
+static gates passed on source `322c8a6b1`, and the complete Node gate
+previously passed on `17b8a6964`. The newer complete Node run on `322c8a6b1`
+finished with 27,335 passes, three failures and 14 declared skips. All three
+failures share one omitted nightly-test fixture; the one-entry staging repair
+is integrated and passes all 22 relevant checks. That focused repair does not
+turn the failed full run into a pass. The complete 32-case handbook browser gate
+passed on `322c8a6b1`. A fresh complete application browser run is active on
+that source; the older run with failures also remains active. The M06 keyboard repair and animated multilingual-title workflow
 have focused evidence across all three engines. M08 final-export diagnostics and
 an animated M09 camera reference now have focused checks. The coupled M10
 saved-update/export regression is repaired and passes all three browser engines;

@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `c2eea06f9`, including the reviewed native shutdown repair,
+is source `703ca954b`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -13,13 +13,16 @@ retains failed physical cleanup handles for retry.
 Two browser MP4 checks now measure authored sRGB fidelity from the declared
 file colors, while retaining the original Canvas presentation measurements and
 same-plane controls at unchanged color limits.
+The nightly test payload now includes the concurrent-export fixture, repairing
+the three reproduced staging failures without changing application code.
 Its combined gates remain open.
 The failed ordinary browser capture used frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
 `feat/motionscaper-final-validation` checkout and merged branch were removed
 after source and artifact preservation. This status records fresh validation on
 2026-10-15. A fresh complete ordinary browser run is active on clean source
-`3e8b3e9420aeda3353158ab9400461c5af1a2980`. Each result qualifies only its stated
+`322c8a6b1c48a1efd0f4436d1f91b42323b0cf3c`; the older
+`3e8b3e9420aeda3353158ab9400461c5af1a2980` run also remains active. Each result qualifies only its stated
 source and workload; none marks a milestone complete or certifies a release.
 
 ## Evidence boundary
@@ -86,6 +89,12 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
+| Complete static gate, `322c8a6b1` | Passed full lint, types, architecture, audits, documentation and production build, with the explicit 12 GiB compiler heap confined to this command. Source and observed process closure passed. Startup tightening found no ceiling to lower. |
+| All five exhaustive Node partitions, `322c8a6b1` | Closed failed: 27,352 tests, 27,335 passed, three failures and 14 declared skips. All three failures share the omitted concurrent-export fixture in nightly test payload membership. Common-1, Frame, Sound and all 1,121 Motion cases passed; the isolated common-2 desktop deadline probe also passed. Source/staged inputs, observed process closure and stable raw-profile inventories passed; coverage remains unparsed and unadmitted. |
+| Nightly fixture staging repair, `d75950a25`, integrated as `703ca954b` | The existing tests reproduced exactly the three packaging failures on the unchanged base. Adding one fixture path makes all 22 relevant payload/import/negative-omission and actual staging checks pass, without skips. Changed-file lint, size and diff checks passed. No application, dependency or assistance-runtime bytes changed. This focused result does not replace the failed complete Node run. |
+| Complete handbook browser gate, `322c8a6b1` | Passed all 32 maintained desktop/mobile Chrome cases once, four workers and no retries, with the original test/assertion timeouts. Source/build preservation and all observed process, daemon, port and output-writer guards passed. The known inaccessible sd-pam environment remains an explicit census limitation. |
+| Fresh complete ordinary browser run, `322c8a6b1` | Active: all 7,563 discovered cases, 2,521 per engine, four workers and zero retries. All 39,875 source/installed inputs, 74 preparation pins and 2,293 product site/map files were verified before launch. Independent FCPXML/EDL readers are included. No terminal outcome or coverage acceptance is claimed. |
+| Fresh Linux native staging/packages and aggregate, `322c8a6b1` | All eight native/reference build, staging, packaging and verification phases passed. The fresh application aggregate completed all five functional markers, including the animated-camera fixture, and its command exited zero. The strict outer gate nevertheless failed because an owned descendant was still live at command closure; cleanup left no recorded survivors or zombies. The descendant's executable was not captured, so its cause is unproven. This is a failed aggregate, not Linux acceptance. The same two previously installed sandbox-helper inodes were relocated with an audited journal; old installed metadata is explicitly historical and invalidated, while old bodies and receipts remain preserved. |
 | Complete static gate, `8cc261339` | Passed full lint, types, architecture, audits, documentation and builds, with an explicit 12 GiB compiler heap. Source and observed process closure were verified. The later M06 changes retain their own focused checks; this result is not retagged to newer source. |
 | All five exhaustive Node partitions, `17b8a6964` | Passed: 27,295 tests, 27,281 passed, zero failures/cancellations and 14 declared skips. Motion's 1,095 tests passed without skips, including real pinned-helper MOV decoding. The isolated desktop deadline and paired-download cases passed in the unchanged complete gate. No Node heap override was set. Source, staged inputs, observed processes and raw-profile closure were verified; raw coverage remains unparsed and unadmitted. |
 | All five exhaustive Node partitions, `3e8b3e942` | Closed failed: 27,286 tests, 27,270 passed, two failures and 14 declared skips. Motion's 1,086 tests passed without skips, including real pinned-helper MOV decoding. Common-2 failed the isolated desktop AudioWorklet deadline check; Sound failed a paired-download test that observed the second archive before its report. All partitions and owned processes closed. |
@@ -121,7 +130,30 @@ source-328 ledger below into a pass.
 | Controlled-duration native workflow, `1202edeba` | Passed both 300- and 1,200-frame preview/ProRes workloads, cancellation/retry at each duration and all six independently decoded MOV references. All 449 memory rows and 81 real encoder observations were audited; peak whole-application RSS/PSS was 1,075,535,872/625,772,544 bytes. Exact PCM, contiguous timestamps, picture/alpha bounds, memory tails and final process absence passed. This qualifies the fixed Linux x64 profile, not maximum workloads or other hosts. |
 | Complete accepted coverage union and external matrix | Open. Failed raw profiles remain unparsed and unadmitted; no coverage floor, startup ceiling, timeout, color bound or signal bound was weakened. No installed AE environment is available. |
 
-The latest complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
+The latest complete Node run failed. Its receipt is
+`current-322c8a6b1-node/closed.json`, SHA-256
+`23d31d48a3bf55f381553740a605154a15f45760713c94035f4c2ef53a423f33`;
+its post-audit is `current-322c8a6b1-node/post-audit.json`, SHA-256
+`1ffd2e2a1d385ea287344bb3a4798fb1e77dc9eba4e524af59563a0025827fab`.
+The audit verified 51,392 source/installed inputs, absence of all 5,416 recorded
+identities and five root sessions, and 5,283 stable raw profiles totaling
+13,267,533,253 bytes. These profiles remain unparsed and unadmitted.
+The staging-repair receipt is `nightly-concurrent-fixture-fix-322c8a6b/qualification.json`,
+SHA-256 `1b5dd31bdc0901477b8b4f798d69c4340fd75dde06f05234e0b8ae9567ad1b3b`.
+The latest static receipt is `current-322c8a6b1-static/closed.json`, SHA-256
+`d54611d2f07b389398a60b9c7f9cac2e0a24b1402e41aeb8e046587b7511399f`.
+The complete handbook receipt is `handbook-final-browser-322c8a6b1/closed.json`,
+SHA-256 `67daed7548a0b8a017336d80365a32593e800eb9c70c5f4b01639f1ae49608b8`;
+its actual tool closure is `handbook-final-browser-322c8a6b1/outer-tool-closure.json`,
+SHA-256 `c3186305458861f7035189a7f6e2839e4065cca3296cc1afe112aa5a91b02325`.
+The fresh native build/package closure is
+`current-322c8a6b1-native-qualification/outer-tool-closure.json`, SHA-256
+`755ee87f8fabdf10ac251382b3d87c67775b4141fcfd0e36e5c6cde5158fc7f7`.
+Its helper relocation is
+`current-322c8a6b1-native-qualification/sandbox-custody/outer-tool-closure.json`,
+SHA-256 `ea51b0ea163ab5ce6b6658686c724cf47e359c20c91137513d7c708db05273e9`.
+
+The preceding passing complete Node receipt is `current-17b8a6964-node/closed.json`, SHA-256
 `d9fa8b9a9f9d18f0e4d9947a30c28cb88557e9812d97987f9b2a16882a382967`.
 Its post-audit is `current-17b8a6964-node/post-audit.json`, SHA-256
 `15b7c1b0533f16d2f3974019b5f0ec29bc26fb5957193f94d52a3acb10f338df`.
@@ -129,7 +161,7 @@ It verified 51,372 input pins, absence of all 5,239 recorded PID/start identitie
 and empty root sessions, plus 5,261 stable raw profiles (13,198,215,341 bytes).
 The lifetime census was sampled; it does not prove every unobserved detached
 process birth. These raw profiles have not been parsed or admitted as coverage.
-The latest static receipt is `current-8cc261339-static/closed.json`, SHA-256
+The preceding static receipt is `current-8cc261339-static/closed.json`, SHA-256
 `a1ae50b382907f7c7d761b6d7792f3b9a43253a47b048d7dababf282334edc7e`.
 The preceding complete static receipt is `current-17b8a6964-static/closed.json`, SHA-256
 `9d407f85397bde43b02c38ee46f974bfb6b5cd359b768a3faaeb9bb977bff892`.
