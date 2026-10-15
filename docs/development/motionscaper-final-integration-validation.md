@@ -2,7 +2,7 @@
 
 Status: **M01–M12 In progress**. Reviewed repairs are integrated into
 `feat/motionscaper` in the main Motionscaper worktree. Latest reviewed integration
-is source `658c41be8`, including the reviewed native shutdown repair,
+is source `c2eea06f9`, including the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
 and stronger animated multilingual-title delivery checks. M08 now retains
@@ -10,6 +10,9 @@ expression ownership and source spans at final export; M09 has an animated-camer
 reference with independent projection and pixel controls.
 M10 now retains captured native inputs during compatible saved updates and
 retains failed physical cleanup handles for retry.
+Two browser MP4 checks now measure authored sRGB fidelity from the declared
+file colors, while retaining the original Canvas presentation measurements and
+same-plane controls at unchanged color limits.
 Its combined gates remain open.
 The failed ordinary browser capture used frozen source
 `328cae02fb961d87524a6bcb37c54800b3ae7026`. Its former
@@ -98,7 +101,8 @@ source-328 ledger below into a pass.
 | Animated camera reference, `99183fd6c` | Independent world/projection values, frozen-subject and frozen-camera pixel controls, arbitrary seeks and matching-quality host preview/export pass. The menu-authored Chromium camera workflow checks independently predicted pixels, save/reopen and PNG delivery. The native fixture now animates its camera while retaining its lighting/shadow/shutter/lens checks; a fresh packaged run remains pending. This strengthens test evidence without changing renderer math. |
 | Passive spectral-gesture observation, `8cc261339` | The three original Chromium workflows passed once with bounded passive pointer observation, no original assertion/timeout changes and no application repair. All captured brush releases arrived; no observation overflow or page error occurred. The separate origin/one-worker observation does not explain or clear the full-run failures. |
 | Original browser MP4 observation, `8cc261339` | The unchanged single Chromium case failed its original pixel bound: second-frame blue was 169 against expected 191, an error of 22 versus the limit of 20. Packet/container checks reached the pixel loop. The earlier selector-only attempt executed zero cases and remains a separate preparation failure. Source/site guards and process closure passed; encoded bytes and native planes were not retained by the original case, so no producer, muxer or presentation cause is established. |
-| Retained MP4 file/presentation diagnosis, `8cc261339` | An additive capture reproduced the same original 22-versus-20 failure and retained the actual producer RGBA, encoded MP4, native decoded planes/tags and reconstructed same-plane Canvas control. Independent static FFmpeg decoding of that exact file matches all six complete visible plane hashes, twelve sampled Y/U/V values, timestamps and Rec.709 limited-range tags. Independent matrix and inverse-transfer arithmetic puts the sampled file colors within the original sRGB limit; actual and same-plane Canvas retain the failed presentation values. The original case remains failed. A narrow test-oracle correction is in progress; no production encoder change or relaxed color limit is claimed. |
+| Retained MP4 file/presentation diagnosis, `8cc261339` | An additive capture reproduced the same original 22-versus-20 failure and retained the actual producer RGBA, encoded MP4, native decoded planes/tags and reconstructed same-plane Canvas control. Independent static FFmpeg decoding of that exact file matches all six complete visible plane hashes, twelve sampled Y/U/V values, timestamps and Rec.709 limited-range tags. Independent matrix and inverse-transfer arithmetic puts the sampled file colors within the original sRGB limit; actual and same-plane Canvas retain the failed presentation values. The original case remains failed; no production encoder change or relaxed color limit is claimed. |
+| MP4 file-color oracle correction, test bytes committed as `ebaa5034b` | Both original Chromium export workflows passed once with their original 20/12-code bounds, authored color/alpha expectations and timeouts. Independent limited-range Rec.709 matrix and inverse-transfer arithmetic measures file sRGB; strict metadata, format, order and timing checks refuse ambiguous inputs. Original Mediabunny/HTML readbacks must equal the separately reconstructed same-plane Canvas control and remain retained, including the earlier failing presentation values. Seven helper controls, strict types, changed-file lint, size and normal product builds passed. The actual build/run used source `80f80bbbe` with the four held test changes, now committed unchanged; this does not retag its site evidence to the later commit or qualify the complete integrated gate. |
 | Fresh handbook attempt, `8cc261339` | Interrupted and failed: the small-command observer reached its 64 cumulative-process cap after 14 visible desktop passes, before complete report/teardown. This is not a 32-case pass. Independent salvage verified source/build custody, absence of all 63 recorded identities and owned sessions/daemon/port, then removed only the stale scoped preview lock. A suitable whole-suite observer is being prepared for a later final-source run. |
 | Retained mixed-image reopening, `cbf09f9ea` | The unchanged workflow passed Chromium, Firefox and WebKit, without skips or retries. Per-file read serialization fixes the reproduced same-worker exclusive OPFS lock collision; the retained image was intact. This does not claim cross-worker or read/write arbitration. |
 | Complete linked/dual-origin suites, `19bc434e8` | Closed failed: 34/36 linked cases and 8/9 dual-origin cases passed. Firefox failures were image reopening and an absent-host GPU assertion; WebKit lost the archive of a two-download pair. All three first linked-editor/offline/export workflows passed. |
@@ -177,6 +181,9 @@ The additive MP4 capture is
 the independent fixed-file decode is
 `encoder-fixed-file-decode-8cc261339/qualification.json`, SHA-256
 `8c3625ab2ec98d1dee1654ec0797aca9509c7df0cd42452854b70413730382c4`.
+The corrected two-workflow browser closure is
+`video-file-color-test-repair-80f80bbbe/browser/closed.json`, SHA-256
+`9de3d02036b39e125dec15b2104289c55502d38eea0c3bc42a463526c8e5ecd3`.
 The M10 repair qualification is
 `m10-concurrent-linked-export-b594/qualification-v2.json`, SHA-256
 `4214c9bf2e7d5885acba74de62a102fe2f412d58a0f548f8a2cb9526b6b242a6`.
@@ -375,10 +382,15 @@ Integration preserves each original repair commit in Git ancestry. Finished
 auxiliary worktrees are removed after preservation. The obsolete source-328
 checkout was removed with normal Git commands after verifying all 19,229 tracked
 source files and preserving 62,012 generated files (13,559,200,803 bytes),
-including all sixteen historical sandbox inodes. Six owned worktrees remain.
+including all sixteen historical sandbox inodes. The merged M10 auxiliary was
+also removed normally after preserving its 19,306 source files, generated bodies
+and symlinks. Five owned worktrees remain.
 The retirement receipt is
 `frozen-328-retirement-execution-v3-20261015/actual-tool-closure.json`, SHA-256
 `20e3e8ac7be948095b5c048f70c9fdfb3573676f36cde3c38f7ae6042f5e69d3`.
+The M10 auxiliary retirement is
+`m10-concurrent-export-retirement-20261015/actual-tool-closure-v2.json`, SHA-256
+`03d24d9b57061ab6ce768f166f73a7d78a211b4bbab3a5d25f0b93bf853146f7`.
 Old absolute paths and workspace symlinks are historical; raw coverage remains
 unadmitted. Held current package and ordinary-suite inputs are unchanged.
 No source, dependency,
