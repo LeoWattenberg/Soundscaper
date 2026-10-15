@@ -104,6 +104,8 @@ source-328 ledger below into a pass.
 
 | Gate and source | Latest terminal result |
 | --- | --- |
+| Native chooser observations, `d7dc53145`, integrated as `60afc104a` | Twenty new offline controls and seven existing chooser controls pass. The maintained driver now emits at most four passive records/8 KiB with actual display identifier, target/candidate window identities, owner PID, focus and phase timestamps. Passive X11 errors are isolated by display identity. Removing only observation additions restores the original driver AST; actions, deadlines and pass/fail predicates stay unchanged. Tooling/focused test types, changed lint and size pass. No live application, chooser, compiler or decoder replay occurred; the failed native invocation remains failed and its cause remains unknown. |
+| Vanished-process liveness reads, `edfe0ae3f`, integrated as `2960d5449` | Two deterministic tests reproduced treating a vanished `/proc` ESRCH read as a cleanup error. The liveness check now treats only ENOENT/ESRCH reads as absence, matching the existing process samplers. All 29 shutdown/observation controls, strict tooling/full test types, changed lint and size pass. Recycled identities remain excluded; malformed/permission/unknown read errors and signalling errors remain failures. All 18 recorded identities/owners were absent. No application replay, chooser repair or retrospective native-duration pass is claimed. |
 | Shared Amplify draft reservation, `3330272ef`, integrated as `b91204a52` | A real-controller Firefox case reproduced late headroom replacing a native select-all draft before insertion. Five production lines reserve existing draft ownership on unmodified Ctrl/Cmd+A. All 11 Amplify controls and three existing blur/keyboard controls pass; the untouched-field and native-select-all cases pass in Chromium, Firefox and WebKit with original bounds and no retries. Strict types, changed lint, size, normal hidden-map build and startup checks pass. All 83 recorded identities were absent; source, browser and installed-package guards passed. Earlier build-output-admission, lint-owner deadline and default-heap compiler failures remain separately retained. This establishes the reproduced keyboard case, not the cause or repair of the historical full-suite Amplify failure. |
 | Complete static gate, `bbb172047` | Passed the maintained `npm run check:static`: full lint, all source/test/tooling types, architecture/size, audits, handbook checks/build and production build. The 12 GiB heap was confined to this static command. All 89 observed PID/start identities and the root session were absent; source remained clean. Startup tightening found no ceiling to lower. Source changes from `036899f59` are three documentation files. This is not a full Node, browser, native-host matrix or coverage pass; existing pending native interoperability audit statuses retain their meaning. |
 | Current Motion tests and static components, `036899f59` | Passed all 1,179 Motion cases in 271 files, with no failures, skips or test heap override. Full repository lint passed all 12,177 files; the full strict Node-test compilation, maintained tooling types, architecture/controller/size checks and normal three-product hidden-map builds also passed. Startup tightening changed no budget. The post-audit verified 52,115 inputs, absence of all 300 observed identities/root sessions and 299 stable raw profiles; coverage remains unparsed and unadmitted. This is not a fresh complete all-product Node or canonical static-gate pass. |
@@ -199,6 +201,12 @@ The failed current-source native-duration invocation and file-only closure are
 The shared Amplify repair and its build/browser/input/process audit are
 `amplify-selection-intent-fix-bbb172047-20261015/qualification.json`, SHA-256
 `628ae7e3c0f392f8583884519932fc9145ce3e57f3e4d2f3220fc68ec3f45b37`.
+The passive chooser diagnostic and its offline controls are
+`chooser-observation-17aea837d-20261015/qualification.json`, SHA-256
+`1e24bc3a51190447b60face86f60a5336f0144b15ba253064d68acf91aa235b5`.
+The vanished-process read repair is
+`proc-read-race-fix-4f596f9dd-20261015/qualification.json`, SHA-256
+`bc763dbc9cdc02a452487bf308b6564ee351faf164ed94061b6e6b13cf6c1a98`.
 These receipts retain their individual scopes and do not promote a milestone.
 
 The preceding complete Node run failed. Its receipt is

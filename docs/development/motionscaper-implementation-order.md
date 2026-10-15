@@ -146,7 +146,12 @@ duration invocation failed during the 300-frame encoder-cancellation retry:
 the save chooser remained open after selection. The 1,200-frame workload and
 independent output checks were not reached. Source, package, output-preservation
 and process-closure audits passed; the chooser cause remains unknown. Current
-maximum workloads still need their separate evidence.
+maximum workloads still need their separate evidence. Bounded passive chooser
+observations now retain window, owner, focus and phase evidence for future runs;
+27 offline controls pass with original actions and predicates unchanged. A
+separate liveness repair treats a vanished `/proc` ESRCH read as absence; all
+29 shutdown/observation controls pass while other read and signalling errors
+remain failures. Neither change reinterprets or repeats the failed native run.
 Maximum-workload fixtures, independent oracles and the bounded native driver
 (`a4e851dc3`) are integrated as `2978ab0cc`. Installed source `322c8a6b1` passed
 64×64 shutter/lens sampling, 64 contributing planes and 32 lights. The
