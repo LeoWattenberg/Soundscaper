@@ -98,6 +98,36 @@ test('desktop packaging fails when the editorial engine is missing or changed', 
 	}
 });
 
+test('packaging retains target GPU capability metadata inside the authenticated manifest', async () => {
+	const f = await fixture();
+	try {
+		const result = await stageDesktopAssistanceRuntimeFamilies({
+			targetId: 'linux-x64', runtimeRoot: f.root,
+			stageOnnx: async () => {
+				const staged = await f.stage('onnxruntime-node');
+				return { ...staged, manifest: {
+					...staged.manifest,
+					targets: staged.manifest.targets.map((target) => target.id === 'linux-x64'
+						? { ...target, executionProviders: ['webgpu', 'cpu'] } : target),
+				} };
+			},
+			stageWhisper: () => f.stage('whisper-cpp'),
+			stageLlama: () => f.stage('llama-cpp'),
+		});
+		const packaged = JSON.parse(result.manifestBytes.toString()) as {
+			manifests: Record<AssistanceRuntimeFamilyId, unknown>;
+		};
+		const admitted = validateAssistanceRuntimeFamilyManifestV1(packaged.manifests['onnxruntime-node']);
+		const target = admitted.targets.find(({ id }) => id === 'linux-x64');
+		assert.equal(target?.status, 'authenticated');
+		if (target?.status !== 'authenticated') throw new Error('Expected authenticated ONNX target.');
+		assert.deepEqual(target.executionProviders, ['webgpu', 'cpu']);
+		await verifyDesktopAssistanceRuntimeFamilyPackage({
+			...result, targetId: 'linux-x64', runtimeRoot: f.root,
+		});
+	} finally { await f.clean(); }
+});
+
 test('desktop packaging rejects a missing engine instead of shipping an unusable model catalog', async () => {
 	const f = await fixture();
 	try {

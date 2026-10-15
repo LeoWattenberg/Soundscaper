@@ -55,7 +55,7 @@
 				{
 					"id": "mac-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The macOS ARM64 package compiles and verifies the exact whisper.cpp CPU executable closure."
+					"packageBehavior": "The macOS ARM64 package compiles and verifies the exact whisper.cpp executable closure with embedded Metal and CPU fallback."
 				},
 				{
 					"id": "linux-x64",
@@ -93,7 +93,7 @@
 				{
 					"id": "mac-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The macOS ARM64 package compiles and verifies the exact llama.cpp CPU executable closure."
+					"packageBehavior": "The macOS ARM64 package compiles and verifies the exact llama.cpp executable closure with embedded Metal and CPU fallback."
 				},
 				{
 					"id": "linux-x64",
@@ -135,7 +135,7 @@
 			"recipeId": "onnxruntime-node-upstream-closure-v1",
 			"steps": [
 				"fetch-pinned-source",
-				"build-or-extract-cpu-target",
+				"build-or-extract-reviewed-target",
 				"inventory-regular-files",
 				"sha256-every-file",
 				"pack-immutable-runtime-prefix",
@@ -148,7 +148,7 @@
 			},
 			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"packageBehavior": "Each target package extracts the pinned source, records its exact file hashes, and verifies the installed runtime before publishing the package."
+			"packageBehavior": "Each target package extracts the pinned source with reviewed GPU dependencies, records its exact file hashes and supported providers, and verifies the installed runtime before publishing the package."
 		},
 		{
 			"schemaVersion": 1,
@@ -163,10 +163,10 @@
 			},
 			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
 			"executionProvider": "cpu",
-			"recipeId": "whisper-cpp-locked-cpu-build-v1",
+			"recipeId": "whisper-cpp-locked-accelerated-build-v1",
 			"steps": [
 				"fetch-pinned-source",
-				"build-or-extract-cpu-target",
+				"build-or-extract-reviewed-target",
 				"inventory-regular-files",
 				"sha256-every-file",
 				"pack-immutable-runtime-prefix",
@@ -179,7 +179,7 @@
 			},
 			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"packageBehavior": "Each target package compiles the pinned source, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
+			"packageBehavior": "Each target package compiles the pinned source with embedded Metal on macOS ARM64 and CPU fallback on all targets, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
 		},
 		{
 			"schemaVersion": 1,
@@ -194,10 +194,10 @@
 			},
 			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
 			"executionProvider": "cpu",
-			"recipeId": "llama-cpp-locked-cpu-build-v1",
+			"recipeId": "llama-cpp-locked-accelerated-build-v1",
 			"steps": [
 				"fetch-pinned-source",
-				"build-or-extract-cpu-target",
+				"build-or-extract-reviewed-target",
 				"inventory-regular-files",
 				"sha256-every-file",
 				"pack-immutable-runtime-prefix",
@@ -210,7 +210,7 @@
 			},
 			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"packageBehavior": "Each target package compiles the pinned source, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
+			"packageBehavior": "Each target package compiles the pinned source with embedded Metal on macOS ARM64 and CPU fallback on all targets, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
 		}
 	],
 	"sherpaWindowsArm64": {

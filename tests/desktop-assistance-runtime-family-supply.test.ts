@@ -93,7 +93,7 @@ test('runtime provision tasks pin upstream identity and delegate exact closure t
 		assert.match(task.packageBehavior, /target package|verif/iu);
 		assert.deepEqual(task.steps, [
 			'fetch-pinned-source',
-			'build-or-extract-cpu-target',
+			'build-or-extract-reviewed-target',
 			'inventory-regular-files',
 			'sha256-every-file',
 			'pack-immutable-runtime-prefix',
