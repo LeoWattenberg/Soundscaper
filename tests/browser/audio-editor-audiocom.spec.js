@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test } from './audio-editor-test-fixtures.js';
+import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 const AUDIO = {
@@ -159,6 +159,7 @@ async function installPreviewProbe(page) {
 
 async function mockAudiocom(page, options = {}) {
 	let connected = options.connected ?? false;
+	const preview = createWavFixture({ name: 'preview.wav', frequency: 440, duration: 0.25, channelCount: 1 });
 	const requests = { sessions: 0, starts: [], searches: [], uploads: [], disconnects: 0, expireSearch: false, failNextUpload: false };
 	await page.context().route('https://api.audio.com/auth/authorize**', route => route.fulfill({
 		contentType: 'text/html', body: '<!doctype html><title>audio.com authorization</title>',
@@ -196,7 +197,7 @@ async function mockAudiocom(page, options = {}) {
 			}
 			return data({ audio: AUDIO, processing: true });
 		}
-		if (url.pathname === '/api/audiocom/preview') return route.fulfill({ contentType: 'audio/mpeg', body: Buffer.from([0]) });
+		if (url.pathname === '/api/audiocom/preview') return route.fulfill({ contentType: 'audio/wav', body: preview.buffer });
 		return route.fulfill({ status: 404, json: { error: { message: 'Unexpected mocked audio.com request.' } } });
 	});
 	return requests;
