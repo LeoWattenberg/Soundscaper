@@ -74,7 +74,7 @@ function resilientSession(
 						|| JSON.stringify(cpu.outputNames) !== JSON.stringify(outputNames)) {
 						await cpu.release?.();
 						signal?.throwIfAborted();
-						throw new TypeError('The CPU fallback changed the authenticated ONNX model surface.');
+						throw new TypeError('The CPU fallback changed the authenticated ONNX model surface.', { cause: error });
 					}
 					native = cpu;
 					gpu = false;

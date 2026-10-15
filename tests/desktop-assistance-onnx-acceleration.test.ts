@@ -127,3 +127,19 @@ test('malformed GPU outputs remain visible to model validation without CPU retry
 	assert.equal(creations, 1);
 	await result.release?.();
 });
+
+test('CPU retry rejects a changed graph surface and releases both native sessions', async () => {
+	const gpuError = new Error('GPU device lost');
+	const released: string[] = [];
+	const accelerated = createAssistanceOnnxAcceleratedRuntimeV1(runtime(async (_path, settings) => {
+		const provider = settings.executionProviders[0]!;
+		const native = session(() => { released.push(provider); });
+		return provider === 'cpu' ? { ...native, inputNames: ['foreign'] }
+			: { ...native, run: async () => { throw gpuError; } };
+	}), { executionProviders: ['webgpu', 'cpu'] });
+	const result = await accelerated.InferenceSession.create('/model.onnx', CPU);
+	await assert.rejects(async () => result.run({}), (error: unknown) =>
+		error instanceof TypeError && error.cause === gpuError && /model surface/u.test(error.message));
+	await result.release?.();
+	assert.deepEqual(released, ['webgpu', 'cpu']);
+});
