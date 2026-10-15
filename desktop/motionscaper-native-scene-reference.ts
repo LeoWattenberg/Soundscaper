@@ -23,7 +23,7 @@ export function createMotionNativeScene(omit?: 'camera' | 'light' | 'shadow' | '
 			{ ...caster, is3D: true, material: { ...caster.material, castsShadows: true, acceptsLights: false }, transform: { ...caster.transform, position: { ...motionVector([12, 12, 0]), expression: { source: '[12 + frame * 6, 12, 0]', enabled: true, references: [] } } } },
 			{ ...receiver, is3D: true, transform: { ...receiver.transform, position: motionVector([2, 5, 32]) } },
 			...(omit === 'light' ? [] : [{ ...light, transform: { ...light.transform, position: motionVector([0, 16, -32]) } }]),
-			...(omit === 'camera' ? [] : [{ ...camera, transform: { ...camera.transform, position: motionVector([32, 24, -64]) } }]),
+			...(omit === 'camera' ? [] : [{ ...camera, transform: { ...camera.transform, position: { ...motionVector([32, 24, -64]), expression: { source: '[32 + frame * 2, 24, -64]', enabled: true, references: [] } } } }]),
 		],
 	}] });
 }

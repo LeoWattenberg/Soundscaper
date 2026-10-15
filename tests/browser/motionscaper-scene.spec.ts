@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
+import { assertMotionPngDeliveryMatchesPreview, snapshotMotionPreviewFrames } from './helpers/motionscaper-preview-delivery.ts';
 async function menu(page: Page, top: string, item: string): Promise<void> { await page.getByRole('menuitem', { name: top, exact: true }).click(); await page.getByRole('menuitem', { name: item, exact: true }).click(); }
 async function close(page: Page): Promise<void> { await page.getByRole('button', { name: 'Close', exact: true }).last().click(); await expect(page.getByRole('dialog')).toHaveCount(0); }
 async function create(page: Page): Promise<void> {
@@ -16,6 +17,25 @@ async function pixels(page: Page): Promise<number[]> {
 }
 async function saveReopen(page: Page): Promise<void> { await menu(page, 'File', 'Save'); await expect(page.locator('[data-motion-save-status]')).toHaveText('Saved on this device'); await page.reload(); await menu(page, 'File', 'Project Library'); await page.getByRole('button', { name: 'Untitled Composition', exact: true }).click(); }
 const pixel = (data: readonly number[], x: number, y: number) => data.slice((y * 80 + x) * 4, (y * 80 + x) * 4 + 4);
+test('menu-authored camera animation projects independently predicted pixels across seeks, reopen and PNG export', async ({ page }) => {
+	await page.addInitScript(() => { Object.defineProperty(globalThis, 'showSaveFilePicker', { value: undefined, configurable: true }); });
+	await create(page); await menu(page, 'Layer', '3D Scene and Quality'); const scene = page.getByRole('dialog', { name: '3D Scene and Quality', exact: true });
+	await scene.getByRole('checkbox', { name: '3D layer', exact: true }).check(); await scene.getByRole('button', { name: 'Apply Scene Transform', exact: true }).click();
+	await scene.getByRole('button', { name: 'Add Camera', exact: true }).click(); await close(page); await menu(page, 'Layer', 'Expressions');
+	const expression = page.getByRole('dialog', { name: 'Expressions', exact: true }); await expression.getByRole('combobox', { name: 'Layer', exact: true }).selectOption({ label: 'Camera' });
+	await expression.getByRole('combobox', { name: 'Property', exact: true }).selectOption('transform.position'); await expression.getByLabel('Expression source', { exact: true }).fill('[40 + frame * 2, 30, -80]');
+	await expression.getByLabel('Expression enabled', { exact: true }).check(); await expression.getByRole('button', { name: 'Apply Expression', exact: true }).click(); await close(page);
+	const frames = await snapshotMotionPreviewFrames(page, [0, 1, 2]);
+	for (const frame of [0, 1, 2]) {
+		const data = Array.from(frames.get(frame)!); const left = 30 - frame * 2;
+		// Zoom80/depth80 gives unit scale: camera +2x moves the stationary card -2px.
+		expect(pixel(data, left - 1, 30)).toEqual([0, 0, 0, 0]); expect(pixel(data, left + 1, 30)).toEqual([255, 255, 255, 255]);
+		expect(pixel(data, left + 20, 30)).toEqual([0, 0, 0, 0]);
+	}
+	const sought = await snapshotMotionPreviewFrames(page, [2, 0, 1]); for (const frame of [0, 1, 2]) expect(sought.get(frame)).toEqual(frames.get(frame));
+	await saveReopen(page); const reopened = await snapshotMotionPreviewFrames(page, [0, 1, 2]); for (const frame of [0, 1, 2]) expect(reopened.get(frame)).toEqual(frames.get(frame));
+	await assertMotionPngDeliveryMatchesPreview(page, reopened);
+});
 test('menu 3D transforms and camera optics change projected pixels with reversible edits', async ({ page }: { page: Page }) => {
 	await create(page); const flat = await pixels(page); expect(pixel(flat, 31, 21)).toEqual([255, 255, 255, 255]); await menu(page, 'Layer', '3D Scene and Quality');
 	const dialog = page.getByRole('dialog', { name: '3D Scene and Quality', exact: true }); await dialog.getByRole('checkbox', { name: '3D layer', exact: true }).check();
