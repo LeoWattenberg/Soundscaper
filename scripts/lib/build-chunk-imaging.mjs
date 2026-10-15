@@ -14,6 +14,15 @@ export const imagingChunkGroups = [{
 	maxSize: 400_000,
 	includeDependenciesRecursively: false,
 }, {
+	// Output proof and its native canvas qualification open with the existing
+	// Develop menu. Inert profile admission remains with shared image contracts.
+	name: 'editor-image-output-proof',
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-output-soft-proof-current-v1|photo-develop-display-frame-current-v1|pixel-frame-canvas-presenter-profile-current-v1)\.ts$/,
+	priority: 99,
+	minSize: 0,
+	maxSize: 400_000,
+	includeDependenciesRecursively: false,
+}, {
 	// Native RAW Original proof opens only for an actual Source4 body consumer.
 	// Scalar receipts and memory admission keep their existing startup owners.
 	// Recovery runtime initialization and its pin cannot be co-owned by a Frame
@@ -81,7 +90,7 @@ export const imagingChunkGroups = [{
 	// PNG bytes are needed only after export is opened. Existing image readers
 	// keep their shared codec placement without acquiring this encoder body.
 	name: 'editor-png-bytes',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-png-v1\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-png(?:16-v1|-v1|-profile-current-v1|-stream-kernel-v1)\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,

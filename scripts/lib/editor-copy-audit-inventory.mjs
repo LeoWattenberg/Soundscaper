@@ -6,6 +6,8 @@ import { photoRawPreviewSourceCopy } from '../../src/common/i18n/lightscaper-pho
 import { photoBatchExportMenuCopy } from '../../src/common/i18n/lightscaper-photo-batch-export-menu-copy.ts';
 import { photoBatchExportCopy } from '../../src/common/i18n/lightscaper-photo-batch-export-copy.ts';
 import { photoJpegExportCopy } from '../../src/common/i18n/lightscaper-photo-jpeg-export-copy.ts';
+import { photoDevelopSoftProofCopy } from '../../src/common/i18n/lightscaper-develop-soft-proof-copy.ts';
+import { photoRasterProfileCopy } from '../../src/common/i18n/lightscaper-photo-raster-profile-copy.ts';
 import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-export-copy.ts';
 import { photoExportPresetsCopy } from '../../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../../src/common/i18n/image-export-graphic-copy.ts';
@@ -38,6 +40,8 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...photoBatchMenu,
 	...photoBatchExport,
 	...photoPngExport,
+	...Object.fromEntries(Object.entries(photoDevelopSoftProofCopy('en')).map(([key, value]) => [`ui.photoDevelopSoftProof.${key}`, value])),
+	...Object.fromEntries(Object.entries(photoRasterProfileCopy('en')).map(([key, value]) => [`ui.photoRasterProfile.${key}`, value])),
 	...photoJpegExport,
 	...imageExportGraphic,
 	...imageExportText,

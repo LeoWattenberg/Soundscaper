@@ -159,6 +159,7 @@ export class PhotoRasterExportKernelV1 {
 							|| field(originalView, 'revision', 'Photo raster original') !== request.expectedRevision) throw new Error('Photo raster original revision or identity changed.');
 						const source = readPixelFrameV1(field(originalView, 'frame', 'Photo raster original'), this.#profile === 'current3' ? PHOTO_DEVELOP_LINEAR_LIMITS_V1.source : LIMITS.source);
 						const bitDepth = request.output && 'bitDepth' in request.output ? request.output.bitDepth : 8;
+						const color = request.output && 'profile' in request.output ? { profile: request.output.profile, bitDepth } : bitDepth === 16 ? { bitDepth } : {};
 						const renderOriginal = async (graphic: Readonly<PixelFrameV1> | null) => {
 							const text = request.output?.textWatermark;
 							const mark = graphic || text?.opacity ? (await import('../../../common/editor/imaging/pixel-frame-graphic-watermark-v1.ts')).withGraphicWatermarkPixelFrameV1 : null;
@@ -172,7 +173,7 @@ export class PhotoRasterExportKernelV1 {
 									await withPhotoRasterLinearOutputCurrentV1({ frame, originals: [source, input], output: request.output, bitDepth,
 										graphic, graphicWatermark: request.graphicWatermark, withTextFrame: request.withTextFrame, retainedSourceBytes, signal, current },
 									async (final, limits, maximumOutputBytes, borrowed) => {
-										current(); const encoded = await request.encode(final, { signal, limits, maximumOutputBytes, ...(bitDepth === 16 ? { bitDepth } : {}) });
+										current(); const encoded = await request.encode(final, { signal, limits, maximumOutputBytes, ...color });
 										bytes = readEncoded(encoded, maximumOutputBytes, ...borrowed); width = final.descriptor.width; height = final.descriptor.height; current();
 									});
 									return;
@@ -180,7 +181,7 @@ export class PhotoRasterExportKernelV1 {
 								const encode = async (delivery: Readonly<PixelFrameV1>, resized: Readonly<PixelFrameV1>) => {
 									const encodeOutput = async (marked: Readonly<PixelFrameV1>) => {
 										const finish = async (final: Readonly<PixelFrameV1>, glyph: Readonly<PixelFrameV1> | null) => {
-											current(); const encoded = await request.encode(final, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+											current(); const encoded = await request.encode(final, { signal, limits: LIMITS.render, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES, ...color });
 											bytes = readEncoded(encoded, MAXIMUM_OUTPUT_BYTES, source, frame, resized, delivery, marked, final, ...(graphic ? [graphic] : []), ...(glyph ? [glyph] : []));
 											width = final.descriptor.width; height = final.descriptor.height; current();
 										};
@@ -257,19 +258,26 @@ export class PhotoRasterExportKernelV1 {
 							if (extra.status !== 'download-started') this.#retry = { request, sidecar, receipt: outcome.completed };
 						}
 					};
-					if (request.output?.metadataScope === 'capture') {
+					if (request.output?.metadataScope === 'capture' || request.output && 'profile' in request.output) {
 						let entered = false;
 						try {
-							const compose = this.#profile === 'current3'
-								? (await import('../../../common/editor/imaging/image-exif-container-current-v1.ts')).withImageExifContainerCurrentV1 : withImageExifContainerV1;
-							current(); await compose({ format: this.#format, bytes, exif, width, height, scope: 'capture' }, async output => {
+							const consume = async (output: Uint8Array<ArrayBuffer>) => {
 								entered = true;
 								try { await publish(output); } catch (error) {
 									// Keep composed bytes alive through the exact destination's abort/drain.
 									if (direct) { const retiring = direct; direct = null; await abortDestination(retiring, error); }
 									throw error;
 								}
-							}, { signal, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+							};
+							if (request.output && 'profile' in request.output) {
+								const compose = (await import('../../../common/editor/imaging/image-exif-container-profile-current-v1.ts')).withImageExifContainerProfileCurrentV1;
+								current(); await compose({ format: this.#format, bytes, exif, width, height, scope: request.output.metadataScope ?? 'strip',
+									profile: request.output.profile, bitDepth: request.output.bitDepth }, consume, { signal, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+							} else {
+								const compose = this.#profile === 'current3'
+									? (await import('../../../common/editor/imaging/image-exif-container-current-v1.ts')).withImageExifContainerCurrentV1 : withImageExifContainerV1;
+								current(); await compose({ format: this.#format, bytes, exif, width, height, scope: 'capture' }, consume, { signal, maximumOutputBytes: MAXIMUM_OUTPUT_BYTES });
+							}
 						} catch (error) { if (!entered) { current(); throw new PhotoRasterExportMetadataRefusal(error); } throw error; }
 					} else await publish(bytes);
 				} catch (error) {

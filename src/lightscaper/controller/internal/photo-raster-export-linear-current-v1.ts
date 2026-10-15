@@ -63,7 +63,8 @@ interface NativeOutput {
 }
 
 /** All output stages remain native Float32. Only the last delivery boundary
- * converts to byte sRGB for PNG8/JPEG; PNG16 receives native linear samples. */
+ * converts to byte sRGB for default PNG8/JPEG. Explicit P3/PNG16 codecs
+ * receive native linear samples and apply target clipping at quantization. */
 export async function withPhotoRasterLinearOutputCurrentV1<Result>(request: NativeOutput,
 	consume: (frame: Readonly<PixelFrameV1>, limits: Readonly<PixelFrameLimitsV1>, maximumOutputBytes: number,
 		borrowed: readonly Readonly<PixelFrameV1>[]) => Result | Promise<Result>): Promise<Result> {
@@ -102,13 +103,14 @@ export async function withPhotoRasterLinearOutputCurrentV1<Result>(request: Nati
 		const finish = async (glyph: Readonly<PixelFrameV1> | null): Promise<Result> => {
 			request.current();
 			const finalBorrowed = [...borrowed, frame, ...(glyph ? [glyph] : [])];
-			const displayBytes = request.bitDepth === 8 ? frame.descriptor.width * frame.descriptor.height * 4 : 0;
+			const nativeDelivery = request.bitDepth === 16 || request.output && 'profile' in request.output && request.output.profile === 'display-p3';
+			const displayBytes = nativeDelivery ? 0 : frame.descriptor.width * frame.descriptor.height * 4;
 			const maximumOutputBytes = Math.min(MAXIMUM_CODEC_BYTES, PHOTO_RASTER_LINEAR_WORKING_BYTES_CURRENT_V1 - borrowedBytes - ownedBytes - displayBytes);
 			if (maximumOutputBytes < 1_048_576) throw new RangeError('Native raster output has no remaining codec storage budget.');
 			const encode = async (delivery: Readonly<PixelFrameV1>): Promise<Result> => {
 				request.current(); const result = await consume(delivery, PHOTO_DEVELOP_LINEAR_LIMITS_V1.render, maximumOutputBytes, [...finalBorrowed, delivery]); request.current(); return result;
 			};
-			return request.bitDepth === 16 ? encode(frame) : withLinearPixelFrameDisplayV1({ frame, signal: request.signal }, encode, 'full');
+			return nativeDelivery ? encode(frame) : withLinearPixelFrameDisplayV1({ frame, signal: request.signal }, encode, 'full');
 		};
 		if (text?.opacity) {
 			const withText = request.withTextFrame ?? (await import('../../../common/editor/imaging/image-export-text-frame-v1.ts')).withImageExportTextFrameV1;

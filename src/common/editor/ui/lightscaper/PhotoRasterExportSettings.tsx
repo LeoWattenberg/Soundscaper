@@ -6,6 +6,8 @@ import type { PhotoRasterExportOutput } from '../../../../lightscaper/controller
 import { capturePhotoRasterExportOutput } from '../../../../lightscaper/controller/photo-raster-export-contract-v1.ts';
 import { capturePhotoRasterExportOutputCurrentV1, type PhotoRasterExportOutputCurrentV1 } from '../../../../lightscaper/controller/photo-raster-export-output-current-v1.ts';
 import { photoRasterDepthCopy } from '../../../i18n/lightscaper-photo-raster-depth-copy.ts';
+import { photoRasterProfileCopy } from '../../../i18n/lightscaper-photo-raster-profile-copy.ts';
+import type { ImageOutputColorProfileV1 } from '../../imaging/image-output-color-profile-v1.ts';
 import PhotoTextWatermarkFields, { DEFAULT_IMAGE_EXPORT_TEXT_SELECTION, captureImageExportTextSelection, restoreImageExportTextSelection, type ImageExportTextSelection } from '../PhotoTextWatermarkFields.tsx';
 
 export interface RasterExportSettings {
@@ -16,6 +18,7 @@ export interface RasterExportSettings {
 	readonly sharpen: boolean; readonly sharpenAmount: string; readonly sharpenThreshold: string;
 	readonly textWatermark: ImageExportTextSelection;
 	readonly bitDepth?: 8 | 16;
+	readonly profile?: ImageOutputColorProfileV1;
 }
 export const DEFAULT_RASTER_EXPORT_SETTINGS: RasterExportSettings = Object.freeze({ kind: 'original', width: '2048', height: '2048',
 	longEdge: '2048', megapixels: '8', percentage: '100', allowUpscale: false, quality: 'bilinear', filenameTemplate: '{name}',
@@ -43,7 +46,8 @@ function outputInput(settings: RasterExportSettings) {
 export function captureRasterExportSettingsOutputV1(settings: RasterExportSettings) { return capturePhotoRasterExportOutput(outputInput(settings)); }
 export function captureRasterExportSettingsOutputCurrentV1(settings: RasterExportSettings, format: 'png' | 'jpeg') {
 	return capturePhotoRasterExportOutputCurrentV1({ ...outputInput(settings),
-		...(settings.bitDepth === undefined ? {} : { schemaVersion: 2, bitDepth: settings.bitDepth }) }, format);
+		...(settings.profile === undefined ? settings.bitDepth === undefined ? {} : { schemaVersion: 2, bitDepth: settings.bitDepth }
+			: { schemaVersion: 3, profile: settings.profile, bitDepth: settings.bitDepth ?? 8 }) }, format);
 }
 
 /** Present the normalized retained recipe, without changing its output plan.
@@ -64,8 +68,10 @@ export function restoreRasterExportSettings(output: Readonly<PhotoRasterExportOu
 export function restoreRasterExportSettingsCurrentV1(output: Readonly<PhotoRasterExportOutputCurrentV1> | undefined, filenameTemplate: string, format: 'png' | 'jpeg'): RasterExportSettings {
 	const captured = output === undefined ? undefined : capturePhotoRasterExportOutputCurrentV1(output, format);
 	const depth = captured && 'bitDepth' in captured ? captured.bitDepth : undefined;
+	const profile = captured && 'profile' in captured ? captured.profile : undefined;
 	return Object.freeze({ ...restoreRasterExportSettings(captured, filenameTemplate),
-		...(depth === 8 || depth === 16 ? { bitDepth: depth } : {}) });
+		...(depth === 8 || depth === 16 ? { bitDepth: depth } : {}),
+		...(profile === 'srgb' || profile === 'display-p3' ? { profile } : {}) });
 }
 
 export default function PhotoRasterExportSettings({ value, copy, disabled, onChange, locale = 'en', currentFormat }: {
@@ -75,10 +81,15 @@ export default function PhotoRasterExportSettings({ value, copy, disabled, onCha
 	readonly currentFormat?: 'png' | 'jpeg';
 }) {
 	const depth = photoRasterDepthCopy(locale);
+	const profile = photoRasterProfileCopy(locale);
 	const number = (key: 'width' | 'height' | 'longEdge' | 'megapixels' | 'percentage', label: string, selector: string, step = '1') =>
 		<label>{label}<input type="number" min={step === '1' ? '1' : '0.000001'} step={step} value={value[key]} disabled={disabled}
 			{...{ [`data-photo-raster-export-${selector}`]: true }} onChange={event => onChange({ ...value, [key]: event.target.value })} /></label>;
 	return <fieldset disabled={disabled}>
+		{currentFormat !== undefined && <label>{profile.label}<select aria-label={profile.label} data-photo-raster-export-profile value={value.profile ?? 'srgb'} disabled={disabled}
+			onChange={event => { const next = event.target.value; if (next === 'srgb' || next === 'display-p3') onChange({ ...value, profile: next }); }}>
+			<option value="srgb">{profile.srgb}</option><option value="display-p3">{profile.displayP3}</option></select></label>}
+		{currentFormat === 'jpeg' && value.profile === 'display-p3' && <p role="status" data-photo-raster-export-profile-refusal>{profile.pngRequired}</p>}
 		{currentFormat === 'png' && <label>{depth.label}<select aria-label={depth.label} data-photo-raster-export-bit-depth value={value.bitDepth ?? 8} disabled={disabled}
 			onChange={event => { const next = event.target.value; if (next === '8' || next === '16') onChange({ ...value, bitDepth: next === '16' ? 16 : 8 }); }}>
 			<option value="8">{depth.eight}</option><option value="16">{depth.sixteen}</option></select></label>}

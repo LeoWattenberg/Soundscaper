@@ -2,6 +2,7 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
 import { encodeImageExifTiffV1, type ImageExifWriteOptionsV1 } from './exif-metadata-writer-v1.ts';
+import { encodeImageExifTiffProfileCurrentV1 } from './exif-metadata-writer-profile-current-v1.ts';
 import { matchesBytes, MetadataBudget, metadataCrc32 } from './image-metadata-binary.ts';
 import { IMAGE_METADATA_LIMITS_V1, type ImageExifMetadataV1 } from './image-metadata-model-v1.ts';
 
@@ -34,6 +35,18 @@ const JFIF = [74, 70, 73, 70, 0], ICC = [73, 67, 67, 95, 80, 82, 79, 70, 73, 76,
 export async function withImageExifContainerForProfileV1<T>(profile: 'legacy1' | 'current1', value: unknown,
 	consume: (bytes: Uint8Array<ArrayBuffer>) => T | PromiseLike<T>, optionsValue: unknown = {}): Promise<T> {
 	if (profile !== 'legacy1' && profile !== 'current1') throw new RangeError('Unsupported image container composition profile.');
+	return withContainer(profile, value, consume, optionsValue);
+}
+
+/** Explicit output-profile policy. The permanent entry above admits no new
+ * fields, color chunks, JPEG profile or bit-depth contract. */
+export function withImageExifContainerProfilePolicyCurrentV1<T>(value: unknown,
+	consume: (bytes: Uint8Array<ArrayBuffer>) => T | PromiseLike<T>, optionsValue: unknown = {}): Promise<T> {
+	return withContainer('output1', value, consume, optionsValue);
+}
+
+async function withContainer<T>(policy: 'legacy1' | 'current1' | 'output1', value: unknown,
+	consume: (bytes: Uint8Array<ArrayBuffer>) => T | PromiseLike<T>, optionsValue: unknown): Promise<T> {
 	if (typeof consume !== 'function') throw new TypeError('Image container composition requires its scoped consumer.');
 	const options = record(optionsValue, 'Image container options', ['signal', 'maximumOutputBytes'], []);
 	const signal = Object.hasOwn(options, 'signal') ? field(options, 'signal', 'Image container options') : undefined;
@@ -46,28 +59,38 @@ export async function withImageExifContainerForProfileV1<T>(profile: 'legacy1' |
 	check();
 	const maximum = positive(Object.hasOwn(options, 'maximumOutputBytes') ? field(options, 'maximumOutputBytes', 'Image container options')
 		: IMAGE_EXIF_CONTAINER_MAXIMUM_BYTES_V1, IMAGE_EXIF_CONTAINER_MAXIMUM_BYTES_V1);
-	const input = record(value, 'Image container input', ['format', 'bytes', 'exif', 'width', 'height', 'scope'], ['format', 'bytes', 'exif', 'width', 'height']);
+	const profiled = policy === 'output1';
+	const input = record(value, 'Image container input', ['format', 'bytes', 'exif', 'width', 'height', 'scope', ...(profiled ? ['profile', 'bitDepth'] : [])],
+		['format', 'bytes', 'exif', 'width', 'height', ...(profiled ? ['profile', 'bitDepth'] : [])]);
 	const format = field(input, 'format', 'Image container input');
 	if (format !== 'png' && format !== 'jpeg') throw new RangeError('Unsupported Exif image container.');
+	const color = profiled ? field(input, 'profile', 'Image container input') : 'srgb';
+	if (color !== 'srgb' && color !== 'display-p3') throw new RangeError('Unsupported image output color profile.');
+	const depth = profiled ? field(input, 'bitDepth', 'Image container input') : undefined;
+	if (profiled && depth !== 8 && depth !== 16) throw new RangeError('Unsupported image output bit depth.');
+	if (format === 'jpeg' && (color !== 'srgb' || profiled && depth !== 8)) throw new RangeError('Profiled JPEG output is available only for sRGB8.');
 	const width = positive(field(input, 'width', 'Image container input'), format === 'jpeg' ? 65_535 : 0x7fffffff);
 	const height = positive(field(input, 'height', 'Image container input'), format === 'jpeg' ? 65_535 : 0x7fffffff);
 	const scope = Object.hasOwn(input, 'scope') ? field(input, 'scope', 'Image container input') : 'strip';
-	const bytes = readBytes(field(input, 'bytes', 'Image container input'));
+	const bytes = readBytes(field(input, 'bytes', 'Image container input'), profiled);
 	const current = () => { check(); if (Reflect.apply(SIZE, bytes.buffer, []) === 0) throw new TypeError('Image container input was detached before completion.'); };
 	const overhead = format === 'jpeg' ? 10 : 12;
 	if (bytes.length > maximum) throw new RangeError('Image container output exceeds its byte budget.');
 	const metadataMaximum = scope === 'strip' ? IMAGE_METADATA_LIMITS_V1.maximumMetadataBytes
 		: positive(Math.floor((maximum - bytes.length - overhead) / 2), IMAGE_EXIF_CONTAINER_MAXIMUM_BYTES_V1);
 	// The writer captures normalized closed facts/options before any asynchronous scan.
-	const tiff = encodeImageExifTiffV1(field(input, 'exif', 'Image container input'), { scope, width, height,
-		maximumOutputBytes: Math.min(metadataMaximum, format === 'jpeg' ? 65_527 : IMAGE_METADATA_LIMITS_V1.maximumMetadataBytes) });
+	const writeOptions = { scope, width, height, maximumOutputBytes: Math.min(metadataMaximum, format === 'jpeg' ? 65_527 : IMAGE_METADATA_LIMITS_V1.maximumMetadataBytes) };
+	const tiff = profiled ? encodeImageExifTiffProfileCurrentV1(field(input, 'exif', 'Image container input'), { ...writeOptions, profile: color })
+		: encodeImageExifTiffV1(field(input, 'exif', 'Image container input'), writeOptions);
 	let output: Uint8Array<ArrayBuffer> | null = null;
+	let backing: ArrayBuffer | undefined, allocated = 0, outcome: { value: T } | { error: unknown };
 	try {
-		const insertion = format === 'png' ? await pngInsertion(bytes, width, height, current, profile) : await jpegInsertion(bytes, width, height, current);
+		const insertion = format === 'png' ? await pngInsertion(bytes, width, height, current, policy, color, depth) : await jpegInsertion(bytes, width, height, current);
 		current();
 		const added = tiff ? tiff.length + overhead : 0;
 		if (bytes.length + added + (tiff?.length ?? 0) > maximum) throw new RangeError('Image container output and metadata scratch exceed their byte budget.');
 		output = new Uint8Array(bytes.length + added);
+		backing = output.buffer; allocated = output.length;
 		await copy(bytes.subarray(0, insertion), output, 0, current);
 		if (tiff) {
 			const view = new DataView(output.buffer);
@@ -82,25 +105,41 @@ export async function withImageExifContainerForProfileV1<T>(profile: 'legacy1' |
 		}
 		await copy(bytes.subarray(insertion), output, insertion + added, current);
 		current(); const result = await consume(output); current();
-		if (Reflect.apply(SIZE, output.buffer, []) !== output.length || output.length === 0) throw new TypeError('Image container consumer detached its scoped output.');
-		return result;
-	} finally { tiff?.fill(0); if (output && Reflect.apply(SIZE, output.buffer, []) !== 0) output.fill(0); }
+		if (profiled ? Reflect.apply(SIZE, backing, []) !== allocated : Reflect.apply(SIZE, output.buffer, []) !== output.length || output.length === 0) {
+			throw new TypeError('Image container consumer detached its scoped output.');
+		}
+		outcome = { value: result };
+	} catch (error) { outcome = { error }; }
+	const failures: unknown[] = 'error' in outcome ? [outcome.error] : [];
+	try { tiff?.fill(0); } catch (error) { failures.push(error); }
+	try {
+		if (profiled && backing) {
+			if (Reflect.apply(SIZE, backing, []) !== allocated) throw new TypeError('Image container scoped output detached before physical retirement.');
+			new Uint8Array(backing).fill(0);
+		} else if (output && Reflect.apply(SIZE, output.buffer, []) !== 0) output.fill(0);
+	} catch (error) { failures.push(error); }
+	if (failures.length === 1) throw failures[0];
+	if (failures.length > 1) throw new AggregateError(failures, 'Image container operation and physical retirement failed.', { cause: failures[0] });
+	if ('value' in outcome) return outcome.value;
+	throw new Error('Image container scope has no outcome.');
 }
 
-function readBytes(value: unknown): Uint8Array<ArrayBuffer> {
+function readBytes(value: unknown, profiled: boolean): Uint8Array<ArrayBuffer> {
 	if (!ArrayBuffer.isView(value) || Object.getPrototypeOf(value) !== Uint8Array.prototype
 		|| ['buffer', 'length', 'byteLength', 'byteOffset'].some(key => Object.hasOwn(value, key))) throw new TypeError('Image container input requires intrinsic bytes.');
 	const bytes = value as Uint8Array, buffer = bytes.buffer;
 	if (Object.getPrototypeOf(buffer) !== ArrayBuffer.prototype || Reflect.apply(RESIZABLE, buffer, [])) throw new TypeError('Image container input requires a fixed ArrayBuffer.');
+	if (profiled && Reflect.apply(SIZE, buffer, []) > IMAGE_EXIF_CONTAINER_MAXIMUM_BYTES_V1) throw new RangeError('Image container input physical backing exceeds its byte ceiling.');
 	let view: Uint8Array<ArrayBuffer>;
 	try { view = new Uint8Array(buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength); }
 	catch { throw new TypeError('Image container input is detached.'); }
 	positive(view.length, IMAGE_EXIF_CONTAINER_MAXIMUM_BYTES_V1); return view;
 }
-async function pngInsertion(bytes: Uint8Array, width: number, height: number, current: () => void, profile: 'legacy1' | 'current1'): Promise<number> {
+async function pngInsertion(bytes: Uint8Array, width: number, height: number, current: () => void,
+	policy: 'legacy1' | 'current1' | 'output1', color: 'srgb' | 'display-p3', depth: unknown): Promise<number> {
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), budget = new MetadataBudget();
 	if (!matchesBytes(bytes, 0, SIGNATURE)) refuse();
-	let offset = 8, insertion = 0, header = false, srgb = false, image = false, nextYield = SPAN;
+	let offset = 8, insertion = 0, header = false, tagged = false, image = false, nextYield = SPAN;
 	while (offset < bytes.length) {
 		if (offset >= nextYield) { await yieldTask(); current(); nextYield = offset + SPAN; }
 		current(); budget.addRecord(); if (bytes.length - offset < 12) refuse();
@@ -111,13 +150,16 @@ async function pngInsertion(bytes: Uint8Array, width: number, height: number, cu
 		const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
 		if (type === 'IHDR') {
 			if (header || offset !== 8 || length !== 13 || view.getUint32(offset + 8) !== width || view.getUint32(offset + 12) !== height
-				|| !(bytes[offset + 16] === 8 || profile === 'current1' && bytes[offset + 16] === 16)
+				|| !(policy === 'output1' ? bytes[offset + 16] === depth : bytes[offset + 16] === 8 || policy === 'current1' && bytes[offset + 16] === 16)
 				|| !matchesBytes(bytes, offset + 17, [6, 0, 0, 0])) refuse();
 			header = true;
 		} else if (type === 'sRGB') {
-			if (!header || srgb || image || length !== 1 || bytes[offset + 8]! > 3) refuse(); srgb = true;
+			if (color !== 'srgb' || !header || tagged || image || length !== 1 || bytes[offset + 8]! > 3) refuse(); tagged = true;
+		} else if (type === 'cICP') {
+			if (policy !== 'output1' || color !== 'display-p3' || !header || tagged || image || length !== 4
+				|| !matchesBytes(bytes, offset + 8, [12, 13, 0, 1])) refuse(); tagged = true;
 		} else if (type === 'IDAT') {
-			if (!header || !srgb || length === 0) refuse(); if (!image) insertion = offset; image = true;
+			if (!header || !tagged || length === 0) refuse(); if (!image) insertion = offset; image = true;
 		} else if (type === 'IEND') {
 			if (!image || length !== 0 || end !== bytes.length) refuse(); return insertion;
 		} else refuse(); // Existing metadata and unknown chunks cannot acquire export custody.

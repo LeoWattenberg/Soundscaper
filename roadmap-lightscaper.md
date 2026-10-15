@@ -156,7 +156,9 @@ processing and offers PNG16 with saved presets and batch recovery. Opt-in RAW
 source processing now carries canonical, linear-headroom and highlight-recovery
 choices through the Current draft, saved recipe and native rendering; external
 decoder publication, wider product qualification and desktop capabilities remain
-pending.
+pending. Current PNG8/16 now offers sRGB and Display P3 target profiles; an
+existing Settings-menu dialog enables temporary output-profile/depth proofing
+without changing saved Develop state.
 
 | Area | Current capability |
 | --- | --- |
@@ -1002,8 +1004,22 @@ there.
 - **Shared — Blocked on licensing:** camera-matching color profiles until a
   camera-profile source passes the licensing review; L7 ships neutral camera
   baseline rendering meanwhile.
-- **Shared — Planned:** wide-gamut output (Display P3) where the platform
-  proves it, and soft proofing against the export profile.
+- **Shared — Done:** [Display P3 PNG8/16 output and temporary soft proof](docs/architecture/lightscaper-output-color-profiles.md).
+  Shared final-output conversion follows Develop, resizing, output sharpening
+  and watermarks; native signed/HDR samples convert before target clipping.
+  Current Output3 retains the selected profile/depth through presets, batches,
+  journals and reviewed recovery, while old sRGB bytes and readers stay exact.
+  PNG cICP and Capture EXIF agree with the actual target samples; Strip retains
+  color declarations. P3 JPEG explicitly refuses pending a matching ICC path.
+  Develop's existing Settings menu owns temporary profile/depth proofing;
+  canonical Before, saved recipes, history and Original custody stay unchanged.
+  Actual native canvas/readback qualification enables P3 proof in the tested
+  Chromium and refuses it in the tested Firefox, which still supports sRGB
+  proof and truthful P3 file export. Qualification passes 516 selected
+  Lightscaper cases, four English/German Chromium/Firefox RAW workflows and
+  17 historical sRGB byte comparisons. Custom ICC profiles, physical-monitor
+  calibration, HDR delivery and the remaining L7 exit gates stay outside this
+  completed output-profile packet.
 - **Shared — Planned:** HDR exposure merge to a floating-point working image
   with alignment and deghosting.
 - **Shared — Deferred:** panorama stitching.

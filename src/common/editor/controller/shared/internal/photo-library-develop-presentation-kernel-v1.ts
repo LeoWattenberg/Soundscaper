@@ -22,10 +22,16 @@ import { normalizeImageDevelopStateThroughV4 } from '../../../imaging/image-deve
 import { presentPhotoDevelopRawCurrentV1 } from './photo-library-develop-raw-presentation-current-v1.ts';
 import { withPhotoDevelopDisplayFrameV1 } from '../../../imaging/photo-develop-display-frame-v1.ts';
 import { withRepairPixelFrameLifetimeV1 } from '../../../imaging/pixel-frame-repair-lifetime-v1.ts';
+import { prepareImageOutputSoftProofCurrentV1, type ImageOutputSoftProofCurrentV1 } from '../../../imaging/image-output-soft-proof-current-v1.ts';
+import { presentPhotoDevelopProofAfterCurrentV1 } from './photo-library-develop-proof-presentation-current-v1.ts';
+import { paintPixelFrameDisplayP3CurrentV1 } from '../../../imaging/pixel-frame-canvas-presenter-profile-current-v1.ts';
 import type { PhotoDevelopPresentationSnapshotV2, PhotoDevelopPresentationViewV2 } from '../photo-library-develop-presentation-v2.ts';
 
 export type PhotoDevelopPresentationProfileV1 = 'legacy2' | 'current3' | 'current4';
-export interface PhotoDevelopPresentationViewKernelV1 extends Omit<PhotoDevelopPresentationViewV2, 'develop'> { readonly develop: PhotoLibraryDevelopSettingsCurrentV1; }
+export interface PhotoDevelopPresentationViewKernelV1 extends Omit<PhotoDevelopPresentationViewV2, 'develop'> {
+	readonly develop: PhotoLibraryDevelopSettingsCurrentV1;
+	readonly softProof?: Readonly<ImageOutputSoftProofCurrentV1>;
+}
 type CapturedPorts = Required<Omit<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'withDerivedFrame' | 'readPreview'>> & Pick<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'withDerivedFrame' | 'readPreview'>;
 function assertProfile(value: unknown): asserts value is PhotoDevelopPresentationProfileV1 {
 	if (value !== 'legacy2' && value !== 'current3' && value !== 'current4') throw new TypeError('Unknown fixed Develop presentation profile.');
@@ -55,7 +61,10 @@ const PREPARED = new WeakMap<object, PhotoDevelopPresentationProfileV1>();
 export function preparePhotoDevelopPresentationViewForProfileV1(profile: PhotoDevelopPresentationProfileV1, value: unknown): Readonly<PhotoDevelopPresentationViewKernelV1> {
 	assertProfile(profile);
 	if (value && typeof value === 'object' && PREPARED.get(value) === profile) return value as Readonly<PhotoDevelopPresentationViewKernelV1>;
-	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after', 'maskOverlay', 'maskOverlayMode', 'overlay'], ['photoId', 'develop', 'before', 'after']);
+	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after', 'maskOverlay', 'maskOverlayMode', 'overlay',
+		...(profile === 'current4' ? ['softProof'] : [])], ['photoId', 'develop', 'before', 'after']);
+	const rawProof = profile === 'current4' && Object.hasOwn(input, 'softProof') ? field(input, 'softProof', 'develop presentation') : undefined;
+	const softProof = rawProof === undefined ? undefined : prepareImageOutputSoftProofCurrentV1(rawProof);
 	const id = field(input, 'photoId', 'develop presentation');
 	if (typeof id !== 'string' || id.length === 0 || id.length > 256 || [...id].some(character => character.charCodeAt(0) < 32)) throw new TypeError('Develop requires a bounded photo ID.');
 	const resolution = Object.hasOwn(input, 'resolution') ? field(input, 'resolution', 'develop presentation') : undefined;
@@ -76,7 +85,7 @@ export function preparePhotoDevelopPresentationViewForProfileV1(profile: PhotoDe
 	if (overlay !== undefined && (!overlay || typeof overlay !== 'object' || overlay === before || overlay === after)) throw new TypeError('Mask overlay requires a distinct canvas target.');
 	const maskOverlay = rawSelection === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawSelection);
 	const result = Object.freeze({ photoId: id, develop, resolution, revision: revision as number | undefined, before: before as HTMLCanvasElement, after: after as HTMLCanvasElement,
-		...(maskOverlay ? { maskOverlay, maskOverlayMode, overlay: overlay as HTMLCanvasElement } : {}) });
+		...(maskOverlay ? { maskOverlay, maskOverlayMode, overlay: overlay as HTMLCanvasElement } : {}), ...(softProof ? { softProof } : {}) });
 	PREPARED.set(result, profile); return result;
 }
 
@@ -98,9 +107,16 @@ function ports(profile: PhotoDevelopPresentationProfileV1, value: PhotoDevelopPr
 		loadProxy: pin<LoadPhotoLibraryDevelopProxyRuntimeCurrentV1>(field(input, 'loadProxy', 'develop presentation ports'), value),
 		beforePresent: gate === undefined ? Promise.resolve() : gate as Promise<void>,
 		stage: stage === undefined ? withPixelFrameBodyV1 : pin<typeof withPixelFrameBodyV1>(stage, value),
-		paint: paint === undefined ? paintPixelFrameCanvasV1 : pin<typeof paintPixelFrameCanvasV1>(paint, value),
+		paint: paint === undefined ? profile === 'current4' ? paintCurrent : paintPixelFrameCanvasV1 : pin<typeof paintPixelFrameCanvasV1>(paint, value),
 		clear: clear === undefined ? clearPixelFrameCanvasV1 : pin<typeof clearPixelFrameCanvasV1>(clear, value) });
 }
+
+const paintCurrent: typeof paintPixelFrameCanvasV1 = (canvas, frame, options) => {
+	if (frame.descriptor.primaries !== 'display-p3') return paintPixelFrameCanvasV1(canvas, frame, options);
+	if (options.signal) check(options.signal);
+	const result = paintPixelFrameDisplayP3CurrentV1(frame, canvas);
+	if (options.signal) check(options.signal); return result;
+};
 
 function captureRuntime(profile: PhotoDevelopPresentationProfileV1, value: Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1>): Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1> {
 	const methods = ['withProxy', 'withFullResolution'];
@@ -260,6 +276,9 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 			check(signal); if (this.#view !== view) return;
 			if (view.maskOverlay && (!output.maskOverlay || output.maskOverlay.maskId !== view.maskOverlay.maskId || output.maskOverlay.effectId !== view.maskOverlay.effectId)) {
 				throw new RangeError('Mask coverage does not match the selected adjustment.');
+			}
+			if (view.softProof) {
+				completed = await presentPhotoDevelopProofAfterCurrentV1(view, output, signal, this.#ports.paint, () => this.#view === view, original); return;
 			}
 			await withPhotoDevelopDisplayFrameV1({ frame: output.frame, signal,
 				...(view.maskOverlay ? { maskOverlay: output.maskOverlay, maskOverlayMode: view.maskOverlayMode } : {}) }, display => {

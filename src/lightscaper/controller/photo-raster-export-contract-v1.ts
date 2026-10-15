@@ -108,6 +108,7 @@ export interface PhotoRasterExportRequestCurrentV1 extends Omit<PhotoRasterExpor
 	readonly output?: PhotoRasterExportOutputCurrentV1;
 	readonly encode: (frame: Readonly<PixelFrameV1>, options: Readonly<{
 		signal: AbortSignal; limits: PixelFrameLimitsV1; maximumOutputBytes: number; bitDepth?: 8 | 16;
+		profile?: 'srgb' | 'display-p3';
 	}>) => Promise<Uint8Array<ArrayBuffer>>;
 }
 export type PhotoRasterExportProfileV1 = 'legacy2' | 'current3';

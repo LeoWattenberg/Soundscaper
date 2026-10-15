@@ -128,7 +128,7 @@ export const editorUiChunkGroups = [
 		// The full export dialog labels stay behind its menu-opened lazy entry.
 		// Only the small menu label belongs to ordinary photo shell copy.
 		name: 'lightscaper-photo-png-export-copy',
-		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-png-export-copy\.ts$/,
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-photo-(?:png-export|raster-profile)-copy\.ts$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
@@ -138,7 +138,7 @@ export const editorUiChunkGroups = [
 		// Develop and import presets read these labels only after their surfaces open.
 		// Co-owning them with the ordinary photo catalog would preload visual copy.
 		name: 'lightscaper-develop-copy',
-		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-develop(?:-settings)?-copy\.ts$/,
+		test: /src[\\/]common[\\/]i18n[\\/]lightscaper-develop(?:-settings|-soft-proof)?-copy\.ts$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,

@@ -8,11 +8,13 @@ import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../photo-libra
 import type { PixelPreviewPresentationReaderV1 } from './pixel-preview-presentation-v1.ts';
 import type { PhotoDevelopPresentationSnapshotV2, PhotoDevelopPresentationViewV2 } from './photo-library-develop-presentation-v2.ts';
 import type { paintPixelFrameCanvasV1, clearPixelFrameCanvasV1 } from '../../imaging/pixel-frame-canvas-presenter-v1.ts';
+import type { ImageOutputSoftProofCurrentV1 } from '../../imaging/image-output-soft-proof-current-v1.ts';
 
 export type PhotoDevelopPresentationSnapshotCurrentV1 = PhotoDevelopPresentationSnapshotV2;
 export interface PhotoDevelopPresentationViewCurrentV1 extends Omit<PhotoDevelopPresentationViewV2, 'develop' | 'revision'> {
 	readonly develop: PhotoLibraryDevelopSettingsCurrentV1;
 	readonly revision: number;
+	readonly softProof?: Readonly<ImageOutputSoftProofCurrentV1>;
 }
 export interface PhotoDevelopPresentationPortsCurrentV1 {
 	readonly withOriginalFrame?: PhotoLibraryDevelopOriginalPortV1['withFrame'];

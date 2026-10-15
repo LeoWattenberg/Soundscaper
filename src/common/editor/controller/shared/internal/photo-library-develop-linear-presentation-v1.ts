@@ -8,6 +8,7 @@ import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../../../photo-library-
 import { createPixelFrameHistogramV1 } from '../../../imaging/pixel-frame-histogram-v1.ts';
 import { withLinearPixelFrameDisplayV1 } from '../../../imaging/pixel-frame-linear-display-v1.ts';
 import { withPhotoDevelopDisplayFrameV1 } from '../../../imaging/photo-develop-display-frame-v1.ts';
+import { presentPhotoDevelopProofAfterCurrentV1 } from './photo-library-develop-proof-presentation-current-v1.ts';
 
 type Rendered = Pick<PhotoDevelopPresentationSnapshotV2, 'before' | 'after' | 'extent'>;
 const CHECK = AbortSignal.prototype.throwIfAborted;
@@ -48,6 +49,9 @@ export async function presentPhotoDevelopLinearAfterV1(view: Readonly<PhotoDevel
 		check(); if (!current()) return;
 		if (view.maskOverlay && (!output.maskOverlay || output.maskOverlay.maskId !== view.maskOverlay.maskId || output.maskOverlay.effectId !== view.maskOverlay.effectId)) {
 			throw new RangeError('Native mask coverage does not match the selected adjustment.');
+		}
+		if (view.softProof) {
+			completed = await presentPhotoDevelopProofAfterCurrentV1(view, output, signal, paint, current, original); return;
 		}
 		await withLinearPixelFrameDisplayV1({ frame: output.frame, signal }, encoded => withPhotoDevelopDisplayFrameV1({ frame: encoded, signal,
 			...(view.maskOverlay ? { maskOverlay: output.maskOverlay, maskOverlayMode: view.maskOverlayMode } : {}) }, display => {
