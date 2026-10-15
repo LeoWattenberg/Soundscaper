@@ -24,15 +24,21 @@ export function audiocomProvider(value: unknown, location?: Pick<Location, 'orig
 	return Object.freeze({ kind: 'audiocity', apiOrigin: origin, webOrigin: origin, scope: source.scope });
 }
 
-export function selectedAudiocomApiOrigin(value: unknown = DEFAULT_AUDIOCOM_PROVIDER.apiOrigin, location?: Pick<Location, 'origin' | 'protocol'>): string {
-	return providerOrigin(value, location);
+export function selectedAudiocomApiOrigin(value: unknown = DEFAULT_AUDIOCOM_PROVIDER.apiOrigin): string {
+	return canonicalOrigin(value).origin;
 }
 
 function providerOrigin(value: unknown, location?: Pick<Location, 'origin' | 'protocol'>): string {
+	const url = canonicalOrigin(value);
+	const localEditor = location?.protocol === 'soundscaper-app:' || /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/u.test(location?.origin ?? '');
+	if (url.protocol === 'http:' && !localEditor) throw new Error('Invalid audio provider origin.');
+	return url.origin;
+}
+
+function canonicalOrigin(value: unknown): URL {
 	if (typeof value !== 'string') throw new Error('Invalid audio provider origin.');
 	const url = new URL(value);
-	const localEditor = location?.protocol === 'soundscaper-app:' || /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/u.test(location?.origin ?? '');
-	const localProvider = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname) && localEditor;
-	if ((!localProvider && url.protocol !== 'https:') || url.origin !== value || url.username || url.password) throw new Error('Invalid audio provider origin.');
-	return url.origin;
+	const local = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+	if ((!local && url.protocol !== 'https:') || url.origin !== value || url.username || url.password) throw new Error('Invalid audio provider origin.');
+	return url;
 }

@@ -24,7 +24,7 @@ interface ClientOptions {
 export function createAudiocomApiClient(options: ClientOptions = {}): AudiocomApiClient {
 	const location = options.location ?? globalThis.location;
 	const desktop = location?.protocol === 'soundscaper-app:';
-	const apiOrigin = selectedAudiocomApiOrigin(options.apiOrigin, location);
+	const apiOrigin = selectedAudiocomApiOrigin(options.apiOrigin);
 	const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
 	const requestUrl = (path: string): string => desktop
 		? `${DESKTOP_PREFIX}${path}` : new URL(path, location?.origin ?? 'https://soundscaper.org').href;

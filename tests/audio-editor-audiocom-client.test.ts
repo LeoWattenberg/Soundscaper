@@ -154,3 +154,13 @@ test('rejects provider metadata for another preference before authorizing or upl
 	await assert.rejects(client.startOAuth(), /origin|server/iu);
 	assert.deepEqual(paths, ['/api/audiocom/usage']);
 });
+
+test('a local editor accepts an IPv6 loopback provider saved in Advanced preferences', async () => {
+	const apiOrigin = 'http://[::1]:8088'; let selected: string | null = null;
+	const client = createAudiocomApiClient({ apiOrigin, location: { origin: 'http://localhost:4325', protocol: 'http:' },
+		fetch: async (_input, init) => { selected = new Headers(init?.headers).get('X-Audiocom-Api-Origin'); return Response.json({ data: { connected: false } }); },
+	});
+	assert.deepEqual(await client.session(), { connected: false }); assert.equal(selected, apiOrigin);
+	const hosted = createAudiocomApiClient({ apiOrigin, location, fetch: async () => Response.json({ error: { message: 'A local editor is required.' } }, { status: 400 }) });
+	await assert.rejects(hosted.session(), error => error instanceof AudiocomApiError && error.status === 400);
+});

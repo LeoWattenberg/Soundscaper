@@ -13,7 +13,7 @@ interface ClientOptions {
 }
 export function createAudiocomProjectArchiveClient(options: ClientOptions = {}): AudiocomProjectArchiveClient {
 	const location = options.location ?? globalThis.location;
-	const apiOrigin = selectedAudiocomApiOrigin(options.apiOrigin, location);
+	const apiOrigin = selectedAudiocomApiOrigin(options.apiOrigin);
 	const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
 	const request = (path: string, init: RequestInit = {}): Promise<Response> => {
 		const headers = new Headers(init.headers); headers.set('X-Audiocom-Api-Origin', apiOrigin);
