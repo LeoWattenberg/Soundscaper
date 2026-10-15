@@ -49,6 +49,7 @@ export interface AudiocomProjectArchives {
 	dispose(): void;
 }
 export interface AudiocomProjectArchiveOptions {
+	readonly apiOrigin?: string;
 	readonly client?: AudiocomProjectArchiveClient;
 	readonly saveFile?: (request: AudiocomArchiveSaveRequest) => Promise<unknown>;
 	readonly onAuthenticationExpired?: () => void;

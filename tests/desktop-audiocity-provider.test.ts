@@ -52,7 +52,7 @@ test('desktop resolves Audiocity configuration only from the main backend before
 	const opened: string[] = [];
 	const calls: string[] = [];
 	const handlers = new Map<string, (event: unknown, value: unknown) => Promise<boolean>>();
-	await createDesktopAudiocomIntegration({
+	const integration = await createDesktopAudiocomIntegration({
 		appOrigin: APP_ORIGIN, apiOrigin: BACKEND, productId: 'soundscaper', filePath: '/unused', platform: 'linux',
 		channels: { openAudiocomAuthorization: 'authorize', openAudiocomLink: 'link' },
 		safeStorage: { isEncryptionAvailable: () => false },
@@ -66,12 +66,16 @@ test('desktop resolves Audiocity configuration only from the main backend before
 			return Response.json({ data: { provider: PROVIDER } });
 		},
 	});
+	await assert.rejects(() => handlers.get('authorize')!(null, authorize()));
+	assert.equal(calls.length, 0);
+	const usage = new Request(`${APP_ORIGIN}/_desktop/audiocom/api/audiocom/usage`, { headers: { 'X-Audiocom-Api-Origin': PROVIDER.apiOrigin } });
+	assert.equal((await integration.proxy!(usage)).status, 200);
 	const openAuthorization = handlers.get('authorize')!;
 	const openLink = handlers.get('link')!;
 	await openAuthorization(null, authorize());
 	await openLink(null, `${PROVIDER.webOrigin}/public/audio/${PROJECT_ID}`);
 	assert.deepEqual(opened, [authorize(), `${PROVIDER.webOrigin}/public/audio/${PROJECT_ID}`]);
-	assert.equal(calls.length, 2);
+	assert.equal(calls.length, 1);
 	await assert.rejects(() => openLink(null, 'http://127.0.0.1:8089/public/audio/id'));
 	await assert.rejects(() => openAuthorization(null, { url: authorize(), provider: { ...PROVIDER, apiOrigin: 'https://evil.example' } }));
 	assert.equal(opened.length, 2);
@@ -86,7 +90,7 @@ test('desktop rejects invalid backend provider discovery and keeps official URL 
 		const opened: string[] = [];
 		let discoveries = 0;
 		const handlers = new Map<string, (event: unknown, value: unknown) => Promise<boolean>>();
-		await createDesktopAudiocomIntegration({
+		const integration = await createDesktopAudiocomIntegration({
 			appOrigin: APP_ORIGIN, apiOrigin: BACKEND, productId: 'soundscaper', filePath: '/unused', platform: 'linux',
 			channels: { openAudiocomAuthorization: 'authorize', openAudiocomLink: 'link' },
 			safeStorage: { isEncryptionAvailable: () => false },
@@ -96,9 +100,11 @@ test('desktop rejects invalid backend provider discovery and keeps official URL 
 		});
 		await handlers.get('link')!(null, 'https://audio.com/recorder/audio/field-take');
 		assert.equal(discoveries, 0);
+		const usage = new Request(`${APP_ORIGIN}/_desktop/audiocom/api/audiocom/usage`, { headers: { 'X-Audiocom-Api-Origin': PROVIDER.apiOrigin } });
+		assert.equal((await integration.proxy!(usage)).status, 502);
 		await assert.rejects(() => handlers.get('authorize')!(null, authorize()));
 		await assert.rejects(() => handlers.get('link')!(null, `${PROVIDER.webOrigin}/public/audio/${PROJECT_ID}`));
-		assert.equal(discoveries, 2);
+		assert.equal(discoveries, 1);
 		assert.deepEqual(opened, ['https://audio.com/recorder/audio/field-take']);
 	}
 });
@@ -136,4 +142,42 @@ test('desktop project proxy streams archive uploads and downloads through fixed 
 		request(`/projects/download?id=${PROJECT_ID}&snapshotId=${SNAPSHOT_ID}&url=https://evil.example`),
 	]) assert.equal((await proxy(invalid)).status, 400);
 	assert.equal(calls.length, 3);
+});
+
+
+test('desktop forwards validated provider selections only to its fixed backend and leaves preview selection to the pinned grant', async () => {
+	const calls: { url: string; origin: string | null }[] = [];
+	const proxy = createDesktopAudiocomProxy({ appOrigin: APP_ORIGIN, apiOrigin: BACKEND,
+		sessionStore: { get: () => null, set: async () => {}, clear: async () => {} },
+		fetchImpl: async (input, init) => {
+			calls.push({ url: String(input), origin: new Headers(init?.headers).get('X-Audiocom-Api-Origin') });
+			return Response.json({ data: { connected: false } });
+		},
+	});
+	const request = (origin: string) => new Request(`${APP_ORIGIN}/_desktop/audiocom/api/audiocom/oauth/session`, { headers: { 'X-Audiocom-Api-Origin': origin } });
+	for (const origin of ['https://api.audio.com', 'https://audio.example.org', PROVIDER.apiOrigin]) assert.equal((await proxy(request(origin))).status, 200);
+	assert(calls.every(call => call.url === `${BACKEND}/api/audiocom/oauth/session`));
+	assert.deepEqual(calls.map(call => call.origin), ['https://api.audio.com', 'https://audio.example.org', PROVIDER.apiOrigin]);
+	for (const origin of ['https://user:password@evil.example', 'https://evil.example/path', 'http://evil.example', 'https://evil.example?x=1']) assert.equal((await proxy(request(origin))).status, 400);
+	assert.equal(calls.length, 3);
+	await proxy(new Request(`${APP_ORIGIN}/_desktop/audiocom/api/audiocom/preview?url=opaque`));
+	assert.equal(calls.at(-1)?.origin, null);
+});
+
+test('desktop never trusts mismatched provider metadata or an abandoned selection when opening authorization', async () => {
+	const handlers = new Map<string, (event: unknown, value: unknown) => Promise<boolean>>();
+	const opened: string[] = []; let mismatch = true;
+	const integration = await createDesktopAudiocomIntegration({
+		appOrigin: APP_ORIGIN, apiOrigin: BACKEND, productId: 'soundscaper', filePath: '/unused', platform: 'linux',
+		channels: { openAudiocomAuthorization: 'authorize', openAudiocomLink: 'link' }, safeStorage: { isEncryptionAvailable: () => false },
+		handle: (channel, handler) => { handlers.set(channel, handler); }, shell: { openExternal: async value => { opened.push(value); } },
+		fetchImpl: async () => Response.json({ data: { provider: mismatch ? { ...PROVIDER, apiOrigin: 'https://other.example.org', webOrigin: 'https://other.example.org' } : PROVIDER } }),
+	});
+	const usage = () => new Request(`${APP_ORIGIN}/_desktop/audiocom/api/audiocom/usage`, { headers: { 'X-Audiocom-Api-Origin': PROVIDER.apiOrigin } });
+	assert.equal((await integration.proxy!(usage())).status, 502);
+	await assert.rejects(() => handlers.get('authorize')!(null, authorize()));
+	mismatch = false; assert.equal((await integration.proxy!(usage())).status, 200);
+	await handlers.get('authorize')!(null, authorize()); assert.deepEqual(opened, [authorize()]);
+	mismatch = true; assert.equal((await integration.proxy!(usage())).status, 502);
+	await assert.rejects(() => handlers.get('authorize')!(null, authorize()));
 });

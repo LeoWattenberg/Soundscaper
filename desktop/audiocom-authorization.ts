@@ -6,7 +6,7 @@ export interface AudiocomExternalProvider {
 	readonly kind: 'audiocity';
 	readonly apiOrigin: string;
 	readonly webOrigin: string;
-	readonly scope: 'public projects';
+	readonly scope: 'public' | 'public projects';
 }
 export interface AudiocomExternalConfiguration {
 	readonly backendOrigin: string;
@@ -19,12 +19,18 @@ export function assertAudiocomExternalProvider(value: unknown, backendOrigin: st
 	const provider = value as Record<string, unknown>;
 	const backend = configuredOrigin(backendOrigin, true);
 	const allowLocal = backend.protocol === 'http:' && isLoopback(backend);
-	if (provider.kind !== 'audiocity' || provider.scope !== 'public projects'
+	if (provider.kind !== 'audiocity' || (provider.scope !== 'public' && provider.scope !== 'public projects')
 		|| typeof provider.apiOrigin !== 'string' || typeof provider.webOrigin !== 'string'
 		|| provider.apiOrigin !== provider.webOrigin) throw new TypeError('Invalid audio provider configuration');
 	configuredOrigin(provider.apiOrigin, allowLocal);
 	if (provider.authorizationOrigin !== undefined && provider.authorizationOrigin !== provider.apiOrigin) throw new TypeError('Invalid audio provider configuration');
-	return { kind: 'audiocity', apiOrigin: provider.apiOrigin, webOrigin: provider.webOrigin, scope: 'public projects' };
+	return { kind: 'audiocity', apiOrigin: provider.apiOrigin, webOrigin: provider.webOrigin, scope: provider.scope };
+}
+
+/** The renderer chooses an origin, while the fixed backend retains network admission. */
+export function assertAudiocomSelectedApiOrigin(value: string, backendOrigin: string): string {
+	const backend = configuredOrigin(backendOrigin, true);
+	return configuredOrigin(value, backend.protocol === 'http:' && isLoopback(backend)).origin;
 }
 
 export function assertAudiocomAuthorizationUrl(value: unknown, configuration?: AudiocomExternalConfiguration): string {

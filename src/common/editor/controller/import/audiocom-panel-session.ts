@@ -95,6 +95,7 @@ export interface AudiocomPreviewAudio {
 }
 
 export interface AudiocomPanelSessionOptions {
+	readonly apiOrigin?: string;
 	readonly client?: AudiocomApiClient;
 	readonly createAudio?: () => AudiocomPreviewAudio;
 	readonly wait?: (milliseconds: number, signal: AbortSignal) => Promise<void>;
@@ -125,24 +126,28 @@ export function createAudiocomPanelSession(options: AudiocomPanelSessionOptions 
 	return createPanelSession(options);
 }
 
-const ownerSessions = new WeakMap<object, AudiocomPanelSession>();
+interface OwnerSession { readonly apiOrigin: string; readonly session: AudiocomPanelSession; unsubscribe?: () => void }
+const ownerSessions = new WeakMap<object, OwnerSession>();
 
 /** Keep queued uploads and search results through panel docking and closing. */
 export function audiocomPanelSession(owner: object, options: AudiocomPanelSessionOptions = {}): AudiocomPanelSession {
 	const existing = ownerSessions.get(owner);
-	if (existing) return existing;
+	const apiOrigin = options.apiOrigin ?? 'https://api.audio.com';
+	if (existing?.apiOrigin === apiOrigin) return existing.session;
+	existing?.session.dispose(); existing?.unsubscribe?.();
 	const session = createPanelSession(options);
-	ownerSessions.set(owner, session);
+	const entry: OwnerSession = { apiOrigin, session };
+	ownerSessions.set(owner, entry);
 	const lifecycle = owner as { getSnapshot?: () => unknown; subscribe?: (listener: () => void) => () => void };
 	if (typeof lifecycle.getSnapshot === 'function' && typeof lifecycle.subscribe === 'function') {
-		const subscription: { unsubscribe?: () => void } = {};
 		const check = (): void => {
 			const value = lifecycle.getSnapshot?.();
 			if (value && typeof value === 'object' && 'disposed' in value && value.disposed === true) {
-				session.dispose(); ownerSessions.delete(owner); subscription.unsubscribe?.();
+				session.dispose(); entry.unsubscribe?.();
+				if (ownerSessions.get(owner) === entry) ownerSessions.delete(owner);
 			}
 		};
-		subscription.unsubscribe = lifecycle.subscribe(check);
+		entry.unsubscribe = lifecycle.subscribe(check);
 		check();
 	}
 	return session;

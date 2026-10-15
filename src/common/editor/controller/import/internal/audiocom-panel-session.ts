@@ -11,7 +11,7 @@ const emptySearch = () => ({ query: '', page: 1, hasNext: false, results: [], st
 
 /** Account, search and preview generations prevent old asynchronous work crossing sessions. */
 export function createPanelSession(options: AudiocomPanelSessionOptions): AudiocomPanelSession {
-	const client = options.client ?? createAudiocomApiClient();
+	const client = options.client ?? createAudiocomApiClient({ apiOrigin: options.apiOrigin });
 	const now = options.now ?? Date.now;
 	const wait = options.wait ?? waitForPoll;
 	const listeners = new Set<() => void>();

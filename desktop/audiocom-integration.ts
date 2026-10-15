@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { assertAudiocomAuthorizationUrl, assertAudiocomExternalProvider, type AudiocomExternalConfiguration } from './audiocom-authorization.ts';
+import { assertAudiocomAuthorizationUrl, assertAudiocomExternalProvider, assertAudiocomSelectedApiOrigin, type AudiocomExternalConfiguration, type AudiocomExternalProvider } from './audiocom-authorization.ts';
 import { assertAudiocomLinkUrl } from './audiocom-links.ts';
 
 export const AUDIOCOM_DESKTOP_PREFIX = '/_desktop/audiocom';
@@ -115,6 +115,7 @@ interface ProxyOptions {
 	readonly apiOrigin: string;
 	readonly fetchImpl: typeof fetch;
 	readonly sessionStore: SessionStore;
+	readonly onProviderConfiguration?: (provider: AudiocomExternalProvider | null) => void;
 }
 interface IntegrationOptions extends Omit<ProxyOptions, 'sessionStore' | 'fetchImpl'>, StoreOptions {
 	readonly fetchImpl?: typeof fetch;
@@ -130,36 +131,31 @@ export async function createDesktopAudiocomIntegration(options: IntegrationOptio
 	if (options.productId !== 'soundscaper') return Object.freeze({ proxy: null });
 	const sessionStore = new DesktopAudiocomSessionStore(options);
 	await sessionStore.load();
+	let externalConfiguration: AudiocomExternalConfiguration | undefined;
 	options.handle(options.channels.openAudiocomAuthorization, async (_event, value) => {
-		await options.shell.openExternal(await externalUrl(value, assertAudiocomAuthorizationUrl, options));
+		await options.shell.openExternal(externalUrl(value, assertAudiocomAuthorizationUrl, externalConfiguration));
 		return true;
 	});
 	options.handle(options.channels.openAudiocomLink, async (_event, value) => {
-		await options.shell.openExternal(await externalUrl(value, assertAudiocomLinkUrl, options));
+		await options.shell.openExternal(externalUrl(value, assertAudiocomLinkUrl, externalConfiguration));
 		return true;
 	});
-	return Object.freeze({ proxy: createDesktopAudiocomProxy({ ...options, fetchImpl: options.fetchImpl ?? fetch, sessionStore }) });
+	return Object.freeze({ proxy: createDesktopAudiocomProxy({ ...options, fetchImpl: options.fetchImpl ?? fetch, sessionStore,
+		onProviderConfiguration: provider => { externalConfiguration = provider ? { backendOrigin: options.apiOrigin, provider } : undefined; },
+	}) });
 }
 
-async function externalUrl(value: unknown, validate: (value: unknown, configuration?: AudiocomExternalConfiguration) => string, options: IntegrationOptions): Promise<string> {
+function externalUrl(value: unknown, validate: (value: unknown, configuration?: AudiocomExternalConfiguration) => string, configuration?: AudiocomExternalConfiguration): string {
 	try { return validate(value); }
 	catch (error) {
-		if (typeof value !== 'string') throw error;
-		try {
-			const response = await (options.fetchImpl ?? fetch)(`${options.apiOrigin}/api/audiocom/usage`, {
-				headers: { Accept: 'application/json', Origin: options.appOrigin }, redirect: 'error', signal: AbortSignal.timeout(10_000),
-			});
-			if (!response.ok) { await response.body?.cancel(); throw error; }
-			const payload: unknown = JSON.parse(new TextDecoder().decode(await boundedBody(response.body)));
-			if (!isRecord(payload) || !isRecord(payload.data)) throw error;
-			const provider = assertAudiocomExternalProvider(payload.data.provider, options.apiOrigin);
-			return validate(value, { backendOrigin: options.apiOrigin, provider });
-		} catch { throw error; }
+		if (typeof value !== 'string' || !configuration) throw error;
+		return validate(value, configuration);
 	}
 }
 
-export function createDesktopAudiocomProxy({ appOrigin, apiOrigin, fetchImpl, sessionStore }: ProxyOptions) {
+export function createDesktopAudiocomProxy({ appOrigin, apiOrigin, fetchImpl, sessionStore, onProviderConfiguration }: ProxyOptions) {
 	const trustedApp = new URL(appOrigin);
+	let providerGeneration = 0;
 	return async (request: Request, parsedUrl = new URL(request.url)): Promise<Response> => {
 		try {
 			if (parsedUrl.protocol !== trustedApp.protocol || parsedUrl.host !== trustedApp.host
@@ -174,9 +170,16 @@ export function createDesktopAudiocomProxy({ appOrigin, apiOrigin, fetchImpl, se
 				|| [...parsedUrl.searchParams.keys()].some((key) => !route.query?.includes(key) || parsedUrl.searchParams.getAll(key).length !== 1)) return failure(400, 'Invalid query parameters');
 			const token = sessionStore.get();
 			let init: RequestInit;
-			try { init = await requestOptions(request, route, appOrigin, token); }
+			try { init = await requestOptions(request, route, appOrigin, apiOrigin, token); }
 			catch { return failure(400, 'Invalid audio.com request'); }
+			const generation = path === '/usage' ? ++providerGeneration : providerGeneration;
+			if (path === '/usage') onProviderConfiguration?.(null);
 			const upstream = await fetchImpl(`${apiOrigin}${apiPath}${parsedUrl.search}`, init);
+			if (path === '/usage' && upstream.ok && onProviderConfiguration) {
+				const selected = new Headers(init.headers).get('X-Audiocom-Api-Origin') ?? 'https://api.audio.com';
+				const provider = await providerFromResponse(upstream.clone(), selected, apiOrigin);
+				if (generation === providerGeneration) onProviderConfiguration(provider);
+			}
 			if ((upstream.status === 401 && token) || (path === '/oauth/session' && request.method === 'DELETE' && upstream.ok)) await sessionStore.clear();
 			if (path === '/oauth/poll' && upstream.ok) return await sanitizePoll(upstream, sessionStore);
 			return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: responseHeaders(upstream.headers) });
@@ -184,8 +187,10 @@ export function createDesktopAudiocomProxy({ appOrigin, apiOrigin, fetchImpl, se
 	};
 }
 
-async function requestOptions(request: Request, route: ProxyRoute, appOrigin: string, token: string | null): Promise<RequestInit> {
+async function requestOptions(request: Request, route: ProxyRoute, appOrigin: string, backendOrigin: string, token: string | null): Promise<RequestInit> {
 	const headers = new Headers({ Accept: request.headers.get('accept') || 'application/json', Origin: appOrigin });
+	const selected = request.headers.get('X-Audiocom-Api-Origin');
+	if (selected !== null) headers.set('X-Audiocom-Api-Origin', assertAudiocomSelectedApiOrigin(selected, backendOrigin));
 	if (token) headers.set('Authorization', `Bearer ${validToken(token)}`);
 	if (route.path === '/preview' && request.headers.has('range')) {
 		const range = request.headers.get('range') ?? '';
@@ -221,6 +226,18 @@ async function requestOptions(request: Request, route: ProxyRoute, appOrigin: st
 		body = request.body;
 	}
 	return { method: request.method, headers, ...(body === undefined ? {} : { body, duplex: 'half' }), redirect: 'error', signal: request.signal };
+}
+
+async function providerFromResponse(response: Response, selected: string, backendOrigin: string): Promise<AudiocomExternalProvider | null> {
+	const payload: unknown = JSON.parse(new TextDecoder().decode(await boundedBody(response.body)));
+	if (!isRecord(payload) || !isRecord(payload.data) || !isRecord(payload.data.provider)) throw new TypeError('Invalid audio provider configuration');
+	const provider = payload.data.provider;
+	if (provider.apiOrigin !== selected) throw new TypeError('Audio provider origin mismatch');
+	if (selected === 'https://api.audio.com') {
+		if (provider.kind !== 'audiocom' || provider.webOrigin !== 'https://audio.com' || provider.scope !== 'public') throw new TypeError('Invalid audio.com configuration');
+		return null;
+	}
+	return assertAudiocomExternalProvider(provider, backendOrigin);
 }
 
 async function sanitizePoll(upstream: Response, sessionStore: SessionStore): Promise<Response> {

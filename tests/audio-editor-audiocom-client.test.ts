@@ -84,7 +84,7 @@ test('uses only the configured Audiocity issuer and accepts its UUID content lin
 	authorize.searchParams.set('scope', 'public projects');
 	const id = 'd621f281-7974-444e-b969-b84272cda0d3';
 	const opened: string[] = [];
-	const client = createAudiocomApiClient({ location: localLocation, reserveAuthorization: () => ({ open: url => { opened.push(url); }, close() {} }),
+	const client = createAudiocomApiClient({ apiOrigin: origin, location: localLocation, reserveAuthorization: () => ({ open: url => { opened.push(url); }, close() {} }),
 		fetch: async input => {
 			const path = new URL(String(input)).pathname;
 			if (path.endsWith('/usage')) return Response.json({ data: { provider: { kind: 'audiocity', apiOrigin: origin, webOrigin: origin, scope: 'public projects' } } });
@@ -104,7 +104,7 @@ test('rejects a local authorization issuer that differs from server configuratio
 	const authorize = authorization(); authorize.host = '127.0.0.1:9099'; authorize.protocol = 'http:';
 	authorize.searchParams.set('redirect_uri', `${localLocation.origin}/api/audiocom/oauth/callback`);
 	authorize.searchParams.set('scope', 'public projects');
-	const client = createAudiocomApiClient({ location: localLocation, fetch: async input => Response.json({ data: String(input).endsWith('/usage')
+	const client = createAudiocomApiClient({ apiOrigin: 'http://127.0.0.1:8088', location: localLocation, fetch: async input => Response.json({ data: String(input).endsWith('/usage')
 		? { provider: { kind: 'audiocity', apiOrigin: 'http://127.0.0.1:8088', webOrigin: 'http://127.0.0.1:8088', scope: 'public projects' } }
 		: { attemptId: 'attempt', handoffToken: 'handoff', authorizeUrl: authorize.href, expiresAt: new Date().toISOString() } }) });
 	await assert.rejects(client.startOAuth(), /authorization/iu);
@@ -129,4 +129,28 @@ test('cancelling one provider lookup does not cancel the next restored-session s
 	first.abort();
 	await cancelled;
 	assert.equal((await next).results[0].title, 'Forest');
+});
+
+
+test('defaults every proxy control request to audio.com and never fetches the selected server directly', async () => {
+	for (const apiOrigin of [undefined, 'https://audio.example.org']) {
+		const calls: { url: string; origin: string | null }[] = [];
+		const client = createAudiocomApiClient({ apiOrigin, location, fetch: async (input, init) => {
+			calls.push({ url: String(input), origin: new Headers(init?.headers).get('X-Audiocom-Api-Origin') });
+			return Response.json({ data: { connected: false } });
+		} });
+		await client.session(); await client.disconnect();
+		assert.deepEqual(calls.map(call => call.origin), [apiOrigin ?? 'https://api.audio.com', apiOrigin ?? 'https://api.audio.com']);
+		assert(calls.every(call => new URL(call.url).origin === location.origin));
+	}
+});
+
+test('rejects provider metadata for another preference before authorizing or uploading', async () => {
+	const paths: string[] = [];
+	const client = createAudiocomApiClient({ apiOrigin: 'https://audio.example.org', location, fetch: async input => {
+		paths.push(new URL(String(input)).pathname);
+		return Response.json({ data: { provider: { kind: 'audiocom', apiOrigin: 'https://api.audio.com', webOrigin: 'https://audio.com', scope: 'public' } } });
+	} });
+	await assert.rejects(client.startOAuth(), /origin|server/iu);
+	assert.deepEqual(paths, ['/api/audiocom/usage']);
 });

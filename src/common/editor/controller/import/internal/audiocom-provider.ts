@@ -24,6 +24,10 @@ export function audiocomProvider(value: unknown, location?: Pick<Location, 'orig
 	return Object.freeze({ kind: 'audiocity', apiOrigin: origin, webOrigin: origin, scope: source.scope });
 }
 
+export function selectedAudiocomApiOrigin(value: unknown = DEFAULT_AUDIOCOM_PROVIDER.apiOrigin, location?: Pick<Location, 'origin' | 'protocol'>): string {
+	return providerOrigin(value, location);
+}
+
 function providerOrigin(value: unknown, location?: Pick<Location, 'origin' | 'protocol'>): string {
 	if (typeof value !== 'string') throw new Error('Invalid audio provider origin.');
 	const url = new URL(value);

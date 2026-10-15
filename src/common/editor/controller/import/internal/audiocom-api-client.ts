@@ -4,7 +4,7 @@ import type {
 	AudiocomAccount, AudiocomApiClient, AudiocomAuthorizationReservation,
 	AudiocomSearchPage, AudiocomSearchResult,
 } from '../audiocom-panel-session.ts';
-import { audiocomProvider, DEFAULT_AUDIOCOM_PROVIDER, type AudiocomProvider } from './audiocom-provider.ts';
+import { audiocomProvider, DEFAULT_AUDIOCOM_PROVIDER, selectedAudiocomApiOrigin, type AudiocomProvider } from './audiocom-provider.ts';
 
 const PREFIX = '/api/audiocom/';
 const DESKTOP_PREFIX = 'soundscaper-app://bundle/_desktop/audiocom';
@@ -14,6 +14,7 @@ export class AudiocomApiError extends Error {
 }
 
 interface ClientOptions {
+	readonly apiOrigin?: string;
 	readonly fetch?: typeof fetch;
 	readonly location?: Pick<Location, 'origin' | 'protocol'>;
 	readonly reserveAuthorization?: () => AudiocomAuthorizationReservation;
@@ -23,18 +24,21 @@ interface ClientOptions {
 export function createAudiocomApiClient(options: ClientOptions = {}): AudiocomApiClient {
 	const location = options.location ?? globalThis.location;
 	const desktop = location?.protocol === 'soundscaper-app:';
+	const apiOrigin = selectedAudiocomApiOrigin(options.apiOrigin, location);
 	const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
 	const requestUrl = (path: string): string => desktop
 		? `${DESKTOP_PREFIX}${path}` : new URL(path, location?.origin ?? 'https://soundscaper.org').href;
-	const request = (path: string, init: RequestInit = {}): Promise<Response> => fetchImpl(requestUrl(path), {
-		...init, credentials: 'include', redirect: 'error',
-	});
+	const request = (path: string, init: RequestInit = {}): Promise<Response> => {
+		const headers = new Headers(init.headers); headers.set('X-Audiocom-Api-Origin', apiOrigin);
+		return fetchImpl(requestUrl(path), { ...init, headers, credentials: 'include', redirect: 'error' });
+	};
 	let provider = DEFAULT_AUDIOCOM_PROVIDER;
 	let providerLoaded = false;
 	const loadProvider = async (signal?: AbortSignal): Promise<AudiocomProvider> => {
 		if (!providerLoaded) {
 			const value = await responseData(await request(`${PREFIX}usage`, { signal }));
 			provider = audiocomProvider(record(value).provider, location);
+			if (provider.apiOrigin !== apiOrigin) throw new Error('The audio provider response does not match the selected server origin.');
 			providerLoaded = true;
 		}
 		return provider;

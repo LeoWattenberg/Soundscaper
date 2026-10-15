@@ -130,3 +130,29 @@ test('a failed disconnect retains a visible account action so revocation can be 
 	assert.equal(session.getSnapshot().auth.status, 'disconnected');
 	session.dispose();
 });
+
+
+test('changing the selected server disposes stale work, clears queues, and replaces the owner session', async () => {
+	let aborted: AbortSignal | undefined;
+	let release!: (value: { results: typeof RESULT[]; page: number; hasNext: boolean }) => void;
+	let unsubscribed = 0;
+	const owner = { getSnapshot: () => ({ disposed: false }), subscribe: () => () => { unsubscribed++; } };
+	const previous = audiocomPanelSession(owner, { client: client({ search: (_request, signal) => {
+		aborted = signal; return new Promise(resolve => { release = resolve; });
+	} }) });
+	await previous.initialize();
+	previous.enqueueFiles([new File(['RIFF'], 'forest.wav', { type: 'audio/wav' })]);
+	const searching = previous.search({ query: 'forest', page: 1 });
+	const changed = audiocomPanelSession(owner, { apiOrigin: 'https://audio.example.org', client: client({ session: async () => ({ connected: false }) }) });
+	assert.notEqual(changed, previous);
+	assert.equal(aborted?.aborted, true);
+	assert.equal(unsubscribed, 1);
+	assert.deepEqual(changed.getSnapshot().uploadQueue.items, []);
+	release({ results: [RESULT], page: 1, hasNext: false }); await searching;
+	assert.equal(changed.getSnapshot().search.results.length, 0);
+	await changed.initialize(); assert.equal(changed.getSnapshot().auth.status, 'disconnected');
+	assert.equal(audiocomPanelSession(owner, { apiOrigin: 'https://audio.example.org' }), changed);
+	const restored = audiocomPanelSession(owner, { client: client({ session: async () => ({ connected: false }) }) });
+	assert.notEqual(restored, previous); assert.notEqual(restored, changed);
+	restored.dispose();
+});

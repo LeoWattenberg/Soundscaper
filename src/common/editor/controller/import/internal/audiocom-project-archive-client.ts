@@ -1,28 +1,34 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { AudiocomProjectArchive, AudiocomProjectArchiveClient } from '../audiocom-project-archives.ts';
 import { AudiocomApiError } from './audiocom-api-client.ts';
-import { audiocomProvider } from './audiocom-provider.ts';
+import { audiocomProvider, selectedAudiocomApiOrigin } from './audiocom-provider.ts';
 
 const PREFIX = '/api/audiocom/';
 const MAXIMUM = 100000000;
 const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu;
 interface ClientOptions {
+	readonly apiOrigin?: string;
 	readonly fetch?: typeof fetch;
 	readonly location?: Pick<Location, 'origin' | 'protocol'>;
 }
 export function createAudiocomProjectArchiveClient(options: ClientOptions = {}): AudiocomProjectArchiveClient {
 	const location = options.location ?? globalThis.location;
+	const apiOrigin = selectedAudiocomApiOrigin(options.apiOrigin, location);
 	const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
-	const request = (path: string, init: RequestInit = {}): Promise<Response> => fetchImpl(location?.protocol === 'soundscaper-app:'
-		? `soundscaper-app://bundle/_desktop/audiocom${PREFIX}${path}` : new URL(`${PREFIX}${path}`, location?.origin ?? 'https://soundscaper.org'), {
-		...init, credentials: 'include', redirect: 'error',
-	});
+	const request = (path: string, init: RequestInit = {}): Promise<Response> => {
+		const headers = new Headers(init.headers); headers.set('X-Audiocom-Api-Origin', apiOrigin);
+		return fetchImpl(location?.protocol === 'soundscaper-app:'
+			? `soundscaper-app://bundle/_desktop/audiocom${PREFIX}${path}` : new URL(`${PREFIX}${path}`, location?.origin ?? 'https://soundscaper.org'), {
+			...init, headers, credentials: 'include', redirect: 'error',
+		});
+	};
 	return {
 		async capabilities(signal) {
 			const data = record(await dataResponse(await request('usage', { signal })));
 			const formats = data.projectStorageSupported === true && Array.isArray(data.projectFormats)
 				? data.projectFormats.filter((value): value is 'aup3' | 'aup4' => value === 'aup3' || value === 'aup4') : [];
 			const provider = data.provider ? audiocomProvider(data.provider, location) : undefined;
+			if (provider && provider.apiOrigin !== apiOrigin || !provider && apiOrigin !== 'https://api.audio.com') throw new Error('The audio provider response does not match the selected server origin.');
 			return { formats, maximumBytes: typeof data.maximumUploadBytes === 'number' && Number.isSafeInteger(data.maximumUploadBytes)
 				&& data.maximumUploadBytes > 0 ? Math.min(MAXIMUM, data.maximumUploadBytes) : MAXIMUM, ...(provider ? { provider } : {}) };
 		},

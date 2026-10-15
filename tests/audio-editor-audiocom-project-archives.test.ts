@@ -106,8 +106,25 @@ test('archive authentication errors retain their status for incomplete or non-JS
 test('archive provider metadata applies the same editor-origin policy as OAuth', async () => {
 	const provider = { kind: 'audiocity', apiOrigin: 'http://127.0.0.1:8088', webOrigin: 'http://127.0.0.1:8088', scope: 'public projects' };
 	const metadata = () => Promise.resolve(Response.json({ data: { provider, projectStorageSupported: true, projectFormats: ['aup3'], maximumUploadBytes: 100000000 } }));
-	const local = createAudiocomProjectArchiveClient({ location: { origin: 'http://127.0.0.1:4321', protocol: 'http:' }, fetch: metadata });
+	const local = createAudiocomProjectArchiveClient({ apiOrigin: provider.apiOrigin, location: { origin: 'http://127.0.0.1:4321', protocol: 'http:' }, fetch: metadata });
 	assert.equal((await local.capabilities()).provider?.webOrigin, provider.webOrigin);
 	const remote = createAudiocomProjectArchiveClient({ location: { origin: 'https://soundscaper.org', protocol: 'https:' }, fetch: metadata });
 	await assert.rejects(remote.capabilities(), /origin/iu);
+});
+
+
+test('archive calls carry the selected API origin through the same-origin proxy including downloads', async () => {
+	const origin = 'https://audio.example.org'; const calls: { url: string; origin: string | null }[] = [];
+	const api = createAudiocomProjectArchiveClient({ apiOrigin: origin, location: { origin: 'https://soundscaper.org', protocol: 'https:' }, fetch: async (input, init) => {
+		const url = String(input); calls.push({ url, origin: new Headers(init?.headers).get('X-Audiocom-Api-Origin') });
+		if (url.includes('/usage')) return Response.json({ data: { provider: { kind: 'audiocity', apiOrigin: origin, webOrigin: origin, scope: 'public projects' }, projectStorageSupported: true, projectFormats: ['aup3'] } });
+		if (url.includes('/download')) return new Response(file, { headers: { 'Content-Length': String(file.size) } });
+		if (url.includes('page=')) return Response.json({ data: { results: [item], page: 1, hasNext: false } });
+		return Response.json({ data: item });
+	} });
+	await api.capabilities(); await api.list(1); await api.upload(file, 'Session'); await api.download(item);
+	assert.equal(calls.length, 4);
+	assert(calls.every(call => call.origin === origin && new URL(call.url).origin === 'https://soundscaper.org'));
+	const mismatch = createAudiocomProjectArchiveClient({ apiOrigin: origin, fetch: async () => Response.json({ data: { provider: { kind: 'audiocom', apiOrigin: 'https://api.audio.com', webOrigin: 'https://audio.com', scope: 'public' } } }) });
+	await assert.rejects(mismatch.capabilities(), /origin|server/iu);
 });

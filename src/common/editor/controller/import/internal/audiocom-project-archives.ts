@@ -7,7 +7,7 @@ const empty = (): AudiocomArchiveSnapshot => ({ supported: false, formats: [], m
 	results: [], page: 1, hasNext: false, status: 'idle' });
 
 export function createProjectArchives(options: AudiocomProjectArchiveOptions): AudiocomProjectArchives {
-	const client = options.client ?? createAudiocomProjectArchiveClient();
+	const client = options.client ?? createAudiocomProjectArchiveClient({ apiOrigin: options.apiOrigin });
 	const listeners = new Set<() => void>();
 	let snapshot = empty(); let connected = false; let disposed = false;
 	let generation = 0; let abort: AbortController | null = null;
