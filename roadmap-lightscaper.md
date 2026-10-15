@@ -147,15 +147,17 @@ The import dialog also selects an ordinary Frame still's timeline or Project Bin
 placement explicitly. Manual collections, smart collections, and saved filters
 download as editable Frame sequences in native query order. The remaining L5
 export and cross-product qualification gates are open. Current RAW menu import
-and bounded global development are implemented; external decoder publication
-and desktop capabilities remain pending.
+and bounded native Float32 development are implemented, including geometry,
+spatial effects, LUTs, local masks and Clone/Heal. The combined RAW workflow is
+verified in Chromium and Firefox; external decoder publication, wider product
+qualification and desktop capabilities remain pending.
 
 | Area | Current capability |
 | --- | --- |
 | Product seam | Three-product registry, separate-origin routes and independently built sites, per-product profiles/capabilities/PWA/i18n, registry-driven switching, and product-owned test shards. Lightscaper desktop wiring waits for L8. |
 | Imaging engine | Shared parametric video effects, managed SDR color with linear-light grade math and `.cube` LUTs, mask graphs, visual presets, and keyframe curves. Wider primaries/transfers remain recognized by the schema and refused at render admission. |
 | Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
-| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 global development; broader deep processing and wide-gamut output remain L7 work. |
+| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask and repair stages; RAW output/handoff and wide-gamut work remain open. |
 | Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
 | Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. |
 | Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
@@ -164,9 +166,9 @@ and desktop capabilities remain pending.
 
 Architectural constraints that still drive the sequence:
 
-- the established byte route remains exact; Current RAW processing widens the
-  L2 contracts explicitly, with deep geometry, spatial effects, LUTs, local
-  adjustments, repairs and wider output still pending in L7;
+- the established byte route remains exact; Current RAW processing uses the
+  same L2 contracts, with native stage ownership and aggregate memory admission;
+  RAW export/handoff, highlight recovery and wider output remain pending in L7;
 - original custody and catalog persistence have separate owners and must
   reconcile interrupted publication before a library is exposed;
 - catalog-scale browsing uses bounded indexed pages rather than whole-project
@@ -821,15 +823,38 @@ there.
   and preserves signed/HDR and tiny normal/subnormal values. Current byte
   presentation and permanent legacy routes keep their existing contracts.
   Current RAW ingestion now supplies genuine native words to a separate
-  Float32 global route: white balance, tone, chroma, black-and-white mix, HSL,
+  Float32 route: white balance, tone, chroma, black-and-white mix, HSL,
   point/parametric curves and color wheels. Conversion to encoded RGBA8 occurs
   at the disposable display boundary. Original bytes and scalar history remain
-  separate; byte FramePack1 keeps its existing meaning. Deep geometry, spatial
-  effects, LUTs, local adjustments, repairs and output remain unfinished.
+  separate; byte FramePack1 keeps its existing meaning.
+  The Current route also implements native premultiplied-linear geometry,
+  all seven existing spatial families, verified cube LUTs, procedural/range/brush
+  masks and Original-space Clone/Heal. Repairs run before geometry, range masks
+  read the incoming adjustment stage, and selected observed coverage projects
+  through remaining geometry. The opted-in Current Develop Settings repair
+  entry previews the native Original and applies local edits to the draft;
+  Save retains the existing durable recipe/history command. Coverage and
+  overlay mode stay temporary, with the overlay off by default.
+  The original white-balance/tone foundation retains its 512 MiB contract;
+  the new multistage Current owner plans the borrowed source, at most two live
+  Float32 planes and mask/resource/repair/display scratch under 768 MiB.
+  Scalar planning precedes pixel admission, and the complete physical borrowed
+  backing, including view padding, is charged before private allocation.
+  Active LUTs reserve twice their declared bytes plus 128 MiB for
+  parser/transient work, without claiming an exact JavaScript heap bound.
+  Oversized combinations refuse. The byte helpers retain their existing
+  arithmetic; a factored shared coverage generator keeps the byte wrapper's
+  profile unchanged. The selected Lightscaper regression passes 2,916 cases in
+  327 files. Chromium and Firefox pass the real RAW menu workflow through Clone,
+  masked tone, sharpening, rotated crop, Save and reload, with full-plane pixel
+  comparisons and unchanged authenticated Originals. Together with import and
+  native worker checks, eight RAW browser cases are qualified.
+  RAW export/handoff, culling integration and wider output remain unfinished.
   The first foundation qualified 2,776 cases in 311 files, with four
   English/German Chromium/Firefox workflows retaining native repaired Photo
-  preview, brush editing, saved history and reload. The Current RAW build uses
-  a 53-request product graph, six initial requests and the existing chunk ceilings.
+  preview, brush editing, saved history and reload. The preceding RAW/global
+  build used a 53-request product graph, six initial requests and the existing
+  chunk ceilings.
 - **Web Core — In progress:** the
   [RAW decoder foundation](docs/architecture/lightscaper-raw-decoder.md) builds
   pinned LibRaw 0.22.2 under its LGPL-2.1 option into an 876,336-byte WASM
@@ -845,13 +870,17 @@ there.
   oriented dimensions. Authenticated Original reads regenerate native RGBA16;
   no deep plane is stored in byte FramePack1. Chromium and Firefox workflows
   prove actual menu import, thumbnails, native-depth white balance/exposure,
-  Save and reload with unchanged Original bytes. All six RAW browser cases
-  pass: two full-menu workflows and four native-worker cases across those
-  browsers. The selected Lightscaper Node regression passes 2,845 cases in
-  319 files, including pinned Canon CRW import through the actual native worker. The browser decoder
+  Save and reload with unchanged Original bytes. The preceding RAW/global
+  qualification passed six RAW browser cases: two full-menu workflows and four
+  native-worker cases across those browsers. Its selected Lightscaper Node
+  regression passed 2,845 cases in 319 files, including pinned Canon CRW import
+  through the actual native worker. The browser decoder
   fetch uses the exact pinned artifact; external asset publication is still
   pending. RAW export/handoff, RAW-specific culling, broader camera coverage,
-  highlight recovery, wider L7 processing, L8 and L9 remain unfinished.
+  highlight recovery, wide-gamut/soft-proof output, GPU/native execution,
+  lens/camera profiles, HDR merge, L8 and L9 remain unfinished. The expanded
+  native-stage packet does not claim final browser or regression counts here;
+  remaining L3–L6 exit gates and L7 completion remain open.
 - **Web Enhanced — Planned:** GPU evaluation of the develop stack where
   capability-detected, with the CPU path as the conformance oracle under
   recorded tolerance budgets.

@@ -10,6 +10,7 @@ import { replaceImageDevelopRepairSpotsV1 } from '../../../imaging/image-develop
 import { planImageDevelopRepairSpotsV1 } from '../../../imaging/image-develop-repair-plan-v1.ts';
 import { withRepairSpotsPixelFrameV1 } from '../../../imaging/pixel-frame-repair-spots-v1.ts';
 import { admitPixelFrameV1 } from '../../../imaging/pixel-frame-admission-v1.ts';
+import { readImageRepairSpotsOriginalMetadataCurrentV1, validateImageRepairSpotsCurrentV1 } from '../../../imaging/image-repair-spots-native-current-v1.ts';
 import { detachPhotoLibraryDevelopSettingsV3 } from '../photo-library-develop-command-v3.ts';
 
 import type { PixelFrameV1 } from '../../../imaging/pixel-frame-contract-v1.ts';
@@ -43,6 +44,7 @@ export class ImageRepairSpotsAuthoringKernelV1<Original> {
 	readonly #frame: (view: Original) => Readonly<PixelFrameV1>;
 	readonly #develop: Readonly<ImageDevelopStateCurrentV1>;
 	readonly #current: () => boolean;
+	readonly #currentNative: boolean;
 	readonly #stop = new AbortController();
 	readonly #external: AbortSignal | undefined;
 	readonly #cancelled: () => void;
@@ -53,9 +55,11 @@ export class ImageRepairSpotsAuthoringKernelV1<Original> {
 	#editing = false;
 	#gesture: Readonly<{ repairs: Readonly<ImageDevelopRepairSpotsV1>; id: string; handle: 'target' | 'source' }> | null = null;
 
-	constructor(options: Readonly<ImageRepairSpotsAuthoringKernelOptionsV1<Original>>) {
+	constructor(options: Readonly<ImageRepairSpotsAuthoringKernelOptionsV1<Original>>, profile: 'legacy-byte' | 'current-native' = 'legacy-byte') {
 		const signalData = Object.getOwnPropertyDescriptor(options, 'signal');
 		this.#external = captureImageRepairSpotsSignalV1(signalData && Object.hasOwn(signalData, 'value') ? signalData.value : undefined);
+		if (profile !== 'legacy-byte' && profile !== 'current-native') throw new TypeError('Unknown repair authoring profile.');
+		this.#currentNative = profile === 'current-native';
 		const input = record(options, 'repair authoring options', ['withOriginalFrame', 'frame', 'develop', 'isCurrent', 'signal'], ['withOriginalFrame', 'frame', 'develop', 'isCurrent']);
 		if ((Object.hasOwn(input, 'signal') ? field(input, 'signal', 'repair authoring options') : undefined) !== this.#external) {
 			throw new TypeError('Repair authoring cancellation changed during admission.');
@@ -143,6 +147,7 @@ export class ImageRepairSpotsAuthoringKernelV1<Original> {
 		}, async develop => {
 			await this.#borrow(view => {
 				const metadata = this.#metadata(view); planImageDevelopRepairSpotsV1(develop.repairs, metadata.width, metadata.height);
+				if (this.#currentNative) return validateImageRepairSpotsCurrentV1(this.#frame(view), develop.repairs, this.#stop.signal);
 				return withRepairSpotsPixelFrameV1({ frame: this.#frame(view), repairs: develop.repairs, signal: this.#stop.signal }, () => { this.#check(); },
 					{ limits: PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source });
 			});
@@ -165,9 +170,12 @@ export class ImageRepairSpotsAuthoringKernelV1<Original> {
 
 	#metadata(view: Readonly<Original>): Readonly<{ width: number; height: number }> {
 		const frame = this.#frame(view);
-		const metadata = admitPixelFrameV1(field(frame, 'descriptor', 'repair Original frame'), { limits: PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source });
-		if (metadata.descriptor.sampleFormat !== 'unorm8') throw new TypeError('Repair authoring requires the native UNORM8 Original.');
-		const { width, height } = metadata.descriptor;
+		const metadata = this.#currentNative ? readImageRepairSpotsOriginalMetadataCurrentV1(frame) : (() => {
+			const admitted = admitPixelFrameV1(field(frame, 'descriptor', 'repair Original frame'), { limits: PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source });
+			if (admitted.descriptor.sampleFormat !== 'unorm8') throw new TypeError('Repair authoring requires the native UNORM8 Original.');
+			return admitted.descriptor;
+		})();
+		const { width, height } = metadata;
 		if (this.#view.ready && (width !== this.#view.width || height !== this.#view.height)) throw new Error('Repair Original dimensions changed.');
 		return Object.freeze({ width, height });
 	}

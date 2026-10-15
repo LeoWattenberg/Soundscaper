@@ -16,15 +16,24 @@ export interface ImageRepairSpotsAuthoringOptionsV1 {
 /** Local Original-space draft; its caller owns source identity and publication. */
 export class ImageRepairSpotsAuthoringV1 extends ImageRepairSpotsAuthoringKernelV1<Readonly<PixelFrameV1>> {
 	constructor(options: Readonly<ImageRepairSpotsAuthoringOptionsV1>) {
-		const signalData = Object.getOwnPropertyDescriptor(options, 'signal');
-		const signal = captureImageRepairSpotsSignalV1(signalData && Object.hasOwn(signalData, 'value') ? signalData.value : undefined);
-		const input = record(options, 'repair authoring options', ['withOriginalFrame', 'develop', 'isCurrent', 'signal'], ['withOriginalFrame', 'develop', 'isCurrent']);
-		if ((Object.hasOwn(input, 'signal') ? field(input, 'signal', 'repair authoring options') : undefined) !== signal) throw new TypeError('Repair authoring cancellation changed during admission.');
-		const read = field(input, 'withOriginalFrame', 'repair authoring options'), current = field(input, 'isCurrent', 'repair authoring options');
-		if (typeof read !== 'function' || typeof current !== 'function') throw new TypeError('Repair authoring requires the selected Original and current entry check.');
-		super({ withOriginalFrame: <Result>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, requestOptions?: Readonly<{ signal?: AbortSignal }>) =>
-			Reflect.apply(read, options, [consume, requestOptions]) as Promise<Result>, frame: frame => frame,
-			develop: field(input, 'develop', 'repair authoring options') as ImageDevelopStateCurrentV1,
-			isCurrent: () => Reflect.apply(current, options, []) === true, ...(signal === undefined ? {} : { signal }) });
+		super(captureOptions(options));
 	}
+}
+/** Explicit Current source policy. The permanent V1 facade remains byte-only. */
+export class ImageRepairSpotsAuthoringCurrentV1 extends ImageRepairSpotsAuthoringKernelV1<Readonly<PixelFrameV1>> {
+	constructor(options: Readonly<ImageRepairSpotsAuthoringOptionsV1>) {
+		super(captureOptions(options), 'current-native');
+	}
+}
+function captureOptions(options: Readonly<ImageRepairSpotsAuthoringOptionsV1>) {
+	const signalData = Object.getOwnPropertyDescriptor(options, 'signal');
+	const signal = captureImageRepairSpotsSignalV1(signalData && Object.hasOwn(signalData, 'value') ? signalData.value : undefined);
+	const input = record(options, 'repair authoring options', ['withOriginalFrame', 'develop', 'isCurrent', 'signal'], ['withOriginalFrame', 'develop', 'isCurrent']);
+	if ((Object.hasOwn(input, 'signal') ? field(input, 'signal', 'repair authoring options') : undefined) !== signal) throw new TypeError('Repair authoring cancellation changed during admission.');
+	const read = field(input, 'withOriginalFrame', 'repair authoring options'), current = field(input, 'isCurrent', 'repair authoring options');
+	if (typeof read !== 'function' || typeof current !== 'function') throw new TypeError('Repair authoring requires the selected Original and current entry check.');
+	return { withOriginalFrame: <Result>(consume: (frame: Readonly<PixelFrameV1>) => Result | Promise<Result>, requestOptions?: Readonly<{ signal?: AbortSignal }>) =>
+		Reflect.apply(read, options, [consume, requestOptions]) as Promise<Result>, frame: (frame: Readonly<PixelFrameV1>) => frame,
+		develop: field(input, 'develop', 'repair authoring options') as ImageDevelopStateCurrentV1,
+		isCurrent: () => Reflect.apply(current, options, []) === true, ...(signal === undefined ? {} : { signal }) };
 }

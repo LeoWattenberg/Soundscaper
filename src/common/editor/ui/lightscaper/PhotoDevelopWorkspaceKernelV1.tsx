@@ -46,6 +46,7 @@ const useDevelopForProfile = usePhotoDevelopForProfileV1 as DevelopHook;
 const PhotoDevelopBrushMaskDialogV1 = lazy(() => import('./PhotoDevelopBrushMaskDialogV1.tsx'));
 const PhotoDevelopMaskManagerV1 = lazy(() => import('./PhotoDevelopMaskManagerV1.tsx'));
 const PhotoDevelopRepairSpotsDialogV1 = lazy(() => import('./PhotoDevelopRepairSpotsDialogV1.tsx'));
+const PhotoDevelopRepairSpotsDialogCurrentV1 = lazy(() => import('./PhotoDevelopRepairSpotsDialogCurrentV1.tsx'));
 
 type Props = Omit<PhotoDevelopWorkspacePropsV2, 'execute' | 'loadProxy'> & {
 	readonly executeLegacyDevelop?: ExecutePhotoDevelopV2;
@@ -56,6 +57,7 @@ type Props = Omit<PhotoDevelopWorkspacePropsV2, 'execute' | 'loadProxy'> & {
 export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	if (props.profile !== 'legacy2' && props.profile !== 'current3') throw new TypeError('Unknown Develop Workspace profile.');
 	const profile = props.profile, legacySettings = profile === 'current3' ? props.legacySettings : props.settings;
+	const RepairSpotsDialog = profile === 'current3' ? PhotoDevelopRepairSpotsDialogCurrentV1 : PhotoDevelopRepairSpotsDialogV1;
 	const currentSettings = profile === 'current3' ? props.settingsCurrent : undefined, settings = currentSettings ?? legacySettings;
 	const currentSettingsOwner = currentSettings?.owner, legacySettingsOwner = legacySettings?.owner;
 	const { beforeOpen, photoId, readPreview, loadProxy, withOriginalFrame, importCubeLut: importMethod, registerRetirement, registerDemandRetirement } = props;
@@ -324,7 +326,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 			{localEntry && document && draft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
 				&& (localEntry.kind === 'repairs'
 					? repairPort?.entry === localEntry
-						? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopRepairSpotsDialogV1 photoId={document.photoId} revision={document.revision}
+						? <Suspense fallback={<p role="status">{messages.working}</p>}><RepairSpotsDialog photoId={document.photoId} revision={document.revision}
 							develop={draft} original={repairPort.port} locale={props.locale} disabled={busy} isCurrent={localCurrent} onApply={value => { applyLocal(value, null); }}
 							onClose={closeLocal} registerRetirement={registerImportRetirement} /></Suspense>
 						: <p role={brushFailed === localEntry ? 'alert' : 'status'}>{messages.working}</p>

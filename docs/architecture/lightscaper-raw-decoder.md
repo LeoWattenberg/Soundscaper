@@ -2,11 +2,13 @@
 
 The Current editor's File → Import workflow accepts DNG and Canon CRW through
 the real LibRaw WASM service. It retains the exact Original and regenerates
-native linear RGBA16 for global development, thumbnails and display. The
+native linear RGBA16 for development, thumbnails and display. The
 existing raster and permanent legacy routes retain their byte contracts.
-Deep geometry, spatial effects, LUTs, local adjustments, repairs, RAW
-export/handoff and wider L7–L9 work remain incomplete. The externally hosted
-decoder and corresponding source still require publication.
+The Current Float32 stack now includes geometry, seven spatial families,
+authenticated LUTs, local adjustments and Original-space Clone/Heal. Expanded
+workflow qualification is in progress. RAW export/handoff and wider L7–L9
+work remain incomplete. The externally hosted decoder and corresponding source
+still require publication.
 
 ## Import, development and custody
 
@@ -29,14 +31,32 @@ Current Original reads verify body length/hash, native geometry and the
 selected Photo revision before and after borrowed delivery. The active
 Current renderer normalizes native words directly into Float32 and applies
 white balance, tone ladder, chroma, black-and-white mix, HSL, point/parametric
-curves and color wheels in authored order. Stage results round in Float32;
-there is no RGBA8 working intermediate. Unsupported deep stages refuse
-explicitly. The [linear working contract](lightscaper-linear-working.md)
-describes the processing boundary.
+curves and color wheels. Original-space Clone/Heal precede geometry; effects
+then run in authored order, including crop/perspective/rotation/flips,
+post-crop vignette, clarity, noise reduction, grain, texture, dehaze,
+detail sharpening and authenticated cube LUTs. Procedural/range/brush graph
+masks sample the incoming native stage and blend in linear RGB; only coverage
+retains byte precision. Selected observed coverage projects through remaining
+geometry for an optional temporary overlay. Stage results round in Float32;
+there is no RGBA8 working intermediate. The
+[linear working contract](lightscaper-linear-working.md) describes the color
+domains, exact retained byte route and numerical limits.
+
+The Current multistage renderer plans its borrowed source, at most two live
+Float32 planes, masks/resources, repair scratch and display work against
+768 MiB before pixels or resource bodies are read. An active LUT adds twice
+its declared byte length and a conservative 128 MiB parser/transient reserve;
+that reserve is not an exact JavaScript heap bound. Oversized combinations
+refuse. The separate original white-balance/tone foundation retains its
+512 MiB limit and strict supported-stage set.
 
 Encoded RGBA8 is created only for disposable thumbnails, histograms and canvas
 presentation. Develop saves scalar recipes beside the unchanged Original.
-RAW-specific export, Frame handoff and culling integration remain pending.
+The opted-in Current Develop Settings repair entry previews native Original
+pixels, applies local Clone/Heal changes to the draft, and leaves durable
+publication to Save. Close joins preview retirement. RAW-specific export,
+Frame handoff and culling integration remain pending, as do highlight recovery,
+wide-gamut output, GPU/native processing, lens profiles and HDR merge.
 
 ## Decode contract
 
@@ -151,3 +171,12 @@ code, the decoder or its worker. All six RAW browser cases pass across those
 two browsers: two complete menu workflows and four decoder-worker cases.
 They prove that workflow under those tested
 conditions, without claiming external publication, camera breadth or L7 exit.
+
+The expanded native develop packet adds focused numerical tests for geometry,
+all seven spatial families, LUT body authentication, incoming-stage masks and
+Clone/Heal, plus scoped retirement and metadata-first budget refusal. Its new
+browser workflow exercises repair, masked global adjustment, sharpening and
+crop/rotation through the real Current editor. Final integration results are
+still being qualified; the historical counts above describe the preceding
+decoder/global-workflow packets. L3–L6 exit gates, L7 completion, L8 and L9
+remain pending.

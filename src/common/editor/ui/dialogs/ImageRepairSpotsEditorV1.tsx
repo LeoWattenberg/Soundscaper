@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { photoDevelopRepairSpotsCopy } from '../../../i18n/lightscaper-develop-repair-spots-copy.ts';
-import { ImageRepairSpotsAuthoringV1, type WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
+import { ImageRepairSpotsAuthoringV1, ImageRepairSpotsAuthoringCurrentV1, type WithImageRepairSpotsOriginalFrameV1 } from '../../controller/shared/image-repair-spots-authoring-v1.ts';
 import { joinPhotoLibraryRetirementV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../../photo-library-develop-full-resolution-port-v1.ts';
 import type { ImageDevelopStateCurrentV1 } from '../../imaging/image-develop-state-current-v1.ts';
@@ -11,6 +11,7 @@ import type { ImageDevelopStateV3 } from '../../imaging/image-develop-state-v3.t
 import { normalizeImageDevelopRepairSpotsV1, type ImageDevelopRepairSpotV1 } from '../../imaging/image-develop-repair-spots-v1.ts';
 import { paintPixelFrameCanvasV1, clearPixelFrameCanvasV1 } from '../../imaging/pixel-frame-canvas-presenter-v1.ts';
 import { withRepairSpotsVisualizePixelFrameV1 } from '../../imaging/pixel-frame-repair-visualize-v1.ts';
+import { withImageRepairSpotsDisplayCurrentV1 } from '../../imaging/image-repair-spots-native-current-v1.ts';
 import '../lightscaper/photo-develop-repair-spots.css';
 
 export interface ImageRepairSpotsEditorPropsV1 {
@@ -22,6 +23,7 @@ export interface ImageRepairSpotsEditorPropsV1 {
 	readonly onApply: (develop: Readonly<ImageDevelopStateV3>) => void;
 	readonly onClose: () => void;
 	readonly registerRetirement?: (retire: () => Promise<void>) => () => void;
+	readonly nativeCurrent?: true;
 }
 type Form = Readonly<{ mode: 'clone' | 'heal'; targetX: string; targetY: string; sourceX: string; sourceY: string; radius: string; feather: string; opacity: string; enabled: boolean }>;
 const defaults = (): Form => ({ mode: 'clone', targetX: '.5', targetY: '.5', sourceX: '.25', sourceY: '.5', radius: '.05', feather: '.5', opacity: '1', enabled: true });
@@ -30,19 +32,20 @@ const defaults = (): Form => ({ mode: 'clone', targetX: '.5', targetY: '.5', sou
  * Scalar draft edits are local; only the current joined Apply publishes to the
  * Workspace, whose existing Save owns catalog history and the native ACK. */
 export default function ImageRepairSpotsEditorV1(props: ImageRepairSpotsEditorPropsV1) {
-	const text = photoDevelopRepairSpotsCopy(props.locale), { withOriginalFrame, develop } = props;
+	const text = photoDevelopRepairSpotsCopy(props.locale), { withOriginalFrame, develop, nativeCurrent } = props;
 	const [form, setForm] = useState<Form>(defaults), [tool, setTool] = useState<'target' | 'source'>('target');
 	const [visualize, setVisualize] = useState(false), [threshold, setThreshold] = useState('.02'), [failure, setFailure] = useState(false), [lifecycle, setLifecycle] = useState(0);
 	const latest = useRef(props); latest.current = props;
 	const live = useRef(true), rendered = useRef(form); rendered.current = form;
 	const activeToken = useRef<object | null>(null), predecessor = useRef<Promise<void>>(Promise.resolve()), canvas = useRef<HTMLCanvasElement>(null);
 	const generation = useMemo(() => {
-		const token = Object.freeze({ withOriginalFrame, develop, lifecycle }), stop = new AbortController();
-		const owner = new ImageRepairSpotsAuthoringV1({ withOriginalFrame, develop, signal: stop.signal,
+		const token = Object.freeze({ withOriginalFrame, develop, nativeCurrent, lifecycle }), stop = new AbortController();
+		const Author = nativeCurrent ? ImageRepairSpotsAuthoringCurrentV1 : ImageRepairSpotsAuthoringV1;
+		const owner = new Author({ withOriginalFrame, develop, signal: stop.signal,
 			isCurrent: () => live.current && activeToken.current === token && latest.current.withOriginalFrame === withOriginalFrame
-				&& latest.current.develop === develop && latest.current.isCurrent() });
+				&& latest.current.develop === develop && latest.current.nativeCurrent === nativeCurrent && latest.current.isCurrent() });
 		return { token, owner, stop, retirement: { begun: false }, opening: { work: Promise.resolve() }, painting: { work: Promise.resolve() as Promise<unknown> } };
-	}, [withOriginalFrame, develop, lifecycle]);
+	}, [withOriginalFrame, develop, nativeCurrent, lifecycle]);
 	activeToken.current = generation.token;
 	const { owner } = generation;
 	const [state, setState] = useState(() => ({ owner, value: owner.snapshot() })), [painted, setPainted] = useState<object | null>(null);
@@ -100,13 +103,14 @@ export default function ImageRepairSpotsEditorV1(props: ImageRepairSpotsEditorPr
 					if (!ownerCurrent()) return;
 					paintPixelFrameCanvasV1(target, frame, { limits: PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source, signal: generation.stop.signal });
 				};
+				if (nativeCurrent) return withImageRepairSpotsDisplayCurrentV1({ frame: originalFrame, visualize, threshold: edgeThreshold, signal: generation.stop.signal }, paint);
 				if (visualize) await withRepairSpotsVisualizePixelFrameV1({ frame: originalFrame, threshold: edgeThreshold, signal: generation.stop.signal }, paint,
 					{ limits: PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1.source });
 				else paint(originalFrame);
 			});
 		}); generation.painting.work = work;
 		void work.then(() => { if (ownerCurrent()) setPainted(generation.token); }, () => { if (ownerCurrent()) setFailure(true); });
-	}, [generation, owner, ownerCurrent, snapshot.ready, snapshot.closed, visualize, threshold]);
+	}, [generation, owner, ownerCurrent, snapshot.ready, snapshot.closed, visualize, threshold, nativeCurrent]);
 	const selected = snapshot.repairs.spots.find(spot => spot.id === snapshot.selectedId), disabled = !current() || !snapshot.ready || snapshot.busy;
 	const sync = () => { const next = owner.snapshot().repairs.spots.find(spot => spot.id === owner.snapshot().selectedId); setForm(next ? spotForm(next) : defaults()); };
 	const attempt = (action: () => void) => { if (!interactive()) return; try { action(); sync(); setFailure(false); } catch { if (current()) setFailure(true); } };
