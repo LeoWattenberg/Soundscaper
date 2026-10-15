@@ -11,7 +11,7 @@ export interface MotionscaperLinkSenderState {
 /** Observe explicit saved heads; retain one in-flight offer and coalesce subsequent saves to the newest head. */
 export function createMotionscaperLinkSender(options: Readonly<{
 	session: MotionscaperDocumentSession; store: MotionscaperProjectStore; senderOrigin: string; receiverOrigin: string;
-	locale?: 'en' | 'de'; openConnection?: (options: MotionLinkSenderConnectionOptions) => Promise<Channel>;
+	locale?: string; openConnection?: (options: MotionLinkSenderConnectionOptions) => Promise<Channel>;
 }>) {
 	let state: MotionscaperLinkSenderState = Object.freeze({ status: 'idle', projectId: null, compositionId: null, lastDigest: null, error: null });
 	let channel: Channel | null = null, lifetime: AbortController | null = null, generation = 0, pending: string | null = null;
