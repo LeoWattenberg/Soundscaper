@@ -239,7 +239,7 @@ function preflight(corsOrigin: string | null, methods: readonly string[]): Respo
 	headers.set('Access-Control-Allow-Methods', [...methods, 'OPTIONS'].join(', '));
 	headers.set(
 		'Access-Control-Allow-Headers',
-		'Authorization, Content-Type, Range, X-Audiocom-Content-Length, X-Audiocom-Filename',
+		'Authorization, Content-Type, Range, X-Audiocom-Content-Length, X-Audiocom-Filename, X-Audiocom-Api-Origin',
 	);
 	headers.set('Access-Control-Max-Age', '86400');
 	headers.set('Cache-Control', 'no-store');

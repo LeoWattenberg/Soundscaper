@@ -63,13 +63,18 @@ test('Audiocity performs provider-pinned PKCE OAuth and rejects sessions after a
 		assert.equal(calls, 0);
 	}
 });
-test('Audiocity callback refuses to exchange a code under a changed provider configuration', async () => {
+test('Audiocity callback exchanges only at its persisted issuer after deployment configuration changes', async () => {
 	const repository = new MemoryAudiocomOAuthRepository();
 	const attempt = await start(repository);
 	let calls = 0;
-	const callback = await handleAudiocomOAuthCallbackRequest(context(request(`oauth/callback?code=code&state=${new URL(attempt.authorizeUrl).searchParams.get('state') ?? ''}`), { ...ENV, AUDIOCOM_API_ORIGIN: 'http://127.0.0.1:8099' }), { repository, now: () => NOW, fetchImpl: () => { calls++; return Promise.resolve(json({})); } });
-	assert.equal(callback.status, 410);
-	assert.equal(calls, 0);
+	const callback = await handleAudiocomOAuthCallbackRequest(context(request(`oauth/callback?code=code&state=${new URL(attempt.authorizeUrl).searchParams.get('state') ?? ''}`), { ...ENV, AUDIOCOM_API_ORIGIN: 'http://127.0.0.1:8099' }), { repository, now: () => NOW, fetchImpl: (input, init) => {
+		calls++;
+		assert.equal(String(input), `${ORIGIN}/auth/token`);
+		assert.equal(new URLSearchParams(String(init?.body)).get('client_id'), 'registered-client');
+		return Promise.resolve(json({ token_type: 'Bearer', scope: 'public projects', access_token: 'access', refresh_token: 'refresh', expires_in: 3600 }));
+	} });
+	assert.equal(callback.status, 200);
+	assert.equal(calls, 1);
 });
 test('Audiocity usage discovers archive capabilities and limits only at the configured origin', async () => {
 	const response = await handleAudiocomUsageRequest(context(request('usage')), { fetchImpl: (input, init) => {

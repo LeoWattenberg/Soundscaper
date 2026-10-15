@@ -4,6 +4,7 @@ import { accessTokenForSession, authorizeAudiocomSession, type OAuthHandlerDepen
 import { handleOAuthEndpoint, oauthJson, oauthResponseHeaders, OAuthHttpError, readUpstreamJson, type AudiocomOAuthFunctionContext } from './oauth-http.ts';
 import { exactUploadStream, limitedPreviewStream } from './streams.ts';
 import { providerConfiguration } from './provider-config.ts';
+import { selectedProviderContext } from './provider-selection.ts';
 import { discoverAudiocityCapabilities } from './provider-discovery.ts';
 import { providerFetch, checkResponse } from './provider-fetch.ts';
 export { providerFetch, checkResponse } from './provider-fetch.ts';
@@ -25,8 +26,9 @@ async function listRequest(context: AudiocomOAuthFunctionContext, dependencies: 
 		const page = Number(pageValue);
 		const search = query.get('q')?.trim() ?? '';
 		if (search.length > 256) throw new OAuthHttpError(400, 'invalid_request', 'The search query is too long.');
-		const provider = providerConfiguration(context.env);
 		const { accessToken, authorized } = await accessTokenForSession(context, dependencies);
+		context = authorized.context;
+		const provider = providerConfiguration(context.env);
 		const upstream = new URL(library ? '/v1/audio/list' : '/v1/search', provider.apiOrigin);
 		upstream.searchParams.set('page', pageValue);
 		if (library) upstream.searchParams.set('per-page', '10');
@@ -47,8 +49,9 @@ async function listRequest(context: AudiocomOAuthFunctionContext, dependencies: 
 export function handleAudiocomUploadRequest(context: AudiocomOAuthFunctionContext, dependencies: OAuthHandlerDependencies = {}): Promise<Response> {
 	return handleOAuthEndpoint(context, ['POST'], async admission => {
 		const input = parseUploadInput(context.request);
-		const provider = providerConfiguration(context.env);
 		const { accessToken, authorized } = await accessTokenForSession(context, dependencies);
+		context = authorized.context;
+		const provider = providerConfiguration(context.env);
 		const created = await providerFetch(context, dependencies, new URL('/v1/audio/create', provider.apiOrigin), {
 			method: 'POST', headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(input),
 		});
@@ -94,6 +97,7 @@ export function handleAudiocomUploadRequest(context: AudiocomOAuthFunctionContex
 }
 export function handleAudiocomUsageRequest(context: AudiocomOAuthFunctionContext, dependencies: OAuthHandlerDependencies = {}): Promise<Response> {
 	return handleOAuthEndpoint(context, ['GET', 'HEAD'], async admission => {
+		context = selectedProviderContext(context);
 		const provider = providerConfiguration(context.env);
 		const capabilities = await discoverAudiocityCapabilities(context, dependencies);
 		return oauthJson({ data: {
@@ -107,11 +111,12 @@ export function handleAudiocomPreviewRequest(context: AudiocomOAuthFunctionConte
 	return handleOAuthEndpoint(context, ['GET', 'HEAD'], async admission => {
 		const query = new URL(context.request.url).searchParams;
 		if (query.size !== 1 || !query.has('url')) throw new OAuthHttpError(400, 'invalid_request', 'Invalid audio.com preview.');
+		const authorized = await authorizeAudiocomSession(context, dependencies);
+		context = authorized.context;
 		const provider = providerConfiguration(context.env);
 		let upstream: URL;
 		try { upstream = trustedAssetUrl(query.get('url'), provider); }
 		catch { throw new OAuthHttpError(400, 'invalid_request', 'Invalid audio.com preview URL.'); }
-		await authorizeAudiocomSession(context, dependencies);
 		const headers = new Headers();
 		const range = context.request.headers.get('Range');
 		if (range !== null) {

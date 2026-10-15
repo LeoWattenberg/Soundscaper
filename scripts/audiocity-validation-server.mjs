@@ -62,15 +62,6 @@ try {
 	startupAbort.signal.throwIfAborted();
 	await provider.app.listen({ host: '127.0.0.1', port: providerPort });
 	startupAbort.signal.throwIfAborted();
-	const registration = await fetch(`${providerOrigin}/auth/client`, {
-		method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: startupAbort.signal,
-		body: JSON.stringify({ client_name: 'Soundscaper integration validation',
-			redirect_uris: [`${editorOrigin}/api/audiocom/oauth/callback`], token_endpoint_auth_method: 'none' }),
-	});
-	if (registration.status !== 201) throw new Error('Could not register the disposable OAuth client.');
-	const client = await registration.json();
-	if (typeof client.client_id !== 'string') throw new Error('Invalid OAuth registration response.');
-	startupAbort.signal.throwIfAborted();
 	const config = {
 		name: 'soundscaper-audiocity-validation', pages_build_output_dir: resolve(root, 'dist'), compatibility_date: '2026-07-14',
 		d1_databases: [{ binding: 'FREESOUND_OAUTH_DB', database_name: 'audiocity-validation', database_id: 'FREESOUND_OAUTH_DB',
@@ -81,7 +72,6 @@ try {
 	await writeFile(resolve(temporary, 'wrangler.json'), JSON.stringify(config));
 	await symlink(resolve(root, 'functions'), resolve(temporary, 'functions'), 'dir');
 	const vars = {
-		AUDIOCOM_PROVIDER: 'audiocity', AUDIOCOM_API_ORIGIN: providerOrigin, AUDIOCOM_CLIENT_ID: client.client_id,
 		AUDIOCOM_OAUTH_MASTER_KEY: `v1:${randomBytes(32).toString('base64url')}`,
 		AUDIOCOM_LOCAL_DEVELOPMENT: '1', AUDIOCOM_OAUTH_REDIRECT_URI: `${editorOrigin}/api/audiocom/oauth/callback`,
 	};

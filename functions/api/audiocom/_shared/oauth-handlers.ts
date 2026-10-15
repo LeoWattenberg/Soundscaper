@@ -33,6 +33,7 @@ import {
 
 import { providerConfiguration } from './provider-config.ts';
 import { oauthRedirectUri } from './oauth-application.ts';
+import { selectedProviderContext, boundProviderContext, contextWithProviderBinding, registerSelectedProvider } from './provider-selection.ts';
 
 export interface OAuthHandlerDependencies {
 	readonly repository?: AudiocomOAuthRepository;
@@ -42,6 +43,7 @@ export interface OAuthHandlerDependencies {
 }
 
 export interface AuthorizedAudiocomSession {
+	readonly context: AudiocomOAuthFunctionContext;
 	readonly repository: AudiocomOAuthRepository;
 	readonly session: OAuthSessionRecord;
 	readonly tokenHash: string;
@@ -58,11 +60,15 @@ export async function handleAudiocomOAuthStartRequest(
 	dependencies: OAuthHandlerDependencies = {},
 ): Promise<Response> {
 	return handleOAuthEndpoint(context, ['POST'], async (admission) => {
+		context = selectedProviderContext(context);
 		const redirectUri = oauthRedirectUri(context);
 		const input = parseOAuthStartInput(await readJsonBody(context.request));
 		assertClientOrigin(input.client, admission.corsOrigin);
-		const clientId = configuredSecret(context.env.AUDIOCOM_CLIENT_ID, 'OAuth client');
 		const repository = repositoryFor(context, dependencies);
+		const masterKey = oauthMasterKey(context);
+		const provider = await registerSelectedProvider(context, dependencies);
+		context = contextWithProviderBinding(context, provider);
+		const clientId = provider.clientId;
 		const now = nowFrom(dependencies);
 		await repository.cleanupExpired(now);
 		const attemptId = `${await providerAttemptPrefix(context)}${randomCapability()}`;
@@ -72,8 +78,9 @@ export async function handleAudiocomOAuthStartRequest(
 		const expiresAt = now + ATTEMPT_TTL_MS;
 		await repository.createAttempt({
 			id: attemptId,
+			provider,
 			stateHash: await hashCapability(state),
-			pkceVerifierCiphertext: await encryptOAuthSecret(verifier, oauthMasterKey(context), `audiocom-pkce:${attemptId}`),
+			pkceVerifierCiphertext: await encryptOAuthSecret(verifier, masterKey, `audiocom-pkce:${attemptId}`),
 			handoffHash: await hashCapability(handoffToken),
 			clientKind: input.client,
 			status: 'pending',
@@ -128,9 +135,11 @@ export async function handleAudiocomOAuthCallbackRequest(
 		const repository = repositoryFor(context, dependencies);
 		const now = nowFrom(dependencies);
 		const attempt = await repository.findAttemptByStateHash(await hashCapability(state));
-		if (attempt === null || !await attemptMatchesProvider(context, attempt.id) || attempt.expiresAt <= now) {
+		if (attempt === null || attempt.expiresAt <= now) {
 			throw new OAuthHttpError(410, 'authorization_expired', 'This Audiocom connection attempt has expired.');
 		}
+		if (attempt.provider) context = contextWithProviderBinding(context, attempt.provider);
+		if (!await attemptMatchesProvider(context, attempt.id)) throw new OAuthHttpError(410, 'authorization_expired', 'This connection attempt has expired.');
 		if (attempt.status !== 'pending') {
 			throw new OAuthHttpError(409, 'authorization_used', 'This Audiocom authorization response was already used.');
 		}
@@ -152,6 +161,7 @@ export async function handleAudiocomOAuthCallbackRequest(
 			const grantId = grantIdentifier(user.id);
 			const completed = await repository.completeAttempt(attempt.id, {
 				id: grantId,
+				provider: attempt.provider,
 				user,
 				accessTokenCiphertext: await encryptOAuthSecret(pair.accessToken, masterKey, accessAad(grantId)),
 				refreshTokenCiphertext: await encryptOAuthSecret(pair.refreshToken, masterKey, refreshAad(grantId)),
@@ -174,6 +184,7 @@ export async function handleAudiocomOAuthPollRequest(
 	dependencies: OAuthHandlerDependencies = {},
 ): Promise<Response> {
 	return handleOAuthEndpoint(context, ['POST'], async (admission) => {
+		context = selectedProviderContext(context);
 		const input = parseOAuthPollInput(await readJsonBody(context.request));
 		const repository = repositoryFor(context, dependencies);
 		const now = nowFrom(dependencies);
@@ -254,6 +265,7 @@ export async function handleAudiocomOAuthSessionRequest(
 			return oauthJson({ data: { connected: true } }, 200, admission);
 		} catch (error) {
 			if (error instanceof OAuthHttpError && error.status === 401) {
+				await repositoryFor(context, dependencies).deleteSessionAndOrphanGrant(await hashCapability(credentials.token), nowFrom(dependencies));
 				return oauthJson({ data: { connected: false } }, 200, admission, { 'Set-Cookie': expiredSessionCookie() });
 			}
 			throw error;
@@ -265,16 +277,19 @@ export async function authorizeAudiocomSession(
 	context: AudiocomOAuthFunctionContext,
 	dependencies: OAuthHandlerDependencies = {},
 ): Promise<AuthorizedAudiocomSession> {
+	context = selectedProviderContext(context);
 	const credentials = requestSessionToken(context.request);
 	const tokenHash = await hashCapability(credentials.token);
 	const repository = repositoryFor(context, dependencies);
 	const now = nowFrom(dependencies);
 	const session = await repository.findSession(tokenHash, now);
-	if (session === null || !await attemptMatchesProvider(context, session.grant.user.id) || (credentials.transport === 'cookie') !== (session.clientKind === 'web')) {
+	if (session === null || (credentials.transport === 'cookie') !== (session.clientKind === 'web')) {
 		throw new OAuthHttpError(401, 'authentication_required', 'Connect to Audiocom to continue.');
 	}
+	context = boundProviderContext(context, session.grant.provider);
+	if (!await attemptMatchesProvider(context, session.grant.user.id)) throw new OAuthHttpError(401, 'authentication_required', 'Connect to the selected audio server to continue.');
 	await repository.touchSession(tokenHash, now, now + SESSION_TTL_MS);
-	return { repository, session, tokenHash, masterKey: oauthMasterKey(context) };
+	return { context, repository, session, tokenHash, masterKey: oauthMasterKey(context) };
 }
 
 export async function accessTokenForSession(
@@ -282,6 +297,7 @@ export async function accessTokenForSession(
 	dependencies: OAuthHandlerDependencies = {},
 ): Promise<Readonly<{ accessToken: string; authorized: AuthorizedAudiocomSession }>> {
 	const authorized = await authorizeAudiocomSession(context, dependencies);
+	context = authorized.context;
 	const now = nowFrom(dependencies);
 	let grant = authorized.session.grant;
 	if (grant.accessExpiresAt > now + REFRESH_MARGIN_MS) {

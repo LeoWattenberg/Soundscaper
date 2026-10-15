@@ -2,6 +2,7 @@
 import { MAX_UPLOAD_BYTES, record } from './contracts.ts';
 import { accessTokenForSession, type OAuthHandlerDependencies } from './oauth-handlers.ts';
 import { handleOAuthEndpoint, oauthJson, oauthResponseHeaders, OAuthHttpError, readUpstreamJson, type AudiocomOAuthFunctionContext } from './oauth-http.ts';
+import { selectedProviderContext } from './provider-selection.ts';
 import { providerConfiguration, trustedProviderHookUrl, trustedProviderMediaUrl, trustedProviderUploadUrl } from './provider-config.ts';
 import { discoverAudiocityCapabilities } from './provider-discovery.ts';
 import { checkResponse, providerFetch } from './provider-fetch.ts';
@@ -10,10 +11,12 @@ import { exactUploadStream } from './streams.ts';
 
 export function handleAudiocomProjectsRequest(context: AudiocomOAuthFunctionContext, dependencies: OAuthHandlerDependencies = {}): Promise<Response> {
 	return handleOAuthEndpoint(context, ['GET', 'HEAD', 'POST'], async admission => {
+		context = selectedProviderContext(context);
 		const provider = providerConfiguration(context.env);
 		if (provider.kind !== 'audiocity') throw new OAuthHttpError(404, 'not_found', 'Project archive storage is unavailable.');
 		const input = context.request.method === 'POST' ? archiveUploadInput(context.request) : null;
 		const { accessToken, authorized } = await accessTokenForSession(context, dependencies);
+		context = authorized.context;
 		const capabilities = await discoverAudiocityCapabilities(context, dependencies);
 		if (!capabilities.projectFormats.length || (input && !capabilities.projectFormats.includes(input.format))) throw new OAuthHttpError(404, 'not_found', 'This server does not support project archives.');
 		const control = async (path: string, init: RequestInit = {}): Promise<unknown> => {
@@ -65,6 +68,7 @@ export function handleAudiocomProjectsRequest(context: AudiocomOAuthFunctionCont
 
 export function handleAudiocomProjectDownloadRequest(context: AudiocomOAuthFunctionContext, dependencies: OAuthHandlerDependencies = {}): Promise<Response> {
 	return handleOAuthEndpoint(context, ['GET', 'HEAD'], async admission => {
+		context = selectedProviderContext(context);
 		const provider = providerConfiguration(context.env);
 		if (provider.kind !== 'audiocity') throw new OAuthHttpError(404, 'not_found', 'Project archive storage is unavailable.');
 		const query = new URL(context.request.url).searchParams;
@@ -73,6 +77,7 @@ export function handleAudiocomProjectDownloadRequest(context: AudiocomOAuthFunct
 		try { id = projectId(query.get('id')); snapshotId = projectId(query.get('snapshotId')); }
 		catch { throw new OAuthHttpError(400, 'invalid_request', 'Invalid project identifier.'); }
 		const { accessToken, authorized } = await accessTokenForSession(context, dependencies);
+		context = authorized.context;
 		const capabilities = await discoverAudiocityCapabilities(context, dependencies);
 		if (!capabilities.projectFormats.length) throw new OAuthHttpError(404, 'not_found', 'Project archives are unavailable.');
 		const metadata = async (path: string): Promise<unknown> => {
