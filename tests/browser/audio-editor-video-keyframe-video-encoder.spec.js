@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect } from '@playwright/test';
+import { Buffer } from 'node:buffer';
+import { avc64SrgbColors, observeAvc64Colors } from './helpers/video-file-color.ts';
 import { test } from './audio-editor-test-fixtures.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +21,7 @@ const NOBLE_HASH_FILES = ['sha2.js', '_md.js', '_u64.js', 'utils.js'];
 test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory', async ({
 	browserName,
 	page,
-}) => {
+}, testInfo) => {
 	test.skip(browserName !== 'chromium', 'The production WebCodecs witness needs Chromium.');
 	test.setTimeout(120_000);
 	const requestedUrls = [];
@@ -138,6 +140,7 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 			input.dispose();
 		}
 		return {
+			encodedFile: [...encoded.bytes],
 			byteLength: encoded.byteLength,
 			firstBox: [...encoded.bytes.subarray(0, 12)],
 			format: encoded.format,
@@ -267,6 +270,9 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 			};
 		}
 	}, ROOT);
+	const encodedFile = Buffer.from(result.encodedFile);
+	await testInfo.attach('encoded-mp4', { body: encodedFile, contentType: 'video/mp4' });
+	await testInfo.attach('original-canvas-readback', { body: JSON.stringify(result.container), contentType: 'application/json' });
 
 	expect(requestedUrls.filter(isFfmpegRuntimeRequest)).toEqual([]);
 	expect(result.crossOriginIsolated).toBe(false);
@@ -300,6 +306,16 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 	expect(result.container.videoPackets).toMatchObject({ count: 2, firstType: 'key' });
 	expect(result.container.videoPackets.byteLength).toBeGreaterThan(0);
 	expect(result.container.videoPackets.lastEnd).toBe(1);
+	/** @type {import('./helpers/video-file-color.ts').Avc64PixelPlan} */
+	const pixelPlan = { mode: 'all-two-at-2fps', points: [{ x: 16, y: 24 }, { x: 16, y: 40 }] };
+	const observation = await observeAvc64Colors(page, encodedFile, pixelPlan);
+	await testInfo.attach('native-file-color-observation', { body: JSON.stringify(observation), contentType: 'application/json' });
+	const verified = avc64SrgbColors(observation, pixelPlan);
+	testInfo.annotations.push({ type: 'video-file-color', description: verified.classifications.join(', ') });
+	expect(result.container.pixels).toEqual(observation.frames.map(frame => ({ top: frame.pixels[0].control, bottom: frame.pixels[1].control })));
+	const filePixels = verified.colors.map(([top, bottom]) => ({ top, bottom }));
+	// Compare the authored sRGB oracle to independently reconstructed file sRGB.
+	// Raw Canvas values remain in the report and must equal the same-plane control.
 	// Lossy H.264 may shift channels slightly, but it must preserve the fixture's
 	// red upper half, blue lower half, and 75% opacity on the second frame.
 	const expectedPixels = [
@@ -307,13 +323,15 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 		{ top: [191, 48, 0, 255], bottom: [0, 48, 191, 255] },
 	];
 	expect(result.container.pixels).toHaveLength(expectedPixels.length);
-	for (const [index, frame] of result.container.pixels.entries()) {
+	expect(filePixels).toHaveLength(expectedPixels.length);
+	for (const [index, frame] of filePixels.entries()) {
 		for (const region of ['top', 'bottom']) {
 			for (let channel = 0; channel < 3; channel++) {
 				expect(Math.abs(frame[region][channel] - expectedPixels[index][region][channel]),
 					`frame ${index} ${region} RGB channel ${channel}`).toBeLessThanOrEqual(20);
 			}
 			expect(frame[region][3]).toBe(255);
+			expect(result.container.pixels[index][region][3]).toBe(255);
 		}
 	}
 });

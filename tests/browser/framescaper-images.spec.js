@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { Buffer } from 'node:buffer';
+import { avc64SrgbColors, observeAvc64Colors } from './helpers/video-file-color.ts';
 import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
@@ -24,7 +25,7 @@ const PNG = Buffer.from(
 registerAudioEditorHooks();
 
 test.describe('Framescaper selected timeline images', () => {
-	test('adds, undoes, redoes, reopens, and exports an image from Generate', async ({ browserName, page }) => {
+	test('adds, undoes, redoes, reopens, and exports an image from Generate', async ({ browserName, page }, testInfo) => {
 		test.skip(
 			browserName !== 'chromium',
 			'The maintained browser MP4 publication route requires Chromium shared-memory FFmpeg.',
@@ -130,14 +131,27 @@ test.describe('Framescaper selected timeline images', () => {
 				centerPixel,
 			};
 		}, encoded);
+		const encodedFile = Buffer.from(encoded, 'base64');
+		await testInfo.attach('encoded-mp4', { body: encodedFile, contentType: 'video/mp4' });
+		await testInfo.attach('original-html-video-readback', { body: JSON.stringify(witness), contentType: 'application/json' });
 		expect(witness.byteLength).toBeGreaterThan(32);
 		expect(witness.box).toBe('ftyp');
 		expect(witness.dimensions).toEqual([64, 64]);
+		/** @type {import('./helpers/video-file-color.ts').Avc64PixelPlan} */
+		const pixelPlan = { mode: 'first-at-1fps', points: [{ x: 32, y: 32 }] };
+		const observation = await observeAvc64Colors(page, encodedFile, pixelPlan);
+		await testInfo.attach('native-file-color-observation', { body: JSON.stringify(observation), contentType: 'application/json' });
+		const verified = avc64SrgbColors(observation, pixelPlan);
+		testInfo.annotations.push({ type: 'video-file-color', description: verified.classifications.join(', ') });
+		expect(witness.centerPixel).toEqual(observation.frames[0].pixels[0].control);
+		const fileCenter = verified.colors[0][0];
+		// First-frame file sRGB fidelity and measured HTML presentation are separate.
 		// H.264 is lossy; each decoded channel should stay near the fixture's #ff2000.
 		for (const [channel, expected] of [255, 32, 0].entries()) {
-			expect(Math.abs(witness.centerPixel[channel] - expected)).toBeLessThanOrEqual(12);
+			expect(Math.abs(fileCenter[channel] - expected)).toBeLessThanOrEqual(12);
 		}
 		expect(witness.centerPixel[3]).toBe(255);
+		expect(fileCenter[3]).toBe(255);
 		expect(clientErrors).toEqual([]);
 	});
 });
