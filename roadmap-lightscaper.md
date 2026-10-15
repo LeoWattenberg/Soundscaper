@@ -825,12 +825,21 @@ there.
   English/German Chromium/Firefox workflows retain native repaired Photo
   preview, brush editing, saved history and reload. The Lightscaper build keeps
   its 52-request product graph and the existing chunk ceilings.
-- **Web Core — Planned:** raw decode through a licensed WASM decoder
-  (candidate: LibRaw, subject to the licensing review) as a pinned runtime
-  asset outside the Pages bundle on the FFmpeg-runtime pattern — pinned
-  hashes, corresponding-source archive, notices — with demosaic, neutral
-  camera baseline rendering, highlight recovery, and an embedded-preview fast
-  path for culling before full decode.
+- **Web Core — In progress:** the
+  [RAW decoder foundation](docs/architecture/lightscaper-raw-decoder.md) builds
+  pinned LibRaw 0.22.2 under its LGPL-2.1 option into an 876,336-byte WASM
+  artifact outside the Pages bundle. The source bundle reproduces that exact
+  artifact. Bounded private workers provide actual linear RGB16 demosaic and
+  separate embedded-preview extraction, retire native heaps before consumption,
+  and wipe scoped output. Focused tests decode an owned Bayer DNG with genuine
+  greater-than-byte precision/orientation and a digest-pinned CC0 Canon CRW
+  with its real embedded JPEG. The fixed neutral baseline is native linear
+  sRGB16; it does not claim unclipped camera HDR or broad camera support.
+  RAW import UI, durable Original/Frame integration, highlight recovery,
+  culling integration and external runtime/source publication remain pending.
+  The foundation passes 31 focused Node cases and four Chromium/Firefox
+  worker cases; the selected Lightscaper regression passes 2,807 cases in
+  315 files. L7's remaining contracts and exit gates remain incomplete.
 - **Web Enhanced — Planned:** GPU evaluation of the develop stack where
   capability-detected, with the CPU path as the conformance oracle under
   recorded tolerance budgets.

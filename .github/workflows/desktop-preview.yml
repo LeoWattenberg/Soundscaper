@@ -211,6 +211,10 @@ jobs:
         if: matrix.shard == 'framescaper'
         run: node scripts/ci-provision-framescaper-boost.mjs
 
+      - name: Provision pinned Lightscaper RAW fixtures
+        if: matrix.shard == 'lightscaper'
+        run: node scripts/provision-lightscaper-raw-fixtures.mjs
+
       - name: Restore Electron binary for the desktop protocol test
         if: matrix.shard == 'common-2'
         run: |

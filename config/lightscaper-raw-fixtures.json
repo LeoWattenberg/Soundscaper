@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"fixtures": [{
+		"id": "canon-d60-lens-cap",
+		"fileName": "D60.CRW",
+		"url": "https://discuss.pixls.us/uploads/short-url/w5IyfoOC7uTSlUaUkG14hMkSmYp.CRW",
+		"sha256": "168d5d5cad67364a0ee01fa2e0d1847f3ef9c94e5593a4699bb5eb7743fa4be2",
+		"byteLength": 4363206,
+		"license": "CC0-1.0",
+		"author": "Peter (PIXLS.US)",
+		"licenseEvidence": "https://discuss.pixls.us/t/measure-black-and-white-levels/32082/11",
+		"purpose": "Actual proprietary CRW unpack, black-level and embedded-preview qualification. Lens-cap capture; no scene/color-breadth claim."
+	}]
+}
