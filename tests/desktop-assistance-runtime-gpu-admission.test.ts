@@ -34,7 +34,7 @@ function manifest(familyId: AssistanceRuntimeFamilyId, targetId: string, executi
 test('GPU capabilities remain bound to the reviewed family and target with a CPU fallback', () => {
 	for (const [familyId, targetId, providers] of [
 		['onnxruntime-node', 'mac-arm64', ['coreml', 'webgpu', 'cpu']],
-		['onnxruntime-node', 'win-arm64', ['dml', 'webgpu', 'cpu']],
+		['onnxruntime-node', 'win-arm64', ['webgpu', 'cpu']],
 		['onnxruntime-node', 'linux-x64', ['webgpu', 'cpu']],
 		['whisper-cpp', 'mac-arm64', ['metal', 'cpu']],
 		['llama-cpp', 'mac-arm64', ['metal', 'cpu']],
@@ -47,6 +47,7 @@ test('GPU capabilities remain bound to the reviewed family and target with a CPU
 		['onnxruntime-node', 'linux-arm64', ['webgpu', 'cpu']],
 		['onnxruntime-node', 'linux-x64', ['coreml', 'cpu']],
 		['onnxruntime-node', 'mac-arm64', ['dml', 'cpu']],
+		['onnxruntime-node', 'win-x64', ['dml', 'cpu']],
 		['whisper-cpp', 'linux-x64', ['metal', 'cpu']],
 		['llama-cpp', 'mac-arm64', ['webgpu', 'cpu']],
 		['llama-cpp', 'mac-arm64', ['metal']],
@@ -88,16 +89,16 @@ test('legacy CPU archives cannot acquire GPU capabilities when their manifest om
 test('process descriptors preserve authenticated GPU capabilities and reject target spoofing', () => {
 	const descriptor = {
 		familyId: 'onnxruntime-node', runtimeVersion: '1.29.0', target: 'win-x64',
-		executionProvider: 'cpu', executionProviders: ['dml', 'webgpu', 'cpu'],
+		executionProvider: 'cpu', executionProviders: ['webgpu', 'cpu'],
 		entrypoint: '/runtime/index.js',
 		files: [{ path: '/runtime/index.js', relativePath: 'index.js',
 			byteLength: BYTES.byteLength, sha256: SHA, executable: false }],
 	};
 	assert.deepEqual(validateAssistanceRuntimeFamilyDescriptorV1(descriptor), descriptor);
 	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({
-		...descriptor, target: 'linux-x64',
+		...descriptor, target: 'linux-arm64',
 	}), /provider/iu);
 	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({
-		...descriptor, executionProviders: ['dml'],
+		...descriptor, executionProviders: ['webgpu'],
 	}), /provider/iu);
 });

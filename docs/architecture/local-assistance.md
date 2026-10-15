@@ -42,7 +42,7 @@ archives also authenticate optional GPU providers per target:
 
 | Engine | macOS ARM64 | Windows x64 / ARM64 | Linux x64 | Linux ARM64 |
 | --- | --- | --- | --- | --- |
-| ONNX Runtime | CoreML, native WebGPU | DirectML, native WebGPU | Native WebGPU | CPU |
+| ONNX Runtime | CoreML, native WebGPU | Native WebGPU | Native WebGPU | CPU |
 | whisper.cpp / llama.cpp | Embedded Metal | CPU | CPU | CPU |
 | Sherpa ONNX | CPU | CPU | CPU | CPU |
 
@@ -52,7 +52,7 @@ worker; this does not enable browser inference. Provider initialization or
 device-execution failures can fall back to CPU within the same authenticated
 runtime. Cancellation, invalid inputs, invalid outputs, and authentication
 failures do not permit retries. Older archives without provider metadata remain
-CPU-only, even on a GPU-capable machine. CUDA and Vulkan are not packaged.
+CPU-only, even on a GPU-capable machine. DirectML, CUDA, and Vulkan are not packaged.
 
 Accelerated provider metadata describes compiled support, not proof that a
 particular machine has a usable device or enough GPU memory. GPU behavior and

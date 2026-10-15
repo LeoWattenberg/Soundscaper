@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /** Optional acceleration capabilities authenticated with each runtime target. */
-export type AssistanceRuntimeExecutionProvider = 'cpu' | 'metal' | 'coreml' | 'dml' | 'webgpu';
+export type AssistanceRuntimeExecutionProvider = 'cpu' | 'metal' | 'coreml' | 'webgpu';
 
 export function validateAssistanceExecutionProviders(
 	value: unknown,
@@ -20,7 +20,7 @@ export function validateAssistanceExecutionProviders(
 function allowedProviders(familyId: string, targetId: string): readonly string[] {
 	if (familyId === 'onnxruntime-node') {
 		if (targetId === 'mac-arm64') return ['cpu', 'coreml', 'webgpu'];
-		if (targetId === 'win-x64' || targetId === 'win-arm64') return ['cpu', 'dml', 'webgpu'];
+		if (targetId === 'win-x64' || targetId === 'win-arm64') return ['cpu', 'webgpu'];
 		return targetId === 'linux-x64' ? ['cpu', 'webgpu'] : ['cpu'];
 	}
 	if (familyId === 'whisper-cpp' || familyId === 'llama-cpp') {

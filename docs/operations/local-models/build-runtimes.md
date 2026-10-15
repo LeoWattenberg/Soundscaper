@@ -51,10 +51,11 @@ No model weights are bundled or downloaded during ordinary application builds.
 ONNX Runtime comes from the exact npm archives and file hashes in
 `config/assistance-onnx-runtime-payloads.json`. Packaging extracts the selected
 platform's reviewed CPU and GPU files without executing npm install scripts or
-downloading CUDA. Windows also includes the digest-pinned DirectML and shader
-compiler libraries from that same archive. The target manifest declares CoreML
-and native WebGPU on macOS ARM64, DirectML and native WebGPU on Windows, native
-WebGPU on Linux x64, and CPU on Linux ARM64. Workers try these authenticated
+downloading CUDA. Windows also includes the digest-pinned DXC shader compiler
+libraries from that same archive, with their exact upstream license and
+third-party notices. DirectML's separately licensed redistributable is omitted.
+The target manifest declares CoreML and native WebGPU on macOS ARM64, native
+WebGPU on Windows and Linux x64, and CPU on Linux ARM64. Workers try these authenticated
 providers automatically for existing menu-invoked operations and retain CPU
 fallback when a GPU backend cannot initialize or execute the model.
 The runtime archive includes the upstream license and third-party notices.
