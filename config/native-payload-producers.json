@@ -124,7 +124,10 @@
 				"scripts/desktop-nightly-tests-products.mjs",
 				"scripts/desktop-prepare.mjs",
 				"scripts/lib/desktop-assistance-runtime-families.mjs",
-				"scripts/lib/desktop-assistance-whisper-runtime.mjs"
+				"scripts/lib/desktop-assistance-whisper-runtime.mjs",
+				"scripts/lib/desktop-assistance-vulkan-companion.mjs",
+				"scripts/lib/desktop-assistance-vulkan-toolchain.mjs",
+				"config/desktop-assistance-vulkan-sources.json"
 			]
 		},
 		{
@@ -138,7 +141,10 @@
 				"scripts/desktop-nightly-tests-products.mjs",
 				"scripts/desktop-prepare.mjs",
 				"scripts/lib/desktop-assistance-runtime-families.mjs",
-				"scripts/lib/desktop-assistance-llama-runtime.mjs"
+				"scripts/lib/desktop-assistance-llama-runtime.mjs",
+				"scripts/lib/desktop-assistance-vulkan-companion.mjs",
+				"scripts/lib/desktop-assistance-vulkan-toolchain.mjs",
+				"config/desktop-assistance-vulkan-sources.json"
 			]
 		}
 	]

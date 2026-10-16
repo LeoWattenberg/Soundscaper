@@ -46,6 +46,19 @@ test('a broken package-generation import chain cannot satisfy the producer audit
 	} finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
+test('native producer audit rejects an absent Vulkan source register for both companion builders', async () => {
+	const fixture = await producerFixture();
+	try {
+		await rm(join(fixture, 'config/desktop-assistance-vulkan-sources.json'), { force: true });
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		for (const family of ['whisper', 'llama']) {
+			assert.ok(audit.findings.some((finding) => finding.includes(`assistance-${family}-cpp`)
+				&& finding.includes('desktop-assistance-vulkan-sources.json')));
+		}
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
 test('package generation binds helper-backed targets and its platform environment', async () => {
 	const fixture = await producerFixture();
 	try {
