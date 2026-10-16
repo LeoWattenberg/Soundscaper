@@ -82,6 +82,11 @@ test('availability authenticates both binaries and passes the bound GPU path acr
 			...descriptor, accelerationEntrypoints: { vulkan: substitute },
 		}), /Vulkan|companion/iu);
 	}
+	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({ ...descriptor,
+		accelerationEntrypoints: { vulkan: join(targetRoot, '..', 'gpu/runtime') },
+		files: descriptor.files.map((file) => file.relativePath.startsWith('gpu/')
+			? { ...file, path: join(targetRoot, '..', 'gpu/runtime') } : { ...file, relativePath: 'bin/runtime' }),
+	}), /Vulkan|companion/iu);
 	await writeFile(join(targetRoot, 'gpu/runtime'), 'tampered');
 	await assert.rejects(authenticateAssistanceRuntimeFamilyDescriptorFilesV1(descriptor), /length|digest/iu);
 	const tampered = await describeAssistanceRuntimeFamilyAvailability(options);
@@ -100,5 +105,10 @@ test('Windows descriptor companion paths stay inside their target closure on any
 		files: descriptor.files.map((f) => f.relativePath.startsWith('gpu/')
 			? { ...f, path: 'C:\\outside\\runtime.exe' } : f),
 		accelerationEntrypoints: { vulkan: 'C:\\outside\\runtime.exe' },
+	}), /Vulkan|companion/iu);
+	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({ ...descriptor,
+		accelerationEntrypoints: { vulkan: 'C:\\gpu\\runtime.exe' },
+		files: descriptor.files.map((file) => file.relativePath.startsWith('gpu/')
+			? { ...file, path: 'C:\\gpu\\runtime.exe' } : { ...file, relativePath: 'bin/runtime.exe' }),
 	}), /Vulkan|companion/iu);
 });

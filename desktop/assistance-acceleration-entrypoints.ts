@@ -41,7 +41,8 @@ export function validateAssistanceAccelerationEntrypoints(
 		const paths = options.entrypoint.startsWith('/') ? posix : win32;
 		let root = options.entrypoint;
 		for (let levels = mainRelative.split('/').length; levels > 0; levels -= 1) root = paths.dirname(root);
-		if (paths.join(root, ...relative.split('/')) !== path) {
+		if (paths.join(root, ...mainRelative.split('/')) !== options.entrypoint
+			|| paths.join(root, ...relative.split('/')) !== path) {
 			throw new TypeError('The Vulkan companion must remain inside the authenticated target root.');
 		}
 	}
