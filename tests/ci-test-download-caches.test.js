@@ -31,7 +31,7 @@ for (const workflow of ['quality.yml', 'desktop-preview.yml', 'soundscaper-stabl
 				assert.match(job, /scripts\/lib\/framescaper-boost-ci-cache\.mjs/u);
 			}
 		}
-		assert.equal(referenceJobs, 3);
+		assert.equal(referenceJobs, workflow === 'desktop-preview.yml' ? 1 : 3);
 		assert.equal(boostJobs, 1);
 		assert.equal((source.match(/id: interchange-cache-key/gu) ?? []).length, referenceJobs);
 		assert.equal((source.match(/name: Restore authenticated Boost test headers/gu) ?? []).length, boostJobs);

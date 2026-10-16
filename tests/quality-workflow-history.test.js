@@ -8,14 +8,13 @@ import { LINT_SHARD_IDS } from '../scripts/lib/lint-shards.mjs';
 import { NODE_TEST_SHARD_IDS } from '../scripts/lib/node-test-shards.mjs';
 import { expandNpmScript, extractJob, npmScriptsRunBy, readWorkflow } from './helpers/workflow-jobs.js';
 
-// `npm run check` is the canonical gate. Neither workflow runs it as one
-// command, and they do not divide it the same way, so each declares the jobs
-// that have to add back up to it. Quality shards the static checks so the jobs
-// behind them can start once the build artifact exists; the desktop preview
-// runs them as one job and resolves its release scope there.
+// Both workflows run the static gate and Node suite. Quality also scores the
+// combined Node/Chromium coverage; desktop distribution only tests Electron.
+// Quality shards the static checks, while desktop preview runs them as one job
+// and resolves its release scope there.
 const WORKFLOWS = new Map([
-	['quality.yml', { staticJobs: ['build', 'lint', 'typecheck', 'audits'], buildJob: 'build', historyJobs: ['audits'] }],
-	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', historyJobs: ['quality'] }],
+	['quality.yml', { staticJobs: ['build', 'lint', 'typecheck', 'audits'], buildJob: 'build', historyJobs: ['audits'], coverageGate: true }],
+	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', historyJobs: ['quality'], coverageGate: false }],
 ]);
 
 // `test:coverage` runs the whole Node suite and reports fresh local evidence.
@@ -121,17 +120,19 @@ test('quality gives both architecture ratchets the same event base revision', as
 	}
 });
 
-for (const [workflowName, { staticJobs, buildJob, historyJobs }] of WORKFLOWS) {
-	const gateJobs = [...staticJobs, 'tests', 'coverage'];
+for (const [workflowName, { staticJobs, buildJob, historyJobs, coverageGate }] of WORKFLOWS) {
+	const gateJobs = [...staticJobs, 'tests', ...(coverageGate ? ['coverage'] : [])];
 
-	test(`${workflowName} runs every part of npm run check across its gate jobs`, async () => {
+	test(`${workflowName} runs the static gate and Node suite across its gate jobs`, async () => {
 		const { scripts } = await readPackageJson();
 		const workflow = await readWorkflow(workflowName);
 		const invoked = new Set(gateJobs.flatMap((jobName) => [...npmScriptsRunBy(extractJob(workflow, jobName))]));
 		const performed = new Set([...invoked].flatMap((name) => expandNpmScript(scripts, name)));
 
 		for (const step of expandNpmScript(scripts, 'check')) {
-			const substitutes = SHARDED_EQUIVALENT.get(step);
+			const substitutes = !coverageGate && step === 'test:coverage'
+				? ['test']
+				: SHARDED_EQUIVALENT.get(step);
 			if (substitutes === undefined) {
 				assert.ok(performed.has(step), `${workflowName} never runs ${step}, which npm run check does`);
 				continue;
@@ -142,18 +143,22 @@ for (const [workflowName, { staticJobs, buildJob, historyJobs }] of WORKFLOWS) {
 		}
 	});
 
-	test(`${workflowName} shards the Node suite by owner and gates it on the merged coverage`, async () => {
+	test(`${workflowName} shards the Node suite by owner with coverage collected only for its union gate`, async () => {
 		const workflow = await readWorkflow(workflowName);
 		const tests = extractJob(workflow, 'tests');
-		const coverage = extractJob(workflow, 'coverage');
 
 		for (const shard of NODE_TEST_SHARD_IDS) {
 			assert.ok(tests.includes(shard), `the test matrix must name the ${shard} shard`);
 		}
-		assert.match(tests, /npm run coverage:compact -- coverage\/shards\//u,
-			'a shard has to hand its coverage on, or the merged threshold check is measuring less than the suite');
-		assert.match(coverage, /^\s+needs: (?:tests|\[[^\]\n]*\btests\b[^\]\n]*\])$/mu,
-			'the thresholds may only be checked once every shard has reported');
+		if (coverageGate) {
+			assert.match(tests, /npm run coverage:compact -- coverage\/shards\//u,
+				'a shard has to hand its coverage on, or the merged threshold check is measuring less than the suite');
+			assert.match(extractJob(workflow, 'coverage'), /^\s+needs: (?:tests|\[[^\]\n]*\btests\b[^\]\n]*\])$/mu,
+				'the thresholds may only be checked once every shard has reported');
+		} else {
+			assert.match(tests, /npm run test -- --shard=/u);
+			assert.doesNotMatch(tests, /coverage:|test:shard/u);
+		}
 	});
 
 	test(`${workflowName} checks out the history the gate reads`, async () => {
@@ -168,11 +173,11 @@ for (const [workflowName, { staticJobs, buildJob, historyJobs }] of WORKFLOWS) {
 		}
 	});
 
-	test(`${workflowName} publishes the verified build from exactly one gate job`, async () => {
+	test(`${workflowName} publishes a verified website build only for browser consumers`, async () => {
 		const workflow = await readWorkflow(workflowName);
 		const publishers = gateJobs.filter((jobName) => extractJob(workflow, jobName).includes('verified-site-build'));
-		assert.deepEqual(publishers, [buildJob],
-			'the browser jobs download that artifact, so exactly one gate job may produce it');
+		assert.deepEqual(publishers, coverageGate ? [buildJob] : [],
+			'only workflows with browser consumers should upload the website build');
 	});
 }
 

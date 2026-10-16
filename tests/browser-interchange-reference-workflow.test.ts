@@ -6,7 +6,6 @@ import test from 'node:test';
 
 const WORKFLOW_JOBS = [
 	['quality.yml', ['browser', 'firefox']],
-	['desktop-preview.yml', ['browser', 'firefox']],
 	['soundscaper-stable-1.yml', ['browser']],
 ] as const;
 

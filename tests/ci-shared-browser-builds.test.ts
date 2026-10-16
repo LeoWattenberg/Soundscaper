@@ -16,7 +16,7 @@ test('nightly targets consume the four revision-bound browser configurations fro
 	assert.match(producer, /name: nightly-browser-sites-\$\{\{ github\.sha \}\}/u);
 	assert.match(producer, /include-hidden-files: true/u);
 	assert.match(producer, /\.wrangler\/browser-products\/[\s\S]*?\.wrangler\/dual-origin-browser\//u);
-	assert.match(consumer, /needs: \[nightly-test-targets, browser-sites\]/u);
+	assert.match(consumer, /needs: \[nightly-test-targets, motionscaper-native-build, browser-sites\]/u);
 	assert.match(consumer, /name: nightly-browser-sites-\$\{\{ github\.sha \}\}/u);
 	assert.doesNotMatch(consumer, /npm run (?:build|build:browser:framescaper|prepare:browser:products|pretest:browser:dual-origin)\s*\n/u);
 	assert.ok(consumer.indexOf('Download the verified browser product sites')
@@ -27,7 +27,7 @@ test('nightly targets consume the four revision-bound browser configurations fro
 	assert.match(consumer, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
 });
 
-for (const [workflowName, producerName] of [['quality.yml', 'build'], ['desktop-preview.yml', 'quality']] as const) {
+for (const [workflowName, producerName] of [['quality.yml', 'build']] as const) {
 	test(`${workflowName} reuses the checked Soundscaper handbook only on the handbook browser shard`, async () => {
 		const workflow = await readWorkflow(workflowName);
 		const producer = extractJob(workflow, producerName);
@@ -40,10 +40,8 @@ for (const [workflowName, producerName] of [['quality.yml', 'build'], ['desktop-
 		assert.match(consumer, /name: checked-soundscaper-handbook-\$\{\{ github\.sha \}\}/u);
 		assert.match(consumer, /node scripts\/ci-handbook-build\.mjs verify\s+npx playwright test --config playwright\.docs\.config\.mjs/u);
 		assert.doesNotMatch(consumer, /npm run test:docs:browser|npm run docs:check/u);
-		if (workflowName === 'quality.yml') {
-			assert.match(producer, /npm run docs:check/u);
-			assert.doesNotMatch(extractJob(workflow, 'audits'), /npm run docs:check/u);
-			assert.match(extractJob(workflow, 'audits'), /Build the Framescaper handbook[\s\S]*?npm run docs:build/u);
-		} else assert.match(producer, /npm run check:static/u);
+		assert.match(producer, /npm run docs:check/u);
+		assert.doesNotMatch(extractJob(workflow, 'audits'), /npm run docs:check/u);
+		assert.match(extractJob(workflow, 'audits'), /Build the Framescaper handbook[\s\S]*?npm run docs:build/u);
 	});
 }

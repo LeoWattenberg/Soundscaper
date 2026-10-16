@@ -9,7 +9,7 @@ test('preview publishes all target AI archives once and packages the authenticat
 	const workflow = await readWorkflow('desktop-preview.yml');
 	const publisher = extractJob(workflow, 'publish-assistance-runtime-handoff');
 	const packager = extractJob(workflow, 'package');
-	assert.match(publisher, /needs: \[quality, tests, coverage, browser, firefox\]/u);
+	assert.match(publisher, /needs: \[quality, tests\]/u);
 	assert.match(publisher, /matrix:[\s\S]*?windows-2025[\s\S]*?windows-11-arm/u);
 	for (const runner of ['windows-2025', 'windows-11-arm', 'macos-15', 'ubuntu-22.04', 'ubuntu-24.04-arm']) {
 		assert.ok(publisher.includes(`runner: ${runner}`), `${runner} must publish its exact runtime archives`);
@@ -22,7 +22,7 @@ test('preview publishes all target AI archives once and packages the authenticat
 	assert.match(publisher, /name: assistance-runtime-handoff-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(publisher, /SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}/u);
 	assert.match(publisher, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
-	assert.match(packager, /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source\]/u);
+	assert.match(packager, /needs: \[quality, tests, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source\]/u);
 	assert.match(packager, /Download the published AI runtime handoff/u);
 	assert.match(packager, /SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT:/u);
 	assert.doesNotMatch(packager, /if: matrix\.target\.platform == 'win'/u);
