@@ -69,6 +69,8 @@ belong in Git history, not in the maintained documentation set.
   defines bounded hierarchy and collection commands, scalar pages, and revision fencing.
 - [Retained-original photo regeneration](architecture/lightscaper-original-frame-regeneration.md)
   defines authenticated native decoding and callback-scoped pixel custody.
+- [Shared HDR exposure merge](architecture/lightscaper-hdr-merge.md) defines
+  canonical brackets, lossless generated Originals, scoped staging and guarded publication.
 - [Photo preview cache ownership](architecture/lightscaper-preview-cache.md)
   defines disposable paired storage, bounded demand scheduling, and original-custody fences.
 - [Lightscaper editor copy](architecture/lightscaper-editor-copy.md)

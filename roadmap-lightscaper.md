@@ -1020,18 +1020,18 @@ there.
   17 historical sRGB byte comparisons. Custom ICC profiles, physical-monitor
   calibration, HDR delivery and the remaining L7 exit gates stay outside this
   completed output-profile packet.
-- **Shared — In progress:** HDR exposure merge to a floating-point working image
-  with alignment and deghosting. The native foundation retains exact signed
-  Float32 RGB in a versioned generated Original with hashed bracket provenance;
-  Current Photo Original borrowing, reopen and fitted preview caches preserve
-  that authority. Shared bounded tiles reconstruct radiance, integer MTB
-  registration refuses unsupported overlap, and reference deghosting preserves
-  complete moving RGB beside static highlights. An explicit Source5 scalar and
-  body-proof owner keeps FramePack1 byte pixels as presentation cache; global
-  Frame Current activation waits for its full consumer closure. The foundation
-  has 56 focused tests. Sequential source staging, source-revision-checked
-  publication, both products' menus and complete Frame archive/handoff/browser
-  workflows remain unfinished; this does not close HDR or the L7 exit gate.
+- **Shared — Done:** [HDR exposure merge](docs/architecture/lightscaper-hdr-merge.md).
+  Existing Photo and Frame menus merge 2–9 canonical Originals with explicit
+  reference-relative exposures, integer Ward-MTB alignment and reference
+  deghosting. Scoped Preview clips only for sRGB display; the generated Original
+  retains signed Float32 radiance and hashed bracket provenance. Bounded staging
+  and native source-CAS publication preserve custody. Current Photo and editable
+  Frame Source5 retain native authority through Develop, save/reopen, Scape
+  archives and forward/reverse handoff; FramePack1 bytes remain presentation
+  cache. Qualification passes 185 selected Lightscaper tests and eight
+  English/German Chromium/Firefox creation and editable-handoff workflows.
+  Full Photo Develop GPU evaluation, native desktop services and the broader
+  L7/L8/L9 exit gates remain open.
 - **Shared — Deferred:** panorama stitching.
 - **Shared — Optional:** DNG output.
 
