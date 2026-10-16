@@ -54,3 +54,7 @@ function normalizeOriginal(value: unknown): PhotoOriginalV1 {
 		retention: oneOf(field(input, 'retention'), ['managed', 'linked'] as const, 'original retention'),
 	});
 }
+
+/** Shared immutable Original admission; the permanent envelope keeps the exact
+ * same implementation, fields and bounds. */
+export { normalizeOriginal as normalizePhotoOriginalV1 };

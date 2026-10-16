@@ -2,6 +2,7 @@
 
 import { readClosedDomainField, readClosedDomainRecord } from '../../../common/editor/closed-domain-value.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../../common/editor/image-import-admission.ts';
+import { IMAGE_HDR_ORIGINAL_LIMITS_V1, IMAGE_HDR_ORIGINAL_MIME_TYPE_V1 } from '../../../common/editor/imaging/image-hdr-original-profile-v1.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from '../../../common/editor/storage/media-content-digest.ts';
 import { normalizePhotoDocumentCurrentV1 } from '../../catalog/photo-document-current-v1.ts';
 import { capturePhotoManagedImportPortsCurrentV1, type PhotoManagedImportPortsCurrentV1 } from '../managed-import-ports-current-v1.ts';
@@ -29,8 +30,10 @@ const SIGNAL_PROTO = AbortSignal.prototype;
  * no original/source fact is reconstructed through a legacy placeholder. */
 export async function importManagedPhotosForProfileV1(profile: Profile, catalogId: string,
 	photos: Iterable<PhotoCatalogPackInputCurrentV1> | AsyncIterable<PhotoCatalogPackInputCurrentV1>,
-	portsValue: Ports, options: PhotoManagedImportOptionsV1 = {}): Promise<readonly PhotoManagedImportReceiptV1[]> {
+	portsValue: Ports, options: PhotoManagedImportOptionsV1 = {}, originalPolicy: 'file-import-v1' | 'generated-hdr-v1' = 'file-import-v1'): Promise<readonly PhotoManagedImportReceiptV1[]> {
 	assertProfile(profile); const catalog = id(catalogId, 'catalog ID'), request = admitOptions(options);
+	if (originalPolicy !== 'file-import-v1' && (originalPolicy !== 'generated-hdr-v1' || profile !== 'current3')) throw new TypeError('Unsupported fixed managed Original publication policy.');
+	const maximumOriginalBytes = originalPolicy === 'generated-hdr-v1' ? IMAGE_HDR_ORIGINAL_LIMITS_V1.maximumEncodedBytes : IMAGE_IMPORT_LIMITS.maximumFileInputBytes;
 	check(request.signal); const ports = profile === 'legacy2' ? capturePhotoManagedImportPortsV2(portsValue as PhotoManagedImportPortsV2) : capturePhotoManagedImportPortsCurrentV1(portsValue as PhotoManagedImportPortsCurrentV1);
 	check(request.signal);
 	return ports.exclusive!(catalog, async signal => {
@@ -41,6 +44,7 @@ export async function importManagedPhotosForProfileV1(profile: Profile, catalogI
 		const results: PhotoManagedImportReceiptV1[] = []; let totalBytes = 0;
 		for await (const value of photos) {
 			check(signal);
+			if (originalPolicy === 'generated-hdr-v1' && results.length >= 1) throw new RangeError('Generated HDR publication owns one managed result.');
 			if (results.length >= IMAGE_IMPORT_LIMITS.maximumFilesPerGesture) throw new RangeError('Photo publication exceeds its gesture file bound.');
 			let candidate: Photo | undefined, reusedOriginal = false, acknowledged: PhotoManagedImportReceiptV1 | null = null;
 			const acknowledge = () => {
@@ -56,8 +60,9 @@ export async function importManagedPhotosForProfileV1(profile: Profile, catalogI
 				const existing = await ports.catalog.loadPhoto(catalog, document.id); check(signal);
 				if (existing) throw new RangeError('Photo identity already exists in the selected catalog.');
 				const original = canonicalMediaContentBlob(readClosedDomainField(input, 'original', 'managed photo input'));
+				if (originalPolicy === 'generated-hdr-v1' && document.original.mimeType !== IMAGE_HDR_ORIGINAL_MIME_TYPE_V1) throw new RangeError('Generated HDR policy requires its explicit Original format.');
 				totalBytes += original.size;
-				if (original.size < 1 || original.size > IMAGE_IMPORT_LIMITS.maximumFileInputBytes
+				if (original.size < 1 || original.size > maximumOriginalBytes
 					|| totalBytes > IMAGE_IMPORT_LIMITS.maximumGestureInputBytes || original.size !== document.original.byteLength) throw new RangeError('Managed original exceeds its admitted byte bounds.');
 				await verifyManagedImportResourcesForProfileV1(profile, document, ports, signal);
 				const retained = await prepareOriginal(profile, document, original, ports, signal);

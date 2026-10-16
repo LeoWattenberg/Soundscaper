@@ -5,6 +5,7 @@ import { admitPhotoSavedQueryPageRequestV1, type PhotoSavedQueryPageRequestV1 } 
 import { admitPhotoSmartCollectionSnapshotRequestV1, readPhotoSmartCollectionSnapshotV1 } from './photo-smart-collection-snapshot-v1.ts';
 import { admitPhotoSmartCollectionArchiveContextRequestV1, readPhotoSmartCollectionArchiveContextV1 } from './photo-smart-collection-archive-context-v1.ts';
 import { capturePhotoSmartCollectionArchiveV1 } from './photo-smart-collection-archive-capture-v1.ts';
+import { capturePhotoDerivedPublicationGuardCurrentV1, type PhotoDerivedPublicationSelectionCurrentV1 } from './photo-derived-publication-current-v1.ts';
 import { request } from '../../common/editor/storage/indexeddb-backend.ts';
 import { openPhotoCatalogDatabaseV1 } from './catalog-database.ts';
 import { assertNotAborted, catalogTransaction } from './catalog-transaction.ts';
@@ -146,6 +147,32 @@ export class PhotoCatalogRepositoryKernelV2 {
 				}
 				assertNotAborted(signal);
 				return publishPhotosKernelV2(await this.#open(), rootId, expected, photos, this.#mode, signal);
+			});
+		});
+	}
+
+	/** Only the named Current facade exposes this additive native operation.
+	 * Source checks and insertion share one transaction; there is no later
+	 * source fence which could turn an acknowledged insertion into a failure. */
+	protected publishDerivedPhotoForCurrentV1(catalogId: string, expectedRevision: number,
+		selections: readonly PhotoDerivedPublicationSelectionCurrentV1[], value: unknown,
+		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoCatalogRootV1> {
+		return this.#run(async () => {
+			const { signal } = readPhotoStackSignalOptionsV1(options); assertNotAborted(signal);
+			const admitted = (() => { try {
+				if (this.#mode !== 'current3') throw new TypeError('Derived publication requires the Current repository.');
+				const rootId = id(catalogId, 'catalog ID'), expected = integer(expectedRevision, 0, Number.MAX_SAFE_INTEGER, 'catalog expected revision');
+				const photo = this.#readPhoto(value), guard = capturePhotoDerivedPublicationGuardCurrentV1(rootId, selections, photo.id);
+				if (photo.catalogId !== rootId || photo.revision !== 0) throw new RangeError('Derived publication requires an initial Photo in its selected catalog.');
+				if (new TextEncoder().encode(this.#serializePhoto(photo)).byteLength > LIMITS.maximumImportBytes
+					|| photoMemberships(photo).length > LIMITS.maximumMembershipWrites) throw new RangeError('Derived Photo exceeds the catalog publication budget.');
+				assertNotAborted(signal); return { rootId, expected, photo, guard };
+			} catch (error) { assertNotAborted(signal); throw error; } })();
+			return this.#write({ signal }, async current => {
+				await this.#options.verifyOriginal(admitted.photo.original, current); assertNotAborted(current);
+				await this.#verifyResources(admitted.photo, current); assertNotAborted(current);
+				return publishPhotosKernelV2(await this.#open(), admitted.rootId, admitted.expected,
+					[admitted.photo], this.#mode, current, admitted.guard);
 			});
 		});
 	}

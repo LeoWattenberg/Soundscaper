@@ -43,6 +43,7 @@ import type { LoadPhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-
 import type { ExecutePhotoDevelopCurrentV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
 import { capturePhotoLibraryDevelopPortCurrentV1 } from './photo-library-workflow-develop-current-v1.ts';
 import { capturePhotoLibraryLegacyDevelopCurrentV1 } from './photo-library-workflow-legacy-develop-current-v1.ts';
+import { usePhotoLibraryWorkflowHdrMergeCurrentV1, type ExecutePhotoHdrMergeCurrentV1 } from './photo-library-workflow-hdr-merge-current-v1.ts';
 type ReadHook = (profile: 'legacy2' | 'current3', owners: PhotoLibraryWorkflowReadOwnersKernelV1) => PhotoLibraryWorkflowReadsLegacyV2 | PhotoLibraryWorkflowReadsCurrentV1;
 
 type SessionSlot = PhotoLibraryWorkflowSlotV2 | PhotoLibraryWorkflowSlotCurrentV1;
@@ -232,6 +233,14 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		refresh: async () => { const selected = await acquire(profile, current); check(signal); const next = await readVisiblePage(selected, current, null, signal); check(signal); return publishPage(current, next); } });
 	} }, externalSignal), [profile, perform, publishPage]);
 	const executeDevelop = profile === 'current3' ? executeCurrent : executeLegacyDevelop;
+	const executeHdrMerge = useCallback<ExecutePhotoHdrMergeCurrentV1>((action, externalSignal) => perform({ start: async (signal, current) => {
+		if (profile !== 'current3') throw new Error('HDR merge requires the Current photo library.');
+		await action({ signal, acquire: async () => {
+			const selected = await acquirePhotoLibraryWorkflowSlotCurrentV1(current as PhotoLibraryWorkflowSlotCurrentV1); check(signal); return selected;
+		}, isCurrent: () => current.live && slot.current === current && current.factory === factory.current && current.backupLoader === loader.current && current.proxyFactory === renderer.current,
+		refresh: async () => { const selected = await acquire(profile, current); check(signal); const next = await readVisiblePage(selected, current, null, signal); check(signal); publishPage(current, next); } });
+	} }, externalSignal), [profile, perform, publishPage]);
+	const captureHdrMerge = usePhotoLibraryWorkflowHdrMergeCurrentV1(executeHdrMerge);
 
 	const originalWorkflow = usePhotoOriginalRecovery({ generation: recoveryGeneration, controller: originalRecovery, execute: executeOriginalRecovery });
 	const run = useCallback(async (action: SessionAction): Promise<void> => { await perform(action); }, [perform]);
@@ -510,7 +519,7 @@ function useWorkflow(profile: 'legacy2' | 'current3', createSession?: CreatePhot
 		updateRow(next.row, current);
 		await refreshQuery(owner, signal, current);
 	});
-	return { ...originalWorkflow, retireAndJoin, registerExportDestination, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeLegacyDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+	return { ...originalWorkflow, retireAndJoin, registerExportDestination, captureHdrMerge, backupSaveRuntime: backupRuntime, importCubeLut, loadDevelopProxyRuntime, executeDevelop, executeLegacyDevelop, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readExportMetadata, captureExportSidecarReader, captureExportJournalOpener, captureExportPresetsOpener, captureImageHandoff, captureImageReceive, captureCollectionHandoff, readPreview, withOriginalFrame, withDerivedFrame, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,

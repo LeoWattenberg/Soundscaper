@@ -10,6 +10,7 @@ import type { PhotoLibraryCollectionHandoffPortV2 } from './photo-library-collec
 import type { PhotoLibraryDevelopImportPortCurrentV1 } from './photo-library-develop-import-port-current-v1.ts';
 import type { PhotoLibraryExportPresetsPortCurrentV1 } from './photo-library-export-presets-port-current-v1.ts';
 import type { PhotoLibraryPreviewTierV1, PhotoLibraryPreviewOutcomeV1 } from './photo-library-session-port-v1.ts';
+import type { PhotoLibraryHdrMergePortCurrentV1 } from './photo-library-hdr-merge-port-current-v1.ts';
 
 export type PhotoLibraryRawPreviewSourceCurrentV1 = 'neutral-original' | 'camera-embedded';
 export interface PhotoLibraryPreviewReadOptionsCurrentV1 {
@@ -38,5 +39,7 @@ export interface PhotoLibrarySessionPortCurrentV1 extends Omit<PhotoLibrarySessi
 	readonly collectionHandoffCurrent?: Readonly<PhotoLibraryCollectionHandoffPortV2>;
 	/** Selected Current presets share the existing managed import and writer. */
 	readonly developImportCurrent?: Readonly<PhotoLibraryDevelopImportPortCurrentV1>;
+	/** Canonical source-space creation, under the existing selected writer. */
+	readonly hdrMergeCurrent?: Readonly<PhotoLibraryHdrMergePortCurrentV1>;
 }
 export type CreatePhotoLibrarySessionCurrentV1 = () => Promise<PhotoLibrarySessionPortCurrentV1>;

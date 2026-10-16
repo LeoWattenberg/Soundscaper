@@ -81,12 +81,14 @@ import { backupPhotoLibrarySessionCurrentV1 } from './photo-library-session-back
 import { capturePhotoLibrarySessionPorts, capturePhotoLibrarySessionPortsCurrentV1, legacyPhotoLibrarySessionPortsV1, legacyPhotoCommandOwnerV1, readPhotoLibraryPageCursorV1 } from './photo-library-session-bindings.ts';
 import { createPhotoLibraryMaskRasterSourceV1 } from './photo-library-mask-raster-session-v1.ts';
 import { createPhotoLibraryDevelopMaskRasterSessionV1 } from './photo-library-develop-mask-raster-session-v1.ts';
+import { createPhotoLibraryHdrMergeSessionCurrentV1 } from './photo-library-hdr-merge-session-current-v1.ts';
 
 const CHECK = AbortSignal.prototype.throwIfAborted;
 function check(signal: AbortSignal): void { Reflect.apply(CHECK, signal, []); }
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionKernelV2 {
+	declare readonly hdrMergeCurrent?: ReturnType<typeof createPhotoLibraryHdrMergeSessionCurrentV1>;
 	readonly batchRenameCurrent?: ReturnType<typeof createPhotoLibraryBatchRenameSessionCurrentV1>;
 	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
 	readonly develop: ReturnType<typeof createPhotoLibraryDevelopSessionV2> | ReturnType<typeof createPhotoLibrarySessionDevelopCurrentV1>;
@@ -134,6 +136,8 @@ export class PhotoLibrarySessionKernelV2 {
 		this.imageReceive = createPhotoLibraryImageReceiveSessionV1({ ports: legacy, managed: this.#legacyManagedPorts(),
 			mutate: (run, signal) => this.#mutation(run, signal), resetReady: () => { this.#catalog = null; } });
 		if (this.#current) {
+			this.hdrMergeCurrent = createPhotoLibraryHdrMergeSessionCurrentV1({ ports, ready: () => this.#ready(), resetReady: () => { this.#catalog = null; },
+				operation: (run, signal, admit) => this.#operation(run, signal, admit), mutate: (run, signal, admit) => this.#mutation(run, signal, false, admit) });
 			this.batchRenameCurrent = createPhotoLibraryBatchRenameSessionCurrentV1({ repository: ports.catalog,
 				mutate: (run, signal) => this.#mutation(run, signal), withPhoto: (catalogId, key, signal, run) =>
 					this.#withPhoto(catalogId, key, signal, (owner, admitted) => run(owner as PhotoCommandOwnerCurrentV1, admitted)) }, () => this.#lifetime.assertAccepting());

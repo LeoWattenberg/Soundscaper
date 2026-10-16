@@ -5,23 +5,18 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { otherProductIds, productIdentity } from '../../../product-identities.js';
 import { productHref } from '../../../product-web-links.js';
 import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
-import type { CreatePhotoLibrarySessionV3 } from '../../photo-library-session-port-v2.ts';
 import type { CreatePhotoLibraryDevelopProxyRuntimeV2 } from '../../photo-library-develop-proxy-port-v2.ts';
-import type { CreatePhotoLibraryDevelopProxyRuntimeV3 } from '../../photo-library-develop-proxy-port-v3.ts';
-import type { CreatePhotoLibrarySessionCurrentV1 } from '../../photo-library-session-port-current-v1.ts';
 import type { LightscaperAppPropsV2 } from './LightscaperAppV2.tsx';
 import type { LightscaperAppPropsCurrentV1 } from './LightscaperAppCurrentV1.tsx';
-import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import LightscaperPhotoDevelopSurfaceV1 from './LightscaperPhotoDevelopSurfaceV1.tsx';
 import LightscaperRasterExportSurfaceV1 from './LightscaperRasterExportSurfaceV1.tsx';
-type WorkflowHook = (profile: 'legacy2' | 'current3', createSession?: CreatePhotoLibrarySessionV3 | CreatePhotoLibrarySessionCurrentV1,
-	loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1, renderer?: CreatePhotoLibraryDevelopProxyRuntimeV2 | CreatePhotoLibraryDevelopProxyRuntimeV3) => PhotoLibraryWorkflowLegacyV2 | PhotoLibraryWorkflowCurrentV1;
-const useWorkflowForProfile = usePhotoLibraryWorkflowForProfileV1 as WorkflowHook;
+import { useLightscaperAppWorkflow as useWorkflowForProfile } from './use-lightscaper-app-workflow.ts';
 import { lightscaperMenuEvents } from './lightscaper-menu-events.ts';
 import { usePhotoRawPreviewSourceCurrentV1 } from './use-photo-raw-preview-source-current-v1.ts';
 import PhotoRawPreviewSourceMenuCurrentV1 from './PhotoRawPreviewSourceMenuCurrentV1.tsx';
 import { usePhotoRasterExportEntry } from './use-photo-raster-export-entry.ts';
 import { usePhotoFramescaperHandoffEntry } from './use-photo-framescaper-handoff-entry.tsx';
+import { usePhotoHdrMergeEntryCurrentV1 } from './use-photo-hdr-merge-entry-current-v1.tsx';
 import { useCapturedMethod } from './use-lightscaper-captured-method.ts';
 import { photoDevelopMenuLabel } from '../../../i18n/lightscaper-develop-menu-copy.ts';
 import { usePhotoDevelopEntryV2 } from './use-photo-develop-entry-v2.ts';
@@ -33,7 +28,7 @@ import { PhotoLibraryDefinitionReader } from '../../controller/shared/photo-libr
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
 import { DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from './use-photo-library-workflow-v2.ts';
-import { usePhotoLibraryWorkflowForProfileV1, type PhotoLibraryWorkflowLegacyV2, type PhotoLibraryWorkflowCurrentV1, type PhotoLibraryWorkflowKernelV1 } from './use-photo-library-workflow-kernel-v1.ts';
+import type { PhotoLibraryWorkflowKernelV1 } from './use-photo-library-workflow-kernel-v1.ts';
 import type { LoadPhotoMetadataQueryRuntimeV2 } from '../../photo-library-query-port-v2.ts';
 import type { LoadPhotoSavedFilterRuntimeV1 } from '../../photo-library-saved-filter-runtime-v1.ts';
 import { usePhotoSavedFilters } from './use-photo-saved-filters.ts';
@@ -87,6 +82,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 	const isRestoreCurrent = () => isCurrent() && latestPresentation.current.restoreGeneration === restoreGeneration, isQueryCurrent = () => isCurrent() && latestPresentation.current.queryGeneration === queryGeneration;
 	const presentation = useMemo(() => ({ restoreGeneration, key: crypto.randomUUID() }), [restoreGeneration]), queryPresentation = useMemo(() => ({ queryGeneration, key: crypto.randomUUID() }), [queryGeneration]);
 	const app = useRef<HTMLElement>(null);
+	const hdrAdmission = useRef<() => boolean>(() => false);
 	const definitionReader = useRef<PhotoLibraryDefinitionReader | null>(null);
 	definitionReader.current ??= new PhotoLibraryDefinitionReader();
 	const [libraryVisible, setLibraryVisible] = useState(false);
@@ -158,9 +154,9 @@ export default function LightscaperAppKernelV1(props: Props) {
 	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
 		generation, queryIdentity: library.queryIdentity, pageIdentity: library.page, autoAdvance });
 	const panelSelection = { ...photoSelection,
-		select: (...args: Parameters<typeof photoSelection.select>) => { if (isCurrent()) photoSelection.select(...args); }, focus: (id: string) => { if (isCurrent()) photoSelection.focus(id); },
-		navigate: (...args: Parameters<typeof photoSelection.navigate>) => isCurrent() ? photoSelection.navigate(...args) : null,
-		selectAll: () => { if (isCurrent()) photoSelection.selectAll(); }, clear: () => { if (isCurrent()) photoSelection.clear(); },
+		select: (...args: Parameters<typeof photoSelection.select>) => { if (isCurrent() && !hdrAdmission.current()) photoSelection.select(...args); }, focus: (id: string) => { if (isCurrent() && !hdrAdmission.current()) photoSelection.focus(id); },
+		navigate: (...args: Parameters<typeof photoSelection.navigate>) => isCurrent() && !hdrAdmission.current() ? photoSelection.navigate(...args) : null,
+		selectAll: () => { if (isCurrent() && !hdrAdmission.current()) photoSelection.selectAll(); }, clear: () => { if (isCurrent() && !hdrAdmission.current()) photoSelection.clear(); },
 		attach: (...args: Parameters<typeof photoSelection.attach>) => { if (isCurrent()) photoSelection.attach(...args); } };
 	const compareGeneration = generation;
 	const compare = usePhotoCompare({ generation: compareGeneration, queryIdentity: library.queryIdentity, page: library.page,
@@ -231,7 +227,8 @@ export default function LightscaperAppKernelV1(props: Props) {
 		if (!libraryVisible) void library.readPage();
 		setLibraryVisible((visible) => !visible);
 	};
-	const { closeMenu, onKeyDown: menuKeyDown, onBlur: menuBlur } = lightscaperMenuEvents(isCurrent);
+	const { closeMenu: closeApplicationMenu, onKeyDown: menuKeyDown, onBlur: menuBlur } = lightscaperMenuEvents(isCurrent);
+	const closeMenu = (event: MouseEvent<HTMLButtonElement>) => !hdrAdmission.current() && closeApplicationMenu(event);
 	const raster = usePhotoRasterExportEntry({ generation, locale, selection, closeMenu, prepareSave: library.prepareBackupSave,
 		disabled: !createSession || !loadBackupSaveRuntime || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 		selected: library.page?.rows.filter(row => photoSelection.snapshot.selectedIds.includes(row.id)) ?? [] });
@@ -242,9 +239,13 @@ export default function LightscaperAppKernelV1(props: Props) {
 		collection: { capture: library.captureCollectionHandoff, disabled: !createSession || !loadBackupSaveRuntime || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing },
 		receive: { capture: library.captureImageReceive, disabled: !createSession || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing,
 			onImported: () => { if (isCurrent()) setLibraryVisible(true); } } });
+	const hdr = usePhotoHdrMergeEntryCurrentV1({ generation, locale, disabled: profile !== 'current3' || !createSession || !libraryVisible || restore.busy || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing || savedVisible || queryVisible || photoSelection.pendingPhotoId !== null || rasterPending(),
+		selectedIds: photoSelection.snapshot.selectedIds, queryIdentity: library.queryIdentity, page: library.page, closeMenu: closeApplicationMenu, capture: library.captureHdrMerge,
+		beforeOpen: () => { const drain = joinPhotoLibraryRetirementV1([previewDrain.current, previewRetirement.current?.() ?? null]); previewDrain.current = drain; void drain.catch(() => undefined); return drain; },
+		registerRetirement: library.registerExportDestination, onAcknowledged: () => { if (isCurrent()) setLibraryVisible(true); } }); hdrAdmission.current = hdr.pending;
 	const openReview = (kind: 'compare' | 'survey', event: MouseEvent<HTMLButtonElement>) => {
 		const active = reviewMenu.current;
-		if (active.generation !== compareGeneration || active.queryIdentity !== library.queryIdentity || !active.libraryVisible
+		if (hdrAdmission.current() || active.generation !== compareGeneration || active.queryIdentity !== library.queryIdentity || !active.libraryVisible
 			|| active.busy || active.pendingPhotoId !== null || active.selectedIds.length < 2
 			|| active.compare.visible || active.survey.visible || stackMenu.current.stacks.visible || stackMenu.current.stacks.busy || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current) return;
 		reviewAdmission.current = compareGeneration;
@@ -254,14 +255,14 @@ export default function LightscaperAppKernelV1(props: Props) {
 	};
 	const toggleStackView = (event: MouseEvent<HTMLButtonElement>) => {
 		const current = stackMenu.current;
-		if (current.generation !== compareGeneration || current.query !== library.queryIdentity || current.page !== library.page
+		if (hdrAdmission.current() || current.generation !== compareGeneration || current.query !== library.queryIdentity || current.page !== library.page
 			|| !current.libraryVisible || current.busy || current.reviewing || current.pending !== null || current.stacks.busy
 			|| current.stacks.visible || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted()) return;
 		if (!closeMenu(event)) return; void library.setStackCollapsed(!library.stackCollapsed);
 	};
 	const openStack = (kind: 'create' | 'edit', event: MouseEvent<HTMLButtonElement>) => {
 		const current = stackMenu.current;
-		if (current.generation !== compareGeneration || current.query !== library.queryIdentity || current.page !== library.page
+		if (hdrAdmission.current() || current.generation !== compareGeneration || current.query !== library.queryIdentity || current.page !== library.page
 			|| !current.libraryVisible || current.busy || current.reviewing || current.pending !== null || current.stacks.busy
 			|| current.stacks.visible || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || (kind === 'create' ? current.selectedIds.length < 2 : current.primaryId === null)) return;
 		reviewAdmission.current = compareGeneration; if (!closeMenu(event)) return;
@@ -270,7 +271,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 	};
 	const openSavedFilters = (mode: 'create' | 'manage', event: MouseEvent<HTMLButtonElement>) => {
 		const current = stackMenu.current;
-		if (savedLatest.current !== savedGeneration || !createSession || current.busy || current.pending !== null
+		if (hdrAdmission.current() || savedLatest.current !== savedGeneration || !createSession || current.busy || current.pending !== null
 			|| current.reviewing || current.stacks.visible || current.stacks.busy || reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current) return;
 		savedAdmission.current = savedGeneration; if (!closeMenu(event)) return; setSavedEntry({ generation: savedGeneration, mode });
 	};
@@ -281,7 +282,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 	};
 	const openDevelop = (event: MouseEvent<HTMLButtonElement>) => {
 		const current = stackMenu.current;
-		if (!developSurface.isCurrent() || !selection || current.primaryId !== selection.id || factory.current !== generation || !current.libraryVisible || current.busy
+		if (hdrAdmission.current() || !developSurface.isCurrent() || !selection || current.primaryId !== selection.id || factory.current !== generation || !current.libraryVisible || current.busy
 			|| current.pending !== null || current.reviewing || current.stacks.visible || current.stacks.busy || restore.busy
 			|| reviewAdmission.current !== null || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || rasterPending()) return;
 		if (!closeMenu(event)) return; developSurface.begin(selection.id, selection.fileName, () => {
@@ -310,7 +311,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 			cullingNotice={photoSelection.notice === 'refresh-failed' ? copy.photoCullRefreshFailed : null}
 			renderPreview={preview ? row => preview.renderThumbnail(row.id, row.fileName) : undefined}
 			onSelect={panelSelection.select} onRate={(photoId, rating) => {
-				if (isCurrent()) void photoSelection.cull(photoId, (signal, advance) => library.setRating(photoId, rating, { signal, advance }));
+				if (isCurrent() && !hdrAdmission.current()) void photoSelection.cull(photoId, (signal, advance) => library.setRating(photoId, rating, { signal, advance }));
 			}} />
 		{loupeVisible && selection && preview && <section data-photo-loupe="true" className="lightscaper-library" aria-label={copy.photoLoupe}>
 			<h3>{selection.fileName}</h3>{preview.renderLoupe(selection.fileName)}
@@ -367,6 +368,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
 								{handoff.menu}{handoff.collectionMenu}
+								{profile === 'current3' && hdr.menu}
 								<button type="button" data-photo-develop-menu disabled={restore.busy || !selection || library.busy || reviewing || stacks.visible || stacks.busy || developVisible || developSurface.closing || rasterPending()}
 									onClick={openDevelop}>{photoDevelopMenuLabel(locale)}</button>
 								<button type="button" disabled={restore.busy || !libraryVisible || !library.page?.rows.length} onClick={event => {
@@ -426,7 +428,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 							{libraryVisible ? copy.photoHideLibrary : copy.photoShowLibrary}
 						</button>
 						<button type="button" disabled={restore.busy || library.busy || savedVisible || queryVisible || reviewing || stacks.visible || stacks.busy} onClick={event => {
-							if (savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || reviewAdmission.current !== null
+							if (hdrAdmission.current() || savedAdmission.current !== null || developSurface.isAdmitted() || queryAdmission.current || reviewAdmission.current !== null
 								|| stackMenu.current.reviewing || stackMenu.current.stacks.visible || stackMenu.current.stacks.busy) return;
 							if (!closeMenu(event)) return; queryAdmission.current = true; setQueryVisible(true); void library.probeQuery();
 						}}>{copy.photoQueryTitle}</button>
@@ -524,6 +526,7 @@ export default function LightscaperAppKernelV1(props: Props) {
 		{!restore.busy && raster.entry && <LightscaperRasterExportSurfaceV1 profile={profile} library={library} raster={raster}
 			locale={locale} workingLabel={copy.photoWorking} />}
 		{!restore.busy && <>{handoff.surface}{handoff.receiveSurface}{handoff.collectionSurface}</>}
+		{profile === 'current3' && !restore.busy && hdr.surface}
 		{!restore.busy && backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
 				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}

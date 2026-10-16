@@ -17,9 +17,9 @@ export function capturePhotoLibrarySessionPorts(ports: PhotoLibrarySessionPortsV
 	return capturePhotoLibrarySessionPortsForProfileV1(ports);
 }
 export function capturePhotoLibrarySessionPortsCurrentV1(ports: PhotoLibrarySessionPortsCurrentV1): Readonly<PhotoLibrarySessionPortsCurrentV1> {
-	return capturePhotoLibrarySessionPortsForProfileV1(ports);
+	return capturePhotoLibrarySessionPortsForProfileV1(ports, true);
 }
-function capturePhotoLibrarySessionPortsForProfileV1<Ports extends PhotoLibrarySessionPortsV2 | PhotoLibrarySessionPortsCurrentV1>(ports: Ports): Readonly<Ports> {
+function capturePhotoLibrarySessionPortsForProfileV1<Ports extends PhotoLibrarySessionPortsV2 | PhotoLibrarySessionPortsCurrentV1>(ports: Ports, current = false): Readonly<Ports> {
 	const catalog = ports.catalog, media = ports.media, journal = ports.journal, stacks = ports.stacks, smart = ports.smartCollections;
 	const settings = ports.settings, presetSettings = ports.developPresetSettings, exportPresets = ports.exportPresetSettings, inspection = ports.originalInspection,
 		restoration = ports.originalRestoration, backup = ports.backup;
@@ -30,6 +30,7 @@ function capturePhotoLibrarySessionPortsForProfileV1<Ports extends PhotoLibraryS
 		...(exclusive === undefined ? {} : { exclusive }), ...(verifyResources === undefined ? {} : { verifyResources }) } as PhotoManagedImportPortsV2 | PhotoManagedImportPortsCurrentV1);
 	return Object.freeze({
 		catalog: Object.freeze({ ...managed.catalog, savePhoto: pin(catalog.savePhoto, catalog), saveCatalog: pin(catalog.saveCatalog, catalog),
+			...(current ? optional(catalog as PhotoLibrarySessionPortsCurrentV1['catalog'], 'publishDerivedPhotoCurrentV1') : {}),
 			readSummaryPage: pin(catalog.readSummaryPage, catalog), readQueryPage: pin(catalog.readQueryPage, catalog),
 			rebuildQueryIndexPage: pin(catalog.rebuildQueryIndexPage, catalog),
 			...optional(catalog, 'readQueryPageV2'), ...optional(catalog, 'rebuildQueryIndexPageV2'), ...optional(catalog, 'readCullingDestinationPage'),

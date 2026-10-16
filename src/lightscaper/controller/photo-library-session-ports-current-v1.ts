@@ -7,6 +7,6 @@ import type { PhotoLibrarySessionPortsV2 } from './photo-library-session-ports-v
 export interface PhotoLibrarySessionPortsCurrentV1 extends Omit<PhotoLibrarySessionPortsV2, 'catalog' | 'verifyResources'> {
 	readonly catalog: Pick<PhotoCatalogRepositoryCurrentV1, 'loadCatalog' | 'loadPhoto' | 'publishPhotos' | 'savePhoto' | 'saveCatalog'
 		| 'readSummaryPage' | 'readQueryPage' | 'rebuildQueryIndexPage'>
-		& Partial<Pick<PhotoCatalogRepositoryCurrentV1, 'readQueryPageV2' | 'rebuildQueryIndexPageV2' | 'readCullingDestinationPage'>>;
+		& Partial<Pick<PhotoCatalogRepositoryCurrentV1, 'readQueryPageV2' | 'rebuildQueryIndexPageV2' | 'readCullingDestinationPage' | 'publishDerivedPhotoCurrentV1'>>;
 	readonly verifyResources?: PhotoManagedImportPortsCurrentV1['verifyResources'];
 }

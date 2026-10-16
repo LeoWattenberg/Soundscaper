@@ -14,15 +14,29 @@ import type { PhotoCatalogRootV1 } from './types.ts';
 import { projectPhotoQueryRowV1, publishPhotoQueryRowV1, readPhotoQueryBuildStateV1 } from './photo-query-index-v1.ts';
 import { projectPhotoQueryRowV2 } from './photo-query-index-v2.ts';
 import { publishPhotoQueryRowV2 } from './photo-query-index-storage-v2.ts';
+import { readPhotoDerivedPublicationGuardCurrentV1, type PhotoDerivedPublicationGuardCurrentV1 } from './photo-derived-publication-current-v1.ts';
 
 export type PhotoCatalogDocumentModeV2 = 'legacy2' | 'current3';
 type CurrentPhoto = PhotoDocumentCurrentV1;
-export async function publishPhotosKernelV2(database: IDBDatabase, catalogId: string, expectedRevision: number, values: readonly CurrentPhoto[], mode: PhotoCatalogDocumentModeV2, signal?: AbortSignal): Promise<PhotoCatalogRootV1> {
+export async function publishPhotosKernelV2(database: IDBDatabase, catalogId: string, expectedRevision: number, values: readonly CurrentPhoto[], mode: PhotoCatalogDocumentModeV2,
+	signal?: AbortSignal, guardValue?: Readonly<PhotoDerivedPublicationGuardCurrentV1>): Promise<PhotoCatalogRootV1> {
 	const photos = values.map(value => readPhoto(value, mode));
+	const guard = guardValue === undefined ? undefined : readPhotoDerivedPublicationGuardCurrentV1(guardValue);
+	if (guard && (mode !== 'current3' || guard.catalogId !== catalogId || photos.length !== 1 || guard.resultPhotoId !== photos[0]!.id)) {
+		throw new TypeError('Derived source authority requires its single Current result and selected catalog.');
+	}
 	return catalogTransaction(database, PHOTO_CATALOG_STORES, 'readwrite', async (stores) => {
 		const root = await requiredRoot(stores, catalogId);
 		if (root.revision !== expectedRevision) throw new PhotoCatalogRevisionConflictError('catalog');
 		const state = await requiredState(stores, root);
+		if (guard) for (const selection of guard.selections) {
+			const key = photoStorageKey(root.id, selection.photoId), raw: unknown = await request(stores.photos.get(key));
+			if (raw === undefined) throw new ReferenceError('A selected source Photo is missing.');
+			const source = readStoredPhotoCurrentV1(raw, key);
+			if (source.revision !== selection.revision || JSON.stringify(source.original) !== JSON.stringify(selection.original)) {
+				throw new PhotoCatalogRevisionConflictError('photo');
+			}
+		}
 		for (const photo of photos) {
 			validatePhotoCatalogReferencesV1(photo, root);
 			if (await request(stores.photos.getKey(photoStorageKey(root.id, photo.id))) !== undefined) throw new RangeError('Photo already exists in this catalog.');
