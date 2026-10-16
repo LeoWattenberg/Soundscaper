@@ -4,7 +4,7 @@
 
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, copyFile, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -33,7 +33,7 @@ export function validateKokoroG2pGpuRecipe(value) {
 	return value;
 }
 
-/** PyInstaller must copy these data files without substituting or adding native bytes. */
+/** The frozen helper must contain exactly the authenticated native bytes. */
 export async function verifyFrozenKokoroG2pGpu(root, files) {
 	const entries = await readdir(root, { withFileTypes: true });
 	if (entries.length !== files.length || entries.some((entry) => !entry.isFile()
@@ -46,6 +46,14 @@ export async function verifyFrozenKokoroG2pGpu(root, files) {
 			throw new Error('PyInstaller changed the authenticated G2P GPU native closure.');
 		}
 	}
+}
+
+/** PyInstaller rewrites/signs Mach-O files, including binaries passed as data. */
+export async function stageFrozenKokoroG2pGpu(sourceRoot, frozenRoot, files) {
+	await verifyFrozenKokoroG2pGpu(sourceRoot, files);
+	await mkdir(frozenRoot);
+	for (const file of files) await copyFile(join(sourceRoot, file.path), join(frozenRoot, file.path));
+	await verifyFrozenKokoroG2pGpu(frozenRoot, files);
 }
 
 export function desktopKokoroG2pGpuBuildPlan({ targetId, platform = process.platform, arch = process.arch }) {

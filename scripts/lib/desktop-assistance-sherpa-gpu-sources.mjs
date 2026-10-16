@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { extract } from 'tar';
 
 export function verifySherpaGpuSource(bytes, source) {
@@ -97,7 +98,18 @@ async function authenticatedSource(source, cacheRoot, fetchImpl) {
 		verifySherpaGpuSource(await readFile(path), source);
 		return path;
 	} catch (error) { if (error.code !== 'ENOENT') throw error; }
-	const response = await fetchImpl(source.url, { signal: AbortSignal.timeout(120_000) });
+	let response;
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		response = await fetchImpl(source.url, {
+			headers: { 'User-Agent': 'Soundscaper-runtime-builder', Accept: 'application/octet-stream, */*' },
+			signal: AbortSignal.timeout(120_000),
+		});
+		// GitLab sometimes rejects a public archive request with HTTP 406.
+		// Retry only transient HTTP failures; integrity failures remain terminal.
+		if (![406, 429, 502, 503, 504].includes(response.status) || attempt === 2) break;
+		await response.body?.cancel();
+		await setTimeout(500 * (attempt + 1));
+	}
 	if (!response.ok || !response.body) throw new Error(`Sherpa source download failed: ${source.id} (${response.status}).`);
 	const chunks = []; let length = 0;
 	for await (const chunk of response.body) {

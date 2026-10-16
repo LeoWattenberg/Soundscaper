@@ -9,7 +9,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extract, list } from 'tar';
 import gpuRecipe from '../../config/assistance-kokoro-g2p-gpu-build.json' with { type: 'json' };
-import { prepareDesktopKokoroG2pGpu, verifyFrozenKokoroG2pGpu } from '../lib/desktop-kokoro-g2p-gpu.mjs';
+import { prepareDesktopKokoroG2pGpu, stageFrozenKokoroG2pGpu } from '../lib/desktop-kokoro-g2p-gpu.mjs';
 import {
 	describeDesktopKokoroG2pBundle,
 	verifyDesktopKokoroG2pRuntime,
@@ -137,7 +137,6 @@ export async function buildKokoroG2pBundle({
 			'--workpath', join(work, 'work'), '--specpath', join(work, 'spec'),
 			'--additional-hooks-dir', join(PROJECT, 'hooks'),
 			'--add-data', `${dictionaryRoot}${delimiter}pyopenjtalk/${DICTIONARY_DIRECTORY}`,
-			'--add-data', `${gpuRoot}${delimiter}scape-gpu`,
 			...COLLECTIONS.flatMap((name) => ['--collect-all', name]),
 			...HIDDEN_IMPORTS.flatMap((name) => ['--hidden-import', name]),
 			HELPER,
@@ -146,9 +145,9 @@ export async function buildKokoroG2pBundle({
 		const built = join(work, 'dist', 'kokoro-g2p');
 		const executable = join(built, plan.executable);
 		if (!(await stat(executable)).isFile()) throw new Error('PyInstaller did not emit the Kokoro G2P executable.');
+		await stageFrozenKokoroG2pGpu(gpuRoot, join(built, '_internal/scape-gpu'), gpu.files);
 		await chmod(join(built, '_internal/scape-gpu', plan.executable.endsWith('.exe')
 			? 'onnx-webgpu-device-probe.exe' : 'onnx-webgpu-device-probe'), 0o755);
-		await verifyFrozenKokoroG2pGpu(join(built, '_internal/scape-gpu'), gpu.files);
 		const normalizedEmptyFiles = await normalizeKokoroG2pEmptyFiles(built);
 		await materializeKokoroG2pSymlinks(built);
 		await command('uv', ['run', '--no-sync', 'python', join(PROJECT, 'collect_notices.py'), built],

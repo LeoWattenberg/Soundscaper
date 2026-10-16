@@ -4,6 +4,7 @@
 
 import { execFile } from 'node:child_process';
 import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -51,6 +52,13 @@ export function desktopSherpaGpuRecipeSourceBuild() {
 		recipeId: recipe.recipeId, sourceRevision: recipe.sourceRevision,
 		sourceSha256: recipe.sources[0].sha256, recipeSha256: hash(Buffer.from(JSON.stringify(recipe))),
 	};
+}
+
+export function createSherpaGpuBuildWorkDirectory({ cacheRoot, platform = process.platform }) {
+	if (platform !== 'win32') return mkdtemp(join(cacheRoot, 'build-'));
+	// MSBuild's tracking logs still obey MAX_PATH even on long-path-enabled hosts.
+	// Keep the deep dependency build tree outside the checkout/cache on Windows.
+	return mkdtemp(join(tmpdir(), 'sc-sg-'));
 }
 
 /** Receipts may replace only the selected platform package; all other pins stay reviewed. */
@@ -118,7 +126,7 @@ export async function prepareDesktopAssistanceSherpaGpu({
 	}
 	const cache = resolve(cacheRoot, 'sherpa-gpu-builds', recipe.sourceRevision);
 	await mkdir(cache, { recursive: true });
-	const work = await mkdtemp(join(cache, 'build-'));
+	const work = await createSherpaGpuBuildWorkDirectory({ cacheRoot: cache, platform });
 	try {
 		const { roots, downloads } = await prepareSherpaGpuSources({ recipe, cacheRoot, work, targetId, fetchImpl });
 		await patchSherpaGpuSources(roots['sherpa-source'], recipe);

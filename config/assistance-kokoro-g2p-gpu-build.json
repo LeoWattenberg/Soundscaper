@@ -7,7 +7,7 @@
 		"cpu"
 	],
 	"recipeFiles": {
-		"native/assistance-kokoro-g2p-gpu/CMakeLists.txt": "47f59a90f024b6a9edc43b318e7ac0d76a1693315a87e614e9796351224bcee5",
+		"native/assistance-kokoro-g2p-gpu/CMakeLists.txt": "741c7148ef58b4323e14f72fa2bcb59c7336f470a630cf479966a96d7a6a2d1c",
 		"native/assistance-kokoro-g2p-gpu/ort-gemm.cc": "978f1e90b597e2de94d517fb7953c8ec805a7f9876df6d8e5aee5eefe6dc32ec",
 		"desktop/assistance_kokoro_g2p_gpu.py": "4cfc4d18903ca43324e71925122432ddebdc1d1fb1521b7e6fa06a839830c5a4",
 		"native/assistance-onnx-webgpu-node-api/webgpu_probe.h": "2d64b57afb24248f1a56577785ef27ec9e2131b615282cd124fc39b08d48d8e4",
