@@ -36,6 +36,19 @@ test('Sherpa builds reject unsupported and foreign native Linux targets', () => 
 	] as const) assert.throws(() => desktopSherpaGpuBuildPlan({ targetId, platform, architecture }), /target|native/iu);
 });
 
+test('Eigen uses a commit-pinned archive on the project mirror used by CI', async () => {
+	const recipe = JSON.parse(await readFile(new URL('../config/assistance-sherpa-gpu-build.json', import.meta.url), 'utf8')) as {
+		sources: { id: string; url: string; root?: string }[];
+	};
+	const eigen = recipe.sources.find(({ id }) => id === 'eigen');
+	assert.ok(eigen);
+	const source = new URL(eigen.url);
+	assert.equal(source.origin, 'https://codeload.github.com');
+	const revision = /^\/eigen-mirror\/eigen\/tar\.gz\/([a-f\d]{40})$/u.exec(source.pathname)?.[1];
+	assert.ok(revision, 'the Eigen mirror archive must use an immutable commit');
+	assert.equal(eigen.root, `eigen-${revision}`);
+});
+
 test('Sherpa GPU sources reject altered bytes and unsafe archive entries', () => {
 	const pin = { id: 'fixture', byteLength: 3, sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' };
 	assert.equal(verifySherpaGpuSource(Buffer.from('abc'), pin).toString(), 'abc');

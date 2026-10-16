@@ -22,7 +22,7 @@ export { validateSherpaGpuSourceEntry, verifySherpaGpuSource };
 
 const runFile = promisify(execFile);
 const TARGETS = ['mac-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'];
-const BUILD_ARGS = ['--config', 'Release', '--target', 'sherpa-onnx-node', 'sherpa-onnx-cxx-api', 'onnx-webgpu-device-probe', '--parallel', '4'];
+const BUILD_ARGS = ['--config', 'Release', '--target', 'scape-sherpa-gpu', '--parallel', '4'];
 const CONFIGURE_ARGS = [
 	'-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=ON', '-DFETCHCONTENT_FULLY_DISCONNECTED=ON',
 	'-DSHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=ON', '-DSHERPA_ONNX_ENABLE_TTS=OFF',

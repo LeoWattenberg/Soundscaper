@@ -93,3 +93,8 @@ if(WIN32)
 elseif(APPLE)
   target_link_options(sherpa-onnx-node PRIVATE "-undefined" "dynamic_lookup")
 endif()
+
+# Visual Studio omits unrelated projects from EXCLUDE_FROM_ALL subdirectories.
+# Bind the shipped C++ library into a root target so MSBuild can resolve it.
+add_custom_target(scape-sherpa-gpu
+  DEPENDS sherpa-onnx-node sherpa-onnx-cxx-api onnx-webgpu-device-probe)
