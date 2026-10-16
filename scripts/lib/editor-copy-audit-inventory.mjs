@@ -12,6 +12,7 @@ import { photoPngExportCopy } from '../../src/common/i18n/lightscaper-photo-png-
 import { photoExportPresetsCopy } from '../../src/common/i18n/lightscaper-photo-export-presets-copy.ts';
 import { imageExportGraphicCopy } from '../../src/common/i18n/image-export-graphic-copy.ts';
 import { imageExportTextCopy } from '../../src/common/i18n/image-export-text-copy.ts';
+import { imageHdrMergeCopy } from '../../src/common/i18n/image-hdr-merge-copy.ts';
 import { photoFramescaperHandoffCopy, photoFramescaperReceiveCopy, photoFramescaperCollectionHandoffCopy } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-copy.ts';
 import { photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel, photoFramescaperCollectionHandoffMenuLabel } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
 
@@ -45,6 +46,7 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	...photoJpegExport,
 	...imageExportGraphic,
 	...imageExportText,
+	...Object.fromEntries(Object.entries(imageHdrMergeCopy('en')).map(([key, value]) => [`ui.imageHdrMerge.${key}`, value])),
 	...photoExportPresets,
 	...Object.fromEntries(Object.entries(photoRawPreviewSourceCopy('en')).map(([key, value]) => [`ui.photoRawPreviewSource.${key}`, value])),
 	...photoFramescaperHandoff,
