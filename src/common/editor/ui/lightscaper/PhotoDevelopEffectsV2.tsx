@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createVideoEffectV2, normalizeVideoEffectV2, videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
 import type { VideoEffectLeafV2 } from '../../video-effect-leaf-v2.ts';
 import type { PhotoDevelopCopyV1 } from '../../../i18n/lightscaper-develop-copy.ts';
@@ -17,24 +17,39 @@ export default function PhotoDevelopEffectsV2(props: Readonly<{ effects: readonl
 	messages: PhotoDevelopCopyV1; disabled: boolean; isCurrent: () => boolean; importCubeLut?: PhotoLibraryCubeLutPortV1['importFile'];
 	onImportPending: (pending: boolean) => void; registerImportRetirement: (retire: () => Promise<void>) => () => void }>) {
 	const { messages, owner, effects, disabled } = props, [type, setType] = useState<string>(TYPES[0]), [error, setError] = useState('');
+	const token = {}, rendered = useRef<object | null>(token);
+	useLayoutEffect(() => { rendered.current = token; return () => { if (rendered.current === token) rendered.current = null; }; });
+	const authored = useRef<Readonly<{ owner: PhotoDevelopEffectsAuthoringPortV1; effects: readonly VideoEffectLeafV2[] }> | null>(null);
 	const label = (effectType: string) => effectType === 'develop-geometry-v1' ? messages.geometry
 		: messages.shared[videoEffectDefinitionV2(effectType).labelKey] ?? videoEffectDefinitionV2(effectType).label;
-	const current = () => !disabled && props.isCurrent();
+	const current = () => rendered.current === token && !disabled && props.isCurrent();
 	const currentEffect = (_effect: VideoEffectLeafV2) => current() && owner.snapshot().draft?.effects === effects;
-	const refusal = useRef<Readonly<{ effect: VideoEffectLeafV2; name: string }> | null>(null);
-	const set = (next: readonly VideoEffectLeafV2[]) => { if (current() && owner.snapshot().draft?.effects === effects) owner.setEffects(next); };
+	const refusal = useRef<Readonly<{ owner: PhotoDevelopEffectsAuthoringPortV1; effect: VideoEffectLeafV2; name: string }> | null>(null);
+	const retain = () => { const next = owner.snapshot().draft?.effects; authored.current = next ? { owner, effects: next } : null; };
+	const set = (next: readonly VideoEffectLeafV2[]) => { if (current() && owner.snapshot().draft?.effects === effects) { owner.setEffects(next); retain(); } };
+	// Several mounted controls can write before React publishes the next parent
+	// snapshot. Follow only this component's own accepted effects reference;
+	// external replacement and callbacks from an older render stay refused.
+	const editingEffects = () => {
+		if (!current()) return undefined;
+		const next = owner.snapshot().draft?.effects, previous = authored.current;
+		return next && (next === effects || previous?.owner === owner && previous.effects === next) ? next : undefined;
+	};
+	const editingEffect = (effect: VideoEffectLeafV2) => editingEffects()?.find(candidate =>
+		candidate.id === effect.id && candidate.type === effect.type && candidate.enabled);
 	const preview = (effect: VideoEffectLeafV2, name: string, value: number) => {
-		const params = { [name]: value };
-		if (!currentEffect(effect)) return false;
-		try { normalizeVideoEffectV2({ ...effect, params: { ...effect.params, ...params } }); }
-		catch { refusal.current = { effect, name }; setError(effect.type === 'parametric-curves-v1' ? messages.shared.videoEffectCurveParametersInvalid!
+		const params = { [name]: value }, selected = editingEffect(effect);
+		if (!selected) return false;
+		try { normalizeVideoEffectV2({ ...selected, params: { ...selected.params, ...params } }); }
+		catch { refusal.current = { owner, effect: selected, name }; setError(effect.type === 'parametric-curves-v1' ? messages.shared.videoEffectCurveParametersInvalid!
 			: effect.type === 'post-crop-vignette-v1' ? messages.shared.videoEffectPostCropVignetteInvalid! : messages.shared.videoEffectParametersInvalid!); return false; }
-		refusal.current = null; setError(''); owner.previewEffect(effect.id, params); return true;
+		refusal.current = null; setError(''); owner.previewEffect(effect.id, params); retain(); return true;
 	};
 	const settleGesture = (effect: VideoEffectLeafV2, name: string, cancel = false) => {
-		if (!currentEffect(effect)) return;
-		const previous = refusal.current, matches = previous?.effect === effect && previous.name === name;
-		if (cancel) owner.cancelGesture(); else owner.commitGesture();
+		if (!editingEffect(effect)) return;
+		const previous = refusal.current, matches = previous?.owner === owner && previous.effect.id === effect.id
+			&& previous.effect.type === effect.type && previous.name === name;
+		if (cancel) owner.cancelGesture(); else owner.commitGesture(); retain();
 		if (matches && refusal.current === previous) { refusal.current = null; setError(''); }
 	};
 	return <section aria-label={messages.adjustments} data-photo-develop-effects>
@@ -84,7 +99,7 @@ export default function PhotoDevelopEffectsV2(props: Readonly<{ effects: readonl
 								if (preview(effect, name, Number(event.currentTarget.value))) owner.commitGesture();
 							}}>{parameter.options?.map(option => <option key={option.value} value={option.value}>{messages.shared[option.labelKey] ?? option.label}</option>)}</select>
 							: <VideoEffectNumberInput label={exact} value={value} minimum={parameter.min} maximum={parameter.max} step={parameter.step}
-								disabled={disabled || !effect.enabled} onBegin={() => { if (currentEffect(effect)) owner.beginGesture(); }}
+								disabled={disabled || !effect.enabled} onBegin={() => { if (editingEffect(effect)) owner.beginGesture(); }}
 								onPreview={next => { preview(effect, name, next); }} onCommit={() => { settleGesture(effect, name); }}
 								onCancel={() => { settleGesture(effect, name, true); }} />}</label>;
 					})}
