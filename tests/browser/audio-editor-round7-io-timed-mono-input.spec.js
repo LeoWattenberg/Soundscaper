@@ -6,6 +6,11 @@ import { installOscillatorMicrophone, persistedProject, recordPass } from './hel
 
 test.use({ browserCoverage: false });
 
+function localDateTimeInput(date) {
+	return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+		.toISOString().slice(0, 19).replace(/:00$/u, '');
+}
+
 test('a negotiated mono default microphone can schedule the same take it records ordinarily', async ({ page }) => {
 	await installOscillatorMicrophone(page);
 	const editor = await bootEditor(page, '/embed/en/');
@@ -26,9 +31,12 @@ test('a negotiated mono default microphone can schedule the same take it records
 	await page.getByRole('dialog', { name: 'Record options', exact: true })
 		.getByRole('button', { name: 'Timed recording', exact: true }).click();
 	const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
+	const startInput = dialog.locator('input[type="datetime-local"]').first();
+	// Exercise native whole-minute normalization before authoring the actual start.
+	await startInput.fill(localDateTimeInput(new Date(2030, 0, 2, 3, 4, 0, 0)));
+	await expect(startInput).toHaveValue('2030-01-02T03:04');
 	const start = new Date(Date.now() + 30_000);
-	const local = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
-	await dialog.locator('input[type="datetime-local"]').first().fill(local);
+	await startInput.fill(localDateTimeInput(start));
 	await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
 	const scheduled = editor.getByRole('region', { name: /Recording is scheduled for/u });
 	await expect(scheduled).toBeVisible();
