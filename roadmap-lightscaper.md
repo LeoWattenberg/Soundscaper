@@ -959,9 +959,17 @@ there.
   custody through backup, restore and selected-session reopen. The broader
   product qualification remains in progress; this
   does not close the full L7 exit gate.
-- **Web Enhanced — Planned:** GPU evaluation of the develop stack where
-  capability-detected, with the CPU path as the conformance oracle under
-  recorded tolerance budgets.
+- **Web Enhanced — In progress:** [opt-in GPU Develop preview](docs/architecture/lightscaper-develop-gpu-preview.md)
+  starts with native Float32 white balance and the complete tone ladder through
+  Develop's existing Settings menu. CPU remains the default; GPU preferred is
+  temporary proxy/Full presentation policy. Unsupported families, capabilities,
+  numeric profiles and working sets retain the entire CPU recipe. Native
+  readback comparisons qualify a finite corpus, with the CPU path as oracle;
+  other color families, LUTs, geometry, spatial/optical stages, masks and true
+  Clone/Heal GPU execution remain unfinished. A digest-pinned Chromium
+  software-GPU baseline now gates Quality and Desktop Preview through required
+  coverage dependencies; its actual local native/UI project passes. Hosted CI
+  execution and the complete-stack conformance exit gate remain open.
 - **Electron Enhanced — Planned:** native raw decode and preview services
   through the milestone-5 helper architecture, fail-closed, with the WASM
   path as fallback.

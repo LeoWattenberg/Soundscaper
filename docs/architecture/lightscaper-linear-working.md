@@ -68,7 +68,20 @@ The active `createPhotoDevelopRenderRuntimeCurrentV1` composition delegates
 byte input to the unchanged V3 renderer and sends native linear word or float
 input to `withImageDevelopLinearCurrentV1`. Its complete recipe and resource
 plan finishes before source pixels are read. Disabled stages still undergo
-closed metadata admission. The execution order is:
+closed metadata admission.
+
+Those methods remain the default and export renderers. The additive Current
+`withGpuPreview` method is selected only by the temporary Develop Settings
+preview preference. Its first admitted GPU subset is identity, white balance
+and the full tone ladder on native linear word/Float32 sources. A stack needing
+another family, masks or repairs takes the entire existing CPU route, as do
+unsupported GPU numeric, capability or working-set profiles. Stages are never
+silently omitted. GPU stages store linear RGBA32F and return scoped Float32
+readback. Canonical Before and the final display, proof and histogram boundaries
+retain their existing policies. This is partial GPU coverage; broader native
+conformance and pinned CI parity remain open.
+
+The shared execution order is:
 
 1. Clone and screened-Poisson Heal in Original coordinates, with every donor
    and Heal boundary sampled from the immutable normalized Original.
@@ -174,9 +187,9 @@ Save/reload loop. Qualification of the expanded multistage workflow is in
 progress; this document does not claim its final suite or browser result.
 
 [RAW camera culling](lightscaper-culling.md#current-raw-preview-source) uses a
-separate opt-in display source; it never supplies this working stack. Highlight
-recovery, wider primaries/output, soft proofing, GPU/native execution,
-lens/camera profiles and HDR merge are separate unfinished work.
+separate opt-in display source; it never supplies this working stack. Complete
+GPU stack coverage and conformance, native desktop services and reviewed
+lens/camera profiles remain unfinished.
 External RAW runtime/source publication, broader camera qualification, the
 remaining L3–L6 gates, L7 exit, desktop L8 and owner-QA L9 remain open.
 

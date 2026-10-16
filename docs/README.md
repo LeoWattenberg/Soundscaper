@@ -26,6 +26,8 @@ belong in Git history, not in the maintained documentation set.
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Photo Develop workspace](architecture/lightscaper-develop-workspace.md)
   defines per-version history, scoped rendering, settings selection, and durable batch receipts.
+- [Opt-in GPU Develop preview](architecture/lightscaper-develop-gpu-preview.md)
+  defines native WB/tone execution, whole-recipe CPU fallback, bounded ownership and remaining GPU scope.
 - [Full-resolution Develop inspection](architecture/lightscaper-develop-full-resolution-zoom.md)
   defines authenticated original reads, fixed render profiles and scoped zoom presentation.
 - [Photo export sidecars](architecture/lightscaper-photo-export-sidecar.md)

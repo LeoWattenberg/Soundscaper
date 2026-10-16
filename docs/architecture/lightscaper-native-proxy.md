@@ -52,6 +52,14 @@ declarations, LUT bodies/parser reserves, stage replacements and display work
 retain their existing charges. This phase bound is not a whole-application heap
 claim or a bound for decoder/browser-native storage.
 
+GPU preference admits its complete preferred phase beside the full physical
+Original backing: native proxy input, private Float32 capture, two RGBA32F
+targets, Float32 readback and the existing full/fitted presentation allowance.
+Capability probing has a separate fixed reserve. If that phase cannot fit but
+the entire CPU phase can, the same admitted source and one proxy capture select
+CPU before GL allocation. If neither fits, the request refuses. No fallback
+reopens the Original.
+
 Native promotion starts at the fitted proxy extent; each adjustment uses its
 admitted natural proxy stage extent. No full-Original Float32 capture is
 allocated merely to construct a smaller proxy. Each scoped

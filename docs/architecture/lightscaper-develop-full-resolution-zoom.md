@@ -1,6 +1,6 @@
 # Full-resolution Develop inspection
 
-File > Photo > Develop starts with a fit-screen derivative. The existing
+File > Photo > Develop starts with a fit-screen proxy. The existing
 Settings menu offers Full resolution (100%) and Fit-screen proxy. Full
 resolution displays the developed output at one CSS pixel per image pixel;
 its focusable viewport supports keyboard scrolling. Before/after and split
@@ -42,3 +42,10 @@ original reader's final revision check and backing retirement; a refused
 check clears both painted canvases. Resolution is presentation state:
 it creates no settings, history, snapshot, version, metadata or original
 write, and reopening starts with the fit-screen proxy.
+
+Current Settings → Preview rendering can temporarily prefer GPU for admitted
+native identity, white-balance and tone-ladder stacks in either resolution.
+CPU remains the default, unsupported complete stacks use CPU, and the renderer
+preference resets on reopening. The choice does not change saved settings,
+history, exports or Original custody. Complete GPU stack coverage and native
+conformance remain unfinished.
