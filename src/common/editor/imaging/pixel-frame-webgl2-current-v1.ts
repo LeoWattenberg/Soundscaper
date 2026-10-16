@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { readClosedDomainArray as array, readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
+import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
 import { admitPixelFrameV1 } from './pixel-frame-admission-v1.ts';
 import { readPixelFrameV1 } from './pixel-frame-contract-v1.ts';
 import { captureLinearKernelDescriptorV1, LINEAR_KERNEL_LIMITS_V1 } from './linear-kernel-descriptor-v1.ts';
@@ -7,7 +7,7 @@ import type { LinearWorkingPixelFrameV1 } from './image-develop-linear-frame-v1.
 import { LinearDevelopOwnerV1 } from './image-develop-linear-owner-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
 import { PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from './pixel-frame-webgl2-color-current-v1.ts';
-import { readPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
+import { planPixelFrameWebGl2PipelineCurrentV1 } from './pixel-frame-webgl2-pipeline-current-v1.ts';
 import { planPixelFrameWebGl2LutsCurrentV1, withPixelFrameWebGl2LutsCurrentV1, isPixelFrameWebGl2LutCurrentV1,
 	type PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { captureCubeLutSourceV1 } from './cube-lut-source-scope-v1.ts';
@@ -28,16 +28,16 @@ export function planPixelFrameWebGl2CurrentV1(value: unknown) {
 		profiles: ['float32', 'unorm16'].flatMap(sampleFormat => ['srgb', 'bt709'].map(primaries => ({ sampleFormat, primaries, transfer: 'linear' }))), limits: LINEAR_KERNEL_LIMITS_V1,
 	});
 	const descriptor = captureLinearKernelDescriptorV1({ ...sourcePlan.descriptor, sampleFormat: 'float32' });
-	const passes = Object.freeze(array(field(input, 'passes', 'Native GPU request'), 'Native GPU passes', 0, 256).map(readPixelFrameWebGl2PassCurrentV1));
+	const pipeline = planPixelFrameWebGl2PipelineCurrentV1(descriptor, field(input, 'passes', 'Native GPU request')), passes = pipeline.passes;
 	const lutPasses = Object.freeze(passes.filter(isPixelFrameWebGl2LutCurrentV1)), luts = planPixelFrameWebGl2LutsCurrentV1(lutPasses);
 	const lutSource = luts.references.length ? captureCubeLutSourceV1(field(input, 'lutSource', 'Native GPU LUT source')) : undefined;
 	const floatBytes = descriptor.width * descriptor.height * 16;
 	const uniformBytes = passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
 	const resourceBytes = luts.oracleBytes + luts.uploadBytes + luts.textureBytes;
-	const gpuWorkingBytes = sourcePlan.byteLength + floatBytes * 4 + uniformBytes + resourceBytes;
+	const gpuWorkingBytes = sourcePlan.byteLength + floatBytes + pipeline.textureBytes + pipeline.readbackBytes + pipeline.referenceBytes + uniformBytes + resourceBytes;
 	const peakWorkingBytes = Math.max(gpuWorkingBytes, sourcePlan.byteLength + floatBytes + luts.capturePeakBytes,
 		sourcePlan.byteLength + floatBytes + luts.oracleBytes + luts.textureBytes + 1024);
-	return Object.freeze({ raw, sourcePlan, descriptor, passes, lutPasses, luts, lutSource, floatBytes, uniformBytes, resourceBytes,
+	return Object.freeze({ raw, sourcePlan, descriptor, passes, pipeline, lutPasses, luts, lutSource, floatBytes, uniformBytes, resourceBytes,
 		gpuWorkingBytes, peakWorkingBytes, eligible: luts.eligible && peakWorkingBytes <= MAXIMUM });
 }
 
@@ -56,7 +56,7 @@ export async function withPixelFrameWebGl2CurrentV1<Result>(value: unknown,
 	const borrowedBytes = Number(Reflect.apply(SIZE, Reflect.apply(BUFFER, source.pixels, []), []));
 	if (borrowedBytes + plan.floatBytes > MAXIMUM) throw new RangeError('Native GPU source capture exceeds its physical working bound.');
 	const eligible = plan.eligible && borrowedBytes + plan.peakWorkingBytes - plan.sourcePlan.byteLength <= MAXIMUM;
-	const owner = new LinearDevelopOwnerV1(borrowedBytes, MAXIMUM - (eligible ? plan.floatBytes * 2 + plan.uniformBytes + plan.resourceBytes : 0));
+	const owner = new LinearDevelopOwnerV1(borrowedBytes, MAXIMUM - (eligible ? plan.pipeline.textureBytes + plan.pipeline.referenceBytes + plan.uniformBytes + plan.resourceBytes : 0));
 	return owner.run(async () => {
 		const pixels = owner.floats(plan.floatBytes / 4);
 		if (source.pixels instanceof Float32Array) Float32Array.prototype.set.call(pixels, source.pixels);
@@ -70,7 +70,7 @@ export async function withPixelFrameWebGl2CurrentV1<Result>(value: unknown,
 			// The exact host source is already captured. Default CPU composition
 			// need not load any executable WebGL context owner.
 			const native = await import('./pixel-frame-webgl2-context-current-v1.ts'); check();
-			try { context = await native.openPixelFrameWebGl2ContextCurrentV1(captured, plan.passes, () => readback = owner.floats(pixels.length), signal, resources); }
+			try { context = await native.openPixelFrameWebGl2ContextCurrentV1(captured, plan.passes, () => readback = owner.floats(plan.pipeline.readbackBytes / 4), signal, resources); }
 			catch (error) { const unavailable = native.pixelFrameWebGl2UnavailableReasonCurrentV1(error); if (unavailable === null) throw error; reason = unavailable; }
 		};
 		if (eligible) try {
@@ -90,7 +90,7 @@ export async function withPixelFrameWebGl2CurrentV1<Result>(value: unknown,
 			check(); const result = await consume(Object.freeze({ backend: 'cpu', reason: reason!, source: captured })); check(); return result;
 		}
 		let outcome: { value: Result } | { error: unknown };
-		try { check(); const result = await consume(Object.freeze({ backend: 'webgl2', frame: Object.freeze({ descriptor: plan.descriptor, pixels: context.pixels }) }));
+		try { check(); const result = await consume(Object.freeze({ backend: 'webgl2', frame: Object.freeze({ descriptor: plan.pipeline.finalDescriptor, pixels: context.pixels }) }));
 			check(); context.assertCurrent(); outcome = { value: result };
 		} catch (error) { outcome = { error }; }
 		let retirement: { error: unknown } | undefined;

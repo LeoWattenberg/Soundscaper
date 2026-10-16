@@ -11,16 +11,16 @@ export const PIXEL_FRAME_WEBGL2_COLOR_MAXIMUM_ULPS_CURRENT_V1 = 8;
 type Pass = PreparedPixelFrameWebGl2PassCurrentV1;
 
 function capture(passes: readonly unknown[]): readonly Pass[] {
-	if (!Array.isArray(passes) || passes.length > 256) throw new RangeError('Native GPU requires at most256 owning passes.');
+	if (!Array.isArray(passes) || passes.length > 257) throw new RangeError('Native GPU requires at most257 owning passes.');
 	return passes.map(readPixelFrameWebGl2PassCurrentV1);
 }
 function nonlinear(pass: Pass): boolean {
-	if (pass.kind === 8) return false;
+	if (pass.kind === 8 || pass.kind === 9) return false;
 	const p = pass.params0, q = pass.params1;
 	return pass.kind === 2 && (p[1] !== 1 || p[2] !== 0 || p[3] !== 0 || q[0] !== 0 || q[1] !== 0);
 }
 function globalOutputEligible(current: number, value: number, pass: Pass, arithmetic: boolean): boolean {
-	if (pass.kind === 8) throw new TypeError('LUTs require their streamed native oracle.');
+	if (pass.kind === 8 || pass.kind === 9) throw new TypeError('LUTs and geometry require their normative native oracle.');
 	const next = Math.fround(value);
 	if (!Number.isFinite(next)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
 	if (nonlinear(pass)) {
@@ -48,7 +48,7 @@ export async function pixelFrameWebGl2NumericEligibleCurrentV1(pixels: Float32Ar
 	}
 	if (passes.some(pass => pass.kind > 2)) return true;
 	for (const pass of passes) {
-		if (pass.kind === 8) return true;
+		if (pass.kind === 8 || pass.kind === 9) return true;
 		const p = pass.params0, q = pass.params1;
 		if (nonlinear(pass) && (minimum.some(value => value < EXACT_SMALL)
 			|| [...p, ...q].some(value => value !== 0 && Math.abs(value) < EXACT_SMALL))) return false;
@@ -83,6 +83,16 @@ function ordered(value: number): number {
 	return value < 0 ? 0x80000000 - rank : 0x80000000 + rank;
 }
 
+/** Shared final-component contract. A spatial reference may supply the mapped
+ * ancestral Original component; absent provenance grants no unchanged guard. */
+export function pixelFrameWebGl2ComponentEquivalentCurrentV1(expected: number, actual: number, original?: number): boolean {
+	if (!Number.isFinite(expected)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
+	if (!Number.isFinite(actual)) return false;
+	if (Object.is(expected, actual)) return true;
+	if ((original !== undefined && Object.is(expected, original)) || expected === 0 || actual === 0 || Math.abs(expected) < EXACT_SMALL) return false;
+	return Math.abs(ordered(expected) - ordered(actual)) <= PIXEL_FRAME_WEBGL2_COLOR_MAXIMUM_ULPS_CURRENT_V1;
+}
+
 /** The existing native CPU scalar is the numerical authority. Round once per
  * authored effect; keep exact alpha, zero, tiny and unchanged native samples.
  * Other finite normal results permit at most8 ULPs, never an absolute epsilon.
@@ -91,16 +101,11 @@ function ordered(value: number): number {
 export async function validatePixelFrameWebGl2ColorReadbackCurrentV1(source: Float32Array<ArrayBuffer>, result: Float32Array<ArrayBuffer>,
 	values: readonly unknown[], check: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>): Promise<boolean> {
 	check(); const passes = capture(values);
+	if (passes.some(pass => pass.kind === 9)) throw new TypeError('Native GPU geometry requires a whole-plane normative reference.');
 	if (!(source instanceof Float32Array) || !(result instanceof Float32Array) || !source.length
 		|| source.length !== result.length || source.length % 4 !== 0) throw new RangeError('Native GPU comparison requires equal RGBA Float32 planes.');
 	const target = { red: 0, green: 0, blue: 0 }, budget = new RepairTaskBudgetV1(check);
-	const equivalent = (expected: number, actual: number, original: number): boolean => {
-		if (!Number.isFinite(expected)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
-		if (!Number.isFinite(actual)) return false;
-		if (Object.is(expected, actual)) return true;
-		if (Object.is(expected, original) || expected === 0 || actual === 0 || Math.abs(expected) < EXACT_SMALL) return false;
-		return Math.abs(ordered(expected) - ordered(actual)) <= PIXEL_FRAME_WEBGL2_COLOR_MAXIMUM_ULPS_CURRENT_V1;
-	};
+	const equivalent = pixelFrameWebGl2ComponentEquivalentCurrentV1;
 	try {
 		for (let at = 0; at < source.length; at += 4) {
 			if (budget.visit()) await budget.yield();

@@ -4,12 +4,16 @@ import { readPixelFrameWebGl2ColorCurrentV1, writePixelFrameWebGl2ColorChannelsC
 import { isPixelFrameWebGl2LutCurrentV1, readPixelFrameWebGl2LutCurrentV1,
 	type PreparedPixelFrameWebGl2LutCurrentV1, type PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import type { LinearColorChannelsV1 } from './pixel-frame-linear-chroma-v1.ts';
+import { isPixelFrameWebGl2GeometryCurrentV1, readPixelFrameWebGl2GeometryCurrentV1,
+	type PreparedPixelFrameWebGl2GeometryCurrentV1 } from './pixel-frame-webgl2-geometry-current-v1.ts';
 
-export type PreparedPixelFrameWebGl2PassCurrentV1 = Readonly<PreparedPixelFrameWebGl2ColorCurrentV1> | Readonly<PreparedPixelFrameWebGl2LutCurrentV1>;
+export type PreparedPixelFrameWebGl2PassCurrentV1 = Readonly<PreparedPixelFrameWebGl2ColorCurrentV1> | Readonly<PreparedPixelFrameWebGl2LutCurrentV1>
+	| Readonly<PreparedPixelFrameWebGl2GeometryCurrentV1>;
 
-/** Only owning color identities or closed LUT references enter the native
+/** Only owning color, geometry and closed LUT identities enter the native
  * dispatcher. A LUT reference grants no table access outside its resource scope. */
 export function readPixelFrameWebGl2PassCurrentV1(value: unknown): PreparedPixelFrameWebGl2PassCurrentV1 {
+	if (isPixelFrameWebGl2GeometryCurrentV1(value)) return readPixelFrameWebGl2GeometryCurrentV1(value);
 	return isPixelFrameWebGl2LutCurrentV1(value) ? readPixelFrameWebGl2LutCurrentV1(value) : readPixelFrameWebGl2ColorCurrentV1(value);
 }
 export function pixelFrameWebGl2PassSupportedCurrentV1(value: unknown, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>): boolean {
@@ -21,6 +25,7 @@ export function pixelFrameWebGl2PassSupportedCurrentV1(value: unknown, resources
 export function writePixelFrameWebGl2PassChannelsCurrentV1(value: unknown, red: number, green: number, blue: number,
 	target: LinearColorChannelsV1, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>): void {
 	const pass = readPixelFrameWebGl2PassCurrentV1(value);
+	if (pass.kind === 9) throw new TypeError('Native GPU geometry requires a whole-plane normative reference.');
 	if (pass.kind !== 8) { writePixelFrameWebGl2ColorChannelsCurrentV1(pass, red, green, blue, target); return; }
 	if (!resources) throw new TypeError('Native GPU LUT requires its current authenticated resource scope.');
 	resources.writeChannels(pass, red, green, blue, target);
